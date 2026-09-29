@@ -77,7 +77,14 @@ export function useDictation(onText: (text: string) => void) {
     };
     r.onerror = (e) => {
       if (e.error === "no-speech" || e.error === "aborted") return;
-      setError(e.error === "not-allowed" ? "Разрешите доступ к микрофону в настройках браузера" : "Не удалось распознать речь");
+      const messages: Record<string, string> = {
+        "not-allowed": "Браузер не дал доступ к микрофону. Нажмите на значок замка в адресной строке → Микрофон → Разрешить и попробуйте снова.",
+        "service-not-allowed": "Голосовой ввод недоступен в этом браузере. Попробуйте Chrome или Edge.",
+        "audio-capture": "Микрофон не найден. Проверьте, что он подключён.",
+        network: "Для распознавания речи нужен интернет. Проверьте соединение.",
+        "language-not-supported": "Этот язык распознавания не поддерживается браузером. Выберите RU.",
+      };
+      setError(messages[e.error] ?? "Не удалось распознать речь");
       wanted.current = false;
       setListening(false);
     };
