@@ -23,7 +23,7 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
   return (
     <div className="min-h-dvh bg-[radial-gradient(60%_40%_at_50%_0%,#f4e4df,transparent)]">
       <header className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <Logo />
+        <Logo variant="full" />
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-20 sm:px-6">
         <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
