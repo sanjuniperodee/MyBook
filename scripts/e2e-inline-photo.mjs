@@ -62,19 +62,59 @@ await page.waitForTimeout(400);
 const widthAfterResize = Number(await handle.getAttribute("aria-valuenow"));
 console.log("width after corner drag:", widthAfterResize);
 
-// Перетаскиваем фото к первому абзацу — оно встаёт перед текстом.
-await aside.locator(".overflow-y-auto").evaluate((el) => (el.scrollTop = 0));
-await inspector.getByLabel("Место фото в тексте").selectOption("1"); // после 1-го абзаца — рядом с началом страницы
+// Перетаскиваем фото на другой абзац.
+await inspector.getByLabel("Место фото в тексте").selectOption("3"); // после 3-го абзаца — дальше перетащим выше
 await page.waitForTimeout(500);
-await page.waitForTimeout(200);
-const [, fb] = await visible(aside.locator("figure[data-photo]"));
+// Превью показывает всю книгу: ждём, пока оно докрутит к текущему ответу, и ставим фото в видимую часть.
+await page.waitForTimeout(1600);
+const fb = await page.evaluate(() => {
+  const box = [...document.querySelectorAll("aside")].find((a) => a.textContent.includes("Так будет в книге")).querySelector(".overflow-y-auto");
+  const inAside = (r) => r.width > 0 && r.left >= box.getBoundingClientRect().left - 12 && r.right <= box.getBoundingClientRect().right + 12;
+  const fig = [...box.querySelectorAll("figure[data-photo]")].find((n) => inAside(n.getBoundingClientRect()));
+  if (!fig) return null;
+  box.scrollTop += fig.getBoundingClientRect().top - box.getBoundingClientRect().top - 260;
+  const r = fig.getBoundingClientRect();
+  return { x: r.left, y: r.top, width: r.width, height: r.height };
+});
+await page.waitForTimeout(400);
 console.log("figure box", fb);
-const [, p0] = await visible(aside.locator("p[data-para='0']"));
-await page.mouse.move(fb.x + fb.width / 2, fb.y + fb.height / 2);
+// Берём видимый абзац ответа (копии потока на других страницах обрезаны) и бросаем фото на его верхнюю половину:
+// фото должно встать перед этим абзацем, то есть после абзаца i−1 — в списке это позиция i.
+const target = await page.evaluate(() => {
+  const box = [...document.querySelectorAll("aside")].find((a) => a.textContent.includes("Так будет в книге")).querySelector(".overflow-y-auto").getBoundingClientRect();
+  for (const node of document.querySelectorAll("p[data-para]")) {
+    const i = Number(node.dataset.para);
+    if (i < 1 || i === 3) continue; // перед абзацем 3 фото уже стоит — ищем другое место
+    for (const r of node.getClientRects()) {
+      if (r.top < box.top + 20 || r.top + 10 > box.bottom) continue;
+      if (document.elementFromPoint(r.left + 20, r.top + 3) === node) return { i, x: r.left + 20, y: r.top + 3 };
+    }
+  }
+  return null;
+});
+if (!target) throw new Error("no visible paragraph to drop on");
+const p0 = { x: target.x - 40, y: target.y - 3 };
+// Замеряем фото ещё раз непосредственно перед нажатием: превью могло докрутиться.
+const fb2 = await page.evaluate(() => {
+  const box = [...document.querySelectorAll("aside")].find((a) => a.textContent.includes("Так будет в книге")).querySelector(".overflow-y-auto");
+  for (const fig of box.querySelectorAll("figure[data-photo]")) {
+    const r = fig.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (hit && fig.contains(hit)) return { x: r.left, y: r.top, width: r.width, height: r.height };
+  }
+  return null;
+});
+if (!fb2) throw new Error("photo not visible in preview");
+await page.mouse.move(fb2.x + fb2.width / 2, fb2.y + fb2.height / 2);
 await page.mouse.down();
 await page.mouse.move(p0.x + 40, p0.y + 3, { steps: 12 });
+if (process.env.DEBUG_DROP) console.log("p0", p0, await page.evaluate(([x, y]) => document.elementsFromPoint(x, y).slice(0, 6).map((e) => `${e.tagName}.${JSON.stringify(e.dataset)}`), [p0.x + 40, p0.y + 3]), await page.locator(".pointer-events-none.fixed").allInnerTexts());
 await page.mouse.up();
 await page.waitForTimeout(400);
+if (process.env.DEBUG_DROP) {
+  console.log("target", target, "inspector:", await page.getByTestId("photo-inspector").count());
+  await page.screenshot({ path: `${out}/after-drop.png` });
+}
 const posAfterDrag = await inspector.getByLabel("Место фото в тексте").inputValue();
 console.log("position after drag:", posAfterDrag);
 
@@ -106,5 +146,5 @@ pdf.length = 2;
 console.log("preview pdf:", pdf, "book", bookId);
 console.log(errors.length ? errors.join("\n") : "no page errors");
 await browser.close();
-const ok = previewPages >= 2 && widthAfterResize < 50 && posAfterDrag === "0" && persisted.includes(`${widthAfterResize}%`) && pdf[0] === 200;
+const ok = previewPages >= 2 && widthAfterResize < 50 && posAfterDrag === String(target.i) && persisted.includes(`${widthAfterResize}%`) && pdf[0] === 200;
 process.exit(ok ? 0 : 1);

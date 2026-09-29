@@ -194,6 +194,7 @@ export function PagePreview({
 
   // ── Перетаскивание ──
   /** undefined — под курсором нет места для вставки. */
+  const suppressClickUntil = useRef(0);
   const dropTarget = (x: number, y: number): number | null | undefined => {
     for (const el of document.elementsFromPoint(x, y)) {
       const node = el as HTMLElement;
@@ -243,6 +244,8 @@ export function PagePreview({
   const onPointerUp = (e: ReactPointerEvent, id: string) => {
     if (!drag) return;
     e.stopPropagation();
+    // После перетаскивания браузер шлёт click — фото уже переехало, и клик не должен снимать выделение.
+    if (drag.kind === "resize" || drag.active) suppressClickUntil.current = e.timeStamp + 400;
     if (drag.kind === "resize") {
       if (drag.width !== drag.startWidth) onChange?.(id, { width: drag.width });
     } else if (drag.active) {
@@ -520,6 +523,7 @@ export function PagePreview({
                       className={`relative bg-white ${pageShadow}`}
                       style={{ width: pageW, height: H * px }}
                       onClick={(e) => {
+                        if (e.timeStamp < suppressClickUntil.current) return;
                         if (interactive && selectedId && !(e.target as HTMLElement).closest("[data-photo]")) onSelect?.(null);
                       }}
                     >
