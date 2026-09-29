@@ -1,5 +1,6 @@
 "use client";
 
+import { ask, toastError } from "@/components/ui/overlays";
 import { useState, useTransition } from "react";
 import { BellRing, LoaderCircle, Plus, ShieldCheck, X } from "lucide-react";
 import { remindClientAction, setUserRoleAction, updateClientTagsAction } from "../../actions";
@@ -85,14 +86,14 @@ export function RoleToggle({ clientId, role }: { clientId: string; role: "user" 
     <button
       className="flex items-center gap-1.5 text-xs text-muted hover:text-ink"
       disabled={pending}
-      onClick={() => {
+      onClick={async () => {
         const next = role === "admin" ? "user" : "admin";
-        if (confirm(next === "admin" ? "Выдать права администратора? Пользователь получит доступ ко всем заказам и данным клиентов." : "Снять права администратора?"))
+        if (await ask(next === "admin" ? "Выдать права администратора? Пользователь получит доступ ко всем заказам и данным клиентов." : "Снять права администратора?"))
           start(async () => {
             try {
               await setUserRoleAction(clientId, next);
             } catch (e) {
-              alert((e as Error).message);
+              toastError(e);
             }
           });
       }}

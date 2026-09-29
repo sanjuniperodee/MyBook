@@ -72,7 +72,7 @@ export function CheckoutForm({
     });
 
   return (
-    <form action={action} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <form action={action} className="grid gap-10 pb-24 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
       <input type="hidden" name="bookId" value={bookId} />
       <input type="hidden" name="plan" value={planId} />
       <input type="hidden" name="quantity" value={qty} />
@@ -379,6 +379,17 @@ export function CheckoutForm({
           <TrustList compact className="mt-6 border-t border-line pt-5 text-ink-soft" />
         </div>
       </aside>
+
+      {/* На телефоне итог уезжает вниз — держим сумму и кнопку под рукой */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs text-muted">К оплате</div>
+          <div className="font-serif text-2xl leading-none tabular-nums">{formatPrice(total)}</div>
+        </div>
+        <SubmitButton className="h-11" pendingText="Оформляем…">
+          Оформить
+        </SubmitButton>
+      </div>
     </form>
   );
 }

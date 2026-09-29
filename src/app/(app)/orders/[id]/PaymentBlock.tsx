@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/overlays";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -92,8 +93,9 @@ export function PaymentBlock(props: {
         <button
           className="text-sm text-muted underline underline-offset-4 hover:text-red-700"
           disabled={pending}
-          onClick={() => {
-            if (confirm("Отменить заказ? Книгу снова можно будет редактировать.")) start(() => cancelOrderAction(props.orderId));
+          onClick={async () => {
+            if (await confirmDialog({ title: "Отменить заказ?", text: "Книгу снова можно будет редактировать и оформить заказ заново.", confirmLabel: "Отменить заказ", cancelLabel: "Оставить", danger: true }))
+              start(() => cancelOrderAction(props.orderId));
           }}
         >
           Отменить заказ и вернуться к редактированию

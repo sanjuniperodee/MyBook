@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/components/ui/overlays";
 import { useActionState, useState, useTransition } from "react";
 import { KeyRound, LoaderCircle, ShieldOff } from "lucide-react";
 import { createAccountAction, resetPasswordAction, setUserRoleAction, type AdminState } from "../actions";
@@ -48,8 +49,8 @@ export function MemberActions({ userId, isSelf }: { userId: string; isSelf: bool
         <button
           className="flex items-center gap-1.5 text-xs text-muted hover:text-ink"
           disabled={pending}
-          onClick={() => {
-            if (confirm("Сбросить пароль? Пользователь будет разлогинен, новый пароль покажем здесь один раз."))
+          onClick={async () => {
+            if (await ask("Сбросить пароль? Пользователь будет разлогинен, новый пароль покажем здесь один раз."))
               start(async () => {
                 const res = await resetPasswordAction(userId);
                 setMsg({ ok: res.ok, text: res.message });
@@ -61,8 +62,8 @@ export function MemberActions({ userId, isSelf }: { userId: string; isSelf: bool
         <button
           className="flex items-center gap-1.5 text-xs text-red-700 hover:text-red-900"
           disabled={pending}
-          onClick={() => {
-            if (confirm("Снять права администратора? Аккаунт останется обычным клиентским."))
+          onClick={async () => {
+            if (await ask("Снять права администратора? Аккаунт останется обычным клиентским."))
               start(async () => {
                 try {
                   await setUserRoleAction(userId, "user");

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
+import { LettersArt } from "@/components/illustrations";
 
 export function LetterForm({ token, recipient }: { token: string; recipient: string }) {
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
@@ -10,9 +11,9 @@ export function LetterForm({ token, recipient }: { token: string; recipient: str
 
   if (state === "sent") {
     return (
-      <div className="card p-8 text-center">
-        <Heart className="mx-auto size-10 text-wine" fill="currentColor" />
-        <h2 className="mt-4 font-serif text-3xl">Спасибо!</h2>
+      <div className="card animate-[toast-in_300ms_var(--ease-out-soft)_both] p-8 text-center">
+        <LettersArt className="mx-auto h-36 w-auto" />
+        <h2 className="mt-2 font-serif text-3xl">Спасибо!</h2>
         <p className="mt-2 text-muted">Ваше письмо отправлено автору книги. {recipient ? `${recipient} прочитает его на страницах книги.` : ""}</p>
       </div>
     );

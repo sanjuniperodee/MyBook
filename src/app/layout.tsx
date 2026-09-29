@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import "./globals.css";
 import { Suspense } from "react";
 import { Analytics } from "@/components/analytics/Analytics";
+import { Overlays } from "@/components/ui/overlays";
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ru" className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">
         {children}
+        <Overlays />
         <Suspense fallback={null}>
           <Analytics ids={{ ym: process.env.YANDEX_METRIKA_ID, ga: process.env.GA_MEASUREMENT_ID, pixel: process.env.META_PIXEL_ID }} />
         </Suspense>

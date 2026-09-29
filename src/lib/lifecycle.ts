@@ -1,4 +1,5 @@
 import "server-only";
+import { booksId } from "@/lib/db/refs";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -71,9 +72,9 @@ async function draftCandidates(): Promise<Candidate[]> {
     .select({
       book: books,
       user: users,
-      answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) > 0)`,
-      firstEmpty: sql<number | null>`(select min(q.position) from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) = 0)`,
-      hasOrder: sql<boolean>`exists(select 1 from ${orders} o where o.book_id = ${books.id} and o.status <> 'cancelled')`,
+      answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
+      firstEmpty: sql<number | null>`(select min(q.position) from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) = 0)`,
+      hasOrder: sql<boolean>`exists(select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
     })
     .from(books)
     .innerJoin(users, eq(users.id, books.userId))

@@ -1,3 +1,4 @@
+import { booksId } from "@/lib/db/refs";
 import { nowMs } from "@/lib/utils";
 import { getOccasion, humanDay } from "@/lib/occasions";
 import Link from "next/link";
@@ -23,8 +24,8 @@ type Filter = keyof typeof filters;
 export default async function AdminBooks({ searchParams }: { searchParams: Promise<{ f?: string; q?: string; theme?: string }> }) {
   const sp = await searchParams;
   const f = (sp.f && sp.f in filters ? sp.f : "all") as Filter;
-  const answered = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) > 0)`;
-  const total = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id})`;
+  const answered = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`;
+  const total = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`;
   const staleDate = new Date(nowMs() - STALLED_DAYS * 86_400_000);
   const w: SQL[] = [];
   if (f === "writing") w.push(eq(books.status, "draft"), sql`${books.updatedAt} >= ${staleDate}`);
@@ -42,8 +43,8 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
       owner: { id: users.id, email: users.email, name: users.name, remindedAt: users.remindedAt },
       answered,
       total,
-      photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${books.id})`,
-      hasOrder: sql<boolean>`exists (select 1 from ${orders} o where o.book_id = ${books.id} and o.status <> 'cancelled')`,
+      photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
+      hasOrder: sql<boolean>`exists (select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
     })
     .from(books)
     .innerJoin(users, eq(books.userId, users.id))

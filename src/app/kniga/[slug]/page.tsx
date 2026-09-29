@@ -6,6 +6,7 @@ import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
 import { getCurrentUser } from "@/lib/auth";
+import { Faq } from "@/components/Faq";
 import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
@@ -175,14 +176,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
         <section className="py-20 sm:py-24">
           <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
             <h2 className="font-serif text-4xl font-medium">Вопросы</h2>
-            <div className="divide-y divide-line border-y border-line">
-              {[...l.faq, ["Сколько стоит книга?", `От ${formatPrice(minPrice)} за электронную версию, ${formatPrice(plans[1].price)} — в твёрдой обложке. Писать можно бесплатно — платите, когда книга готова.`] as [string, string]].map(([q, a]) => (
-                <details key={q} className="py-5">
-                  <summary className="cursor-pointer list-none font-medium">{q}</summary>
-                  <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{a}</p>
-                </details>
-              ))}
-            </div>
+            <Faq items={[...l.faq, ["Сколько стоит книга?", `От ${formatPrice(minPrice)} за электронную версию, ${formatPrice(plans[1].price)} — в твёрдой обложке. Писать можно бесплатно — платите, когда книга готова.`]]} size="md" />
           </div>
         </section>
 

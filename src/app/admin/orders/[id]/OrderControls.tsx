@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/components/ui/overlays";
 import { useActionState, useTransition } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
@@ -65,8 +66,8 @@ export function LockButton({ orderId, locked }: { orderId: string; locked: boole
     <button
       className="btn btn-ghost btn-sm"
       disabled={pending}
-      onClick={() => {
-        if (confirm(locked ? "Открыть книгу для правок клиентом? После правок перегенерируйте файлы." : "Закрыть книгу для правок?")) start(() => toggleBookLockAction(orderId));
+      onClick={async () => {
+        if (await ask(locked ? "Открыть книгу для правок клиентом? После правок перегенерируйте файлы." : "Закрыть книгу для правок?")) start(() => toggleBookLockAction(orderId));
       }}
     >
       {locked ? "Открыть книгу для правок" : "Закрыть книгу для правок"}

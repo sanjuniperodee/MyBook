@@ -1,4 +1,5 @@
 import "server-only";
+import { usersId } from "@/lib/db/refs";
 import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { users } from "./db/schema";
@@ -6,18 +7,18 @@ import type { ClientSegment } from "./crm";
 
 export const STALLED_DAYS = 14;
 
-const ltv = sql<number>`coalesce((select sum(o.amount) from orders o where o.user_id = ${users.id} and o.paid_at is not null and o.status <> 'cancelled'), 0)::int`;
-const ordersCount = sql<number>`(select count(*)::int from orders o where o.user_id = ${users.id} and o.status <> 'cancelled')`;
-const booksCount = sql<number>`(select count(*)::int from books b where b.user_id = ${users.id})`;
-const bestAnswered = sql<number>`coalesce((select max((select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0)) from books b where b.user_id = ${users.id}), 0)::int`;
-const lastBookUpdate = sql<Date | null>`(select max(b.updated_at) from books b where b.user_id = ${users.id})`;
-const lastOrderAt = sql<Date | null>`(select max(o.created_at) from orders o where o.user_id = ${users.id})`;
+const ltv = sql<number>`coalesce((select sum(o.amount) from orders o where o.user_id = ${usersId} and o.paid_at is not null and o.status <> 'cancelled'), 0)::int`;
+const ordersCount = sql<number>`(select count(*)::int from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
+const booksCount = sql<number>`(select count(*)::int from books b where b.user_id = ${usersId})`;
+const bestAnswered = sql<number>`coalesce((select max((select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0)) from books b where b.user_id = ${usersId}), 0)::int`;
+const lastBookUpdate = sql<Date | null>`(select max(b.updated_at) from books b where b.user_id = ${usersId})`;
+const lastOrderAt = sql<Date | null>`(select max(o.created_at) from orders o where o.user_id = ${usersId})`;
 
-const hasPaid = sql`exists (select 1 from orders o where o.user_id = ${users.id} and o.paid_at is not null and o.status <> 'cancelled')`;
-const hasAnyOrder = sql`exists (select 1 from orders o where o.user_id = ${users.id} and o.status <> 'cancelled')`;
-const hasPending = sql`exists (select 1 from orders o where o.user_id = ${users.id} and o.status = 'pending_payment')`;
-const draftRecent = sql`exists (select 1 from books b where b.user_id = ${users.id} and b.status = 'draft' and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
-const draftStale = sql`exists (select 1 from books b where b.user_id = ${users.id} and b.status = 'draft') and not exists (select 1 from books b where b.user_id = ${users.id} and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
+const hasPaid = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.paid_at is not null and o.status <> 'cancelled')`;
+const hasAnyOrder = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
+const hasPending = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.status = 'pending_payment')`;
+const draftRecent = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft' and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
+const draftStale = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft') and not exists (select 1 from books b where b.user_id = ${usersId} and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
 
 export function segmentWhere(segment: ClientSegment): SQL | undefined {
   switch (segment) {

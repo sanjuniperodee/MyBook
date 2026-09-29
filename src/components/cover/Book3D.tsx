@@ -12,7 +12,7 @@ export function Book3D({
   const template = getCoverTemplate(cover.template);
   return (
     <div className={cn("book-3d", className)}>
-      <div className="book-3d__inner" style={{ transform: `rotateY(${rotate}deg)` }}>
+      <div className="book-3d__inner" style={{ "--ry": `${rotate}deg` } as React.CSSProperties}>
         <div className="relative overflow-hidden rounded-r-[3px] rounded-l-[2px] shadow-book">
           <CoverPreview {...cover} />
           {/* блик и тень у корешка */}

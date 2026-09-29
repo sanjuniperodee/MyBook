@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TrackOnce } from "@/components/analytics/TrackOnce";
+import { Confetti } from "@/components/motion/Confetti";
+import { CelebrateArt } from "@/components/illustrations";
 import { notFound } from "next/navigation";
 import { Check, Download } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -79,6 +81,21 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               manual={site.manualPayment}
               claimed={!!order.paymentClaimedAt}
             />
+          ) : null}
+
+          {paid && order.status === "paid" ? (
+            <section className="card flex flex-col items-center gap-6 overflow-hidden p-6 text-center sm:flex-row sm:p-8 sm:text-left">
+              <Confetti onceKey={`paid_${order.id}`} />
+              <CelebrateArt className="h-32 w-auto shrink-0" />
+              <div>
+                <h2 className="font-serif text-3xl font-medium">Спасибо! Оплата получена</h2>
+                <p className="mt-2 leading-relaxed text-ink-soft">
+                  {plan?.printed
+                    ? "Мы уже готовим книгу к печати. Как только её отправят, пришлём письмо с трек-номером. Электронная версия — ниже."
+                    : "Электронная книга готова — скачайте её ниже. Файлы подходят и для печати в любой типографии."}
+                </p>
+              </div>
+            </section>
           ) : null}
 
           {paid ? (

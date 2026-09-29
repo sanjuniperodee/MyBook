@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/overlays";
 import { useRef, useState } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
@@ -11,6 +12,7 @@ import { photoUrl } from "@/lib/urls";
 import { getFormat } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
 import { cn } from "@/lib/utils";
+import { PhotosArt } from "@/components/illustrations";
 
 export interface ManagedPhoto {
   id: string;
@@ -87,7 +89,7 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Удалить фото из книги?")) return;
+    if (!(await confirmDialog({ title: "Удалить фото?", text: "Фото исчезнет из книги и из ответов, где оно стоит.", confirmLabel: "Удалить", danger: true }))) return;
     const prev = photos;
     setPhotos((ps) => ps.filter((p) => p.id !== id));
     try {
@@ -156,13 +158,16 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
           disabled={!editable}
           onClick={() => input.current?.click()}
           className={cn(
-            "mt-10 flex w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-24 text-center transition",
+            "mt-10 flex w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-14 text-center transition",
             dragOver ? "border-wine bg-wine/5" : "border-line hover:border-ink/30",
           )}
         >
-          <ImagePlus className="size-12 text-muted" strokeWidth={1.3} />
-          <div className="mt-4 text-lg font-medium">Фотографий пока нет</div>
+          <PhotosArt className="h-36 w-auto" />
+          <div className="mt-3 font-serif text-2xl font-medium">Фотографий пока нет</div>
           <div className="mt-1 text-sm text-muted">Перетащите файлы сюда или нажмите, чтобы выбрать. JPG, PNG, WEBP до 25 МБ.</div>
+          <span className="btn btn-primary btn-sm mt-5">
+            <ImagePlus className="size-4" /> Выбрать фото
+          </span>
         </button>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

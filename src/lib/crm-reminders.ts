@@ -1,4 +1,5 @@
 import "server-only";
+import { booksId } from "@/lib/db/refs";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { bookQuestions, books, crmNotes, users } from "./db/schema";
@@ -20,9 +21,9 @@ export async function sendBookReminder(clientId: string, authorId: string | null
     .select({
       id: books.id,
       title: books.title,
-      answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) > 0)`,
-      total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id})`,
-      firstEmpty: sql<number | null>`(select min(q.position) from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) = 0)`,
+      answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
+      total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+      firstEmpty: sql<number | null>`(select min(q.position) from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) = 0)`,
     })
     .from(books)
     .where(and(eq(books.userId, user.id), eq(books.status, "draft")))

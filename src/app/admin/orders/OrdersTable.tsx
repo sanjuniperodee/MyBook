@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -39,8 +40,8 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
       return n;
     });
 
-  const apply = () => {
-    if (!confirm(`Перевести ${selected.size} заказ(ов) в статус «${orderStatusLabels[status]}»? Клиенты получат письма.`)) return;
+  const apply = async () => {
+    if (!(await ask(`Перевести ${selected.size} заказ(ов) в статус «${orderStatusLabels[status]}»? Клиенты получат письма.`))) return;
     start(async () => {
       try {
         const res = await bulkStatusAction([...selected], status);

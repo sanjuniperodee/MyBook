@@ -40,8 +40,8 @@ await admin.click("button[type=submit]");
 await admin.waitForURL((u) => u.pathname === "/admin/gifts");
 const row = admin.locator("tr", { hasText: `buyer${stamp}@test.local` });
 check(await row.getByText("сообщил об оплате").isVisible(), "в CRM видно, что клиент сообщил об оплате");
-admin.once("dialog", (d) => d.accept());
 await row.getByRole("button", { name: "Оплачен" }).click();
+await admin.getByRole("dialog").getByRole("button", { name: "Да" }).click();
 await row.getByText(/GIFT-/).waitFor({ timeout: 30000 });
 const code = (await row.locator("td.font-mono").innerText()).match(/GIFT-[A-Z0-9]{4}-[A-Z0-9]{4}/)[0];
 check(!!code, `выпущен код ${code}`);
@@ -82,7 +82,8 @@ check(await rec.getByText(/закажите книгу до/).isVisible(), "в �
 await rec.getByRole("button", { name: "Создать книгу" }).click();
 await rec.waitForURL(/\/books\/[0-9a-f-]{36}$/);
 const bookUrl = rec.url();
-check(await rec.getByTestId("deadline-banner").isVisible(), "на обзоре книги — отсчёт до праздника");
+await rec.getByTestId("deadline-banner").waitFor({ timeout: 15000 });
+check(true, "на обзоре книги — отсчёт до праздника");
 await rec.screenshot({ path: `${out}/gift-book.png` });
 
 // Пишем ответ, чтобы можно было заказать
@@ -105,7 +106,9 @@ await rec.check("input[name=consent]");
 await rec.screenshot({ path: `${out}/gift-checkout.png`, fullPage: true });
 await rec.getByRole("button", { name: "Оформить заказ" }).click();
 await rec.waitForURL(/\/orders\/[0-9a-f-]{36}$/);
+await rec.getByText(/Заказ №/).first().waitFor();
 const orderText = await rec.locator("main").innerText();
+if (process.env.DEBUG_ORDER) console.log(orderText.slice(0, 1500));
 check(orderText.includes("Экспресс-печать"), "допы видны в заказе");
 check(/Промокод GIFT-/.test(orderText), "сертификат учтён в заказе");
 await rec.screenshot({ path: `${out}/gift-order.png`, fullPage: true });

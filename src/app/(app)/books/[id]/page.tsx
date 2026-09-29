@@ -7,6 +7,7 @@ import { getAccessibleBook, getBookPhotos, getBookQuestions, getBookStats } from
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { Book3D } from "@/components/cover/Book3D";
+import { Morph } from "@/components/motion/PageTransition";
 import { coverNamesLine, getCoverTemplate } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
 import { pluralRu } from "@/lib/book/layout";
@@ -86,6 +87,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
       {/* Книга */}
       <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:gap-16">
         <div className="mx-auto w-full max-w-[260px] lg:max-w-[300px]">
+          <Morph name={`cover-${book.id}`}>
           <Book3D
             template={book.coverTemplate}
             format={book.format}
@@ -96,6 +98,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             rotate={-18}
             thickness={Math.min(14, 4 + stats.printedPages / 20)}
           />
+          </Morph>
         </div>
         <div>
           <div className="eyebrow">{editable ? "Книга пишется" : "Книга в работе"}</div>
@@ -123,7 +126,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
               {stats.estimatedPages < print.minPages ? <span>печатная книга — от {print.minPages} стр.</span> : null}
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
-              <div className="h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
+              <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
             </div>
           </div>
 

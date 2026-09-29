@@ -1,3 +1,4 @@
+import { booksId } from "@/lib/db/refs";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -26,10 +27,10 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
     db
       .select({
         book: books,
-        answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) > 0)`,
-        total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id})`,
-        photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${books.id})`,
-        letters: sql<number>`(select count(*)::int from ${bookLetters} l where l.book_id = ${books.id})`,
+        answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
+        total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+        photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
+        letters: sql<number>`(select count(*)::int from ${bookLetters} l where l.book_id = ${booksId})`,
       })
       .from(books)
       .where(eq(books.userId, id))

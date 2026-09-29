@@ -79,9 +79,9 @@ const count = await boxes.count();
 check(count >= 2, `есть оплаченные заказы (${count})`);
 await boxes.nth(0).check();
 await boxes.nth(1).check();
-page.once("dialog", (d) => d.accept());
 await page.locator("select").filter({ hasText: "В производстве" }).last().selectOption("in_production");
 await page.getByRole("button", { name: "Применить" }).click();
+await page.getByRole("dialog").getByRole("button", { name: "Да" }).click();
 await page.waitForSelector("text=Обновлено заказов: 2");
 check(true, "массовая смена статуса");
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -36,6 +37,14 @@ import { getFormat, printablePageCount } from "@/lib/book/formats";
 import { cssFont, getTypography } from "@/lib/book/fonts";
 import { countWords, estimateAnswerPages, estimatePages, pluralRu, type BookContent, type ContentChapter } from "@/lib/book/layout";
 import { cn } from "@/lib/utils";
+
+const MILESTONES: [number, string][] = [
+  [1, "Первый ответ записан — начало положено"],
+  [5, "5 ответов! Книга обретает ваш голос"],
+  [10, "10 ответов — это уже настоящая глава. Загляните в макет"],
+  [25, "25 ответов — книга почти готова. Можно смотреть макет и заказывать"],
+  [50, "50 ответов! Это будет по-настоящему толстая книга"],
+];
 
 export interface EditorQuestion {
   id: string;
@@ -275,6 +284,15 @@ export function QuestionsEditor({
   }, [questions, photos, format, typography, book]);
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
+  // Вехи: маленький праздник, когда книга растёт (не срабатывает при открытии редактора).
+  const milestoneRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = milestoneRef.current;
+    milestoneRef.current = answeredCount;
+    if (prev === null || answeredCount <= prev) return;
+    const m = MILESTONES.find(([n]) => prev < n && answeredCount >= n);
+    if (m) toast(m[1], "info");
+  }, [answeredCount]);
   const group = groups.find((g) => g.key === q.chapter)!;
   const posInChapter = group.items.findIndex((x) => x.q.id === q.id);
   const chapterNumber = groups.indexOf(group) + 1;
@@ -295,7 +313,7 @@ export function QuestionsEditor({
     inlineTimers.current.set(
       id,
       setTimeout(() => {
-        apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: { inline } }).catch((e) => alert((e as Error).message));
+        apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: { inline } }).catch((e) => toastError(e));
       }, 350),
     );
   };
@@ -304,7 +322,7 @@ export function QuestionsEditor({
       const res = await apiFetch<{ photo: EditorPhoto }>(`/api/books/${book.id}/photos/${id}/rotate`, { method: "POST" });
       setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, width: res.photo.width, height: res.photo.height, inline: res.photo.inline, rev: (p.rev ?? 0) + 1 } : p)));
     } catch (e) {
-      alert((e as Error).message);
+      toastError(e);
     }
   };
   const toPreviewPhoto = (p: EditorPhoto): PreviewPhoto => ({ id: p.id, url: imgUrl(p), width: p.width, height: p.height, caption: p.caption, inline: p.inline });
@@ -335,7 +353,7 @@ export function QuestionsEditor({
       await apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: patch });
     } catch (e) {
       setPhotos(prev);
-      alert((e as Error).message);
+      toastError(e);
     }
   };
   const captionTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -371,7 +389,7 @@ export function QuestionsEditor({
   };
 
   const removeQuestion = async () => {
-    if (!q.isCustom || !confirm("Удалить этот вопрос вместе с ответом?")) return;
+    if (!q.isCustom || !(await confirmDialog({ title: "Удалить свой вопрос?", text: "Вопрос будет удалён вместе с ответом.", confirmLabel: "Удалить", danger: true }))) return;
     await flush();
     await apiFetch(`/api/books/${book.id}/questions/${q.id}`, { method: "DELETE" });
     dirty.current.delete(q.id);
@@ -413,7 +431,11 @@ export function QuestionsEditor({
             </button>
           </div>
 
-          <article className="relative rounded-[28px] border border-line/70 bg-white shadow-soft">
+          <article className="relative overflow-hidden rounded-[28px] border border-line/70 bg-white shadow-soft">
+            {/* Прогресс по главе — тонкая линия сверху */}
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-cream" aria-hidden>
+              <div className="h-full bg-wine/70 transition-[width] duration-500 ease-out" style={{ width: `${((posInChapter + 1) / group.items.length) * 100}%` }} />
+            </div>
             <div className="flex items-center justify-between border-b border-line/60 px-6 py-3 text-xs text-muted sm:px-10">
               <span>
                 Вопрос {posInChapter + 1} из {group.items.length}
@@ -422,16 +444,23 @@ export function QuestionsEditor({
             </div>
 
             <div className="px-6 pt-8 pb-6 sm:px-10 sm:pt-10">
-              <h1 className="font-serif text-[28px] leading-tight font-medium text-ink sm:text-[38px]">{q.prompt}</h1>
-              {q.hint ? <p className="mt-3 text-[15px] leading-relaxed text-muted">{q.hint}</p> : null}
+              {/* key — чтобы при переходе к другому вопросу формулировка мягко проявлялась */}
+              <h1 key={q.id} className="enter font-serif text-[28px] leading-tight font-medium text-ink sm:text-[38px]">
+                {q.prompt}
+              </h1>
+              {q.hint ? (
+                <p key={`h-${q.id}`} style={{ "--i": 1 } as React.CSSProperties} className="enter mt-3 text-[15px] leading-relaxed text-muted">
+                  {q.hint}
+                </p>
+              ) : null}
               <button className="mt-4 inline-flex items-center gap-1.5 text-sm text-wine hover:underline" onClick={() => setShowTips((v) => !v)}>
                 <Lightbulb className="size-4" /> С чего начать?
                 <ChevronDown className={cn("size-3.5 transition", showTips && "rotate-180")} />
               </button>
               {showTips ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {writingTips.map((t) => (
-                    <li key={t} className="rounded-2xl bg-cream/70 px-4 py-3 text-sm leading-snug text-ink-soft">
+                  {writingTips.map((t, i) => (
+                    <li key={t} style={{ "--i": i } as React.CSSProperties} className="enter rounded-2xl bg-cream/70 px-4 py-3 text-sm leading-snug text-ink-soft">
                       {t}
                     </li>
                   ))}

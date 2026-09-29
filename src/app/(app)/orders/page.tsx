@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EmptyState, GiftArt } from "@/components/illustrations";
 import { requireUser } from "@/lib/auth";
 import { listUserOrders } from "@/lib/orders";
 import { formatPrice, getPlan } from "@/config/site";
@@ -15,14 +16,18 @@ export default async function OrdersPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="font-serif text-4xl font-medium sm:text-5xl">Мои заказы</h1>
       {list.length === 0 ? (
-        <div className="card mt-10 p-10 text-center">
-          <p className="text-muted">Заказов пока нет. Когда книга будет готова, нажмите «Завершить и заказать» на её странице.</p>
-          <Link href="/books" className="btn btn-primary mt-6">К моим книгам</Link>
+        <div className="card mt-10">
+          <EmptyState
+            art={GiftArt}
+            title="Заказов пока нет"
+            text="Когда книга будет готова, пролистайте макет и нажмите «Заказать книгу» — заказ появится здесь со всеми статусами."
+            action={<Link href="/books" className="btn btn-primary">К моим книгам</Link>}
+          />
         </div>
       ) : (
         <div className="mt-8 space-y-3">
           {list.map((o) => (
-            <Link key={o.id} href={`/orders/${o.id}`} className="card flex flex-wrap items-center gap-4 p-5 transition hover:shadow-lift">
+            <Link key={o.id} href={`/orders/${o.id}`} className="card card-hover flex flex-wrap items-center gap-4 p-5">
               <div className="min-w-0 flex-1">
                 <div className="font-semibold">Заказ №{o.number} · {o.book.title}</div>
                 <div className="text-sm text-muted">

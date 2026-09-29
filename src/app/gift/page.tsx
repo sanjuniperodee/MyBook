@@ -3,6 +3,7 @@ import { Gift, PenLine, Sparkles } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { getCurrentUser } from "@/lib/auth";
+import { Faq } from "@/components/Faq";
 import { GiftForm } from "./GiftForm";
 
 export const metadata: Metadata = {
@@ -62,14 +63,7 @@ export default async function GiftPage() {
 
           <section className="mt-20 grid gap-10 lg:grid-cols-[1fr_1.4fr]">
             <h2 className="font-serif text-4xl font-medium">Частые вопросы о сертификате</h2>
-            <div className="divide-y divide-line border-y border-line">
-              {faq.map(([q, a]) => (
-                <details key={q} className="group py-5">
-                  <summary className="cursor-pointer list-none font-medium marker:hidden">{q}</summary>
-                  <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{a}</p>
-                </details>
-              ))}
-            </div>
+            <Faq items={faq as [string, string][]} size="md" />
           </section>
         </div>
       </main>

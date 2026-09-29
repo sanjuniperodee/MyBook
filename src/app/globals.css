@@ -24,6 +24,21 @@
 
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-float: float 7s ease-in-out infinite;
+  --animate-pop: pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+
+  /* Движение: быстрые выходы, мягкие входы. */
+  --ease-out-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @keyframes pop {
+    0% { opacity: 0; transform: scale(0.6); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes shimmer {
+    0% { background-position: 150% 0; }
+    100% { background-position: -50% 0; }
+  }
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(16px); }
@@ -37,6 +52,20 @@
 
 :root {
   color-scheme: light;
+  /* Разрешает анимировать высоту до auto (раскрытие вопросов) */
+  interpolate-size: allow-keywords;
+}
+
+/* Плавное раскрытие <details> там, где браузер это умеет */
+details.faq::details-content {
+  block-size: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: block-size 0.35s var(--ease-out-soft), opacity 0.3s ease, content-visibility 0.35s allow-discrete;
+}
+details.faq[open]::details-content {
+  block-size: auto;
+  opacity: 1;
 }
 
 html {
@@ -62,11 +91,11 @@ body {
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-[15px] font-medium transition-all duration-200 select-none whitespace-nowrap disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-[15px] font-medium transition-all duration-200 select-none whitespace-nowrap disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine active:scale-[0.97] active:duration-75;
   }
   .btn-sm { @apply h-9 px-4 text-sm; }
   .btn-lg { @apply h-13 px-7 text-base; }
-  .btn-primary { @apply bg-wine text-white hover:bg-wine-dark shadow-[0_6px_20px_-8px_rgb(122_31_43/0.6)]; }
+  .btn-primary { @apply bg-wine text-white hover:bg-wine-dark shadow-[0_6px_20px_-8px_rgb(122_31_43/0.6)] hover:shadow-[0_10px_26px_-8px_rgb(122_31_43/0.7)] hover:-translate-y-px; }
   .btn-dark { @apply bg-ink text-white hover:bg-ink-soft; }
   .btn-outline { @apply border border-line bg-white text-ink hover:border-ink/30 hover:bg-cream/40; }
   .btn-ghost { @apply text-ink hover:bg-ink/5; }
@@ -78,6 +107,9 @@ body {
   .label { @apply mb-1.5 block text-sm font-medium text-ink-soft; }
 
   .card { @apply rounded-3xl bg-white border border-line/70 shadow-soft; }
+  /* Карточка-ссылка: приподнимается при наведении */
+  .card-hover { @apply transition duration-300 hover:-translate-y-1 hover:shadow-lift; transition-timing-function: var(--ease-out-soft); }
+  .skeleton { @apply rounded-xl bg-[linear-gradient(90deg,var(--color-cream)_25%,#ebe3d6_50%,var(--color-cream)_75%)] bg-[length:200%_100%] animate-shimmer; }
   .eyebrow { @apply text-xs font-semibold uppercase tracking-[0.18em] text-wine; }
   .container-x { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
 }
@@ -93,7 +125,24 @@ body {
 .book-3d__inner {
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transform: rotateY(var(--ry, -22deg));
+  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* При наведении книга поворачивается к читателю */
+@media (hover: hover) {
+  .book-3d:hover .book-3d__inner {
+    transform: rotateY(calc(var(--ry, -22deg) * 0.4)) translateY(-6px);
+  }
+}
+
+/* Полоса прогресса «набегает» при появлении */
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.bar-grow {
+  transform-origin: left center;
+  animation: bar-grow 1.1s var(--ease-out-soft) 0.2s both;
 }
 .book-3d__spine {
   position: absolute;
@@ -113,8 +162,95 @@ body {
   background: repeating-linear-gradient(90deg, #fff 0 1px, #efe9df 1px 2px);
 }
 
+/* Фокус с клавиатуры — заметный и одинаковый везде */
+:where(a, button, [role="button"], summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-wine);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ── Появление при прокрутке (CSS scroll-driven, без JS). В браузерах без поддержки контент просто виден. ── */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: reveal-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 55%;
+  }
+  .reveal-stagger > * {
+    animation: reveal-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+  .reveal-stagger > *:nth-child(2) { animation-range: entry 5% entry 65%; }
+  .reveal-stagger > *:nth-child(3) { animation-range: entry 10% entry 70%; }
+  .reveal-stagger > *:nth-child(4) { animation-range: entry 15% entry 75%; }
+  .reveal-stagger > *:nth-child(n + 5) { animation-range: entry 20% entry 80%; }
+}
+
+/* Появление при загрузке с задержкой по порядку: style="--i: 2" */
+.enter {
+  animation: fade-up 0.7s var(--ease-out-soft) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+/* Штрихи иллюстраций «рисуются» при появлении */
+@keyframes draw {
+  from { stroke-dashoffset: var(--len, 400); }
+  to { stroke-dashoffset: 0; }
+}
+.draw :is(path, line, circle, polyline, rect):not(.animate-pop, .no-draw) {
+  stroke-dasharray: var(--len, 400);
+  animation: draw 1.4s var(--ease-out-soft) both;
+  animation-delay: calc(var(--d, 0) * 1ms + 150ms);
+}
+
+/* Конфетти */
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0); opacity: 1; }
+  100% { transform: translate3d(var(--dx, 0), 105vh, 0) rotate(var(--rot, 540deg)); opacity: 0.9; }
+}
+
+/* Тосты */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Переходы между страницами (View Transitions) ── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+}
+::view-transition-old(.page-fade) {
+  animation: 140ms ease-in both vt-fade reverse;
+}
+::view-transition-new(.page-fade) {
+  animation: 260ms var(--ease-out-soft) 80ms both vt-fade, 380ms var(--ease-out-soft) both vt-rise;
+}
+::view-transition-group(.morph) {
+  animation-duration: 450ms;
+  animation-timing-function: var(--ease-out-soft);
+}
+::view-transition-group(.indicator) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out-soft);
+}
+@keyframes vt-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes vt-rise {
+  from { transform: translateY(8px); }
+  to { transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
 /* Перелистывание книги-примера на лендинге */

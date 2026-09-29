@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Download, Ellipsis, Trash2 } from "lucide-react";
@@ -17,13 +18,14 @@ export function BookMenu({ bookId, editable }: { bookId: string; editable: boole
   }, []);
 
   const remove = async () => {
-    if (!confirm("Удалить книгу безвозвратно? Все ответы и фото будут стёрты.")) return;
+    if (!(await confirmDialog({ title: "Удалить книгу?", text: "Все ответы, фото и письма будут стёрты безвозвратно.", confirmLabel: "Удалить", danger: true }))) return;
     try {
       await apiFetch(`/api/books/${bookId}`, { method: "DELETE" });
+      toast("Книга удалена");
       router.push("/books");
       router.refresh();
     } catch (e) {
-      alert((e as Error).message);
+      toastError(e);
     }
   };
   return (

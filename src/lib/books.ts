@@ -1,4 +1,5 @@
 import "server-only";
+import { booksId } from "@/lib/db/refs";
 import { cache } from "react";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -115,9 +116,9 @@ export async function listUserBooks(userId: string) {
   return db
     .select({
       book: books,
-      answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id} and length(trim(q.answer)) > 0)`,
-      total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${books.id})`,
-      photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${books.id})`,
+      answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
+      total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+      photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
     })
     .from(books)
     .where(eq(books.userId, userId))

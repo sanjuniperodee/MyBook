@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Mail, MessageSquare, Phone, StickyNote, Trash2 } from "lucide-react";
@@ -71,7 +72,7 @@ export function TaskList({
                 ) : null}
               </div>
             </div>
-            <button className="text-muted opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={() => confirm("Удалить задачу?") && start(() => deleteTaskAction(t.id))} aria-label="Удалить">
+            <button className="text-muted opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить задачу?", true)) && start(() => deleteTaskAction(t.id))} aria-label="Удалить">
               <Trash2 className="size-4" />
             </button>
           </li>
@@ -161,7 +162,7 @@ export function NotesTimeline({ notes, clientId, orderId }: { notes: NoteItem[];
                   <span>{n.author}</span>
                   <span>{n.dateLabel}</span>
                   {n.orderLabel ? <span className="text-wine">{n.orderLabel}</span> : null}
-                  <button className="ml-auto opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={() => confirm("Удалить заметку?") && start(() => deleteNoteAction(n.id))} aria-label="Удалить">
+                  <button className="ml-auto opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить заметку?", true)) && start(() => deleteNoteAction(n.id))} aria-label="Удалить">
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>

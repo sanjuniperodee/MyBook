@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/components/ui/overlays";
 import { useState, useTransition } from "react";
 import { BellRing, LoaderCircle } from "lucide-react";
 import { remindManyAction } from "../actions";
@@ -14,8 +15,8 @@ export function RemindAll({ clientIds }: { clientIds: string[] }) {
       <button
         className="btn btn-primary btn-sm"
         disabled={pending}
-        onClick={() => {
-          if (!confirm(`Отправить напоминание ${clientIds.length} клиентам? Тем, кому писали менее 3 дней назад, письмо не уйдёт.`)) return;
+        onClick={async () => {
+          if (!(await ask(`Отправить напоминание ${clientIds.length} клиентам? Тем, кому писали менее 3 дней назад, письмо не уйдёт.`))) return;
           start(async () => {
             const r = await remindManyAction(clientIds);
             setMsg(`Отправлено: ${r.sent}, пропущено: ${r.skipped}`);

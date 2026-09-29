@@ -1,5 +1,6 @@
 "use client";
 
+import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -53,12 +54,12 @@ export function Board({ initial, admins, me }: { initial: BoardCard[]; admins: {
     [cards, filter, me],
   );
 
-  const onDragEnd = (e: DragEndEvent) => {
+  const onDragEnd = async (e: DragEndEvent) => {
     const id = String(e.active.id);
     const to = e.over?.id as OrderStatus | undefined;
     const card = cards.find((c) => c.id === id);
     if (!card || !to || card.status === to) return;
-    if (to === "shipped" && card.printed && !confirm(`Заказ №${card.number} отправлен? Клиент получит письмо. Трек-номер можно добавить в карточке заказа.`)) return;
+    if (to === "shipped" && card.printed && !(await ask(`Заказ №${card.number} отправлен? Клиент получит письмо. Трек-номер можно добавить в карточке заказа.`))) return;
     const prev = cards;
     setCards((cs) => cs.map((c) => (c.id === id ? { ...c, status: to, claimed: false } : c)));
     setError(null);

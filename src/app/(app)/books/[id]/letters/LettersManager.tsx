@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/overlays";
+import { EmptyState, LettersArt } from "@/components/illustrations";
 import { useState } from "react";
 import { Check, Copy, EyeOff, Link2, MessageCircle, Pencil, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
@@ -71,7 +73,7 @@ export function LettersManager({
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Удалить письмо безвозвратно?")) return;
+    if (!(await confirmDialog({ title: "Удалить письмо?", text: "Письмо будет удалено безвозвратно.", confirmLabel: "Удалить", danger: true }))) return;
     const prev = letters;
     setLetters((ls) => ls.filter((l) => l.id !== id));
     try {
@@ -115,7 +117,7 @@ export function LettersManager({
                 <MessageCircle className="size-4" /> Отправить в WhatsApp
               </a>
               <div className="mt-4 flex justify-between text-xs">
-                <button className="flex items-center gap-1 text-muted hover:text-ink" disabled={busy || !editable} onClick={() => confirm("Старая ссылка перестанет работать. Создать новую?") && setInvite(true, true)}>
+                <button className="flex items-center gap-1 text-muted hover:text-ink" disabled={busy || !editable} onClick={async () => (await confirmDialog({ title: "Создать новую ссылку?", text: "Старая ссылка перестанет работать — близким нужно будет отправить новую.", confirmLabel: "Создать" })) && setInvite(true, true)}>
                   <RefreshCw className="size-3.5" /> Новая ссылка
                 </button>
                 <button className="text-red-700 hover:underline" disabled={busy || !editable} onClick={() => setInvite(false)}>
@@ -144,8 +146,20 @@ export function LettersManager({
           })}
         </div>
         {visible.length === 0 ? (
-          <div className="mt-6 rounded-3xl border-2 border-dashed border-line px-6 py-16 text-center text-muted">
-            {tab === "pending" ? (token ? "Новых писем пока нет. Поделитесь ссылкой с близкими." : "Создайте ссылку и отправьте её близким.") : "Здесь пока пусто."}
+          <div className="mt-6 rounded-3xl border-2 border-dashed border-line">
+            <EmptyState
+              art={LettersArt}
+              title={tab === "pending" ? "Новых писем нет" : tab === "approved" ? "В книге пока нет писем" : "Скрытых писем нет"}
+              text={
+                tab === "pending"
+                  ? token
+                    ? "Поделитесь ссылкой с близкими — их письма появятся здесь, и вы решите, какие войдут в книгу."
+                    : "Создайте ссылку и отправьте её друзьям и родным — писать можно без регистрации."
+                  : tab === "approved"
+                    ? "Одобренные письма соберутся в главу «Письма близких» в конце книги."
+                    : "Сюда попадают письма, которые вы решили не включать в книгу."
+              }
+            />
           </div>
         ) : (
           <div className="mt-6 space-y-4">
