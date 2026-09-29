@@ -10,7 +10,9 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  ImagePlus,
   Lightbulb,
+  LoaderCircle,
   ListTree,
   Maximize2,
   Mic,
@@ -21,7 +23,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { PagePreview } from "./PagePreview";
+import { PagePreview, type PreviewPhoto } from "./PagePreview";
+import { photoUrl } from "@/lib/urls";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useDictation } from "@/hooks/useDictation";
@@ -45,6 +48,15 @@ export interface EditorQuestion {
 }
 
 type Patch = Partial<Pick<EditorQuestion, "answer" | "displayText" | "hideHeading">>;
+
+export interface EditorPhoto {
+  id: string;
+  width: number;
+  height: number;
+  caption: string;
+  layout: "full" | "bleed" | "half";
+  questionId: string | null;
+}
 
 export interface EditorBook {
   id: string;
@@ -85,16 +97,18 @@ export function QuestionsEditor({
   book,
   initialQuestions,
   initialIndex,
-  photoLayouts,
+  initialPhotos,
   editable,
 }: {
   book: EditorBook;
   initialQuestions: EditorQuestion[];
   initialIndex: number;
-  photoLayouts: ("full" | "bleed" | "half")[];
+  initialPhotos: EditorPhoto[];
   editable: boolean;
 }) {
   const [questions, setQuestions] = useState(initialQuestions);
+  const [photos, setPhotos] = useState(initialPhotos);
+  const [picker, setPicker] = useState(false);
   const [index, setIndex] = useState(Math.min(Math.max(initialIndex, 0), initialQuestions.length - 1));
   const [drawer, setDrawer] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -147,13 +161,37 @@ export function QuestionsEditor({
     [editable, schedule],
   );
 
+  /** Дописывает текст к актуальному значению ответа (без устаревших замыканий). */
+  const appendText = useCallback(
+    (id: string, text: string) => {
+      if (!editable || !text) return;
+      setQuestions((qs) =>
+        qs.map((x) => {
+          if (x.id !== id) return x;
+          const sep = !x.answer || /\s$/.test(x.answer) ? "" : " ";
+          const chunk = x.answer.trim() ? text : text.charAt(0).toUpperCase() + text.slice(1);
+          const answer = x.answer + sep + chunk;
+          dirty.current.set(id, { ...dirty.current.get(id), answer });
+          return { ...x, answer };
+        }),
+      );
+      schedule(null);
+    },
+    [editable, schedule],
+  );
+
+  const dictationTarget = useRef<string | null>(null);
   const dictation = useDictation((text) => {
-    const current = questions[index];
-    if (!current || !text) return;
-    const sep = current.answer && !/\s$/.test(current.answer) ? " " : "";
-    const chunk = current.answer ? text : text.charAt(0).toUpperCase() + text.slice(1);
-    patchQuestion(current.id, { answer: current.answer + sep + chunk });
+    if (dictationTarget.current) appendText(dictationTarget.current, text);
   });
+  const toggleDictation = () => {
+    if (dictation.listening) {
+      dictation.stop();
+      return;
+    }
+    dictationTarget.current = q.id;
+    dictation.start(lang);
+  };
 
   const goTo = useCallback(
     (i: number) => {
@@ -206,11 +244,12 @@ export function QuestionsEditor({
         ch = { key: x.chapter, number: chapters.length + 1, title: x.chapterTitle, items: [], photos: [] };
         chapters.push(ch);
       }
-      ch.items.push({ id: x.id, heading: x.hideHeading ? null : (x.displayText ?? x.defaultTitle), answer: x.answer });
+      const inline = photos.filter((p) => p.questionId === x.id).map((p) => ({ ...p, storageKey: "", thumbKey: "" }));
+      ch.items.push({ id: x.id, heading: x.hideHeading ? null : (x.displayText ?? x.defaultTitle), answer: x.answer, photos: inline });
     }
-    const photos = photoLayouts.map((layout, i) => ({ id: String(i), caption: "", layout, width: 1, height: 1, storageKey: "", thumbKey: "" }));
+    const loose = photos.filter((p) => !p.questionId).map((p) => ({ ...p, storageKey: "", thumbKey: "" }));
     const toGallery = book.photoPlacement === "end" || !chapters.length;
-    if (!toGallery) photos.forEach((p, i) => chapters[Math.min(chapters.length - 1, Math.floor((i * chapters.length) / photos.length))].photos.push(p));
+    if (!toGallery) loose.forEach((p, i) => chapters[Math.min(chapters.length - 1, Math.floor((i * chapters.length) / loose.length))].photos.push(p));
     const content: BookContent = {
       format,
       typography,
@@ -221,19 +260,41 @@ export function QuestionsEditor({
       dedication: book.dedication,
       showToc: book.showToc,
       chapters,
-      galleryPhotos: toGallery ? photos : [],
+      galleryPhotos: toGallery ? loose : [],
       year: 2000,
     };
     const raw = chapters.length ? estimatePages(content) : 0;
     return { raw, printed: raw ? printablePageCount(raw) : 0 };
-  }, [questions, photoLayouts, format, typography, book]);
+  }, [questions, photos, format, typography, book]);
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
   const group = groups.find((g) => g.key === q.chapter)!;
   const posInChapter = group.items.findIndex((x) => x.q.id === q.id);
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
-  const answerPages = q.answer.trim() ? estimateAnswerPages(heading(q), q.answer, format, typography) : 0;
+  const qPhotos = photos.filter((p) => p.questionId === q.id);
+  const previewPhotos: PreviewPhoto[] = qPhotos.map((p) => ({ id: p.id, url: photoUrl(p.id), width: p.width, height: p.height, caption: p.caption }));
+  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(heading(q), q.answer, format, typography, qPhotos.length) : 0;
+
+  const patchPhoto = async (id: string, patch: Partial<Pick<EditorPhoto, "questionId" | "caption">>) => {
+    const prev = photos;
+    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    try {
+      await apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: patch });
+    } catch (e) {
+      setPhotos(prev);
+      alert((e as Error).message);
+    }
+  };
+  const captionTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const editCaption = (id: string, caption: string) => {
+    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, caption } : p)));
+    clearTimeout(captionTimers.current.get(id));
+    captionTimers.current.set(
+      id,
+      setTimeout(() => void apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: { caption } }).catch(() => {}), 700),
+    );
+  };
   const prev = questions[index - 1];
   const next = questions[index + 1];
 
@@ -367,15 +428,53 @@ export function QuestionsEditor({
                 style={{ fontFamily: cssFont(typography.body) }}
                 maxLength={40000}
               />
-              {dictation.listening && dictation.interim ? <p className="mt-1 text-lg text-muted italic">{dictation.interim}…</p> : null}
+              {dictation.listening ? (
+                <div className="mt-2 rounded-2xl bg-rose/50 px-4 py-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-wine">
+                    <span className="relative flex size-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-wine opacity-60" />
+                      <span className="relative inline-flex size-2.5 rounded-full bg-wine" />
+                    </span>
+                    Слушаю — говорите. Текст появится в ответе после паузы.
+                  </div>
+                  {dictation.interim ? <p className="mt-1.5 text-lg text-ink-soft italic">{dictation.interim}…</p> : null}
+                  {dictation.silent ? <p className="mt-1.5 text-xs text-muted">Не слышу речи. Проверьте, что выбран нужный микрофон и он не выключен в системе.</p> : null}
+                </div>
+              ) : null}
             </div>
+
+            {qPhotos.length ? (
+              <div className="grid gap-3 px-6 pb-6 sm:grid-cols-2 sm:px-10">
+                {qPhotos.map((p) => (
+                  <figure key={p.id} className="overflow-hidden rounded-2xl border border-line bg-cream/40">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoUrl(p.id)} alt={p.caption} className="aspect-[4/3] w-full object-cover" />
+                    <div className="flex items-center gap-2 p-2">
+                      <input
+                        value={p.caption}
+                        onChange={(e) => editCaption(p.id, e.target.value)}
+                        placeholder="Подпись к фото"
+                        maxLength={200}
+                        disabled={!editable}
+                        className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
+                      />
+                      {editable ? (
+                        <button onClick={() => patchPhoto(p.id, { questionId: null })} className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted hover:bg-white hover:text-red-700" title="Убрать фото из ответа">
+                          Убрать
+                        </button>
+                      ) : null}
+                    </div>
+                  </figure>
+                ))}
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-2 border-t border-line/60 px-4 py-3 sm:px-8">
               {editable && dictation.supported ? (
                 <div className="flex items-center rounded-full border border-line">
                   <button
                     className={cn("flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
-                    onClick={() => (dictation.listening ? dictation.stop() : dictation.start(lang))}
+                    onClick={toggleDictation}
                     title="Надиктовать ответ голосом"
                   >
                     {dictation.listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
@@ -395,6 +494,11 @@ export function QuestionsEditor({
                     <option value="kk-KZ">KZ</option>
                   </select>
                 </div>
+              ) : null}
+              {editable ? (
+                <button className="btn btn-ghost btn-sm text-muted" onClick={() => setPicker(true)}>
+                  <ImagePlus className="size-4" /> Фото в ответ
+                </button>
               ) : null}
               {editable ? (
                 <button className="btn btn-ghost btn-sm text-muted" onClick={() => setAdding((v) => !v)}>
@@ -455,7 +559,7 @@ export function QuestionsEditor({
 
           {showPreview && !focus ? (
             <div className="mt-6 rounded-3xl bg-cream/60 p-5 xl:hidden">
-              <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} />
+              <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} photos={previewPhotos} />
             </div>
           ) : null}
         </section>
@@ -465,7 +569,9 @@ export function QuestionsEditor({
           <aside className="hidden xl:block">
             <div className="sticky top-20 space-y-4">
               <div className="text-xs font-medium tracking-wider text-muted uppercase">Так будет в книге</div>
-              <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} />
+              <div className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3">
+                <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} photos={previewPhotos} />
+              </div>
               <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
                 <div className="mb-1 text-sm font-medium text-ink">
                   {answeredCount} из {questions.length} ответов
@@ -479,6 +585,20 @@ export function QuestionsEditor({
           </aside>
         ) : null}
       </div>
+
+      {picker ? (
+        <PhotoPicker
+          bookId={book.id}
+          photos={photos}
+          questionId={q.id}
+          questionLabel={q.prompt}
+          onAttach={(id) => patchPhoto(id, { questionId: q.id })}
+          onDetach={(id) => patchPhoto(id, { questionId: null })}
+          onUploaded={(list) => setPhotos((ps) => [...ps, ...list])}
+          onClose={() => setPicker(false)}
+          otherLabel={(qid) => questions.find((x) => x.id === qid)?.prompt ?? "другой ответ"}
+        />
+      ) : null}
 
       {drawer ? (
         <Drawer onClose={() => setDrawer(false)}>
@@ -565,7 +685,7 @@ function ChapterNav({ groups, current, onPick }: { groups: ChapterGroup[]; curre
   );
 }
 
-function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+function Drawer({ children, onClose, title = "Главы и вопросы" }: { children: React.ReactNode; onClose: () => void; title?: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -580,7 +700,7 @@ function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () 
       <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative flex h-full w-full max-w-sm flex-col bg-paper shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="text-lg font-semibold">Главы и вопросы</h2>
+          <h2 className="text-lg font-semibold">{title}</h2>
           <button className="btn btn-ghost btn-sm size-9 px-0" onClick={onClose} aria-label="Закрыть">
             <X className="size-5" />
           </button>
@@ -622,5 +742,96 @@ function AddQuestion({ onAdd, onCancel }: { onAdd: (prompt: string) => Promise<v
       </div>
       {err ? <p className="mt-2 text-sm text-red-700">{err}</p> : null}
     </form>
+  );
+}
+
+function PhotoPicker({
+  bookId,
+  photos,
+  questionId,
+  questionLabel,
+  onAttach,
+  onDetach,
+  onUploaded,
+  onClose,
+  otherLabel,
+}: {
+  bookId: string;
+  photos: EditorPhoto[];
+  questionId: string;
+  questionLabel: string;
+  onAttach: (id: string) => void;
+  onDetach: (id: string) => void;
+  onUploaded: (list: EditorPhoto[]) => void;
+  onClose: () => void;
+  otherLabel: (questionId: string) => string;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const upload = async (files: File[]) => {
+    if (!files.length) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      files.slice(0, 6).forEach((f) => form.append("files", f));
+      const res = await apiFetch<{ photos: EditorPhoto[]; errors: string[] }>(`/api/books/${bookId}/photos`, { method: "POST", body: form });
+      // Загруженные фото сразу вставляем в текущий ответ
+      for (const p of res.photos) await apiFetch(`/api/books/${bookId}/photos/${p.id}`, { method: "PATCH", json: { questionId } });
+      onUploaded(res.photos.map((p) => ({ ...p, questionId })));
+      if (res.errors.length) setError(res.errors.join(", "));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUploading(false);
+      if (input.current) input.current.value = "";
+    }
+  };
+
+  return (
+    <Drawer onClose={onClose} title="Фото в ответ">
+      <p className="text-sm text-muted">
+        Фото встанет в книгу сразу после ответа на вопрос «<span className="text-ink">{questionLabel}</span>».
+      </p>
+      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
+      <button className="btn btn-primary mt-4 w-full" onClick={() => input.current?.click()} disabled={uploading}>
+        {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />} {uploading ? "Загружаем…" : "Загрузить с устройства"}
+      </button>
+      {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
+      {photos.length ? (
+        <>
+          <div className="mt-6 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Фото книги</div>
+          <div className="grid grid-cols-2 gap-2">
+            {photos.map((p) => {
+              const here = p.questionId === questionId;
+              const elsewhere = !!p.questionId && !here;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => (here ? onDetach(p.id) : onAttach(p.id))}
+                  className={cn("group relative overflow-hidden rounded-xl text-left ring-offset-2 ring-offset-paper", here ? "ring-2 ring-wine" : "ring-1 ring-line hover:ring-ink/30")}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoUrl(p.id)} alt={p.caption} className="aspect-square w-full object-cover" />
+                  {here ? (
+                    <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-wine text-white">
+                      <Check className="size-3.5" />
+                    </span>
+                  ) : null}
+                  {elsewhere ? (
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-2 py-1 text-[11px] text-white" title={otherLabel(p.questionId!)}>
+                      в ответе: {otherLabel(p.questionId!)}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs text-muted">Нажмите на фото, чтобы вставить или убрать его. Фото из другого ответа переместится сюда.</p>
+        </>
+      ) : null}
+    </Drawer>
   );
 }

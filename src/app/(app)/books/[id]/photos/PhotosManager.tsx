@@ -18,6 +18,7 @@ export interface ManagedPhoto {
   layout: "full" | "bleed" | "half";
   width: number;
   height: number;
+  inAnswer?: string | null;
 }
 
 const layouts: { id: ManagedPhoto["layout"]; label: string; hint: string }[] = [
@@ -188,6 +189,11 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
                               </button>
                             </div>
                           ) : null}
+                          {p.inAnswer ? (
+                            <span className="absolute bottom-3 left-3 max-w-[70%] truncate rounded-full bg-wine/90 px-2.5 py-1 text-xs text-white" title={p.inAnswer}>
+                              В ответе: {p.inAnswer}
+                            </span>
+                          ) : null}
                           {dpi < 150 ? (
                             <span className="absolute inset-x-3 bottom-3 flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1.5 text-xs text-white" title={`${dpi} dpi при печати`}>
                               <TriangleAlert className="size-3.5 shrink-0" /> Низкое разрешение — фото может быть нечётким
@@ -204,7 +210,8 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
                             disabled={!editable || p.layout === "bleed"}
                             title={p.layout === "bleed" ? "У фото на всю страницу подписи нет" : undefined}
                           />
-                          <div className="grid grid-cols-3 gap-1 rounded-xl bg-cream/70 p-1">
+                          {p.inAnswer ? <p className="text-xs text-muted">Печатается сразу после ответа. Убрать из ответа можно в редакторе текста.</p> : null}
+                          <div className={cn("grid grid-cols-3 gap-1 rounded-xl bg-cream/70 p-1", p.inAnswer && "hidden")}>
                             {layouts.map((l) => (
                               <button
                                 key={l.id}

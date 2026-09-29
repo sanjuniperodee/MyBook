@@ -34,6 +34,8 @@ export interface ContentItem {
   id: string;
   heading: string | null;
   answer: string;
+  /** Фото, вставленные в ответ (печатаются после текста). */
+  photos?: PhotoItem[];
 }
 
 export interface PhotoItem {
@@ -44,6 +46,7 @@ export interface PhotoItem {
   height: number;
   storageKey: string;
   thumbKey: string;
+  questionId?: string | null;
 }
 
 export interface ContentChapter {
@@ -101,6 +104,7 @@ export function toPhotoItem(p: Photo): PhotoItem {
     height: p.height,
     storageKey: p.storageKey,
     thumbKey: p.thumbKey,
+    questionId: p.questionId,
   };
 }
 
@@ -124,8 +128,15 @@ export function buildBookContent(
   const sorted = [...questions].sort((a, b) => a.position - b.position);
   const chapterOrder: string[] = [];
   const byChapter = new Map<string, ContentItem[]>();
+  // Фото, вставленные в конкретные ответы
+  const inline = new Map<string, PhotoItem[]>();
+  for (const p of photos) {
+    if (!p.questionId || p.id === book.coverPhotoId) continue;
+    inline.set(p.questionId, [...(inline.get(p.questionId) ?? []), p]);
+  }
   for (const q of sorted) {
-    if (!q.answer.trim()) continue;
+    const qPhotos = inline.get(q.id) ?? [];
+    if (!q.answer.trim() && !qPhotos.length) continue;
     if (!byChapter.has(q.chapter)) {
       byChapter.set(q.chapter, []);
       chapterOrder.push(q.chapter);
@@ -134,6 +145,7 @@ export function buildBookContent(
       id: q.id,
       heading: q.hideHeading ? null : questionHeading(q, book),
       answer: q.answer.trim(),
+      photos: qPhotos,
     });
   }
 
@@ -150,7 +162,8 @@ export function buildBookContent(
   });
 
   // Фото обложки не дублируем внутри книги.
-  const innerPhotos = photos.filter((p) => p.id !== book.coverPhotoId);
+  const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
+  const innerPhotos = photos.filter((p) => p.id !== book.coverPhotoId && !placedInAnswers.has(p.id));
   let galleryPhotos: PhotoItem[] = [];
   if (book.photoPlacement === "end" || chapters.length === 0) {
     galleryPhotos = innerPhotos;
@@ -243,7 +256,7 @@ export function headingLines(heading: string | null, m: TextMetrics): number {
 
 export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics): number {
   let lines = 0;
-  for (const it of ch.items) lines += headingLines(it.heading, m) + answerLines(it.answer, m);
+  for (const it of ch.items) lines += headingLines(it.heading, m) + answerLines(it.answer, m) + (it.photos?.length ?? 0) * INLINE_PHOTO_LINES_SHARE * m.linesPerPage;
   const textPages = ch.items.length ? Math.max(1, Math.ceil(lines / m.linesPerPage)) : 0;
   return 1 /* титул главы */ + textPages + photoPages(ch.photos).length;
 }
@@ -261,10 +274,14 @@ export function estimatePages(content: BookContent): number {
 }
 
 /** Оценка для одного ответа: сколько страниц он займёт (для индикатора в редакторе). */
-export function estimateAnswerPages(heading: string | null, answer: string, format: BookFormat, typo: Typography) {
+export function estimateAnswerPages(heading: string | null, answer: string, format: BookFormat, typo: Typography, inlinePhotos = 0) {
   const m = textMetrics(format, typo);
-  return (headingLines(heading, m) + answerLines(answer, m)) / m.linesPerPage;
+  return (headingLines(heading, m) + answerLines(answer, m)) / m.linesPerPage + inlinePhotos * INLINE_PHOTO_LINES_SHARE;
 }
+
+/** Доля высоты текстовой области, которую занимает фото внутри ответа (с подписью и отступами). */
+export const INLINE_PHOTO_SHARE = 0.5;
+const INLINE_PHOTO_LINES_SHARE = INLINE_PHOTO_SHARE + 0.06;
 
 export function countWords(text: string) {
   const t = text.trim();
@@ -279,10 +296,11 @@ export function effectiveDpi(px: { width: number; height: number }, areaMm: { w:
 }
 
 /** Размер области под фото на странице для заданного макета, мм. */
-export function photoAreaMm(format: BookFormat, layout: PhotoItem["layout"]) {
+export function photoAreaMm(format: BookFormat, layout: PhotoItem["layout"] | "inline") {
   const area = textArea(format);
   if (layout === "bleed") return { w: format.widthMm, h: format.heightMm };
   if (layout === "half") return { w: area.w, h: area.h / 2 - 12 };
+  if (layout === "inline") return { w: area.w, h: area.h * INLINE_PHOTO_SHARE };
   return { w: area.w, h: area.h - 14 };
 }
 

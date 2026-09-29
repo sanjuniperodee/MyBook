@@ -51,7 +51,11 @@ const modeSettings: Record<RenderMode, { dpi: number; bleed: number; source: "fu
 
 async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: number): Promise<Map<string, PreparedImage>> {
   const { dpi, source } = modeSettings[mode];
-  const all: PhotoItem[] = [...content.chapters.flatMap((c) => c.photos), ...content.galleryPhotos];
+  const inlineIds = new Set(content.chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
+  const all: PhotoItem[] = [
+    ...content.chapters.flatMap((c) => [...c.photos, ...c.items.flatMap((it) => it.photos ?? [])]),
+    ...content.galleryPhotos,
+  ];
   const pxPerMm = dpi / 25.4;
   const result = new Map<string, PreparedImage>();
   const halves = new Set(
@@ -70,7 +74,7 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);
         img = img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
       } else {
-        const area = photoAreaMm(content.format, halves.has(p.id) ? "half" : p.layout === "half" ? "half" : "full");
+        const area = photoAreaMm(content.format, inlineIds.has(p.id) ? "inline" : halves.has(p.id) ? "half" : p.layout === "half" ? "half" : "full");
         img = img.resize(Math.round(area.w * pxPerMm), Math.round(area.h * pxPerMm), { fit: "inside", withoutEnlargement: true });
       }
       const { data, info } = await img.jpeg({ quality: mode === "preview" ? 75 : 90 }).toBuffer({ resolveWithObject: true });

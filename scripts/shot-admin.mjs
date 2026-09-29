@@ -15,7 +15,7 @@ for (const p of paths) {
   await page.goto(base + p, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
   const name = p.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "root";
-  await page.screenshot({ path: `${out}/a-${name}.png`, fullPage: true });
+  await page.screenshot({ path: `${out}/a-${name}.png`, fullPage: process.env.FULL !== "0" });
 }
 console.log(errors.length ? errors.join("\n") : "no errors");
 await browser.close();

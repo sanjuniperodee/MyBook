@@ -89,7 +89,7 @@ await shot(admin, "20-admin");
 const orderId = orderUrl.split("/").pop();
 await admin.goto(`${base}/admin/orders/${orderId}`);
 await admin.selectOption("select[name=status]", "paid");
-await admin.getByRole("button", { name: "Сохранить" }).first().click();
+await admin.locator("form", { has: admin.locator("select[name=status]") }).getByRole("button", { name: "Сохранить" }).click();
 await admin.waitForTimeout(1500);
 const [dl] = await Promise.all([admin.waitForEvent("download", { timeout: 120000 }), admin.click("text=Скачать всё (ZIP)")]);
 const zipPath = `${out}/package.zip`;

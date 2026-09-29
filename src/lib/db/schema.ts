@@ -136,6 +136,8 @@ export const photos = pgTable(
     height: integer("height").notNull(),
     caption: text("caption").notNull().default(""),
     layout: text("layout", { enum: ["full", "bleed", "half"] }).notNull().default("full"),
+    /** Фото, вставленное прямо в ответ на вопрос (печатается сразу после текста ответа). */
+    questionId: uuid("question_id").references(() => bookQuestions.id, { onDelete: "set null" }),
     ...timestamps,
   },
   (t) => [index("photos_book_idx").on(t.bookId, t.position)],

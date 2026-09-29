@@ -1,106 +1,160 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cssFont, type Typography } from "@/lib/book/fonts";
 import type { BookFormat } from "@/lib/book/formats";
-import { interiorMetrics } from "@/lib/book/layout";
+import { INLINE_PHOTO_SHARE, interiorMetrics } from "@/lib/book/layout";
 
 const PT_TO_MM = 25.4 / 72;
 
-/** Приблизительная HTML-копия страницы книги с теми же шрифтами, кеглем и полями, что в PDF. */
+export interface PreviewPhoto {
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+  caption: string;
+}
+
+/**
+ * HTML-копия страниц книги с теми же шрифтами, кеглем и полями, что в PDF.
+ * Текст раскладывается по страницам через CSS-колонки размером с текстовую область:
+ * каждая колонка — отдельная страница, страницы листаются вертикально.
+ */
 export function PagePreview({
   format,
   typography,
   heading,
   answer,
-  pageNumber,
+  photos = [],
 }: {
   format: BookFormat;
   typography: Typography;
   heading: string | null;
   answer: string;
-  pageNumber?: number;
+  photos?: PreviewPhoto[];
 }) {
   const m = interiorMetrics[format.id];
   const W = format.widthMm;
+  const H = format.heightMm;
   const side = (m.marginInner + m.marginOuter) / 2;
-  const bodyMm = typography.bodySize * m.scale * PT_TO_MM;
-  const cq = (mm: number) => `${(mm / W) * 100}cqw`;
-  const body = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const firstFlow = useRef<HTMLDivElement>(null);
+  const [pageW, setPageW] = useState(0);
+  const [pages, setPages] = useState(1);
 
-  useEffect(() => {
-    const el = body.current;
+  useLayoutEffect(() => {
+    const el = wrap.current;
     if (!el) return;
-    const check = () => setOverflow(el.scrollHeight > el.clientHeight + 2);
-    check();
-    const ro = new ResizeObserver(check);
+    const update = () => setPageW(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [heading, answer]);
+  }, []);
+
+  const px = pageW / W; // пикселей на миллиметр
+  const textW = (W - side * 2) * px;
+  const textH = (H - m.marginTop - m.marginBottom) * px;
+  const gap = side * 2 * px;
+  const bodyPx = typography.bodySize * m.scale * PT_TO_MM * px;
+
+  const measure = useCallback(() => {
+    const el = firstFlow.current;
+    if (!el || !textW) return;
+    const n = Math.max(1, Math.round((el.scrollWidth + gap) / (textW + gap)));
+    setPages((p) => (p === n ? p : n));
+  }, [textW, gap]);
+
+  useEffect(() => {
+    measure();
+  }, [measure, heading, answer, photos, pageW]);
 
   const paragraphs = answer
     .split(/\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
 
-  return (
-    <div className="relative bg-white shadow-[0_1px_3px_rgba(0,0,0,.06),0_20px_40px_-20px_rgba(0,0,0,.25)]" style={{ aspectRatio: `${W} / ${format.heightMm}`, containerType: "inline-size" }}>
-      <div
-        ref={body}
-        className="absolute overflow-hidden"
-        style={{ left: cq(side), right: cq(side), top: cq(m.marginTop), bottom: cq(m.marginBottom) }}
-        lang="ru"
-      >
-        {heading ? (
-          <div
+  const flow = (k: number) => (
+    <div
+      ref={k === 0 ? firstFlow : undefined}
+      lang="ru"
+      style={{
+        width: textW,
+        height: textH,
+        columnWidth: textW,
+        columnGap: gap,
+        columnFill: "auto",
+        transform: k ? `translateX(${-k * (textW + gap)}px)` : undefined,
+        color: "#1f1a17",
+      }}
+    >
+      {heading ? (
+        <div
+          style={{
+            fontFamily: cssFont(typography.heading),
+            fontWeight: typography.headingWeight,
+            fontStyle: typography.headingItalic ? "italic" : "normal",
+            fontSize: bodyPx * 1.55,
+            lineHeight: 1.22,
+            marginBottom: 8 * m.scale * PT_TO_MM * px,
+            breakAfter: "avoid",
+          }}
+        >
+          {heading}
+        </div>
+      ) : null}
+      {paragraphs.length ? (
+        paragraphs.map((p, i) => (
+          <p
+            key={i}
             style={{
-              fontFamily: cssFont(typography.heading),
-              fontWeight: typography.headingWeight,
-              fontStyle: typography.headingItalic ? "italic" : "normal",
-              fontSize: cq(bodyMm * 1.55),
-              lineHeight: 1.22,
-              marginBottom: cq(8 * m.scale * PT_TO_MM),
-              color: "#1f1a17",
+              fontFamily: cssFont(typography.body),
+              fontSize: bodyPx,
+              lineHeight: typography.lineHeight,
+              marginBottom: bodyPx * 0.45,
+              textAlign: "justify",
+              hyphens: "auto",
+              orphans: 2,
+              widows: 2,
             }}
           >
-            {heading}
-          </div>
-        ) : null}
-        {paragraphs.length ? (
-          paragraphs.map((p, i) => (
-            <p
-              key={i}
-              style={{
-                fontFamily: cssFont(typography.body),
-                fontSize: cq(bodyMm),
-                lineHeight: typography.lineHeight,
-                marginBottom: cq(bodyMm * 0.45),
-                textAlign: "justify",
-                hyphens: "auto",
-                color: "#1f1a17",
-              }}
-            >
-              {p}
-            </p>
-          ))
-        ) : (
-          <p style={{ fontFamily: cssFont(typography.body), fontSize: cq(bodyMm), lineHeight: typography.lineHeight, color: "#b4a99e", fontStyle: "italic" }}>
-            Здесь появится ваш ответ…
+            {p}
           </p>
-        )}
-        {overflow ? <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[12%] bg-gradient-to-t from-white to-transparent" /> : null}
-      </div>
-      {overflow ? (
-        <div className="absolute inset-x-0 text-center text-muted italic" style={{ bottom: cq(m.marginBottom * 0.62), fontSize: cq(2.6) }}>
-          продолжение на следующей странице →
-        </div>
-      ) : null}
-      {pageNumber ? (
-        <div className="absolute inset-x-0 text-center text-muted" style={{ bottom: cq(m.marginBottom / 2 - 3), fontSize: cq(2.8), fontFamily: cssFont(typography.body) }}>
-          {pageNumber}
-        </div>
-      ) : null}
+        ))
+      ) : photos.length ? null : (
+        <p style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx, lineHeight: typography.lineHeight, color: "#b4a99e", fontStyle: "italic" }}>Здесь появится ваш ответ…</p>
+      )}
+      {photos.map((ph) => {
+        const maxH = textH * INLINE_PHOTO_SHARE;
+        const ratio = ph.width / ph.height;
+        const w = Math.min(textW, maxH * ratio);
+        return (
+          <figure key={ph.id} style={{ breakInside: "avoid", margin: `${bodyPx * 0.5}px 0 ${bodyPx}px`, textAlign: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={ph.url} alt={ph.caption} onLoad={measure} style={{ width: w, height: w / ratio, objectFit: "cover", display: "inline-block" }} />
+            {ph.caption ? (
+              <figcaption style={{ fontFamily: cssFont(typography.body), fontStyle: "italic", fontSize: bodyPx * 0.86, color: "#7a7068", marginTop: bodyPx * 0.5 }}>{ph.caption}</figcaption>
+            ) : null}
+          </figure>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div ref={wrap} className="space-y-4">
+      {pageW
+        ? Array.from({ length: pages }, (_, k) => (
+            <div key={k} className="relative bg-white shadow-[0_1px_3px_rgba(0,0,0,.06),0_20px_40px_-20px_rgba(0,0,0,.25)]" style={{ width: pageW, height: H * px }}>
+              <div className="absolute overflow-hidden" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
+                {flow(k)}
+              </div>
+              <div className="absolute inset-x-0 text-center text-muted" style={{ bottom: (m.marginBottom / 2 - 3) * px, fontSize: 2.8 * px, fontFamily: cssFont(typography.body) }}>
+                {pages > 1 ? `${k + 1} / ${pages}` : ""}
+              </div>
+            </div>
+          ))
+        : <div className="bg-white" style={{ aspectRatio: `${W} / ${H}` }} />}
     </div>
   );
 }

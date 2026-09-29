@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { api, apiBook, HttpError } from "@/lib/api";
 import { db } from "@/lib/db";
-import { books, photos } from "@/lib/db/schema";
+import { bookQuestions, books, photos } from "@/lib/db/schema";
 import { deleteFile } from "@/lib/storage";
 import { touchBook } from "@/lib/books";
 
@@ -13,6 +13,7 @@ const schema = z
   .object({
     caption: z.string().trim().max(200),
     layout: z.enum(["full", "bleed", "half"]),
+    questionId: z.string().uuid().nullable(),
   })
   .partial()
   .strict();
@@ -21,6 +22,10 @@ export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, pid } = await params;
   const { book } = await apiBook(req, id, { editable: true });
   const data = schema.parse(await req.json());
+  if (data.questionId) {
+    const [q] = await db.select({ id: bookQuestions.id }).from(bookQuestions).where(and(eq(bookQuestions.id, data.questionId), eq(bookQuestions.bookId, book.id)));
+    if (!q) throw new HttpError(400, "Вопрос не найден");
+  }
   const [row] = await db.update(photos).set(data).where(and(eq(photos.id, pid), eq(photos.bookId, book.id))).returning();
   if (!row) throw new HttpError(404, "Фото не найдено");
   await touchBook(book.id);

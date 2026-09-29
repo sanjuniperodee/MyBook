@@ -3,7 +3,7 @@ import "server-only";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { mm } from "../book/formats";
-import { interiorMetrics, photoPages, type BookContent, type PhotoItem } from "../book/layout";
+import { INLINE_PHOTO_SHARE, interiorMetrics, photoPages, type BookContent, type PhotoItem } from "../book/layout";
 import { face } from "./fonts";
 import { site } from "@/config/site";
 
@@ -34,6 +34,8 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const pageSize = { width: mm(format.widthMm + B * 2), height: mm(format.heightMm + B * 2) };
   const side = (metrics.marginInner + metrics.marginOuter) / 2;
   const bodyPt = typo.bodySize * scale;
+  const textWidthPt = mm(format.widthMm - side * 2);
+  const textHeightPt = mm(format.heightMm - metrics.marginTop - metrics.marginBottom);
 
   const pagePadding: Style = {
     paddingTop: mm(B + metrics.marginTop),
@@ -274,6 +276,22 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                     {p}
                   </Text>
                 ))}
+              {(it.photos ?? []).map((p) => {
+                const img = options.images.get(p.id);
+                if (!img) return null;
+                // Вписываем фото в область «ширина текста × половина высоты текста», сохраняя пропорции.
+                const maxW = textWidthPt;
+                const maxH = textHeightPt * INLINE_PHOTO_SHARE;
+                const ratio = img.width / img.height;
+                const w = Math.min(maxW, maxH * ratio);
+                const h = w / ratio;
+                return (
+                  <View key={p.id} wrap={false} style={{ alignItems: "center", marginTop: 6 * scale, marginBottom: 10 * scale }}>
+                    <Image src={{ data: img.data, format: "jpg" }} style={{ width: w, height: h }} />
+                    {p.caption ? <Text style={{ ...italicBody, fontSize: 9 * scale, color: MUTED, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
+                  </View>
+                );
+              })}
             </View>
           ))}
         </Page>,

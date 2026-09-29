@@ -41,3 +41,30 @@ describe("письма близких", () => {
     expect(c.chapters[0].photos).toHaveLength(1);
   });
 });
+
+describe("фото внутри ответа", () => {
+  it("печатается после ответа и не дублируется между главами", () => {
+    const book = {
+      theme: "love",
+      title: "Т",
+      subtitle: "",
+      authorName: "А",
+      authorGender: "f" as const,
+      recipientName: "Б",
+      recipientGender: "m" as const,
+      dedication: "",
+      typography: "classic",
+      format: "a5",
+      photoPlacement: "chapters" as const,
+      showToc: true,
+      coverPhotoId: null,
+    };
+    const q = { id: "q1", chapter: "intro", position: 0, title: "Заголовок", displayText: null, hideHeading: false, answer: "" };
+    const inline = { id: "p1", caption: "Снег", layout: "full" as const, width: 3, height: 2, storageKey: "", thumbKey: "", questionId: "q1" };
+    const loose = { id: "p2", caption: "", layout: "full" as const, width: 1, height: 1, storageKey: "", thumbKey: "", questionId: null };
+    const c = buildBookContent(book, [q], [inline, loose], 2026);
+    // Вопрос без текста, но с фото — всё равно попадает в книгу
+    expect(c.chapters[0].items[0].photos?.map((p) => p.id)).toEqual(["p1"]);
+    expect(c.chapters[0].photos.map((p) => p.id)).toEqual(["p2"]);
+  });
+});

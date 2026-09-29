@@ -40,7 +40,9 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
       }}
       initialQuestions={questions}
       initialIndex={Math.max(0, (Number(q) || 1) - 1)}
-      photoLayouts={photos.filter((p) => p.id !== book.coverPhotoId).map((p) => p.layout)}
+      initialPhotos={photos
+        .filter((p) => p.id !== book.coverPhotoId)
+        .map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId }))}
       editable={book.status === "draft"}
     />
   );
