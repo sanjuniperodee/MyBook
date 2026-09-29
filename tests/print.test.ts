@@ -66,10 +66,10 @@ describe("вёрстка", () => {
 
 describe("цены", () => {
   it("считает доп. экземпляры и доставку", () => {
-    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 24900 + 17900, discountAmount: 0, deliveryAmount: 2000, amount: 44800 });
+    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 24900 + 17900, discountAmount: 0, deliveryAmount: 2000, addonsAmount: 0, addons: [], amount: 44800 });
   });
   it("у электронной версии нет доставки и количества", () => {
-    expect(calculatePrice("digital", 5, "courier")).toEqual({ itemsAmount: 9900, discountAmount: 0, deliveryAmount: 0, amount: 9900 });
+    expect(calculatePrice("digital", 5, "courier")).toEqual({ itemsAmount: 9900, discountAmount: 0, deliveryAmount: 0, addonsAmount: 0, addons: [], amount: 9900 });
   });
   it("промокод уменьшает стоимость книг, но не доставку", () => {
     const p = calculatePrice("hardcover", 1, "post", { kind: "percent", value: 10 });

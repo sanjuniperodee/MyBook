@@ -29,6 +29,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
             showToc: book.showToc,
             authorGender: book.authorGender,
             recipientGender: book.recipientGender,
+            occasion: book.occasion,
+            occasionDate: book.occasionDate,
           }}
         />
       </div>

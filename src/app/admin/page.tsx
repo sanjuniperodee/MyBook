@@ -37,6 +37,13 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const paidDay = sql<string>`to_char((${orders.paidAt} at time zone ${tzSql})::date, 'YYYY-MM-DD')`;
   const notCancelled = ne(orders.status, "cancelled");
 
+  const sources = await db.execute<{ source: string; registered: number; paid: number; revenue: number }>(sql`
+    select coalesce(nullif(u.source->>'source', ''), nullif(u.source->>'referrer', ''), 'прямой заход') as source,
+      count(*)::int as registered,
+      count(*) filter (where exists (select 1 from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled'))::int as paid,
+      coalesce((select sum(o.amount) from orders o where o.user_id = any(array_agg(u.id)) and o.paid_at is not null and o.status <> 'cancelled'), 0)::int as revenue
+    from users u where u.created_at >= ${start} and u.role = 'user'
+    group by 1 order by registered desc limit 8`);
   const [daily, [cur], [prev], [newUsers], funnelRows, byPlan, deadlines, tasks, attention, events] = await Promise.all([
     db
       .select({ d: paidDay, sum: sql<number>`sum(${orders.amount})::int`, n: sql<number>`count(*)::int` })
@@ -153,6 +160,41 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           />
         </section>
       </div>
+
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="font-semibold">Откуда приходят клиенты</h2>
+          <span className="text-xs text-muted">регистрации за {period} дней · UTM source или сайт-источник</span>
+        </div>
+        {sources.rows.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead className="text-left text-xs text-muted">
+                <tr>
+                  <th className="py-2 font-medium">Источник</th>
+                  <th className="py-2 text-right font-medium">Регистрации</th>
+                  <th className="py-2 text-right font-medium">Купили</th>
+                  <th className="py-2 text-right font-medium">Конверсия</th>
+                  <th className="py-2 text-right font-medium">Выручка</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {sources.rows.map((r) => (
+                  <tr key={r.source}>
+                    <td className="py-2">{r.source}</td>
+                    <td className="py-2 text-right tabular-nums">{r.registered}</td>
+                    <td className="py-2 text-right tabular-nums">{r.paid}</td>
+                    <td className="py-2 text-right text-muted tabular-nums">{pct(r.paid, r.registered)}</td>
+                    <td className="py-2 text-right tabular-nums">{formatPrice(r.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Пока нет регистраций за период. Добавляйте UTM-метки к рекламным ссылкам: ?utm_source=instagram&amp;utm_campaign=…</p>
+        )}
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="rounded-2xl border border-line bg-white p-5">

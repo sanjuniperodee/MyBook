@@ -16,6 +16,8 @@ export interface NewBookInput {
   recipientName: string;
   recipientGender: Gender;
   title?: string;
+  occasion?: string | null;
+  occasionDate?: string | null;
 }
 
 export async function createBook(userId: string, input: NewBookInput): Promise<Book> {
@@ -32,6 +34,8 @@ export async function createBook(userId: string, input: NewBookInput): Promise<B
         recipientGender: theme.recipientGender ?? input.recipientGender,
         title: input.title?.trim() || theme.titleSuggestions[0],
         coverTemplate: theme.defaultCover,
+        occasion: input.occasion ?? null,
+        occasionDate: input.occasionDate ?? null,
       })
       .returning();
     let position = 0;

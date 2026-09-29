@@ -41,14 +41,20 @@ ${opts.footnote ? `<p style="margin:20px 0 0;font-size:13px;color:#7a7068">${opt
 </td></tr></table></body></html>`;
 }
 
-export async function sendMail(to: string, subject: string, html: string) {
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
+export async function sendMail(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
   const t = getTransporter();
   if (!t) {
-    console.log(`[mail] SMTP не настроен. Письмо для ${to}: «${subject}»\n${html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800)}`);
+    console.log(`[mail] SMTP не настроен. Письмо для ${to}: «${subject}»${attachments?.length ? ` (+${attachments.length} влож.)` : ""}\n${html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800)}`);
     return;
   }
   try {
-    await t.sendMail({ from: process.env.MAIL_FROM || `${site.name} <${site.contacts.email}>`, to, subject, html });
+    await t.sendMail({ from: process.env.MAIL_FROM || `${site.name} <${site.contacts.email}>`, to, subject, html, attachments });
   } catch (err) {
     // Почта не должна ломать основной сценарий (оформление заказа и т.п.).
     console.error("[mail] send failed", err);

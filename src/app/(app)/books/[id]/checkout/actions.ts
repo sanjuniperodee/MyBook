@@ -1,5 +1,6 @@
 "use server";
 
+import { queueEvent } from "@/lib/track";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -31,6 +32,7 @@ const schema = z
     postalCode: z.string().trim().max(20).optional(),
     comment: z.string().trim().max(1000).optional(),
     promoCode: z.string().trim().max(40).optional(),
+    addons: z.string().max(100).optional(),
     giftNote: z.string().trim().max(500, "Текст открытки — до 500 символов").optional(),
     desiredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
     surprise: z.literal("on").optional(),
@@ -67,7 +69,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
     if (!check.ok) return { error: check.error };
     promo = check.promo;
   }
-  const price = calculatePrice(plan.id, d.quantity, delivery, promo);
+  const price = calculatePrice(plan.id, d.quantity, delivery, promo, d.addons ? d.addons.split(",") : []);
 
   let promoFailed = false;
   let alreadyOrdered = false;
@@ -126,6 +128,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
   await notifyNewOrder(order);
   // Заказ полностью оплачен промокодом — сразу передаём в работу.
   if (order.amount === 0) await markOrderPaid(order.id, "promo", promo?.code);
+  await queueEvent("order_created", order.amount);
   redirect(`/orders/${order.id}`);
 }
 

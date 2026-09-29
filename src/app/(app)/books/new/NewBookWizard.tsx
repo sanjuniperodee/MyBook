@@ -6,6 +6,7 @@ import { createBookAction, type CreateState } from "../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { OccasionPicker } from "@/components/OccasionPicker";
 import { cn } from "@/lib/utils";
 import type { ThemeId } from "@/lib/content/types";
 import type { Gender } from "@/lib/db/schema";
@@ -133,6 +134,12 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor }: { themes:
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <span className="label">Повод <span className="font-normal text-muted">— необязательно</span></span>
+          <p className="-mt-1 mb-3 text-sm text-muted">Подскажем, до какого дня оформить заказ, чтобы книга приехала вовремя.</p>
+          <OccasionPicker />
         </div>
 
         <SubmitButton className="btn-lg w-full sm:w-auto" pendingText="Создаём книгу…">Создать книгу</SubmitButton>

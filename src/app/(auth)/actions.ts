@@ -2,6 +2,7 @@
 
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { queueEvent, readSource } from "@/lib/track";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { passwordResets, sessions, users } from "@/lib/db/schema";
@@ -40,9 +41,10 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
   if (await findUserByEmail(email)) return { error: "Этот e-mail уже зарегистрирован. Войдите в аккаунт." };
   const [user] = await db
     .insert(users)
-    .values({ name, email, passwordHash: await hashPassword(password) })
+    .values({ name, email, passwordHash: await hashPassword(password), source: await readSource() })
     .returning();
   await createSession(user.id);
+  await queueEvent("sign_up");
   const theme = String(form.get("theme") ?? "");
   redirect(isThemeId(theme) ? `/books/new?theme=${theme}` : "/books/new");
 }

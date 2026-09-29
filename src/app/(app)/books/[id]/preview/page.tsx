@@ -40,7 +40,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
             </Link>
           </div>
         </div>
-        <PreviewFrame bookId={book.id} />
+        <PreviewFrame bookId={book.id} initialVersion={book.updatedAt.getTime()} />
       </div>
     </main>
   );

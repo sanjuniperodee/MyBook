@@ -34,6 +34,10 @@ export const users = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     /** Когда клиенту последний раз отправляли напоминание дописать книгу. */
     remindedAt: timestamp("reminded_at", { withTimezone: true }),
+    /** Клиент отписался от автоматических писем (транзакционные — о заказе — приходят всегда). */
+    emailOptOut: boolean("email_opt_out").notNull().default(false),
+    /** Первое касание: UTM-метки, реферер и страница входа. */
+    source: jsonb("source").$type<Record<string, string>>(),
     ...timestamps,
   },
   (t) => [uniqueIndex("users_email_idx").on(sql`lower(${t.email})`)],
@@ -103,6 +107,9 @@ export const books = pgTable(
     showToc: boolean("show_toc").notNull().default(true),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
+    /** Повод подарка (см. lib/occasions) и дата, к которой нужна книга. */
+    occasion: text("occasion"),
+    occasionDate: text("occasion_date"), // YYYY-MM-DD
     ...timestamps,
   },
   (t) => [index("books_user_idx").on(t.userId), uniqueIndex("books_invite_token_idx").on(t.inviteToken)],
@@ -210,6 +217,9 @@ export const orders = pgTable(
     discountAmount: integer("discount_amount").notNull().default(0),
     promoCode: text("promo_code"),
     deliveryAmount: integer("delivery_amount").notNull().default(0),
+    /** Дополнения (экспресс, упаковка) и их стоимость. */
+    addons: text("addons").array().notNull().default(sql`'{}'::text[]`),
+    addonsAmount: integer("addons_amount").notNull().default(0),
     amount: integer("amount").notNull(),
     currency: text("currency").notNull(),
     status: text("status").$type<OrderStatus>().notNull().default("pending_payment"),
@@ -264,6 +274,62 @@ export const promoCodes = pgTable(
   },
   (t) => [uniqueIndex("promo_codes_code_idx").on(t.code)],
 );
+
+/** Журнал автоматических писем: каждое письмо конкретного вида уходит клиенту один раз. */
+export const emailLog = pgTable(
+  "email_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Вид письма с уточнением, например «nudge:<bookId>». */
+    key: text("key").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("email_log_user_key_idx").on(t.userId, t.key)],
+);
+
+export type GiftStatus = "pending_payment" | "paid" | "cancelled";
+
+/** Подарочный сертификат. После оплаты для него создаётся одноразовый промокод на сумму сертификата. */
+export const giftCards = pgTable(
+  "gift_cards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: serial("number").notNull(),
+    /** Секрет в ссылке на страницу сертификата (покупатель может быть без аккаунта). */
+    token: text("token").notNull(),
+    plan: text("plan").notNull(),
+    amount: integer("amount").notNull(),
+    currency: text("currency").notNull(),
+    status: text("status").$type<GiftStatus>().notNull().default("pending_payment"),
+    paymentProvider: text("payment_provider").notNull(),
+    paymentId: text("payment_id"),
+    paymentClaimedAt: timestamp("payment_claimed_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    buyerUserId: uuid("buyer_user_id").references(() => users.id, { onDelete: "set null" }),
+    buyerName: text("buyer_name").notNull(),
+    buyerEmail: text("buyer_email").notNull(),
+    buyerPhone: text("buyer_phone").notNull().default(""),
+    recipientName: text("recipient_name").notNull(),
+    /** Если указан — отправим сертификат получателю письмом в день sendAt. */
+    recipientEmail: text("recipient_email"),
+    message: text("message").notNull().default(""),
+    /** YYYY-MM-DD; null — сразу после оплаты. */
+    sendAt: text("send_at"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    promoCodeId: uuid("promo_code_id").references(() => promoCodes.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("gift_cards_number_idx").on(t.number), uniqueIndex("gift_cards_token_idx").on(t.token), index("gift_cards_status_idx").on(t.status)],
+);
+
+export type GiftCard = typeof giftCards.$inferSelect;
+
+export const giftCardsRelations = relations(giftCards, ({ one }) => ({
+  promo: one(promoCodes, { fields: [giftCards.promoCodeId], references: [promoCodes.id] }),
+}));
 
 /** Заметки менеджеров о клиенте (история общения). */
 export const crmNotes = pgTable(

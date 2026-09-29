@@ -1,0 +1,207 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowRight, CalendarHeart, Check, Gift, MessageCircleQuestion } from "lucide-react";
+import { LandingHeader } from "@/components/landing/Header";
+import { Footer } from "@/components/landing/Footer";
+import { Book3D } from "@/components/cover/Book3D";
+import { getCurrentUser } from "@/lib/auth";
+import { getLanding, landings } from "@/lib/content/landings";
+import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
+import { applyGender } from "@/lib/content/gender";
+import { deadlineFor, getOccasion, humanDay, inDays, nextFixedDate } from "@/lib/occasions";
+import { formatPrice, plans, site } from "@/config/site";
+import { env } from "@/lib/env";
+
+// Тексты статичные, но подсказка «закажите до …» зависит от даты — обновляем раз в час.
+export const revalidate = 3600;
+
+export function generateStaticParams() {
+  return landings.map((l) => ({ slug: l.slug }));
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const l = getLanding((await params).slug);
+  if (!l) return {};
+  return {
+    title: { absolute: `${l.metaTitle} · ${site.name}` },
+    description: l.metaDescription,
+    alternates: { canonical: `/kniga/${l.slug}` },
+    openGraph: { title: l.metaTitle, description: l.metaDescription, url: `/kniga/${l.slug}` },
+  };
+}
+
+export default async function LandingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const l = getLanding((await params).slug);
+  if (!l) notFound();
+  const user = await getCurrentUser();
+  const theme = getTheme(l.theme);
+  const g = (s: string) => applyGender(s, l.authorGender, l.recipientGender);
+  // По одному вопросу из разных глав — показываем, о чём будет книга.
+  const samples = theme.chapters
+    .filter((_, i) => i % Math.max(1, Math.floor(theme.chapters.length / 6)) === 0)
+    .slice(0, 6)
+    .map((ch) => ({ chapter: g(chapterTitle(theme, ch.key)), prompt: g(ch.questions[0][0]) }));
+  const occasion = getOccasion(l.occasion);
+  const fixed = occasion ? nextFixedDate(occasion, new Date()) : null;
+  const dl = fixed ? deadlineFor(fixed, new Date()) : null;
+  const cta = user ? `/books/new?theme=${l.theme}` : `/register?theme=${l.theme}`;
+  const minPrice = Math.min(...plans.map((p) => p.price));
+
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: `${site.name}: ${l.label.toLowerCase()}`,
+      description: l.metaDescription,
+      brand: { "@type": "Brand", name: site.name },
+      offers: { "@type": "AggregateOffer", priceCurrency: site.currency, lowPrice: minPrice, highPrice: Math.max(...plans.map((p) => p.price)), url: `${env.appUrl}/kniga/${l.slug}` },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: l.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+    },
+  ];
+
+  return (
+    <>
+      <LandingHeader loggedIn={!!user} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <main className="overflow-x-clip">
+        <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24">
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
+          <div className="container-x grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
+            <div>
+              <div className="eyebrow">{l.label}</div>
+              <h1 className="mt-4 font-serif text-[42px] leading-[1.03] font-medium tracking-tight sm:text-6xl">
+                {l.h1} <em className="text-wine">{l.accent}</em>
+              </h1>
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{l.lead}</p>
+              {dl && occasion && dl.state !== "past" ? (
+                <div className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-line bg-white/80 px-4 py-3 text-sm">
+                  <CalendarHeart className="size-5 shrink-0 text-wine" />
+                  <span>
+                    До {occasion.until} {inDays(dl.daysToTarget)}.{" "}
+                    {dl.state === "digital" ? "Печатная уже не успеет — электронная готова сразу после оплаты." : dl.state === "premium" ? `Успеет «Премиум» — закажите до ${humanDay(dl.orderByPremium)}.` : `Чтобы успеть, закажите до ${humanDay(dl.orderBy)}.`}
+                  </span>
+                </div>
+              ) : null}
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link href={cta} className="btn btn-primary btn-lg">
+                  Начать писать бесплатно <ArrowRight className="size-5" />
+                </Link>
+                <Link href="/gift" className="btn btn-outline btn-lg">
+                  <Gift className="size-5" /> Подарить сертификат
+                </Link>
+              </div>
+              <p className="mt-4 text-sm text-muted">Писать бесплатно · платите, когда книга готова · от {formatPrice(minPrice)}</p>
+            </div>
+            <div className="mx-auto w-full max-w-[320px]">
+              <Book3D template={l.cover.template} title={l.cover.title} subtitle={l.cover.subtitle} names={l.cover.names} rotate={-18} className="animate-float" />
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-line/70 bg-white/60 py-16 sm:py-20">
+          <div className="container-x grid gap-5 md:grid-cols-3">
+            {l.why.map((w) => (
+              <div key={w.title}>
+                <div className="flex items-center gap-2 font-semibold">
+                  <Check className="size-5 text-wine" /> {w.title}
+                </div>
+                <p className="mt-2 leading-relaxed text-ink-soft">{w.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="py-20 sm:py-24">
+          <div className="container-x">
+            <div className="max-w-2xl">
+              <div className="eyebrow">О чём будет книга</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{countQuestions(theme)} вопросов с подсказками — вот несколько</h2>
+            </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {samples.map((q) => (
+                <div key={q.prompt} className="card p-6">
+                  <div className="flex items-center gap-2 text-xs font-medium text-wine">
+                    <MessageCircleQuestion className="size-4" /> {q.chapter}
+                  </div>
+                  <p className="mt-3 font-serif text-xl leading-snug">{q.prompt}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-sm text-muted">Любой вопрос можно переписать, пропустить или добавить свой. В книгу попадут только ответы.</p>
+          </div>
+        </section>
+
+        <section className="bg-cream/60 py-20 sm:py-24">
+          <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.2fr]">
+            <div>
+              <div className="eyebrow">Как это работает</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight">От первого ответа до книги в руках</h2>
+              <ol className="mt-8 space-y-5">
+                {[
+                  "Отвечайте на вопросы в своём темпе — с телефона или компьютера, можно голосом.",
+                  "Добавьте фотографии и выберите одну из 11 обложек или свою с фото.",
+                  "Пролистайте точный PDF-макет всех страниц и оформите заказ.",
+                  "Мы печатаем книгу в твёрдом переплёте и доставляем по Казахстану.",
+                ].map((t, i) => (
+                  <li key={t} className="flex gap-4">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-wine font-serif text-white">{i + 1}</span>
+                    <span className="pt-1 leading-relaxed text-ink-soft">{t}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="grid gap-3 self-start">
+              {plans.map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white px-5 py-4">
+                  <div>
+                    <div className="font-medium">{p.name}</div>
+                    <div className="text-sm text-muted">{p.features[0]}</div>
+                  </div>
+                  <div className="shrink-0 font-serif text-2xl">{formatPrice(p.price)}</div>
+                </div>
+              ))}
+              <Link href={cta} className="btn btn-primary btn-lg mt-2">
+                Создать книгу <ArrowRight className="size-5" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 sm:py-24">
+          <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
+            <h2 className="font-serif text-4xl font-medium">Вопросы</h2>
+            <div className="divide-y divide-line border-y border-line">
+              {[...l.faq, ["Сколько стоит книга?", `От ${formatPrice(minPrice)} за электронную версию, ${formatPrice(plans[1].price)} — в твёрдой обложке. Писать можно бесплатно — платите, когда книга готова.`] as [string, string]].map(([q, a]) => (
+                <details key={q} className="py-5">
+                  <summary className="cursor-pointer list-none font-medium">{q}</summary>
+                  <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-line py-14">
+          <div className="container-x">
+            <div className="text-sm font-semibold">Ещё идеи подарков</div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {landings
+                .filter((x) => x.slug !== l.slug)
+                .map((x) => (
+                  <Link key={x.slug} href={`/kniga/${x.slug}`} className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink-soft hover:border-ink/30">
+                    {x.label}
+                  </Link>
+                ))}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
+}

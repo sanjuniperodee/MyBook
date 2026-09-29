@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { GIFT_COOKIE, getGiftByPromo } from "@/lib/gifts";
+import { describePromo, findValidPromo } from "@/lib/promo";
+import { formatPrice, type PlanId } from "@/config/site";
+import type { PromoPreview } from "./actions";
+import { getOccasion } from "@/lib/occasions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, TriangleAlert, CircleAlert } from "lucide-react";
@@ -21,6 +27,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
   const [stats, photos] = await Promise.all([getBookStats(book), getBookPhotos(book.id)]);
   const issues = checkReadiness(book, stats, photos);
   const blocked = issues.some((i) => i.level === "error");
+  // Код активированного сертификата подставляем сразу.
+  const giftCode = (await cookies()).get(GIFT_COOKIE)?.value;
+  const giftCheck = giftCode ? await findValidPromo(giftCode) : null;
+  const initialPromo: PromoPreview | null = giftCheck?.ok
+    ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: describePromo(giftCheck.promo, formatPrice) }
+    : null;
+  // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
+  const giftPlan = giftCheck?.ok ? ((await getGiftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
@@ -40,7 +54,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
         <div>
           <h1 className="font-serif text-4xl font-medium sm:text-5xl">Оформление заказа</h1>
           <p className="mt-2 text-muted">
-            «{book.title}» · ≈ {stats.printedPages} {pluralRu(stats.printedPages, "страница", "страницы", "страниц")} · {stats.answered} ответов · {stats.photos} фото
+            «{book.title}» · ≈ {stats.printedPages} {pluralRu(stats.printedPages, "страница", "страницы", "страниц")} · {stats.answered} {pluralRu(stats.answered, "ответ", "ответа", "ответов")} · {stats.photos} фото
           </p>
         </div>
       </div>
@@ -72,7 +86,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div className="mt-10">
-        <CheckoutForm bookId={book.id} blocked={blocked} defaults={{ name: user.name, email: user.email, phone: user.phone ?? "" }} />
+        <CheckoutForm bookId={book.id} blocked={blocked} initialPromo={initialPromo} initialPlan={giftPlan} defaults={{ name: user.name, email: user.email, phone: user.phone ?? "", desiredDate: book.occasionDate, occasionLabel: getOccasion(book.occasion)?.label ?? null }} />
       </div>
     </main>
   );

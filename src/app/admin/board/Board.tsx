@@ -24,6 +24,7 @@ export interface BoardCard {
   claimed: boolean;
   surprise: boolean;
   giftNote: boolean;
+  express: boolean;
   assigneeId: string | null;
   assigneeLabel: string | null;
   ageDays: number;
@@ -148,6 +149,7 @@ function Card({ card: c }: { card: BoardCard }) {
             <CalendarClock className="size-3" /> {c.daysLeft < 0 ? `просрочен` : c.daysLeft === 0 ? "сегодня" : `${c.daysLeft} дн.`}
           </span>
         ) : null}
+        {c.express ? <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">срочно</span> : null}
         {c.giftNote || c.surprise ? (
           <span className="flex items-center gap-1 rounded-full bg-rose px-2 py-0.5 text-[11px] text-wine">
             <Gift className="size-3" /> {c.surprise ? "сюрприз" : "открытка"}

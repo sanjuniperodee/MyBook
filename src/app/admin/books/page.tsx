@@ -1,4 +1,5 @@
 import { nowMs } from "@/lib/utils";
+import { getOccasion, humanDay } from "@/lib/occasions";
 import Link from "next/link";
 import { and, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -104,6 +105,11 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
                     <div className="text-xs text-muted">
                       {getTheme(r.book.theme).short} · для {r.book.recipientName || "—"}
                     </div>
+                    {r.book.occasion && r.book.occasionDate ? (
+                      <div className="mt-0.5 text-xs text-wine">
+                        {getOccasion(r.book.occasion)?.label} · {humanDay(r.book.occasionDate)}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3">
                     <Link href={`/admin/clients/${r.owner.id}`} className="hover:text-wine hover:underline">

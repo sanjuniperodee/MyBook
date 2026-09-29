@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { SaveIndicator } from "@/components/SaveIndicator";
+import { OccasionPicker } from "@/components/OccasionPicker";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { typographies, cssFont, type TypographyId } from "@/lib/book/fonts";
@@ -18,6 +19,8 @@ export interface SettingsState {
   showToc: boolean;
   authorGender: Gender;
   recipientGender: Gender;
+  occasion: string | null;
+  occasionDate: string | null;
 }
 
 export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }: { bookId: string; initial: SettingsState; fixedRecipientGender: boolean; editable: boolean }) {
@@ -46,6 +49,10 @@ export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }
       <div className="flex justify-end">
         <SaveIndicator status={status} error={error} />
       </div>
+
+      <Section id="occasion" title="Повод и дата" description="Подскажем, до какого дня оформить заказ, чтобы книга приехала вовремя. Дату увидите на странице книги.">
+        <OccasionPicker defaultOccasion={s.occasion} defaultDate={s.occasionDate} disabled={!editable} onChange={(occasion, occasionDate) => update({ occasion, occasionDate })} />
+      </Section>
 
       <Section title="Стиль вёрстки" description="Шрифты заголовков и основного текста во всей книге.">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -132,9 +139,9 @@ export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({ id, title, description, children }: { id?: string; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section>
+    <section id={id} className="scroll-mt-28">
       <h2 className="text-xl font-semibold">{title}</h2>
       {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
       <div className="mt-4">{children}</div>

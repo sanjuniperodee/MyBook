@@ -42,6 +42,7 @@ export default async function BoardPage() {
       claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
       surprise: o.surprise,
       giftNote: !!o.giftNote,
+      express: o.plan === "premium" || o.addons.includes("express"),
       assigneeId: o.assigneeId,
       assigneeLabel: o.assigneeId ? (byId.get(o.assigneeId) ?? null) : null,
       ageDays: Math.floor((nowMs() - o.createdAt.getTime()) / 86_400_000),

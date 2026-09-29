@@ -26,6 +26,8 @@ const book: Book = {
   photoPlacement: "chapters",
   showToc: true,
   inviteToken: null,
+  occasion: null,
+  occasionDate: null,
   createdAt: now,
   updatedAt: now,
 };
@@ -65,5 +67,26 @@ describe("генерация PDF", () => {
     const doc = await PDFDocument.load(res.pdf);
     expect(doc.getPageCount()).toBe(1);
     expect(doc.getPage(0).getWidth()).toBeCloseTo((res.geometry.width * 72) / 25.4, 0);
+  });
+});
+
+describe("подарочный сертификат", () => {
+  it("рендерится в одну страницу A5 альбомной ориентации", async () => {
+    const { renderGiftPdf } = await import("@/lib/pdf/gift");
+    const pdf = await renderGiftPdf({
+      number: 12,
+      code: "GIFT-ABCD-EFGH",
+      plan: "hardcover",
+      amount: 24900,
+      buyerName: "Айгерим",
+      recipientName: "мамы",
+      message: "Мама, напиши историю нашей семьи — я хочу, чтобы она осталась у внуков",
+      validUntil: new Date(2027, 8, 30),
+    });
+    const doc = await PDFDocument.load(pdf);
+    expect(doc.getPageCount()).toBe(1);
+    const { width, height } = doc.getPage(0).getSize();
+    expect(Math.round(width)).toBe(595);
+    expect(Math.round(height)).toBe(420);
   });
 });

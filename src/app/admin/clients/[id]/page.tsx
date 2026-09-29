@@ -115,6 +115,16 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                 <dt>Последний визит</dt>
                 <dd className="text-ink">{client.lastSeenAt ? formatDate(client.lastSeenAt, true) : "—"}</dd>
               </div>
+              <div className="flex justify-between gap-3">
+                <dt>Источник</dt>
+                <dd className="truncate text-right text-ink" title={client.source ? JSON.stringify(client.source) : ""}>
+                  {client.source ? [client.source.source, client.source.medium, client.source.campaign].filter(Boolean).join(" / ") || client.source.referrer || "прямой заход" : "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Автописьма</dt>
+                <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{client.emailOptOut ? "отписан" : "получает"}</dd>
+              </div>
               <div className="flex justify-between">
                 <dt>Средний чек</dt>
                 <dd className="text-ink">{paid.length ? formatPrice(Math.round(ltv / paid.length)) : "—"}</dd>

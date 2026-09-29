@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
 import { Font } from "@react-pdf/renderer";
-import hyphenRu from "hyphen/ru";
+import hyphenRu from "hyphen/ru/index.js";
 import { fontFaces, type FontKey } from "../book/fonts";
 
 let registered = false;

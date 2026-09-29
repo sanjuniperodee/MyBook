@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, FileArchive } from "lucide-react";
 import { getOrderWithBook } from "@/lib/orders";
-import { deliveryOptions, formatPrice, getPlan } from "@/config/site";
+import { deliveryOptions, formatPrice, getPlan, addonName } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { getBookStats } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
@@ -172,6 +172,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{plan?.name} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
               {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>Промокод {order.promoCode}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
+              {order.addons.length ? <div className="flex justify-between"><dt className="text-muted">{order.addons.map(addonName).join(", ")}</dt><dd>{formatPrice(order.addonsAmount)}</dd></div> : null}
               <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{formatPrice(order.deliveryAmount)}</dd></div>
               <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Итого</dt><dd>{formatPrice(order.amount)}</dd></div>
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>

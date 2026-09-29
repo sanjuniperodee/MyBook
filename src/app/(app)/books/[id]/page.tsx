@@ -18,6 +18,7 @@ import { bookLetters, orders } from "@/lib/db/schema";
 import { orderStatusLabel } from "@/lib/orders-shared";
 import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
+import { DeadlineBanner } from "@/components/DeadlineBanner";
 
 export const metadata: Metadata = { title: "Книга" };
 
@@ -125,6 +126,8 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
               <div className="h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
             </div>
           </div>
+
+          {editable ? <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} /> : null}
 
           {editable && next ? (
             <Link href={`${base}/questions?q=${nextIndex + 1}`} className="group mt-8 flex max-w-xl items-center gap-5 rounded-3xl bg-ink p-5 text-white transition hover:bg-ink-soft sm:p-6">

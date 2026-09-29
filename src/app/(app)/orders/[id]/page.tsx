@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrackOnce } from "@/components/analytics/TrackOnce";
 import { notFound } from "next/navigation";
 import { Check, Download } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getOrderWithBook } from "@/lib/orders";
-import { deliveryOptions, formatPrice, getPlan, site } from "@/config/site";
+import { deliveryOptions, formatPrice, getPlan, site, addonName } from "@/config/site";
 import { env } from "@/lib/env";
 import { isOnlinePayment } from "@/lib/payments";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
@@ -48,6 +49,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <span className={cn("rounded-full px-3 py-1 text-sm font-medium", orderStatusColors[order.status])}>{orderStatusLabel(order.status)}</span>
       </div>
       <p className="mt-2 text-muted">от {formatDate(order.createdAt, true)}</p>
+      {paid ? <TrackOnce id={`order_${order.id}`} name="purchase" value={order.amount} /> : null}
 
       {order.status !== "cancelled" ? (
         <ol className="mt-8 grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
@@ -157,6 +159,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <div className="mt-6 space-y-1.5 border-t border-line pt-4 text-sm">
               <div className="flex justify-between"><span className="text-muted">Книги</span><span>{formatPrice(order.itemsAmount)}</span></div>
               {order.discountAmount ? <div className="flex justify-between text-emerald-700"><span>Промокод {order.promoCode}</span><span>−{formatPrice(order.discountAmount)}</span></div> : null}
+              {order.addons.length ? <div className="flex justify-between"><span className="text-muted">{order.addons.map(addonName).join(", ")}</span><span>{formatPrice(order.addonsAmount)}</span></div> : null}
               {plan?.printed ? <div className="flex justify-between"><span className="text-muted">Доставка</span><span>{order.deliveryAmount ? formatPrice(order.deliveryAmount) : "Бесплатно"}</span></div> : null}
               <div className="flex justify-between pt-2 text-base font-semibold"><span>Итого</span><span>{formatPrice(order.amount)}</span></div>
             </div>

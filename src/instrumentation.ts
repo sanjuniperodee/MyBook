@@ -1,12 +1,7 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  if (process.env.SKIP_AUTO_MIGRATE === "1") return;
-  const { runMigrations } = await import("./lib/db/migrate");
-  try {
-    await runMigrations();
-    console.log("[mybook] database migrations applied");
-  } catch (err) {
-    console.error("[mybook] failed to apply migrations", err);
-    throw err;
+  // Условие в таком виде вырезается из edge-сборки вместе с серверными модулями.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerNode } = await import("./instrumentation-node");
+    await registerNode();
   }
 }

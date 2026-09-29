@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CalendarHeart, Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { listUserBooks } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
-import { formatDate } from "@/lib/utils";
+import { formatDate, nowMs } from "@/lib/utils";
+import { deadlineFor, getOccasion, humanDay, inDays } from "@/lib/occasions";
 
 export const metadata: Metadata = { title: "Мои книги" };
 
 export default async function BooksPage() {
   const user = await requireUser("/books");
   const rows = await listUserBooks(user.id);
+  const now = new Date(nowMs());
   if (rows.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6">
@@ -58,6 +60,19 @@ export default async function BooksPage() {
                 <div className="text-xs font-medium text-wine">{theme.name}</div>
                 <h2 className="mt-1 truncate font-serif text-2xl font-medium">{book.title}</h2>
                 <div className="mt-1 text-sm text-muted">{book.status === "ordered" ? "Заказ оформлен" : "Книга пишется"}</div>
+                {(() => {
+                  const o = getOccasion(book.occasion);
+                  if (book.status !== "draft" || !o || !book.occasionDate) return null;
+                  const dl = deadlineFor(book.occasionDate, now);
+                  if (dl.state === "past") return null;
+                  return (
+                    <div className={`mt-2 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${dl.state === "relaxed" ? "bg-cream text-ink-soft" : "bg-rose/60 text-wine"}`}>
+                      <CalendarHeart className="size-3.5" />
+                      {o.label} {inDays(dl.daysToTarget)}
+                      {dl.state === "relaxed" || dl.state === "soon" || dl.state === "urgent" ? ` · заказать до ${humanDay(dl.orderBy)}` : ""}
+                    </div>
+                  );
+                })()}
                 <div className="mt-auto pt-4">
                   <div className="flex justify-between text-xs text-muted">
                     <span>{answered} из {total} ответов</span>

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { ExternalLink, LoaderCircle, RefreshCw } from "lucide-react";
 
-export function PreviewFrame({ bookId }: { bookId: string }) {
-  const [version, setVersion] = useState(() => Date.now());
+export function PreviewFrame({ bookId, initialVersion }: { bookId: string; initialVersion: number }) {
+  // Версия с сервера (время изменения книги) — одинакова при SSR и гидратации.
+  const [version, setVersion] = useState(initialVersion);
   const [loading, setLoading] = useState(true);
   const src = `/api/books/${bookId}/preview?v=${version}`;
   return (

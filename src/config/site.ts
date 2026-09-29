@@ -94,14 +94,32 @@ export const plans: Plan[] = [
 
 export type DeliveryId = "pickup" | "courier" | "post";
 
-export const deliveryOptions: { id: DeliveryId; name: string; price: number; description: string }[] = [
-  { id: "courier", name: "Курьер по городу", price: 2000, description: "Алматы и Астана, 1–2 дня после печати" },
-  { id: "post", name: "Доставка по Казахстану", price: 3500, description: "Казпочта / СДЭК, 3–7 дней" },
-  { id: "pickup", name: "Самовывоз", price: 0, description: "Из нашей студии в Алматы" },
+export const deliveryOptions: { id: DeliveryId; name: string; price: number; description: string; /** Максимальный срок доставки, дней — для расчёта «успеть к дате». */ maxDays: number }[] = [
+  { id: "courier", name: "Курьер по городу", price: 2000, description: "Алматы и Астана, 1–2 дня после печати", maxDays: 2 },
+  { id: "post", name: "Доставка по Казахстану", price: 3500, description: "Казпочта / СДЭК, 3–7 дней", maxDays: 7 },
+  { id: "pickup", name: "Самовывоз", price: 0, description: "Из нашей студии в Алматы", maxDays: 0 },
 ];
+
+export type AddonId = "express" | "giftwrap";
+
+/** Дополнения к печатному заказу. hiddenFor — тарифы, где услуга уже включена. */
+export const addons: { id: AddonId; name: string; description: string; price: number; hiddenFor: PlanId[] }[] = [
+  { id: "express", name: "Экспресс-печать", description: "Печатаем вне очереди — за 3–4 рабочих дня", price: 5000, hiddenFor: ["digital", "premium"] },
+  { id: "giftwrap", name: "Подарочная упаковка", description: "Крафтовая коробка, лента и открытка с вашим текстом", price: 3000, hiddenFor: ["digital", "premium"] },
+];
+
+export function addonName(id: string) {
+  return addons.find((a) => a.id === id)?.name ?? id;
+}
+
+export function availableAddons(plan: PlanId) {
+  return addons.filter((a) => !a.hiddenFor.includes(plan));
+}
 
 /** Сроки производства печатной книги в рабочих днях. */
 export const productionDays = { standard: "5–7", premium: "3–4" };
+/** Верхняя граница сроков производства (рабочие дни) — по ней считаем «закажите до». */
+export const productionWorkdays = { standard: 7, premium: 4 };
 
 export function formatPrice(amount: number): string {
   return `${new Intl.NumberFormat("ru-RU").format(amount)} ${site.currencySign}`;

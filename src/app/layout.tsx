@@ -3,6 +3,8 @@ import { fontVariables } from "./fonts";
 import { site } from "@/config/site";
 import { env } from "@/lib/env";
 import "./globals.css";
+import { Suspense } from "react";
+import { Analytics } from "@/components/analytics/Analytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
@@ -28,7 +30,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" className={fontVariables} data-scroll-behavior="smooth">
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        {children}
+        <Suspense fallback={null}>
+          <Analytics ids={{ ym: process.env.YANDEX_METRIKA_ID, ga: process.env.GA_MEASUREMENT_ID, pixel: process.env.META_PIXEL_ID }} />
+        </Suspense>
+      </body>
     </html>
   );
 }

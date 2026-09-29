@@ -18,6 +18,9 @@ import {
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
+import { GiftCardVisual } from "@/components/GiftCardVisual";
+import { SampleBook } from "@/components/landing/SampleBook";
+import { TrustList } from "@/components/TrustList";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
 import { countQuestions, themes } from "@/lib/content/themes";
@@ -168,9 +171,9 @@ export default async function HomePage() {
 
         {/* ─── INSIDE ─── */}
         <section id="inside" className="scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
-          <div className="container-x grid items-center gap-14 lg:grid-cols-[1fr_1.15fr]">
+          <div className="container-x grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <div className="eyebrow text-[#e3a6ae]">Что внутри</div>
+              <div className="eyebrow text-[#e3a6ae]">Пример книги</div>
               <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Не альбом и не анкета — настоящая книга</h2>
               <p className="mt-5 text-lg leading-relaxed text-paper/70">
                 Ваши ответы превращаются в главы с красивыми заголовками, эпиграфами и оглавлением. Профессиональная типографика, переносы и поля — как в изданиях, которые стоят на полке годами.
@@ -179,7 +182,8 @@ export default async function HomePage() {
                 {[
                   "Титульный лист, посвящение и оглавление",
                   "Главы: знакомство, первое свидание, мечты, благодарность…",
-                  "Фотографии на всю страницу, в рамке или по две",
+                  "Фото прямо в тексте — в рамке, полароидом, на всю страницу",
+                  "Письма от близких — отдельной главой",
                   "Три стиля вёрстки и два формата книги",
                 ].map((t) => (
                   <li key={t} className="flex gap-3 text-paper/85">
@@ -188,35 +192,9 @@ export default async function HomePage() {
                 ))}
               </ul>
             </div>
-            <div className="relative">
-              <div className="grid grid-cols-2 overflow-hidden rounded-md bg-[#fbf9f5] text-ink shadow-[0_40px_80px_-30px_rgba(0,0,0,.7)]">
-                <div className="relative flex aspect-[148/210] flex-col items-center justify-center border-r border-black/5 p-[9%] text-center">
-                  <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/10 to-transparent" />
-                  <div className="text-[10px] tracking-[0.25em] text-muted uppercase sm:text-xs">Глава 2</div>
-                  <div className="mt-3 font-serif text-2xl leading-tight sm:text-4xl">Как всё начиналось</div>
-                  <div className="my-4 flex items-center gap-2 text-[#b4a99e]">
-                    <span className="h-px w-8 bg-current" />
-                    <span className="size-1.5 rotate-45 bg-current" />
-                    <span className="h-px w-8 bg-current" />
-                  </div>
-                  <div className="font-[family-name:var(--font-ptserif)] text-[10px] text-muted italic sm:text-xs">У каждой большой истории есть свой первый день.</div>
-                </div>
-                <div className="relative aspect-[148/210] p-[9%] font-[family-name:var(--font-ptserif)]">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/10 to-transparent" />
-                  <div className="font-serif text-base font-medium sm:text-2xl">Как мы познакомились</div>
-                  <p className="mt-2 text-left text-[8px] leading-[1.55] hyphens-auto sm:text-[11px]" lang="ru">
-                    Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег. Я опаздывала на встречу, а ты стоял у входа в кофейню и держал дверь — так неловко и так галантно одновременно, что я рассмеялась.
-                  </p>
-                  <p className="mt-1.5 text-left text-[8px] leading-[1.55] hyphens-auto sm:text-[11px]" lang="ru">
-                    Потом был разговор ни о чём, который почему-то длился три часа. Я помню, как поймала себя на мысли: мне с тобой совершенно спокойно.
-                  </p>
-                  <div className="mt-3 font-serif text-base font-medium sm:text-2xl">Первое впечатление</div>
-                  <p className="mt-2 text-left text-[8px] leading-[1.55] hyphens-auto sm:text-[11px]" lang="ru">
-                    Ты показался мне очень серьёзным — пока не улыбнулся. С тех пор я знаю: за строгим взглядом прячется самый добрый человек на свете.
-                  </p>
-                  <div className="absolute inset-x-0 bottom-[4%] text-center text-[8px] text-muted sm:text-[10px]">17</div>
-                </div>
-              </div>
+            <div>
+              <SampleBook />
+              <p className="mt-3 text-center text-xs text-paper/40"><span className="hidden md:inline">Листайте стрелками или нажмите на страницу</span><span className="md:hidden">Листайте свайпом</span></p>
             </div>
           </div>
         </section>
@@ -357,6 +335,26 @@ export default async function HomePage() {
                   </Link>
                 </div>
               ))}
+            </div>
+            <TrustList className="mx-auto mt-16 max-w-5xl" />
+          </div>
+        </section>
+
+        {/* ─── GIFT CARD ─── */}
+        <section className="py-20 sm:py-28">
+          <div className="container-x grid items-center gap-12 lg:grid-cols-2">
+            <div className="order-2 lg:order-1">
+              <GiftCardVisual plan="hardcover" recipientName="Гульнара Сериковна" buyerName="Айгерим" message="Мама, напиши историю нашей семьи — я хочу, чтобы она осталась у внуков" className="rotate-[-2deg]" />
+            </div>
+            <div className="order-1 lg:order-2">
+              <div className="eyebrow">Подарочный сертификат</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Хотите, чтобы книгу написали вам — или о себе?</h2>
+              <p className="mt-5 text-lg leading-relaxed text-ink-soft">
+                Подарите сертификат маме, папе или бабушке: их истории станут книгой, которая останется у детей и внуков. PDF с кодом — сразу после оплаты, или отправим письмом в нужный день.
+              </p>
+              <Link href="/gift" className="btn btn-primary btn-lg mt-8">
+                <Gift className="size-5" /> Подарить сертификат
+              </Link>
             </div>
           </div>
         </section>

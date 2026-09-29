@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { site } from "@/config/site";
+import { landings } from "@/lib/content/landings";
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -12,18 +13,21 @@ export function Footer() {
           <p className="mt-4 text-sm leading-relaxed text-muted">{site.description}</p>
         </div>
         <div>
-          <div className="mb-3 text-sm font-semibold">Книги</div>
+          <div className="mb-3 text-sm font-semibold">Идеи подарков</div>
           <ul className="space-y-2 text-sm text-muted">
-            <li><Link href="/register?theme=love" className="hover:text-ink">Любимому человеку</Link></li>
-            <li><Link href="/register?theme=mom" className="hover:text-ink">Маме</Link></li>
-            <li><Link href="/register?theme=dad" className="hover:text-ink">Папе</Link></li>
-            <li><Link href="/register?theme=friend" className="hover:text-ink">Другу</Link></li>
+            {landings.map((l) => (
+              <li key={l.slug}>
+                <Link href={`/kniga/${l.slug}`} className="hover:text-ink">{l.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>
           <div className="mb-3 text-sm font-semibold">Покупателям</div>
           <ul className="space-y-2 text-sm text-muted">
             <li><Link href="/#pricing" className="hover:text-ink">Цены и доставка</Link></li>
+            <li><Link href="/gift" className="hover:text-ink">Подарочный сертификат</Link></li>
+            <li><Link href="/redeem" className="hover:text-ink">Активировать сертификат</Link></li>
             <li><Link href="/#faq" className="hover:text-ink">Частые вопросы</Link></li>
             <li><Link href="/offer" className="hover:text-ink">Публичная оферта</Link></li>
             <li><Link href="/privacy" className="hover:text-ink">Конфиденциальность</Link></li>

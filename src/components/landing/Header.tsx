@@ -6,12 +6,13 @@ import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
+// Абсолютные ссылки на якоря — шапка общая для лендинга и внутренних публичных страниц.
 const nav = [
-  { href: "#how", label: "Как это работает" },
-  { href: "#inside", label: "Что внутри" },
-  { href: "#covers", label: "Обложки" },
-  { href: "#pricing", label: "Цены" },
-  { href: "#faq", label: "Вопросы" },
+  { href: "/#how", label: "Как это работает" },
+  { href: "/#inside", label: "Пример книги" },
+  { href: "/#pricing", label: "Цены" },
+  { href: "/gift", label: "Сертификат" },
+  { href: "/#faq", label: "Вопросы" },
 ];
 
 export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {

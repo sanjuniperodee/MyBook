@@ -14,7 +14,8 @@
     "db:migrate": "tsx --import ./scripts/preload.mjs scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.mjs",
-    "sample-book": "tsx --import ./scripts/preload.mjs scripts/sample-book.ts"
+    "sample-book": "tsx --import ./scripts/preload.mjs scripts/sample-book.ts",
+    "scheduler:once": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/scheduler-once.ts"
   },
   "engines": {
     "node": ">=20.9"

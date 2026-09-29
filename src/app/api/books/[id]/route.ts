@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { getOccasion } from "@/lib/occasions";
 import { api, apiBook, HttpError } from "@/lib/api";
 import { db } from "@/lib/db";
 import { books, photos } from "@/lib/db/schema";
@@ -26,6 +27,8 @@ const patchSchema = z
     format: z.string().refine((v) => v in formats, "Неизвестный формат"),
     photoPlacement: z.enum(["chapters", "end"]),
     showToc: z.boolean(),
+    occasion: z.string().refine((v) => !!getOccasion(v), "Неизвестный повод").nullable(),
+    occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   })
   .partial()
   .strict();
