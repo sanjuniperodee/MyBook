@@ -68,6 +68,25 @@ docker compose up -d --build
 - Создать администратора в контейнере: зарегистрируйтесь с адресом из `ADMIN_EMAILS`.
 - Генерация файлов печати для книги на 150–250 страниц занимает 10–60 секунд и использует до ~1 ГБ памяти — выделите серверу минимум 2 ГБ RAM.
 
+## Продакшен без Docker (PM2 + nginx)
+
+Для сервера, где уже работают другие проекты под PM2 и nginx:
+
+```bash
+# один раз
+createdb mybook                         # или через psql: CREATE DATABASE mybook OWNER ...;
+git clone -b <ветка> https://github.com/sanjuniperodee/MyBook ~/mybook && cd ~/mybook
+cp .env.example .env                    # APP_URL, DATABASE_URL, ADMIN_EMAILS, STORAGE_DIR=/home/<user>/mybook-storage
+sudo cp deploy/nginx-mybook.conf /etc/nginx/sites-available/mybook   # поправьте server_name
+sudo ln -s /etc/nginx/sites-available/mybook /etc/nginx/sites-enabled/ && sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d <домен>
+
+# каждый деплой
+bash deploy/deploy.sh <ветка>
+```
+
+Приложение слушает `127.0.0.1:3040` (переменная `MYBOOK_PORT`), процесс PM2 — `mybook`. Остальные сайты сервера не затрагиваются.
+
 ## Настройка
 
 | Что | Где |
