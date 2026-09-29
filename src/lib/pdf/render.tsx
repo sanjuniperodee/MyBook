@@ -134,7 +134,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode): Prom
   }
   doc.setTitle(content.title);
   doc.setAuthor(content.authorName);
-  doc.setProducer("MyBook");
+  doc.setProducer("MyBooks");
   const pdf = Buffer.from(await doc.save());
   return { pdf, pageCount, contentPages };
 }
@@ -224,7 +224,7 @@ export async function renderReadingPdf(bundle: BookBundle) {
   out.addPage(coverPage);
   for (const p of await out.copyPages(interiorDoc, interiorDoc.getPageIndices())) out.addPage(p);
   out.setTitle(coverText(bundle.book).title);
-  out.setProducer("MyBook");
+  out.setProducer("MyBooks");
   return Buffer.from(await out.save());
 }
 

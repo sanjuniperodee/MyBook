@@ -23,7 +23,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { PagePreview, type PreviewPhoto } from "./PagePreview";
+import { PagePreview, type PreviewChapter, type PreviewPhoto } from "./PagePreview";
 import { PhotoInspector } from "./PhotoInspector";
 import { normalizeStyle } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/db/schema";
@@ -281,7 +281,6 @@ export function QuestionsEditor({
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
   const imgUrl = (p: EditorPhoto) => photoUrl(p.id) + (p.rev ? `&v=${p.rev}` : "");
-  const previewPhotos: PreviewPhoto[] = qPhotos.map((p) => ({ id: p.id, url: imgUrl(p), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
   const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(heading(q), q.answer, format, typography, qPhotos) : 0;
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
 
@@ -307,12 +306,22 @@ export function QuestionsEditor({
     } catch (e) {
       alert((e as Error).message);
     }
-  };  const previewProps = {
+  };
+  const toPreviewPhoto = (p: EditorPhoto): PreviewPhoto => ({ id: p.id, url: imgUrl(p), width: p.width, height: p.height, caption: p.caption, inline: p.inline });
+  // Вся книга: главы только с заполненными ответами (как в PDF) плюс текущий вопрос, даже пустой.
+  const previewChapters: PreviewChapter[] = [];
+  for (const g of groups) {
+    const entries = g.items
+      .map(({ q: x }) => ({ x, ph: photos.filter((p) => p.questionId === x.id) }))
+      .filter(({ x, ph }) => x.id === q.id || x.answer.trim() || ph.length)
+      .map(({ x, ph }) => ({ id: x.id, heading: heading(x), answer: x.answer, photos: ph.map(toPreviewPhoto) }));
+    if (entries.length) previewChapters.push({ key: g.key, number: previewChapters.length + 1, title: g.title, entries });
+  }
+  const previewProps = {
     format,
     typography,
-    heading: heading(q),
-    answer: q.answer,
-    photos: previewPhotos,
+    chapters: previewChapters,
+    currentId: q.id,
     selectedId: selectedPhoto?.id ?? null,
     onSelect: setSelectedPhotoId,
     onChange: editable ? updateInline : undefined,
@@ -619,10 +628,8 @@ export function QuestionsEditor({
           </div>
 
           {showPreview && !focus ? (
-            <div className="mt-6 rounded-3xl bg-cream/60 p-5 xl:hidden">
-              <PagePreview
-                {...previewProps}
-              />
+            <div className="mt-6 xl:hidden">
+              <PagePreview {...previewProps} className="max-h-[75dvh] overflow-y-auto rounded-3xl bg-cream/60 p-4" />
             </div>
           ) : null}
         </section>
@@ -632,11 +639,7 @@ export function QuestionsEditor({
           <aside className="hidden xl:block">
             <div className="sticky top-20 space-y-4">
               <div className="text-xs font-medium tracking-wider text-muted uppercase">Так будет в книге</div>
-              <div className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3">
-                <PagePreview
-                {...previewProps}
-              />
-              </div>
+              <PagePreview {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
               <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
                 <div className="mb-1 text-sm font-medium text-ink">
                   {answeredCount} из {questions.length} ответов
