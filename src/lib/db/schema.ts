@@ -83,9 +83,11 @@ export const books = pgTable(
     format: text("format").notNull().default("a5"),
     photoPlacement: text("photo_placement", { enum: ["chapters", "end"] }).notNull().default("chapters"),
     showToc: boolean("show_toc").notNull().default(true),
+    /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
+    inviteToken: text("invite_token"),
     ...timestamps,
   },
-  (t) => [index("books_user_idx").on(t.userId)],
+  (t) => [index("books_user_idx").on(t.userId), uniqueIndex("books_invite_token_idx").on(t.inviteToken)],
 );
 
 export const bookQuestions = pgTable(
@@ -134,6 +136,22 @@ export const photos = pgTable(
   (t) => [index("photos_book_idx").on(t.bookId, t.position)],
 );
 
+export const bookLetters = pgTable(
+  "book_letters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    authorName: text("author_name").notNull(),
+    relation: text("relation").notNull().default(""),
+    text: text("text").notNull(),
+    status: text("status", { enum: ["pending", "approved", "hidden"] }).notNull().default("pending"),
+    ...timestamps,
+  },
+  (t) => [index("book_letters_book_idx").on(t.bookId)],
+);
+
 export const orderStatuses = [
   "pending_payment",
   "paid",
@@ -167,6 +185,8 @@ export const orders = pgTable(
     plan: text("plan").notNull(),
     quantity: integer("quantity").notNull().default(1),
     itemsAmount: integer("items_amount").notNull(),
+    discountAmount: integer("discount_amount").notNull().default(0),
+    promoCode: text("promo_code"),
     deliveryAmount: integer("delivery_amount").notNull().default(0),
     amount: integer("amount").notNull(),
     currency: text("currency").notNull(),
@@ -195,6 +215,26 @@ export const orders = pgTable(
   ],
 );
 
+export const promoCodes = pgTable(
+  "promo_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Код в верхнем регистре. */
+    code: text("code").notNull(),
+    kind: text("kind", { enum: ["percent", "fixed"] }).notNull(),
+    /** Процент (1–100) или сумма скидки в валюте магазина. */
+    value: integer("value").notNull(),
+    /** null — без ограничения количества использований. */
+    maxUses: integer("max_uses"),
+    usedCount: integer("used_count").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    active: boolean("active").notNull().default(true),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("promo_codes_code_idx").on(t.code)],
+);
+
 export const orderEvents = pgTable(
   "order_events",
   {
@@ -219,11 +259,16 @@ export const booksRelations = relations(books, ({ one, many }) => ({
   user: one(users, { fields: [books.userId], references: [users.id] }),
   questions: many(bookQuestions),
   photos: many(photos),
+  letters: many(bookLetters),
   orders: many(orders),
 }));
 
 export const bookQuestionsRelations = relations(bookQuestions, ({ one }) => ({
   book: one(books, { fields: [bookQuestions.bookId], references: [books.id] }),
+}));
+
+export const bookLettersRelations = relations(bookLetters, ({ one }) => ({
+  book: one(books, { fields: [bookLetters.bookId], references: [books.id] }),
 }));
 
 export const photosRelations = relations(photos, ({ one }) => ({
@@ -246,3 +291,5 @@ export type BookQuestion = typeof bookQuestions.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderEvent = typeof orderEvents.$inferSelect;
+export type BookLetter = typeof bookLetters.$inferSelect;
+export type PromoCode = typeof promoCodes.$inferSelect;

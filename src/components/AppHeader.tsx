@@ -12,6 +12,7 @@ export function AppHeader({ user }: { user: User }) {
         <nav className="flex items-center gap-1 text-[15px]">
           <Link href="/books" className="hidden rounded-full px-3.5 py-2 text-ink-soft hover:bg-ink/5 hover:text-ink sm:block">Мои книги</Link>
           <Link href="/orders" className="rounded-full px-3.5 py-2 text-ink-soft hover:bg-ink/5 hover:text-ink">Заказы</Link>
+          <Link href="/account" className="hidden rounded-full px-3.5 py-2 text-ink-soft hover:bg-ink/5 hover:text-ink md:block">Профиль</Link>
           {user.role === "admin" ? (
             <Link href="/admin" className="rounded-full px-3.5 py-2 text-wine hover:bg-wine/5">Админка</Link>
           ) : null}

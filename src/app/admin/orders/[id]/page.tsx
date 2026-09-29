@@ -109,6 +109,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <Card title="Оплата">
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{plan?.name} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
+              {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>Промокод {order.promoCode}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
               <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{formatPrice(order.deliveryAmount)}</dd></div>
               <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Итого</dt><dd>{formatPrice(order.amount)}</dd></div>
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>

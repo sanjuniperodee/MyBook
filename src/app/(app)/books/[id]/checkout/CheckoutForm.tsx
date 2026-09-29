@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
-import { Check, Minus, Plus } from "lucide-react";
-import { createOrderAction, type CheckoutState } from "./actions";
+import { useActionState, useState, useTransition } from "react";
+import { Check, LoaderCircle, Minus, Plus, Tag, X } from "lucide-react";
+import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPreview } from "./actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { deliveryOptions, formatPrice, plans, type DeliveryId, type PlanId } from "@/config/site";
@@ -16,7 +16,19 @@ export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; de
   const [qty, setQty] = useState(1);
   const [delivery, setDelivery] = useState<DeliveryId>("courier");
   const plan = plans.find((p) => p.id === planId)!;
-  const { itemsAmount: items, deliveryAmount: deliveryPrice, amount: total } = calculatePrice(planId, qty, delivery);
+  const [promo, setPromo] = useState<PromoPreview | null>(null);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [checkingPromo, startPromo] = useTransition();
+  const discount = promo?.ok && promo.kind && promo.value ? { kind: promo.kind, value: promo.value } : null;
+  const { itemsAmount: items, discountAmount, deliveryAmount: deliveryPrice, amount: total } = calculatePrice(planId, qty, delivery, discount);
+  const applyPromo = () =>
+    startPromo(async () => {
+      setPromoError(null);
+      const res = await checkPromoAction(promoInput);
+      if (res.ok) setPromo(res);
+      else setPromoError(res.error ?? "Промокод не подошёл");
+    });
 
   return (
     <form action={action} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -24,6 +36,7 @@ export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; de
       <input type="hidden" name="plan" value={planId} />
       <input type="hidden" name="quantity" value={qty} />
       <input type="hidden" name="delivery" value={plan.printed ? delivery : ""} />
+      <input type="hidden" name="promoCode" value={promo?.ok ? promo.code : ""} />
 
       <div className="space-y-10">
         <section>
@@ -136,6 +149,14 @@ export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; de
               </dt>
               <dd>{formatPrice(items)}</dd>
             </div>
+            {discountAmount ? (
+              <div className="flex justify-between text-emerald-700">
+                <dt>
+                  Промокод {promo?.code} ({promo?.label})
+                </dt>
+                <dd>−{formatPrice(discountAmount)}</dd>
+              </div>
+            ) : null}
             {plan.printed ? (
               <div className="flex justify-between">
                 <dt className="text-muted">Доставка</dt>
@@ -143,6 +164,38 @@ export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; de
               </div>
             ) : null}
           </dl>
+          <div className="mt-4">
+            {promo?.ok ? (
+              <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <span className="flex items-center gap-1.5">
+                  <Tag className="size-4" /> {promo.code} применён
+                </span>
+                <button type="button" onClick={() => setPromo(null)} aria-label="Убрать промокод" className="p-1">
+                  <X className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  className="input h-10 text-sm uppercase placeholder:normal-case"
+                  placeholder="Промокод"
+                  value={promoInput}
+                  maxLength={40}
+                  onChange={(e) => setPromoInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (promoInput.trim()) applyPromo();
+                    }
+                  }}
+                />
+                <button type="button" className="btn btn-outline btn-sm h-10 shrink-0" onClick={applyPromo} disabled={!promoInput.trim() || checkingPromo}>
+                  {checkingPromo ? <LoaderCircle className="size-4 animate-spin" /> : "Применить"}
+                </button>
+              </div>
+            )}
+            {promoError ? <p className="mt-1.5 text-xs text-red-700">{promoError}</p> : null}
+          </div>
           <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
             <span className="font-medium">К оплате</span>
             <span className="font-serif text-3xl font-medium">{formatPrice(total)}</span>

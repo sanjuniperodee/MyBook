@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, ImagePlus } from "lucide-react";
+import { Check, ImagePlus } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -60,60 +60,63 @@ export function CoverEditor({
   };
 
   const template = coverTemplates.find((t) => t.id === state.coverTemplate) ?? coverTemplates[0];
-  const idx = coverTemplates.indexOf(template);
-  const go = (d: number) => update({ coverTemplate: coverTemplates[(idx + d + coverTemplates.length) % coverTemplates.length].id });
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
   const coverPhoto = state.coverPhotoId ? photoUrl(state.coverPhotoId, "full") : undefined;
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
       <div>
-        <div className="mx-auto w-full max-w-[380px]">
-          <CoverPreview
-            template={state.coverTemplate}
-            format={format}
-            title={state.title}
-            subtitle={state.subtitle}
-            names={names}
-            photoUrl={coverPhoto}
-            className="rounded-[4px] shadow-book"
-            uid="editor"
-          />
+        <div className="lg:sticky lg:top-24">
+          <div className="mx-auto w-full max-w-[340px] rounded-[28px] bg-cream/70 p-8">
+            <CoverPreview
+              template={state.coverTemplate}
+              format={format}
+              title={state.title}
+              subtitle={state.subtitle}
+              names={names}
+              photoUrl={coverPhoto}
+              className="rounded-[4px] shadow-book"
+              uid="editor"
+            />
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
+            <span className="font-medium text-ink">{template.name}</span>·<SaveIndicator status={status} error={error} />
+          </div>
         </div>
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <button className="btn btn-outline size-11 shrink-0 px-0" onClick={() => go(-1)} aria-label="Предыдущая обложка" disabled={!editable}>
-            <ChevronLeft className="size-5" />
-          </button>
-          <div ref={strip} className="no-scrollbar flex gap-2.5 overflow-x-auto px-1 py-2">
+      </div>
+
+      <div className="space-y-8">
+        <section>
+          <h2 className="text-lg font-semibold">Дизайн</h2>
+          <div ref={strip} className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
             {coverTemplates.map((t) => (
               <button
                 key={t.id}
                 onClick={() => update({ coverTemplate: t.id })}
                 disabled={!editable}
-                title={t.name}
-                className={cn(
-                  "relative size-12 shrink-0 rounded-full ring-offset-2 ring-offset-paper transition",
-                  t.id === state.coverTemplate ? "ring-2 ring-wine" : "ring-1 ring-line hover:ring-ink/40",
-                )}
-                style={{ background: t.swatch }}
+                className="group text-left"
+                aria-pressed={t.id === state.coverTemplate}
               >
-                {t.id === state.coverTemplate ? <Check className="absolute inset-0 m-auto size-4 text-white drop-shadow" /> : null}
-                <span className="sr-only">{t.name}</span>
+                <div
+                  className={cn(
+                    "relative overflow-hidden rounded-[4px] ring-offset-2 ring-offset-paper transition",
+                    t.id === state.coverTemplate ? "ring-2 ring-wine" : "ring-1 ring-line group-hover:-translate-y-0.5 group-hover:ring-ink/30",
+                  )}
+                >
+                  <CoverPreview template={t.id} format={format} title={state.title} names={names} photoUrl={t.requiresPhoto ? coverPhoto : undefined} lite uid={`pick-${t.id}`} />
+                  {t.id === state.coverTemplate ? (
+                    <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-wine text-white">
+                      <Check className="size-3" />
+                    </span>
+                  ) : null}
+                </div>
+                <div className={cn("mt-1.5 truncate text-xs", t.id === state.coverTemplate ? "font-medium text-ink" : "text-muted")}>{t.name}</div>
               </button>
             ))}
           </div>
-          <button className="btn btn-outline size-11 shrink-0 px-0" onClick={() => go(1)} aria-label="Следующая обложка" disabled={!editable}>
-            <ChevronRight className="size-5" />
-          </button>
-        </div>
-        <p className="mt-2 text-center text-sm text-muted">{template.name}</p>
-      </div>
+        </section>
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Текст на обложке</h2>
-          <SaveIndicator status={status} error={error} />
-        </div>
+        <h2 className="text-lg font-semibold">Текст на обложке</h2>
 
         {template.requiresPhoto ? (
           <div>

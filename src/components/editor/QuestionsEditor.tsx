@@ -2,15 +2,33 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, Eye, EyeOff, List, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Check,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Lightbulb,
+  ListTree,
+  Maximize2,
+  Mic,
+  MicOff,
+  Minimize2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { PagePreview } from "./PagePreview";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
+import { useDictation } from "@/hooks/useDictation";
 import { apiFetch } from "@/lib/client-api";
-import { getFormat } from "@/lib/book/formats";
-import { getTypography } from "@/lib/book/fonts";
+import { getFormat, printablePageCount } from "@/lib/book/formats";
+import { cssFont, getTypography } from "@/lib/book/fonts";
 import { countWords, estimateAnswerPages, estimatePages, pluralRu, type BookContent, type ContentChapter } from "@/lib/book/layout";
-import { printablePageCount } from "@/lib/book/formats";
 import { cn } from "@/lib/utils";
 
 export interface EditorQuestion {
@@ -38,6 +56,31 @@ export interface EditorBook {
   title: string;
 }
 
+const writingTips = [
+  "Начните с конкретного момента: где вы были, что видели, какая была погода.",
+  "Вспомните точную фразу — прямую речь приятно перечитывать.",
+  "Опишите, что вы чувствовали внутри в тот момент.",
+  "Добавьте деталь, которую знаете только вы двое.",
+  "Пишите так, будто рассказываете это вслух за чашкой чая.",
+  "Пара искренних предложений лучше страницы общих слов.",
+];
+
+interface ChapterGroup {
+  key: string;
+  title: string;
+  items: { q: EditorQuestion; i: number }[];
+}
+
+function groupByChapter(questions: EditorQuestion[]): ChapterGroup[] {
+  const groups: ChapterGroup[] = [];
+  questions.forEach((q, i) => {
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== q.chapter) groups.push((g = { key: q.chapter, title: q.chapterTitle, items: [] }));
+    g.items.push({ q, i });
+  });
+  return groups;
+}
+
 export function QuestionsEditor({
   book,
   initialQuestions,
@@ -54,15 +97,32 @@ export function QuestionsEditor({
   const [questions, setQuestions] = useState(initialQuestions);
   const [index, setIndex] = useState(Math.min(Math.max(initialIndex, 0), initialQuestions.length - 1));
   const [drawer, setDrawer] = useState(false);
-  const [editingTitle, setEditingTitle] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [showPreviewMobile, setShowPreviewMobile] = useState(false);
+  const [showTips, setShowTips] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const [lang, setLang] = useState<"ru-RU" | "kk-KZ">("ru-RU");
   const textarea = useRef<HTMLTextAreaElement>(null);
   const dirty = useRef(new Map<string, Patch>());
 
   const format = getFormat(book.format);
   const typography = getTypography(book.typography);
   const q = questions[index];
+
+  useEffect(() => {
+    try {
+      // Предпочтение режима фокуса хранится в браузере
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFocus(localStorage.getItem("mb-focus") === "1");
+    } catch {}
+  }, []);
+  const toggleFocus = () =>
+    setFocus((v) => {
+      try {
+        localStorage.setItem("mb-focus", v ? "0" : "1");
+      } catch {}
+      return !v;
+    });
 
   const { status, error, schedule, flush } = useAutosave<null>(async () => {
     const batch = [...dirty.current.entries()];
@@ -87,48 +147,56 @@ export function QuestionsEditor({
     [editable, schedule],
   );
 
+  const dictation = useDictation((text) => {
+    const current = questions[index];
+    if (!current || !text) return;
+    const sep = current.answer && !/\s$/.test(current.answer) ? " " : "";
+    const chunk = current.answer ? text : text.charAt(0).toUpperCase() + text.slice(1);
+    patchQuestion(current.id, { answer: current.answer + sep + chunk });
+  });
+
   const goTo = useCallback(
     (i: number) => {
       const next = Math.min(Math.max(i, 0), questions.length - 1);
       void flush();
+      dictation.stop();
       setIndex(next);
-      setEditingTitle(false);
       setAdding(false);
       setDrawer(false);
+      setShowTips(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [flush, questions.length],
+    [flush, questions.length, dictation],
   );
 
-  // URL ?q= синхронизируется без перезагрузки страницы
   useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set("q", String(index + 1));
     window.history.replaceState(null, "", url);
   }, [index]);
 
-  // автоматическая высота поля ответа
   useEffect(() => {
     const el = textarea.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, 260)}px`;
+    el.style.height = `${Math.max(el.scrollHeight, 280)}px`;
   }, [q?.answer, index]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === "Enter") {
         e.preventDefault();
-        goTo(index + 1);
+        goTo(index + (e.shiftKey ? -1 : 1));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [goTo, index]);
 
-  const heading = (x: EditorQuestion) => (x.hideHeading ? null : x.displayText ?? x.defaultTitle);
+  const heading = (x: EditorQuestion) => (x.hideHeading ? null : (x.displayText ?? x.defaultTitle));
+  const groups = useMemo(() => groupByChapter(questions), [questions]);
 
-  // оценка объёма книги по текущему состоянию
   const pages = useMemo(() => {
     const chapters: ContentChapter[] = [];
     for (const x of questions) {
@@ -138,9 +206,11 @@ export function QuestionsEditor({
         ch = { key: x.chapter, number: chapters.length + 1, title: x.chapterTitle, items: [], photos: [] };
         chapters.push(ch);
       }
-      ch.items.push({ id: x.id, heading: heading(x), answer: x.answer });
+      ch.items.push({ id: x.id, heading: x.hideHeading ? null : (x.displayText ?? x.defaultTitle), answer: x.answer });
     }
     const photos = photoLayouts.map((layout, i) => ({ id: String(i), caption: "", layout, width: 1, height: 1, storageKey: "", thumbKey: "" }));
+    const toGallery = book.photoPlacement === "end" || !chapters.length;
+    if (!toGallery) photos.forEach((p, i) => chapters[Math.min(chapters.length - 1, Math.floor((i * chapters.length) / photos.length))].photos.push(p));
     const content: BookContent = {
       format,
       typography,
@@ -151,26 +221,24 @@ export function QuestionsEditor({
       dedication: book.dedication,
       showToc: book.showToc,
       chapters,
-      galleryPhotos: book.photoPlacement === "end" || !chapters.length ? photos : [],
+      galleryPhotos: toGallery ? photos : [],
       year: 2000,
     };
-    if (content.galleryPhotos.length === 0 && chapters.length)
-      photos.forEach((p, i) => chapters[Math.min(chapters.length - 1, Math.floor((i * chapters.length) / photos.length))].photos.push(p));
     const raw = chapters.length ? estimatePages(content) : 0;
     return { raw, printed: raw ? printablePageCount(raw) : 0 };
   }, [questions, photoLayouts, format, typography, book]);
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
-  const chapterQuestions = questions.filter((x) => x.chapter === q.chapter);
-  const chapterIndex = chapterQuestions.findIndex((x) => x.id === q.id);
-  const chapterNumber = [...new Set(questions.map((x) => x.chapter))].indexOf(q.chapter) + 1;
+  const group = groups.find((g) => g.key === q.chapter)!;
+  const posInChapter = group.items.findIndex((x) => x.q.id === q.id);
+  const chapterNumber = groups.indexOf(group) + 1;
+  const words = countWords(q.answer);
   const answerPages = q.answer.trim() ? estimateAnswerPages(heading(q), q.answer, format, typography) : 0;
+  const prev = questions[index - 1];
+  const next = questions[index + 1];
 
   const addQuestion = async (prompt: string) => {
-    const res = await apiFetch<{ question: { id: string; chapter: string; prompt: string } }>(`/api/books/${book.id}/questions`, {
-      method: "POST",
-      json: { afterId: q.id, prompt },
-    });
+    const res = await apiFetch<{ question: { id: string } }>(`/api/books/${book.id}/questions`, { method: "POST", json: { afterId: q.id, prompt } });
     const created: EditorQuestion = {
       id: res.question.id,
       chapter: q.chapter,
@@ -198,155 +266,329 @@ export function QuestionsEditor({
     setIndex((i) => Math.max(0, i - 1));
   };
 
+  const sidebar = <ChapterNav groups={groups} current={index} onPick={goTo} />;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-24 sm:px-6">
-      {/* Верхняя панель */}
-      <div className="sticky top-16 z-30 -mx-4 flex flex-wrap items-center gap-2 border-b border-line/60 bg-paper/90 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
-        <Link href={`/books/${book.id}`} className="btn btn-outline btn-sm">
-          <ChevronLeft className="size-4" /> <span className="hidden sm:inline">На главную</span>
-        </Link>
-        <button className="btn btn-outline btn-sm" onClick={() => setDrawer(true)}>
-          <List className="size-4" /> Все вопросы
-        </button>
-        <div className="ml-auto flex items-center gap-3">
-          <span className="hidden items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-900 sm:flex" title="Оценка объёма готовой книги">
-            <BookOpen className="size-4" /> {pages.raw} {pluralRu(pages.raw, "стр.", "стр.", "стр.")} заполнено
-          </span>
-          <span className="text-sm text-muted tabular-nums">
-            {index + 1} / {questions.length}
-          </span>
-        </div>
-      </div>
+    <div className={cn("mx-auto px-4 py-6 sm:px-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
+      <div className={cn("gap-8 xl:gap-10", !focus && "lg:grid lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_280px]")}>
+        {/* Навигация по главам */}
+        {!focus ? (
+          <aside className="hidden lg:block">
+            <div className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto pr-1 pb-6">{sidebar}</div>
+          </aside>
+        ) : null}
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] xl:gap-16">
-        {/* Редактор */}
+        {/* Лист */}
         <section className="min-w-0">
-          <div className="text-sm text-muted">
-            Глава {chapterNumber} · {q.chapterTitle} · вопрос {chapterIndex + 1} из {chapterQuestions.length}
-          </div>
-          <h1 className="mt-3 font-serif text-3xl leading-tight font-medium sm:text-[40px]">{q.prompt}</h1>
-          {q.hint ? <p className="mt-3 text-[15px] text-muted">{q.hint}</p> : null}
-
-          {/* Заголовок в книге */}
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-4 text-sm">
-            <span className="text-muted">Заголовок в книге:</span>
-            {editingTitle ? (
-              <input
-                autoFocus
-                className="min-w-0 flex-1 border-b border-wine/40 bg-transparent py-1 text-[15px] outline-none"
-                value={q.displayText ?? q.defaultTitle}
-                maxLength={200}
-                onChange={(e) => patchQuestion(q.id, { displayText: e.target.value })}
-                onBlur={() => setEditingTitle(false)}
-                onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
-              />
-            ) : (
-              <button
-                className={cn("flex min-w-0 items-center gap-1.5 text-left text-[15px]", q.hideHeading && "text-muted line-through")}
-                onClick={() => editable && !q.hideHeading && setEditingTitle(true)}
-                disabled={!editable}
-              >
-                <span className="truncate">{q.displayText ?? q.defaultTitle}</span>
-                {editable && !q.hideHeading ? <Pencil className="size-3.5 shrink-0 text-muted" /> : null}
-              </button>
-            )}
-            {q.displayText !== null && q.displayText !== q.defaultTitle && !editingTitle ? (
-              <button className="text-xs text-wine hover:underline" onClick={() => patchQuestion(q.id, { displayText: null })}>
-                вернуть исходный
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button className={cn("btn btn-outline btn-sm", !focus && "lg:hidden")} onClick={() => setDrawer(true)}>
+              <ListTree className="size-4" /> Главы
+            </button>
+            <div className="min-w-0 flex-1 truncate text-sm text-muted">
+              <span className="text-ink">Глава {chapterNumber}</span> · {q.chapterTitle}
+            </div>
+            <span className="flex items-center gap-1.5 rounded-full bg-rose/70 px-3 py-1.5 text-xs font-medium text-wine" title="Оценка объёма готовой книги">
+              <BookOpen className="size-3.5" /> ≈ {pages.printed || 0} стр.
+            </span>
+            {!focus ? (
+              <button className="btn btn-ghost btn-sm size-9 px-0 xl:hidden" onClick={() => setShowPreview((v) => !v)} title="Как будет выглядеть страница">
+                <Eye className="size-4" />
               </button>
             ) : null}
-            <label className="ml-auto flex cursor-pointer items-center gap-2 text-muted">
-              <input type="checkbox" className="size-4 accent-wine" checked={q.hideHeading} onChange={(e) => patchQuestion(q.id, { hideHeading: e.target.checked })} disabled={!editable} />
-              {q.hideHeading ? <EyeOff className="size-4" /> : <Eye className="size-4" />} Скрыть
-            </label>
+            <button className="btn btn-ghost btn-sm size-9 px-0" onClick={toggleFocus} title={focus ? "Выйти из режима фокуса" : "Режим фокуса"}>
+              {focus ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </button>
           </div>
 
-          {/* Ответ */}
-          <label htmlFor="answer" className="mt-8 block text-sm text-muted">
-            Ваш ответ
-          </label>
-          <textarea
-            id="answer"
-            ref={textarea}
-            value={q.answer}
-            onChange={(e) => patchQuestion(q.id, { answer: e.target.value })}
-            readOnly={!editable}
-            placeholder={editable ? "Пишите так, как рассказали бы вслух. Новый абзац — клавиша Enter." : ""}
-            className="mt-3 block min-h-[260px] w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-muted/60 sm:text-xl"
-            style={{ fontFamily: cssFontBody(typography.body) }}
-            maxLength={40000}
-          />
+          <article className="relative rounded-[28px] border border-line/70 bg-white shadow-soft">
+            <div className="flex items-center justify-between border-b border-line/60 px-6 py-3 text-xs text-muted sm:px-10">
+              <span>
+                Вопрос {posInChapter + 1} из {group.items.length}
+              </span>
+              <SaveIndicator status={status} error={error} className="text-xs" />
+            </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-sm text-muted">
-            <span>
-              {countWords(q.answer)} {pluralRu(countWords(q.answer), "слово", "слова", "слов")}
-              {answerPages > 0 ? ` · ≈ ${answerPages < 0.95 ? `${Math.max(0.1, Math.round(answerPages * 10) / 10)}`.replace(".", ",") : Math.round(answerPages * 10) / 10} стр.` : ""}
-            </span>
-            <SaveIndicator status={status} error={error} />
-          </div>
+            <div className="px-6 pt-8 pb-6 sm:px-10 sm:pt-10">
+              <h1 className="font-serif text-[28px] leading-tight font-medium text-ink sm:text-[38px]">{q.prompt}</h1>
+              {q.hint ? <p className="mt-3 text-[15px] leading-relaxed text-muted">{q.hint}</p> : null}
+              <button className="mt-4 inline-flex items-center gap-1.5 text-sm text-wine hover:underline" onClick={() => setShowTips((v) => !v)}>
+                <Lightbulb className="size-4" /> С чего начать?
+                <ChevronDown className={cn("size-3.5 transition", showTips && "rotate-180")} />
+              </button>
+              {showTips ? (
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {writingTips.map((t) => (
+                    <li key={t} className="rounded-2xl bg-cream/70 px-4 py-3 text-sm leading-snug text-ink-soft">
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
 
-          {/* Действия с вопросом */}
-          {editable ? (
-            <div className="mt-6 flex flex-wrap gap-2">
-              {adding ? (
-                <AddQuestion onAdd={addQuestion} onCancel={() => setAdding(false)} />
-              ) : (
-                <button className="btn btn-ghost btn-sm text-muted" onClick={() => setAdding(true)}>
-                  <Plus className="size-4" /> Добавить свой вопрос
+              {/* Заголовок, как он будет в книге */}
+              <div className="mt-8 flex items-start gap-3 rounded-2xl border border-dashed border-line px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] tracking-wider text-muted uppercase">Заголовок в книге</div>
+                  <input
+                    value={q.hideHeading ? "" : (q.displayText ?? q.defaultTitle)}
+                    placeholder={q.hideHeading ? "Заголовок скрыт — ответ пойдёт сплошным текстом" : q.defaultTitle}
+                    onChange={(e) => patchQuestion(q.id, { displayText: e.target.value })}
+                    onBlur={() => q.displayText !== null && !q.displayText.trim() && patchQuestion(q.id, { displayText: null })}
+                    disabled={!editable || q.hideHeading}
+                    maxLength={200}
+                    className="mt-0.5 w-full bg-transparent text-lg outline-none disabled:text-muted"
+                    style={{ fontFamily: cssFont(typography.heading), fontStyle: typography.headingItalic ? "italic" : "normal" }}
+                  />
+                </div>
+                {q.displayText !== null && q.displayText !== q.defaultTitle && !q.hideHeading ? (
+                  <button className="mt-4 shrink-0 text-xs text-wine hover:underline" onClick={() => patchQuestion(q.id, { displayText: null })}>
+                    исходный
+                  </button>
+                ) : null}
+                <button
+                  className="mt-3 shrink-0 rounded-lg p-1.5 text-muted hover:bg-cream hover:text-ink"
+                  onClick={() => patchQuestion(q.id, { hideHeading: !q.hideHeading })}
+                  disabled={!editable}
+                  title={q.hideHeading ? "Показать заголовок" : "Скрыть заголовок"}
+                >
+                  {q.hideHeading ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
-              )}
-              {q.isCustom && !adding ? (
-                <button className="btn btn-ghost btn-sm text-red-700" onClick={removeQuestion}>
-                  <Trash2 className="size-4" /> Удалить вопрос
+              </div>
+
+              <textarea
+                id="answer"
+                ref={textarea}
+                value={q.answer}
+                onChange={(e) => patchQuestion(q.id, { answer: e.target.value })}
+                readOnly={!editable}
+                placeholder={editable ? "Ваш ответ… Пишите так, как рассказали бы вслух. Новый абзац — Enter." : ""}
+                aria-label="Ваш ответ"
+                className="mt-6 block min-h-[280px] w-full resize-none bg-transparent text-lg leading-[1.75] outline-none placeholder:text-muted/60 sm:text-[19px]"
+                style={{ fontFamily: cssFont(typography.body) }}
+                maxLength={40000}
+              />
+              {dictation.listening && dictation.interim ? <p className="mt-1 text-lg text-muted italic">{dictation.interim}…</p> : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-line/60 px-4 py-3 sm:px-8">
+              {editable && dictation.supported ? (
+                <div className="flex items-center rounded-full border border-line">
+                  <button
+                    className={cn("flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
+                    onClick={() => (dictation.listening ? dictation.stop() : dictation.start(lang))}
+                    title="Надиктовать ответ голосом"
+                  >
+                    {dictation.listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+                    {dictation.listening ? "Стоп" : "Надиктовать"}
+                  </button>
+                  <select
+                    value={lang}
+                    onChange={(e) => {
+                      const l = e.target.value as typeof lang;
+                      setLang(l);
+                      if (dictation.listening) dictation.start(l);
+                    }}
+                    className="h-9 rounded-full bg-transparent pr-2 pl-1 text-xs text-muted outline-none"
+                    aria-label="Язык диктовки"
+                  >
+                    <option value="ru-RU">RU</option>
+                    <option value="kk-KZ">KZ</option>
+                  </select>
+                </div>
+              ) : null}
+              {editable ? (
+                <button className="btn btn-ghost btn-sm text-muted" onClick={() => setAdding((v) => !v)}>
+                  <Plus className="size-4" /> Свой вопрос
                 </button>
               ) : null}
+              {editable && q.isCustom ? (
+                <button className="btn btn-ghost btn-sm text-red-700" onClick={removeQuestion}>
+                  <Trash2 className="size-4" /> Удалить
+                </button>
+              ) : null}
+              <span className="ml-auto text-xs text-muted tabular-nums">
+                {words} {pluralRu(words, "слово", "слова", "слов")}
+                {answerPages > 0 ? ` · ≈ ${(Math.round(Math.max(answerPages, 0.1) * 10) / 10).toString().replace(".", ",")} стр.` : ""}
+              </span>
             </div>
-          ) : null}
+            {dictation.error ? <p className="px-6 pb-3 text-sm text-red-700 sm:px-10">{dictation.error}</p> : null}
+            {adding ? (
+              <div className="border-t border-line/60 p-4 sm:px-8">
+                <AddQuestion onAdd={addQuestion} onCancel={() => setAdding(false)} />
+              </div>
+            ) : null}
+          </article>
 
-          <div className="mt-10 flex items-center justify-between">
-            <button className="btn btn-ghost" onClick={() => goTo(index - 1)} disabled={index === 0}>
-              <ChevronLeft className="size-5" /> Назад
+          {/* Переход между вопросами */}
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => goTo(index - 1)}
+              disabled={!prev}
+              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-white/60 p-4 text-left transition hover:border-ink/30 disabled:opacity-40"
+              title="Ctrl + Shift + Enter"
+            >
+              <ArrowLeft className="size-5 shrink-0 text-muted transition group-hover:-translate-x-0.5" />
+              <span className="min-w-0">
+                <span className="block text-xs text-muted">Предыдущий</span>
+                <span className="block truncate text-sm">{prev?.prompt ?? "—"}</span>
+              </span>
             </button>
-            {index < questions.length - 1 ? (
-              <button className="btn btn-dark" onClick={() => goTo(index + 1)} title="Ctrl + Enter">
-                Далее <ChevronRight className="size-5" />
+            {next ? (
+              <button
+                onClick={() => goTo(index + 1)}
+                className="group flex min-w-0 items-center justify-end gap-3 rounded-2xl bg-ink p-4 text-right text-white transition hover:bg-ink-soft"
+                title="Ctrl + Enter"
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs text-white/60">{q.answer.trim() ? "Следующий" : "Пропустить"}</span>
+                  <span className="block truncate text-sm">{next.prompt}</span>
+                </span>
+                <ArrowRight className="size-5 shrink-0 transition group-hover:translate-x-0.5" />
               </button>
             ) : (
-              <Link href={`/books/${book.id}`} className="btn btn-primary" onClick={() => void flush()}>
-                Готово
+              <Link href={`/books/${book.id}/preview`} onClick={() => void flush()} className="flex items-center justify-end gap-3 rounded-2xl bg-wine p-4 text-white">
+                <span className="text-sm font-medium">Посмотреть макет книги</span>
+                <ArrowRight className="size-5" />
               </Link>
             )}
           </div>
 
-          <button className="btn btn-outline mt-8 w-full lg:hidden" onClick={() => setShowPreviewMobile((v) => !v)}>
-            <Eye className="size-4" /> {showPreviewMobile ? "Скрыть превью страницы" : "Как это будет выглядеть в книге"}
-          </button>
+          {showPreview && !focus ? (
+            <div className="mt-6 rounded-3xl bg-cream/60 p-5 xl:hidden">
+              <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} />
+            </div>
+          ) : null}
         </section>
 
-        {/* Превью */}
-        <aside className={cn("lg:block", showPreviewMobile ? "block" : "hidden")}>
-          <div className="sticky top-36">
-            <div className="rounded-3xl border border-line/70 bg-cream/50 p-5 sm:p-8">
-              <div className="mb-4 flex items-center justify-between text-sm">
-                <span className="font-medium">Превью страницы</span>
-                <span className="text-muted">{format.short} · {typography.name}</span>
-              </div>
+        {/* Превью страницы */}
+        {!focus ? (
+          <aside className="hidden xl:block">
+            <div className="sticky top-20 space-y-4">
+              <div className="text-xs font-medium tracking-wider text-muted uppercase">Так будет в книге</div>
               <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} />
-              <p className="mt-4 text-center text-xs text-muted">
-                Книга: ≈ {pages.printed} стр. · {answeredCount} из {questions.length} ответов
-              </p>
+              <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
+                <div className="mb-1 text-sm font-medium text-ink">
+                  {answeredCount} из {questions.length} ответов
+                </div>
+                Отвечать на все вопросы не обязательно — в книгу попадут только заполненные.
+                <div className="mt-3 border-t border-line pt-3">
+                  <kbd className="rounded border border-line bg-white px-1">Ctrl</kbd> + <kbd className="rounded border border-line bg-white px-1">Enter</kbd> — следующий вопрос
+                </div>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        ) : null}
       </div>
 
-      {drawer ? <QuestionsDrawer questions={questions} current={index} onPick={goTo} onClose={() => setDrawer(false)} /> : null}
+      {drawer ? (
+        <Drawer onClose={() => setDrawer(false)}>
+          <ChapterNav groups={groups} current={index} onPick={goTo} />
+        </Drawer>
+      ) : null}
     </div>
   );
 }
 
-function cssFontBody(key: string) {
-  return `var(--font-${key}), Georgia, serif`;
+function ChapterNav({ groups, current, onPick }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
+  const currentKey = groups.find((g) => g.items.some((x) => x.i === current))?.key;
+  const [open, setOpen] = useState<string | undefined>(currentKey);
+  const [search, setSearch] = useState("");
+  const [onlyEmpty, setOnlyEmpty] = useState(false);
+  const list = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // раскрываем главу текущего вопроса при переходе
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(currentKey);
+  }, [currentKey]);
+
+  useEffect(() => {
+    list.current?.querySelector("[data-current=true]")?.scrollIntoView({ block: "nearest" });
+  }, [current, open]);
+
+  const s = search.trim().toLowerCase();
+  const filtering = !!s || onlyEmpty;
+
+  return (
+    <div ref={list}>
+      <div className="relative">
+        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+        <input className="input h-10 pl-9 text-sm" placeholder="Поиск по вопросам" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+      <label className="mt-3 flex items-center gap-2 px-1 text-xs text-muted">
+        <input type="checkbox" className="accent-wine" checked={onlyEmpty} onChange={(e) => setOnlyEmpty(e.target.checked)} />
+        Только без ответа
+      </label>
+      <ol className="mt-4 space-y-1">
+        {groups.map((g, gi) => {
+          const answered = g.items.filter((x) => x.q.answer.trim()).length;
+          const items = g.items.filter(
+            ({ q }) => (!onlyEmpty || !q.answer.trim()) && (!s || q.prompt.toLowerCase().includes(s) || q.answer.toLowerCase().includes(s)),
+          );
+          if (filtering && !items.length) return null;
+          const expanded = filtering || open === g.key;
+          return (
+            <li key={`${g.key}-${gi}`}>
+              <button
+                onClick={() => setOpen(expanded && !filtering ? undefined : g.key)}
+                className={cn("flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-ink/5", g.key === currentKey && "font-medium")}
+              >
+                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full text-[11px]", answered === g.items.length ? "bg-wine text-white" : answered ? "bg-rose text-wine" : "bg-cream text-muted")}>
+                  {answered === g.items.length ? <Check className="size-3" /> : gi + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{g.title}</span>
+                <span className="text-[11px] text-muted tabular-nums">
+                  {answered}/{g.items.length}
+                </span>
+              </button>
+              {expanded ? (
+                <ol className="mt-0.5 mb-2 ml-5 border-l border-line pl-2">
+                  {items.map(({ q, i }) => (
+                    <li key={q.id}>
+                      <button
+                        data-current={i === current}
+                        onClick={() => onPick(i)}
+                        className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition", i === current ? "bg-wine/8 text-wine" : "text-ink-soft hover:bg-ink/5")}
+                      >
+                        <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", q.answer.trim() ? "bg-emerald-500" : "bg-line")} />
+                        <span className="line-clamp-2">{q.prompt}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative flex h-full w-full max-w-sm flex-col bg-paper shadow-2xl">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <h2 className="text-lg font-semibold">Главы и вопросы</h2>
+          <button className="btn btn-ghost btn-sm size-9 px-0" onClick={onClose} aria-label="Закрыть">
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 function AddQuestion({ onAdd, onCancel }: { onAdd: (prompt: string) => Promise<void>; onCancel: () => void }) {
@@ -355,7 +597,6 @@ function AddQuestion({ onAdd, onCancel }: { onAdd: (prompt: string) => Promise<v
   const [err, setErr] = useState<string | null>(null);
   return (
     <form
-      className="w-full rounded-2xl border border-line bg-white p-4"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -369,95 +610,17 @@ function AddQuestion({ onAdd, onCancel }: { onAdd: (prompt: string) => Promise<v
         }
       }}
     >
-      <label className="label">Ваш вопрос (он же станет заголовком в книге)</label>
-      <input autoFocus className="input" value={value} onChange={(e) => setValue(e.target.value)} maxLength={200} minLength={3} required placeholder="Например: Наша поездка в Бурабай" />
+      <label className="label">Ваш вопрос — он же станет заголовком в книге</label>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input autoFocus className="input" value={value} onChange={(e) => setValue(e.target.value)} maxLength={200} minLength={3} required placeholder="Например: Наша поездка в Бурабай" />
+        <button className="btn btn-primary shrink-0" disabled={busy}>
+          Добавить
+        </button>
+        <button type="button" className="btn btn-ghost shrink-0" onClick={onCancel}>
+          Отмена
+        </button>
+      </div>
       {err ? <p className="mt-2 text-sm text-red-700">{err}</p> : null}
-      <div className="mt-3 flex gap-2">
-        <button className="btn btn-primary btn-sm" disabled={busy}>Добавить после текущего</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Отмена</button>
-      </div>
     </form>
-  );
-}
-
-function QuestionsDrawer({ questions, current, onPick, onClose }: { questions: EditorQuestion[]; current: number; onPick: (i: number) => void; onClose: () => void }) {
-  const [filter, setFilter] = useState<"all" | "empty" | "done">("all");
-  const [search, setSearch] = useState("");
-  const list = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    list.current?.querySelector("[data-current=true]")?.scrollIntoView({ block: "center" });
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
-  const s = search.trim().toLowerCase();
-  const groups: { chapter: string; title: string; items: { q: EditorQuestion; i: number }[] }[] = [];
-  questions.forEach((q, i) => {
-    const done = !!q.answer.trim();
-    if (filter === "empty" && done) return;
-    if (filter === "done" && !done) return;
-    if (s && !q.prompt.toLowerCase().includes(s) && !q.answer.toLowerCase().includes(s)) return;
-    let g = groups[groups.length - 1];
-    if (!g || g.chapter !== q.chapter) groups.push((g = { chapter: q.chapter, title: q.chapterTitle, items: [] }));
-    g.items.push({ q, i });
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative ml-auto flex h-full w-full max-w-md flex-col bg-paper shadow-2xl">
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="text-lg font-semibold">Все вопросы</h2>
-          <button className="btn btn-ghost btn-sm size-9 px-0" onClick={onClose} aria-label="Закрыть">
-            <X className="size-5" />
-          </button>
-        </div>
-        <div className="space-y-3 border-b border-line px-5 py-4">
-          <div className="relative">
-            <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-            <input className="input h-10 pl-10" placeholder="Поиск по вопросам и ответам" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <div className="flex gap-1.5">
-            {(
-              [
-                ["all", "Все"],
-                ["empty", "Без ответа"],
-                ["done", "С ответом"],
-              ] as const
-            ).map(([k, label]) => (
-              <button key={k} onClick={() => setFilter(k)} className={cn("rounded-full px-3 py-1.5 text-sm", filter === k ? "bg-ink text-white" : "bg-cream text-ink-soft hover:bg-line")}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div ref={list} className="flex-1 overflow-y-auto px-3 py-3">
-          {groups.length === 0 ? <p className="px-2 py-10 text-center text-sm text-muted">Ничего не найдено</p> : null}
-          {groups.map((g, gi) => (
-            <div key={`${g.chapter}-${gi}`} className="mb-4">
-              <div className="px-2 py-2 text-xs font-semibold tracking-wide text-muted uppercase">{g.title}</div>
-              {g.items.map(({ q, i }) => (
-                <button
-                  key={q.id}
-                  data-current={i === current}
-                  onClick={() => onPick(i)}
-                  className={cn("flex w-full items-start gap-3 rounded-xl px-2 py-2.5 text-left text-sm transition", i === current ? "bg-wine/8 text-wine" : "hover:bg-ink/5")}
-                >
-                  <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", q.answer.trim() ? "bg-emerald-500" : "bg-line")} />
-                  <span className="flex-1 leading-snug">{q.prompt}</span>
-                  <span className="text-xs text-muted tabular-nums">{i + 1}</span>
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

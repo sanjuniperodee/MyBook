@@ -7,6 +7,7 @@ import { env } from "./env";
 import { emailLayout, escapeHtml, sendMail } from "./mail";
 import { orderStatusLabel } from "./orders-shared";
 import { fileExists, getFile, putFile } from "./storage";
+import { releasePromo } from "./promo";
 import { loadBookBundle, printSpecText, renderPrintPackage, renderReadingPdf } from "./pdf/render";
 
 export { calculatePrice, type PriceBreakdown } from "./pricing";
@@ -29,6 +30,7 @@ function orderUrl(order: Order) {
 
 /** Смена статуса заказа + журнал + письмо клиенту. */
 export async function setOrderStatus(orderId: string, status: OrderStatus, actor: string, note = "", extra: Partial<Order> = {}) {
+  const before = await db.query.orders.findFirst({ where: eq(orders.id, orderId), columns: { status: true, promoCode: true } });
   const [order] = await db
     .update(orders)
     .set({ status, ...(status === "paid" ? { paidAt: new Date() } : {}), ...extra })
@@ -36,6 +38,9 @@ export async function setOrderStatus(orderId: string, status: OrderStatus, actor
     .returning();
   if (!order) throw new Error("Order not found");
   await addOrderEvent(orderId, status, note, actor);
+  if (status === "cancelled" && before?.status === "pending_payment" && order.promoCode) {
+    await releasePromo(order.promoCode);
+  }
   if (status === "cancelled") {
     // книгу снова можно редактировать, если нет других активных заказов
     const others = await db.select({ id: orders.id, status: orders.status }).from(orders).where(eq(orders.bookId, order.bookId));

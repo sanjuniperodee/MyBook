@@ -5,7 +5,6 @@ import { ArrowRight, TriangleAlert, CircleAlert } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getAccessibleBook, getBookPhotos, getBookStats } from "@/lib/books";
 import { checkReadiness } from "@/lib/readiness";
-import { BackLink } from "@/components/BackLink";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
@@ -25,8 +24,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <BackLink href={`/books/${book.id}`}>К книге</BackLink>
-      <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
         <div className="w-24 shrink-0">
           <CoverPreview
             template={book.coverTemplate}

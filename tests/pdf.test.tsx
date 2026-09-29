@@ -25,6 +25,7 @@ const book: Book = {
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,
+  inviteToken: null,
   createdAt: now,
   updatedAt: now,
 };

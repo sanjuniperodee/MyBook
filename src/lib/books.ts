@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "./db";
@@ -50,13 +51,13 @@ export async function createBook(userId: string, input: NewBookInput): Promise<B
   });
 }
 
-/** Книга текущего пользователя (или любая — для администратора). */
-export async function getAccessibleBook(bookId: string, user: User): Promise<Book> {
+/** Книга текущего пользователя (или любая — для администратора). Кэшируется в пределах запроса. */
+export const getAccessibleBook = cache(async (bookId: string, user: User): Promise<Book> => {
   if (!/^[0-9a-f-]{36}$/i.test(bookId)) notFound();
   const book = await db.query.books.findFirst({ where: eq(books.id, bookId) });
   if (!book || (book.userId !== user.id && user.role !== "admin")) notFound();
   return book;
-}
+});
 
 export async function findAccessibleBook(bookId: string, user: User): Promise<Book | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookId)) return null;

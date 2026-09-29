@@ -5,7 +5,8 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books, orders, orderStatuses, users } from "@/lib/db/schema";
+import { books, orders, orderStatuses, promoCodes, users } from "@/lib/db/schema";
+import { normalizePromoCode } from "@/lib/pricing";
 import { addOrderEvent, ensurePrintFiles, markOrderPaid, setOrderStatus } from "@/lib/orders";
 
 export interface AdminState {
@@ -76,4 +77,35 @@ export async function setUserRoleAction(userId: string, role: "user" | "admin") 
   if (admin.id === userId) throw new Error("Нельзя изменить собственную роль");
   await db.update(users).set({ role }).where(eq(users.id, userId));
   revalidatePath("/admin/users");
+}
+
+export async function createPromoAction(_: AdminState, form: FormData): Promise<AdminState> {
+  await requireAdmin();
+  const parsed = z
+    .object({
+      code: z.string().transform(normalizePromoCode).pipe(z.string().regex(/^[A-Z0-9_-]{3,40}$/, "Код: 3–40 символов, латиница, цифры, - и _")),
+      kind: z.enum(["percent", "fixed"]),
+      value: z.coerce.number().int().positive("Укажите размер скидки"),
+      maxUses: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.number().int().positive().optional()),
+      expiresAt: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.date().optional()),
+      note: z.string().trim().max(200).optional(),
+    })
+    .refine((d) => d.kind !== "percent" || d.value <= 100, "Процент — не больше 100")
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  const exists = await db.query.promoCodes.findFirst({ where: eq(promoCodes.code, d.code) });
+  if (exists) return { error: "Такой промокод уже есть" };
+  const expiresAt = d.expiresAt ? new Date(d.expiresAt.getTime() + 24 * 3600 * 1000 - 1) : null; // действует до конца дня
+  await db.insert(promoCodes).values({ code: d.code, kind: d.kind, value: d.value, maxUses: d.maxUses ?? null, expiresAt, note: d.note ?? "" });
+  revalidatePath("/admin/promo");
+  return { ok: `Промокод ${d.code} создан` };
+}
+
+export async function togglePromoAction(id: string) {
+  await requireAdmin();
+  const promo = await db.query.promoCodes.findFirst({ where: eq(promoCodes.id, id) });
+  if (!promo) throw new Error("Промокод не найден");
+  await db.update(promoCodes).set({ active: !promo.active }).where(eq(promoCodes.id, id));
+  revalidatePath("/admin/promo");
 }

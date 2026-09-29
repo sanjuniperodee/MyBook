@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { coverSpreadGeometry, formats, print, printablePageCount, spineWidthMm } from "@/lib/book/formats";
 import { buildBookContent, effectiveDpi, estimatePages, photoPages } from "@/lib/book/layout";
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice, normalizePromoCode } from "@/lib/pricing";
 import { coverTemplates, renderCoverSvg } from "@/lib/book/covers";
 import { coverFrontGeometry } from "@/lib/book/formats";
 
@@ -66,10 +66,22 @@ describe("вёрстка", () => {
 
 describe("цены", () => {
   it("считает доп. экземпляры и доставку", () => {
-    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 24900 + 17900, deliveryAmount: 2000, amount: 44800 });
+    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 24900 + 17900, discountAmount: 0, deliveryAmount: 2000, amount: 44800 });
   });
   it("у электронной версии нет доставки и количества", () => {
-    expect(calculatePrice("digital", 5, "courier")).toEqual({ itemsAmount: 9900, deliveryAmount: 0, amount: 9900 });
+    expect(calculatePrice("digital", 5, "courier")).toEqual({ itemsAmount: 9900, discountAmount: 0, deliveryAmount: 0, amount: 9900 });
+  });
+  it("промокод уменьшает стоимость книг, но не доставку", () => {
+    const p = calculatePrice("hardcover", 1, "post", { kind: "percent", value: 10 });
+    expect(p.discountAmount).toBe(2490);
+    expect(p.amount).toBe(24900 - 2490 + 3500);
+    const fixed = calculatePrice("hardcover", 1, "post", { kind: "fixed", value: 100000 });
+    expect(fixed.discountAmount).toBe(24900);
+    expect(fixed.amount).toBe(3500);
+    expect(calculatePrice("digital", 1, null, { kind: "percent", value: 100 }).amount).toBe(0);
+  });
+  it("нормализует код промокода", () => {
+    expect(normalizePromoCode("  love 2026 ")).toBe("LOVE2026");
   });
 });
 

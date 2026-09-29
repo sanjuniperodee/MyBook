@@ -144,6 +144,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </dl>
             <div className="mt-6 space-y-1.5 border-t border-line pt-4 text-sm">
               <div className="flex justify-between"><span className="text-muted">Книги</span><span>{formatPrice(order.itemsAmount)}</span></div>
+              {order.discountAmount ? <div className="flex justify-between text-emerald-700"><span>Промокод {order.promoCode}</span><span>−{formatPrice(order.discountAmount)}</span></div> : null}
               {plan?.printed ? <div className="flex justify-between"><span className="text-muted">Доставка</span><span>{order.deliveryAmount ? formatPrice(order.deliveryAmount) : "Бесплатно"}</span></div> : null}
               <div className="flex justify-between pt-2 text-base font-semibold"><span>Итого</span><span>{formatPrice(order.amount)}</span></div>
             </div>
