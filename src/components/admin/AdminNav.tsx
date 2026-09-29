@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { BookOpen, CheckSquare, Kanban, LayoutDashboard, Menu, Package, Tag, Users, X } from "lucide-react";
+import { BookOpen, CheckSquare, Kanban, KeyRound, LayoutDashboard, Menu, Package, Tag, Users, X } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ const items = [
   { href: "/admin/books", label: "Книги", icon: BookOpen },
   { href: "/admin/tasks", label: "Задачи", icon: CheckSquare, badge: "tasks" as const },
   { href: "/admin/promo", label: "Промокоды", icon: Tag },
+  { href: "/admin/team", label: "Доступы", icon: KeyRound },
 ];
 
 export function AdminNav({ counters, adminName, variant }: { counters: { attention: number; tasks: number }; adminName: string; variant: "sidebar" | "mobile" }) {

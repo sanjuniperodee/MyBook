@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { hashPassword, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books, crmNotes, crmTasks, orders, orderStatuses, promoCodes, users } from "@/lib/db/schema";
+import { books, crmNotes, crmTasks, orders, orderStatuses, promoCodes, sessions, users } from "@/lib/db/schema";
 import { normalizePromoCode } from "@/lib/pricing";
 import { addOrderEvent, ensurePrintFiles, markOrderPaid, setOrderStatus } from "@/lib/orders";
 
@@ -77,6 +78,7 @@ export async function setUserRoleAction(userId: string, role: "user" | "admin") 
   if (admin.id === userId) throw new Error("Нельзя изменить собственную роль");
   await db.update(users).set({ role }).where(eq(users.id, userId));
   revalidatePath("/admin/users");
+  revalidatePath("/admin/team");
 }
 
 export async function createPromoAction(_: AdminState, form: FormData): Promise<AdminState> {
@@ -293,4 +295,58 @@ export async function remindManyAction(clientIds: string[]): Promise<{ sent: num
   revalidatePath("/admin/books");
   revalidatePath("/admin/clients");
   return { sent, skipped };
+}
+
+function generatePassword() {
+  return randomBytes(9).toString("base64url");
+}
+
+/**
+ * Создаёт аккаунт (или, если e-mail уже есть, меняет роль существующему).
+ * Пароль, если не указан, генерируется и показывается один раз.
+ */
+export async function createAccountAction(_: AdminState, form: FormData): Promise<AdminState> {
+  const admin = await requireAdmin();
+  const parsed = z
+    .object({
+      email: z.string().trim().toLowerCase().email("Проверьте адрес почты").max(200),
+      name: z.string().trim().max(100).default(""),
+      password: z.string().max(200).default(""),
+      role: z.enum(["user", "admin"]),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { email, name, role } = parsed.data;
+  const typed = parsed.data.password;
+  if (typed && typed.length < 8) return { error: "Пароль — минимум 8 символов" };
+
+  const existing = await db.query.users.findFirst({ where: sql`lower(${users.email}) = ${email}` });
+  if (existing) {
+    if (existing.id === admin.id) return { error: "Нельзя изменить собственную роль" };
+    const password = typed || null;
+    await db
+      .update(users)
+      .set({ role, ...(password ? { passwordHash: await hashPassword(password) } : {}) })
+      .where(eq(users.id, existing.id));
+    if (password) await db.delete(sessions).where(eq(sessions.userId, existing.id));
+    revalidatePath("/admin/team");
+    return { ok: `Аккаунт ${email} уже был — роль: ${role === "admin" ? "администратор" : "клиент"}${password ? `, пароль изменён: ${password}` : ""}` };
+  }
+
+  const password = typed || generatePassword();
+  await db.insert(users).values({ email, name: name || email.split("@")[0], passwordHash: await hashPassword(password), role });
+  revalidatePath("/admin/team");
+  return { ok: `Аккаунт создан. Логин: ${email} · Пароль: ${password} (показан один раз)` };
+}
+
+/** Новый пароль для пользователя; все его сессии завершаются. */
+export async function resetPasswordAction(userId: string): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const id = z.string().uuid().parse(userId);
+  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
+  if (!user) return { ok: false, message: "Пользователь не найден" };
+  const password = generatePassword();
+  await db.update(users).set({ passwordHash: await hashPassword(password) }).where(eq(users.id, id));
+  await db.delete(sessions).where(eq(sessions.userId, id));
+  return { ok: true, message: `Новый пароль для ${user.email}: ${password}` };
 }
