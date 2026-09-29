@@ -77,6 +77,6 @@ export async function requireAdmin(): Promise<User> {
 }
 
 export function safeNextPath(next: unknown, fallback = "/books") {
-  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) return fallback;
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return fallback;
   return next;
 }

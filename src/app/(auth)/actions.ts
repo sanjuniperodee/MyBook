@@ -8,7 +8,7 @@ import { passwordResets, sessions, users } from "@/lib/db/schema";
 import { createSession, destroySession, hashPassword, hashToken, newToken, safeNextPath, verifyPassword } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
-import { emailLayout, sendMail } from "@/lib/mail";
+import { emailLayout, escapeHtml, sendMail } from "@/lib/mail";
 import { isThemeId } from "@/lib/content/themes";
 
 export interface FormState {
@@ -40,7 +40,7 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
   if (await findUserByEmail(email)) return { error: "Этот e-mail уже зарегистрирован. Войдите в аккаунт." };
   const [user] = await db
     .insert(users)
-    .values({ name, email, passwordHash: await hashPassword(password), role: env.adminEmails.includes(email) ? "admin" : "user" })
+    .values({ name, email, passwordHash: await hashPassword(password) })
     .returning();
   await createSession(user.id);
   const theme = String(form.get("theme") ?? "");
@@ -57,9 +57,6 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   }
   const user = await findUserByEmail(email.data);
   if (!user || !(await verifyPassword(password, user.passwordHash))) return { error: "Неверный e-mail или пароль" };
-  if (user.role !== "admin" && env.adminEmails.includes(user.email.toLowerCase())) {
-    await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
-  }
   await createSession(user.id);
   redirect(safeNextPath(form.get("next")));
 }
@@ -83,7 +80,7 @@ export async function forgotAction(_: FormState, form: FormData): Promise<FormSt
       "Восстановление пароля",
       emailLayout({
         title: "Восстановление пароля",
-        paragraphs: [`Здравствуйте${user.name ? `, ${user.name}` : ""}!`, "Чтобы задать новый пароль, нажмите на кнопку ниже. Ссылка действует 1 час."],
+        paragraphs: [`Здравствуйте${user.name ? `, ${escapeHtml(user.name)}` : ""}!`, "Чтобы задать новый пароль, нажмите на кнопку ниже. Ссылка действует 1 час."],
         button: { label: "Задать новый пароль", url },
         footnote: "Если вы не запрашивали восстановление, просто проигнорируйте это письмо.",
       }),
@@ -102,7 +99,13 @@ export async function resetAction(_: FormState, form: FormData): Promise<FormSta
     .where(and(eq(passwordResets.id, hashToken(token)), gt(passwordResets.expiresAt, new Date()), isNull(passwordResets.usedAt)))
     .limit(1);
   if (!reset) return { error: "Ссылка устарела или уже использована. Запросите новую." };
-  await db.update(users).set({ passwordHash: await hashPassword(password.data) }).where(eq(users.id, reset.userId));
+  const owner = await db.query.users.findFirst({ where: eq(users.id, reset.userId) });
+  // Права администратора из ADMIN_EMAILS выдаются только здесь: переход по ссылке из письма подтверждает владение адресом.
+  const promote = !!owner && owner.role !== "admin" && env.adminEmails.includes(owner.email.toLowerCase());
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(password.data), ...(promote ? { role: "admin" as const } : {}) })
+    .where(eq(users.id, reset.userId));
   await db.update(passwordResets).set({ usedAt: new Date() }).where(eq(passwordResets.id, reset.id));
   await db.delete(sessions).where(eq(sessions.userId, reset.userId));
   await createSession(reset.userId);

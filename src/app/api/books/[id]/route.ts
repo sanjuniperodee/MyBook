@@ -51,5 +51,6 @@ export const DELETE = api(async (req, { params }: { params: Promise<{ id: string
   if (hasOrder) throw new HttpError(409, "По этой книге есть заказы — удалить её нельзя");
   await db.delete(books).where(eq(books.id, book.id));
   await deletePrefix(`photos/${book.id}`);
+  await deletePrefix(`cache/preview/${book.id}`);
   return NextResponse.json({ ok: true });
 });

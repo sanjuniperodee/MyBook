@@ -202,6 +202,12 @@ export const orders = pgTable(
     address: text("address"),
     postalCode: text("postal_code"),
     customerComment: text("customer_comment"),
+    /** Текст подарочной открытки. */
+    giftNote: text("gift_note"),
+    /** К какой дате клиенту нужна книга (YYYY-MM-DD). */
+    desiredDate: text("desired_date"),
+    /** Сюрприз: не связываться с получателем заранее. */
+    surprise: boolean("surprise").notNull().default(false),
     trackingNumber: text("tracking_number"),
     adminNote: text("admin_note"),
     printSpec: jsonb("print_spec").$type<OrderPrintSpec>(),

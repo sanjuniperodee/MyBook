@@ -67,7 +67,10 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
                   <div>{o.contactName}</div>
                   <div className="text-xs text-muted">{o.contactPhone} · {o.contactEmail}</div>
                 </td>
-                <td className="px-4 py-3">{getPlan(o.plan)?.name}{o.quantity > 1 ? ` × ${o.quantity}` : ""}</td>
+                <td className="px-4 py-3">
+                  {getPlan(o.plan)?.name}{o.quantity > 1 ? ` × ${o.quantity}` : ""}
+                  {o.desiredDate ? <div className="text-xs font-medium text-wine">к {formatDate(o.desiredDate)}</div> : null}
+                </td>
                 <td className="px-4 py-3 tabular-nums">{formatPrice(o.amount)}</td>
                 <td className="px-4 py-3">
                   <span className={cn("rounded-full px-2.5 py-1 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>

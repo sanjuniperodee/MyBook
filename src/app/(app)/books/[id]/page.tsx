@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
-import { ArrowRight, Camera, Check, Eye, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
+import { ArrowRight, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getAccessibleBook, getBookPhotos, getBookQuestions, getBookStats } from "@/lib/books";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
@@ -14,7 +14,7 @@ import { getFormat, print } from "@/lib/book/formats";
 import { getTypography } from "@/lib/book/fonts";
 import { site } from "@/config/site";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { bookLetters, orders } from "@/lib/db/schema";
 import { orderStatusLabel } from "@/lib/orders-shared";
 import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
@@ -25,12 +25,17 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}`);
   const book = await getAccessibleBook(id, user);
-  const [stats, questions, photos, [order]] = await Promise.all([
+  const [stats, questions, photos, [order], letterRows] = await Promise.all([
     getBookStats(book),
     getBookQuestions(book.id),
     getBookPhotos(book.id),
     db.select().from(orders).where(eq(orders.bookId, book.id)).orderBy(desc(orders.createdAt)).limit(1),
+    db.select({ status: bookLetters.status }).from(bookLetters).where(eq(bookLetters.bookId, book.id)),
   ]);
+  const letterStats = {
+    approved: letterRows.filter((l) => l.status === "approved").length,
+    pending: letterRows.filter((l) => l.status === "pending").length,
+  };
   const theme = getTheme(book.theme);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const editable = book.status === "draft";
@@ -57,6 +62,13 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     { icon: PenLine, title: "Текст", value: `${stats.answered} ${pluralRu(stats.answered, "ответ", "ответа", "ответов")}`, done: stats.answered >= 10, href: `${base}/questions` },
     { icon: Palette, title: "Обложка", value: getCoverTemplate(book.coverTemplate).name, done: true, href: `${base}/cover` },
     { icon: Camera, title: "Фотографии", value: photos.length ? `${photos.length} фото` : "не добавлены", done: photos.length > 0, href: `${base}/photos` },
+    {
+      icon: Mail,
+      title: "Письма близких",
+      value: letterStats.approved ? `${letterStats.approved} в книге${letterStats.pending ? `, ${letterStats.pending} новых` : ""}` : letterStats.pending ? `${letterStats.pending} новых` : book.inviteToken ? "ссылка отправлена" : "необязательно",
+      done: letterStats.approved > 0,
+      href: `${base}/letters`,
+    },
     { icon: SlidersHorizontal, title: "Оформление", value: `${getFormat(book.format).short} · ${getTypography(book.typography).name}`, done: true, href: `${base}/settings` },
     { icon: Eye, title: "Проверка макета", value: "PDF всех страниц", done: false, href: `${base}/preview` },
     {

@@ -1,4 +1,5 @@
 // PM2-конфиг MyBook. Запускается из корня репозитория на сервере: pm2 start deploy/ecosystem.config.cjs
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- PM2 читает CommonJS-конфиг
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");

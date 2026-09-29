@@ -3,7 +3,7 @@ import { cache } from "react";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "./db";
-import { bookQuestions, books, photos, type Book, type Gender, type User } from "./db/schema";
+import { bookLetters, bookQuestions, books, photos, type Book, type Gender, type User } from "./db/schema";
 import { getTheme } from "./content/themes";
 import type { ThemeId } from "./content/types";
 import { buildBookContent, estimatePages, toPhotoItem } from "./book/layout";
@@ -74,6 +74,14 @@ export async function getBookPhotos(bookId: string) {
   return db.select().from(photos).where(eq(photos.bookId, bookId)).orderBy(asc(photos.position));
 }
 
+export async function getApprovedLetters(bookId: string) {
+  return db
+    .select()
+    .from(bookLetters)
+    .where(and(eq(bookLetters.bookId, bookId), eq(bookLetters.status, "approved")))
+    .orderBy(asc(bookLetters.createdAt));
+}
+
 export interface BookStats {
   answered: number;
   total: number;
@@ -84,8 +92,8 @@ export interface BookStats {
 }
 
 export async function getBookStats(book: Book): Promise<BookStats> {
-  const [qs, ps] = await Promise.all([getBookQuestions(book.id), getBookPhotos(book.id)]);
-  const content = buildBookContent(book, qs, ps.map(toPhotoItem));
+  const [qs, ps, ls] = await Promise.all([getBookQuestions(book.id), getBookPhotos(book.id), getApprovedLetters(book.id)]);
+  const content = buildBookContent(book, qs, ps.map(toPhotoItem), undefined, ls);
   const answered = qs.filter((q) => q.answer.trim()).length;
   const words = qs.reduce((s, q) => s + (q.answer.trim() ? q.answer.trim().split(/\s+/).length : 0), 0);
   const estimatedPages = estimatePages(content);

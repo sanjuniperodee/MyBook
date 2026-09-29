@@ -86,6 +86,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                 </>
               ) : null}
               {order.customerComment ? (<><dt className="text-muted">Комментарий</dt><dd className="whitespace-pre-line">{order.customerComment}</dd></>) : null}
+              {order.giftNote ? (<><dt className="text-muted">Открытка</dt><dd className="whitespace-pre-line italic">«{order.giftNote}»</dd></>) : null}
+              {order.desiredDate ? (<><dt className="text-muted">Нужна к</dt><dd className="font-medium text-wine">{formatDate(order.desiredDate)}</dd></>) : null}
+              {order.surprise ? (<><dt className="text-muted">Сюрприз</dt><dd className="font-medium text-wine">Не звонить получателю, связываться с заказчиком ({order.user.email})</dd></>) : null}
             </dl>
           </Card>
 

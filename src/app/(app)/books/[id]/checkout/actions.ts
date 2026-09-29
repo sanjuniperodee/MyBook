@@ -31,6 +31,9 @@ const schema = z
     postalCode: z.string().trim().max(20).optional(),
     comment: z.string().trim().max(1000).optional(),
     promoCode: z.string().trim().max(40).optional(),
+    giftNote: z.string().trim().max(500, "Текст открытки — до 500 символов").optional(),
+    desiredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+    surprise: z.literal("on").optional(),
     consent: z.literal("on", { message: "Нужно согласие с условиями оферты" }),
   })
   .superRefine((d, ctx) => {
@@ -67,6 +70,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
   const price = calculatePrice(plan.id, d.quantity, delivery, promo);
 
   let promoFailed = false;
+  let alreadyOrdered = false;
   const order = await db.transaction(async (tx) => {
     if (promo && !(await reservePromo(tx, promo.id))) {
       promoFailed = true;
@@ -91,17 +95,28 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
         address: plan.printed ? d.address || null : null,
         postalCode: plan.printed ? d.postalCode || null : null,
         customerComment: d.comment || null,
+        giftNote: plan.printed ? d.giftNote || null : null,
+        desiredDate: plan.printed ? d.desiredDate || null : null,
+        surprise: plan.printed && d.surprise === "on",
         printSpec: null,
       })
       .returning();
-    await tx.update(books).set({ status: "ordered" }).where(eq(books.id, book.id));
+    const locked = await tx
+      .update(books)
+      .set({ status: "ordered" })
+      .where(and(eq(books.id, book.id), eq(books.status, "draft")))
+      .returning({ id: books.id });
+    if (!locked.length) {
+      alreadyOrdered = true;
+      tx.rollback();
+    }
     if (!user.phone) await tx.update(users).set({ phone: d.contactPhone }).where(eq(users.id, user.id));
     return o;
   }).catch((e) => {
-    if (promoFailed) return null;
+    if (promoFailed || alreadyOrdered) return null;
     throw e;
   });
-  if (!order) return { error: "Промокод больше не действует" };
+  if (!order) return { error: alreadyOrdered ? "По этой книге уже оформлен заказ" : "Промокод больше не действует" };
   await addOrderEvent(
     order.id,
     "pending_payment",

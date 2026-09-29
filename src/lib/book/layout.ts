@@ -104,7 +104,22 @@ export function toPhotoItem(p: Photo): PhotoItem {
   };
 }
 
-export function buildBookContent(book: BookLike, questions: QuestionLike[], photos: PhotoItem[], year = new Date().getFullYear()): BookContent {
+export interface LetterLike {
+  id: string;
+  authorName: string;
+  relation: string;
+  text: string;
+}
+
+export const LETTERS_CHAPTER = "__letters";
+
+export function buildBookContent(
+  book: BookLike,
+  questions: QuestionLike[],
+  photos: PhotoItem[],
+  year = new Date().getFullYear(),
+  letters: LetterLike[] = [],
+): BookContent {
   const theme = getTheme(book.theme);
   const sorted = [...questions].sort((a, b) => a.position - b.position);
   const chapterOrder: string[] = [];
@@ -143,6 +158,19 @@ export function buildBookContent(book: BookLike, questions: QuestionLike[], phot
     innerPhotos.forEach((p, i) => {
       const idx = Math.min(chapters.length - 1, Math.floor((i * chapters.length) / innerPhotos.length));
       chapters[idx].photos.push(p);
+    });
+  }
+
+  // Письма близких — последняя глава, после распределения фото.
+  const letterItems = letters.filter((l) => l.text.trim());
+  if (letterItems.length) {
+    chapters.push({
+      key: LETTERS_CHAPTER,
+      number: chapters.length + 1,
+      title: "Письма близких",
+      epigraph: "Слова тех, кто любит вас",
+      items: letterItems.map((l) => ({ id: l.id, heading: l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim(), answer: l.text.trim() })),
+      photos: [],
     });
   }
 

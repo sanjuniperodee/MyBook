@@ -115,8 +115,30 @@ export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; de
           </section>
         ) : null}
 
+        {plan.printed ? (
+          <section>
+            <h2 className="text-xl font-semibold">3. Подарок</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_220px]">
+              <div>
+                <label className="label" htmlFor="giftNote">Текст открытки</label>
+                <textarea className="input" id="giftNote" name="giftNote" rows={3} maxLength={500} placeholder="Например: «С годовщиной, любимый! Твоя Алия»" />
+                <p className="mt-1.5 text-xs text-muted">Напечатаем на открытке и вложим в упаковку. Можно оставить пустым.</p>
+              </div>
+              <div>
+                <label className="label" htmlFor="desiredDate">Нужна к дате</label>
+                <input className="input" id="desiredDate" name="desiredDate" type="date" min={new Date().toISOString().slice(0, 10)} />
+                <p className="mt-1.5 text-xs text-muted">Постараемся успеть</p>
+              </div>
+            </div>
+            <label className="mt-4 flex items-start gap-2.5 text-sm text-ink-soft">
+              <input type="checkbox" name="surprise" className="mt-0.5 size-4 accent-wine" />
+              <span>Это сюрприз — не звонить получателю заранее, согласовывать доставку со мной</span>
+            </label>
+          </section>
+        ) : null}
+
         <section>
-          <h2 className="text-xl font-semibold">{plan.printed ? "3" : "2"}. Контакты</h2>
+          <h2 className="text-xl font-semibold">{plan.printed ? "4" : "2"}. Контакты</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="label" htmlFor="contactName">{plan.printed ? "Имя получателя" : "Ваше имя"}</label>

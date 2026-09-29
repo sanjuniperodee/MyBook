@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Camera, Eye, LayoutGrid, Palette, PenLine, SlidersHorizontal } from "lucide-react";
+import { BookOpen, Camera, Eye, LayoutGrid, Mail, Palette, PenLine, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -10,6 +10,7 @@ const tabs = [
   { href: "/questions", label: "Текст", icon: PenLine },
   { href: "/cover", label: "Обложка", icon: Palette },
   { href: "/photos", label: "Фото", icon: Camera },
+  { href: "/letters", label: "Письма", icon: Mail },
   { href: "/settings", label: "Оформление", icon: SlidersHorizontal },
   { href: "/preview", label: "Макет", icon: Eye },
 ];

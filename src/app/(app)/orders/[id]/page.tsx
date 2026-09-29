@@ -135,6 +135,18 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </dd>
               <dt className="text-muted">E-mail</dt>
               <dd>{order.contactEmail}</dd>
+              {order.giftNote ? (
+                <>
+                  <dt className="text-muted">Открытка</dt>
+                  <dd className="whitespace-pre-line italic">«{order.giftNote}»</dd>
+                </>
+              ) : null}
+              {order.desiredDate ? (
+                <>
+                  <dt className="text-muted">Нужна к</dt>
+                  <dd>{formatDate(order.desiredDate)}{order.surprise ? " · сюрприз" : ""}</dd>
+                </>
+              ) : null}
               {order.customerComment ? (
                 <>
                   <dt className="text-muted">Комментарий</dt>

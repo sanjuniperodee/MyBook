@@ -1,11 +1,11 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
 import { db } from "../db";
-import { bookQuestions, books, photos, type Book, type BookQuestion, type Photo } from "../db/schema";
+import { bookLetters, bookQuestions, books, photos, type Book, type BookLetter, type BookQuestion, type Photo } from "../db/schema";
 import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "../book/covers";
 import {
   coverFrontGeometry,
@@ -29,16 +29,18 @@ export interface BookBundle {
   book: Book;
   questions: BookQuestion[];
   photos: Photo[];
+  letters?: BookLetter[];
 }
 
 export async function loadBookBundle(bookId: string): Promise<BookBundle | null> {
   const book = await db.query.books.findFirst({ where: eq(books.id, bookId) });
   if (!book) return null;
-  const [qs, ps] = await Promise.all([
+  const [qs, ps, ls] = await Promise.all([
     db.select().from(bookQuestions).where(eq(bookQuestions.bookId, bookId)).orderBy(asc(bookQuestions.position)),
     db.select().from(photos).where(eq(photos.bookId, bookId)).orderBy(asc(photos.position)),
+    db.select().from(bookLetters).where(and(eq(bookLetters.bookId, bookId), eq(bookLetters.status, "approved"))).orderBy(asc(bookLetters.createdAt)),
   ]);
-  return { book, questions: qs, photos: ps };
+  return { book, questions: qs, photos: ps, letters: ls };
 }
 
 const modeSettings: Record<RenderMode, { dpi: number; bleed: number; source: "full" | "thumb"; watermark: boolean }> = {
@@ -79,7 +81,7 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
 }
 
 export function contentFor(bundle: BookBundle): BookContent {
-  return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem));
+  return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), undefined, bundle.letters ?? []);
 }
 
 export interface InteriorResult {

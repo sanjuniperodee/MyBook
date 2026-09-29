@@ -9,6 +9,7 @@ import { photoUrl } from "@/lib/urls";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { BookTabs } from "./BookTabs";
+import { OrderButton } from "./OrderButton";
 
 /** Шапка «студии» книги: мини-обложка, название и вкладки разделов. */
 export default async function BookLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
@@ -42,13 +43,11 @@ export default async function BookLayout({ children, params }: { children: React
               <div className="truncate font-serif text-xl leading-tight font-medium">{book.title}</div>
               <div className="truncate text-xs text-muted">
                 {theme.name}
-                {book.recipientName ? ` · для ${book.recipientName}` : ""}
+                {book.recipientName ? ` · ${book.recipientName}` : ""}
               </div>
             </div>
             {book.status === "draft" ? (
-              <Link href={`/books/${book.id}/checkout`} className="btn btn-primary btn-sm shrink-0">
-                Заказать<span className="hidden sm:inline"> книгу</span>
-              </Link>
+              <OrderButton bookId={book.id} />
             ) : order ? (
               <Link href={`/orders/${order.id}`} className="btn btn-dark btn-sm shrink-0">
                 Заказ №{order.number}

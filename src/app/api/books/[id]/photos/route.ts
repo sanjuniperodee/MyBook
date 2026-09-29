@@ -6,12 +6,14 @@ import { photos } from "@/lib/db/schema";
 import { MAX_UPLOAD_BYTES, processUpload } from "@/lib/images";
 import { putFile } from "@/lib/storage";
 import { touchBook } from "@/lib/books";
+import { rateLimit } from "@/lib/rate-limit";
 
 const MAX_PHOTOS = 120;
 
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
+  const { user, book } = await apiBook(req, id, { editable: true });
+  if (!rateLimit(`upload:${user.id}`, 60, 3600_000)) throw new HttpError(429, "Слишком много загрузок подряд. Подождите немного.");
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) throw new HttpError(400, "Выберите фото");

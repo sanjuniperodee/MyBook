@@ -11,6 +11,18 @@ const mk = async () => {
   page.on("console", (m) => m.type() === "error" && errors.push("CONSOLE " + m.text()));
   return page;
 };
+const admin = await mk();
+await admin.goto(`${base}/login?next=/admin/promo`);
+await admin.fill("#email", "admin@mybook.local");
+await admin.fill("#password", "admin12345");
+await admin.click("button[type=submit]");
+await admin.waitForURL((u) => u.pathname.startsWith("/admin"));
+const promoCode = `TEST${Date.now().toString().slice(-6)}`;
+await admin.fill("input[name=code]", promoCode);
+await admin.fill("input[name=value]", "10");
+await admin.getByRole("button", { name: "Создать промокод" }).click();
+await admin.waitForSelector(`text=Промокод ${promoCode} создан`);
+
 const page = await mk();
 const shot = (p, name) => p.screenshot({ path: `${out}/${name}.png`, fullPage: true });
 const email = `buyer${Date.now()}@test.local`;
@@ -56,6 +68,12 @@ await shot(page, "13-checkout");
 await page.fill("#city", "Алматы");
 await page.fill("#address", "ул. Абая, 1, кв. 10");
 await page.fill("#contactPhone", "+7 701 123 45 67");
+await page.fill("#giftNote", "С днём рождения, мама!");
+await page.check("input[name=surprise]");
+await page.getByPlaceholder("Промокод").fill(promoCode.toLowerCase());
+await page.getByRole("button", { name: "Применить" }).click();
+await page.waitForSelector(`text=${promoCode} применён`);
+console.log("total with promo:", await page.locator("aside .font-serif.text-3xl").innerText());
 await page.check("input[name=consent]");
 await page.getByRole("button", { name: "Оформить заказ" }).click();
 await page.waitForURL(/\/orders\//, { timeout: 30000 });
@@ -66,12 +84,7 @@ await page.waitForTimeout(1500);
 await shot(page, "15-order-claimed");
 
 // админ
-const admin = await mk();
-await admin.goto(`${base}/login?next=/admin`);
-await admin.fill("#email", "admin@mybook.local");
-await admin.fill("#password", "admin12345");
-await admin.click("button[type=submit]");
-await admin.waitForURL((u) => u.pathname.startsWith("/admin"));
+await admin.goto(`${base}/admin`);
 await shot(admin, "20-admin");
 const orderId = orderUrl.split("/").pop();
 await admin.goto(`${base}/admin/orders/${orderId}`);

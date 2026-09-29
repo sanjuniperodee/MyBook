@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import { books, orderEvents, orders, type Order, type OrderStatus } from "./db/schema";
@@ -8,6 +9,7 @@ import { emailLayout, escapeHtml, sendMail } from "./mail";
 import { orderStatusLabel } from "./orders-shared";
 import { fileExists, getFile, putFile } from "./storage";
 import { releasePromo } from "./promo";
+import { dedupe, withRenderSlot } from "./pdf/queue";
 import { loadBookBundle, printSpecText, renderPrintPackage, renderReadingPdf } from "./pdf/render";
 
 export { calculatePrice, type PriceBreakdown } from "./pricing";
@@ -57,6 +59,11 @@ export async function markOrderPaid(orderId: string, actor: string, paymentId?: 
   if (!current) throw new Error("Order not found");
   if (current.status !== "pending_payment") return current;
   const order = await setOrderStatus(orderId, "paid", actor, paymentId ? `Платёж ${paymentId}` : "Оплата подтверждена", paymentId ? { paymentId } : {});
+  // Готовим файлы заранее, чтобы клиент и типография скачивали их мгновенно.
+  runInBackground(async () => {
+    await ensurePrintFiles(order);
+    await getOrderFile(order, "reading");
+  });
   if (env.ordersNotifyEmail) {
     await sendMail(
       env.ordersNotifyEmail,
@@ -65,6 +72,15 @@ export async function markOrderPaid(orderId: string, actor: string, paymentId?: 
     );
   }
   return order;
+}
+
+function runInBackground(task: () => Promise<void>) {
+  const job = () => task().catch((err) => console.error("[orders] background job failed", err));
+  try {
+    after(job);
+  } catch {
+    void job(); // вызов вне HTTP-запроса (скрипты)
+  }
 }
 
 async function notifyCustomer(order: Order, status: OrderStatus) {
@@ -127,6 +143,10 @@ const fileKey = (orderId: string, kind: OrderFileKind) => `orders/${orderId}/${k
 export async function ensurePrintFiles(order: Order, force = false) {
   const keys = { block: fileKey(order.id, "block"), cover: fileKey(order.id, "cover"), spec: fileKey(order.id, "spec") };
   if (!force && (await fileExists(keys.block)) && (await fileExists(keys.cover)) && (await fileExists(keys.spec))) return keys;
+  return dedupe(`print:${order.id}`, () => withRenderSlot(() => generatePrintFiles(order, keys)));
+}
+
+async function generatePrintFiles(order: Order, keys: { block: string; cover: string; spec: string }) {
   const bundle = await loadBookBundle(order.bookId);
   if (!bundle) throw new Error("Book not found");
   const pkg = await renderPrintPackage(bundle);
@@ -153,11 +173,15 @@ export async function getOrderFile(order: Order, kind: OrderFileKind, force = fa
   if (kind === "reading") {
     const key = fileKey(order.id, "reading");
     if (!force && (await fileExists(key))) return getFile(key);
-    const bundle = await loadBookBundle(order.bookId);
-    if (!bundle) throw new Error("Book not found");
-    const pdf = await renderReadingPdf(bundle);
-    await putFile(key, pdf);
-    return pdf;
+    return dedupe(`reading:${order.id}`, () =>
+      withRenderSlot(async () => {
+        const bundle = await loadBookBundle(order.bookId);
+        if (!bundle) throw new Error("Book not found");
+        const pdf = await renderReadingPdf(bundle);
+        await putFile(key, pdf);
+        return pdf;
+      }),
+    );
   }
   const keys = await ensurePrintFiles(order, force);
   return getFile(keys[kind]);
