@@ -1,0 +1,38 @@
+import { api, apiUser, HttpError } from "@/lib/api";
+import { getOrderFile, getOrderWithBook, type OrderFileKind } from "@/lib/orders";
+import { getPlan } from "@/config/site";
+
+export const maxDuration = 300;
+
+const kinds: Record<OrderFileKind, { type: string; name: (n: number) => string }> = {
+  reading: { type: "application/pdf", name: (n) => `mybook-${n}.pdf` },
+  block: { type: "application/pdf", name: (n) => `order-${n}-block.pdf` },
+  cover: { type: "application/pdf", name: (n) => `order-${n}-cover.pdf` },
+  spec: { type: "text/plain; charset=utf-8", name: (n) => `order-${n}-spec.txt` },
+};
+
+export const GET = api(async (req, { params }: { params: Promise<{ id: string; kind: string }> }) => {
+  const { id, kind } = await params;
+  if (!(kind in kinds)) throw new HttpError(404, "Не найдено");
+  const user = await apiUser(req);
+  const order = await getOrderWithBook(id);
+  if (!order) throw new HttpError(404, "Заказ не найден");
+  const isAdmin = user.role === "admin";
+  if (!isAdmin) {
+    if (order.userId !== user.id) throw new HttpError(404, "Заказ не найден");
+    const paid = !["pending_payment", "cancelled"].includes(order.status);
+    const digital = !getPlan(order.plan)?.printed;
+    // Покупателю доступна читательская версия после оплаты; файлы для печати — в электронном тарифе.
+    if (!paid || (kind !== "reading" && !digital)) throw new HttpError(403, "Файл пока недоступен");
+  }
+  const force = isAdmin && new URL(req.url).searchParams.get("regenerate") === "1";
+  const data = await getOrderFile(order, kind as OrderFileKind, force);
+  const meta = kinds[kind as OrderFileKind];
+  return new Response(new Uint8Array(data), {
+    headers: {
+      "Content-Type": meta.type,
+      "Content-Disposition": `attachment; filename="${meta.name(order.number)}"`,
+      "Cache-Control": "private, no-store",
+    },
+  });
+});
