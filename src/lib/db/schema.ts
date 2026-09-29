@@ -64,6 +64,19 @@ export const passwordResets = pgTable("password_resets", {
 
 export type Gender = "m" | "f";
 
+export interface InlinePhotoStyle {
+  /** Ширина в процентах от ширины текста (25–100). */
+  width: number;
+  align: "left" | "center" | "right";
+  /** После какого абзаца стоит фото: -1 — перед текстом, null — в конце. */
+  anchor: number | null;
+  aspect: "original" | "1:1" | "4:3" | "3:4" | "16:9";
+  /** Точка фокуса для кадрирования, 0–1. */
+  focusX: number;
+  focusY: number;
+  frame: "none" | "line" | "polaroid" | "round";
+}
+
 export const books = pgTable(
   "books",
   {
@@ -138,6 +151,8 @@ export const photos = pgTable(
     layout: text("layout", { enum: ["full", "bleed", "half"] }).notNull().default("full"),
     /** Фото, вставленное прямо в ответ на вопрос (печатается сразу после текста ответа). */
     questionId: uuid("question_id").references(() => bookQuestions.id, { onDelete: "set null" }),
+    /** Оформление фото внутри ответа: размер, выравнивание, место в тексте, кадр, рамка. */
+    inline: jsonb("inline").$type<InlinePhotoStyle>(),
     ...timestamps,
   },
   (t) => [index("photos_book_idx").on(t.bookId, t.position)],

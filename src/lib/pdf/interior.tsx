@@ -1,9 +1,11 @@
 import "server-only";
 /* eslint-disable jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */
+import { Fragment } from "react";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { mm } from "../book/formats";
-import { INLINE_PHOTO_SHARE, interiorMetrics, photoPages, type BookContent, type PhotoItem } from "../book/layout";
+import { interiorMetrics, photoPages, type BookContent, type PhotoItem } from "../book/layout";
+import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "../book/inline-photo";
 import { face } from "./fonts";
 import { site } from "@/config/site";
 
@@ -250,6 +252,84 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     );
   };
 
+  // ── Ответ с фото внутри: фото встают после нужного абзаца, узкие — в ряд ──
+  const inlineRows = (anchor: number, layout: Map<number, { p: PhotoItem; style: ReturnType<typeof normalizeStyle> }[][]>) =>
+    (layout.get(anchor) ?? []).map((row, r) => {
+      const align = row[0].style.align;
+      return (
+        <View
+          key={`r-${anchor}-${r}`}
+          wrap={false}
+          style={{
+            flexDirection: "row",
+            justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
+            alignItems: "flex-start",
+            marginTop: bodyPt * 0.5,
+            marginBottom: bodyPt,
+          }}
+        >
+          {row.map(({ p, style }, i) => {
+            const img = options.images.get(p.id);
+            if (!img) return null;
+            const box = framedBox(p, style, textWidthPt, textHeightPt, row.length);
+            const polaroid = style.frame === "polaroid";
+            const bw = polaroid ? 0.5 : style.frame === "line" ? 1 : 0;
+            return (
+              <View key={p.id} style={{ width: box.outerW, marginLeft: i ? textWidthPt * ROW_GAP : 0 }}>
+                <View
+                  style={{
+                    width: box.outerW,
+                    height: box.outerH,
+                    paddingTop: box.pad,
+                    paddingLeft: box.pad,
+                    paddingRight: box.pad,
+                    paddingBottom: box.padBottom,
+                    backgroundColor: polaroid ? "#FFFFFF" : undefined,
+                    borderWidth: bw,
+                    borderColor: polaroid ? "#DDD6CE" : INK,
+                    borderStyle: "solid",
+                    borderRadius: box.radius,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Image src={{ data: img.data, format: "jpg" }} style={{ width: box.imgW - bw * 2, height: box.imgH - bw * 2, borderRadius: box.radius, objectFit: "cover" }} />
+                  {polaroid && p.caption ? (
+                    <Text style={{ ...face("caveat", 500), position: "absolute", left: box.pad, right: box.pad, bottom: box.padBottom * 0.22, fontSize: polaroidFontSize(box, p.caption, bodyPt), color: "#3A332E", textAlign: "center", maxLines: 1 }}>
+                      {p.caption}
+                    </Text>
+                  ) : null}
+                </View>
+                {!polaroid && p.caption ? <Text style={{ ...italicBody, fontSize: 9 * scale, color: MUTED, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+      );
+    });
+
+  const inlineBody = (it: BookContent["chapters"][number]["items"][number]) => {
+    const paragraphs = splitParagraphs(it.answer);
+    const photos = (it.photos ?? []).filter((p) => options.images.has(p.id));
+    const layout = layoutInline(
+      photos.map((p) => ({ p, style: normalizeStyle(p.inline) })),
+      paragraphs.length,
+    );
+    return (
+      <>
+        {paragraphs.length ? inlineRows(-1, layout) : null}
+        {paragraphs.map((p, i) => (
+          <Fragment key={i}>
+            <Text style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
+              {p}
+            </Text>
+            {i < paragraphs.length - 1 ? inlineRows(i, layout) : null}
+          </Fragment>
+        ))}
+        {inlineRows(Number.POSITIVE_INFINITY, layout)}
+      </>
+    );
+  };
+
   // ── Главы ──
   for (const ch of content.chapters) {
     pages.push(opener(ch.key, `Глава ${ch.number}`, ch.title, ch.epigraph));
@@ -267,31 +347,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
               ) : idx > 0 ? (
                 <Text style={{ textAlign: "center", color: LIGHT, fontSize: bodyPt, marginBottom: 10 * scale }}>* * *</Text>
               ) : null}
-              {it.answer
-                .split(/\n+/)
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .map((p, i) => (
-                  <Text key={i} style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
-                    {p}
-                  </Text>
-                ))}
-              {(it.photos ?? []).map((p) => {
-                const img = options.images.get(p.id);
-                if (!img) return null;
-                // Вписываем фото в область «ширина текста × половина высоты текста», сохраняя пропорции.
-                const maxW = textWidthPt;
-                const maxH = textHeightPt * INLINE_PHOTO_SHARE;
-                const ratio = img.width / img.height;
-                const w = Math.min(maxW, maxH * ratio);
-                const h = w / ratio;
-                return (
-                  <View key={p.id} wrap={false} style={{ alignItems: "center", marginTop: 6 * scale, marginBottom: 10 * scale }}>
-                    <Image src={{ data: img.data, format: "jpg" }} style={{ width: w, height: h }} />
-                    {p.caption ? <Text style={{ ...italicBody, fontSize: 9 * scale, color: MUTED, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
-                  </View>
-                );
-              })}
+              {inlineBody(it)}
             </View>
           ))}
         </Page>,

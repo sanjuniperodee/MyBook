@@ -17,7 +17,8 @@ import {
   spineWidthMm,
   type CoverGeometry,
 } from "../book/formats";
-import { buildBookContent, photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "../book/layout";
+import { buildBookContent, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "../book/layout";
+import { cropRect, inlineBox, normalizeStyle } from "../book/inline-photo";
 import { getFile } from "../storage";
 import { CoverDocument } from "./cover";
 import { ensureFonts } from "./fonts";
@@ -73,8 +74,16 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
         const w = Math.round((content.format.widthMm + bleedMm * 2) * pxPerMm);
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);
         img = img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
+      } else if (inlineIds.has(p.id)) {
+        // Кадрируем так же, как в превью (пропорции + точка фокуса), и ужимаем до ширины блока.
+        const style = normalizeStyle(p.inline);
+        const meta = await sharp(input).metadata();
+        const src = { width: meta.width ?? p.width, height: meta.height ?? p.height };
+        const text = textArea(content.format);
+        const box = inlineBox(src, style, text.w, text.h);
+        img = img.extract(cropRect(src, style)).resize(Math.round(box.w * pxPerMm), Math.round(box.h * pxPerMm), { fit: "fill", withoutEnlargement: true });
       } else {
-        const area = photoAreaMm(content.format, inlineIds.has(p.id) ? "inline" : halves.has(p.id) ? "half" : p.layout === "half" ? "half" : "full");
+        const area = photoAreaMm(content.format, halves.has(p.id) ? "half" : p.layout === "half" ? "half" : "full");
         img = img.resize(Math.round(area.w * pxPerMm), Math.round(area.h * pxPerMm), { fit: "inside", withoutEnlargement: true });
       }
       const { data, info } = await img.jpeg({ quality: mode === "preview" ? 75 : 90 }).toBuffer({ resolveWithObject: true });

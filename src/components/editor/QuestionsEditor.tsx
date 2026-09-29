@@ -24,6 +24,9 @@ import {
   X,
 } from "lucide-react";
 import { PagePreview, type PreviewPhoto } from "./PagePreview";
+import { PhotoInspector } from "./PhotoInspector";
+import { normalizeStyle } from "@/lib/book/inline-photo";
+import type { InlinePhotoStyle } from "@/lib/db/schema";
 import { photoUrl } from "@/lib/urls";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -56,6 +59,9 @@ export interface EditorPhoto {
   caption: string;
   layout: "full" | "bleed" | "half";
   questionId: string | null;
+  inline?: InlinePhotoStyle | null;
+  /** Счётчик поворотов — сбрасывает кэш картинки в браузере. */
+  rev?: number;
 }
 
 export interface EditorBook {
@@ -108,6 +114,7 @@ export function QuestionsEditor({
 }) {
   const [questions, setQuestions] = useState(initialQuestions);
   const [photos, setPhotos] = useState(initialPhotos);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [picker, setPicker] = useState(false);
   const [index, setIndex] = useState(Math.min(Math.max(initialIndex, 0), initialQuestions.length - 1));
   const [drawer, setDrawer] = useState(false);
@@ -273,8 +280,44 @@ export function QuestionsEditor({
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
-  const previewPhotos: PreviewPhoto[] = qPhotos.map((p) => ({ id: p.id, url: photoUrl(p.id), width: p.width, height: p.height, caption: p.caption }));
-  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(heading(q), q.answer, format, typography, qPhotos.length) : 0;
+  const imgUrl = (p: EditorPhoto) => photoUrl(p.id) + (p.rev ? `&v=${p.rev}` : "");
+  const previewPhotos: PreviewPhoto[] = qPhotos.map((p) => ({ id: p.id, url: imgUrl(p), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
+  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(heading(q), q.answer, format, typography, qPhotos) : 0;
+  const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
+
+  const inlineTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const updateInline = (id: string, patch: Partial<InlinePhotoStyle>) => {
+    if (!editable) return;
+    const cur = photos.find((p) => p.id === id);
+    if (!cur) return;
+    const inline = normalizeStyle({ ...normalizeStyle(cur.inline), ...patch });
+    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, inline } : p)));
+    clearTimeout(inlineTimers.current.get(id));
+    inlineTimers.current.set(
+      id,
+      setTimeout(() => {
+        apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: { inline } }).catch((e) => alert((e as Error).message));
+      }, 350),
+    );
+  };
+  const rotatePhoto = async (id: string) => {
+    try {
+      const res = await apiFetch<{ photo: EditorPhoto }>(`/api/books/${book.id}/photos/${id}/rotate`, { method: "POST" });
+      setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, width: res.photo.width, height: res.photo.height, inline: res.photo.inline, rev: (p.rev ?? 0) + 1 } : p)));
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  };  const previewProps = {
+    format,
+    typography,
+    heading: heading(q),
+    answer: q.answer,
+    photos: previewPhotos,
+    selectedId: selectedPhoto?.id ?? null,
+    onSelect: setSelectedPhotoId,
+    onChange: editable ? updateInline : undefined,
+  };
+
 
   const patchPhoto = async (id: string, patch: Partial<Pick<EditorPhoto, "questionId" | "caption">>) => {
     const prev = photos;
@@ -444,28 +487,46 @@ export function QuestionsEditor({
             </div>
 
             {qPhotos.length ? (
-              <div className="grid gap-3 px-6 pb-6 sm:grid-cols-2 sm:px-10">
-                {qPhotos.map((p) => (
-                  <figure key={p.id} className="overflow-hidden rounded-2xl border border-line bg-cream/40">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoUrl(p.id)} alt={p.caption} className="aspect-[4/3] w-full object-cover" />
-                    <div className="flex items-center gap-2 p-2">
-                      <input
-                        value={p.caption}
-                        onChange={(e) => editCaption(p.id, e.target.value)}
-                        placeholder="Подпись к фото"
-                        maxLength={200}
-                        disabled={!editable}
-                        className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
-                      />
-                      {editable ? (
-                        <button onClick={() => patchPhoto(p.id, { questionId: null })} className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted hover:bg-white hover:text-red-700" title="Убрать фото из ответа">
-                          Убрать
-                        </button>
-                      ) : null}
-                    </div>
-                  </figure>
-                ))}
+              <div className="space-y-3 px-6 pb-6 sm:px-10">
+                <div className="flex flex-wrap items-center gap-2">
+                  {qPhotos.map((p) => {
+                    const st = normalizeStyle(p.inline);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedPhotoId(selectedPhotoId === p.id ? null : p.id)}
+                        className={cn(
+                          "group relative size-16 overflow-hidden rounded-xl border-2 transition",
+                          selectedPhotoId === p.id ? "border-wine shadow-md" : "border-transparent ring-1 ring-line hover:ring-ink/30",
+                        )}
+                        aria-pressed={selectedPhotoId === p.id}
+                        aria-label={`Настроить фото${p.caption ? ` «${p.caption}»` : ""}`}
+                        data-testid="inline-photo-thumb"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={imgUrl(p)} alt="" className="size-full object-cover" />
+                        <span className="absolute inset-x-0 bottom-0 bg-ink/60 py-0.5 text-center text-[10px] text-white tabular-nums">{st.width}%</span>
+                      </button>
+                    );
+                  })}
+                  <span className="text-xs text-muted">{selectedPhoto ? "" : "Нажмите на фото, чтобы изменить размер, место и рамку"}</span>
+                </div>
+                {selectedPhoto ? (
+                  <PhotoInspector
+                    photo={{ ...selectedPhoto, url: imgUrl(selectedPhoto) }}
+                    answer={q.answer}
+                    editable={editable}
+                    onChange={(patch) => updateInline(selectedPhoto.id, patch)}
+                    onCaption={(c) => editCaption(selectedPhoto.id, c)}
+                    onRotate={() => rotatePhoto(selectedPhoto.id)}
+                    onRemove={() => {
+                      setSelectedPhotoId(null);
+                      void patchPhoto(selectedPhoto.id, { questionId: null });
+                    }}
+                    onClose={() => setSelectedPhotoId(null)}
+                  />
+                ) : null}
               </div>
             ) : null}
 
@@ -559,7 +620,9 @@ export function QuestionsEditor({
 
           {showPreview && !focus ? (
             <div className="mt-6 rounded-3xl bg-cream/60 p-5 xl:hidden">
-              <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} photos={previewPhotos} />
+              <PagePreview
+                {...previewProps}
+              />
             </div>
           ) : null}
         </section>
@@ -570,7 +633,9 @@ export function QuestionsEditor({
             <div className="sticky top-20 space-y-4">
               <div className="text-xs font-medium tracking-wider text-muted uppercase">Так будет в книге</div>
               <div className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3">
-                <PagePreview format={format} typography={typography} heading={heading(q)} answer={q.answer} photos={previewPhotos} />
+                <PagePreview
+                {...previewProps}
+              />
               </div>
               <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
                 <div className="mb-1 text-sm font-medium text-ink">
@@ -592,9 +657,15 @@ export function QuestionsEditor({
           photos={photos}
           questionId={q.id}
           questionLabel={q.prompt}
-          onAttach={(id) => patchPhoto(id, { questionId: q.id })}
+          onAttach={(id) => {
+            setSelectedPhotoId(id);
+            void patchPhoto(id, { questionId: q.id });
+          }}
           onDetach={(id) => patchPhoto(id, { questionId: null })}
-          onUploaded={(list) => setPhotos((ps) => [...ps, ...list])}
+          onUploaded={(list) => {
+            setPhotos((ps) => [...ps, ...list]);
+            if (list[0]?.questionId) setSelectedPhotoId(list[0].id);
+          }}
           onClose={() => setPicker(false)}
           otherLabel={(qid) => questions.find((x) => x.id === qid)?.prompt ?? "другой ответ"}
         />

@@ -3,7 +3,8 @@
  */
 import { applyGender } from "../content/gender";
 import { getTheme } from "../content/themes";
-import type { Book, BookQuestion, Photo } from "../db/schema";
+import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "../db/schema";
+import { framedBox, layoutInline, MAX_INLINE_HEIGHT_SHARE, normalizeStyle, splitParagraphs } from "./inline-photo";
 import { getFormat, type BookFormat, type FormatId } from "./formats";
 import { getTypography, type Typography } from "./fonts";
 
@@ -47,6 +48,7 @@ export interface PhotoItem {
   storageKey: string;
   thumbKey: string;
   questionId?: string | null;
+  inline?: InlinePhotoStyle | null;
 }
 
 export interface ContentChapter {
@@ -105,6 +107,7 @@ export function toPhotoItem(p: Photo): PhotoItem {
     storageKey: p.storageKey,
     thumbKey: p.thumbKey,
     questionId: p.questionId,
+    inline: p.inline,
   };
 }
 
@@ -254,9 +257,25 @@ export function headingLines(heading: string | null, m: TextMetrics): number {
   return Math.ceil(heading.length / m.headingCharsPerLine) * 1.6 + 2.2;
 }
 
-export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics): number {
+/** Высота фото внутри ответа в долях страницы (с учётом размера, кадра, рядов и рамки). */
+export function inlinePhotosPages(photos: Pick<PhotoItem, "width" | "height" | "inline">[] | undefined, answer: string, format: BookFormat) {
+  if (!photos?.length) return 0;
+  const area = textArea(format);
+  const items = photos.map((p) => ({ p, style: normalizeStyle(p.inline) }));
+  const paragraphs = splitParagraphs(answer).length;
+  let total = 0;
+  for (const rows of layoutInline(items, paragraphs).values())
+    for (const row of rows) {
+      const hs = row.map(({ p, style }) => framedBox(p, style, area.w, area.h, row.length).outerH);
+      total += Math.max(...hs) + area.h * 0.05;
+    }
+  return total / area.h;
+}
+
+export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics, format?: BookFormat): number {
   let lines = 0;
-  for (const it of ch.items) lines += headingLines(it.heading, m) + answerLines(it.answer, m) + (it.photos?.length ?? 0) * INLINE_PHOTO_LINES_SHARE * m.linesPerPage;
+  for (const it of ch.items)
+    lines += headingLines(it.heading, m) + answerLines(it.answer, m) + (format ? inlinePhotosPages(it.photos, it.answer, format) : (it.photos?.length ?? 0) * 0.5) * m.linesPerPage;
   const textPages = ch.items.length ? Math.max(1, Math.ceil(lines / m.linesPerPage)) : 0;
   return 1 /* титул главы */ + textPages + photoPages(ch.photos).length;
 }
@@ -267,21 +286,23 @@ export function estimatePages(content: BookContent): number {
   let pages = 2; // титульный лист + оборот
   if (content.dedication) pages += 1;
   if (content.showToc && content.chapters.length > 0) pages += Math.ceil(content.chapters.length / 18);
-  for (const ch of content.chapters) pages += estimateChapterPages(ch, m);
+  for (const ch of content.chapters) pages += estimateChapterPages(ch, m, content.format);
   if (content.galleryPhotos.length) pages += 1 + photoPages(content.galleryPhotos).length;
   pages += 1; // финальная страница
   return pages;
 }
 
 /** Оценка для одного ответа: сколько страниц он займёт (для индикатора в редакторе). */
-export function estimateAnswerPages(heading: string | null, answer: string, format: BookFormat, typo: Typography, inlinePhotos = 0) {
+export function estimateAnswerPages(
+  heading: string | null,
+  answer: string,
+  format: BookFormat,
+  typo: Typography,
+  photos: Pick<PhotoItem, "width" | "height" | "inline">[] = [],
+) {
   const m = textMetrics(format, typo);
-  return (headingLines(heading, m) + answerLines(answer, m)) / m.linesPerPage + inlinePhotos * INLINE_PHOTO_LINES_SHARE;
+  return (headingLines(heading, m) + answerLines(answer, m)) / m.linesPerPage + inlinePhotosPages(photos, answer, format);
 }
-
-/** Доля высоты текстовой области, которую занимает фото внутри ответа (с подписью и отступами). */
-export const INLINE_PHOTO_SHARE = 0.5;
-const INLINE_PHOTO_LINES_SHARE = INLINE_PHOTO_SHARE + 0.06;
 
 export function countWords(text: string) {
   const t = text.trim();
@@ -300,7 +321,7 @@ export function photoAreaMm(format: BookFormat, layout: PhotoItem["layout"] | "i
   const area = textArea(format);
   if (layout === "bleed") return { w: format.widthMm, h: format.heightMm };
   if (layout === "half") return { w: area.w, h: area.h / 2 - 12 };
-  if (layout === "inline") return { w: area.w, h: area.h * INLINE_PHOTO_SHARE };
+  if (layout === "inline") return { w: area.w, h: area.h * MAX_INLINE_HEIGHT_SHARE };
   return { w: area.w, h: area.h - 14 };
 }
 
