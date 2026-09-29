@@ -61,7 +61,16 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
     .innerJoin(users, eq(sessions.userId, users.id))
     .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date())))
     .limit(1);
-  return rows[0]?.user ?? null;
+  const user = rows[0]?.user ?? null;
+  // Отметка активности для CRM — не чаще раза в 10 минут.
+  if (user && (!user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > 10 * 60_000)) {
+    void db
+      .update(users)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(users.id, user.id))
+      .catch(() => {});
+  }
+  return user;
 });
 
 export async function requireUser(next?: string): Promise<User> {

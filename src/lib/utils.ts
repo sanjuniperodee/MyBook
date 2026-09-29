@@ -14,3 +14,8 @@ export function formatDate(d: Date | string, withTime = false) {
     timeZone: process.env.TZ || "Asia/Almaty",
   }).format(date);
 }
+
+/** Текущее время для серверных страниц (рендер на каждый запрос). */
+export function nowMs() {
+  return Date.now();
+}

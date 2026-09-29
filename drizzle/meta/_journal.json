@@ -29,6 +29,13 @@
       "when": 1790673725299,
       "tag": "0003_order_gift",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790679127158,
+      "tag": "0004_crm",
+      "breakpoints": true
     }
   ]
 }

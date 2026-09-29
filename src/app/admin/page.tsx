@@ -1,77 +1,241 @@
 import Link from "next/link";
-import { and, desc, gte, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
 import { db } from "@/lib/db";
-import { books, orders, users } from "@/lib/db/schema";
-import { formatPrice, getPlan } from "@/config/site";
+import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
+import { formatPrice, getPlan, plans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { requireAdmin } from "@/lib/auth";
+import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn, formatDate } from "@/lib/utils";
 
-export default async function AdminDashboard() {
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-  const [[usersCount], [booksCount], [revenue], byStatus, attention, recent] = await Promise.all([
-    db.select({ n: sql<number>`count(*)::int` }).from(users),
-    db.select({ n: sql<number>`count(*)::int` }).from(books),
+export const metadata = { title: "Обзор" };
+
+const TZ = "Asia/Almaty";
+const periods = [7, 30, 90] as const;
+// Константа, не пользовательский ввод — можно вставлять в SQL как литерал (нужно для GROUP BY).
+const tzSql = sql.raw(`'${TZ}'`);
+
+function localDay(offsetDays: number) {
+  const d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + offsetDays);
+  return d;
+}
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur ? null : 0);
+
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
+  const admin = await requireAdmin();
+  const { period: raw } = await searchParams;
+  const period = periods.find((p) => String(p) === raw) ?? 30;
+  // Границы периода в часовом поясе магазина
+  const startLocal = localDay(-(period - 1));
+  const prevStartLocal = localDay(-(2 * period - 1));
+  const start = sql`(${iso(startLocal)}::date at time zone ${tzSql})`;
+  const prevStart = sql`(${iso(prevStartLocal)}::date at time zone ${tzSql})`;
+  const paidDay = sql<string>`to_char((${orders.paidAt} at time zone ${tzSql})::date, 'YYYY-MM-DD')`;
+  const notCancelled = ne(orders.status, "cancelled");
+
+  const [daily, [cur], [prev], [newUsers], funnelRows, byPlan, deadlines, tasks, attention, events] = await Promise.all([
+    db
+      .select({ d: paidDay, sum: sql<number>`sum(${orders.amount})::int`, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${start}`, notCancelled))
+      .groupBy(paidDay),
     db
       .select({ sum: sql<number>`coalesce(sum(${orders.amount}),0)::int`, n: sql<number>`count(*)::int` })
       .from(orders)
-      .where(and(isNotNull(orders.paidAt), gte(orders.paidAt, monthStart), ne(orders.status, "cancelled"))),
-    db.select({ status: orders.status, n: sql<number>`count(*)::int` }).from(orders).groupBy(orders.status),
-    db.query.orders.findMany({
-      where: sql`(${orders.status} = 'pending_payment' and ${orders.paymentClaimedAt} is not null) or ${orders.status} = 'paid'`,
-      orderBy: desc(orders.createdAt),
-      limit: 20,
-    }),
-    db.query.orders.findMany({ orderBy: desc(orders.createdAt), limit: 10 }),
+      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${start}`, notCancelled)),
+    db
+      .select({ sum: sql<number>`coalesce(sum(${orders.amount}),0)::int`, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${prevStart}`, sql`${orders.paidAt} < ${start}`, notCancelled)),
+    db
+      .select({
+        cur: sql<number>`count(*) filter (where ${users.createdAt} >= ${start})::int`,
+        prev: sql<number>`count(*) filter (where ${users.createdAt} >= ${prevStart} and ${users.createdAt} < ${start})::int`,
+      })
+      .from(users),
+    // Воронка по когорте зарегистрировавшихся в периоде
+    db.execute<{ registered: number; with_book: number; engaged: number; ordered: number; paid: number }>(sql`
+      select
+        count(*)::int as registered,
+        count(*) filter (where exists (select 1 from books b where b.user_id = u.id))::int as with_book,
+        count(*) filter (where exists (
+          select 1 from books b where b.user_id = u.id
+          and (select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0) >= 10))::int as engaged,
+        count(*) filter (where exists (select 1 from orders o where o.user_id = u.id))::int as ordered,
+        count(*) filter (where exists (select 1 from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled'))::int as paid
+      from users u where u.created_at >= ${start} and u.role = 'user'`),
+    db
+      .select({ plan: orders.plan, sum: sql<number>`sum(${orders.amount})::int`, n: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${start}`, notCancelled))
+      .groupBy(orders.plan),
+    db
+      .select()
+      .from(orders)
+      .where(and(isNotNull(orders.desiredDate), lte(orders.desiredDate, iso(localDay(14))), inArray(orders.status, ["pending_payment", "paid", "in_production"])))
+      .orderBy(asc(orders.desiredDate))
+      .limit(8),
+    db
+      .select()
+      .from(crmTasks)
+      .where(and(isNull(crmTasks.doneAt), lte(crmTasks.dueAt, localDay(1)), or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, admin.id))))
+      .orderBy(asc(crmTasks.dueAt))
+      .limit(8),
+    db
+      .select()
+      .from(orders)
+      .where(or(eq(orders.status, "paid"), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
+      .orderBy(asc(orders.createdAt))
+      .limit(10),
+    db
+      .select({ e: orderEvents, number: orders.number, orderId: orders.id })
+      .from(orderEvents)
+      .innerJoin(orders, eq(orderEvents.orderId, orders.id))
+      .where(gte(orderEvents.createdAt, localDay(-14)))
+      .orderBy(desc(orderEvents.createdAt))
+      .limit(10),
   ]);
-  const count = (s: string) => byStatus.find((b) => b.status === s)?.n ?? 0;
-  const tiles = [
-    { label: "Выручка за месяц", value: formatPrice(revenue.sum), sub: `${revenue.n} оплаченных заказов` },
-    { label: "Ждут печати", value: count("paid"), sub: `${count("in_production")} в производстве` },
-    { label: "Ожидают оплаты", value: count("pending_payment"), sub: `${count("shipped")} в пути` },
-    { label: "Клиенты / книги", value: `${usersCount.n} / ${booksCount.n}`, sub: "всего на сайте" },
-  ];
+
+  const byDay = new Map(daily.map((r) => [r.d, r]));
+  const series: DayPoint[] = Array.from({ length: period }, (_, i) => {
+    const d = iso(localDay(-(period - 1) + i));
+    const r = byDay.get(d);
+    return { date: d, value: r?.sum ?? 0, count: r?.n ?? 0 };
+  });
+  const f = funnelRows.rows[0] ?? { registered: 0, with_book: 0, engaged: 0, ordered: 0, paid: 0 };
+  const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "—");
+  const avg = cur.n ? Math.round(cur.sum / cur.n) : 0;
+  const prevAvg = prev.n ? Math.round(prev.sum / prev.n) : 0;
+
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Обзор</h1>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((t) => (
-          <div key={t.label} className="rounded-2xl border border-line bg-white p-5">
-            <div className="text-sm text-muted">{t.label}</div>
-            <div className="mt-2 text-3xl font-semibold tabular-nums">{t.value}</div>
-            <div className="mt-1 text-xs text-muted">{t.sub}</div>
-          </div>
-        ))}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Обзор</h1>
+        <div className="flex rounded-xl border border-line bg-white p-1 text-sm">
+          {periods.map((p) => (
+            <Link key={p} href={`/admin?period=${p}`} className={cn("rounded-lg px-3 py-1.5", p === period ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
+              {p} дней
+            </Link>
+          ))}
+        </div>
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} />
+        <StatTile label="Оплаченные заказы" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
+        <StatTile label="Средний чек" value={formatPrice(avg)} delta={change(avg, prevAvg)} />
+        <StatTile label="Новые клиенты" value={newUsers.cur.toLocaleString("ru-RU")} delta={change(newUsers.cur, newUsers.prev)} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section className="rounded-2xl border border-line bg-white p-5">
+          <div className="mb-5 flex items-baseline justify-between">
+            <h2 className="font-semibold">Выручка по дням</h2>
+            <span className="text-xs text-muted">по дате оплаты, {TZ}</span>
+          </div>
+          <RevenueColumns data={series} />
+        </section>
+        <section className="rounded-2xl border border-line bg-white p-5">
+          <h2 className="font-semibold">Воронка</h2>
+          <p className="mb-5 text-xs text-muted">Клиенты, зарегистрированные за {period} дней</p>
+          <BarList
+            rows={[
+              { label: "Зарегистрировались", value: f.registered },
+              { label: "Создали книгу", value: f.with_book, note: pct(f.with_book, f.registered) },
+              { label: "Ответили на 10+ вопросов", value: f.engaged, note: pct(f.engaged, f.registered) },
+              { label: "Оформили заказ", value: f.ordered, note: pct(f.ordered, f.registered) },
+              { label: "Оплатили", value: f.paid, note: pct(f.paid, f.registered) },
+            ]}
+          />
+        </section>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="rounded-2xl border border-line bg-white p-5">
+          <h2 className="mb-5 font-semibold">Выручка по тарифам</h2>
+          <BarList
+            format={formatPrice}
+            rows={plans.map((p) => {
+              const r = byPlan.find((b) => b.plan === p.id);
+              return { label: p.name, value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
+            })}
+          />
+        </section>
+
+        <Panel title="Дедлайны клиентов" icon={CalendarClock} href="/admin/board" empty="Ближайших дедлайнов нет">
+          {deadlines.map((o) => {
+            const days = Math.round((new Date(`${o.desiredDate}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000);
+            return (
+              <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
+                <span className="w-12 font-medium">№{o.number}</span>
+                <span className="min-w-0 flex-1 truncate">{o.contactName}</span>
+                <span className={cn("rounded-full px-2 py-0.5 text-xs", days < 0 ? "bg-red-100 text-red-700" : days <= 3 ? "bg-amber-100 text-amber-800" : "bg-cream text-ink-soft")}>
+                  {days < 0 ? `просрочен ${-days} дн.` : days === 0 ? "сегодня" : `через ${days} дн.`}
+                </span>
+              </Link>
+            );
+          })}
+        </Panel>
+
+        <Panel title="Мои задачи на сегодня" icon={CheckSquare} href="/admin/tasks" empty="Задач на сегодня нет">
+          {tasks.map((t) => (
+            <Link key={t.id} href="/admin/tasks" className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
+              <span className="min-w-0 flex-1 truncate">{t.title}</span>
+              {t.dueAt ? (
+                <span className={cn("text-xs", t.dueAt < localDay(0) ? "text-red-700" : "text-muted")}>{t.dueAt < localDay(0) ? "просрочена" : "сегодня"}</span>
+              ) : null}
+            </Link>
+          ))}
+        </Panel>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
-        <OrdersList title="Требуют внимания" empty="Всё обработано 🎉" list={attention} />
-        <OrdersList title="Последние заказы" empty="Заказов ещё нет" list={recent} />
+        <Panel title="Требуют внимания" icon={AlertCircle} href="/admin/board" empty="Всё обработано">
+          {attention.map((o) => (
+            <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
+              <span className="w-12 font-medium">№{o.number}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {o.contactName} · {getPlan(o.plan)?.name}
+              </span>
+              <span className={cn("rounded-full px-2 py-0.5 text-xs", o.status === "paid" ? orderStatusColors.paid : "bg-amber-100 text-amber-800")}>
+                {o.status === "paid" ? "передать в печать" : "проверить оплату"}
+              </span>
+            </Link>
+          ))}
+        </Panel>
+        <Panel title="Последние события" icon={ArrowRight} href="/admin/orders" empty="Событий пока нет">
+          {events.map(({ e, number, orderId }) => (
+            <Link key={e.id} href={`/admin/orders/${orderId}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
+              <span className="w-12 font-medium">№{number}</span>
+              <span className="min-w-0 flex-1 truncate text-ink-soft">
+                {e.status ? <b className="font-medium text-ink">{orderStatusLabel(e.status)}. </b> : null}
+                {e.note}
+              </span>
+              <span className="shrink-0 text-xs text-muted">{formatDate(e.createdAt, true).replace(/ \d{4} г\./, "")}</span>
+            </Link>
+          ))}
+        </Panel>
       </div>
     </div>
   );
 }
 
-function OrdersList({ title, list, empty }: { title: string; empty: string; list: (typeof orders.$inferSelect)[] }) {
+function Panel({ title, icon: Icon, href, empty, children }: { title: string; icon: typeof ArrowRight; href: string; empty: string; children: React.ReactNode[] }) {
   return (
-    <section className="rounded-2xl border border-line bg-white">
-      <h2 className="border-b border-line px-5 py-4 font-semibold">{title}</h2>
-      {list.length === 0 ? <p className="px-5 py-8 text-center text-sm text-muted">{empty}</p> : null}
-      <ul className="divide-y divide-line">
-        {list.map((o) => (
-          <li key={o.id}>
-            <Link href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-              <span className="w-14 font-medium">№{o.number}</span>
-              <span className="min-w-0 flex-1 truncate">
-                {o.contactName} · {getPlan(o.plan)?.name}
-                {o.paymentClaimedAt && o.status === "pending_payment" ? <span className="ml-2 text-amber-700">сообщил об оплате</span> : null}
-              </span>
-              <span className={cn("rounded-full px-2 py-0.5 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>
-              <span className="hidden w-24 text-right text-muted sm:block">{formatDate(o.createdAt)}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <section className="overflow-hidden rounded-2xl border border-line bg-white">
+      <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <Icon className="size-4 text-wine" /> {title}
+        </h2>
+        <Link href={href} className="text-xs text-muted hover:text-ink">
+          Все →
+        </Link>
+      </div>
+      {children.length ? <div className="divide-y divide-line">{children}</div> : <p className="px-5 py-8 text-center text-sm text-muted">{empty}</p>}
     </section>
   );
 }

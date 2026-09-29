@@ -1,28 +1,26 @@
-import Link from "next/link";
+import { Search } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
-import { LogoMark } from "@/components/Logo";
+import { crmCounters, adminLabel } from "@/lib/crm";
+import { AdminNav } from "@/components/admin/AdminNav";
 
-export const metadata = { title: "Админка", robots: { index: false } };
+export const metadata = { title: { default: "CRM", template: "%s · CRM" }, robots: { index: false } };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const counters = await crmCounters(admin.id);
   return (
-    <div className="min-h-dvh bg-[#f6f3ee]">
-      <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6">
-          <Link href="/admin" className="flex items-center gap-2 font-semibold">
-            <LogoMark className="size-7" /> Админка
-          </Link>
-          <nav className="flex gap-1 text-sm">
-            <Link href="/admin" className="rounded-lg px-3 py-1.5 hover:bg-ink/5">Обзор</Link>
-            <Link href="/admin/orders" className="rounded-lg px-3 py-1.5 hover:bg-ink/5">Заказы</Link>
-            <Link href="/admin/users" className="rounded-lg px-3 py-1.5 hover:bg-ink/5">Клиенты</Link>
-            <Link href="/admin/promo" className="rounded-lg px-3 py-1.5 hover:bg-ink/5">Промокоды</Link>
-          </nav>
-          <Link href="/books" className="ml-auto text-sm text-muted hover:text-ink">← На сайт</Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+    <div className="flex min-h-dvh bg-[#f7f4ef]">
+      <AdminNav variant="sidebar" counters={counters} adminName={adminLabel(admin)} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">
+          <AdminNav variant="mobile" counters={counters} adminName={adminLabel(admin)} />
+          <form action="/admin/search" className="relative w-full max-w-md">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+            <input name="q" placeholder="Поиск: № заказа, имя, e-mail, телефон, книга" className="h-9 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40 focus:bg-white" />
+          </form>
+        </header>
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+      </div>
     </div>
   );
 }

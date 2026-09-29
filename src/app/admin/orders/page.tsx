@@ -1,91 +1,115 @@
 import Link from "next/link";
-import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
+import { Download, Kanban } from "lucide-react";
 import { db } from "@/lib/db";
 import { orders, orderStatuses } from "@/lib/db/schema";
-import { formatPrice, getPlan } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
-import { cn, formatDate } from "@/lib/utils";
+import { requireAdmin } from "@/lib/auth";
+import { formatPrice, getPlan, plans } from "@/config/site";
+import { orderStatusLabel } from "@/lib/orders-shared";
+import { adminLabel, listAdmins } from "@/lib/crm";
+import { orderWhere, type OrderFilters } from "@/lib/crm-filters";
+import { formatDate } from "@/lib/utils";
+import { OrdersTable, type OrderRow } from "./OrdersTable";
 
+export const metadata = { title: "Заказы" };
 const PAGE = 50;
 
-export default async function AdminOrders({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; page?: string }> }) {
-  const { status, q, page } = await searchParams;
-  const p = Math.max(1, Number(page) || 1);
-  const filters: SQL[] = [];
-  if (status && (orderStatuses as readonly string[]).includes(status)) filters.push(eq(orders.status, status as never));
-  if (q?.trim()) {
-    const s = `%${q.trim()}%`;
-    const num = Number(q.replace(/\D/g, ""));
-    filters.push(or(ilike(orders.contactName, s), ilike(orders.contactEmail, s), ilike(orders.contactPhone, s), ...(num ? [eq(orders.number, num)] : []))!);
-  }
-  const where = filters.length ? and(...filters) : undefined;
-  const [list, [{ n }]] = await Promise.all([
+export default async function AdminOrders({ searchParams }: { searchParams: Promise<OrderFilters & { page?: string }> }) {
+  const admin = await requireAdmin();
+  const params = await searchParams;
+  const p = Math.max(1, Number(params.page) || 1);
+  const where = orderWhere(params, admin.id);
+  const [list, [{ n, sum }], admins] = await Promise.all([
     db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(PAGE).offset((p - 1) * PAGE),
-    db.select({ n: sql<number>`count(*)::int` }).from(orders).where(where),
+    db.select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${orders.amount}) filter (where ${orders.paidAt} is not null and ${orders.status} <> 'cancelled'),0)::int` }).from(orders).where(where),
+    listAdmins(),
   ]);
-  const qs = (patch: Record<string, string | undefined>) => {
-    const u = new URLSearchParams({ ...(status ? { status } : {}), ...(q ? { q } : {}), ...patch } as Record<string, string>);
-    for (const [k, v] of [...u]) if (!v) u.delete(k);
-    return `?${u}`;
-  };
+  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const rows: OrderRow[] = list.map((o) => ({
+    id: o.id,
+    number: o.number,
+    createdLabel: formatDate(o.createdAt, true),
+    contactName: o.contactName,
+    contactLine: `${o.contactPhone} · ${o.contactEmail}`,
+    planLabel: `${getPlan(o.plan)?.name ?? o.plan}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
+    desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
+    amountLabel: formatPrice(o.amount),
+    status: o.status,
+    claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
+    assignee: o.assigneeId ? (names.get(o.assigneeId) ?? null) : null,
+    promoCode: o.promoCode,
+  }));
+  const qs = new URLSearchParams(Object.entries(params).filter(([k, v]) => v && k !== "page") as [string, string][]);
+  const pageLink = (n: number) => `?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(n) })}`;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Заказы <span className="text-muted">({n})</span></h1>
-        <form className="flex gap-2">
-          {status ? <input type="hidden" name="status" value={status} /> : null}
-          <input name="q" defaultValue={q} placeholder="№, имя, e-mail, телефон" className="input h-10 w-64" />
-          <button className="btn btn-dark btn-sm h-10">Найти</button>
-        </form>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        <Link href={qs({ status: undefined, page: undefined })} className={cn("rounded-full px-3 py-1.5 text-sm", !status ? "bg-ink text-white" : "bg-white")}>Все</Link>
-        {orderStatuses.map((s) => (
-          <Link key={s} href={qs({ status: s, page: undefined })} className={cn("rounded-full px-3 py-1.5 text-sm", status === s ? "bg-ink text-white" : "bg-white")}>
-            {orderStatusLabel(s)}
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Заказы</h1>
+          <p className="text-sm text-muted">
+            Найдено {n} · оплачено на {formatPrice(sum)}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/admin/board" className="btn btn-outline btn-sm">
+            <Kanban className="size-4" /> Доска
           </Link>
-        ))}
+          <a href={`/api/admin/export/orders?${qs}`} className="btn btn-outline btn-sm">
+            <Download className="size-4" /> CSV
+          </a>
+        </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[800px] text-sm">
-          <thead className="border-b border-line text-left text-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">№</th>
-              <th className="px-4 py-3 font-medium">Дата</th>
-              <th className="px-4 py-3 font-medium">Клиент</th>
-              <th className="px-4 py-3 font-medium">Тариф</th>
-              <th className="px-4 py-3 font-medium">Сумма</th>
-              <th className="px-4 py-3 font-medium">Статус</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {list.map((o) => (
-              <tr key={o.id} className="hover:bg-cream/40">
-                <td className="px-4 py-3 font-medium"><Link href={`/admin/orders/${o.id}`} className="hover:underline">№{o.number}</Link></td>
-                <td className="px-4 py-3 text-muted">{formatDate(o.createdAt, true)}</td>
-                <td className="px-4 py-3">
-                  <div>{o.contactName}</div>
-                  <div className="text-xs text-muted">{o.contactPhone} · {o.contactEmail}</div>
-                </td>
-                <td className="px-4 py-3">
-                  {getPlan(o.plan)?.name}{o.quantity > 1 ? ` × ${o.quantity}` : ""}
-                  {o.desiredDate ? <div className="text-xs font-medium text-wine">к {formatDate(o.desiredDate)}</div> : null}
-                </td>
-                <td className="px-4 py-3 tabular-nums">{formatPrice(o.amount)}</td>
-                <td className="px-4 py-3">
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>
-                  {o.paymentClaimedAt && o.status === "pending_payment" ? <div className="mt-1 text-xs text-amber-700">сообщил об оплате</div> : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {list.length === 0 ? <p className="py-10 text-center text-muted">Ничего не найдено</p> : null}
-      </div>
+
+      <form className="grid gap-2 rounded-2xl border border-line bg-white p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <input name="q" defaultValue={params.q} placeholder="№, имя, телефон, e-mail, город" className="input h-10 text-sm" />
+        <select name="status" defaultValue={params.status ?? ""} className="input h-10 text-sm">
+          <option value="">Все статусы</option>
+          {orderStatuses.map((s) => (
+            <option key={s} value={s}>
+              {orderStatusLabel(s)}
+            </option>
+          ))}
+        </select>
+        <select name="plan" defaultValue={params.plan ?? ""} className="input h-10 text-sm">
+          <option value="">Все тарифы</option>
+          {plans.map((pl) => (
+            <option key={pl.id} value={pl.id}>
+              {pl.name}
+            </option>
+          ))}
+        </select>
+        <select name="assignee" defaultValue={params.assignee ?? ""} className="input h-10 text-sm">
+          <option value="">Любой менеджер</option>
+          <option value="me">Мои</option>
+          <option value="none">Без ответственного</option>
+          {admins.map((a) => (
+            <option key={a.id} value={a.id}>
+              {adminLabel(a)}
+            </option>
+          ))}
+        </select>
+        <input type="date" name="from" defaultValue={params.from} className="input h-10 text-sm" title="С даты" />
+        <input type="date" name="to" defaultValue={params.to} className="input h-10 text-sm" title="По дату" />
+        <div className="flex gap-2">
+          <button className="btn btn-dark btn-sm h-10">Найти</button>
+          {qs.toString() ? (
+            <Link href="/admin/orders" className="btn btn-ghost btn-sm h-10">
+              Сброс
+            </Link>
+          ) : null}
+        </div>
+      </form>
+
+      <OrdersTable rows={rows} />
+
       {n > PAGE ? (
-        <div className="flex justify-center gap-2">
-          {p > 1 ? <Link className="btn btn-outline btn-sm" href={qs({ page: String(p - 1) })}>← Назад</Link> : null}
-          {p * PAGE < n ? <Link className="btn btn-outline btn-sm" href={qs({ page: String(p + 1) })}>Дальше →</Link> : null}
+        <div className="flex items-center justify-center gap-3 text-sm">
+          {p > 1 ? <Link className="btn btn-outline btn-sm" href={pageLink(p - 1)}>← Назад</Link> : null}
+          <span className="text-muted">
+            {p} из {Math.ceil(n / PAGE)}
+          </span>
+          {p * PAGE < n ? <Link className="btn btn-outline btn-sm" href={pageLink(p + 1)}>Дальше →</Link> : null}
         </div>
       ) : null}
     </div>

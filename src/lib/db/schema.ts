@@ -29,6 +29,11 @@ export const users = pgTable(
     name: text("name").notNull().default(""),
     phone: text("phone"),
     role: text("role", { enum: ["user", "admin"] }).notNull().default("user"),
+    /** Теги CRM (vip, блогер, корпоративный…). */
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    /** Когда клиенту последний раз отправляли напоминание дописать книгу. */
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [uniqueIndex("users_email_idx").on(sql`lower(${t.email})`)],
@@ -211,6 +216,8 @@ export const orders = pgTable(
     trackingNumber: text("tracking_number"),
     adminNote: text("admin_note"),
     printSpec: jsonb("print_spec").$type<OrderPrintSpec>(),
+    /** Менеджер, ответственный за заказ. */
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     ...timestamps,
   },
@@ -241,6 +248,40 @@ export const promoCodes = pgTable(
   (t) => [uniqueIndex("promo_codes_code_idx").on(t.code)],
 );
 
+/** Заметки менеджеров о клиенте (история общения). */
+export const crmNotes = pgTable(
+  "crm_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    kind: text("kind", { enum: ["note", "call", "message", "email"] }).notNull().default("note"),
+    text: text("text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_notes_client_idx").on(t.clientId)],
+);
+
+/** Задачи менеджеров: перезвонить, проверить макет, отправить трек-номер… */
+export const crmTasks = pgTable(
+  "crm_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_tasks_due_idx").on(t.doneAt, t.dueAt)],
+);
+
 export const orderEvents = pgTable(
   "order_events",
   {
@@ -258,7 +299,8 @@ export const orderEvents = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
   books: many(books),
-  orders: many(orders),
+  orders: many(orders, { relationName: "customer" }),
+  assignedOrders: many(orders, { relationName: "assignee" }),
 }));
 
 export const booksRelations = relations(books, ({ one, many }) => ({
@@ -282,7 +324,8 @@ export const photosRelations = relations(photos, ({ one }) => ({
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
-  user: one(users, { fields: [orders.userId], references: [users.id] }),
+  user: one(users, { fields: [orders.userId], references: [users.id], relationName: "customer" }),
+  assignee: one(users, { fields: [orders.assigneeId], references: [users.id], relationName: "assignee" }),
   book: one(books, { fields: [orders.bookId], references: [books.id] }),
   events: many(orderEvents),
 }));
@@ -299,3 +342,5 @@ export type Order = typeof orders.$inferSelect;
 export type OrderEvent = typeof orderEvents.$inferSelect;
 export type BookLetter = typeof bookLetters.$inferSelect;
 export type PromoCode = typeof promoCodes.$inferSelect;
+export type CrmNote = typeof crmNotes.$inferSelect;
+export type CrmTask = typeof crmTasks.$inferSelect;

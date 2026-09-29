@@ -2,7 +2,7 @@
 
 import { useActionState, useTransition } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
-import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateOrderAction, type AdminState } from "../../actions";
+import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { orderStatusLabels } from "@/lib/orders-shared";
@@ -71,5 +71,67 @@ export function LockButton({ orderId, locked }: { orderId: string; locked: boole
     >
       {locked ? "Открыть книгу для правок" : "Закрыть книгу для правок"}
     </button>
+  );
+}
+
+export function DetailsForm({
+  order,
+}: {
+  order: { id: string; contactName: string; contactPhone: string; contactEmail: string; deliveryMethod: string | null; city: string | null; address: string | null; postalCode: string | null; desiredDate: string | null; giftNote: string | null };
+}) {
+  const [state, action] = useActionState<AdminState, FormData>(updateOrderDetailsAction, {});
+  return (
+    <details className="group">
+      <summary className="cursor-pointer text-sm text-wine hover:underline">Изменить контакты и доставку</summary>
+      <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <input type="hidden" name="orderId" value={order.id} />
+        <label className="text-sm">
+          <span className="label">Получатель</span>
+          <input name="contactName" defaultValue={order.contactName} className="input h-10" required />
+        </label>
+        <label className="text-sm">
+          <span className="label">Телефон</span>
+          <input name="contactPhone" defaultValue={order.contactPhone} className="input h-10" required />
+        </label>
+        <label className="text-sm">
+          <span className="label">E-mail</span>
+          <input name="contactEmail" type="email" defaultValue={order.contactEmail} className="input h-10" required />
+        </label>
+        <label className="text-sm">
+          <span className="label">Способ доставки</span>
+          <select name="deliveryMethod" defaultValue={order.deliveryMethod ?? ""} className="input h-10">
+            <option value="">—</option>
+            <option value="courier">Курьер по городу</option>
+            <option value="post">Доставка по Казахстану</option>
+            <option value="pickup">Самовывоз</option>
+          </select>
+        </label>
+        <label className="text-sm">
+          <span className="label">Город</span>
+          <input name="city" defaultValue={order.city ?? ""} className="input h-10" />
+        </label>
+        <label className="text-sm">
+          <span className="label">Индекс</span>
+          <input name="postalCode" defaultValue={order.postalCode ?? ""} className="input h-10" />
+        </label>
+        <label className="text-sm sm:col-span-2">
+          <span className="label">Адрес</span>
+          <input name="address" defaultValue={order.address ?? ""} className="input h-10" />
+        </label>
+        <label className="text-sm">
+          <span className="label">Нужна к дате</span>
+          <input name="desiredDate" type="date" defaultValue={order.desiredDate ?? ""} className="input h-10" />
+        </label>
+        <label className="text-sm sm:col-span-2">
+          <span className="label">Текст открытки</span>
+          <textarea name="giftNote" defaultValue={order.giftNote ?? ""} rows={2} maxLength={500} className="input" />
+        </label>
+        {state.error ? <Alert className="sm:col-span-2">{state.error}</Alert> : null}
+        {state.ok ? <Alert kind="success" className="sm:col-span-2">{state.ok}</Alert> : null}
+        <div className="sm:col-span-2">
+          <SubmitButton className="btn-sm">Сохранить изменения</SubmitButton>
+        </div>
+      </form>
+    </details>
   );
 }

@@ -10,7 +10,13 @@ import { getFormat } from "@/lib/book/formats";
 import { getTypography } from "@/lib/book/fonts";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { cn, formatDate } from "@/lib/utils";
-import { GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
+import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
+import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
+import { adminLabel, listAdmins } from "@/lib/crm";
+import { db } from "@/lib/db";
+import { crmNotes, crmTasks, orders as ordersTable } from "@/lib/db/schema";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { ClipboardList, UserRound } from "lucide-react";
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +24,35 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const stats = await getBookStats(book);
+  const [stats, admins, taskRows, noteRows, [clientStats]] = await Promise.all([
+    getBookStats(book),
+    listAdmins(),
+    db.select().from(crmTasks).where(eq(crmTasks.orderId, order.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, crmTasks.dueAt),
+    db.select().from(crmNotes).where(eq(crmNotes.clientId, order.userId)).orderBy(desc(crmNotes.createdAt)).limit(30),
+    db
+      .select({ n: sql<number>`count(*)::int`, ltv: sql<number>`coalesce(sum(${ordersTable.amount}) filter (where ${ordersTable.paidAt} is not null),0)::int` })
+      .from(ordersTable)
+      .where(and(eq(ordersTable.userId, order.userId), ne(ordersTable.status, "cancelled"))),
+  ]);
+  const adminOptions = admins.map((a) => ({ id: a.id, label: adminLabel(a) }));
+  const adminName = new Map(adminOptions.map((a) => [a.id, a.label]));
+  const now = new Date();
+  const tasks: TaskItem[] = taskRows.map((t) => ({
+    id: t.id,
+    title: t.title,
+    dueLabel: t.dueAt ? `до ${formatDate(t.dueAt)}` : null,
+    overdue: !!t.dueAt && t.dueAt < now,
+    done: !!t.doneAt,
+    assignee: t.assigneeId ? (adminName.get(t.assigneeId) ?? null) : null,
+  }));
+  const notes: NoteItem[] = noteRows.map((n) => ({
+    id: n.id,
+    kind: n.kind,
+    text: n.text,
+    author: n.authorId ? (adminName.get(n.authorId) ?? "—") : "—",
+    dateLabel: formatDate(n.createdAt, true),
+    orderLabel: n.orderId === order.id ? `заказ №${order.number}` : null,
+  }));
   const spec = order.printSpec;
   const delivery = deliveryOptions.find((d) => d.id === order.deliveryMethod);
   const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
@@ -32,6 +66,16 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         {order.paymentClaimedAt && order.status === "pending_payment" ? (
           <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Клиент сообщил об оплате {formatDate(order.paymentClaimedAt, true)}</span>
         ) : null}
+        <div className="ml-auto flex gap-2">
+          <Link href={`/admin/clients/${order.userId}`} className="btn btn-outline btn-sm">
+            <UserRound className="size-4" /> Клиент · {clientStats.n} зак. · {formatPrice(clientStats.ltv)}
+          </Link>
+          {plan?.printed ? (
+            <a href={`/print/orders/${order.id}`} target="_blank" rel="noopener" className="btn btn-outline btn-sm">
+              <ClipboardList className="size-4" /> Упаковочный лист
+            </a>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -92,6 +136,18 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             </dl>
           </Card>
 
+          <Card title="Задачи по заказу">
+            <TaskList tasks={tasks} admins={adminOptions} orderId={order.id} clientId={order.userId} emptyText="Задач по заказу нет" />
+          </Card>
+
+          <Card title="История общения с клиентом">
+            <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} />
+          </Card>
+
+          <Card title="Правка данных">
+            <DetailsForm order={order} />
+          </Card>
+
           <Card title="Журнал">
             <ol className="space-y-3 text-sm">
               {order.events.map((e) => (
@@ -109,6 +165,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         </div>
 
         <div className="space-y-6">
+          <Card title="Ответственный">
+            <AssigneeSelect orderId={order.id} value={order.assigneeId} admins={adminOptions} />
+          </Card>
           <Card title="Оплата">
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{plan?.name} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>

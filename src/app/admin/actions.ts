@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { books, orders, orderStatuses, promoCodes, users } from "@/lib/db/schema";
+import { books, crmNotes, crmTasks, orders, orderStatuses, promoCodes, users } from "@/lib/db/schema";
 import { normalizePromoCode } from "@/lib/pricing";
 import { addOrderEvent, ensurePrintFiles, markOrderPaid, setOrderStatus } from "@/lib/orders";
 
@@ -108,4 +108,189 @@ export async function togglePromoAction(id: string) {
   if (!promo) throw new Error("Промокод не найден");
   await db.update(promoCodes).set({ active: !promo.active }).where(eq(promoCodes.id, id));
   revalidatePath("/admin/promo");
+}
+
+// ─── CRM: заказы ────────────────────────────────────────────────────────────
+
+async function applyStatus(orderId: string, status: (typeof orderStatuses)[number], adminEmail: string, note = "") {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
+  if (!order) throw new Error("Заказ не найден");
+  if (order.status === status) return;
+  if (status === "paid" && order.status === "pending_payment") await markOrderPaid(orderId, actor(adminEmail));
+  else await setOrderStatus(orderId, status, actor(adminEmail), note);
+}
+
+/** Перемещение карточки на канбан-доске. */
+export async function moveOrderAction(orderId: string, status: string) {
+  const admin = await requireAdmin();
+  const s = z.enum(orderStatuses).parse(status);
+  await applyStatus(z.string().uuid().parse(orderId), s, admin.email);
+  revalidatePath("/admin/board");
+  revalidatePath("/admin");
+}
+
+export async function bulkStatusAction(orderIds: string[], status: string) {
+  const admin = await requireAdmin();
+  const s = z.enum(orderStatuses).parse(status);
+  const ids = z.array(z.string().uuid()).max(200).parse(orderIds);
+  for (const id of ids) await applyStatus(id, s, admin.email, "Массовое изменение");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/board");
+  return { count: ids.length };
+}
+
+export async function assignOrderAction(orderId: string, assigneeId: string | null) {
+  const admin = await requireAdmin();
+  const id = z.string().uuid().parse(orderId);
+  let label = "снят";
+  if (assigneeId) {
+    const a = await db.query.users.findFirst({ where: eq(users.id, z.string().uuid().parse(assigneeId)) });
+    if (!a || a.role !== "admin") throw new Error("Ответственным может быть только администратор");
+    label = a.name || a.email;
+  }
+  await db.update(orders).set({ assigneeId }).where(eq(orders.id, id));
+  await addOrderEvent(id, null, `Ответственный: ${label}`, actor(admin.email));
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/board");
+}
+
+export async function updateOrderDetailsAction(_: AdminState, form: FormData): Promise<AdminState> {
+  const admin = await requireAdmin();
+  const parsed = z
+    .object({
+      orderId: z.string().uuid(),
+      contactName: z.string().trim().min(1, "Укажите имя").max(100),
+      contactPhone: z.string().trim().min(5, "Укажите телефон").max(30),
+      contactEmail: z.string().trim().toLowerCase().email("Проверьте e-mail"),
+      deliveryMethod: z.string().max(20).optional(),
+      city: z.string().trim().max(100).optional(),
+      address: z.string().trim().max(300).optional(),
+      postalCode: z.string().trim().max(20).optional(),
+      desiredDate: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional(),
+      giftNote: z.string().trim().max(500).optional(),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { orderId, ...d } = parsed.data;
+  await db
+    .update(orders)
+    .set({
+      contactName: d.contactName,
+      contactPhone: d.contactPhone,
+      contactEmail: d.contactEmail,
+      deliveryMethod: d.deliveryMethod || null,
+      city: d.city || null,
+      address: d.address || null,
+      postalCode: d.postalCode || null,
+      desiredDate: d.desiredDate || null,
+      giftNote: d.giftNote || null,
+    })
+    .where(eq(orders.id, orderId));
+  await addOrderEvent(orderId, null, "Контакты и доставка изменены", actor(admin.email));
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { ok: "Сохранено" };
+}
+
+// ─── CRM: задачи и заметки ─────────────────────────────────────────────────
+
+function revalidateCrm(clientId?: string | null, orderId?: string | null) {
+  revalidatePath("/admin/tasks");
+  revalidatePath("/admin");
+  if (clientId) revalidatePath(`/admin/clients/${clientId}`);
+  if (orderId) revalidatePath(`/admin/orders/${orderId}`);
+}
+
+export async function createTaskAction(_: AdminState, form: FormData): Promise<AdminState> {
+  const admin = await requireAdmin();
+  const opt = (v: FormDataEntryValue | null) => (v ? String(v) : undefined);
+  const parsed = z
+    .object({
+      title: z.string().trim().min(2, "Опишите задачу").max(300),
+      dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).optional(),
+      clientId: z.string().uuid().optional(),
+      orderId: z.string().uuid().optional(),
+      assigneeId: z.string().uuid().optional(),
+    })
+    .safeParse({ title: form.get("title"), dueAt: opt(form.get("dueAt")), clientId: opt(form.get("clientId")), orderId: opt(form.get("orderId")), assigneeId: opt(form.get("assigneeId")) });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  let clientId = d.clientId ?? null;
+  if (d.orderId && !clientId) {
+    const o = await db.query.orders.findFirst({ where: eq(orders.id, d.orderId), columns: { userId: true } });
+    clientId = o?.userId ?? null;
+  }
+  const dueAt = d.dueAt ? new Date(d.dueAt.length === 10 ? `${d.dueAt}T18:00:00` : d.dueAt) : null;
+  await db.insert(crmTasks).values({ title: d.title, dueAt, clientId, orderId: d.orderId ?? null, assigneeId: d.assigneeId ?? admin.id, createdById: admin.id });
+  revalidateCrm(clientId, d.orderId);
+  return { ok: "Задача добавлена" };
+}
+
+export async function toggleTaskAction(taskId: string) {
+  await requireAdmin();
+  const t = await db.query.crmTasks.findFirst({ where: eq(crmTasks.id, z.string().uuid().parse(taskId)) });
+  if (!t) throw new Error("Задача не найдена");
+  await db.update(crmTasks).set({ doneAt: t.doneAt ? null : new Date() }).where(eq(crmTasks.id, t.id));
+  revalidateCrm(t.clientId, t.orderId);
+}
+
+export async function deleteTaskAction(taskId: string) {
+  await requireAdmin();
+  const [t] = await db.delete(crmTasks).where(eq(crmTasks.id, z.string().uuid().parse(taskId))).returning();
+  if (t) revalidateCrm(t.clientId, t.orderId);
+}
+
+export async function addNoteAction(_: AdminState, form: FormData): Promise<AdminState> {
+  const admin = await requireAdmin();
+  const parsed = z
+    .object({
+      clientId: z.string().uuid(),
+      orderId: z.string().uuid().optional(),
+      kind: z.enum(["note", "call", "message", "email"]).default("note"),
+      text: z.string().trim().min(1, "Пустая заметка").max(5000),
+    })
+    .safeParse({ clientId: form.get("clientId"), orderId: form.get("orderId") || undefined, kind: form.get("kind") || undefined, text: form.get("text") });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  await db.insert(crmNotes).values({ ...parsed.data, orderId: parsed.data.orderId ?? null, authorId: admin.id });
+  revalidateCrm(parsed.data.clientId, parsed.data.orderId);
+  return { ok: "Заметка сохранена" };
+}
+
+export async function deleteNoteAction(noteId: string) {
+  await requireAdmin();
+  const [n] = await db.delete(crmNotes).where(eq(crmNotes.id, z.string().uuid().parse(noteId))).returning();
+  if (n) revalidateCrm(n.clientId, n.orderId);
+}
+
+// ─── CRM: клиенты ───────────────────────────────────────────────────────────
+
+export async function updateClientTagsAction(clientId: string, tags: string[]) {
+  await requireAdmin();
+  const clean = [...new Set(z.array(z.string().trim().toLowerCase().min(1).max(30)).max(20).parse(tags))];
+  await db.update(users).set({ tags: clean }).where(eq(users.id, z.string().uuid().parse(clientId)));
+  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath("/admin/clients");
+}
+
+export async function remindClientAction(clientId: string): Promise<{ ok: boolean; message: string }> {
+  const admin = await requireAdmin();
+  const { sendBookReminder } = await import("@/lib/crm-reminders");
+  const res = await sendBookReminder(z.string().uuid().parse(clientId), admin.id);
+  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath("/admin/books");
+  return res.ok ? { ok: true, message: "Напоминание отправлено" } : { ok: false, message: res.reason };
+}
+
+export async function remindManyAction(clientIds: string[]): Promise<{ sent: number; skipped: number }> {
+  const admin = await requireAdmin();
+  const { sendBookReminder } = await import("@/lib/crm-reminders");
+  let sent = 0;
+  let skipped = 0;
+  for (const id of z.array(z.string().uuid()).max(300).parse(clientIds)) {
+    const res = await sendBookReminder(id, admin.id);
+    if (res.ok) sent++;
+    else skipped++;
+  }
+  revalidatePath("/admin/books");
+  revalidatePath("/admin/clients");
+  return { sent, skipped };
 }
