@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { deliveryOptions, formatPrice, plans, type DeliveryId, type PlanId } from "@/config/site";
 import { cn } from "@/lib/utils";
+import { calculatePrice } from "@/lib/pricing";
 
 export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; defaults: { name: string; email: string; phone: string }; blocked: boolean }) {
   const [state, action] = useActionState<CheckoutState, FormData>(createOrderAction, {});
@@ -15,9 +16,7 @@ export function CheckoutForm({ bookId, defaults, blocked }: { bookId: string; de
   const [qty, setQty] = useState(1);
   const [delivery, setDelivery] = useState<DeliveryId>("courier");
   const plan = plans.find((p) => p.id === planId)!;
-  const items = plan.price + (plan.printed ? (qty - 1) * (plan.extraCopyPrice ?? plan.price) : 0);
-  const deliveryPrice = plan.printed ? (deliveryOptions.find((d) => d.id === delivery)?.price ?? 0) : 0;
-  const total = items + deliveryPrice;
+  const { itemsAmount: items, deliveryAmount: deliveryPrice, amount: total } = calculatePrice(planId, qty, delivery);
 
   return (
     <form action={action} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">

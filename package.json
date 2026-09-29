@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate": "tsx --import ./scripts/preload.mjs scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx --import ./scripts/preload.mjs scripts/create-admin.ts",
+    "sample-book": "tsx --import ./scripts/preload.mjs scripts/sample-book.ts"
   },
   "engines": {
     "node": ">=20.9"

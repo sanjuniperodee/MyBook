@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mybook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mybook}
+      POSTGRES_DB: mybook
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mybook"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://mybook:${POSTGRES_PASSWORD:-mybook}@db:5432/mybook
+      STORAGE_DIR: /data/storage
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage:/data/storage
+
+volumes:
+  pgdata:
+  storage:

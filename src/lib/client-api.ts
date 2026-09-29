@@ -1,12 +1,15 @@
 /** fetch-обёртка для клиентских компонентов: JSON, понятные ошибки. */
 export async function apiFetch<T = unknown>(url: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, headers, ...rest } = init;
+  const body = json !== undefined ? JSON.stringify(json) : rest.body;
   let res: Response;
   try {
     res = await fetch(url, {
       ...rest,
       headers: json !== undefined ? { "Content-Type": "application/json", ...headers } : headers,
-      body: json !== undefined ? JSON.stringify(json) : rest.body,
+      body,
+      // keepalive позволяет запросу завершиться, даже если пользователь закрыл вкладку
+      keepalive: typeof body === "string" && body.length < 20_000 ? true : rest.keepalive,
     });
   } catch {
     throw new Error("Нет соединения с сервером. Проверьте интернет.");

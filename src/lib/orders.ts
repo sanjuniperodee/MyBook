@@ -2,27 +2,14 @@ import "server-only";
 import { desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import { books, orderEvents, orders, type Order, type OrderStatus } from "./db/schema";
-import { deliveryOptions, formatPrice, getPlan, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getPlan } from "@/config/site";
 import { env } from "./env";
 import { emailLayout, escapeHtml, sendMail } from "./mail";
 import { orderStatusLabel } from "./orders-shared";
 import { fileExists, getFile, putFile } from "./storage";
 import { loadBookBundle, printSpecText, renderPrintPackage, renderReadingPdf } from "./pdf/render";
 
-export interface PriceBreakdown {
-  itemsAmount: number;
-  deliveryAmount: number;
-  amount: number;
-}
-
-export function calculatePrice(planId: PlanId, quantity: number, delivery: DeliveryId | null): PriceBreakdown {
-  const plan = getPlan(planId);
-  if (!plan) throw new Error("Unknown plan");
-  const qty = plan.printed ? Math.min(Math.max(1, Math.floor(quantity)), 20) : 1;
-  const itemsAmount = plan.price + (qty - 1) * (plan.extraCopyPrice ?? plan.price);
-  const deliveryAmount = plan.printed ? (deliveryOptions.find((d) => d.id === delivery)?.price ?? 0) : 0;
-  return { itemsAmount, deliveryAmount, amount: itemsAmount + deliveryAmount };
-}
+export { calculatePrice, type PriceBreakdown } from "./pricing";
 
 export async function addOrderEvent(orderId: string, status: OrderStatus | null, note: string, actor: string) {
   await db.insert(orderEvents).values({ orderId, status, note, actor });

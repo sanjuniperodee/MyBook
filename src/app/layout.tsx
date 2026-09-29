@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={fontVariables}>
+    <html lang="ru" className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">{children}</body>
     </html>
   );

@@ -97,7 +97,7 @@ export const bookQuestions = pgTable(
       .references(() => books.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     chapter: text("chapter").notNull(),
-    /** Ключ вопроса из банка вопросов; null — собственный вопрос пользователя. */
+    /** Ключ вопроса из банка вопросов; "custom" — собственный вопрос пользователя. */
     questionKey: text("question_key"),
     /**
      * Шаблоны копируются в книгу при создании, поэтому банк вопросов можно менять,

@@ -24,6 +24,7 @@ export function api<C>(handler: Handler<C>): Handler<C> {
       return await handler(req, ctx);
     } catch (err) {
       if (err instanceof HttpError) return NextResponse.json({ error: err.message }, { status: err.status });
+      if (err instanceof SyntaxError) return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
       if (err instanceof ZodError) return NextResponse.json({ error: err.issues[0]?.message ?? "Некорректные данные" }, { status: 400 });
       console.error("[api]", err);
       return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
