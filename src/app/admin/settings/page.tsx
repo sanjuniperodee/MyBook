@@ -7,6 +7,10 @@ import { env } from "@/lib/env";
 import { templateVars } from "@/lib/crm/automation-meta";
 import { Blocklist, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
 import { parseWorkHours } from "@/lib/crm/schedule";
+import { BotForm } from "./BotForm";
+import { parseBotConfig } from "@/lib/crm/bot-logic";
+import { botStats } from "@/lib/crm/bot";
+import { listFields } from "@/lib/crm/fields";
 import { formatPhone } from "@/lib/crm/phone";
 import { formatDate } from "@/lib/utils";
 
@@ -31,6 +35,7 @@ export default async function SettingsPage() {
     getSetting("crm.maxDiscount"),
     db.select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200),
   ]);
+  const [botMode, botConfig, dealFields, stats] = await Promise.all([getSetting("bot.mode"), getSetting("bot.config"), listFields("deal"), botStats()]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -54,6 +59,8 @@ export default async function SettingsPage() {
       />
 
       <CrmSettingsForm slaMinutes={Number(sla) || 15} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} />
+
+      <BotForm mode={botMode} config={parseBotConfig(botConfig)} fields={dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type }))} stats={stats} />
 
       <Blocklist items={blocked.map((b) => ({ value: b.value, label: /^\d{10,15}$/.test(b.value) ? formatPhone(b.value) : b.value, date: formatDate(b.createdAt) }))} />
 

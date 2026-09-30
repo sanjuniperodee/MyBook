@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { ask, toastError } from "@/components/ui/overlays";
-import { deleteStageAction, moveStageAction, saveStageAction, type DealFormState } from "../actions";
+import { createPipelineAction, deletePipelineAction, deleteStageAction, moveStageAction, renamePipelineAction, saveStageAction, type DealFormState } from "../actions";
+import { Plus } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { stageMilestones } from "@/lib/crm/deal-meta";
 
@@ -62,15 +63,63 @@ export function StageRow({ stage, deals, canUp, canDown }: { stage: { id: string
   );
 }
 
-export function NewStage() {
+export function NewStage({ pipelineId }: { pipelineId: string }) {
   const [state, action] = useActionState<DealFormState, FormData>(saveStageAction, {});
   return (
     <form action={action} className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-line bg-white px-4 py-3">
+      <input type="hidden" name="pipelineId" value={pipelineId} />
       <input type="color" name="color" defaultValue="#c08a5b" className="size-8 cursor-pointer rounded-lg border border-line" aria-label="Цвет" />
       <input name="name" maxLength={40} required placeholder="Новый этап, например «Ждём фото»" className="input h-9 min-w-0 flex-1 text-sm" />
       <MilestoneSelect value={null} kind="open" />
       <SubmitButton className="btn-sm">Добавить этап</SubmitButton>
       {state.error ? <p className="w-full text-xs text-red-700">{state.error}</p> : null}
     </form>
+  );
+}
+
+export function NewPipeline() {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState<DealFormState, FormData>(createPipelineAction, {});
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1 rounded-full border border-dashed border-line px-3 py-1.5 text-sm text-muted hover:text-wine">
+        <Plus className="size-3.5" /> Воронка
+      </button>
+    );
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <input name="name" autoFocus required maxLength={40} placeholder="Например, «Корпоративные»" className="input h-9 w-56 text-sm" />
+      <SubmitButton className="btn-sm h-9">Создать</SubmitButton>
+      {state.error ? <span className="text-xs text-red-700">{state.error}</span> : null}
+    </form>
+  );
+}
+
+export function PipelineHeader({ id, name, isDefault }: { id: string; name: string; isDefault: boolean }) {
+  const [value, setValue] = useState(name);
+  const [pending, start] = useTransition();
+  const run = (fn: () => Promise<unknown>) =>
+    start(async () => {
+      try {
+        await fn();
+      } catch (e) {
+        if ((e as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw e;
+        toastError(e);
+      }
+    });
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={40} className="input h-9 w-64 font-semibold" aria-label="Название воронки" />
+      <button type="button" className="btn btn-outline btn-sm h-9" disabled={pending || value.trim() === name || value.trim().length < 2} onClick={() => run(() => renamePipelineAction(id, value))}>
+        Переименовать
+      </button>
+      {isDefault ? (
+        <span className="text-xs text-muted">основная: сюда приходят заявки с сайта, из чатов и звонков</span>
+      ) : (
+        <button type="button" className="btn btn-ghost btn-sm h-9 text-red-700" disabled={pending} onClick={async () => (await ask(`Удалить воронку «${name}»?`, true)) && run(() => deletePipelineAction(id))}>
+          <Trash2 className="size-4" /> Удалить воронку
+        </button>
+      )}
+    </div>
   );
 }

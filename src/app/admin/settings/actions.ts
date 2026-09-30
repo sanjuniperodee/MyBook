@@ -146,3 +146,22 @@ export async function deleteTemplateAction(id: string) {
   await db.delete(crmTemplates).where(eq(crmTemplates.id, z.string().uuid().parse(id)));
   revalidatePath("/admin/settings");
 }
+
+const botSchema = z.object({
+  mode: z.enum(["off", "always", "off_hours"]),
+  greeting: z.string().trim().max(500),
+  finish: z.string().trim().max(500),
+  questions: z.array(z.object({ text: z.string().trim().min(1, "Текст вопроса").max(400), field: z.string().min(1, "Поле для ответа").max(40) })).max(6),
+});
+
+export async function saveBotAction(input: z.input<typeof botSchema>): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = botSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { mode, ...config } = parsed.data;
+  if (mode !== "off" && !config.questions.length) return { error: "Добавьте хотя бы один вопрос" };
+  await saveSettings({ "bot.mode": mode, "bot.config": JSON.stringify(config) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "bot", { mode, questions: config.questions.length });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}

@@ -121,3 +121,15 @@ export async function setShiftAction(onShift: boolean) {
   await db.update(users).set({ onShift: !!onShift }).where(eq(users.id, staff.user.id));
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
 }
+
+/** Свои поля клиента (раздел «Свои поля» → поля клиента). */
+export async function setClientFieldsAction(_: { ok?: string; error?: string }, form: FormData): Promise<{ ok?: string; error?: string }> {
+  const staff = await assertStaff("clients.edit");
+  const client = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(String(form.get("clientId") ?? ""))) });
+  if (!client) return { error: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  const { listFields, readFieldValues } = await import("@/lib/crm/fields");
+  await db.update(users).set({ customFields: readFieldValues(await listFields("client"), form, client.customFields) }).where(eq(users.id, client.id));
+  revalidatePath(`/admin/clients/${client.id}`);
+  return { ok: "Сохранено" };
+}

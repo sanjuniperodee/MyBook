@@ -1,9 +1,11 @@
 "use client";
 
+import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
+import type { CustomValues } from "@/lib/db/schema";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toastError } from "@/components/ui/overlays";
-import { acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, updateDealAction, type DealFormState } from "../actions";
+import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, updateDealAction, type DealFormState } from "../actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, Inbox, Merge, UserRound } from "lucide-react";
@@ -81,7 +83,11 @@ export function DealFields({
   deal,
   masked,
   disabled,
+  fields = [],
+  values = {},
 }: {
+  fields?: FieldDef[];
+  values?: CustomValues;
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;
@@ -131,6 +137,7 @@ export function DealFields({
           </div>
         </div>
       )}
+      <CustomFieldInputs fields={fields} values={values} disabled={disabled} />
       <Field label="Теги (через запятую)">
         <input name="tags" defaultValue={deal.tags.join(", ")} maxLength={300} disabled={disabled} className="input h-9 text-sm" placeholder="юбилей, срочно" />
       </Field>
@@ -188,7 +195,8 @@ function useRun() {
     start(async () => {
       try {
         await fn();
-        after ? after() : router.refresh();
+        if (after) after();
+        else router.refresh();
       } catch (e) {
         if ((e as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw e;
         toastError(e);
@@ -258,5 +266,21 @@ export function LinkClient({ dealId, client }: { dealId: string; client: { id: s
         Привязать
       </button>
     </div>
+  );
+}
+
+export function PipelineSwitch({ dealId, value, pipelines, disabled }: { dealId: string; value: string; pipelines: { id: string; name: string }[]; disabled: boolean }) {
+  const { pending, run } = useRun();
+  return (
+    <label className="flex items-center gap-2 text-sm text-muted">
+      Воронка
+      <select className="input h-8 w-56 text-sm" value={value} disabled={disabled || pending} onChange={(e) => run(() => movePipelineAction(dealId, e.target.value))} aria-label="Воронка">
+        {pipelines.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

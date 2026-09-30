@@ -1,7 +1,8 @@
 import "server-only";
+import { fieldVars, listFields } from "./fields";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { crmMessages, crmTemplates, orders, users, type CrmConversation } from "../db/schema";
+import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "../db/schema";
 import { env } from "../env";
 import { adminLabel } from "../crm";
 import { getSetting } from "./settings";
@@ -36,9 +37,13 @@ export async function listTemplates() {
 }
 
 /** Переменные шаблонов для конкретного диалога. */
-export async function chatVars(conv: Pick<CrmConversation, "contactName" | "clientId">, managerName: string) {
-  const lastOrder = conv.clientId ? await db.query.orders.findFirst({ where: eq(orders.userId, conv.clientId), orderBy: desc(orders.createdAt), columns: { number: true } }) : null;
-  return { name: conv.contactName.split(" ")[0] ?? "", order: lastOrder?.number ?? null, link: env.appUrl, manager: managerName };
+export async function chatVars(conv: Pick<CrmConversation, "contactName" | "clientId" | "dealId">, managerName: string) {
+  const [lastOrder, deal, fields] = await Promise.all([
+    conv.clientId ? db.query.orders.findFirst({ where: eq(orders.userId, conv.clientId), orderBy: desc(orders.createdAt), columns: { number: true } }) : null,
+    conv.dealId ? db.query.crmDeals.findFirst({ where: eq(crmDeals.id, conv.dealId), columns: { customFields: true } }) : null,
+    listFields("deal"),
+  ]);
+  return { name: conv.contactName.split(" ")[0] ?? "", order: lastOrder?.number ?? null, link: env.appUrl, manager: managerName, fields: fieldVars(fields, deal?.customFields) };
 }
 
 /** Почему отправка сейчас не сработает (показываем над полем ввода). */

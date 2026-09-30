@@ -1,4 +1,5 @@
 import { addonName, coverName, deliveryName, formatName, planName, typographyName } from "@/i18n/labels";
+import { channelLabel, describeAttribution, toAttribution } from "@/lib/crm/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -133,6 +134,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <dt className="text-muted">Телефон</dt><dd>{contact.masked ? contact.phone : <a href={`tel:${order.contactPhone}`} className="underline">{order.contactPhone}</a>}</dd>
               <dt className="text-muted">E-mail</dt><dd>{contact.masked ? contact.email : <a href={`mailto:${order.contactEmail}`} className="underline">{order.contactEmail}</a>}</dd>
               <dt className="text-muted">Аккаунт</dt><dd>{accountEmail}</dd>
+              <dt className="text-muted">Канал</dt>
+              <dd>
+                {channelLabel(toAttribution(order.user.source))}
+                {describeAttribution(toAttribution(order.user.source)) ? <span className="text-muted"> · {describeAttribution(toAttribution(order.user.source))}</span> : null}
+              </dd>
               {plan?.printed ? (
                 <>
                   <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}</dd>

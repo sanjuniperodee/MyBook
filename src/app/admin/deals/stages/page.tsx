@@ -3,20 +3,33 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmDeals } from "@/lib/db/schema";
 import { requireStaff } from "@/lib/crm/rbac";
-import { listStages } from "@/lib/crm/deals";
-import { StageRow, NewStage } from "./StageEditor";
+import { listPipelines, listStages } from "@/lib/crm/deals";
+import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Этапы воронки" };
 
-export default async function StagesPage() {
+export default async function StagesPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   await requireStaff("settings.manage");
-  const [stages, counts] = await Promise.all([listStages(), db.select({ stageId: crmDeals.stageId, n: sql<number>`count(*)::int` }).from(crmDeals).groupBy(crmDeals.stageId)]);
+  const { p } = await searchParams;
+  const pipelines = await listPipelines();
+  const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
+  const [stages, counts] = await Promise.all([listStages(pipeline.id), db.select({ stageId: crmDeals.stageId, n: sql<number>`count(*)::int` }).from(crmDeals).groupBy(crmDeals.stageId)]);
   const byStage = new Map(counts.map((c) => [c.stageId, c.n]));
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link href="/admin/deals" className="text-sm text-muted hover:text-ink">
+      <Link href={`/admin/deals?p=${pipeline.id}`} className="text-sm text-muted hover:text-ink">
         ← Сделки
       </Link>
+      <div className="flex flex-wrap items-center gap-2" data-testid="pipeline-tabs">
+        {pipelines.map((x) => (
+          <Link key={x.id} href={`/admin/deals/stages?p=${x.id}`} className={cn("rounded-full px-3 py-1.5 text-sm", x.id === pipeline.id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
+            {x.name}
+          </Link>
+        ))}
+        <NewPipeline />
+      </div>
+      <PipelineHeader id={pipeline.id} name={pipeline.name} isDefault={pipeline.id === pipelines[0].id} />
       <div>
         <h1 className="text-2xl font-semibold">Этапы воронки</h1>
         <p className="mt-1 text-sm text-muted">Этапы «в работе» можно переименовывать, менять местами и удалять. «Успех» и «Отказ» закрывают сделку — их можно только переименовать. «Авто» — сделка сама переходит на этап, когда клиент делает это на сайте (только вперёд по воронке).</p>
@@ -32,7 +45,7 @@ export default async function StagesPage() {
           />
         ))}
       </div>
-      <NewStage />
+      <NewStage pipelineId={pipeline.id} />
     </div>
   );
 }

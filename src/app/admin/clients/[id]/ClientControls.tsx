@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
+import type { CustomValues } from "@/lib/db/schema";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
-import { setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
 import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { cn } from "@/lib/utils";
@@ -104,6 +106,22 @@ export function ExtraPhones({ clientId, value }: { clientId: string; value: stri
       <button className="btn btn-outline btn-sm h-9" disabled={pending || text === value}>
         {pending ? <LoaderCircle className="size-4 animate-spin" /> : "OK"}
       </button>
+    </form>
+  );
+}
+
+export function ClientFields({ clientId, fields, values, disabled }: { clientId: string; fields: FieldDef[]; values: CustomValues; disabled: boolean }) {
+  const [state, action] = useActionState(setClientFieldsAction, {});
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="clientId" value={clientId} />
+      <CustomFieldInputs fields={fields} values={values} disabled={disabled} />
+      {disabled ? null : (
+        <div className="flex items-center gap-3">
+          <button className="btn btn-outline btn-sm">Сохранить</button>
+          {state.error ? <span className="text-xs text-red-700">{state.error}</span> : state.ok ? <span className="text-xs text-emerald-700">{state.ok}</span> : null}
+        </div>
+      )}
     </form>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { currentMonth, planProgress } from "@/lib/crm/plans";
 import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
 import { db } from "@/lib/db";
@@ -18,7 +19,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
   const none = Promise.resolve([]);
-  const [tasks, waiting, missed, [deals], [unsorted]] = await Promise.all([
+  const [tasks, waiting, missed, [deals], [unsorted], plans] = await Promise.all([
     db
       .select()
       .from(crmTasks)
@@ -54,7 +55,9 @@ export async function MyDay({ staff }: { staff: Staff }) {
           .from(crmDeals)
           .where(and(eq(crmDeals.unsorted, true), ownScope(staff, crmDeals.assigneeId)))
       : Promise.resolve([{ n: 0 }]),
+    planProgress(currentMonth(), [me]),
   ]);
+  const plan = plans.get(me);
   const now = new Date();
   const tiles = [
     unsorted.n > 0 && { href: "/admin/deals", icon: Inbox, label: "Неразобранные заявки", value: String(unsorted.n), hot: true },
@@ -66,6 +69,20 @@ export async function MyDay({ staff }: { staff: Staff }) {
 
   return (
     <div className="space-y-4" data-testid="my-day">
+      {plan?.planAmount ? (
+        <div className="rounded-2xl border border-line bg-white p-4" data-testid="my-plan">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+            <span className="font-semibold">План на месяц</span>
+            <span className="tabular-nums">
+              {formatPrice(plan.factAmount)} из {formatPrice(plan.planAmount)} · <b>{Math.round((plan.factAmount / plan.planAmount) * 100)}%</b>
+              {plan.planDeals ? <span className="text-muted"> · сделок {plan.factDeals} из {plan.planDeals}</span> : null}
+            </span>
+          </div>
+          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-cream">
+            <div className={cn("h-full rounded-full", plan.factAmount >= plan.planAmount ? "bg-emerald-600" : "bg-wine")} style={{ width: `${Math.min(100, (plan.factAmount / plan.planAmount) * 100)}%` }} />
+          </div>
+        </div>
+      ) : null}
       <div className={cn("grid gap-3 sm:grid-cols-2", tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
         {tiles.map((t) => (
           <Link key={t.href} href={t.href} className={cn("flex items-center gap-3 rounded-2xl border bg-white p-4 transition hover:shadow-soft", t.hot ? "border-wine/30" : "border-line")}>

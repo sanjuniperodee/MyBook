@@ -24,7 +24,7 @@ export interface ChatMessage {
   internal?: boolean;
 }
 
-const REFRESH_MS = 5_000;
+const REFRESH_MS = 15_000;
 
 /** Время — в часовом поясе магазина, как и во всей CRM (браузер менеджера может быть настроен иначе). */
 const TZ = "Asia/Almaty";
@@ -87,7 +87,7 @@ export function ChatPanel({
   messages: ChatMessage[];
   canSend: boolean;
   templates: { id: string; title: string; text: string }[];
-  vars: { name: string; order: number | null; link: string; manager: string };
+  vars: { name: string; order: number | null; link: string; manager: string; fields?: Record<string, string> };
   sendDisabledReason?: string | null;
   className?: string;
   mentionables?: string[];
@@ -119,9 +119,18 @@ export function ChatPanel({
   }, [all.length, conversationId]);
 
   useEffect(() => {
+    // Новые сообщения приходят событием (SSE); опрос — страховка на случай обрыва соединения.
+    const onLive = (e: Event) => {
+      const d = (e as CustomEvent<{ type?: string; conversationId?: string | null }>).detail;
+      if (d?.type === "chat" && (!d.conversationId || d.conversationId === conversationId)) router.refresh();
+    };
+    window.addEventListener("crm:live", onLive);
     const id = window.setInterval(() => document.visibilityState === "visible" && router.refresh(), REFRESH_MS);
-    return () => window.clearInterval(id);
-  }, [router]);
+    return () => {
+      window.removeEventListener("crm:live", onLive);
+      window.clearInterval(id);
+    };
+  }, [router, conversationId]);
 
   const offer = (req: Parameters<typeof sendOfferAction>[1]) => {
     setShowOffers(false);

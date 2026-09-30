@@ -2,8 +2,27 @@ import { usersId } from "../db/refs";
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmRoles, crmStages, crmTasks, orders, users, type CrmDeal, type CrmStage, type DealSource, type Order } from "../db/schema";
+import {
+  crmCalls,
+  crmConversations,
+  crmDeals,
+  crmNotes,
+  crmPipelines,
+  crmRoles,
+  crmStageHistory,
+  crmStages,
+  crmTasks,
+  orders,
+  users,
+  type CrmDeal,
+  type CrmPipeline,
+  type CrmStage,
+  type CustomValues,
+  type DealSource,
+  type Order,
+} from "../db/schema";
 import { normalizePhone, phoneKey } from "./phone";
+import { toAttribution, type Attribution } from "./channels";
 import { getSetting } from "./settings";
 import { isWorkTime, parseWorkHours } from "./schedule";
 import { BOOK_READY_ANSWERS, milestoneOrder, type StageMilestone } from "./deal-meta";
@@ -21,19 +40,47 @@ export function sourceFromChannel(channel: string): DealSource {
   return "manual";
 }
 
-export async function listStages(): Promise<CrmStage[]> {
-  return db.select().from(crmStages).orderBy(asc(crmStages.position), asc(crmStages.createdAt));
+export async function listPipelines(): Promise<CrmPipeline[]> {
+  return db.select().from(crmPipelines).orderBy(asc(crmPipelines.position), asc(crmPipelines.createdAt));
 }
 
-export async function stageOfKind(kind: CrmStage["kind"]) {
-  const [s] = await db.select().from(crmStages).where(eq(crmStages.kind, kind)).orderBy(asc(crmStages.position)).limit(1);
+/** Основная воронка — первая по порядку: в неё попадают заявки с сайта, из чатов и звонков. */
+export async function defaultPipelineId(): Promise<string> {
+  const [p] = await db.select({ id: crmPipelines.id }).from(crmPipelines).orderBy(asc(crmPipelines.position), asc(crmPipelines.createdAt)).limit(1);
+  if (!p) throw new Error("Нет ни одной воронки");
+  return p.id;
+}
+
+/** Этапы: одной воронки или всех (по порядку воронок, затем этапов). */
+export async function listStages(pipelineId?: string): Promise<CrmStage[]> {
+  return db
+    .select({ s: crmStages })
+    .from(crmStages)
+    .innerJoin(crmPipelines, eq(crmPipelines.id, crmStages.pipelineId))
+    .where(pipelineId ? eq(crmStages.pipelineId, pipelineId) : undefined)
+    .orderBy(asc(crmPipelines.position), asc(crmPipelines.createdAt), asc(crmStages.position), asc(crmStages.createdAt))
+    .then((rows) => rows.map((r) => r.s));
+}
+
+export async function stageOfKind(kind: CrmStage["kind"], pipelineId?: string) {
+  const pid = pipelineId ?? (await defaultPipelineId());
+  const [s] = await db
+    .select()
+    .from(crmStages)
+    .where(and(eq(crmStages.kind, kind), eq(crmStages.pipelineId, pid)))
+    .orderBy(asc(crmStages.position))
+    .limit(1);
   return s ?? null;
 }
 
-async function firstStage() {
-  const s = await stageOfKind("open");
+async function firstStage(pipelineId?: string) {
+  const s = await stageOfKind("open", pipelineId);
   if (!s) throw new Error("В воронке нет ни одного открытого этапа");
   return s;
+}
+
+async function logStage(dealId: string, fromStageId: string | null, toStageId: string, actorId: string | null) {
+  await db.insert(crmStageHistory).values({ dealId, fromStageId, toStageId, actorId });
 }
 
 const phoneDigits = (col: unknown) => sql`right(regexp_replace(coalesce(${col}, ''), '\\D', '', 'g'), 10)`;
@@ -122,13 +169,19 @@ export interface NewDeal {
   stageId?: string;
   /** Заявка с нового контакта: попадёт в «Неразобранное» (если оно включено в настройках). */
   unsorted?: boolean;
+  pipelineId?: string;
+  customFields?: CustomValues;
+  /** Откуда пришёл (UTM). Для клиента с сайта берётся из его профиля, если не передано. */
+  utm?: Attribution | null;
 }
 
 export async function createDeal(input: NewDeal): Promise<CrmDeal> {
-  const stageId = input.stageId ?? (await firstStage()).id;
+  const stageId = input.stageId ?? (await firstStage(input.pipelineId)).id;
   let clientId = input.clientId ?? null;
   if (!clientId && input.contactPhone) clientId = await findClientByPhone(input.contactPhone);
   const unsorted = !!input.unsorted && !clientId && (await getSetting("crm.unsorted")) !== "off";
+  let utm = input.utm ?? null;
+  if (!utm && clientId) utm = toAttribution((await db.query.users.findFirst({ where: eq(users.id, clientId), columns: { source: true } }))?.source);
   // Ответственный клиента становится ответственным за сделку.
   let assigneeId = input.assigneeId ?? null;
   if (!assigneeId && clientId) assigneeId = (await db.query.users.findFirst({ where: eq(users.id, clientId), columns: { managerId: true } }))?.managerId ?? null;
@@ -147,8 +200,11 @@ export async function createDeal(input: NewDeal): Promise<CrmDeal> {
       createdById: input.createdById ?? null,
       orderId: input.orderId ?? null,
       unsorted,
+      customFields: input.customFields ?? {},
+      utm: utm as Record<string, string> | null,
     })
     .returning();
+  await logStage(deal.id, null, stageId, input.createdById ?? null);
   await addDealNote(deal, `Создана сделка №${deal.number} «${deal.title}» (${dealSourceLabels[deal.source]})`, input.createdById ?? null);
   await runTrigger("deal.created", { subject: deal.id, dealId: deal.id, clientId, source: deal.source, stageId });
   const fresh = (await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, deal.id) })) ?? deal;
@@ -175,6 +231,7 @@ export async function moveDeal(dealId: string, stageId: string, actorId: string 
     })
     .where(eq(crmDeals.id, dealId))
     .returning();
+  await logStage(dealId, deal.stageId, stageId, actorId);
   await addDealNote(updated, `Сделка №${deal.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
   await runTrigger("deal.stage_changed", { subject: `${dealId}:${stageId}:${Date.now()}`, dealId, clientId: updated.clientId, stageId, source: updated.source });
   return updated;
@@ -192,11 +249,13 @@ export async function assignDeal(dealId: string, assigneeId: string | null) {
  * Воронка по действиям клиента на сайте. Сделка идёт только вперёд: на этап, у которого задан этот milestone,
  * если он дальше текущего. Закрытые сделки не трогаем. Сделку заводим сами, начиная с настройки crm.autoDealFrom.
  */
-export async function advanceByMilestone(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number } = {}) {
+export async function advanceByMilestone(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomValues } = {}) {
   try {
     const stages = await listStages();
-    const target = stages.find((st) => st.milestone === milestone);
     let deal = await findOpenDeal({ clientId });
+    // Этап-цель ищем в воронке сделки; новая сделка с сайта — в основной воронке.
+    const pipelineId = deal ? stages.find((st) => st.id === deal!.stageId)?.pipelineId : await defaultPipelineId();
+    const target = stages.find((st) => st.milestone === milestone && st.pipelineId === pipelineId);
     if (!deal) {
       const from = (await getSetting("crm.autoDealFrom")) as StageMilestone | "off";
       // Заказ заводит сделку всегда: продажа должна попасть в воронку и аналитику.
@@ -214,6 +273,7 @@ export async function advanceByMilestone(clientId: string, milestone: StageMiles
         amount: opts.amount ?? 0,
         orderId: opts.orderId ?? null,
         stageId: target?.id,
+        customFields: opts.customFields,
       });
     } else if (opts.orderId || opts.amount) {
       await db
@@ -272,9 +332,11 @@ export async function onOrderPaid(order: Order) {
 
 export async function onOrderCancelled(order: Order) {
   try {
-    const lost = await stageOfKind("lost");
-    const deals = await db.select({ id: crmDeals.id }).from(crmDeals).where(eq(crmDeals.orderId, order.id));
-    if (lost) for (const d of deals) await moveDeal(d.id, lost.id, null, "Заказ отменён");
+    const deals = await db.select({ id: crmDeals.id, pipelineId: crmStages.pipelineId }).from(crmDeals).innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId)).where(eq(crmDeals.orderId, order.id));
+    for (const d of deals) {
+      const lost = await stageOfKind("lost", d.pipelineId);
+      if (lost) await moveDeal(d.id, lost.id, null, "Заказ отменён");
+    }
   } catch (err) {
     console.error("[crm] onOrderCancelled", err);
   }
@@ -340,4 +402,18 @@ export async function mergeDeals(targetId: string, sourceId: string, actorId: st
     await tx.insert(crmNotes).values({ clientId: target.clientId ?? source.clientId, dealId: target.id, authorId: actorId, kind: "system", text: `Объединена со сделкой №${source.number} «${source.title}»` });
     return { target, source };
   });
+}
+
+/** Заполнить пустые свои поля сделки (не перетирая то, что менеджер уже ввёл). */
+export async function fillEmptyFields(dealId: string, values: CustomValues) {
+  const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, dealId), columns: { customFields: true } });
+  if (!deal) return;
+  const next = { ...deal.customFields };
+  let changed = false;
+  for (const [k, v] of Object.entries(values)) {
+    if (v === null || v === undefined || v === "" || (next[k] !== undefined && next[k] !== null && next[k] !== "")) continue;
+    next[k] = v;
+    changed = true;
+  }
+  if (changed) await db.update(crmDeals).set({ customFields: next }).where(eq(crmDeals.id, dealId));
 }

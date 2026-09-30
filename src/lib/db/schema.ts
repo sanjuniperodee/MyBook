@@ -5,6 +5,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -52,6 +53,8 @@ export const users = pgTable(
     onShift: boolean("on_shift").notNull().default(true),
     /** Дополнительные телефоны клиента (второй номер, WhatsApp на другой SIM) — для поиска по звонкам и чатам. */
     extraPhones: text("extra_phones").array().notNull().default(sql`'{}'::text[]`),
+    /** Значения своих полей клиента (crm_fields, entity = client). */
+    customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
     /** Сотрудник отключён: не может войти в CRM, не получает лиды. */
     staffDisabled: boolean("staff_disabled").notNull().default(false),
     ...timestamps,
@@ -437,9 +440,20 @@ export const crmAudit = pgTable(
   (t) => [index("crm_audit_created_idx").on(t.createdAt), index("crm_audit_entity_idx").on(t.entity, t.entityId)],
 );
 
+/** Воронка продаж: «Продажи», «Корпоративные», «Партнёры»… У каждой свои этапы. */
+export const crmPipelines = pgTable("crm_pipelines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  position: integer("position").notNull().default(0),
+  ...timestamps,
+});
+
 /** Этапы воронки продаж. kind: open — в работе, won — успех, lost — отказ. */
 export const crmStages = pgTable("crm_stages", {
   id: uuid("id").primaryKey().defaultRandom(),
+  pipelineId: uuid("pipeline_id")
+    .notNull()
+    .references(() => crmPipelines.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   color: text("color").notNull().default("#9a8f86"),
   position: integer("position").notNull().default(0),
@@ -474,6 +488,10 @@ export const crmDeals = pgTable(
     /** «Неразобранное»: заявка с нового номера ждёт, пока менеджер её примет или отклонит. */
     unsorted: boolean("unsorted").notNull().default(false),
     extraPhones: text("extra_phones").array().notNull().default(sql`'{}'::text[]`),
+    /** Откуда пришёл клиент: UTM-метки, реферер, короткая ссылка (из профиля на сайте или кода в первом сообщении). */
+    utm: jsonb("utm").$type<Record<string, string>>(),
+    /** Значения своих полей (crm_fields, entity = deal): { key: значение }. */
+    customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
@@ -504,6 +522,8 @@ export const crmConversations = pgTable(
     lastMessageText: text("last_message_text").notNull().default(""),
     /** Последнее входящее, ещё без ответа — для SLA «ответить за N минут». */
     awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
+    /** Бот-квалификатор: номер текущего вопроса; null — не запускался, -1 — закончил или его остановил менеджер. */
+    botStep: integer("bot_step"),
     ...timestamps,
   },
   (t) => [uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId), index("crm_conv_last_idx").on(t.lastMessageAt)],
@@ -625,6 +645,126 @@ export const crmAutomationRuns = pgTable(
   (t) => [uniqueIndex("crm_auto_runs_idx").on(t.automationId, t.subject)],
 );
 
+/** История смены этапов: основа честной воронки (конверсия этап → этап, время на этапе). */
+export const crmStageHistory = pgTable(
+  "crm_stage_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => crmDeals.id, { onDelete: "cascade" }),
+    fromStageId: uuid("from_stage_id").references(() => crmStages.id, { onDelete: "set null" }),
+    toStageId: uuid("to_stage_id")
+      .notNull()
+      .references(() => crmStages.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_stage_hist_deal_idx").on(t.dealId, t.createdAt), index("crm_stage_hist_to_idx").on(t.toStageId, t.createdAt)],
+);
+
+export type CustomValues = Record<string, string | number | boolean | null>;
+export const customFieldTypes = ["text", "number", "date", "select", "checkbox"] as const;
+
+/** Свои поля сделки или клиента (как в amoCRM): повод, дата события, для кого… */
+export const crmFields = pgTable(
+  "crm_fields",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity: text("entity", { enum: ["deal", "client"] }).notNull(),
+    /** Латиница: ключ в customFields; не меняется после создания. */
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    type: text("type", { enum: customFieldTypes }).notNull().default("text"),
+    options: text("options").array().notNull().default(sql`'{}'::text[]`),
+    position: integer("position").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("crm_fields_key_idx").on(t.entity, t.key)],
+);
+
+/** Сохранённые фильтры списков (свои и общие для команды). */
+export const crmSavedViews = pgTable(
+  "crm_saved_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    entity: text("entity").notNull().default("deals"),
+    name: text("name").notNull(),
+    query: text("query").notNull(),
+    shared: boolean("shared").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_views_user_idx").on(t.userId)],
+);
+
+/** План продаж сотрудника на месяц (YYYY-MM). */
+export const crmPlans = pgTable(
+  "crm_plans",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    month: text("month").notNull(),
+    amount: integer("amount").notNull().default(0),
+    deals: integer("deals").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.month] })],
+);
+
+/** Подписки браузеров сотрудников на push-уведомления (Web Push). */
+export const crmPushSubscriptions = pgTable(
+  "crm_push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_push_user_idx").on(t.userId)],
+);
+
+/** Рекламные ссылки с UTM-метками: короткий адрес /go/код ведёт на страницу сайта или в WhatsApp. */
+export const crmLinks = pgTable("crm_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  kind: text("kind", { enum: ["site", "whatsapp"] }).notNull().default("site"),
+  /** Страница сайта (для kind = site). */
+  targetPath: text("target_path").notNull().default("/"),
+  /** Текст первого сообщения (для kind = whatsapp); к нему добавляется код ссылки. */
+  waText: text("wa_text").notNull().default(""),
+  utmSource: text("utm_source").notNull(),
+  utmMedium: text("utm_medium").notNull().default(""),
+  utmCampaign: text("utm_campaign").notNull().default(""),
+  utmContent: text("utm_content").notNull().default(""),
+  clicks: integer("clicks").notNull().default(0),
+  archived: boolean("archived").notNull().default(false),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Переходы по ссылкам по дням — для отчётов за период. */
+export const crmLinkClicks = pgTable(
+  "crm_link_clicks",
+  {
+    linkId: uuid("link_id")
+      .notNull()
+      .references(() => crmLinks.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // YYYY-MM-DD по Алматы
+    clicks: integer("clicks").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.linkId, t.day] })],
+);
+
 /** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */
 export const crmBlocklist = pgTable("crm_blocklist", {
   value: text("value").primaryKey(),
@@ -640,6 +780,10 @@ export const crmSettings = pgTable("crm_settings", {
   updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const crmStagesRelations = relations(crmStages, ({ one }) => ({
+  pipeline: one(crmPipelines, { fields: [crmStages.pipelineId], references: [crmPipelines.id] }),
+}));
 
 export const crmDealsRelations = relations(crmDeals, ({ one }) => ({
   stage: one(crmStages, { fields: [crmDeals.stageId], references: [crmStages.id] }),
@@ -708,6 +852,9 @@ export type CrmNote = typeof crmNotes.$inferSelect;
 export type CrmTask = typeof crmTasks.$inferSelect;
 export type CrmRole = typeof crmRoles.$inferSelect;
 export type CrmStage = typeof crmStages.$inferSelect;
+export type CrmPipeline = typeof crmPipelines.$inferSelect;
+export type CrmField = typeof crmFields.$inferSelect;
+export type CrmLink = typeof crmLinks.$inferSelect;
 export type CrmDeal = typeof crmDeals.$inferSelect;
 export type CrmConversation = typeof crmConversations.$inferSelect;
 export type CrmMessage = typeof crmMessages.$inferSelect;

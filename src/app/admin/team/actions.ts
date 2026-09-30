@@ -6,7 +6,7 @@ import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { crmRoles, sessions, users } from "@/lib/db/schema";
+import { crmRoles, sessions, users, crmPlans } from "@/lib/db/schema";
 import { assertStaff, audit, type Staff } from "@/lib/crm/rbac";
 import { isPermission } from "@/lib/crm/permissions";
 
@@ -203,3 +203,18 @@ export async function deleteRoleAction(roleId: string) {
   revalidateTeam();
 }
 
+
+/** План продаж сотрудника на месяц. */
+export async function savePlanAction(userId: string, month: string, amount: number, deals: number) {
+  const staff = await assertStaff("team.manage");
+  const id = z.string().uuid().parse(userId);
+  const m = z.string().regex(/^\d{4}-\d{2}$/).parse(month);
+  const a = z.number().int().min(0).max(1_000_000_000).parse(amount);
+  const d = z.number().int().min(0).max(100_000).parse(deals);
+  await db
+    .insert(crmPlans)
+    .values({ userId: id, month: m, amount: a, deals: d })
+    .onConflictDoUpdate({ target: [crmPlans.userId, crmPlans.month], set: { amount: a, deals: d, updatedAt: new Date() } });
+  await audit(staff, "plan.update", "user", id, { month: m, amount: a, deals: d });
+  revalidatePath("/admin/team/plans");
+}

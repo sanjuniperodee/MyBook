@@ -9,6 +9,8 @@ import { automationActions, automationTriggers, fillTemplate, isTrigger } from "
 import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/lib/crm/schedule";
 import { findMentions } from "@/lib/crm/mentions";
 import { milestoneOrder, stageMilestones } from "@/lib/crm/deal-meta";
+import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/lib/crm/channels";
+import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, questionText } from "@/lib/crm/bot-logic";
 import { decryptSecret, encryptSecret, safeEqual } from "@/lib/crm/crypto";
 import { matches } from "@/lib/crm/automations";
 
@@ -236,5 +238,69 @@ describe("упоминания и воронка по действиям", () =>
 
   it("переменные повода и даты в шаблонах", () => {
     expect(fillTemplate("Годовщина: {повод}, {дата}", { occasion: "Свадьба", date: "12 ноября" })).toBe("Годовщина: Свадьба, 12 ноября");
+  });
+});
+
+describe("каналы привлечения и UTM-ссылки", () => {
+  it("определяет канал по меткам, рефереру и источнику сделки", () => {
+    expect(channelOf({ source: "instagram", medium: "social" })).toBe("instagram");
+    expect(channelOf({ source: "IG" })).toBe("instagram");
+    expect(channelOf({ source: "instagram", medium: "influencer" })).toBe("bloggers");
+    expect(channelOf({ source: "google", medium: "cpc" })).toBe("google_ads");
+    expect(channelOf({ source: "google", medium: "organic" })).toBe("google");
+    expect(channelOf({ source: "yandex", medium: "cpc" })).toBe("yandex_ads");
+    expect(channelOf({ referrer: "www.google.com" })).toBe("google");
+    expect(channelOf({ referrer: "l.instagram.com" })).toBe("instagram");
+    expect(channelOf({ referrer: "some-blog.kz" })).toBe("referral");
+    expect(channelOf(null, "whatsapp")).toBe("whatsapp");
+    expect(channelOf(null, "call")).toBe("call");
+    expect(channelOf(null)).toBe("direct");
+    expect(channelOf({ source: "partner-shop" })).toBe("other");
+  });
+
+  it("находит код ссылки в первом сообщении WhatsApp", () => {
+    expect(linkCodeFromText("Здравствуйте! Хочу книгу (код: insta-bio)")).toBe("insta-bio");
+    expect(linkCodeFromText("Привет #TikTok-NY")).toBe("tiktok-ny");
+    expect(linkCodeFromText("Сколько стоит?")).toBeNull();
+    expect(linkCodeFromText("мой номер #1")).toBeNull();
+  });
+
+  it("собирает ссылку с UTM и нормализует короткий код", () => {
+    expect(buildSiteUrl("https://mybook.kz", "/kniga/kniga-mame", { source: "instagram", medium: "social", campaign: "8march" }, "ig-8m")).toBe(
+      "https://mybook.kz/kniga/kniga-mame?utm_source=instagram&utm_medium=social&utm_campaign=8march&lnk=ig-8m",
+    );
+    expect(normalizeSlug("Instagram — Шапка профиля")).toBe("instagram-shapka-profilya");
+    expect(normalizeSlug("Қазақ блогер!")).toBe("qazaq-bloger");
+    expect(toAttribution({ source: "ig", evil: 1, medium: "" })).toEqual({ source: "ig" });
+    expect(toAttribution(null)).toBeNull();
+  });
+});
+
+describe("бот-квалификатор", () => {
+  const now = new Date("2026-09-30T10:00:00Z");
+  it("разбирает дату из ответа клиента в ближайшую будущую", () => {
+    expect(parseDateAnswer("15.11", now)).toBe("2026-11-15");
+    expect(parseDateAnswer("к 3.02", now)).toBe("2027-02-03");
+    expect(parseDateAnswer("15.11.2027", now)).toBe("2027-11-15");
+    expect(parseDateAnswer("12 ноября", now)).toBe("2026-11-12");
+    expect(parseDateAnswer("1 мая", now)).toBe("2027-05-01");
+    expect(parseDateAnswer("8 марта", now)).toBe("2027-03-08");
+    expect(parseDateAnswer("31.02", now)).toBeNull();
+    expect(parseDateAnswer("скоро", now)).toBeNull();
+  });
+
+  it("понимает вариант по номеру и по тексту", () => {
+    const opts = ["День рождения", "Годовщина", "Свадьба"];
+    expect(matchOption("2", opts)).toBe("Годовщина");
+    expect(matchOption("свадьба", opts)).toBe("Свадьба");
+    expect(matchOption("на день рождения мамы", opts)).toBe("День рождения");
+    expect(matchOption("9", opts)).toBeNull();
+    expect(matchOption("просто так", opts)).toBeNull();
+  });
+
+  it("показывает варианты списка с номерами и терпит испорченную настройку", () => {
+    expect(questionText({ text: "Повод?", field: "occasion" }, ["А", "Б"])).toBe("Повод?\n1 — А\n2 — Б");
+    expect(parseBotConfig("{bad")).toEqual(defaultBotConfig);
+    expect(parseBotConfig(JSON.stringify({ greeting: "Привет", questions: [{ text: "", field: "x" }, { text: "Кому?", field: "recipient" }], finish: "" })).questions).toEqual([{ text: "Кому?", field: "recipient" }]);
   });
 });

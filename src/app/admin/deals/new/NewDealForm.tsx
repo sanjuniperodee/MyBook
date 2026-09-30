@@ -6,7 +6,7 @@ import { dealSourceLabels, dealSources } from "@/lib/crm/deal-meta";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 
-export function NewDealForm({ stages, admins, me, client }: { stages: { id: string; name: string }[]; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null }) {
+export function NewDealForm({ stages, defaultStageId, admins, me, client }: { stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null }) {
   const [state, action] = useActionState<DealFormState, FormData>(createDealAction, {});
   return (
     <form action={action} className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2">
@@ -43,7 +43,7 @@ export function NewDealForm({ stages, admins, me, client }: { stages: { id: stri
       </div>
       <div>
         <label className="label">Этап</label>
-        <select name="stageId" className="input h-11" defaultValue={stages[0]?.id}>
+        <select name="stageId" className="input h-11" defaultValue={defaultStageId ?? stages[0]?.id}>
           {stages.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

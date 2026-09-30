@@ -9,6 +9,7 @@ export function TeamTabs({ showAudit }: { showAudit: boolean }) {
   const tabs = [
     { href: "/admin/team", label: "Сотрудники" },
     { href: "/admin/team/roles", label: "Роли и права" },
+    { href: "/admin/team/plans", label: "Планы продаж" },
     ...(showAudit ? [{ href: "/admin/team/audit", label: "Журнал действий" }] : []),
   ];
   return (

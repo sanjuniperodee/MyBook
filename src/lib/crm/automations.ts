@@ -1,4 +1,5 @@
 import "server-only";
+import { fieldVars, listFields } from "./fields";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -119,7 +120,15 @@ async function managerName(id: string | null) {
 }
 
 async function runAction(rule: CrmAutomation, a: AutomationAction, ctx: TriggerContext, e: Loaded) {
-  const vars = { name: e.name, order: e.order?.number ?? null, link: env.appUrl, manager: await managerName(e.assigneeId), occasion: ctx.occasion ?? "", date: ctx.date ?? "" };
+  const vars = {
+    name: e.name,
+    order: e.order?.number ?? null,
+    link: env.appUrl,
+    manager: await managerName(e.assigneeId),
+    occasion: ctx.occasion ?? "",
+    date: ctx.date ?? "",
+    fields: e.deal ? fieldVars(await listFields("deal"), e.deal.customFields) : {},
+  };
   switch (a.type) {
     case "create_task": {
       const assigneeId = a.userId || e.deal?.assigneeId || e.assigneeId;

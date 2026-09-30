@@ -1,4 +1,6 @@
 import { booksId } from "@/lib/db/refs";
+import { listFields } from "@/lib/crm/fields";
+import { channelLabel as acquisitionChannel, describeAttribution, toAttribution } from "@/lib/crm/channels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, sql } from "drizzle-orm";
@@ -7,7 +9,7 @@ import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/lib/db/schema";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { dealSourceLabels, findClientByPhone, findDuplicateDeals, listStages } from "@/lib/crm/deals";
+import { dealSourceLabels, findClientByPhone, findDuplicateDeals, listPipelines, listStages } from "@/lib/crm/deals";
 import { books, bookQuestions, photos } from "@/lib/db/schema";
 import { channelLabel } from "@/lib/crm/chats";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
@@ -20,7 +22,7 @@ import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/compone
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { cn, formatDate } from "@/lib/utils";
-import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, StageBar, UnsortedBanner } from "./DealControls";
+import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 
 export const metadata = { title: "Сделка" };
 
@@ -33,8 +35,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, id) });
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
 
-  const [stages, admins, noteRows, taskRows, callRows, convs, client, order] = await Promise.all([
+  const [allStages, pipelines, admins, noteRows, taskRows, callRows, convs, client, order] = await Promise.all([
     listStages(),
+    listPipelines(),
     listAdmins(),
     db.select().from(crmNotes).where(eq(crmNotes.dealId, deal.id)).orderBy(desc(crmNotes.createdAt)).limit(100),
     db.select().from(crmTasks).where(eq(crmTasks.dealId, deal.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, asc(crmTasks.dueAt)),
@@ -45,7 +48,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const conv = convs[0] ?? null;
-  const [duplicates, suggestedClientId, bookRows] = await Promise.all([
+  const pipelineId = allStages.find((s) => s.id === deal.stageId)?.pipelineId;
+  const stages = allStages.filter((s) => s.pipelineId === pipelineId);
+  const [duplicates, suggestedClientId, bookRows, dealFields] = await Promise.all([
     findDuplicateDeals(deal),
     !deal.clientId && deal.contactPhone ? findClientByPhone(deal.contactPhone) : null,
     deal.clientId
@@ -65,6 +70,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           .orderBy(desc(books.updatedAt))
           .limit(3)
       : Promise.resolve([]),
+    listFields("deal"),
   ]);
   const suggested = suggestedClientId ? await db.query.users.findFirst({ where: eq(users.id, suggestedClientId), columns: { id: true, name: true, email: true } }) : null;
   const clientSeen = deal.clientId ? (await db.query.users.findFirst({ where: eq(users.id, deal.clientId), columns: { lastSeenAt: true } }))?.lastSeenAt : null;
@@ -132,6 +138,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           </div>
         </section>
       ) : null}
+      {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
@@ -150,6 +157,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 tags: deal.tags,
               }}
               masked={contact.masked ? { phone: contact.phone, email: contact.email } : null}
+              fields={dealFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))}
+              values={deal.customFields}
               disabled={!canEdit}
             />
             <div>
@@ -184,6 +193,15 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           ) : null}
           <section className="space-y-2 rounded-2xl border border-line bg-white p-5 text-sm">
             <h2 className="mb-1 font-semibold">Связи</h2>
+            <div className="flex items-baseline justify-between gap-2" data-testid="deal-channel">
+              <span className="text-muted">Канал</span>
+              <span className="text-right">
+                <span className="font-medium">{acquisitionChannel(toAttribution(deal.utm), deal.source)}</span>
+                {describeAttribution(toAttribution(deal.utm)) || deal.utm?.link ? (
+                  <span className="block text-xs text-muted">{[describeAttribution(toAttribution(deal.utm)), deal.utm?.link ? `ссылка ${deal.utm.link}` : ""].filter(Boolean).join(" · ")}</span>
+                ) : null}
+              </span>
+            </div>
             {client && can(staff, "clients.view") ? (
               <Link href={`/admin/clients/${client.id}`} className="flex items-center gap-2 hover:text-wine">
                 <UserRound className="size-4 text-muted" /> {client.name || contactView(staff, { email: client.email }).email}

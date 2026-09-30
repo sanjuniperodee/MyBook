@@ -10,6 +10,8 @@ import type { LiveState } from "@/lib/crm/live";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 8_000;
+/** При живом SSE-соединении опрос нужен только как страховка. */
+const POLL_MS_LIVE = 45_000;
 const LiveContext = createContext<{ live: LiveState; refresh: () => void } | null>(null);
 
 export function useLive() {
@@ -51,9 +53,31 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
     }
   }, []);
 
+  const [live$, setLive$] = useState(false);
+  useEffect(() => {
+    // Мгновенные события: уведомления, сообщения, звонки. Переподключение — средствами EventSource.
+    if (typeof EventSource === "undefined") return;
+    const es = new EventSource("/api/admin/live/stream");
+    es.onopen = () => setLive$(true);
+    es.onerror = () => setLive$(false);
+    es.onmessage = (msg) => {
+      let data: { type?: string; conversationId?: string | null } = {};
+      try {
+        data = JSON.parse(msg.data);
+      } catch {}
+      void refresh();
+      window.dispatchEvent(new CustomEvent("crm:live", { detail: data }));
+    };
+    return () => es.close();
+  }, [refresh]);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/crm-sw.js", { scope: "/admin" }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const tick = () => document.visibilityState === "visible" && void refresh();
-    const id = window.setInterval(tick, POLL_MS);
+    const id = window.setInterval(tick, live$ ? POLL_MS_LIVE : POLL_MS);
     const onVis = () => tick();
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
@@ -64,7 +88,7 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
       window.removeEventListener("focus", onVis);
       window.removeEventListener("crm:refresh", onVis);
     };
-  }, [refresh]);
+  }, [refresh, live$]);
 
   // Счётчик непрочитанного во вкладке браузера.
   useEffect(() => {
@@ -150,14 +174,7 @@ export function NotificationBell() {
               );
             })}
           </div>
-          {perm === "default" ? (
-            <button
-              className="w-full border-t border-line px-4 py-2.5 text-xs text-wine hover:bg-cream/50"
-              onClick={async () => setPerm(await Notification.requestPermission())}
-            >
-              Показывать уведомления на рабочем столе
-            </button>
-          ) : null}
+          <PushToggle perm={perm} onPerm={setPerm} />
         </div>
       ) : null}
     </div>
@@ -202,5 +219,68 @@ export function IncomingCall() {
         </div>
       ))}
     </div>
+  );
+}
+
+function urlBase64ToUint8Array(base64: string) {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+/** Push-уведомления на это устройство (телефон или компьютер) — приходят даже при закрытой CRM. */
+function PushToggle({ perm, onPerm }: { perm: string; onPerm: (p: string) => void }) {
+  // Меню открывается только по клику (после гидрации), поэтому проверка возможностей браузера в инициализаторе безопасна.
+  const supported = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+  const [state, setState] = useState<"unknown" | "on" | "off" | "unsupported">(supported ? "unknown" : "unsupported");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!supported) return;
+    navigator.serviceWorker.ready.then((reg) => reg.pushManager.getSubscription()).then((sub) => setState(sub ? "on" : "off"), () => setState("off"));
+  }, [supported]);
+  if (state === "unsupported") {
+    return perm === "default" ? (
+      <button className="w-full border-t border-line px-4 py-2.5 text-xs text-wine hover:bg-cream/50" onClick={async () => onPerm(await Notification.requestPermission())}>
+        Показывать уведомления на рабочем столе
+      </button>
+    ) : null;
+  }
+  if (state === "unknown") return null;
+  const enable = async () => {
+    setBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      onPerm(permission);
+      if (permission !== "granted") return;
+      const reg = await navigator.serviceWorker.ready;
+      const { publicKey } = await apiFetch<{ publicKey: string }>("/api/admin/push");
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+      await apiFetch("/api/admin/push", { method: "POST", json: sub.toJSON() });
+      setState("on");
+      toast("Уведомления на этом устройстве включены", "success");
+    } catch {
+      toast("Не удалось включить уведомления на этом устройстве", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disable = async () => {
+    setBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await apiFetch("/api/admin/push", { method: "DELETE", json: { endpoint: sub.endpoint } }).catch(() => {});
+        await sub.unsubscribe();
+      }
+      setState("off");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button className="w-full border-t border-line px-4 py-2.5 text-xs text-wine hover:bg-cream/50 disabled:opacity-50" disabled={busy} onClick={state === "on" ? disable : enable} data-testid="push-toggle">
+      {state === "on" ? "Push на этом устройстве включены · выключить" : "Получать push на этом устройстве (телефон, компьютер)"}
+    </button>
   );
 }

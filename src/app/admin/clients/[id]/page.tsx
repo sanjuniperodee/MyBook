@@ -1,4 +1,6 @@
 import { planName } from "@/i18n/labels";
+import { listFields } from "@/lib/crm/fields";
+import { channelLabel, describeAttribution, toAttribution } from "@/lib/crm/channels";
 import { booksId } from "@/lib/db/refs";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
@@ -14,7 +16,7 @@ import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
-import { ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
+import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
 import { formatPhone } from "@/lib/crm/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
 import { ContactActions } from "@/components/admin/ContactActions";
@@ -29,7 +31,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const client = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
-  const [bookRows, orderRows, taskRows, noteRows, admins, dealRows] = await Promise.all([
+  const [bookRows, orderRows, taskRows, noteRows, admins, dealRows, clientFields] = await Promise.all([
     db
       .select({
         book: books,
@@ -54,6 +56,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           .orderBy(desc(crmDeals.createdAt))
           .limit(20)
       : Promise.resolve([]),
+    listFields("client"),
   ]);
 
   const adminOptions = staffOptions(admins);
@@ -165,11 +168,19 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                 <dd className="text-ink">{client.lastSeenAt ? formatDate(client.lastSeenAt, true) : "—"}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt>Источник</dt>
-                <dd className="truncate text-right text-ink" title={client.source ? JSON.stringify(client.source) : ""}>
-                  {client.source ? [client.source.source, client.source.medium, client.source.campaign].filter(Boolean).join(" / ") || client.source.referrer || "прямой заход" : "—"}
+                <dt>Канал</dt>
+                <dd className="truncate text-right font-medium text-ink" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
+                  {channelLabel(toAttribution(client.source))}
                 </dd>
               </div>
+              {describeAttribution(toAttribution(client.source)) || client.source?.link ? (
+                <div className="flex justify-between gap-3">
+                  <dt>Метки</dt>
+                  <dd className="truncate text-right text-ink">
+                    {[describeAttribution(toAttribution(client.source)), client.source?.link ? `ссылка ${client.source.link}` : ""].filter(Boolean).join(" · ")}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex justify-between">
                 <dt>Автописьма</dt>
                 <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{client.emailOptOut ? "отписан" : "получает"}</dd>
@@ -180,6 +191,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               </div>
             </dl>
           </section>
+          {clientFields.length ? (
+            <section className="rounded-2xl border border-line bg-white p-5">
+              <h2 className="mb-3 text-sm font-semibold">Поля клиента</h2>
+              <ClientFields clientId={client.id} fields={clientFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))} values={client.customFields} disabled={!canEdit} />
+            </section>
+          ) : null}
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-3 text-sm font-semibold">Теги</h2>
             {canEdit ? (

@@ -47,6 +47,8 @@ export function proxy(req: NextRequest) {
   const utm = Object.fromEntries(
     ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map((k) => [k.slice(4), url.searchParams.get(k)?.slice(0, 100) ?? ""]).filter(([, v]) => v),
   );
+  // Код короткой ссылки из раздела CRM «Ссылки и каналы» (/go/код добавляет ?lnk=код).
+  const link = url.searchParams.get("lnk")?.replace(/[^a-z0-9-]/gi, "").slice(0, 40) ?? "";
   let referrer = "";
   try {
     const ref = req.headers.get("referer");
@@ -55,12 +57,12 @@ export function proxy(req: NextRequest) {
       if (host && host !== url.hostname) referrer = host.slice(0, 100);
     }
   } catch {}
-  const value = { ...utm, ...(referrer ? { referrer } : {}), landing: url.pathname.slice(0, 100), at: new Date().toISOString().slice(0, 10) };
+  const value = { ...utm, ...(referrer ? { referrer } : {}), ...(link ? { link } : {}), landing: url.pathname.slice(0, 100), at: new Date().toISOString().slice(0, 10) };
   res.cookies.set(SOURCE_COOKIE, JSON.stringify(value), { maxAge: 60 * 60 * 24 * 60, sameSite: "lax", path: "/", httpOnly: true });
   return res;
 }
 
 export const config = {
   // Только страницы: без API, статики и служебных файлов.
-  matcher: ["/((?!api|_next|admin|print|favicon|icon|apple-icon|robots|sitemap|opengraph-image|.*\\.).*)"],
+  matcher: ["/((?!api|_next|admin|print|go/|favicon|icon|apple-icon|robots|sitemap|opengraph-image|.*\\.).*)"],
 };

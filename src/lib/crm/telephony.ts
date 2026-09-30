@@ -5,6 +5,7 @@ import { crmCalls, crmDeals, crmNotes, users, type CrmCall } from "../db/schema"
 import { runTrigger } from "./automations";
 import { createDeal, findClientByPhone, findOpenDeal } from "./deals";
 import { isBlocked } from "./chats";
+import { publish } from "./realtime";
 import { notifyOwnerOr } from "./notify";
 import { formatPhone } from "./phone";
 import { getSetting } from "./settings";
@@ -22,6 +23,13 @@ async function staffByExtension(ext: string | null) {
 
 /** Событие АТС → запись звонка. Идемпотентно: повторная доставка вебхука ничего не дублирует. */
 export async function handleCallEvent(e: CallEvent): Promise<CrmCall | null> {
+  const call = await handleCallEventInner(e);
+  // Карточка входящего звонка должна появиться сразу, а не через интервал опроса.
+  if (call) await publish({ type: "call" });
+  return call;
+}
+
+async function handleCallEventInner(e: CallEvent): Promise<CrmCall | null> {
   const staff = await staffByExtension(e.extension);
   const key = and(eq(crmCalls.provider, e.provider), eq(crmCalls.externalId, e.externalId));
   let call = await db.query.crmCalls.findFirst({ where: key });

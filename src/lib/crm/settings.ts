@@ -34,6 +34,15 @@ export const settingDefs = {
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
   "crm.maxDiscount": { default: "15" },
+  /** Номер WhatsApp для рекламных ссылок «написать в WhatsApp» (по умолчанию — из контактов сайта). */
+  "crm.whatsappNumber": {},
+  /** Бот-квалификатор в WhatsApp: off | always | off_hours. */
+  "bot.mode": { default: "off" },
+  /** Вопросы бота: JSON { greeting, questions: [{ text, field }], finish }. */
+  "bot.config": {},
+  /** Ключи Web Push (создаются автоматически). */
+  "push.vapidPublic": {},
+  "push.vapidPrivate": { secret: true },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;

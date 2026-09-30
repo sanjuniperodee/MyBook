@@ -27,6 +27,8 @@ export interface DealCard {
   tags: string[];
   unsorted: boolean;
   book: { answered: number; total: number } | null;
+  /** Дата события из своего поля «Дата события» (YYYY-MM-DD). */
+  eventDate: string | null;
 }
 
 interface Stage {
@@ -214,6 +216,7 @@ function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean
       ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c.amount ? <span className="text-xs font-medium tabular-nums">{formatPrice(c.amount)}</span> : null}
+        {c.eventDate ? <EventChip date={c.eventDate} /> : null}
         {c.task ? (
           <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]", c.task.overdue ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>
             <CalendarClock className="size-3" /> {c.task.label}
@@ -281,5 +284,18 @@ export function LostDialog({ onCancel, onSubmit }: { onCancel: () => void; onSub
         </div>
       </form>
     </div>
+  );
+}
+
+/** Дата события клиента: чем ближе, тем заметнее — книгу надо успеть напечатать. */
+function EventChip({ date }: { date: string }) {
+  const [y, m, d] = date.split("-").map(Number);
+  const days = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())) / 86_400_000);
+  const label = `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px]", days < 0 ? "bg-cream text-muted" : days <= 14 ? "bg-red-100 text-red-700" : "bg-violet-50 text-violet-800")} title={days >= 0 ? `Событие через ${days} дн.` : "Событие прошло"}>
+      🎉 {label}
+      {days >= 0 && days <= 30 ? ` · ${days} дн.` : ""}
+    </span>
   );
 }

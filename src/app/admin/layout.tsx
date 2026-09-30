@@ -5,7 +5,15 @@ import { getLive } from "@/lib/crm/live";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 
-export const metadata = { title: { default: "CRM", template: "%s · CRM" }, robots: { index: false } };
+export const metadata = {
+  title: { default: "CRM", template: "%s · CRM" },
+  robots: { index: false },
+  // Установка CRM на телефон как приложения (PWA) и push-уведомления.
+  manifest: "/crm.webmanifest",
+  appleWebApp: { capable: true, title: "MyBooks CRM", statusBarStyle: "default" as const },
+};
+
+export const viewport = { themeColor: "#7a1f2b" };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const staff = await requireStaff();

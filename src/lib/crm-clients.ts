@@ -46,8 +46,58 @@ function managerScope(managerId?: string | null, onlyMine?: boolean): SQL | unde
   return undefined;
 }
 
-export async function queryClients(opts: { segment: ClientSegment; q?: string; tag?: string; sort?: ClientSort; limit: number; offset: number; scopeManagerId?: string | null; onlyMine?: boolean }) {
+/**
+ * Фильтр по каналу привлечения в SQL — те же правила, что channelOf() (lib/crm/channels), для основных каналов.
+ */
+export function channelWhere(ch: string | undefined): SQL | undefined {
+  if (!ch) return undefined;
+  const s = sql`lower(coalesce(${users.source}->>'source', ''))`;
+  const m = sql`lower(coalesce(${users.source}->>'medium', ''))`;
+  const r = sql`lower(coalesce(${users.source}->>'referrer', ''))`;
+  const notBlogger = sql`not (${s} ~ '^(blog|influenc)' or ${m} in ('blogger', 'influencer', 'influence'))`;
+  const paid = sql`${m} ~ '^(cpc|ppc|paid|cpm|ads?|paidsocial|banner|display)$'`;
+  switch (ch) {
+    case "bloggers":
+      return sql`(${s} ~ '^(blog|influenc)' or ${m} in ('blogger', 'influencer', 'influence'))`;
+    case "instagram":
+      return sql`(${notBlogger} and (${s} ~ '^(ig|insta)' or (${s} = '' and ${r} ~ 'instagram\.com$')))`;
+    case "tiktok":
+      return sql`(${notBlogger} and (${s} ~ '^(tiktok|tt)$' or (${s} = '' and ${r} ~ 'tiktok\.com$')))`;
+    case "whatsapp":
+      return sql`(${notBlogger} and ${s} ~ '^(wa|whatsapp)')`;
+    case "telegram":
+      return sql`(${notBlogger} and (${s} ~ '^(tg|telegram)' or (${s} = '' and ${r} ~ '(^|\.)t\.me$|telegram')))`;
+    case "google_ads":
+      return sql`(${notBlogger} and ${s} ~ '^google' and ${paid})`;
+    case "google":
+      return sql`(${notBlogger} and ((${s} ~ '^google' and not ${paid}) or (${s} = '' and ${r} ~ '(^|\.)google\.')))`;
+    case "yandex_ads":
+      return sql`(${notBlogger} and ${s} ~ '^(yandex|ya$)' and ${paid})`;
+    case "yandex":
+      return sql`(${notBlogger} and ((${s} ~ '^(yandex|ya$)' and not ${paid}) or (${s} = '' and ${r} ~ '(^|\.)(yandex|ya)\.')))`;
+    case "facebook":
+      return sql`(${notBlogger} and (${s} ~ '^(fb|facebook|meta)' or (${s} = '' and ${r} ~ '(^|\.)(facebook|fb)\.com$')))`;
+    case "direct":
+      return sql`(${s} = '' and ${m} = '' and ${r} = '')`;
+    default:
+      return undefined;
+  }
+}
+
+export async function queryClients(opts: {
+  segment: ClientSegment;
+  q?: string;
+  tag?: string;
+  sort?: ClientSort;
+  limit: number;
+  offset: number;
+  scopeManagerId?: string | null;
+  onlyMine?: boolean;
+  channel?: string;
+}) {
   const w: SQL[] = [eq(users.role, "user")];
+  const ch = channelWhere(opts.channel);
+  if (ch) w.push(ch);
   const scope = managerScope(opts.scopeManagerId, opts.onlyMine);
   if (scope) w.push(scope);
   const seg = segmentWhere(opts.segment);

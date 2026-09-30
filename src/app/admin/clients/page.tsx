@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { channelLabel, channels, toAttribution } from "@/lib/crm/channels";
 import { Download } from "lucide-react";
 import { clientSegments, type ClientSegment } from "@/lib/crm";
 import { queryClients, segmentCounts, type ClientSort } from "@/lib/crm-clients";
@@ -19,7 +20,7 @@ function relative(d: Date | null) {
   return formatDate(d);
 }
 
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ segment?: string; q?: string; tag?: string; sort?: string; page?: string; mine?: string }> }) {
+export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ segment?: string; q?: string; tag?: string; sort?: string; page?: string; mine?: string; ch?: string }> }) {
   const staff = await requireStaff("clients.view");
   const sp = await searchParams;
   const segment = (sp.segment && sp.segment in clientSegments ? sp.segment : "all") as ClientSegment;
@@ -29,13 +30,13 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const scopeManagerId = staff.scope === "own" ? staff.user.id : null;
   const onlyMine = sp.mine === "1";
   const [{ rows, total }, counts, admins] = await Promise.all([
-    queryClients({ segment, q: sp.q, tag: sp.tag, sort, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine }),
+    queryClients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine }),
     segmentCounts(scopeManagerId),
     listAdmins(),
   ]);
   const managerName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {
-    const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, mine: onlyMine ? "1" : undefined, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
+    const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
     return `/admin/clients?${p}`;
   };
   const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag }).filter(([, v]) => v) as [string, string][]);
@@ -65,6 +66,14 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       <form className="flex flex-wrap gap-2">
         <input type="hidden" name="segment" value={segment} />
         <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm" />
+        <select name="ch" defaultValue={sp.ch ?? ""} className="input h-10 w-48 text-sm" aria-label="Канал">
+          <option value="">Все каналы</option>
+          {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
+            <option key={k} value={k}>
+              {channels[k]}
+            </option>
+          ))}
+        </select>
         <select name="sort" defaultValue={sort} className="input h-10 w-56 text-sm">
           <option value="new">Сначала новые</option>
           <option value="ltv">По сумме покупок</option>
@@ -102,6 +111,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                         {c.email}
                         {c.phone ? ` · ${c.phone}` : ""}
                         {r.user.managerId ? ` · 👤 ${managerName.get(r.user.managerId) ?? "—"}` : ""}
+                        <span className="ml-1.5 rounded bg-cream px-1.5 py-0.5 text-[10px] text-ink-soft" title={r.user.source ? JSON.stringify(r.user.source) : ""}>
+                          {channelLabel(toAttribution(r.user.source))}
+                        </span>
                       </div>
                     );
                   })()}

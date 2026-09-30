@@ -1,13 +1,14 @@
 "use server";
 
+import { listFields, readFieldValues } from "@/lib/crm/fields";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { crmBlocklist, crmConversations, crmDeals, crmStages, dealSources, users } from "@/lib/db/schema";
+import { crmBlocklist, crmConversations, crmDeals, crmPipelines, crmSavedViews, crmStages, dealSources, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/lib/crm/rbac";
-import { addDealNote, assignDeal, createDeal, mergeDeals, moveDeal } from "@/lib/crm/deals";
+import { addDealNote, assignDeal, createDeal, defaultPipelineId, mergeDeals, moveDeal, stageOfKind } from "@/lib/crm/deals";
 import { notify } from "@/lib/crm/notify";
 import { normalizePhone } from "@/lib/crm/phone";
 import { formatPrice } from "@/config/site";
@@ -84,6 +85,7 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
   const extraPhones = editContacts
     ? [...new Set(String(form.get("extraPhones") ?? "").split(/[,;\n]/).map((p) => normalizePhone(p)).filter((p) => p.length >= 10 && p !== phone))].slice(0, 5)
     : deal.extraPhones;
+  const customFields = readFieldValues(await listFields("deal"), form, deal.customFields);
   const tags = [...new Set(String(form.get("tags") ?? "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 12).map((t) => t.slice(0, 30));
   await db
     .update(crmDeals)
@@ -94,6 +96,7 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
       amount: d.amount,
       source: d.source,
       tags,
+      customFields,
       updatedAt: new Date(),
     })
     .where(eq(crmDeals.id, deal.id));
@@ -154,6 +157,7 @@ const stageSchema = z.object({
   name: z.string().trim().min(1, "Название этапа").max(40),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#9a8f86"),
   milestone: z.union([z.enum(Object.keys(stageMilestones) as [StageMilestone, ...StageMilestone[]]), z.literal("")]).default(""),
+  pipelineId: z.union([z.literal(""), uuid]).default(""),
 });
 
 export async function saveStageAction(_: DealFormState, form: FormData): Promise<DealFormState> {
@@ -162,14 +166,22 @@ export async function saveStageAction(_: DealFormState, form: FormData): Promise
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { id, name, color } = parsed.data;
   const milestone = parsed.data.milestone || null;
-  // Одно событие — один этап, иначе непонятно, куда двигать сделку.
-  if (milestone) await db.update(crmStages).set({ milestone: null }).where(and(eq(crmStages.milestone, milestone), id ? ne(crmStages.id, id) : undefined));
+  const existing = id ? await db.query.crmStages.findFirst({ where: eq(crmStages.id, id) }) : null;
+  const pipelineId = existing?.pipelineId ?? (parsed.data.pipelineId || (await defaultPipelineId()));
+  // Одно событие — один этап в воронке, иначе непонятно, куда двигать сделку.
+  if (milestone) await db.update(crmStages).set({ milestone: null }).where(and(eq(crmStages.milestone, milestone), eq(crmStages.pipelineId, pipelineId), id ? ne(crmStages.id, id) : undefined));
   if (id) await db.update(crmStages).set({ name, color, milestone, updatedAt: new Date() }).where(eq(crmStages.id, id));
   else {
     // Новый открытый этап — перед закрывающими (успех/отказ).
-    const [{ pos }] = await db.select({ pos: sql<number>`coalesce(max(${crmStages.position}) filter (where ${crmStages.kind} = 'open'), 0)::int` }).from(crmStages);
-    await db.update(crmStages).set({ position: sql`${crmStages.position} + 1` }).where(sql`${crmStages.position} > ${pos}`);
-    await db.insert(crmStages).values({ name, color, milestone, position: pos + 1, kind: "open" });
+    const [{ pos }] = await db
+      .select({ pos: sql<number>`coalesce(max(${crmStages.position}) filter (where ${crmStages.kind} = 'open'), 0)::int` })
+      .from(crmStages)
+      .where(eq(crmStages.pipelineId, pipelineId));
+    await db
+      .update(crmStages)
+      .set({ position: sql`${crmStages.position} + 1` })
+      .where(and(eq(crmStages.pipelineId, pipelineId), sql`${crmStages.position} > ${pos}`));
+    await db.insert(crmStages).values({ name, color, milestone, position: pos + 1, kind: "open", pipelineId });
   }
   await audit(staff, "settings.update", "stage", id || null, { name });
   revalidatePath("/admin/deals");
@@ -179,7 +191,9 @@ export async function saveStageAction(_: DealFormState, form: FormData): Promise
 
 export async function moveStageAction(id: string, dir: -1 | 1) {
   await assertStaff("settings.manage");
-  const stages = await db.select().from(crmStages).orderBy(asc(crmStages.position));
+  const self = await db.query.crmStages.findFirst({ where: eq(crmStages.id, uuid.parse(id)) });
+  if (!self) return;
+  const stages = await db.select().from(crmStages).where(eq(crmStages.pipelineId, self.pipelineId)).orderBy(asc(crmStages.position));
   const i = stages.findIndex((s) => s.id === id);
   const j = i + dir;
   if (i < 0 || j < 0 || j >= stages.length || stages[i].kind !== "open" || stages[j].kind !== "open") return;
@@ -194,7 +208,10 @@ export async function deleteStageAction(id: string) {
   const stage = await db.query.crmStages.findFirst({ where: eq(crmStages.id, uuid.parse(id)) });
   if (!stage) return;
   if (stage.kind !== "open") throw new Error("Этапы «успех» и «отказ» нужны воронке — их можно только переименовать");
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(crmStages).where(eq(crmStages.kind, "open"));
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(crmStages)
+    .where(and(eq(crmStages.kind, "open"), eq(crmStages.pipelineId, stage.pipelineId)));
   if (n <= 1) throw new Error("В воронке должен остаться хотя бы один этап в работе");
   const [{ deals }] = await db.select({ deals: sql<number>`count(*)::int` }).from(crmDeals).where(eq(crmDeals.stageId, stage.id));
   if (deals) throw new Error(`На этапе ${deals} сделок — сначала перенесите их`);
@@ -250,4 +267,118 @@ export async function unblockAction(value: string) {
   await db.delete(crmBlocklist).where(eq(crmBlocklist.value, z.string().min(1).max(100).parse(value)));
   await audit(staff, "settings.update", "blocklist", value, { removed: true });
   revalidatePath("/admin/settings");
+}
+
+// ─── воронки ───────────────────────────────────────────────────────────────
+
+/** Новая воронка сразу с минимальным набором этапов: в работе, успех, отказ. */
+export async function createPipelineAction(_: DealFormState, form: FormData): Promise<DealFormState> {
+  const staff = await assertStaff("settings.manage");
+  const name = z.string().trim().min(2, "Название воронки").max(40).safeParse(form.get("name"));
+  if (!name.success) return { error: name.error.issues[0].message };
+  const [{ pos }] = await db.select({ pos: sql<number>`coalesce(max(${crmPipelines.position}), 0)::int` }).from(crmPipelines);
+  const [p] = await db.insert(crmPipelines).values({ name: name.data, position: pos + 1 }).returning();
+  await db.insert(crmStages).values([
+    { pipelineId: p.id, name: "Новая заявка", color: "#6b8fb5", position: 1, kind: "open" },
+    { pipelineId: p.id, name: "В работе", color: "#d09a45", position: 2, kind: "open" },
+    { pipelineId: p.id, name: "Успех", color: "#4f9a7e", position: 3, kind: "won" },
+    { pipelineId: p.id, name: "Отказ", color: "#b45a5a", position: 4, kind: "lost" },
+  ]);
+  await audit(staff, "settings.update", "pipeline", p.id, { created: p.name });
+  revalidatePath("/admin/deals");
+  redirect(`/admin/deals/stages?p=${p.id}`);
+}
+
+export async function renamePipelineAction(id: string, name: string) {
+  const staff = await assertStaff("settings.manage");
+  const clean = z.string().trim().min(2).max(40).parse(name);
+  await db.update(crmPipelines).set({ name: clean, updatedAt: new Date() }).where(eq(crmPipelines.id, uuid.parse(id)));
+  await audit(staff, "settings.update", "pipeline", id, { name: clean });
+  revalidatePath("/admin/deals");
+  revalidatePath("/admin/deals/stages");
+}
+
+export async function deletePipelineAction(id: string) {
+  const staff = await assertStaff("settings.manage");
+  const pid = uuid.parse(id);
+  if (pid === (await defaultPipelineId())) throw new Error("Основную воронку удалить нельзя — в неё приходят заявки с сайта, из чатов и звонков");
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(crmDeals)
+    .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+    .where(eq(crmStages.pipelineId, pid));
+  if (n) throw new Error(`В воронке ${n} сделок — сначала перенесите их`);
+  await db.delete(crmPipelines).where(eq(crmPipelines.id, pid));
+  await audit(staff, "settings.update", "pipeline", pid, { deleted: true });
+  revalidatePath("/admin/deals");
+  redirect("/admin/deals/stages");
+}
+
+/** Перенести сделку в другую воронку — на её первый этап «в работе». */
+export async function movePipelineAction(dealId: string, pipelineId: string) {
+  const staff = await assertStaff("deals.edit");
+  const deal = await loadDeal(staff, dealId);
+  const first = await stageOfKind("open", uuid.parse(pipelineId));
+  if (!first) throw new Error("В воронке нет этапов «в работе»");
+  await moveDeal(deal.id, first.id, staff.user.id);
+  revalidateDeal(deal.id, deal.clientId);
+}
+
+// ─── массовые действия и сохранённые фильтры ───────────────────────────────
+
+const bulkSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("stage"), stageId: uuid, reason: z.string().trim().max(200).optional() }),
+  z.object({ op: z.literal("assign"), userId: z.union([uuid, z.null()]) }),
+  z.object({ op: z.literal("tag"), tag: z.string().trim().toLowerCase().min(1).max(30) }),
+  z.object({ op: z.literal("delete") }),
+]);
+
+/** Массовое действие над выбранными сделками. Недоступные роли сделки молча пропускаются. */
+export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkSchema>): Promise<{ done: number; skipped: number }> {
+  const req = bulkSchema.parse(input);
+  const staff = await assertStaff(req.op === "delete" ? "deals.delete" : "deals.edit");
+  const list = z.array(uuid).max(500).parse(ids);
+  if (req.op === "assign" && req.userId !== staff.user.id && !canAssignOthers(staff)) throw new ForbiddenError();
+  if (req.op === "stage") {
+    const stage = await db.query.crmStages.findFirst({ where: eq(crmStages.id, req.stageId) });
+    if (!stage) throw new Error("Этап не найден");
+    if (stage.kind === "lost" && !req.reason) throw new Error("Укажите причину отказа");
+  }
+  let done = 0;
+  let skipped = 0;
+  for (const id of list) {
+    const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, id) });
+    if (!deal || (staff.scope !== "all" && deal.assigneeId && deal.assigneeId !== staff.user.id)) {
+      skipped++;
+      continue;
+    }
+    if (req.op === "stage") await moveDeal(deal.id, req.stageId, staff.user.id, req.reason);
+    else if (req.op === "assign") await assignDeal(deal.id, req.userId);
+    else if (req.op === "tag") await db.update(crmDeals).set({ tags: [...new Set([...deal.tags, req.tag])].slice(0, 12), updatedAt: new Date() }).where(eq(crmDeals.id, deal.id));
+    else await db.delete(crmDeals).where(eq(crmDeals.id, deal.id));
+    done++;
+  }
+  if (req.op === "delete" || req.op === "assign") await audit(staff, `deal.bulk_${req.op}`, "deal", null, { count: done, ...(req.op === "assign" ? { to: req.userId } : {}) });
+  revalidatePath("/admin/deals");
+  return { done, skipped };
+}
+
+export async function saveViewAction(name: string, query: string, shared: boolean) {
+  const staff = await assertStaff("deals.view");
+  const clean = z.string().trim().min(1, "Название фильтра").max(40).parse(name);
+  // Сохраняем только параметры фильтра, без страницы и мусора.
+  const params = new URLSearchParams(query);
+  const allowed = new URLSearchParams();
+  for (const [k, v] of params) if (/^(mine|a|src|q|view|p|task|stale|cf_[a-z0-9_]+)$/.test(k) && v) allowed.set(k, v.slice(0, 100));
+  await db.insert(crmSavedViews).values({ userId: staff.user.id, entity: "deals", name: clean, query: allowed.toString(), shared: shared && staff.scope === "all" });
+  revalidatePath("/admin/deals");
+}
+
+export async function deleteViewAction(id: string) {
+  const staff = await assertStaff("deals.view");
+  const view = await db.query.crmSavedViews.findFirst({ where: eq(crmSavedViews.id, uuid.parse(id)) });
+  if (!view) return;
+  if (view.userId !== staff.user.id && !can(staff, "settings.manage")) throw new ForbiddenError();
+  await db.delete(crmSavedViews).where(eq(crmSavedViews.id, view.id));
+  revalidatePath("/admin/deals");
 }

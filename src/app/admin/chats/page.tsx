@@ -6,6 +6,7 @@ import { crmConversations, crmDeals, crmStages, users } from "@/lib/db/schema";
 import { can, canAssignOthers, canSeeAssigned, contactView, ownScope, requireStaff } from "@/lib/crm/rbac";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { channelLabel } from "@/lib/crm/chats";
+import { channelLabel as acquisitionChannel, toAttribution } from "@/lib/crm/channels";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
 import { chatOffers } from "@/lib/crm/offers";
 import { mentionableStaff } from "@/lib/crm/mentions";
@@ -138,6 +139,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
                 </span>
                 {dealRow.deal.amount ? <span className="tabular-nums">{formatPrice(dealRow.deal.amount)}</span> : null}
               </div>
+              <div className="mt-1.5 text-xs text-muted">Канал: {acquisitionChannel(toAttribution(dealRow.deal.utm), dealRow.deal.source)}{dealRow.deal.utm?.campaign ? ` · ${dealRow.deal.utm.campaign}` : ""}</div>
             </Link>
           ) : (
             <p className="text-sm text-muted">Не привязан к сделке.</p>
