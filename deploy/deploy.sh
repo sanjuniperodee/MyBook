@@ -34,7 +34,7 @@ pm2 save
 
 PORT="${MYBOOK_PORT:-3040}"
 for i in $(seq 1 30); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/"; then echo "✓ MyBooks отвечает на 127.0.0.1:$PORT"; exit 0; fi
+  if curl -fsS -o /dev/null "http://localhost:$PORT/"; then echo "✓ MyBooks отвечает на localhost:$PORT"; exit 0; fi
   sleep 1
 done
 echo "✗ Приложение не ответило. Логи: pm2 logs mybook --nostream --lines 100"

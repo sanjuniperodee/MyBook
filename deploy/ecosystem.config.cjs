@@ -15,7 +15,9 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: process.env.MYBOOK_PORT || "3040",
-        HOSTNAME: "127.0.0.1",
+        // Именно localhost: Next сверяет адрес сервера с localhost из proxy.ts (/kk → rewrite). При 127.0.0.1
+        // rewrite считается внешним и за https-прокси падает с EPROTO. Слушает localhost на ::1 или 127.0.0.1 — nginx обращается к localhost.
+        HOSTNAME: "localhost",
         TZ: "Asia/Almaty",
       },
       max_memory_restart: "1500M",
