@@ -97,7 +97,8 @@ describe("адреса", () => {
  */
 describe("нет русских строк вне словарей", () => {
   const root = path.join(__dirname, "..", "src");
-  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/api\/admin\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//];
+  // CRM и вебхуки интеграций — внутренние инструменты команды, они на русском.
+  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/crm\//];
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
     "lib/crm.ts",

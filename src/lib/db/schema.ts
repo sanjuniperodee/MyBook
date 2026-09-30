@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
 
@@ -41,9 +42,17 @@ export const users = pgTable(
     locale: text("locale").$type<Locale>().notNull().default("ru"),
     /** Первое касание: UTM-метки, реферер и страница входа. */
     source: jsonb("source").$type<Record<string, string>>(),
+    /** Роль сотрудника в CRM (для role = admin). null у сотрудника — полный доступ (владелец). */
+    crmRoleId: uuid("crm_role_id").references(() => crmRoles.id, { onDelete: "set null" }),
+    /** Ответственный менеджер клиента. */
+    managerId: uuid("manager_id").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+    /** Внутренний номер сотрудника в АТС (для звонков из CRM и привязки входящих). */
+    sipExtension: text("sip_extension"),
+    /** Сотрудник отключён: не может войти в CRM, не получает лиды. */
+    staffDisabled: boolean("staff_disabled").notNull().default(false),
     ...timestamps,
   },
-  (t) => [uniqueIndex("users_email_idx").on(sql`lower(${t.email})`)],
+  (t) => [uniqueIndex("users_email_idx").on(sql`lower(${t.email})`), index("users_manager_idx").on(t.managerId)],
 );
 
 export const sessions = pgTable(
@@ -345,16 +354,16 @@ export const crmNotes = pgTable(
   "crm_notes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    clientId: uuid("client_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    /** Клиент; у заметки по сделке без клиента (новый номер из чата/звонка) — null. */
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
     orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "cascade" }),
     authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
-    kind: text("kind", { enum: ["note", "call", "message", "email"] }).notNull().default("note"),
+    kind: text("kind", { enum: ["note", "call", "message", "email", "system"] }).notNull().default("note"),
     text: text("text").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_notes_client_idx").on(t.clientId)],
+  (t) => [index("crm_notes_client_idx").on(t.clientId), index("crm_notes_deal_idx").on(t.dealId)],
 );
 
 /** Задачи менеджеров: перезвонить, проверить макет, отправить трек-номер… */
@@ -366,8 +375,13 @@ export const crmTasks = pgTable(
     dueAt: timestamp("due_at", { withTimezone: true }),
     clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
     orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+    dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "cascade" }),
+    /** Тип задачи: звонок, написать, встреча, прочее. */
+    kind: text("kind", { enum: ["task", "call", "message", "meeting"] }).notNull().default("task"),
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    /** Результат выполнения (как в amoCRM: «дозвонился, договорились…»). */
+    result: text("result"),
     doneAt: timestamp("done_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -388,6 +402,243 @@ export const orderEvents = pgTable(
   },
   (t) => [index("order_events_order_idx").on(t.orderId)],
 );
+
+// ─── CRM: роли, аудит, сделки, коммуникации ─────────────────────────────────
+
+/** Роль сотрудника: набор прав и видимость данных. Системные роли создаются миграцией и не удаляются. */
+export const crmRoles = pgTable("crm_roles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Ключ системной роли (owner, manager, production, support); у своих ролей — null. */
+  key: text("key").unique(),
+  name: text("name").notNull(),
+  permissions: text("permissions").array().notNull().default(sql`'{}'::text[]`),
+  /** all — видит все сделки/клиентов/чаты; own — только где он ответственный (и неразобранное). */
+  scope: text("scope", { enum: ["all", "own"] }).notNull().default("all"),
+  ...timestamps,
+});
+
+/** Журнал действий сотрудников: кто, что и когда изменил. */
+export const crmAudit = pgTable(
+  "crm_audit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    entity: text("entity").notNull(),
+    entityId: text("entity_id"),
+    details: jsonb("details").$type<Record<string, unknown>>(),
+    ip: text("ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_audit_created_idx").on(t.createdAt), index("crm_audit_entity_idx").on(t.entity, t.entityId)],
+);
+
+/** Этапы воронки продаж. kind: open — в работе, won — успех, lost — отказ. */
+export const crmStages = pgTable("crm_stages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#9a8f86"),
+  position: integer("position").notNull().default(0),
+  kind: text("kind", { enum: ["open", "won", "lost"] }).notNull().default("open"),
+  ...timestamps,
+});
+
+export { dealSources, type DealSource } from "../crm/deal-meta";
+import type { DealSource } from "../crm/deal-meta";
+
+/** Сделка (лид): обращение, которое ведём до заказа. */
+export const crmDeals = pgTable(
+  "crm_deals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: serial("number").notNull(),
+    title: text("title").notNull(),
+    stageId: uuid("stage_id")
+      .notNull()
+      .references(() => crmStages.id),
+    amount: integer("amount").notNull().default(0),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "set null" }),
+    contactName: text("contact_name").notNull().default(""),
+    contactPhone: text("contact_phone"),
+    contactEmail: text("contact_email"),
+    source: text("source").$type<DealSource>().notNull().default("manual"),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    lostReason: text("lost_reason"),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId)],
+);
+
+/** Диалог в мессенджере (WhatsApp, Instagram, Telegram через Wazzup). */
+export const crmConversations = pgTable(
+  "crm_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channel: text("channel").notNull(),
+    /** Канал провайдера (номер WhatsApp, аккаунт Instagram). */
+    channelId: text("channel_id").notNull().default(""),
+    /** Идентификатор собеседника у провайдера: телефон для WhatsApp, логин/ID для остальных. */
+    chatId: text("chat_id").notNull(),
+    contactName: text("contact_name").notNull().default(""),
+    avatarUrl: text("avatar_url"),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "set null" }),
+    dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
+    unread: integer("unread").notNull().default(0),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    lastMessageText: text("last_message_text").notNull().default(""),
+    /** Последнее входящее, ещё без ответа — для SLA «ответить за N минут». */
+    awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId), index("crm_conv_last_idx").on(t.lastMessageAt)],
+);
+
+export const crmMessages = pgTable(
+  "crm_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => crmConversations.id, { onDelete: "cascade" }),
+    direction: text("direction", { enum: ["in", "out"] }).notNull(),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").notNull().default("text"),
+    text: text("text").notNull().default(""),
+    mediaUrl: text("media_url"),
+    externalId: text("external_id").unique(),
+    status: text("status", { enum: ["pending", "sent", "delivered", "read", "error", "received"] }).notNull().default("pending"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+);
+
+/** Звонок из АТС. */
+export const crmCalls = pgTable(
+  "crm_calls",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+    direction: text("direction", { enum: ["in", "out"] }).notNull(),
+    /** Номер клиента (нормализованный, только цифры). */
+    clientPhone: text("client_phone").notNull().default(""),
+    /** Внутренний номер сотрудника, если известен. */
+    extension: text("extension"),
+    staffId: uuid("staff_id").references(() => users.id, { onDelete: "set null" }),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "set null" }),
+    dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
+    status: text("status", { enum: ["ringing", "answered", "missed", "busy", "failed"] }).notNull().default("ringing"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    durationSec: integer("duration_sec").notNull().default(0),
+    /** Есть ли запись у провайдера (ссылку запрашиваем по требованию — она временная). */
+    hasRecording: boolean("has_recording").notNull().default(false),
+    recordingRef: text("recording_ref"),
+    /** Звонок обработан (перезвонили / закрыли задачу) — для пропущенных. */
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("crm_calls_ext_idx").on(t.provider, t.externalId), index("crm_calls_started_idx").on(t.startedAt), index("crm_calls_phone_idx").on(t.clientPhone)],
+);
+
+/** Уведомления сотрудникам: новые сообщения, пропущенные звонки, назначенные задачи. */
+export const crmNotifications = pgTable(
+  "crm_notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    link: text("link"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_notif_user_idx").on(t.userId, t.readAt, t.createdAt)],
+);
+
+/** Быстрые ответы для чатов. Переменные: {имя}, {заказ}, {ссылка}. */
+export const crmTemplates = pgTable("crm_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  text: text("text").notNull(),
+  position: integer("position").notNull().default(0),
+  ...timestamps,
+});
+
+export interface AutomationAction {
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify";
+  title?: string;
+  text?: string;
+  dueMinutes?: number;
+  userId?: string | null;
+  stageId?: string;
+}
+
+/** Правило автоматизации: событие → условия → действия. */
+export const crmAutomations = pgTable("crm_automations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  trigger: text("trigger").notNull(),
+  /** Условия: этап, источник, минуты без ответа и т.п. */
+  conditions: jsonb("conditions").$type<Record<string, string | number | null>>().notNull().default({}),
+  actions: jsonb("actions").$type<AutomationAction[]>().notNull().default([]),
+  active: boolean("active").notNull().default(true),
+  runs: integer("runs").notNull().default(0),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+/** Журнал срабатываний: одно правило не срабатывает дважды для одного объекта. */
+export const crmAutomationRuns = pgTable(
+  "crm_automation_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    automationId: uuid("automation_id")
+      .notNull()
+      .references(() => crmAutomations.id, { onDelete: "cascade" }),
+    subject: text("subject").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("crm_auto_runs_idx").on(t.automationId, t.subject)],
+);
+
+/** Настройки CRM и интеграций. Секреты хранятся зашифрованными (AES-256-GCM, ключ из APP_SECRET). */
+export const crmSettings = pgTable("crm_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const crmDealsRelations = relations(crmDeals, ({ one }) => ({
+  stage: one(crmStages, { fields: [crmDeals.stageId], references: [crmStages.id] }),
+  client: one(users, { fields: [crmDeals.clientId], references: [users.id], relationName: "dealClient" }),
+  assignee: one(users, { fields: [crmDeals.assigneeId], references: [users.id], relationName: "dealAssignee" }),
+  order: one(orders, { fields: [crmDeals.orderId], references: [orders.id] }),
+}));
+
+export const crmConversationsRelations = relations(crmConversations, ({ one, many }) => ({
+  client: one(users, { fields: [crmConversations.clientId], references: [users.id], relationName: "convClient" }),
+  assignee: one(users, { fields: [crmConversations.assigneeId], references: [users.id], relationName: "convAssignee" }),
+  deal: one(crmDeals, { fields: [crmConversations.dealId], references: [crmDeals.id] }),
+  messages: many(crmMessages),
+}));
+
+export const crmMessagesRelations = relations(crmMessages, ({ one }) => ({
+  conversation: one(crmConversations, { fields: [crmMessages.conversationId], references: [crmConversations.id] }),
+}));
 
 export const usersRelations = relations(users, ({ many }) => ({
   books: many(books),
@@ -436,3 +687,11 @@ export type BookLetter = typeof bookLetters.$inferSelect;
 export type PromoCode = typeof promoCodes.$inferSelect;
 export type CrmNote = typeof crmNotes.$inferSelect;
 export type CrmTask = typeof crmTasks.$inferSelect;
+export type CrmRole = typeof crmRoles.$inferSelect;
+export type CrmStage = typeof crmStages.$inferSelect;
+export type CrmDeal = typeof crmDeals.$inferSelect;
+export type CrmConversation = typeof crmConversations.$inferSelect;
+export type CrmMessage = typeof crmMessages.$inferSelect;
+export type CrmCall = typeof crmCalls.$inferSelect;
+export type CrmNotification = typeof crmNotifications.$inferSelect;
+export type CrmAutomation = typeof crmAutomations.$inferSelect;

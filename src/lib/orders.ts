@@ -49,6 +49,11 @@ export async function setOrderStatus(orderId: string, status: OrderStatus, actor
     .returning();
   if (!order) throw new Error("Order not found");
   await addOrderEvent(orderId, status, note, actor);
+  // Воронка продаж: оплата и отмена заказа отражаются в связанной сделке.
+  if (before?.status !== status && (status === "paid" || status === "cancelled")) {
+    const crm = await import("./crm/deals");
+    await (status === "paid" ? crm.onOrderPaid(order) : crm.onOrderCancelled(order));
+  }
   if (status === "cancelled" && before?.status === "pending_payment" && order.promoCode) {
     await releasePromo(order.promoCode);
   }

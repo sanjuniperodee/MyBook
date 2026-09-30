@@ -6,25 +6,29 @@ import { notFound } from "next/navigation";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { db } from "@/lib/db";
-import { bookLetters, bookQuestions, books, crmNotes, crmTasks, orders, photos, users } from "@/lib/db/schema";
-import { adminLabel, listAdmins } from "@/lib/crm";
+import { bookLetters, bookQuestions, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/lib/db/schema";
+import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { REMINDER_COOLDOWN_DAYS } from "@/lib/crm-reminders";
 import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
-import { RemindButton, RoleToggle, TagEditor } from "./ClientControls";
+import { ClientManager, RemindButton, TagEditor } from "./ClientControls";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
+import { ContactActions } from "@/components/admin/ContactActions";
+import { dealSourceLabels } from "@/lib/crm/deals";
 
 export const metadata = { title: "Клиент" };
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
+  const staff = await requireStaff("clients.view");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const client = await db.query.users.findFirst({ where: eq(users.id, id) });
-  if (!client) notFound();
+  if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
-  const [bookRows, orderRows, taskRows, noteRows, admins] = await Promise.all([
+  const [bookRows, orderRows, taskRows, noteRows, admins, dealRows] = await Promise.all([
     db
       .select({
         book: books,
@@ -40,10 +44,19 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
     db.select().from(crmTasks).where(eq(crmTasks.clientId, id)).orderBy(sql`${crmTasks.doneAt} nulls first`, asc(crmTasks.dueAt)),
     db.select().from(crmNotes).where(eq(crmNotes.clientId, id)).orderBy(desc(crmNotes.createdAt)).limit(100),
     listAdmins(),
+    can(staff, "deals.view")
+      ? db
+          .select({ deal: crmDeals, stage: crmStages })
+          .from(crmDeals)
+          .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+          .where(eq(crmDeals.clientId, id))
+          .orderBy(desc(crmDeals.createdAt))
+          .limit(20)
+      : Promise.resolve([]),
   ]);
 
-  const adminOptions = admins.map((a) => ({ id: a.id, label: adminLabel(a) }));
-  const adminName = new Map(adminOptions.map((a) => [a.id, a.label]));
+  const adminOptions = staffOptions(admins);
+  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const orderNumber = new Map(orderRows.map((o) => [o.id, o.number]));
   const paid = orderRows.filter((o) => o.paidAt && o.status !== "cancelled");
   const ltv = paid.reduce((s, o) => s + o.amount, 0);
@@ -65,7 +78,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
     dateLabel: formatDate(n.createdAt, true),
     orderLabel: n.orderId && orderNumber.has(n.orderId) ? `заказ №${orderNumber.get(n.orderId)}` : null,
   }));
-  const phoneDigits = (client.phone ?? orderRows[0]?.contactPhone ?? "").replace(/\D/g, "");
+  const rawPhone = client.phone ?? orderRows[0]?.contactPhone ?? "";
+  const phoneDigits = rawPhone.replace(/\D/g, "");
+  const contact = contactView(staff, { phone: rawPhone, email: client.email });
+  const canEdit = can(staff, "clients.edit");
+  // «Только свои» может взять неразобранного клиента себе, но не отдать другому.
+  const managerOptions = canAssignOthers(staff) ? adminOptions : adminOptions.filter((a) => a.id === staff.user.id || a.id === client.managerId);
   const hasDraft = bookRows.some((b) => b.book.status === "draft");
   const cooldown = client.remindedAt && nowMs() - client.remindedAt.getTime() < REMINDER_COOLDOWN_DAYS * 86_400_000;
   const remindHint = !hasDraft
@@ -91,19 +109,41 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
             <div className="mt-4 space-y-1.5 text-sm">
-              <a href={`mailto:${client.email}`} className="flex items-center gap-2 hover:text-wine">
-                <Mail className="size-4 text-muted" /> {client.email}
-              </a>
-              {phoneDigits ? (
+              {contact.masked ? (
                 <>
-                  <a href={`tel:+${phoneDigits}`} className="flex items-center gap-2 hover:text-wine">
-                    <Phone className="size-4 text-muted" /> {client.phone ?? orderRows[0]?.contactPhone}
-                  </a>
-                  <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-emerald-700 hover:underline">
-                    <MessageCircle className="size-4" /> Написать в WhatsApp
-                  </a>
+                  <div className="flex items-center gap-2 text-ink-soft" title="Контакты скрыты настройками вашей роли">
+                    <Mail className="size-4 text-muted" /> {contact.email}
+                  </div>
+                  {phoneDigits ? (
+                    <div className="flex items-center gap-2 text-ink-soft tabular-nums">
+                      <Phone className="size-4 text-muted" /> {contact.phone}
+                    </div>
+                  ) : null}
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <a href={`mailto:${client.email}`} className="flex items-center gap-2 hover:text-wine">
+                    <Mail className="size-4 text-muted" /> {client.email}
+                  </a>
+                  {phoneDigits ? (
+                    <>
+                      <a href={`tel:+${phoneDigits}`} className="flex items-center gap-2 hover:text-wine">
+                        <Phone className="size-4 text-muted" /> {rawPhone}
+                      </a>
+                      {!can(staff, "chats.send") ? (
+                        <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-emerald-700 hover:underline">
+                          <MessageCircle className="size-4" /> Написать в WhatsApp
+                        </a>
+                      ) : null}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </div>
+            {phoneDigits ? <ContactActions className="mt-3" target={{ clientId: client.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} /> : null}
+            <div className="mt-4">
+              <div className="mb-1 text-xs text-muted">Ответственный</div>
+              <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-2 text-center">
               <div className="col-span-2">
@@ -135,15 +175,49 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           </section>
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-3 text-sm font-semibold">Теги</h2>
-            <TagEditor clientId={client.id} tags={client.tags} />
+            {canEdit ? (
+              <TagEditor clientId={client.id} tags={client.tags} />
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {client.tags.length ? client.tags.map((t) => <span key={t} className="rounded-full bg-rose px-2.5 py-1 text-xs text-wine">{t}</span>) : <span className="text-xs text-muted">—</span>}
+              </div>
+            )}
           </section>
-          <section className="space-y-3 rounded-2xl border border-line bg-white p-5">
-            <RemindButton clientId={client.id} disabled={!hasDraft || !!cooldown} hint={remindHint} />
-            <RoleToggle clientId={client.id} role={client.role} />
-          </section>
+          {canEdit ? (
+            <section className="space-y-3 rounded-2xl border border-line bg-white p-5">
+              <RemindButton clientId={client.id} disabled={!hasDraft || !!cooldown} hint={remindHint} />
+            </section>
+          ) : null}
         </aside>
 
         <div className="space-y-6">
+          {can(staff, "deals.view") ? (
+            <section className="overflow-hidden rounded-2xl border border-line bg-white">
+              <div className="flex items-center justify-between border-b border-line px-5 py-4">
+                <h2 className="font-semibold">Сделки</h2>
+                {can(staff, "deals.edit") ? (
+                  <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-outline btn-sm">
+                    Новая сделка
+                  </Link>
+                ) : null}
+              </div>
+              {dealRows.length === 0 ? <p className="px-5 py-6 text-sm text-muted">Сделок нет.</p> : null}
+              <div className="divide-y divide-line">
+                {dealRows.map(({ deal, stage }) => (
+                  <Link key={deal.id} href={`/admin/deals/${deal.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
+                    <span className="w-14 font-medium">№{deal.number}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {deal.title} <span className="text-muted">· {dealSourceLabels[deal.source]} · {formatDate(deal.createdAt)}</span>
+                    </span>
+                    <span className="rounded-full px-2.5 py-1 text-xs text-white" style={{ background: stage.color }}>
+                      {stage.name}
+                    </span>
+                    <span className="w-24 text-right tabular-nums">{deal.amount ? formatPrice(deal.amount) : "—"}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-4 font-semibold">Книги</h2>
             {bookRows.length === 0 ? <p className="text-sm text-muted">Книг пока нет.</p> : null}

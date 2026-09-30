@@ -79,9 +79,14 @@ export async function requireUser(next?: string): Promise<User> {
   return user;
 }
 
+/** Действующий сотрудник: роль admin и не отключён. Права внутри CRM — в lib/crm/rbac. */
+export function isStaff(user: Pick<User, "role" | "staffDisabled"> | null | undefined) {
+  return !!user && user.role === "admin" && !user.staffDisabled;
+}
+
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser("/admin");
-  if (user.role !== "admin") return lredirect("/books");
+  if (!isStaff(user)) return lredirect("/books");
   return user;
 }
 

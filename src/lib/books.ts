@@ -4,6 +4,7 @@ import { cache } from "react";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "./db";
+import { isStaff } from "./auth";
 import { bookLetters, bookQuestions, books, photos, type Book, type Gender, type User } from "./db/schema";
 import { getTheme } from "./content/themes";
 import type { ThemeId } from "./content/types";
@@ -90,14 +91,14 @@ export async function switchBookLanguage(book: Book, language: Locale) {
 export const getAccessibleBook = cache(async (bookId: string, user: User): Promise<Book> => {
   if (!/^[0-9a-f-]{36}$/i.test(bookId)) notFound();
   const book = await db.query.books.findFirst({ where: eq(books.id, bookId) });
-  if (!book || (book.userId !== user.id && user.role !== "admin")) notFound();
+  if (!book || (book.userId !== user.id && !isStaff(user))) notFound();
   return book;
 });
 
 export async function findAccessibleBook(bookId: string, user: User): Promise<Book | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookId)) return null;
   const book = await db.query.books.findFirst({ where: eq(books.id, bookId) });
-  if (!book || (book.userId !== user.id && user.role !== "admin")) return null;
+  if (!book || (book.userId !== user.id && !isStaff(user))) return null;
   return book;
 }
 

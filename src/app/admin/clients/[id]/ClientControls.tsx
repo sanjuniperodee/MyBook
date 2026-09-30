@@ -1,9 +1,10 @@
 "use client";
 
-import { ask, toastError } from "@/components/ui/overlays";
 import { useState, useTransition } from "react";
-import { BellRing, LoaderCircle, Plus, ShieldCheck, X } from "lucide-react";
-import { remindClientAction, setUserRoleAction, updateClientTagsAction } from "../../actions";
+import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
+import { remindClientAction, updateClientTagsAction } from "../../actions";
+import { setClientManagerAction } from "../../crm-actions";
+import { ManagerSelect } from "@/components/admin/ContactActions";
 import { cn } from "@/lib/utils";
 
 const suggested = ["vip", "блогер", "корпоратив", "повторный", "жалоба", "опт"];
@@ -80,25 +81,6 @@ export function RemindButton({ clientId, disabled, hint }: { clientId: string; d
   );
 }
 
-export function RoleToggle({ clientId, role }: { clientId: string; role: "user" | "admin" }) {
-  const [pending, start] = useTransition();
-  return (
-    <button
-      className="flex items-center gap-1.5 text-xs text-muted hover:text-ink"
-      disabled={pending}
-      onClick={async () => {
-        const next = role === "admin" ? "user" : "admin";
-        if (await ask(next === "admin" ? "Выдать права администратора? Пользователь получит доступ ко всем заказам и данным клиентов." : "Снять права администратора?"))
-          start(async () => {
-            try {
-              await setUserRoleAction(clientId, next);
-            } catch (e) {
-              toastError(e);
-            }
-          });
-      }}
-    >
-      <ShieldCheck className="size-3.5" /> {role === "admin" ? "Снять права администратора" : "Сделать администратором"}
-    </button>
-  );
+export function ClientManager({ clientId, value, options, disabled }: { clientId: string; value: string | null; options: { id: string; label: string }[]; disabled?: boolean }) {
+  return <ManagerSelect value={value} options={options} disabled={disabled} onChange={(v) => setClientManagerAction(clientId, v)} />;
 }

@@ -4,15 +4,16 @@ import Link from "next/link";
 import { and, desc, gte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/auth";
-import { adminLabel, listAdmins } from "@/lib/crm";
+import { requireStaff } from "@/lib/crm/rbac";
+import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
 
 export const metadata = { title: "Производство" };
 
 export default async function BoardPage() {
-  const admin = await requireAdmin();
+  const staff = await requireStaff("orders.view");
+  const admin = staff.user;
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
   const [rows, admins] = await Promise.all([
     db
@@ -60,7 +61,7 @@ export default async function BoardPage() {
           Таблица заказов
         </Link>
       </div>
-      <Board initial={cards} admins={admins.map((a) => ({ id: a.id, label: adminLabel(a) }))} me={admin.id} />
+      <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />
     </div>
   );
 }

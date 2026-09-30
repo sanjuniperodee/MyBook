@@ -1,6 +1,6 @@
 import "server-only";
 import { usersId } from "@/lib/db/refs";
-import { and, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { users } from "./db/schema";
 import type { ClientSegment } from "./crm";
@@ -39,8 +39,17 @@ export function segmentWhere(segment: ClientSegment): SQL | undefined {
 
 export type ClientSort = "new" | "ltv" | "active";
 
-export async function queryClients(opts: { segment: ClientSegment; q?: string; tag?: string; sort?: ClientSort; limit: number; offset: number }) {
+/** Видимость для роли «только свои»: клиенты сотрудника и клиенты без ответственного. */
+function managerScope(managerId?: string | null, onlyMine?: boolean): SQL | undefined {
+  if (onlyMine && managerId) return eq(users.managerId, managerId);
+  if (managerId) return or(eq(users.managerId, managerId), isNull(users.managerId));
+  return undefined;
+}
+
+export async function queryClients(opts: { segment: ClientSegment; q?: string; tag?: string; sort?: ClientSort; limit: number; offset: number; scopeManagerId?: string | null; onlyMine?: boolean }) {
   const w: SQL[] = [eq(users.role, "user")];
+  const scope = managerScope(opts.scopeManagerId, opts.onlyMine);
+  if (scope) w.push(scope);
   const seg = segmentWhere(opts.segment);
   if (seg) w.push(seg);
   if (opts.tag) w.push(sql`${opts.tag} = any(${users.tags})`);
@@ -64,7 +73,7 @@ export async function queryClients(opts: { segment: ClientSegment; q?: string; t
   return { rows, total: n };
 }
 
-export async function segmentCounts() {
+export async function segmentCounts(scopeManagerId?: string | null) {
   const [row] = await db
     .select({
       all: sql<number>`count(*)::int`,
@@ -75,6 +84,6 @@ export async function segmentCounts() {
       vip: sql<number>`count(*) filter (where 'vip' = any(${users.tags}))::int`,
     })
     .from(users)
-    .where(eq(users.role, "user"));
+    .where(and(eq(users.role, "user"), managerScope(scopeManagerId)));
   return row;
 }

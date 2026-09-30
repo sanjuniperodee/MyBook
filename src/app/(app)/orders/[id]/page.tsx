@@ -5,7 +5,7 @@ import { Confetti } from "@/components/motion/Confetti";
 import { CelebrateArt } from "@/components/illustrations";
 import { notFound } from "next/navigation";
 import { Check, Download } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { isStaff, requireUser } from "@/lib/auth";
 import { getOrderWithBook } from "@/lib/orders";
 import { formatPrice, getPlan, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -28,7 +28,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/orders/${id}`);
   const order = await getOrderWithBook(id);
-  if (!order || (order.userId !== user.id && user.role !== "admin")) notFound();
+  if (!order || (order.userId !== user.id && !isStaff(user))) notFound();
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const t = m.orders.order;
   const plan = getPlan(order.plan);

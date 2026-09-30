@@ -11,6 +11,7 @@ import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/lib/crm-clients";
 import { cn, formatDate } from "@/lib/utils";
 import { RemindAll } from "./RemindAll";
+import { requireStaff } from "@/lib/crm/rbac";
 
 const themes = getThemes("ru");
 
@@ -28,6 +29,7 @@ const filters = {
 type Filter = keyof typeof filters;
 
 export default async function AdminBooks({ searchParams }: { searchParams: Promise<{ f?: string; q?: string; theme?: string }> }) {
+  await requireStaff("clients.view");
   const sp = await searchParams;
   const f = (sp.f && sp.f in filters ? sp.f : "all") as Filter;
   const answered = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`;

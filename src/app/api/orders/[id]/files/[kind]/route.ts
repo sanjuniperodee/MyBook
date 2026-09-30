@@ -1,4 +1,5 @@
 import { api, apiUser, HttpError } from "@/lib/api";
+import { can, getStaff } from "@/lib/crm/rbac";
 import { getOrderFile, getOrderWithBook, type OrderFileKind } from "@/lib/orders";
 import { getPlan } from "@/config/site";
 
@@ -17,7 +18,9 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   const user = await apiUser(req);
   const order = await getOrderWithBook(id);
   if (!order) throw new HttpError(404, "orderNotFound");
-  const isAdmin = user.role === "admin";
+  // Сотруднику нужны права: читательская версия — orders.view, файлы для типографии — orders.files.
+  const staff = await getStaff();
+  const isAdmin = can(staff, kind === "reading" ? "orders.view" : "orders.files");
   if (!isAdmin) {
     if (order.userId !== user.id) throw new HttpError(404, "orderNotFound");
     const paid = !["pending_payment", "cancelled"].includes(order.status);

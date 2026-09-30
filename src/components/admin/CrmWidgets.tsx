@@ -3,13 +3,16 @@
 import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
-import { Mail, MessageSquare, Phone, StickyNote, Trash2 } from "lucide-react";
+import { Mail, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { cn } from "@/lib/utils";
 
+export const taskKinds = { task: "Задача", call: "Позвонить", message: "Написать", meeting: "Встреча" } as const;
+
 export interface TaskItem {
   id: string;
+  kind?: keyof typeof taskKinds;
   title: string;
   dueLabel: string | null;
   overdue: boolean;
@@ -24,6 +27,7 @@ export function TaskList({
   admins,
   clientId,
   orderId,
+  dealId,
   showForm = true,
   emptyText = "Задач нет",
 }: {
@@ -31,6 +35,7 @@ export function TaskList({
   admins: { id: string; label: string }[];
   clientId?: string;
   orderId?: string;
+  dealId?: string;
   showForm?: boolean;
   emptyText?: string;
 }) {
@@ -61,7 +66,10 @@ export function TaskList({
               aria-label="Выполнено"
             />
             <div className="min-w-0 flex-1">
-              <div className={cn(t.done && "text-muted line-through")}>{t.title}</div>
+              <div className={cn(t.done && "text-muted line-through")}>
+                {t.kind && t.kind !== "task" ? <span className="mr-1.5 rounded bg-cream px-1.5 py-0.5 text-[11px] text-ink-soft no-underline">{taskKinds[t.kind]}</span> : null}
+                {t.title}
+              </div>
               <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
                 {t.dueLabel ? <span className={cn(t.overdue && !t.done && "font-medium text-red-700")}>{t.dueLabel}</span> : null}
                 {t.assignee ? <span>· {t.assignee}</span> : null}
@@ -79,9 +87,17 @@ export function TaskList({
         ))}
       </ul>
       {showForm ? (
-        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[1fr_150px_150px_auto]">
+        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_150px_150px_auto]">
           {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
           {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
+          {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
+          <select name="kind" className="input h-10 text-sm" defaultValue="task" aria-label="Тип задачи">
+            {Object.entries(taskKinds).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
           <input name="title" required maxLength={300} placeholder="Новая задача: перезвонить, уточнить адрес…" className="input h-10 text-sm" />
           <input name="dueAt" type="date" className="input h-10 text-sm" title="Срок" />
           <select name="assigneeId" className="input h-10 text-sm" defaultValue="">
@@ -93,7 +109,7 @@ export function TaskList({
             ))}
           </select>
           <SubmitButton className="btn-sm h-10">Добавить</SubmitButton>
-          {state.error ? <p className="text-xs text-red-700 sm:col-span-4">{state.error}</p> : null}
+          {state.error ? <p className="text-xs text-red-700 sm:col-span-5">{state.error}</p> : null}
         </form>
       ) : null}
     </div>
@@ -102,7 +118,7 @@ export function TaskList({
 
 export interface NoteItem {
   id: string;
-  kind: "note" | "call" | "message" | "email";
+  kind: "note" | "call" | "message" | "email" | "system";
   text: string;
   author: string;
   dateLabel: string;
@@ -114,10 +130,12 @@ const kinds = {
   call: { label: "Звонок", icon: Phone },
   message: { label: "Сообщение", icon: MessageSquare },
   email: { label: "Письмо", icon: Mail },
+  system: { label: "Система", icon: Sparkles },
 } as const;
+const manualKinds = ["note", "call", "message", "email"] as const;
 
 /** История общения с клиентом. */
-export function NotesTimeline({ notes, clientId, orderId }: { notes: NoteItem[]; clientId: string; orderId?: string }) {
+export function NotesTimeline({ notes, clientId, orderId, dealId }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string }) {
   const [, start] = useTransition();
   const [state, action] = useActionState<AdminState, FormData>(addNoteAction, {});
   const [kind, setKind] = useState<NoteItem["kind"]>("note");
@@ -129,11 +147,12 @@ export function NotesTimeline({ notes, clientId, orderId }: { notes: NoteItem[];
   return (
     <div>
       <form ref={form} action={action} className="rounded-xl border border-line bg-[#fbf9f5] p-3">
-        <input type="hidden" name="clientId" value={clientId} />
+        {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
         {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
+        {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
         <input type="hidden" name="kind" value={kind} />
         <div className="mb-2 flex gap-1">
-          {(Object.keys(kinds) as NoteItem["kind"][]).map((k) => {
+          {manualKinds.map((k) => {
             const K = kinds[k];
             return (
               <button type="button" key={k} onClick={() => setKind(k)} className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs", kind === k ? "bg-ink text-white" : "text-muted hover:bg-cream")}>
@@ -162,9 +181,11 @@ export function NotesTimeline({ notes, clientId, orderId }: { notes: NoteItem[];
                   <span>{n.author}</span>
                   <span>{n.dateLabel}</span>
                   {n.orderLabel ? <span className="text-wine">{n.orderLabel}</span> : null}
-                  <button className="ml-auto opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить заметку?", true)) && start(() => deleteNoteAction(n.id))} aria-label="Удалить">
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  {n.kind !== "system" ? (
+                    <button className="ml-auto opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить заметку?", true)) && start(() => deleteNoteAction(n.id))} aria-label="Удалить">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-sm whitespace-pre-line">{n.text}</p>
               </div>

@@ -4,7 +4,7 @@ import { desc, sql } from "drizzle-orm";
 import { Download, Kanban } from "lucide-react";
 import { db } from "@/lib/db";
 import { orders, orderStatuses } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/crm/rbac";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusLabel } from "@/lib/orders-shared";
 import { adminLabel, listAdmins } from "@/lib/crm";
@@ -16,7 +16,8 @@ export const metadata = { title: "Заказы" };
 const PAGE = 50;
 
 export default async function AdminOrders({ searchParams }: { searchParams: Promise<OrderFilters & { page?: string }> }) {
-  const admin = await requireAdmin();
+  const staff = await requireStaff("orders.view");
+  const admin = staff.user;
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
   const where = orderWhere(params, admin.id);

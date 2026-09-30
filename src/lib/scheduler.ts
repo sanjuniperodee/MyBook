@@ -26,6 +26,28 @@ export async function tick() {
   }
 }
 
+/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут». */
+const CRM_INTERVAL_MS = 60_000;
+const CRM_LOCK_ID = 7_310_452;
+
+export async function crmTick() {
+  const client = await pool.connect();
+  let locked = false;
+  try {
+    const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [CRM_LOCK_ID]);
+    locked = !!rows[0]?.locked;
+    if (!locked) return;
+    const { runScheduledAutomations } = await import("./crm/automations");
+    const fired = await runScheduledAutomations();
+    if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
+  } catch (err) {
+    console.error("[scheduler] crm tick failed", err);
+  } finally {
+    if (locked) await client.query("select pg_advisory_unlock($1)", [CRM_LOCK_ID]).catch(() => {});
+    client.release();
+  }
+}
+
 let started = false;
 
 /** Фоновые задачи: отложенные сертификаты и автоматические письма. Отключается SCHEDULER=off. */
@@ -34,4 +56,5 @@ export function startScheduler() {
   started = true;
   setTimeout(() => void tick(), 60_000).unref?.();
   setInterval(() => void tick(), INTERVAL_MS).unref?.();
+  setInterval(() => void crmTick(), CRM_INTERVAL_MS).unref?.();
 }

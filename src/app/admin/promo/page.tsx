@@ -4,8 +4,10 @@ import { orders, promoCodes } from "@/lib/db/schema";
 import { formatPrice } from "@/config/site";
 import { formatDate } from "@/lib/utils";
 import { PromoForm, PromoToggle } from "./PromoForm";
+import { requireStaff } from "@/lib/crm/rbac";
 
 export default async function AdminPromo() {
+  await requireStaff("promo.manage");
   const list = await db
     .select({
       promo: promoCodes,

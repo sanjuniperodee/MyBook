@@ -12,13 +12,16 @@ import { getFormat } from "@/lib/book/formats";
 import { cn, formatDate } from "@/lib/utils";
 import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { adminLabel, listAdmins } from "@/lib/crm";
+import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { db } from "@/lib/db";
 import { crmNotes, crmTasks, orders as ordersTable } from "@/lib/db/schema";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { ClipboardList, UserRound } from "lucide-react";
+import { can, contactView, requireStaff } from "@/lib/crm/rbac";
+import { ContactActions } from "@/components/admin/ContactActions";
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
+  const staff = await requireStaff("orders.view");
   const { id } = await params;
   const order = await getOrderWithBook(id);
   if (!order) notFound();
@@ -34,8 +37,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       .from(ordersTable)
       .where(and(eq(ordersTable.userId, order.userId), ne(ordersTable.status, "cancelled"))),
   ]);
-  const adminOptions = admins.map((a) => ({ id: a.id, label: adminLabel(a) }));
-  const adminName = new Map(adminOptions.map((a) => [a.id, a.label]));
+  const adminOptions = staffOptions(admins);
+  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const now = new Date();
   const tasks: TaskItem[] = taskRows.map((t) => ({
     id: t.id,
@@ -54,6 +57,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
     orderLabel: n.orderId === order.id ? `заказ №${order.number}` : null,
   }));
   const spec = order.printSpec;
+  const contact = contactView(staff, { phone: order.contactPhone, email: order.contactEmail });
+  const accountEmail = contactView(staff, { email: order.user.email }).email;
+  const canEdit = can(staff, "orders.edit");
+  const canClients = can(staff, "clients.view");
   const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
 
   return (
@@ -66,9 +73,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Клиент сообщил об оплате {formatDate(order.paymentClaimedAt, true)}</span>
         ) : null}
         <div className="ml-auto flex gap-2">
-          <Link href={`/admin/clients/${order.userId}`} className="btn btn-outline btn-sm">
-            <UserRound className="size-4" /> Клиент · {clientStats.n} зак. · {formatPrice(clientStats.ltv)}
-          </Link>
+          {canClients ? (
+            <Link href={`/admin/clients/${order.userId}`} className="btn btn-outline btn-sm">
+              <UserRound className="size-4" /> Клиент · {clientStats.n} зак. · {formatPrice(clientStats.ltv)}
+            </Link>
+          ) : null}
           {plan?.printed ? (
             <a href={`/print/orders/${order.id}`} target="_blank" rel="noopener" className="btn btn-outline btn-sm">
               <ClipboardList className="size-4" /> Упаковочный лист
@@ -79,6 +88,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
+          {can(staff, "orders.files") ? (
           <Card title="Файлы для типографии">
             <div className="flex flex-wrap gap-2">
               <a href={`/api/admin/orders/${order.id}/package`} className="btn btn-primary btn-sm"><FileArchive className="size-4" /> Скачать всё (ZIP)</a>
@@ -100,6 +110,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             )}
             {spec ? <p className="mt-3 text-xs text-muted">Сгенерировано {formatDate(spec.generatedAt, true)}</p> : null}
           </Card>
+          ) : null}
 
           <Card title="Книга">
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[160px_1fr]">
@@ -112,16 +123,16 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm">Предпросмотр</Link>
-              <LockButton orderId={order.id} locked={book.status !== "draft"} />
+              {canEdit ? <LockButton orderId={order.id} locked={book.status !== "draft"} /> : null}
             </div>
           </Card>
 
           <Card title="Клиент и доставка">
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[160px_1fr]">
               <dt className="text-muted">Получатель</dt><dd>{order.contactName}</dd>
-              <dt className="text-muted">Телефон</dt><dd><a href={`tel:${order.contactPhone}`} className="underline">{order.contactPhone}</a></dd>
-              <dt className="text-muted">E-mail</dt><dd><a href={`mailto:${order.contactEmail}`} className="underline">{order.contactEmail}</a></dd>
-              <dt className="text-muted">Аккаунт</dt><dd>{order.user.email}</dd>
+              <dt className="text-muted">Телефон</dt><dd>{contact.masked ? contact.phone : <a href={`tel:${order.contactPhone}`} className="underline">{order.contactPhone}</a>}</dd>
+              <dt className="text-muted">E-mail</dt><dd>{contact.masked ? contact.email : <a href={`mailto:${order.contactEmail}`} className="underline">{order.contactEmail}</a>}</dd>
+              <dt className="text-muted">Аккаунт</dt><dd>{accountEmail}</dd>
               {plan?.printed ? (
                 <>
                   <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}</dd>
@@ -131,21 +142,26 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               {order.customerComment ? (<><dt className="text-muted">Комментарий</dt><dd className="whitespace-pre-line">{order.customerComment}</dd></>) : null}
               {order.giftNote ? (<><dt className="text-muted">Открытка</dt><dd className="whitespace-pre-line italic">«{order.giftNote}»</dd></>) : null}
               {order.desiredDate ? (<><dt className="text-muted">Нужна к</dt><dd className="font-medium text-wine">{formatDate(order.desiredDate)}</dd></>) : null}
-              {order.surprise ? (<><dt className="text-muted">Сюрприз</dt><dd className="font-medium text-wine">Не звонить получателю, связываться с заказчиком ({order.user.email})</dd></>) : null}
+              {order.surprise ? (<><dt className="text-muted">Сюрприз</dt><dd className="font-medium text-wine">Не звонить получателю, связываться с заказчиком ({accountEmail})</dd></>) : null}
             </dl>
+            <ContactActions className="mt-4 max-w-sm" target={{ orderId: order.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} />
           </Card>
 
           <Card title="Задачи по заказу">
             <TaskList tasks={tasks} admins={adminOptions} orderId={order.id} clientId={order.userId} emptyText="Задач по заказу нет" />
           </Card>
 
-          <Card title="История общения с клиентом">
-            <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} />
-          </Card>
+          {canClients ? (
+            <Card title="История общения с клиентом">
+              <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} />
+            </Card>
+          ) : null}
 
-          <Card title="Правка данных">
-            <DetailsForm order={order} />
-          </Card>
+          {canEdit && !contact.masked ? (
+            <Card title="Правка данных">
+              <DetailsForm order={order} />
+            </Card>
+          ) : null}
 
           <Card title="Журнал">
             <ol className="space-y-3 text-sm">
@@ -165,7 +181,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
         <div className="space-y-6">
           <Card title="Ответственный">
-            <AssigneeSelect orderId={order.id} value={order.assigneeId} admins={adminOptions} />
+            {canEdit ? <AssigneeSelect orderId={order.id} value={order.assigneeId} admins={adminOptions} /> : <p className="text-sm">{order.assigneeId ? adminName.get(order.assigneeId) : "Не назначен"}</p>}
           </Card>
           <Card title="Оплата">
             <dl className="space-y-1.5 text-sm">
@@ -178,12 +194,20 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               {order.paidAt ? <div className="flex justify-between text-xs text-muted"><dt>Оплачен</dt><dd>{formatDate(order.paidAt, true)}</dd></div> : null}
             </dl>
           </Card>
-          <Card title="Управление">
-            <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} />
-          </Card>
-          <Card title="Заметка">
-            <NoteForm orderId={order.id} note={order.adminNote} />
-          </Card>
+          {canEdit ? (
+            <>
+              <Card title="Управление">
+                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} />
+              </Card>
+              <Card title="Заметка">
+                <NoteForm orderId={order.id} note={order.adminNote} />
+              </Card>
+            </>
+          ) : order.adminNote ? (
+            <Card title="Заметка">
+              <p className="text-sm whitespace-pre-line">{order.adminNote}</p>
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

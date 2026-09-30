@@ -1,5 +1,6 @@
 "use server";
 
+import { onOrderCreated } from "@/lib/crm/deals";
 import { queueEvent } from "@/lib/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { and, eq } from "drizzle-orm";
@@ -141,6 +142,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
     "customer",
   );
   await notifyNewOrder(order);
+  await onOrderCreated(order);
   // Заказ полностью оплачен промокодом — сразу передаём в работу.
   if (order.amount === 0) await markOrderPaid(order.id, "promo", promo?.code);
   await queueEvent("order_created", order.amount);

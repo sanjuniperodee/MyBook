@@ -2,15 +2,16 @@ import Link from "next/link";
 import { and, asc, desc, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmTasks, orders, users } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/auth";
-import { adminLabel, listAdmins } from "@/lib/crm";
+import { requireStaff } from "@/lib/crm/rbac";
+import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Задачи" };
 
 export default async function TasksPage({ searchParams }: { searchParams: Promise<{ who?: string; done?: string }> }) {
-  const admin = await requireAdmin();
+  const staff = await requireStaff();
+  const admin = staff.user;
   const sp = await searchParams;
   const who = sp.who === "all" ? "all" : "mine";
   const showDone = sp.done === "1";
@@ -28,8 +29,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       .limit(300),
     listAdmins(),
   ]);
-  const adminOptions = admins.map((a) => ({ id: a.id, label: adminLabel(a) }));
-  const names = new Map(adminOptions.map((a) => [a.id, a.label]));
+  const adminOptions = staffOptions(admins);
+  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today.getTime() + 86_400_000);

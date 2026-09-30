@@ -9,12 +9,14 @@ import { parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 
 import { GiftActions } from "./GiftActions";
+import { requireStaff } from "@/lib/crm/rbac";
 
 const ru = messagesFor("ru").common;
 
 const statusLabel = { pending_payment: "Ждёт оплаты", paid: "Оплачен", cancelled: "Отменён" } as const;
 
 export default async function AdminGifts() {
+  await requireStaff("gifts.manage");
   const list = await db.query.giftCards.findMany({ orderBy: desc(giftCards.createdAt), with: { promo: true }, limit: 300 });
   const paid = list.filter((g) => g.status === "paid");
   const redeemed = paid.filter((g) => g.promo && g.promo.usedCount > 0);

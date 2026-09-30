@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
-import { requireAdmin } from "@/lib/auth";
+import { can, requireStaff } from "@/lib/crm/rbac";
+import { MyDay } from "./MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -27,7 +28,16 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur ? null : 0);
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  const admin = await requireAdmin();
+  const staff = await requireStaff();
+  const admin = staff.user;
+  // Без доступа к аналитике — только рабочий стол сотрудника, без выручки магазина.
+  if (!can(staff, "analytics.view"))
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">Мой день</h1>
+        <MyDay staff={staff} />
+      </div>
+    );
   const { period: raw } = await searchParams;
   const period = periods.find((p) => String(p) === raw) ?? 30;
   // Границы периода в часовом поясе магазина
@@ -131,6 +141,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           ))}
         </div>
       </div>
+      <MyDay staff={staff} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} />

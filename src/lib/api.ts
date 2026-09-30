@@ -5,6 +5,8 @@ import { getCurrentUser } from "./auth";
 import { findAccessibleBook, isEditable } from "./books";
 import type { Book, User } from "./db/schema";
 import { env } from "./env";
+import { can, getStaff, type Staff } from "./crm/rbac";
+import type { Permission } from "./crm/permissions";
 import { getMessages } from "@/i18n/server";
 import type { Messages } from "@/i18n/messages";
 
@@ -85,4 +87,13 @@ export async function apiBook(req: Request, bookId: string, opts: { editable?: b
   if (!book) throw new HttpError(404, "bookNotFound");
   if (opts.editable && !isEditable(book)) throw new HttpError(409, "bookLocked");
   return { user, book };
+}
+
+/** Сотрудник CRM с нужными правами (для API). */
+export async function apiStaff(req: Request, ...perms: Permission[]): Promise<Staff> {
+  await apiUser(req);
+  const staff = await getStaff();
+  if (!staff) throw new HttpError(403, "forbidden");
+  if (!can(staff, ...perms)) throw new HttpError(403, "forbidden");
+  return staff;
 }

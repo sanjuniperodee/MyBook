@@ -1,6 +1,6 @@
 import { ZipArchive } from "archiver";
 import { PassThrough, Readable } from "node:stream";
-import { api, apiUser, HttpError } from "@/lib/api";
+import { api, apiStaff, HttpError } from "@/lib/api";
 import { ensurePrintFiles, getOrderWithBook } from "@/lib/orders";
 import { getFile } from "@/lib/storage";
 
@@ -9,8 +9,7 @@ export const maxDuration = 300;
 /** ZIP-пакет для типографии: блок, обложка и техзадание. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const user = await apiUser(req);
-  if (user.role !== "admin") throw new HttpError(403, "forbidden");
+  await apiStaff(req, "orders.files");
   const order = await getOrderWithBook(id);
   if (!order) throw new HttpError(404, "orderNotFound");
   const keys = await ensurePrintFiles(order);

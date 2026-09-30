@@ -1,6 +1,7 @@
 import { planName } from "@/i18n/labels";
 import { desc } from "drizzle-orm";
-import { api, apiUser, HttpError } from "@/lib/api";
+import { api, apiStaff } from "@/lib/api";
+import { audit } from "@/lib/crm/rbac";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { orderWhere } from "@/lib/crm-filters";
@@ -9,9 +10,10 @@ import { toCsv } from "@/lib/crm";
 import { orderStatusLabel } from "@/lib/orders-shared";
 
 export const GET = api(async (req) => {
-  const admin = await apiUser(req);
-  if (admin.role !== "admin") throw new HttpError(403, "forbidden");
+  const staff = await apiStaff(req, "orders.view", "clients.export", "clients.contacts");
+  const admin = staff.user;
   const params = Object.fromEntries(new URL(req.url).searchParams);
+  await audit(staff, "export", "orders", null, params);
   const rows = await db.select().from(orders).where(orderWhere(params, admin.id)).orderBy(desc(orders.createdAt)).limit(20_000);
   const csv = toCsv(
     ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],

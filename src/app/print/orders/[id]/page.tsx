@@ -1,6 +1,6 @@
 import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/crm/rbac";
 import { getOrderWithBook } from "@/lib/orders";
 import { site } from "@/config/site";
 import { formatDate } from "@/lib/utils";
@@ -10,7 +10,7 @@ export const metadata = { title: "Упаковочный лист", robots: { in
 
 /** Упаковочный лист / накладная для курьера. Печатается на A4 (две одинаковые половины — одна в коробку, одна курьеру). */
 export default async function PackingSlip({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requireStaff("orders.view");
   const { id } = await params;
   const order = await getOrderWithBook(id);
   if (!order) notFound();

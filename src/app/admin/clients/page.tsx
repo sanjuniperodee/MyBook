@@ -4,6 +4,8 @@ import { clientSegments, type ClientSegment } from "@/lib/crm";
 import { queryClients, segmentCounts, type ClientSort } from "@/lib/crm-clients";
 import { formatPrice } from "@/config/site";
 import { cn, formatDate } from "@/lib/utils";
+import { can, contactView, requireStaff } from "@/lib/crm/rbac";
+import { adminLabel, listAdmins } from "@/lib/crm";
 
 export const metadata = { title: "Клиенты" };
 const PAGE = 50;
@@ -17,17 +19,23 @@ function relative(d: Date | null) {
   return formatDate(d);
 }
 
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ segment?: string; q?: string; tag?: string; sort?: string; page?: string }> }) {
+export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ segment?: string; q?: string; tag?: string; sort?: string; page?: string; mine?: string }> }) {
+  const staff = await requireStaff("clients.view");
   const sp = await searchParams;
   const segment = (sp.segment && sp.segment in clientSegments ? sp.segment : "all") as ClientSegment;
   const sort = (["new", "ltv", "active"].includes(sp.sort ?? "") ? sp.sort : "new") as ClientSort;
   const page = Math.max(1, Number(sp.page) || 1);
-  const [{ rows, total }, counts] = await Promise.all([
-    queryClients({ segment, q: sp.q, tag: sp.tag, sort, limit: PAGE, offset: (page - 1) * PAGE }),
-    segmentCounts(),
+  // Роль «только свои» видит своих клиентов и неразобранных (без ответственного).
+  const scopeManagerId = staff.scope === "own" ? staff.user.id : null;
+  const onlyMine = sp.mine === "1";
+  const [{ rows, total }, counts, admins] = await Promise.all([
+    queryClients({ segment, q: sp.q, tag: sp.tag, sort, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine }),
+    segmentCounts(scopeManagerId),
+    listAdmins(),
   ]);
+  const managerName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {
-    const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
+    const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, mine: onlyMine ? "1" : undefined, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
     return `/admin/clients?${p}`;
   };
   const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag }).filter(([, v]) => v) as [string, string][]);
@@ -39,9 +47,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-semibold">Клиенты</h1>
           <p className="text-sm text-muted">Найдено {total}{sp.tag ? ` · тег «${sp.tag}»` : ""}</p>
         </div>
-        <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
-          <Download className="size-4" /> CSV
-        </a>
+        {can(staff, "clients.export", "clients.contacts") ? (
+          <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
+            <Download className="size-4" /> CSV
+          </a>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -60,6 +70,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <option value="ltv">По сумме покупок</option>
           <option value="active">По последнему визиту</option>
         </select>
+        <label className="flex h-10 items-center gap-2 px-2 text-sm text-ink-soft">
+          <input type="checkbox" name="mine" value="1" defaultChecked={onlyMine} className="accent-wine" /> Только мои
+        </label>
         <button className="btn btn-dark btn-sm h-10">Найти</button>
       </form>
 
@@ -82,10 +95,16 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                   <Link href={`/admin/clients/${r.user.id}`} className="font-medium hover:text-wine hover:underline">
                     {r.user.name || r.user.email.split("@")[0]}
                   </Link>
-                  <div className="text-xs text-muted">
-                    {r.user.email}
-                    {r.user.phone ? ` · ${r.user.phone}` : ""}
-                  </div>
+                  {(() => {
+                    const c = contactView(staff, r.user);
+                    return (
+                      <div className="text-xs text-muted">
+                        {c.email}
+                        {c.phone ? ` · ${c.phone}` : ""}
+                        {r.user.managerId ? ` · 👤 ${managerName.get(r.user.managerId) ?? "—"}` : ""}
+                      </div>
+                    );
+                  })()}
                   {r.user.tags.length ? (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {r.user.tags.map((t) => (

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { api, apiUser, HttpError } from "@/lib/api";
+import { isStaff } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { books, photos } from "@/lib/db/schema";
 import { getFile } from "@/lib/storage";
@@ -14,7 +15,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
     .from(photos)
     .innerJoin(books, eq(photos.bookId, books.id))
     .where(eq(photos.id, id));
-  if (!row || (row.ownerId !== user.id && user.role !== "admin")) throw new HttpError(404, "notFound");
+  if (!row || (row.ownerId !== user.id && !isStaff(user))) throw new HttpError(404, "notFound");
   const size = new URL(req.url).searchParams.get("size") === "full" ? "full" : "thumb";
   const key = size === "full" ? row.photo.storageKey : row.photo.thumbKey;
   // Файл может смениться (поворот), поэтому кэш проверяется по ключу хранилища.
