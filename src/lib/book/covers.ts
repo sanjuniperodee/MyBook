@@ -4,6 +4,8 @@
  * Текст (название, имена) накладывается поверх: HTML на сайте и векторный текст в PDF.
  */
 import type { CoverGeometry, Rect } from "./formats";
+import { collectionTemplates } from "./covers-collection";
+import { bg, frontRect, grainFilter, HEART, jitterGrid, label, linenFilter, n, petalPath, rng, shadowFilter } from "./cover-kit";
 import type { FontKey } from "./fonts";
 
 export interface CoverTextStyle {
@@ -24,9 +26,21 @@ export interface ArtContext {
   photoHref?: string;
 }
 
+export type CoverMood = "romance" | "tender" | "classic" | "bright" | "photo";
+
+export const coverMoods: { id: CoverMood; label: string }[] = [
+  { id: "romance", label: "Романтика" },
+  { id: "tender", label: "Нежные" },
+  { id: "classic", label: "Классика" },
+  { id: "bright", label: "Яркие" },
+  { id: "photo", label: "С фото" },
+];
+
 export interface CoverTemplate {
   id: string;
   name: string;
+  /** Настроение — для фильтра в выборе обложки. */
+  mood: CoverMood;
   /** CSS-фон для миниатюры в выборе шаблона. */
   swatch: string;
   requiresPhoto?: boolean;
@@ -44,78 +58,12 @@ export interface CoverTemplate {
   back: { color: string; font: FontKey };
 }
 
-// ─── утилиты ────────────────────────────────────────────────────────────────
-
-function rng(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const n = (v: number) => Math.round(v * 100) / 100;
-
-function frontRect(g: CoverGeometry, fx: number, fy: number, fw: number, fh: number): Rect {
-  return { x: g.front.x + fx * g.front.w, y: g.front.y + fy * g.front.h, w: fw * g.front.w, h: fh * g.front.h };
-}
-
-function grainFilter(id: string, freq = 1.1) {
-  return `<filter id="${id}" x="0" y="0" width="100%" height="100%" filterUnits="userSpaceOnUse"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="3" seed="7" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.85 0"/></filter>`;
-}
-
-function linenFilter(id: string) {
-  return `<filter id="${id}" x="0" y="0" width="100%" height="100%" filterUnits="userSpaceOnUse"><feTurbulence type="fractalNoise" baseFrequency="1.6 0.07" numOctaves="2" seed="2" result="h"/><feTurbulence type="fractalNoise" baseFrequency="0.07 1.6" numOctaves="2" seed="5" result="v"/><feBlend in="h" in2="v" mode="multiply"/><feColorMatrix values="0 0 0 0 0.3  0 0 0 0 0.25  0 0 0 0 0.18  0 0 0 0.9 0"/></filter>`;
-}
-
-function shadowFilter(id: string) {
-  return `<filter id="${id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.4"/></filter>`;
-}
-
-function bg(g: CoverGeometry, fill: string) {
-  return `<rect x="0" y="0" width="${n(g.width)}" height="${n(g.height)}" fill="${fill}"/>`;
-}
-
-
-function label(r: Rect, fill: string, opts: { stroke?: string; shadowId?: string; rx?: number; inset?: number } = {}) {
-  const rx = opts.rx ?? 0.6;
-  let out = "";
-  if (opts.shadowId)
-    out += `<rect x="${n(r.x + 0.4)}" y="${n(r.y + 0.9)}" width="${n(r.w)}" height="${n(r.h)}" rx="${rx}" fill="#000" opacity="0.28" filter="url(#${opts.shadowId})"/>`;
-  out += `<rect x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" rx="${rx}" fill="${fill}"/>`;
-  if (opts.stroke) {
-    const i = opts.inset ?? 2.2;
-    out += `<rect x="${n(r.x + i)}" y="${n(r.y + i)}" width="${n(r.w - i * 2)}" height="${n(r.h - i * 2)}" rx="${Math.max(0, rx - 0.3)}" fill="none" stroke="${opts.stroke}" stroke-width="0.3"/>`;
-  }
-  return out;
-}
-
-function petalPath(r: number, width = 0.42) {
-  return `M0,0 C${n(r * 0.35)},${n(-r * width)} ${n(r * 0.95)},${n(-r * width * 0.8)} ${n(r)},0 C${n(r * 0.95)},${n(r * width * 0.8)} ${n(r * 0.35)},${n(r * width)} 0,0Z`;
-}
-
-/** Точки на «дрожащей» сетке, покрывающей весь холст (с выходом за край). */
-function jitterGrid(g: CoverGeometry, cell: number, rand: () => number) {
-  const pts: { x: number; y: number }[] = [];
-  for (let y = -cell / 2; y < g.height + cell; y += cell * 0.86) {
-    const row = Math.round(y / cell);
-    for (let x = -cell / 2 + (row % 2 ? cell / 2 : 0); x < g.width + cell; x += cell) {
-      pts.push({ x: x + (rand() - 0.5) * cell * 0.7, y: y + (rand() - 0.5) * cell * 0.6 });
-    }
-  }
-  return pts;
-}
-
-const HEART = "M0.5,0.92 C0.2,0.72 0,0.52 0,0.3 C0,0.12 0.14,0 0.3,0 C0.4,0 0.47,0.06 0.5,0.15 C0.53,0.06 0.6,0 0.7,0 C0.86,0 1,0.12 1,0.3 C1,0.52 0.8,0.72 0.5,0.92Z";
-
 // ─── шаблоны ────────────────────────────────────────────────────────────────
 
 const linen: CoverTemplate = {
   id: "linen",
   name: "Лён",
+  mood: "classic",
   texture: { kind: "linen", opacity: 0.35 },
   swatch: "linear-gradient(135deg,#ece4d6,#ddd2bf)",
   art: (g, { uid }) => {
@@ -135,6 +83,7 @@ const linen: CoverTemplate = {
 const blossom: CoverTemplate = {
   id: "blossom",
   name: "Пионы",
+  mood: "romance",
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "radial-gradient(circle at 30% 30%,#e8b4b8 0 18%,transparent 19%),radial-gradient(circle at 70% 65%,#b5545c 0 20%,transparent 21%),#2a1a1f",
   art: (g, { uid }) => {
@@ -186,6 +135,7 @@ const blossom: CoverTemplate = {
 const midnight: CoverTemplate = {
   id: "midnight",
   name: "Полночь",
+  mood: "romance",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(circle at 20% 30%,#e8d9b0 0 2%,transparent 3%),radial-gradient(circle at 70% 60%,#e8d9b0 0 1.5%,transparent 2.5%),linear-gradient(160deg,#141b33,#243258)",
   art: (g, { uid }) => {
@@ -216,6 +166,7 @@ const midnight: CoverTemplate = {
 const sage: CoverTemplate = {
   id: "sage",
   name: "Шалфей",
+  mood: "tender",
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "linear-gradient(160deg,#b8c0a8,#9fab8f)",
   art: (g) => {
@@ -257,6 +208,7 @@ const sage: CoverTemplate = {
 const terracotta: CoverTemplate = {
   id: "terracotta",
   name: "Терракота",
+  mood: "bright",
   texture: { kind: "grain", opacity: 0.16 },
   swatch: "radial-gradient(circle at 50% 110%,#f3d9b8 0 30%,#e9b48a 31% 40%,#8f3e27 41% 50%,transparent 51%),#c9724f",
   art: (g) => {
@@ -289,6 +241,7 @@ const terracotta: CoverTemplate = {
 const noir: CoverTemplate = {
   id: "noir",
   name: "Нуар",
+  mood: "classic",
   texture: { kind: "grain", opacity: 0.18 },
   swatch: "linear-gradient(160deg,#1a1a1a,#0d0d0d)",
   art: (g) => {
@@ -310,6 +263,7 @@ const noir: CoverTemplate = {
 const hearts: CoverTemplate = {
   id: "hearts",
   name: "Сердца",
+  mood: "romance",
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "radial-gradient(ellipse at 50% 50%,#f6e9e1 0 30%,transparent 31%),#8b1e2d",
   art: (g, { uid }) => {
@@ -344,6 +298,7 @@ const hearts: CoverTemplate = {
 const ocean: CoverTemplate = {
   id: "ocean",
   name: "Океан",
+  mood: "bright",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(180deg,#1f4e6b,#6fa3b5)",
   art: (g, { uid }) => {
@@ -375,6 +330,7 @@ const ocean: CoverTemplate = {
 const terrazzo: CoverTemplate = {
   id: "terrazzo",
   name: "Терраццо",
+  mood: "bright",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(circle at 20% 30%,#d9a48f 0 6%,transparent 7%),radial-gradient(circle at 70% 70%,#9db4a8 0 7%,transparent 8%),radial-gradient(circle at 80% 20%,#e4c590 0 5%,transparent 6%),#f1ece4",
   art: (g, { uid }) => {
@@ -411,6 +367,7 @@ const terrazzo: CoverTemplate = {
 const script: CoverTemplate = {
   id: "script",
   name: "Пудра",
+  mood: "romance",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(160deg,#f5e6df,#ecd3ca)",
   art: (g) => {
@@ -431,6 +388,7 @@ const script: CoverTemplate = {
 const photo: CoverTemplate = {
   id: "photo",
   name: "Ваше фото",
+  mood: "photo",
   swatch: "linear-gradient(180deg,#8a8a8a,#2b2b2b)",
   requiresPhoto: true,
   art: (g, { uid, photoHref }) => {
@@ -456,7 +414,13 @@ const photo: CoverTemplate = {
   back: { color: "#E6E6E6", font: "cormorant" },
 };
 
-export const coverTemplates: CoverTemplate[] = [blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo];
+const byId = Object.fromEntries([blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo, ...collectionTemplates].map((t) => [t.id, t]));
+
+/** Порядок в выборе: чередуем настроения, чтобы сетка выглядела разнообразно. */
+export const coverTemplates: CoverTemplate[] = [
+  "blossom", "oyu", "constellation", "linen", "sunrise", "midnight", "herbarium", "sage", "tulips", "terracotta",
+  "deco", "hearts", "leather", "script", "letter", "ocean", "lemons", "mountains", "terrazzo", "noir", "photo",
+].map((id) => byId[id]);
 
 export function getCoverTemplate(id: string): CoverTemplate {
   return coverTemplates.find((t) => t.id === id) ?? linen;

@@ -7,7 +7,8 @@ import { CoverPreview } from "@/components/cover/CoverPreview";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { coverNamesLine, coverTemplates } from "@/lib/book/covers";
+import { pluralRu } from "@/lib/book/layout";
+import { coverMoods, coverNamesLine, coverTemplates, type CoverMood } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,7 @@ export function CoverEditor({
   };
 
   const template = coverTemplates.find((t) => t.id === state.coverTemplate) ?? coverTemplates[0];
+  const [mood, setMood] = useState<CoverMood | "all">("all");
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
   const coverPhoto = state.coverPhotoId ? photoUrl(state.coverPhotoId, "full") : undefined;
 
@@ -87,9 +89,27 @@ export function CoverEditor({
 
       <div className="space-y-8">
         <section>
-          <h2 className="text-lg font-semibold">Дизайн</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Дизайн</h2>
+            <span className="text-xs text-muted">{coverTemplates.length} {pluralRu(coverTemplates.length, "вариант", "варианта", "вариантов")}</span>
+          </div>
+          {/* Фильтр по настроению — чтобы 20+ обложек не превращались в стену */}
+          <div className="no-scrollbar -mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label="Настроение обложки">
+            {[{ id: "all" as const, label: "Все" }, ...coverMoods].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="radio"
+                aria-checked={mood === m.id}
+                onClick={() => setMood(m.id)}
+                className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition", mood === m.id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
           <div ref={strip} className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
-            {coverTemplates.map((t) => (
+            {coverTemplates.filter((t) => mood === "all" || t.mood === mood || t.id === state.coverTemplate).map((t) => (
               <button
                 key={t.id}
                 onClick={() => update({ coverTemplate: t.id })}

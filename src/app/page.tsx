@@ -40,6 +40,16 @@ const sampleTitles: Record<string, { title: string; names: string; subtitle?: st
   terrazzo: { title: "Просто мы", names: "Аня & Макс" },
   noir: { title: "Навсегда", names: "Даурен & Сабина" },
   photo: { title: "Мы", names: "Айдос & Лаура" },
+  oyu: { title: "Әже, рахмет", names: "Немерелерің" },
+  constellation: { title: "Ты — моя звезда", names: "Тимур & Алина" },
+  sunrise: { title: "Мама, доброе утро", names: "Твоя Дана" },
+  herbarium: { title: "Наш сад", names: "Бабушке от Амины" },
+  tulips: { title: "Для мамы", names: "С любовью, Жанна" },
+  deco: { title: "Десять лет", names: "Арман & Диана" },
+  leather: { title: "История семьи", names: "Папе от сыновей" },
+  letter: { title: "Письма тебе", names: "Нурлан & Айя" },
+  lemons: { title: "Солнце моё", names: "Карина & Бекзат" },
+  mountains: { title: "Папа и горы", names: "от Данияра" },
 };
 
 const faq = [
@@ -262,7 +272,7 @@ export default async function HomePage() {
           <div className="container-x">
             <div className="reveal mx-auto max-w-2xl text-center">
               <div className="eyebrow">Обложки</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{coverTemplates.length} дизайнерских обложек — или ваше фото</h2>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{coverTemplates.filter((t) => !t.requiresPhoto).length} дизайнерских обложек — или ваше фото</h2>
               <p className="mt-4 text-muted">Название, имена и подзаголовок вы задаёте сами. Меняйте обложку сколько угодно — до самой печати.</p>
             </div>
             <div className="reveal-stagger mt-14 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">

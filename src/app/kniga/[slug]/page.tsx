@@ -5,6 +5,7 @@ import { ArrowRight, CalendarHeart, Check, Gift, MessageCircleQuestion } from "l
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
+import { coverTemplates } from "@/lib/book/covers";
 import { getCurrentUser } from "@/lib/auth";
 import { Faq } from "@/components/Faq";
 import { getLanding, landings } from "@/lib/content/landings";
@@ -145,7 +146,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               <ol className="mt-8 space-y-5">
                 {[
                   "Отвечайте на вопросы в своём темпе — с телефона или компьютера, можно голосом.",
-                  "Добавьте фотографии и выберите одну из 11 обложек или свою с фото.",
+                  `Добавьте фотографии и выберите одну из ${coverTemplates.filter((t) => !t.requiresPhoto).length} обложек или свою с фото.`,
                   "Пролистайте точный PDF-макет всех страниц и оформите заказ.",
                   "Мы печатаем книгу в твёрдом переплёте и доставляем по Казахстану.",
                 ].map((t, i) => (
