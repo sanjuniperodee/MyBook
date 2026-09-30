@@ -37,11 +37,11 @@ export const PATCH = api(async (req, { params }: Ctx) => {
   const data = schema.parse(await req.json());
   if (data.questionId) {
     const [q] = await db.select({ id: bookQuestions.id }).from(bookQuestions).where(and(eq(bookQuestions.id, data.questionId), eq(bookQuestions.bookId, book.id)));
-    if (!q) throw new HttpError(400, "Вопрос не найден");
+    if (!q) throw new HttpError(400, "questionNotFound");
   }
   if (data.inline) data.inline = normalizeStyle(data.inline);
   const [row] = await db.update(photos).set(data).where(and(eq(photos.id, pid), eq(photos.bookId, book.id))).returning();
-  if (!row) throw new HttpError(404, "Фото не найдено");
+  if (!row) throw new HttpError(404, "photoNotFound");
   await touchBook(book.id);
   return NextResponse.json({ photo: row });
 });
@@ -50,7 +50,7 @@ export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, pid } = await params;
   const { book } = await apiBook(req, id, { editable: true });
   const [row] = await db.delete(photos).where(and(eq(photos.id, pid), eq(photos.bookId, book.id))).returning();
-  if (!row) throw new HttpError(404, "Фото не найдено");
+  if (!row) throw new HttpError(404, "photoNotFound");
   if (book.coverPhotoId === row.id) await db.update(books).set({ coverPhotoId: null }).where(eq(books.id, book.id));
   await Promise.all([deleteFile(row.storageKey), deleteFile(row.thumbKey)]);
   await touchBook(book.id);

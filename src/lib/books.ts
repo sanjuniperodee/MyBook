@@ -7,11 +7,14 @@ import { db } from "./db";
 import { bookLetters, bookQuestions, books, photos, type Book, type Gender, type User } from "./db/schema";
 import { getTheme } from "./content/themes";
 import type { ThemeId } from "./content/types";
+import type { Locale } from "@/i18n/config";
 import { buildBookContent, estimatePages, toPhotoItem } from "./book/layout";
 import { printablePageCount } from "./book/formats";
 
 export interface NewBookInput {
   theme: ThemeId;
+  /** Язык вопросов, заголовков глав и надписей в книге. */
+  language?: Locale;
   authorName: string;
   authorGender: Gender;
   recipientName: string;
@@ -22,13 +25,15 @@ export interface NewBookInput {
 }
 
 export async function createBook(userId: string, input: NewBookInput): Promise<Book> {
-  const theme = getTheme(input.theme);
+  const language = input.language ?? "ru";
+  const theme = getTheme(input.theme, language);
   return db.transaction(async (tx) => {
     const [book] = await tx
       .insert(books)
       .values({
         userId,
         theme: theme.id,
+        language,
         authorName: input.authorName,
         authorGender: input.authorGender,
         recipientName: input.recipientName,
@@ -53,6 +58,31 @@ export async function createBook(userId: string, input: NewBookInput): Promise<B
     );
     await tx.insert(bookQuestions).values(rows);
     return book;
+  });
+}
+
+/**
+ * Смена языка книги: стандартные вопросы (по ключу theme.chapter.N) и заголовки из банка заменяются
+ * на выбранный язык. Ответы, собственные вопросы и переписанные заголовки (displayText) не трогаем.
+ * Название книги меняем, только если это был один из предложенных вариантов.
+ */
+export async function switchBookLanguage(book: Book, language: Locale) {
+  if (book.language === language) return;
+  const from = getTheme(book.theme, book.language);
+  const to = getTheme(book.theme, language);
+  const bank = new Map<string, { prompt: string; title: string; hint: string | null }>();
+  to.chapters.forEach((ch) => ch.questions.forEach(([prompt, title, hint], i) => bank.set(`${to.id}.${ch.key}.${i + 1}`, { prompt, title, hint: hint ?? null })));
+  const suggestion = from.titleSuggestions.indexOf(book.title.trim());
+  await db.transaction(async (tx) => {
+    const qs = await tx.select({ id: bookQuestions.id, key: bookQuestions.questionKey }).from(bookQuestions).where(eq(bookQuestions.bookId, book.id));
+    for (const q of qs) {
+      const t = q.key ? bank.get(q.key) : undefined;
+      if (t) await tx.update(bookQuestions).set(t).where(eq(bookQuestions.id, q.id));
+    }
+    await tx
+      .update(books)
+      .set({ language, ...(suggestion >= 0 ? { title: to.titleSuggestions[suggestion] ?? book.title } : {}) })
+      .where(eq(books.id, book.id));
   });
 }
 

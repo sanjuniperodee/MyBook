@@ -1,19 +1,21 @@
 import { api, apiBook, HttpError } from "@/lib/api";
 import { loadBookBundle, contentFor } from "@/lib/pdf/render";
+import { messagesFor } from "@/i18n/messages";
 
 /** Текст книги одним файлом — резервная копия для клиента. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   await apiBook(req, id);
   const bundle = await loadBookBundle(id);
-  if (!bundle) throw new HttpError(404, "Книга не найдена");
+  if (!bundle) throw new HttpError(404, "bookNotFound");
   const c = contentFor(bundle);
+  const t = messagesFor(c.language).book;
   const lines: string[] = [c.title.toUpperCase()];
   if (c.subtitle) lines.push(c.subtitle);
   if (c.authorName) lines.push(c.authorName);
   if (c.dedication) lines.push("", c.dedication);
   for (const ch of c.chapters) {
-    lines.push("", "", `ГЛАВА ${ch.number}. ${ch.title.toUpperCase()}`);
+    lines.push("", "", `${t.chapter(ch.number).toUpperCase()}. ${ch.title.toUpperCase()}`);
     for (const it of ch.items) {
       lines.push("");
       if (it.heading) lines.push(it.heading, "");

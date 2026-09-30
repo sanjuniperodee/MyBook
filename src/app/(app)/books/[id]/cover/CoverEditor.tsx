@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { Link, useMessages } from "@/i18n/client";
 import { useRef, useState } from "react";
 import { Check, ImagePlus } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { pluralRu } from "@/lib/book/layout";
 import { coverMoods, coverNamesLine, coverTemplates, type CoverMood } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
@@ -39,6 +38,8 @@ export function CoverEditor({
   editable: boolean;
 }) {
   const [state, setState] = useState(initial);
+  const m = useMessages();
+  const t = m.books.cover;
   const strip = useRef<HTMLDivElement>(null);
   const changes = useRef<Partial<CoverState>>({});
   const { status, error, schedule } = useAutosave<null>(async () => {
@@ -79,10 +80,12 @@ export function CoverEditor({
               photoUrl={coverPhoto}
               className="rounded-[4px] shadow-book"
               uid="editor"
+              titlePlaceholder={t.bookTitle}
+              photoHint={t.uploadFirst}
             />
           </div>
           <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
-            <span className="font-medium text-ink">{template.name}</span>·<SaveIndicator status={status} error={error} />
+            <span className="font-medium text-ink">{m.catalog.covers[template.id] ?? template.id}</span>·<SaveIndicator status={status} error={error} />
           </div>
         </div>
       </div>
@@ -90,21 +93,21 @@ export function CoverEditor({
       <div className="space-y-8">
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Дизайн</h2>
-            <span className="text-xs text-muted">{coverTemplates.length} {pluralRu(coverTemplates.length, "вариант", "варианта", "вариантов")}</span>
+            <h2 className="text-lg font-semibold">{t.design}</h2>
+            <span className="text-xs text-muted">{m.common.count.variants(coverTemplates.length)}</span>
           </div>
           {/* Фильтр по настроению — чтобы 20+ обложек не превращались в стену */}
-          <div className="no-scrollbar -mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label="Настроение обложки">
-            {[{ id: "all" as const, label: "Все" }, ...coverMoods].map((m) => (
+          <div className="no-scrollbar -mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={t.moodAria}>
+            {(["all", ...coverMoods] as const).map((id) => (
               <button
-                key={m.id}
+                key={id}
                 type="button"
                 role="radio"
-                aria-checked={mood === m.id}
-                onClick={() => setMood(m.id)}
-                className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition", mood === m.id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+                aria-checked={mood === id}
+                onClick={() => setMood(id)}
+                className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition", mood === id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
               >
-                {m.label}
+                {m.catalog.moods[id]}
               </button>
             ))}
           </div>
@@ -130,17 +133,17 @@ export function CoverEditor({
                     </span>
                   ) : null}
                 </div>
-                <div className={cn("mt-1.5 truncate text-xs", t.id === state.coverTemplate ? "font-medium text-ink" : "text-muted")}>{t.name}</div>
+                <div className={cn("mt-1.5 truncate text-xs", t.id === state.coverTemplate ? "font-medium text-ink" : "text-muted")}>{m.catalog.covers[t.id] ?? t.id}</div>
               </button>
             ))}
           </div>
         </section>
 
-        <h2 className="text-lg font-semibold">Текст на обложке</h2>
+        <h2 className="text-lg font-semibold">{t.text}</h2>
 
         {template.requiresPhoto ? (
           <div>
-            <span className="label">Фото для обложки</span>
+            <span className="label">{t.photo}</span>
             {photos.length ? (
               <div className="grid grid-cols-4 gap-2">
                 {photos.map((p) => (
@@ -151,20 +154,20 @@ export function CoverEditor({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
-                    {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-0.5 text-[10px] text-white">низкое качество</span> : null}
+                    {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-0.5 text-[10px] text-white">{t.lowQuality}</span> : null}
                   </button>
                 ))}
               </div>
             ) : null}
             <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex items-center gap-1.5 text-sm text-wine hover:underline">
-              <ImagePlus className="size-4" /> {photos.length ? "Загрузить ещё фото" : "Сначала загрузите фото"}
+              <ImagePlus className="size-4" /> {photos.length ? t.uploadMore : t.uploadFirst}
             </Link>
           </div>
         ) : null}
 
-        <Field label="Название книги" value={state.title} max={80} onChange={(v) => update({ title: v })} disabled={!editable} />
-        <Field label="Подзаголовок" placeholder="Например, «Четыре года вместе»" value={state.subtitle} max={80} onChange={(v) => update({ subtitle: v })} disabled={!editable} />
-        <Field label="Ваше полное имя" value={state.authorName} max={60} onChange={(v) => update({ authorName: v })} disabled={!editable} />
+        <Field label={t.bookTitle} value={state.title} max={80} onChange={(v) => update({ title: v })} disabled={!editable} />
+        <Field label={t.subtitle} placeholder={t.subtitlePlaceholder} value={state.subtitle} max={80} onChange={(v) => update({ subtitle: v })} disabled={!editable} />
+        <Field label={t.authorName} value={state.authorName} max={60} onChange={(v) => update({ authorName: v })} disabled={!editable} />
         <div>
           <Field label={recipientLabel} value={state.recipientName} max={60} onChange={(v) => update({ recipientName: v })} disabled={!editable} />
           <label className="mt-3 flex items-center gap-2.5 text-sm text-ink-soft">
@@ -175,17 +178,17 @@ export function CoverEditor({
               onChange={(e) => update({ hideRecipientOnCover: e.target.checked })}
               disabled={!editable}
             />
-            Не отображать на обложке
+            {t.hideRecipient}
           </label>
         </div>
         <div>
-          <label className="label" htmlFor="backText">Текст на задней обложке</label>
+          <label className="label" htmlFor="backText">{t.backText}</label>
           <textarea
             id="backText"
             className="input"
             rows={3}
             maxLength={400}
-            placeholder="Короткая фраза или цитата — по желанию"
+            placeholder={t.backTextPlaceholder}
             value={state.backText}
             onChange={(e) => update({ backText: e.target.value })}
             disabled={!editable}

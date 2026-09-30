@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { CalendarHeart, Check } from "lucide-react";
-import { deadlineFor, getOccasion, humanDay, inDays, nextFixedDate, occasions, toIsoDay, type OccasionId } from "@/lib/occasions";
+import { deadlineFor, getOccasion, nextFixedDate, occasions, toIsoDay, type OccasionId } from "@/lib/occasions";
+import { useMessages } from "@/i18n/client";
 import { cn, nowMs } from "@/lib/utils";
 
 /**
@@ -42,6 +43,7 @@ export function OccasionPicker({
     if (/^\d{4}-\d{2}-\d{2}$/.test(v)) onChange?.(occasion, v);
   };
 
+  const m = useMessages().common;
   const dl = date && date >= today ? deadlineFor(date, now) : null;
   const o = getOccasion(occasion);
 
@@ -62,7 +64,7 @@ export function OccasionPicker({
             )}
           >
             {occasion === x.id ? <Check className="size-3.5" /> : null}
-            {x.label}
+            {m.occasions[x.id].label}
           </button>
         ))}
       </div>
@@ -70,23 +72,21 @@ export function OccasionPicker({
         <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-cream/60 p-4 sm:flex-row sm:items-center">
           <label className="flex items-center gap-3">
             <CalendarHeart className="size-5 shrink-0 text-wine" />
-            <span className="text-sm whitespace-nowrap">Дата</span>
-            <input type="date" className="input h-10 w-auto" value={date} min={today} onChange={(e) => changeDate(e.target.value)} disabled={disabled} aria-label="Дата праздника" />
+            <span className="text-sm whitespace-nowrap">{m.occasion.date}</span>
+            <input type="date" className="input h-10 w-auto" value={date} min={today} onChange={(e) => changeDate(e.target.value)} disabled={disabled} aria-label={m.occasion.dateAria} />
           </label>
           {dl ? (
             <p className="text-sm leading-snug text-ink-soft">
-              {dl.state === "past" ? null : dl.state === "digital" ? (
-                <>Печатная книга уже не успеет — но электронную можно подарить в тот же день.</>
-              ) : dl.state === "premium" ? (
-                <>Успеет только «Премиум» с приоритетным производством — закажите до {humanDay(dl.orderByPremium)}.</>
-              ) : (
-                <>
-                  До {o.until} {inDays(dl.daysToTarget)}. Чтобы успеть с доставкой, закажите книгу до <b className="font-medium text-ink">{humanDay(dl.orderBy)}</b>.
-                </>
-              )}
+              {dl.state === "past"
+                ? null
+                : dl.state === "digital"
+                  ? m.occasion.digitalOnly
+                  : dl.state === "premium"
+                    ? m.occasion.premiumOnly(dl.orderByPremium)
+                    : m.occasion.orderBy(m.occasions[o.id], dl.daysToTarget, dl.orderBy)}
             </p>
           ) : (
-            <p className="text-sm text-muted">Укажите дату — подскажем, до какого дня оформить заказ.</p>
+            <p className="text-sm text-muted">{m.occasion.pickDate}</p>
           )}
         </div>
       ) : null}

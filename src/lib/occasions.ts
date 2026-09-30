@@ -6,25 +6,23 @@ import { deliveryOptions, productionWorkdays, type DeliveryId, type PlanId } fro
 
 export type OccasionId = "anniversary" | "birthday" | "valentine" | "march8" | "newyear" | "wedding" | "parents" | "graduation" | "other";
 
+/** Названия поводов на обоих языках — в словаре: common.occasions[id]. */
 export interface Occasion {
   id: OccasionId;
-  label: string;
-  /** Как звучит в фразе «до … осталось»: «до годовщины». */
-  until: string;
   /** Фиксированная дата праздника (месяц 1–12, день). */
   fixed?: { month: number; day: number };
 }
 
 export const occasions: Occasion[] = [
-  { id: "anniversary", label: "Годовщина", until: "годовщины" },
-  { id: "birthday", label: "День рождения", until: "дня рождения" },
-  { id: "valentine", label: "14 февраля", until: "14 февраля", fixed: { month: 2, day: 14 } },
-  { id: "march8", label: "8 марта", until: "8 марта", fixed: { month: 3, day: 8 } },
-  { id: "newyear", label: "Новый год", until: "Нового года", fixed: { month: 12, day: 31 } },
-  { id: "wedding", label: "Свадьба", until: "свадьбы" },
-  { id: "parents", label: "Юбилей родителей", until: "юбилея" },
-  { id: "graduation", label: "Выпускной", until: "выпускного" },
-  { id: "other", label: "Другой повод", until: "праздника" },
+  { id: "anniversary" },
+  { id: "birthday" },
+  { id: "valentine", fixed: { month: 2, day: 14 } },
+  { id: "march8", fixed: { month: 3, day: 8 } },
+  { id: "newyear", fixed: { month: 12, day: 31 } },
+  { id: "wedding" },
+  { id: "parents" },
+  { id: "graduation" },
+  { id: "other" },
 ];
 
 export function getOccasion(id: string | null | undefined): Occasion | undefined {
@@ -114,27 +112,4 @@ export function deadlineFor(target: string, now: Date, delivery: DeliveryId = "c
   else if (daysBetween(today, orderByPremium) >= 0) state = "premium";
   else state = "digital";
   return { target, daysToTarget, orderBy, daysToOrder, orderByPremium, state };
-}
-
-const months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-
-export function humanDay(d: Date | string): string {
-  const x = typeof d === "string" ? parseDay(d) : d;
-  return `${x.getDate()} ${months[x.getMonth()]}`;
-}
-
-export function daysWord(n: number): string {
-  const a = Math.abs(n) % 100;
-  const b = a % 10;
-  if (a > 10 && a < 20) return "дней";
-  if (b === 1) return "день";
-  if (b >= 2 && b <= 4) return "дня";
-  return "дней";
-}
-
-/** Короткая фраза для бейджа: «через 12 дней», «завтра», «сегодня». */
-export function inDays(n: number): string {
-  if (n === 0) return "сегодня";
-  if (n === 1) return "завтра";
-  return `через ${n} ${daysWord(n)}`;
 }

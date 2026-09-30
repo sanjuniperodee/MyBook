@@ -3,8 +3,8 @@ import { booksId } from "@/lib/db/refs";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { bookQuestions, books, crmNotes, users } from "./db/schema";
-import { env } from "./env";
-import { emailLayout, escapeHtml, sendMail } from "./mail";
+import { appLink, emailLayout, escapeHtml, sendMail } from "./mail";
+import { messagesFor } from "@/i18n/messages";
 
 export const REMINDER_COOLDOWN_DAYS = 3;
 
@@ -32,20 +32,21 @@ export async function sendBookReminder(clientId: string, authorId: string | null
   if (!book) return { ok: false, reason: "У клиента нет незавершённых книг" };
 
   const next = (book.firstEmpty ?? 0) + 1;
+  // Клиенту — на его языке; сама CRM и заметка в ней — по-русски.
+  const m = messagesFor(user.locale).mail;
   await sendMail(
     user.email,
-    `Ваша книга «${book.title}» ждёт продолжения`,
+    m.reminder.subject(book.title),
     emailLayout({
-      title: "Ваша книга ждёт продолжения",
+      locale: user.locale,
+      title: m.reminder.title,
       paragraphs: [
-        `Здравствуйте${user.name ? `, ${escapeHtml(user.name)}` : ""}!`,
-        book.answered
-          ? `В книге «${escapeHtml(book.title)}» уже ${book.answered} ${book.answered === 1 ? "ответ" : "ответов"} из ${book.total}. Осталось совсем немного — даже пара ответов за вечер сделает книгу богаче.`
-          : `Книга «${escapeHtml(book.title)}» создана, осталось начать писать. Первый вопрос самый простой — попробуйте прямо сейчас.`,
-        "Все ответы сохраняются автоматически, писать можно и с телефона.",
+        m.hello(escapeHtml(user.name)),
+        book.answered ? m.reminder.progress(escapeHtml(book.title), book.answered, book.total) : m.reminder.empty(escapeHtml(book.title)),
+        m.reminder.autosave,
       ],
-      button: { label: "Продолжить книгу", url: `${env.appUrl}/books/${book.id}/questions?q=${next}` },
-      footnote: "Если нужна помощь с книгой — просто ответьте на это письмо.",
+      button: { label: m.reminder.button, url: appLink(`/books/${book.id}/questions?q=${next}`, user.locale) },
+      footnote: m.reminder.footnote,
     }),
   );
   await db.update(users).set({ remindedAt: new Date() }).where(eq(users.id, user.id));

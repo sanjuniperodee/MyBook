@@ -8,15 +8,14 @@ export type FormatId = "a5" | "square";
 
 export interface BookFormat {
   id: FormatId;
-  name: string;
   short: string;
   widthMm: number;
   heightMm: number;
 }
 
 export const formats: Record<FormatId, BookFormat> = {
-  a5: { id: "a5", name: "Классический A5 · 148×210 мм", short: "A5", widthMm: 148, heightMm: 210 },
-  square: { id: "square", name: "Квадратный · 200×200 мм", short: "200×200", widthMm: 200, heightMm: 200 },
+  a5: { id: "a5", short: "A5", widthMm: 148, heightMm: 210 },
+  square: { id: "square", short: "200×200", widthMm: 200, heightMm: 200 },
 };
 
 export function getFormat(id: string): BookFormat {

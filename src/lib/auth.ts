@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { lredirect } from "@/i18n/server";
 import { and, eq, gt, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
@@ -75,13 +75,13 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
 
 export async function requireUser(next?: string): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) redirect(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
+  if (!user) return lredirect(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
   return user;
 }
 
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser("/admin");
-  if (user.role !== "admin") redirect("/books");
+  if (user.role !== "admin") return lredirect("/books");
   return user;
 }
 

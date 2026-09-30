@@ -5,8 +5,8 @@ import { describePromo, findValidPromo } from "@/lib/promo";
 import { formatPrice, type PlanId } from "@/config/site";
 import type { PromoPreview } from "./actions";
 import { getOccasion } from "@/lib/occasions";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Link } from "@/i18n/client";
+import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { ArrowRight, TriangleAlert, CircleAlert } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getAccessibleBook, getBookPhotos, getBookStats } from "@/lib/books";
@@ -14,24 +14,32 @@ import { checkReadiness } from "@/lib/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
-import { pluralRu } from "@/lib/book/layout";
 import { CheckoutForm } from "./CheckoutForm";
 
-export const metadata: Metadata = { title: "Оформление заказа" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).checkout.meta };
+}
 
 export default async function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser(`/books/${id}/checkout`);
   const book = await getAccessibleBook(id, user);
-  if (book.status !== "draft") redirect(`/books/${book.id}`);
-  const [stats, photos] = await Promise.all([getBookStats(book), getBookPhotos(book.id)]);
-  const issues = checkReadiness(book, stats, photos);
+  if (book.status !== "draft") return lredirect(`/books/${book.id}`);
+  const [stats, photos, locale, m] = await Promise.all([getBookStats(book), getBookPhotos(book.id), getLocale(), getMessages()]);
+  const t = m.checkout;
+  const issues = checkReadiness(book, stats, photos, locale);
   const blocked = issues.some((i) => i.level === "error");
   // Код активированного сертификата подставляем сразу.
   const giftCode = (await cookies()).get(GIFT_COOKIE)?.value;
   const giftCheck = giftCode ? await findValidPromo(giftCode) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok
-    ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: describePromo(giftCheck.promo, formatPrice) }
+    ? {
+        ok: true,
+        code: giftCheck.promo.code,
+        kind: giftCheck.promo.kind,
+        value: giftCheck.promo.value,
+        label: describePromo(giftCheck.promo, formatPrice),
+      }
     : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
   const giftPlan = giftCheck?.ok ? ((await getGiftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;
@@ -52,18 +60,16 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
           />
         </div>
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">Оформление заказа</h1>
-          <p className="mt-2 text-muted">
-            «{book.title}» · ≈ {stats.printedPages} {pluralRu(stats.printedPages, "страница", "страницы", "страниц")} · {stats.answered} {pluralRu(stats.answered, "ответ", "ответа", "ответов")} · {stats.photos} фото
-          </p>
+          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+          <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
         </div>
       </div>
 
       <div className="mt-8 rounded-2xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm">Перед заказом обязательно пролистайте готовый макет — книга будет напечатана именно так.</p>
+          <p className="text-sm">{t.checkPreview}</p>
           <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm">
-            Открыть предпросмотр <ArrowRight className="size-4" />
+            {t.openPreview} <ArrowRight className="size-4" />
           </Link>
         </div>
         {issues.length ? (
@@ -75,7 +81,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
                   {i.text}{" "}
                   {i.href ? (
                     <Link href={i.href} className="underline underline-offset-2">
-                      Исправить
+                      {t.fix}
                     </Link>
                   ) : null}
                 </span>
@@ -86,7 +92,22 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div className="mt-10">
-        <CheckoutForm bookId={book.id} blocked={blocked} initialPromo={initialPromo} initialPlan={giftPlan} defaults={{ name: user.name, email: user.email, phone: user.phone ?? "", desiredDate: book.occasionDate, occasionLabel: getOccasion(book.occasion)?.label ?? null }} />
+        <CheckoutForm
+          bookId={book.id}
+          blocked={blocked}
+          initialPromo={initialPromo}
+          initialPlan={giftPlan}
+          defaults={{
+            name: user.name,
+            email: user.email,
+            phone: user.phone ?? "",
+            desiredDate: book.occasionDate,
+            occasionLabel: (() => {
+              const o = getOccasion(book.occasion);
+              return o ? m.common.occasions[o.id].label : null;
+            })(),
+          }}
+        />
       </div>
     </main>
   );

@@ -1,7 +1,8 @@
 "use server";
 
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
-import { redirect } from "next/navigation";
+import { getLocale, getMessages, lredirect } from "@/i18n/server";
+import { messagesFor } from "@/i18n/messages";
 import { queueEvent, readSource } from "@/lib/track";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -9,7 +10,7 @@ import { passwordResets, sessions, users } from "@/lib/db/schema";
 import { createSession, destroySession, hashPassword, hashToken, newToken, safeNextPath, verifyPassword } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
-import { emailLayout, escapeHtml, sendMail } from "@/lib/mail";
+import { appLink, emailLayout, escapeHtml, sendMail } from "@/lib/mail";
 import { isThemeId } from "@/lib/content/themes";
 
 export interface FormState {
@@ -18,89 +19,100 @@ export interface FormState {
   message?: string;
 }
 
-const emailSchema = z.string().trim().toLowerCase().email("Проверьте адрес почты").max(200);
-const passwordSchema = z.string().min(8, "Пароль — минимум 8 символов").max(200);
+type AuthErrors = Awaited<ReturnType<typeof getMessages>>["auth"]["errors"];
+const emailSchema = (e: AuthErrors) => z.string().trim().toLowerCase().email(e.email).max(200);
+const passwordSchema = (e: AuthErrors) => z.string().min(8, e.password).max(200);
 
 function findUserByEmail(email: string) {
   return db.query.users.findFirst({ where: sql`lower(${users.email}) = ${email.toLowerCase()}` });
 }
 
 export async function registerAction(_: FormState, form: FormData): Promise<FormState> {
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const e = m.auth.errors;
   const parsed = z
     .object({
-      name: z.string().trim().min(1, "Как вас зовут?").max(100),
-      email: emailSchema,
-      password: passwordSchema,
-      consent: z.literal("on", { message: "Нужно согласие с условиями" }),
+      name: z.string().trim().min(1, e.name).max(100),
+      email: emailSchema(e),
+      password: passwordSchema(e),
+      consent: z.literal("on", { message: e.consent }),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  if (!rateLimit(`register:${await clientIp()}`, 10, 3600_000)) return { error: "Слишком много попыток. Попробуйте позже." };
+  if (!rateLimit(`register:${await clientIp()}`, 10, 3600_000)) return { error: e.tooMany };
 
   const { name, email, password } = parsed.data;
-  if (await findUserByEmail(email)) return { error: "Этот e-mail уже зарегистрирован. Войдите в аккаунт." };
+  if (await findUserByEmail(email)) return { error: e.exists };
   const [user] = await db
     .insert(users)
-    .values({ name, email, passwordHash: await hashPassword(password), source: await readSource() })
+    .values({ name, email, locale, passwordHash: await hashPassword(password), source: await readSource() })
     .returning();
   await createSession(user.id);
   await queueEvent("sign_up");
   const theme = String(form.get("theme") ?? "");
-  redirect(isThemeId(theme) ? `/books/new?theme=${theme}` : "/books/new");
+  return lredirect(isThemeId(theme) ? `/books/new?theme=${theme}` : "/books/new");
 }
 
 export async function loginAction(_: FormState, form: FormData): Promise<FormState> {
-  const email = emailSchema.safeParse(form.get("email"));
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const e = m.auth.errors;
+  const email = emailSchema(e).safeParse(form.get("email"));
   const password = String(form.get("password") ?? "");
-  if (!email.success || !password) return { error: "Введите e-mail и пароль" };
+  if (!email.success || !password) return { error: e.credentialsMissing };
   const ip = await clientIp();
   if (!rateLimit(`login:${ip}`, 30, 900_000) || !rateLimit(`login:${email.data}`, 10, 900_000)) {
-    return { error: "Слишком много попыток входа. Подождите 15 минут." };
+    return { error: e.tooManyLogin };
   }
   const user = await findUserByEmail(email.data);
-  if (!user || !(await verifyPassword(password, user.passwordHash))) return { error: "Неверный e-mail или пароль" };
+  if (!user || !(await verifyPassword(password, user.passwordHash))) return { error: e.credentials };
   await createSession(user.id);
-  redirect(safeNextPath(form.get("next")));
+  // Письма приходят на языке, которым человек пользуется сейчас.
+  if (user.locale !== locale) await db.update(users).set({ locale }).where(eq(users.id, user.id));
+  return lredirect(safeNextPath(form.get("next")));
 }
 
 export async function logoutAction() {
   await destroySession();
-  redirect("/");
+  return lredirect("/");
 }
 
 export async function forgotAction(_: FormState, form: FormData): Promise<FormState> {
-  const email = emailSchema.safeParse(form.get("email"));
-  if (!email.success) return { error: "Проверьте адрес почты" };
-  if (!rateLimit(`forgot:${await clientIp()}`, 5, 3600_000)) return { error: "Слишком много запросов. Попробуйте позже." };
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const email = emailSchema(m.auth.errors).safeParse(form.get("email"));
+  if (!email.success) return { error: m.auth.errors.email };
+  if (!rateLimit(`forgot:${await clientIp()}`, 5, 3600_000)) return { error: m.auth.errors.tooManyForgot };
   const user = await findUserByEmail(email.data);
   if (user) {
     const token = newToken();
     await db.insert(passwordResets).values({ id: hashToken(token), userId: user.id, expiresAt: new Date(Date.now() + 3600_000) });
-    const url = `${env.appUrl}/reset/${token}`;
+    // Письмо — на языке страницы, с которой запросили восстановление.
+    const t = messagesFor(locale).mail;
     await sendMail(
       user.email,
-      "Восстановление пароля",
+      t.reset.subject,
       emailLayout({
-        title: "Восстановление пароля",
-        paragraphs: [`Здравствуйте${user.name ? `, ${escapeHtml(user.name)}` : ""}!`, "Чтобы задать новый пароль, нажмите на кнопку ниже. Ссылка действует 1 час."],
-        button: { label: "Задать новый пароль", url },
-        footnote: "Если вы не запрашивали восстановление, просто проигнорируйте это письмо.",
+        locale,
+        title: t.reset.title,
+        paragraphs: [t.hello(escapeHtml(user.name)), t.reset.text],
+        button: { label: t.reset.button, url: appLink(`/reset/${token}`, locale) },
+        footnote: t.reset.footnote,
       }),
     );
   }
-  return { ok: true, message: "Если такой e-mail зарегистрирован, мы отправили на него ссылку для восстановления." };
+  return { ok: true, message: m.auth.forgot.sent };
 }
 
 export async function resetAction(_: FormState, form: FormData): Promise<FormState> {
   const token = String(form.get("token") ?? "");
-  const password = passwordSchema.safeParse(form.get("password"));
+  const m = await getMessages();
+  const password = passwordSchema(m.auth.errors).safeParse(form.get("password"));
   if (!password.success) return { error: password.error.issues[0].message };
   const [reset] = await db
     .select()
     .from(passwordResets)
     .where(and(eq(passwordResets.id, hashToken(token)), gt(passwordResets.expiresAt, new Date()), isNull(passwordResets.usedAt)))
     .limit(1);
-  if (!reset) return { error: "Ссылка устарела или уже использована. Запросите новую." };
+  if (!reset) return { error: m.auth.errors.resetExpired };
   const owner = await db.query.users.findFirst({ where: eq(users.id, reset.userId) });
   // Права администратора из ADMIN_EMAILS выдаются только здесь: переход по ссылке из письма подтверждает владение адресом.
   const promote = !!owner && owner.role !== "admin" && env.adminEmails.includes(owner.email.toLowerCase());
@@ -111,5 +123,5 @@ export async function resetAction(_: FormState, form: FormData): Promise<FormSta
   await db.update(passwordResets).set({ usedAt: new Date() }).where(eq(passwordResets.id, reset.id));
   await db.delete(sessions).where(eq(sessions.userId, reset.userId));
   await createSession(reset.userId);
-  redirect("/books");
+  return lredirect("/books");
 }

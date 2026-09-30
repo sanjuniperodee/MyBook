@@ -15,6 +15,7 @@ describe("письма близких", () => {
   it("становятся последней главой книги, без пустых писем", () => {
     const book = {
       theme: "love",
+    language: "ru" as const,
       title: "Т",
       subtitle: "",
       authorName: "А",
@@ -46,6 +47,7 @@ describe("фото внутри ответа", () => {
   it("печатается после ответа и не дублируется между главами", () => {
     const book = {
       theme: "love",
+    language: "ru" as const,
       title: "Т",
       subtitle: "",
       authorName: "А",

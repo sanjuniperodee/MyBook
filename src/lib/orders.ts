@@ -2,10 +2,13 @@ import "server-only";
 import { after } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "./db";
-import { books, orderEvents, orders, type Order, type OrderStatus } from "./db/schema";
+import { books, orderEvents, orders, users, type Order, type OrderStatus } from "./db/schema";
 import { formatPrice, getPlan } from "@/config/site";
 import { env } from "./env";
-import { emailLayout, escapeHtml, sendMail } from "./mail";
+import { appLink, emailLayout, escapeHtml, sendMail } from "./mail";
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
+import { planName } from "@/i18n/labels";
 import { orderStatusLabel } from "./orders-shared";
 import { fileExists, getFile, putFile } from "./storage";
 import { releasePromo } from "./promo";
@@ -26,8 +29,14 @@ export async function getOrderWithBook(orderId: string) {
   });
 }
 
-function orderUrl(order: Order) {
-  return `${env.appUrl}/orders/${order.id}`;
+function orderUrl(order: Order, locale: Locale = "ru") {
+  return appLink(`/orders/${order.id}`, locale);
+}
+
+/** Язык писем клиенту — из его профиля. */
+async function customerLocale(order: Pick<Order, "userId">): Promise<Locale> {
+  const [u] = await db.select({ locale: users.locale }).from(users).where(eq(users.id, order.userId)).limit(1);
+  return u?.locale ?? "ru";
 }
 
 /** Смена статуса заказа + журнал + письмо клиенту. */
@@ -68,7 +77,7 @@ export async function markOrderPaid(orderId: string, actor: string, paymentId?: 
     await sendMail(
       env.ordersNotifyEmail,
       `Оплачен заказ №${order.number}`,
-      emailLayout({ title: `Заказ №${order.number} оплачен`, paragraphs: [`Сумма: ${formatPrice(order.amount)}`, `Тариф: ${getPlan(order.plan)?.name}`], button: { label: "Открыть в админке", url: `${env.appUrl}/admin/orders/${order.id}` } }),
+      emailLayout({ title: `Заказ №${order.number} оплачен`, paragraphs: [`Сумма: ${formatPrice(order.amount)}`, `Тариф: ${planName(order.plan)}`], button: { label: "Открыть в админке", url: `${env.appUrl}/admin/orders/${order.id}` } }),
     );
   }
   return order;
@@ -85,39 +94,37 @@ function runInBackground(task: () => Promise<void>) {
 
 async function notifyCustomer(order: Order, status: OrderStatus) {
   const plan = getPlan(order.plan);
-  const button = { label: "Открыть заказ", url: orderUrl(order) };
-  const t = (title: string, paragraphs: string[]) => sendMail(order.contactEmail, `${title} — заказ №${order.number}`, emailLayout({ title, paragraphs, button }));
+  const locale = await customerLocale(order);
+  const m = messagesFor(locale).mail.order;
+  const button = { label: m.open, url: orderUrl(order, locale) };
+  const send = (title: string, paragraphs: string[]) => sendMail(order.contactEmail, m.subject(title, order.number), emailLayout({ locale, title, paragraphs, button }));
   switch (status) {
     case "paid":
-      return t("Спасибо! Оплата получена", [
-        `Заказ №${order.number} на сумму ${formatPrice(order.amount)} оплачен.`,
-        plan?.printed ? "Мы уже готовим книгу к печати. Как только она будет отправлена, пришлём письмо с трек-номером." : "Электронная версия книги уже доступна для скачивания на странице заказа.",
-      ]);
+      return send(m.paid.title, [m.paid.text(order.number, formatPrice(order.amount)), plan?.printed ? m.paid.printed : m.paid.digital]);
     case "in_production":
-      return t("Книга в производстве", ["Ваша книга отправлена в печать. Обычно это занимает несколько рабочих дней."]);
+      return send(m.production.title, [m.production.text]);
     case "shipped":
-      return t("Книга в пути", [
-        "Ваша книга напечатана и передана в доставку.",
-        order.trackingNumber ? `Трек-номер: <b>${escapeHtml(order.trackingNumber)}</b>` : "",
-      ].filter(Boolean));
+      return send(m.shipped.title, [m.shipped.text, order.trackingNumber ? m.shipped.tracking(escapeHtml(order.trackingNumber)) : ""].filter(Boolean));
     case "delivered":
-      return t("Книга доставлена", ["Надеемся, подарок получился особенным. Будем рады вашему отзыву!"]);
+      return send(m.delivered.title, [m.delivered.text]);
     case "cancelled":
-      return t("Заказ отменён", ["Заказ отменён. Книгу снова можно редактировать и оформить новый заказ."]);
+      return send(m.cancelled.title, [m.cancelled.text]);
     default:
       return;
   }
 }
 
 export async function notifyNewOrder(order: Order) {
-  const plan = getPlan(order.plan);
+  const locale = await customerLocale(order);
+  const m = messagesFor(locale).mail.order.created;
   await sendMail(
     order.contactEmail,
-    `Заказ №${order.number} оформлен`,
+    m.subject(order.number),
     emailLayout({
-      title: "Заказ оформлен",
-      paragraphs: [`Номер заказа: <b>№${order.number}</b>`, `Тариф: ${plan?.name}, ${order.quantity} экз.`, `Сумма к оплате: <b>${formatPrice(order.amount)}</b>`],
-      button: { label: "Перейти к оплате", url: orderUrl(order) },
+      locale,
+      title: m.title,
+      paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), m.amount(formatPrice(order.amount))],
+      button: { label: m.button, url: orderUrl(order, locale) },
     }),
   );
   if (env.ordersNotifyEmail) {
@@ -126,7 +133,7 @@ export async function notifyNewOrder(order: Order) {
       `Новый заказ №${order.number}`,
       emailLayout({
         title: `Новый заказ №${order.number}`,
-        paragraphs: [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${plan?.name} × ${order.quantity} — ${formatPrice(order.amount)}`],
+        paragraphs: [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}`],
         button: { label: "Открыть в админке", url: `${env.appUrl}/admin/orders/${order.id}` },
       }),
     );

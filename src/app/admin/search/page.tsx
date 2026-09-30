@@ -1,8 +1,9 @@
+import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { books, orders, users } from "@/lib/db/schema";
-import { formatPrice, getPlan } from "@/config/site";
+import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -59,7 +60,7 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
             <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-cream/40">
               <span className="w-14 font-medium">№{o.number}</span>
               <span className="min-w-0 flex-1 truncate">
-                {o.contactName} · {o.contactPhone} · {getPlan(o.plan)?.name}
+                {o.contactName} · {o.contactPhone} · {planName(o.plan)}
               </span>
               <span className={cn("rounded-full px-2 py-0.5 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>
               <span className="w-24 text-right tabular-nums">{formatPrice(o.amount)}</span>

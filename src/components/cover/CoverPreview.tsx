@@ -14,6 +14,9 @@ export interface CoverPreviewProps {
   uid?: string;
   /** Без фактуры — быстрее для множества мелких превью. */
   lite?: boolean;
+  /** Подсказки на языке страницы: пустое название и шаблон «с фото» без фото. */
+  titlePlaceholder?: string;
+  photoHint?: string;
 }
 
 function textCss(s: CoverTextStyle): React.CSSProperties {
@@ -53,7 +56,7 @@ export function Ornament({ kind, color }: NonNullable<CoverTemplate["ornament"]>
   );
 }
 
-export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite }: CoverPreviewProps) {
+export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
   const template = getCoverTemplate(templateId);
   const format = getFormat(formatId);
   const g = coverFrontGeometry(format);
@@ -67,14 +70,14 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
       style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}`, containerType: "inline-size" }}
     >
       <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
-      {template.requiresPhoto && !photoUrl ? (
-        <div className="absolute inset-x-0 top-[28%] text-center text-[4cqw] text-white/80">Выберите фото для обложки</div>
+      {template.requiresPhoto && !photoUrl && photoHint ? (
+        <div className="absolute inset-x-0 top-[28%] text-center text-[4cqw] text-white/80">{photoHint}</div>
       ) : null}
       <div
         className="absolute flex flex-col items-center"
         style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify }}
       >
-        <div style={textCss(template.title)}>{title || "Название книги"}</div>
+        <div style={textCss(template.title)}>{title || titlePlaceholder}</div>
         {subtitle ? <div style={{ ...textCss(template.subtitle), marginTop: "1.5cqw" }}>{subtitle}</div> : null}
         {template.ornament && names ? (
           <div style={{ margin: "3cqw 0", display: "flex", justifyContent: "center" }}>

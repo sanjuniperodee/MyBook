@@ -10,9 +10,9 @@ export const maxDuration = 300;
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const user = await apiUser(req);
-  if (user.role !== "admin") throw new HttpError(403, "Нет доступа");
+  if (user.role !== "admin") throw new HttpError(403, "forbidden");
   const order = await getOrderWithBook(id);
-  if (!order) throw new HttpError(404, "Заказ не найден");
+  if (!order) throw new HttpError(404, "orderNotFound");
   const keys = await ensurePrintFiles(order);
   const [block, cover, spec] = await Promise.all([getFile(keys.block), getFile(keys.cover), getFile(keys.spec)]);
   const zip = new ZipArchive({ zlib: { level: 6 } });

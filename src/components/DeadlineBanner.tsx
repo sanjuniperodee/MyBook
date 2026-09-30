@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { CalendarHeart, Clock, Zap } from "lucide-react";
-import { deadlineFor, getOccasion, humanDay, inDays } from "@/lib/occasions";
+import { Link } from "@/i18n/client";
+import { getMessages } from "@/i18n/server";
+import { deadlineFor, getOccasion, parseDay } from "@/lib/occasions";
 import { cn, nowMs } from "@/lib/utils";
 
 /** Сколько ответов считаем «полноценной книгой» для расчёта темпа. */
@@ -10,7 +11,7 @@ const GOOD_BOOK_ANSWERS = 30;
  * Отсчёт до праздника: когда оформить заказ и какой нужен темп письма.
  * Показывается на обзоре книги; без даты — приглашение указать повод.
  */
-export function DeadlineBanner({
+export async function DeadlineBanner({
   bookId,
   occasion,
   occasionDate,
@@ -23,12 +24,13 @@ export function DeadlineBanner({
   answered: number;
   compact?: boolean;
 }) {
+  const m = (await getMessages()).common;
   const o = getOccasion(occasion);
   if (!o || !occasionDate) {
     if (compact) return null;
     return (
       <Link href={`/books/${bookId}/settings#occasion`} className="mt-4 inline-flex items-center gap-2 text-sm text-muted underline-offset-4 hover:text-wine hover:underline">
-        <CalendarHeart className="size-4" /> Книга к празднику? Укажите дату — подскажем, когда заказать
+        <CalendarHeart className="size-4" /> {m.deadline.addDate}
       </Link>
     );
   }
@@ -51,34 +53,27 @@ export function DeadlineBanner({
     >
       <div className={cn("flex size-11 shrink-0 flex-col items-center justify-center rounded-2xl leading-none", tone === "hot" ? "bg-wine text-white" : "bg-cream text-ink")}>
         <span className="font-serif text-lg font-medium tabular-nums">{dl.daysToTarget}</span>
-        <span className="text-[9px] tracking-wide uppercase opacity-70">дн.</span>
+        <span className="text-[9px] tracking-wide uppercase opacity-70">{m.daysShort}</span>
       </div>
       <div className="min-w-0 flex-1 text-sm leading-relaxed">
-        <div className="font-medium text-ink">
-          {o.label} — {humanDay(occasionDate)}, {inDays(dl.daysToTarget)}
-        </div>
+        <div className="font-medium text-ink">{m.deadline.headline(m.occasions[o.id].label, parseDay(occasionDate), dl.daysToTarget)}</div>
         {dl.state === "digital" ? (
-          <p className="text-ink-soft">Печатная книга уже не успеет к этой дате. Электронную версию можно подарить сразу после оплаты, а печатную — вручить позже.</p>
+          <p className="text-ink-soft">{m.deadline.digital}</p>
         ) : dl.state === "premium" ? (
           <p className="text-ink-soft">
             <Zap className="mr-1 inline size-3.5 text-wine" />
-            Успеет только тариф «Премиум» с приоритетным производством — оформите заказ до <b className="font-medium text-ink">{humanDay(dl.orderByPremium)}</b>.
+            {m.deadline.premium(dl.orderByPremium)}
           </p>
         ) : (
           <p className="text-ink-soft">
             <Clock className="mr-1 inline size-3.5" />
-            Оформите заказ до <b className="font-medium text-ink">{humanDay(dl.orderBy)}</b> ({inDays(dl.daysToOrder)}) — книга успеет с курьерской доставкой.
-            {perDay ? (
-              <>
-                {" "}
-                Хороший темп — {perDay} {perDay === 1 ? "ответ" : perDay < 5 ? "ответа" : "ответов"} в день.
-              </>
-            ) : null}
+            {m.deadline.orderBy(dl.orderBy, dl.daysToOrder)}
+            {perDay ? m.deadline.pace(perDay) : null}
           </p>
         )}
         {!compact ? (
           <Link href={`/books/${bookId}/settings#occasion`} className="mt-1 inline-block text-xs text-muted hover:text-wine">
-            Изменить дату
+            {m.deadline.changeDate}
           </Link>
         ) : null}
       </div>

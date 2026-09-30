@@ -85,6 +85,13 @@
       "when": 1790714136211,
       "tag": "0011_order_addons",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790750952918,
+      "tag": "0012_i18n",
+      "breakpoints": true
     }
   ]
 }

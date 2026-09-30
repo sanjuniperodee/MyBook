@@ -5,14 +5,39 @@ import { getCurrentUser } from "./auth";
 import { findAccessibleBook, isEditable } from "./books";
 import type { Book, User } from "./db/schema";
 import { env } from "./env";
+import { getMessages } from "@/i18n/server";
+import type { Messages } from "@/i18n/messages";
 
-export class HttpError extends Error {
+type ApiMessages = Messages["api"];
+export type ApiErrorKey = keyof ApiMessages;
+type Params<K extends ApiErrorKey> = ApiMessages[K] extends (...a: infer A) => string ? A : [];
+
+/** Ошибка с HTTP-статусом. message — ключ словаря api, текст подставляется на языке пользователя. */
+export class HttpError<K extends ApiErrorKey = ApiErrorKey> extends Error {
+  public params: unknown[];
   constructor(
     public status: number,
-    message: string,
+    public code: K,
+    ...params: Params<K>
   ) {
-    super(message);
+    super(code);
+    this.params = params;
   }
+}
+
+function isApiKey(t: ApiMessages, key: string): key is ApiErrorKey {
+  return Object.prototype.hasOwnProperty.call(t, key);
+}
+
+/** Текст ошибки по ключу; незнакомая строка возвращается как есть. */
+function translate(t: ApiMessages, key: string, params: unknown[] = []): string {
+  if (!isApiKey(t, key)) return key;
+  const v = t[key] as string | ((...a: unknown[]) => string);
+  return typeof v === "function" ? v(...params) : v;
+}
+
+function fail(t: ApiMessages, status: number, code: string, params?: unknown[]) {
+  return NextResponse.json({ error: translate(t, code, params), code: isApiKey(t, code) ? code : undefined }, { status });
 }
 
 type Handler<C> = (req: Request, ctx: C) => Promise<Response>;
@@ -23,11 +48,16 @@ export function api<C>(handler: Handler<C>): Handler<C> {
     try {
       return await handler(req, ctx);
     } catch (err) {
-      if (err instanceof HttpError) return NextResponse.json({ error: err.message }, { status: err.status });
-      if (err instanceof SyntaxError) return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
-      if (err instanceof ZodError) return NextResponse.json({ error: err.issues[0]?.message ?? "Некорректные данные" }, { status: 400 });
+      const t = (await getMessages()).api;
+      if (err instanceof HttpError) return fail(t, err.status, err.code, err.params);
+      if (err instanceof SyntaxError) return fail(t, 400, "badRequest");
+      if (err instanceof ZodError) {
+        // В схемах сообщения — ключи словаря; встроенные сообщения zod (английские) заменяем общим текстом.
+        const key = err.issues[0]?.message ?? "";
+        return fail(t, 400, isApiKey(t, key) ? key : "badData");
+      }
       console.error("[api]", err);
-      return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
+      return fail(t, 500, "server");
     }
   };
 }
@@ -39,20 +69,20 @@ function checkOrigin(req: Request) {
   if (!origin) return;
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   const allowed = new Set([new URL(env.appUrl).host, host]);
-  if (!allowed.has(new URL(origin).host)) throw new HttpError(403, "Запрос отклонён");
+  if (!allowed.has(new URL(origin).host)) throw new HttpError(403, "forbidden");
 }
 
 export async function apiUser(req: Request): Promise<User> {
   checkOrigin(req);
   const user = await getCurrentUser();
-  if (!user) throw new HttpError(401, "Нужно войти в аккаунт");
+  if (!user) throw new HttpError(401, "unauthorized");
   return user;
 }
 
 export async function apiBook(req: Request, bookId: string, opts: { editable?: boolean } = {}): Promise<{ user: User; book: Book }> {
   const user = await apiUser(req);
   const book = await findAccessibleBook(bookId, user);
-  if (!book) throw new HttpError(404, "Книга не найдена");
-  if (opts.editable && !isEditable(book)) throw new HttpError(409, "Книга уже передана в печать и не может быть изменена");
+  if (!book) throw new HttpError(404, "bookNotFound");
+  if (opts.editable && !isEditable(book)) throw new HttpError(409, "bookLocked");
   return { user, book };
 }

@@ -1,4 +1,5 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { Link } from "@/i18n/client";
 import {
   ArrowRight,
   BookHeart,
@@ -23,72 +24,24 @@ import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
-import { countQuestions, themes } from "@/lib/content/themes";
+import { countQuestions, getThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/lib/auth";
 import { formatPrice, plans, productionDays, site } from "@/config/site";
-import { pluralRu } from "@/lib/book/layout";
+import { getLocale, getMessages } from "@/i18n/server";
+import { alternates } from "@/i18n/seo";
+import { coverName } from "@/i18n/labels";
 
-const sampleTitles: Record<string, { title: string; names: string; subtitle?: string }> = {
-  blossom: { title: "Ты — моё всё", names: "Алия & Марғұлан" },
-  linen: { title: "Наша история", names: "Дана & Тимур" },
-  midnight: { title: "Папа, спасибо", names: "от Арнура" },
-  sage: { title: "Мама, это для тебя", names: "Твоя Айгерим" },
-  terracotta: { title: "Друзья навсегда", names: "Мадина & Жанель" },
-  hearts: { title: "Пять лет любви", names: "Саша & Ника" },
-  script: { title: "Моя любовь", names: "Ерлан & Асель" },
-  ocean: { title: "Наше лето", names: "Ильяс & Камила" },
-  terrazzo: { title: "Просто мы", names: "Аня & Макс" },
-  noir: { title: "Навсегда", names: "Даурен & Сабина" },
-  photo: { title: "Мы", names: "Айдос & Лаура" },
-  oyu: { title: "Әже, рахмет", names: "Немерелерің" },
-  constellation: { title: "Ты — моя звезда", names: "Тимур & Алина" },
-  sunrise: { title: "Мама, доброе утро", names: "Твоя Дана" },
-  herbarium: { title: "Наш сад", names: "Бабушке от Амины" },
-  tulips: { title: "Для мамы", names: "С любовью, Жанна" },
-  deco: { title: "Десять лет", names: "Арман & Диана" },
-  leather: { title: "История семьи", names: "Папе от сыновей" },
-  letter: { title: "Письма тебе", names: "Нурлан & Айя" },
-  lemons: { title: "Солнце моё", names: "Карина & Бекзат" },
-  mountains: { title: "Папа и горы", names: "от Данияра" },
-};
-
-const faq = [
-  {
-    q: "Сколько времени нужно, чтобы написать книгу?",
-    a: "Обычно от двух вечеров до пары недель. Все ответы сохраняются автоматически — можно писать с телефона в дороге и продолжать с компьютера дома. Отвечать на все вопросы не обязательно: в книгу попадут только заполненные.",
-  },
-  {
-    q: "Что если я не умею красиво писать?",
-    a: "Этого и не нужно. Пишите так, как рассказали бы подруге за чашкой чая. Для каждого вопроса есть подсказки, а заголовки глав и вёрстку мы берём на себя — текст в книге выглядит как в хорошем романе.",
-  },
-  {
-    q: "Можно ли добавить свои вопросы или изменить формулировки?",
-    a: "Да. Любой заголовок можно переписать, скрыть или добавить собственный вопрос в любую главу. Книга — ваша, мы лишь помогаем начать.",
-  },
-  {
-    q: "Как выглядит книга и из чего она сделана?",
-    a: "Твёрдый переплёт с шитым блоком, плотная бумага, полноцветная печать фотографий. Перед заказом вы видите точный PDF-макет каждой страницы — ровно так книга и будет напечатана.",
-  },
-  {
-    q: "Сколько стоит доставка и как долго ждать?",
-    a: `Производство занимает ${productionDays.standard} рабочих дней (${productionDays.premium} для тарифа «Премиум»). Доставляем курьером по Алматы и Астане и по всему Казахстану. Электронную версию можно скачать сразу после оплаты.`,
-  },
-  {
-    q: "Мои тексты кто-то увидит?",
-    a: "Нет. Ваша книга доступна только вам. Сотрудники производства получают готовые файлы для печати исключительно для выполнения заказа.",
-  },
-  {
-    q: "Можно ли заказать несколько экземпляров?",
-    a: "Конечно — например, для родителей с обеих сторон. Дополнительные экземпляры стоят дешевле первого.",
-  },
-];
-
-const occasions = ["Годовщина", "День рождения", "14 февраля", "Свадьба", "Юбилей родителей", "8 марта", "Новый год", "Просто так"];
+export async function generateMetadata(): Promise<Metadata> {
+  return { alternates: alternates("/", await getLocale()) };
+}
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
+  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  const t = m.landing;
   const cta = user ? "/books/new" : "/register";
+  const themes = getThemes(locale);
   const loveCount = countQuestions(themes[0]);
+  const faq = t.faq.items(productionDays);
 
   return (
     <>
@@ -100,12 +53,12 @@ export default async function HomePage() {
           <div className="container-x grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
             <div>
               <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft shadow-soft">
-                <Sparkles className="size-4 text-wine" /> Подарок, который невозможно купить в магазине
+                <Sparkles className="size-4 text-wine" /> {t.hero.badge}
               </div>
               <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
-                Книга о вашей любви,{" "}
+                {t.hero.titleStart}{" "}
                 <em className="relative inline-block text-wine">
-                  написанная вами
+                  {t.hero.titleAccent}
                   {/* Рукописный росчерк под акцентом — «рисуется» при загрузке */}
                   <svg className="draw pointer-events-none absolute -bottom-2 left-0 h-3 w-full sm:-bottom-3 sm:h-4" viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden>
                     <path d="M3 11 C 60 3, 120 3, 170 8 S 260 14, 297 5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ "--len": 320, "--d": 700 } as React.CSSProperties} />
@@ -113,20 +66,20 @@ export default async function HomePage() {
                 </em>
               </h1>
               <p style={{ "--i": 2 } as React.CSSProperties} className="enter mt-6 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">
-                Отвечайте на тёплые вопросы, добавляйте фотографии и выбирайте обложку. Мы сверстаем всё как настоящее издание и напечатаем книгу в твёрдом переплёте.
+                {t.hero.lead}
               </p>
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link href={cta} className="btn btn-primary btn-lg">
-                  Начать писать бесплатно <ArrowRight className="size-5" />
+                  {t.hero.cta} <ArrowRight className="size-5" />
                 </Link>
                 <a href="#inside" className="btn btn-outline btn-lg">
-                  Посмотреть пример
+                  {t.hero.sample}
                 </a>
               </div>
               <ul style={{ "--i": 4 } as React.CSSProperties} className="enter mt-9 grid max-w-lg grid-cols-1 gap-2.5 text-[15px] text-ink-soft sm:grid-cols-2">
-                {["Писать можно бесплатно", "Точный макет перед печатью", "Автосохранение каждого слова", "Доставка по Казахстану"].map((t) => (
-                  <li key={t} className="flex items-center gap-2">
-                    <Check className="size-4 shrink-0 text-wine" /> {t}
+                {t.hero.bullets.map((b) => (
+                  <li key={b} className="flex items-center gap-2">
+                    <Check className="size-4 shrink-0 text-wine" /> {b}
                   </li>
                 ))}
               </ul>
@@ -134,22 +87,22 @@ export default async function HomePage() {
             <div className="relative mx-auto h-[420px] w-full max-w-[520px] sm:h-[520px]">
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter absolute top-6 left-[2%] w-[44%]">
                 <div className="animate-float [--r:-8deg] [animation-delay:-2s]">
-                  <Book3D template="midnight" title="Папа, спасибо" names="от Арнура" rotate={18} className="drop-shadow-xl" />
+                  <Book3D template="midnight" title={t.hero.books.dad.title} names={t.hero.books.dad.names} rotate={18} className="drop-shadow-xl" />
                 </div>
               </div>
               <div style={{ "--i": 4 } as React.CSSProperties} className="enter absolute top-0 right-[4%] w-[40%]">
                 <div className="animate-float [--r:7deg] [animation-delay:-4s]">
-                  <Book3D template="sage" title="Мама, это для тебя" names="Твоя Айгерим" rotate={-18} />
+                  <Book3D template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
                 </div>
               </div>
               <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
                 <div className="animate-float">
-                  <Book3D template="blossom" title="Ты — моё всё" subtitle="Четыре года вместе" names="Алия & Марғұлан" rotate={-14} />
+                  <Book3D template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
                 </div>
               </div>
               {/* Рукописная пометка со стрелкой */}
               <div style={{ "--i": 7 } as React.CSSProperties} className="enter pointer-events-none absolute bottom-[18%] -left-4 hidden items-end gap-1 text-wine lg:flex">
-                <span className="-rotate-6 font-hand text-2xl leading-none">а это — ваша</span>
+                <span className="-rotate-6 font-hand text-2xl leading-none">{t.hero.note}</span>
                 <svg className="draw mb-1 h-10 w-16" viewBox="0 0 64 40" fill="none" aria-hidden>
                   <path d="M2 30 C 18 38, 40 34, 58 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ "--len": 80, "--d": 900 } as React.CSSProperties} />
                   <path d="M49 12 L 59 11 L 57 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ "--len": 30, "--d": 1300 } as React.CSSProperties} />
@@ -162,8 +115,8 @@ export default async function HomePage() {
         {/* ─── OCCASIONS ─── */}
         <section className="border-y border-line/70 bg-white/60 py-5">
           <div className="no-scrollbar container-x flex gap-3 overflow-x-auto">
-            <span className="shrink-0 py-1.5 text-sm text-muted">Идеально на:</span>
-            {occasions.map((o) => (
+            <span className="shrink-0 py-1.5 text-sm text-muted">{t.occasions.label}</span>
+            {t.occasions.items.map((o) => (
               <span key={o} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft">
                 {o}
               </span>
@@ -175,16 +128,11 @@ export default async function HomePage() {
         <section id="how" className="scroll-mt-20 py-20 sm:py-28">
           <div className="container-x">
             <div className="reveal max-w-2xl">
-              <div className="eyebrow">Как это работает</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Четыре шага до книги, которую будут перечитывать годами</h2>
+              <div className="eyebrow">{t.how.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.how.title}</h2>
             </div>
             <div className="reveal-stagger mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { icon: BookHeart, title: "Выберите, кому", text: "Любимому человеку, маме, папе или другу — для каждого свой набор вопросов и глав." },
-                { icon: PenLine, title: "Отвечайте на вопросы", text: `До ${loveCount} продуманных вопросов с подсказками. Пишите сколько хотите — хоть по строчке в день.` },
-                { icon: Camera, title: "Добавьте фото и обложку", text: "Загрузите фотографии, выберите макет страниц и одну из дизайнерских обложек." },
-                { icon: Truck, title: "Получите книгу", text: "Проверьте готовый макет, оформите заказ — мы напечатаем и доставим книгу." },
-              ].map((s, i) => (
+              {t.how.steps(loveCount).map((step, i) => ({ ...step, icon: [BookHeart, PenLine, Camera, Truck][i] })).map((s, i) => (
                 <div key={s.title} className="card relative p-7">
                   <div className="flex items-center justify-between">
                     <div className="flex size-12 items-center justify-center rounded-2xl bg-rose text-wine">
@@ -204,28 +152,22 @@ export default async function HomePage() {
         <section id="inside" className="scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
           <div className="container-x grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]">
             <div className="reveal">
-              <div className="eyebrow text-[#e3a6ae]">Пример книги</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Не альбом и не анкета — настоящая книга</h2>
+              <div className="eyebrow text-[#e3a6ae]">{t.inside.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.inside.title}</h2>
               <p className="mt-5 text-lg leading-relaxed text-paper/70">
-                Ваши ответы превращаются в главы с красивыми заголовками, эпиграфами и оглавлением. Профессиональная типографика, переносы и поля — как в изданиях, которые стоят на полке годами.
+                {t.inside.text}
               </p>
               <ul className="mt-8 space-y-4">
-                {[
-                  "Титульный лист, посвящение и оглавление",
-                  "Главы: знакомство, первое свидание, мечты, благодарность…",
-                  "Фото прямо в тексте — в рамке, полароидом, на всю страницу",
-                  "Письма от близких — отдельной главой",
-                  "Три стиля вёрстки и два формата книги",
-                ].map((t) => (
-                  <li key={t} className="flex gap-3 text-paper/85">
-                    <Check className="mt-0.5 size-5 shrink-0 text-[#e3a6ae]" /> {t}
+                {t.inside.bullets.map((b) => (
+                  <li key={b} className="flex gap-3 text-paper/85">
+                    <Check className="mt-0.5 size-5 shrink-0 text-[#e3a6ae]" /> {b}
                   </li>
                 ))}
               </ul>
             </div>
             <div>
               <SampleBook />
-              <p className="mt-3 text-center text-xs text-paper/40"><span className="hidden md:inline">Листайте стрелками или нажмите на страницу</span><span className="md:hidden">Листайте свайпом</span></p>
+              <p className="mt-3 text-center text-xs text-paper/40"><span className="hidden md:inline">{t.inside.hintDesktop}</span><span className="md:hidden">{t.inside.hintMobile}</span></p>
             </div>
           </div>
         </section>
@@ -235,27 +177,27 @@ export default async function HomePage() {
           <div className="container-x">
             <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div className="max-w-2xl">
-                <div className="eyebrow">Кому подарить</div>
-                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Для каждого — своя история</h2>
+                <div className="eyebrow">{t.themes.eyebrow}</div>
+                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.themes.title}</h2>
               </div>
-              <p className="max-w-sm text-muted">Вопросы написаны отдельно для каждого случая и учитывают, кто пишет и кому — «ты увидел» или «ты увидела».</p>
+              <p className="max-w-sm text-muted">{t.themes.note}</p>
             </div>
             <div className="reveal-stagger mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {themes.map((t) => {
-                const qn = countQuestions(t);
+              {themes.map((th) => {
+                const qn = countQuestions(th);
                 return (
-                  <Link key={t.id} href={user ? `/books/new?theme=${t.id}` : `/register?theme=${t.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
+                  <Link key={th.id} href={user ? `/books/new?theme=${th.id}` : `/register?theme=${th.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
                     <div className="flex justify-center bg-cream/60 px-10 pt-8 pb-0">
                       <div className="w-[62%] translate-y-4 transition duration-500 group-hover:translate-y-1">
-                        <CoverPreview template={t.defaultCover} title={t.titleSuggestions[0]} names={sampleTitles[t.defaultCover]?.names} lite className="rounded-sm shadow-book" />
+                        <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={t.coverSamples[th.defaultCover]?.names} lite className="rounded-sm shadow-book" />
                       </div>
                     </div>
                     <div className="flex flex-1 flex-col p-6">
-                      <h3 className="text-lg font-semibold">{t.name}</h3>
-                      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{t.description}</p>
+                      <h3 className="text-lg font-semibold">{th.name}</h3>
+                      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{th.description}</p>
                       <div className="mt-5 flex items-center justify-between text-sm">
                         <span className="text-muted">
-                          {qn} {pluralRu(qn, "вопрос", "вопроса", "вопросов")} · {t.chapters.length} {pluralRu(t.chapters.length, "глава", "главы", "глав")}
+                          {t.themes.meta(qn, th.chapters.length)}
                         </span>
                         <ArrowRight className="size-4 text-wine transition group-hover:translate-x-1" />
                       </div>
@@ -271,21 +213,21 @@ export default async function HomePage() {
         <section id="covers" className="scroll-mt-20 bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
             <div className="reveal mx-auto max-w-2xl text-center">
-              <div className="eyebrow">Обложки</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{coverTemplates.filter((t) => !t.requiresPhoto).length} дизайнерских обложек — или ваше фото</h2>
-              <p className="mt-4 text-muted">Название, имена и подзаголовок вы задаёте сами. Меняйте обложку сколько угодно — до самой печати.</p>
+              <div className="eyebrow">{t.covers.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length)}</h2>
+              <p className="mt-4 text-muted">{t.covers.text}</p>
             </div>
             <div className="reveal-stagger mt-14 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">
               {coverTemplates
-                .filter((t) => !t.requiresPhoto)
-                .map((t) => {
-                  const s = sampleTitles[t.id];
+                .filter((c) => !c.requiresPhoto)
+                .map((c) => {
+                  const s = t.coverSamples[c.id];
                   return (
-                    <div key={t.id} className="group">
+                    <div key={c.id} className="group">
                       <div className="transition duration-500 group-hover:-translate-y-2">
-                        <CoverPreview template={t.id} title={s.title} names={s.names} className="rounded-[3px] shadow-book" />
+                        <CoverPreview template={c.id} title={s.title} names={s.names} className="rounded-[3px] shadow-book" />
                       </div>
-                      <div className="mt-3 text-center text-sm text-muted">{t.name}</div>
+                      <div className="mt-3 text-center text-sm text-muted">{coverName(c.id, locale)}</div>
                     </div>
                   );
                 })}
@@ -297,18 +239,11 @@ export default async function HomePage() {
         <section className="py-20 sm:py-28">
           <div className="container-x">
             <div className="max-w-2xl">
-              <div className="eyebrow">Почему {site.name}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Сделано, чтобы вам было легко писать</h2>
+              <div className="eyebrow">{t.features.eyebrow(site.name)}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.features.title}</h2>
             </div>
             <div className="reveal-stagger mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { icon: Save, title: "Автосохранение", text: "Каждое слово сохраняется само. Закрыли вкладку — продолжите с того же места на любом устройстве." },
-                { icon: Eye, title: "Живой предпросмотр", text: "Во время письма справа видно, как ответ будет выглядеть на странице книги." },
-                { icon: WandSparkles, title: "Умные формулировки", text: "Вопросы подстраиваются под род автора и адресата. Любой заголовок можно переписать." },
-                { icon: Type, title: "Типографика издательского уровня", text: "Переносы, выключка, оглавление, эпиграфы — вёрстка как в хорошей книге." },
-                { icon: Printer, title: "Точный макет перед печатью", text: "Перед заказом вы листаете PDF каждой страницы. Что видите — то и получите." },
-                { icon: Gift, title: "Подарочное оформление", text: "Твёрдый переплёт, плотная бумага и подарочная коробка в тарифе «Премиум»." },
-              ].map((f) => (
+              {t.features.items.map((item, i) => ({ ...item, icon: [Save, Eye, WandSparkles, Type, Printer, Gift][i] })).map((f) => (
                 <div key={f.title}>
                   <f.icon className="size-7 text-wine" strokeWidth={1.6} />
                   <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
@@ -323,14 +258,14 @@ export default async function HomePage() {
         {site.testimonials.length ? (
           <section className="bg-rose/40 py-20 sm:py-28">
             <div className="container-x">
-              <h2 className="text-center font-serif text-4xl font-medium tracking-tight sm:text-5xl">Что говорят наши клиенты</h2>
+              <h2 className="text-center font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.testimonials.title}</h2>
               <div className="mt-12 grid gap-5 md:grid-cols-3">
-                {site.testimonials.map((t) => (
-                  <figure key={t.name} className="card p-7">
-                    <blockquote className="font-serif text-xl leading-snug">«{t.text}»</blockquote>
+                {site.testimonials.map((x) => (
+                  <figure key={x.name} className="card p-7">
+                    <blockquote className="font-serif text-xl leading-snug">«{x.text}»</blockquote>
                     <figcaption className="mt-5 text-sm text-muted">
-                      {t.name}
-                      {t.occasion ? ` · ${t.occasion}` : ""}
+                      {x.name}
+                      {x.occasion ? ` · ${x.occasion}` : ""}
                     </figcaption>
                   </figure>
                 ))}
@@ -343,17 +278,17 @@ export default async function HomePage() {
         <section id="pricing" className="scroll-mt-20 bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
             <div className="mx-auto max-w-2xl text-center">
-              <div className="eyebrow">Цены</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Пишите бесплатно — платите, когда книга готова</h2>
-              <p className="mt-4 text-muted">Никаких подписок. Оплата только при оформлении заказа.</p>
+              <div className="eyebrow">{t.pricing.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.pricing.title}</h2>
+              <p className="mt-4 text-muted">{t.pricing.text}</p>
             </div>
             <div className="reveal-stagger mt-14 grid gap-5 lg:grid-cols-3">
-              {plans.map((p) => (
-                <div key={p.id} className={`card relative flex flex-col p-8 ${p.badge ? "border-wine/40 ring-4 ring-wine/10" : ""}`}>
-                  {p.badge ? <span className="absolute -top-3 left-8 rounded-full bg-wine px-3 py-1 text-xs font-medium text-white">{p.badge}</span> : null}
+              {plans.map((p) => ({ ...p, ...m.common.plans[p.id] })).map((p) => (
+                <div key={p.id} className={`card relative flex flex-col p-8 ${p.featured ? "border-wine/40 ring-4 ring-wine/10" : ""}`}>
+                  {"badge" in p && p.badge ? <span className="absolute -top-3 left-8 rounded-full bg-wine px-3 py-1 text-xs font-medium text-white">{p.badge}</span> : null}
                   <h3 className="text-lg font-semibold">{p.name}</h3>
                   <div className="mt-4 font-serif text-5xl font-medium [font-variant-numeric:lining-nums]">{formatPrice(p.price)}</div>
-                  {p.extraCopyPrice ? <div className="mt-1 text-sm text-muted">доп. экземпляр — {formatPrice(p.extraCopyPrice)}</div> : <div className="mt-1 text-sm text-muted">без доставки, сразу</div>}
+                  {p.extraCopyPrice ? <div className="mt-1 text-sm text-muted">{t.pricing.extraCopy(formatPrice(p.extraCopyPrice))}</div> : <div className="mt-1 text-sm text-muted">{t.pricing.instant}</div>}
                   <ul className="mt-7 flex-1 space-y-3">
                     {p.features.map((f) => (
                       <li key={f} className="flex gap-2.5 text-[15px] text-ink-soft">
@@ -361,8 +296,8 @@ export default async function HomePage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href={cta} className={`btn mt-8 ${p.badge ? "btn-primary" : "btn-outline"}`}>
-                    Начать книгу
+                  <Link href={cta} className={`btn mt-8 ${p.featured ? "btn-primary" : "btn-outline"}`}>
+                    {t.pricing.start}
                   </Link>
                 </div>
               ))}
@@ -375,16 +310,16 @@ export default async function HomePage() {
         <section className="py-20 sm:py-28">
           <div className="reveal container-x grid items-center gap-12 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
-              <GiftCardVisual plan="hardcover" recipientName="Гульнара Сериковна" buyerName="Айгерим" message="Мама, напиши историю нашей семьи — я хочу, чтобы она осталась у внуков" className="rotate-[-2deg]" />
+              <GiftCardVisual locale={locale} plan="hardcover" recipientName={t.gift.card.recipient} buyerName={t.gift.card.buyer} message={t.gift.card.message} className="rotate-[-2deg]" />
             </div>
             <div className="order-1 lg:order-2">
-              <div className="eyebrow">Подарочный сертификат</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Хотите, чтобы книгу написали вам — или о себе?</h2>
+              <div className="eyebrow">{t.gift.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.gift.title}</h2>
               <p className="mt-5 text-lg leading-relaxed text-ink-soft">
-                Подарите сертификат маме, папе или бабушке: их истории станут книгой, которая останется у детей и внуков. PDF с кодом — сразу после оплаты, или отправим письмом в нужный день.
+                {t.gift.text}
               </p>
               <Link href="/gift" className="btn btn-primary btn-lg mt-8">
-                <Gift className="size-5" /> Подарить сертификат
+                <Gift className="size-5" /> {t.gift.cta}
               </Link>
             </div>
           </div>
@@ -394,17 +329,17 @@ export default async function HomePage() {
         <section id="faq" className="scroll-mt-20 py-20 sm:py-28">
           <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.6fr]">
             <div>
-              <div className="eyebrow">Вопросы и ответы</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">Всё, что важно знать</h2>
+              <div className="eyebrow">{t.faq.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.faq.title}</h2>
               <p className="mt-4 text-muted">
-                Не нашли ответ?{" "}
+                {t.faq.notFound}{" "}
                 <a href={site.contacts.whatsapp} className="text-wine underline underline-offset-4" target="_blank" rel="noopener noreferrer">
-                  Напишите нам
+                  {t.faq.writeUs}
                 </a>{" "}
-                — ответим в течение часа.
+                {t.faq.reply}
               </p>
             </div>
-            <Faq className="reveal" items={faq.map((f) => [f.q, f.a] as [string, string])} />
+            <Faq className="reveal" items={faq} />
           </div>
         </section>
 
@@ -413,10 +348,10 @@ export default async function HomePage() {
           <div className="container-x">
             <div className="relative overflow-hidden rounded-[32px] bg-wine px-6 py-16 text-center text-white sm:px-16 sm:py-20">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_60%_at_20%_0%,rgba(255,255,255,.18),transparent),radial-gradient(40%_60%_at_100%_100%,rgba(0,0,0,.25),transparent)]" />
-              <h2 className="reveal relative mx-auto max-w-3xl font-serif text-4xl leading-tight font-medium sm:text-6xl">Самые важные слова заслуживают переплёта</h2>
-              <p className="relative mx-auto mt-5 max-w-xl text-lg text-white/80">Начните сегодня — первые страницы можно написать уже за вечер.</p>
+              <h2 className="reveal relative mx-auto max-w-3xl font-serif text-4xl leading-tight font-medium sm:text-6xl">{t.cta.title}</h2>
+              <p className="relative mx-auto mt-5 max-w-xl text-lg text-white/80">{t.cta.text}</p>
               <Link href={cta} className="btn btn-lg relative mt-9 bg-white text-wine hover:bg-paper">
-                Создать свою книгу <ArrowRight className="size-5" />
+                {t.cta.button} <ArrowRight className="size-5" />
               </Link>
             </div>
           </div>

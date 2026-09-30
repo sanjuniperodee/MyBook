@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/client";
 import { notFound } from "next/navigation";
 import { ArrowRight, CalendarHeart, Check, Gift, MessageCircleQuestion } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
@@ -11,9 +11,12 @@ import { Faq } from "@/components/Faq";
 import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
-import { deadlineFor, getOccasion, humanDay, inDays, nextFixedDate } from "@/lib/occasions";
+import { deadlineFor, getOccasion, nextFixedDate } from "@/lib/occasions";
 import { formatPrice, plans, site } from "@/config/site";
 import { env } from "@/lib/env";
+import { getLocale, getMessages } from "@/i18n/server";
+import { alternates } from "@/i18n/seo";
+import { localizePath } from "@/i18n/config";
 
 // Тексты статичные, но подсказка «закажите до …» зависит от даты — обновляем раз в час.
 export const revalidate = 3600;
@@ -25,25 +28,31 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const l = getLanding((await params).slug);
   if (!l) return {};
+  const locale = await getLocale();
+  const c = l.content[locale];
+  const path = `/kniga/${l.slug}`;
   return {
-    title: { absolute: `${l.metaTitle} · ${site.name}` },
-    description: l.metaDescription,
-    alternates: { canonical: `/kniga/${l.slug}` },
-    openGraph: { title: l.metaTitle, description: l.metaDescription, url: `/kniga/${l.slug}` },
+    title: { absolute: `${c.metaTitle} · ${site.name}` },
+    description: c.metaDescription,
+    alternates: alternates(path, locale),
+    openGraph: { title: c.metaTitle, description: c.metaDescription, url: localizePath(path, locale) },
   };
 }
 
 export default async function LandingPage({ params }: { params: Promise<{ slug: string }> }) {
   const l = getLanding((await params).slug);
   if (!l) notFound();
-  const user = await getCurrentUser();
-  const theme = getTheme(l.theme);
+  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  const c = l.content[locale];
+  const t = m.landing;
+  const sp = t.seoPage;
+  const theme = getTheme(l.theme, locale);
   const g = (s: string) => applyGender(s, l.authorGender, l.recipientGender);
   // По одному вопросу из разных глав — показываем, о чём будет книга.
   const samples = theme.chapters
     .filter((_, i) => i % Math.max(1, Math.floor(theme.chapters.length / 6)) === 0)
     .slice(0, 6)
-    .map((ch) => ({ chapter: g(chapterTitle(theme, ch.key)), prompt: g(ch.questions[0][0]) }));
+    .map((ch) => ({ chapter: g(chapterTitle(theme, ch.key, locale)), prompt: g(ch.questions[0][0]) }));
   const occasion = getOccasion(l.occasion);
   const fixed = occasion ? nextFixedDate(occasion, new Date()) : null;
   const dl = fixed ? deadlineFor(fixed, new Date()) : null;
@@ -54,15 +63,15 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
     {
       "@context": "https://schema.org",
       "@type": "Product",
-      name: `${site.name}: ${l.label.toLowerCase()}`,
-      description: l.metaDescription,
+      name: sp.productName(site.name, c.label),
+      description: c.metaDescription,
       brand: { "@type": "Brand", name: site.name },
-      offers: { "@type": "AggregateOffer", priceCurrency: site.currency, lowPrice: minPrice, highPrice: Math.max(...plans.map((p) => p.price)), url: `${env.appUrl}/kniga/${l.slug}` },
+      offers: { "@type": "AggregateOffer", priceCurrency: site.currency, lowPrice: minPrice, highPrice: Math.max(...plans.map((p) => p.price)), url: `${env.appUrl}${localizePath(`/kniga/${l.slug}`, locale)}` },
     },
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      mainEntity: l.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+      mainEntity: c.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
     },
   ];
 
@@ -75,39 +84,42 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
           <div className="container-x grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
             <div>
-              <div className="eyebrow">{l.label}</div>
+              <div className="eyebrow">{c.label}</div>
               <h1 className="mt-4 font-serif text-[42px] leading-[1.03] font-medium tracking-tight sm:text-6xl">
-                {l.h1} <em className="text-wine">{l.accent}</em>
+                {c.h1} <em className="text-wine">{c.accent}</em>
               </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{l.lead}</p>
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{c.lead}</p>
               {dl && occasion && dl.state !== "past" ? (
                 <div className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-line bg-white/80 px-4 py-3 text-sm">
                   <CalendarHeart className="size-5 shrink-0 text-wine" />
                   <span>
-                    До {occasion.until} {inDays(dl.daysToTarget)}.{" "}
-                    {dl.state === "digital" ? "Печатная уже не успеет — электронная готова сразу после оплаты." : dl.state === "premium" ? `Успеет «Премиум» — закажите до ${humanDay(dl.orderByPremium)}.` : `Чтобы успеть, закажите до ${humanDay(dl.orderBy)}.`}
+                    {dl.state === "digital"
+                      ? m.common.occasion.digitalOnly
+                      : dl.state === "premium"
+                        ? m.common.occasion.premiumOnly(dl.orderByPremium)
+                        : m.common.occasion.orderBy(m.common.occasions[occasion.id], dl.daysToTarget, dl.orderBy)}
                   </span>
                 </div>
               ) : null}
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link href={cta} className="btn btn-primary btn-lg">
-                  Начать писать бесплатно <ArrowRight className="size-5" />
+                  {t.hero.cta} <ArrowRight className="size-5" />
                 </Link>
                 <Link href="/gift" className="btn btn-outline btn-lg">
-                  <Gift className="size-5" /> Подарить сертификат
+                  <Gift className="size-5" /> {t.gift.cta}
                 </Link>
               </div>
-              <p className="mt-4 text-sm text-muted">Писать бесплатно · платите, когда книга готова · от {formatPrice(minPrice)}</p>
+              <p className="mt-4 text-sm text-muted">{sp.priceNote(formatPrice(minPrice))}</p>
             </div>
             <div className="mx-auto w-full max-w-[320px]">
-              <Book3D template={l.cover.template} title={l.cover.title} subtitle={l.cover.subtitle} names={l.cover.names} rotate={-18} className="animate-float" />
+              <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={-18} className="animate-float" />
             </div>
           </div>
         </section>
 
         <section className="border-y border-line/70 bg-white/60 py-16 sm:py-20">
           <div className="container-x grid gap-5 md:grid-cols-3">
-            {l.why.map((w) => (
+            {c.why.map((w) => (
               <div key={w.title}>
                 <div className="flex items-center gap-2 font-semibold">
                   <Check className="size-5 text-wine" /> {w.title}
@@ -121,8 +133,8 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
         <section className="py-20 sm:py-24">
           <div className="container-x">
             <div className="max-w-2xl">
-              <div className="eyebrow">О чём будет книга</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{countQuestions(theme)} вопросов с подсказками — вот несколько</h2>
+              <div className="eyebrow">{sp.aboutEyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{sp.aboutTitle(countQuestions(theme))}</h2>
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {samples.map((q) => (
@@ -134,25 +146,20 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-sm text-muted">Любой вопрос можно переписать, пропустить или добавить свой. В книгу попадут только ответы.</p>
+            <p className="mt-6 text-sm text-muted">{sp.aboutNote}</p>
           </div>
         </section>
 
         <section className="bg-cream/60 py-20 sm:py-24">
           <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.2fr]">
             <div>
-              <div className="eyebrow">Как это работает</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight">От первого ответа до книги в руках</h2>
+              <div className="eyebrow">{t.how.eyebrow}</div>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight">{sp.howTitle}</h2>
               <ol className="mt-8 space-y-5">
-                {[
-                  "Отвечайте на вопросы в своём темпе — с телефона или компьютера, можно голосом.",
-                  `Добавьте фотографии и выберите одну из ${coverTemplates.filter((t) => !t.requiresPhoto).length} обложек или свою с фото.`,
-                  "Пролистайте точный PDF-макет всех страниц и оформите заказ.",
-                  "Мы печатаем книгу в твёрдом переплёте и доставляем по Казахстану.",
-                ].map((t, i) => (
-                  <li key={t} className="flex gap-4">
+                {sp.howSteps(coverTemplates.filter((x) => !x.requiresPhoto).length).map((step, i) => (
+                  <li key={step} className="flex gap-4">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-wine font-serif text-white">{i + 1}</span>
-                    <span className="pt-1 leading-relaxed text-ink-soft">{t}</span>
+                    <span className="pt-1 leading-relaxed text-ink-soft">{step}</span>
                   </li>
                 ))}
               </ol>
@@ -161,14 +168,14 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               {plans.map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white px-5 py-4">
                   <div>
-                    <div className="font-medium">{p.name}</div>
-                    <div className="text-sm text-muted">{p.features[0]}</div>
+                    <div className="font-medium">{m.common.plans[p.id].name}</div>
+                    <div className="text-sm text-muted">{m.common.plans[p.id].features[0]}</div>
                   </div>
                   <div className="shrink-0 font-serif text-2xl">{formatPrice(p.price)}</div>
                 </div>
               ))}
               <Link href={cta} className="btn btn-primary btn-lg mt-2">
-                Создать книгу <ArrowRight className="size-5" />
+                {sp.create} <ArrowRight className="size-5" />
               </Link>
             </div>
           </div>
@@ -176,20 +183,20 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
 
         <section className="py-20 sm:py-24">
           <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
-            <h2 className="font-serif text-4xl font-medium">Вопросы</h2>
-            <Faq items={[...l.faq, ["Сколько стоит книга?", `От ${formatPrice(minPrice)} за электронную версию, ${formatPrice(plans[1].price)} — в твёрдой обложке. Писать можно бесплатно — платите, когда книга готова.`]]} size="md" />
+            <h2 className="font-serif text-4xl font-medium">{sp.faqTitle}</h2>
+            <Faq items={[...c.faq, [sp.priceQ, sp.priceA(formatPrice(minPrice), formatPrice(plans[1].price))]]} size="md" />
           </div>
         </section>
 
         <section className="border-t border-line py-14">
           <div className="container-x">
-            <div className="text-sm font-semibold">Ещё идеи подарков</div>
+            <div className="text-sm font-semibold">{sp.more}</div>
             <div className="mt-4 flex flex-wrap gap-2">
               {landings
                 .filter((x) => x.slug !== l.slug)
                 .map((x) => (
                   <Link key={x.slug} href={`/kniga/${x.slug}`} className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink-soft hover:border-ink/30">
-                    {x.label}
+                    {x.content[locale].label}
                   </Link>
                 ))}
             </div>

@@ -6,15 +6,17 @@ import { normalizePromoCode } from "./pricing";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export type PromoCheck = { ok: true; promo: PromoCode } | { ok: false; error: string };
+/** Причина отказа — ключ словаря checkout.promo (текст подставляет интерфейс на языке пользователя). */
+export type PromoError = "empty" | "notFound" | "expired" | "used";
+export type PromoCheck = { ok: true; promo: PromoCode } | { ok: false; error: PromoError };
 
 export async function findValidPromo(rawCode: string): Promise<PromoCheck> {
   const code = normalizePromoCode(rawCode);
-  if (!code) return { ok: false, error: "Введите промокод" };
+  if (!code) return { ok: false, error: "empty" };
   const promo = await db.query.promoCodes.findFirst({ where: eq(promoCodes.code, code) });
-  if (!promo || !promo.active) return { ok: false, error: "Такого промокода нет" };
-  if (promo.expiresAt && promo.expiresAt < new Date()) return { ok: false, error: "Срок действия промокода истёк" };
-  if (promo.maxUses !== null && promo.usedCount >= promo.maxUses) return { ok: false, error: "Промокод уже использован" };
+  if (!promo || !promo.active) return { ok: false, error: "notFound" };
+  if (promo.expiresAt && promo.expiresAt < new Date()) return { ok: false, error: "expired" };
+  if (promo.maxUses !== null && promo.usedCount >= promo.maxUses) return { ok: false, error: "used" };
   return { ok: true, promo };
 }
 

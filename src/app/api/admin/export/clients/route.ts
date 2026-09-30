@@ -4,7 +4,7 @@ import { queryClients } from "@/lib/crm-clients";
 
 export const GET = api(async (req) => {
   const admin = await apiUser(req);
-  if (admin.role !== "admin") throw new HttpError(403, "Нет доступа");
+  if (admin.role !== "admin") throw new HttpError(403, "forbidden");
   const sp = new URL(req.url).searchParams;
   const segment = (sp.get("segment") && sp.get("segment")! in clientSegments ? sp.get("segment") : "all") as ClientSegment;
   const { rows } = await queryClients({ segment, q: sp.get("q") ?? undefined, tag: sp.get("tag") ?? undefined, sort: "new", limit: 50_000, offset: 0 });

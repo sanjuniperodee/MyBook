@@ -23,7 +23,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
   const { book } = await apiBook(req, id, { editable: true });
   const data = schema.parse(await req.json());
   const [row] = await db.update(bookLetters).set(data).where(and(eq(bookLetters.id, lid), eq(bookLetters.bookId, book.id))).returning();
-  if (!row) throw new HttpError(404, "Письмо не найдено");
+  if (!row) throw new HttpError(404, "letterNotFound");
   await touchBook(book.id);
   return NextResponse.json({ letter: row });
 });
@@ -32,6 +32,6 @@ export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, lid } = await params;
   const { book } = await apiBook(req, id, { editable: true });
   const [row] = await db.delete(bookLetters).where(and(eq(bookLetters.id, lid), eq(bookLetters.bookId, book.id))).returning({ id: bookLetters.id });
-  if (!row) throw new HttpError(404, "Письмо не найдено");
+  if (!row) throw new HttpError(404, "letterNotFound");
   return NextResponse.json({ ok: true });
 });

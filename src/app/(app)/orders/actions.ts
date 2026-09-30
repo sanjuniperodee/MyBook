@@ -12,7 +12,7 @@ import { emailLayout, sendMail } from "@/lib/mail";
 async function ownOrder(orderId: string) {
   const user = await requireUser();
   const order = await db.query.orders.findFirst({ where: and(eq(orders.id, orderId), eq(orders.userId, user.id)) });
-  if (!order) throw new Error("Заказ не найден");
+  if (!order) throw new Error("order not found");
   return order;
 }
 

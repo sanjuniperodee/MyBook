@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { Locale } from "@/i18n/config";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -36,6 +37,8 @@ export const users = pgTable(
     remindedAt: timestamp("reminded_at", { withTimezone: true }),
     /** Клиент отписался от автоматических писем (транзакционные — о заказе — приходят всегда). */
     emailOptOut: boolean("email_opt_out").notNull().default(false),
+    /** Язык интерфейса и писем: ru | kk. */
+    locale: text("locale").$type<Locale>().notNull().default("ru"),
     /** Первое касание: UTM-метки, реферер и страница входа. */
     source: jsonb("source").$type<Record<string, string>>(),
     ...timestamps,
@@ -107,6 +110,8 @@ export const books = pgTable(
     showToc: boolean("show_toc").notNull().default(true),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
+    /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
+    language: text("language").$type<Locale>().notNull().default("ru"),
     /** Повод подарка (см. lib/occasions) и дата, к которой нужна книга. */
     occasion: text("occasion"),
     occasionDate: text("occasion_date"), // YYYY-MM-DD
@@ -316,6 +321,10 @@ export const giftCards = pgTable(
     /** Если указан — отправим сертификат получателю письмом в день sendAt. */
     recipientEmail: text("recipient_email"),
     message: text("message").notNull().default(""),
+    /** Язык сертификата: PDF и письмо получателю. */
+    locale: text("locale").$type<Locale>().notNull().default("ru"),
+    /** Язык покупателя (сайта при покупке): письма о покупке и оплате. */
+    buyerLocale: text("buyer_locale").$type<Locale>().notNull().default("ru"),
     /** YYYY-MM-DD; null — сразу после оплаты. */
     sendAt: text("send_at"),
     sentAt: timestamp("sent_at", { withTimezone: true }),

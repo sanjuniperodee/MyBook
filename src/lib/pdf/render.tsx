@@ -210,7 +210,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const template = getCoverTemplate(bundle.book.coverTemplate);
   const text = coverText(bundle.book);
   const pdf = await renderToBuffer(
-    <CoverDocument template={template} geometry={geometry} background={background} text={text} backText={bundle.book.backText} title={text.title} />,
+    <CoverDocument template={template} geometry={geometry} background={background} text={text} backText={bundle.book.backText} title={text.title} language={bundle.book.language} />,
   );
   return { pdf: Buffer.from(pdf), geometry };
 }

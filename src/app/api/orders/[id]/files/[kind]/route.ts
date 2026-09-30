@@ -13,17 +13,17 @@ const kinds: Record<OrderFileKind, { type: string; name: (n: number) => string }
 
 export const GET = api(async (req, { params }: { params: Promise<{ id: string; kind: string }> }) => {
   const { id, kind } = await params;
-  if (!(kind in kinds)) throw new HttpError(404, "Не найдено");
+  if (!(kind in kinds)) throw new HttpError(404, "notFound");
   const user = await apiUser(req);
   const order = await getOrderWithBook(id);
-  if (!order) throw new HttpError(404, "Заказ не найден");
+  if (!order) throw new HttpError(404, "orderNotFound");
   const isAdmin = user.role === "admin";
   if (!isAdmin) {
-    if (order.userId !== user.id) throw new HttpError(404, "Заказ не найден");
+    if (order.userId !== user.id) throw new HttpError(404, "orderNotFound");
     const paid = !["pending_payment", "cancelled"].includes(order.status);
     const digital = !getPlan(order.plan)?.printed;
     // Покупателю доступна читательская версия после оплаты; файлы для печати — в электронном тарифе.
-    if (!paid || (kind !== "reading" && !digital)) throw new HttpError(403, "Файл пока недоступен");
+    if (!paid || (kind !== "reading" && !digital)) throw new HttpError(403, "fileNotReady");
   }
   const force = isAdmin && new URL(req.url).searchParams.get("regenerate") === "1";
   const data = await getOrderFile(order, kind as OrderFileKind, force);

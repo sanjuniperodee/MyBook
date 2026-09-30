@@ -4,11 +4,11 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, users, type User } from "./db/schema";
-import { env } from "./env";
-import { emailLayout, escapeHtml, sendMail } from "./mail";
-import { deadlineFor, getOccasion, humanDay, inDays } from "./occasions";
+import { appLink, emailLayout, escapeHtml, sendMail } from "./mail";
+import { deadlineFor, getOccasion } from "./occasions";
 import { formatPrice } from "@/config/site";
-import { pluralRu } from "./book/layout";
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 
 /**
  * Автоматические письма, которые возвращают клиента к книге и доводят до заказа.
@@ -35,12 +35,13 @@ export function verifyUnsubscribe(userId: string, token: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export function unsubscribeUrl(userId: string) {
-  return `${env.appUrl}/unsubscribe?u=${userId}&t=${unsubscribeToken(userId)}`;
+export function unsubscribeUrl(userId: string, locale: Locale = "ru") {
+  return appLink(`/unsubscribe?u=${userId}&t=${unsubscribeToken(userId)}`, locale);
 }
 
-function footnote(user: Pick<User, "id">) {
-  return `Если нужна помощь — просто ответьте на это письмо. <a href="${unsubscribeUrl(user.id)}" style="color:#7a7068">Не присылать такие письма</a>`;
+function footnote(user: Pick<User, "id" | "locale">) {
+  const m = messagesFor(user.locale).mail;
+  return `${m.helpFootnote} <a href="${unsubscribeUrl(user.id, user.locale)}" style="color:#7a7068">${m.unsubscribe}</a>`;
 }
 
 /** Часы по Алматы: письма уходят с 10 до 20. */
@@ -83,9 +84,10 @@ async function draftCandidates(): Promise<Candidate[]> {
   return rows;
 }
 
-const answersText = (n: number) => `${n} ${pluralRu(n, "ответ", "ответа", "ответов")}`;
-const hello = (u: User) => `Здравствуйте${u.name ? `, ${escapeHtml(u.name)}` : ""}!`;
-const bookLink = (c: Candidate) => `${env.appUrl}/books/${c.book.id}/questions?q=${(c.firstEmpty ?? 0) + 1}`;
+const msg = (u: Pick<User, "locale">) => messagesFor(u.locale);
+const hello = (u: User) => msg(u).mail.hello(escapeHtml(u.name));
+const bookLink = (c: Candidate) => appLink(`/books/${c.book.id}/questions?q=${(c.firstEmpty ?? 0) + 1}`, c.user.locale);
+const previewLink = (c: Candidate) => appLink(`/books/${c.book.id}/preview`, c.user.locale);
 
 type Rule = { key: (c: Candidate) => string; when: (c: Candidate, now: Date) => boolean; send: (c: Candidate, now: Date) => Promise<string> };
 
@@ -103,23 +105,27 @@ const rules: Rule[] = [
       const dl = deadlineFor(c.book.occasionDate!, now);
       const premiumOnly = dl.state === "premium";
       const by = premiumOnly ? dl.orderByPremium : dl.orderBy;
+      const m = msg(c.user);
+      const t = m.mail.lifecycle.deadline;
+      const occasion = m.common.occasions[o.id];
+      // «до 14 февраля» / «14 ақпанға дейін» — предлог и падеж берёт на себя словарь.
+      const until = m.common.until(by);
       await sendMail(
         c.user.email,
-        `Чтобы успеть к празднику «${o.label}», закажите книгу до ${humanDay(by)}`,
+        t.subject(occasion.label, until),
         emailLayout({
-          title: `До ${o.until} ${inDays(dl.daysToTarget)}`,
+          locale: c.user.locale,
+          title: t.title(occasion.until, m.common.inDays(dl.daysToTarget)),
           paragraphs: [
             hello(c.user),
-            premiumOnly
-              ? `Обычное производство уже не успевает, но тариф «Премиум» печатается вне очереди — оформите заказ до <b>${humanDay(by)}</b>, и книга «${escapeHtml(c.book.title)}» приедет вовремя.`
-              : `Чтобы книга «${escapeHtml(c.book.title)}» приехала вовремя, оформите заказ до <b>${humanDay(by)}</b>. Если не успеваете — тариф «Премиум» печатается вне очереди.`,
-            c.answered >= 10 ? `В книге уже ${answersText(c.answered)} — посмотрите макет: возможно, она уже готова.` : "Даже 15–20 коротких ответов складываются в трогательную книгу — это пара вечеров.",
+            premiumOnly ? t.premium(escapeHtml(c.book.title), until) : t.normal(escapeHtml(c.book.title), until),
+            c.answered >= 10 ? t.ready(c.answered) : t.short,
           ],
-          button: { label: c.answered >= 10 ? "Посмотреть макет" : "Продолжить книгу", url: c.answered >= 10 ? `${env.appUrl}/books/${c.book.id}/preview` : bookLink(c) },
+          button: { label: c.answered >= 10 ? t.preview : t.continue, url: c.answered >= 10 ? previewLink(c) : bookLink(c) },
           footnote: footnote(c.user),
         }),
       );
-      return `напоминание о дедлайне (${o.label}, заказать до ${humanDay(by)})`;
+      return `напоминание о дедлайне (${messagesFor("ru").common.occasions[o.id].label}, заказать ${messagesFor("ru").common.until(by)})`;
     },
   },
   // Книга почти готова — зовём посмотреть макет и оформить заказ.
@@ -127,17 +133,15 @@ const rules: Rule[] = [
     key: (c) => `almost:${c.book.id}`,
     when: (c, now) => !c.hasOrder && c.answered >= ALMOST_READY_ANSWERS && now.getTime() - c.book.updatedAt.getTime() > 2 * DAY,
     send: async (c) => {
+      const t = msg(c.user).mail.lifecycle.almost;
       await sendMail(
         c.user.email,
-        `Книга «${c.book.title}» почти готова`,
+        t.subject(c.book.title),
         emailLayout({
-          title: "Ваша книга почти готова",
-          paragraphs: [
-            hello(c.user),
-            `В книге «${escapeHtml(c.book.title)}» уже ${answersText(c.answered)} — это полноценная книга. Пролистайте макет: страницы свёрстаны так, как их напечатают.`,
-            "Если всё нравится — оформите заказ, и через несколько дней книга будет у вас в руках.",
-          ],
-          button: { label: "Посмотреть макет", url: `${env.appUrl}/books/${c.book.id}/preview` },
+          locale: c.user.locale,
+          title: t.title,
+          paragraphs: [hello(c.user), t.text(escapeHtml(c.book.title), c.answered), t.next],
+          button: { label: t.button, url: previewLink(c) },
           footnote: footnote(c.user),
         }),
       );
@@ -149,19 +153,15 @@ const rules: Rule[] = [
     key: (c) => `start:${c.book.id}`,
     when: (c) => c.answered === 0,
     send: async (c) => {
+      const t = msg(c.user).mail.lifecycle.start;
       await sendMail(
         c.user.email,
-        "С чего начать книгу: три совета",
+        t.subject,
         emailLayout({
-          title: "Как начать, если не знаете как",
-          paragraphs: [
-            hello(c.user),
-            `Книга «${escapeHtml(c.book.title)}» ждёт первых строк. Три совета от тех, кто уже написал свою:`,
-            "<b>1. Не по порядку.</b> Начните с вопроса, на который ответ приходит сразу — остальные подтянутся.",
-            "<b>2. Как подруге за чаем.</b> Не нужно писать красиво — пишите так, как рассказали бы вслух. Можно даже надиктовать голосом.",
-            "<b>3. По 10 минут.</b> Два-три ответа в день — и через пару недель книга готова.",
-          ],
-          button: { label: "Ответить на первый вопрос", url: bookLink(c) },
+          locale: c.user.locale,
+          title: t.title,
+          paragraphs: [hello(c.user), t.intro(escapeHtml(c.book.title)), ...t.tips],
+          button: { label: t.button, url: bookLink(c) },
           footnote: footnote(c.user),
         }),
       );
@@ -174,17 +174,15 @@ const rules: Rule[] = [
     when: (c, now) =>
       c.answered > 0 && c.answered < ALMOST_READY_ANSWERS && now.getTime() - c.book.updatedAt.getTime() > 5 * DAY && (!c.user.remindedAt || now.getTime() - c.user.remindedAt.getTime() > 3 * DAY),
     send: async (c) => {
+      const t = msg(c.user).mail.lifecycle.nudge;
       await sendMail(
         c.user.email,
-        `Ваша книга «${c.book.title}» ждёт продолжения`,
+        t.subject(c.book.title),
         emailLayout({
-          title: "Ваша книга ждёт продолжения",
-          paragraphs: [
-            hello(c.user),
-            `В книге уже ${answersText(c.answered)} — хорошее начало. Даже пара ответов за вечер сделает её богаче.`,
-            "Все ответы сохраняются автоматически, писать можно и с телефона.",
-          ],
-          button: { label: "Продолжить книгу", url: bookLink(c) },
+          locale: c.user.locale,
+          title: t.title,
+          paragraphs: [hello(c.user), t.text(c.answered), t.autosave],
+          button: { label: t.button, url: bookLink(c) },
           footnote: footnote(c.user),
         }),
       );
@@ -234,13 +232,15 @@ export async function runLifecycle(now = new Date(), opts: { ignoreHours?: boole
 
   for (const { order, user } of await unpaidOrders(now)) {
     if (touched.has(user.id) || !(await claim(user.id, `unpaid:${order.id}`))) continue;
+    const t = msg(user).mail.lifecycle.unpaid;
     await sendMail(
       order.contactEmail,
-      `Заказ №${order.number} ждёт оплаты`,
+      t.subject(order.number),
       emailLayout({
-        title: "Заказ ждёт оплаты",
-        paragraphs: [hello(user), `Заказ №${order.number} на ${formatPrice(order.amount)} оформлен, но ещё не оплачен. Как только оплата поступит, книга уйдёт в печать.`, "Если возникли сложности с оплатой — ответьте на это письмо, поможем."],
-        button: { label: "Перейти к оплате", url: `${env.appUrl}/orders/${order.id}` },
+        locale: user.locale,
+        title: t.title,
+        paragraphs: [hello(user), t.text(order.number, formatPrice(order.amount)), t.help],
+        button: { label: t.button, url: appLink(`/orders/${order.id}`, user.locale) },
         footnote: footnote(user),
       }),
     );
@@ -251,17 +251,15 @@ export async function runLifecycle(now = new Date(), opts: { ignoreHours?: boole
 
   for (const { order, user } of await deliveredOrders(now)) {
     if (touched.has(user.id) || !(await claim(user.id, `review:${order.id}`))) continue;
+    const t = msg(user).mail.lifecycle.review;
     await sendMail(
       order.contactEmail,
-      "Как вам книга?",
+      t.subject,
       emailLayout({
-        title: "Как вам книга?",
-        paragraphs: [
-          hello(user),
-          "Надеемся, подарок получился особенным. Нам очень важно ваше мнение: расскажите в ответном письме, как прошло вручение, — или пришлите фото книги.",
-          `Хотите подарить такую же книгу маме, папе или другу? Для них есть отдельные наборы вопросов, а ещё — <a href="${env.appUrl}/gift" style="color:#7a1f2b">подарочный сертификат</a>, чтобы книгу написали вам.`,
-        ],
-        button: { label: "Начать новую книгу", url: `${env.appUrl}/books/new` },
+        locale: user.locale,
+        title: t.title,
+        paragraphs: [hello(user), t.text, t.gift(appLink("/gift", user.locale))],
+        button: { label: t.button, url: appLink("/books/new", user.locale) },
         footnote: footnote(user),
       }),
     );

@@ -1,5 +1,8 @@
 "use client";
 
+import { useMessages } from "@/i18n/client";
+import type { Locale } from "@/i18n/config";
+import { messagesFor, type Messages } from "@/i18n/messages";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cssFont, type Typography } from "@/lib/book/fonts";
 import type { BookFormat } from "@/lib/book/formats";
@@ -24,10 +27,10 @@ type Drag =
   | { kind: "move"; id: string; startX: number; startY: number; x: number; y: number; active: boolean; target: number | null };
 
 /** Место вставки в тексте → подпись для подсказки. */
-export function anchorLabel(anchor: number | null, paragraphs: number) {
-  if (anchor === null || anchor >= paragraphs - 1) return "в конце ответа";
-  if (anchor < 0) return "перед текстом";
-  return `после ${anchor + 1}-го абзаца`;
+function anchorLabel(t: Messages["editor"]["preview"], anchor: number | null, paragraphs: number) {
+  if (anchor === null || anchor >= paragraphs - 1) return t.anchorEnd;
+  if (anchor < 0) return t.anchorBefore;
+  return t.anchorAfter(anchor + 1);
 }
 
 export interface PreviewEntry {
@@ -80,7 +83,10 @@ export function PagePreview({
   onSelect,
   onChange,
   className,
+  language,
 }: {
+  /** Язык книги: на нём подпись «Глава N» и переносы — как в PDF. */
+  language: Locale;
   format: BookFormat;
   typography: Typography;
   chapters: PreviewChapter[];
@@ -90,6 +96,8 @@ export function PagePreview({
   onChange?: (id: string, patch: Partial<InlinePhotoStyle>) => void;
   className?: string;
 }) {
+  const t = useMessages().editor.preview;
+  const bookText = messagesFor(language).book;
   const m = interiorMetrics[format.id];
   const W = format.widthMm;
   const H = format.heightMm;
@@ -365,7 +373,7 @@ export function PagePreview({
                   <>
                     <span
                       role="slider"
-                      aria-label="Размер фото"
+                      aria-label={t.resizeAria}
                       aria-valuemin={25}
                       aria-valuemax={100}
                       aria-valuenow={style.width}
@@ -450,7 +458,7 @@ export function PagePreview({
             </Fragment>
           ))
         ) : entry.photos.length ? null : (
-          <p style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx, lineHeight: typography.lineHeight, color: "#b4a99e", fontStyle: "italic" }}>Здесь появится ваш ответ…</p>
+          <p style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx, lineHeight: typography.lineHeight, color: "#b4a99e", fontStyle: "italic" }}>{t.empty}</p>
         )}
         {renderRows(entry, END, isMeasure)}
       </Fragment>
@@ -459,7 +467,7 @@ export function PagePreview({
 
   const flow = (ch: PreviewChapter, k: number) => (
     <div
-      lang="ru"
+      lang={language}
       style={{
         width: textW,
         height: textH,
@@ -492,14 +500,14 @@ export function PagePreview({
                         if (el) measureRefs.current.set(ch.key, el);
                         else measureRefs.current.delete(ch.key);
                       }}
-                      lang="ru"
+                      lang={language}
                       style={{ position: "relative", width: textW, height: textH, columnWidth: textW, columnGap: gap, columnFill: "auto" }}
                     >
                       {ch.entries.map((e, i) => renderEntry(e, i === 0, true))}
                     </div>
                   </div>
                   <div className={`relative flex flex-col items-center justify-center bg-white text-center ${pageShadow}`} style={{ width: pageW, height: H * px }}>
-                    <div style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx * 0.8, letterSpacing: "0.2em", textTransform: "uppercase", color: "#8a7f75" }}>Глава {ch.number}</div>
+                    <div style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx * 0.8, letterSpacing: "0.2em", textTransform: "uppercase", color: "#8a7f75" }}>{bookText.chapter(ch.number)}</div>
                     <div
                       style={{
                         fontFamily: cssFont(typography.heading),
@@ -547,7 +555,7 @@ export function PagePreview({
           <div className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl bg-ink/90 p-1.5 pr-3 text-xs text-white shadow-xl" style={{ left: moving.x + 12, top: moving.y + 12 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={dragged.url} alt="" className="size-10 rounded-lg object-cover" />
-            {anchorLabel(moving.target, curParas)}
+            {anchorLabel(t, moving.target, curParas)}
           </div>
         ) : null}
       </div>

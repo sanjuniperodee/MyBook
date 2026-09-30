@@ -3,10 +3,13 @@ import { randomBytes, randomInt } from "node:crypto";
 import { and, eq, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { db } from "./db";
 import { giftCards, promoCodes, type GiftCard, type PromoCode } from "./db/schema";
-import { formatPrice, getPlan, site } from "@/config/site";
+import { formatPrice, site } from "@/config/site";
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
+import { planName } from "@/i18n/labels";
 import { env } from "./env";
-import { emailLayout, escapeHtml, sendMail } from "./mail";
-import { humanDay, toIsoDay } from "./occasions";
+import { appLink, emailLayout, escapeHtml, sendMail } from "./mail";
+import { parseDay, toIsoDay } from "./occasions";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */
 export const GIFT_COOKIE = "mb_gift";
@@ -21,12 +24,12 @@ export function generateGiftCode() {
   return `GIFT-${part()}-${part()}`;
 }
 
-export function giftUrl(gift: Pick<GiftCard, "token">) {
-  return `${env.appUrl}/gift/${gift.token}`;
+export function giftUrl(gift: Pick<GiftCard, "token">, locale: Locale = "ru") {
+  return appLink(`/gift/${gift.token}`, locale);
 }
 
-export function redeemUrl(code: string) {
-  return `${env.appUrl}/redeem?code=${encodeURIComponent(code)}`;
+export function redeemUrl(code: string, locale: Locale = "ru") {
+  return appLink(`/redeem?code=${encodeURIComponent(code)}`, locale);
 }
 
 export function newGiftToken() {
@@ -47,6 +50,7 @@ async function giftPdf(gift: GiftCard, promo: PromoCode) {
   // Ленивый импорт: модуль планировщика не тянет за собой рендер PDF и шрифты.
   const { renderGiftPdf } = await import("./pdf/gift");
   return renderGiftPdf({
+    locale: gift.locale,
     number: gift.number,
     code: promo.code,
     plan: gift.plan,
@@ -59,7 +63,7 @@ async function giftPdf(gift: GiftCard, promo: PromoCode) {
 }
 
 export async function getGiftPdf(gift: GiftCard & { promo: PromoCode | null }) {
-  if (!gift.promo) throw new Error("Сертификат ещё не оплачен");
+  if (!gift.promo) throw new Error("gift is not paid yet");
   return giftPdf(gift, gift.promo);
 }
 
@@ -70,7 +74,7 @@ export async function getGiftPdf(gift: GiftCard & { promo: PromoCode | null }) {
 export async function markGiftPaid(giftId: string, actor: string, paymentId?: string) {
   const gift = await db.transaction(async (tx) => {
     const [current] = await tx.select().from(giftCards).where(eq(giftCards.id, giftId)).for("update");
-    if (!current) throw new Error("Сертификат не найден");
+    if (!current) throw new Error("gift not found");
     if (current.status !== "pending_payment") return null;
     let promo: PromoCode | undefined;
     for (let i = 0; i < 5 && !promo; i++) {
@@ -87,7 +91,7 @@ export async function markGiftPaid(giftId: string, actor: string, paymentId?: st
         .onConflictDoNothing()
         .returning();
     }
-    if (!promo) throw new Error("Не удалось выпустить код сертификата");
+    if (!promo) throw new Error("could not issue a gift code");
     const [row] = await tx
       .update(giftCards)
       .set({ status: "paid", paidAt: new Date(), promoCodeId: promo.id, ...(paymentId ? { paymentId } : {}) })
@@ -97,25 +101,28 @@ export async function markGiftPaid(giftId: string, actor: string, paymentId?: st
   });
   if (!gift) return;
   const pdf = await giftPdf(gift, gift.promo);
-  const plan = getPlan(gift.plan);
   const later = gift.recipientEmail && gift.sendAt && gift.sendAt > toIsoDay(new Date());
+  // Покупателю — на его языке; сам сертификат (PDF) — на языке, выбранном для получателя.
+  const bm = messagesFor(gift.buyerLocale);
+  const t = bm.mail.gift.buyer;
   await sendMail(
     gift.buyerEmail,
-    `Подарочный сертификат №${gift.number} готов`,
+    t.subject(gift.number),
     emailLayout({
-      title: "Сертификат готов",
+      locale: gift.buyerLocale,
+      title: t.title,
       paragraphs: [
-        `Спасибо! Сертификат на книгу «${escapeHtml(plan?.name ?? gift.plan)}» оплачен. Получатель: ${escapeHtml(gift.recipientName)}.`,
-        `Код: <b style="letter-spacing:1px">${gift.promo.code}</b>. PDF для печати — во вложении.`,
+        t.paid(escapeHtml(planName(gift.plan, gift.buyerLocale)), escapeHtml(gift.recipientName)),
+        t.code(gift.promo.code),
         gift.recipientEmail
           ? later
-            ? `Мы отправим сертификат на ${escapeHtml(gift.recipientEmail)} ${humanDay(gift.sendAt!)}.`
-            : `Мы уже отправили сертификат на ${escapeHtml(gift.recipientEmail)}.`
-          : "Распечатайте сертификат или перешлите PDF — как вам удобнее вручить подарок.",
+            ? t.later(escapeHtml(gift.recipientEmail), bm.common.date(parseDay(gift.sendAt!)))
+            : t.sent(escapeHtml(gift.recipientEmail))
+          : t.print,
       ],
-      button: { label: "Открыть сертификат", url: giftUrl(gift) },
+      button: { label: t.button, url: giftUrl(gift, gift.buyerLocale) },
     }),
-    [{ filename: `mybook-gift-${gift.number}.pdf`, content: pdf, contentType: "application/pdf" }],
+    [{ filename: messagesFor(gift.locale).gift.card.filename(gift.number), content: pdf, contentType: "application/pdf" }],
   );
   if (gift.recipientEmail && !later) await sendGiftToRecipient(gift, pdf);
   if (env.ordersNotifyEmail) {
@@ -130,21 +137,22 @@ export async function markGiftPaid(giftId: string, actor: string, paymentId?: st
 export async function sendGiftToRecipient(gift: GiftCard & { promo: PromoCode }, pdf?: Buffer) {
   if (!gift.recipientEmail) return;
   const file = pdf ?? (await giftPdf(gift, gift.promo));
-  const plan = getPlan(gift.plan);
+  const t = messagesFor(gift.locale).mail.gift.recipient;
   await sendMail(
     gift.recipientEmail,
-    `${gift.buyerName} дарит вам книгу`,
+    t.subject(gift.buyerName),
     emailLayout({
-      title: `${escapeHtml(gift.recipientName)}, это подарок для вас`,
+      locale: gift.locale,
+      title: t.title(escapeHtml(gift.recipientName)),
       paragraphs: [
-        `${escapeHtml(gift.buyerName)} дарит вам сертификат ${site.name} — книгу «${escapeHtml(plan?.name ?? gift.plan)}», которую вы напишете сами: ответите на тёплые вопросы, добавите фотографии, а мы сверстаем и напечатаем её как настоящее издание.`,
+        t.text(escapeHtml(gift.buyerName), site.name, escapeHtml(planName(gift.plan, gift.locale))),
         gift.message ? `<i>«${escapeHtml(gift.message)}»</i>` : "",
-        `Ваш код: <b style="letter-spacing:1px">${gift.promo.code}</b>`,
+        t.code(gift.promo.code),
       ].filter(Boolean),
-      button: { label: "Начать книгу", url: redeemUrl(gift.promo.code) },
-      footnote: "Сертификат действует год. Писать можно в своём темпе — всё сохраняется автоматически.",
+      button: { label: t.button, url: redeemUrl(gift.promo.code, gift.locale) },
+      footnote: t.footnote,
     }),
-    [{ filename: "podarochnyj-sertifikat.pdf", content: file, contentType: "application/pdf" }],
+    [{ filename: t.filename, content: file, contentType: "application/pdf" }],
   );
   await db.update(giftCards).set({ sentAt: new Date() }).where(eq(giftCards.id, gift.id));
 }

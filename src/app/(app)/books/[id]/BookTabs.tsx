@@ -1,20 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocalePathname, useMessages } from "@/i18n/client";
 import { useEffect, useRef, useState, ViewTransition } from "react";
 import { BookOpen, Camera, Eye, LayoutGrid, Mail, Palette, PenLine, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { href: "", label: "Обзор", icon: LayoutGrid },
-  { href: "/questions", label: "Текст", icon: PenLine },
-  { href: "/cover", label: "Обложка", icon: Palette },
-  { href: "/photos", label: "Фото", icon: Camera },
-  { href: "/letters", label: "Письма", icon: Mail },
-  { href: "/settings", label: "Оформление", icon: SlidersHorizontal },
-  { href: "/preview", label: "Макет", icon: Eye },
-];
+  { href: "", key: "overview", icon: LayoutGrid },
+  { href: "/questions", key: "text", icon: PenLine },
+  { href: "/cover", key: "cover", icon: Palette },
+  { href: "/photos", key: "photos", icon: Camera },
+  { href: "/letters", key: "letters", icon: Mail },
+  { href: "/settings", key: "settings", icon: SlidersHorizontal },
+  { href: "/preview", key: "preview", icon: Eye },
+] as const;
 
 /** Полоска под активной вкладкой — при переходе «переезжает» на новую вкладку. */
 function Indicator() {
@@ -26,7 +25,9 @@ function Indicator() {
 }
 
 export function BookTabs({ bookId }: { bookId: string }) {
-  const pathname = usePathname();
+  // Путь без языкового префикса: /kk/books/… сравниваем как /books/…
+  const pathname = useLocalePathname();
+  const labels = useMessages().books.tabs;
   const base = `/books/${bookId}`;
   const nav = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -53,7 +54,7 @@ export function BookTabs({ bookId }: { bookId: string }) {
       <nav
         ref={nav}
         className="no-scrollbar -mb-px flex gap-1 overflow-x-auto"
-        aria-label="Разделы книги"
+        aria-label={labels.aria}
         style={{
           maskImage: `linear-gradient(90deg, ${edges.left ? "transparent" : "#000"} 0, #000 28px, #000 calc(100% - 28px), ${edges.right ? "transparent" : "#000"} 100%)`,
         }}
@@ -63,20 +64,20 @@ export function BookTabs({ bookId }: { bookId: string }) {
           const active = !checkout && (t.href ? pathname.startsWith(href) : pathname === base);
           return (
             <Link
-              key={t.label}
+              key={t.key}
               href={href}
               aria-current={active ? "page" : undefined}
               className={cn("relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted hover:text-ink")}
             >
               <t.icon className={cn("size-4 transition-colors", active && "text-wine")} strokeWidth={1.8} />
-              {t.label}
+              {labels[t.key]}
               {active ? <Indicator /> : null}
             </Link>
           );
         })}
         {checkout ? (
           <span aria-current="page" className="relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium">
-            <BookOpen className="size-4 text-wine" /> Заказ
+            <BookOpen className="size-4 text-wine" /> {labels.order}
             <Indicator />
           </span>
         ) : null}

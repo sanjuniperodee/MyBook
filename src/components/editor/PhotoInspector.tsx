@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cropRect, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { useMessages } from "@/i18n/client";
 
 export interface InspectorPhoto {
   id: string;
@@ -15,20 +16,8 @@ export interface InspectorPhoto {
   inline?: InlinePhotoStyle | null;
 }
 
-const aspects: { id: InlinePhotoStyle["aspect"]; label: string }[] = [
-  { id: "original", label: "Как есть" },
-  { id: "1:1", label: "1:1" },
-  { id: "4:3", label: "4:3" },
-  { id: "3:4", label: "3:4" },
-  { id: "16:9", label: "16:9" },
-];
-
-const frames: { id: InlinePhotoStyle["frame"]; label: string }[] = [
-  { id: "none", label: "Без рамки" },
-  { id: "line", label: "Рамка" },
-  { id: "polaroid", label: "Полароид" },
-  { id: "round", label: "Скругление" },
-];
+const aspectIds: InlinePhotoStyle["aspect"][] = ["original", "1:1", "4:3", "3:4", "16:9"];
+const frameIds: InlinePhotoStyle["frame"][] = ["none", "line", "polaroid", "round"];
 
 const sizes = [
   { w: 33, label: "S" },
@@ -156,6 +145,9 @@ export function PhotoInspector({
   onRemove: () => void;
   onClose: () => void;
 }) {
+  const t = useMessages().editor.inspector;
+  const aspects = aspectIds.map((id) => ({ id, label: id === "original" ? t.aspectOriginal : id }));
+  const frames = frameIds.map((id) => ({ id, label: t.frames[id] }));
   const style = normalizeStyle(photo.inline);
   const paragraphs = splitParagraphs(answer);
   const [rotating, setRotating] = useState(false);
@@ -164,28 +156,27 @@ export function PhotoInspector({
   const current = style.anchor === null || style.anchor >= paragraphs.length - 1 ? null : style.anchor;
   const pos = Math.max(0, positions.indexOf(current));
   const posLabel = (a: number | null) => {
-    if (a === null) return "В конце ответа";
-    if (a < 0) return "Перед текстом";
-    const words = paragraphs[a].split(/\s+/).slice(0, 5).join(" ");
-    return `После абзаца ${a + 1} · «${words}…»`;
+    if (a === null) return t.atEnd;
+    if (a < 0) return t.beforeText;
+    return t.afterParagraph(a + 1, paragraphs[a].split(/\s+/).slice(0, 5).join(" "));
   };
 
   return (
     <div className="space-y-4 rounded-3xl border border-line bg-white p-4 shadow-[0_10px_30px_-18px_rgba(0,0,0,.35)] sm:p-5" data-testid="photo-inspector">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-medium">Настройка фото</div>
-        <button type="button" onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-cream hover:text-ink" aria-label="Закрыть настройки фото">
+        <div className="text-sm font-medium">{t.title}</div>
+        <button type="button" onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-cream hover:text-ink" aria-label={t.close}>
           <X className="size-4" />
         </button>
       </div>
 
       <FocusPicker photo={photo} style={style} onChange={onChange} disabled={!editable} />
       <p className="-mt-2 text-center text-[11px] text-muted">
-        {style.aspect === "original" ? "Выберите пропорции, чтобы кадрировать фото" : "Щёлкните по главному на фото — кадр сдвинется к этой точке"}
+        {style.aspect === "original" ? t.cropHint : t.focusHint}
       </p>
 
       <fieldset disabled={!editable} className="space-y-4">
-        <Field label="Размер" aside={<span className="tabular-nums">{style.width}% ширины</span>}>
+        <Field label={t.size} aside={<span className="tabular-nums">{t.width(style.width)}</span>}>
           <div className="flex items-center gap-3">
             <input
               type="range"
@@ -194,7 +185,7 @@ export function PhotoInspector({
               step={1}
               value={style.width}
               onChange={(e) => onChange({ width: Number(e.target.value) })}
-              aria-label="Размер фото, % ширины страницы"
+              aria-label={t.sizeAria}
               className="h-2 flex-1 accent-[var(--color-wine)]"
             />
             <div className="flex gap-1">
@@ -211,28 +202,28 @@ export function PhotoInspector({
               ))}
             </div>
           </div>
-          <p className="mt-1 text-[11px] text-muted">Или потяните за уголок фото в превью справа. Фото до 50% встают рядом друг с другом.</p>
+          <p className="mt-1 text-[11px] text-muted">{t.sizeHint}</p>
         </Field>
 
-        <Field label="Выравнивание">
+        <Field label={t.align}>
           <Segmented
-            label="Выравнивание"
+            label={t.align}
             value={style.align}
             disabled={style.width === 100}
             onChange={(align) => onChange({ align })}
             options={[
-              { id: "left", label: <AlignLeft className="size-4" />, title: "Слева" },
-              { id: "center", label: <AlignCenter className="size-4" />, title: "По центру" },
-              { id: "right", label: <AlignRight className="size-4" />, title: "Справа" },
+              { id: "left", label: <AlignLeft className="size-4" />, title: t.alignLeft },
+              { id: "center", label: <AlignCenter className="size-4" />, title: t.alignCenter },
+              { id: "right", label: <AlignRight className="size-4" />, title: t.alignRight },
             ]}
           />
         </Field>
 
         <Field
-          label="Место в тексте"
+          label={t.place}
           aside={
             <span className="flex items-center gap-1 text-[11px] font-normal">
-              <Move className="size-3" /> можно перетащить в превью
+              <Move className="size-3" /> {t.placeDrag}
             </span>
           }
         >
@@ -240,7 +231,7 @@ export function PhotoInspector({
             <select
               value={String(pos)}
               onChange={(e) => onChange({ anchor: positions[Number(e.target.value)] })}
-              aria-label="Место фото в тексте"
+              aria-label={t.placeAria}
               className="h-9 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm"
             >
               {positions.map((a, i) => (
@@ -254,8 +245,8 @@ export function PhotoInspector({
               disabled={pos === 0}
               onClick={() => onChange({ anchor: positions[pos - 1] })}
               className="flex size-9 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40"
-              aria-label="Выше по тексту"
-              title="Выше"
+              aria-label={t.upAria}
+              title={t.up}
             >
               <ChevronUp className="size-4" />
             </button>
@@ -264,20 +255,20 @@ export function PhotoInspector({
               disabled={pos === positions.length - 1}
               onClick={() => onChange({ anchor: positions[pos + 1] })}
               className="flex size-9 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40"
-              aria-label="Ниже по тексту"
-              title="Ниже"
+              aria-label={t.downAria}
+              title={t.down}
             >
               <ChevronDown className="size-4" />
             </button>
           </div>
         </Field>
 
-        <Field label="Пропорции">
-          <Segmented label="Пропорции" value={style.aspect} onChange={(aspect) => onChange({ aspect })} options={aspects} />
+        <Field label={t.aspect}>
+          <Segmented label={t.aspect} value={style.aspect} onChange={(aspect) => onChange({ aspect })} options={aspects} />
         </Field>
 
-        <Field label="Оформление">
-          <div role="radiogroup" aria-label="Оформление" className="grid grid-cols-4 gap-1.5">
+        <Field label={t.frame}>
+          <div role="radiogroup" aria-label={t.frame} className="grid grid-cols-4 gap-1.5">
             {frames.map((f) => (
               <button
                 key={f.id}
@@ -301,11 +292,11 @@ export function PhotoInspector({
           </div>
         </Field>
 
-        <Field label={style.frame === "polaroid" ? "Подпись (от руки, на полароиде)" : "Подпись"}>
+        <Field label={style.frame === "polaroid" ? t.captionPolaroid : t.caption}>
           <input
             value={photo.caption}
             onChange={(e) => onCaption(e.target.value)}
-            placeholder="Например: Алматы, лето 2019"
+            placeholder={t.captionPlaceholder}
             maxLength={200}
             className="h-9 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-ink/40"
           />
@@ -326,7 +317,7 @@ export function PhotoInspector({
             className="flex h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream"
           >
             {rotating ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-            Повернуть
+            {t.rotate}
           </button>
           <button
             type="button"
@@ -334,10 +325,10 @@ export function PhotoInspector({
             className="flex h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream"
           >
             <RotateCcw className="size-4" />
-            Сбросить
+            {t.reset}
           </button>
           <button type="button" onClick={onRemove} className="ml-auto flex h-9 items-center rounded-full px-3.5 text-sm text-muted hover:bg-red-50 hover:text-red-700">
-            Убрать из ответа
+            {t.remove}
           </button>
         </div>
       </fieldset>

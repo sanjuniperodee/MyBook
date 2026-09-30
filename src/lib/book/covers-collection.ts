@@ -43,7 +43,6 @@ function rosette(x: number, y: number, s: number, color: string, w: number) {
 
 const oyu: CoverTemplate = {
   id: "oyu",
-  name: "Ою",
   mood: "classic",
   texture: { kind: "grain", opacity: 0.14 },
   swatch: "radial-gradient(circle at 50% 50%,transparent 0 30%,#c9a45c 31% 33%,transparent 34%),linear-gradient(160deg,#0f3b34,#0a2a25)",
@@ -97,7 +96,6 @@ function wash(x: number, y: number, r: number, color: string, rand: () => number
 
 const sunrise: CoverTemplate = {
   id: "sunrise",
-  name: "Рассвет",
   mood: "tender",
   texture: { kind: "grain", opacity: 0.08 },
   swatch: "radial-gradient(circle at 70% 70%,#f6c2a0 0 22%,transparent 40%),radial-gradient(circle at 30% 35%,#c9b3d9 0 18%,transparent 36%),#fbf3ea",
@@ -166,7 +164,6 @@ function tape(x: number, y: number, w: number, h: number, rot: number) {
 
 const herbarium: CoverTemplate = {
   id: "herbarium",
-  name: "Гербарий",
   mood: "tender",
   texture: { kind: "linen", opacity: 0.22 },
   swatch: "linear-gradient(160deg,#f4efe4,#e9e1cf)",
@@ -198,7 +195,6 @@ const herbarium: CoverTemplate = {
 
 const constellation: CoverTemplate = {
   id: "constellation",
-  name: "Созвездие",
   mood: "romance",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(circle at 50% 38%,#f1e6c8 0 2%,transparent 3%),radial-gradient(circle at 36% 30%,#f1e6c8 0 1.5%,transparent 2.5%),linear-gradient(170deg,#0e1630,#1f2a58)",
@@ -248,7 +244,6 @@ const constellation: CoverTemplate = {
 
 const deco: CoverTemplate = {
   id: "deco",
-  name: "Гэтсби",
   mood: "classic",
   texture: { kind: "grain", opacity: 0.14 },
   swatch: "repeating-conic-gradient(from 270deg at 50% 38%,#c8a55f 0 2deg,transparent 2deg 10deg),#141414",
@@ -300,7 +295,6 @@ const deco: CoverTemplate = {
 
 const lemons: CoverTemplate = {
   id: "lemons",
-  name: "Лимоны",
   mood: "bright",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(ellipse at 30% 30%,#f2c94c 0 12%,transparent 13%),radial-gradient(ellipse at 70% 70%,#f2c94c 0 12%,transparent 13%),radial-gradient(ellipse at 70% 25%,#4f7a3e 0 7%,transparent 8%),#f6f1e4",
@@ -354,7 +348,6 @@ function tulip(x: number, baseY: number, h: number, color: string, dark: string,
 
 const tulips: CoverTemplate = {
   id: "tulips",
-  name: "Тюльпаны",
   mood: "tender",
   texture: { kind: "grain", opacity: 0.16 },
   swatch: "radial-gradient(ellipse at 30% 62%,#d9534f 0 7%,transparent 8%),radial-gradient(ellipse at 55% 55%,#e88aa0 0 7%,transparent 8%),radial-gradient(ellipse at 75% 66%,#f2b35e 0 7%,transparent 8%),#f3e7da",
@@ -402,7 +395,6 @@ function ridge(g: CoverGeometry, baseY: number, amp: number, step: number, color
 
 const mountains: CoverTemplate = {
   id: "mountains",
-  name: "Горы",
   mood: "bright",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(180deg,#f7d4b6 0 35%,#9c7ca5 36% 55%,#4a3a57 56% 75%,#2e2640 76%)",
@@ -450,7 +442,6 @@ const FLEURON = "M0,0 C0.3,0.05 0.55,0.2 0.6,0.45 C0.45,0.35 0.3,0.38 0.22,0.5 C
 
 const leather: CoverTemplate = {
   id: "leather",
-  name: "Классика",
   mood: "classic",
   texture: { kind: "grain", opacity: 0.26 },
   swatch: "radial-gradient(ellipse at 50% 45%,#7a5237,#4a2e1f)",
@@ -490,7 +481,6 @@ const leather: CoverTemplate = {
 
 const letter: CoverTemplate = {
   id: "letter",
-  name: "Письмо",
   mood: "romance",
   texture: { kind: "grain", opacity: 0.22 },
   swatch: "repeating-linear-gradient(45deg,#b7323f 0 6%,#f4ead8 6% 12%,#2f5d8c 12% 18%,#f4ead8 18% 24%),#c9a77c",

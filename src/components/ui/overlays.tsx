@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMessages } from "@/i18n/client";
 
 /**
  * Тосты и диалог подтверждения вместо alert/confirm.
@@ -23,6 +24,8 @@ interface ConfirmRequest {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
+  /** Короткий вопрос: кнопки «Да» / «Да, удалить». */
+  short?: boolean;
   resolve: (ok: boolean) => void;
 }
 
@@ -44,8 +47,9 @@ export function toast(text: string, kind: ToastKind = "success") {
 }
 
 /** Сообщение об ошибке из исключения (или запасной текст). */
-export function toastError(e: unknown, fallback = "Не получилось. Попробуйте ещё раз.") {
-  toast(e instanceof Error && e.message ? e.message : fallback, "error");
+export function toastError(e: unknown, fallback?: string) {
+  // Пустой текст — Overlays покажет общее «Не получилось» на языке страницы.
+  toast(e instanceof Error && e.message ? e.message : (fallback ?? ""), "error");
 }
 
 function dismiss(id: number) {
@@ -68,7 +72,7 @@ export function confirmDialog(opts: Omit<ConfirmRequest, "resolve">): Promise<bo
 
 /** Короткая форма для однострочных подтверждений: await ask("Удалить задачу?"). */
 export function ask(title: string, danger = false) {
-  return confirmDialog({ title, danger, confirmLabel: danger ? "Да, удалить" : "Да" });
+  return confirmDialog({ title, danger, short: true });
 }
 
 function answer(ok: boolean) {
@@ -89,6 +93,7 @@ const icons = { success: CheckCircle2, error: AlertTriangle, info: Info };
 export function Overlays() {
   const { toasts: list, confirmReq: req } = useSyncExternalStore(subscribe, () => snapshot, () => serverSnapshot);
   const okButton = useRef<HTMLButtonElement>(null);
+  const m = useMessages().common;
 
   useEffect(() => {
     if (!req) return;
@@ -119,8 +124,8 @@ export function Overlays() {
               )}
             >
               <Icon className={cn("size-4 shrink-0", t.kind === "success" ? "text-emerald-300" : t.kind === "error" ? "text-[#f3a7b0]" : "text-white/70")} />
-              <span className="leading-snug">{t.text}</span>
-              <button onClick={() => dismiss(t.id)} className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Закрыть">
+              <span className="leading-snug">{t.text || m.errors.generic}</span>
+              <button onClick={() => dismiss(t.id)} className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label={m.actions.close}>
                 <X className="size-3.5" />
               </button>
             </div>
@@ -143,10 +148,10 @@ export function Overlays() {
             {req.text ? <p className="mt-2 text-[15px] leading-relaxed text-muted">{req.text}</p> : null}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button className="btn btn-outline" onClick={() => answer(false)}>
-                {req.cancelLabel ?? "Отмена"}
+                {req.cancelLabel ?? m.actions.cancel}
               </button>
               <button ref={okButton} className={cn("btn", req.danger ? "bg-red-700 text-white hover:bg-red-800" : "btn-primary")} onClick={() => answer(true)}>
-                {req.confirmLabel ?? "Подтвердить"}
+                {req.confirmLabel ?? (req.short ? (req.danger ? m.actions.yesDelete : m.actions.yes) : m.actions.confirm)}
               </button>
             </div>
           </div>

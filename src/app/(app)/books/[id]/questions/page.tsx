@@ -4,8 +4,11 @@ import { getAccessibleBook, getBookPhotos, getBookQuestions } from "@/lib/books"
 import { applyGender } from "@/lib/content/gender";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { QuestionsEditor, type EditorQuestion } from "@/components/editor/QuestionsEditor";
+import { getMessages } from "@/i18n/server";
 
-export const metadata: Metadata = { title: "Вопросы" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).books.questionsMeta };
+}
 
 export default async function QuestionsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string }> }) {
   const { id } = await params;
@@ -13,12 +16,12 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
   const [rows, photos] = await Promise.all([getBookQuestions(book.id), getBookPhotos(book.id)]);
-  const theme = getTheme(book.theme);
+  const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const questions: EditorQuestion[] = rows.map((r) => ({
     id: r.id,
     chapter: r.chapter,
-    chapterTitle: g(chapterTitle(theme, r.chapter)),
+    chapterTitle: g(chapterTitle(theme, r.chapter, book.language)),
     prompt: g(r.prompt),
     hint: r.hint ? g(r.hint) : null,
     defaultTitle: g(r.title),
@@ -37,6 +40,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         showToc: book.showToc,
         photoPlacement: book.photoPlacement,
         title: book.title,
+        language: book.language,
       }}
       initialQuestions={questions}
       initialIndex={Math.max(0, (Number(q) || 1) - 1)}

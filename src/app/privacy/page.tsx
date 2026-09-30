@@ -1,42 +1,14 @@
 import type { Metadata } from "next";
-import { LegalPage } from "@/components/LegalPage";
-import { site } from "@/config/site";
+import { LegalPage, legalFacts } from "@/components/LegalPage";
+import { getLocale, getMessages } from "@/i18n/server";
+import { alternates } from "@/i18n/seo";
 
-export const metadata: Metadata = { title: "Политика конфиденциальности" };
+export async function generateMetadata(): Promise<Metadata> {
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  return { title: m.legal.privacy.meta, alternates: alternates("/privacy", locale) };
+}
 
-export default function PrivacyPage() {
-  return (
-    <LegalPage title="Политика конфиденциальности" updated="1 сентября 2026 г.">
-      <p>
-        Настоящая политика описывает, какие данные собирает {site.company.legalName} при использовании сервиса {site.name} и как они используются. Мы уважаем
-        приватность ваших историй: тексты и фотографии книги доступны только вам.
-      </p>
-      <h2>Какие данные мы собираем</h2>
-      <ul>
-        <li>Данные аккаунта: имя, e-mail, пароль (хранится только в виде криптографического хэша).</li>
-        <li>Содержимое книги: ответы на вопросы, фотографии, настройки оформления.</li>
-        <li>Данные заказа: контактное имя, телефон, адрес доставки, история статусов.</li>
-        <li>Технические данные: cookie сессии, необходимые для входа в аккаунт.</li>
-      </ul>
-      <h2>Как мы используем данные</h2>
-      <ul>
-        <li>Для работы сервиса: сохранения и вёрстки вашей книги.</li>
-        <li>Для выполнения заказа: печати, доставки и связи с вами по заказу.</li>
-        <li>Мы не продаём данные и не используем тексты книг в рекламных или иных целях.</li>
-      </ul>
-      <h2>Кому передаются данные</h2>
-      <ul>
-        <li>Типографии — готовые файлы книги, исключительно для печати заказа.</li>
-        <li>Службе доставки — имя, телефон и адрес получателя.</li>
-        <li>Платёжному провайдеру — данные, необходимые для проведения оплаты. Данные банковских карт мы не получаем и не храним.</li>
-      </ul>
-      <h2>Хранение и удаление</h2>
-      <p>
-        Вы можете удалить книгу в любой момент на её странице. Чтобы удалить аккаунт и все связанные данные, напишите нам на {site.contacts.email}. Данные о заказах
-        хранятся в сроки, установленные законодательством для бухгалтерской отчётности.
-      </p>
-      <h2>Контакты</h2>
-      <p>По вопросам обработки данных: {site.contacts.email}.</p>
-    </LegalPage>
-  );
+export default async function PrivacyPage() {
+  const { legal, common } = await getMessages();
+  return <LegalPage title={legal.privacy.title} updated={legal.updated} blocks={legal.privacy.blocks(legalFacts(common.footer.address))} />;
 }

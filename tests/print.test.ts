@@ -29,6 +29,7 @@ describe("печатные параметры", () => {
 describe("вёрстка", () => {
   const book = {
     theme: "love",
+    language: "ru" as const,
     title: "Тест",
     subtitle: "",
     authorName: "А",

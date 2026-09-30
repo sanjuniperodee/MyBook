@@ -28,17 +28,10 @@ export interface ArtContext {
 
 export type CoverMood = "romance" | "tender" | "classic" | "bright" | "photo";
 
-export const coverMoods: { id: CoverMood; label: string }[] = [
-  { id: "romance", label: "Романтика" },
-  { id: "tender", label: "Нежные" },
-  { id: "classic", label: "Классика" },
-  { id: "bright", label: "Яркие" },
-  { id: "photo", label: "С фото" },
-];
+export const coverMoods: CoverMood[] = ["romance", "tender", "classic", "bright", "photo"];
 
 export interface CoverTemplate {
   id: string;
-  name: string;
   /** Настроение — для фильтра в выборе обложки. */
   mood: CoverMood;
   /** CSS-фон для миниатюры в выборе шаблона. */
@@ -62,7 +55,6 @@ export interface CoverTemplate {
 
 const linen: CoverTemplate = {
   id: "linen",
-  name: "Лён",
   mood: "classic",
   texture: { kind: "linen", opacity: 0.35 },
   swatch: "linear-gradient(135deg,#ece4d6,#ddd2bf)",
@@ -82,7 +74,6 @@ const linen: CoverTemplate = {
 
 const blossom: CoverTemplate = {
   id: "blossom",
-  name: "Пионы",
   mood: "romance",
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "radial-gradient(circle at 30% 30%,#e8b4b8 0 18%,transparent 19%),radial-gradient(circle at 70% 65%,#b5545c 0 20%,transparent 21%),#2a1a1f",
@@ -134,7 +125,6 @@ const blossom: CoverTemplate = {
 
 const midnight: CoverTemplate = {
   id: "midnight",
-  name: "Полночь",
   mood: "romance",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(circle at 20% 30%,#e8d9b0 0 2%,transparent 3%),radial-gradient(circle at 70% 60%,#e8d9b0 0 1.5%,transparent 2.5%),linear-gradient(160deg,#141b33,#243258)",
@@ -165,7 +155,6 @@ const midnight: CoverTemplate = {
 
 const sage: CoverTemplate = {
   id: "sage",
-  name: "Шалфей",
   mood: "tender",
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "linear-gradient(160deg,#b8c0a8,#9fab8f)",
@@ -207,7 +196,6 @@ const sage: CoverTemplate = {
 
 const terracotta: CoverTemplate = {
   id: "terracotta",
-  name: "Терракота",
   mood: "bright",
   texture: { kind: "grain", opacity: 0.16 },
   swatch: "radial-gradient(circle at 50% 110%,#f3d9b8 0 30%,#e9b48a 31% 40%,#8f3e27 41% 50%,transparent 51%),#c9724f",
@@ -240,7 +228,6 @@ const terracotta: CoverTemplate = {
 
 const noir: CoverTemplate = {
   id: "noir",
-  name: "Нуар",
   mood: "classic",
   texture: { kind: "grain", opacity: 0.18 },
   swatch: "linear-gradient(160deg,#1a1a1a,#0d0d0d)",
@@ -262,7 +249,6 @@ const noir: CoverTemplate = {
 
 const hearts: CoverTemplate = {
   id: "hearts",
-  name: "Сердца",
   mood: "romance",
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "radial-gradient(ellipse at 50% 50%,#f6e9e1 0 30%,transparent 31%),#8b1e2d",
@@ -297,7 +283,6 @@ const hearts: CoverTemplate = {
 
 const ocean: CoverTemplate = {
   id: "ocean",
-  name: "Океан",
   mood: "bright",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(180deg,#1f4e6b,#6fa3b5)",
@@ -329,7 +314,6 @@ const ocean: CoverTemplate = {
 
 const terrazzo: CoverTemplate = {
   id: "terrazzo",
-  name: "Терраццо",
   mood: "bright",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(circle at 20% 30%,#d9a48f 0 6%,transparent 7%),radial-gradient(circle at 70% 70%,#9db4a8 0 7%,transparent 8%),radial-gradient(circle at 80% 20%,#e4c590 0 5%,transparent 6%),#f1ece4",
@@ -366,7 +350,6 @@ const terrazzo: CoverTemplate = {
 
 const script: CoverTemplate = {
   id: "script",
-  name: "Пудра",
   mood: "romance",
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(160deg,#f5e6df,#ecd3ca)",
@@ -387,7 +370,6 @@ const script: CoverTemplate = {
 
 const photo: CoverTemplate = {
   id: "photo",
-  name: "Ваше фото",
   mood: "photo",
   swatch: "linear-gradient(180deg,#8a8a8a,#2b2b2b)",
   requiresPhoto: true,

@@ -8,7 +8,7 @@ import { renumberQuestions } from "@/lib/books";
 
 const schema = z.object({
   afterId: z.string().uuid(),
-  prompt: z.string().trim().min(3, "Напишите вопрос").max(200),
+  prompt: z.string().trim().min(3, "questionEmpty").max(200),
 });
 
 /** Добавляет собственный вопрос сразу после указанного, в ту же главу. */
@@ -17,9 +17,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { book } = await apiBook(req, id, { editable: true });
   const { afterId, prompt } = schema.parse(await req.json());
   const [after] = await db.select().from(bookQuestions).where(and(eq(bookQuestions.id, afterId), eq(bookQuestions.bookId, book.id)));
-  if (!after) throw new HttpError(404, "Вопрос не найден");
+  if (!after) throw new HttpError(404, "questionNotFound");
   const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(bookQuestions).where(eq(bookQuestions.bookId, book.id));
-  if (count.n >= 600) throw new HttpError(400, "Достигнут предел количества вопросов");
+  if (count.n >= 600) throw new HttpError(400, "questionsLimit");
   const created = await db.transaction(async (tx) => {
     await tx
       .update(bookQuestions)

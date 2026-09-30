@@ -87,8 +87,6 @@ export type TypographyId = "classic" | "modern" | "minimal";
 
 export interface Typography {
   id: TypographyId;
-  name: string;
-  description: string;
   heading: FontKey;
   headingWeight: number;
   headingItalic: boolean;
@@ -101,8 +99,6 @@ export interface Typography {
 export const typographies: Record<TypographyId, Typography> = {
   classic: {
     id: "classic",
-    name: "Классика",
-    description: "Cormorant + PT Serif — как в хорошем романе",
     heading: "cormorant",
     headingWeight: 500,
     headingItalic: false,
@@ -112,8 +108,6 @@ export const typographies: Record<TypographyId, Typography> = {
   },
   modern: {
     id: "modern",
-    name: "Современная",
-    description: "Playfair + Lora — выразительно и тепло",
     heading: "playfair",
     headingWeight: 400,
     headingItalic: true,
@@ -123,8 +117,6 @@ export const typographies: Record<TypographyId, Typography> = {
   },
   minimal: {
     id: "minimal",
-    name: "Минимализм",
-    description: "Montserrat — чисто и легко",
     heading: "montserrat",
     headingWeight: 500,
     headingItalic: false,

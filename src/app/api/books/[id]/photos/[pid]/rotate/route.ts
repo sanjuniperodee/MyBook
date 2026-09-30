@@ -14,7 +14,7 @@ export const POST = api(async (req, { params }: Ctx) => {
   const { id, pid } = await params;
   const { book } = await apiBook(req, id, { editable: true });
   const [photo] = await db.select().from(photos).where(and(eq(photos.id, pid), eq(photos.bookId, book.id)));
-  if (!photo) throw new HttpError(404, "Фото не найдено");
+  if (!photo) throw new HttpError(404, "photoNotFound");
   const [full, thumb] = await Promise.all([getFile(photo.storageKey), getFile(photo.thumbKey)]);
   const [fullOut, thumbOut] = await Promise.all([
     sharp(full).rotate(90).jpeg({ quality: 92, mozjpeg: true, chromaSubsampling: "4:4:4" }).toBuffer(),

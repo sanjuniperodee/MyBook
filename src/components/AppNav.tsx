@@ -1,20 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, ChevronDown, LayoutDashboard, LogOut, Package, UserRound } from "lucide-react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
-
-const links = [
-  { href: "/books", label: "Мои книги", icon: BookOpen },
-  { href: "/orders", label: "Заказы", icon: Package },
-];
+import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { Link, useLocalePathname, useMessages } from "@/i18n/client";
 
 /** Навигация кабинета: активный раздел подсвечен, профиль и выход — в меню под именем. */
 export function AppNav({ name, email, isAdmin }: { name: string; email: string; isAdmin: boolean }) {
-  const pathname = usePathname();
+  const pathname = useLocalePathname();
+  const m = useMessages().common.nav;
+  const links = [
+    { href: "/books", label: m.myBooks, icon: BookOpen },
+    { href: "/orders", label: m.orders, icon: Package },
+  ];
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -34,6 +34,7 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
   const initial = (name || email).trim().charAt(0).toUpperCase();
   return (
     <nav className="flex items-center gap-1 text-[15px]">
+      <LanguageSwitch className="mr-1 hidden md:inline-flex" />
       {links.map((l) => {
         const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
         return (
@@ -58,26 +59,29 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
         >
           <span className="flex size-7 items-center justify-center rounded-full bg-wine text-xs font-semibold text-white">{initial}</span>
           <ChevronDown className={cn("size-4 text-muted transition-transform duration-200", open && "rotate-180")} />
-          <span className="sr-only">Меню профиля</span>
+          <span className="sr-only">{m.profileMenu}</span>
         </button>
         {open ? (
           <div role="menu" className="absolute right-0 mt-2 w-60 origin-top-right animate-[toast-in_180ms_var(--ease-out-soft)_both] rounded-2xl border border-line bg-white p-1.5 shadow-lift">
             <div className="px-3 py-2.5">
-              <div className="truncate text-sm font-medium">{name || "Без имени"}</div>
+              <div className="truncate text-sm font-medium">{name || m.noName}</div>
               <div className="truncate text-xs text-muted">{email}</div>
             </div>
             <div className="my-1 h-px bg-line" />
+            <div className="px-3 py-1.5 md:hidden">
+              <LanguageSwitch />
+            </div>
             <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
-              <UserRound className="size-4 text-muted" /> Профиль
+              <UserRound className="size-4 text-muted" /> {m.profile}
             </Link>
             {isAdmin ? (
               <Link role="menuitem" href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-wine hover:bg-cream">
-                <LayoutDashboard className="size-4" /> CRM
+                <LayoutDashboard className="size-4" /> {m.crm}
               </Link>
             ) : null}
             <form action={logoutAction}>
               <button role="menuitem" className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
-                <LogOut className="size-4 text-muted" /> Выйти
+                <LogOut className="size-4 text-muted" /> {m.logout}
               </button>
             </form>
           </div>

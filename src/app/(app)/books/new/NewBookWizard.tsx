@@ -8,6 +8,8 @@ import { Alert } from "@/components/ui/Alert";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { OccasionPicker } from "@/components/OccasionPicker";
 import { cn } from "@/lib/utils";
+import { useMessages } from "@/i18n/client";
+import { localeMeta, locales, type Locale } from "@/i18n/config";
 import type { ThemeId } from "@/lib/content/types";
 import type { Gender } from "@/lib/db/schema";
 
@@ -20,7 +22,8 @@ export interface WizardTheme {
   recipientPlaceholder: string;
   recipientGender?: Gender;
   defaultRecipientGender: Gender;
-  titleSuggestions: string[];
+  /** Варианты названия на каждом из языков книги. */
+  titleSuggestions: Record<Locale, string[]>;
   defaultCover: string;
 }
 
@@ -42,37 +45,47 @@ function GenderToggle({ name, value, onChange, labels }: { name: string; value: 
   );
 }
 
-export function NewBookWizard({ themes, defaultTheme, defaultAuthor }: { themes: WizardTheme[]; defaultTheme?: ThemeId; defaultAuthor: string }) {
+export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLanguage }: { themes: WizardTheme[]; defaultTheme?: ThemeId; defaultAuthor: string; defaultLanguage: Locale }) {
   const [state, action] = useActionState<CreateState, FormData>(createBookAction, {});
+  const m = useMessages();
+  const t = m.books.wizard;
+  const [language, setLanguage] = useState<Locale>(defaultLanguage);
   const [themeId, setThemeId] = useState<ThemeId | null>(defaultTheme ?? null);
   const [authorName, setAuthorName] = useState(defaultAuthor);
   const [authorGender, setAuthorGender] = useState<Gender>("f");
   const [recipientName, setRecipientName] = useState("");
   const theme = themes.find((t) => t.id === themeId);
   const [recipientGender, setRecipientGender] = useState<Gender>(theme?.defaultRecipientGender ?? "m");
-  const [title, setTitle] = useState(theme?.titleSuggestions[0] ?? "");
+  const [title, setTitle] = useState(theme?.titleSuggestions[defaultLanguage][0] ?? "");
+  const suggestions = theme?.titleSuggestions[language] ?? [];
 
-  const selectTheme = (t: WizardTheme) => {
-    setThemeId(t.id);
-    setRecipientGender(t.recipientGender ?? t.defaultRecipientGender);
-    setTitle(t.titleSuggestions[0]);
+  const selectTheme = (th: WizardTheme) => {
+    setThemeId(th.id);
+    setRecipientGender(th.recipientGender ?? th.defaultRecipientGender);
+    setTitle(th.titleSuggestions[language][0]);
+  };
+
+  // Сменили язык книги — предложенное название тоже переводим (своё название не трогаем).
+  const selectLanguage = (l: Locale) => {
+    if (theme && (!title || theme.titleSuggestions[language].includes(title))) setTitle(theme.titleSuggestions[l][Math.max(0, theme.titleSuggestions[language].indexOf(title))]);
+    setLanguage(l);
   };
 
   if (!theme) {
     return (
       <div>
-        <h1 className="font-serif text-4xl font-medium sm:text-5xl">Кому будет книга?</h1>
-        <p className="mt-3 text-lg text-muted">От выбора зависят вопросы и главы. Своих вопросов можно будет добавить сколько угодно.</p>
+        <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.whoTitle}</h1>
+        <p className="mt-3 text-lg text-muted">{t.whoText}</p>
         <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {themes.map((t) => (
-            <button key={t.id} type="button" onClick={() => selectTheme(t)} className="card group flex items-center gap-5 p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lift">
+          {themes.map((th) => (
+            <button key={th.id} type="button" onClick={() => selectTheme(th)} className="card group flex items-center gap-5 p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lift">
               <div className="w-24 shrink-0">
-                <CoverPreview template={t.defaultCover} title={t.titleSuggestions[0]} lite className="rounded-[3px] shadow-book" />
+                <CoverPreview template={th.defaultCover} title={th.titleSuggestions[language][0]} lite className="rounded-[3px] shadow-book" />
               </div>
               <div>
-                <div className="text-xl font-semibold">{t.name}</div>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">{t.description}</p>
-                <div className="mt-3 text-xs font-medium text-wine">{t.questions} вопросов</div>
+                <div className="text-xl font-semibold">{th.name}</div>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">{th.description}</p>
+                <div className="mt-3 text-xs font-medium text-wine">{t.questions(th.questions)}</div>
               </div>
             </button>
           ))}
@@ -89,20 +102,21 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor }: { themes:
           <ArrowLeft className="size-4" /> {theme.name}
         </button>
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">Пара деталей</h1>
-          <p className="mt-3 text-muted">Мы подстроим формулировки вопросов под вас. Всё можно изменить позже.</p>
+          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.detailsTitle}</h1>
+          <p className="mt-3 text-muted">{t.detailsText}</p>
         </div>
         {state.error ? <Alert>{state.error}</Alert> : null}
         <input type="hidden" name="theme" value={theme.id} />
+        <input type="hidden" name="language" value={language} />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label className="label" htmlFor="authorName">Ваше имя</label>
+            <label className="label" htmlFor="authorName">{t.authorName}</label>
             <input className="input" id="authorName" name="authorName" value={authorName} onChange={(e) => setAuthorName(e.target.value)} maxLength={60} required />
           </div>
           <div>
-            <span className="label">Я пишу как</span>
-            <GenderToggle name="authorGender" value={authorGender} onChange={setAuthorGender} labels={["Мужчина", "Женщина"]} />
+            <span className="label">{t.authorAs}</span>
+            <GenderToggle name="authorGender" value={authorGender} onChange={setAuthorGender} labels={t.genders.author} />
           </div>
           <div>
             <label className="label" htmlFor="recipientName">{theme.recipientLabel}</label>
@@ -112,17 +126,37 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor }: { themes:
             <input type="hidden" name="recipientGender" value={theme.recipientGender} />
           ) : (
             <div>
-              <span className="label">Книга для</span>
-              <GenderToggle name="recipientGender" value={recipientGender} onChange={setRecipientGender} labels={["Него", "Неё"]} />
+              <span className="label">{t.recipientFor}</span>
+              <GenderToggle name="recipientGender" value={recipientGender} onChange={setRecipientGender} labels={t.genders.recipient} />
             </div>
           )}
         </div>
 
         <div>
-          <label className="label" htmlFor="title">Название книги</label>
+          <span className="label">{t.language}</span>
+          <div className="grid max-w-sm grid-cols-2 gap-2 rounded-2xl bg-cream/70 p-1" role="radiogroup" aria-label={t.language}>
+            {locales.map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="radio"
+                aria-checked={language === l}
+                lang={l}
+                onClick={() => selectLanguage(l)}
+                className={cn("h-10 rounded-xl text-sm font-medium transition", language === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+              >
+                {localeMeta[l].label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-sm text-muted">{t.languageHint}</p>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="title">{t.bookTitle}</label>
           <input className="input" id="title" name="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} />
           <div className="mt-3 flex flex-wrap gap-2">
-            {theme.titleSuggestions.map((s) => (
+            {suggestions.map((s) => (
               <button
                 key={s}
                 type="button"
@@ -137,17 +171,17 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor }: { themes:
         </div>
 
         <div>
-          <span className="label">Повод <span className="font-normal text-muted">— необязательно</span></span>
-          <p className="-mt-1 mb-3 text-sm text-muted">Подскажем, до какого дня оформить заказ, чтобы книга приехала вовремя.</p>
+          <span className="label">{t.occasion} <span className="font-normal text-muted">{t.optional}</span></span>
+          <p className="-mt-1 mb-3 text-sm text-muted">{t.occasionHint}</p>
           <OccasionPicker />
         </div>
 
-        <SubmitButton className="btn-lg w-full sm:w-auto" pendingText="Создаём книгу…">Создать книгу</SubmitButton>
+        <SubmitButton className="btn-lg w-full sm:w-auto" pendingText={t.pending}>{t.submit}</SubmitButton>
       </form>
       <div className="hidden lg:block">
         <div className="sticky top-28">
-          <CoverPreview template={theme.defaultCover} title={title} names={names} className="rounded-[3px] shadow-book" />
-          <p className="mt-4 text-center text-sm text-muted">Обложку можно будет сменить</p>
+          <CoverPreview template={theme.defaultCover} title={title} names={names} titlePlaceholder={t.bookTitle} className="rounded-[3px] shadow-book" />
+          <p className="mt-4 text-center text-sm text-muted">{t.coverNote}</p>
         </div>
       </div>
     </div>

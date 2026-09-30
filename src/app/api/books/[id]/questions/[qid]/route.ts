@@ -8,7 +8,7 @@ import { touchBook } from "@/lib/books";
 
 const schema = z
   .object({
-    answer: z.string().max(40_000, "Слишком длинный ответ"),
+    answer: z.string().max(40_000, "answerTooLong"),
     displayText: z.string().trim().max(200).nullable(),
     hideHeading: z.boolean(),
   })
@@ -27,7 +27,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
     .set(data)
     .where(and(eq(bookQuestions.id, qid), eq(bookQuestions.bookId, book.id)))
     .returning({ id: bookQuestions.id, updatedAt: bookQuestions.updatedAt });
-  if (!q) throw new HttpError(404, "Вопрос не найден");
+  if (!q) throw new HttpError(404, "questionNotFound");
   await touchBook(book.id);
   return NextResponse.json({ ok: true, updatedAt: q.updatedAt });
 });
@@ -39,6 +39,6 @@ export const DELETE = api(async (req, { params }: Ctx) => {
     .delete(bookQuestions)
     .where(and(eq(bookQuestions.id, qid), eq(bookQuestions.bookId, book.id), eq(bookQuestions.questionKey, "custom")))
     .returning({ id: bookQuestions.id });
-  if (!q) throw new HttpError(400, "Удалять можно только собственные вопросы");
+  if (!q) throw new HttpError(400, "onlyOwnQuestions");
   return NextResponse.json({ ok: true });
 });

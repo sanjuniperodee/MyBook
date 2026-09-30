@@ -1,14 +1,20 @@
 import { booksId } from "@/lib/db/refs";
 import { nowMs } from "@/lib/utils";
-import { getOccasion, humanDay } from "@/lib/occasions";
+import { getOccasion, parseDay } from "@/lib/occasions";
+import { messagesFor } from "@/i18n/messages";
+
 import Link from "next/link";
 import { and, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bookQuestions, books, orders, photos, users } from "@/lib/db/schema";
-import { getTheme, themes } from "@/lib/content/themes";
+import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/lib/crm-clients";
 import { cn, formatDate } from "@/lib/utils";
 import { RemindAll } from "./RemindAll";
+
+const themes = getThemes("ru");
+
+const ru = messagesFor("ru").common;
 
 export const metadata = { title: "Книги" };
 
@@ -108,7 +114,7 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
                     </div>
                     {r.book.occasion && r.book.occasionDate ? (
                       <div className="mt-0.5 text-xs text-wine">
-                        {getOccasion(r.book.occasion)?.label} · {humanDay(r.book.occasionDate)}
+                        {ru.occasions[getOccasion(r.book.occasion)!.id].label} · {ru.date(parseDay(r.book.occasionDate))}
                       </div>
                     ) : null}
                   </td>

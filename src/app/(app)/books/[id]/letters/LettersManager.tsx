@@ -7,6 +7,9 @@ import { Check, Copy, EyeOff, Link2, MessageCircle, Pencil, RefreshCw, Trash2, U
 import { apiFetch } from "@/lib/client-api";
 import { Alert } from "@/components/ui/Alert";
 import { cn, formatDate } from "@/lib/utils";
+import { useLocale, useMessages } from "@/i18n/client";
+import { localizePath, type Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 
 export interface ManagedLetter {
   id: string;
@@ -17,11 +20,7 @@ export interface ManagedLetter {
   createdAt: string;
 }
 
-const tabs = [
-  { id: "pending", label: "Новые" },
-  { id: "approved", label: "В книге" },
-  { id: "hidden", label: "Скрытые" },
-] as const;
+const tabs = ["pending", "approved", "hidden"] as const;
 
 export function LettersManager({
   bookId,
@@ -29,6 +28,7 @@ export function LettersManager({
   initialLetters,
   appUrl,
   recipient,
+  bookLanguage,
   editable,
 }: {
   bookId: string;
@@ -36,8 +36,12 @@ export function LettersManager({
   initialLetters: ManagedLetter[];
   appUrl: string;
   recipient: string;
+  bookLanguage: Locale;
   editable: boolean;
 }) {
+  const msgs = useMessages();
+  const t = msgs.books.letters;
+  const locale = useLocale();
   const [token, setToken] = useState(initialToken);
   const [letters, setLetters] = useState(initialLetters);
   const [tab, setTab] = useState<ManagedLetter["status"]>(initialLetters.some((l) => l.status === "pending") ? "pending" : "approved");
@@ -45,8 +49,9 @@ export function LettersManager({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const link = token ? `${appUrl}/letters/${token}` : "";
-  const shareText = `Я готовлю книгу-сюрприз${recipient ? ` — её получит ${recipient}` : ""}. Напишите, пожалуйста, пару тёплых слов — они войдут в книгу: ${link}`;
+  // Близкие пишут для книги — страница письма и текст приглашения на языке книги.
+  const link = token ? `${appUrl}${localizePath(`/letters/${token}`, bookLanguage)}` : "";
+  const shareText = messagesFor(bookLanguage).books.letters.share(recipient, link);
 
   const setInvite = async (enabled: boolean, regenerate = false) => {
     setBusy(true);
@@ -73,7 +78,7 @@ export function LettersManager({
   };
 
   const remove = async (id: string) => {
-    if (!(await confirmDialog({ title: "Удалить письмо?", text: "Письмо будет удалено безвозвратно.", confirmLabel: "Удалить", danger: true }))) return;
+    if (!(await confirmDialog({ title: t.deleteTitle, text: t.deleteText, confirmLabel: msgs.common.actions.delete, danger: true }))) return;
     const prev = letters;
     setLetters((ls) => ls.filter((l) => l.id !== id));
     try {
@@ -93,9 +98,9 @@ export function LettersManager({
           <div className="flex size-11 items-center justify-center rounded-2xl bg-rose text-wine">
             <Link2 className="size-5" />
           </div>
-          <h2 className="mt-4 text-lg font-semibold">Ссылка для близких</h2>
+          <h2 className="mt-4 text-lg font-semibold">{t.linkTitle}</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted">
-            Отправьте ссылку друзьям и родным — они напишут письма без регистрации. Вы решаете, какие письма попадут в книгу: они соберутся в главу «Письма близких».
+            {t.linkText}
           </p>
           {error ? <Alert className="mt-4">{error}</Alert> : null}
           {token ? (
@@ -110,25 +115,25 @@ export function LettersManager({
                     setTimeout(() => setCopied(false), 1800);
                   }}
                 >
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? "Скопировано" : "Копировать"}
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? t.copied : t.copy}
                 </button>
               </div>
               <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline mt-3 w-full">
-                <MessageCircle className="size-4" /> Отправить в WhatsApp
+                <MessageCircle className="size-4" /> {t.whatsapp}
               </a>
               <div className="mt-4 flex justify-between text-xs">
-                <button className="flex items-center gap-1 text-muted hover:text-ink" disabled={busy || !editable} onClick={async () => (await confirmDialog({ title: "Создать новую ссылку?", text: "Старая ссылка перестанет работать — близким нужно будет отправить новую.", confirmLabel: "Создать" })) && setInvite(true, true)}>
-                  <RefreshCw className="size-3.5" /> Новая ссылка
+                <button className="flex items-center gap-1 text-muted hover:text-ink" disabled={busy || !editable} onClick={async () => (await confirmDialog({ title: t.regenTitle, text: t.regenText, confirmLabel: t.regenConfirm })) && setInvite(true, true)}>
+                  <RefreshCw className="size-3.5" /> {t.regen}
                 </button>
                 <button className="text-red-700 hover:underline" disabled={busy || !editable} onClick={() => setInvite(false)}>
-                  Закрыть приём писем
+                  {t.close}
                 </button>
               </div>
-              <p className="mt-4 text-xs text-muted">По ссылке видны название книги, ваше имя и имя получателя.</p>
+              <p className="mt-4 text-xs text-muted">{t.privacy}</p>
             </>
           ) : (
             <button className="btn btn-primary mt-5 w-full" onClick={() => setInvite(true)} disabled={busy || !editable}>
-              Создать ссылку-приглашение
+              {t.create}
             </button>
           )}
         </div>
@@ -136,11 +141,11 @@ export function LettersManager({
 
       <section>
         <div className="flex gap-1.5">
-          {tabs.map((t) => {
-            const n = letters.filter((l) => l.status === t.id).length;
+          {tabs.map((id) => {
+            const n = letters.filter((l) => l.status === id).length;
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} className={cn("rounded-full px-4 py-2 text-sm", tab === t.id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
-                {t.label} <span className="opacity-60">{n}</span>
+              <button key={id} onClick={() => setTab(id)} className={cn("rounded-full px-4 py-2 text-sm", tab === id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
+                {t.tabs[id]} <span className="opacity-60">{n}</span>
               </button>
             );
           })}
@@ -149,16 +154,8 @@ export function LettersManager({
           <div className="mt-6 rounded-3xl border-2 border-dashed border-line">
             <EmptyState
               art={LettersArt}
-              title={tab === "pending" ? "Новых писем нет" : tab === "approved" ? "В книге пока нет писем" : "Скрытых писем нет"}
-              text={
-                tab === "pending"
-                  ? token
-                    ? "Поделитесь ссылкой с близкими — их письма появятся здесь, и вы решите, какие войдут в книгу."
-                    : "Создайте ссылку и отправьте её друзьям и родным — писать можно без регистрации."
-                  : tab === "approved"
-                    ? "Одобренные письма соберутся в главу «Письма близких» в конце книги."
-                    : "Сюда попадают письма, которые вы решили не включать в книгу."
-              }
+              title={t.empty[tab]}
+              text={tab === "pending" ? (token ? t.emptyText.pendingInvited : t.emptyText.pending) : t.emptyText[tab]}
             />
           </div>
         ) : (
@@ -170,7 +167,7 @@ export function LettersManager({
                     {l.authorName}
                     {l.relation ? <span className="font-normal text-muted">, {l.relation}</span> : null}
                   </div>
-                  <div className="text-xs text-muted">{formatDate(l.createdAt, true)}</div>
+                  <div className="text-xs text-muted">{formatDate(l.createdAt, true, locale)}</div>
                 </div>
                 {editing === l.id ? (
                   <LetterEditor letter={l} onCancel={() => setEditing(null)} onSave={async (patch) => { await update(l.id, patch); setEditing(null); }} />
@@ -181,19 +178,19 @@ export function LettersManager({
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-4">
                     {l.status !== "approved" ? (
                       <button className="btn btn-primary btn-sm" onClick={() => update(l.id, { status: "approved" })}>
-                        <Check className="size-4" /> Добавить в книгу
+                        <Check className="size-4" /> {t.approve}
                       </button>
                     ) : (
                       <button className="btn btn-outline btn-sm" onClick={() => update(l.id, { status: "pending" })}>
-                        <Undo2 className="size-4" /> Убрать из книги
+                        <Undo2 className="size-4" /> {t.unapprove}
                       </button>
                     )}
                     <button className="btn btn-ghost btn-sm" onClick={() => setEditing(l.id)}>
-                      <Pencil className="size-4" /> Исправить
+                      <Pencil className="size-4" /> {t.edit}
                     </button>
                     {l.status !== "hidden" ? (
                       <button className="btn btn-ghost btn-sm" onClick={() => update(l.id, { status: "hidden" })}>
-                        <EyeOff className="size-4" /> Скрыть
+                        <EyeOff className="size-4" /> {t.hide}
                       </button>
                     ) : null}
                     <button className="btn btn-ghost btn-sm ml-auto text-red-700" onClick={() => remove(l.id)}>
@@ -211,6 +208,7 @@ export function LettersManager({
 }
 
 function LetterEditor({ letter, onSave, onCancel }: { letter: ManagedLetter; onSave: (p: Partial<ManagedLetter>) => Promise<void>; onCancel: () => void }) {
+  const t = useMessages().books.letters;
   const [authorName, setAuthorName] = useState(letter.authorName);
   const [relation, setRelation] = useState(letter.relation);
   const [text, setText] = useState(letter.text);
@@ -218,14 +216,14 @@ function LetterEditor({ letter, onSave, onCancel }: { letter: ManagedLetter; onS
     <div className="mt-4 space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <input className="input h-10" value={authorName} onChange={(e) => setAuthorName(e.target.value)} maxLength={80} />
-        <input className="input h-10" value={relation} onChange={(e) => setRelation(e.target.value)} maxLength={80} placeholder="кем приходится" />
+        <input className="input h-10" value={relation} onChange={(e) => setRelation(e.target.value)} maxLength={80} placeholder={t.relation} />
       </div>
       <textarea className="input" rows={8} value={text} onChange={(e) => setText(e.target.value)} maxLength={8000} />
       <div className="flex gap-2">
         <button className="btn btn-primary btn-sm" onClick={() => onSave({ authorName: authorName.trim(), relation: relation.trim(), text: text.trim() })} disabled={!authorName.trim() || !text.trim()}>
-          Сохранить
+          {t.save}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Отмена</button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t.cancel}</button>
       </div>
     </div>
   );

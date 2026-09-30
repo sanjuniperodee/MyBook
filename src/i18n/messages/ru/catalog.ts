@@ -1,0 +1,36 @@
+/** Названия обложек, стилей вёрстки и форматов. Ключи — id из src/lib/book/*. */
+export const catalog = {
+  covers: {
+    linen: "Лён",
+    blossom: "Пионы",
+    midnight: "Полночь",
+    sage: "Шалфей",
+    terracotta: "Терракота",
+    noir: "Нуар",
+    hearts: "Сердца",
+    ocean: "Океан",
+    terrazzo: "Терраццо",
+    script: "Пудра",
+    photo: "Ваше фото",
+    oyu: "Ою",
+    sunrise: "Рассвет",
+    herbarium: "Гербарий",
+    constellation: "Созвездие",
+    deco: "Гэтсби",
+    lemons: "Лимоны",
+    tulips: "Тюльпаны",
+    mountains: "Горы",
+    leather: "Классика",
+    letter: "Письмо",
+  } as Record<string, string>,
+  moods: { all: "Все", romance: "Романтика", tender: "Нежные", classic: "Классика", bright: "Яркие", photo: "С фото" },
+  typography: {
+    classic: { name: "Классика", description: "Cormorant + PT Serif — как в хорошем романе" },
+    modern: { name: "Современная", description: "Playfair + Lora — выразительно и тепло" },
+    minimal: { name: "Минимализм", description: "Montserrat — чисто и легко" },
+  },
+  formats: {
+    a5: "Классический A5 · 148×210 мм",
+    square: "Квадратный · 200×200 мм",
+  },
+};

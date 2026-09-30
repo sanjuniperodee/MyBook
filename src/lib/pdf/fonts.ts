@@ -3,6 +3,7 @@ import path from "node:path";
 import { Font } from "@react-pdf/renderer";
 import hyphenRu from "hyphen/ru/index.js";
 import { fontFaces, type FontKey } from "../book/fonts";
+import { hyphenateKk, isKazakhWord } from "../book/hyphen-kk";
 
 let registered = false;
 
@@ -24,7 +25,8 @@ export function ensureFonts() {
     if (word.length < 6) return [word];
     let parts = cache.get(word);
     if (!parts) {
-      parts = hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
+      // Слова с казахскими буквами — по слоговым правилам, остальные — по русским шаблонам.
+      parts = isKazakhWord(word) ? hyphenateKk(word) : hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
       if (cache.size < 50_000) cache.set(word, parts);
     }
     return parts;

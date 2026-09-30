@@ -1,11 +1,16 @@
+import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { giftCards } from "@/lib/db/schema";
-import { formatPrice, getPlan } from "@/config/site";
+import { formatPrice } from "@/config/site";
 import { formatDate, cn } from "@/lib/utils";
-import { humanDay } from "@/lib/occasions";
+import { parseDay } from "@/lib/occasions";
+import { messagesFor } from "@/i18n/messages";
+
 import { GiftActions } from "./GiftActions";
+
+const ru = messagesFor("ru").common;
 
 const statusLabel = { pending_payment: "Ждёт оплаты", paid: "Оплачен", cancelled: "Отменён" } as const;
 
@@ -60,11 +65,11 @@ export default async function AdminGifts() {
                 <td className="px-3 py-3">
                   <div>{g.recipientName}</div>
                   <div className="text-xs text-muted">
-                    {g.recipientEmail ? `${g.recipientEmail} · ${g.sentAt ? "отправлено" : g.sendAt ? `отправка ${humanDay(g.sendAt)}` : "ждёт отправки"}` : "вручит сам(а)"}
+                    {g.recipientEmail ? `${g.recipientEmail} · ${g.sentAt ? "отправлено" : g.sendAt ? `отправка ${ru.date(parseDay(g.sendAt))}` : "ждёт отправки"}` : "вручит сам(а)"}
                   </div>
                 </td>
                 <td className="px-3 py-3">
-                  {getPlan(g.plan)?.name}
+                  {planName(g.plan)}
                   <div className="text-xs text-muted">{formatPrice(g.amount)}</div>
                 </td>
                 <td className="px-3 py-3 font-mono text-xs">

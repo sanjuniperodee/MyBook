@@ -8,6 +8,7 @@ import { interiorMetrics, photoPages, type BookContent, type PhotoItem } from ".
 import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "../book/inline-photo";
 import { face } from "./fonts";
 import { site } from "@/config/site";
+import { messagesFor } from "@/i18n/messages";
 
 export interface PreparedImage {
   data: Buffer;
@@ -30,6 +31,7 @@ const LIGHT = "#B4A99E";
 
 export function InteriorDocument({ content, options }: { content: BookContent; options: InteriorOptions }) {
   const { format, typography: typo } = content;
+  const t = messagesFor(content.language).book;
   const metrics = interiorMetrics[format.id];
   const B = options.bleedMm;
   const scale = metrics.scale;
@@ -82,7 +84,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         letterSpacing: 6,
       }}
     >
-      ПРЕДПРОСМОТР
+      {t.previewMark}
     </Text>
   ) : null;
 
@@ -145,8 +147,8 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       {watermark}
       <View style={{ flexGrow: 1 }} />
       <Text style={{ ...face(typo.body, 400), fontSize: 7.5 * scale, lineHeight: 1.6, color: MUTED }}>
-        {`© ${content.year}${content.authorName ? ` ${content.authorName}` : ""}. Все права защищены.\n`}
-        {`Эта книга написана с любовью и напечатана в единственном экземпляре на ${site.name}.`}
+        {`${t.copyright(content.year, content.authorName)}\n`}
+        {t.colophon(site.name)}
       </Text>
     </Page>,
   );
@@ -169,12 +171,12 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   // ── Оглавление ──
   if (content.showToc && content.chapters.length) {
     const entries = [...content.chapters.map((c) => ({ key: c.key, label: c.title, num: c.number }))];
-    if (content.galleryPhotos.length) entries.push({ key: "__gallery", label: "Наши моменты", num: 0 });
+    if (content.galleryPhotos.length) entries.push({ key: "__gallery", label: t.gallery, num: 0 });
     pages.push(
       <Page key="toc" size={pageSize} style={pagePadding} wrap>
         {watermark}
         <Text style={{ ...displayFace, fontSize: 22 * scale, textAlign: "center", marginTop: 20 * scale, marginBottom: 26 * scale, color: INK }}>
-          Содержание
+          {t.toc}
         </Text>
         {entries.map((e) => (
           <View key={e.key} wrap={false} style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 7 * scale }}>
@@ -332,7 +334,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   // ── Главы ──
   for (const ch of content.chapters) {
-    pages.push(opener(ch.key, `Глава ${ch.number}`, ch.title, ch.epigraph));
+    pages.push(opener(ch.key, t.chapter(ch.number), ch.title, ch.epigraph));
     if (ch.items.length) {
       pages.push(
         <Page key={`body-${ch.key}`} size={pageSize} style={pagePadding} wrap>
@@ -358,7 +360,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   // ── Галерея ──
   if (content.galleryPhotos.length) {
-    pages.push(opener("__gallery", null, "Наши моменты"));
+    pages.push(opener("__gallery", null, t.gallery));
     photoPages(content.galleryPhotos).forEach((group, i) => pages.push(photoPage(group, `ph-gallery-${i}`)));
   }
 
@@ -369,7 +371,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       {centered(
         <>
           {ornament(20)}
-          <Text style={{ ...italicBody, fontSize: 14 * scale, textAlign: "center", color: INK }}>Продолжение следует…</Text>
+          <Text style={{ ...italicBody, fontSize: 14 * scale, textAlign: "center", color: INK }}>{t.theEnd}</Text>
           <Text style={{ ...smallCaps, textAlign: "center", marginTop: 16 }}>{content.year}</Text>
         </>,
         0.36,
@@ -378,7 +380,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   );
 
   return (
-    <Document title={content.title} author={content.authorName || site.name} creator={site.name} producer={site.name} language="ru">
+    <Document title={content.title} author={content.authorName || site.name} creator={site.name} producer={site.name} language={content.language}>
       {pages}
     </Document>
   );

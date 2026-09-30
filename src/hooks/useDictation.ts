@@ -1,5 +1,6 @@
 "use client";
 
+import { useMessages } from "@/i18n/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface RecognitionResult {
@@ -32,19 +33,17 @@ function getRecognition(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-const errorMessages: Record<string, string> = {
-  "not-allowed": "Браузер не дал доступ к микрофону. Нажмите на значок замка в адресной строке → Микрофон → Разрешить и попробуйте снова.",
-  "service-not-allowed": "Голосовой ввод недоступен в этом браузере. Попробуйте Chrome или Edge.",
-  "audio-capture": "Микрофон не найден. Проверьте, что он подключён и выбран в настройках системы.",
-  network: "Сервис распознавания речи недоступен. Проверьте интернет или попробуйте другой браузер (Chrome, Edge).",
-  "language-not-supported": "Этот язык распознавания не поддерживается браузером. Выберите RU.",
-};
 
 /**
  * Голосовой ввод через Web Speech API (Chrome, Edge, Safari).
  * Каждая распознанная фраза один раз передаётся в onText. Промежуточный текст — в interim.
  */
 export function useDictation(onText: (text: string) => void) {
+  const t = useMessages().editor.dictation;
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  });
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
@@ -130,7 +129,7 @@ export function useDictation(onText: (text: string) => void) {
       r.onerror = (e) => {
         if (e.error === "no-speech" || e.error === "aborted") return;
         s.alive = false;
-        setError(errorMessages[e.error] ?? `Не удалось распознать речь (${e.error})`);
+        setError(tRef.current.errors[e.error] ?? tRef.current.unknown(e.error));
         setListening(false);
         setInterim("");
       };
@@ -156,7 +155,7 @@ export function useDictation(onText: (text: string) => void) {
       try {
         r.start();
       } catch {
-        setError("Не удалось включить микрофон. Обновите страницу и попробуйте снова.");
+        setError(tRef.current.start);
         setListening(false);
       }
     },

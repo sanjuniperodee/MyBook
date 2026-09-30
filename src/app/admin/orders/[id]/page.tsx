@@ -1,14 +1,14 @@
+import { addonName, coverName, deliveryName, formatName, planName, typographyName } from "@/i18n/labels";
+import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, FileArchive } from "lucide-react";
 import { getOrderWithBook } from "@/lib/orders";
-import { deliveryOptions, formatPrice, getPlan, addonName } from "@/config/site";
+import { formatPrice, getPlan } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { getBookStats } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
-import { getTypography } from "@/lib/book/fonts";
-import { getCoverTemplate } from "@/lib/book/covers";
 import { cn, formatDate } from "@/lib/utils";
 import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
@@ -54,7 +54,6 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
     orderLabel: n.orderId === order.id ? `заказ №${order.number}` : null,
   }));
   const spec = order.printSpec;
-  const delivery = deliveryOptions.find((d) => d.id === order.deliveryMethod);
   const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
 
   return (
@@ -107,7 +106,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <dt className="text-muted">Название</dt><dd>{book.title}</dd>
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
               <dt className="text-muted">Автор → адресат</dt><dd>{book.authorName} → {book.recipientName}</dd>
-              <dt className="text-muted">Оформление</dt><dd>{getFormat(book.format).name} · {getTypography(book.typography).name} · обложка «{getCoverTemplate(book.coverTemplate).name}»</dd>
+              <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · {typographyName(book.typography)} · обложка «{coverName(book.coverTemplate)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
               <dt className="text-muted">Наполнение</dt><dd>{stats.answered} ответов · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>
@@ -125,7 +124,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <dt className="text-muted">Аккаунт</dt><dd>{order.user.email}</dd>
               {plan?.printed ? (
                 <>
-                  <dt className="text-muted">Доставка</dt><dd>{delivery?.name ?? "—"}</dd>
+                  <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}</dd>
                   <dt className="text-muted">Адрес</dt><dd>{[order.postalCode, order.city, order.address].filter(Boolean).join(", ") || "—"}</dd>
                 </>
               ) : null}
@@ -170,9 +169,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           </Card>
           <Card title="Оплата">
             <dl className="space-y-1.5 text-sm">
-              <div className="flex justify-between"><dt className="text-muted">{plan?.name} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">{planName(order.plan)} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
               {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>Промокод {order.promoCode}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
-              {order.addons.length ? <div className="flex justify-between"><dt className="text-muted">{order.addons.map(addonName).join(", ")}</dt><dd>{formatPrice(order.addonsAmount)}</dd></div> : null}
+              {order.addons.length ? <div className="flex justify-between"><dt className="text-muted">{order.addons.map((a) => addonName(a)).join(", ")}</dt><dd>{formatPrice(order.addonsAmount)}</dd></div> : null}
               <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{formatPrice(order.deliveryAmount)}</dd></div>
               <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Итого</dt><dd>{formatPrice(order.amount)}</dd></div>
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>

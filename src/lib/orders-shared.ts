@@ -1,16 +1,12 @@
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 import type { OrderStatus } from "./db/schema";
 
-export const orderStatusLabels: Record<OrderStatus, string> = {
-  pending_payment: "Ожидает оплаты",
-  paid: "Оплачен",
-  in_production: "В производстве",
-  shipped: "Отправлен",
-  delivered: "Доставлен",
-  cancelled: "Отменён",
-};
+/** Подписи статусов по-русски — для CRM. Для клиента — orderStatusLabel(s, locale). */
+export const orderStatusLabels: Record<OrderStatus, string> = messagesFor("ru").common.orderStatus;
 
-export function orderStatusLabel(s: string) {
-  return orderStatusLabels[s as OrderStatus] ?? s;
+export function orderStatusLabel(s: string, locale: Locale = "ru") {
+  return messagesFor(locale).common.orderStatus[s as OrderStatus] ?? s;
 }
 
 export const orderStatusColors: Record<OrderStatus, string> = {

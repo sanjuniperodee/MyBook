@@ -1,9 +1,10 @@
+import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
-import { formatPrice, getPlan, plans } from "@/config/site";
+import { formatPrice, plans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { requireAdmin } from "@/lib/auth";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
@@ -203,7 +204,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             format={formatPrice}
             rows={plans.map((p) => {
               const r = byPlan.find((b) => b.plan === p.id);
-              return { label: p.name, value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
+              return { label: planName(p.id), value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
             })}
           />
         </section>
@@ -241,7 +242,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
               <span className="w-12 font-medium">№{o.number}</span>
               <span className="min-w-0 flex-1 truncate">
-                {o.contactName} · {getPlan(o.plan)?.name}
+                {o.contactName} · {planName(o.plan)}
               </span>
               <span className={cn("rounded-full px-2 py-0.5 text-xs", o.status === "paid" ? orderStatusColors.paid : "bg-amber-100 text-amber-800")}>
                 {o.status === "paid" ? "передать в печать" : "проверить оплату"}

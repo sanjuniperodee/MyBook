@@ -11,7 +11,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   const { id } = await params;
   await apiBook(req, id);
   const bundle = await loadBookBundle(id);
-  if (!bundle) throw new HttpError(404, "Книга не найдена");
+  if (!bundle) throw new HttpError(404, "bookNotFound");
 
   const fingerprint = createHash("sha1")
     .update(JSON.stringify(contentFor(bundle)))

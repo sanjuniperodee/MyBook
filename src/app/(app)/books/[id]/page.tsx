@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/client";
 import { desc, eq } from "drizzle-orm";
 import { ArrowRight, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -8,11 +8,11 @@ import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { Book3D } from "@/components/cover/Book3D";
 import { Morph } from "@/components/motion/PageTransition";
-import { coverNamesLine, getCoverTemplate } from "@/lib/book/covers";
+import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
-import { pluralRu } from "@/lib/book/layout";
 import { getFormat, print } from "@/lib/book/formats";
-import { getTypography } from "@/lib/book/fonts";
+import { getLocale, getMessages } from "@/i18n/server";
+import { coverName, typographyName } from "@/i18n/labels";
 import { site } from "@/config/site";
 import { db } from "@/lib/db";
 import { bookLetters, orders } from "@/lib/db/schema";
@@ -21,7 +21,9 @@ import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
 
-export const metadata: Metadata = { title: "Книга" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).books.hub.meta };
+}
 
 export default async function BookHubPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,7 +40,11 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     approved: letterRows.filter((l) => l.status === "approved").length,
     pending: letterRows.filter((l) => l.status === "pending").length,
   };
-  const theme = getTheme(book.theme);
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const t = m.books.hub;
+  const c = m.common;
+  // Главы и вопросы — на языке книги (это её содержимое), подписи вокруг — на языке интерфейса.
+  const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const editable = book.status === "draft";
   const percent = stats.total ? Math.round((stats.answered / stats.total) * 100) : 0;
@@ -49,7 +55,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   questions.forEach((q, i) => {
     let ch = chapters[chapters.length - 1];
     if (!ch || ch.key !== q.chapter) {
-      ch = { key: q.chapter, title: g(chapterTitle(theme, q.chapter)), total: 0, answered: 0, firstOpen: -1, first: i };
+      ch = { key: q.chapter, title: g(chapterTitle(theme, q.chapter, book.language)), total: 0, answered: 0, firstOpen: -1, first: i };
       chapters.push(ch);
     }
     ch.total++;
@@ -61,22 +67,22 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const nextChapter = next ? chapters.find((c) => c.key === next.chapter) : null;
 
   const steps = [
-    { icon: PenLine, title: "Текст", value: `${stats.answered} ${pluralRu(stats.answered, "ответ", "ответа", "ответов")}`, done: stats.answered >= 10, href: `${base}/questions` },
-    { icon: Palette, title: "Обложка", value: getCoverTemplate(book.coverTemplate).name, done: true, href: `${base}/cover` },
-    { icon: Camera, title: "Фотографии", value: photos.length ? `${photos.length} фото` : "не добавлены", done: photos.length > 0, href: `${base}/photos` },
+    { icon: PenLine, title: t.steps.text, value: c.count.answers(stats.answered), done: stats.answered >= 10, href: `${base}/questions` },
+    { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
+    { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
     {
       icon: Mail,
-      title: "Письма близких",
-      value: letterStats.approved ? `${letterStats.approved} в книге${letterStats.pending ? `, ${letterStats.pending} новых` : ""}` : letterStats.pending ? `${letterStats.pending} новых` : book.inviteToken ? "ссылка отправлена" : "необязательно",
+      title: t.steps.letters,
+      value: t.steps.lettersState(letterStats.approved, letterStats.pending, !!book.inviteToken),
       done: letterStats.approved > 0,
       href: `${base}/letters`,
     },
-    { icon: SlidersHorizontal, title: "Оформление", value: `${getFormat(book.format).short} · ${getTypography(book.typography).name}`, done: true, href: `${base}/settings` },
-    { icon: Eye, title: "Проверка макета", value: "PDF всех страниц", done: false, href: `${base}/preview` },
+    { icon: SlidersHorizontal, title: t.steps.settings, value: `${getFormat(book.format).short} · ${typographyName(book.typography, locale)}`, done: true, href: `${base}/settings` },
+    { icon: Eye, title: t.steps.preview, value: t.steps.previewValue, done: false, href: `${base}/preview` },
     {
       icon: Truck,
-      title: "Заказ и печать",
-      value: order ? orderStatusLabel(order.status) : "после проверки",
+      title: t.steps.order,
+      value: order ? orderStatusLabel(order.status, locale) : t.steps.orderLater,
       done: !!order && order.status !== "pending_payment" && order.status !== "cancelled",
       href: order ? `/orders/${order.id}` : `${base}/checkout`,
     },
@@ -101,16 +107,16 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           </Morph>
         </div>
         <div>
-          <div className="eyebrow">{editable ? "Книга пишется" : "Книга в работе"}</div>
+          <div className="eyebrow">{editable ? t.writing : t.inWork}</div>
           <h1 className="mt-3 font-serif text-4xl leading-[1.05] font-medium sm:text-6xl">{book.title}</h1>
           {book.subtitle ? <p className="mt-2 font-serif text-xl text-muted italic">{book.subtitle}</p> : null}
 
           <dl className="mt-8 grid max-w-xl grid-cols-4 divide-x divide-line">
             {[
-              [stats.printedPages, pluralRu(stats.printedPages, "страница", "страницы", "страниц")],
-              [stats.answered, pluralRu(stats.answered, "ответ", "ответа", "ответов")],
-              [stats.words, pluralRu(stats.words, "слово", "слова", "слов")],
-              [stats.photos, "фото"],
+              [stats.printedPages, c.word.pages(stats.printedPages)],
+              [stats.answered, c.word.answers(stats.answered)],
+              [stats.words, c.word.words(stats.words)],
+              [stats.photos, c.word.photos()],
             ].map(([v, l], i) => (
               <div key={i} className={cn("px-4 first:pl-0")}>
                 <dt className="sr-only">{l}</dt>
@@ -122,8 +128,8 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
           <div className="mt-6 max-w-xl">
             <div className="flex justify-between text-xs text-muted">
-              <span>Отвечено на {percent}% вопросов</span>
-              {stats.estimatedPages < print.minPages ? <span>печатная книга — от {print.minPages} стр.</span> : null}
+              <span>{t.percent(percent)}</span>
+              {stats.estimatedPages < print.minPages ? <span>{t.minPages(print.minPages)}</span> : null}
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
               <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
@@ -136,7 +142,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             <Link href={`${base}/questions?q=${nextIndex + 1}`} className="group mt-8 flex max-w-xl items-center gap-5 rounded-3xl bg-ink p-5 text-white transition hover:bg-ink-soft sm:p-6">
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-white/50">
-                  {stats.answered ? "Следующий вопрос" : "Первый вопрос"} · {nextChapter?.title}
+                  {stats.answered ? t.nextQuestion : t.firstQuestion} · {nextChapter?.title}
                 </div>
                 <div className="mt-1.5 line-clamp-2 font-serif text-xl leading-snug sm:text-2xl">{g(next.prompt)}</div>
               </div>
@@ -147,7 +153,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           ) : null}
           {!editable ? (
             <p className="mt-8 max-w-xl rounded-2xl bg-cream/70 p-4 text-sm text-ink-soft">
-              Книга передана в печать, поэтому редактирование закрыто. Если нужно что-то поправить — напишите в поддержку, мы откроем доступ.
+              {t.locked}
             </p>
           ) : null}
         </div>
@@ -157,34 +163,34 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
         {/* Главы */}
         <div>
           <div className="flex items-baseline justify-between">
-            <h2 className="font-serif text-3xl font-medium">Главы</h2>
+            <h2 className="font-serif text-3xl font-medium">{t.chapters}</h2>
             <span className="text-sm text-muted">
-              {chapters.filter((c) => c.answered > 0).length} из {chapters.length} начаты
+              {t.chaptersStarted(chapters.filter((ch) => ch.answered > 0).length, chapters.length)}
             </span>
           </div>
           <ol className="mt-5 divide-y divide-line border-y border-line">
-            {chapters.map((c, i) => {
-              const done = c.answered === c.total;
-              const target = (c.firstOpen >= 0 ? c.firstOpen : c.first) + 1;
+            {chapters.map((ch, i) => {
+              const done = ch.answered === ch.total;
+              const target = (ch.firstOpen >= 0 ? ch.firstOpen : ch.first) + 1;
               return (
-                <li key={c.key}>
+                <li key={ch.key}>
                   <Link href={`${base}/questions?q=${target}`} className="group flex items-center gap-4 py-3.5">
                     <span
                       className={cn(
                         "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums",
-                        done ? "bg-wine text-white" : c.answered ? "bg-rose text-wine" : "bg-cream text-muted",
+                        done ? "bg-wine text-white" : ch.answered ? "bg-rose text-wine" : "bg-cream text-muted",
                       )}
                     >
                       {done ? <Check className="size-4" /> : i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium group-hover:text-wine">{c.title}</span>
+                      <span className="block truncate font-medium group-hover:text-wine" lang={book.language}>{ch.title}</span>
                       <span className="mt-1.5 block h-1 max-w-56 overflow-hidden rounded-full bg-cream">
-                        <span className="block h-full rounded-full bg-wine/70" style={{ width: `${(c.answered / c.total) * 100}%` }} />
+                        <span className="block h-full rounded-full bg-wine/70" style={{ width: `${(ch.answered / ch.total) * 100}%` }} />
                       </span>
                     </span>
                     <span className="text-sm text-muted tabular-nums">
-                      {c.answered}/{c.total}
+                      {ch.answered}/{ch.total}
                     </span>
                     <ArrowRight className="size-4 text-muted opacity-0 transition group-hover:opacity-100" />
                   </Link>
@@ -197,7 +203,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
         {/* Путь к книге */}
         <aside className="space-y-6">
           <div className="card p-6">
-            <h2 className="font-semibold">Путь к готовой книге</h2>
+            <h2 className="font-semibold">{t.path}</h2>
             <ol className="relative mt-5 space-y-1">
               {steps.map((s) => (
                 <li key={s.title}>
@@ -224,7 +230,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
                   <img key={p.id} src={photoUrl(p.id)} alt="" className="aspect-square w-full object-cover" />
                 ))}
               </div>
-              <div className="px-5 py-3 text-sm text-muted">{photos.length} фото в книге · управлять</div>
+              <div className="px-5 py-3 text-sm text-muted">{t.photosManage(photos.length)}</div>
             </Link>
           ) : null}
 
@@ -234,8 +240,8 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
                 <MessageCircle className="size-4" />
               </span>
               <span>
-                <span className="block font-medium">Нужна помощь?</span>
-                <span className="text-muted">Напишите нам в WhatsApp</span>
+                <span className="block font-medium">{t.help}</span>
+                <span className="text-muted">{t.helpText}</span>
               </span>
             </a>
             <BookMenu bookId={book.id} editable={editable} />

@@ -1,3 +1,4 @@
+import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
 import { and, desc, gte, ne, or, sql } from "drizzle-orm";
@@ -33,7 +34,7 @@ export default async function BoardPage() {
       status: o.status,
       contactName: o.contactName,
       plan: o.plan,
-      planName: plan?.name ?? o.plan,
+      planName: planName(o.plan),
       printed: !!plan?.printed,
       quantity: o.quantity,
       amountLabel: formatPrice(o.amount),

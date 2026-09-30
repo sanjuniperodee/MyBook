@@ -6,7 +6,8 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, 
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, ImagePlus, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
-import { apiFetch } from "@/lib/client-api";
+import { ApiError, apiFetch } from "@/lib/client-api";
+import { useMessages } from "@/i18n/client";
 import { Alert } from "@/components/ui/Alert";
 import { photoUrl } from "@/lib/urls";
 import { getFormat } from "@/lib/book/formats";
@@ -23,14 +24,11 @@ export interface ManagedPhoto {
   inAnswer?: string | null;
 }
 
-const layouts: { id: ManagedPhoto["layout"]; label: string; hint: string }[] = [
-  { id: "full", label: "В рамке", hint: "Фото целиком на странице с полями и подписью" },
-  { id: "bleed", label: "На всю страницу", hint: "Фото заполняет страницу до края, края обрезаются" },
-  { id: "half", label: "Половина", hint: "Два фото на одной странице" },
-];
+const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half"];
 
 export function PhotosManager({ bookId, format, initial, editable }: { bookId: string; format: string; initial: ManagedPhoto[]; editable: boolean }) {
   const [photos, setPhotos] = useState(initial);
+  const t = useMessages().books.photos;
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -60,7 +58,8 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
         errs.push(...res.errors);
       } catch (e) {
         errs.push((e as Error).message);
-        if ((e as Error).message.includes("до ")) break;
+        // Лимит фото в книге: остальные пачки всё равно не пройдут.
+        if (e instanceof ApiError && e.code === "photosLimit") break;
       }
       setUploading({ done: Math.min(i + 3, images.length), total: images.length });
     }
@@ -89,7 +88,7 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
   };
 
   const remove = async (id: string) => {
-    if (!(await confirmDialog({ title: "Удалить фото?", text: "Фото исчезнет из книги и из ответов, где оно стоит.", confirmLabel: "Удалить", danger: true }))) return;
+    if (!(await confirmDialog({ title: t.deleteTitle, text: t.deleteText, confirmLabel: t.delete, danger: true }))) return;
     const prev = photos;
     setPhotos((ps) => ps.filter((p) => p.id !== id));
     try {
@@ -131,15 +130,15 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">Фотографии</h1>
-          <p className="mt-2 text-muted">{photos.length ? "Перетаскивайте карточки, чтобы изменить порядок." : "Загрузите самые тёплые кадры — они появятся между главами."}</p>
+          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+          <p className="mt-2 text-muted">{photos.length ? t.reorder : t.intro}</p>
         </div>
         {editable ? (
           <>
             <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
             <button className="btn btn-primary btn-lg" onClick={() => input.current?.click()} disabled={!!uploading}>
               {uploading ? <LoaderCircle className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
-              {uploading ? `Загружаем ${uploading.done}/${uploading.total}` : "Добавить фото"}
+              {uploading ? t.uploading(uploading.done, uploading.total) : t.add}
             </button>
           </>
         ) : null}
@@ -163,10 +162,10 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
           )}
         >
           <PhotosArt className="h-36 w-auto" />
-          <div className="mt-3 font-serif text-2xl font-medium">Фотографий пока нет</div>
-          <div className="mt-1 text-sm text-muted">Перетащите файлы сюда или нажмите, чтобы выбрать. JPG, PNG, WEBP до 25 МБ.</div>
+          <div className="mt-3 font-serif text-2xl font-medium">{t.empty}</div>
+          <div className="mt-1 text-sm text-muted">{t.emptyText}</div>
           <span className="btn btn-primary btn-sm mt-5">
-            <ImagePlus className="size-4" /> Выбрать фото
+            <ImagePlus className="size-4" /> {t.choose}
           </span>
         </button>
       ) : (
@@ -186,46 +185,46 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
                           <span className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white">{i + 1}</span>
                           {editable ? (
                             <div className="absolute top-3 right-3 flex gap-1.5">
-                              <button {...handle} className="flex size-9 cursor-grab items-center justify-center rounded-full bg-white/90 shadow active:cursor-grabbing" aria-label="Перетащить">
+                              <button {...handle} className="flex size-9 cursor-grab items-center justify-center rounded-full bg-white/90 shadow active:cursor-grabbing" aria-label={t.drag}>
                                 <GripVertical className="size-4" />
                               </button>
-                              <button onClick={() => remove(p.id)} className="flex size-9 items-center justify-center rounded-full bg-white/90 text-red-700 shadow" aria-label="Удалить">
+                              <button onClick={() => remove(p.id)} className="flex size-9 items-center justify-center rounded-full bg-white/90 text-red-700 shadow" aria-label={t.delete}>
                                 <Trash2 className="size-4" />
                               </button>
                             </div>
                           ) : null}
                           {p.inAnswer ? (
                             <span className="absolute bottom-3 left-3 max-w-[70%] truncate rounded-full bg-wine/90 px-2.5 py-1 text-xs text-white" title={p.inAnswer}>
-                              В ответе: {p.inAnswer}
+                              {t.inAnswer(p.inAnswer)}
                             </span>
                           ) : null}
                           {dpi < 150 ? (
-                            <span className="absolute inset-x-3 bottom-3 flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1.5 text-xs text-white" title={`${dpi} dpi при печати`}>
-                              <TriangleAlert className="size-3.5 shrink-0" /> Низкое разрешение — фото может быть нечётким
+                            <span className="absolute inset-x-3 bottom-3 flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1.5 text-xs text-white" title={t.dpi(dpi)}>
+                              <TriangleAlert className="size-3.5 shrink-0" /> {t.lowRes}
                             </span>
                           ) : null}
                         </div>
                         <div className="space-y-3 p-4">
                           <input
                             className="input h-10 text-sm"
-                            placeholder="Подпись к фото (необязательно)"
+                            placeholder={t.caption}
                             value={p.caption}
                             maxLength={200}
                             onChange={(e) => updateCaption(p.id, e.target.value)}
                             disabled={!editable || p.layout === "bleed"}
-                            title={p.layout === "bleed" ? "У фото на всю страницу подписи нет" : undefined}
+                            title={p.layout === "bleed" ? t.noCaptionBleed : undefined}
                           />
-                          {p.inAnswer ? <p className="text-xs text-muted">Печатается сразу после ответа. Убрать из ответа можно в редакторе текста.</p> : null}
+                          {p.inAnswer ? <p className="text-xs text-muted">{t.inAnswerNote}</p> : null}
                           <div className={cn("grid grid-cols-3 gap-1 rounded-xl bg-cream/70 p-1", p.inAnswer && "hidden")}>
                             {layouts.map((l) => (
                               <button
-                                key={l.id}
-                                title={l.hint}
+                                key={l}
+                                title={t.layouts[l].hint}
                                 disabled={!editable}
-                                onClick={() => update(p.id, { layout: l.id })}
-                                className={cn("rounded-lg py-1.5 text-xs font-medium transition", p.layout === l.id ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                                onClick={() => update(p.id, { layout: l })}
+                                className={cn("rounded-lg py-1.5 text-xs font-medium transition", p.layout === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
                               >
-                                {l.label}
+                                {t.layouts[l].label}
                               </button>
                             ))}
                           </div>

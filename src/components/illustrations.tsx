@@ -117,9 +117,9 @@ export function GiftArt({ className }: Props) {
 }
 
 /** Потерявшаяся страница — для 404. */
-export function LostPageArt({ className }: Props) {
+export function LostPageArt({ className, label }: Props & { label?: string }) {
   return (
-    <Frame className={className} label="Страница потерялась">
+    <Frame className={className} label={label}>
       <Blob />
       <path d="M120 64c-16-9-36-11-56-7v70c20-4 40-2 56 7 16-9 36-11 56-7V57c-20-4-40-2-56 7z" fill="#fff" stroke={INK} strokeWidth="1.8" style={d(400)} />
       <path d="M120 64v70" stroke={INK} strokeWidth="1.6" style={d(70, 200)} />

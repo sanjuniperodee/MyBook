@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/client";
 import { desc, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getAccessibleBook } from "@/lib/books";
@@ -10,13 +10,16 @@ import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
+import { getLocale, getMessages } from "@/i18n/server";
 
 /** Шапка «студии» книги: мини-обложка, название и вкладки разделов. */
 export default async function BookLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser(`/books/${id}`);
   const book = await getAccessibleBook(id, user);
-  const theme = getTheme(book.theme);
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const t = m.books.layout;
+  const theme = getTheme(book.theme, locale);
   const [order] = book.status === "draft" ? [] : await db.select({ id: orders.id, number: orders.number }).from(orders).where(eq(orders.bookId, book.id)).orderBy(desc(orders.createdAt)).limit(1);
 
   return (
@@ -25,7 +28,7 @@ export default async function BookLayout({ children, params }: { children: React
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center gap-4 pt-4">
             <Link href="/books" className="hidden text-sm text-muted hover:text-ink sm:block">
-              Мои книги
+              {t.myBooks}
             </Link>
             <span className="hidden text-line sm:block">/</span>
             <div className="w-7 shrink-0">
@@ -50,7 +53,7 @@ export default async function BookLayout({ children, params }: { children: React
               <OrderButton bookId={book.id} />
             ) : order ? (
               <Link href={`/orders/${order.id}`} className="btn btn-dark btn-sm shrink-0">
-                Заказ №{order.number}
+                {t.order(order.number)}
               </Link>
             ) : null}
           </div>

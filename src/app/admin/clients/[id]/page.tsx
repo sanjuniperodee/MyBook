@@ -1,3 +1,4 @@
+import { planName } from "@/i18n/labels";
 import { booksId } from "@/lib/db/refs";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
@@ -9,7 +10,7 @@ import { bookLetters, bookQuestions, books, crmNotes, crmTasks, orders, photos, 
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { REMINDER_COOLDOWN_DAYS } from "@/lib/crm-reminders";
 import { getTheme } from "@/lib/content/themes";
-import { formatPrice, getPlan } from "@/config/site";
+import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
@@ -185,7 +186,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                 <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
                   <span className="w-14 font-medium">№{o.number}</span>
                   <span className="min-w-0 flex-1 truncate text-muted">
-                    {formatDate(o.createdAt)} · {getPlan(o.plan)?.name}
+                    {formatDate(o.createdAt)} · {planName(o.plan)}
                     {o.quantity > 1 ? ` × ${o.quantity}` : ""}
                     {o.promoCode ? ` · ${o.promoCode}` : ""}
                   </span>

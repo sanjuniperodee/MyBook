@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
+import { useLocale, useMessages } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 
 /**
@@ -57,16 +59,19 @@ function PhotoArt() {
   );
 }
 
-const pages: { key: string; render: (n: number) => ReactNode }[] = [
+type Sample = Messages["landing"]["sample"];
+
+/** Страницы примера — на языке сайта (тот же текст, что увидит покупатель в своей книге). */
+const buildPages = (s: Sample, lang: string): { key: string; render: (n: number) => ReactNode }[] => [
   {
     key: "title",
     render: () => (
       <div className="flex h-full flex-col items-center justify-center px-[12%] text-center">
-        <div className="font-[family-name:var(--font-montserrat)] text-[2.3cqw] tracking-[0.3em] text-[#9a8f86] uppercase">Алия &amp; Марғұлан</div>
-        <div className="mt-[8cqw] font-serif text-[10cqw] leading-[1.05] text-[#1f1a17]">Ты — моё всё</div>
-        <div className="mt-[3cqw] font-serif text-[4.4cqw] text-[#7a7068] italic">Четыре года вместе</div>
+        <div className="font-[family-name:var(--font-montserrat)] text-[2.3cqw] tracking-[0.3em] text-[#9a8f86] uppercase">{s.names}</div>
+        <div className="mt-[8cqw] font-serif text-[10cqw] leading-[1.05] text-[#1f1a17]">{s.title}</div>
+        <div className="mt-[3cqw] font-serif text-[4.4cqw] text-[#7a7068] italic">{s.subtitle}</div>
         <Ornament />
-        <div className="absolute inset-x-0 bottom-[9%] font-[family-name:var(--font-montserrat)] text-[2.1cqw] tracking-[0.25em] text-[#b4a99e] uppercase">Алматы · 2026</div>
+        <div className="absolute inset-x-0 bottom-[9%] font-[family-name:var(--font-montserrat)] text-[2.1cqw] tracking-[0.25em] text-[#b4a99e] uppercase">{s.imprint}</div>
       </div>
     ),
   },
@@ -75,9 +80,9 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
     render: () => (
       <div className="flex h-full flex-col items-center justify-center px-[16%] text-center">
         <p className="font-serif text-[5.4cqw] leading-[1.45] text-[#3b332e] italic">
-          Моему самому близкому человеку — за каждое утро, которое начинается с тебя.
+          {s.dedication}
         </p>
-        <div className="mt-[6cqw] font-hand text-[6cqw] text-[#7a1f2b]">Твоя Алия</div>
+        <div className="mt-[6cqw] font-hand text-[6cqw] text-[#7a1f2b]">{s.dedicationSign}</div>
       </div>
     ),
   },
@@ -85,18 +90,9 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
     key: "toc",
     render: (n) => (
       <div className="h-full px-[13%] pt-[16%]">
-        <div className="font-serif text-[7cqw] text-[#1f1a17]">Содержание</div>
+        <div className="font-serif text-[7cqw] text-[#1f1a17]">{s.toc}</div>
         <ul className="mt-[6cqw] space-y-[2.6cqw] font-[family-name:var(--font-ptserif)] text-[3.3cqw] text-[#3b332e]">
-          {[
-            ["Вместо предисловия", 7],
-            ["Как всё начиналось", 11],
-            ["Первое свидание", 19],
-            ["Наши мелочи", 27],
-            ["Приключения и путешествия", 34],
-            ["Через трудности", 43],
-            ["Мечты и планы", 50],
-            ["Письма близких", 57],
-          ].map(([t, p], i) => (
+          {s.tocItems.map(([t, p], i) => (
             <li key={String(t)} className="flex items-baseline gap-[1.5cqw]">
               <span className="w-[5cqw] shrink-0 text-[#b4a99e]">{i + 1}</span>
               <span className="shrink-0">{t}</span>
@@ -113,27 +109,27 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
     key: "opener",
     render: () => (
       <div className="flex h-full flex-col items-center justify-center px-[14%] text-center">
-        <div className="font-[family-name:var(--font-montserrat)] text-[2.4cqw] tracking-[0.3em] text-[#9a8f86] uppercase">Глава 2</div>
-        <div className="mt-[4cqw] font-serif text-[9cqw] leading-[1.08] text-[#1f1a17]">Как всё начиналось</div>
+        <div className="font-[family-name:var(--font-montserrat)] text-[2.4cqw] tracking-[0.3em] text-[#9a8f86] uppercase">{s.chapterLabel}</div>
+        <div className="mt-[4cqw] font-serif text-[9cqw] leading-[1.08] text-[#1f1a17]">{s.chapterTitle}</div>
         <Ornament />
-        <div className="font-[family-name:var(--font-ptserif)] text-[3.2cqw] text-[#7a7068] italic">У каждой большой истории есть свой первый день.</div>
+        <div className="font-[family-name:var(--font-ptserif)] text-[3.2cqw] text-[#7a7068] italic">{s.epigraph}</div>
       </div>
     ),
   },
   {
     key: "text",
     render: (n) => (
-      <div className="h-full px-[12%] pt-[12%]" lang="ru">
-        <div className="font-serif text-[6.4cqw] leading-tight text-[#1f1a17]">Как мы познакомились</div>
+      <div className="h-full px-[12%] pt-[12%]" lang={lang}>
+        <div className="font-serif text-[6.4cqw] leading-tight text-[#1f1a17]">{s.h1}</div>
         <p className={cn(body, "mt-[3cqw]")}>
-          Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег. Я опаздывала на встречу, а ты стоял у входа в кофейню и держал дверь — так неловко и так галантно одновременно, что я рассмеялась.
+          {s.p1}
         </p>
         <p className={cn(body, "mt-[1.6cqw]")}>
-          Потом был разговор ни о чём, который почему-то длился три часа. Я помню, как поймала себя на мысли: мне с тобой совершенно спокойно. Так спокойно, будто мы знакомы много лет.
+          {s.p2}
         </p>
-        <div className="mt-[5cqw] font-serif text-[6.4cqw] leading-tight text-[#1f1a17]">Первое впечатление</div>
+        <div className="mt-[5cqw] font-serif text-[6.4cqw] leading-tight text-[#1f1a17]">{s.h2}</div>
         <p className={cn(body, "mt-[3cqw]")}>
-          Ты показался мне очень серьёзным — пока не улыбнулся. С тех пор я знаю: за строгим взглядом прячется самый добрый человек на свете.
+          {s.p3}
         </p>
         <Folio n={n} />
       </div>
@@ -142,18 +138,18 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
   {
     key: "photo",
     render: (n) => (
-      <div className="h-full px-[12%] pt-[12%]" lang="ru">
+      <div className="h-full px-[12%] pt-[12%]" lang={lang}>
         <p className={body}>
-          В тот вечер мы долго гуляли и забрели на Кок-Тобе. Ты сказал, что оттуда видно весь город, а я смотрела не на город.
+          {s.p4}
         </p>
         <figure className="mx-auto mt-[4cqw] w-[74%] rotate-[-1.5deg] border border-[#e5ddd4] bg-white p-[2.6cqw] pb-0 shadow-[0_1px_2px_rgba(0,0,0,.08)]">
           <div className="aspect-[4/3] overflow-hidden">
             <PhotoArt />
           </div>
-          <figcaption className="py-[2.2cqw] text-center font-hand text-[4.6cqw] text-[#3a332e]">Кок-Тобе, наш первый вечер</figcaption>
+          <figcaption className="py-[2.2cqw] text-center font-hand text-[4.6cqw] text-[#3a332e]">{s.caption}</figcaption>
         </figure>
         <p className={cn(body, "mt-[4cqw]")}>
-          Этот снимок до сих пор стоит у меня на столе. Каждый раз, когда смотрю на него, вспоминаю, как ты боялся, что я замёрзну, и отдал мне свой шарф.
+          {s.p5}
         </p>
         <Folio n={n} />
       </div>
@@ -162,13 +158,13 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
   {
     key: "letter",
     render: (n) => (
-      <div className="h-full px-[12%] pt-[12%]" lang="ru">
-        <div className="font-[family-name:var(--font-montserrat)] text-[2.3cqw] tracking-[0.3em] text-[#9a8f86] uppercase">Письма близких</div>
-        <div className="mt-[3cqw] font-serif text-[6.4cqw] leading-tight text-[#1f1a17]">От мамы Алии</div>
+      <div className="h-full px-[12%] pt-[12%]" lang={lang}>
+        <div className="font-[family-name:var(--font-montserrat)] text-[2.3cqw] tracking-[0.3em] text-[#9a8f86] uppercase">{s.lettersLabel}</div>
+        <div className="mt-[3cqw] font-serif text-[6.4cqw] leading-tight text-[#1f1a17]">{s.letterFrom}</div>
         <p className={cn(body, "mt-[3cqw] italic")}>
-          Марғұлан, когда Алия впервые рассказала о тебе, она улыбалась так, как не улыбалась с детства. Спасибо, что бережёшь её. Пусть в вашем доме всегда будет тепло, а в этой книге — место для новых глав.
+          {s.letter}
         </p>
-        <div className="mt-[4cqw] text-right font-hand text-[5.2cqw] text-[#7a1f2b]">С любовью, Гульнара</div>
+        <div className="mt-[4cqw] text-right font-hand text-[5.2cqw] text-[#7a1f2b]">{s.letterSign}</div>
         <Folio n={n} />
       </div>
     ),
@@ -178,8 +174,8 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
     render: () => (
       <div className="flex h-full flex-col items-center justify-center px-[14%] text-center">
         <Heart className="size-[7cqw] fill-[#7a1f2b] text-[#7a1f2b]" />
-        <div className="mt-[5cqw] font-serif text-[7cqw] leading-tight text-[#1f1a17] italic">Продолжение следует…</div>
-        <div className="mt-[4cqw] font-[family-name:var(--font-ptserif)] text-[3cqw] text-[#7a7068]">Самые важные слова — те, что вы напишете сами.</div>
+        <div className="mt-[5cqw] font-serif text-[7cqw] leading-tight text-[#1f1a17] italic">{s.end}</div>
+        <div className="mt-[4cqw] font-[family-name:var(--font-ptserif)] text-[3cqw] text-[#7a7068]">{s.endNote}</div>
       </div>
     ),
   },
@@ -187,7 +183,7 @@ const pages: { key: string; render: (n: number) => ReactNode }[] = [
 
 const FOLIO_START = 5; // номер первой страницы примера в книге
 
-function Page({ index, side, className }: { index: number; side: "left" | "right"; className?: string }) {
+function Page({ pages, index, side, className }: { pages: ReturnType<typeof buildPages>; index: number; side: "left" | "right"; className?: string }) {
   const p = pages[index];
   return (
     <div className={cn("@container relative size-full overflow-hidden bg-[#fbf9f5] text-left", className)}>
@@ -205,6 +201,9 @@ function Page({ index, side, className }: { index: number; side: "left" | "right
 const FLIP_MS = 650;
 
 export function SampleBook() {
+  const s = useMessages().landing.sample;
+  const locale = useLocale();
+  const pages = useMemo(() => buildPages(s, locale), [s, locale]);
   const [spread, setSpread] = useState(0); // индекс левой страницы разворота / 2
   const [flip, setFlip] = useState<null | "next" | "prev">(null);
   const [mobilePage, setMobilePage] = useState(0);
@@ -225,7 +224,7 @@ export function SampleBook() {
     [flip, spread, spreads],
   );
 
-  const goMobile = useCallback((d: number) => setMobilePage((p) => Math.min(pages.length - 1, Math.max(0, p + d))), []);
+  const goMobile = useCallback((d: number) => setMobilePage((p) => Math.min(pages.length - 1, Math.max(0, p + d))), [pages.length]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -252,11 +251,11 @@ export function SampleBook() {
 
   const nav = (disabledPrev: boolean, disabledNext: boolean, onPrev: () => void, onNext: () => void, label: string) => (
     <div className="mt-6 flex items-center justify-center gap-4">
-      <button type="button" onClick={onPrev} disabled={disabledPrev} className="flex size-11 items-center justify-center rounded-full border border-white/20 text-paper transition hover:bg-white/10 disabled:opacity-30" aria-label="Предыдущая страница">
+      <button type="button" onClick={onPrev} disabled={disabledPrev} className="flex size-11 items-center justify-center rounded-full border border-white/20 text-paper transition hover:bg-white/10 disabled:opacity-30" aria-label={s.prev}>
         <ChevronLeft className="size-5" />
       </button>
       <span className="min-w-24 text-center text-sm text-paper/60 tabular-nums">{label}</span>
-      <button type="button" onClick={onNext} disabled={disabledNext} className="flex size-11 items-center justify-center rounded-full border border-white/20 text-paper transition hover:bg-white/10 disabled:opacity-30" aria-label="Следующая страница">
+      <button type="button" onClick={onNext} disabled={disabledNext} className="flex size-11 items-center justify-center rounded-full border border-white/20 text-paper transition hover:bg-white/10 disabled:opacity-30" aria-label={s.next}>
         <ChevronRight className="size-5" />
       </button>
     </div>
@@ -268,11 +267,11 @@ export function SampleBook() {
       <div className="hidden md:block">
         <div className="relative mx-auto aspect-[296/210] w-full [perspective:2400px]">
           <div className="absolute inset-0 grid grid-cols-2 overflow-hidden rounded-[3px] shadow-[0_40px_80px_-30px_rgba(0,0,0,.75)]">
-            <button type="button" className="relative cursor-w-resize" onClick={() => go("prev")} aria-label="Листать назад" disabled={spread === 0}>
-              <Page index={underLeft} side="left" />
+            <button type="button" className="relative cursor-w-resize" onClick={() => go("prev")} aria-label={s.back} disabled={spread === 0}>
+              <Page pages={pages} index={underLeft} side="left" />
             </button>
-            <button type="button" className="relative cursor-e-resize" onClick={() => go("next")} aria-label="Листать вперёд" disabled={spread >= spreads - 1}>
-              <Page index={underRight} side="right" />
+            <button type="button" className="relative cursor-e-resize" onClick={() => go("next")} aria-label={s.forward} disabled={spread >= spreads - 1}>
+              <Page pages={pages} index={underRight} side="right" />
             </button>
           </div>
           {flip ? (
@@ -280,10 +279,10 @@ export function SampleBook() {
               className={cn("absolute inset-y-0 w-1/2 [transform-style:preserve-3d]", flip === "next" ? "left-1/2 origin-left animate-[sb-flip-next_650ms_ease-in-out_forwards]" : "left-0 origin-right animate-[sb-flip-prev_650ms_ease-in-out_forwards]")}
             >
               <div className="absolute inset-0 [backface-visibility:hidden]">
-                <Page index={flip === "next" ? L + 1 : L} side={flip === "next" ? "right" : "left"} />
+                <Page pages={pages} index={flip === "next" ? L + 1 : L} side={flip === "next" ? "right" : "left"} />
               </div>
               <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                <Page index={flip === "next" ? L + 2 : L - 1} side={flip === "next" ? "left" : "right"} />
+                <Page pages={pages} index={flip === "next" ? L + 2 : L - 1} side={flip === "next" ? "left" : "right"} />
               </div>
             </div>
           ) : null}
@@ -308,7 +307,7 @@ export function SampleBook() {
           <div className="flex h-full transition-transform duration-500 ease-out" style={{ transform: `translateX(-${mobilePage * 100}%)` }}>
             {pages.map((p, i) => (
               <div key={p.key} className="h-full w-full shrink-0">
-                <Page index={i} side={i % 2 ? "right" : "left"} />
+                <Page pages={pages} index={i} side={i % 2 ? "right" : "left"} />
               </div>
             ))}
           </div>

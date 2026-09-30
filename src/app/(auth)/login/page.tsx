@@ -1,22 +1,25 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Link } from "@/i18n/client";
+import { getMessages, lredirect } from "@/i18n/server";
 import { getCurrentUser, safeNextPath } from "@/lib/auth";
 import { LoginForm } from "./LoginForm";
 
-export const metadata: Metadata = { title: "Вход" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).auth.login.meta };
+}
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
-  if (await getCurrentUser()) redirect(safeNextPath(next));
+  if (await getCurrentUser()) return lredirect(safeNextPath(next));
+  const t = (await getMessages()).auth.login;
   return (
     <>
-      <h1 className="font-serif text-4xl font-medium">С возвращением</h1>
-      <p className="mt-2 mb-8 text-muted">Войдите, чтобы продолжить писать свою книгу.</p>
+      <h1 className="font-serif text-4xl font-medium">{t.title}</h1>
+      <p className="mt-2 mb-8 text-muted">{t.text}</p>
       <LoginForm next={next} />
       <p className="mt-8 text-center text-sm text-muted">
-        Ещё нет аккаунта?{" "}
-        <Link href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"} className="font-medium text-wine hover:underline">Зарегистрироваться</Link>
+        {t.noAccount}{" "}
+        <Link href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"} className="font-medium text-wine hover:underline">{t.toRegister}</Link>
       </p>
     </>
   );

@@ -5,6 +5,8 @@ import { mm } from "../book/formats";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "../book/covers";
 import { face } from "./fonts";
 import { site } from "@/config/site";
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 
 function textStyle(s: CoverTextStyle, frontWmm: number) {
   const size = mm(s.size * frontWmm);
@@ -49,6 +51,7 @@ export function CoverDocument({
   text,
   backText,
   title,
+  language,
 }: {
   template: CoverTemplate;
   geometry: CoverGeometry;
@@ -56,6 +59,7 @@ export function CoverDocument({
   text: CoverTextContent;
   backText: string;
   title: string;
+  language: Locale;
 }) {
   const g = geometry;
   const f = g.front;
@@ -69,7 +73,7 @@ export function CoverDocument({
   const spineFont = spine ? Math.min(mm(spine.w * 0.42), 11) : 0;
 
   return (
-    <Document title={`${title} — обложка`} creator={site.name} producer={site.name}>
+    <Document title={messagesFor(language).book.coverDoc(title)} creator={site.name} producer={site.name}>
       <Page size={{ width: mm(g.width), height: mm(g.height) }} style={{ position: "relative" }}>
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */}
         <Image src={{ data: background, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: mm(g.width), height: mm(g.height) }} />

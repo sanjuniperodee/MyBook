@@ -1,15 +1,16 @@
+import { planName } from "@/i18n/labels";
 import { desc } from "drizzle-orm";
 import { api, apiUser, HttpError } from "@/lib/api";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { orderWhere } from "@/lib/crm-filters";
 import { toCsv } from "@/lib/crm";
-import { getPlan } from "@/config/site";
+
 import { orderStatusLabel } from "@/lib/orders-shared";
 
 export const GET = api(async (req) => {
   const admin = await apiUser(req);
-  if (admin.role !== "admin") throw new HttpError(403, "Нет доступа");
+  if (admin.role !== "admin") throw new HttpError(403, "forbidden");
   const params = Object.fromEntries(new URL(req.url).searchParams);
   const rows = await db.select().from(orders).where(orderWhere(params, admin.id)).orderBy(desc(orders.createdAt)).limit(20_000);
   const csv = toCsv(
@@ -19,7 +20,7 @@ export const GET = api(async (req) => {
       o.createdAt,
       o.paidAt,
       orderStatusLabel(o.status),
-      getPlan(o.plan)?.name ?? o.plan,
+      planName(o.plan),
       o.quantity,
       o.itemsAmount,
       o.discountAmount,

@@ -1,6 +1,7 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { site } from "@/config/site";
+import { localizePath, type Locale } from "@/i18n/config";
 import { env } from "./env";
 
 let transporter: Transporter | null | undefined;
@@ -24,13 +25,18 @@ function escape(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
+/** Абсолютная ссылка на страницу сайта на языке получателя (для писем). */
+export function appLink(path: string, locale: Locale = "ru") {
+  return `${env.appUrl}${localizePath(path, locale)}`;
+}
+
 /** Простой брендированный HTML-шаблон письма. */
-export function emailLayout(opts: { title: string; paragraphs: string[]; button?: { label: string; url: string }; footnote?: string }) {
+export function emailLayout(opts: { title: string; paragraphs: string[]; button?: { label: string; url: string }; footnote?: string; locale?: Locale }) {
   const body = opts.paragraphs.map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#3b332e">${p}</p>`).join("");
   const button = opts.button
     ? `<p style="margin:24px 0"><a href="${opts.button.url}" style="display:inline-block;background:#7a1f2b;color:#fff;text-decoration:none;padding:13px 26px;border-radius:999px;font-size:15px;font-weight:600">${escape(opts.button.label)}</a></p>`
     : "";
-  return `<!doctype html><html lang="ru"><body style="margin:0;background:#faf7f2;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+  return `<!doctype html><html lang="${opts.locale ?? "ru"}"><body style="margin:0;background:#faf7f2;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf7f2;padding:32px 12px"><tr><td align="center">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;border:1px solid #e8e0d5">
 <tr><td style="padding:32px 36px 8px"><div style="font-family:Georgia,serif;font-size:24px;color:#7a1f2b">${site.name}</div></td></tr>

@@ -1,6 +1,8 @@
 /**
  * Сборка содержимого книги и оценка объёма. Модуль общий для сервера и браузера.
  */
+import type { Locale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 import { applyGender } from "../content/gender";
 import { getTheme } from "../content/themes";
 import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "../db/schema";
@@ -61,6 +63,8 @@ export interface ContentChapter {
 }
 
 export interface BookContent {
+  /** Язык книги: на нём печатаются служебные надписи (оглавление, «Глава N») и расставляются переносы. */
+  language: Locale;
   format: BookFormat;
   typography: Typography;
   title: string;
@@ -79,6 +83,7 @@ type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" |
 type BookLike = Pick<
   Book,
   | "theme"
+  | "language"
   | "title"
   | "subtitle"
   | "authorName"
@@ -127,7 +132,8 @@ export function buildBookContent(
   year = new Date().getFullYear(),
   letters: LetterLike[] = [],
 ): BookContent {
-  const theme = getTheme(book.theme);
+  const theme = getTheme(book.theme, book.language);
+  const t = messagesFor(book.language).book;
   const sorted = [...questions].sort((a, b) => a.position - b.position);
   const chapterOrder: string[] = [];
   const byChapter = new Map<string, ContentItem[]>();
@@ -157,7 +163,7 @@ export function buildBookContent(
     return {
       key,
       number: i + 1,
-      title: applyGender(def?.title ?? "Разное", book.authorGender, book.recipientGender),
+      title: applyGender(def?.title ?? t.misc, book.authorGender, book.recipientGender),
       epigraph: def?.epigraph,
       items: byChapter.get(key)!,
       photos: [],
@@ -183,14 +189,15 @@ export function buildBookContent(
     chapters.push({
       key: LETTERS_CHAPTER,
       number: chapters.length + 1,
-      title: "Письма близких",
-      epigraph: "Слова тех, кто любит вас",
+      title: t.letters.title,
+      epigraph: t.letters.epigraph,
       items: letterItems.map((l) => ({ id: l.id, heading: l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim(), answer: l.text.trim() })),
       photos: [],
     });
   }
 
   return {
+    language: book.language,
     format: getFormat(book.format),
     typography: getTypography(book.typography),
     title: book.title.trim() || theme.titleSuggestions[0],

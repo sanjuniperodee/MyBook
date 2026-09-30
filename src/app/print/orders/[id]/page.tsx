@@ -1,7 +1,8 @@
+import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderWithBook } from "@/lib/orders";
-import { deliveryOptions, getPlan, site } from "@/config/site";
+import { site } from "@/config/site";
 import { formatDate } from "@/lib/utils";
 import { PrintButton } from "./PrintButton";
 
@@ -13,8 +14,6 @@ export default async function PackingSlip({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const order = await getOrderWithBook(id);
   if (!order) notFound();
-  const plan = getPlan(order.plan);
-  const delivery = deliveryOptions.find((d) => d.id === order.deliveryMethod);
 
   const half = (copy: string) => (
     <section className="flex h-[138mm] flex-col border-b border-dashed border-ink/30 p-[10mm] last:border-b-0">
@@ -36,14 +35,14 @@ export default async function PackingSlip({ params }: { params: Promise<{ id: st
           <div className="mt-1 text-xl font-semibold">{order.contactName}</div>
           <div className="text-lg">{order.contactPhone}</div>
           <div className="mt-2 text-base leading-snug">{[order.postalCode, order.city, order.address].filter(Boolean).join(", ") || "Самовывоз"}</div>
-          <div className="mt-1 text-sm text-muted">{delivery?.name ?? "—"}</div>
+          <div className="mt-1 text-sm text-muted">{deliveryName(order.deliveryMethod)}</div>
           {order.addons.includes("express") || order.plan === "premium" ? <div className="mt-3 mr-2 inline-block bg-ink px-2 py-1 text-sm font-bold text-white uppercase">Срочно — вне очереди</div> : null}
           {order.surprise ? <div className="mt-3 inline-block border-2 border-ink px-2 py-1 text-sm font-bold uppercase">Сюрприз! Не звонить получателю заранее</div> : null}
         </div>
         <div>
           <div className="text-xs text-muted uppercase">Состав</div>
           <ul className="mt-1 space-y-1.5 text-sm">
-            <li className="flex gap-2"><span className="inline-block size-4 shrink-0 border border-ink" /> «{order.book.title}» — {plan?.name}, {order.quantity} экз.</li>
+            <li className="flex gap-2"><span className="inline-block size-4 shrink-0 border border-ink" /> «{order.book.title}» — {planName(order.plan)}, {order.quantity} экз.</li>
             {order.plan === "premium" || order.addons.includes("giftwrap") ? <li className="flex gap-2"><span className="inline-block size-4 shrink-0 border border-ink" /> Подарочная {order.plan === "premium" ? "коробка" : "упаковка (крафт, лента)"}</li> : null}
             {order.giftNote ? <li className="flex gap-2"><span className="inline-block size-4 shrink-0 border border-ink" /> Открытка с текстом</li> : null}
             <li className="flex gap-2"><span className="inline-block size-4 shrink-0 border border-ink" /> Проверка качества печати</li>

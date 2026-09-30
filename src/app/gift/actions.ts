@@ -1,6 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { getLocale, getMessages, lredirect } from "@/i18n/server";
+import { isLocale } from "@/i18n/config";
+import { messagesFor } from "@/i18n/messages";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -19,26 +21,31 @@ export interface GiftFormState {
   error?: string;
 }
 
-const schema = z.object({
-  plan: z.enum(["digital", "hardcover", "premium"]),
-  buyerName: z.string().trim().min(1, "Как вас зовут?").max(60),
-  buyerEmail: z.string().trim().toLowerCase().email("Проверьте e-mail — на него придёт сертификат"),
-  buyerPhone: z.string().trim().max(30).optional().default(""),
-  recipientName: z.string().trim().min(1, "Кому дарите?").max(60),
-  delivery: z.enum(["me", "email"]),
-  recipientEmail: z.string().trim().toLowerCase().email("Проверьте e-mail получателя").optional().or(z.literal("")),
-  sendAt: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional(),
-  message: z.string().trim().max(400).optional().default(""),
-  consent: z.literal("on", { message: "Нужно согласие с условиями оферты" }),
-});
+type GiftErrors = Awaited<ReturnType<typeof getMessages>>["gift"]["form"]["errors"];
+const schema = (e: GiftErrors) =>
+  z.object({
+    plan: z.enum(["digital", "hardcover", "premium"]),
+    buyerName: z.string().trim().min(1, e.buyerName).max(60),
+    buyerEmail: z.string().trim().toLowerCase().email(e.buyerEmail),
+    buyerPhone: z.string().trim().max(30).optional().default(""),
+    recipientName: z.string().trim().min(1, e.recipientName).max(60),
+    delivery: z.enum(["me", "email"]),
+    recipientEmail: z.string().trim().toLowerCase().email(e.recipientEmail).optional().or(z.literal("")),
+    sendAt: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional(),
+    message: z.string().trim().max(400).optional().default(""),
+    locale: z.string().refine(isLocale).default("ru"),
+    consent: z.literal("on", { message: e.consent }),
+  });
 
 export async function createGiftAction(_: GiftFormState, form: FormData): Promise<GiftFormState> {
-  if (!rateLimit(`gift:${await clientIp()}`, 10, 60 * 60_000)) return { error: "Слишком много попыток. Попробуйте позже." };
-  const parsed = schema.safeParse(Object.fromEntries(form));
+  const e = (await getMessages()).gift.form.errors;
+  if (!rateLimit(`gift:${await clientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
+  const parsed = schema(e).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  if (d.delivery === "email" && !d.recipientEmail) return { error: "Укажите e-mail получателя или выберите «Вручу сам(а)»" };
-  if (d.sendAt && d.sendAt < toIsoDay(new Date())) return { error: "Дата отправки уже прошла" };
+  const locale = isLocale(d.locale) ? d.locale : "ru";
+  if (d.delivery === "email" && !d.recipientEmail) return { error: e.needEmail };
+  if (d.sendAt && d.sendAt < toIsoDay(new Date())) return { error: e.pastDate };
   const plan = plans.find((p) => p.id === d.plan)!;
   const user = await getCurrentUser();
   const [gift] = await db
@@ -57,19 +64,26 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
       recipientEmail: d.delivery === "email" ? d.recipientEmail || null : null,
       sendAt: d.delivery === "email" && d.sendAt ? d.sendAt : null,
       message: d.message,
+      locale,
+      buyerLocale: await getLocale(),
     })
     .returning();
+  // Письмо покупателю — на языке сайта, где он оформлял (язык сертификата может быть другим).
+  const buyerLocale = gift.buyerLocale;
+  const buyer = messagesFor(buyerLocale);
+  const t = buyer.gift.checkoutMail;
   await sendMail(
     gift.buyerEmail,
-    `Сертификат №${gift.number} — осталось оплатить`,
+    t.subject(gift.number),
     emailLayout({
-      title: "Сертификат почти готов",
-      paragraphs: [`Сертификат на книгу «${plan.name}», получатель: ${escapeHtml(gift.recipientName)}.`, `Сумма к оплате: <b>${formatPrice(gift.amount)}</b>. После оплаты пришлём PDF с кодом.`],
-      button: { label: "Перейти к оплате", url: giftUrl(gift) },
+      locale: buyerLocale,
+      title: t.title,
+      paragraphs: [t.text(buyer.common.plans[plan.id].name, escapeHtml(gift.recipientName)), t.amount(formatPrice(gift.amount))],
+      button: { label: t.button, url: giftUrl(gift, buyerLocale) },
     }),
   );
   await queueEvent("gift_checkout", gift.amount);
-  redirect(`/gift/${gift.token}`);
+  return lredirect(`/gift/${gift.token}`);
 }
 
 /** Покупатель сообщил об оплате переводом. */
@@ -84,5 +98,5 @@ export async function claimGiftPaymentAction(token: string) {
       emailLayout({ title: `Оплачен сертификат №${gift.number}?`, paragraphs: [`${escapeHtml(gift.buyerName)}, ${formatPrice(gift.amount)}. Проверьте поступление и подтвердите в админке.`], button: { label: "Сертификаты", url: `${env.appUrl}/admin/gifts` } }),
     );
   }
-  redirect(`/gift/${gift.token}`);
+  return lredirect(`/gift/${gift.token}`);
 }

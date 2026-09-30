@@ -1,10 +1,11 @@
+import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { desc, sql } from "drizzle-orm";
 import { Download, Kanban } from "lucide-react";
 import { db } from "@/lib/db";
 import { orders, orderStatuses } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { formatPrice, getPlan, plans } from "@/config/site";
+import { formatPrice, plans } from "@/config/site";
 import { orderStatusLabel } from "@/lib/orders-shared";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { orderWhere, type OrderFilters } from "@/lib/crm-filters";
@@ -31,7 +32,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
     createdLabel: formatDate(o.createdAt, true),
     contactName: o.contactName,
     contactLine: `${o.contactPhone} · ${o.contactEmail}`,
-    planLabel: `${getPlan(o.plan)?.name ?? o.plan}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
+    planLabel: `${planName(o.plan)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
     desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
     amountLabel: formatPrice(o.amount),
     status: o.status,
@@ -75,7 +76,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
           <option value="">Все тарифы</option>
           {plans.map((pl) => (
             <option key={pl.id} value={pl.id}>
-              {pl.name}
+              {planName(pl.id)}
             </option>
           ))}
         </select>

@@ -16,7 +16,7 @@ export interface ProcessedImage {
 export async function processUpload(input: Buffer): Promise<ProcessedImage> {
   const base = sharp(input, { failOn: "error", limitInputPixels: 120_000_000 }).rotate();
   const meta = await base.metadata();
-  if (!meta.width || !meta.height) throw new Error("Не удалось прочитать изображение");
+  if (!meta.width || !meta.height) throw new Error("unreadable image");
   const { data: full, info } = await base
     .clone()
     .resize({ width: MAX_SIDE, height: MAX_SIDE, fit: "inside", withoutEnlargement: true })

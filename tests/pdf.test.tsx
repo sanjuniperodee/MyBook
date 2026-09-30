@@ -28,6 +28,7 @@ const book: Book = {
   inviteToken: null,
   occasion: null,
   occasionDate: null,
+  language: "ru",
   createdAt: now,
   updatedAt: now,
 };
@@ -62,6 +63,15 @@ describe("генерация PDF", () => {
     expect(page.getTrimBox().width).toBeCloseTo(mm(148), 0);
   });
 
+  it("казахская книга: блок и обложка собираются, текст с казахскими буквами переносится", async () => {
+    const kkBook: Book = { ...book, language: "kk", title: "Сен — менің бәрімсің", subtitle: "Бірге төрт жыл" };
+    const kkQuestions = questions.map((q) => ({ ...q, title: `Біз қалай таныстық ${q.position + 1}`, answer: "Біз Алматыға алғашқы қар жауған қарапайым сейсенбіде кездестік. Көктөбеге шығып, қаланың шамдарына ұзақ қарадық. ".repeat(6) }));
+    const res = await renderInterior({ book: kkBook, questions: kkQuestions, photos: [] }, "preview");
+    expect(res.pageCount % print.pageMultiple).toBe(0);
+    const cover = await renderCover({ book: kkBook, questions: kkQuestions, photos: [] }, res.pageCount, "preview");
+    expect((await PDFDocument.load(cover.pdf)).getPageCount()).toBe(1);
+  });
+
   it("обложка: развёртка с корешком", async () => {
     const res = await renderCover(bundle, 64, "preview");
     const doc = await PDFDocument.load(res.pdf);
@@ -74,6 +84,7 @@ describe("подарочный сертификат", () => {
   it("рендерится в одну страницу A5 альбомной ориентации", async () => {
     const { renderGiftPdf } = await import("@/lib/pdf/gift");
     const pdf = await renderGiftPdf({
+      locale: "ru",
       number: 12,
       code: "GIFT-ABCD-EFGH",
       plan: "hardcover",
@@ -88,5 +99,21 @@ describe("подарочный сертификат", () => {
     const { width, height } = doc.getPage(0).getSize();
     expect(Math.round(width)).toBe(595);
     expect(Math.round(height)).toBe(420);
+  });
+
+  it("казахский сертификат собирается тем же макетом", async () => {
+    const { renderGiftPdf } = await import("@/lib/pdf/gift");
+    const pdf = await renderGiftPdf({
+      locale: "kk",
+      number: 13,
+      code: "GIFT-ABCD-EFGH",
+      plan: "premium",
+      amount: 34900,
+      buyerName: "Айгерім",
+      recipientName: "Гүлнар Серікқызы",
+      message: "Анашым, отбасымыздың тарихын жазшы — ол немерелеріңе қалсын деймін",
+      validUntil: new Date(2027, 8, 30),
+    });
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
   });
 });
