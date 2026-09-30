@@ -99,6 +99,13 @@
       "when": 1790768139983,
       "tag": "0013_crm_pro",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790785827306,
+      "tag": "0014_crm_sales",
+      "breakpoints": true
     }
   ]
 }

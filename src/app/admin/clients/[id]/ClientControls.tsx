@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
-import { setClientManagerAction } from "../../crm-actions";
+import { setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { cn } from "@/lib/utils";
 
@@ -83,4 +84,26 @@ export function RemindButton({ clientId, disabled, hint }: { clientId: string; d
 
 export function ClientManager({ clientId, value, options, disabled }: { clientId: string; value: string | null; options: { id: string; label: string }[]; disabled?: boolean }) {
   return <ManagerSelect value={value} options={options} disabled={disabled} onChange={(v) => setClientManagerAction(clientId, v)} />;
+}
+
+export function ExtraPhones({ clientId, value }: { clientId: string; value: string }) {
+  const [text, setText] = useState(value);
+  const [pending, start] = useTransition();
+  return (
+    <form
+      className="flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await setClientPhonesAction(clientId, text);
+          toast(r.ok ? (r.message ?? "Сохранено") : r.message, r.ok ? "success" : "error");
+        });
+      }}
+    >
+      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="второй номер, WhatsApp" className="input h-9 min-w-0 flex-1 text-sm" aria-label="Доп. телефоны" />
+      <button className="btn btn-outline btn-sm h-9" disabled={pending || text === value}>
+        {pending ? <LoaderCircle className="size-4 animate-spin" /> : "OK"}
+      </button>
+    </form>
+  );
 }

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { setShiftAction } from "@/app/admin/crm-actions";
 import {
   BarChart3,
   BookOpen,
@@ -81,7 +82,29 @@ const sections: { title?: string; items: Item[] }[] = [
   },
 ];
 
-export function AdminNav({ adminName, roleName, perms, variant }: { adminName: string; roleName: string; perms: Permission[]; variant: "sidebar" | "mobile" }) {
+function ShiftToggle({ initial }: { initial: boolean }) {
+  const [on, setOn] = useState(initial);
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => {
+        const next = !on;
+        setOn(next);
+        start(() => setShiftAction(next));
+      }}
+      className="mt-1 flex items-center gap-1.5 text-[11px] text-muted hover:text-ink"
+      title={on ? "Вы получаете новые заявки по кругу. Нажмите, чтобы уйти со смены" : "Новые заявки вам не распределяются. Нажмите, чтобы выйти на смену"}
+      data-testid="shift-toggle"
+    >
+      <span className={cn("size-2 rounded-full", on ? "bg-emerald-500" : "bg-muted/40")} />
+      {on ? "На смене" : "Не на смене"}
+    </button>
+  );
+}
+
+export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adminName: string; roleName: string; perms: Permission[]; variant: "sidebar" | "mobile"; onShift: boolean }) {
   const pathname = usePathname();
   const { counters } = useLive().live;
   const [open, setOpen] = useState(false);
@@ -121,6 +144,7 @@ export function AdminNav({ adminName, roleName, perms, variant }: { adminName: s
       <div className="px-3">
         <div className="truncate text-xs font-medium text-ink">{adminName}</div>
         <div className="truncate text-[11px] text-muted">{roleName}</div>
+        {allowed.has("deals.edit") || allowed.has("chats.send") ? <ShiftToggle initial={onShift} /> : null}
       </div>
       <Link href="/books" className="block rounded-xl px-3 py-2 text-ink-soft hover:bg-white/60">
         ← На сайт

@@ -1,8 +1,12 @@
+import { usersId } from "../db/refs";
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../db";
-import { crmDeals, crmNotes, crmRoles, crmStages, orders, users, type CrmDeal, type CrmStage, type DealSource, type Order } from "../db/schema";
-import { phoneKey } from "./phone";
+import { crmCalls, crmConversations, crmDeals, crmNotes, crmRoles, crmStages, crmTasks, orders, users, type CrmDeal, type CrmStage, type DealSource, type Order } from "../db/schema";
+import { normalizePhone, phoneKey } from "./phone";
+import { getSetting } from "./settings";
+import { isWorkTime, parseWorkHours } from "./schedule";
+import { BOOK_READY_ANSWERS, milestoneOrder, type StageMilestone } from "./deal-meta";
 import { notify } from "./notify";
 import { runTrigger } from "./automations";
 
@@ -33,6 +37,8 @@ async function firstStage() {
 }
 
 const phoneDigits = (col: unknown) => sql`right(regexp_replace(coalesce(${col}, ''), '\\D', '', 'g'), 10)`;
+/** Номер среди дополнительных телефонов (хранятся нормализованными цифрами). */
+const inExtra = (col: unknown, key: string) => sql`exists (select 1 from unnest(${col}) p where right(p, 10) = ${key})`;
 
 /** Клиент по телефону: из профиля или из контактов его заказов. */
 export async function findClientByPhone(phone: string | null | undefined): Promise<string | null> {
@@ -41,7 +47,7 @@ export async function findClientByPhone(phone: string | null | undefined): Promi
   const [u] = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.role, "user"), sql`${phoneDigits(users.phone)} = ${key}`))
+    .where(and(eq(users.role, "user"), or(sql`${phoneDigits(users.phone)} = ${key}`, inExtra(users.extraPhones, key))))
     .limit(1);
   if (u) return u.id;
   const [o] = await db
@@ -56,7 +62,11 @@ export async function findClientByPhone(phone: string | null | undefined): Promi
 /** Открытая (не закрытая) сделка клиента или номера — чтобы не плодить дубли. */
 export async function findOpenDeal(opts: { clientId?: string | null; phone?: string | null }): Promise<CrmDeal | null> {
   const key = phoneKey(opts.phone);
-  const conds = [opts.clientId ? eq(crmDeals.clientId, opts.clientId) : undefined, key.length >= 10 ? sql`${phoneDigits(crmDeals.contactPhone)} = ${key}` : undefined].filter(Boolean);
+  const conds = [
+    opts.clientId ? eq(crmDeals.clientId, opts.clientId) : undefined,
+    key.length >= 10 ? sql`${phoneDigits(crmDeals.contactPhone)} = ${key}` : undefined,
+    key.length >= 10 ? inExtra(crmDeals.extraPhones, key) : undefined,
+  ].filter(Boolean);
   if (!conds.length) return null;
   const [row] = await db
     .select({ deal: crmDeals })
@@ -73,12 +83,14 @@ export async function findOpenDeal(opts: { clientId?: string | null; phone?: str
  * которому дольше всех не доставалась новая сделка.
  */
 export async function nextRoundRobin(): Promise<string | null> {
+  // Вне рабочего времени заявку не отдаём никому: утром её возьмёт первый, кто выйдет на смену.
+  if (!isWorkTime(new Date(), parseWorkHours(await getSetting("crm.workHours")))) return null;
   const [row] = await db
     .select({ id: users.id })
     .from(users)
     .innerJoin(crmRoles, eq(crmRoles.id, users.crmRoleId))
-    .where(and(eq(users.role, "admin"), eq(users.staffDisabled, false), ne(crmRoles.key, "owner"), sql`'deals.edit' = any(${crmRoles.permissions})`))
-    .orderBy(sql`(select max(d.created_at) from crm_deals d where d.assignee_id = ${users.id}) asc nulls first`, asc(users.createdAt))
+    .where(and(eq(users.role, "admin"), eq(users.staffDisabled, false), eq(users.onShift, true), ne(crmRoles.key, "owner"), sql`'deals.edit' = any(${crmRoles.permissions})`))
+    .orderBy(sql`(select max(d.created_at) from crm_deals d where d.assignee_id = ${usersId}) asc nulls first`, asc(users.createdAt))
     .limit(1);
   // Роль без ключа (своя) тоже подходит: ne(key,'owner') отсекает null, поэтому проверяем её отдельно.
   if (row) return row.id;
@@ -86,8 +98,8 @@ export async function nextRoundRobin(): Promise<string | null> {
     .select({ id: users.id })
     .from(users)
     .innerJoin(crmRoles, eq(crmRoles.id, users.crmRoleId))
-    .where(and(eq(users.role, "admin"), eq(users.staffDisabled, false), isNull(crmRoles.key), sql`'deals.edit' = any(${crmRoles.permissions})`))
-    .orderBy(sql`(select max(d.created_at) from crm_deals d where d.assignee_id = ${users.id}) asc nulls first`)
+    .where(and(eq(users.role, "admin"), eq(users.staffDisabled, false), eq(users.onShift, true), isNull(crmRoles.key), sql`'deals.edit' = any(${crmRoles.permissions})`))
+    .orderBy(sql`(select max(d.created_at) from crm_deals d where d.assignee_id = ${usersId}) asc nulls first`)
     .limit(1);
   return custom?.id ?? null;
 }
@@ -108,12 +120,15 @@ export interface NewDeal {
   createdById?: string | null;
   orderId?: string | null;
   stageId?: string;
+  /** Заявка с нового контакта: попадёт в «Неразобранное» (если оно включено в настройках). */
+  unsorted?: boolean;
 }
 
 export async function createDeal(input: NewDeal): Promise<CrmDeal> {
   const stageId = input.stageId ?? (await firstStage()).id;
   let clientId = input.clientId ?? null;
   if (!clientId && input.contactPhone) clientId = await findClientByPhone(input.contactPhone);
+  const unsorted = !!input.unsorted && !clientId && (await getSetting("crm.unsorted")) !== "off";
   // Ответственный клиента становится ответственным за сделку.
   let assigneeId = input.assigneeId ?? null;
   if (!assigneeId && clientId) assigneeId = (await db.query.users.findFirst({ where: eq(users.id, clientId), columns: { managerId: true } }))?.managerId ?? null;
@@ -131,6 +146,7 @@ export async function createDeal(input: NewDeal): Promise<CrmDeal> {
       assigneeId,
       createdById: input.createdById ?? null,
       orderId: input.orderId ?? null,
+      unsorted,
     })
     .returning();
   await addDealNote(deal, `Создана сделка №${deal.number} «${deal.title}» (${dealSourceLabels[deal.source]})`, input.createdById ?? null);
@@ -149,7 +165,14 @@ export async function moveDeal(dealId: string, stageId: string, actorId: string 
   const closed = stage.kind !== "open";
   const [updated] = await db
     .update(crmDeals)
-    .set({ stageId, stageChangedAt: new Date(), closedAt: closed ? new Date() : null, lostReason: stage.kind === "lost" ? (lostReason ?? deal.lostReason) : null, updatedAt: new Date() })
+    .set({
+      stageId,
+      stageChangedAt: new Date(),
+      closedAt: closed ? new Date() : null,
+      lostReason: stage.kind === "lost" ? (lostReason ?? deal.lostReason) : null,
+      unsorted: false,
+      updatedAt: new Date(),
+    })
     .where(eq(crmDeals.id, dealId))
     .returning();
   await addDealNote(updated, `Сделка №${deal.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
@@ -165,37 +188,82 @@ export async function assignDeal(dealId: string, assigneeId: string | null) {
 
 // ─── связь с заказами ──────────────────────────────────────────────────────
 
-/** Новый заказ с сайта: привязываем к открытой сделке клиента (или создаём) и переводим в «успех». */
-export async function onOrderCreated(order: Order) {
+/**
+ * Воронка по действиям клиента на сайте. Сделка идёт только вперёд: на этап, у которого задан этот milestone,
+ * если он дальше текущего. Закрытые сделки не трогаем. Сделку заводим сами, начиная с настройки crm.autoDealFrom.
+ */
+export async function advanceByMilestone(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number } = {}) {
   try {
-    const won = await stageOfKind("won");
-    const existing = await findOpenDeal({ clientId: order.userId, phone: order.contactPhone });
-    if (existing) {
-      await db.update(crmDeals).set({ orderId: order.id, amount: order.amount, updatedAt: new Date() }).where(eq(crmDeals.id, existing.id));
-      if (won) await moveDeal(existing.id, won.id, null);
-    } else {
-      await createDeal({
-        title: `Заказ №${order.number}`,
+    const stages = await listStages();
+    const target = stages.find((st) => st.milestone === milestone);
+    let deal = await findOpenDeal({ clientId });
+    if (!deal) {
+      const from = (await getSetting("crm.autoDealFrom")) as StageMilestone | "off";
+      // Заказ заводит сделку всегда: продажа должна попасть в воронку и аналитику.
+      const create = milestone === "order_created" || milestone === "order_paid" || (from !== "off" && milestoneOrder.indexOf(milestone) >= milestoneOrder.indexOf(from));
+      if (!create) return null;
+      const client = await db.query.users.findFirst({ where: eq(users.id, clientId), columns: { name: true, email: true, phone: true } });
+      if (!client) return null;
+      deal = await createDeal({
+        title: opts.title ?? `Сайт: ${client.name || client.email.split("@")[0]}`,
         source: "site",
-        clientId: order.userId,
-        contactName: order.contactName,
-        contactPhone: order.contactPhone,
-        contactEmail: order.contactEmail,
-        amount: order.amount,
-        orderId: order.id,
-        stageId: won?.id,
+        clientId,
+        contactName: client.name,
+        contactPhone: client.phone ? normalizePhone(client.phone) : null,
+        contactEmail: client.email,
+        amount: opts.amount ?? 0,
+        orderId: opts.orderId ?? null,
+        stageId: target?.id,
       });
+    } else if (opts.orderId || opts.amount) {
+      await db
+        .update(crmDeals)
+        .set({ ...(opts.orderId ? { orderId: opts.orderId } : {}), ...(opts.amount ? { amount: opts.amount } : {}), updatedAt: new Date() })
+        .where(eq(crmDeals.id, deal.id));
     }
-    await runTrigger("order.created", { subject: order.id, orderId: order.id, clientId: order.userId });
+    if (!target) return deal;
+    const current = stages.find((st) => st.id === deal!.stageId);
+    if (!current || current.kind !== "open" || deal.stageId === target.id) return deal;
+    if (target.kind === "open" && target.position <= current.position) return deal;
+    return await moveDeal(deal.id, target.id, null);
   } catch (err) {
-    console.error("[crm] onOrderCreated", err);
+    console.error("[crm] advanceByMilestone", milestone, err);
+    return null;
   }
+}
+
+/** Прогресс книги → milestones «половина» и «почти готова». Вызывается после сохранения ответа. */
+const reached = new Map<string, Set<StageMilestone>>();
+export async function onBookProgress(bookId: string, userId: string) {
+  const seen = reached.get(bookId) ?? new Set();
+  if (seen.has("book_ready")) return;
+  const [row] = await db.execute<{ answered: number; total: number }>(sql`
+    select count(*) filter (where length(trim(answer)) > 0)::int as answered, count(*)::int as total
+    from book_questions where book_id = ${bookId}`).then((r) => r.rows);
+  if (!row) return;
+  if (!seen.has("book_half") && row.total && row.answered * 2 >= row.total) {
+    seen.add("book_half");
+    await advanceByMilestone(userId, "book_half");
+  }
+  if (row.answered >= BOOK_READY_ANSWERS) {
+    seen.add("book_ready");
+    await advanceByMilestone(userId, "book_ready");
+  }
+  if (reached.size > 5000) reached.clear();
+  reached.set(bookId, seen);
+}
+
+/** Новый заказ с сайта: связываем с открытой сделкой клиента (или заводим её) и двигаем по воронке. */
+export async function onOrderCreated(order: Order) {
+  await advanceByMilestone(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount });
+  await runTrigger("order.created", { subject: order.id, orderId: order.id, clientId: order.userId }).catch((err) => console.error("[crm] order.created", err));
 }
 
 export async function onOrderPaid(order: Order) {
   try {
     await db.update(crmDeals).set({ amount: order.amount, updatedAt: new Date() }).where(eq(crmDeals.orderId, order.id));
     const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.orderId, order.id) });
+    if (deal) await advanceByMilestone(order.userId, "order_paid");
     await runTrigger("order.paid", { subject: order.id, orderId: order.id, clientId: order.userId, dealId: deal?.id });
   } catch (err) {
     console.error("[crm] onOrderPaid", err);
@@ -214,4 +282,62 @@ export async function onOrderCancelled(order: Order) {
 
 export async function dealsByIds(ids: string[]) {
   return ids.length ? db.select().from(crmDeals).where(inArray(crmDeals.id, ids)) : [];
+}
+
+// ─── дубли ─────────────────────────────────────────────────────────────────
+
+/** Другие сделки того же человека: по клиенту, телефону (включая доп. номера) или e-mail. */
+export async function findDuplicateDeals(deal: CrmDeal) {
+  const keys = [deal.contactPhone, ...deal.extraPhones].map(phoneKey).filter((k) => k.length >= 10);
+  const conds = [
+    deal.clientId ? eq(crmDeals.clientId, deal.clientId) : undefined,
+    deal.contactEmail ? sql`lower(${crmDeals.contactEmail}) = ${deal.contactEmail.toLowerCase()}` : undefined,
+    ...keys.flatMap((k) => [sql`${phoneDigits(crmDeals.contactPhone)} = ${k}`, inExtra(crmDeals.extraPhones, k)]),
+  ].filter(Boolean);
+  if (!conds.length) return [];
+  return db
+    .select({ deal: crmDeals, stage: crmStages })
+    .from(crmDeals)
+    .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+    .where(and(ne(crmDeals.id, deal.id), or(...conds)))
+    .orderBy(desc(crmDeals.createdAt))
+    .limit(10);
+}
+
+/**
+ * Слияние: всё из source (переписка, звонки, задачи, история) переносится в target, пустые поля target
+ * заполняются из source, телефон source становится дополнительным. Source удаляется.
+ */
+export async function mergeDeals(targetId: string, sourceId: string, actorId: string | null) {
+  return db.transaction(async (tx) => {
+    const target = await tx.query.crmDeals.findFirst({ where: eq(crmDeals.id, targetId) });
+    const source = await tx.query.crmDeals.findFirst({ where: eq(crmDeals.id, sourceId) });
+    if (!target || !source || target.id === source.id) throw new Error("Сделка не найдена");
+    const phones = new Set([...target.extraPhones, ...source.extraPhones]);
+    if (source.contactPhone && target.contactPhone && phoneKey(source.contactPhone) !== phoneKey(target.contactPhone)) phones.add(normalizePhone(source.contactPhone));
+    if (target.contactPhone) phones.delete(normalizePhone(target.contactPhone));
+    await tx.update(crmConversations).set({ dealId: target.id }).where(eq(crmConversations.dealId, source.id));
+    await tx.update(crmCalls).set({ dealId: target.id }).where(eq(crmCalls.dealId, source.id));
+    await tx.update(crmTasks).set({ dealId: target.id }).where(eq(crmTasks.dealId, source.id));
+    await tx.update(crmNotes).set({ dealId: target.id }).where(eq(crmNotes.dealId, source.id));
+    await tx
+      .update(crmDeals)
+      .set({
+        contactName: target.contactName || source.contactName,
+        contactPhone: target.contactPhone ?? source.contactPhone,
+        contactEmail: target.contactEmail ?? source.contactEmail,
+        clientId: target.clientId ?? source.clientId,
+        orderId: target.orderId ?? source.orderId,
+        assigneeId: target.assigneeId ?? source.assigneeId,
+        amount: target.amount || source.amount,
+        tags: [...new Set([...target.tags, ...source.tags])],
+        extraPhones: [...phones],
+        unsorted: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(crmDeals.id, target.id));
+    await tx.delete(crmDeals).where(eq(crmDeals.id, source.id));
+    await tx.insert(crmNotes).values({ clientId: target.clientId ?? source.clientId, dealId: target.id, authorId: actorId, kind: "system", text: `Объединена со сделкой №${source.number} «${source.title}»` });
+    return { target, source };
+  });
 }

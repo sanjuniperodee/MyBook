@@ -7,6 +7,7 @@ import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } fr
 import { db } from "@/lib/db";
 import { books, crmDeals, crmNotes, crmTasks, orders, orderStatuses, promoCodes, users } from "@/lib/db/schema";
 import { notify } from "@/lib/crm/notify";
+import { notifyMentions } from "@/lib/crm/mentions";
 import { normalizePromoCode } from "@/lib/pricing";
 import { addOrderEvent, ensurePrintFiles, markOrderPaid, setOrderStatus } from "@/lib/orders";
 
@@ -305,6 +306,8 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   if (parsed.data.clientId) await guardClient(staff, parsed.data.clientId);
   if (parsed.data.dealId) await guardDeal(staff, parsed.data.dealId);
   await db.insert(crmNotes).values({ ...parsed.data, clientId: parsed.data.clientId ?? null, orderId: parsed.data.orderId ?? null, dealId: parsed.data.dealId ?? null, authorId: admin.id });
+  const link = parsed.data.dealId ? `/admin/deals/${parsed.data.dealId}` : parsed.data.orderId ? `/admin/orders/${parsed.data.orderId}` : `/admin/clients/${parsed.data.clientId}`;
+  await notifyMentions(parsed.data.text, admin.id, admin.name || admin.email, link, parsed.data.dealId ? "заметка в сделке" : "заметка о клиенте");
   revalidateCrm(parsed.data.clientId, parsed.data.orderId, parsed.data.dealId);
   return { ok: "Заметка сохранена" };
 }

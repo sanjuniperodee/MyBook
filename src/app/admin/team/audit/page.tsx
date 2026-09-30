@@ -35,6 +35,13 @@ const actions: Record<string, string> = {
   "automation.save": "Изменил автоматизацию",
   "automation.delete": "Удалил автоматизацию",
   "call.recording": "Прослушал запись звонка",
+  "deal.merge": "Объединил сделки",
+  "deal.reject": "Отклонил заявку",
+  "deal.spam": "Отметил заявку как спам",
+  "promo.personal": "Дал персональную скидку",
+  "client.phones": "Изменил доп. телефоны клиента",
+  "staff.shift_on": "Вышел на смену",
+  "staff.shift_off": "Ушёл со смены",
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {

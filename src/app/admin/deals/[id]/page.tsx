@@ -1,3 +1,4 @@
+import { booksId } from "@/lib/db/refs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq, sql } from "drizzle-orm";
@@ -6,9 +7,12 @@ import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/lib/db/schema";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { dealSourceLabels, listStages } from "@/lib/crm/deals";
+import { dealSourceLabels, findClientByPhone, findDuplicateDeals, listStages } from "@/lib/crm/deals";
+import { books, bookQuestions, photos } from "@/lib/db/schema";
 import { channelLabel } from "@/lib/crm/chats";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
+import { chatOffers } from "@/lib/crm/offers";
+import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
@@ -16,7 +20,7 @@ import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/compone
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { cn, formatDate } from "@/lib/utils";
-import { DealAssignee, DealDelete, DealFields, StageBar } from "./DealControls";
+import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, StageBar, UnsortedBanner } from "./DealControls";
 
 export const metadata = { title: "Сделка" };
 
@@ -41,7 +45,33 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const conv = convs[0] ?? null;
-  const [messages, templates, vars, blocker] = conv ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv)]) : [[], [], null, null];
+  const [duplicates, suggestedClientId, bookRows] = await Promise.all([
+    findDuplicateDeals(deal),
+    !deal.clientId && deal.contactPhone ? findClientByPhone(deal.contactPhone) : null,
+    deal.clientId
+      ? db
+          .select({
+            id: books.id,
+            title: books.title,
+            recipientName: books.recipientName,
+            status: books.status,
+            updatedAt: books.updatedAt,
+            answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
+            total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+            photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
+          })
+          .from(books)
+          .where(eq(books.userId, deal.clientId))
+          .orderBy(desc(books.updatedAt))
+          .limit(3)
+      : Promise.resolve([]),
+  ]);
+  const suggested = suggestedClientId ? await db.query.users.findFirst({ where: eq(users.id, suggestedClientId), columns: { id: true, name: true, email: true } }) : null;
+  const clientSeen = deal.clientId ? (await db.query.users.findFirst({ where: eq(users.id, deal.clientId), columns: { lastSeenAt: true } }))?.lastSeenAt : null;
+  const [messages, templates, vars, blocker, offers] = conv
+    ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), chatOffers(conv, can(staff, "promo.give"))])
+    : [[], [], null, null, null];
+  const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");
   const contact = contactView(staff, { phone: deal.contactPhone ? formatPhone(deal.contactPhone) : client?.phone, email: deal.contactEmail ?? client?.email });
@@ -86,13 +116,39 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </h1>
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
+      {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit} /> : null}
+      {duplicates.length ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="duplicates">
+          <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие сделки</h2>
+          <div className="mt-2 divide-y divide-amber-200/70">
+            {duplicates.map(({ deal: d, stage: st }) => (
+              <DuplicateRow
+                key={d.id}
+                targetId={deal.id}
+                other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }}
+                canMerge={can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, d.assigneeId)}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
             <DealFields
-              deal={{ id: deal.id, title: deal.title, amount: deal.amount, source: deal.source, contactName: deal.contactName, contactPhone: contact.masked ? "" : (deal.contactPhone ?? ""), contactEmail: contact.masked ? "" : (deal.contactEmail ?? ""), tags: deal.tags }}
+              deal={{
+                id: deal.id,
+                title: deal.title,
+                amount: deal.amount,
+                source: deal.source,
+                contactName: deal.contactName,
+                contactPhone: contact.masked ? "" : (deal.contactPhone ?? ""),
+                contactEmail: contact.masked ? "" : (deal.contactEmail ?? ""),
+                extraPhones: contact.masked ? [] : deal.extraPhones.map((p) => formatPhone(p)),
+                tags: deal.tags,
+              }}
               masked={contact.masked ? { phone: contact.phone, email: contact.email } : null}
               disabled={!canEdit}
             />
@@ -102,6 +158,30 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             </div>
             <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} />
           </section>
+          {bookRows.length ? (
+            <section className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-books">
+              <div className="flex items-baseline justify-between">
+                <h2 className="font-semibold">Книга клиента</h2>
+                {clientSeen ? <span className="text-xs text-muted">заходил {formatDate(clientSeen, true)}</span> : null}
+              </div>
+              {bookRows.map((b) => (
+                <div key={b.id}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <Link href={`/books/${b.id}/preview`} className="truncate font-medium hover:text-wine">
+                      {b.title || (b.recipientName ? `Для: ${b.recipientName}` : "Без названия")}
+                    </Link>
+                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px]", b.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{b.status === "draft" ? "пишется" : "заказана"}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
+                    <div className="h-full rounded-full bg-wine" style={{ width: `${b.total ? Math.round((b.answered / b.total) * 100) : 0}%` }} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted tabular-nums">
+                    {b.answered} из {b.total} ответов · {b.photos} фото · изм. {formatDate(b.updatedAt)}
+                  </div>
+                </div>
+              ))}
+            </section>
+          ) : null}
           <section className="space-y-2 rounded-2xl border border-line bg-white p-5 text-sm">
             <h2 className="mb-1 font-semibold">Связи</h2>
             {client && can(staff, "clients.view") ? (
@@ -109,6 +189,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 <UserRound className="size-4 text-muted" /> {client.name || contactView(staff, { email: client.email }).email}
                 <ExternalLink className="ml-auto size-3.5 text-muted" />
               </Link>
+            ) : suggested && canEdit && can(staff, "clients.view") ? (
+              <LinkClient dealId={deal.id} client={{ id: suggested.id, label: suggested.name || contactView(staff, { email: suggested.email }).email }} />
             ) : (
               <p className="text-muted">Клиент ещё не зарегистрирован на сайте — свяжем автоматически по телефону, когда он оформит заказ.</p>
             )}
@@ -140,7 +222,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   Открыть в чатах
                 </Link>
               </div>
-              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} />
+              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} />
             </section>
           ) : null}
 
@@ -169,7 +251,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-4 font-semibold">История</h2>
-            {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} /> : <NotesTimelineReadonly notes={notes} />}
+            {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} /> : <NotesTimelineReadonly notes={notes} />}
           </section>
         </div>
       </div>

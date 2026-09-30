@@ -153,7 +153,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
           {canClients ? (
             <Card title="История общения с клиентом">
-              <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} />
+              <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
             </Card>
           ) : null}
 

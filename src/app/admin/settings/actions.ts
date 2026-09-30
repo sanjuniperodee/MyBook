@@ -8,6 +8,7 @@ import { crmTemplates } from "@/lib/db/schema";
 import { assertStaff, audit } from "@/lib/crm/rbac";
 import { ensureToken, fromEnv, saveSettings, type SettingKey } from "@/lib/crm/settings";
 import { randomToken } from "@/lib/crm/crypto";
+import { isValidTime } from "@/lib/crm/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/lib/crm/wazzup";
 
 export interface SettingsState {
@@ -90,10 +91,30 @@ export async function rotateTokenAction(key: "wazzup.webhookToken" | "pbx.token"
 
 export async function saveCrmSettingsAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
-  const sla = z.coerce.number().int().min(1).max(1440).safeParse(form.get("slaMinutes"));
-  if (!sla.success) return { error: "Время ответа — от 1 до 1440 минут" };
-  await saveSettings({ "crm.slaMinutes": String(sla.data) }, staff.user.id);
-  await audit(staff, "settings.update", "settings", "crm", { slaMinutes: sla.data });
+  const parsed = z
+    .object({
+      slaMinutes: z.coerce.number().int().min(1, "Норматив ответа — от 1 минуты").max(1440),
+      from: z.string().refine(isValidTime, "Время начала в формате ЧЧ:ММ"),
+      to: z.string().refine(isValidTime, "Время окончания в формате ЧЧ:ММ"),
+      autoDealFrom: z.enum(["off", "registered", "book_started", "book_half", "book_ready"]),
+      maxDiscount: z.coerce.number().int().min(0).max(50, "Скидка из чата — не больше 50%"),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const days = form.getAll("days").map(Number).filter((d) => d >= 1 && d <= 7);
+  if (!days.length) return { error: "Выберите хотя бы один рабочий день" };
+  const d = parsed.data;
+  await saveSettings(
+    {
+      "crm.slaMinutes": String(d.slaMinutes),
+      "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to }),
+      "crm.autoDealFrom": d.autoDealFrom,
+      "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
+      "crm.maxDiscount": String(d.maxDiscount),
+    },
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "crm", { ...d, days });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }

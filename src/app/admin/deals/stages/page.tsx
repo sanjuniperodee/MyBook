@@ -19,13 +19,13 @@ export default async function StagesPage() {
       </Link>
       <div>
         <h1 className="text-2xl font-semibold">Этапы воронки</h1>
-        <p className="mt-1 text-sm text-muted">Этапы «в работе» можно переименовывать, менять местами и удалять. «Успех» и «Отказ» закрывают сделку — их можно только переименовать.</p>
+        <p className="mt-1 text-sm text-muted">Этапы «в работе» можно переименовывать, менять местами и удалять. «Успех» и «Отказ» закрывают сделку — их можно только переименовать. «Авто» — сделка сама переходит на этап, когда клиент делает это на сайте (только вперёд по воронке).</p>
       </div>
       <div className="divide-y divide-line rounded-2xl border border-line bg-white">
         {stages.map((s, i) => (
           <StageRow
             key={s.id}
-            stage={{ id: s.id, name: s.name, color: s.color, kind: s.kind }}
+            stage={{ id: s.id, name: s.name, color: s.color, kind: s.kind, milestone: s.milestone }}
             deals={byStage.get(s.id) ?? 0}
             canUp={s.kind === "open" && i > 0 && stages[i - 1].kind === "open"}
             canDown={s.kind === "open" && stages[i + 1]?.kind === "open"}

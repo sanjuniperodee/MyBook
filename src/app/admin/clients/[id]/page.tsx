@@ -14,7 +14,8 @@ import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
-import { ClientManager, RemindButton, TagEditor } from "./ClientControls";
+import { ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
+import { formatPhone } from "@/lib/crm/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { dealSourceLabels } from "@/lib/crm/deals";
@@ -141,6 +142,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               )}
             </div>
             {phoneDigits ? <ContactActions className="mt-3" target={{ clientId: client.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} /> : null}
+            {!contact.masked && canEdit ? (
+              <div className="mt-4">
+                <div className="mb-1 text-xs text-muted">Доп. телефоны (через запятую)</div>
+                <ExtraPhones clientId={client.id} value={client.extraPhones.map((p) => formatPhone(p)).join(", ")} />
+              </div>
+            ) : null}
             <div className="mt-4">
               <div className="mb-1 text-xs text-muted">Ответственный</div>
               <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} />
@@ -278,7 +285,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-4 font-semibold">История общения</h2>
-            <NotesTimeline notes={notes} clientId={client.id} />
+            <NotesTimeline notes={notes} clientId={client.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
           </section>
         </div>
       </div>

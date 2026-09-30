@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, X } from "lucide-react";
+import { AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
 import type { LiveState } from "@/lib/crm/live";
@@ -76,7 +76,7 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
   return <LiveContext.Provider value={{ live, refresh }}>{children}</LiveContext.Provider>;
 }
 
-const kindIcon = { message: MessageCircle, call: Phone, task: ListTodo, deal: Handshake, sla: TriangleAlert, system: Bell } as const;
+const kindIcon = { message: MessageCircle, call: Phone, task: ListTodo, deal: Handshake, sla: TriangleAlert, system: Bell, mention: AtSign } as const;
 
 function ago(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);

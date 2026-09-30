@@ -1,3 +1,4 @@
+import { crmDealsClientId, crmDealsId } from "@/lib/db/refs";
 import Link from "next/link";
 import { and, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { Plus, Settings2 } from "lucide-react";
@@ -47,8 +48,13 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       .select({
         deal: crmDeals,
         stageKind: crmStages.kind,
-        nextTask: sql<Date | null>`(select min(t.due_at) from crm_tasks t where t.deal_id = ${crmDeals.id} and t.done_at is null)`,
-        unread: sql<number>`coalesce((select sum(c.unread) from crm_conversations c where c.deal_id = ${crmDeals.id}), 0)::int`,
+        nextTask: sql<Date | null>`(select min(t.due_at) from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`,
+        unread: sql<number>`coalesce((select sum(c.unread) from crm_conversations c where c.deal_id = ${crmDealsId}), 0)::int`,
+        // Прогресс лучшей книги клиента: сколько вопросов с ответом из скольких.
+        book: sql<{ answered: number; total: number } | null>`(
+          select json_build_object('answered', count(*) filter (where length(trim(q.answer)) > 0), 'total', count(*))
+          from book_questions q where q.book_id = (select b.id from books b where b.user_id = ${crmDealsClientId} order by b.updated_at desc limit 1)
+          having count(*) > 0)`,
       })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
@@ -59,7 +65,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const now = nowMs();
-  const cards: DealCard[] = rows.map(({ deal, nextTask, unread }) => ({
+  const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book }) => ({
     id: deal.id,
     number: deal.number,
     title: deal.title,
@@ -73,6 +79,8 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     task: nextTask ? { overdue: new Date(nextTask).getTime() < now, label: formatDate(new Date(nextTask)) } : null,
     unread,
     tags: deal.tags,
+    unsorted: deal.unsorted,
+    book,
   }));
 
   const params = (patch: Record<string, string | undefined>) => {
@@ -104,6 +112,11 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {can(staff, "deals.edit") ? (
+          <Link href="/admin/deals/duplicates" className="text-sm text-muted hover:text-wine">
+            Дубли
+          </Link>
+        ) : null}
         <Link href={params({ mine: undefined, a: undefined })} className={chip(!sp.mine && !sp.a)}>
           Все
         </Link>

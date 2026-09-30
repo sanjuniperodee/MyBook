@@ -100,3 +100,24 @@ export async function markCallHandledAction(callId: string): Promise<ActionResul
   revalidatePath("/admin/calls");
   return { ok: true };
 }
+
+/** Дополнительные телефоны клиента: по ним узнаём его в звонках и WhatsApp. */
+export async function setClientPhonesAction(clientId: string, raw: string): Promise<ActionResult> {
+  const staff = await assertStaff("clients.edit", "clients.contacts");
+  const client = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(clientId)) });
+  if (!client) return { ok: false, message: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  const main = client.phone ? normalizePhone(client.phone) : "";
+  const phones = [...new Set(raw.split(/[,;\n]/).map((p) => normalizePhone(p)).filter((p) => p.length >= 10 && p !== main))].slice(0, 5);
+  await db.update(users).set({ extraPhones: phones }).where(eq(users.id, client.id));
+  await audit(staff, "client.phones", "client", client.id, { count: phones.length });
+  revalidatePath(`/admin/clients/${client.id}`);
+  return { ok: true, message: phones.length ? `Сохранено номеров: ${phones.length}` : "Дополнительные номера удалены" };
+}
+
+/** «На смене» — получать новые заявки по кругу. */
+export async function setShiftAction(onShift: boolean) {
+  const staff = await assertStaff();
+  await db.update(users).set({ onShift: !!onShift }).where(eq(users.id, staff.user.id));
+  await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
+}

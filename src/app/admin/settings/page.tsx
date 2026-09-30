@@ -1,17 +1,20 @@
-import { asc } from "drizzle-orm";
+import { asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { crmTemplates } from "@/lib/db/schema";
+import { crmBlocklist, crmTemplates } from "@/lib/db/schema";
 import { requireStaff } from "@/lib/crm/rbac";
 import { fromEnv, getSetting, maskSecret } from "@/lib/crm/settings";
 import { env } from "@/lib/env";
 import { templateVars } from "@/lib/crm/automation-meta";
-import { CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
+import { Blocklist, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
+import { parseWorkHours } from "@/lib/crm/schedule";
+import { formatPhone } from "@/lib/crm/phone";
+import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Интеграции" };
 
 export default async function SettingsPage() {
   await requireStaff("settings.manage");
-  const [apiKey, baseUrl, channelId, webhookToken, provider, zKey, zSecret, pbxToken, sla, templates] = await Promise.all([
+  const [apiKey, baseUrl, channelId, webhookToken, provider, zKey, zSecret, pbxToken, sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked] = await Promise.all([
     getSetting("wazzup.apiKey"),
     getSetting("wazzup.baseUrl"),
     getSetting("wazzup.channelId"),
@@ -22,6 +25,11 @@ export default async function SettingsPage() {
     getSetting("pbx.token"),
     getSetting("crm.slaMinutes"),
     db.select().from(crmTemplates).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt)),
+    getSetting("crm.workHours"),
+    getSetting("crm.autoDealFrom"),
+    getSetting("crm.unsorted"),
+    getSetting("crm.maxDiscount"),
+    db.select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200),
   ]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
@@ -45,7 +53,9 @@ export default async function SettingsPage() {
         pbxUrl={pbxToken ? hook("/api/integrations/pbx", pbxToken) : null}
       />
 
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} />
+      <CrmSettingsForm slaMinutes={Number(sla) || 15} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} />
+
+      <Blocklist items={blocked.map((b) => ({ value: b.value, label: /^\d{10,15}$/.test(b.value) ? formatPhone(b.value) : b.value, date: formatDate(b.createdAt) }))} />
 
       <section className="rounded-2xl border border-line bg-white p-5">
         <h2 className="font-semibold">Шаблоны быстрых ответов</h2>

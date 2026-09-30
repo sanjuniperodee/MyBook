@@ -1,7 +1,7 @@
 import "server-only";
-import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { crmConversations, crmMessages, users, type CrmConversation } from "../db/schema";
+import { crmBlocklist, crmConversations, crmDeals, crmMessages, users, type CrmConversation } from "../db/schema";
 import { runTrigger } from "./automations";
 import { createDeal, findClientByPhone, findOpenDeal, sourceFromChannel } from "./deals";
 import { notifyOwnerOr } from "./notify";
@@ -57,7 +57,14 @@ async function upsertConversation(m: WazzupIncoming): Promise<{ conv: CrmConvers
   return { conv, created: true };
 }
 
-/** Сделка для диалога: открытая по клиенту/телефону или новая заявка. */
+export async function isBlocked(...values: (string | null | undefined)[]) {
+  const list = values.filter((v): v is string => !!v);
+  if (!list.length) return false;
+  const rows = await db.select({ v: crmBlocklist.value }).from(crmBlocklist).where(inArray(crmBlocklist.value, list)).limit(1);
+  return rows.length > 0;
+}
+
+/** Сделка для диалога: открытая по клиенту/телефону или новая заявка (с нового номера — в «Неразобранное»). */
 async function ensureDeal(conv: CrmConversation, contactName: string): Promise<CrmConversation> {
   if (conv.dealId) return conv;
   const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
@@ -69,6 +76,7 @@ async function ensureDeal(conv: CrmConversation, contactName: string): Promise<C
       clientId: conv.clientId,
       contactName: contactName || (conv.clientId ? "" : phone ? formatPhone(phone) : conv.chatId),
       contactPhone: phone,
+      unsorted: true,
     }));
   const assigneeId = conv.assigneeId ?? deal.assigneeId;
   const [updated] = await db
@@ -86,7 +94,7 @@ export async function ingestMessage(m: WazzupIncoming) {
     const dup = await db.query.crmMessages.findFirst({ where: eq(crmMessages.externalId, m.externalId), columns: { id: true } });
     if (dup) return;
     const pending = await db.query.crmMessages.findFirst({
-      where: and(eq(crmMessages.conversationId, base.id), eq(crmMessages.direction, "out"), isNull(crmMessages.externalId), eq(crmMessages.text, m.text), gte(crmMessages.createdAt, new Date(Date.now() - 120_000))),
+      where: and(eq(crmMessages.conversationId, base.id), eq(crmMessages.direction, "out"), eq(crmMessages.internal, false), isNull(crmMessages.externalId), eq(crmMessages.text, m.text), gte(crmMessages.createdAt, new Date(Date.now() - 120_000))),
     });
     if (pending) {
       await db.update(crmMessages).set({ externalId: m.externalId }).where(eq(crmMessages.id, pending.id));
@@ -110,6 +118,11 @@ export async function ingestMessage(m: WazzupIncoming) {
     .returning({ id: crmMessages.id });
   if (!inserted.length) return; // повторная доставка вебхука
 
+  // Спам: сообщение сохраняем (на случай ошибки), но без заявки, уведомлений и автоматизаций.
+  if (await isBlocked(m.chatId, isPhoneLike(m.chatId) ? normalizePhone(m.chatId) : null)) {
+    await db.update(crmConversations).set({ lastMessageAt: m.at, lastMessageText: preview(m.text), status: "closed" }).where(eq(crmConversations.id, base.id));
+    return;
+  }
   const conv = await ensureDeal(base, m.contactName);
   await db
     .update(crmConversations)
@@ -162,6 +175,8 @@ export async function sendChatMessage(conversationId: string, text: string, auth
       updatedAt: now,
     })
     .where(eq(crmConversations.id, conversationId));
+  // Менеджер ответил — заявка из «Неразобранного» принята.
+  if (authorId && conv.dealId) await db.update(crmDeals).set({ unsorted: false, assigneeId: sql`coalesce(${crmDeals.assigneeId}, ${authorId}::uuid)` }).where(and(eq(crmDeals.id, conv.dealId), eq(crmDeals.unsorted, true)));
   try {
     const externalId = await sendWazzupMessage({ channelId: conv.channelId, chatType: conv.channel, chatId: conv.chatId, text: body, crmMessageId: msg.id });
     await attachExternalId(msg.id, externalId);
@@ -184,6 +199,14 @@ async function attachExternalId(id: string, externalId: string | null) {
     await tx.delete(crmMessages).where(and(eq(crmMessages.externalId, externalId), sql`${crmMessages.id} <> ${id}`));
     await tx.update(crmMessages).set({ externalId, status: sql`case when ${crmMessages.status} = 'pending' then 'sent' else ${crmMessages.status} end` }).where(eq(crmMessages.id, id));
   });
+}
+
+/** Внутренняя заметка в диалоге: видна только сотрудникам, клиенту не уходит и не сбрасывает «ждёт ответа». */
+export async function addInternalNote(conversationId: string, text: string, authorId: string) {
+  const body = text.trim().slice(0, 4000);
+  if (!body) throw new Error("Пустая заметка");
+  const [msg] = await db.insert(crmMessages).values({ conversationId, direction: "out", authorId, text: body, internal: true, status: "sent" }).returning();
+  return msg;
 }
 
 export async function markConversationRead(conversationId: string) {

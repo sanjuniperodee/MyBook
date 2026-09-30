@@ -3,7 +3,10 @@
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toastError } from "@/components/ui/overlays";
-import { assignDealAction, deleteDealAction, moveDealAction, updateDealAction, type DealFormState } from "../actions";
+import { acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, updateDealAction, type DealFormState } from "../actions";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Ban, Inbox, Merge, UserRound } from "lucide-react";
 import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -79,7 +82,7 @@ export function DealFields({
   masked,
   disabled,
 }: {
-  deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; tags: string[] };
+  deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;
 }) {
@@ -121,6 +124,11 @@ export function DealFields({
           <Field label="E-mail">
             <input name="contactEmail" type="email" defaultValue={deal.contactEmail} maxLength={200} disabled={disabled} className="input h-9 text-sm" />
           </Field>
+          <div className="col-span-2">
+            <Field label="Доп. телефоны (через запятую)">
+              <input name="extraPhones" defaultValue={deal.extraPhones.join(", ")} maxLength={200} disabled={disabled} className="input h-9 text-sm" placeholder="второй номер, WhatsApp" />
+            </Field>
+          </div>
         </div>
       )}
       <Field label="Теги (через запятую)">
@@ -170,5 +178,85 @@ export function DealDelete({ id, number }: { id: string; number: number }) {
     >
       <Trash2 className="size-4" /> Удалить
     </button>
+  );
+}
+
+function useRun() {
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const run = (fn: () => Promise<unknown>, after?: () => void) =>
+    start(async () => {
+      try {
+        await fn();
+        after ? after() : router.refresh();
+      } catch (e) {
+        if ((e as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw e;
+        toastError(e);
+      }
+    });
+  return { pending, run, router };
+}
+
+export function UnsortedBanner({ dealId, canEdit }: { dealId: string; canEdit: boolean }) {
+  const { pending, run, router } = useRun();
+  return (
+    <section className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-dashed border-wine/30 bg-rose/30 p-4" data-testid="unsorted-banner">
+      <Inbox className="size-5 text-wine" />
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold">Неразобранная заявка</div>
+        <div className="text-sm text-muted">Новый номер. Примите в работу или отклоните; ответ клиенту в чате тоже принимает заявку.</div>
+      </div>
+      {canEdit ? (
+        <div className="flex gap-2">
+          <button className="btn btn-sm" disabled={pending} onClick={() => run(() => acceptDealAction(dealId))}>
+            Принять
+          </button>
+          <button className="btn btn-outline btn-sm" disabled={pending} onClick={async () => (await ask("Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) && run(() => rejectDealAction(dealId, false), () => router.push("/admin/deals"))}>
+            Отклонить
+          </button>
+          <button className="btn btn-ghost btn-sm text-red-700" disabled={pending} onClick={async () => (await ask("Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений.", true)) && run(() => rejectDealAction(dealId, true), () => router.push("/admin/deals"))}>
+            <Ban className="size-4" /> Спам
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; canMerge: boolean }) {
+  const { pending, run } = useRun();
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 text-sm">
+      <Link href={`/admin/deals/${other.id}`} className="min-w-0 flex-1 truncate hover:text-wine">
+        №{other.number} {other.title} <span className="text-muted">· {other.created}</span>
+      </Link>
+      <span className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: other.color }}>
+        {other.stage}
+      </span>
+      {canMerge ? (
+        <button
+          className="btn btn-outline btn-sm h-8"
+          disabled={pending}
+          onClick={async () => (await ask(`Объединить сделку №${other.number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${other.number} удалится.`, true)) && run(() => mergeDealAction(targetId, other.id))}
+        >
+          <Merge className="size-3.5" /> Объединить сюда
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export function LinkClient({ dealId, client }: { dealId: string; client: { id: string; label: string } }) {
+  const { pending, run } = useRun();
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl bg-cream/60 p-2.5">
+      <UserRound className="size-4 text-muted" />
+      <span className="min-w-0 flex-1">
+        По номеру найден клиент на сайте: <b>{client.label}</b>
+      </span>
+      <button className="btn btn-sm h-8" disabled={pending} onClick={() => run(() => linkDealClientAction(dealId, client.id))}>
+        Привязать
+      </button>
+    </div>
   );
 }

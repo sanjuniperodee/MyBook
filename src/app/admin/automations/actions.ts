@@ -17,6 +17,7 @@ const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("send_message"), text: z.string().trim().min(1, "Текст сообщения").max(2000) }),
   z.object({ type: z.literal("assign"), userId: optUuid.optional() }),
   z.object({ type: z.literal("move_stage"), stageId: uuid }),
+  z.object({ type: z.literal("create_deal"), title: z.string().trim().max(200).optional(), userId: optUuid.optional() }),
   z.object({ type: z.literal("notify"), title: z.string().trim().max(120).optional(), text: z.string().trim().max(500).optional(), userId: optUuid.optional() }),
 ]);
 
@@ -29,6 +30,9 @@ const schema = z.object({
     source: z.union([z.enum(dealSources), z.literal(""), z.null()]).optional(),
     channel: z.string().trim().max(30).optional(),
     minutes: z.coerce.number().int().min(1).max(1440).optional(),
+    days: z.coerce.number().int().min(1).max(90).optional(),
+    daysBefore: z.coerce.number().int().min(1).max(120).optional(),
+    hours: z.union([z.enum(["work", "off"]), z.literal("any"), z.literal(""), z.null()]).optional(),
   }),
   actions: z.array(actionSchema).min(1, "Добавьте хотя бы одно действие").max(6),
   active: z.boolean().default(true),
@@ -48,6 +52,9 @@ export async function saveAutomationAction(input: AutomationInput): Promise<{ ok
   if (d.trigger === "deal.created" && c.source) conditions.source = c.source;
   if (d.trigger.startsWith("message.") && c.channel) conditions.channel = c.channel;
   if (d.trigger === "message.unanswered") conditions.minutes = c.minutes ?? 15;
+  if (d.trigger === "client.inactive") conditions.days = c.days ?? 5;
+  if (d.trigger === "occasion.anniversary") conditions.daysBefore = c.daysBefore ?? 30;
+  if (c.hours === "work" || c.hours === "off") conditions.hours = c.hours;
   const values = { name: d.name, trigger: d.trigger, conditions, actions: d.actions, active: d.active, updatedAt: new Date() };
   if (d.id) await db.update(crmAutomations).set(values).where(eq(crmAutomations.id, d.id));
   else await db.insert(crmAutomations).values(values);

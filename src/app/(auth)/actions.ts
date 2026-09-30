@@ -1,5 +1,6 @@
 "use server";
 
+import { crmAfter, onClientRegistered } from "@/lib/crm/hooks";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { messagesFor } from "@/i18n/messages";
@@ -49,6 +50,7 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
     .returning();
   await createSession(user.id);
   await queueEvent("sign_up");
+  crmAfter(() => onClientRegistered(user.id));
   const theme = String(form.get("theme") ?? "");
   return lredirect(isThemeId(theme) ? `/books/new?theme=${theme}` : "/books/new");
 }

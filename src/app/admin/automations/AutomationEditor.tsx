@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
-import { automationActions, automationTriggers, templateVars, type AutomationActionType } from "@/lib/crm/automation-meta";
+import { automationActions, automationHours, automationTriggers, templateVars, type AutomationActionType } from "@/lib/crm/automation-meta";
 import { dealSourceLabels, dealSources } from "@/lib/crm/deal-meta";
 import type { AutomationAction } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
@@ -23,11 +23,17 @@ interface Ctx {
 }
 
 const blank = (type: AutomationActionType): AutomationAction =>
-  type === "create_task" ? { type, title: "", dueMinutes: 60, userId: null } : type === "send_message" ? { type, text: "" } : type === "notify" ? { type, title: "", text: "", userId: null } : type === "move_stage" ? { type, stageId: "" } : { type, userId: null };
+  type === "create_task" ? { type, title: "", dueMinutes: 60, userId: null } : type === "create_deal" ? { type, title: "", userId: null } : type === "send_message" ? { type, text: "" } : type === "notify" ? { type, title: "", text: "", userId: null } : type === "move_stage" ? { type, stageId: "" } : { type, userId: null };
 
 function describe(r: Rule, ctx: Ctx) {
   const t = automationTriggers[r.trigger as keyof typeof automationTriggers]?.label ?? r.trigger;
-  const cond = r.conditions.stageId ? ` «${ctx.stages.find((s) => s.id === r.conditions.stageId)?.name ?? "?"}»` : r.conditions.minutes ? ` ${r.conditions.minutes} мин` : r.conditions.source ? ` (${dealSourceLabels[r.conditions.source as keyof typeof dealSourceLabels] ?? r.conditions.source})` : "";
+  const cond =
+    (r.conditions.stageId ? ` «${ctx.stages.find((s) => s.id === r.conditions.stageId)?.name ?? "?"}»` : "") +
+    (r.conditions.minutes ? ` ${r.conditions.minutes} мин` : "") +
+    (r.conditions.days ? ` ${r.conditions.days} дн.` : "") +
+    (r.conditions.daysBefore ? ` за ${r.conditions.daysBefore} дн.` : "") +
+    (r.conditions.source ? ` (${dealSourceLabels[r.conditions.source as keyof typeof dealSourceLabels] ?? r.conditions.source})` : "") +
+    (r.conditions.hours ? ` · ${automationHours[r.conditions.hours as keyof typeof automationHours]}` : "");
   return { trigger: t + cond, actions: r.actions.map((a) => automationActions[a.type]).join(", ") };
 }
 
@@ -123,7 +129,7 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-muted uppercase">Когда</span>
-          <select className="input h-10 text-sm" value={trigger} onChange={(e) => setTrigger(e.target.value)}>
+          <select className="input h-10 text-sm" value={trigger} onChange={(e) => setTrigger(e.target.value)} aria-label="Событие">
             {Object.entries(automationTriggers).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -135,7 +141,7 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
         <div>
           <span className="mb-1 block text-xs font-semibold text-muted uppercase">Условие</span>
           {trigger === "deal.stage_changed" ? (
-            <select className="input h-10 text-sm" value={String(conditions.stageId ?? "")} onChange={(e) => setConditions({ stageId: e.target.value || null })}>
+            <select className="input h-10 text-sm" value={String(conditions.stageId ?? "")} onChange={(e) => setConditions({ hours: conditions.hours ?? null, stageId: e.target.value || null })}>
               <option value="">любой этап</option>
               {ctx.stages.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -144,7 +150,7 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               ))}
             </select>
           ) : trigger === "deal.created" ? (
-            <select className="input h-10 text-sm" value={String(conditions.source ?? "")} onChange={(e) => setConditions({ source: e.target.value || null })}>
+            <select className="input h-10 text-sm" value={String(conditions.source ?? "")} onChange={(e) => setConditions({ hours: conditions.hours ?? null, source: e.target.value || null })}>
               <option value="">любой источник</option>
               {dealSources.map((s) => (
                 <option key={s} value={s}>
@@ -156,11 +162,30 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
             <label className="flex items-center gap-2 text-sm">
               дольше
               <input type="number" min={1} max={1440} className="input h-10 w-24 text-sm" value={Number(conditions.minutes ?? 15)} onChange={(e) => setConditions({ ...conditions, minutes: Number(e.target.value) })} />
-              минут
+              рабочих минут
+            </label>
+          ) : trigger === "client.inactive" ? (
+            <label className="flex items-center gap-2 text-sm">
+              не заходит
+              <input type="number" min={1} max={90} className="input h-10 w-24 text-sm" value={Number(conditions.days ?? 5)} onChange={(e) => setConditions({ ...conditions, days: Number(e.target.value) })} />
+              дней
+            </label>
+          ) : trigger === "occasion.anniversary" ? (
+            <label className="flex items-center gap-2 text-sm">
+              за
+              <input type="number" min={1} max={120} className="input h-10 w-24 text-sm" value={Number(conditions.daysBefore ?? 30)} onChange={(e) => setConditions({ ...conditions, daysBefore: Number(e.target.value) })} />
+              дней до даты
             </label>
           ) : (
             <p className="py-2 text-sm text-muted">без условий</p>
           )}
+          <select className="input mt-2 h-9 text-sm" value={String(conditions.hours ?? "any")} onChange={(e) => setConditions({ ...conditions, hours: e.target.value === "any" ? null : e.target.value })} aria-label="Время работы правила">
+            {Object.entries(automationHours).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -169,7 +194,7 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
         {actions.map((a, i) => (
           <div key={i} className="space-y-2 rounded-xl border border-line bg-[#fbf9f5] p-3">
             <div className="flex items-center gap-2">
-              <select className="input h-9 flex-1 text-sm" value={a.type} onChange={(e) => setActions((l) => l.map((x, j) => (j === i ? blank(e.target.value as AutomationActionType) : x)))}>
+              <select className="input h-9 flex-1 text-sm" value={a.type} onChange={(e) => setActions((l) => l.map((x, j) => (j === i ? blank(e.target.value as AutomationActionType) : x)))} aria-label="Действие">
                 {Object.entries(automationActions).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -191,6 +216,11 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                   мин
                 </label>
                 {staffSelect(a.userId, (v) => setAction(i, { userId: v }), "ответственному по сделке")}
+              </div>
+            ) : a.type === "create_deal" ? (
+              <div className="grid gap-2 sm:grid-cols-[1fr_200px]">
+                <input className="input h-9 text-sm" placeholder="Название, например «Годовщина: {повод} — вторая книга»" value={a.title ?? ""} onChange={(e) => setAction(i, { title: e.target.value })} />
+                {staffSelect(a.userId, (v) => setAction(i, { userId: v }), "ответственный клиента")}
               </div>
             ) : a.type === "send_message" ? (
               <>

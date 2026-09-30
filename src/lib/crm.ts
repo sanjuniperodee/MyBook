@@ -48,8 +48,7 @@ export async function crmCounters(staff: Staff): Promise<CrmCounters> {
       ? db
           .select({ n: count })
           .from(crmDeals)
-          .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-          .where(and(eq(crmStages.position, sql`(select min(position) from crm_stages where kind = 'open')`), mine(crmDeals.assigneeId)))
+          .where(and(eq(crmDeals.unsorted, true), mine(crmDeals.assigneeId)))
       : zero,
   ]);
   return { attention: attention.n, tasks: tasks.n, chats: chats.n, calls: calls.n, deals: deals.n };

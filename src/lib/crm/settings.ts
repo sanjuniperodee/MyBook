@@ -26,6 +26,14 @@ export const settingDefs = {
   "pbx.token": { secret: true, env: "PBX_WEBHOOK_TOKEN" },
   /** Через сколько минут без ответа клиенту чат считается просроченным. */
   "crm.slaMinutes": { default: "15" },
+  /** Рабочее время: JSON { days: [1..7], from: "09:00", to: "21:00" }. */
+  "crm.workHours": { default: '{"days":[1,2,3,4,5,6,7],"from":"09:00","to":"21:00"}' },
+  /** С какого действия клиента на сайте заводить сделку: off | registered | book_started | book_half | book_ready. */
+  "crm.autoDealFrom": { default: "book_started" },
+  /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
+  "crm.unsorted": { default: "on" },
+  /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
+  "crm.maxDiscount": { default: "15" },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;

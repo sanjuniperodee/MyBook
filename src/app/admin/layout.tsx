@@ -10,7 +10,7 @@ export const metadata = { title: { default: "CRM", template: "%s · CRM" }, robo
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const staff = await requireStaff();
   const live = await getLive(staff);
-  const nav = { adminName: adminLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions] };
+  const nav = { adminName: adminLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift: staff.user.onShift };
   return (
     <CrmLiveProvider initial={live}>
       <div className="flex min-h-dvh bg-[#f7f4ef]">

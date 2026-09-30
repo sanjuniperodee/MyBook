@@ -48,6 +48,10 @@ export const users = pgTable(
     managerId: uuid("manager_id").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
     /** Внутренний номер сотрудника в АТС (для звонков из CRM и привязки входящих). */
     sipExtension: text("sip_extension"),
+    /** Сотрудник на смене: только такие получают новые заявки по кругу. */
+    onShift: boolean("on_shift").notNull().default(true),
+    /** Дополнительные телефоны клиента (второй номер, WhatsApp на другой SIM) — для поиска по звонкам и чатам. */
+    extraPhones: text("extra_phones").array().notNull().default(sql`'{}'::text[]`),
     /** Сотрудник отключён: не может войти в CRM, не получает лиды. */
     staffDisabled: boolean("staff_disabled").notNull().default(false),
     ...timestamps,
@@ -440,11 +444,13 @@ export const crmStages = pgTable("crm_stages", {
   color: text("color").notNull().default("#9a8f86"),
   position: integer("position").notNull().default(0),
   kind: text("kind", { enum: ["open", "won", "lost"] }).notNull().default("open"),
+  /** Событие на сайте, которое само переводит сделку на этот этап (только вперёд по воронке). */
+  milestone: text("milestone").$type<StageMilestone>(),
   ...timestamps,
 });
 
-export { dealSources, type DealSource } from "../crm/deal-meta";
-import type { DealSource } from "../crm/deal-meta";
+export { dealSources, type DealSource, type StageMilestone } from "../crm/deal-meta";
+import type { DealSource, StageMilestone } from "../crm/deal-meta";
 
 /** Сделка (лид): обращение, которое ведём до заказа. */
 export const crmDeals = pgTable(
@@ -465,6 +471,9 @@ export const crmDeals = pgTable(
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
     orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
     lostReason: text("lost_reason"),
+    /** «Неразобранное»: заявка с нового номера ждёт, пока менеджер её примет или отклонит. */
+    unsorted: boolean("unsorted").notNull().default(false),
+    extraPhones: text("extra_phones").array().notNull().default(sql`'{}'::text[]`),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
@@ -513,6 +522,8 @@ export const crmMessages = pgTable(
     text: text("text").notNull().default(""),
     mediaUrl: text("media_url"),
     externalId: text("external_id").unique(),
+    /** Внутренняя заметка сотрудника в диалоге — клиенту не отправляется. */
+    internal: boolean("internal").notNull().default(false),
     status: text("status", { enum: ["pending", "sent", "delivered", "read", "error", "received"] }).notNull().default("pending"),
     error: text("error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -578,7 +589,7 @@ export const crmTemplates = pgTable("crm_templates", {
 });
 
 export interface AutomationAction {
-  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify";
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal";
   title?: string;
   text?: string;
   dueMinutes?: number;
@@ -613,6 +624,14 @@ export const crmAutomationRuns = pgTable(
   },
   (t) => [uniqueIndex("crm_auto_runs_idx").on(t.automationId, t.subject)],
 );
+
+/** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */
+export const crmBlocklist = pgTable("crm_blocklist", {
+  value: text("value").primaryKey(),
+  reason: text("reason").notNull().default("spam"),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Настройки CRM и интеграций. Секреты хранятся зашифрованными (AES-256-GCM, ключ из APP_SECRET). */
 export const crmSettings = pgTable("crm_settings", {

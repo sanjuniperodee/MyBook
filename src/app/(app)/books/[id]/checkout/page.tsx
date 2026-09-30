@@ -20,8 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).checkout.meta };
 }
 
-export default async function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CheckoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ promo?: string }> }) {
   const { id } = await params;
+  const { promo: promoParam } = await searchParams;
   const user = await requireUser(`/books/${id}/checkout`);
   const book = await getAccessibleBook(id, user);
   if (book.status !== "draft") return lredirect(`/books/${book.id}`);
@@ -29,8 +30,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
   const t = m.checkout;
   const issues = checkReadiness(book, stats, photos, locale);
   const blocked = issues.some((i) => i.level === "error");
-  // Код активированного сертификата подставляем сразу.
-  const giftCode = (await cookies()).get(GIFT_COOKIE)?.value;
+  // Код активированного сертификата (или персональный промокод из ссылки менеджера) подставляем сразу.
+  const giftCode = (await cookies()).get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined);
   const giftCheck = giftCode ? await findValidPromo(giftCode) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok
     ? {

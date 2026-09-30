@@ -25,8 +25,9 @@ export async function loadChatMessages(conversationId: string, limit = 150): Pro
     mediaUrl: m.mediaUrl,
     status: m.status,
     error: m.error,
-    author: m.direction === "out" ? (author?.email ? adminLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
+    author: m.internal ? (author?.email ? adminLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? adminLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
     at: m.createdAt.toISOString(),
+    internal: m.internal,
   }));
 }
 

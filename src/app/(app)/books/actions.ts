@@ -1,5 +1,6 @@
 "use server";
 
+import { crmAfter, onBookStarted } from "@/lib/crm/hooks";
 import { getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
 import { z } from "zod";
@@ -48,5 +49,6 @@ export async function createBookAction(_: CreateState, form: FormData): Promise<
     occasionDate: d.occasion ? d.occasionDate || null : null,
   });
   await queueEvent("book_created");
+  crmAfter(() => onBookStarted(user.id, book));
   return lredirect(`/books/${book.id}`);
 }

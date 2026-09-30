@@ -1,3 +1,4 @@
+import { crmRolesId } from "@/lib/db/refs";
 import { asc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmRoles, users } from "@/lib/db/schema";
@@ -10,7 +11,7 @@ export const metadata = { title: "Роли и права" };
 export default async function RolesPage() {
   const staff = await requireStaff("team.manage");
   const roles = await db
-    .select({ role: crmRoles, members: sql<number>`(select count(*)::int from ${users} u where u.crm_role_id = ${crmRoles.id} and u.role = 'admin')` })
+    .select({ role: crmRoles, members: sql<number>`(select count(*)::int from ${users} u where u.crm_role_id = ${crmRolesId} and u.role = 'admin')` })
     .from(crmRoles)
     .orderBy(asc(crmRoles.createdAt));
   return (

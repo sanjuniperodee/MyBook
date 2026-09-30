@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
-import { CheckSquare, Handshake, MessagesSquare, PhoneMissed } from "lucide-react";
+import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks } from "@/lib/db/schema";
 import { can, contactView, ownScope, type Staff } from "@/lib/crm/rbac";
@@ -18,7 +18,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
   const none = Promise.resolve([]);
-  const [tasks, waiting, missed, [deals]] = await Promise.all([
+  const [tasks, waiting, missed, [deals], [unsorted]] = await Promise.all([
     db
       .select()
       .from(crmTasks)
@@ -48,9 +48,16 @@ export async function MyDay({ staff }: { staff: Staff }) {
           .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
           .where(and(eq(crmStages.kind, "open"), eq(crmDeals.assigneeId, me)))
       : Promise.resolve([{ n: 0, sum: 0 }]),
+    can(staff, "deals.view")
+      ? db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(crmDeals)
+          .where(and(eq(crmDeals.unsorted, true), ownScope(staff, crmDeals.assigneeId)))
+      : Promise.resolve([{ n: 0 }]),
   ]);
   const now = new Date();
   const tiles = [
+    unsorted.n > 0 && { href: "/admin/deals", icon: Inbox, label: "Неразобранные заявки", value: String(unsorted.n), hot: true },
     { href: "/admin/tasks", icon: CheckSquare, label: "Задачи на сегодня", value: String(tasks.length), hot: tasks.some((t) => t.dueAt && t.dueAt < now) },
     can(staff, "chats.view") && { href: "/admin/chats?f=waiting", icon: MessagesSquare, label: "Ждут ответа", value: String(waiting.length), hot: waiting.length > 0 },
     can(staff, "calls.view") && { href: "/admin/calls?f=missed", icon: PhoneMissed, label: "Пропущенные звонки", value: String(missed.length), hot: missed.length > 0 },
@@ -59,7 +66,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
 
   return (
     <div className="space-y-4" data-testid="my-day">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={cn("grid gap-3 sm:grid-cols-2", tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
         {tiles.map((t) => (
           <Link key={t.href} href={t.href} className={cn("flex items-center gap-3 rounded-2xl border bg-white p-4 transition hover:shadow-soft", t.hot ? "border-wine/30" : "border-line")}>
             <span className={cn("flex size-10 items-center justify-center rounded-xl", t.hot ? "bg-rose text-wine" : "bg-cream text-ink-soft")}>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { crmAfter, onAnswerSaved } from "@/lib/crm/hooks";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { api, apiBook, HttpError } from "@/lib/api";
@@ -29,6 +30,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
     .returning({ id: bookQuestions.id, updatedAt: bookQuestions.updatedAt });
   if (!q) throw new HttpError(404, "questionNotFound");
   await touchBook(book.id);
+  if (data.answer !== undefined) crmAfter(() => onAnswerSaved(book.id, book.userId));
   return NextResponse.json({ ok: true, updatedAt: q.updatedAt });
 });
 

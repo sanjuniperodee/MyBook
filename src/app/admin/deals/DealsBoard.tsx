@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { CalendarClock, MessageCircle, X } from "lucide-react";
+import { BookOpen, CalendarClock, Check, Inbox, MessageCircle, Ban, X } from "lucide-react";
 import { formatPrice } from "@/config/site";
 import { toastError } from "@/components/ui/overlays";
-import { moveDealAction } from "./actions";
+import { acceptDealAction, moveDealAction, rejectDealAction } from "./actions";
+import { ask } from "@/components/ui/overlays";
 import { lostReasons } from "@/lib/crm/deal-meta";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ export interface DealCard {
   task: { overdue: boolean; label: string } | null;
   unread: number;
   tags: string[];
+  unsorted: boolean;
+  book: { answered: number; total: number } | null;
 }
 
 interface Stage {
@@ -42,7 +45,7 @@ export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; init
 
   const move = (id: string, stageId: string, reason?: string) => {
     const prev = cards;
-    setCards((cs) => cs.map((c) => (c.id === id ? { ...c, stageId, daysInStage: 0 } : c)));
+    setCards((cs) => cs.map((c) => (c.id === id ? { ...c, stageId, daysInStage: 0, unsorted: false } : c)));
     start(async () => {
       try {
         await moveDealAction(id, stageId, reason);
@@ -57,7 +60,7 @@ export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; init
     const id = String(e.active.id);
     const to = e.over?.id ? String(e.over.id) : null;
     const card = cards.find((c) => c.id === id);
-    if (!card || !to || card.stageId === to) return;
+    if (!card || !to || to === "unsorted" || (card.stageId === to && !card.unsorted)) return;
     if (stages.find((s) => s.id === to)?.kind === "lost") setLost({ id, stageId: to });
     else move(id, to);
   };
@@ -66,8 +69,39 @@ export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; init
     <>
       <DndContext sensors={sensors} onDragEnd={canEdit ? onDragEnd : undefined}>
         <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6" data-testid="deals-board">
+          {cards.some((c) => c.unsorted) ? (
+            <UnsortedColumn
+              cards={cards.filter((c) => c.unsorted)}
+              canEdit={canEdit}
+              onAccept={(id) => {
+                const prev = cards;
+                setCards((cs) => cs.map((c) => (c.id === id ? { ...c, unsorted: false } : c)));
+                start(async () => {
+                  try {
+                    await acceptDealAction(id);
+                  } catch (err) {
+                    setCards(prev);
+                    toastError(err);
+                  }
+                });
+              }}
+              onReject={async (id, spam) => {
+                if (!(await ask(spam ? "Пометить как спам? Сделка удалится, с этого номера больше не будет заявок и уведомлений." : "Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true))) return;
+                const prev = cards;
+                setCards((cs) => cs.filter((c) => c.id !== id));
+                start(async () => {
+                  try {
+                    await rejectDealAction(id, spam);
+                  } catch (err) {
+                    setCards(prev);
+                    toastError(err);
+                  }
+                });
+              }}
+            />
+          ) : null}
           {stages.map((s) => (
-            <Column key={s.id} stage={s} cards={cards.filter((c) => c.stageId === s.id)} draggable={canEdit} />
+            <Column key={s.id} stage={s} cards={cards.filter((c) => c.stageId === s.id && !c.unsorted)} draggable={canEdit} />
           ))}
         </div>
       </DndContext>
@@ -81,6 +115,42 @@ export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; init
         />
       ) : null}
     </>
+  );
+}
+
+function UnsortedColumn({ cards, canEdit, onAccept, onReject }: { cards: DealCard[]; canEdit: boolean; onAccept: (id: string) => void; onReject: (id: string, spam: boolean) => void }) {
+  return (
+    <section className="flex w-72 shrink-0 flex-col rounded-2xl border-2 border-dashed border-wine/30 bg-rose/30 p-2" data-stage="Неразобранное">
+      <header className="px-2 pt-1 pb-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <Inbox className="size-4 text-wine" /> Неразобранное
+          </h2>
+          <span className="text-xs text-muted tabular-nums">{cards.length}</span>
+        </div>
+        <div className="text-xs text-muted">новые номера — принять или отклонить</div>
+      </header>
+      <div className="flex max-h-[calc(100dvh-17rem)] min-h-24 flex-col gap-2 overflow-y-auto pr-0.5">
+        {cards.map((c) => (
+          <div key={c.id} className="rounded-xl border border-line bg-white p-3 text-sm shadow-sm" data-deal={c.number} data-unsorted="1">
+            <Card card={c} draggable={canEdit} bare />
+            {canEdit ? (
+              <div className="mt-2 flex gap-1.5 border-t border-line pt-2">
+                <button className="btn btn-sm h-8 flex-1" onClick={() => onAccept(c.id)}>
+                  <Check className="size-3.5" /> Принять
+                </button>
+                <button className="btn btn-ghost btn-sm h-8 px-2" onClick={() => onReject(c.id, false)} title="Отклонить">
+                  <X className="size-3.5" />
+                </button>
+                <button className="btn btn-ghost btn-sm h-8 px-2 text-red-700" onClick={() => onReject(c.id, true)} title="Спам">
+                  <Ban className="size-3.5" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -106,7 +176,7 @@ function Column({ stage, cards, draggable }: { stage: Stage; cards: DealCard[]; 
   );
 }
 
-function Card({ card: c, draggable }: { card: DealCard; draggable: boolean }) {
+function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean; bare?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: c.id, disabled: !draggable });
   return (
     <article
@@ -114,8 +184,8 @@ function Card({ card: c, draggable }: { card: DealCard; draggable: boolean }) {
       {...attributes}
       {...listeners}
       style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
-      className={cn("rounded-xl border border-line bg-white p-3 text-sm shadow-sm", draggable && "cursor-grab active:cursor-grabbing", isDragging && "z-10 rotate-1 shadow-lift")}
-      data-deal={c.number}
+      className={cn(!bare && "rounded-xl border border-line bg-white p-3 shadow-sm", "text-sm", draggable && "cursor-grab active:cursor-grabbing", isDragging && "z-10 rotate-1 bg-white shadow-lift")}
+      data-deal={bare ? undefined : c.number}
     >
       <div className="flex items-start justify-between gap-2">
         <Link href={`/admin/deals/${c.id}`} className="min-w-0 font-medium hover:text-wine" onPointerDown={(e) => e.stopPropagation()}>
@@ -131,6 +201,17 @@ function Card({ card: c, draggable }: { card: DealCard; draggable: boolean }) {
         №{c.number}
         {c.contactName ? ` · ${c.contactName}` : ""} · {c.source}
       </div>
+      {c.book ? (
+        <div className="mt-2 flex items-center gap-1.5" title={`Книга: ${c.book.answered} из ${c.book.total} ответов`}>
+          <BookOpen className="size-3 text-muted" />
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-cream">
+            <div className="h-full rounded-full bg-wine" style={{ width: `${c.book.total ? Math.round((c.book.answered / c.book.total) * 100) : 0}%` }} />
+          </div>
+          <span className="text-[10px] text-muted tabular-nums">
+            {c.book.answered}/{c.book.total}
+          </span>
+        </div>
+      ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c.amount ? <span className="text-xs font-medium tabular-nums">{formatPrice(c.amount)}</span> : null}
         {c.task ? (

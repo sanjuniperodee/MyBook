@@ -4,6 +4,7 @@ import { db } from "../db";
 import { crmCalls, crmDeals, crmNotes, users, type CrmCall } from "../db/schema";
 import { runTrigger } from "./automations";
 import { createDeal, findClientByPhone, findOpenDeal } from "./deals";
+import { isBlocked } from "./chats";
 import { notifyOwnerOr } from "./notify";
 import { formatPhone } from "./phone";
 import { getSetting } from "./settings";
@@ -87,9 +88,11 @@ export async function handleCallEvent(e: CallEvent): Promise<CrmCall | null> {
 
 /** Итог звонка: сделка для нового номера, запись в историю, пропущенный → задача и уведомление. */
 async function afterCall(call: CrmCall): Promise<CrmCall> {
+  // Номер в спаме: звонок в журнале остаётся, но без заявки, задач и уведомлений.
+  if (call.clientPhone && (await isBlocked(call.clientPhone))) return call;
   const missed = call.direction === "in" && call.status === "missed";
   if (call.direction === "in" && !call.dealId && call.clientPhone) {
-    const deal = await createDeal({ title: `Звонок: ${formatPhone(call.clientPhone)}`, source: "call", clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone) });
+    const deal = await createDeal({ title: `Звонок: ${formatPhone(call.clientPhone)}`, source: "call", clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone), unsorted: true });
     [call] = await db.update(crmCalls).set({ dealId: deal.id, clientId: call.clientId ?? deal.clientId }).where(eq(crmCalls.id, call.id)).returning();
   }
   const staff = call.staffId ? await db.query.users.findFirst({ where: eq(users.id, call.staffId), columns: { name: true, email: true } }) : null;

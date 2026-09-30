@@ -2,15 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { crmDeals, crmStages, dealSources, users } from "@/lib/db/schema";
+import { crmBlocklist, crmConversations, crmDeals, crmStages, dealSources, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/lib/crm/rbac";
-import { addDealNote, assignDeal, createDeal, moveDeal } from "@/lib/crm/deals";
+import { addDealNote, assignDeal, createDeal, mergeDeals, moveDeal } from "@/lib/crm/deals";
 import { notify } from "@/lib/crm/notify";
 import { normalizePhone } from "@/lib/crm/phone";
 import { formatPrice } from "@/config/site";
+import { stageMilestones, type StageMilestone } from "@/lib/crm/deal-meta";
 
 export interface DealFormState {
   error?: string;
@@ -80,13 +81,16 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
   const editContacts = form.has("contactPhone") && can(staff, "clients.contacts");
   const phone = d.contactPhone ? normalizePhone(d.contactPhone) : "";
   if (editContacts && d.contactPhone && phone.length < 10) return { error: "Проверьте номер телефона" };
+  const extraPhones = editContacts
+    ? [...new Set(String(form.get("extraPhones") ?? "").split(/[,;\n]/).map((p) => normalizePhone(p)).filter((p) => p.length >= 10 && p !== phone))].slice(0, 5)
+    : deal.extraPhones;
   const tags = [...new Set(String(form.get("tags") ?? "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 12).map((t) => t.slice(0, 30));
   await db
     .update(crmDeals)
     .set({
       title: d.title,
       contactName: d.contactName,
-      ...(editContacts ? { contactPhone: phone || null, contactEmail: d.contactEmail || null } : {}),
+      ...(editContacts ? { contactPhone: phone || null, contactEmail: d.contactEmail || null, extraPhones } : {}),
       amount: d.amount,
       source: d.source,
       tags,
@@ -149,6 +153,7 @@ const stageSchema = z.object({
   id: z.union([z.literal(""), uuid]).default(""),
   name: z.string().trim().min(1, "Название этапа").max(40),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#9a8f86"),
+  milestone: z.union([z.enum(Object.keys(stageMilestones) as [StageMilestone, ...StageMilestone[]]), z.literal("")]).default(""),
 });
 
 export async function saveStageAction(_: DealFormState, form: FormData): Promise<DealFormState> {
@@ -156,12 +161,15 @@ export async function saveStageAction(_: DealFormState, form: FormData): Promise
   const parsed = stageSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { id, name, color } = parsed.data;
-  if (id) await db.update(crmStages).set({ name, color, updatedAt: new Date() }).where(eq(crmStages.id, id));
+  const milestone = parsed.data.milestone || null;
+  // Одно событие — один этап, иначе непонятно, куда двигать сделку.
+  if (milestone) await db.update(crmStages).set({ milestone: null }).where(and(eq(crmStages.milestone, milestone), id ? ne(crmStages.id, id) : undefined));
+  if (id) await db.update(crmStages).set({ name, color, milestone, updatedAt: new Date() }).where(eq(crmStages.id, id));
   else {
     // Новый открытый этап — перед закрывающими (успех/отказ).
     const [{ pos }] = await db.select({ pos: sql<number>`coalesce(max(${crmStages.position}) filter (where ${crmStages.kind} = 'open'), 0)::int` }).from(crmStages);
     await db.update(crmStages).set({ position: sql`${crmStages.position} + 1` }).where(sql`${crmStages.position} > ${pos}`);
-    await db.insert(crmStages).values({ name, color, position: pos + 1, kind: "open" });
+    await db.insert(crmStages).values({ name, color, milestone, position: pos + 1, kind: "open" });
   }
   await audit(staff, "settings.update", "stage", id || null, { name });
   revalidatePath("/admin/deals");
@@ -194,4 +202,52 @@ export async function deleteStageAction(id: string) {
   await audit(staff, "settings.update", "stage", stage.id, { deleted: stage.name });
   revalidatePath("/admin/deals");
   revalidatePath("/admin/deals/stages");
+}
+
+// ─── неразобранное и дубли ─────────────────────────────────────────────────
+
+/** Принять заявку из «Неразобранного»: в работу, ответственный — тот, кто принял (если не был назначен). */
+export async function acceptDealAction(dealId: string) {
+  const staff = await assertStaff("deals.edit");
+  const deal = await loadDeal(staff, dealId);
+  if (!deal.unsorted) return;
+  await db.update(crmDeals).set({ unsorted: false, updatedAt: new Date() }).where(eq(crmDeals.id, deal.id));
+  if (!deal.assigneeId) await assignDeal(deal.id, staff.user.id);
+  await db.update(crmConversations).set({ assigneeId: deal.assigneeId ?? staff.user.id }).where(eq(crmConversations.dealId, deal.id));
+  await addDealNote(deal, "Заявка принята в работу", staff.user.id);
+  revalidateDeal(deal.id, deal.clientId);
+}
+
+/** Отклонить заявку: сделка удаляется, переписка и звонки остаются. spam — номер больше не создаёт заявок. */
+export async function rejectDealAction(dealId: string, spam: boolean) {
+  const staff = await assertStaff("deals.edit");
+  const deal = await loadDeal(staff, dealId);
+  if (!deal.unsorted) throw new Error("Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
+  if (spam) {
+    const convs = await db.select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.dealId, deal.id));
+    const values = [...new Set([deal.contactPhone ? normalizePhone(deal.contactPhone) : null, ...convs.map((c) => c.chatId)].filter((v): v is string => !!v))];
+    if (values.length) await db.insert(crmBlocklist).values(values.map((value) => ({ value, createdById: staff.user.id }))).onConflictDoNothing();
+    await db.update(crmConversations).set({ status: "closed", awaitingSince: null, unread: 0 }).where(eq(crmConversations.dealId, deal.id));
+  }
+  await db.delete(crmDeals).where(eq(crmDeals.id, deal.id));
+  await audit(staff, spam ? "deal.spam" : "deal.reject", "deal", deal.id, { number: deal.number, title: deal.title, phone: deal.contactPhone });
+  revalidateDeal(undefined, deal.clientId);
+}
+
+/** Слить дубль source в target. */
+export async function mergeDealAction(targetId: string, sourceId: string) {
+  const staff = await assertStaff("deals.edit", "deals.delete");
+  const target = await loadDeal(staff, targetId);
+  const source = await loadDeal(staff, sourceId);
+  await mergeDeals(target.id, source.id, staff.user.id);
+  await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title });
+  revalidateDeal(target.id, target.clientId);
+}
+
+/** Снять номер со спама (ошибочно отклонили). */
+export async function unblockAction(value: string) {
+  const staff = await assertStaff("settings.manage");
+  await db.delete(crmBlocklist).where(eq(crmBlocklist.value, z.string().min(1).max(100).parse(value)));
+  await audit(staff, "settings.update", "blocklist", value, { removed: true });
+  revalidatePath("/admin/settings");
 }

@@ -72,6 +72,8 @@ async function zadarma(params, { secret = "zsecret" } = {}) {
   return fetch(`${base}/api/integrations/zadarma`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Signature: zsign(signed, secret) }, body: new URLSearchParams(params) });
 }
 
+// Тест не должен зависеть от времени суток: рабочее время — круглосуточно.
+await q(`insert into crm_settings (key, value) values ('crm.workHours', '{"days":[1,2,3,4,5,6,7],"from":"00:00","to":"00:00"}') on conflict (key) do update set value = excluded.value`);
 // Адрес Zadarma API — на мок (в проде это https://api.zadarma.com по умолчанию).
 await q(`insert into crm_settings (key, value) values ('zadarma.baseUrl', $1) on conflict (key) do update set value = excluded.value`, [`http://localhost:${MOCK}`]);
 
@@ -276,8 +278,8 @@ try {
   check((await admin.getByTestId("automation").count()) >= 3, "базовые автоматизации на месте");
   await admin.getByRole("button", { name: "Новое правило" }).click();
   await admin.getByPlaceholder("Название правила").fill(`Автоответ ${stamp}`);
-  await admin.locator("select").first().selectOption("message.incoming");
-  await admin.locator("select").nth(1).selectOption("send_message");
+  await admin.getByLabel("Событие").selectOption("message.incoming");
+  await admin.getByLabel("Действие").first().selectOption("send_message");
   await admin.getByPlaceholder("Здравствуйте, {имя}! Получили ваше сообщение…").fill("Спасибо, {имя}! Ответим в течение 15 минут.");
   await admin.getByRole("button", { name: "Сохранить правило" }).click();
   await admin.waitForSelector(`text=Автоответ ${stamp}`);

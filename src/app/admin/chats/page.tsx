@@ -7,6 +7,8 @@ import { can, canAssignOthers, canSeeAssigned, contactView, ownScope, requireSta
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { channelLabel } from "@/lib/crm/chats";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
+import { chatOffers } from "@/lib/crm/offers";
+import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { getSetting } from "@/lib/crm/settings";
 import { formatPrice } from "@/config/site";
@@ -74,7 +76,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   let side: React.ReactNode = null;
 
   if (conv) {
-    const [messages, templates, vars, blocker, dealRow, client] = await Promise.all([
+    const [messages, templates, vars, blocker, dealRow, client, offers, mentionables] = await Promise.all([
       loadChatMessages(conv.id),
       listTemplates(),
       chatVars(conv, adminLabel(staff.user)),
@@ -88,6 +90,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             .then((r) => r[0] ?? null)
         : null,
       conv.clientId ? db.query.users.findFirst({ where: eq(users.id, conv.clientId), columns: { id: true, name: true, email: true } }) : null,
+      chatOffers(conv, can(staff, "promo.give")),
+      mentionableStaff(),
     ]);
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     panel = (
@@ -114,6 +118,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           templates={templates}
           vars={vars}
           sendDisabledReason={blocker}
+          offers={can(staff, "chats.send") ? offers : null}
+          mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
         />
       </div>
     );

@@ -1,3 +1,4 @@
+import { usersId } from "@/lib/db/refs";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmCalls, crmDeals, crmRoles, users } from "@/lib/db/schema";
@@ -14,8 +15,8 @@ export default async function AdminTeam() {
     db
       .select({
         user: users,
-        openDeals: sql<number>`(select count(*)::int from ${crmDeals} d where d.assignee_id = ${users.id} and d.closed_at is null)`,
-        calls7d: sql<number>`(select count(*)::int from ${crmCalls} c where c.staff_id = ${users.id} and c.started_at > now() - interval '7 days')`,
+        openDeals: sql<number>`(select count(*)::int from ${crmDeals} d where d.assignee_id = ${usersId} and d.closed_at is null)`,
+        calls7d: sql<number>`(select count(*)::int from ${crmCalls} c where c.staff_id = ${usersId} and c.started_at > now() - interval '7 days')`,
       })
       .from(users)
       .where(eq(users.role, "admin"))

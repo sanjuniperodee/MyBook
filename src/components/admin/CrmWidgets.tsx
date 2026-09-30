@@ -6,6 +6,7 @@ import { useActionState, useEffect, useOptimistic, useRef, useState, useTransiti
 import { Mail, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { MentionTextarea } from "./MentionTextarea";
 import { cn } from "@/lib/utils";
 
 export const taskKinds = { task: "Задача", call: "Позвонить", message: "Написать", meeting: "Встреча" } as const;
@@ -135,13 +136,18 @@ const kinds = {
 const manualKinds = ["note", "call", "message", "email"] as const;
 
 /** История общения с клиентом. */
-export function NotesTimeline({ notes, clientId, orderId, dealId }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string }) {
+export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[] }) {
+  const [text, setText] = useState("");
   const [, start] = useTransition();
   const [state, action] = useActionState<AdminState, FormData>(addNoteAction, {});
   const [kind, setKind] = useState<NoteItem["kind"]>("note");
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
-    if (state.ok) form.current?.reset();
+    if (state.ok) {
+      form.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- очистка поля после успешной отправки формы
+      setText("");
+    }
   }, [state]);
 
   return (
@@ -161,7 +167,17 @@ export function NotesTimeline({ notes, clientId, orderId, dealId }: { notes: Not
             );
           })}
         </div>
-        <textarea name="text" required maxLength={5000} rows={2} placeholder="Что обсудили, о чём договорились…" className="w-full resize-y bg-transparent text-sm outline-none" />
+        <MentionTextarea
+          name="text"
+          value={text}
+          onValueChange={setText}
+          mentionables={mentionables}
+          required
+          maxLength={5000}
+          rows={2}
+          placeholder={mentionables?.length ? "Что обсудили, о чём договорились… @имя — позвать коллегу" : "Что обсудили, о чём договорились…"}
+          className="w-full resize-y bg-transparent text-sm outline-none"
+        />
         <div className="flex items-center justify-between">
           {state.error ? <span className="text-xs text-red-700">{state.error}</span> : <span />}
           <SubmitButton className="btn-sm">Сохранить</SubmitButton>

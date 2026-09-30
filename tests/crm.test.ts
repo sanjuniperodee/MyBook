@@ -5,11 +5,15 @@ import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, s
 import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/lib/crm/phone";
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/lib/crm/telephony-protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/lib/crm/wazzup-protocol";
-import { automationTriggers, fillTemplate, isTrigger } from "@/lib/crm/automation-meta";
+import { automationActions, automationTriggers, fillTemplate, isTrigger } from "@/lib/crm/automation-meta";
+import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/lib/crm/schedule";
+import { findMentions } from "@/lib/crm/mentions";
+import { milestoneOrder, stageMilestones } from "@/lib/crm/deal-meta";
 import { decryptSecret, encryptSecret, safeEqual } from "@/lib/crm/crypto";
 import { matches } from "@/lib/crm/automations";
 
 const migration = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0013_crm_pro.sql"), "utf8");
+const later = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0014_crm_sales.sql"), "utf8");
 
 describe("права и системные роли", () => {
   it("у всех прав уникальные ключи, isPermission их узнаёт", () => {
@@ -27,6 +31,8 @@ describe("права и системные роли", () => {
       expect(name).toBe(role.name);
       expect(scope).toBe(role.scope);
       const list = perms.split(",").map((p) => p.trim().replace(/'/g, ""));
+      // Права, добавленные следующими миграциями.
+      for (const m of later.matchAll(/array_append\("permissions", '([\w.]+)'\) WHERE "key" IN \(([^)]*)\)/g)) if (m[2].includes(`'${key}'`)) list.push(m[1]);
       expect(list.every(isPermission)).toBe(true);
       expect([...list].sort()).toEqual([...role.permissions].sort());
     }
@@ -143,11 +149,11 @@ describe("автоматизации и шаблоны", () => {
   });
 
   it("автоматизации из миграции используют известные события и действия", () => {
-    const rows = [...migration.matchAll(/INSERT INTO "crm_automations" \("name","trigger","conditions","actions"\) VALUES \('[^']+','([\w.]+)','([^']*)'::jsonb,'([^']*)'::jsonb/g)];
-    expect(rows.length).toBe(3);
+    const rows = [...(migration + later).matchAll(/INSERT INTO "crm_automations" \("name","trigger","conditions","actions"(?:,"active")?\) VALUES \('[^']+','([\w.]+)','([^']*)'::jsonb,'([^']*)'::jsonb/g)];
+    expect(rows.length).toBe(6);
     for (const [, trigger, , actions] of rows) {
       expect(isTrigger(trigger)).toBe(true);
-      for (const a of JSON.parse(actions)) expect(["create_task", "send_message", "assign", "move_stage", "notify"]).toContain(a.type);
+      for (const a of JSON.parse(actions)) expect(Object.keys(automationActions)).toContain(a.type);
     }
     expect(Object.keys(automationTriggers)).toContain("message.unanswered");
   });
@@ -170,5 +176,65 @@ describe("шифрование секретов", () => {
     expect(safeEqual("abc", "abc")).toBe(true);
     expect(safeEqual("abc", "abd")).toBe(false);
     expect(safeEqual("abc", "abcd")).toBe(false);
+  });
+});
+
+describe("рабочее время", () => {
+  const hours = parseWorkHours('{"days":[1,2,3,4,5],"from":"09:00","to":"18:00"}');
+  // Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  const at = (iso: string) => new Date(iso);
+
+  it("разбирает настройку и подставляет значения по умолчанию", () => {
+    expect(hours).toEqual({ days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" });
+    expect(parseWorkHours("мусор")).toEqual({ days: [1, 2, 3, 4, 5, 6, 7], from: "09:00", to: "21:00" });
+    expect(parseWorkHours('{"days":[9,1],"from":"25:00"}')).toEqual({ days: [1], from: "09:00", to: "21:00" });
+  });
+
+  it("определяет рабочее время в часовом поясе магазина", () => {
+    expect(isWorkTime(at("2026-09-30T05:00:00Z"), hours)).toBe(true); // среда 10:00
+    expect(isWorkTime(at("2026-09-30T13:30:00Z"), hours)).toBe(false); // среда 18:30
+    expect(isWorkTime(at("2026-10-03T06:00:00Z"), hours)).toBe(false); // суббота
+    const night = parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"20:00","to":"02:00"}');
+    expect(isWorkTime(at("2026-09-30T20:00:00Z"), night)).toBe(true); // 01:00 ночи
+    expect(isWorkTime(at("2026-09-30T22:00:00Z"), night)).toBe(false); // 03:00
+  });
+
+  it("норматив ответа считает только рабочие минуты", () => {
+    // среда 17:50 → четверг 09:10: 10 минут вечером + 10 утром
+    expect(workMinutesBetween(at("2026-09-30T12:50:00Z"), at("2026-10-01T04:10:00Z"), hours)).toBe(20);
+    // пятница 17:00 → понедельник 10:00: 60 + 60
+    expect(workMinutesBetween(at("2026-10-02T12:00:00Z"), at("2026-10-05T05:00:00Z"), hours)).toBe(120);
+    // внутри одного рабочего дня
+    expect(workMinutesBetween(at("2026-09-30T05:00:00Z"), at("2026-09-30T05:15:00Z"), hours)).toBe(15);
+    expect(workMinutesBetween(at("2026-09-30T05:15:00Z"), at("2026-09-30T05:00:00Z"), hours)).toBe(0);
+  });
+});
+
+describe("упоминания и воронка по действиям", () => {
+  const staff = [
+    { id: "1", label: "Айгерим" },
+    { id: "2", label: "Айгерим Сапарова" },
+    { id: "3", label: "manager" },
+  ];
+  it("находит упомянутых по имени, длинное имя не задевает короткое", () => {
+    expect(findMentions("@Айгерим Сапарова проверь адрес", staff)).toEqual(["2"]);
+    expect(findMentions("@айгерим и @MANAGER, гляньте", staff).sort()).toEqual(["1", "3"]);
+    expect(findMentions("без упоминаний, e-mail a@b.kz", staff)).toEqual([]);
+  });
+
+  it("события воронки идут по порядку и все описаны", () => {
+    expect(milestoneOrder).toEqual(Object.keys(stageMilestones));
+    expect(milestoneOrder.indexOf("book_started")).toBeLessThan(milestoneOrder.indexOf("book_ready"));
+  });
+
+  it("условие «рабочее время» в правилах", () => {
+    expect(matches({ conditions: { hours: "off" } }, { subject: "s", workTime: false })).toBe(true);
+    expect(matches({ conditions: { hours: "off" } }, { subject: "s", workTime: true })).toBe(false);
+    expect(matches({ conditions: { hours: "work" } }, { subject: "s", workTime: true })).toBe(true);
+    expect(matches({ conditions: { hours: "work" } }, { subject: "s", workTime: false })).toBe(false);
+  });
+
+  it("переменные повода и даты в шаблонах", () => {
+    expect(fillTemplate("Годовщина: {повод}, {дата}", { occasion: "Свадьба", date: "12 ноября" })).toBe("Годовщина: Свадьба, 12 ноября");
   });
 });

@@ -6,6 +6,6 @@ import { pool } from "../src/lib/db";
 
 const gifts = await sendDueGifts();
 const emails = await runLifecycle(new Date(), { ignoreHours: process.argv.includes("--any-hour") });
-const crm = await runScheduledAutomations();
+const crm = await runScheduledAutomations({ force: true });
 console.log(`gifts sent: ${gifts}, lifecycle emails: ${emails}, crm automations: ${crm}`);
 await pool.end();

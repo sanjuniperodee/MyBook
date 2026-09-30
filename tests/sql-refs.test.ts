@@ -15,7 +15,11 @@ describe("коррелированные подзапросы", () => {
     const bad: string[] = [];
     for (const f of files(path.join(__dirname, "..", "src"))) {
       const src = readFileSync(f, "utf8");
-      for (const m of src.matchAll(/\((?:select|exists)[^`)]*?\$\{(books|users|orders)\.id\}/g)) bad.push(`${path.relative(process.cwd(), f)}: ${m[0].slice(0, 80)}`);
+      // Каждый sql`…` с подзапросом: внешние ключевые колонки — только через явные ссылки из lib/db/refs.
+      for (const t of src.matchAll(/sql(?:<[^>]*>)?`([^`]*)`/g)) {
+        if (!/\(\s*select|exists\s*\(/i.test(t[1])) continue;
+        for (const m of t[1].matchAll(/\$\{(\w+)\.(id|clientId|userId|bookId)\}/g)) bad.push(`${path.relative(process.cwd(), f)}: ${m[0]} в «${t[1].slice(0, 60)}…»`);
+      }
     }
     expect(bad).toEqual([]);
   });

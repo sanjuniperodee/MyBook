@@ -5,7 +5,7 @@ import { crmNotifications, crmRoles, users } from "../db/schema";
 import type { Permission } from "./permissions";
 
 export interface NotificationInput {
-  kind: "message" | "call" | "task" | "deal" | "sla" | "system";
+  kind: "message" | "call" | "task" | "deal" | "sla" | "system" | "mention";
   title: string;
   body?: string;
   link?: string | null;
