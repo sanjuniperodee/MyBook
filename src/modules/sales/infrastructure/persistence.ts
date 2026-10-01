@@ -1,9 +1,10 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmStageHistory, crmStages, crmTasks } from "@/lib/db/schema";
+import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/lib/db/schema";
 import { phoneKey } from "@/lib/crm/phone";
 import { executor } from "@/shared/infrastructure/database";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
+import type { PipelineRepository } from "../application";
+import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage, type StageMilestone } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 
@@ -124,6 +125,10 @@ export class DrizzleDealRepository implements DealRepository {
     await db.delete(crmDeals).where(eq(crmDeals.id, source.id));
   }
 
+  async delete(dealId: string) {
+    await executor().delete(crmDeals).where(eq(crmDeals.id, dealId));
+  }
+
   async addNote(deal: { id: string; clientId: string | null }, text: string, authorId: string | null, kind: NoteKind) {
     await executor().insert(crmNotes).values({ clientId: deal.clientId, dealId: deal.id, authorId, kind, text });
   }
@@ -199,5 +204,79 @@ export class DrizzleSalesQueries {
     for (const p of plans) Object.assign(get(p.userId), { planAmount: p.amount, planDeals: p.deals });
     for (const f of facts.rows) if (!userIds || userIds.includes(f.user_id)) Object.assign(get(f.user_id), { factAmount: f.amount, factDeals: f.deals });
     return out;
+  }
+}
+
+/** Воронки и этапы — настройки CRM. */
+export class DrizzlePipelineRepository implements PipelineRepository {
+  async stage(id: string) {
+    const [s] = await executor().select().from(crmStages).where(eq(crmStages.id, id)).limit(1);
+    return s ?? null;
+  }
+  stages(pipelineId: string) {
+    return executor().select({ id: crmStages.id, kind: crmStages.kind, position: crmStages.position }).from(crmStages).where(eq(crmStages.pipelineId, pipelineId)).orderBy(asc(crmStages.position));
+  }
+  async dealsOnStage(stageId: string) {
+    const [{ n }] = await executor().select({ n: sql<number>`count(*)::int` }).from(crmDeals).where(eq(crmDeals.stageId, stageId));
+    return n;
+  }
+  async dealsInPipeline(pipelineId: string) {
+    const [{ n }] = await executor().select({ n: sql<number>`count(*)::int` }).from(crmDeals).innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId)).where(eq(crmStages.pipelineId, pipelineId));
+    return n;
+  }
+  async releaseMilestone(pipelineId: string, milestone: StageMilestone, exceptStageId: string | null) {
+    await executor()
+      .update(crmStages)
+      .set({ milestone: null })
+      .where(and(eq(crmStages.milestone, milestone), eq(crmStages.pipelineId, pipelineId), exceptStageId ? ne(crmStages.id, exceptStageId) : undefined));
+  }
+  async updateStage(id: string, patch: { name: string; color: string; milestone: StageMilestone | null }) {
+    await executor().update(crmStages).set({ ...patch, updatedAt: new Date() }).where(eq(crmStages.id, id));
+  }
+  async insertOpenStage(pipelineId: string, stage: { name: string; color: string; milestone: StageMilestone | null }) {
+    const db = executor();
+    const [{ pos }] = await db
+      .select({ pos: sql<number>`coalesce(max(${crmStages.position}) filter (where ${crmStages.kind} = 'open'), 0)::int` })
+      .from(crmStages)
+      .where(eq(crmStages.pipelineId, pipelineId));
+    await db
+      .update(crmStages)
+      .set({ position: sql`${crmStages.position} + 1` })
+      .where(and(eq(crmStages.pipelineId, pipelineId), sql`${crmStages.position} > ${pos}`));
+    await db.insert(crmStages).values({ ...stage, position: pos + 1, kind: "open", pipelineId });
+  }
+  async swapPositions(a: { id: string; position: number }, b: { id: string; position: number }) {
+    await executor().update(crmStages).set({ position: b.position }).where(eq(crmStages.id, a.id));
+    await executor().update(crmStages).set({ position: a.position }).where(eq(crmStages.id, b.id));
+  }
+  async deleteStage(id: string) {
+    await executor().delete(crmStages).where(eq(crmStages.id, id));
+  }
+  async createPipeline(name: string, stages: { name: string; color: string; kind: "open" | "won" | "lost" }[]) {
+    const db = executor();
+    const [{ pos }] = await db.select({ pos: sql<number>`coalesce(max(${crmPipelines.position}), 0)::int` }).from(crmPipelines);
+    const [p] = await db.insert(crmPipelines).values({ name, position: pos + 1 }).returning();
+    await db.insert(crmStages).values(stages.map((s, i) => ({ ...s, pipelineId: p.id, position: i + 1 })));
+    return { id: p.id, name: p.name };
+  }
+  async renamePipeline(id: string, name: string) {
+    await executor().update(crmPipelines).set({ name, updatedAt: new Date() }).where(eq(crmPipelines.id, id));
+  }
+  async deletePipeline(id: string) {
+    await executor().delete(crmPipelines).where(eq(crmPipelines.id, id));
+  }
+}
+
+/** Сохранённые фильтры списка сделок. */
+export class DrizzleSavedViews {
+  async add(view: { userId: string; name: string; query: string; shared: boolean }) {
+    await executor().insert(crmSavedViews).values({ ...view, entity: "deals" });
+  }
+  async find(id: string) {
+    const [v] = await executor().select().from(crmSavedViews).where(eq(crmSavedViews.id, id)).limit(1);
+    return v ?? null;
+  }
+  async delete(id: string) {
+    await executor().delete(crmSavedViews).where(eq(crmSavedViews.id, id));
   }
 }

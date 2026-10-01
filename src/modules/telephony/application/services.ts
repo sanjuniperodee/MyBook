@@ -14,6 +14,10 @@ export class CallsService {
     private readonly clock: Clock,
   ) {}
 
+  markHandled(callId: string, staffId: string) {
+    return this.calls.markHandled(callId, staffId, this.clock.now());
+  }
+
   async handle(e: CallEvent) {
     const call = await this.apply(e);
     // Карточка входящего звонка должна появиться сразу, а не через интервал опроса.

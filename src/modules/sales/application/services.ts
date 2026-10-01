@@ -132,6 +132,49 @@ export class DealsService {
     if (deal?.fillEmptyFields(values)) await this.deals.save(deal);
   }
 
+  /** Правка карточки сделки. */
+  async edit(dealId: string, patch: Parameters<Deal["edit"]>[0], actorId: string) {
+    const deal = await this.load(dealId);
+    deal.edit(patch, actorId);
+    await this.deals.save(deal);
+  }
+
+  async delete(dealId: string) {
+    await this.deals.delete(dealId);
+  }
+
+  async linkClient(dealId: string, clientId: string | null) {
+    const deal = await this.load(dealId);
+    deal.linkClient(clientId);
+    await this.deals.save(deal);
+  }
+
+  async addTag(dealId: string, tag: string) {
+    const deal = await this.load(dealId);
+    deal.addTag(tag);
+    await this.deals.save(deal);
+  }
+
+  /** Принять заявку из «Неразобранного»: ответственный — тот, кто принял (если не был назначен). */
+  async acceptByStaff(dealId: string, staffId: string) {
+    const deal = await this.load(dealId);
+    if (!deal.accept(staffId)) return null;
+    deal.note("Заявка принята в работу", staffId);
+    await this.uow.run(async () => {
+      await this.deals.save(deal);
+      this.uow.track(deal);
+    });
+    return deal.snapshot();
+  }
+
+  /** Отклонить неразобранную заявку: сделка удаляется, переписка и звонки остаются. */
+  async reject(dealId: string) {
+    const deal = await this.load(dealId);
+    if (!deal.isUnsorted) throw new SalesError("notUnsorted", "Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
+    await this.deals.delete(deal.id);
+    return deal.snapshot();
+  }
+
   async acceptUnsorted(dealId: string, authorId: string) {
     const deal = await this.deals.findById(dealId);
     if (deal?.accept(authorId)) await this.deals.save(deal);
@@ -169,6 +212,10 @@ export class DealsService {
     const id = (await this.funnels.load()).defaultPipelineId;
     if (!id) throw new SalesError("noPipeline");
     return id;
+  }
+
+  async stage(stageId: string) {
+    return (await this.funnels.load()).stage(stageId);
   }
 
   async stageOfKind(kind: "open" | "won" | "lost", pipelineId?: string) {

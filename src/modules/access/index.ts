@@ -1,7 +1,7 @@
 import "server-only";
 import { RoleService, SecurityService, StaffResolver, TeamService, type AccountGateway } from "./application";
 import { randomPasswords, settingsSecurityStore } from "./infrastructure/adapters";
-import { DrizzleRoleRepository, DrizzleStaffRepository, drizzleAuditLog } from "./infrastructure/persistence";
+import { DrizzleAccessQueries, DrizzleRoleRepository, DrizzleStaffRepository, drizzleAuditLog, drizzleShifts } from "./infrastructure/persistence";
 
 export * from "./domain";
 export type { StaffAccount } from "./application";
@@ -13,6 +13,8 @@ export class AccessModule {
   readonly roles: RoleService;
   readonly security: SecurityService;
   readonly audit = drizzleAuditLog;
+  readonly queries = new DrizzleAccessQueries();
+  readonly shifts = drizzleShifts;
 
   constructor(deps: { accounts: AccountGateway }) {
     const roles = new DrizzleRoleRepository();

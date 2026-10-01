@@ -2,16 +2,14 @@
 
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmCalls, crmConversations, crmDeals, orders, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
+import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/lib/crm/settings";
 import { normalizePhone } from "@/lib/crm/phone";
 
-type Target = { clientId?: string; dealId?: string; orderId?: string; callId?: string };
+type Target = ContactTarget;
 
 export type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
 
@@ -20,16 +18,17 @@ const uuid = z.string().uuid();
 /** Ответственный за клиента. «Только свои» может лишь взять неразобранного клиента себе. */
 export async function setClientManagerAction(clientId: string, managerId: string | null): Promise<ActionResult> {
   const staff = await assertStaff("clients.edit");
-  const client = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(clientId)) });
+  const client = await container().clients.clients.find(uuid.parse(clientId));
   if (!client) return { ok: false, message: "Клиент не найден" };
   assertVisible(staff, client.managerId);
   const next = managerId ? uuid.parse(managerId) : null;
   if (!canAssignOthers(staff) && next !== staff.user.id && !(next === null && client.managerId === staff.user.id)) throw new ForbiddenError();
-  if (next) {
-    const m = await db.query.users.findFirst({ where: eq(users.id, next), columns: { role: true, staffDisabled: true } });
-    if (!m || m.role !== "admin" || m.staffDisabled) return { ok: false, message: "Сотрудник не найден" };
+  try {
+    await container().clients.clients.setManager(client, next);
+  } catch (err) {
+    if (ClientsError.is(err)) return { ok: false, message: err.message };
+    throw err;
   }
-  await db.update(users).set({ managerId: next }).where(eq(users.id, client.id));
   await audit(staff, "client.manager", "client", client.id, { from: client.managerId, to: next });
   revalidatePath(`/admin/clients/${client.id}`);
   revalidatePath("/admin/clients");
@@ -37,31 +36,9 @@ export async function setClientManagerAction(clientId: string, managerId: string
 }
 
 /** Номер для звонка/чата берём на сервере: сотрудник без права видеть контакты всё равно может связаться. */
-async function resolveContact(target: Target) {
-  if (target.callId) {
-    const c = await db.query.crmCalls.findFirst({ where: eq(crmCalls.id, uuid.parse(target.callId)) });
-    return c ? { phone: c.clientPhone, email: null as string | null, clientId: c.clientId, assigneeId: c.staffId, name: "", dealId: c.dealId } : null;
-  }
-  if (target.dealId) {
-    const d = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, uuid.parse(target.dealId)) });
-    if (!d) return null;
-    let phone = d.contactPhone;
-    const client = d.clientId ? await db.query.users.findFirst({ where: eq(users.id, d.clientId), columns: { phone: true, email: true } }) : null;
-    if (!phone) phone = client?.phone ?? null;
-    return { phone, email: d.contactEmail ?? client?.email ?? null, clientId: d.clientId, assigneeId: d.assigneeId, name: d.contactName, dealId: d.id };
-  }
-  if (target.orderId) {
-    const o = await db.query.orders.findFirst({ where: eq(orders.id, uuid.parse(target.orderId)) });
-    return o ? { phone: o.contactPhone, email: o.contactEmail, clientId: o.userId, assigneeId: o.assigneeId, name: o.contactName, dealId: null } : null;
-  }
-  if (target.clientId) {
-    const c = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(target.clientId)) });
-    if (!c) return null;
-    let phone = c.phone;
-    if (!phone) phone = (await db.query.orders.findFirst({ where: eq(orders.userId, c.id), columns: { contactPhone: true }, orderBy: (o, { desc }) => desc(o.createdAt) }))?.contactPhone ?? null;
-    return { phone, email: c.email, clientId: c.id, assigneeId: c.managerId, name: c.name, dealId: null };
-  }
-  return null;
+function resolveContact(target: Target) {
+  const id = (v?: string) => (v ? uuid.parse(v) : undefined);
+  return container().clients.contact({ callId: id(target.callId), dealId: id(target.dealId), orderId: id(target.orderId), clientId: id(target.clientId) });
 }
 
 export async function callAction(target: Target): Promise<ActionResult> {
@@ -87,7 +64,7 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const channelId = await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
   const conv = await container().messaging.chats.conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
-  if (c.dealId && !conv.dealId) await db.update(crmConversations).set({ dealId: c.dealId }).where(eq(crmConversations.id, conv.id));
+  if (c.dealId && !conv.dealId) await container().messaging.chats.attachDeal(conv.id, c.dealId);
   return { ok: true, id: conv.id };
 }
 
@@ -109,10 +86,10 @@ export async function sendEmailAction(target: Target, subject: string, text: str
 /** Пропущенный звонок обработан (перезвонили с мобильного, написали и т.п.). */
 export async function markCallHandledAction(callId: string): Promise<ActionResult> {
   const staff = await assertStaff("calls.view");
-  const call = await db.query.crmCalls.findFirst({ where: eq(crmCalls.id, uuid.parse(callId)) });
+  const call = await container().telephony.queries.byId(uuid.parse(callId));
   if (!call) return { ok: false, message: "Звонок не найден" };
   assertVisible(staff, call.staffId);
-  await db.update(crmCalls).set({ handledAt: new Date(), staffId: call.staffId ?? staff.user.id }).where(eq(crmCalls.id, call.id));
+  await container().telephony.calls.markHandled(call.id, staff.user.id);
   revalidatePath("/admin/calls");
   return { ok: true };
 }
@@ -120,12 +97,10 @@ export async function markCallHandledAction(callId: string): Promise<ActionResul
 /** Дополнительные телефоны клиента: по ним узнаём его в звонках и WhatsApp. */
 export async function setClientPhonesAction(clientId: string, raw: string): Promise<ActionResult> {
   const staff = await assertStaff("clients.edit", "clients.contacts");
-  const client = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(clientId)) });
+  const client = await container().clients.clients.find(uuid.parse(clientId));
   if (!client) return { ok: false, message: "Клиент не найден" };
   assertVisible(staff, client.managerId);
-  const main = client.phone ? normalizePhone(client.phone) : "";
-  const phones = [...new Set(raw.split(/[,;\n]/).map((p) => normalizePhone(p)).filter((p) => p.length >= 10 && p !== main))].slice(0, 5);
-  await db.update(users).set({ extraPhones: phones }).where(eq(users.id, client.id));
+  const phones = await container().clients.clients.setExtraPhones(client, raw);
   await audit(staff, "client.phones", "client", client.id, { count: phones.length });
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: true, message: phones.length ? `Сохранено номеров: ${phones.length}` : "Дополнительные номера удалены" };
@@ -134,18 +109,18 @@ export async function setClientPhonesAction(clientId: string, raw: string): Prom
 /** «На смене» — получать новые заявки по кругу. */
 export async function setShiftAction(onShift: boolean) {
   const staff = await assertStaff();
-  await db.update(users).set({ onShift: !!onShift }).where(eq(users.id, staff.user.id));
+  await container().access.shifts.set(staff.user.id, !!onShift);
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
 }
 
 /** Свои поля клиента (раздел «Свои поля» → поля клиента). */
 export async function setClientFieldsAction(_: { ok?: string; error?: string }, form: FormData): Promise<{ ok?: string; error?: string }> {
   const staff = await assertStaff("clients.edit");
-  const client = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(String(form.get("clientId") ?? ""))) });
+  const client = await container().clients.clients.find(uuid.parse(String(form.get("clientId") ?? "")));
   if (!client) return { error: "Клиент не найден" };
   assertVisible(staff, client.managerId);
   const { listFields, readFieldValues } = await import("@/lib/crm/fields");
-  await db.update(users).set({ customFields: readFieldValues(await listFields("client"), form, client.customFields) }).where(eq(users.id, client.id));
+  await container().clients.clients.setCustomFields(client, readFieldValues(await listFields("client"), form, client.customFields));
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: "Сохранено" };
 }

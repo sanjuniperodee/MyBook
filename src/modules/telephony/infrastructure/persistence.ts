@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, gte, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { crmCalls, crmNotes, users } from "@/lib/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { CallRepository, CallTimeline, StaffDirectory } from "../application";
@@ -46,6 +46,12 @@ export class DrizzleCallRepository implements CallRepository {
     const { id, ...props } = call.snapshot();
     const rows = await executor().update(crmCalls).set(props).where(and(eq(crmCalls.id, id), isNull(crmCalls.endedAt))).returning({ id: crmCalls.id });
     return rows.length > 0;
+  }
+  async markHandled(callId: string, staffId: string, now: Date) {
+    await executor()
+      .update(crmCalls)
+      .set({ handledAt: now, staffId: sql`coalesce(${crmCalls.staffId}, ${staffId}::uuid)` })
+      .where(eq(crmCalls.id, callId));
   }
   async markMissedHandled(phone: string, now: Date) {
     await executor()

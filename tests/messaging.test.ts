@@ -66,6 +66,9 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
       return true;
     },
     latestWhatsapp: async () => null,
+    assignByDeal: async () => {},
+    chatIdsByDeal: async () => [],
+    closeByDeal: async () => {},
   };
   const messages: MessageRepository = {
     insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, externalId: m.externalId, status: "received" })),
@@ -119,7 +122,7 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
   const service = new MessagingService(
     conversations,
     messages,
-    { isBlocked: async () => !!opts.blocked },
+    { isBlocked: async () => !!opts.blocked, add: async () => {}, remove: async () => {} },
     { send: async (_c, _id, text) => (sent.push(text), { ok: true, externalId: `wz-${sent.length}` }) },
     sales,
     { fromText: async () => null },

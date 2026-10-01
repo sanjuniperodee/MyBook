@@ -101,6 +101,7 @@ class MemDeals implements DealRepository {
   add = async (d: Deal) => void this.rows.set(d.id, d.snapshot());
   save = async (d: Deal) => void this.rows.set(d.id, d.snapshot());
   mergeInto = async (_t: Deal, s: Deal) => void this.rows.delete(s.id);
+  delete = async (id: string) => void this.rows.delete(id);
   addNote = async () => {};
 }
 

@@ -1,5 +1,6 @@
 import { AggregateRoot } from "@/shared/domain";
 import { dealSourceLabels, type DealSource } from "@/lib/crm/deal-meta";
+import { formatPrice } from "@/config/site";
 import { normalizePhone, phoneKey } from "@/lib/crm/phone";
 import { SalesEvents } from "./events";
 import type { Stage } from "./Funnel";
@@ -154,6 +155,34 @@ export class Deal extends AggregateRoot<DealProps> {
     this.props.unsorted = false;
     this.props.assigneeId ??= authorId;
     return true;
+  }
+
+  get isUnsorted() {
+    return this.props.unsorted;
+  }
+
+  /** Правка карточки (без этапа и ответственного — для них отдельные команды с историей). Смена бюджета — в ленту. */
+  edit(patch: { title: string; contactName: string; amount: number; source: DealSource; tags: string[]; customFields: CustomValues; contacts?: { phone: string | null; email: string | null; extraPhones: string[] } }, actorId: string | null) {
+    const before = this.props.amount;
+    this.props = {
+      ...this.props,
+      title: patch.title.slice(0, 200),
+      contactName: patch.contactName.slice(0, 120),
+      amount: patch.amount,
+      source: patch.source,
+      tags: [...new Set(patch.tags)].slice(0, 12),
+      customFields: patch.customFields,
+      ...(patch.contacts ? { contactPhone: patch.contacts.phone, contactEmail: patch.contacts.email, extraPhones: patch.contacts.extraPhones.slice(0, 5) } : {}),
+    };
+    if (before !== patch.amount) this.note(`Бюджет: ${formatPrice(before)} → ${formatPrice(patch.amount)}`, actorId);
+  }
+
+  addTag(tag: string) {
+    this.props.tags = [...new Set([...this.props.tags, tag])].slice(0, 12);
+  }
+
+  linkClient(clientId: string | null) {
+    this.props.clientId = clientId;
   }
 
   /** Откуда пришёл клиент — только если ещё не известно. */

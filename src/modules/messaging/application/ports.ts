@@ -23,6 +23,12 @@ export interface ConversationRepository {
   /** Шаг бота from → to атомарно; false — менеджер уже ответил или параллельный вебхук. */
   advanceBot(id: string, from: number | null, to: number): Promise<boolean>;
   latestWhatsapp(chatId: string): Promise<Conversation | null>;
+  /** Диалоги сделки: назначить ответственного (заявку приняли). */
+  assignByDeal(dealId: string, userId: string): Promise<void>;
+  /** Идентификаторы собеседников в диалогах сделки. */
+  chatIdsByDeal(dealId: string): Promise<string[]>;
+  /** Спам: диалоги сделки закрыты, ответа не ждут. */
+  closeByDeal(dealId: string): Promise<void>;
 }
 
 export interface OutgoingMessage {
@@ -49,6 +55,8 @@ export interface MessageRepository {
 
 export interface Blocklist {
   isBlocked(...values: (string | null | undefined)[]): Promise<boolean>;
+  add(values: string[], byUserId: string): Promise<void>;
+  remove(value: string): Promise<void>;
 }
 
 /** Канал доставки исходящих: Wazzup, почта или виджет на сайте. */

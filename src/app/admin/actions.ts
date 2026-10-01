@@ -1,14 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/server/access";
-import { db } from "@/lib/db";
-import { crmDeals, crmNotes, crmTasks, orders, orderStatuses, users } from "@/lib/db/schema";
-import { notify } from "@/lib/crm/notify";
-import { notifyMentions } from "@/lib/crm/mentions";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
+import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
+import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
 import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
@@ -22,15 +19,26 @@ const actor = (email: string) => `admin:${email}`;
 
 async function guardDeal(staff: Staff, dealId: string) {
   if (staff.scope === "all") return;
-  const d = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, dealId), columns: { assigneeId: true } });
-  assertVisible(staff, d?.assigneeId);
+  assertVisible(staff, await container().clients.links.dealAssignee(dealId));
 }
 
 /** Клиент чужого менеджера для роли «только свои» недоступен и в действиях. */
 async function guardClient(staff: Staff, clientId: string) {
   if (staff.scope === "all") return;
-  const c = await db.query.users.findFirst({ where: eq(users.id, clientId), columns: { managerId: true } });
-  assertVisible(staff, c?.managerId);
+  assertVisible(staff, (await container().clients.clients.find(clientId))?.managerId);
+}
+
+/** Сотрудник глазами контекста «Клиенты CRM». */
+const crmActor = (staff: Staff): CrmActor => ({ userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") });
+
+/** Запрет из правил контекста — как ForbiddenError веб-слоя. */
+async function clientsCommand<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (ClientsError.is(err) && err.code === "forbidden") throw new ForbiddenError();
+    throw err;
+  }
 }
 
 /** Подпись сотрудника в журналах заказа. */
@@ -197,12 +205,6 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
 
 // ─── CRM: задачи и заметки ─────────────────────────────────────────────────
 
-/** Чужие задачи можно закрывать и удалять только с правом tasks.all. */
-function assertTaskAccess(staff: Staff, t: { assigneeId: string | null; createdById: string | null }) {
-  if (can(staff, "tasks.all") || !t.assigneeId || t.assigneeId === staff.user.id || t.createdById === staff.user.id) return;
-  throw new ForbiddenError();
-}
-
 function revalidateCrm(clientId?: string | null, orderId?: string | null, dealId?: string | null) {
   revalidatePath("/admin/tasks");
   revalidatePath("/admin");
@@ -213,7 +215,6 @@ function revalidateCrm(clientId?: string | null, orderId?: string | null, dealId
 
 export async function createTaskAction(_: AdminState, form: FormData): Promise<AdminState> {
   const staff = await assertStaff();
-  const admin = staff.user;
   const opt = (v: FormDataEntryValue | null) => (v ? String(v) : undefined);
   const parsed = z
     .object({
@@ -236,41 +237,20 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  let clientId = d.clientId ?? null;
-  if (d.orderId && !clientId) {
-    const o = await db.query.orders.findFirst({ where: eq(orders.id, d.orderId), columns: { userId: true } });
-    clientId = o?.userId ?? null;
-  }
-  if (d.dealId && !clientId) {
-    const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, d.dealId), columns: { clientId: true } });
-    clientId = deal?.clientId ?? null;
-  }
-  const dueAt = d.dueAt ? new Date(d.dueAt.length === 10 ? `${d.dueAt}T18:00:00` : d.dueAt) : null;
-  const assigneeId = d.assigneeId ?? admin.id;
-  // «Только свои» ставит задачи себе; назначать другим — роли с видимостью «все».
-  if (assigneeId !== admin.id && staff.scope !== "all") throw new ForbiddenError();
-  await db.insert(crmTasks).values({ title: d.title, kind: d.kind, dueAt, clientId, orderId: d.orderId ?? null, dealId: d.dealId ?? null, assigneeId, createdById: admin.id });
-  if (assigneeId !== admin.id)
-    await notify([assigneeId], { kind: "task", title: `Новая задача: ${d.title}`, body: `Поставил(а) ${admin.name || admin.email}`, link: d.dealId ? `/admin/deals/${d.dealId}` : d.orderId ? `/admin/orders/${d.orderId}` : "/admin/tasks" });
+  const { clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d));
   revalidateCrm(clientId, d.orderId, d.dealId);
   return { ok: "Задача добавлена" };
 }
 
 export async function toggleTaskAction(taskId: string) {
   const staff = await assertStaff();
-  const t = await db.query.crmTasks.findFirst({ where: eq(crmTasks.id, z.string().uuid().parse(taskId)) });
-  if (!t) throw new Error("Задача не найдена");
-  assertTaskAccess(staff, t);
-  await db.update(crmTasks).set({ doneAt: t.doneAt ? null : new Date() }).where(eq(crmTasks.id, t.id));
+  const t = await clientsCommand(() => container().clients.tasks.toggle(crmActor(staff), z.string().uuid().parse(taskId)));
   revalidateCrm(t.clientId, t.orderId, t.dealId);
 }
 
 export async function deleteTaskAction(taskId: string) {
   const staff = await assertStaff();
-  const current = await db.query.crmTasks.findFirst({ where: eq(crmTasks.id, z.string().uuid().parse(taskId)) });
-  if (!current) return;
-  assertTaskAccess(staff, current);
-  const [t] = await db.delete(crmTasks).where(eq(crmTasks.id, current.id)).returning();
+  const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), z.string().uuid().parse(taskId)));
   if (t) revalidateCrm(t.clientId, t.orderId, t.dealId);
 }
 
@@ -278,7 +258,6 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   const dealOnly = !form.get("clientId") && !!form.get("dealId");
   // Заметка в сделке — право на сделки; в карточке клиента — на клиентов.
   const staff = await assertStaff(form.get("dealId") ? "deals.edit" : "clients.edit");
-  const admin = staff.user;
   const parsed = z
     .object({
       clientId: dealOnly ? z.undefined() : z.string().uuid(),
@@ -291,23 +270,20 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   if (parsed.data.clientId) await guardClient(staff, parsed.data.clientId);
   if (parsed.data.dealId) await guardDeal(staff, parsed.data.dealId);
-  await db.insert(crmNotes).values({ ...parsed.data, clientId: parsed.data.clientId ?? null, orderId: parsed.data.orderId ?? null, dealId: parsed.data.dealId ?? null, authorId: admin.id });
-  const link = parsed.data.dealId ? `/admin/deals/${parsed.data.dealId}` : parsed.data.orderId ? `/admin/orders/${parsed.data.orderId}` : `/admin/clients/${parsed.data.clientId}`;
-  await notifyMentions(parsed.data.text, admin.id, admin.name || admin.email, link, parsed.data.dealId ? "заметка в сделке" : "заметка о клиенте");
+  await container().clients.notes.add(crmActor(staff), parsed.data);
   revalidateCrm(parsed.data.clientId, parsed.data.orderId, parsed.data.dealId);
   return { ok: "Заметка сохранена" };
 }
 
 export async function deleteNoteAction(noteId: string) {
   const staff = await assertStaff();
-  const note = await db.query.crmNotes.findFirst({ where: eq(crmNotes.id, z.string().uuid().parse(noteId)) });
+  const note = await container().clients.notes.find(z.string().uuid().parse(noteId));
   if (!note) return;
   if (!can(staff, "clients.edit") && !(note.dealId && can(staff, "deals.edit"))) throw new ForbiddenError();
   if (note.clientId) await guardClient(staff, note.clientId);
   if (note.dealId) await guardDeal(staff, note.dealId);
   // Системные записи (звонки, смены этапов) — часть истории, их не удаляем.
-  if (note.kind === "system") throw new ForbiddenError();
-  const [n] = await db.delete(crmNotes).where(eq(crmNotes.id, note.id)).returning();
+  const n = await clientsCommand(() => container().clients.notes.delete(note.id));
   if (n) await audit(staff, "note.delete", "client", n.clientId, { text: n.text.slice(0, 200) });
   if (n) revalidateCrm(n.clientId, n.orderId, n.dealId);
 }
@@ -316,9 +292,9 @@ export async function deleteNoteAction(noteId: string) {
 
 export async function updateClientTagsAction(clientId: string, tags: string[]) {
   const staff = await assertStaff("clients.edit");
-  const clean = [...new Set(z.array(z.string().trim().toLowerCase().min(1).max(30)).max(20).parse(tags))];
-  await guardClient(staff, z.string().uuid().parse(clientId));
-  await db.update(users).set({ tags: clean }).where(eq(users.id, z.string().uuid().parse(clientId)));
+  const id = z.string().uuid().parse(clientId);
+  await guardClient(staff, id);
+  const clean = await container().clients.clients.setTags(id, z.array(z.string().trim().toLowerCase().min(1).max(30)).max(20).parse(tags));
   await audit(staff, "client.tags", "client", clientId, { tags: clean });
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/clients");

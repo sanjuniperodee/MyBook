@@ -210,6 +210,29 @@ export class MessagingService {
     return this.blocklist.isBlocked(...values);
   }
 
+  /** Привязать диалог к сделке, если он ещё ни к какой не привязан. */
+  async attachDeal(conversationId: string, dealId: string) {
+    const conv = await this.conversations.findById(conversationId);
+    if (conv && !conv.dealId) await this.conversations.linkDeal(conv.id, { dealId, clientId: conv.clientId, assigneeId: conv.assigneeId });
+  }
+
+  /** Заявку приняли — её диалоги переходят к ответственному. */
+  assignDealConversations(dealId: string, userId: string) {
+    return this.conversations.assignByDeal(dealId, userId);
+  }
+
+  /** Заявку отклонили как спам: номер и собеседники больше не создают заявок, диалоги закрыты. */
+  async blockDealContacts(dealId: string, phone: string | null, byUserId: string) {
+    const values = [...new Set([phone ? normalizePhone(phone) : null, ...(await this.conversations.chatIdsByDeal(dealId))].filter((v): v is string => !!v))];
+    if (values.length) await this.blocklist.add(values, byUserId);
+    await this.conversations.closeByDeal(dealId);
+  }
+
+  /** Снять номер со спама (ошибочно отклонили). */
+  unblock(value: string) {
+    return this.blocklist.remove(value);
+  }
+
   /** Диалог с клиентом по телефону (кнопка «Написать» в карточке): существующий WhatsApp или новый. */
   async conversationForPhone(phone: string, channelId: string, clientId: string | null, contactName: string) {
     const chatId = normalizePhone(phone);

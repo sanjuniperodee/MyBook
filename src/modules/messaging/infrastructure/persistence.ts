@@ -98,6 +98,18 @@ export class DrizzleConversationRepository implements ConversationRepository {
     return rows.length > 0;
   }
 
+  async assignByDeal(dealId: string, userId: string) {
+    await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.dealId, dealId));
+  }
+
+  async chatIdsByDeal(dealId: string) {
+    return (await executor().select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.dealId, dealId))).map((c) => c.chatId);
+  }
+
+  async closeByDeal(dealId: string) {
+    await executor().update(crmConversations).set({ status: "closed", awaitingSince: null, unread: 0 }).where(eq(crmConversations.dealId, dealId));
+  }
+
   async latestWhatsapp(chatId: string) {
     const [r] = await executor()
       .select()
@@ -193,6 +205,12 @@ export const drizzleBlocklist: Blocklist = {
     if (!list.length) return false;
     const rows = await executor().select({ v: crmBlocklist.value }).from(crmBlocklist).where(inArray(crmBlocklist.value, list)).limit(1);
     return rows.length > 0;
+  },
+  async add(values, byUserId) {
+    await executor().insert(crmBlocklist).values(values.map((value) => ({ value, createdById: byUserId }))).onConflictDoNothing();
+  },
+  async remove(value) {
+    await executor().delete(crmBlocklist).where(eq(crmBlocklist.value, value));
   },
 };
 

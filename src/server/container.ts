@@ -13,6 +13,7 @@ import { MessagingModule } from "@/modules/messaging";
 import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
+import { ClientsModule } from "@/modules/clients";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -45,6 +46,7 @@ export class Container {
   #telephony?: TelephonyModule;
   #marketing?: MarketingModule;
   #assistant?: AssistantModule;
+  #clients?: ClientsModule;
 
   /** Правила CRM работают со сделками через узкий порт продаж. */
   get automation(): AutomationModule {
@@ -100,6 +102,10 @@ export class Container {
   /** Персональные промокоды выпускает контекст заказов. */
   get marketing(): MarketingModule {
     return (this.#marketing ??= new MarketingModule({ clock: this.clock, promos: { issuePersonal: (input) => this.ordering.promos.issuePersonal(input) } }));
+  }
+
+  get clients(): ClientsModule {
+    return (this.#clients ??= new ClientsModule({ clock: this.clock }));
   }
 
   get assistant(): AssistantModule {

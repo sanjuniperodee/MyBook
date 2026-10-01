@@ -12,6 +12,7 @@ export interface DealRepository {
   save(deal: Deal): Promise<void>;
   /** Перенести переписку, звонки, задачи и ленту из source в target и удалить source. */
   mergeInto(target: Deal, source: Deal): Promise<void>;
+  delete(dealId: string): Promise<void>;
   addNote(deal: { id: string; clientId: string | null }, text: string, authorId: string | null, kind: "note" | "call" | "message" | "system"): Promise<void>;
 }
 

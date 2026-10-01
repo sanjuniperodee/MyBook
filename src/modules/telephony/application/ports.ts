@@ -10,6 +10,8 @@ export interface CallRepository {
   finish(call: Call): Promise<boolean>;
   /** Дозвонились — прошлые пропущенные с этого номера за неделю считаем обработанными. */
   markMissedHandled(phone: string, now: Date): Promise<void>;
+  /** Пропущенный звонок обработан сотрудником; ничей звонок становится его. */
+  markHandled(callId: string, staffId: string, now: Date): Promise<void>;
 }
 
 export interface StaffDirectory {

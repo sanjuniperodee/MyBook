@@ -33,6 +33,7 @@ function setup(opts: { blocked?: boolean } = {}) {
     save: async () => {},
     finish: async (c) => !log.includes(`finished:${c.id}`) && !!log.push(`finished:${c.id}`),
     markMissedHandled: async (phone) => void log.push(`handled:${phone}`),
+    markHandled: async () => {},
   };
   const sales: SalesGateway = {
     findClientByPhone: async () => null,

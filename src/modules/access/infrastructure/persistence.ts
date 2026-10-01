@@ -80,3 +80,19 @@ export const drizzleAuditLog: AuditLog = {
     }
   },
 };
+
+/** «На смене» — сотрудник получает новые заявки по кругу. */
+export const drizzleShifts = {
+  async set(userId: string, onShift: boolean) {
+    await executor().update(users).set({ onShift }).where(eq(users.id, userId));
+  },
+};
+
+/** Read-модели сотрудников для страниц и действий CRM. */
+export class DrizzleAccessQueries {
+  /** Активный сотрудник CRM (для назначения ответственным). */
+  async activeStaff(userId: string) {
+    const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, role: users.role, staffDisabled: users.staffDisabled }).from(users).where(eq(users.id, userId)).limit(1);
+    return u && u.role === "admin" && !u.staffDisabled ? { id: u.id, name: u.name, email: u.email } : null;
+  }
+}
