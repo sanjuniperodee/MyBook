@@ -1,10 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { and, eq, gt, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
-import { db } from "@/lib/db";
-import { crmConversations, crmDeals, crmStages, users } from "@/lib/db/schema";
-import { can, canAssignOthers, canSeeAssigned, contactView, ownScope, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { channelLabel } from "@/modules/messaging";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/lib/crm/channels";
@@ -35,28 +32,14 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const staff = await requireStaff("chats.view");
   const sp = await searchParams;
   const f: Filter = sp.f && sp.f in filters ? (sp.f as Filter) : "open";
-  const w: SQL[] = [];
-  const scope = ownScope(staff, crmConversations.assigneeId);
-  if (scope) w.push(scope);
-  if (f === "closed") w.push(eq(crmConversations.status, "closed"));
-  else w.push(eq(crmConversations.status, "open"));
-  if (f === "mine") w.push(eq(crmConversations.assigneeId, staff.user.id));
-  if (f === "unread") w.push(gt(crmConversations.unread, 0));
-  if (f === "waiting") w.push(isNotNull(crmConversations.awaitingSince));
   const q = sp.q?.trim();
-  if (q) w.push(or(ilike(crmConversations.contactName, `%${q}%`), ilike(crmConversations.chatId, `%${q.replace(/\D/g, "") || q}%`), ilike(crmConversations.lastMessageText, `%${q}%`))!);
 
   const selectedId = sp.c && /^[0-9a-f-]{36}$/.test(sp.c) ? sp.c : null;
   const [list, admins, slaRaw, selected] = await Promise.all([
-    db
-      .select()
-      .from(crmConversations)
-      .where(and(...w))
-      .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`)
-      .limit(150),
+    container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, q),
     listAdmins(),
     getSetting("crm.slaMinutes"),
-    selectedId ? db.query.crmConversations.findFirst({ where: eq(crmConversations.id, selectedId) }) : null,
+    selectedId ? container().messaging.queries.conversation(selectedId) : null,
   ]);
   const sla = Number(slaRaw) || 15;
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
@@ -79,20 +62,12 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   let side: React.ReactNode = null;
 
   if (conv) {
-    const [messages, templates, vars, blocker, dealRow, client, offers, mentionables, ai] = await Promise.all([
+    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai] = await Promise.all([
       loadChatMessages(conv.id),
       listTemplates(),
       chatVars(conv, adminLabel(staff.user)),
       sendBlocker(conv),
-      conv.dealId
-        ? db
-            .select({ deal: crmDeals, stage: crmStages })
-            .from(crmDeals)
-            .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-            .where(eq(crmDeals.id, conv.dealId))
-            .then((r) => r[0] ?? null)
-        : null,
-      conv.clientId ? db.query.users.findFirst({ where: eq(users.id, conv.clientId), columns: { id: true, name: true, email: true } }) : null,
+      container().reporting.conversationContext(conv),
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),
       container().assistant.service.configured(),

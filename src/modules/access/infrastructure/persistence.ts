@@ -1,7 +1,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
-import { crmAudit, crmRoles, users } from "@/lib/db/schema";
+import { and, asc, desc, eq, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { crmAudit, crmCalls, crmDeals, crmRoles, users } from "@/lib/db/schema";
+import { crmRolesId, usersId } from "@/lib/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 import { clientIp } from "@/lib/rate-limit";
 import { Role, StaffMember, type Permission, type RoleRepository, type StaffRepository } from "../domain";
@@ -90,6 +91,59 @@ export const drizzleShifts = {
 
 /** Read-модели сотрудников для страниц и действий CRM. */
 export class DrizzleAccessQueries {
+  roles() {
+    return executor().select({ id: crmRoles.id, name: crmRoles.name, key: crmRoles.key }).from(crmRoles).orderBy(asc(crmRoles.createdAt));
+  }
+
+  /** Роли с числом сотрудников. */
+  rolesWithMembers() {
+    return executor()
+      .select({ role: crmRoles, members: sql<number>`(select count(*)::int from ${users} u where u.crm_role_id = ${crmRolesId} and u.role = 'admin')` })
+      .from(crmRoles)
+      .orderBy(asc(crmRoles.createdAt));
+  }
+
+  /** Команда: сотрудники с открытыми сделками и звонками за неделю. */
+  team() {
+    return executor()
+      .select({
+        user: users,
+        openDeals: sql<number>`(select count(*)::int from ${crmDeals} d where d.assignee_id = ${usersId} and d.closed_at is null)`,
+        calls7d: sql<number>`(select count(*)::int from ${crmCalls} c where c.staff_id = ${usersId} and c.started_at > now() - interval '7 days')`,
+      })
+      .from(users)
+      .where(eq(users.role, "admin"))
+      .orderBy(asc(users.staffDisabled), asc(users.createdAt));
+  }
+
+  /** Активные сотрудники по имени (планы продаж). */
+  activeStaffList() {
+    return executor().select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, "admin"), eq(users.staffDisabled, false))).orderBy(users.name);
+  }
+
+  /** Статус 2FA у сотрудников (страница «Безопасность»). */
+  twoFactorStatus() {
+    return executor()
+      .select({ id: users.id, name: users.name, email: users.email, totpEnabledAt: users.totpEnabledAt, staffDisabled: users.staffDisabled })
+      .from(users)
+      .where(eq(users.role, "admin"))
+      .orderBy(asc(users.createdAt));
+  }
+
+  /** Журнал действий с фильтром по сотруднику и сущности. */
+  auditLog(filter: { actorId?: string; entity?: string }) {
+    const w: SQL[] = [];
+    if (filter.actorId) w.push(eq(crmAudit.actorId, filter.actorId));
+    if (filter.entity) w.push(eq(crmAudit.entity, filter.entity));
+    return executor()
+      .select({ a: crmAudit, actor: { name: users.name, email: users.email } })
+      .from(crmAudit)
+      .leftJoin(users, eq(users.id, crmAudit.actorId))
+      .where(w.length ? and(...w) : undefined)
+      .orderBy(desc(crmAudit.createdAt))
+      .limit(300);
+  }
+
   /** Активный сотрудник CRM (для назначения ответственным). */
   async activeStaff(userId: string) {
     const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, role: users.role, staffDisabled: users.staffDisabled }).from(users).where(eq(users.id, userId)).limit(1);

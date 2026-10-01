@@ -69,6 +69,8 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
     assignByDeal: async () => {},
     chatIdsByDeal: async () => [],
     closeByDeal: async () => {},
+    setAssignee: async () => {},
+    setStatus: async () => {},
   };
   const messages: MessageRepository = {
     insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, externalId: m.externalId, status: "received" })),

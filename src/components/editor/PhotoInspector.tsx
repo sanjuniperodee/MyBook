@@ -3,7 +3,7 @@
 import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, LoaderCircle, Move, RotateCcw, RotateCw, X } from "lucide-react";
 import { useState } from "react";
 import { cropRect, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
-import type { InlinePhotoStyle } from "@/lib/db/schema";
+import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/i18n/client";
 

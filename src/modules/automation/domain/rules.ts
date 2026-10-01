@@ -51,6 +51,19 @@ export function matches(rule: Pick<AutomationRule, "conditions">, ctx: TriggerCo
   return true;
 }
 
+/** Условия, которые имеют смысл для события (остальные из формы отбрасываем). */
+export function relevantConditions(trigger: string, c: { stageId?: string | null; source?: string | null; channel?: string; minutes?: number; days?: number; daysBefore?: number; hours?: string | null }) {
+  const out: Record<string, string | number | null> = {};
+  if (trigger === "deal.stage_changed" && c.stageId) out.stageId = c.stageId;
+  if (trigger === "deal.created" && c.source) out.source = c.source;
+  if (trigger.startsWith("message.") && c.channel) out.channel = c.channel;
+  if (trigger === "message.unanswered") out.minutes = c.minutes ?? 15;
+  if (trigger === "client.inactive") out.days = c.days ?? 5;
+  if (trigger === "occasion.anniversary") out.daysBefore = c.daysBefore ?? 30;
+  if (c.hours === "work" || c.hours === "off") out.hours = c.hours;
+  return out;
+}
+
 /** Нужно ли правилу знать, рабочее ли сейчас время. */
 export const needsWorkTime = (rules: readonly Pick<AutomationRule, "conditions">[]) => rules.some((r) => r.conditions?.hours === "work" || r.conditions?.hours === "off");
 

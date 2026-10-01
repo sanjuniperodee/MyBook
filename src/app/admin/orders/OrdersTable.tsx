@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
 import { bulkStatusAction } from "../actions";
 import { orderStatusColors, orderStatusLabels } from "@/modules/ordering/ui/status";
-import { orderStatuses, type OrderStatus } from "@/lib/db/schema";
+import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
 import { cn } from "@/lib/utils";
 
 export interface OrderRow {

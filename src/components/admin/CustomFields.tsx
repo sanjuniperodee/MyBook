@@ -1,6 +1,6 @@
 "use client";
 
-import type { CustomValues } from "@/lib/db/schema";
+import type { CustomValues } from "@/modules/sales/domain";
 
 export interface FieldDef {
   key: string;

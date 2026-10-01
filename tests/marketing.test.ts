@@ -33,7 +33,7 @@ describe("короткие ссылки", () => {
   it("роботы превью не накручивают переходы; архивная ссылка не работает", async () => {
     expect(isPreviewBot("TelegramBot (like TwitterBot)")).toBe(true);
     const clicks: string[] = [];
-    const links: LinkRepository = { bySlug: async (s) => (s === "insta-bio" ? link() : s === "old" ? link({ archived: true }) : null), all: async () => [], recordClick: async (id) => void clicks.push(id) };
+    const links: LinkRepository = { bySlug: async (s) => (s === "insta-bio" ? link() : s === "old" ? link({ archived: true }) : null), all: async () => [], recordClick: async (id) => void clicks.push(id), add: async () => {}, setArchived: async () => {} };
     const service = new MarketingService(
       { rows: async () => ({ clients: [], deals: [], clicks: [] }) },
       links,
@@ -57,7 +57,7 @@ describe("предложения из чата", () => {
   const service = (issued: { code: string }[] = []) =>
     new MarketingService(
       { rows: async () => ({ clients: [], deals: [], clicks: [] }) },
-      { bySlug: async () => null, all: async () => [], recordClick: async () => {} },
+      { bySlug: async () => null, all: async () => [], recordClick: async () => {}, add: async () => {}, setArchived: async () => {} },
       { load: async () => ({ locale: "kk", order: null, book: { id: "b1", title: "Анаға" } }) },
       { issuePersonal: async (i) => (issued.push(i), { code: i.code, expiresAt: now }) },
       () => "MB-ABC123",

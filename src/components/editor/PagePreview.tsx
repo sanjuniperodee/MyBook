@@ -8,7 +8,7 @@ import { cssFont, type Typography } from "@/lib/book/fonts";
 import type { BookFormat } from "@/lib/book/formats";
 import { interiorMetrics } from "@/lib/book/layout";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
-import type { InlinePhotoStyle } from "@/lib/db/schema";
+import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 
 const PT_TO_MM = 25.4 / 72;
 const END = Number.POSITIVE_INFINITY;

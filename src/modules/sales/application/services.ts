@@ -185,6 +185,13 @@ export class DealsService {
     if (deal?.attributeIfUnknown(utm)) await this.deals.save(deal);
   }
 
+  /** Применить значения своих полей (предложения AI, которые выбрал менеджер). */
+  async setFields(dealId: string, values: Record<string, string | number>) {
+    const deal = await this.load(dealId);
+    for (const [k, v] of Object.entries(values)) deal.setField(k, v);
+    await this.deals.save(deal);
+  }
+
   async setField(dealId: string, key: string, value: string | number | boolean | null) {
     const deal = await this.deals.findById(dealId);
     if (!deal) return;

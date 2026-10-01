@@ -1,14 +1,13 @@
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { desc, sql } from "drizzle-orm";
 import { Download, Kanban } from "lucide-react";
-import { db } from "@/lib/db";
-import { orders, orderStatuses } from "@/lib/db/schema";
+import { container } from "@/server/container";
+import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
 import { requireStaff } from "@/server/access";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { adminLabel, listAdmins } from "@/lib/crm";
-import { orderWhere, type OrderFilters } from "@/lib/crm-filters";
+import type { OrderFilters } from "@/modules/reporting";
 import { formatDate } from "@/lib/utils";
 import { OrdersTable, type OrderRow } from "./OrdersTable";
 
@@ -20,12 +19,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const admin = staff.user;
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
-  const where = orderWhere(params, admin.id);
-  const [list, [{ n, sum }], admins] = await Promise.all([
-    db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(PAGE).offset((p - 1) * PAGE),
-    db.select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${orders.amount}) filter (where ${orders.paidAt} is not null and ${orders.status} <> 'cancelled'),0)::int` }).from(orders).where(where),
-    listAdmins(),
-  ]);
+  const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, admin.id, p, PAGE), listAdmins()]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const rows: OrderRow[] = list.map((o) => ({
     id: o.id,

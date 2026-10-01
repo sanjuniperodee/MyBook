@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/lib/db/schema";
+import type { CustomValues } from "@/modules/sales/domain";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toastError } from "@/components/ui/overlays";

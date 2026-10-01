@@ -28,7 +28,7 @@ import {
 import { PagePreview, type PreviewChapter, type PreviewPhoto } from "./PagePreview";
 import { PhotoInspector } from "./PhotoInspector";
 import { normalizeStyle } from "@/lib/book/inline-photo";
-import type { InlinePhotoStyle } from "@/lib/db/schema";
+import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";

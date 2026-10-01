@@ -17,7 +17,7 @@ import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
 import { cn, formatDate } from "@/lib/utils";
-import type { OrderStatus } from "@/lib/db/schema";
+import type { OrderStatus } from "@/modules/ordering/domain";
 import { PaymentBlock } from "./PaymentBlock";
 
 export async function generateMetadata(): Promise<Metadata> {

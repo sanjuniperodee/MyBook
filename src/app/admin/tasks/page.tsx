@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { and, asc, desc, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { crmTasks, orders, users } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
@@ -15,20 +13,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const who = sp.who === "all" ? "all" : "mine";
   const showDone = sp.done === "1";
-  const w: SQL[] = [];
-  if (who === "mine") w.push(or(eq(crmTasks.assigneeId, admin.id), isNull(crmTasks.assigneeId))!);
-  w.push(showDone ? isNotNull(crmTasks.doneAt) : isNull(crmTasks.doneAt));
-  const [rows, admins] = await Promise.all([
-    db
-      .select({ task: crmTasks, clientName: users.name, clientEmail: users.email, orderNumber: orders.number })
-      .from(crmTasks)
-      .leftJoin(users, eq(crmTasks.clientId, users.id))
-      .leftJoin(orders, eq(crmTasks.orderId, orders.id))
-      .where(and(...w))
-      .orderBy(showDone ? desc(crmTasks.doneAt) : sql`${crmTasks.dueAt} asc nulls last`, asc(crmTasks.createdAt))
-      .limit(300),
-    listAdmins(),
-  ]);
+  const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: admin.id, seesAll: staff.scope === "all" }, { who, done: showDone }), listAdmins()]);
   const adminOptions = staffOptions(admins);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const today = new Date();

@@ -3,10 +3,7 @@
 import { container } from "@/server/container";
 import { sourceFromChannel } from "@/modules/sales";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmConversations, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { channelLabel } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
@@ -18,7 +15,7 @@ import { notify } from "@/lib/crm/notify";
 const uuid = z.string().uuid();
 
 async function loadConv(staff: Staff, id: string) {
-  const conv = await db.query.crmConversations.findFirst({ where: eq(crmConversations.id, uuid.parse(id)) });
+  const conv = await container().messaging.queries.conversation(uuid.parse(id));
   if (!conv) throw new Error("Диалог не найден");
   assertVisible(staff, conv.assigneeId);
   return conv;
@@ -45,12 +42,11 @@ export async function assignConversationAction(conversationId: string, userId: s
   const next = userId ? uuid.parse(userId) : null;
   if (!canAssignOthers(staff) && next !== staff.user.id) throw new ForbiddenError();
   if (next) {
-    const u = await db.query.users.findFirst({ where: eq(users.id, next), columns: { role: true, staffDisabled: true } });
-    if (!u || u.role !== "admin" || u.staffDisabled) throw new Error("Сотрудник не найден");
+    if (!(await container().access.queries.activeStaff(next))) throw new Error("Сотрудник не найден");
     if (next !== staff.user.id)
       await notify([next], { kind: "message", title: `Вам передали чат: ${conv.contactName || formatPhone(conv.chatId) || conv.chatId}`, body: conv.lastMessageText, link: `/admin/chats?c=${conv.id}` });
   }
-  await db.update(crmConversations).set({ assigneeId: next }).where(eq(crmConversations.id, conv.id));
+  await container().messaging.chats.assign(conv.id, next);
   revalidatePath("/admin/chats");
 }
 
@@ -58,10 +54,7 @@ export async function assignConversationAction(conversationId: string, userId: s
 export async function setConversationStatusAction(conversationId: string, status: "open" | "closed") {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadConv(staff, conversationId);
-  await db
-    .update(crmConversations)
-    .set({ status: z.enum(["open", "closed"]).parse(status), ...(status === "closed" ? { awaitingSince: null, unread: 0 } : {}) })
-    .where(eq(crmConversations.id, conv.id));
+  await container().messaging.chats.setStatus(conv.id, z.enum(["open", "closed"]).parse(status));
   revalidatePath("/admin/chats");
 }
 
@@ -79,7 +72,7 @@ export async function createDealFromChatAction(conversationId: string) {
     assigneeId: conv.assigneeId ?? staff.user.id,
     createdById: staff.user.id,
   });
-  await db.update(crmConversations).set({ dealId: deal.id, assigneeId: conv.assigneeId ?? deal.assigneeId }).where(eq(crmConversations.id, conv.id));
+  await container().messaging.chats.linkCreatedDeal(conv.id, deal);
   revalidatePath("/admin/chats");
   return { id: deal.id };
 }

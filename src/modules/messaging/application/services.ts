@@ -210,6 +210,21 @@ export class MessagingService {
     return this.blocklist.isBlocked(...values);
   }
 
+  assign(conversationId: string, userId: string | null) {
+    return this.conversations.setAssignee(conversationId, userId);
+  }
+
+  /** Закрыть диалог (вопрос решён) — он вернётся сам при новом сообщении клиента. */
+  setStatus(conversationId: string, status: "open" | "closed") {
+    return this.conversations.setStatus(conversationId, status);
+  }
+
+  /** Сделку из чата создали вручную: диалог переходит к её ответственному, если был ничей. */
+  async linkCreatedDeal(conversationId: string, deal: { id: string; assigneeId: string | null }) {
+    const conv = await this.conversations.findById(conversationId);
+    if (conv) await this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
+  }
+
   /** Привязать диалог к сделке, если он ещё ни к какой не привязан. */
   async attachDeal(conversationId: string, dealId: string) {
     const conv = await this.conversations.findById(conversationId);

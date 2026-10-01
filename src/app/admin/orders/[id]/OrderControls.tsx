@@ -7,7 +7,7 @@ import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateO
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { orderStatusLabels } from "@/modules/ordering/ui/status";
-import { orderStatuses, type OrderStatus } from "@/lib/db/schema";
+import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
 
 export function StatusForm({ orderId, status, trackingNumber }: { orderId: string; status: OrderStatus; trackingNumber: string | null }) {
   const [state, action] = useActionState<AdminState, FormData>(updateOrderAction, {});

@@ -280,3 +280,13 @@ export class DrizzleSavedViews {
     await executor().delete(crmSavedViews).where(eq(crmSavedViews.id, id));
   }
 }
+
+/** План продаж сотрудника на месяц. */
+export const drizzlePlans = {
+  async save(userId: string, month: string, amount: number, deals: number) {
+    await executor()
+      .insert(crmPlans)
+      .values({ userId, month, amount, deals })
+      .onConflictDoUpdate({ target: [crmPlans.userId, crmPlans.month], set: { amount, deals, updatedAt: new Date() } });
+  },
+};

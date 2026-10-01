@@ -1,6 +1,3 @@
-import { asc, desc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { crmBlocklist, crmTemplates } from "@/lib/db/schema";
 import { requireStaff } from "@/server/access";
 import { fromEnv, getSetting, getSettings, maskSecret } from "@/lib/crm/settings";
 import { container } from "@/server/container";
@@ -28,12 +25,12 @@ export default async function SettingsPage() {
     getSetting("zadarma.secret"),
     getSetting("pbx.token"),
     getSetting("crm.slaMinutes"),
-    db.select().from(crmTemplates).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt)),
+    container().workspace.templates.list(),
     getSetting("crm.workHours"),
     getSetting("crm.autoDealFrom"),
     getSetting("crm.unsorted"),
     getSetting("crm.maxDiscount"),
-    db.select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200),
+    container().messaging.queries.blocklist(),
   ]);
   const [botMode, botConfig, dealFields, stats] = await Promise.all([getSetting("bot.mode"), getSetting("bot.config"), listFields("deal"), container().messaging.queries.botStats()]);
   const [wEnabled, wChat, zPbx, zWebphone] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone")]);

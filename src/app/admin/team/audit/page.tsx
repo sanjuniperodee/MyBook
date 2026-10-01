@@ -1,7 +1,5 @@
+import { container } from "@/server/container";
 import Link from "next/link";
-import { and, desc, eq, type SQL } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { crmAudit, users } from "@/lib/db/schema";
 import { requireStaff } from "@/server/access";
 import { adminLabel } from "@/lib/crm";
 import { formatDate } from "@/lib/utils";
@@ -53,16 +51,7 @@ const actions: Record<string, string> = {
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {
   await requireStaff("team.manage", "audit.view");
   const sp = await searchParams;
-  const w: SQL[] = [];
-  if (sp.actor && /^[0-9a-f-]{36}$/.test(sp.actor)) w.push(eq(crmAudit.actorId, sp.actor));
-  if (sp.entity) w.push(eq(crmAudit.entity, sp.entity.slice(0, 30)));
-  const rows = await db
-    .select({ a: crmAudit, actor: { name: users.name, email: users.email } })
-    .from(crmAudit)
-    .leftJoin(users, eq(users.id, crmAudit.actorId))
-    .where(w.length ? and(...w) : undefined)
-    .orderBy(desc(crmAudit.createdAt))
-    .limit(300);
+  const rows = await container().access.queries.auditLog({ actorId: sp.actor && /^[0-9a-f-]{36}$/.test(sp.actor) ? sp.actor : undefined, entity: sp.entity ? sp.entity.slice(0, 30) : undefined });
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-white">
       {sp.actor || sp.entity ? (

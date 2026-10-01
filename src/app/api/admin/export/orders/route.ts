@@ -1,10 +1,7 @@
 import { planName } from "@/i18n/labels";
-import { desc } from "drizzle-orm";
 import { api, apiStaff } from "@/lib/api";
 import { audit } from "@/server/access";
-import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
-import { orderWhere } from "@/lib/crm-filters";
+import { container } from "@/server/container";
 import { toCsv } from "@/lib/crm";
 
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
@@ -14,7 +11,7 @@ export const GET = api(async (req) => {
   const admin = staff.user;
   const params = Object.fromEntries(new URL(req.url).searchParams);
   await audit(staff, "export", "orders", null, params);
-  const rows = await db.select().from(orders).where(orderWhere(params, admin.id)).orderBy(desc(orders.createdAt)).limit(20_000);
+  const rows = await container().reporting.orderExport(params, admin.id);
   const csv = toCsv(
     ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],
     rows.map((o) => [

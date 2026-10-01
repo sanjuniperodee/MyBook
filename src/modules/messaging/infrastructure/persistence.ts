@@ -106,6 +106,17 @@ export class DrizzleConversationRepository implements ConversationRepository {
     return (await executor().select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.dealId, dealId))).map((c) => c.chatId);
   }
 
+  async setAssignee(id: string, userId: string | null) {
+    await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.id, id));
+  }
+
+  async setStatus(id: string, status: "open" | "closed") {
+    await executor()
+      .update(crmConversations)
+      .set({ status, ...(status === "closed" ? { awaitingSince: null, unread: 0 } : {}) })
+      .where(eq(crmConversations.id, id));
+  }
+
   async closeByDeal(dealId: string) {
     await executor().update(crmConversations).set({ status: "closed", awaitingSince: null, unread: 0 }).where(eq(crmConversations.dealId, dealId));
   }
@@ -216,6 +227,13 @@ export const drizzleBlocklist: Blocklist = {
 
 /** Read-модели переписки. */
 export class DrizzleMessagingQueries {
+  /** Диалог целиком (для экранов CRM). */
+  async conversation(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [c] = await executor().select().from(crmConversations).where(eq(crmConversations.id, id)).limit(1);
+    return c ?? null;
+  }
+
   /** Переписка для виджета: без внутренних заметок; автор — только «я / менеджер», без имён сотрудников. */
   async siteMessages(chatId: string, after?: Date) {
     const [conv] = await executor()
@@ -240,6 +258,11 @@ export class DrizzleMessagingQueries {
       .from(crmConversations)
       .where(gte(crmConversations.createdAt, sql`now() - interval '30 days'`));
     return row;
+  }
+
+  /** Номера в спаме (настройки). */
+  blocklist() {
+    return executor().select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200);
   }
 
   async staffName(id: string | null) {

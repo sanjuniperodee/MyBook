@@ -13,7 +13,7 @@ import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import { useRouter } from "next/navigation";
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
-import type { Gender } from "@/lib/db/schema";
+import type { Gender } from "@/modules/authoring/domain";
 
 export interface SettingsState {
   typography: TypographyId;

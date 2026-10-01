@@ -2,8 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmPlans } from "@/lib/db/schema";
 import { assertStaff, audit } from "@/server/access";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
@@ -124,10 +122,7 @@ export async function savePlanAction(userId: string, month: string, amount: numb
   const m = z.string().regex(/^\d{4}-\d{2}$/).parse(month);
   const a = z.number().int().min(0).max(1_000_000_000).parse(amount);
   const d = z.number().int().min(0).max(100_000).parse(deals);
-  await db
-    .insert(crmPlans)
-    .values({ userId: id, month: m, amount: a, deals: d })
-    .onConflictDoUpdate({ target: [crmPlans.userId, crmPlans.month], set: { amount: a, deals: d, updatedAt: new Date() } });
+  await container().sales.plans.save(id, m, a, d);
   await audit(staff, "plan.update", "user", id, { month: m, amount: a, deals: d });
   revalidatePath("/admin/team/plans");
 }

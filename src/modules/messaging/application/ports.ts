@@ -27,6 +27,9 @@ export interface ConversationRepository {
   assignByDeal(dealId: string, userId: string): Promise<void>;
   /** Идентификаторы собеседников в диалогах сделки. */
   chatIdsByDeal(dealId: string): Promise<string[]>;
+  setAssignee(id: string, userId: string | null): Promise<void>;
+  /** Закрытый диалог больше не «ждёт ответа». */
+  setStatus(id: string, status: "open" | "closed"): Promise<void>;
   /** Спам: диалоги сделки закрыты, ответа не ждут. */
   closeByDeal(dealId: string): Promise<void>;
 }

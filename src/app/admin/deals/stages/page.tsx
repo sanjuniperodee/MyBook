@@ -1,8 +1,5 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { crmDeals } from "@/lib/db/schema";
 import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { cn } from "@/lib/utils";
@@ -14,7 +11,7 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
   const { p } = await searchParams;
   const pipelines = await container().sales.queries.listPipelines();
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
-  const [stages, counts] = await Promise.all([container().sales.queries.listStages(pipeline.id), db.select({ stageId: crmDeals.stageId, n: sql<number>`count(*)::int` }).from(crmDeals).groupBy(crmDeals.stageId)]);
+  const [stages, counts] = await Promise.all([container().sales.queries.listStages(pipeline.id), container().reporting.stageCounts()]);
   const byStage = new Map(counts.map((c) => [c.stageId, c.n]));
   return (
     <div className="mx-auto max-w-2xl space-y-5">

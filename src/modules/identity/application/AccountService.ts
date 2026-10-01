@@ -1,3 +1,4 @@
+import type { Locale } from "@/i18n/config";
 import type { Clock, UnitOfWork } from "@/shared/application";
 import { Email, IdentityError, User, generateBackupCodes, generateSecret, hashBackupCode, otpauthUrl, verifyTotp, type UserRepository } from "../domain";
 import type { AuthService } from "./AuthService";
@@ -23,6 +24,13 @@ export class AccountService {
   async updateProfile(userId: string, name: string, phone: string | null) {
     const user = await this.load(userId);
     user.updateProfile(name, phone);
+    await this.users.save(user);
+  }
+
+  /** Язык интерфейса и писем. */
+  async setLocale(userId: string, locale: Locale) {
+    const user = await this.load(userId);
+    user.useLocale(locale);
     await this.users.save(user);
   }
 

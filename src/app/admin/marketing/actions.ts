@@ -1,12 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmLinks } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
-import { normalizeSlug } from "@/lib/crm/channels";
 import { saveSettings } from "@/lib/crm/settings";
 
 export type LinkState = { ok?: string; error?: string; slug?: string };
@@ -39,10 +36,9 @@ export async function createLinkAction(_: LinkState, form: FormData): Promise<Li
   const parsed = schema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const slug = normalizeSlug(d.slug || `${d.utmSource}-${d.utmCampaign || d.name}`);
-  if (slug.length < 2) return { error: "Короткий код — латиница и цифры, минимум 2 символа" };
-  if (await db.query.crmLinks.findFirst({ where: eq(crmLinks.slug, slug), columns: { id: true } })) return { error: `Код «${slug}» уже занят — придумайте другой` };
-  await db.insert(crmLinks).values({ ...d, slug, targetPath: d.kind === "site" ? d.targetPath : "/", createdById: staff.user.id });
+  const created = await container().marketing.service.createLink({ ...d, createdById: staff.user.id });
+  if ("error" in created) return { error: created.error };
+  const { slug } = created;
   await audit(staff, "link.create", "link", slug, { name: d.name, source: d.utmSource, campaign: d.utmCampaign });
   revalidatePath("/admin/marketing");
   return { ok: "Ссылка создана", slug };
@@ -50,7 +46,7 @@ export async function createLinkAction(_: LinkState, form: FormData): Promise<Li
 
 export async function archiveLinkAction(id: string, archived: boolean) {
   const staff = await assertStaff("promo.manage");
-  await db.update(crmLinks).set({ archived }).where(eq(crmLinks.id, z.string().uuid().parse(id)));
+  await container().marketing.service.archiveLink(z.string().uuid().parse(id), archived);
   await audit(staff, archived ? "link.archive" : "link.restore", "link", id);
   revalidatePath("/admin/marketing");
 }

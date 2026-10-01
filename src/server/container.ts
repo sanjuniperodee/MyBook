@@ -1,6 +1,8 @@
 import "server-only";
 import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
+import { rootDb } from "@/shared/infrastructure/database";
+import { sql } from "drizzle-orm";
 import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
 import { SmtpMailer } from "@/shared/infrastructure/mail";
 import { OrderingModule } from "@/modules/ordering";
@@ -15,6 +17,7 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
+import { WorkspaceModule } from "@/modules/workspace";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -50,6 +53,7 @@ export class Container {
   #clients?: ClientsModule;
   /** Отчёты — только чтение. */
   readonly reporting = new ReportingModule();
+  readonly workspace = new WorkspaceModule();
 
   /** Правила CRM работают со сделками через узкий порт продаж. */
   get automation(): AutomationModule {
@@ -177,6 +181,16 @@ export class Container {
   }
 
   /** Состояние инфраструктуры для /api/health: Redis (null — не настроен) и очередь событий outbox. */
+  /** База отвечает (для мониторинга). */
+  async databaseHealthy() {
+    try {
+      await rootDb.execute(sql`select 1`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async infraHealth() {
     const [redis, outbox] = await Promise.all([redisHealthy(), this.outbox.stats().catch(() => null)]);
     return { redis, outbox };

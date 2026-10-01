@@ -1,10 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { and, desc, eq, gte, isNull, sql, type SQL } from "drizzle-orm";
 import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
-import { db } from "@/lib/db";
-import { crmCalls, crmDeals, users } from "@/lib/db/schema";
-import { can, contactView, ownScope, requireStaff } from "@/server/access";
+import { can, contactView, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { formatPhone } from "@/lib/crm/phone";
 import { cn, formatDate } from "@/lib/utils";
@@ -22,34 +19,10 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const f: Filter = sp.f && sp.f in filters ? (sp.f as Filter) : "all";
   const days = Math.min(90, Math.max(1, Number(sp.days) || 14));
-  const w: SQL[] = [gte(crmCalls.startedAt, sql`now() - make_interval(days => ${days})`)];
-  const scope = ownScope(staff, crmCalls.staffId);
-  if (scope) w.push(scope);
-  if (f === "missed") w.push(eq(crmCalls.status, "missed"), eq(crmCalls.direction, "in"), isNull(crmCalls.handledAt));
-  if (f === "in") w.push(eq(crmCalls.direction, "in"));
-  if (f === "out") w.push(eq(crmCalls.direction, "out"));
-  if (f === "mine") w.push(eq(crmCalls.staffId, staff.user.id));
-
-  const [rows, admins, provider, [stats]] = await Promise.all([
-    db
-      .select({ call: crmCalls, clientName: users.name, dealTitle: crmDeals.title, dealContact: crmDeals.contactName })
-      .from(crmCalls)
-      .leftJoin(users, eq(users.id, crmCalls.clientId))
-      .leftJoin(crmDeals, eq(crmDeals.id, crmCalls.dealId))
-      .where(and(...w))
-      .orderBy(desc(crmCalls.startedAt))
-      .limit(300),
+  const [{ rows, stats }, admins, provider] = await Promise.all([
+    container().reporting.callJournal({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, days),
     listAdmins(),
     container().telephony.phone.currentProvider(),
-    db
-      .select({
-        total: sql<number>`count(*)::int`,
-        answered: sql<number>`count(*) filter (where ${crmCalls.status} = 'answered')::int`,
-        missed: sql<number>`count(*) filter (where ${crmCalls.status} = 'missed' and ${crmCalls.direction} = 'in')::int`,
-        talk: sql<number>`coalesce(sum(${crmCalls.durationSec}), 0)::int`,
-      })
-      .from(crmCalls)
-      .where(and(gte(crmCalls.startedAt, sql`now() - make_interval(days => ${days})`), scope)),
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const chip = (k: Filter) => cn("rounded-full px-3 py-1.5 text-sm", f === k ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream");

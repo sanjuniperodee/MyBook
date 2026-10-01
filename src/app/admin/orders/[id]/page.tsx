@@ -13,9 +13,6 @@ import { cn, formatDate } from "@/lib/utils";
 import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { db } from "@/lib/db";
-import { crmNotes, crmTasks, orders as ordersTable } from "@/lib/db/schema";
-import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
@@ -27,16 +24,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, taskRows, noteRows, [clientStats]] = await Promise.all([
-    container().authoring.queries.stats(book),
-    listAdmins(),
-    db.select().from(crmTasks).where(eq(crmTasks.orderId, order.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, crmTasks.dueAt),
-    db.select().from(crmNotes).where(eq(crmNotes.clientId, order.userId)).orderBy(desc(crmNotes.createdAt)).limit(30),
-    db
-      .select({ n: sql<number>`count(*)::int`, ltv: sql<number>`coalesce(sum(${ordersTable.amount}) filter (where ${ordersTable.paidAt} is not null),0)::int` })
-      .from(ordersTable)
-      .where(and(eq(ordersTable.userId, order.userId), ne(ordersTable.status, "cancelled"))),
-  ]);
+  const [stats, admins, { taskRows, noteRows, clientStats }] = await Promise.all([container().authoring.queries.stats(book), listAdmins(), container().reporting.orderCrm(order)]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const now = new Date();

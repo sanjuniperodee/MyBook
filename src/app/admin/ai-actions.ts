@@ -2,10 +2,7 @@
 
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmConversations, crmDeals, crmTasks } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit } from "@/server/access";
 import { adminLabel } from "@/lib/crm";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
@@ -28,7 +25,7 @@ async function guard<T>(staffId: string, run: () => Promise<T>): Promise<Result<
 }
 
 async function loadDeal(dealId: string, staff: Awaited<ReturnType<typeof assertStaff>>) {
-  const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, uuid.parse(dealId)) });
+  const deal = await container().reporting.dealById(uuid.parse(dealId));
   if (!deal) throw new Error("Сделка не найдена");
   assertVisible(staff, deal.assigneeId);
   return deal;
@@ -37,7 +34,7 @@ async function loadDeal(dealId: string, staff: Awaited<ReturnType<typeof assertS
 /** Вариант ответа клиенту — менеджер правит и отправляет сам. */
 export async function aiSuggestReplyAction(conversationId: string): Promise<Result<{ text: string }>> {
   const staff = await assertStaff("chats.view", "chats.send");
-  const conv = await db.query.crmConversations.findFirst({ where: eq(crmConversations.id, uuid.parse(conversationId)) });
+  const conv = await container().messaging.queries.conversation(uuid.parse(conversationId));
   if (!conv) return { ok: false, message: "Диалог не найден" };
   assertVisible(staff, conv.assigneeId);
   return guard(staff.user.id, async () => {
@@ -81,10 +78,7 @@ export async function aiApplyFieldsAction(dealId: string, values: Record<string,
     z.record(z.string(), z.union([z.string(), z.number()])).parse(values),
   );
   if (!Object.keys(clean).length) return { ok: false as const, message: "Нечего применять" };
-  await db
-    .update(crmDeals)
-    .set({ customFields: { ...deal.customFields, ...clean }, updatedAt: new Date() })
-    .where(eq(crmDeals.id, deal.id));
+  await container().sales.deals.setFields(deal.id, clean);
   await audit(staff, "deal.fields_ai", "deal", deal.id, clean);
   revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const, count: Object.keys(clean).length };
@@ -97,16 +91,19 @@ export async function aiNextStepTaskAction(dealId: string) {
   const s = deal.aiSummary;
   if (!s?.nextStep) return { ok: false as const, message: "Сначала получите резюме сделки" };
   const due = new Date(Date.now() + s.dueDays * 86_400_000);
-  due.setHours(18, 0, 0, 0);
-  await db.insert(crmTasks).values({
-    title: s.nextStep.slice(0, 300),
-    kind: /позвон|звон|перезвон/i.test(s.nextStep) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep) ? "message" : "task",
-    dueAt: due,
-    dealId: deal.id,
-    clientId: deal.clientId,
-    assigneeId: deal.assigneeId ?? staff.user.id,
-    createdById: staff.user.id,
-  });
+  // Задача ответственному за сделку (или тому, кто попросил резюме), срок — до вечера.
+  const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
+  await container().clients.tasks.create(
+    { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: true, allTasks: false },
+    {
+      title: s.nextStep.slice(0, 300),
+      kind: /позвон|звон|перезвон/i.test(s.nextStep) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep) ? "message" : "task",
+      dueAt: iso,
+      dealId: deal.id,
+      clientId: deal.clientId ?? undefined,
+      assigneeId: deal.assigneeId ?? staff.user.id,
+    },
+  );
   revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const };
 }

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import type { ThemeId } from "@/lib/content/types";
-import type { Gender } from "@/lib/db/schema";
+import type { Gender } from "@/modules/authoring/domain";
 
 export interface WizardTheme {
   id: ThemeId;

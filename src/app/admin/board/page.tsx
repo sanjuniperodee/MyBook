@@ -1,9 +1,7 @@
 import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
-import { and, desc, gte, ne, or, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { formatPrice, getPlan } from "@/config/site";
@@ -16,12 +14,7 @@ export default async function BoardPage() {
   const admin = staff.user;
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
   const [rows, admins] = await Promise.all([
-    db
-      .select()
-      .from(orders)
-      .where(and(ne(orders.status, "cancelled"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, monthAgo))))
-      .orderBy(sql`${orders.desiredDate} asc nulls last`, desc(orders.createdAt))
-      .limit(500),
+    container().reporting.productionBoard(monthAgo),
     listAdmins(),
   ]);
   const byId = new Map(admins.map((a) => [a.id, adminLabel(a)]));

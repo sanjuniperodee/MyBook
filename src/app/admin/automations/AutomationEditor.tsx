@@ -5,7 +5,7 @@ import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { automationActions, automationHours, automationTriggers, templateVars, type AutomationActionType } from "@/lib/crm/automation-meta";
 import { dealSourceLabels, dealSources } from "@/lib/crm/deal-meta";
-import type { AutomationAction } from "@/lib/db/schema";
+import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
 import { cn } from "@/lib/utils";
 import { deleteAutomationAction, saveAutomationAction, toggleAutomationAction } from "./actions";
 

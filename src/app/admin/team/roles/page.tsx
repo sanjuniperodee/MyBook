@@ -1,7 +1,4 @@
-import { crmRolesId } from "@/lib/db/refs";
-import { asc, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { crmRoles, users } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { allPermissions, type Permission } from "@/modules/access/domain/permissions";
 import { RoleEditor } from "./RoleEditor";
@@ -10,10 +7,7 @@ export const metadata = { title: "Роли и права" };
 
 export default async function RolesPage() {
   const staff = await requireStaff("team.manage");
-  const roles = await db
-    .select({ role: crmRoles, members: sql<number>`(select count(*)::int from ${users} u where u.crm_role_id = ${crmRolesId} and u.role = 'admin')` })
-    .from(crmRoles)
-    .orderBy(asc(crmRoles.createdAt));
+  const roles = await container().access.queries.rolesWithMembers();
   return (
     <div className="space-y-5">
       <p className="max-w-3xl text-sm text-muted">

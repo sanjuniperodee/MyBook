@@ -1,8 +1,6 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
-import { eq, isNull, or, type SQL } from "drizzle-orm";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { trustedClientIp } from "@/lib/rate-limit";
 import type { Permission, RoleScope, StaffContext, StaffGate } from "@/modules/access";
 import { getCurrentUser, type User } from "./auth";
@@ -98,12 +96,6 @@ export async function assertStaffShell(): Promise<Staff> {
   const staff = await loadStaff();
   if (!staff || (await staffGate()) === "ip") throw new ForbiddenError();
   return staff;
-}
-
-/** SQL-условие видимости для роли «только свои»: запись без ответственного или моя. */
-export function ownScope(staff: Staff, column: AnyPgColumn): SQL | undefined {
-  if (staff.scope === "all") return undefined;
-  return or(eq(column, staff.user.id), isNull(column));
 }
 
 export function canSeeAssigned(staff: Staff, assigneeId: string | null | undefined) {

@@ -1,12 +1,9 @@
-import { booksId } from "@/lib/db/refs";
+import { container } from "@/server/container";
 import { nowMs } from "@/lib/utils";
 import { getOccasion, parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 
 import Link from "next/link";
-import { and, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { bookQuestions, books, orders, photos, users } from "@/lib/db/schema";
 import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/lib/crm-clients";
 import { cn, formatDate } from "@/lib/utils";
@@ -32,33 +29,7 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
   await requireStaff("clients.view");
   const sp = await searchParams;
   const f = (sp.f && sp.f in filters ? sp.f : "all") as Filter;
-  const answered = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`;
-  const total = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`;
-  const staleDate = new Date(nowMs() - STALLED_DAYS * 86_400_000);
-  const w: SQL[] = [];
-  if (f === "writing") w.push(eq(books.status, "draft"), sql`${books.updatedAt} >= ${staleDate}`);
-  if (f === "stalled") w.push(eq(books.status, "draft"), lt(books.updatedAt, staleDate));
-  if (f === "ready") w.push(eq(books.status, "draft"), sql`${answered} >= 30`);
-  if (f === "ordered") w.push(eq(books.status, "ordered"));
-  if (sp.theme && themes.some((t) => t.id === sp.theme)) w.push(eq(books.theme, sp.theme));
-  if (sp.q?.trim()) {
-    const s = `%${sp.q.trim()}%`;
-    w.push(or(ilike(books.title, s), ilike(books.authorName, s), ilike(books.recipientName, s), ilike(users.email, s))!);
-  }
-  const rows = await db
-    .select({
-      book: books,
-      owner: { id: users.id, email: users.email, name: users.name, remindedAt: users.remindedAt },
-      answered,
-      total,
-      photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
-      hasOrder: sql<boolean>`exists (select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
-    })
-    .from(books)
-    .innerJoin(users, eq(books.userId, users.id))
-    .where(w.length ? and(...w) : undefined)
-    .orderBy(desc(books.updatedAt))
-    .limit(200);
+  const rows = await container().reporting.bookList(f, { q: sp.q, theme: sp.theme && themes.some((t) => t.id === sp.theme) ? sp.theme : undefined, staleDays: STALLED_DAYS, now: nowMs() });
   const remindable = [...new Set(rows.filter((r) => r.book.status === "draft" && !r.hasOrder).map((r) => r.owner.id))];
   const link = (patch: Record<string, string | undefined>) =>
     `/admin/books?${new URLSearchParams(Object.entries({ f, q: sp.q, theme: sp.theme, ...patch }).filter(([, v]) => v && v !== "all") as [string, string][])}`;

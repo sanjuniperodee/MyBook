@@ -1,8 +1,5 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
 import { canAssignOthers, requireStaff } from "@/server/access";
 import { listAdmins, staffOptions } from "@/lib/crm";
 import { NewDealForm } from "./NewDealForm";
@@ -15,7 +12,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const [stages, admins, client, pipelines] = await Promise.all([
     container().sales.queries.listStages(),
     listAdmins(),
-    clientId && /^[0-9a-f-]{36}$/.test(clientId) ? db.query.users.findFirst({ where: eq(users.id, clientId), columns: { id: true, name: true, email: true, phone: true } }) : null,
+    clientId ? container().clients.clients.find(clientId) : null,
     container().sales.queries.listPipelines(),
   ]);
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];

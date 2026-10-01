@@ -41,6 +41,8 @@ export const drizzleLinks: LinkRepository = {
     return l ?? null;
   },
   all: () => executor().select().from(crmLinks).orderBy(desc(crmLinks.createdAt)),
+  add: async (link) => void (await executor().insert(crmLinks).values(link)),
+  setArchived: async (id, archived) => void (await executor().update(crmLinks).set({ archived }).where(eq(crmLinks.id, id))),
   async recordClick(linkId, at) {
     await executor().update(crmLinks).set({ clicks: sql`${crmLinks.clicks} + 1` }).where(eq(crmLinks.id, linkId));
     await executor()

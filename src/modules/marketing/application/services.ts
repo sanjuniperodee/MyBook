@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { linkCodeFromText } from "@/lib/crm/channels";
+import { linkCodeFromText, normalizeSlug } from "@/lib/crm/channels";
 import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkTarget, offerTexts, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
 import type { AppLinks, ClientContext, LinkRepository, MarketingSettings, PromoCodeGenerator, PromoIssuer, ReportSource } from "./ports";
 
@@ -41,6 +41,19 @@ export class MarketingService {
     if (!link || link.archived) return null;
     if (!isPreviewBot(userAgent)) await this.links.recordClick(link.id, this.clock.now()).catch((err) => console.error("[go] click", err));
     return this.target(link);
+  }
+
+  /** Новая короткая ссылка: код из названия/UTM, если не задан; код уникален. */
+  async createLink(input: Omit<TrackedLink, "id" | "archived" | "slug"> & { slug: string; name: string; createdById: string }) {
+    const slug = normalizeSlug(input.slug || `${input.utmSource}-${input.utmCampaign || input.name}`);
+    if (slug.length < 2) return { error: "Короткий код — латиница и цифры, минимум 2 символа" } as const;
+    if (await this.links.bySlug(slug)) return { error: `Код «${slug}» уже занят — придумайте другой` } as const;
+    await this.links.add({ ...input, slug, targetPath: input.kind === "site" ? input.targetPath : "/" });
+    return { slug } as const;
+  }
+
+  archiveLink(id: string, archived: boolean) {
+    return this.links.setArchived(id, archived);
   }
 
   /** Код рекламной ссылки в первом сообщении клиента → откуда он пришёл. */

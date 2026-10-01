@@ -1,6 +1,4 @@
-import { asc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { can, requireStaffShell } from "@/server/access";
 import { getSetting } from "@/lib/crm/settings";
 import { adminLabel } from "@/lib/crm";
@@ -18,7 +16,7 @@ export default async function SecurityPage() {
     getSetting("security.ipAllowlist"),
     trustedClientIp(),
     manage && gate !== "2fa"
-      ? db.select({ id: users.id, name: users.name, email: users.email, totpEnabledAt: users.totpEnabledAt, staffDisabled: users.staffDisabled }).from(users).where(eq(users.role, "admin")).orderBy(asc(users.createdAt))
+      ? container().access.queries.twoFactorStatus()
       : Promise.resolve([]),
   ]);
   return (

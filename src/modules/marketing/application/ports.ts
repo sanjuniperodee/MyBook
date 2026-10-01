@@ -10,6 +10,8 @@ export interface LinkRepository {
   bySlug(slug: string): Promise<TrackedLink | null>;
   all(): Promise<(TrackedLink & { name: string; clicks: number; createdAt: Date })[]>;
   recordClick(linkId: string, at: Date): Promise<void>;
+  add(link: Omit<TrackedLink, "id" | "archived"> & { name: string; createdById: string }): Promise<void>;
+  setArchived(id: string, archived: boolean): Promise<void>;
 }
 
 /** Клиент глазами отдела продаж: язык, неоплаченный заказ, книга в работе. */

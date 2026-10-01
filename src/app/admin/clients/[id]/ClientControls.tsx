@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/lib/db/schema";
+import type { CustomValues } from "@/modules/sales/domain";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
 import { setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";

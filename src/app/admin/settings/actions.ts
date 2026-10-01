@@ -2,10 +2,7 @@
 
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
-import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmTemplates } from "@/lib/db/schema";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, fromEnv, getSettings, saveSettings, type SettingKey } from "@/lib/crm/settings";
 import { randomToken } from "@/shared/crypto";
@@ -215,18 +212,15 @@ export async function saveTemplateAction(_: SettingsState, form: FormData): Prom
   const parsed = templateSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { id, title, text } = parsed.data;
-  if (id) await db.update(crmTemplates).set({ title, text, updatedAt: new Date() }).where(eq(crmTemplates.id, id));
-  else {
-    const [{ pos }] = await db.select({ pos: sql<number>`coalesce(max(${crmTemplates.position}), 0)::int` }).from(crmTemplates);
-    await db.insert(crmTemplates).values({ title, text, position: pos + 1 });
-  }
+  if (id) await container().workspace.templates.update(id, { title, text });
+  else await container().workspace.templates.add({ title, text });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
 export async function deleteTemplateAction(id: string) {
   await assertStaff("settings.manage");
-  await db.delete(crmTemplates).where(eq(crmTemplates.id, z.string().uuid().parse(id)));
+  await container().workspace.templates.delete(z.string().uuid().parse(id));
   revalidatePath("/admin/settings");
 }
 

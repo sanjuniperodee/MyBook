@@ -1,7 +1,4 @@
-import { usersId } from "@/lib/db/refs";
-import { asc, eq, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { crmCalls, crmDeals, crmRoles, users } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { formatDate } from "@/lib/utils";
 import { StaffForm, StaffRow } from "./TeamControls";
@@ -10,18 +7,7 @@ export const metadata = { title: "Команда" };
 
 export default async function AdminTeam() {
   const staff = await requireStaff("team.manage");
-  const [roles, members] = await Promise.all([
-    db.select({ id: crmRoles.id, name: crmRoles.name, key: crmRoles.key }).from(crmRoles).orderBy(asc(crmRoles.createdAt)),
-    db
-      .select({
-        user: users,
-        openDeals: sql<number>`(select count(*)::int from ${crmDeals} d where d.assignee_id = ${usersId} and d.closed_at is null)`,
-        calls7d: sql<number>`(select count(*)::int from ${crmCalls} c where c.staff_id = ${usersId} and c.started_at > now() - interval '7 days')`,
-      })
-      .from(users)
-      .where(eq(users.role, "admin"))
-      .orderBy(asc(users.staffDisabled), asc(users.createdAt)),
-  ]);
+  const [roles, members] = await Promise.all([container().access.queries.roles(), container().access.queries.team()]);
   const ownerRole = roles.find((r) => r.key === "owner");
   const roleOptions = roles.filter((r) => r.key !== "owner" || staff.isOwner).map((r) => ({ id: r.id, name: r.name }));
 

@@ -3,6 +3,12 @@ import { myDay } from "./infrastructure/MyDay";
 import { search } from "./infrastructure/Search";
 import { clientBrief, dealById, dealCard } from "./infrastructure/DealCard";
 import { clientById, clientCard } from "./infrastructure/ClientCard";
+import { conversationContext, inbox } from "./infrastructure/Inbox";
+import { callJournal, taskList } from "./infrastructure/Lists";
+import { orderCrm, orderExport, orderList, productionBoard } from "./infrastructure/Orders";
+import { dealList, savedViews, stageCounts } from "./infrastructure/Deals";
+import { duplicateGroups } from "./infrastructure/Duplicates";
+import { bookList } from "./infrastructure/Books";
 import { salesAnalytics } from "./infrastructure/SalesAnalytics";
 
 /**
@@ -11,6 +17,7 @@ import { salesAnalytics } from "./infrastructure/SalesAnalytics";
  * через модули контекстов.
  */
 export type { Viewer } from "./infrastructure/MyDay";
+export type { OrderFilters } from "./infrastructure/Orders";
 
 export class ReportingModule {
   readonly salesAnalytics = salesAnalytics;
@@ -22,4 +29,17 @@ export class ReportingModule {
   readonly clientBrief = clientBrief;
   readonly clientById = clientById;
   readonly clientCard = clientCard;
+  readonly inbox = inbox;
+  readonly conversationContext = conversationContext;
+  readonly taskList = taskList;
+  readonly callJournal = callJournal;
+  readonly orderList = orderList;
+  readonly orderExport = orderExport;
+  readonly productionBoard = productionBoard;
+  readonly orderCrm = orderCrm;
+  readonly dealList = dealList;
+  readonly savedViews = savedViews;
+  readonly stageCounts = stageCounts;
+  readonly duplicateGroups = duplicateGroups;
+  readonly bookList = bookList;
 }

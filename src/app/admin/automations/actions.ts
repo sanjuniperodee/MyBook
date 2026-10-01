@@ -1,10 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { crmAutomations } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { automationTriggers } from "@/lib/crm/automation-meta";
 import { dealSources } from "@/lib/crm/deal-meta";
@@ -45,19 +43,7 @@ export async function saveAutomationAction(input: AutomationInput): Promise<{ ok
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const d = parsed.data;
-  // Сохраняем только осмысленные для события условия.
-  const c = d.conditions;
-  const conditions: Record<string, string | number | null> = {};
-  if (d.trigger === "deal.stage_changed" && c.stageId) conditions.stageId = c.stageId;
-  if (d.trigger === "deal.created" && c.source) conditions.source = c.source;
-  if (d.trigger.startsWith("message.") && c.channel) conditions.channel = c.channel;
-  if (d.trigger === "message.unanswered") conditions.minutes = c.minutes ?? 15;
-  if (d.trigger === "client.inactive") conditions.days = c.days ?? 5;
-  if (d.trigger === "occasion.anniversary") conditions.daysBefore = c.daysBefore ?? 30;
-  if (c.hours === "work" || c.hours === "off") conditions.hours = c.hours;
-  const values = { name: d.name, trigger: d.trigger, conditions, actions: d.actions, active: d.active, updatedAt: new Date() };
-  if (d.id) await db.update(crmAutomations).set(values).where(eq(crmAutomations.id, d.id));
-  else await db.insert(crmAutomations).values(values);
+  await container().automation.rules.save({ id: d.id ?? null, name: d.name, trigger: d.trigger, conditions: d.conditions, actions: d.actions, active: d.active });
   await audit(staff, "automation.save", "automation", d.id ?? null, { name: d.name, trigger: d.trigger });
   revalidatePath("/admin/automations");
   return { ok: true, message: "Правило сохранено" };
@@ -65,14 +51,14 @@ export async function saveAutomationAction(input: AutomationInput): Promise<{ ok
 
 export async function toggleAutomationAction(id: string, active: boolean) {
   const staff = await assertStaff("settings.manage");
-  await db.update(crmAutomations).set({ active, updatedAt: new Date() }).where(eq(crmAutomations.id, uuid.parse(id)));
+  await container().automation.rules.setActive(uuid.parse(id), active);
   await audit(staff, "automation.save", "automation", id, { active });
   revalidatePath("/admin/automations");
 }
 
 export async function deleteAutomationAction(id: string) {
   const staff = await assertStaff("settings.manage");
-  const [a] = await db.delete(crmAutomations).where(eq(crmAutomations.id, uuid.parse(id))).returning();
+  const a = await container().automation.rules.delete(uuid.parse(id));
   if (a) await audit(staff, "automation.delete", "automation", id, { name: a.name });
   revalidatePath("/admin/automations");
 }

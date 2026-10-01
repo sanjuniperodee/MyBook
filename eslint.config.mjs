@@ -7,7 +7,7 @@ import nextTs from "eslint-config-next/typescript";
  *  - домен чист: без БД, Next.js и инфраструктуры;
  *  - слой приложения не знает о БД и фреймворке;
  *  - модули общаются только через публичный фасад (index.ts) или доменные типы;
- *  - слой представления (src/app) не лезет во внутренности модулей.
+ *  - слой представления (src/app, src/components) не лезет во внутренности модулей и не обращается к БД.
  */
 const modules = readdirSync(new URL("./src/modules", import.meta.url), { withFileTypes: true })
   .filter((d) => d.isDirectory())
@@ -42,7 +42,10 @@ const config = [
   { files: ["src/shared/application/**/*.ts"], rules: restrict([...infraImports, applicationOnly]) },
   {
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.tsx"],
-    rules: restrict([{ group: ["@/modules/*/infrastructure/*", "@/modules/*/application/*", "@/shared/infrastructure/*"], message: "Слой представления работает с модулями через container() и их фасады." }]),
+    rules: restrict([
+      { group: ["@/modules/*/infrastructure/*", "@/modules/*/application/*", "@/shared/infrastructure/*"], message: "Слой представления работает с модулями через container() и их фасады." },
+      { group: ["drizzle-orm", "drizzle-orm/*", "pg", "@/lib/db", "@/lib/db/*"], message: "Страницы, действия и роуты не ходят в БД: команды — через сервисы модулей, чтения — через их read-модели (queries, reporting)." },
+    ]),
   },
 ];
 
