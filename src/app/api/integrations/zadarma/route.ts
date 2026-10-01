@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSetting } from "@/lib/crm/settings";
+import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
-import { parseZadarmaEvent, zadarmaSign, zadarmaSignedString } from "@/lib/crm/telephony-protocol";
+import { parseZadarmaEvent, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
 import { container } from "@/server/container";
 
 /** Проверка адреса при подключении уведомлений в кабинете Zadarma: вернуть zd_echo как есть. */

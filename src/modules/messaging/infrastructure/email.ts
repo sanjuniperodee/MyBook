@@ -1,15 +1,15 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { db } from "../db";
-import { crmConversations, crmMessages, crmNotes, users, type CrmConversation } from "../db/schema";
-import { env } from "../env";
+import { db } from "@/shared/infrastructure/db";
+import { crmConversations, crmMessages, crmNotes, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
+import { env } from "@/config/env";
 import { escapeHtml } from "@/shared/infrastructure/mail";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
-import { getSettings, saveSettings } from "./settings";
-import { publish } from "./realtime";
-import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "./email-logic";
-import { adminLabel } from "../crm";
+import { getSettings, saveSettings } from "@/modules/workspace";
+import { publish } from "@/modules/workspace";
+import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "@/modules/messaging/domain/email";
+import { adminLabel } from "@/modules/access/ui";
 
 export const emailSendReady = () => container().mailer.configured;
 

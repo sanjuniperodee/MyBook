@@ -10,6 +10,9 @@ import { dealList, savedViews, stageCounts } from "./infrastructure/Deals";
 import { duplicateGroups } from "./infrastructure/Duplicates";
 import { bookList } from "./infrastructure/Books";
 import { salesAnalytics } from "./infrastructure/SalesAnalytics";
+import { crmCounters } from "./infrastructure/Counters";
+import { getLive } from "./infrastructure/Live";
+import { queryClients, segmentCounts } from "./infrastructure/Clients";
 
 /**
  * Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц
@@ -18,6 +21,9 @@ import { salesAnalytics } from "./infrastructure/SalesAnalytics";
  */
 export type { Viewer } from "./infrastructure/MyDay";
 export type { OrderFilters } from "./infrastructure/Orders";
+export type { CrmCounters } from "./infrastructure/Counters";
+export type { LiveState } from "./infrastructure/Live";
+export { STALLED_DAYS, type ClientSort } from "./infrastructure/Clients";
 
 export class ReportingModule {
   readonly salesAnalytics = salesAnalytics;
@@ -42,4 +48,8 @@ export class ReportingModule {
   readonly stageCounts = stageCounts;
   readonly duplicateGroups = duplicateGroups;
   readonly bookList = bookList;
+  readonly counters = crmCounters;
+  readonly live = getLive;
+  readonly clients = queryClients;
+  readonly segmentCounts = segmentCounts;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { books, crmLinkClicks, crmLinks, orders, users } from "@/lib/db/schema";
+import { books, crmLinkClicks, crmLinks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientContext, LinkRepository, ReportSource } from "../application";
 

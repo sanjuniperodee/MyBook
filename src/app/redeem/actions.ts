@@ -3,9 +3,9 @@
 import { cookies } from "next/headers";
 import { lredirect } from "@/i18n/server";
 import { getCurrentUser } from "@/server/auth";
-import { isSecureCookie } from "@/lib/env";
+import { isSecureCookie } from "@/config/env";
 import { container } from "@/server/container";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimit } from "@/server/rateLimit";
 import { GIFT_COOKIE } from "@/modules/ordering";
 
 /** Запоминает код сертификата — он подставится при оформлении заказа — и ведёт к созданию книги. */

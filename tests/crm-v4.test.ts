@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { base32Decode, base32Encode, hashBackupCode, hotp, isBackupCodeShape, otpauthUrl, totp, verifyTotp, generateBackupCodes, generateSecret } from "@/modules/identity/domain/totp";
 import { ipAllowed, normalizeIp, parseAllowlist } from "@/modules/access/domain/ip";
 import { signValue, verifySigned } from "@/shared/crypto";
-import { htmlToText, parseAddress, parseInboundWebhook, replySubject, stripQuoted } from "@/lib/crm/email-logic";
+import { htmlToText, parseAddress, parseInboundWebhook, replySubject, stripQuoted } from "@/modules/messaging/domain/email";
 import { businessContext, cleanReply, extractSchema, normalizeExtracted, parseSummary, transcript, type AiField } from "@/modules/assistant/domain";
 
 const fields: AiField[] = [

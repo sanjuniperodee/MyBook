@@ -1,6 +1,6 @@
 import { ZipArchive } from "archiver";
 import { PassThrough, Readable } from "node:stream";
-import { api, apiStaff, HttpError } from "@/lib/api";
+import { api, apiStaff, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 
 export const maxDuration = 300;

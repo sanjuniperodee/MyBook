@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
-import { giftCards } from "@/lib/db/schema";
+import { giftCards } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { PlanId } from "@/config/site";
 import { GiftCard, type GiftCardRepository } from "../../domain";

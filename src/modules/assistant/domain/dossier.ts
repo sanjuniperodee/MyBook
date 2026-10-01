@@ -1,4 +1,4 @@
-import { dealSourceLabels } from "@/lib/crm/deal-meta";
+import { dealSourceLabels } from "@/modules/sales/domain/meta";
 import { transcript, type AiMessage } from "./prompts";
 
 /** Всё, что известно о сделке, — для резюме и извлечения полей. */

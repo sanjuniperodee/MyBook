@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, gt } from "drizzle-orm";
-import { sessions, users } from "@/lib/db/schema";
+import { sessions, users } from "@/shared/infrastructure/db/schema";
 import { rootDb } from "@/shared/infrastructure/database";
 
 /** Read-модель текущего пользователя: строка профиля целиком (её читают и экраны CRM). */

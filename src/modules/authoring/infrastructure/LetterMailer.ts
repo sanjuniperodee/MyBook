@@ -1,6 +1,6 @@
 import "server-only";
 import { eq } from "drizzle-orm";
-import { books, users } from "@/lib/db/schema";
+import { books, users } from "@/shared/infrastructure/db/schema";
 import { rootDb } from "@/shared/infrastructure/database";
 import { messagesFor } from "@/i18n/messages";
 import type { Mailer } from "@/shared/application";

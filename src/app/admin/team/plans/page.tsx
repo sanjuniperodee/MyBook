@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/lib/crm";
+import { adminLabel } from "@/modules/access/ui";
 import { currentMonth, shiftMonth } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
 import { PlanRow } from "./PlanRow";

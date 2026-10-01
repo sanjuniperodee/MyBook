@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
 import { site } from "@/config/site";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import "./globals.css";
 import { Suspense } from "react";
 import { Analytics } from "@/components/analytics/Analytics";

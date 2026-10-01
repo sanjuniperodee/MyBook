@@ -2,8 +2,8 @@ import "server-only";
 import path from "node:path";
 import { Font } from "@react-pdf/renderer";
 import hyphenRu from "hyphen/ru/index.js";
-import { fontFaces, type FontKey } from "../book/fonts";
-import { hyphenateKk, isKazakhWord } from "../book/hyphen-kk";
+import { fontFaces, type FontKey } from "@/lib/book/fonts";
+import { hyphenateKk, isKazakhWord } from "@/lib/book/hyphen-kk";
 
 let registered = false;
 

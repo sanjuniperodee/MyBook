@@ -7,10 +7,10 @@ import { z } from "zod";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { channelLabel } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
-import { notifyMentions } from "@/lib/crm/mentions";
-import { adminLabel } from "@/lib/crm";
-import { formatPhone, isPhoneLike, normalizePhone } from "@/lib/crm/phone";
-import { notify } from "@/lib/crm/notify";
+import { notifyMentions } from "@/modules/workspace";
+import { adminLabel } from "@/modules/access/ui";
+import { formatPhone, isPhoneLike, normalizePhone } from "@/shared/domain/phone";
+import { notify } from "@/modules/workspace";
 
 const uuid = z.string().uuid();
 

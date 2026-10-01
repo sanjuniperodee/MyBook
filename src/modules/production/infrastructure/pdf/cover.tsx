@@ -1,9 +1,9 @@
 import "server-only";
 import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/renderer";
-import type { CoverGeometry } from "../book/formats";
-import { mm } from "../book/formats";
-import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "../book/covers";
-import { face } from "./fonts";
+import type { CoverGeometry } from "@/lib/book/formats";
+import { mm } from "@/lib/book/formats";
+import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
+import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";

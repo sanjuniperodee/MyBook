@@ -4,10 +4,10 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, assertVisible, audit } from "@/server/access";
-import { adminLabel } from "@/lib/crm";
+import { adminLabel } from "@/modules/access/ui";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
-import { listFields } from "@/lib/crm/fields";
-import { rateLimit } from "@/lib/rate-limit";
+import { listFields } from "@/modules/workspace";
+import { rateLimit } from "@/server/rateLimit";
 
 const uuid = z.string().uuid();
 

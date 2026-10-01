@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { api, HttpError } from "@/lib/api";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { api, HttpError } from "@/server/api";
+import { clientIp, rateLimit } from "@/server/rateLimit";
 import { container } from "@/server/container";
 
 /** Публичная отправка письма по ссылке-приглашению. Письмо ждёт одобрения владельца книги. */

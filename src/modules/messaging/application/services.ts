@@ -1,5 +1,5 @@
 import type { Clock, Logger } from "@/shared/application";
-import { formatPhone, normalizePhone } from "@/lib/crm/phone";
+import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import {
   BOT_DONE,
   answerValue,

@@ -1,5 +1,5 @@
 import { addonName, coverName, deliveryName, formatName, planName, typographyName } from "@/i18n/labels";
-import { channelLabel, describeAttribution, toAttribution } from "@/lib/crm/channels";
+import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,7 +12,7 @@ import { getFormat } from "@/lib/book/formats";
 import { cn, formatDate } from "@/lib/utils";
 import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
@@ -24,7 +24,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }] = await Promise.all([container().authoring.queries.stats(book), listAdmins(), container().reporting.orderCrm(order)]);
+  const [stats, admins, { taskRows, noteRows, clientStats }] = await Promise.all([container().authoring.queries.stats(book), container().access.queries.allStaff(), container().reporting.orderCrm(order)]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const now = new Date();

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { getCurrentUser } from "@/server/auth";
-import { trustedClientIp } from "@/lib/rate-limit";
+import { trustedClientIp } from "@/server/rateLimit";
 import { logoutAction } from "@/app/(auth)/actions";
 
 export const metadata = { title: "Нет доступа к CRM", robots: { index: false } };

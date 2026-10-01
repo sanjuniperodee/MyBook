@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gte, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
-import { crmCalls, crmDeals, crmTasks, orders, users } from "@/lib/db/schema";
+import { crmCalls, crmDeals, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 

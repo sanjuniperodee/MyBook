@@ -8,7 +8,7 @@ import { formatPrice } from "@/config/site";
 import { toastError } from "@/components/ui/overlays";
 import { acceptDealAction, moveDealAction, rejectDealAction } from "./actions";
 import { ask } from "@/components/ui/overlays";
-import { lostReasons } from "@/lib/crm/deal-meta";
+import { lostReasons } from "@/modules/sales/domain/meta";
 import { cn } from "@/lib/utils";
 
 export interface DealCard {

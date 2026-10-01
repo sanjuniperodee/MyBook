@@ -2,13 +2,13 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { channelLabel } from "@/modules/messaging";
-import { channelLabel as acquisitionChannel, toAttribution } from "@/lib/crm/channels";
-import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
-import { mentionableStaff } from "@/lib/crm/mentions";
-import { formatPhone } from "@/lib/crm/phone";
-import { getSetting } from "@/lib/crm/settings";
+import { channelLabel as acquisitionChannel, toAttribution } from "@/modules/marketing/domain/channels";
+import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
+import { mentionableStaff } from "@/modules/workspace";
+import { formatPhone } from "@/shared/domain/phone";
+import { getSetting } from "@/modules/workspace";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { cn } from "@/lib/utils";
@@ -37,7 +37,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const selectedId = sp.c && /^[0-9a-f-]{36}$/.test(sp.c) ? sp.c : null;
   const [list, admins, slaRaw, selected] = await Promise.all([
     container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, q),
-    listAdmins(),
+    container().access.queries.allStaff(),
     getSetting("crm.slaMinutes"),
     selectedId ? container().messaging.queries.conversation(selectedId) : null,
   ]);

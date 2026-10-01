@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { listFields } from "@/lib/crm/fields";
+import { listFields } from "@/modules/workspace";
 import { cn } from "@/lib/utils";
 import { FieldEditor } from "./FieldEditor";
 

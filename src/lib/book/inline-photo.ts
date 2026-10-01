@@ -2,7 +2,7 @@
  * Геометрия фото внутри ответа. Общая для превью в браузере, оценки объёма и PDF,
  * поэтому размеры и кадрирование совпадают до пикселя.
  */
-import type { InlinePhotoStyle } from "../db/schema";
+import type { InlinePhotoStyle } from "@/shared/infrastructure/db/schema";
 export type { InlinePhotoStyle };
 
 export const defaultInlineStyle: InlinePhotoStyle = {

@@ -1,7 +1,7 @@
 import { AggregateRoot } from "@/shared/domain";
-import type { CallEvent } from "@/lib/crm/telephony-protocol";
+import type { CallEvent } from "@/modules/telephony/domain/protocol";
 
-export type { CallEvent, CallStage } from "@/lib/crm/telephony-protocol";
+export type { CallEvent, CallStage } from "@/modules/telephony/domain/protocol";
 
 export type CallStatus = "ringing" | "answered" | "missed" | "busy" | "failed";
 

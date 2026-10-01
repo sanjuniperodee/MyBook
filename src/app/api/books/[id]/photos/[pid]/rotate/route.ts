@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { api, apiViewer } from "@/lib/api";
+import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 
 type Ctx = { params: Promise<{ id: string; pid: string }> };

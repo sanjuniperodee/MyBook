@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
-import { automationActions, automationHours, automationTriggers, templateVars, type AutomationActionType } from "@/lib/crm/automation-meta";
-import { dealSourceLabels, dealSources } from "@/lib/crm/deal-meta";
+import { automationActions, automationHours, automationTriggers, templateVars, type AutomationActionType } from "@/modules/automation/domain/meta";
+import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
 import { cn } from "@/lib/utils";
 import { deleteAutomationAction, saveAutomationAction, toggleAutomationAction } from "./actions";

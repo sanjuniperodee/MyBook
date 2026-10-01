@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, lt, ne, sql } from "drizzle-orm";
-import { passwordResets, sessions, users } from "@/lib/db/schema";
+import { passwordResets, sessions, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { User, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 

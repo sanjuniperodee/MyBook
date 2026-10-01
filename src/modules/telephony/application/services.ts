@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { formatPhone } from "@/lib/crm/phone";
+import { formatPhone } from "@/shared/domain/phone";
 import { Call, TelephonyError, type CallEvent } from "../domain";
 import type { CallRepository, CallSideEffects, CallTimeline, SalesGateway, StaffDirectory, TelephonyProvider } from "./ports";
 

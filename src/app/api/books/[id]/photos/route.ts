@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { api, apiViewer, HttpError } from "@/lib/api";
-import { rateLimit } from "@/lib/rate-limit";
+import { api, apiViewer, HttpError } from "@/server/api";
+import { rateLimit } from "@/server/rateLimit";
 import { getMessages } from "@/i18n/server";
 import { MAX_PHOTOS, AuthoringError } from "@/modules/authoring";
 import { container } from "@/server/container";

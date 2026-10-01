@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
-import { automationTriggers } from "@/lib/crm/automation-meta";
-import { dealSources } from "@/lib/crm/deal-meta";
+import { automationTriggers } from "@/modules/automation/domain/meta";
+import { dealSources } from "@/modules/sales/domain/meta";
 
 const uuid = z.string().uuid();
 const optUuid = z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null);

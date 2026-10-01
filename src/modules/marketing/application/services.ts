@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { linkCodeFromText, normalizeSlug } from "@/lib/crm/channels";
+import { linkCodeFromText, normalizeSlug } from "@/modules/marketing/domain/channels";
 import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkTarget, offerTexts, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
 import type { AppLinks, ClientContext, LinkRepository, MarketingSettings, PromoCodeGenerator, PromoIssuer, ReportSource } from "./ports";
 

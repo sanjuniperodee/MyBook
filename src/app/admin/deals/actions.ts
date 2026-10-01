@@ -1,14 +1,14 @@
 "use server";
 
 import { container } from "@/server/container";
-import { listFields, readFieldValues } from "@/lib/crm/fields";
+import { listFields, readFieldValues } from "@/modules/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
-import { notify } from "@/lib/crm/notify";
-import { normalizePhone } from "@/lib/crm/phone";
-import { dealSources, stageMilestones, type StageMilestone } from "@/lib/crm/deal-meta";
+import { notify } from "@/modules/workspace";
+import { normalizePhone } from "@/shared/domain/phone";
+import { dealSources, stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
 
 export interface DealFormState {
   error?: string;

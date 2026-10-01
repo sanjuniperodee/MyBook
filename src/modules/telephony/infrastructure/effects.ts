@@ -1,6 +1,6 @@
 import "server-only";
-import { notifyOwnerOr } from "@/lib/crm/notify";
-import { publish } from "@/lib/crm/realtime";
+import { notifyOwnerOr } from "@/modules/workspace";
+import { publish } from "@/modules/workspace";
 import type { CallSideEffects } from "../application";
 
 /** Уведомления и живое обновление — адаптеры CRM; спам-лист и правила приходят из других контекстов. */

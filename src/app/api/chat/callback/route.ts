@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { api, checkOrigin, HttpError } from "@/lib/api";
+import { api, checkOrigin, HttpError } from "@/server/api";
 import { getCurrentUser } from "@/server/auth";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { normalizePhone } from "@/lib/crm/phone";
+import { clientIp, rateLimit } from "@/server/rateLimit";
+import { normalizePhone } from "@/shared/domain/phone";
 import { container } from "@/server/container";
 
 const schema = z.object({

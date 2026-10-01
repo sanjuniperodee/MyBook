@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
-import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, users } from "@/lib/db/schema";
-import { booksId } from "@/lib/db/refs";
+import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
+import { booksId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientTimeline, EmailJournal, LifecycleSource, Recipient, RecipientRepository } from "../application";
 

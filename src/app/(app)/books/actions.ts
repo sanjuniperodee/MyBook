@@ -5,7 +5,7 @@ import { isLocale } from "@/i18n/config";
 import { z } from "zod";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
-import { queueEvent } from "@/lib/track";
+import { queueEvent } from "@/server/track";
 import { isThemeId } from "@/lib/content/themes";
 import { getOccasion } from "@/lib/occasions";
 

@@ -1,4 +1,4 @@
-import type { Gender } from "../db/schema";
+import type { Gender } from "@/shared/infrastructure/db/schema";
 
 /** [вопрос автору, заголовок в книге, подсказка?] */
 export type QuestionTuple = [prompt: string, title: string, hint?: string];

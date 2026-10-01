@@ -1,4 +1,4 @@
-import { milestoneOrder, type StageMilestone } from "@/lib/crm/deal-meta";
+import { milestoneOrder, type StageMilestone } from "@/modules/sales/domain/meta";
 
 export type StageKind = "open" | "won" | "lost";
 

@@ -1,7 +1,7 @@
 import "server-only";
-import { deletePrefix, fileExists, getFile, putFile } from "@/lib/storage";
-import { dedupe, withRenderSlot } from "@/lib/pdf/queue";
-import type { BookBundle } from "@/lib/pdf/render";
+import { deletePrefix, fileExists, getFile, putFile } from "@/shared/infrastructure/storage";
+import { dedupe, withRenderSlot } from "@/modules/production/infrastructure/pdf/queue";
+import type { BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import type { BookRenderer, FileStore, PrintSpec, RenderQueue } from "../application/PrintFilesService";
 
 export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putFile, deletePrefix };
@@ -13,7 +13,7 @@ export type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
 
 /** Рендер через @react-pdf (тяжёлый модуль загружаем лениво). */
 export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
-  const pdf = () => import("@/lib/pdf/render");
+  const pdf = () => import("@/modules/production/infrastructure/pdf/render");
   return {
     async renderPrintPackage(bookId, orderNumber) {
       const bundle = await load(bookId);

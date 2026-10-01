@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
-import { bookQuestions, books, orders, photos, users } from "@/lib/db/schema";
-import { booksId } from "@/lib/db/refs";
+import { bookQuestions, books, orders, photos, users } from "@/shared/infrastructure/db/schema";
+import { booksId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 
 export type BookFilter = "all" | "writing" | "stalled" | "ready" | "ordered";

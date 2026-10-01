@@ -1,4 +1,4 @@
-import { buildSiteUrl, type Attribution } from "@/lib/crm/channels";
+import { buildSiteUrl, type Attribution } from "@/modules/marketing/domain/channels";
 
 /** Короткая рекламная ссылка: ведёт на сайт с UTM-метками или в WhatsApp с кодом ссылки. */
 export interface TrackedLink {

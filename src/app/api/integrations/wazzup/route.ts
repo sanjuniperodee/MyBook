@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSetting } from "@/lib/crm/settings";
+import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
-import { parseWazzupWebhook } from "@/lib/crm/wazzup-protocol";
+import { parseWazzupWebhook } from "@/modules/messaging/domain/wazzup";
 import { container } from "@/server/container";
 
 /**

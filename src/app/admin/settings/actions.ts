@@ -4,10 +4,10 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
-import { ensureToken, fromEnv, getSettings, saveSettings, type SettingKey } from "@/lib/crm/settings";
+import { ensureToken, fromEnv, getSettings, saveSettings, type SettingKey } from "@/modules/workspace";
 import { randomToken } from "@/shared/crypto";
-import { isValidTime } from "@/lib/crm/schedule";
-import { listChannels, registerWebhook, WazzupError } from "@/lib/crm/wazzup";
+import { isValidTime } from "@/modules/workspace/domain/schedule";
+import { listChannels, registerWebhook, WazzupError } from "@/modules/messaging";
 import { AssistantError } from "@/modules/assistant";
 
 export interface SettingsState {
@@ -160,7 +160,7 @@ export async function saveEmailAction(_: SettingsState, form: FormData): Promise
 export async function testImapAction(): Promise<{ ok: boolean; message: string }> {
   await assertStaff("settings.manage");
   try {
-    const { testImap } = await import("@/lib/crm/email");
+    const { testImap } = await import("@/modules/messaging");
     return { ok: true, message: await testImap() };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Не удалось подключиться" };

@@ -1,8 +1,8 @@
 import { container } from "@/server/container";
 import { can, requireStaffShell } from "@/server/access";
-import { getSetting } from "@/lib/crm/settings";
-import { adminLabel } from "@/lib/crm";
-import { trustedClientIp } from "@/lib/rate-limit";
+import { getSetting } from "@/modules/workspace";
+import { adminLabel } from "@/modules/access/ui";
+import { trustedClientIp } from "@/server/rateLimit";
 import { formatDate } from "@/lib/utils";
 import { IpAllowlistForm, ResetStaffButton, TwoFactorCard } from "./SecurityControls";
 

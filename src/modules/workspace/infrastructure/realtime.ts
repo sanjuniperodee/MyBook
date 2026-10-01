@@ -1,6 +1,6 @@
 import "server-only";
 import type { PoolClient } from "pg";
-import { pool } from "../db";
+import { pool } from "@/shared/infrastructure/db";
 
 /**
  * Мгновенные обновления CRM: события идут через PostgreSQL LISTEN/NOTIFY, поэтому работают

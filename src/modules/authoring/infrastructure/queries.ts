@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { bookLetters, bookQuestions, books, photos } from "@/lib/db/schema";
-import { booksId } from "@/lib/db/refs";
+import { bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
+import { booksId } from "@/shared/infrastructure/db/refs";
 import { rootDb } from "@/shared/infrastructure/database";
 import { computeStats, type BookViewer } from "../domain";
 

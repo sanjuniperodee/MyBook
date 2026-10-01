@@ -5,7 +5,7 @@ import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
 import { can, contactView, requireStaff } from "@/server/access";
-import { formatPhone } from "@/lib/crm/phone";
+import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
 
 export const metadata = { title: "Поиск" };

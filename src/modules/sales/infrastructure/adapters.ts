@@ -1,11 +1,11 @@
 import "server-only";
 import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
-import { crmRoles, orders, users } from "@/lib/db/schema";
-import { usersId } from "@/lib/db/refs";
-import { phoneKey, normalizePhone } from "@/lib/crm/phone";
-import { toAttribution } from "@/lib/crm/channels";
-import { getSetting } from "@/lib/crm/settings";
-import { isWorkTime, parseWorkHours } from "@/lib/crm/schedule";
+import { crmRoles, orders, users } from "@/shared/infrastructure/db/schema";
+import { usersId } from "@/shared/infrastructure/db/refs";
+import { phoneKey, normalizePhone } from "@/shared/domain/phone";
+import { toAttribution } from "@/modules/marketing/domain/channels";
+import { getSetting } from "@/modules/workspace";
+import { isWorkTime, parseWorkHours } from "@/modules/workspace/domain/schedule";
 import { executor } from "@/shared/infrastructure/database";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
 import type { StageMilestone } from "../domain";

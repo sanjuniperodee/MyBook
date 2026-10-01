@@ -1,7 +1,7 @@
 // Запуск на Node.js-сервере: миграции БД и фоновые задачи. Подключается только из instrumentation.ts в рантайме nodejs.
 export async function registerNode() {
   if (process.env.SKIP_AUTO_MIGRATE !== "1") {
-    const { runMigrations } = await import("./lib/db/migrate");
+    const { runMigrations } = await import("@/shared/infrastructure/db/migrate");
     try {
       await runMigrations();
       console.log("[mybook] database migrations applied");
@@ -10,6 +10,6 @@ export async function registerNode() {
       throw err;
     }
   }
-  const { startScheduler } = await import("./lib/scheduler");
+  const { startScheduler } = await import("@/server/scheduler");
   startScheduler();
 }

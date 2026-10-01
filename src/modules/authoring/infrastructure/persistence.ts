@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
-import { bookLetters, bookQuestions, books, photos } from "@/lib/db/schema";
+import { bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { Book, Letter, Photo, Question, type BookRepository, type LetterRepository, type PhotoRepository, type QuestionRepository, type QuestionTemplate } from "../domain";
 

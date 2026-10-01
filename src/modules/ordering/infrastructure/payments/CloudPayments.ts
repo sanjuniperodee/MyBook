@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { systemActor } from "@/shared/application";
 import type { GiftsService, OrdersService } from "../../application";
 

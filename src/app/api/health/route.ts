@@ -1,4 +1,3 @@
-import { putFile, deleteFile } from "@/lib/storage";
 import { container } from "@/server/container";
 
 export const dynamic = "force-dynamic";
@@ -7,11 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const checks = { db: false, storage: false };
   checks.db = await container().databaseHealthy();
-  try {
-    await putFile("cache/health-check", "ok");
-    await deleteFile("cache/health-check");
-    checks.storage = true;
-  } catch {}
+  checks.storage = await container().storageHealthy();
   // Outbox: зависшие или «мёртвые» события — сигнал, что подписчик (почта, CRM) не справляется.
   // Redis опционален: null — не настроен; false — настроен, но недоступен (лимиты работают из памяти).
   const { redis, outbox } = checks.db ? await container().infraHealth() : { redis: null, outbox: null };

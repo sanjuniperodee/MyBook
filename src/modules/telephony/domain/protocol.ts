@@ -3,7 +3,7 @@
  * Документация Zadarma: https://zadarma.com/ru/support/api/#api_webhooks
  */
 import { createHash, createHmac } from "node:crypto";
-import { normalizePhone } from "./phone";
+import { normalizePhone } from "@/shared/domain/phone";
 
 export type CallStage = "start" | "ringing" | "answer" | "end" | "record";
 

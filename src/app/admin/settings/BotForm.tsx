@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Bot, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";
 import { saveBotAction } from "./actions";
-import type { BotConfig } from "@/lib/crm/bot-logic";
+import type { BotConfig } from "@/modules/messaging/domain/botConfig";
 
 export function BotForm({ mode: initialMode, config, fields, stats }: { mode: string; config: BotConfig; fields: { key: string; label: string; type: string }[]; stats: { active: number; done: number } }) {
   const [mode, setMode] = useState(initialMode as "off" | "always" | "off_hours");

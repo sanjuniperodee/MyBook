@@ -2,8 +2,8 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
 import { requireStaff } from "@/server/access";
-import { adminLabel, listAdmins } from "@/lib/crm";
-import { channelOf, channels, toAttribution } from "@/lib/crm/channels";
+import { adminLabel } from "@/modules/access/ui";
+import { channelOf, channels, toAttribution } from "@/modules/marketing/domain/channels";
 import { formatPrice } from "@/config/site";
 import { BarList, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const period = periods.find((p) => String(p) === raw) ?? 30;
   const [stages, admins, { totals, prevTotals, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }] = await Promise.all([
     container().sales.queries.listStages(pipeline.id),
-    listAdmins(),
+    container().access.queries.allStaff(),
     container().reporting.salesAnalytics(pipeline.id, period),
   ]);
   const reachedStage = (st: { kind: string; position: number }) => reached.rows.filter((r) => r.won || (st.kind === "open" && r.max_open !== null && r.max_open >= st.position)).length;

@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/lib/crm";
+import { adminLabel } from "@/modules/access/ui";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Журнал действий" };

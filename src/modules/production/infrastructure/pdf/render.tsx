@@ -3,9 +3,9 @@ import { createHash, randomBytes } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
-import type { Book, BookLetter, BookQuestion, Photo } from "../db/schema";
+import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
-import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "../book/covers";
+import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
@@ -15,13 +15,13 @@ import {
   printablePageCount,
   spineWidthMm,
   type CoverGeometry,
-} from "../book/formats";
-import { buildBookContent, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "../book/layout";
-import { cropRect, inlineBox, normalizeStyle } from "../book/inline-photo";
-import { getFile } from "../storage";
-import { CoverDocument } from "./cover";
-import { ensureFonts } from "./fonts";
-import { InteriorDocument, type PreparedImage } from "./interior";
+} from "@/lib/book/formats";
+import { buildBookContent, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
+import { getFile } from "@/shared/infrastructure/storage";
+import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
+import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
+import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
 
 export type RenderMode = "print" | "preview" | "reading";
 

@@ -3,7 +3,7 @@ import { nowMs } from "@/lib/utils";
 import Link from "next/link";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
 
@@ -15,7 +15,7 @@ export default async function BoardPage() {
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
   const [rows, admins] = await Promise.all([
     container().reporting.productionBoard(monthAgo),
-    listAdmins(),
+    container().access.queries.allStaff(),
   ]);
   const byId = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const today = new Date();

@@ -5,6 +5,9 @@ import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtim
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 
 export { channelLabel, channelLabels, type Conversation, type InboundMessage } from "./domain";
+export { loadChatMessages, listTemplates, chatVars, sendBlocker } from "./infrastructure/chatView";
+export { listChannels, registerWebhook, wazzupConfigured, WazzupError } from "./infrastructure/wazzup";
+export { ingestEmail, sendEmailToContact, testImap, pollImap } from "./infrastructure/email";
 export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
 
 /** Cookie посетителя для чата на сайте. */

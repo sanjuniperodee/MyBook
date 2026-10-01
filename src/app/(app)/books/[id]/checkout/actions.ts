@@ -1,6 +1,6 @@
 "use server";
 
-import { queueEvent } from "@/lib/track";
+import { queueEvent } from "@/server/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
 import { requireUser } from "@/server/auth";
@@ -107,7 +107,7 @@ export interface PromoPreview {
 export async function checkPromoAction(code: string): Promise<PromoPreview> {
   await requireUser();
   const t = (await getMessages()).checkout;
-  const { clientIp, rateLimit } = await import("@/lib/rate-limit");
+  const { clientIp, rateLimit } = await import("@/server/rateLimit");
   if (!await rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
   const check = await container().ordering.promos.check(code);
   if (!check.ok) return { ok: false, error: t.promo[check.error] };

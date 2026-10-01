@@ -6,7 +6,7 @@ import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
 import { requireStaff } from "@/server/access";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
-import { adminLabel, listAdmins } from "@/lib/crm";
+import { adminLabel } from "@/modules/access/ui";
 import type { OrderFilters } from "@/modules/reporting";
 import { formatDate } from "@/lib/utils";
 import { OrdersTable, type OrderRow } from "./OrdersTable";
@@ -19,7 +19,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const admin = staff.user;
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
-  const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, admin.id, p, PAGE), listAdmins()]);
+  const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, admin.id, p, PAGE), container().access.queries.allStaff()]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const rows: OrderRow[] = list.map((o) => ({
     id: o.id,

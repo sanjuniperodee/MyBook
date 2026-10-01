@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { canAssignOthers, requireStaff } from "@/server/access";
-import { listAdmins, staffOptions } from "@/lib/crm";
+import { staffOptions } from "@/modules/access/ui";
 import { NewDealForm } from "./NewDealForm";
 
 export const metadata = { title: "Новая сделка" };
@@ -11,7 +11,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const { client: clientId, p } = await searchParams;
   const [stages, admins, client, pipelines] = await Promise.all([
     container().sales.queries.listStages(),
-    listAdmins(),
+    container().access.queries.allStaff(),
     clientId ? container().clients.clients.find(clientId) : null,
     container().sales.queries.listPipelines(),
   ]);

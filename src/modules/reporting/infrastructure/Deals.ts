@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
-import { crmDeals, crmSavedViews, crmStages, dealSources, type DealSource } from "@/lib/db/schema";
-import { crmDealsClientId, crmDealsId } from "@/lib/db/refs";
+import { crmDeals, crmSavedViews, crmStages, dealSources, type DealSource } from "@/shared/infrastructure/db/schema";
+import { crmDealsClientId, crmDealsId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 

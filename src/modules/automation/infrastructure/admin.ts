@@ -1,6 +1,6 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
-import { crmAutomations } from "@/lib/db/schema";
+import { crmAutomations } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { relevantConditions, type RuleAction } from "../domain";
 

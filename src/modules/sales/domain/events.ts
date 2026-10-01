@@ -1,5 +1,5 @@
 import { domainEvent, type DomainEvent } from "@/shared/domain";
-import type { DealSource } from "@/lib/crm/deal-meta";
+import type { DealSource } from "@/modules/sales/domain/meta";
 
 export interface DealRef {
   dealId: string;

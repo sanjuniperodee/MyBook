@@ -1,12 +1,12 @@
 import "server-only";
 import { Document, Page, Svg, Path, Text, View, renderToBuffer } from "@react-pdf/renderer";
-import { mm } from "../book/formats";
-import { ensureFonts, face } from "./fonts";
+import { mm } from "@/lib/book/formats";
+import { ensureFonts, face } from "@/modules/production/infrastructure/pdf/fonts";
 import { formatPrice, site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { planName } from "@/i18n/labels";
-import { env } from "../env";
+import { env } from "@/config/env";
 
 const WINE = "#7A1F2B";
 const INK = "#1F1A17";

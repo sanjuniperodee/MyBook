@@ -1,4 +1,4 @@
-import { api, apiBook, HttpError } from "@/lib/api";
+import { api, apiBook, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 
 /** Текст книги одним файлом — резервная копия для клиента. */

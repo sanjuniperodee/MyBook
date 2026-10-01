@@ -14,7 +14,7 @@ import type { Container } from "./container";
  */
 export function registerSubscriptions(c: Container) {
   const rules = () => c.automation.engine;
-  const notify = () => import("@/lib/crm/notify");
+  const notify = () => import("@/modules/workspace");
 
   // ─── заказы → воронка продаж и правила CRM ───────────────────────────────
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload }).then(() => undefined), "crm.deal.order_created");

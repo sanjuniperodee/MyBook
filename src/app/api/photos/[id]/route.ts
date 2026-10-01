@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
-import { api, apiViewer, HttpError } from "@/lib/api";
-import { getFile } from "@/lib/storage";
+import { api, apiViewer, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
@@ -14,6 +13,6 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   const etag = `"${createHash("sha1").update(key).digest("hex").slice(0, 16)}"`;
   const headers = { "Content-Type": "image/jpeg", "Cache-Control": "private, no-cache", ETag: etag };
   if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
-  const data = await getFile(key);
+  const data = await container().authoring.photoFile(key);
   return new Response(new Uint8Array(data), { headers });
 });

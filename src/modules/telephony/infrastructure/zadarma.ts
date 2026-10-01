@@ -1,6 +1,6 @@
 import "server-only";
-import { getSetting } from "@/lib/crm/settings";
-import { zadarmaRequestAuth } from "@/lib/crm/telephony-protocol";
+import { getSetting } from "@/modules/workspace";
+import { zadarmaRequestAuth } from "@/modules/telephony/domain/protocol";
 import type { TelephonyProvider } from "../application";
 import { TelephonyError } from "../domain";
 

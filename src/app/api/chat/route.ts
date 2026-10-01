@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { api, checkOrigin, HttpError } from "@/lib/api";
+import { api, checkOrigin, HttpError } from "@/server/api";
 import { getCurrentUser } from "@/server/auth";
-import { isSecureCookie } from "@/lib/env";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { isSecureCookie } from "@/config/env";
+import { clientIp, rateLimit } from "@/server/rateLimit";
 import { randomToken } from "@/shared/crypto";
 import { VISITOR_COOKIE } from "@/modules/messaging";
 import { container } from "@/server/container";

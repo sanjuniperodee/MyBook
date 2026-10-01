@@ -1,4 +1,4 @@
-import type { Gender } from "../db/schema";
+import type { Gender } from "@/shared/infrastructure/db/schema";
 
 /**
  * Подставляет формы рода в шаблон.

@@ -1,7 +1,7 @@
 import { AggregateRoot } from "@/shared/domain";
-import { dealSourceLabels, type DealSource } from "@/lib/crm/deal-meta";
+import { dealSourceLabels, type DealSource } from "@/modules/sales/domain/meta";
 import { formatPrice } from "@/config/site";
-import { normalizePhone, phoneKey } from "@/lib/crm/phone";
+import { normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { SalesEvents } from "./events";
 import type { Stage } from "./Funnel";
 

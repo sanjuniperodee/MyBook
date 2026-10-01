@@ -1,8 +1,8 @@
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { db as rootDb } from "@/lib/db";
-import type * as schema from "@/lib/db/schema";
+import { db as rootDb } from "@/shared/infrastructure/db";
+import type * as schema from "@/shared/infrastructure/db/schema";
 
 export type Database = NodePgDatabase<typeof schema>;
 /** Транзакция Drizzle — тот же интерфейс запросов, что и у базы. */

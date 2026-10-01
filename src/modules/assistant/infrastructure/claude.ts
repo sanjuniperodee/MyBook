@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { getSetting } from "@/lib/crm/settings";
+import { getSetting } from "@/modules/workspace";
 import type { LanguageModel } from "../application";
 import { AssistantError } from "../domain";
 

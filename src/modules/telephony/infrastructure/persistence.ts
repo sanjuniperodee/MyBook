@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
-import { crmCalls, crmNotes, users } from "@/lib/db/schema";
+import { crmCalls, crmNotes, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { CallRepository, CallTimeline, StaffDirectory } from "../application";
 import { Call } from "../domain";

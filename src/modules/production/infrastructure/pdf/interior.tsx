@@ -3,10 +3,10 @@ import "server-only";
 import { Fragment } from "react";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
-import { mm } from "../book/formats";
-import { interiorMetrics, photoPages, type BookContent, type PhotoItem } from "../book/layout";
-import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "../book/inline-photo";
-import { face } from "./fonts";
+import { mm } from "@/lib/book/formats";
+import { interiorMetrics, photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
+import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { site } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
 

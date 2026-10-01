@@ -1,6 +1,6 @@
-import type { DealSource } from "@/lib/crm/deal-meta";
+import type { DealSource } from "@/modules/sales/domain/meta";
 
-export { dealSourceLabels, dealSources, lostReasons, milestoneOrder, stageMilestones, BOOK_READY_ANSWERS, type DealSource, type StageMilestone } from "@/lib/crm/deal-meta";
+export { dealSourceLabels, dealSources, lostReasons, milestoneOrder, stageMilestones, BOOK_READY_ANSWERS, type DealSource, type StageMilestone } from "@/modules/sales/domain/meta";
 
 /** Канал мессенджера (chatType Wazzup, сайт, почта) → источник сделки. */
 export function sourceFromChannel(channel: string): DealSource {

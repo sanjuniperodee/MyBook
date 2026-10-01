@@ -19,6 +19,11 @@ export class AuthoringModule {
   readonly letters: LettersService;
   readonly ordering: BookOrderingService;
   readonly queries = new DrizzleAuthoringQueries();
+
+  /** Файл фото (оригинал или миниатюра) из хранилища — права проверяет вызывающий через queries.photoFor(). */
+  photoFile(storageKey: string) {
+    return storageFiles.get(storageKey);
+  }
   readonly photoRepository = new DrizzlePhotoRepository();
   readonly themes = contentThemes;
 

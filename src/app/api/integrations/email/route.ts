@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSetting } from "@/lib/crm/settings";
+import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
-import { parseInboundWebhook } from "@/lib/crm/email-logic";
-import { ingestEmail } from "@/lib/crm/email";
+import { parseInboundWebhook } from "@/modules/messaging/domain/email";
+import { ingestEmail } from "@/modules/messaging";
 
 /**
  * Входящие письма от почтового сервиса (Mailgun, Postmark, SendGrid Inbound Parse, Cloudflare Email Workers…)

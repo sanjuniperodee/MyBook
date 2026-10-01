@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
-import type { LiveState } from "@/lib/crm/live";
+import type { LiveState } from "@/modules/reporting";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 8_000;

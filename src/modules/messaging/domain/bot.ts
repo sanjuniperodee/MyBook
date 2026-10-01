@@ -1,7 +1,7 @@
-import { fillTemplate } from "@/lib/crm/automation-meta";
-import { matchOption, parseDateAnswer, questionText, type BotConfig } from "@/lib/crm/bot-logic";
+import { fillTemplate } from "@/modules/automation/domain/meta";
+import { matchOption, parseDateAnswer, questionText, type BotConfig } from "@/modules/messaging/domain/botConfig";
 
-export { defaultBotConfig, parseBotConfig, type BotConfig, type BotQuestion } from "@/lib/crm/bot-logic";
+export { defaultBotConfig, parseBotConfig, type BotConfig, type BotQuestion } from "@/modules/messaging/domain/botConfig";
 
 export type BotMode = "off" | "always" | "off_hours";
 export const BOT_DONE = -1;

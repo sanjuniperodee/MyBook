@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
-import { crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/lib/db/schema";
-import { adminLabel } from "@/lib/crm";
+import { crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
+import { adminLabel } from "@/modules/access/ui";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientRepository, CrmLinks, NoteRepository, StaffDirectory, TaskRepository } from "../application";
 

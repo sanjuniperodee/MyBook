@@ -1,11 +1,11 @@
 import "server-only";
 import webpush from "web-push";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "../db";
-import { crmPushSubscriptions } from "../db/schema";
-import { env } from "../env";
+import { db } from "@/shared/infrastructure/db";
+import { crmPushSubscriptions } from "@/shared/infrastructure/db/schema";
+import { env } from "@/config/env";
 import { site } from "@/config/site";
-import { getSetting, saveSettings } from "./settings";
+import { getSetting, saveSettings } from "@/modules/workspace/infrastructure/settings";
 
 /** Ключи VAPID создаются один раз и хранятся в настройках (приватный — зашифрованным). */
 export async function vapidKeys() {

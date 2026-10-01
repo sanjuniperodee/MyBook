@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { api, apiViewer } from "@/lib/api";
+import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 
 export const PUT = api(async (req, { params }: { params: Promise<{ id: string }> }) => {

@@ -2,8 +2,8 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
-import { adminLabel, listAdmins } from "@/lib/crm";
-import { formatPhone } from "@/lib/crm/phone";
+import { adminLabel } from "@/modules/access/ui";
+import { formatPhone } from "@/shared/domain/phone";
 import { cn, formatDate } from "@/lib/utils";
 import { CallRowActions } from "./CallActions";
 
@@ -21,7 +21,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const days = Math.min(90, Math.max(1, Number(sp.days) || 14));
   const [{ rows, stats }, admins, provider] = await Promise.all([
     container().reporting.callJournal({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, days),
-    listAdmins(),
+    container().access.queries.allStaff(),
     container().telephony.phone.currentProvider(),
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));

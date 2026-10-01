@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
-import { db } from "../db";
-import { crmNotifications, crmRoles, users } from "../db/schema";
+import { db } from "@/shared/infrastructure/db";
+import { crmNotifications, crmRoles, users } from "@/shared/infrastructure/db/schema";
 import type { Permission } from "@/modules/access/domain/permissions";
 
 export interface NotificationInput {
@@ -26,9 +26,9 @@ export async function notify(userIds: (string | null | undefined)[], n: Notifica
   if (!ids.length) return;
   await db.insert(crmNotifications).values(ids.map((userId) => ({ userId, kind: n.kind, title: n.title.slice(0, 200), body: (n.body ?? "").slice(0, 500), link: n.link ?? null })));
   // Мгновенно — открытым вкладкам CRM (SSE) и на устройства с push, не задерживая основное действие.
-  const { publish } = await import("./realtime");
+  const { publish } = await import("@/modules/workspace/infrastructure/realtime");
   await publish({ type: "notify", users: ids });
-  const { pushTo } = await import("./push");
+  const { pushTo } = await import("@/modules/workspace/infrastructure/push");
   void pushTo(ids, { title: n.title, body: n.body, link: n.link, tag: n.kind }).catch((err) => console.error("[push]", err));
 }
 

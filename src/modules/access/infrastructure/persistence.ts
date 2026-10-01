@@ -1,10 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, isNull, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmAudit, crmCalls, crmDeals, crmRoles, users } from "@/lib/db/schema";
-import { crmRolesId, usersId } from "@/lib/db/refs";
+import { crmAudit, crmCalls, crmDeals, crmRoles, users } from "@/shared/infrastructure/db/schema";
+import { crmRolesId, usersId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
-import { clientIp } from "@/lib/rate-limit";
+import { clientIp } from "@/server/rateLimit";
 import { Role, StaffMember, type Permission, type RoleRepository, type StaffRepository } from "../domain";
 import type { AuditLog } from "../application/ports";
 
@@ -91,6 +91,11 @@ export const drizzleShifts = {
 
 /** Read-модели сотрудников для страниц и действий CRM. */
 export class DrizzleAccessQueries {
+  /** Все сотрудники, включая отключённых (их имена нужны в истории). Для выпадающих списков — staffOptions(). */
+  allStaff() {
+    return executor().select({ id: users.id, name: users.name, email: users.email, disabled: users.staffDisabled }).from(users).where(eq(users.role, "admin")).orderBy(users.name);
+  }
+
   roles() {
     return executor().select({ id: crmRoles.id, name: crmRoles.name, key: crmRoles.key }).from(crmRoles).orderBy(asc(crmRoles.createdAt));
   }

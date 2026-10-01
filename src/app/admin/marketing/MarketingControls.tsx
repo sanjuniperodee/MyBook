@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 import { Archive, ArchiveRestore, Copy, ExternalLink, Link2, MessageCircle, Globe } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { normalizeSlug, sourcePresets } from "@/lib/crm/channels";
+import { normalizeSlug, sourcePresets } from "@/modules/marketing/domain/channels";
 import { cn } from "@/lib/utils";
 import { archiveLinkAction, createLinkAction, saveWhatsappNumberAction, type LinkState } from "./actions";
 

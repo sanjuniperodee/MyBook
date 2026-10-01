@@ -1,7 +1,7 @@
 import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
-import { bookLetters, bookQuestions, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/lib/db/schema";
-import { booksId } from "@/lib/db/refs";
+import { bookLetters, bookQuestions, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
+import { booksId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 
 export async function clientById(id: string) {

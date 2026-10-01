@@ -4,7 +4,7 @@ import { currentMonth } from "@/modules/sales";
 import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
 import { can, contactView, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
-import { formatPhone } from "@/lib/crm/phone";
+import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
 import { cn, formatDate } from "@/lib/utils";
 

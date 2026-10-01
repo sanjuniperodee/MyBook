@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/lib/db/schema";
-import { phoneKey } from "@/lib/crm/phone";
+import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/shared/infrastructure/db/schema";
+import { phoneKey } from "@/shared/domain/phone";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
 import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage, type StageMilestone } from "../domain";

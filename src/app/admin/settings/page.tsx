@@ -1,14 +1,14 @@
 import { requireStaff } from "@/server/access";
-import { fromEnv, getSetting, getSettings, maskSecret } from "@/lib/crm/settings";
+import { fromEnv, getSetting, getSettings, maskSecret } from "@/modules/workspace";
 import { container } from "@/server/container";
-import { env } from "@/lib/env";
-import { templateVars } from "@/lib/crm/automation-meta";
+import { env } from "@/config/env";
+import { templateVars } from "@/modules/automation/domain/meta";
 import { AiForm, Blocklist, EmailForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
-import { parseWorkHours } from "@/lib/crm/schedule";
+import { parseWorkHours } from "@/modules/workspace/domain/schedule";
 import { BotForm } from "./BotForm";
-import { parseBotConfig } from "@/lib/crm/bot-logic";
-import { listFields } from "@/lib/crm/fields";
-import { formatPhone } from "@/lib/crm/phone";
+import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
+import { listFields } from "@/modules/workspace";
+import { formatPhone } from "@/shared/domain/phone";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Интеграции" };

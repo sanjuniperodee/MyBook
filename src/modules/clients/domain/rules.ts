@@ -1,5 +1,5 @@
-import { normalizePhone } from "@/lib/crm/phone";
-import { findMentions } from "@/lib/crm/mentions-logic";
+import { normalizePhone } from "@/shared/domain/phone";
+import { findMentions } from "@/modules/workspace/domain/mentions";
 
 export type TaskKind = "task" | "call" | "message" | "meeting";
 export type NoteKind = "note" | "call" | "message" | "email" | "system";

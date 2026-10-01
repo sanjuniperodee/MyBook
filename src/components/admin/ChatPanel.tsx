@@ -7,7 +7,7 @@ import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
 import type { ChatOffers } from "@/modules/marketing";
-import { fillTemplate } from "@/lib/crm/automation-meta";
+import { fillTemplate } from "@/modules/automation/domain/meta";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";
 

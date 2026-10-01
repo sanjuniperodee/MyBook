@@ -1,10 +1,10 @@
 import "server-only";
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
-import { db } from "../db";
-import { crmCalls, crmDeals, crmNotifications, users } from "../db/schema";
-import { crmCounters, type CrmCounters } from "../crm";
-import { can, contactView, type Staff } from "@/server/access";
-import { formatPhone } from "./phone";
+import { executor } from "@/shared/infrastructure/database";
+import { crmCalls, crmDeals, crmNotifications, users } from "@/shared/infrastructure/db/schema";
+import { crmCounters, type CrmCounters } from "@/modules/reporting/infrastructure/Counters";
+import type { StaffContext } from "@/modules/access";
+import { formatPhone } from "@/shared/domain/phone";
 
 export interface LiveNotification {
   id: string;
@@ -35,8 +35,9 @@ export interface LiveState {
 }
 
 /** Состояние для опроса раз в несколько секунд: бейджи, колокольчик, входящий звонок. */
-export async function getLive(staff: Staff): Promise<LiveState> {
-  const me = staff.user.id;
+export async function getLive(staff: StaffContext): Promise<LiveState> {
+  const me = staff.userId;
+  const db = executor();
   const [counters, [{ n: unread }], list, ringingRows] = await Promise.all([
     crmCounters(staff),
     db
@@ -44,7 +45,7 @@ export async function getLive(staff: Staff): Promise<LiveState> {
       .from(crmNotifications)
       .where(and(eq(crmNotifications.userId, me), isNull(crmNotifications.readAt))),
     db.select().from(crmNotifications).where(eq(crmNotifications.userId, me)).orderBy(desc(crmNotifications.createdAt)).limit(12),
-    can(staff, "calls.view")
+    staff.can("calls.view")
       ? db
           .select({ call: crmCalls, clientName: users.name, dealName: crmDeals.contactName })
           .from(crmCalls)
@@ -69,7 +70,7 @@ export async function getLive(staff: Staff): Promise<LiveState> {
     notifications: list.map((n) => ({ id: n.id, kind: n.kind, title: n.title, body: n.body, link: n.link, read: !!n.readAt, at: n.createdAt.toISOString() })),
     ringing: ringingRows.map(({ call, clientName, dealName }) => ({
       id: call.id,
-      phone: contactView(staff, { phone: formatPhone(call.clientPhone) }).phone || "скрытый номер",
+      phone: staff.contacts({ phone: formatPhone(call.clientPhone) }).phone || "скрытый номер",
       name: clientName || dealName || null,
       clientId: call.clientId,
       dealId: call.dealId,

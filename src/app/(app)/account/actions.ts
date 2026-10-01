@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireUser, sessionToken } from "@/server/auth";
 import { container } from "@/server/container";
 import { IdentityError } from "@/modules/identity";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimit } from "@/server/rateLimit";
 import { getMessages } from "@/i18n/server";
 
 export interface AccountState {

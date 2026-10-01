@@ -1,10 +1,10 @@
 import { container } from "@/server/container";
-import { listFields } from "@/lib/crm/fields";
-import { channelLabel, toAttribution } from "@/lib/crm/channels";
+import { listFields } from "@/modules/workspace";
+import { channelLabel, toAttribution } from "@/modules/marketing/domain/channels";
 import Link from "next/link";
 import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { dealSourceLabels, dealSources } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
 import { cn, formatDate, nowMs } from "@/lib/utils";
@@ -25,7 +25,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const [stages, rows, admins, views] = await Promise.all([
     container().sales.queries.listStages(pipeline.id),
     container().reporting.dealList({ userId: staff.user.id, seesAll: staff.scope === "all" }, pipeline, sp, selectFields, view),
-    listAdmins(),
+    container().access.queries.allStaff(),
     container().reporting.savedViews(staff.user.id),
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));

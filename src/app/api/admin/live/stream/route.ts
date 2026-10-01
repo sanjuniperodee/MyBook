@@ -1,5 +1,5 @@
-import { apiStaff } from "@/lib/api";
-import { subscribe, type LiveEvent } from "@/lib/crm/realtime";
+import { apiStaff } from "@/server/api";
+import { subscribe, type LiveEvent } from "@/modules/workspace";
 
 export const dynamic = "force-dynamic";
 

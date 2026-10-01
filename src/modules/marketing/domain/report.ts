@@ -1,4 +1,4 @@
-import { channelOf, channels, toAttribution, type Attribution, type ChannelKey } from "@/lib/crm/channels";
+import { channelOf, channels, toAttribution, type Attribution, type ChannelKey } from "@/modules/marketing/domain/channels";
 
 export interface Metrics {
   clicks: number;

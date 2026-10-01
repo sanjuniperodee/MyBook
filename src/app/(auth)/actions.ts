@@ -1,9 +1,9 @@
 "use server";
 
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { readSource, queueEvent } from "@/lib/track";
+import { readSource, queueEvent } from "@/server/track";
 import { z } from "zod";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimit } from "@/server/rateLimit";
 import { isThemeId } from "@/lib/content/themes";
 import { IdentityError } from "@/modules/identity";
 import { container } from "@/server/container";

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq } from "drizzle-orm";
-import { db } from "../db";
-import { crmFields, type CrmField, type CustomValues } from "../db/schema";
+import { db } from "@/shared/infrastructure/db";
+import { crmFields, type CrmField, type CustomValues } from "@/shared/infrastructure/db/schema";
 
 export async function listFields(entity: "deal" | "client"): Promise<CrmField[]> {
   return db.select().from(crmFields).where(eq(crmFields.entity, entity)).orderBy(asc(crmFields.position), asc(crmFields.createdAt));

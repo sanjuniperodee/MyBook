@@ -6,7 +6,7 @@ import { ask, toastError } from "@/components/ui/overlays";
 import { createPipelineAction, deletePipelineAction, deleteStageAction, moveStageAction, renamePipelineAction, saveStageAction, type DealFormState } from "../actions";
 import { Plus } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { stageMilestones } from "@/lib/crm/deal-meta";
+import { stageMilestones } from "@/modules/sales/domain/meta";
 
 const kindLabel = { open: "в работе", won: "успех", lost: "отказ" } as const;
 

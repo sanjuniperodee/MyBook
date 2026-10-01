@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, ne, sql } from "drizzle-orm";
-import { orderEvents, orders } from "@/lib/db/schema";
+import { orderEvents, orders } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { PlanId, DeliveryId } from "@/config/site";
 import { Order, type OrderRepository } from "../../domain";

@@ -1,7 +1,7 @@
 import "server-only";
 import { eq, inArray } from "drizzle-orm";
-import { db } from "../db";
-import { crmSettings } from "../db/schema";
+import { db } from "@/shared/infrastructure/db";
+import { crmSettings } from "@/shared/infrastructure/db/schema";
 import { decryptSecret, encryptSecret, randomToken } from "@/shared/crypto";
 
 interface Def {

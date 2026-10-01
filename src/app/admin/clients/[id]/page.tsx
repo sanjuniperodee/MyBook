@@ -1,12 +1,12 @@
 import { planName } from "@/i18n/labels";
-import { listFields } from "@/lib/crm/fields";
-import { channelLabel, describeAttribution, toAttribution } from "@/lib/crm/channels";
+import { listFields } from "@/modules/workspace";
+import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { container } from "@/server/container";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { canRemind } from "@/modules/notifications";
 import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
@@ -14,7 +14,7 @@ import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/statu
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
 import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
-import { formatPhone } from "@/lib/crm/phone";
+import { formatPhone } from "@/shared/domain/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { dealSourceLabels } from "@/modules/sales";
@@ -29,7 +29,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
   const [{ bookRows, orderRows, taskRows, noteRows, dealRows }, admins, clientFields] = await Promise.all([
     container().reporting.clientCard(id, { deals: can(staff, "deals.view") }),
-    listAdmins(),
+    container().access.queries.allStaff(),
     listFields("client"),
   ]);
 

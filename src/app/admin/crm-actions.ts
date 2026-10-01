@@ -6,8 +6,8 @@ import { z } from "zod";
 import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
-import { getSetting } from "@/lib/crm/settings";
-import { normalizePhone } from "@/lib/crm/phone";
+import { getSetting } from "@/modules/workspace";
+import { normalizePhone } from "@/shared/domain/phone";
 
 type Target = ContactTarget;
 
@@ -75,7 +75,7 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
   assertVisible(staff, c.assigneeId);
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
-  const { sendEmailToContact } = await import("@/lib/crm/email");
+  const { sendEmailToContact } = await import("@/modules/messaging");
   const r = await sendEmailToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
   if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
@@ -119,7 +119,7 @@ export async function setClientFieldsAction(_: { ok?: string; error?: string }, 
   const client = await container().clients.clients.find(uuid.parse(String(form.get("clientId") ?? "")));
   if (!client) return { error: "Клиент не найден" };
   assertVisible(staff, client.managerId);
-  const { listFields, readFieldValues } = await import("@/lib/crm/fields");
+  const { listFields, readFieldValues } = await import("@/modules/workspace");
   await container().clients.clients.setCustomFields(client, readFieldValues(await listFields("client"), form, client.customFields));
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: "Сохранено" };

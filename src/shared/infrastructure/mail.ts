@@ -2,7 +2,7 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { site } from "@/config/site";
 import { localizePath, type Locale } from "@/i18n/config";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import type { MailAttachment, Mailer } from "../application/Mailer";
 
 let transporter: Transporter | null | undefined;

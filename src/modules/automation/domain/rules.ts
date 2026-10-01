@@ -1,6 +1,6 @@
-import { automationTriggers, type AutomationTrigger } from "@/lib/crm/automation-meta";
+import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
 
-export { automationActions, automationHours, automationTriggers, fillTemplate, isTrigger, templateVars, type AutomationActionType, type AutomationTrigger } from "@/lib/crm/automation-meta";
+export { automationActions, automationHours, automationTriggers, fillTemplate, isTrigger, templateVars, type AutomationActionType, type AutomationTrigger } from "@/modules/automation/domain/meta";
 
 export interface RuleAction {
   type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal";

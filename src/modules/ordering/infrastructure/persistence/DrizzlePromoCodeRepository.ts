@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
-import { promoCodes } from "@/lib/db/schema";
+import { promoCodes } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { PromoCode, normalizePromoCode, type PromoCodeRepository } from "../../domain";
 

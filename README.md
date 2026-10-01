@@ -135,7 +135,7 @@ bash deploy/deploy.sh <ветка>
 | Цены тарифов, допов и доставка | `src/config/site.ts` (`plans`, `addons`, `deliveryOptions`, `productionWorkdays`) |
 | Поводы и расчёт «успеть к дате» | `src/lib/occasions.ts` |
 | SEO-страницы | `src/lib/content/landings.ts` |
-| Тексты автописем | `src/lib/lifecycle.ts` |
+| Тексты автописем | `src/modules/notifications/infrastructure/templates.ts` (когда отправлять — `domain/lifecycle.ts`) |
 | Реквизиты для оплаты переводом | `src/config/site.ts` (`manualPayment`) |
 | Вопросы и главы | `src/lib/content/*.ts` (синтаксис рода: `{м|ж}` — автор, `[м|ж]` — адресат) |
 | Обложки | `src/lib/book/covers.ts` |
@@ -192,7 +192,7 @@ bash deploy/deploy.sh <ветка>
 | `npm run build && npm start` | Продакшен-сборка и запуск |
 | `npm run typecheck` / `npm run lint` | Проверка типов и линтер |
 | `npm test` | Unit-тесты и смоук-тест генерации PDF |
-| `npm run db:generate` | Новая миграция после изменения `src/lib/db/schema.ts` |
+| `npm run db:generate` | Новая миграция после изменения `src/shared/infrastructure/db/schema.ts` |
 | `npm run db:migrate` | Применить миграции вручную |
 | `npm run create-admin -- email пароль` | Создать администратора |
 | `npm run scheduler:once -- --any-hour` | Один проход фоновых задач вручную (сертификаты + автописьма) |

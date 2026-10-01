@@ -1,6 +1,6 @@
 import "server-only";
 import { and, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { outboxEvents } from "@/lib/db/schema";
+import { outboxEvents } from "@/shared/infrastructure/db/schema";
 import type { DomainEvent } from "../domain/DomainEvent";
 import type { EventBus } from "../application/EventBus";
 import { consoleLogger, type Logger } from "../application/Logger";

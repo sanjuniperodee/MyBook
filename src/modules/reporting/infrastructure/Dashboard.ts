@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
+import { crmTasks, orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { iso, localDay, SHOP_TZ } from "./time";
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const who = sp.who === "all" ? "all" : "mine";
   const showDone = sp.done === "1";
-  const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: admin.id, seesAll: staff.scope === "all" }, { who, done: showDone }), listAdmins()]);
+  const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: admin.id, seesAll: staff.scope === "all" }, { who, done: showDone }), container().access.queries.allStaff()]);
   const adminOptions = staffOptions(admins);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const today = new Date();

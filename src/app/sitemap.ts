@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { landings } from "@/lib/content/landings";
 import { localizePath } from "@/i18n/config";
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { env } from "./env";
+import { env } from "@/config/env";
 
 /** Локальное файловое хранилище. Ключи — относительные пути вида photos/<bookId>/<id>.jpg. */
 const root = path.resolve(env.storageDir);

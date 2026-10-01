@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
-import { renderCover, renderInterior, type BookBundle } from "@/lib/pdf/render";
+import { renderCover, renderInterior, type BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import { print } from "@/lib/book/formats";
-import type { Book, BookQuestion } from "@/lib/db/schema";
+import type { Book, BookQuestion } from "@/shared/infrastructure/db/schema";
 
 const now = new Date();
 const book: Book = {
@@ -82,7 +82,7 @@ describe("генерация PDF", () => {
 
 describe("подарочный сертификат", () => {
   it("рендерится в одну страницу A5 альбомной ориентации", async () => {
-    const { renderGiftPdf } = await import("@/lib/pdf/gift");
+    const { renderGiftPdf } = await import("@/modules/production/infrastructure/pdf/gift");
     const pdf = await renderGiftPdf({
       locale: "ru",
       number: 12,
@@ -102,7 +102,7 @@ describe("подарочный сертификат", () => {
   });
 
   it("казахский сертификат собирается тем же макетом", async () => {
-    const { renderGiftPdf } = await import("@/lib/pdf/gift");
+    const { renderGiftPdf } = await import("@/modules/production/infrastructure/pdf/gift");
     const pdf = await renderGiftPdf({
       locale: "kk",
       number: 13,

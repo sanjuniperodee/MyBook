@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
-import { saveSettings } from "@/lib/crm/settings";
+import { saveSettings } from "@/modules/workspace";
 
 export type LinkState = { ok?: string; error?: string; slug?: string };
 

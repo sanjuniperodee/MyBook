@@ -2,8 +2,8 @@ import { afterAll, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { AggregateRoot, domainEvent } from "@/shared/domain";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher, rootDb } from "@/shared/infrastructure";
-import { outboxEvents } from "@/lib/db/schema";
-import { pool } from "@/lib/db";
+import { outboxEvents } from "@/shared/infrastructure/db/schema";
+import { pool } from "@/shared/infrastructure/db";
 
 /**
  * Интеграционный тест outbox на настоящем PostgreSQL. Запуск: INTEGRATION=1 npx vitest run tests/outbox.integration.test.ts

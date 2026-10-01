@@ -1,7 +1,7 @@
-import { isPhoneLike, normalizePhone } from "@/lib/crm/phone";
-import { statusRank } from "@/lib/crm/wazzup-protocol";
+import { isPhoneLike, normalizePhone } from "@/shared/domain/phone";
+import { statusRank } from "@/modules/messaging/domain/wazzup";
 
-export type { WazzupIncoming as InboundMessage, WazzupStatus as DeliveryStatus } from "@/lib/crm/wazzup-protocol";
+export type { WazzupIncoming as InboundMessage, WazzupStatus as DeliveryStatus } from "@/modules/messaging/domain/wazzup";
 
 export interface ConversationMeta {
   /** Чат с сайта: страница, с которой написали, и контакты, которые оставил посетитель. */

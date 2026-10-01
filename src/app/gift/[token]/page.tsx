@@ -9,7 +9,7 @@ import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { getCurrentUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { isOnlinePayment, redeemUrl } from "@/modules/ordering";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { formatPrice, site } from "@/config/site";
 import { parseDay } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";

@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { channelLabel, channels, toAttribution } from "@/lib/crm/channels";
+import { channelLabel, channels, toAttribution } from "@/modules/marketing/domain/channels";
 import { Download } from "lucide-react";
-import { clientSegments, type ClientSegment } from "@/lib/crm";
-import { queryClients, segmentCounts, type ClientSort } from "@/lib/crm-clients";
+import { clientSegments, type ClientSegment } from "@/modules/clients/domain/segments";
+import type { ClientSort } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";
 import { cn, formatDate } from "@/lib/utils";
 import { can, contactView, requireStaff } from "@/server/access";
-import { adminLabel, listAdmins } from "@/lib/crm";
+import { adminLabel } from "@/modules/access/ui";
+import { container } from "@/server/container";
 
 export const metadata = { title: "Клиенты" };
 const PAGE = 50;
@@ -30,9 +31,9 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const scopeManagerId = staff.scope === "own" ? staff.user.id : null;
   const onlyMine = sp.mine === "1";
   const [{ rows, total }, counts, admins] = await Promise.all([
-    queryClients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine }),
-    segmentCounts(scopeManagerId),
-    listAdmins(),
+    container().reporting.clients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine }),
+    container().reporting.segmentCounts(scopeManagerId),
+    container().access.queries.allStaff(),
   ]);
   const managerName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {

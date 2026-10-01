@@ -2,6 +2,7 @@ import "server-only";
 import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
 import { rootDb } from "@/shared/infrastructure/database";
+import { deleteFile, putFile } from "@/shared/infrastructure/storage";
 import { sql } from "drizzle-orm";
 import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
 import { SmtpMailer } from "@/shared/infrastructure/mail";
@@ -185,6 +186,17 @@ export class Container {
   async databaseHealthy() {
     try {
       await rootDb.execute(sql`select 1`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Хранилище файлов доступно на запись. */
+  async storageHealthy() {
+    try {
+      await putFile("cache/health-check", "ok");
+      await deleteFile("cache/health-check");
       return true;
     } catch {
       return false;

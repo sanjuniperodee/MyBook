@@ -1,12 +1,12 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { crmTasks } from "@/lib/db/schema";
-import { notifyOwnerOr } from "@/lib/crm/notify";
-import { publish } from "@/lib/crm/realtime";
-import { getSetting } from "@/lib/crm/settings";
-import { isWorkTime, parseWorkHours } from "@/lib/crm/schedule";
-import { listFields } from "@/lib/crm/fields";
-import { parseBotConfig } from "@/lib/crm/bot-logic";
+import { crmTasks } from "@/shared/infrastructure/db/schema";
+import { notifyOwnerOr } from "@/modules/workspace";
+import { publish } from "@/modules/workspace";
+import { getSetting } from "@/modules/workspace";
+import { isWorkTime, parseWorkHours } from "@/modules/workspace/domain/schedule";
+import { listFields } from "@/modules/workspace";
+import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";
 import type { BotSettings, ChannelTransport, LiveUpdates, StaffNotifier, Tasks } from "../application";
 import type { BotMode } from "../domain";
@@ -16,11 +16,11 @@ export const channelTransport: ChannelTransport = {
   async send(conv, messageId, text) {
     if (conv.channel === "site") return { ok: true, externalId: null };
     if (conv.channel === "email") {
-      const { sendEmailReply } = await import("@/lib/crm/email");
+      const { sendEmailReply } = await import("@/modules/messaging/infrastructure/email");
       const r = await sendEmailReply(conv, messageId, text);
       return r.ok ? { ok: true, externalId: null } : r;
     }
-    const { sendWazzupMessage, WazzupError } = await import("@/lib/crm/wazzup");
+    const { sendWazzupMessage, WazzupError } = await import("@/modules/messaging/infrastructure/wazzup");
     try {
       return { ok: true, externalId: await sendWazzupMessage({ channelId: conv.channelId, chatType: conv.channel, chatId: conv.chatId, text, crmMessageId: messageId }) };
     } catch (err) {
@@ -55,7 +55,7 @@ export const crmTasksAdapter: Tasks = {
 
 /** Что показывает виджет на сайте: кнопка WhatsApp, онлайн-чат. */
 export async function widgetSettings(whatsapp: () => Promise<string>) {
-  const { getSettings } = await import("@/lib/crm/settings");
+  const { getSettings } = await import("@/modules/workspace");
   const s = await getSettings(["widget.enabled", "widget.chat"]);
   const enabled = s["widget.enabled"] !== "off";
   return { enabled, chat: enabled && s["widget.chat"] !== "off", whatsapp: enabled ? await whatsapp() : "" };

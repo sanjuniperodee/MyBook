@@ -10,7 +10,7 @@ import { container } from "@/server/container";
 import { formatPrice, getPlan, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { addonName, deliveryName, planName } from "@/i18n/labels";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { isOnlinePayment } from "@/modules/ordering";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { CoverPreview } from "@/components/cover/CoverPreview";

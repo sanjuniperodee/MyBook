@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSetting } from "@/lib/crm/settings";
+import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
-import { parseGenericEvent } from "@/lib/crm/telephony-protocol";
+import { parseGenericEvent } from "@/modules/telephony/domain/protocol";
 import { container } from "@/server/container";
 
 /**

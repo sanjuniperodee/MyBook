@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { messagesFor } from "@/i18n/messages";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import type { Mailer } from "@/shared/application";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { decryptSecret, encryptSecret } from "@/shared/crypto";

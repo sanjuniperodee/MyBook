@@ -1,13 +1,13 @@
 import "server-only";
-import { fieldVars, listFields } from "./fields";
+import { fieldVars, listFields } from "@/modules/workspace";
 import { asc, desc, eq } from "drizzle-orm";
-import { db } from "../db";
-import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "../db/schema";
-import { env } from "../env";
+import { db } from "@/shared/infrastructure/db";
+import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
+import { env } from "@/config/env";
 import { container } from "@/server/container";
-import { adminLabel } from "../crm";
-import { getSetting } from "./settings";
-import { wazzupConfigured } from "./wazzup";
+import { adminLabel } from "@/modules/access/ui";
+import { getSetting } from "@/modules/workspace";
+import { wazzupConfigured } from "@/modules/messaging/infrastructure/wazzup";
 import type { ChatMessage } from "@/components/admin/ChatPanel";
 
 /** Последние сообщения диалога в виде, готовом для ChatPanel. */

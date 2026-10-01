@@ -13,7 +13,7 @@ import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { deadlineFor, getOccasion, nextFixedDate } from "@/lib/occasions";
 import { formatPrice, plans, site } from "@/config/site";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { localizePath } from "@/i18n/config";

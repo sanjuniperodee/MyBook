@@ -2,8 +2,7 @@ import { container } from "@/server/container";
 import { Search } from "lucide-react";
 import { requireStaffShell } from "@/server/access";
 import { logoutAction } from "@/app/(auth)/actions";
-import { adminLabel } from "@/lib/crm";
-import { getLive } from "@/lib/crm/live";
+import { adminLabel } from "@/modules/access/ui";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
@@ -35,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
-  const [live, phone] = await Promise.all([getLive(staff), can(staff, "calls.make") ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false]);
+  const [live, phone] = await Promise.all([container().reporting.live(staff.context), can(staff, "calls.make") ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false]);
   const nav = { adminName: adminLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift: staff.user.onShift };
   return (
     <CrmLiveProvider initial={live}>

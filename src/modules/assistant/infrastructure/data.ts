@@ -1,10 +1,10 @@
 import "server-only";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { bookQuestions, books, crmCalls, crmConversations, crmDeals, crmNotes, crmStages, crmTasks, orders } from "@/lib/db/schema";
-import { booksId } from "@/lib/db/refs";
-import { getSetting } from "@/lib/crm/settings";
-import { loadChatMessages } from "@/lib/crm/chat-view";
-import { fieldVars, listFields } from "@/lib/crm/fields";
+import { bookQuestions, books, crmCalls, crmConversations, crmDeals, crmNotes, crmStages, crmTasks, orders } from "@/shared/infrastructure/db/schema";
+import { booksId } from "@/shared/infrastructure/db/refs";
+import { getSetting } from "@/modules/workspace";
+import { loadChatMessages } from "@/modules/messaging";
+import { fieldVars, listFields } from "@/modules/workspace";
 import { executor } from "@/shared/infrastructure/database";
 import type { AssistantData } from "../application";
 import type { AiMessage } from "../domain";

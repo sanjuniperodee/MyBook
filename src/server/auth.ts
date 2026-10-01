@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { lredirect } from "@/i18n/server";
-import { isSecureCookie } from "@/lib/env";
+import { isSecureCookie } from "@/config/env";
 import { signValue, verifySigned } from "@/shared/crypto";
 import type { CurrentUser } from "@/modules/identity";
 import { container } from "./container";

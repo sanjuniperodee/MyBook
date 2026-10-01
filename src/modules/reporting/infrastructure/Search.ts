@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/lib/db/schema";
+import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 

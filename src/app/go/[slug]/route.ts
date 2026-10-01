@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { container } from "@/server/container";
 
 /** Короткая рекламная ссылка: считаем переход и ведём на сайт с UTM-метками или в WhatsApp с кодом ссылки. */

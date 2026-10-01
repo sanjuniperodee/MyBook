@@ -15,14 +15,14 @@ const modules = readdirSync(new URL("./src/modules", import.meta.url), { withFil
 
 const infraImports = [
   { group: ["drizzle-orm", "drizzle-orm/*", "pg"], message: "Домен и сценарии не работают с БД напрямую — только через репозитории (порты)." },
-  { group: ["@/lib/db", "@/lib/db/*", "**/lib/db", "**/lib/db/*"], message: "Схема и клиент БД — детали инфраструктуры." },
+  { group: ["@/shared/infrastructure/**", "**/shared/infrastructure/**"], message: "Схема, клиент БД и адаптеры — детали инфраструктуры." },
   { group: ["next", "next/*", "react", "react-dom"], message: "Домен и сценарии не зависят от фреймворка." },
 ];
 
-const domainOnly = { group: ["server-only", "**/infrastructure/*", "**/application/*", "@/server/*"], message: "Домен не зависит от внешних слоёв." };
-const applicationOnly = { group: ["**/infrastructure/*", "@/server/*"], message: "Сценарии зависят от портов, а не от реализаций." };
+const domainOnly = { group: ["server-only", "**/infrastructure/**", "**/application/**", "@/server/*"], message: "Домен не зависит от внешних слоёв." };
+const applicationOnly = { group: ["**/infrastructure/**", "@/server/*"], message: "Сценарии зависят от портов, а не от реализаций." };
 const foreignModule = (name) => ({
-  group: ["@/modules/*/infrastructure/*", "@/modules/*/application/*", `!@/modules/${name}/**`],
+  group: ["@/modules/*/infrastructure/**", "@/modules/*/application/**", `!@/modules/${name}/**`],
   message: "Другой модуль доступен только через его фасад (@/modules/<имя>) или доменные типы.",
 });
 const restrict = (patterns) => ({ "no-restricted-imports": ["error", { patterns }] });
@@ -43,8 +43,16 @@ const config = [
   {
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.tsx"],
     rules: restrict([
-      { group: ["@/modules/*/infrastructure/*", "@/modules/*/application/*", "@/shared/infrastructure/*"], message: "Слой представления работает с модулями через container() и их фасады." },
-      { group: ["drizzle-orm", "drizzle-orm/*", "pg", "@/lib/db", "@/lib/db/*"], message: "Страницы, действия и роуты не ходят в БД: команды — через сервисы модулей, чтения — через их read-модели (queries, reporting)." },
+      { group: ["@/modules/*/infrastructure/**", "@/modules/*/application/**"], message: "Слой представления работает с модулями через container() и их фасады." },
+      { group: ["drizzle-orm", "drizzle-orm/*", "pg", "@/shared/infrastructure/**"], message: "Страницы, действия и роуты не ходят в БД: команды — через сервисы модулей, чтения — через их read-модели (queries, reporting)." },
+    ]),
+  },
+  {
+    // src/lib — чистые библиотеки (вёрстка книги, контент, помощники UI): без БД, ввода-вывода и модулей.
+    files: ["src/lib/**/*.{ts,tsx}"],
+    rules: restrict([
+      { group: ["drizzle-orm", "drizzle-orm/*", "pg", "server-only", "@/server/*", "@/modules/*", "@/modules/**"], message: "src/lib — чистые библиотеки без БД и бизнес-модулей." },
+      { regex: "^@/shared/infrastructure/(?!db/schema$)", message: "src/lib — чистые библиотеки без БД (типы строк из схемы — можно)." },
     ]),
   },
 ];

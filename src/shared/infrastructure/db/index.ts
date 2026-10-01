@@ -1,6 +1,6 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import * as schema from "./schema";
+import * as schema from "@/shared/infrastructure/db/schema";
 
 const globalForDb = globalThis as unknown as { __mybookPool?: Pool; __mybookDb?: NodePgDatabase<typeof schema> };
 

@@ -15,9 +15,9 @@ import {
 } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
 // Относительные пути: схему читает и drizzle-kit, который не знает алиас «@/».
-import { ORDER_STATUSES, type OrderStatus } from "../../modules/ordering/domain/OrderStatus";
-import type { OrderPrintSpec } from "../../modules/ordering/domain/Order";
-import type { GiftStatus } from "../../modules/ordering/domain/GiftCard";
+import { ORDER_STATUSES, type OrderStatus } from "@/modules/ordering/domain/OrderStatus";
+import type { OrderPrintSpec } from "@/modules/ordering/domain/Order";
+import type { GiftStatus } from "@/modules/ordering/domain/GiftCard";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -457,8 +457,8 @@ export const crmStages = pgTable("crm_stages", {
   ...timestamps,
 });
 
-export { dealSources, type DealSource, type StageMilestone } from "../crm/deal-meta";
-import type { DealSource, StageMilestone } from "../crm/deal-meta";
+export { dealSources, type DealSource, type StageMilestone } from "@/modules/sales/domain/meta";
+import type { DealSource, StageMilestone } from "@/modules/sales/domain/meta";
 
 /** Сделка (лид): обращение, которое ведём до заказа. */
 export const crmDeals = pgTable(

@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { giftCards, orderEvents, orders, promoCodes } from "@/lib/db/schema";
+import { giftCards, orderEvents, orders, promoCodes } from "@/shared/infrastructure/db/schema";
 import { rootDb } from "@/shared/infrastructure/database";
 
 /**

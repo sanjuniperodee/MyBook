@@ -1,11 +1,11 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
-import { db } from "../db";
-import { users } from "../db/schema";
-import { adminLabel } from "../crm";
-import { notify } from "./notify";
+import { db } from "@/shared/infrastructure/db";
+import { users } from "@/shared/infrastructure/db/schema";
+import { adminLabel } from "@/modules/access/ui";
+import { notify } from "@/modules/workspace/infrastructure/notify";
 
-import { findMentions } from "./mentions-logic";
+import { findMentions } from "@/modules/workspace/domain/mentions";
 
 export { findMentions };
 

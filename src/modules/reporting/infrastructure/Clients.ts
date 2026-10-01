@@ -1,9 +1,9 @@
 import "server-only";
-import { usersId } from "@/lib/db/refs";
+import { usersId } from "@/shared/infrastructure/db/refs";
 import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
-import { db } from "./db";
-import { users } from "./db/schema";
-import type { ClientSegment } from "./crm";
+import { db } from "@/shared/infrastructure/db";
+import { users } from "@/shared/infrastructure/db/schema";
+import type { ClientSegment } from "@/modules/clients/domain/segments";
 
 export const STALLED_DAYS = 14;
 
@@ -47,7 +47,7 @@ function managerScope(managerId?: string | null, onlyMine?: boolean): SQL | unde
 }
 
 /**
- * Фильтр по каналу привлечения в SQL — те же правила, что channelOf() (lib/crm/channels), для основных каналов.
+ * Фильтр по каналу привлечения в SQL — те же правила, что channelOf() (marketing/domain/channels), для основных каналов.
  */
 export function channelWhere(ch: string | undefined): SQL | undefined {
   if (!ch) return undefined;

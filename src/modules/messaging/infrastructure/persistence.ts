@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
-import { crmBlocklist, crmConversations, crmMessages, users } from "@/lib/db/schema";
+import { crmBlocklist, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, ConversationRepository, MessageRepository } from "../application";
 import type { Conversation, InboundMessage } from "../domain";

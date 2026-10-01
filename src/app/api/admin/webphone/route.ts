@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { api, apiStaff } from "@/lib/api";
+import { api, apiStaff } from "@/server/api";
 import { TelephonyError } from "@/modules/telephony";
 import { container } from "@/server/container";
 

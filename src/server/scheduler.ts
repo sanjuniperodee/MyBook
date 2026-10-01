@@ -1,5 +1,5 @@
 import "server-only";
-import { pool } from "./db";
+import { pool } from "@/shared/infrastructure/db";
 import { container } from "@/server/container";
 
 const INTERVAL_MS = 15 * 60_000;
@@ -40,7 +40,7 @@ export async function crmTick() {
     const fired = await container().automation.engine.runScheduled();
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
-    const { pollImap } = await import("./crm/email");
+    const { pollImap } = await import("@/modules/messaging");
     const mails = await pollImap();
     if (mails) console.log(`[scheduler] crm emails=${mails}`);
   } catch (err) {

@@ -1,6 +1,6 @@
 import "server-only";
-import { env } from "../env";
-import { getSetting } from "./settings";
+import { env } from "@/config/env";
+import { getSetting } from "@/modules/workspace";
 
 export class WazzupError extends Error {}
 

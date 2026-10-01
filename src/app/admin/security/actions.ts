@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import { assertStaff, assertStaffShell, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { container } from "@/server/container";
-import { trustedClientIp, rateLimit } from "@/lib/rate-limit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
 

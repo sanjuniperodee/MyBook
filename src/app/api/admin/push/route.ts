@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { api, apiStaff } from "@/lib/api";
+import { api, apiStaff } from "@/server/api";
 import { container } from "@/server/container";
-import { vapidKeys } from "@/lib/crm/push";
+import { vapidKeys } from "@/modules/workspace";
 
 /** Публичный ключ VAPID для подписки браузера. */
 export const GET = api(async (req) => {

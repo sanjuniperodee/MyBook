@@ -1,16 +1,16 @@
 import { container } from "@/server/container";
-import { listFields } from "@/lib/crm/fields";
-import { channelLabel as acquisitionChannel, describeAttribution, toAttribution } from "@/lib/crm/channels";
+import { listFields } from "@/modules/workspace";
+import { channelLabel as acquisitionChannel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
+import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { dealSourceLabels } from "@/modules/sales";
 import { channelLabel } from "@/modules/messaging";
-import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
-import { mentionableStaff } from "@/lib/crm/mentions";
-import { formatPhone } from "@/lib/crm/phone";
+import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
+import { mentionableStaff } from "@/modules/workspace";
+import { formatPhone } from "@/shared/domain/phone";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
@@ -33,7 +33,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const [allStages, pipelines, admins, { noteRows, taskRows, callRows, convs, client, order, bookRows }] = await Promise.all([
     container().sales.queries.listStages(),
     container().sales.queries.listPipelines(),
-    listAdmins(),
+    container().access.queries.allStaff(),
     container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));

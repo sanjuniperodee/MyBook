@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, gte, ilike, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmNotes, crmTasks, orders, orderStatuses } from "@/lib/db/schema";
+import { crmNotes, crmTasks, orders, orderStatuses } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { plans } from "@/config/site";
 

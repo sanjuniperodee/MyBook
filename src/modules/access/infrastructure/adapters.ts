@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { getSettings, saveSettings } from "@/lib/crm/settings";
+import { getSettings, saveSettings } from "@/modules/workspace";
 import type { PasswordGenerator, SecuritySettingsStore } from "../application/ports";
 
 export const settingsSecurityStore: SecuritySettingsStore = {

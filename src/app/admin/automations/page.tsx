@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { listAdmins, staffOptions } from "@/lib/crm";
+import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/utils";
 import { AutomationCard } from "./AutomationEditor";
 
@@ -8,7 +8,7 @@ export const metadata = { title: "Автоматизации" };
 
 export default async function AutomationsPage() {
   await requireStaff("settings.manage");
-  const [rules, stages, admins] = await Promise.all([container().automation.rules.list(), container().sales.queries.listStages(), listAdmins()]);
+  const [rules, stages, admins] = await Promise.all([container().automation.rules.list(), container().sales.queries.listStages(), container().access.queries.allStaff()]);
   const pipelines = await container().sales.queries.listPipelines();
   const pname = new Map(pipelines.map((p) => [p.id, p.name]));
   const ctx = { stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name })), staff: staffOptions(admins) };

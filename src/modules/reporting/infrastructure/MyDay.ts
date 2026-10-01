@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks } from "@/lib/db/schema";
+import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 
 /** Кто смотрит отчёт: его id, видит ли он чужие записи и какие разделы ему открыты. */

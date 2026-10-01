@@ -1,9 +1,9 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { site } from "@/config/site";
-import { env } from "@/lib/env";
+import { env } from "@/config/env";
 import { formatDate } from "@/lib/utils";
-import { getSetting } from "@/lib/crm/settings";
+import { getSetting } from "@/modules/workspace";
 import { appLink } from "@/shared/infrastructure/mail";
 import type { AppLinks, MarketingSettings } from "../application";
 

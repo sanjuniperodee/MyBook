@@ -2,8 +2,8 @@ import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { getTheme, isThemeId } from "@/lib/content/themes";
-import { MAX_UPLOAD_BYTES, processUpload } from "@/lib/images";
-import { deleteFile, deletePrefix, getFile, putFile } from "@/lib/storage";
+import { MAX_UPLOAD_BYTES, processUpload } from "@/modules/authoring/infrastructure/images";
+import { deleteFile, deletePrefix, getFile, putFile } from "@/shared/infrastructure/storage";
 import type { ThemeId } from "@/lib/content/types";
 import type { FileStore, IdGenerator, ImageProcessor, ThemeCatalog } from "../application/ports";
 

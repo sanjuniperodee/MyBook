@@ -5,7 +5,7 @@ import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { applyGender } from "../content/gender";
 import { getTheme } from "../content/themes";
-import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "../db/schema";
+import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { framedBox, layoutInline, MAX_INLINE_HEIGHT_SHARE, normalizeStyle, splitParagraphs } from "./inline-photo";
 import { getFormat, type BookFormat, type FormatId } from "./formats";
 import { getTypography, type Typography } from "./fonts";
