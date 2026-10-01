@@ -40,6 +40,10 @@ export async function crmTick() {
     const { runScheduledAutomations } = await import("./crm/automations");
     const fired = await runScheduledAutomations();
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
+    // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
+    const { pollImap } = await import("./crm/email");
+    const mails = await pollImap();
+    if (mails) console.log(`[scheduler] crm emails=${mails}`);
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
   } finally {

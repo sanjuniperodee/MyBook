@@ -38,3 +38,20 @@ export function safeEqual(a: string, b: string) {
 }
 
 export const hmacSha1Base64 = (secret: string, data: string) => createHmac("sha1", secret).update(data).digest("base64");
+
+function signKey() {
+  const base = process.env.APP_SECRET || `mybook:${process.env.DATABASE_URL ?? ""}`;
+  return createHash("sha256").update(`crm-sign:${base}`).digest();
+}
+
+/** Подписанное значение «данные.подпись» (HMAC-SHA256) — для коротко живущих cookie. */
+export function signValue(data: string): string {
+  return `${data}.${createHmac("sha256", signKey()).update(data).digest("base64url")}`;
+}
+
+export function verifySigned(value: string): string | null {
+  const i = value.lastIndexOf(".");
+  if (i <= 0) return null;
+  const data = value.slice(0, i);
+  return safeEqual(signValue(data), value) ? data : null;
+}

@@ -2,10 +2,11 @@ import { asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmBlocklist, crmTemplates } from "@/lib/db/schema";
 import { requireStaff } from "@/lib/crm/rbac";
-import { fromEnv, getSetting, maskSecret } from "@/lib/crm/settings";
+import { fromEnv, getSetting, getSettings, maskSecret } from "@/lib/crm/settings";
+import { smtpConfigured } from "@/lib/mail";
 import { env } from "@/lib/env";
 import { templateVars } from "@/lib/crm/automation-meta";
-import { Blocklist, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
+import { AiForm, Blocklist, EmailForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
 import { parseWorkHours } from "@/lib/crm/schedule";
 import { BotForm } from "./BotForm";
 import { parseBotConfig } from "@/lib/crm/bot-logic";
@@ -36,6 +37,9 @@ export default async function SettingsPage() {
     db.select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200),
   ]);
   const [botMode, botConfig, dealFields, stats] = await Promise.all([getSetting("bot.mode"), getSetting("bot.config"), listFields("deal"), botStats()]);
+  const [wEnabled, wChat, zPbx, zWebphone] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone")]);
+  const em = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.webhookToken"]);
+  const [aiKey, aiBase, aiEnabled, aiKnowledge] = await Promise.all([getSetting("ai.apiKey"), getSetting("ai.baseUrl"), getSetting("ai.enabled"), getSetting("ai.knowledge")]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -53,12 +57,21 @@ export default async function SettingsPage() {
       <TelephonyForm
         provider={provider as "off" | "zadarma" | "pbx"}
         providerFromEnv={fromEnv("telephony.provider")}
-        zadarma={{ key: maskSecret(zKey), secret: maskSecret(zSecret), keyEnv: fromEnv("zadarma.key"), secretEnv: fromEnv("zadarma.secret") }}
+        zadarma={{ key: maskSecret(zKey), secret: maskSecret(zSecret), keyEnv: fromEnv("zadarma.key"), secretEnv: fromEnv("zadarma.secret"), pbxId: zPbx, pbxIdEnv: fromEnv("zadarma.pbxId"), webphone: zWebphone === "on" }}
         zadarmaUrl={hook("/api/integrations/zadarma")}
         pbxUrl={pbxToken ? hook("/api/integrations/pbx", pbxToken) : null}
       />
 
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} />
+      <EmailForm
+        smtp={smtpConfigured()}
+        saved={{ imapHost: em["email.imapHost"], imapPort: em["email.imapPort"], imapUser: em["email.imapUser"], imapPassword: maskSecret(em["email.imapPassword"]), imapMailbox: em["email.imapMailbox"] }}
+        env={{ imapHost: fromEnv("email.imapHost"), imapPort: fromEnv("email.imapPort"), imapUser: fromEnv("email.imapUser"), imapPassword: fromEnv("email.imapPassword") }}
+        webhookUrl={em["email.webhookToken"] ? hook("/api/integrations/email", em["email.webhookToken"]) : null}
+      />
+
+      <AiForm saved={{ apiKey: maskSecret(aiKey), baseUrl: aiBase }} env={{ apiKey: fromEnv("ai.apiKey"), baseUrl: fromEnv("ai.baseUrl") }} enabled={aiEnabled !== "off"} knowledge={aiKnowledge} />
+
+      <CrmSettingsForm slaMinutes={Number(sla) || 15} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
 
       <BotForm mode={botMode} config={parseBotConfig(botConfig)} fields={dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type }))} stats={stats} />
 

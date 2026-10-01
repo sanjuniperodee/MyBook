@@ -13,6 +13,7 @@ import {
   Kanban,
   Link2,
   LayoutDashboard,
+  LockKeyhole,
   Menu,
   MessagesSquare,
   Package,
@@ -80,6 +81,7 @@ const sections: { title?: string; items: Item[] }[] = [
       { href: "/admin/automations", label: "Автоматизации", icon: Workflow, perm: ["settings.manage"] },
       { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
       { href: "/admin/settings", label: "Интеграции", icon: Settings, perm: ["settings.manage"] },
+      { href: "/admin/security", label: "Безопасность", icon: LockKeyhole },
     ],
   },
 ];

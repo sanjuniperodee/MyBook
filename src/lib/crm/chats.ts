@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
-import { crmBlocklist, crmConversations, crmDeals, crmMessages, users, type CrmConversation } from "../db/schema";
+import { crmBlocklist, crmConversations, crmDeals, crmMessages, users, type ConversationMeta, type CrmConversation } from "../db/schema";
 import { runTrigger } from "./automations";
 import { createDeal, findClientByPhone, findOpenDeal, sourceFromChannel } from "./deals";
 import { notifyOwnerOr } from "./notify";
@@ -21,6 +21,8 @@ export const channelLabels: Record<string, string> = {
   vk: "ВКонтакте",
   avito: "Avito",
   viber: "Viber",
+  site: "Чат на сайте",
+  email: "E-mail",
 };
 export const channelLabel = (c: string) => channelLabels[c] ?? c;
 
@@ -30,24 +32,35 @@ const preview = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, 160);
  * Диалог по собеседнику. Новый диалог сразу связываем с клиентом (по телефону) и сделкой:
  * открытой — если есть, иначе создаём «Новую заявку», и её подхватывают правила распределения.
  */
-async function upsertConversation(m: WazzupIncoming): Promise<{ conv: CrmConversation; created: boolean }> {
+/** Дополнительно для каналов без Wazzup: клиент с сайта (вошёл в аккаунт) и служебные данные канала. */
+export interface IngestExtra {
+  clientId?: string | null;
+  meta?: ConversationMeta;
+  subject?: string | null;
+}
+
+async function upsertConversation(m: WazzupIncoming, extra: IngestExtra = {}): Promise<{ conv: CrmConversation; created: boolean }> {
   const existing = await db.query.crmConversations.findFirst({
     where: and(eq(crmConversations.channel, m.chatType), eq(crmConversations.channelId, m.channelId), eq(crmConversations.chatId, m.chatId)),
   });
   if (existing) {
-    if ((m.contactName && m.contactName !== existing.contactName && !m.isEcho) || (m.avatarUrl && m.avatarUrl !== existing.avatarUrl)) {
-      await db
+    const meta = extra.meta ? { ...existing.meta, ...extra.meta } : existing.meta;
+    const clientId = existing.clientId ?? extra.clientId ?? null;
+    if ((m.contactName && m.contactName !== existing.contactName && !m.isEcho) || (m.avatarUrl && m.avatarUrl !== existing.avatarUrl) || extra.meta || clientId !== existing.clientId) {
+      const [updated] = await db
         .update(crmConversations)
-        .set({ contactName: m.isEcho ? existing.contactName : m.contactName || existing.contactName, avatarUrl: m.avatarUrl ?? existing.avatarUrl })
-        .where(eq(crmConversations.id, existing.id));
+        .set({ contactName: m.isEcho ? existing.contactName : m.contactName || existing.contactName, avatarUrl: m.avatarUrl ?? existing.avatarUrl, meta, clientId })
+        .where(eq(crmConversations.id, existing.id))
+        .returning();
+      return { conv: updated ?? existing, created: false };
     }
     return { conv: existing, created: false };
   }
-  const phone = isPhoneLike(m.chatId) ? normalizePhone(m.chatId) : null;
-  const clientId = phone ? await findClientByPhone(phone) : null;
+  const phone = isPhoneLike(m.chatId) ? normalizePhone(m.chatId) : extra.meta?.phone ? normalizePhone(extra.meta.phone) : null;
+  const clientId = extra.clientId ?? (phone ? await findClientByPhone(phone) : null);
   const [conv] = await db
     .insert(crmConversations)
-    .values({ channel: m.chatType, channelId: m.channelId, chatId: m.chatId, contactName: m.isEcho ? "" : m.contactName, avatarUrl: m.avatarUrl, clientId })
+    .values({ channel: m.chatType, channelId: m.channelId, chatId: m.chatId, contactName: m.isEcho ? "" : m.contactName, avatarUrl: m.avatarUrl, clientId, meta: extra.meta ?? {} })
     .onConflictDoNothing()
     .returning();
   if (!conv) {
@@ -70,7 +83,8 @@ export async function isBlocked(...values: (string | null | undefined)[]) {
 /** Сделка для диалога: открытая по клиенту/телефону или новая заявка (с нового номера — в «Неразобранное»). */
 async function ensureDeal(conv: CrmConversation, contactName: string, firstText = ""): Promise<CrmConversation> {
   if (conv.dealId) return conv;
-  const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
+  const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : conv.meta.phone ? normalizePhone(conv.meta.phone) : null;
+  const email = conv.channel === "email" ? conv.chatId : (conv.meta.email ?? null);
   // Код рекламной ссылки в первом сообщении («… (код: insta-bio)») — откуда пришёл клиент.
   const code = linkCodeFromText(firstText);
   const link = code ? await findLink(code) : null;
@@ -83,8 +97,9 @@ async function ensureDeal(conv: CrmConversation, contactName: string, firstText 
       title: `Заявка из ${channelLabel(conv.channel)}${contactName ? `: ${contactName}` : phone ? `: ${formatPhone(phone)}` : ""}`,
       source: sourceFromChannel(conv.channel),
       clientId: conv.clientId,
-      contactName: contactName || (conv.clientId ? "" : phone ? formatPhone(phone) : conv.chatId),
+      contactName: contactName || (conv.clientId ? "" : phone ? formatPhone(phone) : conv.channel === "site" ? "Посетитель сайта" : conv.chatId),
       contactPhone: phone,
+      contactEmail: email,
       unsorted: true,
       utm,
     }));
@@ -97,8 +112,8 @@ async function ensureDeal(conv: CrmConversation, contactName: string, firstText 
   return updated;
 }
 
-export async function ingestMessage(m: WazzupIncoming) {
-  const { conv: base, created } = await upsertConversation(m);
+export async function ingestMessage(m: WazzupIncoming, extra: IngestExtra = {}) {
+  const { conv: base, created } = await upsertConversation(m, extra);
   if (m.isEcho) {
     // Эхо нашего же сообщения из CRM: externalId уже записан при отправке (или запишется) — не дублируем.
     const dup = await db.query.crmMessages.findFirst({ where: eq(crmMessages.externalId, m.externalId), columns: { id: true } });
@@ -123,7 +138,7 @@ export async function ingestMessage(m: WazzupIncoming) {
 
   const inserted = await db
     .insert(crmMessages)
-    .values({ conversationId: base.id, direction: "in", type: m.type, text: m.text, mediaUrl: m.mediaUrl, externalId: m.externalId, status: "received", createdAt: m.at })
+    .values({ conversationId: base.id, direction: "in", type: m.type, text: m.text, mediaUrl: m.mediaUrl, externalId: m.externalId, status: "received", subject: extra.subject ?? null, createdAt: m.at })
     .onConflictDoNothing()
     .returning({ id: crmMessages.id });
   if (!inserted.length) return; // повторная доставка вебхука
@@ -192,6 +207,18 @@ export async function sendChatMessage(conversationId: string, text: string, auth
     .where(eq(crmConversations.id, conversationId));
   // Менеджер ответил — заявка из «Неразобранного» принята.
   if (authorId && conv.dealId) await db.update(crmDeals).set({ unsorted: false, assigneeId: sql`coalesce(${crmDeals.assigneeId}, ${authorId}::uuid)` }).where(and(eq(crmDeals.id, conv.dealId), eq(crmDeals.unsorted, true)));
+  if (conv.channel === "site") {
+    // Чат на сайте: посетитель заберёт сообщение сам (виджет опрашивает сервер), внешнего провайдера нет.
+    await db.update(crmMessages).set({ status: "sent" }).where(eq(crmMessages.id, msg.id));
+    void publish({ type: "chat", conversationId });
+    return { ...msg, status: "sent" as const };
+  }
+  if (conv.channel === "email") {
+    const { sendEmailReply } = await import("./email");
+    const r = await sendEmailReply(conv, msg.id, body);
+    void publish({ type: "chat", conversationId });
+    return r.ok ? { ...msg, status: "sent" as const } : { ...msg, status: "error" as const, error: r.error };
+  }
   try {
     void publish({ type: "chat", conversationId });
     const externalId = await sendWazzupMessage({ channelId: conv.channelId, chatType: conv.channel, chatId: conv.chatId, text: body, crmMessageId: msg.id });

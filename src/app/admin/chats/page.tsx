@@ -12,6 +12,7 @@ import { chatOffers } from "@/lib/crm/offers";
 import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { getSetting } from "@/lib/crm/settings";
+import { aiConfigured } from "@/lib/crm/ai";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { cn } from "@/lib/utils";
@@ -61,12 +62,14 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const sla = Number(slaRaw) || 15;
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const conv = selected && canSeeAssigned(staff, selected.assigneeId) ? selected : null;
-  const title = (c: { contactName: string; chatId: string }) => c.contactName || contactView(staff, { phone: formatPhone(c.chatId) }).phone || c.chatId;
+  const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) =>
+    c.contactName ||
+    (c.channel === "email" ? contactView(staff, { email: c.chatId }).email : c.channel === "site" ? (c.meta.phone ? contactView(staff, { phone: formatPhone(c.meta.phone) }).phone : "Посетитель сайта") : contactView(staff, { phone: formatPhone(c.chatId) }).phone || c.chatId);
 
   let panel: React.ReactNode = (
     <div className="hidden flex-1 flex-col items-center justify-center gap-3 text-muted lg:flex">
       <MessagesSquare className="size-10 text-muted/50" strokeWidth={1.4} />
-      <p className="text-sm">{list.length ? "Выберите диалог слева" : "Здесь появятся сообщения из WhatsApp, Instagram и Telegram"}</p>
+      <p className="text-sm">{list.length ? "Выберите диалог слева" : "Здесь появятся сообщения из WhatsApp, Instagram, Telegram, чата на сайте и почты"}</p>
       {!list.length && can(staff, "settings.manage") ? (
         <Link href="/admin/settings" className="btn btn-outline btn-sm">
           Подключить Wazzup
@@ -77,7 +80,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   let side: React.ReactNode = null;
 
   if (conv) {
-    const [messages, templates, vars, blocker, dealRow, client, offers, mentionables] = await Promise.all([
+    const [messages, templates, vars, blocker, dealRow, client, offers, mentionables, ai] = await Promise.all([
       loadChatMessages(conv.id),
       listTemplates(),
       chatVars(conv, adminLabel(staff.user)),
@@ -93,6 +96,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       conv.clientId ? db.query.users.findFirst({ where: eq(users.id, conv.clientId), columns: { id: true, name: true, email: true } }) : null,
       chatOffers(conv, can(staff, "promo.give")),
       mentionableStaff(),
+      aiConfigured(),
     ]);
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     panel = (
@@ -107,6 +111,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             <div className="text-xs text-muted">
               {channelLabel(conv.channel)}
               {conv.contactName && /^\d{10,15}$/.test(conv.chatId) ? ` · ${contactView(staff, { phone: formatPhone(conv.chatId) }).phone}` : ""}
+              {conv.channel === "email" && conv.contactName ? ` · ${contactView(staff, { email: conv.chatId }).email}` : ""}
+              {conv.channel === "site" && conv.meta.page ? ` · ${conv.meta.page}` : ""}
             </div>
           </div>
         </div>
@@ -121,6 +127,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           sendDisabledReason={blocker}
           offers={can(staff, "chats.send") ? offers : null}
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
+          ai={ai && can(staff, "chats.send")}
         />
       </div>
     );

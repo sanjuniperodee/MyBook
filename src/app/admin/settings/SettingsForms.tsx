@@ -14,6 +14,10 @@ import {
   saveTemplateAction,
   saveWazzupAction,
   testWazzupAction,
+  saveAiAction,
+  testAiAction,
+  saveEmailAction,
+  testImapAction,
   type SettingsState,
 } from "./actions";
 import { unblockAction } from "../deals/actions";
@@ -146,7 +150,106 @@ export function WazzupForm({ saved, env, webhookUrl }: { saved: { apiKey: string
   );
 }
 
-async function rotate(key: "wazzup.webhookToken" | "pbx.token") {
+export function EmailForm({ smtp, saved, env, webhookUrl }: { smtp: boolean; saved: { imapHost: string; imapPort: string; imapUser: string; imapPassword: string; imapMailbox: string }; env: { imapHost: boolean; imapPort: boolean; imapUser: boolean; imapPassword: boolean }; webhookUrl: string | null }) {
+  const [state, action] = useActionState<SettingsState, FormData>(saveEmailAction, {});
+  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pending, start] = useTransition();
+  const inbound = !!(saved.imapHost && saved.imapUser && (saved.imapPassword || env.imapPassword));
+  return (
+    <Section title="Почта — e-mail как канал" badge={<Status on={inbound} label={inbound ? "входящие подключены" : "только исходящие"} />}>
+      <p className="mb-3 text-sm text-ink-soft">
+        Менеджеры пишут клиентам из карточек сделки, клиента и заказа, а ответы приходят в «Чаты» рядом с WhatsApp. Исходящие уходят через SMTP сервера —{" "}
+        {smtp ? <span className="text-emerald-700">настроен</span> : <span className="text-red-700">не настроен (переменные SMTP_HOST, SMTP_USER, SMTP_PASSWORD, MAIL_FROM)</span>}.
+      </p>
+      <form action={action} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Сервер IMAP входящего ящика</span>
+            <input name="imapHost" defaultValue={saved.imapHost} disabled={env.imapHost} placeholder="imap.yandex.ru, imap.gmail.com…" className="input h-10 text-sm" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Порт</span>
+            <input name="imapPort" defaultValue={saved.imapPort} disabled={env.imapPort} className="input h-10 text-sm" inputMode="numeric" />
+          </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Логин (адрес ящика)</span>
+            <input name="imapUser" defaultValue={saved.imapUser} disabled={env.imapUser} className="input h-10 text-sm" autoComplete="off" />
+          </label>
+          <SecretInput name="imapPassword" label="Пароль приложения" saved={saved.imapPassword} fromEnv={env.imapPassword} />
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Папка</span>
+          <input name="imapMailbox" defaultValue={saved.imapMailbox} className="input h-10 w-48 text-sm" />
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <SubmitButton className="btn-sm">Сохранить</SubmitButton>
+          <button type="button" className="btn btn-outline btn-sm" disabled={pending || !inbound} onClick={() => start(async () => setCheck(await testImapAction()))}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <PlugZap className="size-4" />} Проверить
+          </button>
+          <Result state={state} />
+        </div>
+        {check ? (
+          <p className={cn("flex items-center gap-1.5 text-sm", check.ok ? "text-emerald-700" : "text-red-700")}>
+            {check.ok ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />} {check.message}
+          </p>
+        ) : null}
+        <p className="text-xs text-muted">Новые письма забираются раз в минуту. Для Яндекса и Gmail нужен «пароль приложения» и включённый IMAP в настройках ящика.</p>
+        {webhookUrl ? <CopyField label="Или вебхук для почтового сервиса (Mailgun, Postmark, SendGrid Inbound Parse): POST с полями from, subject, text" value={webhookUrl} onRotate={() => rotate("email.webhookToken")} /> : null}
+      </form>
+    </Section>
+  );
+}
+
+export function AiForm({ saved, env, enabled, knowledge }: { saved: { apiKey: string; baseUrl: string }; env: { apiKey: boolean; baseUrl: boolean }; enabled: boolean; knowledge: string }) {
+  const [state, action] = useActionState<SettingsState, FormData>(saveAiAction, {});
+  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pending, start] = useTransition();
+  const connected = !!saved.apiKey || env.apiKey;
+  return (
+    <Section title="AI-помощник — Claude" badge={<Status on={connected && enabled} label={!connected ? "не подключён" : enabled ? "включён" : "выключен"} />}>
+      <p className="mb-3 text-sm text-ink-soft">
+        Подсказывает ответ клиенту в чате, делает резюме сделки со следующим шагом и сам заполняет поля (повод, дата, для кого) из переписки. Работает на модели Claude от Anthropic; ключ API создаётся в консоли{" "}
+        <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-wine underline">
+          platform.claude.com
+        </a>
+        . Если основная модель откажется отвечать на запрос, Anthropic автоматически повторит его на резервной модели.
+      </p>
+      <form action={action} className="space-y-3">
+        <SecretInput name="aiKey" label="Ключ Claude API" saved={saved.apiKey} fromEnv={env.apiKey} placeholder="sk-ant-…" />
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">База знаний для ответов: правила, сроки, ответы на частые вопросы (тарифы и цены AI берёт с сайта сам)</span>
+          <textarea name="knowledge" defaultValue={knowledge} rows={5} maxLength={6000} className="input py-2 text-sm" placeholder="Например: скидки больше 15% согласовываем с руководителем; печать 5–7 рабочих дней; можно добавить до 200 фото…" />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="enabled" defaultChecked={enabled} className="accent-wine" /> Показывать AI-кнопки менеджерам
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Адрес API (обычно не меняется)</span>
+            <input name="aiBaseUrl" defaultValue={saved.baseUrl} disabled={env.baseUrl} className="input h-10 text-sm" />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <SubmitButton className="btn-sm">Сохранить</SubmitButton>
+          <button type="button" className="btn btn-outline btn-sm" disabled={pending || !connected} onClick={() => start(async () => setCheck(await testAiAction()))}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <PlugZap className="size-4" />} Проверить
+          </button>
+          <Result state={state} />
+        </div>
+        {check ? (
+          <p className={cn("flex items-center gap-1.5 text-sm", check.ok ? "text-emerald-700" : "text-red-700")}>
+            {check.ok ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />} {check.message}
+          </p>
+        ) : null}
+        <p className="text-xs text-muted">Расшифровка записей звонков пока не поддерживается: Claude работает с текстом, а не со звуком.</p>
+      </form>
+    </Section>
+  );
+}
+
+async function rotate(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken") {
   if (!(await ask("Выпустить новый токен? Старый адрес вебхука перестанет работать — его нужно будет заменить у провайдера.", true))) return;
   try {
     await rotateTokenAction(key);
@@ -165,7 +268,7 @@ export function TelephonyForm({
 }: {
   provider: "off" | "zadarma" | "pbx";
   providerFromEnv: boolean;
-  zadarma: { key: string; secret: string; keyEnv: boolean; secretEnv: boolean };
+  zadarma: { key: string; secret: string; keyEnv: boolean; secretEnv: boolean; pbxId: string; pbxIdEnv: boolean; webphone: boolean };
   zadarmaUrl: string;
   pbxUrl: string | null;
 }) {
@@ -200,6 +303,19 @@ export function TelephonyForm({
               <SecretInput name="zadarmaSecret" label="Secret" saved={zadarma.secret} fromEnv={zadarma.secretEnv} />
             </div>
             <CopyField label="Адрес для уведомлений Zadarma" value={zadarmaUrl} />
+            <div className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[180px_1fr] sm:items-end">
+              <label className="block">
+                <span className="mb-1 block text-xs text-muted">Номер АТС (для веб-телефона)</span>
+                <input name="pbxId" defaultValue={zadarma.pbxId} disabled={zadarma.pbxIdEnv} placeholder="например, 12345" className="input h-10 text-sm" inputMode="numeric" />
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" name="webphone" defaultChecked={zadarma.webphone} className="mt-0.5 size-4 accent-wine" />
+                <span>
+                  Веб-телефон в CRM: звонки и входящие прямо в браузере, без софтфона
+                  <span className="block text-xs text-muted">Номер АТС — в кабинете Zadarma, «Моя АТС» (SIP-логины вида 12345-100). В «Команде» у сотрудника должен быть указан внутренний номер.</span>
+                </span>
+              </label>
+            </div>
           </div>
         ) : null}
         {p === "pbx" ? (
@@ -235,12 +351,14 @@ export function CrmSettingsForm({
   autoDealFrom,
   unsorted,
   maxDiscount,
+  widget,
 }: {
   slaMinutes: number;
   workHours: { days: number[]; from: string; to: string };
   autoDealFrom: string;
   unsorted: boolean;
   maxDiscount: number;
+  widget: { enabled: boolean; chat: boolean };
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveCrmSettingsAction, {});
   return (
@@ -286,6 +404,14 @@ export function CrmSettingsForm({
           <span>
             «Неразобранное»: заявки с новых номеров (чат, звонок) сначала ждут, пока менеджер их примет или отклонит как спам
           </span>
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="widgetEnabled" defaultChecked={widget.enabled} className="mt-0.5 size-4 accent-wine" />
+          <span>Виджет на сайте: кнопки «Написать в WhatsApp» и «Перезвоните мне» (заявка с задачей позвонить за 15 минут)</span>
+        </label>
+        <label className="flex items-start gap-2 pl-6 text-sm">
+          <input type="checkbox" name="widgetChat" defaultChecked={widget.chat} className="mt-0.5 size-4 accent-wine" />
+          <span>Онлайн-чат в виджете — сообщения приходят в «Чаты», отвечать оттуда же</span>
         </label>
         <div className="flex items-center gap-3">
           <SubmitButton className="btn-sm">Сохранить</SubmitButton>

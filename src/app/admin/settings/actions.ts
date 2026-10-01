@@ -6,10 +6,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmTemplates } from "@/lib/db/schema";
 import { assertStaff, audit } from "@/lib/crm/rbac";
-import { ensureToken, fromEnv, saveSettings, type SettingKey } from "@/lib/crm/settings";
+import { ensureToken, fromEnv, getSettings, saveSettings, type SettingKey } from "@/lib/crm/settings";
 import { randomToken } from "@/lib/crm/crypto";
 import { isValidTime } from "@/lib/crm/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/lib/crm/wazzup";
+import { AiError, testAi } from "@/lib/crm/ai";
 
 export interface SettingsState {
   error?: string;
@@ -70,6 +71,9 @@ export async function saveTelephonyAction(_: SettingsState, form: FormData): Pro
       ...(fromEnv("telephony.provider") ? {} : { "telephony.provider": provider.data }),
       ...secretValue(form, "zadarmaKey", "zadarma.key"),
       ...secretValue(form, "zadarmaSecret", "zadarma.secret"),
+      ...(provider.data === "zadarma"
+        ? { ...(fromEnv("zadarma.pbxId") ? {} : { "zadarma.pbxId": String(form.get("pbxId") ?? "").replace(/\D/g, "").slice(0, 12) }), "zadarma.webphone": form.get("webphone") === "on" ? "on" : "off" }
+        : {}),
     },
     staff.user.id,
   );
@@ -80,9 +84,9 @@ export async function saveTelephonyAction(_: SettingsState, form: FormData): Pro
 }
 
 /** Новый токен вебхука: старый адрес перестаёт работать (если он утёк). */
-export async function rotateTokenAction(key: "wazzup.webhookToken" | "pbx.token") {
+export async function rotateTokenAction(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken") {
   const staff = await assertStaff("settings.manage");
-  const k = z.enum(["wazzup.webhookToken", "pbx.token"]).parse(key);
+  const k = z.enum(["wazzup.webhookToken", "pbx.token", "email.webhookToken"]).parse(key);
   if (fromEnv(k)) throw new Error("Токен задан переменной окружения");
   await saveSettings({ [k]: randomToken() }, staff.user.id);
   await audit(staff, "settings.update", "settings", k, { rotated: true });
@@ -111,12 +115,90 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
       "crm.maxDiscount": String(d.maxDiscount),
+      "widget.enabled": form.get("widgetEnabled") === "on" ? "on" : "off",
+      "widget.chat": form.get("widgetChat") === "on" ? "on" : "off",
     },
     staff.user.id,
   );
   await audit(staff, "settings.update", "settings", "crm", { ...d, days });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
+}
+
+// ─── почта ─────────────────────────────────────────────────────────────────
+
+export async function saveEmailAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = z
+    .object({
+      imapHost: z.string().trim().max(200).regex(/^[a-z0-9.-]*$/i, "Сервер IMAP — например, imap.yandex.ru"),
+      imapPort: z.coerce.number().int().min(1).max(65535).default(993),
+      imapUser: z.string().trim().max(200),
+      imapMailbox: z.string().trim().max(100).default("INBOX"),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  const prev = await getSettings(["email.imapHost", "email.imapUser", "email.imapMailbox"]);
+  const changedBox = prev["email.imapHost"] !== d.imapHost || prev["email.imapUser"] !== d.imapUser || prev["email.imapMailbox"] !== d.imapMailbox;
+  await saveSettings(
+    {
+      ...(fromEnv("email.imapHost") ? {} : { "email.imapHost": d.imapHost }),
+      ...(fromEnv("email.imapPort") ? {} : { "email.imapPort": String(d.imapPort) }),
+      ...(fromEnv("email.imapUser") ? {} : { "email.imapUser": d.imapUser }),
+      ...secretValue(form, "imapPassword", "email.imapPassword"),
+      "email.imapMailbox": d.imapMailbox || "INBOX",
+      // Другой ящик — начинаем с писем за последние сутки, а не с UID старого ящика.
+      ...(changedBox ? { "email.imapLastUid": "" } : {}),
+    },
+    staff.user.id,
+  );
+  await ensureToken("email.webhookToken");
+  await audit(staff, "settings.update", "settings", "email", { imapHost: d.imapHost, imapUser: d.imapUser });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
+export async function testImapAction(): Promise<{ ok: boolean; message: string }> {
+  await assertStaff("settings.manage");
+  try {
+    const { testImap } = await import("@/lib/crm/email");
+    return { ok: true, message: await testImap() };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : "Не удалось подключиться" };
+  }
+}
+
+// ─── AI-помощник ───────────────────────────────────────────────────────────
+
+export async function saveAiAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const baseUrl = String(form.get("aiBaseUrl") ?? "").trim();
+  if (baseUrl && !/^https?:\/\/[^\s]+$/.test(baseUrl)) return { error: "Адрес API должен начинаться с https://" };
+  const knowledge = String(form.get("knowledge") ?? "").trim();
+  if (knowledge.length > 6000) return { error: "База знаний — не больше 6000 символов" };
+  await saveSettings(
+    {
+      ...secretValue(form, "aiKey", "ai.apiKey"),
+      ...(fromEnv("ai.baseUrl") ? {} : { "ai.baseUrl": baseUrl }),
+      "ai.enabled": form.get("enabled") === "on" ? "on" : "off",
+      "ai.knowledge": knowledge,
+    },
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "ai", { enabled: form.get("enabled") === "on", knowledge: knowledge.length });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
+export async function testAiAction(): Promise<{ ok: boolean; message: string }> {
+  await assertStaff("settings.manage");
+  try {
+    const answer = await testAi();
+    return { ok: true, message: `Подключено, Claude отвечает: «${answer}»` };
+  } catch (err) {
+    return { ok: false, message: err instanceof AiError ? err.message : "Не удалось связаться с Claude API" };
+  }
 }
 
 // ─── шаблоны ответов ───────────────────────────────────────────────────────

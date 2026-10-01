@@ -68,3 +68,7 @@ export async function sendMail(to: string, subject: string, html: string, attach
 }
 
 export { escape as escapeHtml };
+
+export const smtpConfigured = () => !!process.env.SMTP_HOST;
+/** Транспорт SMTP для писем менеджеров из CRM (src/lib/crm/email.ts); null — SMTP не настроен. */
+export const mailTransport = () => getTransporter();

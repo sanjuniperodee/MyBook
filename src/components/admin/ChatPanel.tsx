@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, Lock, MessageSquareQuote, Receipt, SendHorizontal, Wallet } from "lucide-react";
+import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, SendHorizontal, Sparkles, Wallet } from "lucide-react";
+import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
 import type { ChatOffers } from "@/lib/crm/offers";
@@ -82,6 +83,7 @@ export function ChatPanel({
   className,
   mentionables = [],
   offers = null,
+  ai = false,
 }: {
   conversationId: string;
   messages: ChatMessage[];
@@ -92,6 +94,8 @@ export function ChatPanel({
   className?: string;
   mentionables?: string[];
   offers?: ChatOffers | null;
+  /** Подключён AI-помощник: кнопка «Подсказать ответ». */
+  ai?: boolean;
 }) {
   const router = useRouter();
   const [text, setText] = useState("");
@@ -101,6 +105,7 @@ export function ChatPanel({
   const [discount, setDiscount] = useState({ percent: 10, hours: 48 });
   const [mode, setMode] = useState<"client" | "note">(canSend ? "client" : "note");
   const [sending, start] = useTransition();
+  const [thinking, think] = useTransition();
   const scroller = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
@@ -144,6 +149,18 @@ export function ChatPanel({
       }
     });
   };
+
+  const suggest = () =>
+    think(async () => {
+      try {
+        const r = await aiSuggestReplyAction(conversationId);
+        if (!r.ok) return toast(r.message, "error");
+        setText(r.text);
+        input.current?.focus();
+      } catch (err) {
+        toastError(err);
+      }
+    });
 
   const send = () => {
     const body = text.trim();
@@ -294,6 +311,11 @@ export function ChatPanel({
               {offers ? (
                 <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setShowOffers((v) => !v), setShowTemplates(false))} title="Оплата и скидка" aria-label="Оплата и скидка">
                   <Wallet className="size-5" />
+                </button>
+              ) : null}
+              {ai ? (
+                <button type="button" className="btn btn-ghost btn-sm size-10 px-0 text-violet-700" onClick={suggest} disabled={thinking} title="AI: подсказать ответ (вы сможете поправить текст перед отправкой)" aria-label="Подсказать ответ">
+                  {thinking ? <LoaderCircle className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
                 </button>
               ) : null}
             </>

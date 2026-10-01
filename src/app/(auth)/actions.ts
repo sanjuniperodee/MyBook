@@ -13,6 +13,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
 import { appLink, emailLayout, escapeHtml, sendMail } from "@/lib/mail";
 import { isThemeId } from "@/lib/content/themes";
+import { clearTicket, issueTicket, needsSecondFactor, readTicket, verifySecondFactor } from "@/lib/crm/two-factor";
 
 export interface FormState {
   error?: string;
@@ -67,8 +68,29 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   }
   const user = await findUserByEmail(email.data);
   if (!user || !(await verifyPassword(password, user.passwordHash))) return { error: e.credentials };
+  // Сотрудник с включённой 2FA: сессию создаём только после кода из приложения.
+  if (needsSecondFactor(user)) {
+    await issueTicket(user.id);
+    const next = safeNextPath(form.get("next"));
+    return lredirect(`/login/2fa?next=${encodeURIComponent(next)}`);
+  }
   await createSession(user.id);
   // Письма приходят на языке, которым человек пользуется сейчас.
+  if (user.locale !== locale) await db.update(users).set({ locale }).where(eq(users.id, user.id));
+  return lredirect(safeNextPath(form.get("next")));
+}
+
+export async function twoFactorAction(_: FormState, form: FormData): Promise<FormState> {
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const e = m.auth.errors;
+  const userId = await readTicket();
+  if (!userId) return { error: e.twoFactorExpired };
+  if (!rateLimit(`2fa:${userId}`, 8, 900_000) || !rateLimit(`2fa-ip:${await clientIp()}`, 30, 900_000)) return { error: e.tooManyLogin };
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user || !needsSecondFactor(user)) return { error: e.twoFactorExpired };
+  if (!(await verifySecondFactor(user, String(form.get("code") ?? "")))) return { error: e.twoFactorCode };
+  await clearTicket();
+  await createSession(user.id);
   if (user.locale !== locale) await db.update(users).set({ locale }).where(eq(users.id, user.id));
   return lredirect(safeNextPath(form.get("next")));
 }
@@ -124,6 +146,11 @@ export async function resetAction(_: FormState, form: FormData): Promise<FormSta
     .where(eq(users.id, reset.userId));
   await db.update(passwordResets).set({ usedAt: new Date() }).where(eq(passwordResets.id, reset.id));
   await db.delete(sessions).where(eq(sessions.userId, reset.userId));
+  // Смена пароля по письму не должна обходить второй фактор сотрудника.
+  if (owner && needsSecondFactor(owner)) {
+    await issueTicket(owner.id);
+    return lredirect("/login/2fa?next=%2Fadmin");
+  }
   await createSession(reset.userId);
   return lredirect("/books");
 }

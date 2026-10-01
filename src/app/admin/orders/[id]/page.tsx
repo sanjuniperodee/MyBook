@@ -150,7 +150,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               {order.desiredDate ? (<><dt className="text-muted">Нужна к</dt><dd className="font-medium text-wine">{formatDate(order.desiredDate)}</dd></>) : null}
               {order.surprise ? (<><dt className="text-muted">Сюрприз</dt><dd className="font-medium text-wine">Не звонить получателю, связываться с заказчиком ({accountEmail})</dd></>) : null}
             </dl>
-            <ContactActions className="mt-4 max-w-sm" target={{ orderId: order.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} />
+            <ContactActions className="mt-4 max-w-sm" target={{ orderId: order.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} canEmail={can(staff, "chats.send") && !!order.contactEmail} />
           </Card>
 
           <Card title="Задачи по заказу">

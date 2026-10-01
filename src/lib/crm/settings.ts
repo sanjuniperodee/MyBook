@@ -24,6 +24,9 @@ export const settingDefs = {
   "zadarma.secret": { secret: true, env: "ZADARMA_SECRET" },
   "zadarma.baseUrl": { env: "ZADARMA_API_URL", default: "https://api.zadarma.com" },
   "pbx.token": { secret: true, env: "PBX_WEBHOOK_TOKEN" },
+  /** Веб-телефон Zadarma в браузере: номер АТС (SIP-логин сотрудника = <номер АТС>-<внутренний номер>). */
+  "zadarma.pbxId": { env: "ZADARMA_PBX_ID" },
+  "zadarma.webphone": { default: "off" },
   /** Через сколько минут без ответа клиенту чат считается просроченным. */
   "crm.slaMinutes": { default: "15" },
   /** Рабочее время: JSON { days: [1..7], from: "09:00", to: "21:00" }. */
@@ -43,6 +46,26 @@ export const settingDefs = {
   /** Ключи Web Push (создаются автоматически). */
   "push.vapidPublic": {},
   "push.vapidPrivate": { secret: true },
+  /** AI-помощник (Claude API): ключ, адрес API, включён ли, база знаний для ответов. */
+  "ai.apiKey": { secret: true, env: "ANTHROPIC_API_KEY" },
+  "ai.baseUrl": { env: "CRM_AI_BASE_URL", default: "https://api.anthropic.com" },
+  "ai.enabled": { default: "on" },
+  "ai.knowledge": {},
+  /** Почта как канал: входящие по IMAP (ящик, куда клиенты пишут) и/или вебхуком почтового сервиса. */
+  "email.imapHost": { env: "CRM_IMAP_HOST" },
+  "email.imapPort": { env: "CRM_IMAP_PORT", default: "993" },
+  "email.imapUser": { env: "CRM_IMAP_USER" },
+  "email.imapPassword": { secret: true, env: "CRM_IMAP_PASSWORD" },
+  "email.imapMailbox": { default: "INBOX" },
+  /** UID последнего обработанного письма — чтобы не забирать старые письма повторно. */
+  "email.imapLastUid": {},
+  "email.webhookToken": { secret: true },
+  /** Виджет на сайте: кнопки WhatsApp и «Перезвоните мне», онлайн-чат. */
+  "widget.enabled": { default: "on" },
+  "widget.chat": { default: "on" },
+  /** Безопасность CRM: обязательная 2FA для сотрудников и список разрешённых IP (по строке на адрес/подсеть). */
+  "security.require2fa": { default: "off" },
+  "security.ipAllowlist": {},
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;
@@ -101,7 +124,7 @@ export async function saveSettings(values: Partial<Record<SettingKey, string>>, 
 }
 
 /** Токен вебхука: создаётся при первом обращении, чтобы адрес для провайдера был сразу готов. */
-export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token"): Promise<string> {
+export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken"): Promise<string> {
   const existing = await getSetting(key);
   if (existing) return existing;
   const token = randomToken();

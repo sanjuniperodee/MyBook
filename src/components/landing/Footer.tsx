@@ -4,13 +4,16 @@ import { site } from "@/config/site";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages } from "@/i18n/server";
 import { landings } from "@/lib/content/landings";
+import { widgetConfig } from "@/lib/crm/site-chat";
+import { SiteWidget } from "@/components/SiteWidget";
 
 export async function Footer() {
-  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const [locale, m, widget] = await Promise.all([getLocale(), getMessages(), widgetConfig().catch(() => null)]);
   const f = m.common.footer;
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-line bg-cream/50">
+      {widget?.enabled ? <SiteWidget whatsapp={widget.whatsapp} chat={widget.chat} /> : null}
       <div className="container-x grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="max-w-xs">
           <Logo variant="full" />

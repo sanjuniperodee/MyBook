@@ -28,6 +28,7 @@ COPY --from=build --chown=app:app /app/public ./public
 COPY --from=build --chown=app:app /app/assets ./assets
 COPY --from=build --chown=app:app /app/drizzle ./drizzle
 COPY --from=build --chown=app:app /app/scripts/create-admin.mjs ./scripts/create-admin.mjs
+COPY --from=build --chown=app:app /app/scripts/crm-security-reset.mjs ./scripts/crm-security-reset.mjs
 USER app
 VOLUME ["/data/storage"]
 EXPOSE 3000

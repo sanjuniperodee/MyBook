@@ -166,6 +166,22 @@ export async function clickToCall(extension: string | null, phone: string) {
   await zadarma("/v1/request/callback/", { from: extension, to: phone });
 }
 
+/** Веб-телефон доступен: Zadarma, включён в «Интеграциях», задан номер АТС и внутренний номер сотрудника. */
+export async function webphoneAvailable(extension: string | null) {
+  if (!extension) return false;
+  const [provider, enabled, pbx] = await Promise.all([telephonyProvider(), getSetting("zadarma.webphone"), getSetting("zadarma.pbxId")]);
+  return provider === "zadarma" && enabled === "on" && !!pbx;
+}
+
+/** Ключ для WebRTC-виджета Zadarma (живёт 72 часа) и SIP-логин сотрудника. */
+export async function webphoneKey(extension: string | null): Promise<{ key: string; sip: string }> {
+  if (!(await webphoneAvailable(extension))) throw new TelephonyError("Веб-телефон не настроен: нужен номер АТС в «Интеграциях» и внутренний номер сотрудника в «Команде»");
+  const sip = `${(await getSetting("zadarma.pbxId")).replace(/\D/g, "")}-${extension!.replace(/\D/g, "")}`;
+  const res = await zadarma<{ key?: string }>("/v1/webrtc/get_key/", { sip });
+  if (!res.key) throw new TelephonyError("Zadarma не выдала ключ веб-телефона");
+  return { key: res.key, sip };
+}
+
 /** Временная ссылка на запись: у Zadarma запрашиваем по требованию, у своей АТС — ссылка из вебхука. */
 export async function recordingUrl(call: CrmCall): Promise<string | null> {
   if (!call.hasRecording) return null;

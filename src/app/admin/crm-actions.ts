@@ -40,25 +40,26 @@ export async function setClientManagerAction(clientId: string, managerId: string
 async function resolveContact(target: Target) {
   if (target.callId) {
     const c = await db.query.crmCalls.findFirst({ where: eq(crmCalls.id, uuid.parse(target.callId)) });
-    return c ? { phone: c.clientPhone, clientId: c.clientId, assigneeId: c.staffId, name: "", dealId: c.dealId } : null;
+    return c ? { phone: c.clientPhone, email: null as string | null, clientId: c.clientId, assigneeId: c.staffId, name: "", dealId: c.dealId } : null;
   }
   if (target.dealId) {
     const d = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, uuid.parse(target.dealId)) });
     if (!d) return null;
     let phone = d.contactPhone;
-    if (!phone && d.clientId) phone = (await db.query.users.findFirst({ where: eq(users.id, d.clientId), columns: { phone: true } }))?.phone ?? null;
-    return { phone, clientId: d.clientId, assigneeId: d.assigneeId, name: d.contactName, dealId: d.id };
+    const client = d.clientId ? await db.query.users.findFirst({ where: eq(users.id, d.clientId), columns: { phone: true, email: true } }) : null;
+    if (!phone) phone = client?.phone ?? null;
+    return { phone, email: d.contactEmail ?? client?.email ?? null, clientId: d.clientId, assigneeId: d.assigneeId, name: d.contactName, dealId: d.id };
   }
   if (target.orderId) {
     const o = await db.query.orders.findFirst({ where: eq(orders.id, uuid.parse(target.orderId)) });
-    return o ? { phone: o.contactPhone, clientId: o.userId, assigneeId: o.assigneeId, name: o.contactName, dealId: null } : null;
+    return o ? { phone: o.contactPhone, email: o.contactEmail, clientId: o.userId, assigneeId: o.assigneeId, name: o.contactName, dealId: null } : null;
   }
   if (target.clientId) {
     const c = await db.query.users.findFirst({ where: eq(users.id, uuid.parse(target.clientId)) });
     if (!c) return null;
     let phone = c.phone;
     if (!phone) phone = (await db.query.orders.findFirst({ where: eq(orders.userId, c.id), columns: { contactPhone: true }, orderBy: (o, { desc }) => desc(o.createdAt) }))?.contactPhone ?? null;
-    return { phone, clientId: c.id, assigneeId: c.managerId, name: c.name, dealId: null };
+    return { phone, email: c.email, clientId: c.id, assigneeId: c.managerId, name: c.name, dealId: null };
   }
   return null;
 }
@@ -88,6 +89,21 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const conv = await conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
   if (c.dealId && !conv.dealId) await db.update(crmConversations).set({ dealId: c.dealId }).where(eq(crmConversations.id, conv.id));
   return { ok: true, id: conv.id };
+}
+
+/** Письмо клиенту из карточки: адрес берём на сервере, письмо попадает в историю и единый инбокс. */
+export async function sendEmailAction(target: Target, subject: string, text: string): Promise<ActionResult> {
+  const staff = await assertStaff("chats.send");
+  const c = await resolveContact(target);
+  if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
+  assertVisible(staff, c.assigneeId);
+  const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
+  const { sendEmailToContact } = await import("@/lib/crm/email");
+  const r = await sendEmailToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
+  await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
+  if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
+  if (c.clientId) revalidatePath(`/admin/clients/${c.clientId}`);
+  return r.ok ? { ok: true, message: "Письмо отправлено", id: r.conversationId } : { ok: false, message: r.error };
 }
 
 /** Пропущенный звонок обработан (перезвонили с мобильного, написали и т.п.). */

@@ -103,7 +103,7 @@ try {
   await admin.fill("input[name=baseUrl]", `http://localhost:${MOCK}`);
   await admin.locator("form", { has: admin.locator("input[name=apiKey]") }).getByRole("button", { name: "Сохранить" }).click();
   await admin.waitForSelector("text=ключ сохранён");
-  await admin.getByRole("button", { name: "Проверить" }).click();
+  await admin.locator("form", { has: admin.locator("input[name=apiKey]") }).getByRole("button", { name: "Проверить" }).click();
   await admin.waitForSelector("text=Подключено. Каналов: 1");
   await admin.selectOption("select[name=channelId]", "ch-wa-1");
   await admin.locator("form", { has: admin.locator("select[name=channelId]") }).getByRole("button", { name: "Сохранить" }).click();
@@ -261,7 +261,7 @@ try {
   await admin.waitForSelector("text=Адрес вебхука (токен можно передать и заголовком X-Token)");
   const [{ value: pbxEnc }] = await q(`select value from crm_settings where key = 'pbx.token'`);
   check(pbxEnc.startsWith("v1."), "токен своей АТС создан и зашифрован");
-  const pbxUrl = await admin.locator("input[readonly]").last().inputValue();
+  const pbxUrl = await admin.locator("form", { has: admin.getByText("Другая АТС (вебхук)") }).locator("input[readonly]").last().inputValue();
   const pbx = (b, url = pbxUrl) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
   check((await pbx({ event: "end", callId: "x" }, `${base}/api/integrations/pbx?token=bad`)).status === 403, "своя АТС: неверный токен → 403");
   const boom = await pbx({ event: "boom" });

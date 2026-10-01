@@ -57,6 +57,11 @@ export const users = pgTable(
     customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
     /** Сотрудник отключён: не может войти в CRM, не получает лиды. */
     staffDisabled: boolean("staff_disabled").notNull().default(false),
+    /** Двухфакторный вход (TOTP): секрет зашифрован; включён, когда задано totpEnabledAt. */
+    totpSecret: text("totp_secret"),
+    totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
+    /** Резервные коды 2FA — sha256, использованный код удаляется. */
+    totpBackup: text("totp_backup").array().notNull().default(sql`'{}'::text[]`),
     ...timestamps,
   },
   (t) => [uniqueIndex("users_email_idx").on(sql`lower(${t.email})`), index("users_manager_idx").on(t.managerId)],
@@ -493,6 +498,8 @@ export const crmDeals = pgTable(
     /** Значения своих полей (crm_fields, entity = deal): { key: значение }. */
     customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    /** Последнее AI-резюме сделки: ситуация, следующий шаг, «температура». */
+    aiSummary: jsonb("ai_summary").$type<{ summary: string; nextStep: string; dueDays: number; temperature: "hot" | "warm" | "cold"; risks: string; at: string }>(),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
@@ -502,6 +509,16 @@ export const crmDeals = pgTable(
 );
 
 /** Диалог в мессенджере (WhatsApp, Instagram, Telegram через Wazzup). */
+export interface ConversationMeta {
+  /** Чат с сайта: страница, с которой написали, и контакты, которые оставил посетитель. */
+  page?: string;
+  phone?: string;
+  email?: string;
+  /** Почта: тема последнего письма и Message-ID для In-Reply-To. */
+  subject?: string;
+  lastMessageId?: string;
+}
+
 export const crmConversations = pgTable(
   "crm_conversations",
   {
@@ -524,6 +541,8 @@ export const crmConversations = pgTable(
     awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
     /** Бот-квалификатор: номер текущего вопроса; null — не запускался, -1 — закончил или его остановил менеджер. */
     botStep: integer("bot_step"),
+    /** Служебные данные канала: для чата с сайта — страница и контакты посетителя, для почты — тема письма. */
+    meta: jsonb("meta").$type<ConversationMeta>().notNull().default({}),
     ...timestamps,
   },
   (t) => [uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId), index("crm_conv_last_idx").on(t.lastMessageAt)],
@@ -546,6 +565,8 @@ export const crmMessages = pgTable(
     internal: boolean("internal").notNull().default(false),
     status: text("status", { enum: ["pending", "sent", "delivered", "read", "error", "received"] }).notNull().default("pending"),
     error: text("error"),
+    /** Письма: тема и Message-ID для цепочки ответов. */
+    subject: text("subject"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],

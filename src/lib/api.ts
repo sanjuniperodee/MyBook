@@ -65,7 +65,7 @@ export function api<C>(handler: Handler<C>): Handler<C> {
 }
 
 /** Проверка Origin для изменяющих запросов (защита от CSRF поверх SameSite=Lax). */
-function checkOrigin(req: Request) {
+export function checkOrigin(req: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
   const origin = req.headers.get("origin");
   if (!origin) return;

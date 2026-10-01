@@ -144,7 +144,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                 </>
               )}
             </div>
-            {phoneDigits ? <ContactActions className="mt-3" target={{ clientId: client.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} /> : null}
+            <ContactActions className="mt-3" target={{ clientId: client.id }} canCall={!!phoneDigits && can(staff, "calls.make")} canChat={!!phoneDigits && can(staff, "chats.send")} canEmail={can(staff, "chats.send")} />
             {!contact.masked && canEdit ? (
               <div className="mt-4">
                 <div className="mb-1 text-xs text-muted">Доп. телефоны (через запятую)</div>

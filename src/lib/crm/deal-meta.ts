@@ -1,5 +1,5 @@
 /** Справочники сделок без серверных зависимостей — для интерфейса и сервера. */
-export const dealSources = ["site", "whatsapp", "instagram", "telegram", "call", "gift", "referral", "repeat", "manual"] as const;
+export const dealSources = ["site", "whatsapp", "instagram", "telegram", "call", "email", "gift", "referral", "repeat", "manual"] as const;
 export type DealSource = (typeof dealSources)[number];
 
 export const dealSourceLabels: Record<DealSource, string> = {
@@ -8,6 +8,7 @@ export const dealSourceLabels: Record<DealSource, string> = {
   instagram: "Instagram",
   telegram: "Telegram",
   call: "Звонок",
+  email: "E-mail",
   gift: "Сертификат",
   referral: "Рекомендация",
   repeat: "Повторная продажа",

@@ -6,7 +6,9 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { getCurrentUser } from "../auth";
 import { db } from "../db";
 import { crmAudit, crmRoles, type User } from "../db/schema";
-import { clientIp } from "../rate-limit";
+import { clientIp, trustedClientIp } from "../rate-limit";
+import { getSetting } from "./settings";
+import { ipAllowed, parseAllowlist } from "./ip";
 import { allPermissions, maskEmail, maskPhone, type Permission, type RoleScope } from "./permissions";
 
 export interface Staff {
@@ -19,8 +21,8 @@ export interface Staff {
   isOwner: boolean;
 }
 
-/** Текущий сотрудник (role = admin, не отключён) с правами роли. Кэшируется на запрос. */
-export const getStaff = cache(async (): Promise<Staff | null> => {
+/** Сотрудник без проверок безопасности (IP, обязательная 2FA) — только для экрана настройки 2FA и каркаса админки. */
+const loadStaff = cache(async (): Promise<Staff | null> => {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin" || user.staffDisabled) return null;
   const role = user.crmRoleId ? await db.query.crmRoles.findFirst({ where: eq(crmRoles.id, user.crmRoleId) }) : null;
@@ -36,6 +38,47 @@ export const getStaff = cache(async (): Promise<Staff | null> => {
   };
 });
 
+export type StaffGate = "ip" | "2fa" | null;
+
+/** Что мешает сотруднику работать в CRM: вход не из разрешённой сети или не настроена обязательная 2FA. */
+export const staffGate = cache(async (): Promise<StaffGate> => {
+  const staff = await loadStaff();
+  if (!staff) return null;
+  const [allow, require2fa] = await Promise.all([getSetting("security.ipAllowlist"), getSetting("security.require2fa")]);
+  if (allow.trim() && !ipAllowed(await trustedClientIp(), parseAllowlist(allow).rules)) return "ip";
+  if (require2fa === "on" && !staff.user.totpEnabledAt) return "2fa";
+  return null;
+});
+
+/** Текущий сотрудник (role = admin, не отключён) с правами роли, если его ничего не блокирует. Кэшируется на запрос. */
+export const getStaff = cache(async (): Promise<Staff | null> => {
+  const staff = await loadStaff();
+  if (!staff) return null;
+  return (await staffGate()) ? null : staff;
+});
+
+/**
+ * Для каркаса админки и страницы «Безопасность»: пускает сотрудника, которому осталось только настроить 2FA.
+ * Вход не из разрешённой сети — на страницу отказа.
+ */
+export async function requireStaffShell(): Promise<{ staff: Staff; gate: StaffGate }> {
+  const staff = await loadStaff();
+  if (!staff) {
+    const user = await getCurrentUser();
+    redirect(user ? "/books" : "/login?next=/admin");
+  }
+  const gate = await staffGate();
+  if (gate === "ip") redirect("/admin-denied");
+  return { staff, gate };
+}
+
+/** То же для server actions страницы «Безопасность». */
+export async function assertStaffShell(): Promise<Staff> {
+  const staff = await loadStaff();
+  if (!staff || (await staffGate()) === "ip") throw new ForbiddenError();
+  return staff;
+}
+
 export function can(staff: Staff | null, ...perms: Permission[]) {
   return !!staff && perms.every((p) => staff.permissions.has(p));
 }
@@ -44,6 +87,9 @@ export function can(staff: Staff | null, ...perms: Permission[]) {
 export async function requireStaff(...perms: Permission[]): Promise<Staff> {
   const staff = await getStaff();
   if (!staff) {
+    const gate = await staffGate();
+    if (gate === "ip") redirect("/admin-denied");
+    if (gate === "2fa") redirect("/admin/security");
     const user = await getCurrentUser();
     redirect(user ? "/books" : "/login?next=/admin");
   }

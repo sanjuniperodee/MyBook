@@ -22,6 +22,8 @@ import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/compone
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { cn, formatDate } from "@/lib/utils";
+import { aiConfigured } from "@/lib/crm/ai";
+import { DealAi } from "./DealAi";
 import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 
 export const metadata = { title: "Сделка" };
@@ -77,6 +79,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const [messages, templates, vars, blocker, offers] = conv
     ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), chatOffers(conv, can(staff, "promo.give"))])
     : [[], [], null, null, null];
+  const ai = await aiConfigured();
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");
@@ -165,7 +168,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               <div className="mb-1 text-xs text-muted">Ответственный</div>
               <DealAssignee dealId={deal.id} value={deal.assigneeId} options={options} disabled={!canEdit} />
             </div>
-            <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} />
+            <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
           </section>
           {bookRows.length ? (
             <section className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-books">
@@ -227,6 +230,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </aside>
 
         <div className="min-w-0 space-y-5">
+          {ai ? <DealAi dealId={deal.id} summary={deal.aiSummary ?? null} summaryAt={deal.aiSummary ? formatDate(new Date(deal.aiSummary.at), true) : null} canEdit={canEdit} /> : null}
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-2 font-semibold">Задачи</h2>
             <TaskList tasks={tasks} admins={options} dealId={deal.id} clientId={deal.clientId ?? undefined} emptyText="Нет задач — запланируйте следующий шаг, чтобы сделка не потерялась" />
@@ -240,7 +244,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   Открыть в чатах
                 </Link>
               </div>
-              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} />
+              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} ai={ai && can(staff, "chats.send")} />
             </section>
           ) : null}
 

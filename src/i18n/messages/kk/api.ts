@@ -1,6 +1,10 @@
 import type { api as ru } from "../ru/api";
 
 export const api: typeof ru = {
+  widgetPhone: "Қайта қоңырау шалуымыз үшін телефон нөмірін көрсетіңіз",
+  widgetText: "Хабарлама жазыңыз",
+  widgetRate: "Хабарлама тым көп. Сәл кейінірек қайталаңыз.",
+  widgetOff: "Чат қазір қолжетімсіз — бізге WhatsApp-қа жазыңыз",
   badRequest: "Сұраныс дұрыс емес",
   badData: "Деректер дұрыс емес",
   server: "Сервердің ішкі қатесі",
