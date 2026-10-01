@@ -6,14 +6,14 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import { eq } from "drizzle-orm";
-import { db, pool } from "../src/lib/db";
-import { bookQuestions, books, photos, users } from "../src/lib/db/schema";
+import { db, pool } from "@/shared/infrastructure/db";
+import { bookQuestions, books, photos, users } from "@/shared/infrastructure/db/schema";
 import { container } from "../src/server/container";
 import bcrypt from "bcryptjs";
 const hashPassword = (p: string) => bcrypt.hash(p, 12);
-import { putFile } from "../src/lib/storage";
-import { processUpload } from "../src/lib/images";
-import { printSpecText, renderPrintPackage, renderInterior, renderReadingPdf } from "../src/lib/pdf/render";
+import { putFile } from "@/shared/infrastructure/storage";
+import { processUpload } from "@/modules/authoring/infrastructure/images";
+import { printSpecText, renderPrintPackage, renderInterior, renderReadingPdf } from "@/modules/production/infrastructure/pdf/render";
 
 const LOREM = [
   "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег. Я опаздывала на встречу, а ты стоял у входа в кофейню и держал дверь — так неловко и так галантно одновременно, что я рассмеялась.",

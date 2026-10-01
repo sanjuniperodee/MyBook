@@ -1,6 +1,6 @@
 // Один проход фоновых задач (отложенные сертификаты, автописьма, правила CRM по времени): npm run scheduler:once [-- --any-hour]
 import { container } from "../src/server/container";
-import { pool } from "../src/lib/db";
+import { pool } from "@/shared/infrastructure/db";
 
 const gifts = await container().ordering.deliverDueGifts();
 const emails = await container().notifications.lifecycle.run({ ignoreHours: process.argv.includes("--any-hour") });

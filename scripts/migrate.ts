@@ -1,5 +1,5 @@
-import { runMigrations } from "../src/lib/db/migrate";
-import { pool } from "../src/lib/db";
+import { runMigrations } from "@/shared/infrastructure/db/migrate";
+import { pool } from "@/shared/infrastructure/db";
 
 runMigrations()
   .then(() => console.log("Migrations applied"))
