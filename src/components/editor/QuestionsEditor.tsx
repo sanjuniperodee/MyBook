@@ -35,7 +35,8 @@ import { useAutosave } from "@/hooks/useAutosave";
 import { useDictation } from "@/hooks/useDictation";
 import { apiFetch } from "@/lib/client-api";
 import { getFormat, printablePageCount } from "@/lib/book/formats";
-import { cssFont, getTypography } from "@/lib/book/fonts";
+import { cssFont } from "@/lib/book/fonts";
+import { getInteriorDesign } from "@/lib/book/interiors";
 import { countWords, estimateAnswerPages, estimatePages, type BookContent, type ContentChapter } from "@/lib/book/layout";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +70,8 @@ export interface EditorPhoto {
 export interface EditorBook {
   id: string;
   format: string;
-  typography: string;
+  /** Оформление страниц — id из lib/book/interiors. */
+  interior: string;
   dedication: string;
   showToc: boolean;
   photoPlacement: "chapters" | "end";
@@ -96,12 +98,15 @@ function groupByChapter(questions: EditorQuestion[]): ChapterGroup[] {
 
 export function QuestionsEditor({
   book,
+  epigraphs = {},
   initialQuestions,
   initialIndex,
   initialPhotos,
   editable,
 }: {
   book: EditorBook;
+  /** Эпиграфы глав (по ключу главы) — для начальных полос в превью. */
+  epigraphs?: Record<string, string>;
   initialQuestions: EditorQuestion[];
   initialIndex: number;
   initialPhotos: EditorPhoto[];
@@ -124,7 +129,8 @@ export function QuestionsEditor({
   const dirty = useRef(new Map<string, Patch>());
 
   const format = getFormat(book.format);
-  const typography = getTypography(book.typography);
+  const design = getInteriorDesign(book.interior);
+  const typography = design.type;
   const q = questions[index];
 
   useEffect(() => {
@@ -257,7 +263,7 @@ export function QuestionsEditor({
     const content: BookContent = {
       language: book.language,
       format,
-      typography,
+      interior: getInteriorDesign(book.interior),
       title: book.title,
       subtitle: "",
       authorName: "",
@@ -270,7 +276,7 @@ export function QuestionsEditor({
     };
     const raw = chapters.length ? estimatePages(content) : 0;
     return { raw, printed: raw ? printablePageCount(raw) : 0 };
-  }, [questions, photos, format, typography, book]);
+  }, [questions, photos, format, book]);
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
   // Вехи: маленький праздник, когда книга растёт (не срабатывает при открытии редактора).
@@ -322,12 +328,13 @@ export function QuestionsEditor({
       .map(({ q: x }) => ({ x, ph: photos.filter((p) => p.questionId === x.id) }))
       .filter(({ x, ph }) => x.id === q.id || x.answer.trim() || ph.length)
       .map(({ x, ph }) => ({ id: x.id, heading: heading(x), answer: x.answer, photos: ph.map(toPreviewPhoto) }));
-    if (entries.length) previewChapters.push({ key: g.key, number: previewChapters.length + 1, title: g.title, entries });
+    if (entries.length) previewChapters.push({ key: g.key, number: previewChapters.length + 1, title: g.title, epigraph: epigraphs[g.key], entries });
   }
   const previewProps = {
     language: book.language,
     format,
-    typography,
+    design,
+    bookTitle: book.title,
     chapters: previewChapters,
     currentId: q.id,
     selectedId: selectedPhoto?.id ?? null,

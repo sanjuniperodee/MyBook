@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cropRect, framedBox, inlineBox, layoutInline, normalizeStyle, objectPosition } from "@/lib/book/inline-photo";
 import { estimateAnswerPages } from "@/lib/book/layout";
 import { getFormat } from "@/lib/book/formats";
-import { getTypography } from "@/lib/book/fonts";
+import { getInteriorDesign } from "@/lib/book/interiors";
 
 const land = { width: 4000, height: 3000 };
 
@@ -56,7 +56,7 @@ describe("inline photo geometry", () => {
 
   it("smaller photos take fewer pages", () => {
     const f = getFormat("a5");
-    const t = getTypography("classic");
+    const t = getInteriorDesign("classic").type;
     const big = estimateAnswerPages(null, "Текст", f, t, [{ ...land, inline: normalizeStyle({ width: 100 }) }]);
     const small = estimateAnswerPages(null, "Текст", f, t, [{ ...land, inline: normalizeStyle({ width: 40 }) }]);
     const pair = estimateAnswerPages(null, "Текст", f, t, [

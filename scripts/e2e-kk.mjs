@@ -63,7 +63,7 @@ await shot("04-editor");
 await page.reload();
 if (!(await page.inputValue("#answer")).startsWith("Анашым")) problems.push("редактор: ответ не сохранился");
 
-for (const [sub, label] of [["cover", "обложка"], ["photos", "фото"], ["letters", "письма"], ["settings", "оформление"], ["preview", "макет"], ["checkout", "заказ"]]) {
+for (const [sub, label] of [["cover", "обложка"], ["pages", "страницы"], ["photos", "фото"], ["letters", "письма"], ["settings", "оформление"], ["preview", "макет"], ["checkout", "заказ"]]) {
   await page.goto(`${bookUrl}/${sub}`);
   await page.waitForLoadState("networkidle");
   await checkNoRussian(label);

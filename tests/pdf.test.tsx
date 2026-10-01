@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { renderCover, renderInterior, type BookBundle } from "@/modules/production/infrastructure/pdf/render";
-import { print } from "@/lib/book/formats";
+import { formats, print } from "@/lib/book/formats";
+import { interiorDesigns } from "@/lib/book/interiors";
 import type { Book, BookQuestion } from "@/shared/infrastructure/db/schema";
 
 const now = new Date();
@@ -21,7 +22,7 @@ const book: Book = {
   coverPhotoId: null,
   backText: "Каждая страница — о тебе.",
   dedication: "Моему самому близкому человеку",
-  typography: "classic",
+  interior: "classic",
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,
@@ -70,6 +71,15 @@ describe("генерация PDF", () => {
     expect(res.pageCount % print.pageMultiple).toBe(0);
     const cover = await renderCover({ book: kkBook, questions: kkQuestions, photos: [] }, res.pageCount, "preview");
     expect((await PDFDocument.load(cover.pdf)).getPageCount()).toBe(1);
+  });
+
+  // Короткая книга: в каждой главе один ответ на полстраницы. Объём не зависит от оформления:
+  // титул, оборот, посвящение, оглавление, по две полосы на главу и финал. Если графика оформления
+  // попадёт в поток текста, react-pdf вынесет её на отдельную полосу — и счёт разойдётся.
+  it.each(interiorDesigns.flatMap((d) => Object.keys(formats).map((f) => [d.id, f] as const)))("оформление %s, %s: ровно расчётное число полос", async (interior, format) => {
+    const short = questions.filter((q) => q.position < 3).map((q) => ({ ...q, answer: "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег." }));
+    const res = await renderInterior({ book: { ...book, interior, format }, questions: short, photos: [] }, "reading");
+    expect(res.contentPages).toBe(4 + short.length * 2 + 1);
   });
 
   it("обложка: развёртка с корешком", async () => {

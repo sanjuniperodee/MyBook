@@ -37,7 +37,7 @@ describe("вёрстка", () => {
     recipientName: "Б",
     recipientGender: "m" as const,
     dedication: "",
-    typography: "classic",
+    interior: "classic",
     format: "a5",
     photoPlacement: "chapters" as const,
     showToc: true,

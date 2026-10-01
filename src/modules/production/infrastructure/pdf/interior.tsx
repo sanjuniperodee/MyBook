@@ -4,9 +4,12 @@ import { Fragment } from "react";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { mm } from "@/lib/book/formats";
-import { interiorMetrics, photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { interiorMetrics, openerFlow, pageBox, photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
+import { chapterMark, DISPLAY_TOP, interiorSizes, splitLeadIn, trackingPt, VIGNETTE_RULE, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
+import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing } from "@/lib/book/interior-art";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
+import { PdfDrawing, PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
 import { site } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
 
@@ -25,21 +28,36 @@ export interface InteriorOptions {
   images: Map<string, PreparedImage>;
 }
 
-const INK = "#1F1A17";
-const MUTED = "#7A7068";
-const LIGHT = "#B4A99E";
+/** Начертание из дизайна: шрифт, регистр и разрядка. */
+function textFace(f: TextFace, size: number): Style {
+  return {
+    ...face(f.font, f.weight, f.italic),
+    fontSize: size,
+    textTransform: f.upper ? "uppercase" : undefined,
+    letterSpacing: f.tracking ? trackingPt(f, size) : undefined,
+  };
+}
 
+/**
+ * Блок книги. Шрифты, цвета, виньетки, начальные полосы, колонтитулы и колонцифры берутся из
+ * дизайна (content.interior); те же правила рисуют HTML-превью на сайте (components/interior).
+ */
 export function InteriorDocument({ content, options }: { content: BookContent; options: InteriorOptions }) {
-  const { format, typography: typo } = content;
+  const { format, interior: design } = content;
   const t = messagesFor(content.language).book;
   const metrics = interiorMetrics[format.id];
   const B = options.bleedMm;
   const scale = metrics.scale;
+  const S = interiorSizes(design, scale);
+  const P = design.palette;
+  const typo = design.type;
   const pageSize = { width: mm(format.widthMm + B * 2), height: mm(format.heightMm + B * 2) };
   const side = (metrics.marginInner + metrics.marginOuter) / 2;
-  const bodyPt = typo.bodySize * scale;
+  const bodyPt = S.body;
   const textWidthPt = mm(format.widthMm - side * 2);
   const textHeightPt = mm(format.heightMm - metrics.marginTop - metrics.marginBottom);
+  const box = pageBox(format, B);
+  const flow = openerFlow(format, design);
 
   const pagePadding: Style = {
     paddingTop: mm(B + metrics.marginTop),
@@ -53,19 +71,19 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     ...face(typo.body, 400),
     fontSize: bodyPt,
     lineHeight: typo.lineHeight,
-    color: INK,
+    color: P.ink,
     textAlign: "justify",
   };
   const headingFace = face(typo.heading, typo.headingWeight, typo.headingItalic);
-  const displayFace = face(typo.heading, typo.headingWeight >= 500 ? 500 : 400, false);
   const italicBody = face(typo.body, 400, true);
-  const smallCaps: Style = {
-    ...face(typo.body === "montserrat" ? "montserrat" : typo.body, 400),
-    fontSize: 7.5 * scale,
-    letterSpacing: 2.2,
-    textTransform: "uppercase",
-    color: MUTED,
-  };
+  /** Служебная надпись прописными; разрядка — от базового кегля подписи, как в прежней вёрстке. */
+  const label = (color: string, size = S.label): Style => ({
+    ...face(design.label.font, design.label.weight, design.label.italic),
+    fontSize: size,
+    letterSpacing: trackingPt(design.label, S.label),
+    textTransform: design.label.upper ? "uppercase" : undefined,
+    color,
+  });
 
   const watermark = options.watermark ? (
     <Text
@@ -88,56 +106,75 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     </Text>
   ) : null;
 
-  const pageNumber = (
-    <Text
-      fixed
-      style={{
-        position: "absolute",
-        bottom: mm(B + metrics.marginBottom / 2 - 2),
-        left: 0,
-        right: 0,
-        textAlign: "center",
-        fontSize: 8 * scale,
-        color: MUTED,
-        ...face(typo.body, 400),
-      }}
-      render={({ pageNumber }) => `${pageNumber}`}
-    />
+  // ── Колонцифра и колонтитул: «снаружи» — у внешнего края (нечётные полосы — правые) ──
+  const outer = design.folio.align === "outer";
+  const folioStyle: Style = {
+    ...(design.folio.font === "label" ? label(P.muted, S.folio * 0.85) : { ...face(typo.body, 400), fontSize: S.folio, color: P.muted }),
+    position: "absolute",
+    bottom: mm(B + metrics.marginBottom / 2 - 2),
+    left: outer ? mm(B + side) : 0,
+    right: outer ? mm(B + side) : 0,
+    textAlign: "center",
+  };
+  const folioText = (n: number) => (design.folio.dashes ? `— ${n} —` : `${n}`);
+  const folio = outer ? (
+    <>
+      <Text fixed style={{ ...folioStyle, textAlign: "left" }} render={({ pageNumber }) => (pageNumber % 2 === 0 ? folioText(pageNumber) : "")} />
+      <Text fixed style={{ ...folioStyle, textAlign: "right" }} render={({ pageNumber }) => (pageNumber % 2 === 1 ? folioText(pageNumber) : "")} />
+    </>
+  ) : (
+    <Text fixed style={folioStyle} render={({ pageNumber }) => folioText(pageNumber)} />
   );
 
-  const ornament = (width = 34) => (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginVertical: 14 * scale }}>
-      <View style={{ width, height: 0.5, backgroundColor: LIGHT }} />
-      <View style={{ width: 3.2, height: 3.2, marginHorizontal: 6, backgroundColor: LIGHT, transform: "rotate(45deg)" }} />
-      <View style={{ width, height: 0.5, backgroundColor: LIGHT }} />
-    </View>
+  const runningHead = (chapterTitle: string) => {
+    if (design.runningHead === "none") return null;
+    const style: Style = { ...label(P.muted, S.runningHead), position: "absolute", top: mm(B + metrics.marginTop * 0.36), left: mm(B + side), right: mm(B + side), maxLines: 1, textOverflow: "ellipsis" };
+    const verso = { ...style, textAlign: outer ? "left" : "center" } as Style;
+    const recto = { ...style, textAlign: outer ? "right" : "center" } as Style;
+    return (
+      <>
+        <Text fixed style={verso} render={({ pageNumber }) => (pageNumber % 2 === 0 ? content.title : "")} />
+        <Text fixed style={recto} render={({ pageNumber }) => (pageNumber % 2 === 1 ? chapterTitle : "")} />
+        {design.runningHead === "ruled" ? (
+          <View fixed style={{ position: "absolute", top: mm(B + metrics.marginTop * 0.62), left: mm(B + side), right: mm(B + side), height: 0.4, backgroundColor: P.rule }} />
+        ) : null}
+      </>
+    );
+  };
+
+  const vignette = (rule: number, colors: InteriorPalette, align: "center" | "left" = "center") => (
+    <PdfDrawing drawing={vignetteDrawing(design.ornament, rule, colors)} style={{ marginVertical: S.vignetteGap, alignSelf: align === "left" ? "flex-start" : "center" }} />
   );
 
-  const centered = (children: React.ReactNode, topRatio = 0.3) => (
-    <View style={{ flexGrow: 1, alignItems: "center" }}>
-      <View style={{ height: `${topRatio * 100}%` }} />
+  /** Блок на парадной полосе: начинается на доле top высоты полосы набора. */
+  const placed = (children: React.ReactNode, top: number, align: "center" | "left" = "center") => (
+    <View style={{ flexGrow: 1, alignItems: align === "left" ? "flex-start" : "center" }}>
+      <View style={{ height: `${top * 100}%` }} />
       {children}
     </View>
   );
+
+  const frame = (colors: InteriorPalette) => <PdfPageLayer shapes={frameShapes(design.frame, box, colors)} box={box} />;
 
   const pages: React.ReactNode[] = [];
 
   // ── Титульный лист ──
   pages.push(
     <Page key="title" size={pageSize} style={pagePadding}>
+      {frame(P)}
       {watermark}
-      {centered(
+      {placed(
         <>
-          <Text style={{ ...displayFace, fontSize: 30 * scale, lineHeight: 1.15, textAlign: "center", color: INK }}>{content.title}</Text>
+          <Text style={{ ...textFace(design.display, S.title), lineHeight: 1.15, textAlign: "center", color: P.ink }}>{content.title}</Text>
           {content.subtitle ? (
-            <Text style={{ ...italicBody, fontSize: 12 * scale, marginTop: 10, textAlign: "center", color: MUTED }}>{content.subtitle}</Text>
+            <Text style={{ ...italicBody, fontSize: S.subtitle, marginTop: 10, textAlign: "center", color: P.muted }}>{content.subtitle}</Text>
           ) : null}
-          {ornament()}
-          {content.authorName ? <Text style={{ ...smallCaps, textAlign: "center" }}>{content.authorName}</Text> : null}
+          {vignette(VIGNETTE_RULE.title, P)}
+          {content.authorName ? <Text style={{ ...label(P.muted), textAlign: "center" }}>{content.authorName}</Text> : null}
         </>,
-        0.32,
+        DISPLAY_TOP.title,
       )}
-      <Text style={{ ...smallCaps, textAlign: "center", fontSize: 7 * scale }}>{content.year}</Text>
+      <Text style={{ ...label(P.muted, S.year), textAlign: "center" }}>{content.year}</Text>
     </Page>,
   );
 
@@ -146,7 +183,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     <Page key="colophon" size={pageSize} style={pagePadding}>
       {watermark}
       <View style={{ flexGrow: 1 }} />
-      <Text style={{ ...face(typo.body, 400), fontSize: 7.5 * scale, lineHeight: 1.6, color: MUTED }}>
+      <Text style={{ ...face(typo.body, 400), fontSize: S.colophon, lineHeight: 1.6, color: P.muted }}>
         {`${t.copyright(content.year, content.authorName)}\n`}
         {t.colophon(site.name)}
       </Text>
@@ -157,12 +194,11 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   if (content.dedication) {
     pages.push(
       <Page key="dedication" size={pageSize} style={pagePadding}>
+        {frame(P)}
         {watermark}
-        {centered(
-          <Text style={{ ...italicBody, fontSize: 13 * scale, lineHeight: 1.6, textAlign: "center", color: INK, maxWidth: "85%" }}>
-            {content.dedication}
-          </Text>,
-          0.34,
+        {placed(
+          <Text style={{ ...italicBody, fontSize: S.dedication, lineHeight: 1.6, textAlign: "center", color: P.ink, maxWidth: "85%" }}>{content.dedication}</Text>,
+          DISPLAY_TOP.dedication,
         )}
       </Page>,
     );
@@ -175,48 +211,77 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     pages.push(
       <Page key="toc" size={pageSize} style={pagePadding} wrap>
         {watermark}
-        <Text style={{ ...displayFace, fontSize: 22 * scale, textAlign: "center", marginTop: 20 * scale, marginBottom: 26 * scale, color: INK }}>
+        <Text
+          style={{
+            ...textFace(design.display, S.tocTitle),
+            textAlign: design.opener.align === "left" ? "left" : "center",
+            marginTop: 20 * scale,
+            marginBottom: 26 * scale,
+            color: P.ink,
+          }}
+        >
           {t.toc}
         </Text>
         {entries.map((e) => (
           <View key={e.key} wrap={false} style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 7 * scale }}>
-            <Text style={{ ...face(typo.body, 400), fontSize: bodyPt, color: INK, maxWidth: "82%" }}>
+            <Text style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.ink, maxWidth: "82%" }}>
               {e.num ? `${e.num}. ` : ""}
               {e.label}
             </Text>
-            <View style={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: LIGHT, borderBottomStyle: "dotted", marginHorizontal: 5, marginBottom: 3 }} />
-            <Text style={{ ...face(typo.body, 400), fontSize: bodyPt, color: MUTED }}>{options.tocPages?.[e.key] ?? "00"}</Text>
+            <View style={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: P.rule, borderBottomStyle: "dotted", marginHorizontal: 5, marginBottom: 3 }} />
+            <Text style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.muted }}>{options.tocPages?.[e.key] ?? "00"}</Text>
           </View>
         ))}
       </Page>,
     );
   }
 
-  const opener = (key: string, kicker: string | null, title: string, epigraph?: string) => (
-    <Page key={`open-${key}`} size={pageSize} style={pagePadding}>
-      {watermark}
-      <Text
-        style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: "#FFFFFF" }}
-        render={({ pageNumber }) => {
-          options.onChapterPage?.(key, pageNumber);
-          return " ";
-        }}
-      />
-      {centered(
-        <>
-          {kicker ? <Text style={{ ...smallCaps, textAlign: "center", marginBottom: 14 * scale }}>{kicker}</Text> : null}
-          <Text style={{ ...displayFace, fontSize: 26 * scale, lineHeight: 1.15, textAlign: "center", color: INK, maxWidth: "90%" }}>{title}</Text>
-          {ornament(26)}
-          {epigraph ? (
-            <Text style={{ ...italicBody, fontSize: 10 * scale, lineHeight: 1.55, textAlign: "center", color: MUTED, maxWidth: "78%" }}>
-              {epigraph}
-            </Text>
-          ) : null}
-        </>,
-        0.3,
-      )}
-    </Page>
-  );
+  // ── Начальная полоса главы ──
+  const opener = (key: string, number: number | null, title: string, epigraph?: string) => {
+    const { fill, align, art } = design.opener;
+    const colors = fill ?? P;
+    const mark = number ? chapterMark(design, number, t.chapter) : null;
+    const textAlign = align === "left" ? "left" : "center";
+    const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : [];
+    return (
+      <Page key={`open-${key}`} size={pageSize} style={{ ...pagePadding, backgroundColor: fill?.paper ?? "#FFFFFF" }}>
+        <PdfPageLayer shapes={[...artShapes, ...frameShapes(design.frame, box, colors)]} box={box} />
+        {watermark}
+        <Text
+          style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? "#FFFFFF" }}
+          render={({ pageNumber }) => {
+            options.onChapterPage?.(key, pageNumber);
+            return " ";
+          }}
+        />
+        {placed(
+          <>
+            {mark?.kind === "label" ? (
+              <Text
+                style={{
+                  ...(design.opener.kicker ? { ...textFace(design.opener.kicker, S.kicker), color: colors.accent } : label(colors.accent)),
+                  textAlign,
+                  marginBottom: S.kickerGap,
+                }}
+              >
+                {mark.text}
+              </Text>
+            ) : null}
+            {mark?.kind === "numeral" ? (
+              <Text style={{ ...textFace(design.opener.numeral ?? design.display, S.numeral), lineHeight: 1, textAlign, color: colors.accent, marginBottom: S.numeral * 0.12 }}>{mark.text}</Text>
+            ) : null}
+            <Text style={{ ...textFace(design.display, S.openerTitle), lineHeight: 1.15, textAlign, color: colors.ink, maxWidth: "90%" }}>{title}</Text>
+            {vignette(VIGNETTE_RULE.opener, colors, align)}
+            {epigraph ? (
+              <Text style={{ ...italicBody, fontSize: S.epigraph, lineHeight: 1.55, textAlign, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</Text>
+            ) : null}
+          </>,
+          design.opener.top,
+          align,
+        )}
+      </Page>
+    );
+  };
 
   const photoPage = (group: PhotoItem[], key: string) => {
     if (group.length === 1 && group[0].layout === "bleed") {
@@ -244,7 +309,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                   />
                 ) : null}
                 {p.caption ? (
-                  <Text style={{ ...italicBody, fontSize: 9 * scale, color: MUTED, textAlign: "center", marginTop: 8 }}>{p.caption}</Text>
+                  <Text style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: 8 }}>{p.caption}</Text>
                 ) : null}
               </View>
             );
@@ -288,7 +353,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                     paddingBottom: box.padBottom,
                     backgroundColor: polaroid ? "#FFFFFF" : undefined,
                     borderWidth: bw,
-                    borderColor: polaroid ? "#DDD6CE" : INK,
+                    borderColor: polaroid ? "#DDD6CE" : P.ink,
                     borderStyle: "solid",
                     borderRadius: box.radius,
                     overflow: "hidden",
@@ -301,7 +366,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                     </Text>
                   ) : null}
                 </View>
-                {!polaroid && p.caption ? <Text style={{ ...italicBody, fontSize: 9 * scale, color: MUTED, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
+                {!polaroid && p.caption ? <Text style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
               </View>
             );
           })}
@@ -309,7 +374,10 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       );
     });
 
-  const inlineBody = (it: BookContent["chapters"][number]["items"][number]) => {
+  /** Начальные слова главы капителью (если дизайн это предполагает). */
+  const leadInStyle: Style = { ...face(typo.body, 400), fontSize: bodyPt * 0.86, letterSpacing: bodyPt * 0.07, textTransform: "uppercase", color: P.accent };
+
+  const inlineBody = (it: BookContent["chapters"][number]["items"][number], leadIn: boolean) => {
     const paragraphs = splitParagraphs(it.answer);
     const photos = (it.photos ?? []).filter((p) => options.images.has(p.id));
     const layout = layoutInline(
@@ -319,37 +387,61 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     return (
       <>
         {paragraphs.length ? inlineRows(-1, layout) : null}
-        {paragraphs.map((p, i) => (
-          <Fragment key={i}>
-            <Text style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
-              {p}
-            </Text>
-            {i < paragraphs.length - 1 ? inlineRows(i, layout) : null}
-          </Fragment>
-        ))}
+        {paragraphs.map((p, i) => {
+          const [lead, rest] = leadIn && i === 0 ? splitLeadIn(p) : ["", p];
+          return (
+            <Fragment key={i}>
+              <Text style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
+                {lead ? <Text style={leadInStyle}>{lead}</Text> : null}
+                {rest}
+              </Text>
+              {i < paragraphs.length - 1 ? inlineRows(i, layout) : null}
+            </Fragment>
+          );
+        })}
         {inlineRows(Number.POSITIVE_INFINITY, layout)}
       </>
     );
   };
 
+  const heading = (text: string) => {
+    const style: Style = {
+      ...headingFace,
+      fontSize: S.heading,
+      lineHeight: 1.22,
+      color: design.heading.accent ? P.accent : P.ink,
+      textAlign: design.heading.align,
+      marginBottom: S.afterHeading,
+    };
+    if (!design.heading.bar) return <Text minPresenceAhead={40} style={style}>{text}</Text>;
+    return (
+      <View wrap={false} minPresenceAhead={40}>
+        <View style={{ width: 14 * scale, height: 1.2, backgroundColor: P.accent, marginBottom: 6 * scale, alignSelf: design.heading.align === "center" ? "center" : "flex-start" }} />
+        <Text style={style}>{text}</Text>
+      </View>
+    );
+  };
+
+  const divider =
+    design.divider === "stars" ? (
+      <Text style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>* * *</Text>
+    ) : (
+      <PdfDrawing drawing={dividerDrawing(design.ornament, design.divider, P)} style={{ alignSelf: "center", marginTop: bodyPt * 0.3, marginBottom: S.beforeHeadless + bodyPt * 0.2 }} />
+    );
+
   // ── Главы ──
   for (const ch of content.chapters) {
-    pages.push(opener(ch.key, t.chapter(ch.number), ch.title, ch.epigraph));
+    pages.push(opener(ch.key, ch.number, ch.title, ch.epigraph));
     if (ch.items.length) {
       pages.push(
         <Page key={`body-${ch.key}`} size={pageSize} style={pagePadding} wrap>
           {watermark}
-          {pageNumber}
+          {runningHead(ch.title)}
+          {folio}
           {ch.items.map((it, idx) => (
-            <View key={it.id} style={{ marginTop: idx === 0 ? 0 : it.heading ? 20 * scale : 10 * scale }}>
-              {it.heading ? (
-                <Text minPresenceAhead={40} style={{ ...headingFace, fontSize: bodyPt * 1.55, lineHeight: 1.22, color: INK, marginBottom: 8 * scale }}>
-                  {it.heading}
-                </Text>
-              ) : idx > 0 ? (
-                <Text style={{ textAlign: "center", color: LIGHT, fontSize: bodyPt, marginBottom: 10 * scale }}>* * *</Text>
-              ) : null}
-              {inlineBody(it)}
+            <View key={it.id} style={{ marginTop: idx === 0 ? 0 : it.heading ? S.beforeHeading : S.beforeHeadless }}>
+              {it.heading ? heading(it.heading) : idx > 0 ? divider : null}
+              {inlineBody(it, design.leadIn && idx === 0)}
             </View>
           ))}
         </Page>,
@@ -367,14 +459,15 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   // ── Финал ──
   pages.push(
     <Page key="end" size={pageSize} style={pagePadding}>
+      {frame(P)}
       {watermark}
-      {centered(
+      {placed(
         <>
-          {ornament(20)}
-          <Text style={{ ...italicBody, fontSize: 14 * scale, textAlign: "center", color: INK }}>{t.theEnd}</Text>
-          <Text style={{ ...smallCaps, textAlign: "center", marginTop: 16 }}>{content.year}</Text>
+          {vignette(VIGNETTE_RULE.end, P)}
+          <Text style={{ ...italicBody, fontSize: S.end, textAlign: "center", color: P.ink }}>{t.theEnd}</Text>
+          <Text style={{ ...label(P.muted), textAlign: "center", marginTop: 16 }}>{content.year}</Text>
         </>,
-        0.36,
+        DISPLAY_TOP.end,
       )}
     </Page>,
   );

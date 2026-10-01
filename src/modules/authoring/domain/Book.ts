@@ -2,7 +2,7 @@ import { AggregateRoot } from "@/shared/domain";
 import type { Locale } from "@/i18n/config";
 import { coverTemplates } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
-import { typographies } from "@/lib/book/fonts";
+import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
 import { getOccasion } from "@/lib/occasions";
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
@@ -24,7 +24,7 @@ export interface BookProps {
   coverPhotoId: string | null;
   backText: string;
   dedication: string;
-  typography: string;
+  interior: string;
   format: string;
   photoPlacement: "chapters" | "end";
   showToc: boolean;
@@ -43,7 +43,7 @@ export interface BookViewer {
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "dedication" | "typography" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -96,7 +96,7 @@ export class Book extends AggregateRoot<BookProps> {
       coverPhotoId: null,
       backText: "",
       dedication: "",
-      typography: "classic",
+      interior: DEFAULT_INTERIOR,
       format: "a5",
       photoPlacement: "chapters",
       showToc: true,
@@ -147,11 +147,11 @@ export class Book extends AggregateRoot<BookProps> {
     if (!this.isEditable) throw new AuthoringError("bookLocked");
   }
 
-  /** Настройки из редактора: каталоги обложек, шрифтов, форматов и поводов проверяются здесь. */
+  /** Настройки из редактора: каталоги обложек, оформлений, форматов и поводов проверяются здесь. */
   applySettings(s: BookSettings) {
     this.assertEditable();
     if (s.coverTemplate !== undefined && !coverTemplates.some((t) => t.id === s.coverTemplate)) throw new AuthoringError("unknownCover");
-    if (s.typography !== undefined && !(s.typography in typographies)) throw new AuthoringError("unknownTypography");
+    if (s.interior !== undefined && !isInteriorId(s.interior)) throw new AuthoringError("unknownInterior");
     if (s.format !== undefined && !(s.format in formats)) throw new AuthoringError("unknownFormat");
     if (s.occasion && !getOccasion(s.occasion)) throw new AuthoringError("unknownOccasion");
     const clean = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)) as BookSettings;

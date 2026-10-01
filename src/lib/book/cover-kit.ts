@@ -68,6 +68,3 @@ export function jitterGrid(g: CoverGeometry, cell: number, rand: () => number) {
   }
   return pts;
 }
-
-export const HEART = "M0.5,0.92 C0.2,0.72 0,0.52 0,0.3 C0,0.12 0.14,0 0.3,0 C0.4,0 0.47,0.06 0.5,0.15 C0.53,0.06 0.6,0 0.7,0 C0.86,0 1,0.12 1,0.3 C1,0.52 0.8,0.72 0.5,0.92Z";
-

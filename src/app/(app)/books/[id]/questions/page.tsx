@@ -33,10 +33,11 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   }));
   return (
     <QuestionsEditor
+      epigraphs={Object.fromEntries(theme.chapters.flatMap((c) => (c.epigraph ? [[c.key, c.epigraph]] : [])))}
       book={{
         id: book.id,
         format: book.format,
-        typography: book.typography,
+        interior: book.interior,
         dedication: book.dedication,
         showToc: book.showToc,
         photoPlacement: book.photoPlacement,

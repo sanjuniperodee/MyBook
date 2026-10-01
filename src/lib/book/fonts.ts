@@ -83,49 +83,13 @@ export function cssFont(key: FontKey) {
   return `var(${fontFaces[key].cssVar}), serif`;
 }
 
-export type TypographyId = "classic" | "modern" | "minimal";
-
+/** Пара шрифтов основного текста и заголовков вопросов. Кегль — для A5, на крупных форматах масштабируется. */
 export interface Typography {
-  id: TypographyId;
   heading: FontKey;
   headingWeight: number;
   headingItalic: boolean;
   body: FontKey;
-  /** Кегль основного текста, pt (для A5; для крупных форматов масштабируется). */
+  /** Кегль основного текста, pt. */
   bodySize: number;
   lineHeight: number;
-}
-
-export const typographies: Record<TypographyId, Typography> = {
-  classic: {
-    id: "classic",
-    heading: "cormorant",
-    headingWeight: 500,
-    headingItalic: false,
-    body: "ptserif",
-    bodySize: 10.5,
-    lineHeight: 1.5,
-  },
-  modern: {
-    id: "modern",
-    heading: "playfair",
-    headingWeight: 400,
-    headingItalic: true,
-    body: "lora",
-    bodySize: 10,
-    lineHeight: 1.55,
-  },
-  minimal: {
-    id: "minimal",
-    heading: "montserrat",
-    headingWeight: 500,
-    headingItalic: false,
-    body: "montserrat",
-    bodySize: 9.5,
-    lineHeight: 1.6,
-  },
-};
-
-export function getTypography(id: string): Typography {
-  return typographies[id as TypographyId] ?? typographies.classic;
 }
