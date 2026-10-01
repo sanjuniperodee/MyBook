@@ -8,7 +8,7 @@ import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/statu
 import { cn, formatDate } from "@/lib/utils";
 import { can, contactView, ownScope, requireStaff } from "@/server/access";
 import { formatPhone } from "@/lib/crm/phone";
-import { channelLabel } from "@/lib/crm/chats";
+import { channelLabel } from "@/modules/messaging";
 
 export const metadata = { title: "Поиск" };
 

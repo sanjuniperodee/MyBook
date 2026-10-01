@@ -20,21 +20,19 @@ export const crmWorkSchedule: WorkSchedule = {
   workMinutesBetween: async (from, to) => workMinutesBetween(from, to, await hours()),
 };
 
-export const crmEffects: AutomationEffects = {
+/** Сообщение клиенту отправляет контекст переписки — его подключает корень композиции. */
+export const crmEffects = (sendMessage: AutomationEffects["sendMessage"]): AutomationEffects => ({
   async createTask(t) {
     await executor().insert(crmTasks).values(t);
   },
-  async sendMessage(conversationId, text) {
-    const { sendChatMessage } = await import("@/lib/crm/chats");
-    await sendChatMessage(conversationId, text, null);
-  },
+  sendMessage,
   async assignConversation(conversationId, userId) {
     await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.id, conversationId));
   },
   async notify(userIds, n) {
     await notify(userIds === "staff" ? await staffWith("deals.view") : userIds, n);
   },
-};
+});
 
 export const appInfo: AppInfo = {
   get url() {

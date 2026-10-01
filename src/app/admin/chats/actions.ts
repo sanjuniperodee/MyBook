@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmConversations, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
-import { addInternalNote, channelLabel, markConversationRead, sendChatMessage } from "@/lib/crm/chats";
+import { channelLabel } from "@/modules/messaging";
 import { buildOffer, type OfferRequest } from "@/lib/crm/offers";
 import { notifyMentions } from "@/lib/crm/mentions";
 import { adminLabel } from "@/lib/crm";
@@ -28,7 +28,7 @@ export async function sendMessageAction(conversationId: string, text: string) {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
-  const msg = await sendChatMessage(conv.id, body, staff.user.id);
+  const msg = await container().messaging.chats.send(conv.id, body, staff.user.id);
   revalidatePath("/admin/chats");
   return { id: msg.id, status: msg.status, error: "error" in msg ? (msg.error ?? null) : null };
 }
@@ -36,7 +36,7 @@ export async function sendMessageAction(conversationId: string, text: string) {
 export async function markReadAction(conversationId: string) {
   const staff = await assertStaff("chats.view");
   const conv = await loadConv(staff, conversationId);
-  if (conv.unread) await markConversationRead(conv.id);
+  if (conv.unread) await container().messaging.chats.markRead(conv.id);
 }
 
 export async function assignConversationAction(conversationId: string, userId: string | null) {
@@ -89,7 +89,7 @@ export async function sendInternalNoteAction(conversationId: string, text: strin
   const staff = await assertStaff("chats.view");
   const conv = await loadConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустая заметка").max(4000).parse(text);
-  const msg = await addInternalNote(conv.id, body, staff.user.id);
+  const msg = await container().messaging.chats.addInternalNote(conv.id, body, staff.user.id);
   await notifyMentions(body, staff.user.id, adminLabel(staff.user), `/admin/chats?c=${conv.id}`, `чат с ${conv.contactName || "клиентом"}`);
   revalidatePath("/admin/chats");
   return { id: msg.id };
@@ -113,7 +113,7 @@ export async function sendOfferAction(conversationId: string, request: OfferRequ
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }
-  const msg = await sendChatMessage(conv.id, offer.text, staff.user.id);
+  const msg = await container().messaging.chats.send(conv.id, offer.text, staff.user.id);
   if (offer.promo) {
     await audit(staff, "promo.personal", "promo", offer.promo, { percent: req.kind === "discount" ? req.percent : null, conversation: conv.id });
     if (conv.dealId) await container().sales.deals.note({ id: conv.dealId, clientId: conv.clientId }, `Персональная скидка ${req.kind === "discount" ? req.percent : ""}%: промокод ${offer.promo}`, staff.user.id);

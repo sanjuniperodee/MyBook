@@ -3,7 +3,6 @@ import { container } from "@/server/container";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmCalls, crmDeals, crmNotes, users, type CrmCall } from "../db/schema";
-import { isBlocked } from "./chats";
 import { publish } from "./realtime";
 import { notifyOwnerOr } from "./notify";
 import { formatPhone } from "./phone";
@@ -96,7 +95,7 @@ async function handleCallEventInner(e: CallEvent): Promise<CrmCall | null> {
 /** Итог звонка: сделка для нового номера, запись в историю, пропущенный → задача и уведомление. */
 async function afterCall(call: CrmCall): Promise<CrmCall> {
   // Номер в спаме: звонок в журнале остаётся, но без заявки, задач и уведомлений.
-  if (call.clientPhone && (await isBlocked(call.clientPhone))) return call;
+  if (call.clientPhone && (await container().messaging.chats.isBlocked(call.clientPhone))) return call;
   const missed = call.direction === "in" && call.status === "missed";
   if (call.direction === "in" && !call.dealId && call.clientPhone) {
     const deal = await container().sales.deals.create({ title: `Звонок: ${formatPhone(call.clientPhone)}`, source: "call", clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone), unsorted: true });

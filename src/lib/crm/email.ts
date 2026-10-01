@@ -7,7 +7,6 @@ import { escapeHtml } from "@/shared/infrastructure/mail";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
 import { getSettings, saveSettings } from "./settings";
-import { ingestMessage } from "./chats";
 import { publish } from "./realtime";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "./email-logic";
 import { adminLabel } from "../crm";
@@ -52,7 +51,7 @@ async function authorName(messageId: string) {
 }
 
 /** Ответ из единого инбокса в почтовый диалог: «Re: тема» и In-Reply-To последнего письма клиента. */
-export async function sendEmailReply(conv: CrmConversation, messageId: string, text: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function sendEmailReply(conv: Pick<CrmConversation, "chatId" | "meta">, messageId: string, text: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const subject = replySubject(conv.meta.subject);
   try {
     const { messageId: externalId } = await sendCrmMail({ to: conv.chatId, subject, text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(messageId) });
@@ -127,7 +126,7 @@ export async function ingestEmail(mail: InboundEmail) {
   // Повторная доставка того же письма (вебхук, IMAP после сбоя) не должна менять тему и цепочку диалога.
   if (await db.query.crmMessages.findFirst({ where: eq(crmMessages.externalId, `email:${mail.messageId}`), columns: { id: true } })) return;
   const text = mail.subject && !mail.text.includes(mail.subject) ? `${mail.subject}\n\n${mail.text}` : mail.text;
-  await ingestMessage(
+  await container().messaging.chats.ingest(
     {
       externalId: `email:${mail.messageId}`,
       channelId: "",

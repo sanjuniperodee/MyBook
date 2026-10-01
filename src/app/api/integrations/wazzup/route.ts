@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSetting } from "@/lib/crm/settings";
 import { safeEqual } from "@/shared/crypto";
 import { parseWazzupWebhook } from "@/lib/crm/wazzup-protocol";
-import { applyStatus, ingestMessage } from "@/lib/crm/chats";
+import { container } from "@/server/container";
 
 /**
  * Вебхук Wazzup: входящие сообщения, эхо отправленных с телефона и статусы доставки.
@@ -26,13 +26,13 @@ export async function POST(req: Request) {
   // Сообщения одного чата — по порядку, чтобы не создать две сделки на одно обращение.
   for (const m of messages.sort((a, b) => a.at.getTime() - b.at.getTime())) {
     try {
-      await ingestMessage(m);
+      await container().messaging.chats.ingest(m);
     } catch (err) {
       failed++;
       console.error("[wazzup] message", m.externalId, err);
     }
   }
-  for (const s of statuses) await applyStatus(s).catch((err) => console.error("[wazzup] status", err));
+  for (const s of statuses) await container().messaging.chats.applyStatus(s).catch((err) => console.error("[wazzup] status", err));
   // 500 — Wazzup доставит пакет повторно; уже сохранённые сообщения отсеются по messageId.
   return failed ? NextResponse.json({ error: "partial" }, { status: 500 }) : NextResponse.json({ ok: true });
 }

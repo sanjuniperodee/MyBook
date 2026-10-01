@@ -7,7 +7,7 @@ import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks } from "@/lib
 import { can, contactView, ownScope, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/lib/crm/phone";
-import { channelLabel } from "@/lib/crm/chats";
+import { channelLabel } from "@/modules/messaging";
 import { cn, formatDate } from "@/lib/utils";
 
 const minutesAgo = (d: Date) => Math.max(0, Math.round((Date.now() - d.getTime()) / 60_000));

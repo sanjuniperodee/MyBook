@@ -11,7 +11,7 @@ export type { SalesGateway } from "./application";
 export class AutomationModule {
   readonly engine: AutomationEngine;
 
-  constructor(deps: { clock: Clock; sales: SalesGateway }) {
-    this.engine = new AutomationEngine(new DrizzleRuleRepository(), new DrizzleSubjectLoader(), crmEffects, deps.sales, crmWorkSchedule, new SqlScheduledSource(), appInfo, deps.clock, consoleLogger("automations"));
+  constructor(deps: { clock: Clock; sales: SalesGateway; sendMessage: (conversationId: string, text: string) => Promise<void> }) {
+    this.engine = new AutomationEngine(new DrizzleRuleRepository(), new DrizzleSubjectLoader(), crmEffects(deps.sendMessage), deps.sales, crmWorkSchedule, new SqlScheduledSource(), appInfo, deps.clock, consoleLogger("automations"));
   }
 }

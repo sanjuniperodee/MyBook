@@ -10,7 +10,6 @@ import { AiForm, Blocklist, EmailForm, CrmSettingsForm, TelephonyForm, TemplateE
 import { parseWorkHours } from "@/lib/crm/schedule";
 import { BotForm } from "./BotForm";
 import { parseBotConfig } from "@/lib/crm/bot-logic";
-import { botStats } from "@/lib/crm/bot";
 import { listFields } from "@/lib/crm/fields";
 import { formatPhone } from "@/lib/crm/phone";
 import { formatDate } from "@/lib/utils";
@@ -36,7 +35,7 @@ export default async function SettingsPage() {
     getSetting("crm.maxDiscount"),
     db.select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200),
   ]);
-  const [botMode, botConfig, dealFields, stats] = await Promise.all([getSetting("bot.mode"), getSetting("bot.config"), listFields("deal"), botStats()]);
+  const [botMode, botConfig, dealFields, stats] = await Promise.all([getSetting("bot.mode"), getSetting("bot.config"), listFields("deal"), container().messaging.queries.botStats()]);
   const [wEnabled, wChat, zPbx, zWebphone] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone")]);
   const em = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.webhookToken"]);
   const [aiKey, aiBase, aiEnabled, aiKnowledge] = await Promise.all([getSetting("ai.apiKey"), getSetting("ai.baseUrl"), getSetting("ai.enabled"), getSetting("ai.knowledge")]);

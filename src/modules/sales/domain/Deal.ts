@@ -145,6 +145,29 @@ export class Deal extends AggregateRoot<DealProps> {
     this.props.amount = amount;
   }
 
+  /**
+   * Менеджер ответил клиенту: заявка из «Неразобранного» принята и, если была ничья, — его.
+   * Возвращает false, если сделка уже была разобрана.
+   */
+  accept(authorId: string): boolean {
+    if (!this.props.unsorted) return false;
+    this.props.unsorted = false;
+    this.props.assigneeId ??= authorId;
+    return true;
+  }
+
+  /** Откуда пришёл клиент — только если ещё не известно. */
+  attributeIfUnknown(utm: Record<string, string>): boolean {
+    if (this.props.utm) return false;
+    this.props.utm = utm;
+    return true;
+  }
+
+  /** Значение своего поля (ответ бота, правка менеджера). */
+  setField(key: string, value: string | number | boolean | null) {
+    this.props.customFields = { ...this.props.customFields, [key]: value };
+  }
+
   /** Заполнить пустые свои поля (не перетирая то, что менеджер уже ввёл). */
   fillEmptyFields(values: CustomValues): boolean {
     let changed = false;

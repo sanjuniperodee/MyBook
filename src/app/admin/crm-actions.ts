@@ -1,5 +1,6 @@
 "use server";
 
+import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -7,7 +8,6 @@ import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, orders, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { clickToCall, TelephonyError } from "@/lib/crm/telephony";
-import { conversationForPhone } from "@/lib/crm/chats";
 import { getSetting } from "@/lib/crm/settings";
 import { normalizePhone } from "@/lib/crm/phone";
 
@@ -86,7 +86,7 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   assertVisible(staff, c.assigneeId);
   const channelId = await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
-  const conv = await conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
+  const conv = await container().messaging.chats.conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
   if (c.dealId && !conv.dealId) await db.update(crmConversations).set({ dealId: c.dealId }).where(eq(crmConversations.id, conv.id));
   return { ok: true, id: conv.id };
 }

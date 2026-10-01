@@ -4,11 +4,11 @@ import { site } from "@/config/site";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages } from "@/i18n/server";
 import { landings } from "@/lib/content/landings";
-import { widgetConfig } from "@/lib/crm/site-chat";
+import { container } from "@/server/container";
 import { SiteWidget } from "@/components/SiteWidget";
 
 export async function Footer() {
-  const [locale, m, widget] = await Promise.all([getLocale(), getMessages(), widgetConfig().catch(() => null)]);
+  const [locale, m, widget] = await Promise.all([getLocale(), getMessages(), container().messaging.widgetConfig().catch(() => null)]);
   const f = m.common.footer;
   const year = new Date().getFullYear();
   return (

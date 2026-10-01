@@ -6,7 +6,8 @@ import { getCurrentUser } from "@/server/auth";
 import { isSecureCookie } from "@/lib/env";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { randomToken } from "@/shared/crypto";
-import { postSiteMessage, siteMessages, VISITOR_COOKIE, widgetConfig } from "@/lib/crm/site-chat";
+import { VISITOR_COOKIE } from "@/modules/messaging";
+import { container } from "@/server/container";
 
 /** Онлайн-чат на сайте: посетитель пишет, менеджер отвечает из единого инбокса CRM. */
 export const GET = api(async (req) => {
@@ -14,7 +15,7 @@ export const GET = api(async (req) => {
   if (!token) return NextResponse.json({ messages: [] });
   const after = new URL(req.url).searchParams.get("after");
   const at = after ? new Date(after) : undefined;
-  const messages = await siteMessages(token, at && !Number.isNaN(at.getTime()) ? at : undefined);
+  const messages = await container().messaging.siteMessages(token, at && !Number.isNaN(at.getTime()) ? at : undefined);
   return NextResponse.json({ messages }, { headers: { "cache-control": "no-store" } });
 });
 
@@ -27,7 +28,7 @@ const schema = z.object({
 
 export const POST = api(async (req) => {
   checkOrigin(req);
-  if (!(await widgetConfig()).chat) throw new HttpError(403, "widgetOff");
+  if (!(await container().messaging.widgetConfig()).chat) throw new HttpError(403, "widgetOff");
   const body = schema.parse(await req.json());
   const jar = await cookies();
   let token = jar.get(VISITOR_COOKIE)?.value;
@@ -37,6 +38,6 @@ export const POST = api(async (req) => {
     jar.set(VISITOR_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", maxAge: 60 * 60 * 24 * 180 });
   }
   const user = await getCurrentUser();
-  await postSiteMessage({ token, text: body.text, name: body.name, phone: body.phone, page: body.page, userId: user?.role === "user" ? user.id : null, userName: user?.name });
+  await container().messaging.site.post({ token, text: body.text, name: body.name, phone: body.phone, page: body.page, userId: user?.role === "user" ? user.id : null, userName: user?.name });
   return NextResponse.json({ ok: true });
 });

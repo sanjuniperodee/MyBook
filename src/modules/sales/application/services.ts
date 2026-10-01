@@ -132,6 +132,23 @@ export class DealsService {
     if (deal?.fillEmptyFields(values)) await this.deals.save(deal);
   }
 
+  async acceptUnsorted(dealId: string, authorId: string) {
+    const deal = await this.deals.findById(dealId);
+    if (deal?.accept(authorId)) await this.deals.save(deal);
+  }
+
+  async setUtmIfEmpty(dealId: string, utm: Record<string, string>) {
+    const deal = await this.deals.findById(dealId);
+    if (deal?.attributeIfUnknown(utm)) await this.deals.save(deal);
+  }
+
+  async setField(dealId: string, key: string, value: string | number | boolean | null) {
+    const deal = await this.deals.findById(dealId);
+    if (!deal) return;
+    deal.setField(key, value);
+    await this.deals.save(deal);
+  }
+
   async findById(dealId: string) {
     return (await this.deals.findById(dealId))?.snapshot() ?? null;
   }

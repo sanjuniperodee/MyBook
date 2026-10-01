@@ -12,7 +12,7 @@ import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from 
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { dealSourceLabels } from "@/modules/sales";
 import { books, bookQuestions, photos } from "@/lib/db/schema";
-import { channelLabel } from "@/lib/crm/chats";
+import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
 import { chatOffers } from "@/lib/crm/offers";
 import { mentionableStaff } from "@/lib/crm/mentions";

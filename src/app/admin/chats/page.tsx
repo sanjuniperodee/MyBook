@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { crmConversations, crmDeals, crmStages, users } from "@/lib/db/schema";
 import { can, canAssignOthers, canSeeAssigned, contactView, ownScope, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { channelLabel } from "@/lib/crm/chats";
+import { channelLabel } from "@/modules/messaging";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/lib/crm/channels";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
 import { chatOffers } from "@/lib/crm/offers";

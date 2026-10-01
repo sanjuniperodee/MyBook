@@ -8,7 +8,8 @@ import { IdentityModule } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
-import { SalesModule } from "@/modules/sales";
+import { SalesModule, sourceFromChannel } from "@/modules/sales";
+import { MessagingModule } from "@/modules/messaging";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -37,17 +38,38 @@ export class Container {
   #notifications?: NotificationsModule;
   #sales?: SalesModule;
   #automation?: AutomationModule;
+  #messaging?: MessagingModule;
 
   /** Правила CRM работают со сделками через узкий порт продаж. */
   get automation(): AutomationModule {
     return (this.#automation ??= new AutomationModule({
       clock: this.clock,
+      sendMessage: async (conversationId, text) => void (await this.messaging.chats.send(conversationId, text, null)),
       sales: {
         nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),
         move: async (dealId, stageId) => void (await this.sales.deals.move(dealId, stageId, null)),
         findOpenDealId: async (clientId) => (await this.sales.deals.findOpen({ clientId }))?.id ?? null,
         createDeal: (input) => this.sales.deals.create(input),
+      },
+    }));
+  }
+
+  /** Переписка создаёт и ведёт сделки через порт продаж, а правила на входящие — через движок автоматизаций. */
+  get messaging(): MessagingModule {
+    return (this.#messaging ??= new MessagingModule({
+      clock: this.clock,
+      rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
+      sales: {
+        findClientByPhone: (phone) => this.sales.deals.findClientByPhone(phone),
+        findOpenDeal: (opts) => this.sales.deals.findOpen(opts),
+        createDeal: ({ channel, source, ...input }) => this.sales.deals.create({ ...input, source: source ?? sourceFromChannel(channel) }),
+        setUtmIfEmpty: (dealId, utm) => this.sales.deals.setUtmIfEmpty(dealId, utm),
+        acceptUnsorted: (dealId, authorId) => this.sales.deals.acceptUnsorted(dealId, authorId),
+        note: (deal, text) => this.sales.deals.note(deal, text, null),
+        setField: (dealId, key, value) => this.sales.deals.setField(dealId, key, value),
+        deal: (dealId) => this.sales.deals.findById(dealId),
+        nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
       },
     }));
   }
