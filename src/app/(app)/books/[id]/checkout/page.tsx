@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { GIFT_COOKIE, getGiftByPromo } from "@/lib/gifts";
-import { describePromo, findValidPromo } from "@/lib/promo";
-import { formatPrice, type PlanId } from "@/config/site";
+import { GIFT_COOKIE } from "@/modules/ordering";
+import { container } from "@/server/container";
+import type { PlanId } from "@/config/site";
 import type { PromoPreview } from "./actions";
 import { getOccasion } from "@/lib/occasions";
 import { Link } from "@/i18n/client";
@@ -32,18 +32,11 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const blocked = issues.some((i) => i.level === "error");
   // Код активированного сертификата (или персональный промокод из ссылки менеджера) подставляем сразу.
   const giftCode = (await cookies()).get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined);
-  const giftCheck = giftCode ? await findValidPromo(giftCode) : null;
-  const initialPromo: PromoPreview | null = giftCheck?.ok
-    ? {
-        ok: true,
-        code: giftCheck.promo.code,
-        kind: giftCheck.promo.kind,
-        value: giftCheck.promo.value,
-        label: describePromo(giftCheck.promo, formatPrice),
-      }
-    : null;
+  const ordering = container().ordering;
+  const giftCheck = giftCode ? await ordering.promos.check(giftCode) : null;
+  const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
-  const giftPlan = giftCheck?.ok ? ((await getGiftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;
+  const giftPlan = giftCheck?.ok ? ((await ordering.queries.giftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">

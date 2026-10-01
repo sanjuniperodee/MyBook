@@ -16,7 +16,7 @@ import { coverName, typographyName } from "@/i18n/labels";
 import { site } from "@/config/site";
 import { db } from "@/lib/db";
 import { bookLetters, orders } from "@/lib/db/schema";
-import { orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";

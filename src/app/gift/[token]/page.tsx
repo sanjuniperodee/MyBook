@@ -7,8 +7,8 @@ import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { getCurrentUser } from "@/lib/auth";
-import { getGiftByToken, redeemUrl } from "@/lib/gifts";
-import { isOnlinePayment } from "@/lib/payments";
+import { container } from "@/server/container";
+import { isOnlinePayment, redeemUrl } from "@/modules/ordering";
 import { env } from "@/lib/env";
 import { formatPrice, site } from "@/config/site";
 import { parseDay } from "@/lib/occasions";
@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function GiftStatusPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const [gift, user, locale, m] = await Promise.all([getGiftByToken(token), getCurrentUser(), getLocale(), getMessages()]);
+  const [gift, user, locale, m] = await Promise.all([container().ordering.queries.giftByToken(token), getCurrentUser(), getLocale(), getMessages()]);
   if (!gift) notFound();
   const t = m.gift.status;
   const paid = gift.status === "paid" && gift.promo;

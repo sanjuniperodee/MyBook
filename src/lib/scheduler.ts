@@ -1,6 +1,5 @@
 import "server-only";
 import { pool } from "./db";
-import { sendDueGifts } from "./gifts";
 import { runLifecycle } from "./lifecycle";
 
 const INTERVAL_MS = 15 * 60_000;
@@ -15,7 +14,8 @@ export async function tick() {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const gifts = await sendDueGifts();
+    const { container } = await import("@/server/container");
+    const gifts = await container().ordering.deliverDueGifts();
     const emails = await runLifecycle();
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
   } catch (err) {

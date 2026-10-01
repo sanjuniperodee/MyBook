@@ -1,8 +1,6 @@
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { desc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { giftCards } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { formatDate, cn } from "@/lib/utils";
 import { parseDay } from "@/lib/occasions";
@@ -17,7 +15,7 @@ const statusLabel = { pending_payment: "Ждёт оплаты", paid: "Опла�
 
 export default async function AdminGifts() {
   await requireStaff("gifts.manage");
-  const list = await db.query.giftCards.findMany({ orderBy: desc(giftCards.createdAt), with: { promo: true }, limit: 300 });
+  const list = await container().ordering.queries.recentGifts();
   const paid = list.filter((g) => g.status === "paid");
   const redeemed = paid.filter((g) => g.promo && g.promo.usedCount > 0);
   const revenue = paid.reduce((s, g) => s + g.amount, 0);

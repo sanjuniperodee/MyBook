@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { CalendarClock, CircleDollarSign, Gift } from "lucide-react";
 import { moveOrderAction } from "../actions";
-import { orderStatusLabels } from "@/lib/orders-shared";
+import { orderStatusLabels } from "@/modules/ordering/ui/status";
 import type { OrderStatus } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
 

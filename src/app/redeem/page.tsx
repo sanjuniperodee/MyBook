@@ -4,8 +4,7 @@ import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { getCurrentUser } from "@/lib/auth";
-import { findValidPromo } from "@/lib/promo";
-import { getGiftByPromo } from "@/lib/gifts";
+import { container } from "@/server/container";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
 import { localizePath } from "@/i18n/config";
@@ -19,8 +18,9 @@ export default async function RedeemPage({ searchParams }: { searchParams: Promi
   const { code, error } = await searchParams;
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
   const t = m.gift.redeem;
-  const check = code ? await findValidPromo(code) : null;
-  const gift = check?.ok ? await getGiftByPromo(check.promo.id) : null;
+  const ordering = container().ordering;
+  const check = code ? await ordering.promos.check(code) : null;
+  const gift = check?.ok ? await ordering.queries.giftByPromo(check.promo.id) : null;
 
   return (
     <>

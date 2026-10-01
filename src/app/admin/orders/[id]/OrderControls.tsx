@@ -6,7 +6,7 @@ import { LoaderCircle, RefreshCw } from "lucide-react";
 import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
-import { orderStatusLabels } from "@/lib/orders-shared";
+import { orderStatusLabels } from "@/modules/ordering/ui/status";
 import { orderStatuses, type OrderStatus } from "@/lib/db/schema";
 
 export function StatusForm({ orderId, status, trackingNumber }: { orderId: string; status: OrderStatus; trackingNumber: string | null }) {

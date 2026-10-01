@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
-import type { OrderStatus } from "./db/schema";
+import type { OrderStatus } from "../domain/OrderStatus";
 
 /** Подписи статусов по-русски — для CRM. Для клиента — orderStatusLabel(s, locale). */
 export const orderStatusLabels: Record<OrderStatus, string> = messagesFor("ru").common.orderStatus;

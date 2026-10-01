@@ -17,7 +17,7 @@ import { chatOffers } from "@/lib/crm/offers";
 import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";

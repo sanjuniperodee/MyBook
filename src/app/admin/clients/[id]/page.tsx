@@ -13,7 +13,7 @@ import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { REMINDER_COOLDOWN_DAYS } from "@/lib/crm-reminders";
 import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
 import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";

@@ -7,7 +7,7 @@ import { orders } from "@/lib/db/schema";
 import { orderWhere } from "@/lib/crm-filters";
 import { toCsv } from "@/lib/crm";
 
-import { orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusLabel } from "@/modules/ordering/ui/status";
 
 export const GET = api(async (req) => {
   const staff = await apiStaff(req, "orders.view", "clients.export", "clients.contacts");

@@ -1,32 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { assertStaff } from "@/lib/crm/rbac";
-import { db } from "@/lib/db";
-import { giftCards, promoCodes } from "@/lib/db/schema";
-import { markGiftPaid, sendGiftToRecipient } from "@/lib/gifts";
+import { container } from "@/server/container";
+
+const uuid = z.string().uuid();
 
 export async function markGiftPaidAction(id: string) {
   const staff = await assertStaff("gifts.manage");
-  const admin = staff.user;
-  await markGiftPaid(id, `admin:${admin.email}`);
+  await container().ordering.gifts.confirmPayment(uuid.parse(id), null, { label: `admin:${staff.user.email}`, userId: staff.user.id });
   revalidatePath("/admin/gifts");
 }
 
 export async function resendGiftAction(id: string) {
   await assertStaff("gifts.manage");
-  const gift = await db.query.giftCards.findFirst({ where: eq(giftCards.id, id), with: { promo: true } });
-  if (gift?.status === "paid" && gift.promo && gift.recipientEmail) await sendGiftToRecipient({ ...gift, promo: gift.promo });
+  await container().ordering.resendGift(uuid.parse(id));
   revalidatePath("/admin/gifts");
 }
 
 export async function cancelGiftAction(id: string) {
   await assertStaff("gifts.manage");
-  const gift = await db.query.giftCards.findFirst({ where: eq(giftCards.id, id) });
-  if (!gift) return;
-  await db.update(giftCards).set({ status: "cancelled" }).where(eq(giftCards.id, id));
-  // Выпущенный код больше не принимается.
-  if (gift.promoCodeId) await db.update(promoCodes).set({ active: false }).where(eq(promoCodes.id, gift.promoCodeId));
+  await container().ordering.gifts.cancel(uuid.parse(id));
   revalidatePath("/admin/gifts");
 }

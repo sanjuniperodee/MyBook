@@ -1,6 +1,7 @@
 import { api, apiUser, HttpError } from "@/lib/api";
 import { can, getStaff } from "@/lib/crm/rbac";
-import { getOrderFile, getOrderWithBook, type OrderFileKind } from "@/lib/orders";
+import { container } from "@/server/container";
+import type { PrintFileKind as OrderFileKind } from "@/modules/production";
 import { getPlan } from "@/config/site";
 
 export const maxDuration = 300;
@@ -16,7 +17,8 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   const { id, kind } = await params;
   if (!(kind in kinds)) throw new HttpError(404, "notFound");
   const user = await apiUser(req);
-  const order = await getOrderWithBook(id);
+  const c = container();
+  const order = await c.ordering.queries.orderDetails(id);
   if (!order) throw new HttpError(404, "orderNotFound");
   // Сотруднику нужны права: читательская версия — orders.view, файлы для типографии — orders.files.
   const staff = await getStaff();
@@ -29,7 +31,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
     if (!paid || (kind !== "reading" && !digital)) throw new HttpError(403, "fileNotReady");
   }
   const force = isAdmin && new URL(req.url).searchParams.get("regenerate") === "1";
-  const data = await getOrderFile(order, kind as OrderFileKind, force);
+  const data = await c.printFiles.getFile({ orderId: order.id, bookId: order.bookId, number: order.number }, kind as OrderFileKind, { force });
   const meta = kinds[kind as OrderFileKind];
   return new Response(new Uint8Array(data), {
     headers: {

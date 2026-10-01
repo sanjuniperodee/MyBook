@@ -5,11 +5,12 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/lib/crm/rbac";
 import { db } from "@/lib/db";
-import { books, crmDeals, crmNotes, crmTasks, orders, orderStatuses, promoCodes, users } from "@/lib/db/schema";
+import { crmDeals, crmNotes, crmTasks, orders, orderStatuses, users } from "@/lib/db/schema";
 import { notify } from "@/lib/crm/notify";
 import { notifyMentions } from "@/lib/crm/mentions";
-import { normalizePromoCode } from "@/lib/pricing";
-import { addOrderEvent, ensurePrintFiles, markOrderPaid, setOrderStatus } from "@/lib/orders";
+import { normalizePromoCode, OrderingError } from "@/modules/ordering";
+import type { Actor } from "@/shared/application";
+import { container } from "@/server/container";
 
 export interface AdminState {
   error?: string;
@@ -31,9 +32,37 @@ async function guardClient(staff: Staff, clientId: string) {
   assertVisible(staff, c?.managerId);
 }
 
+/** Подпись сотрудника в журналах заказа. */
+const staffActor = (staff: Staff): Actor => ({ label: actor(staff.user.email), userId: staff.user.id });
+
+/** Ошибку домена показываем сотруднику текстом, остальное — как есть. */
+async function orderCommand(run: () => Promise<unknown>): Promise<AdminState | null> {
+  try {
+    await run();
+    return null;
+  } catch (err) {
+    if (err instanceof OrderingError) return { error: orderingStaffMessage(err) };
+    throw err;
+  }
+}
+
+function orderingStaffMessage(err: OrderingError) {
+  switch (err.code) {
+    case "orderNotFound":
+      return "Заказ не найден";
+    case "invalidTransition":
+      return "Такой переход статуса невозможен";
+    case "staffNotFound":
+      return "Ответственным может быть только сотрудник CRM";
+    case "promoExists":
+      return "Такой промокод уже есть";
+    default:
+      return err.message;
+  }
+}
+
 export async function updateOrderAction(_: AdminState, form: FormData): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
-  const admin = staff.user;
   const parsed = z
     .object({
       orderId: z.string().uuid(),
@@ -44,17 +73,8 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { orderId, status, trackingNumber, note } = parsed.data;
-  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
-  if (!order) return { error: "Заказ не найден" };
-  if (trackingNumber !== undefined && trackingNumber !== (order.trackingNumber ?? "")) {
-    await db.update(orders).set({ trackingNumber: trackingNumber || null }).where(eq(orders.id, orderId));
-  }
-  if (status !== order.status) {
-    if (status === "paid" && order.status === "pending_payment") await markOrderPaid(orderId, actor(admin.email));
-    else await setOrderStatus(orderId, status, actor(admin.email), note ?? "");
-  } else if (note) {
-    await addOrderEvent(orderId, null, note, actor(admin.email));
-  }
+  const failed = await orderCommand(() => container().ordering.orders.update({ orderId, status, trackingNumber, note }, staffActor(staff)));
+  if (failed) return failed;
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Сохранено" };
 }
@@ -62,31 +82,21 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
 export async function saveAdminNoteAction(_: AdminState, form: FormData): Promise<AdminState> {
   await assertStaff("orders.edit");
   const orderId = z.string().uuid().parse(form.get("orderId"));
-  const note = String(form.get("adminNote") ?? "").slice(0, 5000);
-  await db.update(orders).set({ adminNote: note || null }).where(eq(orders.id, orderId));
+  await container().ordering.orders.saveAdminNote(orderId, String(form.get("adminNote") ?? ""));
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Заметка сохранена" };
 }
 
 export async function generateFilesAction(orderId: string) {
   const staff = await assertStaff("orders.files");
-  const admin = staff.user;
-  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
-  if (!order) throw new Error("Заказ не найден");
-  await ensurePrintFiles(order, true);
-  await addOrderEvent(order.id, null, "Файлы для печати сгенерированы", actor(admin.email));
+  await container().ordering.orders.regeneratePrintFiles(z.string().uuid().parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
 /** Временно открыть книгу для правок клиентом (например, по просьбе исправить опечатку). */
 export async function toggleBookLockAction(orderId: string) {
   const staff = await assertStaff("orders.edit");
-  const admin = staff.user;
-  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId), with: { book: true } });
-  if (!order) throw new Error("Заказ не найден");
-  const next = order.book.status === "draft" ? "ordered" : "draft";
-  await db.update(books).set({ status: next }).where(eq(books.id, order.bookId));
-  await addOrderEvent(order.id, null, next === "draft" ? "Книга открыта для правок" : "Книга снова закрыта для правок", actor(admin.email));
+  await container().ordering.orders.toggleBookEditing(z.string().uuid().parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
@@ -105,10 +115,8 @@ export async function createPromoAction(_: AdminState, form: FormData): Promise<
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const exists = await db.query.promoCodes.findFirst({ where: eq(promoCodes.code, d.code) });
-  if (exists) return { error: "Такой промокод уже есть" };
-  const expiresAt = d.expiresAt ? new Date(d.expiresAt.getTime() + 24 * 3600 * 1000 - 1) : null; // действует до конца дня
-  await db.insert(promoCodes).values({ code: d.code, kind: d.kind, value: d.value, maxUses: d.maxUses ?? null, expiresAt, note: d.note ?? "" });
+  const failed = await orderCommand(() => container().ordering.promos.create({ code: d.code, kind: d.kind, value: d.value, maxUses: d.maxUses ?? null, expiresOn: d.expiresAt ?? null, note: d.note ?? "" }));
+  if (failed) return failed;
   await audit(staff, "promo.create", "promo", d.code, { kind: d.kind, value: d.value });
   revalidatePath("/admin/promo");
   return { ok: `Промокод ${d.code} создан` };
@@ -116,39 +124,26 @@ export async function createPromoAction(_: AdminState, form: FormData): Promise<
 
 export async function togglePromoAction(id: string) {
   const staff = await assertStaff("promo.manage");
-  const promo = await db.query.promoCodes.findFirst({ where: eq(promoCodes.id, id) });
-  if (!promo) throw new Error("Промокод не найден");
-  await db.update(promoCodes).set({ active: !promo.active }).where(eq(promoCodes.id, id));
-  await audit(staff, promo.active ? "promo.disable" : "promo.enable", "promo", promo.code);
+  const promo = await container().ordering.promos.toggle(z.string().uuid().parse(id));
+  await audit(staff, promo.active ? "promo.enable" : "promo.disable", "promo", promo.code);
   revalidatePath("/admin/promo");
 }
 
 // ─── CRM: заказы ────────────────────────────────────────────────────────────
 
-async function applyStatus(orderId: string, status: (typeof orderStatuses)[number], adminEmail: string, note = "") {
-  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
-  if (!order) throw new Error("Заказ не найден");
-  if (order.status === status) return;
-  if (status === "paid" && order.status === "pending_payment") await markOrderPaid(orderId, actor(adminEmail));
-  else await setOrderStatus(orderId, status, actor(adminEmail), note);
-}
-
 /** Перемещение карточки на канбан-доске. */
 export async function moveOrderAction(orderId: string, status: string) {
   const staff = await assertStaff("orders.edit");
-  const admin = staff.user;
-  const s = z.enum(orderStatuses).parse(status);
-  await applyStatus(z.string().uuid().parse(orderId), s, admin.email);
+  await container().ordering.orders.changeStatus({ orderId: z.string().uuid().parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff));
   revalidatePath("/admin/board");
   revalidatePath("/admin");
 }
 
 export async function bulkStatusAction(orderIds: string[], status: string) {
   const staff = await assertStaff("orders.edit");
-  const admin = staff.user;
   const s = z.enum(orderStatuses).parse(status);
   const ids = z.array(z.string().uuid()).max(200).parse(orderIds);
-  for (const id of ids) await applyStatus(id, s, admin.email, "Массовое изменение");
+  for (const id of ids) await container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff));
   await audit(staff, "order.bulk_status", "order", null, { count: ids.length, status: s });
   revalidatePath("/admin/orders");
   revalidatePath("/admin/board");
@@ -157,30 +152,22 @@ export async function bulkStatusAction(orderIds: string[], status: string) {
 
 export async function assignOrderAction(orderId: string, assigneeId: string | null) {
   const staff = await assertStaff("orders.edit");
-  const admin = staff.user;
   const id = z.string().uuid().parse(orderId);
-  let label = "снят";
-  if (assigneeId) {
-    const a = await db.query.users.findFirst({ where: eq(users.id, z.string().uuid().parse(assigneeId)) });
-    if (!a || a.role !== "admin") throw new Error("Ответственным может быть только администратор");
-    label = a.name || a.email;
-  }
-  await db.update(orders).set({ assigneeId }).where(eq(orders.id, id));
-  await addOrderEvent(id, null, `Ответственный: ${label}`, actor(admin.email));
+  const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? z.string().uuid().parse(assigneeId) : null, staffActor(staff)));
+  if (failed) throw new Error(failed.error);
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/board");
 }
 
 export async function updateOrderDetailsAction(_: AdminState, form: FormData): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
-  const admin = staff.user;
   const parsed = z
     .object({
       orderId: z.string().uuid(),
       contactName: z.string().trim().min(1, "Укажите имя").max(100),
       contactPhone: z.string().trim().min(5, "Укажите телефон").max(30),
       contactEmail: z.string().trim().toLowerCase().email("Проверьте e-mail"),
-      deliveryMethod: z.string().max(20).optional(),
+      deliveryMethod: z.enum(["pickup", "courier", "post"]).or(z.literal("")).optional(),
       city: z.string().trim().max(100).optional(),
       address: z.string().trim().max(300).optional(),
       postalCode: z.string().trim().max(20).optional(),
@@ -190,21 +177,19 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { orderId, ...d } = parsed.data;
-  await db
-    .update(orders)
-    .set({
-      contactName: d.contactName,
-      contactPhone: d.contactPhone,
-      contactEmail: d.contactEmail,
-      deliveryMethod: d.deliveryMethod || null,
-      city: d.city || null,
-      address: d.address || null,
-      postalCode: d.postalCode || null,
-      desiredDate: d.desiredDate || null,
-      giftNote: d.giftNote || null,
-    })
-    .where(eq(orders.id, orderId));
-  await addOrderEvent(orderId, null, "Контакты и доставка изменены", actor(admin.email));
+  const failed = await orderCommand(() =>
+    container().ordering.orders.updateDetails(
+      {
+        orderId,
+        contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
+        delivery: { method: d.deliveryMethod || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
+        desiredDate: d.desiredDate || null,
+        giftNote: d.giftNote || null,
+      },
+      staffActor(staff),
+    ),
+  );
+  if (failed) return failed;
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Сохранено" };
 }

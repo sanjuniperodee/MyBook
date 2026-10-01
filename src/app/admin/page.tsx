@@ -5,7 +5,7 @@ import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-reac
 import { db } from "@/lib/db";
 import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
 import { formatPrice, plans } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff } from "@/lib/crm/rbac";
 import { MyDay } from "./MyDay";
 import { channelReport } from "@/lib/crm/marketing";

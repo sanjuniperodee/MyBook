@@ -316,12 +316,12 @@ export async function onBookProgress(bookId: string, userId: string) {
 }
 
 /** Новый заказ с сайта: связываем с открытой сделкой клиента (или заводим её) и двигаем по воронке. */
-export async function onOrderCreated(order: Order) {
+export async function onOrderCreated(order: Pick<Order, "id" | "userId" | "number" | "amount">) {
   await advanceByMilestone(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount });
   await runTrigger("order.created", { subject: order.id, orderId: order.id, clientId: order.userId }).catch((err) => console.error("[crm] order.created", err));
 }
 
-export async function onOrderPaid(order: Order) {
+export async function onOrderPaid(order: Pick<Order, "id" | "userId" | "number" | "amount">) {
   try {
     await db.update(crmDeals).set({ amount: order.amount, updatedAt: new Date() }).where(eq(crmDeals.orderId, order.id));
     const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.orderId, order.id) });
@@ -332,7 +332,7 @@ export async function onOrderPaid(order: Order) {
   }
 }
 
-export async function onOrderCancelled(order: Order) {
+export async function onOrderCancelled(order: Pick<Order, "id" | "userId" | "number" | "amount">) {
   try {
     const deals = await db.select({ id: crmDeals.id, pipelineId: crmStages.pipelineId }).from(crmDeals).innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId)).where(eq(crmDeals.orderId, order.id));
     for (const d of deals) {

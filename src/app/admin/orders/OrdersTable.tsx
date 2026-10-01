@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
 import { bulkStatusAction } from "../actions";
-import { orderStatusColors, orderStatusLabels } from "@/lib/orders-shared";
+import { orderStatusColors, orderStatusLabels } from "@/modules/ordering/ui/status";
 import { orderStatuses, type OrderStatus } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
 

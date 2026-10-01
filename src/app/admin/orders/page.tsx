@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { orders, orderStatuses } from "@/lib/db/schema";
 import { requireStaff } from "@/lib/crm/rbac";
 import { formatPrice, plans } from "@/config/site";
-import { orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { orderWhere, type OrderFilters } from "@/lib/crm-filters";
 import { formatDate } from "@/lib/utils";

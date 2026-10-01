@@ -38,7 +38,7 @@ describe("occasions", () => {
   });
 });
 
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 
 describe("addons pricing", () => {
   it("adds addons only where available and never discounts them", () => {

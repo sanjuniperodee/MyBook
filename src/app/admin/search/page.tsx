@@ -4,7 +4,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/lib/db/schema";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
 import { can, contactView, ownScope, requireStaff } from "@/lib/crm/rbac";
 import { formatPhone } from "@/lib/crm/phone";

@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db";
-import { books, orders, promoCodes, users, type CrmConversation } from "../db/schema";
+import { books, orders, users, type CrmConversation } from "../db/schema";
 import { appLink } from "../mail";
 import { formatDate } from "../utils";
 import type { Locale } from "@/i18n/config";
@@ -65,9 +65,11 @@ export async function buildOffer(conv: Pick<CrmConversation, "clientId">, req: O
   const max = Math.min(50, Number(await getSetting("crm.maxDiscount")) || 0);
   if (!Number.isInteger(req.percent) || req.percent < 1 || req.percent > max) throw new Error(`Скидка — от 1 до ${max}%`);
   if (![24, 48, 72, 168].includes(req.hours)) throw new Error("Неверный срок действия");
-  const code = `MB-${randomBytes(4).toString("hex").toUpperCase().slice(0, 6)}`;
-  const expiresAt = new Date(Date.now() + req.hours * 3_600_000);
-  await db.insert(promoCodes).values({ code, kind: "percent", value: req.percent, maxUses: 1, expiresAt, note: `Персональная скидка из чата · ${staffLabel}` });
+  const { container } = await import("@/server/container");
+  const promo = await container().ordering.promos.issuePersonal({ code: `MB-${randomBytes(4).toString("hex").toUpperCase().slice(0, 6)}`, percent: req.percent, validHours: req.hours, note: `Персональная скидка из чата · ${staffLabel}` });
+  if (!promo) throw new Error("Не удалось выпустить промокод, попробуйте ещё раз");
+  const code = promo.code;
+  const expiresAt = promo.expiresAt!;
   const url = c.book ? appLink(`/books/${c.book.id}/checkout?promo=${code}`, c.locale) : appLink("/", c.locale);
   return { text: t.discount(req.percent, code, formatDate(expiresAt, true, c.locale), url), promo: code };
 }

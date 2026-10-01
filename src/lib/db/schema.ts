@@ -14,6 +14,10 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
+// Относительные пути: схему читает и drizzle-kit, который не знает алиас «@/».
+import { ORDER_STATUSES, type OrderStatus } from "../../modules/ordering/domain/OrderStatus";
+import type { OrderPrintSpec } from "../../modules/ordering/domain/Order";
+import type { GiftStatus } from "../../modules/ordering/domain/GiftCard";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -207,24 +211,9 @@ export const bookLetters = pgTable(
   (t) => [index("book_letters_book_idx").on(t.bookId)],
 );
 
-export const orderStatuses = [
-  "pending_payment",
-  "paid",
-  "in_production",
-  "shipped",
-  "delivered",
-  "cancelled",
-] as const;
-export type OrderStatus = (typeof orderStatuses)[number];
-
-export interface OrderPrintSpec {
-  format: string;
-  pageCount: number;
-  spineMm: number;
-  coverWidthMm: number;
-  coverHeightMm: number;
-  generatedAt: string;
-}
+/** Статусы заказа — язык домена (src/modules/ordering), схема лишь хранит их. */
+export const orderStatuses = ORDER_STATUSES;
+export type { OrderStatus, OrderPrintSpec };
 
 export const orders = pgTable(
   "orders",
@@ -316,7 +305,7 @@ export const emailLog = pgTable(
   (t) => [uniqueIndex("email_log_user_key_idx").on(t.userId, t.key)],
 );
 
-export type GiftStatus = "pending_payment" | "paid" | "cancelled";
+export type { GiftStatus };
 
 /** Подарочный сертификат. После оплаты для него создаётся одноразовый промокод на сумму сертификата. */
 export const giftCards = pgTable(

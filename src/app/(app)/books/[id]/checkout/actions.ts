@@ -1,19 +1,12 @@
 "use server";
 
-import { onOrderCreated } from "@/lib/crm/deals";
 import { queueEvent } from "@/lib/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { books, orders, users } from "@/lib/db/schema";
-import { getBookPhotos, getBookStats } from "@/lib/books";
-import { checkReadiness } from "@/lib/readiness";
-import { addOrderEvent, calculatePrice, markOrderPaid, notifyNewOrder } from "@/lib/orders";
-import { deliveryOptions, formatPrice, getPlan, plans, site } from "@/config/site";
-import { describePromo, findValidPromo, reservePromo } from "@/lib/promo";
-import { env } from "@/lib/env";
+import { deliveryOptions, getPlan, plans, type DeliveryId } from "@/config/site";
+import { OrderingError } from "@/modules/ordering";
+import { container } from "@/server/container";
 
 export interface CheckoutState {
   error?: string;
@@ -66,87 +59,39 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
   const parsed = schema(e).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const book = await db.query.books.findFirst({
-    where: and(eq(books.id, d.bookId), eq(books.userId, user.id)),
-  });
-  if (!book) return { error: e.bookNotFound };
-  if (book.status !== "draft") return { error: e.alreadyOrdered };
-  const [stats, photos] = await Promise.all([getBookStats(book), getBookPhotos(book.id)]);
-  const blocking = checkReadiness(book, stats, photos, locale).find((i) => i.level === "error");
-  if (blocking) return { error: blocking.text };
-
   const plan = getPlan(d.plan)!;
-  const delivery = plan.printed ? (d.delivery as (typeof deliveryOptions)[number]["id"]) : null;
-  let promo = null;
-  if (d.promoCode) {
-    const check = await findValidPromo(d.promoCode);
-    if (!check.ok) return { error: m.checkout.promo[check.error] };
-    promo = check.promo;
-  }
-  const price = calculatePrice(plan.id, d.quantity, delivery, promo, d.addons ? d.addons.split(",") : []);
-
-  let promoFailed = false;
-  let alreadyOrdered = false;
-  const order = await db
-    .transaction(async (tx) => {
-      if (promo && !(await reservePromo(tx, promo.id))) {
-        promoFailed = true;
-        tx.rollback();
-      }
-      const [o] = await tx
-        .insert(orders)
-        .values({
-          userId: user.id,
-          bookId: book.id,
-          plan: plan.id,
-          quantity: plan.printed ? d.quantity : 1,
-          ...price,
-          promoCode: promo?.code ?? null,
-          currency: site.currency,
-          paymentProvider: env.paymentProvider,
-          contactName: d.contactName,
-          contactPhone: d.contactPhone,
-          contactEmail: d.contactEmail,
-          deliveryMethod: delivery,
-          city: plan.printed ? d.city || null : null,
-          address: plan.printed ? d.address || null : null,
-          postalCode: plan.printed ? d.postalCode || null : null,
-          customerComment: d.comment || null,
-          giftNote: plan.printed ? d.giftNote || null : null,
-          desiredDate: plan.printed ? d.desiredDate || null : null,
-          surprise: plan.printed && d.surprise === "on",
-          printSpec: null,
-        })
-        .returning();
-      const locked = await tx
-        .update(books)
-        .set({ status: "ordered" })
-        .where(and(eq(books.id, book.id), eq(books.status, "draft")))
-        .returning({ id: books.id });
-      if (!locked.length) {
-        alreadyOrdered = true;
-        tx.rollback();
-      }
-      if (!user.phone) await tx.update(users).set({ phone: d.contactPhone }).where(eq(users.id, user.id));
-      return o;
-    })
-    .catch((e) => {
-      if (promoFailed || alreadyOrdered) return null;
-      throw e;
+  let order;
+  try {
+    order = await container().ordering.orders.place({
+      userId: user.id,
+      userPhone: user.phone,
+      locale,
+      bookId: d.bookId,
+      plan: plan.id,
+      quantity: d.quantity,
+      delivery: { method: plan.printed ? (d.delivery as DeliveryId) : null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
+      addons: d.addons ? d.addons.split(",") : [],
+      contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
+      promoCode: d.promoCode || undefined,
+      customerComment: d.comment,
+      giftNote: d.giftNote,
+      desiredDate: d.desiredDate || undefined,
+      surprise: d.surprise === "on",
     });
-  if (!order) return { error: alreadyOrdered ? e.alreadyOrdered : e.promoGone };
-  await addOrderEvent(
-    order.id,
-    "pending_payment",
-    `Заказ создан, ${stats.printedPages} стр. (оценка)${promo ? `, промокод ${promo.code} (${describePromo(promo, formatPrice)})` : ""}`,
-    "customer",
-  );
-  await notifyNewOrder(order);
-  await onOrderCreated(order);
-  // Заказ полностью оплачен промокодом — сразу передаём в работу.
-  if (order.amount === 0) await markOrderPaid(order.id, "promo", promo?.code);
+  } catch (err) {
+    if (err instanceof OrderingError) return { error: orderingErrorText(err, m.checkout) };
+    throw err;
+  }
   await queueEvent("order_created", order.amount);
   return lredirect(`/orders/${order.id}`);
+}
+
+/** Код ошибки домена → текст на языке клиента. */
+function orderingErrorText(err: OrderingError, t: Awaited<ReturnType<typeof getMessages>>["checkout"]) {
+  if (err.code === "notReady") return err.message;
+  if (err.code === "empty" || err.code === "notFound" || err.code === "expired" || err.code === "used") return t.promo[err.code];
+  if (err.code === "bookNotFound" || err.code === "alreadyOrdered" || err.code === "promoGone") return t.errors[err.code];
+  return t.errors.bookNotFound;
 }
 
 export interface PromoPreview {
@@ -164,14 +109,8 @@ export async function checkPromoAction(code: string): Promise<PromoPreview> {
   const t = (await getMessages()).checkout;
   const { clientIp, rateLimit } = await import("@/lib/rate-limit");
   if (!rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
-  const check = await findValidPromo(code);
+  const check = await container().ordering.promos.check(code);
   if (!check.ok) return { ok: false, error: t.promo[check.error] };
-  const p = check.promo;
-  return {
-    ok: true,
-    code: p.code,
-    kind: p.kind,
-    value: p.value,
-    label: describePromo(p, formatPrice),
-  };
+  const { code: c, kind, value, label } = check.promo;
+  return { ok: true, code: c, kind, value, label };
 }

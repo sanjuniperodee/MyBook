@@ -2,20 +2,13 @@
 
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
-import { messagesFor } from "@/i18n/messages";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { giftCards } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth";
-import { env } from "@/lib/env";
-import { plans, site } from "@/config/site";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { emailLayout, escapeHtml, sendMail } from "@/lib/mail";
-import { newGiftToken, getGiftByToken, giftUrl } from "@/lib/gifts";
 import { toIsoDay } from "@/lib/occasions";
-import { formatPrice } from "@/config/site";
 import { queueEvent } from "@/lib/track";
+import { OrderingError } from "@/modules/ordering";
+import { container } from "@/server/container";
 
 export interface GiftFormState {
   error?: string;
@@ -46,16 +39,11 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
   const locale = isLocale(d.locale) ? d.locale : "ru";
   if (d.delivery === "email" && !d.recipientEmail) return { error: e.needEmail };
   if (d.sendAt && d.sendAt < toIsoDay(new Date())) return { error: e.pastDate };
-  const plan = plans.find((p) => p.id === d.plan)!;
   const user = await getCurrentUser();
-  const [gift] = await db
-    .insert(giftCards)
-    .values({
-      token: newGiftToken(),
-      plan: plan.id,
-      amount: plan.price,
-      currency: site.currency,
-      paymentProvider: env.paymentProvider,
+  let gift;
+  try {
+    gift = await container().ordering.gifts.purchase({
+      plan: d.plan,
       buyerUserId: user?.id ?? null,
       buyerName: d.buyerName,
       buyerEmail: d.buyerEmail,
@@ -66,37 +54,18 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
       message: d.message,
       locale,
       buyerLocale: await getLocale(),
-    })
-    .returning();
-  // Письмо покупателю — на языке сайта, где он оформлял (язык сертификата может быть другим).
-  const buyerLocale = gift.buyerLocale;
-  const buyer = messagesFor(buyerLocale);
-  const t = buyer.gift.checkoutMail;
-  await sendMail(
-    gift.buyerEmail,
-    t.subject(gift.number),
-    emailLayout({
-      locale: buyerLocale,
-      title: t.title,
-      paragraphs: [t.text(buyer.common.plans[plan.id].name, escapeHtml(gift.recipientName)), t.amount(formatPrice(gift.amount))],
-      button: { label: t.button, url: giftUrl(gift, buyerLocale) },
-    }),
-  );
+    });
+  } catch (err) {
+    if (err instanceof OrderingError && err.code === "giftPastDate") return { error: e.pastDate };
+    throw err;
+  }
   await queueEvent("gift_checkout", gift.amount);
   return lredirect(`/gift/${gift.token}`);
 }
 
 /** Покупатель сообщил об оплате переводом. */
 export async function claimGiftPaymentAction(token: string) {
-  const gift = await getGiftByToken(token);
-  if (!gift || gift.status !== "pending_payment" || gift.paymentClaimedAt) return;
-  await db.update(giftCards).set({ paymentClaimedAt: new Date() }).where(eq(giftCards.id, gift.id));
-  if (env.ordersNotifyEmail) {
-    await sendMail(
-      env.ordersNotifyEmail,
-      `Проверьте оплату сертификата №${gift.number}`,
-      emailLayout({ title: `Оплачен сертификат №${gift.number}?`, paragraphs: [`${escapeHtml(gift.buyerName)}, ${formatPrice(gift.amount)}. Проверьте поступление и подтвердите в админке.`], button: { label: "Сертификаты", url: `${env.appUrl}/admin/gifts` } }),
-    );
-  }
+  const gift = await container().ordering.gifts.claimPayment(token);
+  if (!gift) return;
   return lredirect(`/gift/${gift.token}`);
 }

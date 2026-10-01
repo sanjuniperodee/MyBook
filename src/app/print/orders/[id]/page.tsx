@@ -1,7 +1,7 @@
 import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/crm/rbac";
-import { getOrderWithBook } from "@/lib/orders";
+import { container } from "@/server/container";
 import { site } from "@/config/site";
 import { formatDate } from "@/lib/utils";
 import { PrintButton } from "./PrintButton";
@@ -12,7 +12,7 @@ export const metadata = { title: "Упаковочный лист", robots: { in
 export default async function PackingSlip({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff("orders.view");
   const { id } = await params;
-  const order = await getOrderWithBook(id);
+  const order = await container().ordering.queries.orderDetails(id);
   if (!order) notFound();
 
   const half = (copy: string) => (

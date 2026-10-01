@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { EmptyState, GiftArt } from "@/components/illustrations";
 import { requireUser } from "@/lib/auth";
-import { listUserOrders } from "@/lib/orders";
+import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function OrdersPage() {
   const user = await requireUser("/orders");
-  const [list, locale, m] = await Promise.all([listUserOrders(user.id), getLocale(), getMessages()]);
+  const [list, locale, m] = await Promise.all([container().ordering.queries.userOrders(user.id), getLocale(), getMessages()]);
   const t = m.orders.list;
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">

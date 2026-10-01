@@ -6,13 +6,13 @@ import { CelebrateArt } from "@/components/illustrations";
 import { notFound } from "next/navigation";
 import { Check, Download } from "lucide-react";
 import { isStaff, requireUser } from "@/lib/auth";
-import { getOrderWithBook } from "@/lib/orders";
+import { container } from "@/server/container";
 import { formatPrice, getPlan, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { addonName, deliveryName, planName } from "@/i18n/labels";
 import { env } from "@/lib/env";
-import { isOnlinePayment } from "@/lib/payments";
-import { orderStatusColors, orderStatusLabel } from "@/lib/orders-shared";
+import { isOnlinePayment } from "@/modules/ordering";
+import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser(`/orders/${id}`);
-  const order = await getOrderWithBook(id);
+  const order = await container().ordering.queries.orderDetails(id);
   if (!order || (order.userId !== user.id && !isStaff(user))) notFound();
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const t = m.orders.order;

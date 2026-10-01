@@ -1,6 +1,4 @@
-import { desc, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { orders, promoCodes } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { formatDate } from "@/lib/utils";
 import { PromoForm, PromoToggle } from "./PromoForm";
@@ -8,14 +6,7 @@ import { requireStaff } from "@/lib/crm/rbac";
 
 export default async function AdminPromo() {
   await requireStaff("promo.manage");
-  const list = await db
-    .select({
-      promo: promoCodes,
-      revenue: sql<number>`coalesce((select sum(${orders.amount}) from ${orders} where ${orders.promoCode} = ${promoCodes.code} and ${orders.paidAt} is not null), 0)::int`,
-      paid: sql<number>`(select count(*)::int from ${orders} where ${orders.promoCode} = ${promoCodes.code} and ${orders.paidAt} is not null)`,
-    })
-    .from(promoCodes)
-    .orderBy(desc(promoCodes.createdAt));
+  const list = await container().ordering.queries.promoStats();
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Промокоды</h1>

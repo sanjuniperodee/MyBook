@@ -11,7 +11,7 @@ import { Alert } from "@/components/ui/Alert";
 import { availableAddons, deliveryOptions, formatPrice, plans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn, nowMs } from "@/lib/utils";
 import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 
 export function CheckoutForm({
   bookId,
