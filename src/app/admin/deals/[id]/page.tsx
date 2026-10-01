@@ -1,17 +1,12 @@
 import { container } from "@/server/container";
-import { booksId } from "@/lib/db/refs";
 import { listFields } from "@/lib/crm/fields";
 import { channelLabel as acquisitionChannel, describeAttribution, toAttribution } from "@/lib/crm/channels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, desc, eq, sql } from "drizzle-orm";
 import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
-import { db } from "@/lib/db";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/lib/db/schema";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { dealSourceLabels } from "@/modules/sales";
-import { books, bookQuestions, photos } from "@/lib/db/schema";
 import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
 import { mentionableStaff } from "@/lib/crm/mentions";
@@ -32,49 +27,26 @@ const dur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("deals.view");
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, id) });
+  const deal = await container().reporting.dealById(id);
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
 
-  const [allStages, pipelines, admins, noteRows, taskRows, callRows, convs, client, order] = await Promise.all([
+  const [allStages, pipelines, admins, { noteRows, taskRows, callRows, convs, client, order, bookRows }] = await Promise.all([
     container().sales.queries.listStages(),
     container().sales.queries.listPipelines(),
     listAdmins(),
-    db.select().from(crmNotes).where(eq(crmNotes.dealId, deal.id)).orderBy(desc(crmNotes.createdAt)).limit(100),
-    db.select().from(crmTasks).where(eq(crmTasks.dealId, deal.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, asc(crmTasks.dueAt)),
-    can(staff, "calls.view") ? db.select().from(crmCalls).where(eq(crmCalls.dealId, deal.id)).orderBy(desc(crmCalls.startedAt)).limit(30) : Promise.resolve([]),
-    can(staff, "chats.view") ? db.select().from(crmConversations).where(eq(crmConversations.dealId, deal.id)).orderBy(desc(crmConversations.lastMessageAt)) : Promise.resolve([]),
-    deal.clientId ? db.query.users.findFirst({ where: eq(users.id, deal.clientId), columns: { id: true, name: true, email: true, phone: true } }) : null,
-    deal.orderId ? db.query.orders.findFirst({ where: eq(orders.id, deal.orderId), columns: { id: true, number: true, status: true, amount: true } }) : null,
+    container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const conv = convs[0] ?? null;
   const pipelineId = allStages.find((s) => s.id === deal.stageId)?.pipelineId;
   const stages = allStages.filter((s) => s.pipelineId === pipelineId);
-  const [duplicates, suggestedClientId, bookRows, dealFields] = await Promise.all([
+  const [duplicates, suggestedClientId, dealFields] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
-    deal.clientId
-      ? db
-          .select({
-            id: books.id,
-            title: books.title,
-            recipientName: books.recipientName,
-            status: books.status,
-            updatedAt: books.updatedAt,
-            answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
-            total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
-            photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
-          })
-          .from(books)
-          .where(eq(books.userId, deal.clientId))
-          .orderBy(desc(books.updatedAt))
-          .limit(3)
-      : Promise.resolve([]),
     listFields("deal"),
   ]);
-  const suggested = suggestedClientId ? await db.query.users.findFirst({ where: eq(users.id, suggestedClientId), columns: { id: true, name: true, email: true } }) : null;
-  const clientSeen = deal.clientId ? (await db.query.users.findFirst({ where: eq(users.id, deal.clientId), columns: { lastSeenAt: true } }))?.lastSeenAt : null;
+  const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
+  const clientSeen = client?.lastSeenAt ?? null;
   const [messages, templates, vars, blocker, offers] = conv
     ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];

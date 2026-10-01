@@ -14,6 +14,7 @@ import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
+import { ReportingModule } from "@/modules/reporting";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -47,6 +48,8 @@ export class Container {
   #marketing?: MarketingModule;
   #assistant?: AssistantModule;
   #clients?: ClientsModule;
+  /** Отчёты — только чтение. */
+  readonly reporting = new ReportingModule();
 
   /** Правила CRM работают со сделками через узкий порт продаж. */
   get automation(): AutomationModule {

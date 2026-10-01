@@ -1,11 +1,8 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
-import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
-import { db } from "@/lib/db";
-import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks } from "@/lib/db/schema";
-import { can, contactView, ownScope, type Staff } from "@/server/access";
+import { can, contactView, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/lib/crm/phone";
 import { channelLabel } from "@/modules/messaging";
@@ -17,45 +14,9 @@ const waitLabel = (m: number) => (m < 60 ? `${m} мин` : m < 1440 ? `${Math.fl
 /** «Мой день» — рабочий стол менеджера: что горит прямо сейчас. */
 export async function MyDay({ staff }: { staff: Staff }) {
   const me = staff.user.id;
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
-  const none = Promise.resolve([]);
-  const [tasks, waiting, missed, [deals], [unsorted], plans] = await Promise.all([
-    db
-      .select()
-      .from(crmTasks)
-      .where(and(isNull(crmTasks.doneAt), lte(crmTasks.dueAt, endOfDay), or(eq(crmTasks.assigneeId, me), isNull(crmTasks.assigneeId))))
-      .orderBy(asc(crmTasks.dueAt))
-      .limit(8),
-    can(staff, "chats.view")
-      ? db
-          .select()
-          .from(crmConversations)
-          .where(and(isNotNull(crmConversations.awaitingSince), eq(crmConversations.status, "open"), ownScope(staff, crmConversations.assigneeId)))
-          .orderBy(asc(crmConversations.awaitingSince))
-          .limit(6)
-      : none,
-    can(staff, "calls.view")
-      ? db
-          .select()
-          .from(crmCalls)
-          .where(and(eq(crmCalls.status, "missed"), eq(crmCalls.direction, "in"), isNull(crmCalls.handledAt), gte(crmCalls.startedAt, sql`now() - interval '3 days'`), ownScope(staff, crmCalls.staffId)))
-          .orderBy(asc(crmCalls.startedAt))
-          .limit(6)
-      : none,
-    can(staff, "deals.view")
-      ? db
-          .select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${crmDeals.amount}), 0)::int` })
-          .from(crmDeals)
-          .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-          .where(and(eq(crmStages.kind, "open"), eq(crmDeals.assigneeId, me)))
-      : Promise.resolve([{ n: 0, sum: 0 }]),
-    can(staff, "deals.view")
-      ? db
-          .select({ n: sql<number>`count(*)::int` })
-          .from(crmDeals)
-          .where(and(eq(crmDeals.unsorted, true), ownScope(staff, crmDeals.assigneeId)))
-      : Promise.resolve([{ n: 0 }]),
+  const viewer = { userId: me, seesAll: staff.scope === "all" };
+  const [{ tasks, waiting, missed, deals, unsorted }, plans] = await Promise.all([
+    container().reporting.myDay(viewer, { chats: can(staff, "chats.view"), calls: can(staff, "calls.view"), deals: can(staff, "deals.view") }),
     container().sales.queries.planProgress(currentMonth(), [me]),
   ]);
   const plan = plans.get(me);

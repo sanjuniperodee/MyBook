@@ -1,10 +1,8 @@
 import { container } from "@/server/container";
+import { iso, localDay, SHOP_TZ } from "@/modules/reporting/time";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
-import { db } from "@/lib/db";
-import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff } from "@/server/access";
@@ -14,18 +12,7 @@ import { cn, formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Обзор" };
 
-const TZ = "Asia/Almaty";
 const periods = [7, 30, 90] as const;
-// Константа, не пользовательский ввод — можно вставлять в SQL как литерал (нужно для GROUP BY).
-const tzSql = sql.raw(`'${TZ}'`);
-
-function localDay(offsetDays: number) {
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + offsetDays);
-  return d;
-}
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur ? null : 0);
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
@@ -41,78 +28,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     );
   const { period: raw } = await searchParams;
   const period = periods.find((p) => String(p) === raw) ?? 30;
-  // Границы периода в часовом поясе магазина
-  const startLocal = localDay(-(period - 1));
-  const prevStartLocal = localDay(-(2 * period - 1));
-  const start = sql`(${iso(startLocal)}::date at time zone ${tzSql})`;
-  const prevStart = sql`(${iso(prevStartLocal)}::date at time zone ${tzSql})`;
-  const paidDay = sql<string>`to_char((${orders.paidAt} at time zone ${tzSql})::date, 'YYYY-MM-DD')`;
-  const notCancelled = ne(orders.status, "cancelled");
-
   const channelsReport = await container().marketing.service.report(period);
   const sources = { rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8) };
-  const [daily, [cur], [prev], [newUsers], funnelRows, byPlan, deadlines, tasks, attention, events] = await Promise.all([
-    db
-      .select({ d: paidDay, sum: sql<number>`sum(${orders.amount})::int`, n: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${start}`, notCancelled))
-      .groupBy(paidDay),
-    db
-      .select({ sum: sql<number>`coalesce(sum(${orders.amount}),0)::int`, n: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${start}`, notCancelled)),
-    db
-      .select({ sum: sql<number>`coalesce(sum(${orders.amount}),0)::int`, n: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${prevStart}`, sql`${orders.paidAt} < ${start}`, notCancelled)),
-    db
-      .select({
-        cur: sql<number>`count(*) filter (where ${users.createdAt} >= ${start})::int`,
-        prev: sql<number>`count(*) filter (where ${users.createdAt} >= ${prevStart} and ${users.createdAt} < ${start})::int`,
-      })
-      .from(users),
-    // Воронка по когорте зарегистрировавшихся в периоде
-    db.execute<{ registered: number; with_book: number; engaged: number; ordered: number; paid: number }>(sql`
-      select
-        count(*)::int as registered,
-        count(*) filter (where exists (select 1 from books b where b.user_id = u.id))::int as with_book,
-        count(*) filter (where exists (
-          select 1 from books b where b.user_id = u.id
-          and (select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0) >= 10))::int as engaged,
-        count(*) filter (where exists (select 1 from orders o where o.user_id = u.id))::int as ordered,
-        count(*) filter (where exists (select 1 from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled'))::int as paid
-      from users u where u.created_at >= ${start} and u.role = 'user'`),
-    db
-      .select({ plan: orders.plan, sum: sql<number>`sum(${orders.amount})::int`, n: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(and(isNotNull(orders.paidAt), sql`${orders.paidAt} >= ${start}`, notCancelled))
-      .groupBy(orders.plan),
-    db
-      .select()
-      .from(orders)
-      .where(and(isNotNull(orders.desiredDate), lte(orders.desiredDate, iso(localDay(14))), inArray(orders.status, ["pending_payment", "paid", "in_production"])))
-      .orderBy(asc(orders.desiredDate))
-      .limit(8),
-    db
-      .select()
-      .from(crmTasks)
-      .where(and(isNull(crmTasks.doneAt), lte(crmTasks.dueAt, localDay(1)), or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, admin.id))))
-      .orderBy(asc(crmTasks.dueAt))
-      .limit(8),
-    db
-      .select()
-      .from(orders)
-      .where(or(eq(orders.status, "paid"), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
-      .orderBy(asc(orders.createdAt))
-      .limit(10),
-    db
-      .select({ e: orderEvents, number: orders.number, orderId: orders.id })
-      .from(orderEvents)
-      .innerJoin(orders, eq(orderEvents.orderId, orders.id))
-      .where(gte(orderEvents.createdAt, localDay(-14)))
-      .orderBy(desc(orderEvents.createdAt))
-      .limit(10),
-  ]);
+  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, tasks, attention, events } = await container().reporting.dashboard(period, admin.id);
 
   const byDay = new Map(daily.map((r) => [r.d, r]));
   const series: DayPoint[] = Array.from({ length: period }, (_, i) => {
@@ -150,7 +68,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         <section className="rounded-2xl border border-line bg-white p-5">
           <div className="mb-5 flex items-baseline justify-between">
             <h2 className="font-semibold">Выручка по дням</h2>
-            <span className="text-xs text-muted">по дате оплаты, {TZ}</span>
+            <span className="text-xs text-muted">по дате оплаты, {SHOP_TZ}</span>
           </div>
           <RevenueColumns data={series} />
         </section>

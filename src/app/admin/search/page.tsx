@@ -1,12 +1,10 @@
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
-import { can, contactView, ownScope, requireStaff } from "@/server/access";
+import { can, contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/lib/crm/phone";
 import { channelLabel } from "@/modules/messaging";
 
@@ -17,65 +15,13 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
   const { q = "" } = await searchParams;
   const term = q.trim();
   if (!term) return <p className="text-muted">Введите запрос в строке поиска.</p>;
-  const like = `%${term}%`;
-  const num = Number(term.replace(/[^\d]/g, ""));
-  const digits = term.replace(/\D/g, "");
-  const none = Promise.resolve([]);
-  const phoneLike = (col: unknown) => (digits.length >= 4 ? sql`regexp_replace(coalesce(${col}, ''), '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined);
-  const [orderRows, clientRows, bookRows, dealRows, chatRows] = await Promise.all([
-    !can(staff, "orders.view") ? none : db
-      .select()
-      .from(orders)
-      .where(
-        or(
-          ilike(orders.contactName, like),
-          ilike(orders.contactEmail, like),
-          ilike(orders.address, like),
-          digits.length >= 4 ? sql`regexp_replace(${orders.contactPhone}, '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined,
-          num && term.length < 8 ? eq(orders.number, num) : undefined,
-        ),
-      )
-      .orderBy(desc(orders.createdAt))
-      .limit(20),
-    !can(staff, "clients.view")
-      ? none
-      : db
-          .select()
-          .from(users)
-          .where(and(or(ilike(users.name, like), ilike(users.email, like), phoneLike(users.phone)), ownScope(staff, users.managerId)))
-          .limit(20),
-    !can(staff, "clients.view")
-      ? none
-      : db
-          .select({ id: books.id, title: books.title, authorName: books.authorName, recipientName: books.recipientName, userId: books.userId, updatedAt: books.updatedAt })
-          .from(books)
-          .innerJoin(users, eq(users.id, books.userId))
-          .where(and(or(ilike(books.title, like), ilike(books.authorName, like), ilike(books.recipientName, like)), ownScope(staff, users.managerId)))
-          .orderBy(desc(books.updatedAt))
-          .limit(20),
-    !can(staff, "deals.view")
-      ? none
-      : db
-          .select({ deal: crmDeals, stage: crmStages })
-          .from(crmDeals)
-          .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-          .where(
-            and(
-              or(ilike(crmDeals.title, like), ilike(crmDeals.contactName, like), ilike(crmDeals.contactEmail, like), phoneLike(crmDeals.contactPhone), num && term.length < 8 ? eq(crmDeals.number, num) : undefined),
-              ownScope(staff, crmDeals.assigneeId),
-            ),
-          )
-          .orderBy(desc(crmDeals.updatedAt))
-          .limit(20),
-    !can(staff, "chats.view")
-      ? none
-      : db
-          .select()
-          .from(crmConversations)
-          .where(and(or(ilike(crmConversations.contactName, like), phoneLike(crmConversations.chatId), ilike(crmConversations.chatId, like)), ownScope(staff, crmConversations.assigneeId)))
-          .orderBy(desc(crmConversations.lastMessageAt))
-          .limit(20),
-  ]);
+  const viewer = { userId: staff.user.id, seesAll: staff.scope === "all" };
+  const { orderRows, clientRows, bookRows, dealRows, chatRows } = await container().reporting.search(term, viewer, {
+    orders: can(staff, "orders.view"),
+    clients: can(staff, "clients.view"),
+    deals: can(staff, "deals.view"),
+    chats: can(staff, "chats.view"),
+  });
   const mask = (v: { phone?: string | null; email?: string | null }) => contactView(staff, v);
   const empty = !orderRows.length && !clientRows.length && !bookRows.length && !dealRows.length && !chatRows.length;
   return (

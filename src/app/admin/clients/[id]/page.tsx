@@ -1,14 +1,11 @@
 import { planName } from "@/i18n/labels";
 import { listFields } from "@/lib/crm/fields";
 import { channelLabel, describeAttribution, toAttribution } from "@/lib/crm/channels";
-import { booksId } from "@/lib/db/refs";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, desc, eq, sql } from "drizzle-orm";
 import { Mail, MessageCircle, Phone } from "lucide-react";
-import { db } from "@/lib/db";
-import { bookLetters, bookQuestions, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { canRemind } from "@/modules/notifications";
 import { getTheme } from "@/lib/content/themes";
@@ -27,35 +24,12 @@ export const metadata = { title: "Клиент" };
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("clients.view");
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const client = await db.query.users.findFirst({ where: eq(users.id, id) });
+  const client = await container().reporting.clientById(id);
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
-  const [bookRows, orderRows, taskRows, noteRows, admins, dealRows, clientFields] = await Promise.all([
-    db
-      .select({
-        book: books,
-        answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
-        total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
-        photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
-        letters: sql<number>`(select count(*)::int from ${bookLetters} l where l.book_id = ${booksId})`,
-      })
-      .from(books)
-      .where(eq(books.userId, id))
-      .orderBy(desc(books.updatedAt)),
-    db.select().from(orders).where(eq(orders.userId, id)).orderBy(desc(orders.createdAt)),
-    db.select().from(crmTasks).where(eq(crmTasks.clientId, id)).orderBy(sql`${crmTasks.doneAt} nulls first`, asc(crmTasks.dueAt)),
-    db.select().from(crmNotes).where(eq(crmNotes.clientId, id)).orderBy(desc(crmNotes.createdAt)).limit(100),
+  const [{ bookRows, orderRows, taskRows, noteRows, dealRows }, admins, clientFields] = await Promise.all([
+    container().reporting.clientCard(id, { deals: can(staff, "deals.view") }),
     listAdmins(),
-    can(staff, "deals.view")
-      ? db
-          .select({ deal: crmDeals, stage: crmStages })
-          .from(crmDeals)
-          .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-          .where(eq(crmDeals.clientId, id))
-          .orderBy(desc(crmDeals.createdAt))
-          .limit(20)
-      : Promise.resolve([]),
     listFields("client"),
   ]);
 
