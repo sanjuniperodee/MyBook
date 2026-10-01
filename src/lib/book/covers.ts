@@ -5,7 +5,8 @@
  */
 import type { CoverGeometry, Rect } from "./formats";
 import { collectionTemplates } from "./covers-collection";
-import { bg, frontRect, grainFilter, HEART, jitterGrid, label, linenFilter, n, petalPath, rng, shadowFilter } from "./cover-kit";
+import { bg, frontRect, grainFilter, jitterGrid, label, linenFilter, n, petalPath, rng, shadowFilter } from "./cover-kit";
+import { HEART } from "./motifs";
 import type { FontKey } from "./fonts";
 
 export interface CoverTextStyle {

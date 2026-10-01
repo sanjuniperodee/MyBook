@@ -25,11 +25,20 @@ export const catalog: typeof ru = {
     letter: "Хат",
   },
   moods: { all: "Барлығы", romance: "Романтика", tender: "Нәзік", classic: "Классика", bright: "Жарқын", photo: "Суретпен" },
-  typography: {
-    classic: { name: "Классика", description: "Cormorant + PT Serif — жақсы романдағыдай" },
-    modern: { name: "Заманауи", description: "Playfair + Lora — мәнерлі әрі жылы" },
+  interiors: {
+    classic: { name: "Классика", description: "Cormorant пен PT Serif, нәзік виньетка — жақсы романдағыдай" },
+    romance: { name: "Махаббат", description: "Шарап түсті курсив, жүрекшелер және салтанатты беттердің бұрыштарындағы өрнек" },
+    stars: { name: "Шоқжұлдыз", description: "Әр тарау жұлдызды аспаннан басталады" },
+    herbarium: { name: "Гербарий", description: "Ботаникалық альбомдағыдай кептірілген бұтақтар мен жасыл жапырақтар" },
+    oyu: { name: "Ою", description: "Алтын түсті қазақ оюы бар зүмірет тараулар" },
+    editorial: { name: "Журнал", description: "Тараудың ірі нөмірлері, колонтитулдар және терракота екпіні" },
+    watercolor: { name: "Акварель", description: "Бояудың нәзік дақтары және қара өрік түсті тақырыптар" },
+    deco: { name: "Гэтсби", description: "Ар-деко: алтын жиектер, желпуіш және рим цифрлары" },
+    airmail: { name: "Хат", description: "Әуе поштасының жиегі және қолмен жазылған «тарау»" },
+    modern: { name: "Заманауи", description: "Playfair пен Lora — мәнерлі әрі жылы" },
     minimal: { name: "Минимализм", description: "Montserrat — таза әрі жеңіл" },
   },
+  interiorMoods: { all: "Барлығы", classic: "Классика", romance: "Романтика", tender: "Нәзік", modern: "Заманауи" },
   formats: {
     a5: "Классикалық A5 · 148×210 мм",
     square: "Шаршы · 200×200 мм",

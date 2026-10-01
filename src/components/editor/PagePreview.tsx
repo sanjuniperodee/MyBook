@@ -2,15 +2,17 @@
 
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
-import { messagesFor, type Messages } from "@/i18n/messages";
+import type { Messages } from "@/i18n/messages";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { cssFont, type Typography } from "@/lib/book/fonts";
+import { cssFont } from "@/lib/book/fonts";
 import type { BookFormat } from "@/lib/book/formats";
+import type { InteriorDesign } from "@/lib/book/interiors";
 import { interiorMetrics } from "@/lib/book/layout";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { Divider, Folio, LeadParagraph, OpenerPage, pageKit, QuestionHeading, RunningHead } from "@/components/interior/BookPage";
+import { pxUnits, PT_TO_MM } from "@/components/interior/units";
 
-const PT_TO_MM = 25.4 / 72;
 const END = Number.POSITIVE_INFINITY;
 
 export interface PreviewPhoto {
@@ -44,6 +46,7 @@ export interface PreviewChapter {
   key: string;
   number: number;
   title: string;
+  epigraph?: string;
   entries: PreviewEntry[];
 }
 
@@ -66,7 +69,8 @@ function LazyPage({ root, pageId, className, style, onClick, children }: { root:
 }
 
 /**
- * HTML-копия книги с теми же шрифтами, кеглем и полями, что в PDF: все главы и ответы подряд.
+ * HTML-копия книги в выбранном оформлении — те же шрифты, кегли, поля и графика, что в PDF:
+ * все главы и ответы подряд, перед каждой главой — её начальная полоса.
  * Текст главы раскладывается по страницам через CSS-колонки размером с текстовую область:
  * каждая колонка — отдельная страница, страницы листаются вертикально. Страницы вне экрана
  * не отрисовываются, а при смене `currentId` список прокручивается к началу этого ответа.
@@ -76,7 +80,8 @@ function LazyPage({ root, pageId, className, style, onClick, children }: { root:
  */
 export function PagePreview({
   format,
-  typography,
+  design,
+  bookTitle,
   chapters,
   currentId,
   selectedId = null,
@@ -88,7 +93,9 @@ export function PagePreview({
   /** Язык книги: на нём подпись «Глава N» и переносы — как в PDF. */
   language: Locale;
   format: BookFormat;
-  typography: Typography;
+  design: InteriorDesign;
+  /** Название книги — в колонтитуле левых полос. */
+  bookTitle: string;
   chapters: PreviewChapter[];
   currentId: string;
   selectedId?: string | null;
@@ -97,7 +104,6 @@ export function PagePreview({
   className?: string;
 }) {
   const t = useMessages().editor.preview;
-  const bookText = messagesFor(language).book;
   const m = interiorMetrics[format.id];
   const W = format.widthMm;
   const H = format.heightMm;
@@ -124,7 +130,11 @@ export function PagePreview({
   const textW = (W - side * 2) * px;
   const textH = (H - m.marginTop - m.marginBottom) * px;
   const gap = side * 2 * px;
-  const bodyPx = typography.bodySize * m.scale * PT_TO_MM * px;
+  const kit = pageKit(design, format, pxUnits(px), language);
+  const S = kit.sizes;
+  const P = design.palette;
+  const bodyPx = S.body * PT_TO_MM * px;
+  const ptPx = (v: number) => v * PT_TO_MM * px;
 
   const measure = useCallback(() => {
     if (!textW) return;
@@ -324,7 +334,7 @@ export function PagePreview({
                     padding: polaroid ? `${box.pad}px ${box.pad}px ${box.padBottom}px` : 0,
                     boxSizing: "border-box",
                     background: polaroid ? "#fff" : undefined,
-                    border: polaroid ? "1px solid #ddd6ce" : style.frame === "line" ? `${Math.max(1, 0.35 * px)}px solid #1f1a17` : undefined,
+                    border: polaroid ? "1px solid #ddd6ce" : style.frame === "line" ? `${Math.max(1, 0.35 * px)}px solid ${P.ink}` : undefined,
                     boxShadow: polaroid ? "0 1px 2px rgba(0,0,0,.08)" : undefined,
                     borderRadius: box.radius,
                     overflow: "hidden",
@@ -365,7 +375,7 @@ export function PagePreview({
                   ) : null}
                 </div>
                 {!polaroid && p.caption ? (
-                  <figcaption style={{ fontFamily: cssFont(typography.body), fontStyle: "italic", fontSize: bodyPx * 0.86, lineHeight: 1.3, color: "#7a7068", marginTop: bodyPx * 0.5, textAlign: "center" }}>
+                  <figcaption style={{ fontFamily: cssFont(design.type.body), fontStyle: "italic", fontSize: ptPx(S.caption), lineHeight: 1.3, color: P.muted, marginTop: bodyPx * 0.5, textAlign: "center" }}>
                     {p.caption}
                   </figcaption>
                 ) : null}
@@ -409,56 +419,37 @@ export function PagePreview({
     });
   };
 
-  const paraStyle = {
-    fontFamily: cssFont(typography.body),
-    fontSize: bodyPx,
-    lineHeight: typography.lineHeight,
-    marginBottom: bodyPx * 0.45,
-    textAlign: "justify" as const,
-    hyphens: "auto" as const,
-    orphans: 2,
-    widows: 2,
-  };
-
   const renderEntry = (entry: PreviewEntry, first: boolean, isMeasure: boolean) => {
     const d = info.get(entry.id)!;
     const paragraphs = d.paragraphs;
+    // Отбивки — как в PDF: перед заголовком больше, перед ответом без заголовка — разделитель.
+    // Именно margin (а не распорка): на переносе в новую колонку-страницу браузер его отбрасывает.
+    const gapBefore = first ? 0 : ptPx(entry.heading ? S.beforeHeading : S.beforeHeadless);
     return (
       <Fragment key={entry.id}>
         <span data-marker={entry.id} style={{ display: "block", height: 1, breakAfter: "avoid" }} />
         {entry.heading ? (
-          <div
+          <QuestionHeading
+            kit={kit}
             data-entry={entry.id}
             data-para={-1}
-            style={{
-              fontFamily: cssFont(typography.heading),
-              fontWeight: typography.headingWeight,
-              fontStyle: typography.headingItalic ? "italic" : "normal",
-              fontSize: bodyPx * 1.55,
-              lineHeight: 1.22,
-              marginTop: first ? 0 : bodyPx * 1.4,
-              marginBottom: 8 * m.scale * PT_TO_MM * px,
-              breakAfter: "avoid",
-              boxShadow: d.live && moving && moving.target === -1 && paragraphs.length ? "inset 0 -2px 0 var(--color-wine, #8b2c3c)" : undefined,
-            }}
+            style={{ marginTop: gapBefore, boxShadow: d.live && moving && moving.target === -1 && paragraphs.length ? "inset 0 -2px 0 var(--color-wine, #8b2c3c)" : undefined }}
           >
             {entry.heading}
-          </div>
+          </QuestionHeading>
         ) : first ? null : (
-          <div style={{ height: bodyPx * 1.4 }} />
+          <Divider kit={kit} style={{ marginTop: gapBefore }} />
         )}
         {paragraphs.length ? renderRows(entry, -1, isMeasure) : null}
         {paragraphs.length ? (
           paragraphs.map((text, i) => (
             <Fragment key={i}>
-              <p data-entry={entry.id} data-para={i} style={{ ...paraStyle, boxShadow: d.live ? hint(i) : undefined }}>
-                {text}
-              </p>
+              <LeadParagraph kit={kit} text={text} leadIn={design.leadIn && first && i === 0} data-entry={entry.id} data-para={i} style={{ boxShadow: d.live ? hint(i) : undefined }} />
               {i < paragraphs.length - 1 ? renderRows(entry, i, isMeasure) : null}
             </Fragment>
           ))
         ) : entry.photos.length ? null : (
-          <p style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx, lineHeight: typography.lineHeight, color: "#b4a99e", fontStyle: "italic" }}>{t.empty}</p>
+          <p style={{ fontFamily: cssFont(design.type.body), fontSize: bodyPx, lineHeight: design.type.lineHeight, color: P.rule, fontStyle: "italic" }}>{t.empty}</p>
         )}
         {renderRows(entry, END, isMeasure)}
       </Fragment>
@@ -475,7 +466,7 @@ export function PagePreview({
         columnGap: gap,
         columnFill: "auto",
         transform: k ? `translateX(${-k * (textW + gap)}px)` : undefined,
-        color: "#1f1a17",
+        color: P.ink,
       }}
     >
       {ch.entries.map((e, i) => renderEntry(e, i === 0, false))}
@@ -506,23 +497,7 @@ export function PagePreview({
                       {ch.entries.map((e, i) => renderEntry(e, i === 0, true))}
                     </div>
                   </div>
-                  <div className={`relative flex flex-col items-center justify-center bg-white text-center ${pageShadow}`} style={{ width: pageW, height: H * px }}>
-                    <div style={{ fontFamily: cssFont(typography.body), fontSize: bodyPx * 0.8, letterSpacing: "0.2em", textTransform: "uppercase", color: "#8a7f75" }}>{bookText.chapter(ch.number)}</div>
-                    <div
-                      style={{
-                        fontFamily: cssFont(typography.heading),
-                        fontWeight: typography.headingWeight,
-                        fontStyle: typography.headingItalic ? "italic" : "normal",
-                        fontSize: bodyPx * 2.2,
-                        lineHeight: 1.15,
-                        marginTop: bodyPx * 0.8,
-                        padding: `0 ${side * px}px`,
-                        color: "#1f1a17",
-                      }}
-                    >
-                      {ch.title}
-                    </div>
-                  </div>
+                  <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} className={pageShadow} style={{ width: pageW, height: H * px }} />
                   {Array.from({ length: pages }, (_, k) => (
                     <LazyPage
                       key={k}
@@ -537,12 +512,16 @@ export function PagePreview({
                     >
                       {() => (
                         <>
+                          {/* Начальная полоса считается правой, поэтому первая полоса текста — левая. */}
+                          <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === 1} />
                           <div className="absolute overflow-clip" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                             {flow(ch, k)}
                           </div>
-                          <div className="absolute inset-x-0 text-center text-muted" style={{ bottom: (m.marginBottom / 2 - 3) * px, fontSize: 2.8 * px, fontFamily: cssFont(typography.body) }}>
-                            {pages > 1 ? `${k + 1} / ${pages}` : ""}
-                          </div>
+                          {pages > 1 ? (
+                            <Folio kit={kit} recto={k % 2 === 1}>
+                              {k + 1} / {pages}
+                            </Folio>
+                          ) : null}
                         </>
                       )}
                     </LazyPage>

@@ -2,13 +2,14 @@
 
 import { Link, useLocalePathname, useMessages } from "@/i18n/client";
 import { useEffect, useRef, useState, ViewTransition } from "react";
-import { BookOpen, Camera, Eye, LayoutGrid, Mail, Palette, PenLine, SlidersHorizontal } from "lucide-react";
+import { BookOpen, BookOpenText, Camera, Eye, LayoutGrid, Mail, Palette, PenLine, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "", key: "overview", icon: LayoutGrid },
   { href: "/questions", key: "text", icon: PenLine },
   { href: "/cover", key: "cover", icon: Palette },
+  { href: "/pages", key: "pages", icon: BookOpenText },
   { href: "/photos", key: "photos", icon: Camera },
   { href: "/letters", key: "letters", icon: Mail },
   { href: "/settings", key: "settings", icon: SlidersHorizontal },

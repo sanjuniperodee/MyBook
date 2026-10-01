@@ -123,14 +123,14 @@ describe("Book", () => {
     expect(book.pullEvents().map((e) => e.type)).toEqual(["authoring.book_started"]);
   });
 
-  it("настройки проверяются по каталогам обложек, форматов, шрифтов и поводов", () => {
+  it("настройки проверяются по каталогам обложек, форматов, оформлений и поводов", () => {
     const book = startBook();
     expect(() => book.applySettings({ coverTemplate: "nope" })).toThrow();
     expect(() => book.applySettings({ format: "a0" })).toThrow();
-    expect(() => book.applySettings({ typography: "comic" })).toThrow();
+    expect(() => book.applySettings({ interior: "comic" })).toThrow();
     expect(() => book.applySettings({ occasion: "nope" })).toThrow();
-    book.applySettings({ format: "square", subtitle: "Четыре года", occasion: "birthday" });
-    expect(book.snapshot()).toMatchObject({ format: "square", subtitle: "Четыре года", occasion: "birthday" });
+    book.applySettings({ format: "square", subtitle: "Четыре года", occasion: "birthday", interior: "oyu" });
+    expect(book.snapshot()).toMatchObject({ format: "square", subtitle: "Четыре года", occasion: "birthday", interior: "oyu" });
   });
 
   it("заказанную книгу менять нельзя", () => {

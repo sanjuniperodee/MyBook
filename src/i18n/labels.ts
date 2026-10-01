@@ -1,6 +1,6 @@
 import type { AddonId, DeliveryId, PlanId } from "@/config/site";
 import type { FormatId } from "@/lib/book/formats";
-import type { TypographyId } from "@/lib/book/fonts";
+import type { InteriorId } from "@/lib/book/interiors";
 import type { Locale } from "./config";
 import { messagesFor } from "./messages";
 
@@ -24,8 +24,8 @@ export function coverName(id: string, locale: Locale = "ru") {
   return messagesFor(locale).catalog.covers[id] ?? id;
 }
 
-export function typographyName(id: string, locale: Locale = "ru") {
-  return messagesFor(locale).catalog.typography[id as TypographyId]?.name ?? id;
+export function interiorName(id: string, locale: Locale = "ru") {
+  return messagesFor(locale).catalog.interiors[id as InteriorId]?.name ?? id;
 }
 
 export function formatName(id: string, locale: Locale = "ru") {

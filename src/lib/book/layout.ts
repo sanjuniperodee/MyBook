@@ -7,8 +7,10 @@ import { applyGender } from "../content/gender";
 import { getTheme } from "../content/themes";
 import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { framedBox, layoutInline, MAX_INLINE_HEIGHT_SHARE, normalizeStyle, splitParagraphs } from "./inline-photo";
-import { getFormat, type BookFormat, type FormatId } from "./formats";
-import { getTypography, type Typography } from "./fonts";
+import { formats, getFormat, type BookFormat, type FormatId } from "./formats";
+import type { Typography } from "./fonts";
+import { getInteriorDesign, type InteriorDesign } from "./interiors";
+import type { PageBox } from "./interior-art";
 
 export interface InteriorMetrics {
   /** Поля от линии реза, мм. */
@@ -31,6 +33,22 @@ export function textArea(format: BookFormat) {
     w: format.widthMm - m.marginInner - m.marginOuter,
     h: format.heightMm - m.marginTop - m.marginBottom,
   };
+}
+
+/** Обрезной формат с вылетами и отступ рамки парадных полос — для графики из interior-art. */
+export function pageBox(format: BookFormat, bleed: number): PageBox {
+  const m = interiorMetrics[format.id];
+  return { w: format.widthMm, h: format.heightMm, bleed, inset: Math.min(m.marginTop, m.marginOuter) * 0.55 };
+}
+
+/**
+ * Начальная полоса главы: где начинается блок с номером и названием (мм от верхнего обреза)
+ * и во сколько раз полоса набора больше, чем у A5, — по этому масштабу рисуются картинки.
+ */
+export function openerFlow(format: BookFormat, design: InteriorDesign) {
+  const m = interiorMetrics[format.id];
+  const h = textArea(format).h;
+  return { top: m.marginTop + design.opener.top * h, k: h / textArea(formats.a5).h };
 }
 
 export interface ContentItem {
@@ -66,7 +84,8 @@ export interface BookContent {
   /** Язык книги: на нём печатаются служебные надписи (оглавление, «Глава N») и расставляются переносы. */
   language: Locale;
   format: BookFormat;
-  typography: Typography;
+  /** Оформление страниц: шрифты, цвета, виньетки, начальные полосы глав. */
+  interior: InteriorDesign;
   title: string;
   subtitle: string;
   authorName: string;
@@ -91,7 +110,7 @@ type BookLike = Pick<
   | "recipientName"
   | "recipientGender"
   | "dedication"
-  | "typography"
+  | "interior"
   | "format"
   | "photoPlacement"
   | "showToc"
@@ -199,7 +218,7 @@ export function buildBookContent(
   return {
     language: book.language,
     format: getFormat(book.format),
-    typography: getTypography(book.typography),
+    interior: getInteriorDesign(book.interior),
     title: book.title.trim() || theme.titleSuggestions[0],
     subtitle: book.subtitle.trim(),
     authorName: book.authorName.trim(),
@@ -289,7 +308,7 @@ export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos"
 
 /** Оценка количества страниц в готовой книге (до добивки до кратности). */
 export function estimatePages(content: BookContent): number {
-  const m = textMetrics(content.format, content.typography);
+  const m = textMetrics(content.format, content.interior.type);
   let pages = 2; // титульный лист + оборот
   if (content.dedication) pages += 1;
   if (content.showToc && content.chapters.length > 0) pages += Math.ceil(content.chapters.length / 18);

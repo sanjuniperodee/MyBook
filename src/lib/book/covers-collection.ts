@@ -4,7 +4,8 @@
  */
 import type { CoverTemplate } from "./covers";
 import type { CoverGeometry, Rect } from "./formats";
-import { bg, frontRect, HEART, jitterGrid, n, petalPath, rng, shadowFilter } from "./cover-kit";
+import { bg, frontRect, jitterGrid, n, petalPath, rng, shadowFilter } from "./cover-kit";
+import { FLEURON, HEART, RAM } from "./motifs";
 
 /** Прямоугольная рамка с отступом от краёв лицевой стороны. */
 function frame(f: Rect, inset: number, stroke: string, width: number, rx = 0) {
@@ -18,15 +19,6 @@ function vGradient(g: CoverGeometry, id: string, stops: [number, string][]) {
 }
 
 // ─── Ою: казахский орнамент «кошкар-муйиз» золотом по изумруду ────────────────
-
-/**
- * Кошкар-муйиз («бараньи рога») в единичном квадрате: от стебля вверх расходятся два рога
- * и закручиваются наружу-вниз спиралями. Центр мотива — (0.5, 0.5).
- */
-const RAM =
-  "M0.5,0.56 C0.5,0.26 0.2,0.12 0.1,0.34 C0.02,0.52 0.18,0.66 0.3,0.58 C0.4,0.51 0.34,0.38 0.25,0.42 C0.2,0.44 0.21,0.51 0.26,0.51 " +
-  "M0.5,0.56 C0.5,0.26 0.8,0.12 0.9,0.34 C0.98,0.52 0.82,0.66 0.7,0.58 C0.6,0.51 0.66,0.38 0.75,0.42 C0.8,0.44 0.79,0.51 0.74,0.51 " +
-  "M0.5,0.56 L0.5,0.9 M0.5,0.76 C0.42,0.72 0.36,0.78 0.34,0.86 M0.5,0.76 C0.58,0.72 0.64,0.78 0.66,0.86";
 
 function ram(x: number, y: number, s: number, color: string, w: number, rot = 0) {
   return `<path d="${RAM}" fill="none" stroke="${color}" stroke-width="${n(w / s)}" stroke-linecap="round" stroke-linejoin="round" transform="translate(${n(x)},${n(y)}) rotate(${rot}) scale(${n(s)}) translate(-0.5,-0.5)"/>`;
@@ -436,9 +428,6 @@ const mountains: CoverTemplate = {
 };
 
 // ─── Классика: кожаный переплёт с золотым тиснением ─────────────────────────
-
-/** Уголок-флерон в единичном квадрате, остриём в угол (0,0). */
-const FLEURON = "M0,0 C0.3,0.05 0.55,0.2 0.6,0.45 C0.45,0.35 0.3,0.38 0.22,0.5 C0.35,0.55 0.4,0.7 0.35,0.85 C0.2,0.7 0.05,0.4 0,0Z M0,0 C0.05,0.3 0.2,0.55 0.45,0.6 C0.35,0.45 0.38,0.3 0.5,0.22 C0.55,0.35 0.7,0.4 0.85,0.35 C0.7,0.2 0.4,0.05 0,0Z";
 
 const leather: CoverTemplate = {
   id: "leather",

@@ -129,7 +129,8 @@ export const books = pgTable(
     coverPhotoId: uuid("cover_photo_id"),
     backText: text("back_text").notNull().default(""),
     dedication: text("dedication").notNull().default(""),
-    typography: text("typography").notNull().default("classic"),
+    /** Оформление страниц — id из src/lib/book/interiors.ts. */
+    interior: text("interior").notNull().default("classic"),
     format: text("format").notNull().default("a5"),
     photoPlacement: text("photo_placement", { enum: ["chapters", "end"] }).notNull().default("chapters"),
     showToc: boolean("show_toc").notNull().default(true),

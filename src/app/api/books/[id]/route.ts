@@ -17,7 +17,7 @@ const patchSchema = z
     coverPhotoId: z.string().uuid().nullable(),
     backText: z.string().trim().max(400),
     dedication: z.string().trim().max(600),
-    typography: z.string().max(40),
+    interior: z.string().max(40),
     format: z.string().max(20),
     photoPlacement: z.enum(["chapters", "end"]),
     showToc: z.boolean(),
@@ -28,7 +28,7 @@ const patchSchema = z
   .partial()
   .strict();
 
-/** Настройки книги из редактора. Каталоги обложек, шрифтов и поводов проверяет домен. */
+/** Настройки книги из редактора. Каталоги обложек, оформлений и поводов проверяет домен. */
 export const PATCH = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const { viewer } = await apiViewer(req);

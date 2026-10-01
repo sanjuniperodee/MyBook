@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { ArrowRight, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
+import { ArrowRight, BookOpenText, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
@@ -12,7 +12,8 @@ import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
 import { getFormat, print } from "@/lib/book/formats";
 import { getLocale, getMessages } from "@/i18n/server";
-import { coverName, typographyName } from "@/i18n/labels";
+import { coverName, interiorName } from "@/i18n/labels";
+import { localeMeta } from "@/i18n/config";
 import { site } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const steps = [
     { icon: PenLine, title: t.steps.text, value: c.count.answers(stats.answered), done: stats.answered >= 10, href: `${base}/questions` },
     { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
+    { icon: BookOpenText, title: t.steps.pages, value: interiorName(book.interior, locale), done: true, href: `${base}/pages` },
     { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
     {
       icon: Mail,
@@ -75,7 +77,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
       done: letterStats.approved > 0,
       href: `${base}/letters`,
     },
-    { icon: SlidersHorizontal, title: t.steps.settings, value: `${getFormat(book.format).short} · ${typographyName(book.typography, locale)}`, done: true, href: `${base}/settings` },
+    { icon: SlidersHorizontal, title: t.steps.settings, value: `${getFormat(book.format).short} · ${localeMeta[book.language].label}`, done: true, href: `${base}/settings` },
     { icon: Eye, title: t.steps.preview, value: t.steps.previewValue, done: false, href: `${base}/preview` },
     {
       icon: Truck,

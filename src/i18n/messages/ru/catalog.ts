@@ -1,4 +1,6 @@
-/** Названия обложек, стилей вёрстки и форматов. Ключи — id из src/lib/book/*. */
+import type { InteriorId } from "@/lib/book/interiors";
+
+/** Названия обложек, оформлений страниц и форматов. Ключи — id из src/lib/book/*. */
 export const catalog = {
   covers: {
     linen: "Лён",
@@ -24,11 +26,20 @@ export const catalog = {
     letter: "Письмо",
   } as Record<string, string>,
   moods: { all: "Все", romance: "Романтика", tender: "Нежные", classic: "Классика", bright: "Яркие", photo: "С фото" },
-  typography: {
-    classic: { name: "Классика", description: "Cormorant + PT Serif — как в хорошем романе" },
-    modern: { name: "Современная", description: "Playfair + Lora — выразительно и тепло" },
+  interiors: {
+    classic: { name: "Классика", description: "Cormorant и PT Serif, тонкая виньетка — как в хорошем романе" },
+    romance: { name: "Признание", description: "Курсив цвета вина, сердечки и флероны в углах парадных страниц" },
+    stars: { name: "Созвездие", description: "Каждая глава открывается звёздным небом" },
+    herbarium: { name: "Гербарий", description: "Засушенные веточки и зелень, как в ботаническом альбоме" },
+    oyu: { name: "Ою", description: "Изумрудные главы с золотым казахским орнаментом" },
+    editorial: { name: "Журнал", description: "Крупные номера глав, колонтитулы и терракотовый акцент" },
+    watercolor: { name: "Акварель", description: "Нежные пятна краски и сливовые заголовки" },
+    deco: { name: "Гэтсби", description: "Ар-деко: золотые рамки, веер и римские цифры" },
+    airmail: { name: "Письмо", description: "Каёмка авиапочты и «Глава» от руки" },
+    modern: { name: "Современная", description: "Playfair и Lora — выразительно и тепло" },
     minimal: { name: "Минимализм", description: "Montserrat — чисто и легко" },
-  },
+  } satisfies Record<InteriorId, { name: string; description: string }>,
+  interiorMoods: { all: "Все", classic: "Классика", romance: "Романтика", tender: "Нежные", modern: "Современные" },
   formats: {
     a5: "Классический A5 · 148×210 мм",
     square: "Квадратный · 200×200 мм",

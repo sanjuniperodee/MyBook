@@ -32,7 +32,7 @@ export const api = {
   questionEmpty: "Напишите вопрос",
   answerTooLong: "Слишком длинный ответ",
   unknownCover: "Неизвестная обложка",
-  unknownTypography: "Неизвестный стиль",
+  unknownInterior: "Неизвестное оформление страниц",
   unknownFormat: "Неизвестный формат",
   unknownOccasion: "Неизвестный повод",
   unknownLanguage: "Неизвестный язык",

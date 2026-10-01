@@ -1,12 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check } from "lucide-react";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { OccasionPicker } from "@/components/OccasionPicker";
+import { Choice, FormSection as Section } from "@/components/ui/Choice";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { typographies, cssFont, type TypographyId } from "@/lib/book/fonts";
 import { formats, type FormatId } from "@/lib/book/formats";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/i18n/client";
@@ -16,11 +15,7 @@ import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import type { Gender } from "@/modules/authoring/domain";
 
 export interface SettingsState {
-  typography: TypographyId;
   format: FormatId;
-  dedication: string;
-  photoPlacement: "chapters" | "end";
-  showToc: boolean;
   authorGender: Gender;
   recipientGender: Gender;
   occasion: string | null;
@@ -93,23 +88,6 @@ export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }
         </div>
       </Section>
 
-      <Section title={t.typography} description={t.typographyText}>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {Object.values(typographies).map((ty) => (
-            <Choice key={ty.id} active={s.typography === ty.id} onClick={() => update({ typography: ty.id })} disabled={!editable}>
-              <div style={{ fontFamily: cssFont(ty.heading), fontStyle: ty.headingItalic ? "italic" : "normal", fontWeight: ty.headingWeight }} className="text-2xl">
-                {m.books.settings.sampleHeading}
-              </div>
-              <p style={{ fontFamily: cssFont(ty.body) }} className="mt-2 text-[13px] leading-relaxed text-ink-soft">
-                {m.books.settings.sampleText}
-              </p>
-              <div className="mt-4 text-sm font-medium">{m.catalog.typography[ty.id].name}</div>
-              <div className="text-xs text-muted">{m.catalog.typography[ty.id].description}</div>
-            </Choice>
-          ))}
-        </div>
-      </Section>
-
       <Section title={t.format}>
         <div className="grid gap-4 sm:grid-cols-2">
           {Object.values(formats).map((f) => (
@@ -128,38 +106,6 @@ export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }
         </div>
       </Section>
 
-      <Section title={t.dedication} description={t.dedicationText}>
-        <textarea
-          className="input"
-          rows={3}
-          maxLength={600}
-          value={s.dedication}
-          onChange={(e) => update({ dedication: e.target.value })}
-          placeholder={t.dedicationPlaceholder}
-          disabled={!editable}
-        />
-      </Section>
-
-      <Section title={t.photos}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Choice active={s.photoPlacement === "chapters"} onClick={() => update({ photoPlacement: "chapters" })} disabled={!editable}>
-            <div className="font-medium">{t.photosChapters}</div>
-            <div className="text-sm text-muted">{t.photosChaptersText}</div>
-          </Choice>
-          <Choice active={s.photoPlacement === "end"} onClick={() => update({ photoPlacement: "end" })} disabled={!editable}>
-            <div className="font-medium">{t.photosEnd}</div>
-            <div className="text-sm text-muted">{t.photosEndText}</div>
-          </Choice>
-        </div>
-      </Section>
-
-      <Section title={t.toc}>
-        <label className="flex items-center gap-3">
-          <input type="checkbox" className="size-5 accent-wine" checked={s.showToc} onChange={(e) => update({ showToc: e.target.checked })} disabled={!editable} />
-          <span>{t.tocLabel}</span>
-        </label>
-      </Section>
-
       <Section title={t.wording} description={t.wordingText}>
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
@@ -175,34 +121,6 @@ export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }
         </div>
       </Section>
     </div>
-  );
-}
-
-function Section({ id, title, description, children }: { id?: string; title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <section id={id} className="scroll-mt-28">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
-function Choice({ active, onClick, children, disabled }: { active: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn("relative rounded-2xl border bg-white p-5 text-left transition", active ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
-    >
-      {active ? (
-        <span className="absolute top-3 right-3 flex size-6 items-center justify-center rounded-full bg-wine text-white">
-          <Check className="size-3.5" />
-        </span>
-      ) : null}
-      {children}
-    </button>
   );
 }
 

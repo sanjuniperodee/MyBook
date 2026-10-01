@@ -1,4 +1,4 @@
-import { addonName, coverName, deliveryName, formatName, planName, typographyName } from "@/i18n/labels";
+import { addonName, coverName, deliveryName, formatName, interiorName, planName } from "@/i18n/labels";
 import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
@@ -105,7 +105,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <dt className="text-muted">Название</dt><dd>{book.title}</dd>
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
               <dt className="text-muted">Автор → адресат</dt><dd>{book.authorName} → {book.recipientName}</dd>
-              <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · {typographyName(book.typography)} · обложка «{coverName(book.coverTemplate)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
+              <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · обложка «{coverName(book.coverTemplate)}» · страницы «{interiorName(book.interior)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
               <dt className="text-muted">Наполнение</dt><dd>{stats.answered} ответов · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>

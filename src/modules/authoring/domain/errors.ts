@@ -13,7 +13,7 @@ export type AuthoringErrorCode =
   | "photosLimit"
   | "photosOutdated"
   | "unknownCover"
-  | "unknownTypography"
+  | "unknownInterior"
   | "unknownFormat"
   | "unknownOccasion"
   | "unknownLanguage"
