@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSetting } from "@/lib/crm/settings";
 import { safeEqual } from "@/shared/crypto";
 import { parseZadarmaEvent, zadarmaSign, zadarmaSignedString } from "@/lib/crm/telephony-protocol";
-import { handleCallEvent } from "@/lib/crm/telephony";
+import { container } from "@/server/container";
 
 /** Проверка адреса при подключении уведомлений в кабинете Zadarma: вернуть zd_echo как есть. */
 export async function GET(req: Request) {
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const event = parseZadarmaEvent(params);
   if (event) {
     try {
-      await handleCallEvent(event);
+      await container().telephony.calls.handle(event);
     } catch (err) {
       console.error("[zadarma]", params.event, err);
       return NextResponse.json({ error: "failed" }, { status: 500 });

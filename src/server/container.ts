@@ -10,6 +10,7 @@ import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
 import { SalesModule, sourceFromChannel } from "@/modules/sales";
 import { MessagingModule } from "@/modules/messaging";
+import { TelephonyModule } from "@/modules/telephony";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -39,6 +40,7 @@ export class Container {
   #sales?: SalesModule;
   #automation?: AutomationModule;
   #messaging?: MessagingModule;
+  #telephony?: TelephonyModule;
 
   /** Правила CRM работают со сделками через узкий порт продаж. */
   get automation(): AutomationModule {
@@ -70,6 +72,21 @@ export class Container {
         setField: (dealId, key, value) => this.sales.deals.setField(dealId, key, value),
         deal: (dealId) => this.sales.deals.findById(dealId),
         nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
+      },
+    }));
+  }
+
+  /** Звонки создают сделки через порт продаж; спам-лист — из переписки, правила на пропущенные — из автоматизаций. */
+  get telephony(): TelephonyModule {
+    return (this.#telephony ??= new TelephonyModule({
+      clock: this.clock,
+      isBlocked: (phone) => this.messaging.chats.isBlocked(phone),
+      missedRules: (ctx) => this.automation.engine.run("call.missed", ctx),
+      sales: {
+        findClientByPhone: (phone) => this.sales.deals.findClientByPhone(phone),
+        findOpenDealId: async (opts) => (await this.sales.deals.findOpen(opts))?.id ?? null,
+        createCallDeal: (input) => this.sales.deals.create({ ...input, source: "call", unsorted: true }),
+        dealOwner: (dealId) => this.sales.deals.findById(dealId),
       },
     }));
   }

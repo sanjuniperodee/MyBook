@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gt, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "./db";
-import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks, orders, users } from "./db/schema";
+import { crmCalls, crmConversations, crmDeals, crmTasks, orders, users } from "./db/schema";
 import { can, type Staff } from "@/server/access";
 
 export interface CrmCounters {

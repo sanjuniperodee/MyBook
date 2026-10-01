@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSetting } from "@/lib/crm/settings";
 import { safeEqual } from "@/shared/crypto";
 import { parseGenericEvent } from "@/lib/crm/telephony-protocol";
-import { handleCallEvent } from "@/lib/crm/telephony";
+import { container } from "@/server/container";
 
 /**
  * Универсальный вебхук для любой АТС. Авторизация — токен в заголовке X-Token или параметре ?token=.
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const event = parseGenericEvent(body);
   if (!event) return NextResponse.json({ error: "Нужны поля event (start|answer|end|record), callId, phone" }, { status: 400 });
   try {
-    const call = await handleCallEvent(event);
+    const call = await container().telephony.calls.handle(event);
     return NextResponse.json({ ok: true, id: call?.id ?? null });
   } catch (err) {
     console.error("[pbx]", err);

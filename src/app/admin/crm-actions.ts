@@ -7,7 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, orders, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
-import { clickToCall, TelephonyError } from "@/lib/crm/telephony";
+import { TelephonyError } from "@/modules/telephony";
 import { getSetting } from "@/lib/crm/settings";
 import { normalizePhone } from "@/lib/crm/phone";
 
@@ -70,9 +70,9 @@ export async function callAction(target: Target): Promise<ActionResult> {
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
   assertVisible(staff, c.assigneeId);
   try {
-    await clickToCall(staff.user.sipExtension, normalizePhone(c.phone));
+    await container().telephony.phone.clickToCall(staff.user.sipExtension, normalizePhone(c.phone));
   } catch (err) {
-    if (err instanceof TelephonyError) return { ok: false, message: err.message };
+    if (TelephonyError.is(err)) return { ok: false, message: err.message };
     throw err;
   }
   return { ok: true, message: "Сейчас зазвонит ваш телефон — возьмите трубку, и АТС соединит с клиентом" };

@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
 import { api, apiStaff, HttpError } from "@/lib/api";
-import { db } from "@/lib/db";
-import { crmCalls } from "@/lib/db/schema";
 import { audit, canSeeAssigned } from "@/server/access";
-import { recordingUrl, TelephonyError } from "@/lib/crm/telephony";
+import { TelephonyError } from "@/modules/telephony";
+import { container } from "@/server/container";
 
 /**
  * Запись разговора через наш сервер: ссылка провайдера не попадает в браузер,
@@ -12,14 +10,13 @@ import { recordingUrl, TelephonyError } from "@/lib/crm/telephony";
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "calls.view", "calls.recordings");
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, "notFound");
-  const call = await db.query.crmCalls.findFirst({ where: eq(crmCalls.id, id) });
+  const call = await container().telephony.queries.byId(id);
   if (!call || !canSeeAssigned(staff, call.staffId)) throw new HttpError(404, "notFound");
   let url: string | null;
   try {
-    url = await recordingUrl(call);
+    url = await container().telephony.phone.recordingUrl(call);
   } catch (err) {
-    if (err instanceof TelephonyError) return new Response(err.message, { status: 502 });
+    if (TelephonyError.is(err)) return new Response(err.message, { status: 502 });
     throw err;
   }
   if (!url) throw new HttpError(404, "notFound");

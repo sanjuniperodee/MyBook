@@ -1,3 +1,4 @@
+import { container } from "@/server/container";
 import Link from "next/link";
 import { and, desc, eq, gte, isNull, sql, type SQL } from "drizzle-orm";
 import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
@@ -6,7 +7,6 @@ import { crmCalls, crmDeals, users } from "@/lib/db/schema";
 import { can, contactView, ownScope, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { formatPhone } from "@/lib/crm/phone";
-import { telephonyProvider } from "@/lib/crm/telephony";
 import { cn, formatDate } from "@/lib/utils";
 import { CallRowActions } from "./CallActions";
 
@@ -40,7 +40,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       .orderBy(desc(crmCalls.startedAt))
       .limit(300),
     listAdmins(),
-    telephonyProvider(),
+    container().telephony.phone.currentProvider(),
     db
       .select({
         total: sql<number>`count(*)::int`,
