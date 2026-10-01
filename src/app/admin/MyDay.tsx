@@ -1,5 +1,6 @@
+import { container } from "@/server/container";
 import Link from "next/link";
-import { currentMonth, planProgress } from "@/lib/crm/plans";
+import { currentMonth } from "@/modules/sales";
 import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
 import { db } from "@/lib/db";
@@ -55,7 +56,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
           .from(crmDeals)
           .where(and(eq(crmDeals.unsorted, true), ownScope(staff, crmDeals.assigneeId)))
       : Promise.resolve([{ n: 0 }]),
-    planProgress(currentMonth(), [me]),
+    container().sales.queries.planProgress(currentMonth(), [me]),
   ]);
   const plan = plans.get(me);
   const now = new Date();

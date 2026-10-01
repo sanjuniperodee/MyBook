@@ -14,7 +14,6 @@ import { dealSourceLabels } from "@/modules/sales";
 import { books, bookQuestions, photos } from "@/lib/db/schema";
 import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
-import { chatOffers } from "@/lib/crm/offers";
 import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { formatPrice } from "@/config/site";
@@ -78,7 +77,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const suggested = suggestedClientId ? await db.query.users.findFirst({ where: eq(users.id, suggestedClientId), columns: { id: true, name: true, email: true } }) : null;
   const clientSeen = deal.clientId ? (await db.query.users.findFirst({ where: eq(users.id, deal.clientId), columns: { lastSeenAt: true } }))?.lastSeenAt : null;
   const [messages, templates, vars, blocker, offers] = conv
-    ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), chatOffers(conv, can(staff, "promo.give"))])
+    ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
   const ai = await aiConfigured();
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);

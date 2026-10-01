@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { crmConversations, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { channelLabel } from "@/modules/messaging";
-import { buildOffer, type OfferRequest } from "@/lib/crm/offers";
+import type { OfferRequest } from "@/modules/marketing";
 import { notifyMentions } from "@/lib/crm/mentions";
 import { adminLabel } from "@/lib/crm";
 import { formatPhone, isPhoneLike, normalizePhone } from "@/lib/crm/phone";
@@ -109,7 +109,7 @@ export async function sendOfferAction(conversationId: string, request: OfferRequ
   if (req.kind === "discount" && !can(staff, "promo.give")) throw new ForbiddenError();
   let offer: { text: string; promo?: string };
   try {
-    offer = await buildOffer(conv, req, adminLabel(staff.user));
+    offer = await container().marketing.service.buildOffer(conv.clientId, req, adminLabel(staff.user));
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }

@@ -3,7 +3,7 @@ import { DealsService, SiteFunnelService } from "./application";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress } from "./infrastructure/adapters";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzleSalesQueries } from "./infrastructure/persistence";
 
-export { dealSourceLabels, sourceFromChannel, SalesError, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type DealSource, type StageMilestone } from "./domain";
+export { currentMonth, shiftMonth, type PlanProgress, dealSourceLabels, sourceFromChannel, SalesError, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type DealSource, type StageMilestone } from "./domain";
 export type { DealView, NewDeal } from "./application";
 
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */

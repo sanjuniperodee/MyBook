@@ -6,7 +6,7 @@ import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
-import type { ChatOffers } from "@/lib/crm/offers";
+import type { ChatOffers } from "@/modules/marketing";
 import { fillTemplate } from "@/lib/crm/automation-meta";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";

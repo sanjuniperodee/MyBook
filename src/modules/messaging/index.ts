@@ -1,7 +1,7 @@
 import type { Clock } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
-import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, type SalesGateway } from "./application";
-import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, linkAttributionFromText, realtimeUpdates, siteIds, widgetSettings } from "./infrastructure/adapters";
+import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds, widgetSettings } from "./infrastructure/adapters";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 
 export { channelLabel, channelLabels, type Conversation, type InboundMessage } from "./domain";
@@ -16,16 +16,16 @@ export class MessagingModule {
   readonly site: SiteChatService;
   readonly queries = new DrizzleMessagingQueries();
 
-  constructor(deps: { clock: Clock; sales: SalesGateway; rules: IncomingRules }) {
+  constructor(private readonly deps: { clock: Clock; sales: SalesGateway; rules: IncomingRules; links: LinkAttribution; whatsapp: () => Promise<string> }) {
     const conversations = new DrizzleConversationRepository();
     const bot = new QualifierBot(conversations, crmBotSettings, deps.sales, crmNotifier, deps.clock);
-    this.chats = new MessagingService(conversations, new DrizzleMessageRepository(), drizzleBlocklist, channelTransport, deps.sales, linkAttributionFromText, crmNotifier, realtimeUpdates, deps.rules, bot, deps.clock, consoleLogger("chats"));
+    this.chats = new MessagingService(conversations, new DrizzleMessageRepository(), drizzleBlocklist, channelTransport, deps.sales, deps.links, crmNotifier, realtimeUpdates, deps.rules, bot, deps.clock, consoleLogger("chats"));
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, crmNotifier, realtimeUpdates, deps.clock, siteIds);
   }
 
   /** Настройки виджета на сайте (кнопка WhatsApp, онлайн-чат). */
   widgetConfig() {
-    return widgetSettings();
+    return widgetSettings(this.deps.whatsapp);
   }
 
   /** Переписка посетителя для виджета. */

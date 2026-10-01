@@ -8,12 +8,8 @@ import { notify, staffWith } from "@/lib/crm/notify";
 import { executor } from "@/shared/infrastructure/database";
 import type { AppInfo, AutomationEffects, WorkSchedule } from "../application";
 
-/** График читается из настроек не чаще раза в 30 секунд: проход по просроченным чатам спрашивает его на каждый диалог. */
-let cached: { at: number; value: ReturnType<typeof parseWorkHours> } | null = null;
-async function hours() {
-  if (!cached || Date.now() - cached.at > 30_000) cached = { at: Date.now(), value: parseWorkHours(await getSetting("crm.workHours")) };
-  return cached.value;
-}
+/** График из настроек CRM (getSetting сам кэширует значения на несколько секунд). */
+const hours = async () => parseWorkHours(await getSetting("crm.workHours"));
 
 export const crmWorkSchedule: WorkSchedule = {
   isWorkTime: async (at) => isWorkTime(at, await hours()),

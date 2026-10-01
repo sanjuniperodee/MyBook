@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { currentMonth, planProgress } from "@/lib/crm/plans";
+import { currentMonth } from "@/modules/sales";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { requireStaff } from "@/server/access";
@@ -107,7 +107,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       group by to_stage_id`),
   ]);
   const reachedStage = (st: { kind: string; position: number }) => reached.rows.filter((r) => r.won || (st.kind === "open" && r.max_open !== null && r.max_open >= st.position)).length;
-  const plans = await planProgress(currentMonth());
+  const plans = await container().sales.queries.planProgress(currentMonth());
   const timeByStage = new Map(stageTime.rows.map((r) => [r.stage_id, r]));
 
   const t = totals.rows[0] ?? {};

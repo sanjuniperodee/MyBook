@@ -1,11 +1,8 @@
-import { desc } from "drizzle-orm";
+import { container } from "@/server/container";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { crmLinks } from "@/lib/db/schema";
 import { can, requireStaff } from "@/server/access";
-import { channelReport, conversion } from "@/lib/crm/marketing";
+import { conversion } from "@/modules/marketing";
 import { channelLabel } from "@/lib/crm/channels";
-import { linkTarget, shopWhatsapp, shortUrl } from "@/lib/crm/links";
 import { landings } from "@/lib/content/landings";
 import { env } from "@/lib/env";
 import { formatPrice } from "@/config/site";
@@ -28,9 +25,10 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
   if (!can(staff, "analytics.view") && !can(staff, "promo.manage")) (await import("next/navigation")).notFound();
   const sp = await searchParams;
   const period = periods.find(([d]) => String(d) === sp.period)?.[0] ?? 30;
-  const [report, links, waNumber] = await Promise.all([channelReport(period || null), db.select().from(crmLinks).orderBy(desc(crmLinks.createdAt)), shopWhatsapp()]);
+  const marketing = container().marketing;
+  const [report, links, waNumber] = await Promise.all([marketing.service.report(period || null), marketing.links.all(), marketing.service.shopWhatsapp()]);
   const visibleLinks = links.filter((l) => (sp.archived === "1" ? l.archived : !l.archived));
-  const targets = new Map(await Promise.all(visibleLinks.map(async (l) => [l.id, await linkTarget(l)] as const)));
+  const targets = new Map(await Promise.all(visibleLinks.map(async (l) => [l.id, await marketing.service.target(l)] as const)));
   const showAnalytics = can(staff, "analytics.view");
   const pages = [
     { path: "/", label: "Главная" },
@@ -162,7 +160,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                     <td className="py-2.5 text-right tabular-nums">{m?.sales ?? 0}</td>
                     <td className="py-2.5 text-right tabular-nums">{formatPrice(m?.revenue ?? 0)}</td>
                     <td className="py-2.5 pl-3 text-right">
-                      <LinkRowActions id={l.id} short={shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={can(staff, "promo.manage")} />
+                      <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={can(staff, "promo.manage")} />
                     </td>
                   </tr>
                 );

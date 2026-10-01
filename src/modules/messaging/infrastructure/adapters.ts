@@ -1,8 +1,6 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { crmTasks } from "@/lib/db/schema";
-import { linkCodeFromText } from "@/lib/crm/channels";
-import { findLink, linkAttribution } from "@/lib/crm/links";
 import { notifyOwnerOr } from "@/lib/crm/notify";
 import { publish } from "@/lib/crm/realtime";
 import { getSetting } from "@/lib/crm/settings";
@@ -10,7 +8,7 @@ import { isWorkTime, parseWorkHours } from "@/lib/crm/schedule";
 import { listFields } from "@/lib/crm/fields";
 import { parseBotConfig } from "@/lib/crm/bot-logic";
 import { executor } from "@/shared/infrastructure/database";
-import type { BotSettings, ChannelTransport, LinkAttribution, LiveUpdates, StaffNotifier, Tasks } from "../application";
+import type { BotSettings, ChannelTransport, LiveUpdates, StaffNotifier, Tasks } from "../application";
 import type { BotMode } from "../domain";
 
 /** Исходящие по каналу диалога: виджет забирает сообщения сам, почта и мессенджеры — через свои интеграции. */
@@ -30,14 +28,6 @@ export const channelTransport: ChannelTransport = {
       console.error("[chats] send", err);
       return { ok: false, error: "Не удалось отправить" };
     }
-  },
-};
-
-export const linkAttributionFromText: LinkAttribution = {
-  async fromText(text) {
-    const code = linkCodeFromText(text);
-    const link = code ? await findLink(code) : null;
-    return link ? (linkAttribution(link) as Record<string, string>) : null;
   },
 };
 
@@ -64,12 +54,11 @@ export const crmTasksAdapter: Tasks = {
 };
 
 /** Что показывает виджет на сайте: кнопка WhatsApp, онлайн-чат. */
-export async function widgetSettings() {
+export async function widgetSettings(whatsapp: () => Promise<string>) {
   const { getSettings } = await import("@/lib/crm/settings");
-  const { shopWhatsapp } = await import("@/lib/crm/links");
   const s = await getSettings(["widget.enabled", "widget.chat"]);
   const enabled = s["widget.enabled"] !== "off";
-  return { enabled, chat: enabled && s["widget.chat"] !== "off", whatsapp: enabled ? await shopWhatsapp() : "" };
+  return { enabled, chat: enabled && s["widget.chat"] !== "off", whatsapp: enabled ? await whatsapp() : "" };
 }
 
 /** Посетитель чата на сайте: в базе храним только хэш его токена, сам токен знает лишь браузер. */

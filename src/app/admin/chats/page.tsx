@@ -1,3 +1,4 @@
+import { container } from "@/server/container";
 import Link from "next/link";
 import { and, eq, gt, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
@@ -8,7 +9,6 @@ import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { channelLabel } from "@/modules/messaging";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/lib/crm/channels";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
-import { chatOffers } from "@/lib/crm/offers";
 import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { getSetting } from "@/lib/crm/settings";
@@ -94,7 +94,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             .then((r) => r[0] ?? null)
         : null,
       conv.clientId ? db.query.users.findFirst({ where: eq(users.id, conv.clientId), columns: { id: true, name: true, email: true } }) : null,
-      chatOffers(conv, can(staff, "promo.give")),
+      container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),
       aiConfigured(),
     ]);

@@ -1,3 +1,4 @@
+import { container } from "@/server/container";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
@@ -8,7 +9,6 @@ import { formatPrice, plans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff } from "@/server/access";
 import { MyDay } from "./MyDay";
-import { channelReport } from "@/lib/crm/marketing";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -49,7 +49,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const paidDay = sql<string>`to_char((${orders.paidAt} at time zone ${tzSql})::date, 'YYYY-MM-DD')`;
   const notCancelled = ne(orders.status, "cancelled");
 
-  const channelsReport = await channelReport(period);
+  const channelsReport = await container().marketing.service.report(period);
   const sources = { rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8) };
   const [daily, [cur], [prev], [newUsers], funnelRows, byPlan, deadlines, tasks, attention, events] = await Promise.all([
     db

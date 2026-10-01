@@ -1,10 +1,11 @@
+import { container } from "@/server/container";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { requireStaff } from "@/server/access";
 import { adminLabel } from "@/lib/crm";
-import { currentMonth, planProgress, shiftMonth } from "@/lib/crm/plans";
+import { currentMonth, shiftMonth } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
 import { PlanRow } from "./PlanRow";
 
@@ -17,7 +18,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   const raw = (await searchParams).m;
   const month = raw && /^\d{4}-\d{2}$/.test(raw) ? raw : currentMonth();
   const staff = await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, "admin"), eq(users.staffDisabled, false))).orderBy(users.name);
-  const progress = await planProgress(month, staff.map((s) => s.id));
+  const progress = await container().sales.queries.planProgress(month, staff.map((s) => s.id));
   const total = [...progress.values()].reduce((a, p) => ({ plan: a.plan + p.planAmount, fact: a.fact + p.factAmount }), { plan: 0, fact: 0 });
   return (
     <div className="space-y-4">
