@@ -10,7 +10,7 @@ import { Mail, MessageCircle, Phone } from "lucide-react";
 import { db } from "@/lib/db";
 import { bookLetters, bookQuestions, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/lib/db/schema";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { REMINDER_COOLDOWN_DAYS } from "@/lib/crm-reminders";
+import { canRemind } from "@/modules/notifications";
 import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
@@ -89,7 +89,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   // «Только свои» может взять неразобранного клиента себе, но не отдать другому.
   const managerOptions = canAssignOthers(staff) ? adminOptions : adminOptions.filter((a) => a.id === staff.user.id || a.id === client.managerId);
   const hasDraft = bookRows.some((b) => b.book.status === "draft");
-  const cooldown = client.remindedAt && nowMs() - client.remindedAt.getTime() < REMINDER_COOLDOWN_DAYS * 86_400_000;
+  const cooldown = !canRemind(client.remindedAt, new Date(nowMs()));
   const remindHint = !hasDraft
     ? "Нет незавершённых книг"
     : client.remindedAt

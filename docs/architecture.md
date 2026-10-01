@@ -15,9 +15,10 @@
 src/
   shared/                     общее ядро (shared kernel)
     domain/                   Entity, AggregateRoot, ValueObject, DomainEvent, DomainError
-    application/              UseCase, UnitOfWork, EventBus, Clock, Logger — порты
+    application/              UseCase, UnitOfWork, EventBus, Clock, Logger, Mailer, RateLimiter — порты
     infrastructure/           DrizzleUnitOfWork (транзакции), OutboxDispatcher (надёжная доставка событий), InProcessEventBus,
-                              redis.ts (лимиты и шаги TOTP: Redis при REDIS_URL, иначе память), background.ts
+                              redis.ts (лимиты и шаги TOTP: Redis при REDIS_URL, иначе память), background.ts,
+                              mail.ts (SMTP-адаптер Mailer и общий HTML-шаблон писем)
   modules/<контекст>/
     domain/                   агрегаты, объекты-значения, события, ошибки, интерфейсы репозиториев
     application/              сервисы сценариев (команды), порты к другим контекстам и внешнему миру
@@ -72,7 +73,7 @@ src/
 | `identity` | учётные записи, вход, сессии, сброс пароля, двухфакторный вход (TOTP) | ✅ перенесён |
 | `access` | сотрудники, роли и права, видимость «только свои», правила безопасности (IP, обязательная 2FA), журнал | ✅ перенесён |
 | `authoring` | книги, вопросы и ответы, фото, письма близких, готовность к печати | ✅ перенесён |
-| `notifications` | почта, автописьма | ⏳ в `src/lib` |
+| `notifications` | автописьма (вернуть к книге, дедлайн к празднику, оплата, отзыв), напоминания из CRM, отписка | ✅ перенесён (почта — порт `Mailer` в общем ядре; письма о заказах, сбросе пароля и письмах близких отправляют свои контексты) |
 | `crm` | сделки и воронки, чаты и каналы, телефония, автоматизации, маркетинг, AI | ⏳ в `src/lib/crm` |
 
 Перенос идёт по паттерну «душитель» (strangler fig): контекст переезжает целиком вместе со всеми потребителями, а старый код в `src/lib` удаляется. Сценарии в браузере (`scripts/e2e-*.mjs`) прогоняются после каждого контекста.

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { crmBlocklist, crmTemplates } from "@/lib/db/schema";
 import { requireStaff } from "@/server/access";
 import { fromEnv, getSetting, getSettings, maskSecret } from "@/lib/crm/settings";
-import { smtpConfigured } from "@/lib/mail";
+import { container } from "@/server/container";
 import { env } from "@/lib/env";
 import { templateVars } from "@/lib/crm/automation-meta";
 import { AiForm, Blocklist, EmailForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
@@ -63,7 +63,7 @@ export default async function SettingsPage() {
       />
 
       <EmailForm
-        smtp={smtpConfigured()}
+        smtp={container().mailer.configured}
         saved={{ imapHost: em["email.imapHost"], imapPort: em["email.imapPort"], imapUser: em["email.imapUser"], imapPassword: maskSecret(em["email.imapPassword"]), imapMailbox: em["email.imapMailbox"] }}
         env={{ imapHost: fromEnv("email.imapHost"), imapPort: fromEnv("email.imapPort"), imapUser: fromEnv("email.imapUser"), imapPassword: fromEnv("email.imapPassword") }}
         webhookUrl={em["email.webhookToken"] ? hook("/api/integrations/email", em["email.webhookToken"]) : null}

@@ -1,5 +1,5 @@
 import "server-only";
-import type { Clock, EventBus, UnitOfWork } from "@/shared/application";
+import type { Clock, EventBus, Mailer, UnitOfWork } from "@/shared/application";
 import { BookOrderingService, BooksService, LettersService, PhotosService, QuestionsService, type OrdersLookup } from "./application";
 import { checkReadiness } from "./domain";
 import type { LetterSubmitted } from "./domain";
@@ -22,7 +22,7 @@ export class AuthoringModule {
   readonly photoRepository = new DrizzlePhotoRepository();
   readonly themes = contentThemes;
 
-  constructor(deps: { uow: UnitOfWork; clock: Clock; bus: EventBus; orders: OrdersLookup }) {
+  constructor(deps: { uow: UnitOfWork; clock: Clock; bus: EventBus; orders: OrdersLookup; mailer: Mailer }) {
     const books = new DrizzleBookRepository();
     const questions = new DrizzleQuestionRepository();
     this.books = new BooksService(books, questions, contentThemes, deps.orders, storageFiles, randomIds, deps.uow, deps.clock);
@@ -36,6 +36,6 @@ export class AuthoringModule {
       const blocking = checkReadiness(book, stats, ps, locale).find((i) => i.level === "error");
       return { blockingIssue: blocking?.text ?? null, estimatedPages: stats.printedPages };
     });
-    deps.bus.subscribe<LetterSubmitted>("authoring.letter_submitted", notifyOwnerAboutLetter, "authoring.mail.letter_submitted");
+    deps.bus.subscribe<LetterSubmitted>("authoring.letter_submitted", notifyOwnerAboutLetter(deps.mailer), "authoring.mail.letter_submitted");
   }
 }

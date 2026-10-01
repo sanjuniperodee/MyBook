@@ -1,5 +1,5 @@
 import "server-only";
-import type { Clock, OneTimeStepStore, UnitOfWork } from "@/shared/application";
+import type { Clock, Mailer, OneTimeStepStore, UnitOfWork } from "@/shared/application";
 import { AccountService, AuthService } from "./application";
 import { appSecretCipher, bcryptHasher, envAdminEmails, randomTokens, resetMailer } from "./infrastructure/adapters";
 import { DrizzlePasswordResetRepository, DrizzleSessionRepository, DrizzleUserRepository } from "./infrastructure/persistence";
@@ -18,9 +18,9 @@ export class IdentityModule {
   readonly tokens = randomTokens;
   readonly passwords = bcryptHasher;
 
-  constructor(deps: { uow: UnitOfWork; clock: Clock; steps: OneTimeStepStore }) {
+  constructor(deps: { uow: UnitOfWork; clock: Clock; steps: OneTimeStepStore; mailer: Mailer }) {
     const users = new DrizzleUserRepository();
-    this.auth = new AuthService(users, new DrizzleSessionRepository(), new DrizzlePasswordResetRepository(), bcryptHasher, randomTokens, appSecretCipher, resetMailer, envAdminEmails, deps.uow, deps.clock, deps.steps);
+    this.auth = new AuthService(users, new DrizzleSessionRepository(), new DrizzlePasswordResetRepository(), bcryptHasher, randomTokens, appSecretCipher, resetMailer(deps.mailer), envAdminEmails, deps.uow, deps.clock, deps.steps);
     this.accounts = new AccountService(users, this.auth, bcryptHasher, appSecretCipher, deps.uow, deps.clock);
   }
 }

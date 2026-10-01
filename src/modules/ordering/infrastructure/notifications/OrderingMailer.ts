@@ -7,7 +7,8 @@ import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { planName } from "@/i18n/labels";
 import { env } from "@/lib/env";
-import { appLink, emailLayout, escapeHtml, sendMail } from "@/lib/mail";
+import type { Mailer } from "@/shared/application";
+import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { parseDay, toIsoDay } from "@/lib/occasions";
 import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed } from "../../domain";
 import type { GiftsService } from "../../application";
@@ -25,6 +26,7 @@ export class OrderingMailer {
   constructor(
     private readonly queries: DrizzleOrderingQueries,
     private readonly gifts: GiftsService,
+    private readonly mail: Mailer,
   ) {}
 
   private async customerLocale(userId: string): Promise<Locale> {
@@ -34,7 +36,7 @@ export class OrderingMailer {
 
   private shop(subject: string, title: string, paragraphs: string[], button: { label: string; url: string }) {
     if (!env.ordersNotifyEmail) return;
-    return sendMail(env.ordersNotifyEmail, subject, emailLayout({ title, paragraphs, button }));
+    return this.mail.send(env.ordersNotifyEmail, subject, emailLayout({ title, paragraphs, button }));
   }
 
   // ─── заказы ──────────────────────────────────────────────────────────────
@@ -45,7 +47,7 @@ export class OrderingMailer {
     if (!order) return;
     const locale = await this.customerLocale(p.userId);
     const m = messagesFor(locale).mail.order.created;
-    await sendMail(
+    await this.mail.send(
       order.contactEmail,
       m.subject(order.number),
       emailLayout({
@@ -87,7 +89,7 @@ export class OrderingMailer {
     const locale = await this.customerLocale(order.userId);
     const m = messagesFor(locale).mail.order;
     const button = { label: m.open, url: orderUrl(order.id, locale) };
-    const send = (title: string, paragraphs: string[]) => sendMail(order.contactEmail, m.subject(title, order.number), emailLayout({ locale, title, paragraphs, button }));
+    const send = (title: string, paragraphs: string[]) => this.mail.send(order.contactEmail, m.subject(title, order.number), emailLayout({ locale, title, paragraphs, button }));
     switch (status) {
       case "paid":
         return send(m.paid.title, [m.paid.text(order.number, formatPrice(order.amount)), plan?.printed ? m.paid.printed : m.paid.digital]);
@@ -111,7 +113,7 @@ export class OrderingMailer {
     const buyer = messagesFor(gift.buyerLocale);
     const t = buyer.gift.checkoutMail;
     const planKey = gift.plan as keyof typeof buyer.common.plans;
-    await sendMail(
+    await this.mail.send(
       gift.buyerEmail,
       t.subject(gift.number),
       emailLayout({
@@ -138,7 +140,7 @@ export class OrderingMailer {
     const later = !!gift.recipientEmail && !!gift.sendAt && gift.sendAt > today;
     const bm = messagesFor(gift.buyerLocale);
     const t = bm.mail.gift.buyer;
-    await sendMail(
+    await this.mail.send(
       gift.buyerEmail,
       t.subject(gift.number),
       emailLayout({
@@ -167,7 +169,7 @@ export class OrderingMailer {
     if (!gift.recipientEmail || !gift.promo) return;
     const file = pdf ?? (await this.giftPdf(gift));
     const t = messagesFor(gift.locale).mail.gift.recipient;
-    await sendMail(
+    await this.mail.send(
       gift.recipientEmail,
       t.subject(gift.buyerName),
       emailLayout({

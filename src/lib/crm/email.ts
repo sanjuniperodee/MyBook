@@ -3,7 +3,8 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmConversations, crmMessages, crmNotes, users, type CrmConversation } from "../db/schema";
 import { env } from "../env";
-import { mailTransport, smtpConfigured, escapeHtml } from "../mail";
+import { escapeHtml } from "@/shared/infrastructure/mail";
+import { container } from "@/server/container";
 import { site } from "@/config/site";
 import { getSettings, saveSettings } from "./settings";
 import { ingestMessage } from "./chats";
@@ -11,14 +12,14 @@ import { publish } from "./realtime";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "./email-logic";
 import { adminLabel } from "../crm";
 
-export const emailSendReady = smtpConfigured;
+export const emailSendReady = () => container().mailer.configured;
 
 /**
  * Письмо менеджера клиенту: ошибки не глотаются (их видно в чате), возвращается Message-ID для цепочки ответов.
  * Без SMTP в разработке письмо только пишется в лог; в продакшене — ошибка с подсказкой.
  */
 async function sendCrmMail(opts: { to: string; subject: string; text: string; inReplyTo?: string | null; fromName?: string }): Promise<{ messageId: string }> {
-  const t = mailTransport();
+  const t = container().smtp.transport();
   if (!t) {
     if (process.env.NODE_ENV === "production") throw new Error("Почта не настроена: укажите SMTP_HOST и доступы в переменных окружения сервера");
     console.log(`[crm-mail] SMTP не настроен. Письмо для ${opts.to}: «${opts.subject}»\n${opts.text.slice(0, 500)}`);

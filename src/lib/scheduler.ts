@@ -1,6 +1,5 @@
 import "server-only";
 import { pool } from "./db";
-import { runLifecycle } from "./lifecycle";
 import { container } from "@/server/container";
 
 const INTERVAL_MS = 15 * 60_000;
@@ -16,7 +15,7 @@ export async function tick() {
     locked = !!rows[0]?.locked;
     if (!locked) return;
     const gifts = await container().ordering.deliverDueGifts();
-    const emails = await runLifecycle();
+    const emails = await container().notifications.lifecycle.run();
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
     await container().outbox.purge();
   } catch (err) {

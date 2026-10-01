@@ -11,6 +11,7 @@ import { notifyMentions } from "@/lib/crm/mentions";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
+import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
 
 export interface AdminState {
   error?: string;
@@ -323,26 +324,30 @@ export async function updateClientTagsAction(clientId: string, tags: string[]) {
   revalidatePath("/admin/clients");
 }
 
+const reminderRefusal: Record<Exclude<ReminderResult, { ok: true }>["reason"], string> = {
+  clientNotFound: "Клиент не найден",
+  cooldown: `Напоминание уже отправлялось менее ${REMINDER_COOLDOWN_DAYS} дней назад`,
+  noDraft: "У клиента нет незавершённых книг",
+};
+
 export async function remindClientAction(clientId: string): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("clients.edit");
   const admin = staff.user;
   await guardClient(staff, z.string().uuid().parse(clientId));
-  const { sendBookReminder } = await import("@/lib/crm-reminders");
-  const res = await sendBookReminder(z.string().uuid().parse(clientId), admin.id);
+  const res = await container().notifications.reminders.send(z.string().uuid().parse(clientId), admin.id);
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/books");
-  return res.ok ? { ok: true, message: "Напоминание отправлено" } : { ok: false, message: res.reason };
+  return res.ok ? { ok: true, message: "Напоминание отправлено" } : { ok: false, message: reminderRefusal[res.reason] };
 }
 
 export async function remindManyAction(clientIds: string[]): Promise<{ sent: number; skipped: number }> {
   const staff = await assertStaff("clients.edit");
   const admin = staff.user;
-  const { sendBookReminder } = await import("@/lib/crm-reminders");
   let sent = 0;
   let skipped = 0;
   for (const id of z.array(z.string().uuid()).max(300).parse(clientIds)) {
     await guardClient(staff, id);
-    const res = await sendBookReminder(id, admin.id);
+    const res = await container().notifications.reminders.send(id, admin.id);
     if (res.ok) sent++;
     else skipped++;
   }

@@ -1,5 +1,5 @@
 import "server-only";
-import type { Clock, EventBus, Logger, UnitOfWork } from "@/shared/application";
+import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import type { PrintFilesService } from "@/modules/production";
 import { runInBackground } from "@/shared/infrastructure/background";
@@ -31,6 +31,7 @@ export interface OrderingDeps {
   printFiles: PrintFilesService;
   /** Книги (контекст Authoring) — через узкий порт, реализацию даёт корень композиции. */
   books: BookGateway;
+  mailer: Mailer;
 }
 
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
@@ -51,7 +52,7 @@ export class OrderingModule {
     this.promos = new PromoService(promoRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);
-    this.mailer = new OrderingMailer(this.queries, this.gifts);
+    this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer);
     this.subscribe(deps.bus);
   }
 

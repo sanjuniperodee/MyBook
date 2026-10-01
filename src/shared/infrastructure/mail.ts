@@ -2,7 +2,8 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { site } from "@/config/site";
 import { localizePath, type Locale } from "@/i18n/config";
-import { env } from "./env";
+import { env } from "@/lib/env";
+import type { MailAttachment, Mailer } from "../application/Mailer";
 
 let transporter: Transporter | null | undefined;
 
@@ -47,13 +48,7 @@ ${opts.footnote ? `<p style="margin:20px 0 0;font-size:13px;color:#7a7068">${opt
 </td></tr></table></body></html>`;
 }
 
-export interface MailAttachment {
-  filename: string;
-  content: Buffer;
-  contentType?: string;
-}
-
-export async function sendMail(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
+async function sendMail(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
   const t = getTransporter();
   if (!t) {
     console.log(`[mail] SMTP не настроен. Письмо для ${to}: «${subject}»${attachments?.length ? ` (+${attachments.length} влож.)` : ""}\n${html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800)}`);
@@ -69,6 +64,16 @@ export async function sendMail(to: string, subject: string, html: string, attach
 
 export { escape as escapeHtml };
 
-export const smtpConfigured = () => !!process.env.SMTP_HOST;
-/** Транспорт SMTP для писем менеджеров из CRM (src/lib/crm/email.ts); null — SMTP не настроен. */
-export const mailTransport = () => getTransporter();
+/** Почта по SMTP (переменные SMTP_*); без SMTP_HOST письма пишутся в лог. */
+export class SmtpMailer implements Mailer {
+  get configured() {
+    return !!process.env.SMTP_HOST;
+  }
+  send(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
+    return sendMail(to, subject, html, attachments);
+  }
+  /** Сырой транспорт для писем менеджеров из CRM (нужны Message-ID и цепочки); null — SMTP не настроен. */
+  transport() {
+    return getTransporter();
+  }
+}

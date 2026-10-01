@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { books, orders, users, type CrmConversation } from "../db/schema";
-import { appLink } from "../mail";
+import { appLink } from "@/shared/infrastructure/mail";
 import { formatDate } from "../utils";
 import type { Locale } from "@/i18n/config";
 import { getSetting } from "./settings";

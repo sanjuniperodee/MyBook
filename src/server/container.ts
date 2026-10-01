@@ -1,11 +1,13 @@
 import "server-only";
-import { consoleLogger, systemClock, type Clock, type EventBus, type UnitOfWork } from "@/shared/application";
+import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
 import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
+import { SmtpMailer } from "@/shared/infrastructure/mail";
 import { OrderingModule } from "@/modules/ordering";
 import { IdentityModule } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
+import { NotificationsModule } from "@/modules/notifications";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
@@ -22,18 +24,26 @@ export class Container {
   readonly clock: Clock = systemClock;
   /** Лимиты частоты: Redis, если задан REDIS_URL (несколько экземпляров), иначе память процесса. */
   readonly rateLimiter = createRateLimiter();
+  /** Почта по SMTP; без SMTP_HOST письма пишутся в лог. */
+  readonly smtp = new SmtpMailer();
+  readonly mailer: Mailer = this.smtp;
 
   #ordering?: OrderingModule;
   #identity?: IdentityModule;
   #access?: AccessModule;
   #authoring?: AuthoringModule;
+  #notifications?: NotificationsModule;
+
+  get notifications(): NotificationsModule {
+    return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock }));
+  }
 
   get authoring(): AuthoringModule {
-    return (this.#authoring ??= new AuthoringModule({ uow: this.uow, clock: this.clock, bus: this.bus, orders: { bookHasOrders: (bookId) => this.ordering.queries.bookHasOrders(bookId) } }));
+    return (this.#authoring ??= new AuthoringModule({ uow: this.uow, clock: this.clock, bus: this.bus, orders: { bookHasOrders: (bookId) => this.ordering.queries.bookHasOrders(bookId) }, mailer: this.mailer }));
   }
 
   get identity(): IdentityModule {
-    return (this.#identity ??= new IdentityModule({ uow: this.uow, clock: this.clock, steps: createStepStore() }));
+    return (this.#identity ??= new IdentityModule({ uow: this.uow, clock: this.clock, steps: createStepStore(), mailer: this.mailer }));
   }
 
   /** Access пользуется учётными записями Identity через узкий порт — модули не импортируют друг друга. */
@@ -71,6 +81,7 @@ export class Container {
       clock: this.clock,
       logger: consoleLogger("ordering"),
       printFiles: this.printFiles,
+      mailer: this.mailer,
       books: {
         checkoutInfo: (bookId, userId, locale) => this.authoring.ordering.checkoutInfo(bookId, userId, locale),
         lockForOrder: (bookId) => this.authoring.ordering.lockForOrder(bookId),

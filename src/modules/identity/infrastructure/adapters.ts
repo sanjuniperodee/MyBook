@@ -3,7 +3,8 @@ import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { messagesFor } from "@/i18n/messages";
 import { env } from "@/lib/env";
-import { appLink, emailLayout, escapeHtml, sendMail } from "@/lib/mail";
+import type { Mailer } from "@/shared/application";
+import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { decryptSecret, encryptSecret } from "@/shared/crypto";
 import type { AdminEmailsPolicy, PasswordHasher, PasswordResetMailer, SecretCipher, TokenService } from "../application/ports";
 
@@ -23,13 +24,13 @@ export const appSecretCipher: SecretCipher = { encrypt: encryptSecret, decrypt: 
 export const envAdminEmails: AdminEmailsPolicy = { isAdminEmail: (email) => env.adminEmails.includes(email.toLowerCase()) };
 
 /** Письмо со ссылкой сброса — на языке страницы, с которой запросили восстановление. */
-export const resetMailer: PasswordResetMailer = {
+export const resetMailer = (mailer: Mailer): PasswordResetMailer => ({
   async send({ email, name, token, locale }) {
     const t = messagesFor(locale).mail;
-    await sendMail(
+    await mailer.send(
       email,
       t.reset.subject,
       emailLayout({ locale, title: t.reset.title, paragraphs: [t.hello(escapeHtml(name)), t.reset.text], button: { label: t.reset.button, url: appLink(`/reset/${token}`, locale) }, footnote: t.reset.footnote }),
     );
   },
-};
+});
