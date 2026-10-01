@@ -4,11 +4,11 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
-import { ensureToken, fromEnv, getSettings, saveSettings, type SettingKey } from "@/modules/workspace";
+import { ensureToken, fromEnv, getSettings, saveSettings, smtpConfig, smtpFromEnvironment, type SettingKey } from "@/modules/workspace";
 import { randomToken } from "@/shared/crypto";
 import { isValidTime } from "@/modules/workspace/domain/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/modules/messaging";
-import { AssistantError } from "@/modules/assistant";
+import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 
 export interface SettingsState {
   error?: string;
@@ -171,31 +171,120 @@ export async function testImapAction(): Promise<{ ok: boolean; message: string }
 
 export async function saveAiAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
-  const baseUrl = String(form.get("aiBaseUrl") ?? "").trim();
+  const provider = fromEnv("ai.provider") ? null : String(form.get("provider") ?? "anthropic");
+  if (provider !== null && !isAiProvider(provider)) return { error: "Выберите провайдера" };
+  const p: AiProvider = provider ?? ((await getSettings(["ai.provider"]))["ai.provider"] as AiProvider);
+  const keys = providerSettingKeys[isAiProvider(p) ? p : "anthropic"];
+  const baseUrl = String(form.get("aiBaseUrl") ?? "").trim().replace(/\/+$/, "");
   if (baseUrl && !/^https?:\/\/[^\s]+$/.test(baseUrl)) return { error: "Адрес API должен начинаться с https://" };
+  const model = String(form.get("aiModel") ?? "").trim();
+  if (model && !/^[\w.:/@-]{1,100}$/.test(model)) return { error: "Название модели — латиница, цифры и символы . : / - _" };
+  if (p === "custom" && (!(baseUrl || fromEnv(keys.baseUrl)) || !model)) return { error: "Для своего сервера укажите адрес API и модель" };
   const knowledge = String(form.get("knowledge") ?? "").trim();
   if (knowledge.length > 6000) return { error: "База знаний — не больше 6000 символов" };
   await saveSettings(
     {
-      ...secretValue(form, "aiKey", "ai.apiKey"),
-      ...(fromEnv("ai.baseUrl") ? {} : { "ai.baseUrl": baseUrl }),
+      ...(provider ? { "ai.provider": provider } : {}),
+      ...secretValue(form, "aiKey", keys.apiKey),
+      ...(fromEnv(keys.baseUrl) ? {} : { [keys.baseUrl]: baseUrl }),
+      [keys.model]: model,
       "ai.enabled": form.get("enabled") === "on" ? "on" : "off",
       "ai.knowledge": knowledge,
     },
     staff.user.id,
   );
-  await audit(staff, "settings.update", "settings", "ai", { enabled: form.get("enabled") === "on", knowledge: knowledge.length });
+  await audit(staff, "settings.update", "settings", "ai", { provider: p, model: model || null, enabled: form.get("enabled") === "on", knowledge: knowledge.length });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
 
 export async function testAiAction(): Promise<{ ok: boolean; message: string }> {
   await assertStaff("settings.manage");
+  const assistant = container().assistant.service;
+  const { label, model } = await assistant.describe();
   try {
-    const answer = await container().assistant.service.test();
-    return { ok: true, message: `Подключено, Claude отвечает: «${answer}»` };
+    const answer = await assistant.test();
+    return { ok: true, message: `Подключено, ${label === "AI" ? `модель ${model}` : label} отвечает: «${answer}»` };
   } catch (err) {
-    return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с Claude API" };
+    return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
+  }
+}
+
+// ─── исходящая почта (SMTP) ────────────────────────────────────────────────
+
+const emailRe = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+/** «Имя <адрес>» или просто адрес. */
+const isSender = (v: string) => emailRe.test(v) || /^[^<>]{1,80}<[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$/.test(v);
+
+export async function saveSmtpAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = z
+    .object({
+      smtpHost: z.string().trim().max(200).regex(/^[a-z0-9.-]*$/i, "Сервер SMTP — например, smtp.yandex.ru"),
+      smtpPort: z.union([z.literal(""), z.coerce.number().int().min(1, "Порт — от 1 до 65535").max(65535, "Порт — от 1 до 65535")]).default(""),
+      smtpSecure: z.enum(["", "true", "false"]).default(""),
+      smtpUser: z.string().trim().max(200).default(""),
+      mailFrom: z.string().trim().max(200).default(""),
+      mailReplyTo: z.string().trim().max(200).default(""),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (smtpFromEnvironment()) return { error: "Почта задана переменными окружения сервера — меняйте её там" };
+  const d = parsed.data;
+  if (d.mailFrom && !isSender(d.mailFrom)) return { error: "Отправитель — адрес или «Имя <адрес>»" };
+  if (d.mailReplyTo && !emailRe.test(d.mailReplyTo)) return { error: "Адрес для ответов — e-mail" };
+  await saveSettings(
+    {
+      "mail.smtpHost": d.smtpHost,
+      "mail.smtpPort": d.smtpPort === "" ? "" : String(d.smtpPort),
+      "mail.smtpSecure": d.smtpSecure,
+      "mail.smtpUser": d.smtpUser,
+      ...secretValue(form, "smtpPassword", "mail.smtpPassword"),
+      "mail.from": d.mailFrom,
+      "mail.replyTo": d.mailReplyTo,
+    },
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "smtp", { host: d.smtpHost, port: d.smtpPort, user: d.smtpUser, from: d.mailFrom });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
+/** Понятный текст ошибки nodemailer. */
+function smtpError(err: unknown, host: string, port: number) {
+  const e = err as { code?: string; responseCode?: number; message?: string };
+  if (e.code === "EAUTH" || e.responseCode === 535) return "Сервер не принял логин или пароль. Для Яндекса, Gmail и Mail.ru нужен пароль приложения, а не пароль от ящика.";
+  if (e.code === "EENVELOPE" || e.responseCode === 553 || e.responseCode === 550) return `Сервер отклонил отправителя или получателя: ${e.message ?? ""}. Отправитель должен совпадать с ящиком.`;
+  if (e.code === "ETIMEDOUT" || e.code === "ECONNECTION" || e.code === "ESOCKET" || e.code === "EDNS" || e.code === "ECONNREFUSED")
+    return `Не удалось подключиться к ${host}:${port} — проверьте адрес, порт и шифрование (465 — SSL, 587 — STARTTLS).`;
+  return e.message ? `Ошибка SMTP: ${e.message}` : "Не удалось подключиться к SMTP-серверу";
+}
+
+export async function testSmtpAction(): Promise<{ ok: boolean; message: string }> {
+  await assertStaff("settings.manage");
+  const config = await smtpConfig();
+  if (!config) return { ok: false, message: "Сначала укажите и сохраните сервер SMTP" };
+  try {
+    await container().smtp.verify(config);
+    return { ok: true, message: `Подключено к ${config.host}:${config.port}${config.user ? ", логин и пароль приняты" : ""}` };
+  } catch (err) {
+    return { ok: false, message: smtpError(err, config.host, config.port) };
+  }
+}
+
+export async function sendTestMailAction(): Promise<{ ok: boolean; message: string }> {
+  const staff = await assertStaff("settings.manage");
+  const config = await smtpConfig();
+  if (!config) return { ok: false, message: "Сначала укажите и сохраните сервер SMTP" };
+  try {
+    await container().smtp.sendOrThrow(
+      staff.user.email,
+      "Проверка почты MyBooks",
+      container().smtp.layout({ title: "Почта настроена", paragraphs: ["Это тестовое письмо из раздела «Интеграции». Если вы его читаете — клиенты будут получать письма о заказах, а менеджеры смогут писать из CRM."] }),
+    );
+    return { ok: true, message: `Письмо отправлено на ${staff.user.email} — проверьте ящик (и папку «Спам»)` };
+  } catch (err) {
+    return { ok: false, message: smtpError(err, config.host, config.port) };
   }
 }
 

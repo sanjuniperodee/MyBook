@@ -18,7 +18,7 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule } from "@/modules/workspace";
+import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -36,8 +36,8 @@ export class Container {
   readonly clock: Clock = systemClock;
   /** Лимиты частоты: Redis, если задан REDIS_URL (несколько экземпляров), иначе память процесса. */
   readonly rateLimiter = createRateLimiter();
-  /** Почта по SMTP; без SMTP_HOST письма пишутся в лог. */
-  readonly smtp = new SmtpMailer();
+  /** Почта по SMTP: настройки из «Интеграций» (переменные SMTP_* важнее); без них письма пишутся в лог. */
+  readonly smtp = new SmtpMailer(smtpConfig);
   readonly mailer: Mailer = this.smtp;
 
   #ordering?: OrderingModule;

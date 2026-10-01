@@ -46,11 +46,40 @@ export const settingDefs = {
   /** Ключи Web Push (создаются автоматически). */
   "push.vapidPublic": {},
   "push.vapidPrivate": { secret: true },
-  /** AI-помощник (Claude API): ключ, адрес API, включён ли, база знаний для ответов. */
-  "ai.apiKey": { secret: true, env: "ANTHROPIC_API_KEY" },
-  "ai.baseUrl": { env: "CRM_AI_BASE_URL", default: "https://api.anthropic.com" },
+  /** AI-помощник: выбранный провайдер (anthropic | openai | deepseek | custom), включён ли, база знаний для ответов. */
+  "ai.provider": { env: "CRM_AI_PROVIDER", default: "anthropic" },
   "ai.enabled": { default: "on" },
   "ai.knowledge": {},
+  /** Claude (Anthropic API): ключ, адрес API (для прокси), модель (пусто — по умолчанию). */
+  "ai.apiKey": { secret: true, env: "ANTHROPIC_API_KEY" },
+  "ai.baseUrl": { env: "CRM_AI_BASE_URL", default: "https://api.anthropic.com" },
+  "ai.anthropic.model": {},
+  /** ChatGPT (OpenAI API). */
+  "ai.openai.apiKey": { secret: true, env: "OPENAI_API_KEY" },
+  "ai.openai.baseUrl": { env: "OPENAI_BASE_URL" },
+  "ai.openai.model": {},
+  /** DeepSeek (OpenAI-совместимый API). */
+  "ai.deepseek.apiKey": { secret: true, env: "DEEPSEEK_API_KEY" },
+  "ai.deepseek.baseUrl": {},
+  "ai.deepseek.model": {},
+  /** Любой OpenAI-совместимый сервер: OpenRouter, Qwen, локальная модель. */
+  "ai.custom.apiKey": { secret: true },
+  "ai.custom.baseUrl": {},
+  "ai.custom.model": {},
+  /**
+   * Исходящая почта (SMTP): письма клиентам о заказах, сброс пароля, письма менеджеров из CRM.
+   * Переменные SMTP_* сервера действуют группой: если задан SMTP_HOST, настройки берутся только из них.
+   */
+  "mail.smtpHost": {},
+  "mail.smtpPort": { default: "587" },
+  /** true — TLS сразу (порт 465), false — STARTTLS, пусто — по порту. */
+  "mail.smtpSecure": {},
+  "mail.smtpUser": {},
+  "mail.smtpPassword": { secret: true },
+  /** Отправитель: «MyBooks <hello@mybook.kz>». */
+  "mail.from": {},
+  /** Куда отвечать на письма менеджеров (если не на адрес отправителя). */
+  "mail.replyTo": {},
   /** Почта как канал: входящие по IMAP (ящик, куда клиенты пишут) и/или вебхуком почтового сервиса. */
   "email.imapHost": { env: "CRM_IMAP_HOST" },
   "email.imapPort": { env: "CRM_IMAP_PORT", default: "993" },
@@ -71,10 +100,15 @@ export const settingDefs = {
 export type SettingKey = keyof typeof settingDefs;
 const defs: Record<SettingKey, Def> = settingDefs;
 
-let cache: { at: number; values: Map<string, string> } | null = null;
+/**
+ * Кэш общий для процесса (globalThis): Next.js загружает модуль в разные слои бандла (страницы, server actions,
+ * instrumentation), а контейнер — один на процесс. Иначе сохранение сбросило бы кэш только в своём слое.
+ */
+const store = globalThis as unknown as { __mybookSettings?: { at: number; values: Map<string, string> } | null };
 const TTL_MS = 10_000;
 
 async function load() {
+  const cache = store.__mybookSettings;
   if (cache && Date.now() - cache.at < TTL_MS) return cache.values;
   const rows = await db.select().from(crmSettings);
   const values = new Map<string, string>();
@@ -84,12 +118,12 @@ async function load() {
     const v = def.secret ? decryptSecret(r.value) : r.value;
     if (v !== null) values.set(r.key, v);
   }
-  cache = { at: Date.now(), values };
+  store.__mybookSettings = { at: Date.now(), values };
   return values;
 }
 
 export function invalidateSettings() {
-  cache = null;
+  store.__mybookSettings = null;
 }
 
 export async function getSetting(key: SettingKey): Promise<string> {

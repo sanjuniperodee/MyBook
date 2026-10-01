@@ -18,7 +18,7 @@ const dossier: DealDossier = {
 function setup(reply: string, messages = dossier.messages) {
   const saved: unknown[] = [];
   const asked: { system: string; user: string }[] = [];
-  const model: LanguageModel = { configured: async () => true, ask: async (r) => (asked.push(r), { text: reply, usage: { input: 10, output: 5 } }) };
+  const model: LanguageModel = { configured: async () => true, describe: async () => ({ provider: "anthropic", label: "Claude", model: "test" }), ask: async (r) => (asked.push(r), { text: reply, usage: { input: 10, output: 5 } }) };
   const data: AssistantData = {
     transcript: async () => messages,
     dossier: async (id) => (id === "d1" ? dossier : null),

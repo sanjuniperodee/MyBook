@@ -5,21 +5,48 @@ import { localizePath, type Locale } from "@/i18n/config";
 import { env } from "@/config/env";
 import type { MailAttachment, Mailer } from "../application/Mailer";
 
-let transporter: Transporter | null | undefined;
+/** Настройки SMTP (из админки или переменных окружения); null — не настроено. */
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  /** TLS сразу (465); иначе STARTTLS, если сервер его предлагает. */
+  secure: boolean;
+  user: string;
+  password: string;
+  /** «MyBooks <hello@mybook.kz>» */
+  from: string;
+  replyTo: string;
+}
 
-function getTransporter() {
-  if (transporter !== undefined) return transporter;
-  if (!process.env.SMTP_HOST) {
-    transporter = null;
-    return null;
-  }
-  transporter = nodemailer.createTransport({
+export type SmtpConfigSource = () => Promise<SmtpConfig | null>;
+
+/** Настройки только из переменных окружения — для скриптов и тестов без базы. */
+export const smtpFromEnv: SmtpConfigSource = async () => {
+  if (!process.env.SMTP_HOST) return null;
+  const port = Number(process.env.SMTP_PORT ?? 587);
+  return {
     host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined,
+    port,
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465,
+    user: process.env.SMTP_USER ?? "",
+    password: process.env.SMTP_PASSWORD ?? "",
+    from: process.env.MAIL_FROM || defaultFrom(),
+    replyTo: process.env.CRM_REPLY_TO ?? "",
+  };
+};
+
+export const defaultFrom = () => `${site.name} <${site.contacts.email}>`;
+
+function createTransport(c: SmtpConfig): Transporter {
+  return nodemailer.createTransport({
+    host: c.host,
+    port: c.port,
+    secure: c.secure,
+    auth: c.user ? { user: c.user, pass: c.password } : undefined,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 60_000,
   });
-  return transporter;
 }
 
 function escape(s: string) {
@@ -48,32 +75,68 @@ ${opts.footnote ? `<p style="margin:20px 0 0;font-size:13px;color:#7a7068">${opt
 </td></tr></table></body></html>`;
 }
 
-async function sendMail(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
-  const t = getTransporter();
-  if (!t) {
-    console.log(`[mail] SMTP не настроен. Письмо для ${to}: «${subject}»${attachments?.length ? ` (+${attachments.length} влож.)` : ""}\n${html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800)}`);
-    return;
-  }
-  try {
-    await t.sendMail({ from: process.env.MAIL_FROM || `${site.name} <${site.contacts.email}>`, to, subject, html, attachments });
-  } catch (err) {
-    // Почта не должна ломать основной сценарий (оформление заказа и т.п.).
-    console.error("[mail] send failed", err);
-  }
-}
-
 export { escape as escapeHtml };
 
-/** Почта по SMTP (переменные SMTP_*); без SMTP_HOST письма пишутся в лог. */
+/**
+ * Почта по SMTP. Настройки читаются при каждой отправке (их меняют в «Интеграциях» без перезапуска),
+ * транспорт пересоздаётся только когда они изменились. Без настроек письма пишутся в лог.
+ */
 export class SmtpMailer implements Mailer {
-  get configured() {
-    return !!process.env.SMTP_HOST;
+  #cached: { sig: string; transport: Transporter } | null = null;
+
+  constructor(private readonly config: SmtpConfigSource) {}
+
+  /** Общий HTML-шаблон писем. */
+  readonly layout = emailLayout;
+
+  async configured() {
+    return !!(await this.config());
   }
-  send(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
-    return sendMail(to, subject, html, attachments);
+
+  /** Транспорт и адрес отправителя для писем менеджеров из CRM (нужны Message-ID и цепочки); null — SMTP не настроен. */
+  async transport(): Promise<{ transport: Transporter; config: SmtpConfig } | null> {
+    const c = await this.config();
+    if (!c) return null;
+    const sig = JSON.stringify([c.host, c.port, c.secure, c.user, c.password]);
+    if (this.#cached?.sig !== sig) {
+      this.#cached?.transport.close();
+      this.#cached = { sig, transport: createTransport(c) };
+    }
+    return { transport: this.#cached.transport, config: c };
   }
-  /** Сырой транспорт для писем менеджеров из CRM (нужны Message-ID и цепочки); null — SMTP не настроен. */
-  transport() {
-    return getTransporter();
+
+  /** Проверка подключения и входа на SMTP-сервер — для кнопки «Проверить» в настройках. */
+  async verify(c: SmtpConfig) {
+    const t = createTransport(c);
+    try {
+      await t.verify();
+    } finally {
+      t.close();
+    }
+  }
+
+  /** Отправка с ошибкой наружу (а не в лог) — для тестового письма из настроек. */
+  async sendOrThrow(to: string, subject: string, html: string) {
+    const t = await this.transport();
+    if (!t) throw Object.assign(new Error("SMTP is not configured"), { code: "ENOCONFIG" });
+    await t.transport.sendMail({ from: t.config.from, to, subject, html });
+    return t.config;
+  }
+
+  async send(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
+    const t = await this.transport().catch((err) => {
+      console.error("[mail] settings", err);
+      return null;
+    });
+    if (!t) {
+      console.log(`[mail] SMTP не настроен. Письмо для ${to}: «${subject}»${attachments?.length ? ` (+${attachments.length} влож.)` : ""}\n${html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800)}`);
+      return;
+    }
+    try {
+      await t.transport.sendMail({ from: t.config.from, to, subject, html, attachments });
+    } catch (err) {
+      // Почта не должна ломать основной сценарий (оформление заказа и т.п.).
+      console.error("[mail] send failed", err);
+    }
   }
 }

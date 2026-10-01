@@ -1,7 +1,8 @@
 // Сквозная проверка CRM v4: виджет на сайте (чат и «Перезвоните мне»), AI-помощник (мок Claude API),
 // почта как канал, двухфакторный вход, список IP и веб-телефон Zadarma.
-// Поднимает мок-сервер на :4010. Запуск: node scripts/e2e-crm-v4.mjs [baseUrl] [outDir]
+// Поднимает мок-сервер на :4010 (Claude, OpenAI-совместимый API, Zadarma) и SMTP на :2525. Запуск: node scripts/e2e-crm-v4.mjs [baseUrl] [outDir]
 import http from "node:http";
+import net from "node:net";
 import { createHmac } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import pg from "pg";
@@ -66,10 +67,53 @@ const server = http.createServer(async (req, res) => {
     else text = "«Здравствуйте! Печать занимает 5–7 рабочих дней, успеем к празднику.»";
     return res.end(JSON.stringify({ id: "msg_mock", type: "message", role: "assistant", model: b.model, content: [{ type: "text", text }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 120, output_tokens: 40 } }));
   }
+  if (req.url.startsWith("/chat/completions")) {
+    const b = JSON.parse(body);
+    aiCalls.push({ body: b, openai: true, key: req.headers.authorization });
+    return res.end(JSON.stringify({ id: "chatcmpl-mock", object: "chat.completion", model: b.model, choices: [{ index: 0, message: { role: "assistant", content: "готово" }, finish_reason: "stop" }], usage: { prompt_tokens: 20, completion_tokens: 2 } }));
+  }
   if (req.url.startsWith("/v1/webrtc/get_key/")) return res.end(JSON.stringify({ status: "success", key: "WEBRTC-KEY-1" }));
   res.end("{}");
 });
 await new Promise((r) => server.listen(4010, r));
+
+// ─── мок SMTP: принимает вход и письма ───────────────────────────────────
+const smtpMails = [];
+const smtpAuth = [];
+const smtp = net.createServer((sock) => {
+  let data = false;
+  let buf = "";
+  let mail = "";
+  sock.write("220 mock ESMTP\r\n");
+  sock.on("data", (chunk) => {
+    buf += chunk.toString();
+    let i;
+    while ((i = buf.indexOf("\r\n")) >= 0) {
+      const line = buf.slice(0, i);
+      buf = buf.slice(i + 2);
+      if (data) {
+        if (line === ".") {
+          data = false;
+          smtpMails.push(mail);
+          mail = "";
+          sock.write("250 OK queued\r\n");
+        } else mail += line + "\n";
+        continue;
+      }
+      const cmd = line.slice(0, 4).toUpperCase();
+      if (cmd === "EHLO") sock.write("250-mock\r\n250-AUTH PLAIN LOGIN\r\n250 8BITMIME\r\n");
+      else if (cmd === "AUTH") {
+        smtpAuth.push(Buffer.from(line.split(" ")[2] ?? "", "base64").toString());
+        sock.write("235 Authentication successful\r\n");
+      } else if (cmd === "DATA") {
+        data = true;
+        sock.write("354 End data with <CR><LF>.<CR><LF>\r\n");
+      } else if (cmd === "QUIT") sock.end("221 Bye\r\n");
+      else sock.write("250 OK\r\n");
+    }
+  });
+});
+await new Promise((r) => smtp.listen(2525, r));
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const errors = [];
@@ -107,6 +151,48 @@ try {
   await aiForm.getByText("Подключено, Claude отвечает: «готово»").waitFor();
   const ping = aiCalls.at(-1);
   check(ping.body.model === "claude-opus-5-5" && ping.body.fallbacks === "default" && ping.beta.includes("server-side-fallback-2026-07-01") && ping.body.output_config?.effort === "low" && ping.key === "sk-ant-test-key" && !("thinking" in ping.body), "AI: ключ сохранён, запрос к claude-opus-5-5 с резервной моделью и effort");
+
+  // Другой провайдер: DeepSeek через OpenAI-совместимый API, затем обратно на Claude.
+  await aiForm.getByText("DeepSeek", { exact: true }).click();
+  await aiForm.locator("input[name=aiKey]").fill("sk-deepseek-test");
+  await aiForm.locator("input[name=aiBaseUrl]").fill("http://localhost:4010");
+  await aiForm.getByRole("button", { name: "Сохранить" }).click();
+  await until(async () => (await q(`select value from crm_settings where key = 'ai.provider'`))[0]?.value === "deepseek", "провайдер DeepSeek сохранён");
+  await admin.waitForTimeout(500);
+  await aiForm.getByRole("button", { name: "Проверить" }).click();
+  await aiForm.getByText("Подключено, DeepSeek отвечает: «готово»").waitFor();
+  const dsCall = aiCalls.at(-1);
+  check(dsCall.openai && dsCall.body.model === "deepseek-chat" && dsCall.key === "Bearer sk-deepseek-test" && dsCall.body.messages[0].role === "system", "AI: DeepSeek подключается по OpenAI-совместимому API со своим ключом");
+  const encDs = (await q(`select value from crm_settings where key = 'ai.deepseek.apiKey'`))[0]?.value ?? "";
+  check(encDs.startsWith("v1.") && !encDs.includes("sk-deepseek"), "AI: ключ DeepSeek хранится зашифрованным");
+  await aiForm.getByText("Claude (Anthropic)", { exact: true }).click();
+  await aiForm.getByRole("button", { name: "Сохранить" }).click();
+  await until(async () => (await q(`select value from crm_settings where key = 'ai.provider'`))[0]?.value === "anthropic", "провайдер Claude сохранён");
+  await admin.waitForTimeout(500);
+  await aiForm.getByRole("button", { name: "Проверить" }).click();
+  await aiForm.getByText("Подключено, Claude отвечает: «готово»").waitFor();
+  check(!aiCalls.at(-1).openai, "AI: обратно на Claude — ключ Claude сохранился");
+
+  // Почта для отправки (SMTP) настраивается в админке.
+  const smtpForm = admin.locator("form", { has: admin.locator("input[name=smtpHost]") });
+  await smtpForm.locator("input[name=smtpHost]").fill("127.0.0.1");
+  await smtpForm.locator("input[name=smtpPort]").fill("2525");
+  await smtpForm.locator("select[name=smtpSecure]").selectOption("false");
+  await smtpForm.locator("input[name=smtpUser]").fill("robot@mybook.local");
+  await smtpForm.locator("input[name=smtpPassword]").fill("app-pass-123");
+  await smtpForm.locator("input[name=mailFrom]").fill("MyBooks <robot@mybook.local>");
+  await smtpForm.getByRole("button", { name: "Сохранить" }).click();
+  await smtpForm.getByText("Сохранено").waitFor();
+  await smtpForm.getByRole("button", { name: "Проверить" }).click();
+  await smtpForm.getByText("Подключено к 127.0.0.1:2525, логин и пароль приняты").waitFor();
+  check(smtpAuth.some((a) => a.includes("robot@mybook.local") && a.includes("app-pass-123")), "SMTP: проверка входит на сервер с логином и паролем из админки");
+  await smtpForm.getByRole("button", { name: /Письмо на/ }).click();
+  await smtpForm.getByText(/Письмо отправлено на admin@mybook.local/).waitFor();
+  check(smtpMails.some((m) => /Subject: =\?UTF-8\?|Subject: Проверка/i.test(m) && m.includes("robot@mybook.local") && m.includes("admin@mybook.local")), "SMTP: тестовое письмо ушло через сервер из админки");
+  const encPass = (await q(`select value from crm_settings where key = 'mail.smtpPassword'`))[0]?.value ?? "";
+  check(encPass.startsWith("v1.") && !encPass.includes("app-pass"), "SMTP: пароль хранится зашифрованным");
+  // Дальше письма в сценарии идут в лог, как без SMTP.
+  await q(`delete from crm_settings where key like 'mail.%'`);
 
   const emailForm = admin.locator("form", { has: admin.locator("input[name=imapHost]") });
   await emailForm.getByRole("button", { name: "Сохранить" }).click();
@@ -290,9 +376,11 @@ try {
   check(errors.length === 0, `нет JS-ошибок на страницах${errors.length ? ": " + errors.join("; ") : ""}`);
   console.log("\nВСЕ ПРОВЕРКИ CRM v4 ПРОЙДЕНЫ");
 } finally {
-  await q(`delete from crm_settings where key in ('security.ipAllowlist', 'security.require2fa', 'zadarma.pbxId', 'zadarma.webphone', 'ai.apiKey', 'ai.baseUrl', 'ai.knowledge')`).catch(() => {});
+  await q(`delete from crm_settings where key in ('security.ipAllowlist', 'security.require2fa', 'zadarma.pbxId', 'zadarma.webphone', 'ai.apiKey', 'ai.baseUrl', 'ai.knowledge', 'ai.provider', 'ai.deepseek.apiKey', 'ai.deepseek.baseUrl', 'ai.deepseek.model')`).catch(() => {});
+  await q(`delete from crm_settings where key like 'mail.%'`).catch(() => {});
   if (prevProvider) await q(`update crm_settings set value = $1 where key = 'telephony.provider'`, [prevProvider]).catch(() => {});
   await browser.close();
   server.close();
+  smtp.close();
   await db.end();
 }

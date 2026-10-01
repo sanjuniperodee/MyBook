@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { CheckCircle2, Copy, LoaderCircle, PlugZap, RefreshCw, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, LoaderCircle, PlugZap, RefreshCw, Send, Trash2, XCircle } from "lucide-react";
+import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,9 @@ import {
   testAiAction,
   saveEmailAction,
   testImapAction,
+  saveSmtpAction,
+  testSmtpAction,
+  sendTestMailAction,
   type SettingsState,
 } from "./actions";
 import { unblockAction } from "../deals/actions";
@@ -158,8 +162,8 @@ export function EmailForm({ smtp, saved, env, webhookUrl }: { smtp: boolean; sav
   return (
     <Section title="Почта — e-mail как канал" badge={<Status on={inbound} label={inbound ? "входящие подключены" : "только исходящие"} />}>
       <p className="mb-3 text-sm text-ink-soft">
-        Менеджеры пишут клиентам из карточек сделки, клиента и заказа, а ответы приходят в «Чаты» рядом с WhatsApp. Исходящие уходят через SMTP сервера —{" "}
-        {smtp ? <span className="text-emerald-700">настроен</span> : <span className="text-red-700">не настроен (переменные SMTP_HOST, SMTP_USER, SMTP_PASSWORD, MAIL_FROM)</span>}.
+        Менеджеры пишут клиентам из карточек сделки, клиента и заказа, а ответы приходят в «Чаты» рядом с WhatsApp. Исходящие уходят через SMTP —{" "}
+        {smtp ? <span className="text-emerald-700">настроен</span> : <span className="text-red-700">не настроен — заполните блок «Почта для отправки» выше</span>}.
       </p>
       <form action={action} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
@@ -202,35 +206,80 @@ export function EmailForm({ smtp, saved, env, webhookUrl }: { smtp: boolean; sav
   );
 }
 
-export function AiForm({ saved, env, enabled, knowledge }: { saved: { apiKey: string; baseUrl: string }; env: { apiKey: boolean; baseUrl: boolean }; enabled: boolean; knowledge: string }) {
+type AiProviderSaved = { apiKey: string; apiKeyEnv: boolean; model: string; baseUrl: string; baseUrlEnv: boolean };
+
+export function AiForm({
+  provider,
+  providerFromEnv,
+  providers,
+  enabled,
+  knowledge,
+}: {
+  provider: AiProvider;
+  providerFromEnv: boolean;
+  providers: Record<AiProvider, AiProviderSaved>;
+  enabled: boolean;
+  knowledge: string;
+}) {
   const [state, action] = useActionState<SettingsState, FormData>(saveAiAction, {});
   const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
   const [pending, start] = useTransition();
-  const connected = !!saved.apiKey || env.apiKey;
+  const [p, setP] = useState<AiProvider>(provider);
+  const def = aiProviders[p];
+  const saved = providers[p];
+  const ready = (id: AiProvider) => (id === "custom" ? !!(providers.custom.baseUrl && providers.custom.model) : !!providers[id].apiKey || providers[id].apiKeyEnv);
+  const connected = ready(provider);
   return (
-    <Section title="AI-помощник — Claude" badge={<Status on={connected && enabled} label={!connected ? "не подключён" : enabled ? "включён" : "выключен"} />}>
+    <Section
+      title="AI-помощник"
+      badge={<Status on={connected && enabled} label={!connected ? "не подключён" : enabled ? `${aiProviders[provider].label === "AI" ? "свой сервер" : aiProviders[provider].label} · включён` : "выключен"} />}
+    >
       <p className="mb-3 text-sm text-ink-soft">
-        Подсказывает ответ клиенту в чате, делает резюме сделки со следующим шагом и сам заполняет поля (повод, дата, для кого) из переписки. Работает на модели Claude от Anthropic; ключ API создаётся в консоли{" "}
-        <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-wine underline">
-          platform.claude.com
-        </a>
-        . Если основная модель откажется отвечать на запрос, Anthropic автоматически повторит его на резервной модели.
+        Подсказывает ответ клиенту в чате, делает резюме сделки со следующим шагом и сам заполняет поля (повод, дата, для кого) из переписки. Можно подключить Claude, ChatGPT, DeepSeek или любой сервис с
+        OpenAI-совместимым API (OpenRouter, Qwen, своя модель). Ключи разных провайдеров хранятся отдельно — переключаться можно в любой момент.
       </p>
       <form action={action} className="space-y-3">
-        <SecretInput name="aiKey" label="Ключ Claude API" saved={saved.apiKey} fromEnv={env.apiKey} placeholder="sk-ant-…" />
+        <div className="flex flex-wrap gap-2 text-sm">
+          {aiProviderIds.map((id) => (
+            <label key={id} className={cn("flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2", p === id ? "border-wine/40 bg-rose/30" : "border-line")}>
+              <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} disabled={providerFromEnv} className="accent-wine" />
+              {aiProviders[id].title}
+              {ready(id) ? <CheckCircle2 className="size-3.5 text-emerald-700" aria-label="ключ сохранён" /> : null}
+            </label>
+          ))}
+          {providerFromEnv ? <input type="hidden" name="provider" value={provider} /> : null}
+        </div>
+        <div key={p} className="space-y-3">
+          {def.keysUrl ? (
+            <p className="text-xs text-muted">
+              Ключ API создаётся в консоли{" "}
+              <a href={def.keysUrl} target="_blank" rel="noopener noreferrer" className="text-wine underline">
+                {new URL(def.keysUrl).hostname}
+              </a>
+              {p === "anthropic" ? ". Если основная модель откажется отвечать на запрос, Anthropic автоматически повторит его на резервной модели." : "."}
+            </p>
+          ) : (
+            <p className="text-xs text-muted">Укажите адрес API вида https://openrouter.ai/api/v1 (запросы идут на …/chat/completions) и название модели. Ключ — если сервис его требует.</p>
+          )}
+          <SecretInput name="aiKey" label={p === "custom" ? "Ключ API (необязательно)" : `Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted">Модель{def.defaultModel ? " (пусто — по умолчанию)" : ""}</span>
+              <input name="aiModel" defaultValue={saved.model} placeholder={def.defaultModel || "например, qwen/qwen3-235b-a22b"} className="input h-10 text-sm" maxLength={100} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted">{p === "custom" ? "Адрес API" : "Адрес API (обычно не меняется)"}</span>
+              <input name="aiBaseUrl" defaultValue={saved.baseUrl} disabled={saved.baseUrlEnv} placeholder={def.defaultBaseUrl || "https://…/v1"} className="input h-10 text-sm" />
+            </label>
+          </div>
+        </div>
         <label className="block">
           <span className="mb-1 block text-xs text-muted">База знаний для ответов: правила, сроки, ответы на частые вопросы (тарифы и цены AI берёт с сайта сам)</span>
           <textarea name="knowledge" defaultValue={knowledge} rows={5} maxLength={6000} className="input py-2 text-sm" placeholder="Например: скидки больше 15% согласовываем с руководителем; печать 5–7 рабочих дней; можно добавить до 200 фото…" />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="enabled" defaultChecked={enabled} className="accent-wine" /> Показывать AI-кнопки менеджерам
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted">Адрес API (обычно не меняется)</span>
-            <input name="aiBaseUrl" defaultValue={saved.baseUrl} disabled={env.baseUrl} className="input h-10 text-sm" />
-          </label>
-        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="enabled" defaultChecked={enabled} className="accent-wine" /> Показывать AI-кнопки менеджерам
+        </label>
         <div className="flex flex-wrap items-center gap-2">
           <SubmitButton className="btn-sm">Сохранить</SubmitButton>
           <button type="button" className="btn btn-outline btn-sm" disabled={pending || !connected} onClick={() => start(async () => setCheck(await testAiAction()))}>
@@ -243,7 +292,113 @@ export function AiForm({ saved, env, enabled, knowledge }: { saved: { apiKey: st
             {check.ok ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />} {check.message}
           </p>
         ) : null}
-        <p className="text-xs text-muted">Расшифровка записей звонков пока не поддерживается: Claude работает с текстом, а не со звуком.</p>
+        <p className="text-xs text-muted">«Проверить» отправляет короткий запрос выбранной и сохранённой модели. Расшифровка записей звонков пока не поддерживается: помощник работает с текстом, а не со звуком.</p>
+      </form>
+    </Section>
+  );
+}
+
+const smtpPresets = [
+  { label: "Яндекс", host: "smtp.yandex.ru", port: "465" },
+  { label: "Gmail", host: "smtp.gmail.com", port: "465" },
+  { label: "Mail.ru", host: "smtp.mail.ru", port: "465" },
+  { label: "Outlook / Microsoft 365", host: "smtp.office365.com", port: "587" },
+];
+
+export function SmtpForm({
+  saved,
+  fromEnv,
+  staffEmail,
+}: {
+  saved: { host: string; port: string; secure: string; user: string; password: string; from: string; replyTo: string };
+  fromEnv: boolean;
+  staffEmail: string;
+}) {
+  const env = { host: fromEnv, port: fromEnv, secure: fromEnv, user: fromEnv, password: fromEnv, from: fromEnv, replyTo: fromEnv };
+  const [state, action] = useActionState<SettingsState, FormData>(saveSmtpAction, {});
+  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pending, start] = useTransition();
+  const [host, setHost] = useState(saved.host);
+  const [port, setPort] = useState(saved.port);
+  const configured = !!saved.host;
+  const run = (fn: () => Promise<{ ok: boolean; message: string }>) => start(async () => setCheck(await fn()));
+  return (
+    <Section title="Почта для отправки — SMTP" badge={<Status on={configured} label={configured ? "настроена" : "не настроена — письма пишутся в лог"} />}>
+      <p className="mb-3 text-sm text-ink-soft">
+        Через этот ящик уходят письма клиентам (заказ оформлен и оплачен, сертификаты, сброс пароля, напоминания) и письма менеджеров из CRM. Подойдёт любой почтовый сервис; для Яндекса, Gmail и Mail.ru нужен
+        «пароль приложения», а не обычный пароль от ящика.
+      </p>
+      {fromEnv ? <p className="mb-3 rounded-xl bg-cream px-3 py-2 text-xs text-muted">Почта задана переменными окружения сервера (SMTP_HOST и др.) — здесь только для просмотра и проверки.</p> : null}
+      <form action={action} className="space-y-3">
+        {!env.host ? (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted">Быстро заполнить:</span>
+            {smtpPresets.map((pr) => (
+              <button
+                key={pr.label}
+                type="button"
+                className="rounded-full border border-line px-2.5 py-1 hover:bg-cream"
+                onClick={() => {
+                  setHost(pr.host);
+                  setPort(pr.port);
+                }}
+              >
+                {pr.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="grid gap-3 sm:grid-cols-[1fr_110px_170px]">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Сервер SMTP</span>
+            <input name="smtpHost" value={host} onChange={(e) => setHost(e.target.value)} disabled={env.host} placeholder="smtp.yandex.ru" className="input h-10 text-sm" autoComplete="off" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Порт</span>
+            <input name="smtpPort" value={port} onChange={(e) => setPort(e.target.value)} disabled={env.port} className="input h-10 text-sm" inputMode="numeric" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Шифрование</span>
+            <select name="smtpSecure" defaultValue={saved.secure} disabled={env.secure} className="input h-10 text-sm">
+              <option value="">по порту (465 — SSL)</option>
+              <option value="true">SSL/TLS сразу</option>
+              <option value="false">STARTTLS</option>
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Логин (обычно адрес ящика)</span>
+            <input name="smtpUser" defaultValue={saved.user} disabled={env.user} className="input h-10 text-sm" autoComplete="off" />
+          </label>
+          <SecretInput name="smtpPassword" label="Пароль приложения" saved={saved.password} fromEnv={env.password} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Отправитель</span>
+            <input name="mailFrom" defaultValue={saved.from} disabled={env.from} placeholder="MyBooks <hello@mybook.kz>" className="input h-10 text-sm" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Адрес для ответов (необязательно)</span>
+            <input name="mailReplyTo" defaultValue={saved.replyTo} disabled={env.replyTo} placeholder="sales@mybook.kz" className="input h-10 text-sm" />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {!fromEnv ? <SubmitButton className="btn-sm">Сохранить</SubmitButton> : null}
+          <button type="button" className="btn btn-outline btn-sm" disabled={pending || !configured} onClick={() => run(testSmtpAction)}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <PlugZap className="size-4" />} Проверить
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" disabled={pending || !configured} onClick={() => run(sendTestMailAction)}>
+            <Send className="size-4" /> Письмо на {staffEmail}
+          </button>
+          <Result state={state} />
+        </div>
+        {check ? (
+          <p className={cn("flex items-center gap-1.5 text-sm", check.ok ? "text-emerald-700" : "text-red-700")}>
+            {check.ok ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />} {check.message}
+          </p>
+        ) : null}
+        <p className="text-xs text-muted">Отправитель должен совпадать с ящиком (или быть разрешён в нём), иначе сервер отклонит письма. Чтобы письма не попадали в спам, настройте SPF и DKIM для домена.</p>
       </form>
     </Section>
   );

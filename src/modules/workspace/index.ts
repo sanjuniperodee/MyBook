@@ -8,6 +8,7 @@ export { notify, notifyOwnerOr, staffWith, type NotificationInput } from "./infr
 export { publish, subscribe, type LiveEvent } from "./infrastructure/realtime";
 export { mentionableStaff, notifyMentions } from "./infrastructure/mentions";
 export { vapidKeys, pushTo } from "./infrastructure/push";
+export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 
 /** Публичный фасад «Рабочего пространства CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */
 export class WorkspaceModule {

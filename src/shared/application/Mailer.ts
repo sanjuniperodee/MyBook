@@ -9,6 +9,7 @@ export interface MailAttachment {
  * (оформление заказа, регистрацию). Без настроенного транспорта письмо пишется в лог.
  */
 export interface Mailer {
-  readonly configured: boolean;
+  /** Транспорт настроен (иначе письма только пишутся в лог). */
+  configured(): Promise<boolean>;
   send(to: string, subject: string, html: string, attachments?: MailAttachment[]): Promise<void>;
 }

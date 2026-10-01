@@ -14,7 +14,7 @@ function parseJson(text: string): unknown {
         /* ниже — ошибка */
       }
     }
-    throw new AssistantError("badResponse", "Claude вернул ответ в неожиданном формате — попробуйте ещё раз.");
+    throw new AssistantError("badResponse", "Модель вернула ответ в неожиданном формате — попробуйте ещё раз.");
   }
 }
 
@@ -28,6 +28,11 @@ export class AssistantService {
 
   configured() {
     return this.model.configured();
+  }
+
+  /** Подключённый провайдер и модель (для подписей «Claude отвечает…»). */
+  describe() {
+    return this.model.describe();
   }
 
   /** Вариант ответа клиенту на последнее сообщение диалога. */

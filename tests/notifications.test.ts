@@ -68,7 +68,7 @@ function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; deli
   const claimed = new Set<string>();
   const reminded = new Map<string, Date>();
   const people = new Map<string, Recipient>();
-  const mailer: Mailer = { configured: true, send: async (to, subject) => void sent.push({ to, subject }) };
+  const mailer: Mailer = { configured: async () => true, send: async (to, subject) => void sent.push({ to, subject }) };
   const source: LifecycleSource = {
     draftCandidates: async () => data.drafts ?? [],
     unpaidOrders: async () => data.unpaid ?? [],
@@ -113,7 +113,7 @@ describe("LifecycleService", () => {
       { claim: async () => true },
       { find: async () => null, markReminded: async () => {}, optOut: async () => {} },
       templates,
-      { configured: true, send: async () => {} },
+      { configured: async () => true, send: async () => {} },
       { emailSent: async () => {} },
       { now: () => new Date("2026-10-01T18:00:00Z") },
     );

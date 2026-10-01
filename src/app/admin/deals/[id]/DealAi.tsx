@@ -105,7 +105,7 @@ export function DealAi({ dealId, summary, summaryAt, canEdit }: { dealId: string
           {summary.risks ? <p className="text-xs text-amber-800">Риск: {summary.risks}</p> : null}
         </div>
       ) : (
-        <p className="mt-2 text-sm text-muted">Claude прочитает переписку, звонки и заметки и подскажет, что делать дальше. В чате — кнопка ✨ предложит ответ клиенту.</p>
+        <p className="mt-2 text-sm text-muted">AI-помощник прочитает переписку, звонки и заметки и подскажет, что делать дальше. В чате — кнопка ✨ предложит ответ клиенту.</p>
       )}
 
       {proposals ? (

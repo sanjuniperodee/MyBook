@@ -151,12 +151,12 @@ bash deploy/deploy.sh <ветка>
 - `APP_URL` — публичный адрес (для писем и cookie `Secure` при https).
 - `DATABASE_URL`, `STORAGE_DIR`.
 - `ADMIN_EMAILS` — адреса, которые получают права администратора после восстановления пароля по ссылке из письма (это подтверждает владение почтой). Простая регистрация прав не даёт.
-- `SMTP_*`, `MAIL_FROM`, `ORDERS_NOTIFY_EMAIL` — почта. Без SMTP письма пишутся в лог.
+- `ORDERS_NOTIFY_EMAIL` — куда присылать уведомления о заказах. Почту для отправки (SMTP) проще настроить в CRM → «Интеграции»; переменные `SMTP_*` и `MAIL_FROM`, если задан `SMTP_HOST`, важнее админки. Без SMTP письма пишутся в лог.
 - `PAYMENT_PROVIDER` — `manual` или `cloudpayments`.
 - `APP_SECRET` — секрет для ссылок отписки. `SCHEDULER=off` — выключить фоновые задачи.
 - `YANDEX_METRIKA_ID`, `GA_MEASUREMENT_ID`, `META_PIXEL_ID` — счётчики (задайте до сборки).
 - `REDIS_URL` — необязательно: нужен только при нескольких экземплярах приложения (общие лимиты частоты и защита кодов 2FA); в Docker — `docker compose --profile scale up -d`. Почему без Kafka/RabbitMQ — `docs/adr/0001-messaging-queues-cache.md`.
-- `ANTHROPIC_API_KEY` — ключ Claude API для AI-помощника (или введите его в «Интеграциях»).
+- AI-помощник: провайдер (Claude, ChatGPT, DeepSeek или любой OpenAI-совместимый API — OpenRouter, Qwen, своя модель), ключ и модель выбираются в «Интеграциях». Можно и переменными: `CRM_AI_PROVIDER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`.
 - `CRM_IMAP_HOST`, `CRM_IMAP_PORT`, `CRM_IMAP_USER`, `CRM_IMAP_PASSWORD` — входящий ящик для почтового канала (или в «Интеграциях»); `CRM_REPLY_TO` — адрес для ответов, если он отличается от `MAIL_FROM`.
 - `ZADARMA_PBX_ID` — номер АТС Zadarma для веб-телефона.
 - Список разрешённых IP проверяется по заголовку `X-Real-IP` от вашего прокси (nginx: `proxy_set_header X-Real-IP $remote_addr;`), без него — по последнему адресу в `X-Forwarded-For`.
@@ -167,7 +167,7 @@ bash deploy/deploy.sh <ветка>
 - **Wazzup** (WhatsApp, Instagram, Telegram): «Интеграции» → вставить API-ключ → «Проверить» → выбрать канал для исходящих → «Подключить вебхук». Входящие приходят на `/api/integrations/wazzup?token=…` (токен генерируется автоматически, его можно перевыпустить).
 - **Zadarma:** ключи Key/Secret из «Настройки → Интеграции и API»; в «Уведомлениях о звонках в АТС» указать `https://ваш-сайт/api/integrations/zadarma` (подпись каждого события проверяется). Внутренние номера сотрудников задаются в «Команде».
 - **Claude (AI-помощник):** ключ из [platform.claude.com](https://platform.claude.com/settings/keys) → «Интеграции» → «AI-помощник» → «Проверить». Там же база знаний для ответов (сроки, правила, частые вопросы).
-- **Почта:** исходящие — через `SMTP_*`; входящие — IMAP ящика (для Яндекса и Gmail нужен пароль приложения) или вебхук `/api/integrations/email?token=…` (Mailgun, Postmark, SendGrid Inbound Parse или свой скрипт: POST с полями `from`, `subject`, `text`/`html`, `messageId`).
+- **Почта:** исходящие — через SMTP из «Интеграций» (или `SMTP_*`); входящие — IMAP ящика (для Яндекса и Gmail нужен пароль приложения) или вебхук `/api/integrations/email?token=…` (Mailgun, Postmark, SendGrid Inbound Parse или свой скрипт: POST с полями `from`, `subject`, `text`/`html`, `messageId`).
 - **Веб-телефон:** в блоке Zadarma укажите номер АТС и включите «Веб-телефон»; SIP-логин сотрудника — `<номер АТС>-<внутренний номер>`.
 - **Другая АТС:** POST JSON на `/api/integrations/pbx` с токеном (`?token=` или заголовок `X-Token`) — формат показан на странице «Интеграции».
 
@@ -196,7 +196,7 @@ bash deploy/deploy.sh <ветка>
 | `npm run db:migrate` | Применить миграции вручную |
 | `npm run create-admin -- email пароль` | Создать администратора |
 | `npm run scheduler:once -- --any-hour` | Один проход фоновых задач вручную (сертификаты + автописьма) |
-| `node scripts/e2e-*.mjs` | Сквозные проверки в браузере (Playwright) против запущенного сервера: smoke, order, letters, crm, crm-pro (роли, сделки, чаты Wazzup и телефония Zadarma на мок-сервере), crm-sales, crm-v3 и crm-v4 (после crm-pro: воронка по действиям клиента, «Неразобранное», дубли, скидки, график; UTM-ссылки и каналы, воронки, поля, массовые действия, планы, бот, push; виджет, AI на мок-сервере Claude API, почта, 2FA, IP, веб-телефон), dictation, inline-photo, gift, kk |
+| `node scripts/e2e-*.mjs` | Сквозные проверки в браузере (Playwright) против запущенного сервера: smoke, order, letters, crm, crm-pro (роли, сделки, чаты Wazzup и телефония Zadarma на мок-сервере), crm-sales, crm-v3 и crm-v4 (после crm-pro: воронка по действиям клиента, «Неразобранное», дубли, скидки, график; UTM-ссылки и каналы, воронки, поля, массовые действия, планы, бот, push; виджет, AI на мок-сервере Claude и OpenAI-совместимого API (DeepSeek), SMTP на мок-сервере, почта, 2FA, IP, веб-телефон), dictation, inline-photo, gift, kk |
 
 ## Структура
 
@@ -220,7 +220,7 @@ drizzle/          миграции
 - [ ] Заполнить реквизиты и контакты в `src/config/site.ts`, проверить цены.
 - [ ] Проверить тексты оферты и политики конфиденциальности с юристом.
 - [ ] Сверить параметры печати (`print` в `formats.ts`) с типографией и отдать им тестовый пакет (`npm run sample-book`).
-- [ ] Настроить SMTP и `ORDERS_NOTIFY_EMAIL`.
+- [ ] Настроить почту для отправки в «Интеграциях» (или `SMTP_*`) и `ORDERS_NOTIFY_EMAIL`.
 - [ ] Подключить оплату (CloudPayments или реквизиты для перевода).
 - [ ] HTTPS (без него браузер не даст микрофон для голосового ввода), бэкапы базы и тома `storage`.
 - [ ] Добавить реальные отзывы клиентов в `site.testimonials` — секция на лендинге появится автоматически.

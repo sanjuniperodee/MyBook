@@ -50,7 +50,7 @@ export async function chatVars(conv: Pick<CrmConversation, "contactName" | "clie
 /** Почему отправка сейчас не сработает (показываем над полем ввода). */
 export async function sendBlocker(conv: Pick<CrmConversation, "channelId" | "channel">) {
   if (conv.channel === "site") return null;
-  if (conv.channel === "email") return container().mailer.configured || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена на сервере — письма не уйдут клиенту.";
+  if (conv.channel === "email") return (await container().mailer.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
   if (!(await wazzupConfigured())) return "Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».";
   if (!conv.channelId && !(await getSetting("wazzup.channelId"))) return "Не выбран канал WhatsApp для отправки.";
   return null;

@@ -6,30 +6,29 @@ import { env } from "@/config/env";
 import { escapeHtml } from "@/shared/infrastructure/mail";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
-import { getSettings, saveSettings } from "@/modules/workspace";
+import { getSettings, saveSettings, smtpConfig } from "@/modules/workspace";
 import { publish } from "@/modules/workspace";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "@/modules/messaging/domain/email";
 import { adminLabel } from "@/modules/access/ui";
 
-export const emailSendReady = () => container().mailer.configured;
 
 /**
  * Письмо менеджера клиенту: ошибки не глотаются (их видно в чате), возвращается Message-ID для цепочки ответов.
  * Без SMTP в разработке письмо только пишется в лог; в продакшене — ошибка с подсказкой.
  */
 async function sendCrmMail(opts: { to: string; subject: string; text: string; inReplyTo?: string | null; fromName?: string }): Promise<{ messageId: string }> {
-  const t = container().smtp.transport();
+  const t = await container().smtp.transport();
   if (!t) {
-    if (process.env.NODE_ENV === "production") throw new Error("Почта не настроена: укажите SMTP_HOST и доступы в переменных окружения сервера");
+    if (process.env.NODE_ENV === "production") throw new Error("Почта не настроена: укажите SMTP-сервер в «Интеграциях»");
     console.log(`[crm-mail] SMTP не настроен. Письмо для ${opts.to}: «${opts.subject}»\n${opts.text.slice(0, 500)}`);
     return { messageId: `<dev-${Date.now()}@${new URL(env.appUrl).hostname}>` };
   }
-  const address = process.env.MAIL_FROM || `${site.name} <${site.contacts.email}>`;
+  const address = t.config.from;
   const email = address.match(/<([^>]+)>/)?.[1] ?? address;
   const from = opts.fromName ? `"${opts.fromName.replace(/["<>]/g, "")} · ${site.name}" <${email}>` : address;
-  const info = await t.sendMail({
+  const info = await t.transport.sendMail({
     from,
-    replyTo: process.env.CRM_REPLY_TO || undefined,
+    replyTo: t.config.replyTo || undefined,
     to: opts.to,
     subject: opts.subject,
     text: opts.text,
@@ -119,7 +118,7 @@ export async function sendEmailToContact(input: { to: string; subject: string; t
 
 /** Входящее письмо → сообщение в единый инбокс (диалог по адресу отправителя), со сделкой и уведомлением. */
 export async function ingestEmail(mail: InboundEmail) {
-  const ours = (process.env.MAIL_FROM ?? site.contacts.email).toLowerCase();
+  const ours = ((await smtpConfig())?.from ?? site.contacts.email).toLowerCase();
   if (ours.includes(mail.from)) return; // своё же письмо (копия в ящике)
   // Автоответы и рассылки («я в отпуске», новости сервисов) не превращаем в заявки.
   if (mail.auto) return;
