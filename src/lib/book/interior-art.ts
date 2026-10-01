@@ -32,6 +32,55 @@ const OVER = 3;
 
 const polygon = (pts: Point[]) => `M${pts.map((p) => `${n(p.x)},${n(p.y)}`).join(" L")}Z`;
 
+const lerp = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+
+/** Точки, повёрнутые на angle градусов вокруг начала координат и сдвинутые в (cx, cy). */
+function place(pts: Point[], cx: number, cy: number, angle: number): Point[] {
+  const a = (angle * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  return pts.map((p) => ({ x: cx + p.x * cos - p.y * sin, y: cy + p.x * sin + p.y * cos }));
+}
+
+/**
+ * Волна от x0 до x1 на высоте y: полуволны — кубические кривые (react-pdf и браузер рисуют их
+ * одинаково, в отличие от сокращённых q/t). phase — сдвиг в долях длины волны.
+ */
+function wavePath(x0: number, x1: number, y: number, amp: number, len: number, phase: number) {
+  const half = len / 2;
+  let x = x0 - phase * len;
+  let d = `M${n(x)},${n(y)}`;
+  for (let up = true; x < x1; up = !up, x += half) {
+    const c = y + (up ? -1 : 1) * amp * (4 / 3);
+    d += ` C${n(x + half * 0.364)},${n(c)} ${n(x + half * 0.636)},${n(c)} ${n(x + half)},${n(y)}`;
+  }
+  return { d, end: x };
+}
+
+/**
+ * Шаңырақ — венец юрты, как на гербе Казахстана: кольцо, крест-накрест по три кулдыка внутри
+ * (рейки-полосы, по две линии) и уыки-лучи вокруг. width — толщина кольца.
+ */
+function shanyrakMotif(cx: number, cy: number, R: number, colors: { ring: string; cross: string }, width: number, rays: number): Shape[] {
+  const shapes: Shape[] = [];
+  for (let i = 0; i < rays; i++) {
+    const a = (i / rays) * Math.PI * 2;
+    shapes.push({ kind: "path", d: `M${n(cx + Math.cos(a) * R * 1.14)},${n(cy + Math.sin(a) * R * 1.14)} L${n(cx + Math.cos(a) * R * 1.42)},${n(cy + Math.sin(a) * R * 1.42)}`, stroke: colors.ring, width: n(width * 0.45), round: true });
+  }
+  shapes.push({ kind: "path", d: circlePath(cx, cy, R), stroke: colors.ring, width: n(width) });
+  shapes.push({ kind: "path", d: circlePath(cx, cy, R * 0.88), stroke: colors.ring, width: n(width * 0.4) });
+  const r = R * 0.88;
+  const strip = R * 0.07;
+  for (const t of [-0.4, 0, 0.4])
+    for (const side of [-1, 1]) {
+      const d = t * r + (side * strip) / 2;
+      const ext = Math.sqrt(r * r - d * d);
+      shapes.push({ kind: "path", d: `M${n(cx + d)},${n(cy - ext)} L${n(cx + d)},${n(cy + ext)}`, stroke: colors.cross, width: n(width * 0.45) });
+      shapes.push({ kind: "path", d: `M${n(cx - ext)},${n(cy + d)} L${n(cx + ext)},${n(cy + d)}`, stroke: colors.cross, width: n(width * 0.45) });
+    }
+  return shapes;
+}
+
 /** Лепесток длиной len от точки (x, y) под углом angle (градусы); повёрнут без transform. */
 function leaf(x: number, y: number, len: number, angle: number, width = 0.34) {
   const a = (angle * Math.PI) / 180;
@@ -97,11 +146,97 @@ export function glyphDrawing(id: Exclude<GlyphId, "bar">, size: number, color: s
       shapes.push({ kind: "path", d: `M${n(cx - h * 0.24)},${n(h)} A${n(h * 0.24)},${n(h * 0.24)} 0 0 1 ${n(cx + h * 0.24)},${n(h)}Z`, fill: color });
       return { w, h, shapes };
     }
+    case "shanyrak":
+      // Лучи выходят за кольцо на 0.42R: R подобран так, чтобы весь мотив вписался в size.
+      return { w: size, h: size, shapes: shanyrakMotif(size / 2, size / 2, size * 0.35, { ring: color, cross: color }, size * 0.07, 12) };
+    case "peak": {
+      // Две вершины, на большой — снежная шапка.
+      const h = size;
+      const w = size * 1.7;
+      const top = { x: w * 0.62, y: 0 };
+      const left = { x: w * 0.42, y: h * 0.6 };
+      const right = { x: w, y: h };
+      const a = lerp(top, left, 0.33);
+      const b = lerp(top, right, 0.2);
+      return {
+        w,
+        h,
+        shapes: [
+          { kind: "path", d: polygon([{ x: 0, y: h }, { x: w * 0.3, y: h * 0.42 }, left, top, right]), fill: color },
+          { kind: "path", d: polygon([top, b, { x: w * 0.65, y: h * 0.15 }, { x: w * 0.62, y: h * 0.24 }, { x: w * 0.59, y: h * 0.15 }, a]), fill: "#FFFFFF" },
+        ],
+      };
+    }
+    case "wave": {
+      const h = size;
+      const w = size * 2.6;
+      const line = (y: number): Shape => ({ kind: "path", d: wavePath(size * 0.05, w - w / 4, y, h * 0.2, w / 2, 0).d, stroke: color, width: n(size * 0.11), round: true });
+      return { w, h, shapes: [line(h * 0.3), line(h * 0.75)] };
+    }
+    case "hedera": {
+      // Альдинов лист ❧: лист-сердечко остриём вправо и завиток черенка.
+      const s = size / 0.74;
+      const transform = `translate(${n(-s * 0.05)},0) scale(${n(s)})`;
+      return {
+        w: s * 0.95,
+        h: size,
+        shapes: [
+          { kind: "path", d: "M0.40,0.35 C0.34,0.12 0.48,0.00 0.60,0.06 C0.72,0.12 0.90,0.24 1.00,0.35 C0.90,0.46 0.72,0.58 0.60,0.64 C0.48,0.70 0.34,0.58 0.40,0.35Z", fill: color, transform },
+          { kind: "path", d: "M0.40,0.35 C0.25,0.35 0.12,0.42 0.08,0.55 C0.05,0.66 0.14,0.74 0.22,0.68", stroke: color, width: 0.05, round: true, transform },
+        ],
+      };
+    }
+    case "scribble": {
+      // Росчерк ручкой: линия с петлёй посередине.
+      const s = size / 0.62;
+      return {
+        w: s * 2.4,
+        h: size,
+        shapes: [
+          {
+            kind: "path",
+            d: "M0.05,0.6 C0.45,0.62 0.75,0.6 1.0,0.5 C1.25,0.4 1.35,0.08 1.15,0.08 C0.95,0.08 1.0,0.55 1.3,0.62 C1.6,0.68 1.95,0.6 2.35,0.45",
+            stroke: color,
+            width: 0.08,
+            round: true,
+            transform: `translate(0,${n(-s * 0.05)}) scale(${n(s)})`,
+          },
+        ],
+      };
+    }
+    case "confetti": {
+      // Три конфетти — свои цвета, независимо от палитры.
+      const h = size;
+      const w = size * 2.4;
+      return {
+        w,
+        h,
+        shapes: [
+          { kind: "circle", cx: n(h * 0.35), cy: n(h * 0.55), r: n(h * 0.27), fill: "#D9466E" },
+          { kind: "path", d: polygon([{ x: h * 1.0, y: h * 0.88 }, { x: h * 1.25, y: h * 0.18 }, { x: h * 1.5, y: h * 0.88 }]), fill: "#F2A93B" },
+          { kind: "path", d: polygon(place([{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 }].map((p) => ({ x: p.x * h * 0.22, y: p.y * h * 0.22 })), h * 2.02, h * 0.53, 20)), fill: "#3BA7A0" },
+        ],
+      };
+    }
   }
 }
 
 /** Высота глифа в виньетке, pt: у ажурных глифов больше, чтобы они не терялись. */
-const GLYPH_SIZE: Record<Exclude<GlyphId, "bar">, number> = { diamond: 4.5, heart: 6, sparkle: 8, dot: 3, ram: 11, sprig: 7, fan: 7 };
+const GLYPH_SIZE: Record<Exclude<GlyphId, "bar">, number> = {
+  diamond: 4.5,
+  heart: 6,
+  sparkle: 8,
+  dot: 3,
+  ram: 11,
+  sprig: 7,
+  fan: 7,
+  shanyrak: 11,
+  peak: 7,
+  wave: 7,
+  hedera: 7.5,
+  scribble: 7,
+  confetti: 5.5,
+};
 
 const RULE = 0.5;
 const GAP = 6;
@@ -190,6 +325,18 @@ export function frameShapes(kind: FrameKind, box: PageBox, colors: Pick<Interior
     }
     case "airmail":
       return airmailBands(w, h);
+    case "vintage": {
+      // Двойная рамка с розетками на углах — как тиснение на старинном переплёте.
+      const shapes: Shape[] = [rect(i, 0.16), rect(i + 1.3, 0.06)];
+      const k = i + 0.65;
+      const len = Math.min(w, h) * 0.022;
+      for (const [x, y] of [[k, k], [w - k, k], [k, h - k], [w - k, h - k]]) {
+        shapes.push({ kind: "circle", cx: n(x), cy: n(y), r: n(len * 0.62), fill: "#FFFFFF" });
+        for (const a of [45, 135, 225, 315]) shapes.push({ kind: "path", d: leaf(x, y, len, a, 0.42), fill: c });
+        shapes.push({ kind: "circle", cx: n(x), cy: n(y), r: n(len * 0.16), fill: c });
+      }
+      return shapes;
+    }
   }
 }
 
@@ -252,6 +399,16 @@ export function openerArtShapes(art: OpenerArt, ctx: ArtContext): Shape[] {
       return sunburstArt(ctx);
     case "watercolor":
       return watercolorArt(ctx);
+    case "shanyrak":
+      return shanyrakMotif(ctx.w / 2, ctx.flowTop - 36 * ctx.k, 19 * ctx.k, { ring: ctx.palette.ornament, cross: ctx.palette.accent }, 0.7, 36);
+    case "mountains":
+      return mountainsArt(ctx);
+    case "waves":
+      return wavesArt(ctx);
+    case "tape":
+      return tapeArt(ctx);
+    case "confetti":
+      return confettiArt(ctx);
   }
 }
 
@@ -402,4 +559,103 @@ function watercolorArt({ w, h, seed, k }: ArtContext): Shape[] {
     ...blob(flip ? w * 0.1 : w * 0.9, h * 0.07, 44 * k, ["#F2B39C", "#F6C7B0", "#EE9C8B"]),
     ...blob(flip ? w * 0.92 : w * 0.08, h * 0.95, 40 * k, ["#C3ABD6", "#D5C0E4", "#B293C8"]),
   ];
+}
+
+/** Хребты Алатау: три слоя гор от светлого к тёмному, снежные шапки на дальнем, солнце за ними. */
+function mountainsArt({ w, h, seed, k }: ArtContext): Shape[] {
+  const rand = rng(700 + seed * 389);
+  const shapes: Shape[] = [{ kind: "circle", cx: n(w * 0.7), cy: n(h * 0.62), r: n(12 * k), fill: "#F6D2B6", opacity: 0.9 }];
+  const layers = [
+    { top: h * 0.6, depth: h * 0.1, step: 15, fill: "#D9C9DE", caps: true },
+    { top: h * 0.7, depth: h * 0.08, step: 11, fill: "#B49CC2", caps: false },
+    { top: h * 0.82, depth: h * 0.07, step: 9, fill: "#6F5A82", caps: false },
+  ];
+  for (const layer of layers) {
+    const pts: Point[] = [];
+    let up = rand() > 0.5;
+    for (let x = -OVER - layer.step; x < w + OVER + layer.step; x += layer.step * (0.7 + rand() * 0.6), up = !up)
+      pts.push({ x, y: up ? layer.top + rand() * layer.depth * 0.35 : layer.top + layer.depth * (0.55 + rand() * 0.45) });
+    const last = pts[pts.length - 1];
+    shapes.push({ kind: "path", d: polygon([...pts, { x: last.x, y: h + OVER }, { x: pts[0].x, y: h + OVER }]), fill: layer.fill });
+    if (!layer.caps) continue;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [prev, p, next] = [pts[i - 1], pts[i], pts[i + 1]];
+      if (p.y >= prev.y || p.y >= next.y) continue;
+      const a = lerp(p, prev, 0.3);
+      const b = lerp(p, next, 0.3);
+      const c1 = lerp(b, a, 0.33);
+      const c2 = lerp(b, a, 0.66);
+      shapes.push({ kind: "path", d: polygon([p, b, { x: c1.x, y: c1.y - (c1.y - p.y) * 0.3 }, c2, a]), fill: "#FFFFFF", opacity: 0.95 });
+    }
+  }
+  return shapes;
+}
+
+/** Море: слои волн у нижнего края, тонкая рябь над ними и чайки вверху. */
+function wavesArt({ w, h, seed, k, palette }: ArtContext): Shape[] {
+  const rand = rng(900 + seed * 211);
+  const shapes: Shape[] = [];
+  for (let i = 0; i < 3; i++) {
+    const x = w * (0.62 + i * 0.09 + (rand() - 0.5) * 0.04);
+    const y = h * (0.1 + rand() * 0.06);
+    const g = (1.6 + rand() * 0.8) * k;
+    shapes.push({
+      kind: "path",
+      d: `M${n(x - g)},${n(y)} C${n(x - g * 0.6)},${n(y - g * 0.55)} ${n(x - g * 0.25)},${n(y - g * 0.55)} ${n(x)},${n(y)} C${n(x + g * 0.25)},${n(y - g * 0.55)} ${n(x + g * 0.6)},${n(y - g * 0.55)} ${n(x + g)},${n(y)}`,
+      stroke: palette.muted,
+      width: 0.22,
+      round: true,
+    });
+  }
+  for (const y of [h * 0.66, h * 0.685]) shapes.push({ kind: "path", d: wavePath(-OVER, w + OVER, y, 0.8 * k, (30 + rand() * 10) * k, rand()).d, stroke: palette.ornament, width: 0.2, opacity: 0.5, round: true });
+  ["#DCEDF2", "#A9CFDA", "#6AA8BD", "#2F6F8A"].forEach((fill, i) => {
+    const wave = wavePath(-OVER, w + OVER, h * (0.72 + i * 0.06), (2 + i * 0.5) * k, (40 - i * 4) * k, rand());
+    shapes.push({ kind: "path", d: `${wave.d} L${n(wave.end)},${n(h + OVER)} L${n(-OVER - 40 * k)},${n(h + OVER)}Z`, fill });
+  });
+  return shapes;
+}
+
+/** Альбом: полоски цветного скотча с рваными краями на углах страницы. */
+function tapeArt({ w, h, seed, k }: ArtContext): Shape[] {
+  const rand = rng(1100 + seed * 53);
+  const tape = (cx: number, cy: number, len: number, width: number, angle: number, fill: string): Shape[] => {
+    const edge = (x: number, dir: 1 | -1) => Array.from({ length: 6 }, (_, i) => ({ x: x + (i % 2 ? dir * 0.7 * k : 0), y: -width / 2 + (i * width) / 5 }));
+    const outline = [...edge(-len / 2, 1), ...edge(len / 2, -1).reverse()];
+    const out: Shape[] = [{ kind: "path", d: polygon(place(outline, cx, cy, angle)), fill, opacity: 0.85 }];
+    // Узор скотча: светлые косые полоски.
+    for (let x = -len / 2 + 4 * k; x < len / 2 - 3 * k; x += 4 * k)
+      out.push({ kind: "path", d: polygon(place([{ x, y: -width / 2 }, { x: x + 1.2 * k, y: -width / 2 }, { x: x + 1.2 * k - width * 0.4, y: width / 2 }, { x: x - width * 0.4, y: width / 2 }], cx, cy, angle)), fill: "#FFFFFF", opacity: 0.28 });
+    return out;
+  };
+  const tilt = (rand() - 0.5) * 8;
+  return [...tape(w * 0.15, h * 0.055, 40 * k, 10 * k, -35 + tilt, "#EBC66F"), ...tape(w * 0.86, h * 0.07, 36 * k, 9.5 * k, 28 - tilt, "#9CCBC4")];
+}
+
+/** Конфетти сверху и снизу начальной полосы; место под номером и названием главы свободно. */
+function confettiArt({ w, h, seed, k, flowTop }: ArtContext): Shape[] {
+  const rand = rng(1300 + seed * 71);
+  const colors = ["#D9466E", "#F2A93B", "#3BA7A0", "#6C63D9", "#F6D04D"];
+  const shapes: Shape[] = [];
+  for (const [y0, y1] of [[-OVER, flowTop - 16 * k], [h * 0.8, h + OVER]]) {
+    const count = Math.round(((w + OVER * 2) * (y1 - y0)) / 150);
+    for (let i = 0; i < count; i++) {
+      const x = rand() * (w + OVER * 2) - OVER;
+      const y = y0 + rand() * (y1 - y0);
+      const fill = colors[Math.floor(rand() * colors.length)];
+      const kind = rand();
+      const angle = rand() * 360;
+      if (kind < 0.4) shapes.push({ kind: "circle", cx: n(x), cy: n(y), r: n((0.6 + rand()) * k), fill });
+      else if (kind < 0.65) {
+        const r = (1.2 + rand() * 0.9) * k;
+        shapes.push({ kind: "path", d: polygon(place([0, 120, 240].map((a) => ({ x: Math.cos((a * Math.PI) / 180) * r, y: Math.sin((a * Math.PI) / 180) * r })), x, y, angle)), fill });
+      } else if (kind < 0.85) {
+        const l = (2.4 + rand() * 1.6) * k;
+        shapes.push({ kind: "path", d: polygon(place([{ x: -l, y: -0.5 * k }, { x: l, y: -0.5 * k }, { x: l, y: 0.5 * k }, { x: -l, y: 0.5 * k }], x, y, angle)), fill });
+      } else {
+        const squiggle = wavePath(x - 3 * k, x + 3 * k, y, 0.7 * k, 3 * k, 0).d;
+        shapes.push({ kind: "path", d: squiggle, stroke: fill, width: n(0.45 * k), round: true, transform: `rotate(${n(angle)} ${n(x)} ${n(y)})` });
+      }
+    }
+  }
+  return shapes;
 }

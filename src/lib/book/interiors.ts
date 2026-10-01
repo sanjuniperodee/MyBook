@@ -11,20 +11,37 @@
  */
 import type { FontKey, Typography } from "./fonts";
 
-export type InteriorId = "classic" | "modern" | "minimal" | "romance" | "stars" | "oyu" | "herbarium" | "deco" | "editorial" | "airmail" | "watercolor";
+export type InteriorId =
+  | "classic"
+  | "modern"
+  | "minimal"
+  | "romance"
+  | "stars"
+  | "oyu"
+  | "herbarium"
+  | "deco"
+  | "editorial"
+  | "airmail"
+  | "watercolor"
+  | "shanyrak"
+  | "mountains"
+  | "sea"
+  | "vintage"
+  | "album"
+  | "confetti";
 
-export type InteriorMood = "classic" | "romance" | "tender" | "modern";
+export type InteriorMood = "classic" | "romance" | "tender" | "bright" | "modern";
 
-export const interiorMoods: InteriorMood[] = ["classic", "romance", "tender", "modern"];
+export const interiorMoods: InteriorMood[] = ["classic", "romance", "tender", "bright", "modern"];
 
 /** Глиф виньетки: между двумя линейками на титуле, в начале глав и в конце книги. */
-export type GlyphId = "diamond" | "heart" | "sparkle" | "ram" | "sprig" | "fan" | "dot" | "bar";
+export type GlyphId = "diamond" | "heart" | "sparkle" | "ram" | "sprig" | "fan" | "dot" | "bar" | "shanyrak" | "peak" | "wave" | "hedera" | "scribble" | "confetti";
 
 /** Рисунок на начальной полосе главы. */
-export type OpenerArt = "stars" | "oyu" | "herbarium" | "sunburst" | "watercolor";
+export type OpenerArt = "stars" | "oyu" | "herbarium" | "sunburst" | "watercolor" | "shanyrak" | "mountains" | "waves" | "tape" | "confetti";
 
 /** Рамка «парадных» полос: титул, посвящение, начала глав, финал. */
-export type FrameKind = "none" | "double" | "deco" | "corners" | "airmail";
+export type FrameKind = "none" | "double" | "deco" | "corners" | "airmail" | "vintage";
 
 export interface TextFace {
   font: FontKey;
@@ -325,11 +342,166 @@ const watercolor: InteriorDesign = {
   pairsWith: ["sunrise", "tulips", "blossom", "mountains"],
 };
 
-const byId: Record<InteriorId, InteriorDesign> = { classic, modern, minimal, romance, stars, oyu, herbarium, deco, editorial, airmail, watercolor };
+/** Шаңырақ — венец юрты, символ дома и рода: над каждой главой, терракота и охра. */
+const shanyrak: InteriorDesign = {
+  id: "shanyrak",
+  mood: "classic",
+  type: { heading: "cormorant", headingWeight: 600, headingItalic: false, body: "ptserif", bodySize: 10.5, lineHeight: 1.5 },
+  display: { font: "cormorant", weight: 500 },
+  label: { font: "montserrat", weight: 500, upper: true, tracking: 0.32, size: 6.6 },
+  palette: { ink: "#2A1F1A", muted: "#7A6656", accent: "#A4452C", rule: "#DCC7B5", ornament: "#B07A3A" },
+  ornament: "shanyrak",
+  opener: { align: "center", number: "label", titleSize: 27, top: 0.44, art: "shanyrak" },
+  heading: { align: "left", size: 1.55, accent: true },
+  divider: "glyph",
+  leadIn: true,
+  folio: { align: "center" },
+  runningHead: "none",
+  frame: "none",
+  pairsWith: ["oyu", "terracotta", "leather"],
+};
+
+/** Горы: сиреневые хребты Алатау со снежными шапками у нижнего края начальной полосы. */
+const mountains: InteriorDesign = {
+  id: "mountains",
+  mood: "tender",
+  type: { heading: "cormorant", headingWeight: 600, headingItalic: false, body: "lora", bodySize: 10, lineHeight: 1.55 },
+  display: { font: "cormorant", weight: 600 },
+  label: { font: "montserrat", weight: 500, upper: true, tracking: 0.3, size: 6.4 },
+  palette: { ink: "#2B2333", muted: "#76687F", accent: "#5B3F66", rule: "#DCD2E0", ornament: "#9C7CA5" },
+  ornament: "peak",
+  opener: {
+    align: "center",
+    number: "digits",
+    numeral: { font: "cormorant", weight: 500, size: 56 },
+    titleSize: 28,
+    top: 0.18,
+    art: "mountains",
+  },
+  heading: { align: "left", size: 1.55, accent: true },
+  divider: "glyph",
+  leadIn: false,
+  folio: { align: "center" },
+  runningHead: "none",
+  frame: "none",
+  pairsWith: ["mountains", "sunrise"],
+};
+
+/** Море: слои волн у края полосы, чайки и бирюзовые заголовки. */
+const sea: InteriorDesign = {
+  id: "sea",
+  mood: "bright",
+  type: { heading: "cormorant", headingWeight: 500, headingItalic: true, body: "ptserif", bodySize: 10.5, lineHeight: 1.5 },
+  display: { font: "cormorant", weight: 500, italic: true },
+  label: { font: "montserrat", weight: 500, upper: true, tracking: 0.3, size: 6.4 },
+  palette: { ink: "#172A33", muted: "#5E7480", accent: "#1F5F7A", rule: "#C9DCE3", ornament: "#3E86A0" },
+  ornament: "wave",
+  opener: { align: "center", number: "label", titleSize: 29, top: 0.26, art: "waves" },
+  heading: { align: "left", size: 1.6, accent: true },
+  divider: "glyph",
+  leadIn: true,
+  folio: { align: "center" },
+  runningHead: "none",
+  frame: "none",
+  pairsWith: ["ocean", "lemons"],
+};
+
+/** Фолиант: старинная книга — сепия, флероны в углах, римские цифры, колонтитулы. */
+const vintage: InteriorDesign = {
+  id: "vintage",
+  mood: "classic",
+  type: { heading: "cormorant", headingWeight: 600, headingItalic: false, body: "ptserif", bodySize: 10.5, lineHeight: 1.5 },
+  display: { font: "cormorant", weight: 600, upper: true, tracking: 0.08 },
+  label: { font: "cormorant", weight: 600, upper: true, tracking: 0.24, size: 8 },
+  palette: { ink: "#2E2118", muted: "#7A6450", accent: "#7A2E1F", rule: "#D3C3AE", ornament: "#8C6A3F" },
+  ornament: "hedera",
+  opener: {
+    align: "center",
+    number: "roman",
+    numeral: { font: "cormorant", weight: 500, size: 36 },
+    titleSize: 21,
+    top: 0.34,
+  },
+  heading: { align: "center", size: 1.4 },
+  divider: "glyph",
+  leadIn: true,
+  folio: { align: "center", dashes: true },
+  runningHead: "plain",
+  frame: "vintage",
+  pairsWith: ["leather", "linen", "noir"],
+};
+
+/** Альбом: цветной скотч на начальных полосах и заголовки «синей ручкой». */
+const album: InteriorDesign = {
+  id: "album",
+  mood: "tender",
+  type: { heading: "caveat", headingWeight: 500, headingItalic: false, body: "lora", bodySize: 10, lineHeight: 1.55 },
+  display: { font: "caveat", weight: 500 },
+  label: { font: "montserrat", weight: 500, upper: true, tracking: 0.3, size: 6.4 },
+  palette: { ink: "#2B2622", muted: "#7A6F66", accent: "#2F5D8C", rule: "#DDD3C6", ornament: "#2F5D8C" },
+  ornament: "scribble",
+  opener: { align: "center", number: "label", titleSize: 38, top: 0.32, art: "tape" },
+  heading: { align: "left", size: 2, accent: true },
+  divider: "glyph",
+  leadIn: false,
+  folio: { align: "center" },
+  runningHead: "none",
+  frame: "none",
+  pairsWith: ["photo", "herbarium", "letter", "lemons"],
+};
+
+/** Конфетти: праздник для книги другу — яркие конфетти, крупные цифры, розовый акцент. */
+const confetti: InteriorDesign = {
+  id: "confetti",
+  mood: "bright",
+  type: { heading: "onest", headingWeight: 600, headingItalic: false, body: "lora", bodySize: 10, lineHeight: 1.55 },
+  display: { font: "onest", weight: 600 },
+  label: { font: "onest", weight: 600, upper: true, tracking: 0.18, size: 6.6 },
+  palette: { ink: "#1E1B2E", muted: "#6B6880", accent: "#D9466E", rule: "#E6E1EC", ornament: "#F2A93B" },
+  ornament: "confetti",
+  opener: {
+    align: "center",
+    number: "digits",
+    numeral: { font: "onest", weight: 700, size: 72 },
+    titleSize: 25,
+    top: 0.3,
+    art: "confetti",
+  },
+  heading: { align: "left", size: 1.45 },
+  divider: "glyph",
+  leadIn: true,
+  folio: { align: "center", font: "label" },
+  runningHead: "none",
+  frame: "none",
+  pairsWith: ["terracotta", "terrazzo", "lemons"],
+};
+
+const byId: Record<InteriorId, InteriorDesign> = {
+  classic,
+  modern,
+  minimal,
+  romance,
+  stars,
+  oyu,
+  herbarium,
+  deco,
+  editorial,
+  airmail,
+  watercolor,
+  shanyrak,
+  mountains,
+  sea,
+  vintage,
+  album,
+  confetti,
+};
 
 /** Порядок в выборе: сначала спокойная классика, дальше чередуем настроения. */
 export const interiorDesigns: InteriorDesign[] = (
-  ["classic", "romance", "stars", "herbarium", "oyu", "editorial", "watercolor", "deco", "airmail", "modern", "minimal"] as const
+  [
+    "classic", "romance", "stars", "herbarium", "oyu", "editorial", "watercolor", "shanyrak", "mountains",
+    "deco", "album", "sea", "airmail", "vintage", "confetti", "modern", "minimal",
+  ] as const
 ).map((id) => byId[id]);
 
 export const DEFAULT_INTERIOR: InteriorId = "classic";
