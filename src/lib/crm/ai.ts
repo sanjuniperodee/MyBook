@@ -7,7 +7,7 @@ import { booksId } from "../db/refs";
 import { getSetting } from "./settings";
 import { loadChatMessages } from "./chat-view";
 import { listFields, fieldVars } from "./fields";
-import { dealSourceLabels } from "./deals";
+import { dealSourceLabels } from "@/lib/crm/deal-meta";
 import {
   cleanReply,
   extractableFields,

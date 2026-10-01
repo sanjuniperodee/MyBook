@@ -1,3 +1,4 @@
+import { container } from "@/server/container";
 import { crmDealsClientId, crmDealsId } from "@/lib/db/refs";
 import { listFields } from "@/lib/crm/fields";
 import { channelLabel, toAttribution } from "@/lib/crm/channels";
@@ -8,7 +9,7 @@ import { db } from "@/lib/db";
 import { crmDeals, crmSavedViews, crmStages, dealSources, type DealSource } from "@/lib/db/schema";
 import { can, canAssignOthers, ownScope, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { dealSourceLabels, listPipelines, listStages } from "@/lib/crm/deals";
+import { dealSourceLabels } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
 import { cn, formatDate, nowMs } from "@/lib/utils";
 import { DealsBoard, type DealCard } from "./DealsBoard";
@@ -21,7 +22,7 @@ const CLOSED_DAYS = 30;
 export default async function DealsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined> & { mine?: string; a?: string; src?: string; q?: string; view?: string; p?: string }> }) {
   const staff = await requireStaff("deals.view");
   const sp = await searchParams;
-  const pipelines = await listPipelines();
+  const pipelines = await container().sales.queries.listPipelines();
   const pipeline = pipelines.find((x) => x.id === sp.p) ?? pipelines[0];
   const selectFields = (await listFields("deal")).filter((f) => f.type === "select");
   const view = sp.view === "list" ? "list" : "board";
@@ -59,7 +60,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   if (view === "board") w.push(or(eq(crmStages.kind, "open"), gte(crmDeals.closedAt, sql`now() - interval '${sql.raw(String(CLOSED_DAYS))} days'`))!);
 
   const [stages, rows, admins, views] = await Promise.all([
-    listStages(pipeline.id),
+    container().sales.queries.listStages(pipeline.id),
     db
       .select({
         deal: crmDeals,

@@ -1,5 +1,7 @@
 "use server";
 
+import { container } from "@/server/container";
+import { sourceFromChannel } from "@/modules/sales";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -9,9 +11,7 @@ import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError
 import { addInternalNote, channelLabel, markConversationRead, sendChatMessage } from "@/lib/crm/chats";
 import { buildOffer, type OfferRequest } from "@/lib/crm/offers";
 import { notifyMentions } from "@/lib/crm/mentions";
-import { addDealNote } from "@/lib/crm/deals";
 import { adminLabel } from "@/lib/crm";
-import { createDeal, sourceFromChannel } from "@/lib/crm/deals";
 import { formatPhone, isPhoneLike, normalizePhone } from "@/lib/crm/phone";
 import { notify } from "@/lib/crm/notify";
 
@@ -70,7 +70,7 @@ export async function createDealFromChatAction(conversationId: string) {
   const conv = await loadConv(staff, conversationId);
   if (conv.dealId) return { id: conv.dealId };
   const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
-  const deal = await createDeal({
+  const deal = await container().sales.deals.create({
     title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`,
     source: sourceFromChannel(conv.channel),
     clientId: conv.clientId,
@@ -116,7 +116,7 @@ export async function sendOfferAction(conversationId: string, request: OfferRequ
   const msg = await sendChatMessage(conv.id, offer.text, staff.user.id);
   if (offer.promo) {
     await audit(staff, "promo.personal", "promo", offer.promo, { percent: req.kind === "discount" ? req.percent : null, conversation: conv.id });
-    if (conv.dealId) await addDealNote({ id: conv.dealId, clientId: conv.clientId }, `Персональная скидка ${req.kind === "discount" ? req.percent : ""}%: промокод ${offer.promo}`, staff.user.id);
+    if (conv.dealId) await container().sales.deals.note({ id: conv.dealId, clientId: conv.clientId }, `Персональная скидка ${req.kind === "discount" ? req.percent : ""}%: промокод ${offer.promo}`, staff.user.id);
   }
   revalidatePath("/admin/chats");
   return msg.status === "error" ? { ok: false, message: ("error" in msg && msg.error) || "Не удалось отправить" } : { ok: true, message: offer.promo ? `Отправлено, промокод ${offer.promo}` : "Отправлено" };

@@ -98,7 +98,7 @@ describe("адреса", () => {
 describe("нет русских строк вне словарей", () => {
   const root = path.join(__dirname, "..", "src");
   // CRM и вебхуки интеграций — внутренние инструменты команды, они на русском.
-  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/crm\//, /^modules\/access\//, /^server\/access\.ts$/];
+  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/crm\//, /^modules\/access\//, /^modules\/sales\//, /^server\/access\.ts$/];
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
     "lib/crm.ts",
@@ -110,7 +110,7 @@ describe("нет русских строк вне словарей", () => {
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
   ]);
   // Строки для команды, а не для клиента.
-  const internalLine = /legalName:|Заказ создан|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml/;
+  const internalLine = /legalName:|Заказ создан|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml/;
 
   const files: string[] = [];
   const walk = (dir: string) => {

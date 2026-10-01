@@ -1,3 +1,4 @@
+import { container } from "@/server/container";
 import Link from "next/link";
 import { currentMonth, planProgress } from "@/lib/crm/plans";
 import { sql } from "drizzle-orm";
@@ -5,7 +6,6 @@ import { db } from "@/lib/db";
 import { requireStaff } from "@/server/access";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { channelOf, channels, toAttribution } from "@/lib/crm/channels";
-import { listPipelines, listStages } from "@/lib/crm/deals";
 import { formatPrice } from "@/config/site";
 import { BarList, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ const num = (v: unknown) => Number(v ?? 0);
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ period?: string; p?: string }> }) {
   await requireStaff("analytics.view");
   const { period: raw, p: pipelineParam } = await searchParams;
-  const pipelines = await listPipelines();
+  const pipelines = await container().sales.queries.listPipelines();
   const pipeline = pipelines.find((x) => x.id === pipelineParam) ?? pipelines[0];
   const inPipeline = sql`s.pipeline_id = ${pipeline.id}`;
   const period = periods.find((p) => String(p) === raw) ?? 30;
@@ -30,7 +30,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const prevSince = sql`now() - make_interval(days => ${period * 2})`;
 
   const [stages, admins, totals, prevTotals, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime] = await Promise.all([
-    listStages(pipeline.id),
+    container().sales.queries.listStages(pipeline.id),
     listAdmins(),
     db.execute<Row>(sql`
       select count(*)::int as created,

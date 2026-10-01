@@ -1,10 +1,10 @@
+import { container } from "@/server/container";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { canAssignOthers, requireStaff } from "@/server/access";
 import { listAdmins, staffOptions } from "@/lib/crm";
-import { listPipelines, listStages } from "@/lib/crm/deals";
 import { NewDealForm } from "./NewDealForm";
 
 export const metadata = { title: "Новая сделка" };
@@ -13,10 +13,10 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const staff = await requireStaff("deals.edit");
   const { client: clientId, p } = await searchParams;
   const [stages, admins, client, pipelines] = await Promise.all([
-    listStages(),
+    container().sales.queries.listStages(),
     listAdmins(),
     clientId && /^[0-9a-f-]{36}$/.test(clientId) ? db.query.users.findFirst({ where: eq(users.id, clientId), columns: { id: true, name: true, email: true, phone: true } }) : null,
-    listPipelines(),
+    container().sales.queries.listPipelines(),
   ]);
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);

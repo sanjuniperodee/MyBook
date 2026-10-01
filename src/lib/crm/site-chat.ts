@@ -1,10 +1,10 @@
 import "server-only";
+import { container } from "@/server/container";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, gt } from "drizzle-orm";
 import { db } from "../db";
 import { crmConversations, crmMessages, crmTasks } from "../db/schema";
 import { ingestMessage } from "./chats";
-import { addDealNote, createDeal, findClientByPhone, findOpenDeal, nextRoundRobin } from "./deals";
 import { notifyOwnerOr } from "./notify";
 import { formatPhone, normalizePhone } from "./phone";
 import { getSettings } from "./settings";
@@ -44,7 +44,7 @@ export async function postSiteMessage(input: { token: string; text: string; name
       avatarUrl: null,
       status: null,
     },
-    { clientId: input.userId ?? (phone.length >= 10 ? await findClientByPhone(phone) : null), meta: { ...(input.page ? { page: input.page.slice(0, 200) } : {}), ...(phone.length >= 10 ? { phone } : {}) } },
+    { clientId: input.userId ?? (phone.length >= 10 ? await container().sales.deals.findClientByPhone(phone) : null), meta: { ...(input.page ? { page: input.page.slice(0, 200) } : {}), ...(phone.length >= 10 ? { phone } : {}) } },
   );
 }
 
@@ -67,11 +67,11 @@ export async function siteMessages(token: string, after?: Date) {
  */
 export async function requestCallback(input: { name: string; phone: string; comment?: string; page?: string; userId?: string | null }) {
   const phone = normalizePhone(input.phone);
-  const clientId = input.userId ?? (await findClientByPhone(phone));
-  const existing = await findOpenDeal({ clientId, phone });
+  const clientId = input.userId ?? (await container().sales.deals.findClientByPhone(phone));
+  const existing = await container().sales.deals.findOpen({ clientId, phone });
   const deal =
     existing ??
-    (await createDeal({
+    (await container().sales.deals.create({
       title: `Перезвонить: ${input.name || formatPhone(phone)}`,
       source: "site",
       clientId,
@@ -79,9 +79,9 @@ export async function requestCallback(input: { name: string; phone: string; comm
       contactPhone: phone,
       unsorted: true,
     }));
-  const assigneeId = deal.assigneeId ?? (await nextRoundRobin());
+  const assigneeId = deal.assigneeId ?? (await container().sales.deals.nextRoundRobin());
   const note = [`📞 Заявка на обратный звонок с сайта: ${input.name || "без имени"}, ${formatPhone(phone)}`, input.comment ? `Комментарий: ${input.comment}` : "", input.page ? `Страница: ${input.page}` : ""].filter(Boolean).join("\n");
-  await addDealNote(deal, note, null);
+  await container().sales.deals.note(deal, note, null);
   await db.insert(crmTasks).values({ title: `Перезвонить ${input.name || formatPhone(phone)} — заявка с сайта`, kind: "call", dueAt: new Date(Date.now() + 15 * 60_000), dealId: deal.id, clientId: deal.clientId, assigneeId });
   await notifyOwnerOr(assigneeId, "deals.view", { kind: "task", title: `Перезвонить: ${input.name || formatPhone(phone)}`, body: input.comment?.slice(0, 160) || "Заявка на обратный звонок с сайта", link: `/admin/deals/${deal.id}` });
   void publish({ type: "notify" });

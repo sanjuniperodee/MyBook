@@ -20,7 +20,7 @@ import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } fro
 import { formatPhone } from "@/lib/crm/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
-import { dealSourceLabels } from "@/lib/crm/deals";
+import { dealSourceLabels } from "@/modules/sales";
 
 export const metadata = { title: "Клиент" };
 

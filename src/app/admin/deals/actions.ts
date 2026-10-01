@@ -1,5 +1,6 @@
 "use server";
 
+import { container } from "@/server/container";
 import { listFields, readFieldValues } from "@/lib/crm/fields";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -8,7 +9,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmBlocklist, crmConversations, crmDeals, crmPipelines, crmSavedViews, crmStages, dealSources, users } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
-import { addDealNote, assignDeal, createDeal, defaultPipelineId, mergeDeals, moveDeal, stageOfKind } from "@/lib/crm/deals";
 import { notify } from "@/lib/crm/notify";
 import { normalizePhone } from "@/lib/crm/phone";
 import { formatPrice } from "@/config/site";
@@ -55,7 +55,7 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
   if (d.contactPhone && phone.length < 10) return { error: "Проверьте номер телефона" };
   let assigneeId = d.assigneeId || staff.user.id;
   if (assigneeId !== staff.user.id && !canAssignOthers(staff)) assigneeId = staff.user.id;
-  const deal = await createDeal({
+  const deal = await container().sales.deals.create({
     title: d.title,
     source: d.source,
     clientId: d.clientId || null,
@@ -100,7 +100,7 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
       updatedAt: new Date(),
     })
     .where(eq(crmDeals.id, deal.id));
-  if (deal.amount !== d.amount) await addDealNote(deal, `Бюджет: ${formatPrice(deal.amount)} → ${formatPrice(d.amount)}`, staff.user.id);
+  if (deal.amount !== d.amount) await container().sales.deals.note(deal, `Бюджет: ${formatPrice(deal.amount)} → ${formatPrice(d.amount)}`, staff.user.id);
   revalidateDeal(deal.id, deal.clientId);
   return { ok: "Сохранено" };
 }
@@ -111,9 +111,9 @@ export async function moveDealAction(dealId: string, stageId: string, lostReason
   const stage = await db.query.crmStages.findFirst({ where: eq(crmStages.id, uuid.parse(stageId)) });
   if (!stage) throw new Error("Этап не найден");
   if (stage.kind === "lost" && !lostReason?.trim()) throw new Error("Укажите причину отказа");
-  await moveDeal(deal.id, stage.id, staff.user.id, lostReason?.trim().slice(0, 200));
+  await container().sales.deals.move(deal.id, stage.id, staff.user.id, lostReason?.trim().slice(0, 200));
   // Сделку взял в работу тот, кто её двигает, если она была ничья.
-  if (!deal.assigneeId) await assignDeal(deal.id, staff.user.id);
+  if (!deal.assigneeId) await container().sales.deals.assign(deal.id, staff.user.id);
   revalidateDeal(deal.id, deal.clientId);
 }
 
@@ -125,10 +125,10 @@ export async function assignDealAction(dealId: string, assigneeId: string | null
   if (next) {
     const u = await db.query.users.findFirst({ where: eq(users.id, next), columns: { role: true, staffDisabled: true, name: true, email: true } });
     if (!u || u.role !== "admin" || u.staffDisabled) throw new Error("Сотрудник не найден");
-    await addDealNote(deal, `Ответственный: ${u.name || u.email}`, staff.user.id);
+    await container().sales.deals.note(deal, `Ответственный: ${u.name || u.email}`, staff.user.id);
     if (next !== staff.user.id) await notify([next], { kind: "deal", title: `Вам передали сделку №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
   }
-  await assignDeal(deal.id, next);
+  await container().sales.deals.assign(deal.id, next);
   revalidateDeal(deal.id, deal.clientId);
   return { ok: true as const };
 }
@@ -167,7 +167,7 @@ export async function saveStageAction(_: DealFormState, form: FormData): Promise
   const { id, name, color } = parsed.data;
   const milestone = parsed.data.milestone || null;
   const existing = id ? await db.query.crmStages.findFirst({ where: eq(crmStages.id, id) }) : null;
-  const pipelineId = existing?.pipelineId ?? (parsed.data.pipelineId || (await defaultPipelineId()));
+  const pipelineId = existing?.pipelineId ?? (parsed.data.pipelineId || (await container().sales.deals.defaultPipelineId()));
   // Одно событие — один этап в воронке, иначе непонятно, куда двигать сделку.
   if (milestone) await db.update(crmStages).set({ milestone: null }).where(and(eq(crmStages.milestone, milestone), eq(crmStages.pipelineId, pipelineId), id ? ne(crmStages.id, id) : undefined));
   if (id) await db.update(crmStages).set({ name, color, milestone, updatedAt: new Date() }).where(eq(crmStages.id, id));
@@ -229,9 +229,9 @@ export async function acceptDealAction(dealId: string) {
   const deal = await loadDeal(staff, dealId);
   if (!deal.unsorted) return;
   await db.update(crmDeals).set({ unsorted: false, updatedAt: new Date() }).where(eq(crmDeals.id, deal.id));
-  if (!deal.assigneeId) await assignDeal(deal.id, staff.user.id);
+  if (!deal.assigneeId) await container().sales.deals.assign(deal.id, staff.user.id);
   await db.update(crmConversations).set({ assigneeId: deal.assigneeId ?? staff.user.id }).where(eq(crmConversations.dealId, deal.id));
-  await addDealNote(deal, "Заявка принята в работу", staff.user.id);
+  await container().sales.deals.note(deal, "Заявка принята в работу", staff.user.id);
   revalidateDeal(deal.id, deal.clientId);
 }
 
@@ -256,7 +256,7 @@ export async function mergeDealAction(targetId: string, sourceId: string) {
   const staff = await assertStaff("deals.edit", "deals.delete");
   const target = await loadDeal(staff, targetId);
   const source = await loadDeal(staff, sourceId);
-  await mergeDeals(target.id, source.id, staff.user.id);
+  await container().sales.deals.merge(target.id, source.id, staff.user.id);
   await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title });
   revalidateDeal(target.id, target.clientId);
 }
@@ -301,7 +301,7 @@ export async function renamePipelineAction(id: string, name: string) {
 export async function deletePipelineAction(id: string) {
   const staff = await assertStaff("settings.manage");
   const pid = uuid.parse(id);
-  if (pid === (await defaultPipelineId())) throw new Error("Основную воронку удалить нельзя — в неё приходят заявки с сайта, из чатов и звонков");
+  if (pid === (await container().sales.deals.defaultPipelineId())) throw new Error("Основную воронку удалить нельзя — в неё приходят заявки с сайта, из чатов и звонков");
   const [{ n }] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(crmDeals)
@@ -318,9 +318,9 @@ export async function deletePipelineAction(id: string) {
 export async function movePipelineAction(dealId: string, pipelineId: string) {
   const staff = await assertStaff("deals.edit");
   const deal = await loadDeal(staff, dealId);
-  const first = await stageOfKind("open", uuid.parse(pipelineId));
+  const first = await container().sales.deals.stageOfKind("open", uuid.parse(pipelineId));
   if (!first) throw new Error("В воронке нет этапов «в работе»");
-  await moveDeal(deal.id, first.id, staff.user.id);
+  await container().sales.deals.move(deal.id, first.id, staff.user.id);
   revalidateDeal(deal.id, deal.clientId);
 }
 
@@ -352,8 +352,8 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
       skipped++;
       continue;
     }
-    if (req.op === "stage") await moveDeal(deal.id, req.stageId, staff.user.id, req.reason);
-    else if (req.op === "assign") await assignDeal(deal.id, req.userId);
+    if (req.op === "stage") await container().sales.deals.move(deal.id, req.stageId, staff.user.id, req.reason);
+    else if (req.op === "assign") await container().sales.deals.assign(deal.id, req.userId);
     else if (req.op === "tag") await db.update(crmDeals).set({ tags: [...new Set([...deal.tags, req.tag])].slice(0, 12), updatedAt: new Date() }).where(eq(crmDeals.id, deal.id));
     else await db.delete(crmDeals).where(eq(crmDeals.id, deal.id));
     done++;

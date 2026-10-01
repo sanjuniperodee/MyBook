@@ -1,4 +1,5 @@
 import "server-only";
+import { container } from "@/server/container";
 import { fieldVars, listFields } from "./fields";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
@@ -156,32 +157,29 @@ async function runAction(rule: CrmAutomation, a: AutomationAction, ctx: TriggerC
       return;
     }
     case "assign": {
-      const { nextRoundRobin, assignDeal } = await import("./deals");
-      const userId = a.userId || (await nextRoundRobin());
+      const userId = a.userId || (await container().sales.deals.nextRoundRobin());
       if (!userId) return;
-      if (e.deal && !e.deal.assigneeId) await assignDeal(e.deal.id, userId);
+      if (e.deal && !e.deal.assigneeId) await container().sales.deals.assign(e.deal.id, userId);
       if (e.conv && !e.conv.assigneeId) await db.update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.id, e.conv.id));
       e.assigneeId = e.assigneeId ?? userId;
       return;
     }
     case "move_stage": {
       if (!e.deal || !a.stageId) return;
-      const { moveDeal } = await import("./deals");
-      await moveDeal(e.deal.id, a.stageId, null);
+      await container().sales.deals.move(e.deal.id, a.stageId, null);
       return;
     }
     case "create_deal": {
       if (e.deal) return; // открытая сделка уже есть — работаем в ней
-      const { createDeal, findOpenDeal } = await import("./deals");
-      const open = e.clientId ? await findOpenDeal({ clientId: e.clientId }) : null;
+      const open = e.clientId ? await container().sales.deals.findOpen({ clientId: e.clientId }) : null;
       if (open) {
-        e.deal = open;
+        e.deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, open.id) });
         return;
       }
       if (!e.clientId) return;
       const client = await db.query.users.findFirst({ where: eq(users.id, e.clientId), columns: { name: true, email: true, phone: true, managerId: true } });
       if (!client) return;
-      const deal = await createDeal({
+      const deal = await container().sales.deals.create({
         title: fillTemplate(a.title || rule.name, vars) || rule.name,
         source: rule.trigger === "occasion.anniversary" ? "repeat" : "manual",
         clientId: e.clientId,
@@ -190,7 +188,7 @@ async function runAction(rule: CrmAutomation, a: AutomationAction, ctx: TriggerC
         contactEmail: client.email,
         assigneeId: a.userId || client.managerId || null,
       });
-      e.deal = deal;
+      e.deal = await db.query.crmDeals.findFirst({ where: eq(crmDeals.id, deal.id) });
       e.assigneeId = e.assigneeId ?? deal.assigneeId;
       return;
     }

@@ -1,9 +1,9 @@
+import { container } from "@/server/container";
 import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmDeals } from "@/lib/db/schema";
 import { requireStaff } from "@/server/access";
-import { listPipelines, listStages } from "@/lib/crm/deals";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { cn } from "@/lib/utils";
 
@@ -12,9 +12,9 @@ export const metadata = { title: "Этапы воронки" };
 export default async function StagesPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   await requireStaff("settings.manage");
   const { p } = await searchParams;
-  const pipelines = await listPipelines();
+  const pipelines = await container().sales.queries.listPipelines();
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
-  const [stages, counts] = await Promise.all([listStages(pipeline.id), db.select({ stageId: crmDeals.stageId, n: sql<number>`count(*)::int` }).from(crmDeals).groupBy(crmDeals.stageId)]);
+  const [stages, counts] = await Promise.all([container().sales.queries.listStages(pipeline.id), db.select({ stageId: crmDeals.stageId, n: sql<number>`count(*)::int` }).from(crmDeals).groupBy(crmDeals.stageId)]);
   const byStage = new Map(counts.map((c) => [c.stageId, c.n]));
   return (
     <div className="mx-auto max-w-2xl space-y-5">

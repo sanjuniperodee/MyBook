@@ -8,6 +8,7 @@ import { IdentityModule } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
+import { SalesModule } from "@/modules/sales";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
@@ -33,6 +34,11 @@ export class Container {
   #access?: AccessModule;
   #authoring?: AuthoringModule;
   #notifications?: NotificationsModule;
+  #sales?: SalesModule;
+
+  get sales(): SalesModule {
+    return (this.#sales ??= new SalesModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("sales") }));
+  }
 
   get notifications(): NotificationsModule {
     return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock }));
@@ -103,6 +109,7 @@ export class Container {
     void this.identity;
     void this.access;
     void this.authoring;
+    void this.sales;
     registerSubscriptions(this);
     return this;
   }

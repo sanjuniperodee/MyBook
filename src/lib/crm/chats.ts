@@ -1,9 +1,10 @@
 import "server-only";
+import { container } from "@/server/container";
+import { sourceFromChannel } from "@/modules/sales";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmBlocklist, crmConversations, crmDeals, crmMessages, users, type ConversationMeta, type CrmConversation } from "../db/schema";
 import { runTrigger } from "./automations";
-import { createDeal, findClientByPhone, findOpenDeal, sourceFromChannel } from "./deals";
 import { notifyOwnerOr } from "./notify";
 import { isPhoneLike, normalizePhone, formatPhone } from "./phone";
 import { sendWazzupMessage, WazzupError } from "./wazzup";
@@ -57,7 +58,7 @@ async function upsertConversation(m: WazzupIncoming, extra: IngestExtra = {}): P
     return { conv: existing, created: false };
   }
   const phone = isPhoneLike(m.chatId) ? normalizePhone(m.chatId) : extra.meta?.phone ? normalizePhone(extra.meta.phone) : null;
-  const clientId = extra.clientId ?? (phone ? await findClientByPhone(phone) : null);
+  const clientId = extra.clientId ?? (phone ? await container().sales.deals.findClientByPhone(phone) : null);
   const [conv] = await db
     .insert(crmConversations)
     .values({ channel: m.chatType, channelId: m.channelId, chatId: m.chatId, contactName: m.isEcho ? "" : m.contactName, avatarUrl: m.avatarUrl, clientId, meta: extra.meta ?? {} })
@@ -89,11 +90,11 @@ async function ensureDeal(conv: CrmConversation, contactName: string, firstText 
   const code = linkCodeFromText(firstText);
   const link = code ? await findLink(code) : null;
   const utm = link ? linkAttribution(link) : null;
-  const existing = await findOpenDeal({ clientId: conv.clientId, phone });
+  const existing = await container().sales.deals.findOpen({ clientId: conv.clientId, phone });
   if (existing && utm && !existing.utm) await db.update(crmDeals).set({ utm: utm as Record<string, string> }).where(eq(crmDeals.id, existing.id));
   const deal =
     existing ??
-    (await createDeal({
+    (await container().sales.deals.create({
       title: `Заявка из ${channelLabel(conv.channel)}${contactName ? `: ${contactName}` : phone ? `: ${formatPhone(phone)}` : ""}`,
       source: sourceFromChannel(conv.channel),
       clientId: conv.clientId,

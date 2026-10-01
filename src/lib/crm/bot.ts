@@ -1,10 +1,10 @@
 import "server-only";
+import { container } from "@/server/container";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmConversations, crmDeals, type CrmConversation } from "../db/schema";
 import { fillTemplate } from "./automation-meta";
 import { matchOption, parseBotConfig, parseDateAnswer, questionText } from "./bot-logic";
-import { addDealNote } from "./deals";
 import { listFields } from "./fields";
 import { notifyOwnerOr } from "./notify";
 import { isWorkTime, parseWorkHours } from "./schedule";
@@ -75,7 +75,7 @@ export async function runBot(conv: CrmConversation, incomingText: string, isNew:
     })
     .filter(Boolean)
     .join("\n");
-  await addDealNote(deal, `Бот собрал ответы клиента:\n${summary}`, null);
+  await container().sales.deals.note(deal, `Бот собрал ответы клиента:\n${summary}`, null);
   await notifyOwnerOr(deal.assigneeId, "chats.view", { kind: "message", title: `Бот собрал ответы: ${deal.contactName || deal.title}`, body: summary.replace(/\n/g, " · "), link: `/admin/chats?c=${conv.id}` });
 }
 

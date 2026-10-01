@@ -1,3 +1,4 @@
+import { container } from "@/server/container";
 import { booksId } from "@/lib/db/refs";
 import { listFields } from "@/lib/crm/fields";
 import { channelLabel as acquisitionChannel, describeAttribution, toAttribution } from "@/lib/crm/channels";
@@ -9,7 +10,7 @@ import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/lib/db/schema";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
-import { dealSourceLabels, findClientByPhone, findDuplicateDeals, listPipelines, listStages } from "@/lib/crm/deals";
+import { dealSourceLabels } from "@/modules/sales";
 import { books, bookQuestions, photos } from "@/lib/db/schema";
 import { channelLabel } from "@/lib/crm/chats";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/crm/chat-view";
@@ -38,8 +39,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
 
   const [allStages, pipelines, admins, noteRows, taskRows, callRows, convs, client, order] = await Promise.all([
-    listStages(),
-    listPipelines(),
+    container().sales.queries.listStages(),
+    container().sales.queries.listPipelines(),
     listAdmins(),
     db.select().from(crmNotes).where(eq(crmNotes.dealId, deal.id)).orderBy(desc(crmNotes.createdAt)).limit(100),
     db.select().from(crmTasks).where(eq(crmTasks.dealId, deal.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, asc(crmTasks.dueAt)),
@@ -53,8 +54,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const pipelineId = allStages.find((s) => s.id === deal.stageId)?.pipelineId;
   const stages = allStages.filter((s) => s.pipelineId === pipelineId);
   const [duplicates, suggestedClientId, bookRows, dealFields] = await Promise.all([
-    findDuplicateDeals(deal),
-    !deal.clientId && deal.contactPhone ? findClientByPhone(deal.contactPhone) : null,
+    container().sales.queries.duplicates(deal),
+    !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
     deal.clientId
       ? db
           .select({

@@ -1,9 +1,9 @@
 import "server-only";
+import { container } from "@/server/container";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmCalls, crmDeals, crmNotes, users, type CrmCall } from "../db/schema";
 import { runTrigger } from "./automations";
-import { createDeal, findClientByPhone, findOpenDeal } from "./deals";
 import { isBlocked } from "./chats";
 import { publish } from "./realtime";
 import { notifyOwnerOr } from "./notify";
@@ -36,8 +36,8 @@ async function handleCallEventInner(e: CallEvent): Promise<CrmCall | null> {
 
   if (!call) {
     if (e.stage === "record") return null; // запись без звонка — игнорируем
-    const clientId = e.clientPhone ? await findClientByPhone(e.clientPhone) : null;
-    const deal = e.clientPhone || clientId ? await findOpenDeal({ clientId, phone: e.clientPhone }) : null;
+    const clientId = e.clientPhone ? await container().sales.deals.findClientByPhone(e.clientPhone) : null;
+    const deal = e.clientPhone || clientId ? await container().sales.deals.findOpen({ clientId, phone: e.clientPhone }) : null;
     const [row] = await db
       .insert(crmCalls)
       .values({
@@ -100,7 +100,7 @@ async function afterCall(call: CrmCall): Promise<CrmCall> {
   if (call.clientPhone && (await isBlocked(call.clientPhone))) return call;
   const missed = call.direction === "in" && call.status === "missed";
   if (call.direction === "in" && !call.dealId && call.clientPhone) {
-    const deal = await createDeal({ title: `Звонок: ${formatPhone(call.clientPhone)}`, source: "call", clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone), unsorted: true });
+    const deal = await container().sales.deals.create({ title: `Звонок: ${formatPhone(call.clientPhone)}`, source: "call", clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone), unsorted: true });
     [call] = await db.update(crmCalls).set({ dealId: deal.id, clientId: call.clientId ?? deal.clientId }).where(eq(crmCalls.id, call.id)).returning();
   }
   const staff = call.staffId ? await db.query.users.findFirst({ where: eq(users.id, call.staffId), columns: { name: true, email: true } }) : null;
