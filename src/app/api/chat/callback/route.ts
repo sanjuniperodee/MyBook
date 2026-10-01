@@ -19,7 +19,7 @@ export const POST = api(async (req) => {
   if (!(await widgetConfig()).enabled) throw new HttpError(403, "widgetOff");
   const body = schema.parse(await req.json());
   if (normalizePhone(body.phone).length < 10) throw new HttpError(400, "widgetPhone");
-  if (!rateLimit(`callback:${await clientIp()}`, 5, 3600_000)) throw new HttpError(429, "widgetRate");
+  if (!await rateLimit(`callback:${await clientIp()}`, 5, 3600_000)) throw new HttpError(429, "widgetRate");
   const user = await getCurrentUser();
   await requestCallback({ ...body, userId: user?.role === "user" ? user.id : null });
   return NextResponse.json({ ok: true });

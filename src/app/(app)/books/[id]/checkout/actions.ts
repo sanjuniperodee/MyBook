@@ -79,7 +79,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       surprise: d.surprise === "on",
     });
   } catch (err) {
-    if (err instanceof OrderingError) return { error: orderingErrorText(err, m.checkout) };
+    if (OrderingError.is(err)) return { error: orderingErrorText(err, m.checkout) };
     throw err;
   }
   await queueEvent("order_created", order.amount);
@@ -108,7 +108,7 @@ export async function checkPromoAction(code: string): Promise<PromoPreview> {
   await requireUser();
   const t = (await getMessages()).checkout;
   const { clientIp, rateLimit } = await import("@/lib/rate-limit");
-  if (!rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
+  if (!await rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
   const check = await container().ordering.promos.check(code);
   if (!check.ok) return { ok: false, error: t.promo[check.error] };
   const { code: c, kind, value, label } = check.promo;

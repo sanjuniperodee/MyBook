@@ -1,6 +1,7 @@
 import "server-only";
 import { pool } from "./db";
 import { runLifecycle } from "./lifecycle";
+import { container } from "@/server/container";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
@@ -14,10 +15,10 @@ export async function tick() {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const { container } = await import("@/server/container");
     const gifts = await container().ordering.deliverDueGifts();
     const emails = await runLifecycle();
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
+    await container().outbox.purge();
   } catch (err) {
     console.error("[scheduler] tick failed", err);
   } finally {
@@ -52,6 +53,25 @@ export async function crmTick() {
   }
 }
 
+/** Воркер outbox: повторная доставка доменных событий (после сбоя подписчика или рестарта процесса). */
+const OUTBOX_INTERVAL_MS = 15_000;
+let outboxBusy = false;
+
+export async function outboxTick() {
+  if (outboxBusy) return 0;
+  outboxBusy = true;
+  try {
+    let total = 0;
+    for (let n = await container().outbox.dispatch(); n > 0 && total < 500; n = await container().outbox.dispatch()) total += n;
+    return total;
+  } catch (err) {
+    console.error("[scheduler] outbox tick failed", err);
+    return 0;
+  } finally {
+    outboxBusy = false;
+  }
+}
+
 let started = false;
 
 /** Фоновые задачи: отложенные сертификаты и автоматические письма. Отключается SCHEDULER=off. */
@@ -61,4 +81,5 @@ export function startScheduler() {
   setTimeout(() => void tick(), 60_000).unref?.();
   setInterval(() => void tick(), INTERVAL_MS).unref?.();
   setInterval(() => void crmTick(), CRM_INTERVAL_MS).unref?.();
+  setInterval(() => void outboxTick(), OUTBOX_INTERVAL_MS).unref?.();
 }

@@ -41,7 +41,7 @@ async function orderCommand(run: () => Promise<unknown>): Promise<AdminState | n
     await run();
     return null;
   } catch (err) {
-    if (err instanceof OrderingError) return { error: orderingStaffMessage(err) };
+    if (OrderingError.is(err)) return { error: orderingStaffMessage(err) };
     throw err;
   }
 }

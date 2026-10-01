@@ -21,7 +21,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ token: strin
       website: z.string().max(0).optional(), // ловушка для ботов
     })
     .parse(await req.json());
-  if (!rateLimit(`letter:${await clientIp()}`, 5, 3600_000)) throw new HttpError(429, "letterRate");
+  if (!await rateLimit(`letter:${await clientIp()}`, 5, 3600_000)) throw new HttpError(429, "letterRate");
   if (!/^[A-Za-z0-9_-]{10,40}$/.test(token)) throw new HttpError(404, "letterInvalid");
   const book = await db.query.books.findFirst({ where: eq(books.inviteToken, token) });
   if (!book) throw new HttpError(404, "letterClosed");

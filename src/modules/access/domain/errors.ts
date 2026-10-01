@@ -1,4 +1,4 @@
-import { DomainError } from "@/shared/domain";
+import { contextError } from "@/shared/domain";
 
 export type AccessErrorCode =
   | "forbidden"
@@ -17,4 +17,5 @@ export type AccessErrorCode =
   | "twoFactorFirst";
 
 /** Нарушение правил доступа. message — текст для сотрудника (CRM на русском). */
-export class AccessError extends DomainError<AccessErrorCode> {}
+export const AccessError = contextError<AccessErrorCode>("access", "AccessError");
+export type AccessError = InstanceType<typeof AccessError>;

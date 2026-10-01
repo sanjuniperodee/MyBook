@@ -31,7 +31,7 @@ export const POST = api(async (req) => {
   const body = schema.parse(await req.json());
   const jar = await cookies();
   let token = jar.get(VISITOR_COOKIE)?.value;
-  if (!rateLimit(`site-chat:${await clientIp()}`, 30, 600_000) || (token && !rateLimit(`site-chat:${token}`, 20, 300_000))) throw new HttpError(429, "widgetRate");
+  if (!await rateLimit(`site-chat:${await clientIp()}`, 30, 600_000) || (token && !await rateLimit(`site-chat:${token}`, 20, 300_000))) throw new HttpError(429, "widgetRate");
   if (!token || !/^[\w-]{20,64}$/.test(token)) {
     token = randomToken();
     jar.set(VISITOR_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", maxAge: 60 * 60 * 24 * 180 });

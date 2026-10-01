@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.mjs",
     "sample-book": "tsx --import ./scripts/preload.mjs scripts/sample-book.ts",
-    "scheduler:once": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/scheduler-once.ts"
+    "scheduler:once": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/scheduler-once.ts",
+    "test:integration": "INTEGRATION=1 vitest run tests/outbox.integration.test.ts tests/redis.integration.test.ts"
   },
   "engines": {
     "node": ">=20.9"
@@ -32,6 +33,7 @@
     "drizzle-orm": "^0.45.3",
     "hyphen": "^1.14.1",
     "imapflow": "^2.1.2",
+    "ioredis": "^6.0.0",
     "lucide-react": "^1.48.0",
     "mailparser": "^3.9.32",
     "next": "^16.3.6",

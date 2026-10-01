@@ -19,7 +19,7 @@ type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
 
 async function guard<T>(staffId: string, run: () => Promise<T>): Promise<Result<T>> {
   // Запросы к Claude платные: ограничиваем частоту на сотрудника.
-  if (!rateLimit(`ai:${staffId}`, 30, 600_000)) return { ok: false, message: "Слишком много запросов к AI — подождите несколько минут." };
+  if (!await rateLimit(`ai:${staffId}`, 30, 600_000)) return { ok: false, message: "Слишком много запросов к AI — подождите несколько минут." };
   try {
     return { ok: true, ...(await run()) };
   } catch (err) {

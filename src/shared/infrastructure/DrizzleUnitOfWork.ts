@@ -1,30 +1,30 @@
 import "server-only";
 import type { AggregateRoot } from "../domain/AggregateRoot";
-import type { DomainEvent } from "../domain/DomainEvent";
-import type { EventBus } from "../application/EventBus";
 import type { UnitOfWork } from "../application/UnitOfWork";
 import { rootDb, txStorage } from "./database";
+import type { OutboxDispatcher } from "./OutboxDispatcher";
 
 /**
  * Unit of Work поверх транзакций PostgreSQL. Вложенный run() переиспользует внешнюю транзакцию.
- * События отслеживаемых агрегатов собираются и публикуются после COMMIT.
+ * События отслеживаемых агрегатов записываются в outbox в той же транзакции, а после COMMIT
+ * сразу доставляются; если доставка не удалась или процесс упал — их дошлёт воркер.
  */
 export class DrizzleUnitOfWork implements UnitOfWork {
-  constructor(private readonly bus: EventBus) {}
+  constructor(private readonly outbox: OutboxDispatcher) {}
 
   async run<T>(work: () => Promise<T>): Promise<T> {
-    const outer = txStorage.getStore();
-    if (outer) return work();
-    const events: DomainEvent[] = [];
+    if (txStorage.getStore()) return work();
+    let ids: string[] = [];
     const result = await rootDb.transaction(async (tx) => {
-      const ctx = { tx, events, aggregates: new Set<AggregateRoot<object, string | number>>() };
+      const ctx = { tx, events: [], aggregates: new Set<AggregateRoot<object, string | number>>() };
       return txStorage.run(ctx, async () => {
         const value = await work();
-        for (const a of ctx.aggregates) events.push(...a.pullEvents());
+        const events = [...ctx.aggregates].flatMap((a) => a.pullEvents());
+        ids = await this.outbox.enqueue(events);
         return value;
       });
     });
-    await this.bus.publish(events);
+    await this.outbox.dispatch(ids);
     return result;
   }
 

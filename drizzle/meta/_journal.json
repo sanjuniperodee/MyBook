@@ -127,6 +127,13 @@
       "when": 1790789520776,
       "tag": "0017_crm_v4",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790835913824,
+      "tag": "0018_outbox",
+      "breakpoints": true
     }
   ]
 }

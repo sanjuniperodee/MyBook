@@ -1,33 +1,44 @@
 import "server-only";
 import type { DomainEvent } from "../domain/DomainEvent";
-import type { EventBus, EventHandler } from "../application/EventBus";
+import type { DeliveryReport, EventBus, EventHandler } from "../application/EventBus";
 import { consoleLogger, type Logger } from "../application/Logger";
 
 /**
- * Шина событий в процессе приложения. Подписчики выполняются последовательно; ошибка одного
- * пишется в лог и не мешает остальным и исходной команде. Для монолита на одном инстансе
- * этого достаточно; при росте — заменить на outbox + очередь без изменения домена.
+ * Реестр подписчиков в процессе приложения. Надёжность (повторы, переживание рестарта) обеспечивает
+ * OutboxDispatcher: он хранит события в Postgres и вызывает deliver() до успеха.
  */
 export class InProcessEventBus implements EventBus {
   readonly #handlers = new Map<string, { name: string; handler: EventHandler }[]>();
 
   constructor(private readonly logger: Logger = consoleLogger("events")) {}
 
-  subscribe<E extends DomainEvent>(type: E["type"] & string, handler: EventHandler<E>, name = handler.name || "anonymous"): void {
+  subscribe<E extends DomainEvent>(type: E["type"] & string, handler: EventHandler<E>, name: string): void {
     const list = this.#handlers.get(type) ?? [];
+    if (list.some((h) => h.name === name)) throw new Error(`duplicate subscriber ${name} for ${type}`);
     list.push({ name, handler: handler as EventHandler });
     this.#handlers.set(type, list);
   }
 
-  async publish(events: readonly DomainEvent[]): Promise<void> {
-    for (const event of events) {
-      for (const { name, handler } of this.#handlers.get(event.type) ?? []) {
-        try {
-          await handler(event);
-        } catch (err) {
-          this.logger.error(`handler ${name} failed for ${event.type}`, err);
-        }
+  handlerNames(type: string): string[] {
+    return (this.#handlers.get(type) ?? []).map((h) => h.name);
+  }
+
+  async deliver(event: DomainEvent, skip: ReadonlySet<string> = new Set()): Promise<DeliveryReport> {
+    const report: DeliveryReport = { succeeded: [], failed: [] };
+    for (const { name, handler } of this.#handlers.get(event.type) ?? []) {
+      if (skip.has(name)) continue;
+      try {
+        await handler(event);
+        report.succeeded.push(name);
+      } catch (error) {
+        this.logger.error(`handler ${name} failed for ${event.type}`, error);
+        report.failed.push({ name, error });
       }
     }
+    return report;
+  }
+
+  async publish(events: readonly DomainEvent[]): Promise<void> {
+    for (const e of events) await this.deliver(e);
   }
 }

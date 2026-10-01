@@ -1,4 +1,4 @@
-import { DomainError } from "@/shared/domain";
+import { contextError } from "@/shared/domain";
 
 /**
  * Коды ошибок контекста заказов. Совпадают с ключами словарей checkout.errors / checkout.promo,
@@ -21,4 +21,5 @@ export type OrderingErrorCode =
   | "giftNeedEmail"
   | "staffNotFound";
 
-export class OrderingError extends DomainError<OrderingErrorCode> {}
+export const OrderingError = contextError<OrderingErrorCode>("ordering", "OrderingError");
+export type OrderingError = InstanceType<typeof OrderingError>;

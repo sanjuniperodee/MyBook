@@ -1,4 +1,4 @@
-import type { Clock, UnitOfWork } from "@/shared/application";
+import type { Clock, OneTimeStepStore, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
 import { Email, IdentityError, User, hashBackupCode, isBackupCodeShape, verifyTotp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 import type { AdminEmailsPolicy, PasswordHasher, PasswordResetMailer, SecretCipher, TokenService } from "./ports";
@@ -14,9 +14,6 @@ export type LoginResult = { kind: "session"; token: string; expiresAt: Date; use
  * Токены сессий генерируются здесь, а в cookie их кладёт веб-адаптер.
  */
 export class AuthService {
-  // Код из приложения нельзя использовать дважды (подсмотрели, повтор запроса). Один инстанс — хватает памяти процесса.
-  readonly #usedSteps = new Map<string, number>();
-
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
@@ -28,6 +25,8 @@ export class AuthService {
     private readonly adminEmails: AdminEmailsPolicy,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    /** Код из приложения нельзя использовать дважды (подсмотрели, повтор запроса). */
+    private readonly steps: OneTimeStepStore,
   ) {}
 
   async register(input: { email: string; name: string; password: string; locale: Locale; source: Record<string, string> | null }) {
@@ -70,14 +69,12 @@ export class AuthService {
     const secret = user.twoFactor.encryptedSecret ? this.cipher.decrypt(user.twoFactor.encryptedSecret) : null;
     if (!secret) return false;
     const step = verifyTotp(secret, c, this.clock.now().getTime());
-    if (step === null || (this.#usedSteps.get(user.id) ?? -1) >= step) return false;
-    this.#usedSteps.set(user.id, step);
-    return true;
+    return step !== null && (await this.steps.advance(user.id, step));
   }
 
   /** Отметить шаг TOTP использованным (после подтверждения настройки 2FA тем же кодом). */
-  markStepUsed(userId: string, step: number) {
-    this.#usedSteps.set(userId, step);
+  async markStepUsed(userId: string, step: number) {
+    await this.steps.advance(userId, step);
   }
 
   async currentUserId(token: string): Promise<string | null> {

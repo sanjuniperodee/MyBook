@@ -98,6 +98,14 @@ function identity(adminEmails: string[] = []) {
     { isAdminEmail: (e) => adminEmails.includes(e) },
     uow,
     clock,
+    new (class {
+      last = new Map<string, number>();
+      async advance(u: string, s: number) {
+        if ((this.last.get(u) ?? -1) >= s) return false;
+        this.last.set(u, s);
+        return true;
+      }
+    })(),
   );
   const accounts = new AccountService(users, auth, { hash: async (p) => `h:${p}`, verify: async (p, h) => h === `h:${p}` }, { encrypt: (s) => `enc:${s}`, decrypt: (s) => (s.startsWith("enc:") ? s.slice(4) : null) }, uow, clock);
   return { users, sessions, resets, clock, uow, auth, accounts, mails };

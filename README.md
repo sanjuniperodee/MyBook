@@ -155,6 +155,7 @@ bash deploy/deploy.sh <ветка>
 - `PAYMENT_PROVIDER` — `manual` или `cloudpayments`.
 - `APP_SECRET` — секрет для ссылок отписки. `SCHEDULER=off` — выключить фоновые задачи.
 - `YANDEX_METRIKA_ID`, `GA_MEASUREMENT_ID`, `META_PIXEL_ID` — счётчики (задайте до сборки).
+- `REDIS_URL` — необязательно: нужен только при нескольких экземплярах приложения (общие лимиты частоты и защита кодов 2FA); в Docker — `docker compose --profile scale up -d`. Почему без Kafka/RabbitMQ — `docs/adr/0001-messaging-queues-cache.md`.
 - `ANTHROPIC_API_KEY` — ключ Claude API для AI-помощника (или введите его в «Интеграциях»).
 - `CRM_IMAP_HOST`, `CRM_IMAP_PORT`, `CRM_IMAP_USER`, `CRM_IMAP_PASSWORD` — входящий ящик для почтового канала (или в «Интеграциях»); `CRM_REPLY_TO` — адрес для ответов, если он отличается от `MAIL_FROM`.
 - `ZADARMA_PBX_ID` — номер АТС Zadarma для веб-телефона.

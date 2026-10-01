@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { putFile, deleteFile } from "@/lib/storage";
+import { container } from "@/server/container";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,9 @@ export async function GET() {
     await deleteFile("cache/health-check");
     checks.storage = true;
   } catch {}
-  const ok = checks.db && checks.storage;
-  return Response.json({ ok, ...checks, time: new Date().toISOString() }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
+  // Outbox: зависшие или «мёртвые» события — сигнал, что подписчик (почта, CRM) не справляется.
+  // Redis опционален: null — не настроен; false — настроен, но недоступен (лимиты работают из памяти).
+  const { redis, outbox } = checks.db ? await container().infraHealth() : { redis: null, outbox: null };
+  const ok = checks.db && checks.storage && redis !== false;
+  return Response.json({ ok, ...checks, redis, outbox, time: new Date().toISOString() }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }

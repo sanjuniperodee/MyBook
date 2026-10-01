@@ -13,6 +13,18 @@ services:
       interval: 5s
       retries: 10
 
+  # Redis нужен, только если приложение запущено в нескольких экземплярах (общие лимиты и защита кодов 2FA).
+  # Включение: docker compose --profile scale up -d и REDIS_URL=redis://redis:6379 в .env.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    profiles: ["scale"]
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
   app:
     build: .
     restart: unless-stopped

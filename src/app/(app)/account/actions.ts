@@ -31,12 +31,12 @@ export async function updateProfileAction(_: AccountState, form: FormData): Prom
 export async function changePasswordAction(_: AccountState, form: FormData): Promise<AccountState> {
   const user = await requireUser();
   const t = (await getMessages()).orders.account;
-  if (!rateLimit(`pwd:${user.id}:${await clientIp()}`, 10, 900_000)) return { error: t.errors.tooMany };
+  if (!await rateLimit(`pwd:${user.id}:${await clientIp()}`, 10, 900_000)) return { error: t.errors.tooMany };
   try {
     // Выходим на всех остальных устройствах, текущая сессия остаётся.
     await container().identity.accounts.changePassword(user.id, String(form.get("current") ?? ""), String(form.get("next") ?? ""), await sessionToken());
   } catch (err) {
-    if (err instanceof IdentityError) return { error: err.code === "password" ? t.errors.short : t.errors.wrong };
+    if (IdentityError.is(err)) return { error: err.code === "password" ? t.errors.short : t.errors.wrong };
     throw err;
   }
   return { ok: t.changed };

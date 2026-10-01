@@ -32,7 +32,7 @@ const schema = (e: GiftErrors) =>
 
 export async function createGiftAction(_: GiftFormState, form: FormData): Promise<GiftFormState> {
   const e = (await getMessages()).gift.form.errors;
-  if (!rateLimit(`gift:${await clientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
+  if (!await rateLimit(`gift:${await clientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
   const parsed = schema(e).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -56,7 +56,7 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
       buyerLocale: await getLocale(),
     });
   } catch (err) {
-    if (err instanceof OrderingError && err.code === "giftPastDate") return { error: e.pastDate };
+    if (OrderingError.is(err) && err.code === "giftPastDate") return { error: e.pastDate };
     throw err;
   }
   await queueEvent("gift_checkout", gift.amount);

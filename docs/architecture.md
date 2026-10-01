@@ -16,7 +16,8 @@ src/
   shared/                     общее ядро (shared kernel)
     domain/                   Entity, AggregateRoot, ValueObject, DomainEvent, DomainError
     application/              UseCase, UnitOfWork, EventBus, Clock, Logger — порты
-    infrastructure/           DrizzleUnitOfWork (транзакции + публикация событий после COMMIT), InProcessEventBus
+    infrastructure/           DrizzleUnitOfWork (транзакции), OutboxDispatcher (надёжная доставка событий), InProcessEventBus,
+                              redis.ts (лимиты и шаги TOTP: Redis при REDIS_URL, иначе память), background.ts
   modules/<контекст>/
     domain/                   агрегаты, объекты-значения, события, ошибки, интерфейсы репозиториев
     application/              сервисы сценариев (команды), порты к другим контекстам и внешнему миру
@@ -47,7 +48,8 @@ src/
 - **Репозиторий** — интерфейс в `domain/repositories.ts`, реализация на Drizzle в `infrastructure/persistence`. Мапперы переводят строку БД в агрегат и обратно. Атомарные операции, которым нужна БД (резерв использования промокода `tryReserve`), объявлены методами репозитория.
 - **Сервис сценариев** (`OrdersService`, `PromoService`, `GiftsService`) — оркестрация: загрузить агрегат, вызвать метод, сохранить. Каждая команда выполняется в `uow.run()`, то есть в одной транзакции.
 - **Unit of Work.** `uow.run()` открывает транзакцию, репозитории берут её через `executor()` (AsyncLocalStorage). После COMMIT события агрегатов из `uow.track()` публикуются в шину. При откате события не публикуются.
-- **Доменные события** — факты в прошедшем времени: `ordering.order_paid`. Подписчик, который упал, пишет ошибку в лог и не отменяет команду.
+- **Доменные события** — факты в прошедшем времени: `ordering.order_paid`. Они записываются в **transactional outbox** (`outbox_events`) в той же транзакции. После COMMIT событие доставляется сразу, а если подписчик упал или процесс перезапустился — его досылает воркер, вызывая только тех подписчиков, кто ещё не отработал. Имя подписчика обязательно и стабильно. Подробности и почему без Kafka/RabbitMQ — [ADR 0001](adr/0001-messaging-queues-cache.md).
+- **Ошибки домена проверяются через `XError.is(err)`, а не `instanceof`.** Next.js загружает модули в разные слои бандла (страницы, server actions), и классы там — разные экземпляры.
 - **Порты к другим контекстам** (`BookGateway`, `PeopleGateway`, `PrintFiles`) объявляются потребителем в `application/ports.ts`. Реализация — антикоррупционный слой в `infrastructure/gateways`.
 - **Read-модели (CQRS-lite).** Экранам не нужны агрегаты. Запросы для страниц лежат в `infrastructure/persistence/*Queries.ts` и отдают ровно то, что нужно экрану.
 - **Ошибки домена** — `DomainError` со стабильным `code`. Код совпадает с ключом словаря, и слой представления показывает текст на языке пользователя.

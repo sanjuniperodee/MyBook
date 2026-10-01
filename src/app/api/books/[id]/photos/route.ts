@@ -14,7 +14,7 @@ const MAX_PHOTOS = 120;
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const { user, book } = await apiBook(req, id, { editable: true });
-  if (!rateLimit(`upload:${user.id}`, 60, 3600_000)) throw new HttpError(429, "photosRate");
+  if (!await rateLimit(`upload:${user.id}`, 60, 3600_000)) throw new HttpError(429, "photosRate");
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) throw new HttpError(400, "photosPick");

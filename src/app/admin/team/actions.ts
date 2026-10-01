@@ -31,7 +31,7 @@ async function run<T>(fn: () => Promise<T>): Promise<{ ok: true; value: T } | { 
   try {
     return { ok: true, value: await fn() };
   } catch (err) {
-    if (err instanceof AccessError || err instanceof IdentityError) return { ok: false, error: err.message };
+    if (AccessError.is(err) || IdentityError.is(err)) return { ok: false, error: err.message };
     throw err;
   }
 }

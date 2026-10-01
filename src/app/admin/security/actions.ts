@@ -15,16 +15,16 @@ const code = z.string().max(12);
 const identity = () => container().identity.accounts;
 
 function fail(err: unknown): { ok: false; message: string } {
-  if (err instanceof IdentityError) {
+  if (IdentityError.is(err)) {
     if (err.code === "twoFactorCode") return { ok: false, message: "Неверный код. Проверьте, что время на телефоне точное, и введите свежий код." };
     if (err.code === "twoFactorAlreadyOn") return { ok: false, message: "2FA уже включена" };
   }
-  if (err instanceof AccessError) return { ok: false, message: err.message };
+  if (AccessError.is(err)) return { ok: false, message: err.message };
   throw err;
 }
 
-function limited(staff: Staff, key: string) {
-  return !rateLimit(`${key}:${staff.user.id}`, 10, 600_000);
+async function limited(staff: Staff, key: string) {
+  return !await rateLimit(`${key}:${staff.user.id}`, 10, 600_000);
 }
 
 /** Шаг 1: новый секрет и QR-код для приложения. */
@@ -41,21 +41,21 @@ export async function startTwoFactorAction(): Promise<Result<{ secret: string; q
 /** Шаг 2: код из приложения — включаем 2FA и показываем резервные коды. */
 export async function confirmTwoFactorAction(input: string): Promise<Result<{ codes: string[] }>> {
   const staff = await assertStaffShell();
-  if (limited(staff, "2fa-setup")) return { ok: false, message: "Слишком много попыток — подождите 10 минут" };
+  if (await limited(staff, "2fa-setup")) return { ok: false, message: "Слишком много попыток — подождите 10 минут" };
   try {
     const codes = await identity().confirmTwoFactor(staff.user.id, code.parse(input));
     await audit(staff, "security.2fa_on", "user", staff.user.id);
     revalidatePath("/admin/security");
     return { ok: true, codes };
   } catch (err) {
-    if (err instanceof IdentityError && err.code === "twoFactorCode") return { ok: false, message: "Код не подошёл. Проверьте, что время на телефоне точное, и введите свежий код." };
+    if (IdentityError.is(err) && err.code === "twoFactorCode") return { ok: false, message: "Код не подошёл. Проверьте, что время на телефоне точное, и введите свежий код." };
     return fail(err);
   }
 }
 
 export async function newBackupCodesAction(input: string): Promise<Result<{ codes: string[] }>> {
   const staff = await assertStaff();
-  if (limited(staff, "2fa-manage")) return { ok: false, message: "Слишком много попыток — подождите 10 минут" };
+  if (await limited(staff, "2fa-manage")) return { ok: false, message: "Слишком много попыток — подождите 10 минут" };
   try {
     const codes = await identity().regenerateBackupCodes(staff.user.id, code.parse(input));
     await audit(staff, "security.2fa_backup", "user", staff.user.id);
@@ -68,7 +68,7 @@ export async function newBackupCodesAction(input: string): Promise<Result<{ code
 export async function disableTwoFactorAction(input: string): Promise<Result> {
   const staff = await assertStaff();
   if ((await container().access.security.load()).require2fa && !staff.isOwner) return { ok: false, message: "Руководитель сделал 2FA обязательной — отключить её нельзя" };
-  if (limited(staff, "2fa-manage")) return { ok: false, message: "Слишком много попыток — подождите 10 минут" };
+  if (await limited(staff, "2fa-manage")) return { ok: false, message: "Слишком много попыток — подождите 10 минут" };
   try {
     await identity().disableTwoFactor(staff.user.id, code.parse(input));
     await audit(staff, "security.2fa_off", "user", staff.user.id);
@@ -102,7 +102,7 @@ export async function saveSecurityAction(_: { ok?: string; error?: string }, for
       editorHasTwoFactor: !!staff.user.totpEnabledAt,
     });
   } catch (err) {
-    if (err instanceof AccessError) return { error: err.message };
+    if (AccessError.is(err)) return { error: err.message };
     throw err;
   }
   revalidatePath("/admin/security");

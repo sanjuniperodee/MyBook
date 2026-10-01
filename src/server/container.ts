@@ -1,6 +1,7 @@
 import "server-only";
 import { consoleLogger, systemClock, type Clock, type EventBus, type UnitOfWork } from "@/shared/application";
-import { DrizzleUnitOfWork, InProcessEventBus } from "@/shared/infrastructure";
+import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
+import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
 import { OrderingModule } from "@/modules/ordering";
 import { IdentityModule } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
@@ -15,15 +16,18 @@ import { registerSubscriptions } from "./subscriptions";
  */
 export class Container {
   readonly bus: EventBus = new InProcessEventBus(consoleLogger("events"));
-  readonly uow: UnitOfWork = new DrizzleUnitOfWork(this.bus);
+  readonly outbox = new OutboxDispatcher(this.bus, consoleLogger("outbox"));
+  readonly uow: UnitOfWork = new DrizzleUnitOfWork(this.outbox);
   readonly clock: Clock = systemClock;
+  /** Лимиты частоты: Redis, если задан REDIS_URL (несколько экземпляров), иначе память процесса. */
+  readonly rateLimiter = createRateLimiter();
 
   #ordering?: OrderingModule;
   #identity?: IdentityModule;
   #access?: AccessModule;
 
   get identity(): IdentityModule {
-    return (this.#identity ??= new IdentityModule({ uow: this.uow, clock: this.clock }));
+    return (this.#identity ??= new IdentityModule({ uow: this.uow, clock: this.clock, steps: createStepStore() }));
   }
 
   /** Access пользуется учётными записями Identity через узкий порт — модули не импортируют друг друга. */
@@ -45,6 +49,12 @@ export class Container {
 
   get ordering(): OrderingModule {
     return (this.#ordering ??= new OrderingModule({ uow: this.uow, bus: this.bus, clock: this.clock, logger: consoleLogger("ordering"), printFiles: this.printFiles }));
+  }
+
+  /** Состояние инфраструктуры для /api/health: Redis (null — не настроен) и очередь событий outbox. */
+  async infraHealth() {
+    const [redis, outbox] = await Promise.all([redisHealthy(), this.outbox.stats().catch(() => null)]);
+    return { redis, outbox };
   }
 
   /** Создать все модули сразу — чтобы их подписки на события были зарегистрированы до первой команды. */

@@ -80,7 +80,7 @@ export class AccountService {
     const secret = pending ? this.cipher.decrypt(pending) : null;
     const step = secret ? verifyTotp(secret, code, this.clock.now().getTime()) : null;
     if (step === null) throw new IdentityError("twoFactorCode");
-    this.auth.markStepUsed(user.id, step);
+    await this.auth.markStepUsed(user.id, step);
     const codes = generateBackupCodes();
     await this.uow.run(async () => {
       user.enableTwoFactor(codes.map(hashBackupCode), this.clock.now());
