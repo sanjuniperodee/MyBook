@@ -641,7 +641,6 @@ export const crmAutomations = pgTable("crm_automations", {
   ...timestamps,
 });
 
-/** Журнал срабатываний: одно правило не срабатывает дважды для одного объекта. */
 /**
  * Transactional outbox: доменные события пишутся в той же транзакции, что и изменения агрегатов,
  * а воркер доставляет их подписчикам с повторами. Событие не теряется, даже если процесс упал
@@ -669,6 +668,7 @@ export const outboxEvents = pgTable(
   (t) => [index("outbox_pending_idx").on(t.processedAt, t.availableAt)],
 );
 
+/** Журнал срабатываний: одно правило не срабатывает дважды для одного объекта. */
 export const crmAutomationRuns = pgTable(
   "crm_automation_runs",
   {

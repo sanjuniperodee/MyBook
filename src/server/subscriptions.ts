@@ -13,17 +13,17 @@ import type { Container } from "./container";
  * Подписчики одного события вызываются по порядку регистрации.
  */
 export function registerSubscriptions(c: Container) {
-  const automations = () => import("@/lib/crm/automations");
+  const rules = () => c.automation.engine;
   const notify = () => import("@/lib/crm/notify");
 
   // ─── заказы → воронка продаж и правила CRM ───────────────────────────────
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload }).then(() => undefined), "crm.deal.order_created");
-  c.bus.subscribe<OrderPlaced>("ordering.order_placed", async (e) => (await automations()).runTrigger("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId }), "crm.automation.order_created");
+  c.bus.subscribe<OrderPlaced>("ordering.order_placed", async (e) => rules().run("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId }), "crm.automation.order_created");
   c.bus.subscribe<OrderPaid>(
     "ordering.order_paid",
     async (e) => {
       const dealId = await c.sales.funnel.orderPaid({ id: e.payload.orderId, userId: e.payload.userId, amount: e.payload.amount });
-      await (await automations()).runTrigger("order.paid", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId, dealId });
+      await rules().run("order.paid", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId, dealId });
     },
     "crm.deal.order_paid",
   );
@@ -48,7 +48,7 @@ export function registerSubscriptions(c: Container) {
   // ─── сделки → правила CRM и уведомления сотрудникам ──────────────────────
   c.bus.subscribe<DealCreated>(
     "sales.deal_created",
-    async (e) => (await automations()).runTrigger("deal.created", { subject: e.payload.dealId, dealId: e.payload.dealId, clientId: e.payload.clientId, source: e.payload.source, stageId: e.payload.stageId }),
+    async (e) => rules().run("deal.created", { subject: e.payload.dealId, dealId: e.payload.dealId, clientId: e.payload.clientId, source: e.payload.source, stageId: e.payload.stageId }),
     "crm.automation.deal_created",
   );
   // После правил: ответственного могло назначить правило «распределить по кругу».
@@ -62,7 +62,7 @@ export function registerSubscriptions(c: Container) {
   );
   c.bus.subscribe<DealStageChanged>(
     "sales.deal_stage_changed",
-    async (e) => (await automations()).runTrigger("deal.stage_changed", { subject: `${e.payload.dealId}:${e.payload.stageId}:${e.payload.at}`, dealId: e.payload.dealId, clientId: e.payload.clientId, stageId: e.payload.stageId, source: e.payload.source }),
+    async (e) => rules().run("deal.stage_changed", { subject: `${e.payload.dealId}:${e.payload.stageId}:${e.payload.at}`, dealId: e.payload.dealId, clientId: e.payload.clientId, stageId: e.payload.stageId, source: e.payload.source }),
     "crm.automation.deal_stage_changed",
   );
 }

@@ -37,8 +37,7 @@ export async function crmTick() {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [CRM_LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const { runScheduledAutomations } = await import("./crm/automations");
-    const fired = await runScheduledAutomations();
+    const fired = await container().automation.engine.runScheduled();
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
     const { pollImap } = await import("./crm/email");

@@ -3,7 +3,6 @@ import { container } from "@/server/container";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmCalls, crmDeals, crmNotes, users, type CrmCall } from "../db/schema";
-import { runTrigger } from "./automations";
 import { isBlocked } from "./chats";
 import { publish } from "./realtime";
 import { notifyOwnerOr } from "./notify";
@@ -132,7 +131,7 @@ async function afterCall(call: CrmCall): Promise<CrmCall> {
       body: deal?.contactName ?? "",
       link: call.dealId ? `/admin/deals/${call.dealId}` : "/admin/calls",
     });
-    await runTrigger("call.missed", { subject: call.id, callId: call.id, dealId: call.dealId, clientId: call.clientId });
+    await container().automation.engine.run("call.missed", { subject: call.id, callId: call.id, dealId: call.dealId, clientId: call.clientId });
   }
   return call;
 }

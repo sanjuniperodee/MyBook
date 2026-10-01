@@ -12,7 +12,7 @@ import { milestoneOrder, stageMilestones } from "@/lib/crm/deal-meta";
 import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/lib/crm/channels";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, questionText } from "@/lib/crm/bot-logic";
 import { decryptSecret, encryptSecret, safeEqual } from "@/shared/crypto";
-import { matches } from "@/lib/crm/automations";
+import { matches } from "@/modules/automation/domain";
 
 const migration = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0013_crm_pro.sql"), "utf8");
 const later = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0014_crm_sales.sql"), "utf8");

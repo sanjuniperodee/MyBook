@@ -9,6 +9,7 @@ import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
 import { SalesModule } from "@/modules/sales";
+import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
@@ -35,6 +36,21 @@ export class Container {
   #authoring?: AuthoringModule;
   #notifications?: NotificationsModule;
   #sales?: SalesModule;
+  #automation?: AutomationModule;
+
+  /** Правила CRM работают со сделками через узкий порт продаж. */
+  get automation(): AutomationModule {
+    return (this.#automation ??= new AutomationModule({
+      clock: this.clock,
+      sales: {
+        nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
+        assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),
+        move: async (dealId, stageId) => void (await this.sales.deals.move(dealId, stageId, null)),
+        findOpenDealId: async (clientId) => (await this.sales.deals.findOpen({ clientId }))?.id ?? null,
+        createDeal: (input) => this.sales.deals.create(input),
+      },
+    }));
+  }
 
   get sales(): SalesModule {
     return (this.#sales ??= new SalesModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("sales") }));
@@ -110,6 +126,7 @@ export class Container {
     void this.access;
     void this.authoring;
     void this.sales;
+    void this.automation;
     registerSubscriptions(this);
     return this;
   }

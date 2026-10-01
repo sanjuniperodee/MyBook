@@ -4,7 +4,6 @@ import { sourceFromChannel } from "@/modules/sales";
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmBlocklist, crmConversations, crmDeals, crmMessages, users, type ConversationMeta, type CrmConversation } from "../db/schema";
-import { runTrigger } from "./automations";
 import { notifyOwnerOr } from "./notify";
 import { isPhoneLike, normalizePhone, formatPhone } from "./phone";
 import { sendWazzupMessage, WazzupError } from "./wazzup";
@@ -171,7 +170,7 @@ export async function ingestMessage(m: WazzupIncoming, extra: IngestExtra = {}) 
   const { runBot } = await import("./bot");
   await runBot((await db.query.crmConversations.findFirst({ where: eq(crmConversations.id, conv.id) })) ?? conv, m.text, created).catch((err) => console.error("[bot]", err));
   const day = m.at.toISOString().slice(0, 10);
-  await runTrigger("message.incoming", { subject: `${conv.id}:${day}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
+  await container().automation.engine.run("message.incoming", { subject: `${conv.id}:${day}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
 }
 
 export async function applyStatus(s: WazzupStatus) {
