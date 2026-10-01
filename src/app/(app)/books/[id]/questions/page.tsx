@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook, getBookPhotos, getBookQuestions } from "@/lib/books";
+import { getAccessibleBook } from "@/server/books";
+import { container } from "@/server/container";
 import { applyGender } from "@/lib/content/gender";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { QuestionsEditor, type EditorQuestion } from "@/components/editor/QuestionsEditor";
@@ -15,7 +16,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const { q } = await searchParams;
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
-  const [rows, photos] = await Promise.all([getBookQuestions(book.id), getBookPhotos(book.id)]);
+  const [rows, photos] = await Promise.all([container().authoring.queries.questions(book.id), container().authoring.queries.photos(book.id)]);
   const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const questions: EditorQuestion[] = rows.map((r) => ({

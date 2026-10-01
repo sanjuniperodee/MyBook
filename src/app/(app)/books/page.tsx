@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { CalendarHeart, Plus } from "lucide-react";
 import { requireUser } from "@/server/auth";
-import { listUserBooks } from "@/lib/books";
+import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { OpenBookArt } from "@/components/illustrations";
@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BooksPage() {
   const user = await requireUser("/books");
-  const [rows, locale, m] = await Promise.all([listUserBooks(user.id), getLocale(), getMessages()]);
+  const [rows, locale, m] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages()]);
   const t = m.books.list;
   const now = new Date(nowMs());
   if (rows.length === 0) {

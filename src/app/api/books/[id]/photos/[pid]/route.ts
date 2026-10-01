@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { api, apiBook, HttpError } from "@/lib/api";
-import { db } from "@/lib/db";
-import { bookQuestions, books, photos } from "@/lib/db/schema";
-import { deleteFile } from "@/lib/storage";
-import { touchBook } from "@/lib/books";
-import { normalizeStyle } from "@/lib/book/inline-photo";
+import { api, apiViewer } from "@/lib/api";
+import { container } from "@/server/container";
 
 type Ctx = { params: Promise<{ id: string; pid: string }> };
 
@@ -31,28 +26,18 @@ const schema = z
   .partial()
   .strict();
 
+const row = async (bookId: string, photoId: string) => (await container().authoring.queries.photos(bookId)).find((p) => p.id === photoId);
+
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, pid } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
-  const data = schema.parse(await req.json());
-  if (data.questionId) {
-    const [q] = await db.select({ id: bookQuestions.id }).from(bookQuestions).where(and(eq(bookQuestions.id, data.questionId), eq(bookQuestions.bookId, book.id)));
-    if (!q) throw new HttpError(400, "questionNotFound");
-  }
-  if (data.inline) data.inline = normalizeStyle(data.inline);
-  const [row] = await db.update(photos).set(data).where(and(eq(photos.id, pid), eq(photos.bookId, book.id))).returning();
-  if (!row) throw new HttpError(404, "photoNotFound");
-  await touchBook(book.id);
-  return NextResponse.json({ photo: row });
+  const { viewer } = await apiViewer(req);
+  await container().authoring.photos.update(id, viewer, pid, schema.parse(await req.json()));
+  return NextResponse.json({ photo: await row(id, pid) });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, pid } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
-  const [row] = await db.delete(photos).where(and(eq(photos.id, pid), eq(photos.bookId, book.id))).returning();
-  if (!row) throw new HttpError(404, "photoNotFound");
-  if (book.coverPhotoId === row.id) await db.update(books).set({ coverPhotoId: null }).where(eq(books.id, book.id));
-  await Promise.all([deleteFile(row.storageKey), deleteFile(row.thumbKey)]);
-  await touchBook(book.id);
+  const { viewer } = await apiViewer(req);
+  await container().authoring.photos.delete(id, viewer, pid);
   return NextResponse.json({ ok: true });
 });

@@ -1,11 +1,10 @@
 "use server";
 
-import { crmAfter, onBookStarted } from "@/lib/crm/hooks";
 import { getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
 import { z } from "zod";
 import { requireUser } from "@/server/auth";
-import { createBook } from "@/lib/books";
+import { container } from "@/server/container";
 import { queueEvent } from "@/lib/track";
 import { isThemeId } from "@/lib/content/themes";
 import { getOccasion } from "@/lib/occasions";
@@ -37,8 +36,8 @@ export async function createBookAction(_: CreateState, form: FormData): Promise<
   const parsed = schema(m.books.wizard.errors).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const book = await createBook(user.id, {
-    theme: d.theme as never,
+  const book = await container().authoring.books.start(user.id, {
+    theme: d.theme,
     language: isLocale(d.language) ? d.language : "ru",
     authorName: d.authorName,
     authorGender: d.authorGender,
@@ -49,6 +48,5 @@ export async function createBookAction(_: CreateState, form: FormData): Promise<
     occasionDate: d.occasion ? d.occasionDate || null : null,
   });
   await queueEvent("book_created");
-  crmAfter(() => onBookStarted(user.id, book));
   return lredirect(`/books/${book.id}`);
 }

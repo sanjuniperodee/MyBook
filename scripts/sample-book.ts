@@ -8,12 +8,12 @@ import sharp from "sharp";
 import { eq } from "drizzle-orm";
 import { db, pool } from "../src/lib/db";
 import { bookQuestions, books, photos, users } from "../src/lib/db/schema";
-import { createBook } from "../src/lib/books";
+import { container } from "../src/server/container";
 import bcrypt from "bcryptjs";
 const hashPassword = (p: string) => bcrypt.hash(p, 12);
 import { putFile } from "../src/lib/storage";
 import { processUpload } from "../src/lib/images";
-import { loadBookBundle, printSpecText, renderPrintPackage, renderInterior, renderReadingPdf } from "../src/lib/pdf/render";
+import { printSpecText, renderPrintPackage, renderInterior, renderReadingPdf } from "../src/lib/pdf/render";
 
 const LOREM = [
   "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег. Я опаздывала на встречу, а ты стоял у входа в кофейню и держал дверь — так неловко и так галантно одновременно, что я рассмеялась.",
@@ -27,7 +27,8 @@ async function main() {
   const email = "demo@mybook.local";
   let user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user) [user] = await db.insert(users).values({ email, passwordHash: await hashPassword("demo12345"), name: "Демо" }).returning();
-  const book = await createBook(user.id, {
+  const book = await container().authoring.books.start(user.id, {
+    language: "ru",
     theme: "love",
     authorName: "Алия",
     authorGender: "f",
@@ -55,7 +56,7 @@ async function main() {
     await putFile(tkey, img.thumb);
     await db.update(photos).set({ storageKey: key, thumbKey: tkey }).where(eq(photos.id, ph.id));
   }
-  const bundle = (await loadBookBundle(book.id))!;
+  const bundle = (await container().authoring.queries.bundle(book.id))!;
   let t = Date.now();
   const pkg = await renderPrintPackage(bundle);
   console.log("print package", Date.now() - t, "ms, pages", pkg.pageCount, "spine", pkg.spineMm);

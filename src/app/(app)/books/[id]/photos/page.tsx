@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook, getBookPhotos, getBookQuestions } from "@/lib/books";
+import { getAccessibleBook } from "@/server/books";
+import { container } from "@/server/container";
 import { applyGender } from "@/lib/content/gender";
 import { PhotosManager } from "./PhotosManager";
 import { getMessages } from "@/i18n/server";
@@ -13,7 +14,7 @@ export default async function PhotosPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const user = await requireUser(`/books/${id}/photos`);
   const book = await getAccessibleBook(id, user);
-  const [photos, questions, m] = await Promise.all([getBookPhotos(book.id), getBookQuestions(book.id), getMessages()]);
+  const [photos, questions, m] = await Promise.all([container().authoring.queries.photos(book.id), container().authoring.queries.questions(book.id), getMessages()]);
   const titles = new Map(questions.map((q) => [q.id, q.displayText ?? applyGender(q.title, book.authorGender, book.recipientGender)]));
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">

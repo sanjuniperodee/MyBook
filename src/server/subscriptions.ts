@@ -1,6 +1,7 @@
 import "server-only";
 import type { OrderCancelled, OrderPaid, OrderPlaced, OrderRef } from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
+import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
 
@@ -18,4 +19,9 @@ export function registerSubscriptions(c: Container) {
 
   // Новый клиент — сделка в воронке (после ответа, чтобы не задерживать регистрацию).
   c.bus.subscribe<UserRegistered>("identity.user_registered", (e) => runInBackground(async () => (await import("@/lib/crm/hooks")).onClientRegistered(e.payload.userId)), "crm.deal.client_registered");
+
+  // Книга начата / продвинулась — сделка идёт по воронке, поля сделки заполняются из книги.
+  const hooks = () => import("@/lib/crm/hooks");
+  c.bus.subscribe<BookStarted>("authoring.book_started", (e) => runInBackground(async () => (await hooks()).onBookStarted(e.payload.userId, { id: e.payload.bookId, ...e.payload })), "crm.deal.book_started");
+  c.bus.subscribe<BookProgressed>("authoring.book_progressed", (e) => runInBackground(async () => (await hooks()).onAnswerSaved(e.payload.bookId, e.payload.userId)), "crm.deal.book_progressed");
 }

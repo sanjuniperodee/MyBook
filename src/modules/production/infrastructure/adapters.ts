@@ -1,25 +1,42 @@
 import "server-only";
-import { fileExists, getFile, putFile } from "@/lib/storage";
+import { deletePrefix, fileExists, getFile, putFile } from "@/lib/storage";
 import { dedupe, withRenderSlot } from "@/lib/pdf/queue";
+import type { BookBundle } from "@/lib/pdf/render";
 import type { BookRenderer, FileStore, PrintSpec, RenderQueue } from "../application/PrintFilesService";
 
-export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putFile };
+export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putFile, deletePrefix };
 
 export const pdfRenderQueue: RenderQueue = { run: (key, task) => dedupe(key, () => withRenderSlot(task)) };
 
+/** Откуда рендер берёт содержимое книги (read-модель Authoring — подключается в корне композиции). */
+export type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
+
 /** Рендер через @react-pdf (тяжёлый модуль загружаем лениво). */
-export const reactPdfRenderer: BookRenderer = {
-  async renderPrintPackage(bookId, orderNumber) {
-    const { loadBookBundle, printSpecText, renderPrintPackage } = await import("@/lib/pdf/render");
-    const bundle = await loadBookBundle(bookId);
-    if (!bundle) return null;
-    const pkg = await renderPrintPackage(bundle);
-    const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString() };
-    return { interior: pkg.interior, cover: pkg.cover, spec: Buffer.from(printSpecText(bundle, pkg, orderNumber), "utf8"), printSpec };
-  },
-  async renderReading(bookId) {
-    const { loadBookBundle, renderReadingPdf } = await import("@/lib/pdf/render");
-    const bundle = await loadBookBundle(bookId);
-    return bundle ? renderReadingPdf(bundle) : null;
-  },
-};
+export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
+  const pdf = () => import("@/lib/pdf/render");
+  return {
+    async renderPrintPackage(bookId, orderNumber) {
+      const bundle = await load(bookId);
+      if (!bundle) return null;
+      const { printSpecText, renderPrintPackage } = await pdf();
+      const pkg = await renderPrintPackage(bundle);
+      const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString() };
+      return { interior: pkg.interior, cover: pkg.cover, spec: Buffer.from(printSpecText(bundle, pkg, orderNumber), "utf8"), printSpec };
+    },
+    async renderReading(bookId) {
+      const bundle = await load(bookId);
+      if (!bundle) return null;
+      return (await pdf()).renderReadingPdf(bundle);
+    },
+    async preview(bookId) {
+      const bundle = await load(bookId);
+      if (!bundle) return null;
+      const { contentFingerprint, renderInterior } = await pdf();
+      return { fingerprint: contentFingerprint(bundle), render: async () => (await renderInterior(bundle, "preview")).pdf };
+    },
+    async manuscript(bookId) {
+      const bundle = await load(bookId);
+      return bundle ? (await pdf()).plainText(bundle) : null;
+    },
+  };
+}

@@ -1,11 +1,10 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { and, asc, eq } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
-import { db } from "../db";
-import { bookLetters, bookQuestions, books, photos, type Book, type BookLetter, type BookQuestion, type Photo } from "../db/schema";
+import type { Book, BookLetter, BookQuestion, Photo } from "../db/schema";
+import { messagesFor } from "@/i18n/messages";
 import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "../book/covers";
 import {
   coverFrontGeometry,
@@ -26,22 +25,12 @@ import { InteriorDocument, type PreparedImage } from "./interior";
 
 export type RenderMode = "print" | "preview" | "reading";
 
+/** Книга со всем содержимым — бандл из read-модели Authoring (`authoring.queries.bundle`). */
 export interface BookBundle {
   book: Book;
   questions: BookQuestion[];
   photos: Photo[];
   letters?: BookLetter[];
-}
-
-export async function loadBookBundle(bookId: string): Promise<BookBundle | null> {
-  const book = await db.query.books.findFirst({ where: eq(books.id, bookId) });
-  if (!book) return null;
-  const [qs, ps, ls] = await Promise.all([
-    db.select().from(bookQuestions).where(eq(bookQuestions.bookId, bookId)).orderBy(asc(bookQuestions.position)),
-    db.select().from(photos).where(eq(photos.bookId, bookId)).orderBy(asc(photos.position)),
-    db.select().from(bookLetters).where(and(eq(bookLetters.bookId, bookId), eq(bookLetters.status, "approved"))).orderBy(asc(bookLetters.createdAt)),
-  ]);
-  return { book, questions: qs, photos: ps, letters: ls };
 }
 
 const modeSettings: Record<RenderMode, { dpi: number; bleed: number; source: "full" | "thumb"; watermark: boolean }> = {
@@ -95,6 +84,34 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
 
 export function contentFor(bundle: BookBundle): BookContent {
   return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), undefined, bundle.letters ?? []);
+}
+
+/** Отпечаток содержимого: меняется вместе с текстом, фото и их раскладкой — ключ кэша предпросмотра. */
+export function contentFingerprint(bundle: BookBundle): string {
+  return createHash("sha1")
+    .update(JSON.stringify(contentFor(bundle)))
+    .update(bundle.photos.map((p) => `${p.id}:${p.layout}:${p.caption}`).join("|"))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/** Текст книги одним файлом — резервная копия для клиента. */
+export function plainText(bundle: BookBundle): { title: string; text: string } {
+  const c = contentFor(bundle);
+  const t = messagesFor(c.language).book;
+  const lines: string[] = [c.title.toUpperCase()];
+  if (c.subtitle) lines.push(c.subtitle);
+  if (c.authorName) lines.push(c.authorName);
+  if (c.dedication) lines.push("", c.dedication);
+  for (const ch of c.chapters) {
+    lines.push("", "", `${t.chapter(ch.number).toUpperCase()}. ${ch.title.toUpperCase()}`);
+    for (const it of ch.items) {
+      lines.push("");
+      if (it.heading) lines.push(it.heading, "");
+      lines.push(it.answer);
+    }
+  }
+  return { title: c.title, text: lines.join("\r\n") + "\r\n" };
 }
 
 export interface InteriorResult {

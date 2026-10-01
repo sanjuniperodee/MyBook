@@ -53,6 +53,16 @@ export class DrizzleOrderingQueries {
     return rootDb.query.giftCards.findMany({ orderBy: desc(giftCards.createdAt), with: { promo: true }, limit });
   }
 
+  /** Последний заказ книги — для карточки книги в кабинете клиента. */
+  async lastOrderOfBook(bookId: string) {
+    return (await rootDb.query.orders.findFirst({ where: eq(orders.bookId, bookId), orderBy: desc(orders.createdAt) })) ?? null;
+  }
+
+  async bookHasOrders(bookId: string) {
+    const [r] = await rootDb.select({ id: orders.id }).from(orders).where(eq(orders.bookId, bookId)).limit(1);
+    return !!r;
+  }
+
   printJob(orderId: string) {
     return rootDb.query.orders.findFirst({ where: and(eq(orders.id, orderId)), columns: { id: true, bookId: true, number: true } });
   }

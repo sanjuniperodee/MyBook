@@ -5,7 +5,8 @@ import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infra
 import { OrderingModule } from "@/modules/ordering";
 import { IdentityModule } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
-import { PrintFilesService } from "@/modules/production";
+import { AuthoringModule } from "@/modules/authoring";
+import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
 
@@ -25,6 +26,11 @@ export class Container {
   #ordering?: OrderingModule;
   #identity?: IdentityModule;
   #access?: AccessModule;
+  #authoring?: AuthoringModule;
+
+  get authoring(): AuthoringModule {
+    return (this.#authoring ??= new AuthoringModule({ uow: this.uow, clock: this.clock, bus: this.bus, orders: { bookHasOrders: (bookId) => this.ordering.queries.bookHasOrders(bookId) } }));
+  }
 
   get identity(): IdentityModule {
     return (this.#identity ??= new IdentityModule({ uow: this.uow, clock: this.clock, steps: createStepStore() }));
@@ -42,13 +48,36 @@ export class Container {
     }));
   }
   #printFiles?: PrintFilesService;
+  #previews?: BookPreviewService;
+  #renderer?: BookRenderer;
+
+  /** Рендер PDF читает книгу через read-модель Authoring, а не таблицы напрямую. */
+  private get renderer(): BookRenderer {
+    return (this.#renderer ??= reactPdfRenderer((bookId) => this.authoring.queries.bundle(bookId)));
+  }
 
   get printFiles(): PrintFilesService {
-    return (this.#printFiles ??= new PrintFilesService(reactPdfRenderer, storageFileStore, pdfRenderQueue, consoleLogger("production")));
+    return (this.#printFiles ??= new PrintFilesService(this.renderer, storageFileStore, pdfRenderQueue, consoleLogger("production")));
+  }
+
+  get previews(): BookPreviewService {
+    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue));
   }
 
   get ordering(): OrderingModule {
-    return (this.#ordering ??= new OrderingModule({ uow: this.uow, bus: this.bus, clock: this.clock, logger: consoleLogger("ordering"), printFiles: this.printFiles }));
+    return (this.#ordering ??= new OrderingModule({
+      uow: this.uow,
+      bus: this.bus,
+      clock: this.clock,
+      logger: consoleLogger("ordering"),
+      printFiles: this.printFiles,
+      books: {
+        checkoutInfo: (bookId, userId, locale) => this.authoring.ordering.checkoutInfo(bookId, userId, locale),
+        lockForOrder: (bookId) => this.authoring.ordering.lockForOrder(bookId),
+        unlock: (bookId) => this.authoring.ordering.unlock(bookId),
+        toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
+      },
+    }));
   }
 
   /** Состояние инфраструктуры для /api/health: Redis (null — не настроен) и очередь событий outbox. */
@@ -62,6 +91,7 @@ export class Container {
     void this.ordering;
     void this.identity;
     void this.access;
+    void this.authoring;
     registerSubscriptions(this);
     return this;
   }

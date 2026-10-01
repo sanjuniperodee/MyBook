@@ -7,7 +7,6 @@ import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
 import { formatPrice, getPlan } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
-import { getBookStats } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { cn, formatDate } from "@/lib/utils";
@@ -29,7 +28,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const plan = getPlan(order.plan);
   const book = order.book;
   const [stats, admins, taskRows, noteRows, [clientStats]] = await Promise.all([
-    getBookStats(book),
+    container().authoring.queries.stats(book),
     listAdmins(),
     db.select().from(crmTasks).where(eq(crmTasks.orderId, order.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, crmTasks.dueAt),
     db.select().from(crmNotes).where(eq(crmNotes.clientId, order.userId)).orderBy(desc(crmNotes.createdAt)).limit(30),

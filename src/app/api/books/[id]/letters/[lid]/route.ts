@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { api, apiBook, HttpError } from "@/lib/api";
-import { db } from "@/lib/db";
-import { bookLetters } from "@/lib/db/schema";
-import { touchBook } from "@/lib/books";
+import { api, apiViewer } from "@/lib/api";
+import { container } from "@/server/container";
 
 type Ctx = { params: Promise<{ id: string; lid: string }> };
 
@@ -20,18 +17,15 @@ const schema = z
 
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, lid } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
-  const data = schema.parse(await req.json());
-  const [row] = await db.update(bookLetters).set(data).where(and(eq(bookLetters.id, lid), eq(bookLetters.bookId, book.id))).returning();
-  if (!row) throw new HttpError(404, "letterNotFound");
-  await touchBook(book.id);
-  return NextResponse.json({ letter: row });
+  const { viewer } = await apiViewer(req);
+  const authoring = container().authoring;
+  await authoring.letters.edit(id, viewer, lid, schema.parse(await req.json()));
+  return NextResponse.json({ letter: (await authoring.queries.letters(id)).find((l) => l.id === lid) });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, lid } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
-  const [row] = await db.delete(bookLetters).where(and(eq(bookLetters.id, lid), eq(bookLetters.bookId, book.id))).returning({ id: bookLetters.id });
-  if (!row) throw new HttpError(404, "letterNotFound");
+  const { viewer } = await apiViewer(req);
+  await container().authoring.letters.delete(id, viewer, lid);
   return NextResponse.json({ ok: true });
 });

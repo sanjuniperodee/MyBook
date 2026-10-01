@@ -2,8 +2,11 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getCurrentUser } from "@/server/auth";
-import { findAccessibleBook, isEditable } from "./books";
-import type { Book, User } from "./db/schema";
+import type { User } from "./db/schema";
+import type { BookRow, BookViewer } from "@/modules/authoring";
+import { DomainError } from "@/shared/domain";
+import { viewerOf } from "@/server/books";
+import { container } from "@/server/container";
 import { env } from "./env";
 import { can, getStaff, type Staff } from "@/server/access";
 import type { Permission } from "@/modules/access/domain/permissions";
@@ -38,6 +41,13 @@ function translate(t: ApiMessages, key: string, params: unknown[] = []): string 
   return typeof v === "function" ? v(...params) : v;
 }
 
+/** HTTP-статус для кода ошибки домена. */
+function domainStatus(code: string) {
+  if (code === "bookLocked" || code === "bookHasOrders" || code === "letterPrinted") return 409;
+  if (/NotFound$/.test(code) || code === "letterClosed" || code === "letterInvalid") return 404;
+  return 400;
+}
+
 function fail(t: ApiMessages, status: number, code: string, params?: unknown[]) {
   return NextResponse.json({ error: translate(t, code, params), code: isApiKey(t, code) ? code : undefined }, { status });
 }
@@ -52,6 +62,8 @@ export function api<C>(handler: Handler<C>): Handler<C> {
     } catch (err) {
       const t = (await getMessages()).api;
       if (err instanceof HttpError) return fail(t, err.status, err.code, err.params);
+      // Ошибки домена с кодом из словаря api (Authoring и др.) — сразу в ответ с подходящим статусом.
+      if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return fail(t, domainStatus(err.code), err.code);
       if (err instanceof SyntaxError) return fail(t, 400, "badRequest");
       if (err instanceof ZodError) {
         // В схемах сообщения — ключи словаря; встроенные сообщения zod (английские) заменяем общим текстом.
@@ -81,12 +93,19 @@ export async function apiUser(req: Request): Promise<User> {
   return user;
 }
 
-export async function apiBook(req: Request, bookId: string, opts: { editable?: boolean } = {}): Promise<{ user: User; book: Book }> {
+export async function apiBook(req: Request, bookId: string, opts: { editable?: boolean } = {}): Promise<{ user: User; book: BookRow; viewer: BookViewer }> {
   const user = await apiUser(req);
-  const book = await findAccessibleBook(bookId, user);
+  const viewer = viewerOf(user);
+  const book = await container().authoring.queries.visibleBook(bookId, viewer);
   if (!book) throw new HttpError(404, "bookNotFound");
-  if (opts.editable && !isEditable(book)) throw new HttpError(409, "bookLocked");
-  return { user, book };
+  if (opts.editable && book.status !== "draft") throw new HttpError(409, "bookLocked");
+  return { user, book, viewer };
+}
+
+/** Пользователь API как читатель книг (владелец или сотрудник). */
+export async function apiViewer(req: Request): Promise<{ user: User; viewer: BookViewer }> {
+  const user = await apiUser(req);
+  return { user, viewer: viewerOf(user) };
 }
 
 /** Сотрудник CRM с нужными правами (для API). */

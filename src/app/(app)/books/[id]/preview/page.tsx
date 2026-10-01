@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/lib/books";
+import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";

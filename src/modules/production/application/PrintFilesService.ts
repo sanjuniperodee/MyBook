@@ -22,6 +22,10 @@ export interface PrintSpec {
 export interface BookRenderer {
   renderPrintPackage(bookId: string, orderNumber: number): Promise<{ interior: Buffer; cover: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
   renderReading(bookId: string): Promise<Buffer | null>;
+  /** Предпросмотр: отпечаток содержимого (ключ кэша) и отложенный рендер. */
+  preview(bookId: string): Promise<{ fingerprint: string; render(): Promise<Buffer> } | null>;
+  /** Текст книги одним файлом. */
+  manuscript(bookId: string): Promise<{ title: string; text: string } | null>;
 }
 
 /** Порт файлового хранилища. */
@@ -29,6 +33,7 @@ export interface FileStore {
   exists(key: string): Promise<boolean>;
   get(key: string): Promise<Buffer>;
   put(key: string, data: Buffer): Promise<void>;
+  deletePrefix(prefix: string): Promise<void>;
 }
 
 /** Ограничение параллельных рендеров и склейка одинаковых запросов. */
@@ -91,5 +96,34 @@ export class PrintFilesService {
       this.logger.error(`warm-up failed for order ${job.number}`, err);
       return null;
     }
+  }
+}
+
+/**
+ * Предпросмотр книги для автора (с водяным знаком и облегчёнными фото) и выгрузка текста.
+ * PDF кэшируется по отпечатку содержимого, пока книга не изменилась; старые версии удаляются.
+ */
+export class BookPreviewService {
+  constructor(
+    private readonly renderer: BookRenderer,
+    private readonly files: FileStore,
+    private readonly queue: RenderQueue,
+  ) {}
+
+  async preview(bookId: string): Promise<Buffer | null> {
+    const draft = await this.renderer.preview(bookId);
+    if (!draft) return null;
+    const key = `cache/preview/${bookId}/${draft.fingerprint}.pdf`;
+    if (await this.files.exists(key)) return this.files.get(key);
+    return this.queue.run(key, async () => {
+      const pdf = await draft.render();
+      await this.files.deletePrefix(`cache/preview/${bookId}`);
+      await this.files.put(key, pdf);
+      return pdf;
+    });
+  }
+
+  manuscript(bookId: string) {
+    return this.renderer.manuscript(bookId);
   }
 }

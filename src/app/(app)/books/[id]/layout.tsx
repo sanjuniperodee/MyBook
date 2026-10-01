@@ -1,13 +1,11 @@
 import { Link } from "@/i18n/client";
-import { desc, eq } from "drizzle-orm";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/lib/books";
+import { getAccessibleBook } from "@/server/books";
 import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
-import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -20,7 +18,7 @@ export default async function BookLayout({ children, params }: { children: React
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const t = m.books.layout;
   const theme = getTheme(book.theme, locale);
-  const [order] = book.status === "draft" ? [] : await db.select({ id: orders.id, number: orders.number }).from(orders).where(eq(orders.bookId, book.id)).orderBy(desc(orders.createdAt)).limit(1);
+  const order = book.status === "draft" ? null : await container().ordering.queries.lastOrderOfBook(book.id);
 
   return (
     <>

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { desc, eq } from "drizzle-orm";
 import { ArrowRight, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook, getBookPhotos, getBookQuestions, getBookStats } from "@/lib/books";
+import { getAccessibleBook } from "@/server/books";
+import { container } from "@/server/container";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { Book3D } from "@/components/cover/Book3D";
@@ -14,8 +14,6 @@ import { getFormat, print } from "@/lib/book/formats";
 import { getLocale, getMessages } from "@/i18n/server";
 import { coverName, typographyName } from "@/i18n/labels";
 import { site } from "@/config/site";
-import { db } from "@/lib/db";
-import { bookLetters, orders } from "@/lib/db/schema";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
@@ -30,11 +28,11 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const user = await requireUser(`/books/${id}`);
   const book = await getAccessibleBook(id, user);
   const [stats, questions, photos, [order], letterRows] = await Promise.all([
-    getBookStats(book),
-    getBookQuestions(book.id),
-    getBookPhotos(book.id),
-    db.select().from(orders).where(eq(orders.bookId, book.id)).orderBy(desc(orders.createdAt)).limit(1),
-    db.select({ status: bookLetters.status }).from(bookLetters).where(eq(bookLetters.bookId, book.id)),
+    container().authoring.queries.stats(book),
+    container().authoring.queries.questions(book.id),
+    container().authoring.queries.photos(book.id),
+    container().ordering.queries.lastOrderOfBook(book.id).then((o) => (o ? [o] : [])),
+    container().authoring.queries.letters(book.id),
   ]);
   const letterStats = {
     approved: letterRows.filter((l) => l.status === "approved").length,

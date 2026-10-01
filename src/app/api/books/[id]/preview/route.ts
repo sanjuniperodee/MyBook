@@ -1,8 +1,5 @@
-import { createHash } from "node:crypto";
 import { api, apiBook, HttpError } from "@/lib/api";
-import { contentFor, loadBookBundle, renderInterior } from "@/lib/pdf/render";
-import { dedupe, withRenderSlot } from "@/lib/pdf/queue";
-import { deletePrefix, fileExists, getFile, putFile } from "@/lib/storage";
+import { container } from "@/server/container";
 
 export const maxDuration = 120;
 
@@ -10,29 +7,8 @@ export const maxDuration = 120;
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   await apiBook(req, id);
-  const bundle = await loadBookBundle(id);
-  if (!bundle) throw new HttpError(404, "bookNotFound");
-
-  const fingerprint = createHash("sha1")
-    .update(JSON.stringify(contentFor(bundle)))
-    .update(bundle.photos.map((p) => `${p.id}:${p.layout}:${p.caption}`).join("|"))
-    .digest("hex")
-    .slice(0, 16);
-  const key = `cache/preview/${id}/${fingerprint}.pdf`;
-
-  let pdf: Buffer;
-  if (await fileExists(key)) {
-    pdf = await getFile(key);
-  } else {
-    pdf = await dedupe(key, () =>
-      withRenderSlot(async () => {
-        const res = await renderInterior(bundle, "preview");
-        await deletePrefix(`cache/preview/${id}`);
-        await putFile(key, res.pdf);
-        return res.pdf;
-      }),
-    );
-  }
+  const pdf = await container().previews.preview(id);
+  if (!pdf) throw new HttpError(404, "bookNotFound");
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",

@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import { crmAfter, onAnswerSaved } from "@/lib/crm/hooks";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { api, apiBook, HttpError } from "@/lib/api";
-import { db } from "@/lib/db";
-import { bookQuestions } from "@/lib/db/schema";
-import { touchBook } from "@/lib/books";
+import { api, apiViewer } from "@/lib/api";
+import { container } from "@/server/container";
 
 const schema = z
   .object({
@@ -18,29 +14,17 @@ const schema = z
 
 type Ctx = { params: Promise<{ id: string; qid: string }> };
 
+/** Автосохранение ответа и заголовка вопроса. */
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, qid } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
-  const data = schema.parse(await req.json());
-  if (data.displayText === "") data.displayText = null;
-  const [q] = await db
-    .update(bookQuestions)
-    .set(data)
-    .where(and(eq(bookQuestions.id, qid), eq(bookQuestions.bookId, book.id)))
-    .returning({ id: bookQuestions.id, updatedAt: bookQuestions.updatedAt });
-  if (!q) throw new HttpError(404, "questionNotFound");
-  await touchBook(book.id);
-  if (data.answer !== undefined) crmAfter(() => onAnswerSaved(book.id, book.userId));
-  return NextResponse.json({ ok: true, updatedAt: q.updatedAt });
+  const { viewer } = await apiViewer(req);
+  await container().authoring.questions.edit(id, viewer, qid, schema.parse(await req.json()));
+  return NextResponse.json({ ok: true, updatedAt: new Date() });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, qid } = await params;
-  const { book } = await apiBook(req, id, { editable: true });
-  const [q] = await db
-    .delete(bookQuestions)
-    .where(and(eq(bookQuestions.id, qid), eq(bookQuestions.bookId, book.id), eq(bookQuestions.questionKey, "custom")))
-    .returning({ id: bookQuestions.id });
-  if (!q) throw new HttpError(400, "onlyOwnQuestions");
+  const { viewer } = await apiViewer(req);
+  await container().authoring.questions.deleteCustom(id, viewer, qid);
   return NextResponse.json({ ok: true });
 });

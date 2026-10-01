@@ -194,6 +194,8 @@ try {
 
   // ─── 7. План продаж ────────────────────────────────────────────────────
   const [me] = await q(`select id from users where email = 'admin@mybook.local'`);
+  // План от прошлого прогона: кнопка «Сохранить» появляется только при изменении значения.
+  await q(`delete from crm_plans where user_id = $1`, [me.id]);
   await admin.goto(`${base}/admin/team/plans`);
   const planRow = admin.getByTestId("plans").locator("tr", { has: admin.getByLabel(/План в тенге: admin/) });
   await planRow.getByLabel(/План в тенге/).fill("500000");

@@ -3,6 +3,7 @@
  * поэтому размеры и кадрирование совпадают до пикселя.
  */
 import type { InlinePhotoStyle } from "../db/schema";
+export type { InlinePhotoStyle };
 
 export const defaultInlineStyle: InlinePhotoStyle = {
   width: 100,

@@ -1,9 +1,7 @@
-import "server-only";
-import type { Book, Photo } from "./db/schema";
-import type { BookStats } from "./books";
-import { getCoverTemplate } from "./book/covers";
-import { getFormat, print } from "./book/formats";
-import { effectiveDpi, photoAreaMm } from "./book/layout";
+import { getCoverTemplate } from "@/lib/book/covers";
+import { getFormat, print } from "@/lib/book/formats";
+import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
+import type { BookStats } from "./stats";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 
@@ -13,7 +11,11 @@ export interface ReadinessIssue {
   href?: string;
 }
 
-export function checkReadiness(book: Book, stats: BookStats, photos: Photo[], locale: Locale = "ru"): ReadinessIssue[] {
+type ReadinessBook = { id: string; coverTemplate: string; coverPhotoId: string | null; authorName: string; format: string };
+type ReadinessPhoto = { width: number; height: number; layout: "full" | "bleed" | "half" };
+
+/** Готова ли книга к печати: ошибки блокируют заказ, предупреждения — подсказки. */
+export function checkReadiness(book: ReadinessBook, stats: BookStats, photos: ReadinessPhoto[], locale: Locale = "ru"): ReadinessIssue[] {
   const t = messagesFor(locale).books.readiness;
   const issues: ReadinessIssue[] = [];
   const base = `/books/${book.id}`;

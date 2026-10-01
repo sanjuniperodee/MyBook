@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook, getBookPhotos } from "@/lib/books";
+import { getAccessibleBook } from "@/server/books";
+import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
 import { CoverEditor } from "./CoverEditor";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -13,7 +14,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/books/${id}/cover`);
   const book = await getAccessibleBook(id, user);
-  const photos = await getBookPhotos(book.id);
+  const photos = await container().authoring.queries.photos(book.id);
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const theme = getTheme(book.theme, locale);
   return (

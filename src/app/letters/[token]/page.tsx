@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { books } from "@/lib/db/schema";
+import { container } from "@/server/container";
 import { Logo } from "@/components/Logo";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -17,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LetterPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^[A-Za-z0-9_-]{10,40}$/.test(token)) notFound();
-  const book = await db.query.books.findFirst({ where: eq(books.inviteToken, token) });
+  const book = await container().authoring.queries.bookByInviteToken(token);
   if (!book) notFound();
   const t = (await getMessages()).gift.letter;
   const author = book.authorName.trim();
