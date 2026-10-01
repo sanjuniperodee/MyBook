@@ -2,6 +2,7 @@ import "server-only";
 import type { Clock, EventBus, Logger, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import type { PrintFilesService } from "@/modules/production";
+import { runInBackground } from "@/shared/infrastructure/background";
 import { GiftsService, OrdersService, PromoService } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
@@ -68,7 +69,7 @@ export class OrderingModule {
       "ordering.order_paid",
       async (e) => {
         // Файлы для типографии готовим в фоне, чтобы не задерживать ответ платёжной системе.
-        background(async () => {
+        runInBackground(async () => {
           const spec = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
           if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
         }, this.deps.logger);
@@ -96,17 +97,4 @@ export class OrderingModule {
     const gift = await this.queries.giftByToken(token);
     return gift?.promo ? { gift, pdf: await this.mailer.giftPdf(gift) } : null;
   }
-}
-
-function background(task: () => Promise<void>, logger: Logger) {
-  const job = () => task().catch((err) => logger.error("background job failed", err));
-  import("next/server")
-    .then(({ after }) => {
-      try {
-        after(job);
-      } catch {
-        void job(); // вне HTTP-запроса (скрипты, планировщик)
-      }
-    })
-    .catch(() => void job());
 }

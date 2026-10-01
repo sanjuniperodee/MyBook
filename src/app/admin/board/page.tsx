@@ -4,7 +4,7 @@ import Link from "next/link";
 import { and, desc, gte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";

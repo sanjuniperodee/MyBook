@@ -18,7 +18,7 @@ import { db } from "@/lib/db";
 import { crmNotes, crmTasks, orders as ordersTable } from "@/lib/db/schema";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { ClipboardList, UserRound } from "lucide-react";
-import { can, contactView, requireStaff } from "@/lib/crm/rbac";
+import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {

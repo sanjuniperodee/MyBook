@@ -1,12 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
-import { hashPassword, hashToken, requireUser, verifyPassword } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { sessions, users } from "@/lib/db/schema";
+import { requireUser, sessionToken } from "@/server/auth";
+import { container } from "@/server/container";
+import { IdentityError } from "@/modules/identity";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { getMessages } from "@/i18n/server";
 
@@ -25,7 +23,7 @@ export async function updateProfileAction(_: AccountState, form: FormData): Prom
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  await db.update(users).set({ name: parsed.data.name, phone: parsed.data.phone || null }).where(eq(users.id, user.id));
+  await container().identity.accounts.updateProfile(user.id, parsed.data.name, parsed.data.phone || null);
   revalidatePath("/account");
   return { ok: t.saved };
 }
@@ -34,13 +32,12 @@ export async function changePasswordAction(_: AccountState, form: FormData): Pro
   const user = await requireUser();
   const t = (await getMessages()).orders.account;
   if (!rateLimit(`pwd:${user.id}:${await clientIp()}`, 10, 900_000)) return { error: t.errors.tooMany };
-  const current = String(form.get("current") ?? "");
-  const next = String(form.get("next") ?? "");
-  if (next.length < 8) return { error: t.errors.short };
-  if (!(await verifyPassword(current, user.passwordHash))) return { error: t.errors.wrong };
-  await db.update(users).set({ passwordHash: await hashPassword(next) }).where(eq(users.id, user.id));
-  // Выходим на всех остальных устройствах, текущая сессия остаётся.
-  const token = (await cookies()).get("mb_session")?.value;
-  await db.delete(sessions).where(token ? and(eq(sessions.userId, user.id), ne(sessions.id, hashToken(token))) : eq(sessions.userId, user.id));
+  try {
+    // Выходим на всех остальных устройствах, текущая сессия остаётся.
+    await container().identity.accounts.changePassword(user.id, String(form.get("current") ?? ""), String(form.get("next") ?? ""), await sessionToken());
+  } catch (err) {
+    if (err instanceof IdentityError) return { error: err.code === "password" ? t.errors.short : t.errors.wrong };
+    throw err;
+  }
   return { ok: t.changed };
 }

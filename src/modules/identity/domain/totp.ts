@@ -29,7 +29,7 @@ export function base32Decode(input: string): Buffer {
   const out: number[] = [];
   for (const ch of clean) {
     const idx = ALPHABET.indexOf(ch);
-    if (idx < 0) throw new Error("Некорректный ключ");
+    if (idx < 0) throw new Error("invalid base32 secret");
     value = (value << 5) | idx;
     bits += 5;
     if (bits >= 8) {

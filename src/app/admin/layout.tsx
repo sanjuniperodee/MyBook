@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { requireStaffShell } from "@/lib/crm/rbac";
+import { requireStaffShell } from "@/server/access";
 import { logoutAction } from "@/app/(auth)/actions";
 import { adminLabel } from "@/lib/crm";
 import { getLive } from "@/lib/crm/live";
@@ -7,7 +7,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
 import { webphoneAvailable } from "@/lib/crm/telephony";
-import { can } from "@/lib/crm/rbac";
+import { can } from "@/server/access";
 
 export const metadata = {
   title: { default: "CRM", template: "%s · CRM" },

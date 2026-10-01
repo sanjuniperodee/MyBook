@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { EmptyState, GiftArt } from "@/components/illustrations";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";

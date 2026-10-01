@@ -1,7 +1,7 @@
 import { Logo } from "@/components/Logo";
 import { AppNav } from "@/components/AppNav";
 import type { User } from "@/lib/db/schema";
-import { isStaff } from "@/lib/auth";
+import { isStaff } from "@/server/auth";
 
 export function AppHeader({ user }: { user: User }) {
   return (

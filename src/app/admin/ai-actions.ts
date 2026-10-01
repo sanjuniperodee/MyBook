@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmConversations, crmDeals, crmTasks } from "@/lib/db/schema";
-import { assertStaff, assertVisible, audit } from "@/lib/crm/rbac";
+import { assertStaff, assertVisible, audit } from "@/server/access";
 import { adminLabel } from "@/lib/crm";
 import { AiError, extractDealFields, suggestReply, summarizeDeal } from "@/lib/crm/ai";
 import { listFields } from "@/lib/crm/fields";

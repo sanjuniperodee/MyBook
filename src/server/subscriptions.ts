@@ -1,5 +1,7 @@
 import "server-only";
 import type { OrderCancelled, OrderPaid, OrderPlaced, OrderRef } from "@/modules/ordering";
+import type { UserRegistered } from "@/modules/identity";
+import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
 
 /**
@@ -13,4 +15,7 @@ export function registerSubscriptions(c: Container) {
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", async (e) => (await crm()).onOrderCreated(toOrder(e.payload)), "crm.deal.order_created");
   c.bus.subscribe<OrderPaid>("ordering.order_paid", async (e) => (await crm()).onOrderPaid(toOrder(e.payload)), "crm.deal.order_paid");
   c.bus.subscribe<OrderCancelled>("ordering.order_cancelled", async (e) => (await crm()).onOrderCancelled(toOrder(e.payload)), "crm.deal.order_cancelled");
+
+  // Новый клиент — сделка в воронке (после ответа, чтобы не задерживать регистрацию).
+  c.bus.subscribe<UserRegistered>("identity.user_registered", (e) => runInBackground(async () => (await import("@/lib/crm/hooks")).onClientRegistered(e.payload.userId)), "crm.deal.client_registered");
 }

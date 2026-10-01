@@ -6,7 +6,7 @@ import { and, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-or
 import { Plus, Settings2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmDeals, crmSavedViews, crmStages, dealSources, type DealSource } from "@/lib/db/schema";
-import { can, canAssignOthers, ownScope, requireStaff } from "@/lib/crm/rbac";
+import { can, canAssignOthers, ownScope, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { dealSourceLabels, listPipelines, listStages } from "@/lib/crm/deals";
 import { formatPrice } from "@/config/site";

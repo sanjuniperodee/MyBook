@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { CalendarHeart, Plus } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { listUserBooks } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";

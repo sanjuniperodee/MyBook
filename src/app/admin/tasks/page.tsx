@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, asc, desc, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmTasks, orders, users } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";

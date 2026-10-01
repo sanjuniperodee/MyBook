@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { api, apiStaff, HttpError } from "@/lib/api";
 import { db } from "@/lib/db";
 import { crmCalls } from "@/lib/db/schema";
-import { audit, canSeeAssigned } from "@/lib/crm/rbac";
+import { audit, canSeeAssigned } from "@/server/access";
 import { recordingUrl, TelephonyError } from "@/lib/crm/telephony";
 
 /**

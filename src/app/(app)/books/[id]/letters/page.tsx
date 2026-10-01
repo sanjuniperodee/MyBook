@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { asc, eq } from "drizzle-orm";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/lib/books";
 import { db } from "@/lib/db";
 import { bookLetters } from "@/lib/db/schema";

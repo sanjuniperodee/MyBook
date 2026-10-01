@@ -3,7 +3,7 @@ import { and, desc, eq, gte, isNull, sql, type SQL } from "drizzle-orm";
 import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmCalls, crmDeals, users } from "@/lib/db/schema";
-import { can, contactView, ownScope, requireStaff } from "@/lib/crm/rbac";
+import { can, contactView, ownScope, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { formatPhone } from "@/lib/crm/phone";
 import { telephonyProvider } from "@/lib/crm/telephony";

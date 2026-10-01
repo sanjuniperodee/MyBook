@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSetting } from "@/lib/crm/settings";
-import { safeEqual } from "@/lib/crm/crypto";
+import { safeEqual } from "@/shared/crypto";
 import { parseWazzupWebhook } from "@/lib/crm/wazzup-protocol";
 import { applyStatus, ingestMessage } from "@/lib/crm/chats";
 

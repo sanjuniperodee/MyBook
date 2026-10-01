@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { listFields } from "@/lib/crm/fields";
 import { cn } from "@/lib/utils";
 import { FieldEditor } from "./FieldEditor";

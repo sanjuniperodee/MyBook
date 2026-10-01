@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSetting } from "@/lib/crm/settings";
-import { safeEqual } from "@/lib/crm/crypto";
+import { safeEqual } from "@/shared/crypto";
 import { parseInboundWebhook } from "@/lib/crm/email-logic";
 import { ingestEmail } from "@/lib/crm/email";
 

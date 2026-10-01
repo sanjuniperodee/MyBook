@@ -3,7 +3,7 @@
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { toIsoDay } from "@/lib/occasions";
 import { queueEvent } from "@/lib/track";

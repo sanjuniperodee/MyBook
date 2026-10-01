@@ -2,7 +2,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { canAssignOthers, requireStaff } from "@/lib/crm/rbac";
+import { canAssignOthers, requireStaff } from "@/server/access";
 import { listAdmins, staffOptions } from "@/lib/crm";
 import { listPipelines, listStages } from "@/lib/crm/deals";
 import { NewDealForm } from "./NewDealForm";

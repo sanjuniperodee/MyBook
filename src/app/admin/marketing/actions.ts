@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmLinks } from "@/lib/db/schema";
-import { assertStaff, audit } from "@/lib/crm/rbac";
+import { assertStaff, audit } from "@/server/access";
 import { normalizeSlug } from "@/lib/crm/channels";
 import { saveSettings } from "@/lib/crm/settings";
 

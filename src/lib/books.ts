@@ -4,7 +4,7 @@ import { cache } from "react";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "./db";
-import { isStaff } from "./auth";
+import { isStaff } from "@/server/auth";
 import { bookLetters, bookQuestions, books, photos, type Book, type Gender, type User } from "./db/schema";
 import { getTheme } from "./content/themes";
 import type { ThemeId } from "./content/types";

@@ -18,7 +18,7 @@ import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/compone
 import { cn, formatDate } from "@/lib/utils";
 import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
 import { formatPhone } from "@/lib/crm/phone";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { dealSourceLabels } from "@/lib/crm/deals";
 

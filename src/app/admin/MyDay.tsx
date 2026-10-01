@@ -4,7 +4,7 @@ import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm"
 import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, crmStages, crmTasks } from "@/lib/db/schema";
-import { can, contactView, ownScope, type Staff } from "@/lib/crm/rbac";
+import { can, contactView, ownScope, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/lib/crm/phone";
 import { channelLabel } from "@/lib/crm/chats";

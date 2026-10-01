@@ -27,7 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
-import type { Permission } from "@/lib/crm/permissions";
+import type { Permission } from "@/modules/access/domain/permissions";
 import type { CrmCounters } from "@/lib/crm";
 import { useLive } from "./CrmLive";
 import { cn } from "@/lib/utils";

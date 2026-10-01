@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeNextPath } from "@/lib/auth";
+import { safeNextPath } from "@/modules/identity/domain/redirects";
 import { buildBookContent, LETTERS_CHAPTER } from "@/lib/book/layout";
 
 describe("safeNextPath", () => {

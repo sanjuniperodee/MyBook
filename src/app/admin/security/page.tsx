@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { can, requireStaffShell } from "@/lib/crm/rbac";
+import { can, requireStaffShell } from "@/server/access";
 import { getSetting } from "@/lib/crm/settings";
 import { adminLabel } from "@/lib/crm";
 import { trustedClientIp } from "@/lib/rate-limit";

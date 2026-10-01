@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
+import { canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/lib/crm/phone";
 import { formatDate } from "@/lib/utils";
 

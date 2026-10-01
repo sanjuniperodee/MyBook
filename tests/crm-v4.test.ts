@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { base32Decode, base32Encode, hashBackupCode, hotp, isBackupCodeShape, otpauthUrl, totp, verifyTotp, generateBackupCodes, generateSecret } from "@/lib/crm/totp";
-import { ipAllowed, normalizeIp, parseAllowlist } from "@/lib/crm/ip";
-import { signValue, verifySigned } from "@/lib/crm/crypto";
+import { base32Decode, base32Encode, hashBackupCode, hotp, isBackupCodeShape, otpauthUrl, totp, verifyTotp, generateBackupCodes, generateSecret } from "@/modules/identity/domain/totp";
+import { ipAllowed, normalizeIp, parseAllowlist } from "@/modules/access/domain/ip";
+import { signValue, verifySigned } from "@/shared/crypto";
 import { htmlToText, parseAddress, parseInboundWebhook, replySubject, stripQuoted } from "@/lib/crm/email-logic";
 import { businessContext, cleanReply, extractSchema, normalizeExtracted, parseSummary, transcript, type AiField } from "@/lib/crm/ai-logic";
 

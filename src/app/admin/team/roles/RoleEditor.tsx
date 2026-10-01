@@ -4,7 +4,7 @@ import { ask, toastError } from "@/components/ui/overlays";
 import { useActionState, useState, useTransition } from "react";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import { deleteRoleAction, saveRoleAction, type TeamState } from "../actions";
-import { permissionGroups, type Permission } from "@/lib/crm/permissions";
+import { permissionGroups, type Permission } from "@/modules/access/domain/permissions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { cn } from "@/lib/utils";
 

@@ -1,7 +1,7 @@
 import { asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmBlocklist, crmTemplates } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { fromEnv, getSetting, getSettings, maskSecret } from "@/lib/crm/settings";
 import { smtpConfigured } from "@/lib/mail";
 import { env } from "@/lib/env";

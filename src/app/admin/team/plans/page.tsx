@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { adminLabel } from "@/lib/crm";
 import { currentMonth, planProgress, shiftMonth } from "@/lib/crm/plans";
 import { formatPrice } from "@/config/site";

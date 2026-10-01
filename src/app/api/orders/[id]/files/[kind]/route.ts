@@ -1,5 +1,5 @@
 import { api, apiUser, HttpError } from "@/lib/api";
-import { can, getStaff } from "@/lib/crm/rbac";
+import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import type { PrintFileKind as OrderFileKind } from "@/modules/production";
 import { getPlan } from "@/config/site";

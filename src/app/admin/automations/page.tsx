@@ -1,7 +1,7 @@
 import { asc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmAutomations } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { listAdmins, staffOptions } from "@/lib/crm";
 import { listPipelines, listStages } from "@/lib/crm/deals";
 import { formatDate } from "@/lib/utils";

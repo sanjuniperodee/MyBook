@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { crmTasks, orderEvents, orders, users } from "@/lib/db/schema";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
-import { can, requireStaff } from "@/lib/crm/rbac";
+import { can, requireStaff } from "@/server/access";
 import { MyDay } from "./MyDay";
 import { channelReport } from "@/lib/crm/marketing";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";

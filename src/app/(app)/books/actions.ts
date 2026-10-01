@@ -4,7 +4,7 @@ import { crmAfter, onBookStarted } from "@/lib/crm/hooks";
 import { getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { createBook } from "@/lib/books";
 import { queueEvent } from "@/lib/track";
 import { isThemeId } from "@/lib/content/themes";

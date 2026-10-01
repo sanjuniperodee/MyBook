@@ -1,5 +1,5 @@
 import { api, apiStaff } from "@/lib/api";
-import { audit } from "@/lib/crm/rbac";
+import { audit } from "@/server/access";
 import { clientSegments, toCsv, type ClientSegment } from "@/lib/crm";
 import { queryClients } from "@/lib/crm-clients";
 

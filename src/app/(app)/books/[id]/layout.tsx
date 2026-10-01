@@ -1,6 +1,6 @@
 import { Link } from "@/i18n/client";
 import { desc, eq } from "drizzle-orm";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";

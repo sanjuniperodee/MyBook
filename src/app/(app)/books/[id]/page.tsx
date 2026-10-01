@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { desc, eq } from "drizzle-orm";
 import { ArrowRight, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { getAccessibleBook, getBookPhotos, getBookQuestions, getBookStats } from "@/lib/books";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";

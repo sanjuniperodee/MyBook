@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/lib/crm/rbac";
+import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { db } from "@/lib/db";
 import { crmDeals, crmNotes, crmTasks, orders, orderStatuses, users } from "@/lib/db/schema";
 import { notify } from "@/lib/crm/notify";

@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { lredirect } from "@/i18n/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { isSecureCookie } from "@/lib/env";
 import { container } from "@/server/container";
 import { clientIp, rateLimit } from "@/lib/rate-limit";

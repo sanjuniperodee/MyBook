@@ -2,7 +2,7 @@ import { usersId } from "@/lib/db/refs";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmCalls, crmDeals, crmRoles, users } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { formatDate } from "@/lib/utils";
 import { StaffForm, StaffRow } from "./TeamControls";
 

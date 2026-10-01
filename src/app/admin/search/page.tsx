@@ -6,7 +6,7 @@ import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/l
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
-import { can, contactView, ownScope, requireStaff } from "@/lib/crm/rbac";
+import { can, contactView, ownScope, requireStaff } from "@/server/access";
 import { formatPhone } from "@/lib/crm/phone";
 import { channelLabel } from "@/lib/crm/chats";
 

@@ -4,7 +4,7 @@ import { desc, sql } from "drizzle-orm";
 import { Download, Kanban } from "lucide-react";
 import { db } from "@/lib/db";
 import { orders, orderStatuses } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { formatPrice, plans } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { adminLabel, listAdmins } from "@/lib/crm";

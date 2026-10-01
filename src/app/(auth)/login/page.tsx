@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { getMessages, lredirect } from "@/i18n/server";
-import { getCurrentUser, safeNextPath } from "@/lib/auth";
+import { getCurrentUser, safeNextPath } from "@/server/auth";
 import { LoginForm } from "./LoginForm";
 
 export async function generateMetadata(): Promise<Metadata> {

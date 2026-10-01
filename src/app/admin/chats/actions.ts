@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmConversations, users } from "@/lib/db/schema";
-import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/lib/crm/rbac";
+import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { addInternalNote, channelLabel, markConversationRead, sendChatMessage } from "@/lib/crm/chats";
 import { buildOffer, type OfferRequest } from "@/lib/crm/offers";
 import { notifyMentions } from "@/lib/crm/mentions";

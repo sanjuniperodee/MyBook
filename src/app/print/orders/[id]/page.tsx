@@ -1,6 +1,6 @@
 import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
 import { formatDate } from "@/lib/utils";

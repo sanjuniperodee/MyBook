@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { crmNotifications, crmRoles, users } from "../db/schema";
-import type { Permission } from "./permissions";
+import type { Permission } from "@/modules/access/domain/permissions";
 
 export interface NotificationInput {
   kind: "message" | "call" | "task" | "deal" | "sla" | "system" | "mention";

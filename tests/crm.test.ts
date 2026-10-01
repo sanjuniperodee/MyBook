@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, systemRoles } from "@/lib/crm/permissions";
+import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, systemRoles } from "@/modules/access/domain/permissions";
 import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/lib/crm/phone";
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/lib/crm/telephony-protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/lib/crm/wazzup-protocol";
@@ -11,7 +11,7 @@ import { findMentions } from "@/lib/crm/mentions";
 import { milestoneOrder, stageMilestones } from "@/lib/crm/deal-meta";
 import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/lib/crm/channels";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, questionText } from "@/lib/crm/bot-logic";
-import { decryptSecret, encryptSecret, safeEqual } from "@/lib/crm/crypto";
+import { decryptSecret, encryptSecret, safeEqual } from "@/shared/crypto";
 import { matches } from "@/lib/crm/automations";
 
 const migration = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0013_crm_pro.sql"), "utf8");

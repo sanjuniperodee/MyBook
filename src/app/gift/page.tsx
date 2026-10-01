@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Gift, PenLine, Sparkles } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { Faq } from "@/components/Faq";
 import { GiftForm } from "./GiftForm";
 import { getLocale, getMessages } from "@/i18n/server";

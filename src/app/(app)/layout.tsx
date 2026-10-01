@@ -1,5 +1,5 @@
 import { AppHeader } from "@/components/AppHeader";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();

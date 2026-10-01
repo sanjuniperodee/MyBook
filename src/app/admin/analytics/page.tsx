@@ -2,7 +2,7 @@ import Link from "next/link";
 import { currentMonth, planProgress } from "@/lib/crm/plans";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { adminLabel, listAdmins } from "@/lib/crm";
 import { channelOf, channels, toAttribution } from "@/lib/crm/channels";
 import { listPipelines, listStages } from "@/lib/crm/deals";

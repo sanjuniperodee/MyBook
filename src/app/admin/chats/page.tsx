@@ -3,7 +3,7 @@ import { and, eq, gt, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmConversations, crmDeals, crmStages, users } from "@/lib/db/schema";
-import { can, canAssignOthers, canSeeAssigned, contactView, ownScope, requireStaff } from "@/lib/crm/rbac";
+import { can, canAssignOthers, canSeeAssigned, contactView, ownScope, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { channelLabel } from "@/lib/crm/chats";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/lib/crm/channels";

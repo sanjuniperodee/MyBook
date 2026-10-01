@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { getMessages, lredirect } from "@/i18n/server";
-import { getCurrentUser, safeNextPath } from "@/lib/auth";
-import { readTicket } from "@/lib/crm/two-factor";
+import { getCurrentUser, safeNextPath } from "@/server/auth";
+import { readTwoFactorTicket as readTicket } from "@/server/auth";
 import { TwoFactorForm } from "./TwoFactorForm";
 
 export async function generateMetadata(): Promise<Metadata> {

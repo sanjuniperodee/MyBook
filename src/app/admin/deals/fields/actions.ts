@@ -5,7 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmFields, customFieldTypes } from "@/lib/db/schema";
-import { assertStaff, audit } from "@/lib/crm/rbac";
+import { assertStaff, audit } from "@/server/access";
 import { normalizeSlug } from "@/lib/crm/channels";
 
 export type FieldState = { ok?: string; error?: string };

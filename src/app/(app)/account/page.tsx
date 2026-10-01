@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { site } from "@/config/site";
 import { PasswordForm, ProfileForm } from "./AccountForms";
 import { LanguageSwitch } from "@/components/LanguageSwitch";

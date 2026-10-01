@@ -3,7 +3,7 @@
 import { queueEvent } from "@/lib/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { deliveryOptions, getPlan, plans, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";

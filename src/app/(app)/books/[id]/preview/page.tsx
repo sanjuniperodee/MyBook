@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/lib/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";

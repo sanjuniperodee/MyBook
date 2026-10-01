@@ -7,7 +7,7 @@ import { parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 
 import { GiftActions } from "./GiftActions";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 
 const ru = messagesFor("ru").common;
 

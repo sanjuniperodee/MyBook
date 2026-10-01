@@ -2,8 +2,8 @@ import { crmRolesId } from "@/lib/db/refs";
 import { asc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmRoles, users } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
-import { allPermissions, type Permission } from "@/lib/crm/permissions";
+import { requireStaff } from "@/server/access";
+import { allPermissions, type Permission } from "@/modules/access/domain/permissions";
 import { RoleEditor } from "./RoleEditor";
 
 export const metadata = { title: "Роли и права" };

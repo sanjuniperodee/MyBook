@@ -11,7 +11,7 @@ import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/lib/crm-clients";
 import { cn, formatDate } from "@/lib/utils";
 import { RemindAll } from "./RemindAll";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 
 const themes = getThemes("ru");
 

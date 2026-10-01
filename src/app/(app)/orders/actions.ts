@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 
 /** Клиент сообщает, что оплатил переводом — администратор проверит поступление. */

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { isLocale, LOCALE_COOKIE } from "@/i18n/config";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 

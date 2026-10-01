@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { trustedClientIp } from "@/lib/rate-limit";
 import { logoutAction } from "@/app/(auth)/actions";
 

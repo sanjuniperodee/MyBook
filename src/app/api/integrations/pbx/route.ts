@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSetting } from "@/lib/crm/settings";
-import { safeEqual } from "@/lib/crm/crypto";
+import { safeEqual } from "@/shared/crypto";
 import { parseGenericEvent } from "@/lib/crm/telephony-protocol";
 import { handleCallEvent } from "@/lib/crm/telephony";
 

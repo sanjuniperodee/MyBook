@@ -2,7 +2,7 @@ import { desc } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { crmLinks } from "@/lib/db/schema";
-import { can, requireStaff } from "@/lib/crm/rbac";
+import { can, requireStaff } from "@/server/access";
 import { channelReport, conversion } from "@/lib/crm/marketing";
 import { channelLabel } from "@/lib/crm/channels";
 import { linkTarget, shopWhatsapp, shortUrl } from "@/lib/crm/links";

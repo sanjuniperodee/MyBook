@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { api, apiUser, HttpError } from "@/lib/api";
-import { isStaff } from "@/lib/auth";
+import { isStaff } from "@/server/auth";
 import { db } from "@/lib/db";
 import { books, photos } from "@/lib/db/schema";
 import { getFile } from "@/lib/storage";

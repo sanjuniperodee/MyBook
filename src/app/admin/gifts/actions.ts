@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { assertStaff } from "@/lib/crm/rbac";
+import { assertStaff } from "@/server/access";
 import { container } from "@/server/container";
 
 const uuid = z.string().uuid();

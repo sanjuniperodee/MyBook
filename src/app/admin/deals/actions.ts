@@ -7,7 +7,7 @@ import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmBlocklist, crmConversations, crmDeals, crmPipelines, crmSavedViews, crmStages, dealSources, users } from "@/lib/db/schema";
-import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/lib/crm/rbac";
+import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { addDealNote, assignDeal, createDeal, defaultPipelineId, mergeDeals, moveDeal, stageOfKind } from "@/lib/crm/deals";
 import { notify } from "@/lib/crm/notify";
 import { normalizePhone } from "@/lib/crm/phone";

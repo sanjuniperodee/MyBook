@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { crmDeals } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/crm/rbac";
+import { requireStaff } from "@/server/access";
 import { listPipelines, listStages } from "@/lib/crm/deals";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { cn } from "@/lib/utils";

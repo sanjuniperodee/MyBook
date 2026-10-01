@@ -5,7 +5,7 @@ import { clientSegments, type ClientSegment } from "@/lib/crm";
 import { queryClients, segmentCounts, type ClientSort } from "@/lib/crm-clients";
 import { formatPrice } from "@/config/site";
 import { cn, formatDate } from "@/lib/utils";
-import { can, contactView, requireStaff } from "@/lib/crm/rbac";
+import { can, contactView, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins } from "@/lib/crm";
 
 export const metadata = { title: "Клиенты" };

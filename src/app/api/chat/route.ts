@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { api, checkOrigin, HttpError } from "@/lib/api";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { isSecureCookie } from "@/lib/env";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { randomToken } from "@/lib/crm/crypto";
+import { randomToken } from "@/shared/crypto";
 import { postSiteMessage, siteMessages, VISITOR_COOKIE, widgetConfig } from "@/lib/crm/site-chat";
 
 /** Онлайн-чат на сайте: посетитель пишет, менеджер отвечает из единого инбокса CRM. */

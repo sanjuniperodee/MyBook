@@ -1,7 +1,7 @@
 import { planName } from "@/i18n/labels";
 import { desc } from "drizzle-orm";
 import { api, apiStaff } from "@/lib/api";
-import { audit } from "@/lib/crm/rbac";
+import { audit } from "@/server/access";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { orderWhere } from "@/lib/crm-filters";

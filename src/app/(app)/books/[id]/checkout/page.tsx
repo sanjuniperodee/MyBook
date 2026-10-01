@@ -8,7 +8,7 @@ import { getOccasion } from "@/lib/occasions";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { ArrowRight, TriangleAlert, CircleAlert } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { getAccessibleBook, getBookPhotos, getBookStats } from "@/lib/books";
 import { checkReadiness } from "@/lib/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";

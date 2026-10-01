@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, checkOrigin, HttpError } from "@/lib/api";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/server/auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizePhone } from "@/lib/crm/phone";
 import { requestCallback, widgetConfig } from "@/lib/crm/site-chat";

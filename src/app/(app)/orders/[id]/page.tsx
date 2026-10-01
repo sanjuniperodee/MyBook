@@ -5,7 +5,7 @@ import { Confetti } from "@/components/motion/Confetti";
 import { CelebrateArt } from "@/components/illustrations";
 import { notFound } from "next/navigation";
 import { Check, Download } from "lucide-react";
-import { isStaff, requireUser } from "@/lib/auth";
+import { isStaff, requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { formatPrice, getPlan, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";

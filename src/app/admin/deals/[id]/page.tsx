@@ -7,7 +7,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
 import { db } from "@/lib/db";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/lib/db/schema";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/lib/crm/rbac";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { adminLabel, listAdmins, staffOptions } from "@/lib/crm";
 import { dealSourceLabels, findClientByPhone, findDuplicateDeals, listPipelines, listStages } from "@/lib/crm/deals";
 import { books, bookQuestions, photos } from "@/lib/db/schema";

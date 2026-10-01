@@ -1,4 +1,4 @@
-import { can, requireStaff } from "@/lib/crm/rbac";
+import { can, requireStaff } from "@/server/access";
 import { TeamTabs } from "./TeamTabs";
 
 export default async function TeamLayout({ children }: { children: React.ReactNode }) {

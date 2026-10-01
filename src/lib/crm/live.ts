@@ -3,7 +3,7 @@ import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import { db } from "../db";
 import { crmCalls, crmDeals, crmNotifications, users } from "../db/schema";
 import { crmCounters, type CrmCounters } from "../crm";
-import { can, contactView, type Staff } from "./rbac";
+import { can, contactView, type Staff } from "@/server/access";
 import { formatPhone } from "./phone";
 
 export interface LiveNotification {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/lib/auth";
+import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/lib/books";
 import { getTheme } from "@/lib/content/themes";
 import { getTypography } from "@/lib/book/fonts";

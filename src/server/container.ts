@@ -2,6 +2,8 @@ import "server-only";
 import { consoleLogger, systemClock, type Clock, type EventBus, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus } from "@/shared/infrastructure";
 import { OrderingModule } from "@/modules/ordering";
+import { IdentityModule } from "@/modules/identity";
+import { AccessModule } from "@/modules/access";
 import { PrintFilesService } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
@@ -17,6 +19,24 @@ export class Container {
   readonly clock: Clock = systemClock;
 
   #ordering?: OrderingModule;
+  #identity?: IdentityModule;
+  #access?: AccessModule;
+
+  get identity(): IdentityModule {
+    return (this.#identity ??= new IdentityModule({ uow: this.uow, clock: this.clock }));
+  }
+
+  /** Access пользуется учётными записями Identity через узкий порт — модули не импортируют друг друга. */
+  get access(): AccessModule {
+    return (this.#access ??= new AccessModule({
+      accounts: {
+        create: (input) => this.identity.accounts.provision(input),
+        setPassword: (userId, password) => this.identity.accounts.setPassword(userId, password),
+        revokeSessions: (userId) => this.identity.auth.revokeAllSessions(userId),
+        resetTwoFactor: (userId) => this.identity.accounts.resetTwoFactorByAdmin(userId),
+      },
+    }));
+  }
   #printFiles?: PrintFilesService;
 
   get printFiles(): PrintFilesService {
@@ -30,6 +50,8 @@ export class Container {
   /** Создать все модули сразу — чтобы их подписки на события были зарегистрированы до первой команды. */
   boot(): this {
     void this.ordering;
+    void this.identity;
+    void this.access;
     registerSubscriptions(this);
     return this;
   }

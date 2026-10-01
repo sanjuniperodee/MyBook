@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { crmAutomations } from "@/lib/db/schema";
-import { assertStaff, audit } from "@/lib/crm/rbac";
+import { assertStaff, audit } from "@/server/access";
 import { automationTriggers } from "@/lib/crm/automation-meta";
 import { dealSources } from "@/lib/crm/deal-meta";
 

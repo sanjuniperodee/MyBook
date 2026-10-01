@@ -1,12 +1,12 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { getCurrentUser } from "./auth";
+import { getCurrentUser } from "@/server/auth";
 import { findAccessibleBook, isEditable } from "./books";
 import type { Book, User } from "./db/schema";
 import { env } from "./env";
-import { can, getStaff, type Staff } from "./crm/rbac";
-import type { Permission } from "./crm/permissions";
+import { can, getStaff, type Staff } from "@/server/access";
+import type { Permission } from "@/modules/access/domain/permissions";
 import { getMessages } from "@/i18n/server";
 import type { Messages } from "@/i18n/messages";
 

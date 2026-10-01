@@ -2,7 +2,7 @@ import "server-only";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { crmSettings } from "../db/schema";
-import { decryptSecret, encryptSecret, randomToken } from "./crypto";
+import { decryptSecret, encryptSecret, randomToken } from "@/shared/crypto";
 
 interface Def {
   /** Хранится зашифрованным и никогда не отдаётся в браузер целиком. */
