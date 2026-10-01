@@ -3,7 +3,7 @@ import { base32Decode, base32Encode, hashBackupCode, hotp, isBackupCodeShape, ot
 import { ipAllowed, normalizeIp, parseAllowlist } from "@/modules/access/domain/ip";
 import { signValue, verifySigned } from "@/shared/crypto";
 import { htmlToText, parseAddress, parseInboundWebhook, replySubject, stripQuoted } from "@/lib/crm/email-logic";
-import { businessContext, cleanReply, extractSchema, normalizeExtracted, parseSummary, transcript, type AiField } from "@/lib/crm/ai-logic";
+import { businessContext, cleanReply, extractSchema, normalizeExtracted, parseSummary, transcript, type AiField } from "@/modules/assistant/domain";
 
 const fields: AiField[] = [
   { key: "occasion", label: "Повод", type: "select", options: ["День рождения", "Годовщина", "Юбилей"] },

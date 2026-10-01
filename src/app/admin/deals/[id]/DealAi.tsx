@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CalendarPlus, ListChecks, LoaderCircle, Sparkles } from "lucide-react";
 import { aiApplyFieldsAction, aiExtractFieldsAction, aiNextStepTaskAction, aiSummaryAction, type FieldProposal } from "@/app/admin/ai-actions";
-import { temperatureLabels, type AiSummary } from "@/lib/crm/ai-logic";
+import { temperatureLabels, type AiSummary } from "@/modules/assistant/domain";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";
 

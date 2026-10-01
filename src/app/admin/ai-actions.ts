@@ -1,5 +1,6 @@
 "use server";
 
+import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -7,11 +8,9 @@ import { db } from "@/lib/db";
 import { crmConversations, crmDeals, crmTasks } from "@/lib/db/schema";
 import { assertStaff, assertVisible, audit } from "@/server/access";
 import { adminLabel } from "@/lib/crm";
-import { AiError, extractDealFields, suggestReply, summarizeDeal } from "@/lib/crm/ai";
+import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
 import { listFields } from "@/lib/crm/fields";
-import { normalizeExtracted } from "@/lib/crm/ai-logic";
 import { rateLimit } from "@/lib/rate-limit";
-import type { AiSummary } from "@/lib/crm/ai-logic";
 
 const uuid = z.string().uuid();
 
@@ -23,7 +22,7 @@ async function guard<T>(staffId: string, run: () => Promise<T>): Promise<Result<
   try {
     return { ok: true, ...(await run()) };
   } catch (err) {
-    if (err instanceof AiError) return { ok: false, message: err.message };
+    if (AssistantError.is(err)) return { ok: false, message: err.message };
     throw err;
   }
 }
@@ -42,7 +41,7 @@ export async function aiSuggestReplyAction(conversationId: string): Promise<Resu
   if (!conv) return { ok: false, message: "Диалог не найден" };
   assertVisible(staff, conv.assigneeId);
   return guard(staff.user.id, async () => {
-    const r = await suggestReply(conv.id, adminLabel(staff.user));
+    const r = await container().assistant.service.suggestReply(conv.id, adminLabel(staff.user));
     await audit(staff, "ai.reply", "conversation", conv.id, r.usage);
     return { text: r.text };
   });
@@ -52,7 +51,7 @@ export async function aiSummaryAction(dealId: string): Promise<Result<{ summary:
   const staff = await assertStaff("deals.view");
   const deal = await loadDeal(dealId, staff);
   const r = await guard(staff.user.id, async () => {
-    const s = await summarizeDeal(deal.id);
+    const s = await container().assistant.service.summarizeDeal(deal.id);
     await audit(staff, "ai.summary", "deal", deal.id, s.usage);
     return { summary: s.summary };
   });
@@ -66,7 +65,7 @@ export async function aiExtractFieldsAction(dealId: string): Promise<Result<{ pr
   const staff = await assertStaff("deals.view", "deals.edit");
   const deal = await loadDeal(dealId, staff);
   return guard(staff.user.id, async () => {
-    const r = await extractDealFields(deal.id);
+    const r = await container().assistant.service.extractDealFields(deal.id);
     await audit(staff, "ai.extract", "deal", deal.id, r.usage);
     return { proposals: r.proposals };
   });

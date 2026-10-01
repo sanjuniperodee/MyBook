@@ -22,7 +22,6 @@ import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/compone
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { cn, formatDate } from "@/lib/utils";
-import { aiConfigured } from "@/lib/crm/ai";
 import { DealAi } from "./DealAi";
 import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 
@@ -79,7 +78,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const [messages, templates, vars, blocker, offers] = conv
     ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
-  const ai = await aiConfigured();
+  const ai = await container().assistant.service.configured();
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");

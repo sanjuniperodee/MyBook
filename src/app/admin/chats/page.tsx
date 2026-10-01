@@ -12,7 +12,6 @@ import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/lib/cr
 import { mentionableStaff } from "@/lib/crm/mentions";
 import { formatPhone } from "@/lib/crm/phone";
 import { getSetting } from "@/lib/crm/settings";
-import { aiConfigured } from "@/lib/crm/ai";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { cn } from "@/lib/utils";
@@ -96,7 +95,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       conv.clientId ? db.query.users.findFirst({ where: eq(users.id, conv.clientId), columns: { id: true, name: true, email: true } }) : null,
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),
-      aiConfigured(),
+      container().assistant.service.configured(),
     ]);
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     panel = (

@@ -1,5 +1,6 @@
 "use server";
 
+import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -10,7 +11,7 @@ import { ensureToken, fromEnv, getSettings, saveSettings, type SettingKey } from
 import { randomToken } from "@/shared/crypto";
 import { isValidTime } from "@/lib/crm/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/lib/crm/wazzup";
-import { AiError, testAi } from "@/lib/crm/ai";
+import { AssistantError } from "@/modules/assistant";
 
 export interface SettingsState {
   error?: string;
@@ -194,10 +195,10 @@ export async function saveAiAction(_: SettingsState, form: FormData): Promise<Se
 export async function testAiAction(): Promise<{ ok: boolean; message: string }> {
   await assertStaff("settings.manage");
   try {
-    const answer = await testAi();
+    const answer = await container().assistant.service.test();
     return { ok: true, message: `Подключено, Claude отвечает: «${answer}»` };
   } catch (err) {
-    return { ok: false, message: err instanceof AiError ? err.message : "Не удалось связаться с Claude API" };
+    return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с Claude API" };
   }
 }
 
