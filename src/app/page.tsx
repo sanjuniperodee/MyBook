@@ -20,12 +20,16 @@ import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SampleBook } from "@/components/landing/SampleBook";
+import { InteriorShowcase } from "@/components/landing/InteriorShowcase";
+import { Reviews, Stars } from "@/components/landing/Reviews";
+import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
 import { countQuestions, getThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
+import { siteReviews } from "@/server/reviews";
 import { formatPrice, plans, productionDays, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
@@ -36,12 +40,30 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  const [user, locale, m, reviews] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6)]);
   const t = m.landing;
   const cta = user ? "/books/new" : "/register";
   const themes = getThemes(locale);
   const loveCount = countQuestions(themes[0]);
   const faq = t.faq.items(productionDays);
+  // Пример для витрины оформлений — та же история, что в листаемой книге-примере.
+  const s = t.sample;
+  const showcase: SpreadSample = {
+    language: locale,
+    title: s.title,
+    subtitle: s.subtitle,
+    author: s.names,
+    year: new Date().getFullYear(),
+    dedication: s.dedication,
+    dedicationPlaceholder: "",
+    chapter: { number: 2, title: s.chapterTitle, epigraph: s.epigraph },
+    entries: [
+      { heading: s.h1, paragraphs: [s.p1, s.p2] },
+      { heading: s.h2, paragraphs: [s.p3, s.p4] },
+    ],
+    toc: s.tocItems.map(([title, page], i) => ({ number: i + 1, title, page })),
+    showToc: true,
+  };
 
   return (
     <>
@@ -76,6 +98,12 @@ export default async function HomePage() {
                   {t.hero.sample}
                 </a>
               </div>
+              {reviews.summary && reviews.reviews.length ? (
+                <a href="#reviews" style={{ "--i": 4 } as React.CSSProperties} className="enter mt-5 inline-flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
+                  <Stars value={reviews.summary.average} />
+                  {m.review.showcase.summary(reviews.summary.average.toFixed(1).replace(".", ","), reviews.summary.count)}
+                </a>
+              ) : null}
               <ul style={{ "--i": 4 } as React.CSSProperties} className="enter mt-9 grid max-w-lg grid-cols-1 gap-2.5 text-[15px] text-ink-soft sm:grid-cols-2">
                 {t.hero.bullets.map((b) => (
                   <li key={b} className="flex items-center gap-2">
@@ -235,6 +263,13 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {/* ─── INTERIORS ─── */}
+        <section id="pages" className="scroll-mt-20 py-20 sm:py-28">
+          <div className="reveal container-x">
+            <InteriorShowcase sample={showcase} cta={cta} />
+          </div>
+        </section>
+
         {/* ─── FEATURES ─── */}
         <section className="py-20 sm:py-28">
           <div className="container-x">
@@ -254,8 +289,10 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* ─── TESTIMONIALS (показываются, только если заполнены в config/site.ts) ─── */}
-        {site.testimonials.length ? (
+        {/* ─── REVIEWS: настоящие отзывы покупателей; пока их нет — подписи из config/site.ts, если заполнены ─── */}
+        {reviews.reviews.length ? (
+          <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} />
+        ) : site.testimonials.length ? (
           <section className="bg-rose/40 py-20 sm:py-28">
             <div className="container-x">
               <h2 className="text-center font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.testimonials.title}</h2>

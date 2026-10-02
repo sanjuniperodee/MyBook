@@ -7,6 +7,7 @@ import {
   pgTable,
   primaryKey,
   serial,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -18,6 +19,7 @@ import type { Locale } from "@/i18n/config";
 import { ORDER_STATUSES, type OrderStatus } from "@/modules/ordering/domain/OrderStatus";
 import type { OrderPrintSpec } from "@/modules/ordering/domain/Order";
 import type { GiftStatus } from "@/modules/ordering/domain/GiftCard";
+import type { ReviewPhoto, ReviewStatus } from "@/modules/feedback/domain/Review";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -403,6 +405,35 @@ export const orderEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("order_events_order_idx").on(t.orderId)],
+);
+
+/** Отзыв клиента о книге — один на заказ. Правила — в modules/feedback/domain. */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rating: smallint("rating").notNull(),
+    text: text("text").notNull().default(""),
+    authorName: text("author_name").notNull(),
+    city: text("city").notNull().default(""),
+    /** Согласие показать отзыв на сайте с именем и городом. */
+    consent: boolean("consent").notNull().default(false),
+    photo: jsonb("photo").$type<ReviewPhoto>(),
+    status: text("status").$type<ReviewStatus>().notNull().default("new"),
+    featured: boolean("featured").notNull().default(false),
+    locale: text("locale").$type<Locale>().notNull().default("ru"),
+    theme: text("theme").notNull(),
+    thankYouCode: text("thank_you_code"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("reviews_order_idx").on(t.orderId), index("reviews_status_idx").on(t.status, t.featured)],
 );
 
 // ─── CRM: роли, аудит, сделки, коммуникации ─────────────────────────────────
@@ -880,6 +911,7 @@ export const orderEventsRelations = relations(orderEvents, ({ one }) => ({
 
 export type User = typeof users.$inferSelect;
 export type Book = typeof books.$inferSelect;
+export type ReviewRow = typeof reviews.$inferSelect;
 export type BookQuestion = typeof bookQuestions.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type Order = typeof orders.$inferSelect;

@@ -7,6 +7,8 @@ import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
 import { coverTemplates } from "@/lib/book/covers";
 import { getCurrentUser } from "@/server/auth";
+import { siteReviews } from "@/server/reviews";
+import { Reviews } from "@/components/landing/Reviews";
 import { Faq } from "@/components/Faq";
 import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
@@ -42,7 +44,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function LandingPage({ params }: { params: Promise<{ slug: string }> }) {
   const l = getLanding((await params).slug);
   if (!l) notFound();
-  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  const [user, locale, m, reviews] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(3, l.theme)]);
   const c = l.content[locale];
   const t = m.landing;
   const sp = t.seoPage;
@@ -67,6 +69,19 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
       description: c.metaDescription,
       brand: { "@type": "Brand", name: site.name },
       offers: { "@type": "AggregateOffer", priceCurrency: site.currency, lowPrice: minPrice, highPrice: Math.max(...plans.map((p) => p.price)), url: `${env.appUrl}${localizePath(`/kniga/${l.slug}`, locale)}` },
+      // Звёзды в выдаче — только по настоящим отзывам об этой книге и только когда их достаточно; сами отзывы видны на странице.
+      ...(reviews.summary && reviews.reviews.length
+        ? {
+            aggregateRating: { "@type": "AggregateRating", ratingValue: reviews.summary.average, reviewCount: reviews.summary.count, bestRating: 5, worstRating: 1 },
+            review: reviews.reviews.map((r) => ({
+              "@type": "Review",
+              author: { "@type": "Person", name: r.authorName },
+              ...(r.publishedAt ? { datePublished: r.publishedAt.toISOString().slice(0, 10) } : {}),
+              reviewBody: r.text,
+              reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+            })),
+          }
+        : {}),
     },
     {
       "@context": "https://schema.org",
@@ -180,6 +195,8 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
         </section>
+
+        <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} />
 
         <section className="py-20 sm:py-24">
           <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">

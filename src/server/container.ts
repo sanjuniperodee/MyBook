@@ -18,7 +18,8 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
+import { WorkspaceModule, notify, smtpConfig, staffWith } from "@/modules/workspace";
+import { FeedbackModule } from "@/modules/feedback";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -52,6 +53,7 @@ export class Container {
   #marketing?: MarketingModule;
   #assistant?: AssistantModule;
   #clients?: ClientsModule;
+  #feedback?: FeedbackModule;
   /** Отчёты — только чтение. */
   readonly reporting = new ReportingModule();
   readonly workspace = new WorkspaceModule();
@@ -110,6 +112,25 @@ export class Container {
   /** Персональные промокоды выпускает контекст заказов. */
   get marketing(): MarketingModule {
     return (this.#marketing ??= new MarketingModule({ clock: this.clock, promos: { issuePersonal: (input) => this.ordering.promos.issuePersonal(input) } }));
+  }
+
+  /** Отзывы: благодарность — промокод контекста заказов, низкая оценка — уведомление тем, кто разбирает отзывы. */
+  get feedback(): FeedbackModule {
+    return (this.#feedback ??= new FeedbackModule({
+      uow: this.uow,
+      clock: this.clock,
+      logger: consoleLogger("feedback"),
+      promos: { issue: async (input) => (await this.ordering.promos.issuePersonal(input))?.code ?? null },
+      alerts: {
+        lowRating: async (r) =>
+          notify(await staffWith("reviews.manage"), {
+            kind: "system",
+            title: `Отзыв ${r.rating}★ к заказу №${r.orderNumber} — свяжитесь с клиентом`,
+            body: r.text ? `${r.authorName}: ${r.text}` : r.authorName,
+            link: "/admin/reviews",
+          }),
+      },
+    }));
   }
 
   get clients(): ClientsModule {

@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
  */
 export const booksId = sql.raw(`"books"."id"`);
 export const usersId = sql.raw(`"users"."id"`);
+export const ordersId = sql.raw(`"orders"."id"`);
 export const crmDealsId = sql.raw(`"crm_deals"."id"`);
 export const crmDealsClientId = sql.raw(`"crm_deals"."client_id"`);
 export const crmRolesId = sql.raw(`"crm_roles"."id"`);
