@@ -30,6 +30,7 @@ import { coverTemplates } from "@/lib/book/covers";
 import { countQuestions, getThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
+import { invitedBy } from "@/server/invite";
 import { formatPrice, plans, productionDays, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
@@ -40,7 +41,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [user, locale, m, reviews] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6)]);
+  const [user, locale, m, reviews, invited] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6), invitedBy()]);
   const t = m.landing;
   const cta = user ? "/books/new" : "/register";
   const themes = getThemes(locale);
@@ -74,9 +75,20 @@ export default async function HomePage() {
           <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%),radial-gradient(40%_40%_at_10%_80%,#efe7da_0%,transparent_70%)]" />
           <div className="container-x grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
             <div>
-              <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft shadow-soft">
-                <Sparkles className="size-4 text-wine" /> {t.hero.badge}
-              </div>
+              {invited ? (
+                // Пришли по приглашению — вместо слогана подарок от друга.
+                <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex max-w-full items-start gap-2.5 rounded-2xl border border-wine/25 bg-rose/50 px-4 py-2.5 text-sm shadow-soft">
+                  <Gift className="mt-0.5 size-4 shrink-0 text-wine" />
+                  <span>
+                    <b className="font-semibold text-wine">{m.invite.welcome(invited.from, invited.percent)}</b>
+                    <span className="block text-ink-soft">{m.invite.welcomeNote}</span>
+                  </span>
+                </div>
+              ) : (
+                <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft shadow-soft">
+                  <Sparkles className="size-4 text-wine" /> {t.hero.badge}
+                </div>
+              )}
               <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
                 {t.hero.titleStart}{" "}
                 <em className="relative inline-block text-wine">

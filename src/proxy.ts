@@ -64,5 +64,5 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   // Только страницы: без API, статики и служебных файлов.
-  matcher: ["/((?!api|_next|admin|print|go/|favicon|icon|apple-icon|robots|sitemap|opengraph-image|.*\\.).*)"],
+  matcher: ["/((?!api|_next|admin|print|go/|r/|favicon|icon|apple-icon|robots|sitemap|opengraph-image|.*\\.).*)"],
 };

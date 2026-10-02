@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronDown, LayoutDashboard, LogOut, Package, UserRound } from "lucide-react";
+import { BookOpen, ChevronDown, Gift, LayoutDashboard, LogOut, Package, UserRound } from "lucide-react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { cn } from "@/lib/utils";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -76,6 +76,9 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
             </div>
             <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
               <UserRound className="size-4 text-muted" /> {m.profile}
+            </Link>
+            <Link role="menuitem" href="/invite" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
+              <Gift className="size-4 text-muted" /> {m.invite}
             </Link>
             {isAdmin ? (
               <Link role="menuitem" href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-wine hover:bg-cream">

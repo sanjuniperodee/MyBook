@@ -29,6 +29,13 @@ export function registerSubscriptions(c: Container) {
   );
   c.bus.subscribe<OrderCancelled>("ordering.order_cancelled", (e) => c.sales.funnel.orderCancelled(e.payload.orderId), "crm.deal.order_cancelled");
 
+  // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──
+  c.bus.subscribe<OrderPaid>(
+    "ordering.order_paid",
+    (e) => c.referrals.service.onOrderPaid({ orderId: e.payload.orderId, number: e.payload.number, userId: e.payload.userId, promoCode: e.payload.promoCode }),
+    "referrals.reward",
+  );
+
   // ─── клиент и книга → воронка (после ответа: клиент не ждёт CRM, ошибка CRM не ломает его сценарий) ──
   c.bus.subscribe<UserRegistered>("identity.user_registered", (e) => runInBackground(() => c.sales.funnel.advance(e.payload.userId, "registered")), "crm.deal.client_registered");
   c.bus.subscribe<BookStarted>(

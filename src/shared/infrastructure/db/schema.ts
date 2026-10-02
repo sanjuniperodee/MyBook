@@ -288,9 +288,13 @@ export const promoCodes = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
     note: text("note").notNull().default(""),
+    /** Код-приглашение клиента: друзья получают скидку, владелец — награду за каждый оплаченный заказ. */
+    ownerId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Только на первую книгу: клиент ещё ничего не покупал. */
+    firstOrderOnly: boolean("first_order_only").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("promo_codes_code_idx").on(t.code)],
+  (t) => [uniqueIndex("promo_codes_code_idx").on(t.code), index("promo_codes_owner_idx").on(t.ownerId)],
 );
 
 /** Журнал автоматических писем: каждое письмо конкретного вида уходит клиенту один раз. */
@@ -434,6 +438,27 @@ export const reviews = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("reviews_order_idx").on(t.orderId), index("reviews_status_idx").on(t.status, t.featured)],
+);
+
+/** Награды за приглашения: друг оплатил заказ по коду — владельцу кода промокод. Одна на заказ. */
+export const referralRewards = pgTable(
+  "referral_rewards",
+  {
+    orderId: uuid("order_id")
+      .primaryKey()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    orderNumber: integer("order_number").notNull(),
+    referrerId: uuid("referrer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    friendId: uuid("friend_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Выданный промокод-награда (null — выдать не удалось, см. журнал ошибок). */
+    code: text("code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("referral_rewards_referrer_idx").on(t.referrerId)],
 );
 
 // ─── CRM: роли, аудит, сделки, коммуникации ─────────────────────────────────

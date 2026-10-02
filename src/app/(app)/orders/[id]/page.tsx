@@ -13,6 +13,7 @@ import { addonName, deliveryName, planName } from "@/i18n/labels";
 import { env } from "@/config/env";
 import { isOnlinePayment } from "@/modules/ordering";
 import { canReview, THANK_YOU } from "@/modules/feedback";
+import { REFERRAL } from "@/modules/referrals";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
@@ -136,6 +137,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               ) : null}
             </section>
           ) : null}
+
+          {own && paid ? <InviteCard t={m.invite.card} /> : null}
 
           <section className="card p-6 sm:p-8">
             <h2 className="text-xl font-semibold">{t.details}</h2>
@@ -268,6 +271,24 @@ function ReviewCard({
           {t.edit}
         </Link>
       ) : null}
+    </section>
+  );
+}
+
+/** Приглашение друзей — после оплаты, когда клиент уже знает, что книга будет. */
+function InviteCard({ t }: { t: Awaited<ReturnType<typeof getMessages>>["invite"]["card"] }) {
+  return (
+    <section className="card flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:px-8">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose text-wine">
+        <Gift className="size-5" />
+      </span>
+      <div className="flex-1">
+        <h2 className="font-semibold">{t.title}</h2>
+        <p className="mt-0.5 text-sm text-ink-soft">{t.text(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</p>
+      </div>
+      <Link href="/invite" className="btn btn-outline shrink-0">
+        {t.button}
+      </Link>
     </section>
   );
 }

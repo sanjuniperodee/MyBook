@@ -28,6 +28,7 @@ export const common = {
     logout: "Выйти",
     menu: "Меню",
     profileMenu: "Меню профиля",
+    invite: "Пригласить друга",
     noName: "Без имени",
   },
   widget: {

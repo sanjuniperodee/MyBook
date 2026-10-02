@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { GIFT_COOKIE } from "@/modules/ordering";
+import { INVITE_COOKIE } from "@/modules/referrals";
 import { container } from "@/server/container";
 import type { PlanId } from "@/config/site";
 import type { PromoPreview } from "./actions";
@@ -32,10 +33,11 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const t = m.checkout;
   const issues = checkReadiness(book, stats, photos, locale);
   const blocked = issues.some((i) => i.level === "error");
-  // Код активированного сертификата (или персональный промокод из ссылки менеджера) подставляем сразу.
-  const giftCode = (await cookies()).get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined);
+  // Код активированного сертификата, персональный промокод из ссылки менеджера или приглашение друга подставляем сразу.
+  const jar = await cookies();
+  const giftCode = jar.get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined) || jar.get(INVITE_COOKIE)?.value;
   const ordering = container().ordering;
-  const giftCheck = giftCode ? await ordering.promos.check(giftCode) : null;
+  const giftCheck = giftCode ? await ordering.promos.check(giftCode, user.id) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
   const giftPlan = giftCheck?.ok ? ((await ordering.queries.giftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;

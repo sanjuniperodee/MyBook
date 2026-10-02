@@ -249,8 +249,8 @@ function Thanks({
           {t.newBook}
         </Link>
         {!low ? (
-          <Link href="/gift" className="btn btn-outline">
-            {t.gift}
+          <Link href="/invite" className="btn btn-outline">
+            {t.invite}
           </Link>
         ) : null}
       </div>

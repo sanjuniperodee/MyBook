@@ -12,5 +12,6 @@ import { legal } from "./legal";
 import { mail } from "./mail";
 import { orders } from "./orders";
 import { review } from "./review";
+import { invite } from "./invite";
 
-export const ru = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, gift, legal, mail, api };
+export const ru = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api };
