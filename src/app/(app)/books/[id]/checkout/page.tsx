@@ -13,6 +13,8 @@ import { getAccessibleBook } from "@/server/books";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
+import { getFormat } from "@/lib/book/formats";
+import { coverName, interiorName } from "@/i18n/labels";
 import { photoUrl } from "@/lib/urls";
 import { CheckoutForm } from "./CheckoutForm";
 
@@ -56,6 +58,18 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
         <div>
           <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
           <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
+          {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
+          <p className="mt-1 text-sm text-muted">
+            <Link href={`/books/${book.id}/cover`} className="underline-offset-2 hover:text-ink hover:underline">
+              {t.design.cover(coverName(book.coverTemplate, locale))}
+            </Link>
+            {" · "}
+            <Link href={`/books/${book.id}/pages`} className="underline-offset-2 hover:text-ink hover:underline">
+              {t.design.pages(interiorName(book.interior, locale))}
+            </Link>
+            {" · "}
+            {getFormat(book.format).short}
+          </p>
         </div>
       </div>
 

@@ -61,6 +61,8 @@ export interface ThemeOnLanguage {
   recipientGender?: Gender;
   titleSuggestions: string[];
   defaultCover: string;
+  /** Оформление страниц новой книги; неизвестное — классика. */
+  defaultInterior: string;
   questions: QuestionTemplate[];
 }
 
@@ -96,7 +98,7 @@ export class Book extends AggregateRoot<BookProps> {
       coverPhotoId: null,
       backText: "",
       dedication: "",
-      interior: DEFAULT_INTERIOR,
+      interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       format: "a5",
       photoPlacement: "chapters",
       showToc: true,

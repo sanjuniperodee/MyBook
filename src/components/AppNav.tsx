@@ -34,7 +34,10 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
   const initial = (name || email).trim().charAt(0).toUpperCase();
   return (
     <nav className="flex items-center gap-1 text-[15px]">
-      <LanguageSwitch className="mr-1 hidden md:inline-flex" />
+      {/* Обёртка, а не className: cn() не сливает классы, и «hidden» проиграл бы «inline-flex» переключателя. На телефоне язык — в меню профиля. */}
+      <div className="mr-1 hidden md:block">
+        <LanguageSwitch />
+      </div>
       {links.map((l) => {
         const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
         return (

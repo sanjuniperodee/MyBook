@@ -147,6 +147,12 @@ export const books = {
   },
   cover: {
     meta: "Обложка",
+    pairTitle: "Страницы в пару",
+    pairSuggest: (cover: string, designs: string[]) =>
+      `К обложке «${cover}» подходит оформление страниц ${designs.map((d) => `«${d}»`).join(" или ")}: те же цвета и настроение внутри книги.`,
+    pairDone: (design: string, cover: string) => `Страницы «${design}» — в пару к обложке «${cover}». Книга выглядит цельно.`,
+    pairApply: (design: string) => `Сделать страницы «${design}»`,
+    pairAll: "Все оформления страниц",
     title: "Обложка",
     design: "Дизайн",
     moodAria: "Настроение обложки",
