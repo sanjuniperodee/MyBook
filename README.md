@@ -200,7 +200,8 @@ bash deploy/deploy.sh <ветка>
 | `npm run db:migrate` | Применить миграции вручную |
 | `npm run create-admin -- email пароль` | Создать администратора |
 | `npm run scheduler:once -- --any-hour` | Один проход фоновых задач вручную (сертификаты + автописьма) |
-| `node scripts/e2e-*.mjs` | Сквозные проверки в браузере (Playwright) против запущенного сервера: smoke, order, letters, crm, crm-pro (роли, сделки, чаты Wazzup и телефония Zadarma на мок-сервере), crm-sales, crm-v3 и crm-v4 (после crm-pro: воронка по действиям клиента, «Неразобранное», дубли, скидки, график; UTM-ссылки и каналы, воронки, поля, массовые действия, планы, бот, push; виджет, AI на мок-сервере Claude и OpenAI-совместимого API (DeepSeek), SMTP на мок-сервере, почта, 2FA, IP, веб-телефон), dictation, inline-photo, gift, kk |
+| `bash scripts/web-fonts.sh` | Пересобрать веб-шрифты (WOFF2-подмножества в `assets/fonts/web`) после замены TTF в `assets/fonts`; нужен `pip install fonttools brotli` |
+| `node scripts/e2e-*.mjs` | Сквозные проверки в браузере (Playwright) против запущенного сервера: smoke, order, review (отзыв от доставки до главной), letters, crm, crm-pro (роли, сделки, чаты Wazzup и телефония Zadarma на мок-сервере), crm-sales, crm-v3 и crm-v4 (после crm-pro: воронка по действиям клиента, «Неразобранное», дубли, скидки, график; UTM-ссылки и каналы, воронки, поля, массовые действия, планы, бот, push; виджет, AI на мок-сервере Claude и OpenAI-совместимого API (DeepSeek), SMTP на мок-сервере, почта, 2FA, IP, веб-телефон), dictation, inline-photo, gift, kk |
 
 ## Структура
 

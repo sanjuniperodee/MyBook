@@ -115,17 +115,17 @@ export default async function HomePage() {
             <div className="relative mx-auto h-[420px] w-full max-w-[520px] sm:h-[520px]">
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter absolute top-6 left-[2%] w-[44%]">
                 <div className="animate-float [--r:-8deg] [animation-delay:-2s]">
-                  <Book3D template="midnight" title={t.hero.books.dad.title} names={t.hero.books.dad.names} rotate={18} className="drop-shadow-xl" />
+                  <Book3D priority template="midnight" title={t.hero.books.dad.title} names={t.hero.books.dad.names} rotate={18} className="drop-shadow-xl" />
                 </div>
               </div>
               <div style={{ "--i": 4 } as React.CSSProperties} className="enter absolute top-0 right-[4%] w-[40%]">
                 <div className="animate-float [--r:7deg] [animation-delay:-4s]">
-                  <Book3D template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
+                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
                 </div>
               </div>
               <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
                 <div className="animate-float">
-                  <Book3D template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
+                  <Book3D priority template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
                 </div>
               </div>
               {/* Рукописная пометка со стрелкой */}

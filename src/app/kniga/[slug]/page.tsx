@@ -127,7 +127,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               <p className="mt-4 text-sm text-muted">{sp.priceNote(formatPrice(minPrice))}</p>
             </div>
             <div className="mx-auto w-full max-w-[320px]">
-              <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={-18} className="animate-float" />
+              <Book3D priority template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={-18} className="animate-float" />
             </div>
           </div>
         </section>
