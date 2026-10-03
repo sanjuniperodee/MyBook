@@ -22,6 +22,7 @@ import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SampleBook } from "@/components/landing/SampleBook";
 import { InteriorShowcase } from "@/components/landing/InteriorShowcase";
 import { Reviews, Stars } from "@/components/landing/Reviews";
+import { AnchorScroll } from "@/components/landing/AnchorScroll";
 import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
@@ -69,6 +70,7 @@ export default async function HomePage() {
   return (
     <>
       <LandingHeader loggedIn={!!user} />
+      <AnchorScroll />
       <main className="overflow-x-clip">
         {/* ─── HERO ─── */}
         <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24">
@@ -165,7 +167,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── HOW ─── */}
-        <section id="how" className="scroll-mt-20 py-20 sm:py-28">
+        <section id="how" className="below-fold scroll-mt-20 py-20 sm:py-28">
           <div className="container-x">
             <div className="reveal max-w-2xl">
               <div className="eyebrow">{t.how.eyebrow}</div>
@@ -189,7 +191,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── INSIDE ─── */}
-        <section id="inside" className="scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
+        <section id="inside" className="below-fold scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
           <div className="container-x grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]">
             <div className="reveal">
               <div className="eyebrow text-[#e3a6ae]">{t.inside.eyebrow}</div>
@@ -213,7 +215,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── THEMES ─── */}
-        <section className="py-20 sm:py-28">
+        <section className="below-fold py-20 sm:py-28">
           <div className="container-x">
             <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div className="max-w-2xl">
@@ -250,7 +252,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── COVERS ─── */}
-        <section id="covers" className="scroll-mt-20 bg-cream/60 py-20 sm:py-28">
+        <section id="covers" className="below-fold scroll-mt-20 bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
             <div className="reveal mx-auto max-w-2xl text-center">
               <div className="eyebrow">{t.covers.eyebrow}</div>
@@ -276,14 +278,14 @@ export default async function HomePage() {
         </section>
 
         {/* ─── INTERIORS ─── */}
-        <section id="pages" className="scroll-mt-20 py-20 sm:py-28">
+        <section id="pages" className="below-fold scroll-mt-20 py-20 sm:py-28">
           <div className="reveal container-x">
             <InteriorShowcase sample={showcase} cta={cta} />
           </div>
         </section>
 
         {/* ─── FEATURES ─── */}
-        <section className="py-20 sm:py-28">
+        <section className="below-fold py-20 sm:py-28">
           <div className="container-x">
             <div className="max-w-2xl">
               <div className="eyebrow">{t.features.eyebrow(site.name)}</div>
@@ -303,9 +305,9 @@ export default async function HomePage() {
 
         {/* ─── REVIEWS: настоящие отзывы покупателей; пока их нет — подписи из config/site.ts, если заполнены ─── */}
         {reviews.reviews.length ? (
-          <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} />
+          <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} className="below-fold" />
         ) : site.testimonials.length ? (
-          <section className="bg-rose/40 py-20 sm:py-28">
+          <section className="below-fold bg-rose/40 py-20 sm:py-28">
             <div className="container-x">
               <h2 className="text-center font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.testimonials.title}</h2>
               <div className="mt-12 grid gap-5 md:grid-cols-3">
@@ -324,7 +326,7 @@ export default async function HomePage() {
         ) : null}
 
         {/* ─── PRICING ─── */}
-        <section id="pricing" className="scroll-mt-20 bg-cream/60 py-20 sm:py-28">
+        <section id="pricing" className="below-fold scroll-mt-20 bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
             <div className="mx-auto max-w-2xl text-center">
               <div className="eyebrow">{t.pricing.eyebrow}</div>
@@ -356,7 +358,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── GIFT CARD ─── */}
-        <section className="py-20 sm:py-28">
+        <section className="below-fold py-20 sm:py-28">
           <div className="reveal container-x grid items-center gap-12 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <GiftCardVisual locale={locale} plan="hardcover" recipientName={t.gift.card.recipient} buyerName={t.gift.card.buyer} message={t.gift.card.message} className="rotate-[-2deg]" />
@@ -375,7 +377,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── FAQ ─── */}
-        <section id="faq" className="scroll-mt-20 py-20 sm:py-28">
+        <section id="faq" className="below-fold scroll-mt-20 py-20 sm:py-28">
           <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.6fr]">
             <div>
               <div className="eyebrow">{t.faq.eyebrow}</div>
@@ -393,7 +395,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── CTA ─── */}
-        <section className="pb-20 sm:pb-28">
+        <section className="below-fold pb-20 sm:pb-28">
           <div className="container-x">
             <div className="relative overflow-hidden rounded-[32px] bg-wine px-6 py-16 text-center text-white sm:px-16 sm:py-20">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_60%_at_20%_0%,rgba(255,255,255,.18),transparent),radial-gradient(40%_60%_at_100%_100%,rgba(0,0,0,.25),transparent)]" />

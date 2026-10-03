@@ -32,6 +32,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
       <div className="mt-6">
         <SettingsForm
           bookId={book.id}
+          theme={book.theme}
           editable={book.status === "draft"}
           fixedRecipientGender={!!theme.recipientGender}
           initial={{

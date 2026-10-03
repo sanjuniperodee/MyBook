@@ -1,5 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { deadlineFor, getOccasion, nextFixedDate, orderByDate, subtractWorkdays, toIsoDay } from "@/lib/occasions";
+import { deadlineFor, getOccasion, nextFixedDate, occasionsFor, orderByDate, subtractWorkdays, toIsoDay } from "@/lib/occasions";
+
+describe("поводы под тему книги", () => {
+  const ids = (theme: string, iso: string, selected?: string) => occasionsFor(theme, new Date(iso), selected).map((o) => o.id);
+
+  it("маме — без «Годовщины» и «14 февраля», «Другой повод» — последним", () => {
+    const mom = ids("mom", "2026-06-10T10:00:00");
+    expect(mom).not.toContain("anniversary");
+    expect(mom).not.toContain("valentine");
+    expect(mom[0]).toBe("birthday");
+    expect(mom.at(-1)).toBe("other");
+  });
+
+  it("ближайший праздник — первым", () => {
+    expect(ids("mom", "2026-02-10T10:00:00")[0]).toBe("march8");
+    expect(ids("love", "2026-01-20T10:00:00")[0]).toBe("valentine");
+    expect(ids("dad", "2026-12-01T10:00:00")[0]).toBe("newyear");
+    expect(ids("love", "2026-06-10T10:00:00")[0]).toBe("anniversary");
+  });
+
+  it("выбранный раньше повод не пропадает, неизвестная тема — все поводы", () => {
+    const withValentine = ids("mom", "2026-06-10T10:00:00", "valentine");
+    expect(withValentine).toContain("valentine");
+    expect(withValentine.at(-1)).toBe("other");
+    expect(ids("unknown", "2026-06-10T10:00:00")).toHaveLength(9);
+  });
+});
 
 describe("occasions", () => {
   it("next fixed date rolls over to next year", () => {
