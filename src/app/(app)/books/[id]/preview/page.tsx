@@ -5,8 +5,12 @@ import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
-import { PreviewFrame } from "./PreviewFrame";
+import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
+import { container } from "@/server/container";
+import { buildBookContent } from "@/lib/book/layout";
+import { splitParagraphs } from "@/lib/book/inline-photo";
+import type { FlipbookData } from "@/components/book3d/Flipbook3D";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.preview.meta };
@@ -16,7 +20,33 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}/preview`);
   const book = await getAccessibleBook(id, user);
-  const t = (await getMessages()).books.preview;
+  const [t, questions] = await Promise.all([getMessages().then((m) => m.books.preview), container().authoring.queries.questions(book.id)]);
+
+  // Листаемая книга строится из тех же данных, что и PDF (без фото: их точное место видно в PDF).
+  const content = buildBookContent(book, questions, []);
+  const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
+  const photo = book.coverPhotoId ? photoUrl(book.coverPhotoId, "full") : undefined;
+  const flipbook: FlipbookData = {
+    cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photoUrl: photo },
+    language: content.language,
+    formatId: content.format.id,
+    interiorId: content.interior.id,
+    title: content.title,
+    subtitle: content.subtitle,
+    author: content.authorName,
+    year: content.year,
+    dedication: content.dedication,
+    showToc: content.showToc,
+    chapters: content.chapters.map((c) => ({
+      number: c.number,
+      title: c.title,
+      epigraph: c.epigraph,
+      entries: c.items.flatMap((it) => {
+        const paragraphs = splitParagraphs(it.answer);
+        return paragraphs.length ? [{ heading: it.heading, paragraphs }] : [];
+      }),
+    })),
+  };
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
@@ -35,8 +65,8 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
               format={book.format}
               title={book.title}
               subtitle={book.subtitle}
-              names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-              photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId, "full") : undefined}
+              names={names}
+              photoUrl={photo}
               className="rounded-[3px] shadow-book"
             />
             <Link href={`/books/${book.id}/cover`} className="mt-3 block text-center text-sm text-wine hover:underline">
@@ -44,7 +74,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
             </Link>
           </div>
         </div>
-        <PreviewFrame bookId={book.id} initialVersion={book.updatedAt.getTime()} />
+        <PreviewTabs bookId={book.id} initialVersion={book.updatedAt.getTime()} flipbook={flipbook} />
       </div>
     </main>
   );
