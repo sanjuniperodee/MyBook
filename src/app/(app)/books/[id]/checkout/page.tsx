@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { GIFT_COOKIE } from "@/modules/ordering";
+import { INVITE_COOKIE } from "@/modules/referrals";
 import { container } from "@/server/container";
 import type { PlanId } from "@/config/site";
 import type { PromoPreview } from "./actions";
@@ -13,6 +14,8 @@ import { getAccessibleBook } from "@/server/books";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
+import { getFormat } from "@/lib/book/formats";
+import { coverName, interiorName } from "@/i18n/labels";
 import { photoUrl } from "@/lib/urls";
 import { CheckoutForm } from "./CheckoutForm";
 
@@ -30,10 +33,11 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const t = m.checkout;
   const issues = checkReadiness(book, stats, photos, locale);
   const blocked = issues.some((i) => i.level === "error");
-  // Код активированного сертификата (или персональный промокод из ссылки менеджера) подставляем сразу.
-  const giftCode = (await cookies()).get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined);
+  // Код активированного сертификата, персональный промокод из ссылки менеджера или приглашение друга подставляем сразу.
+  const jar = await cookies();
+  const giftCode = jar.get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined) || jar.get(INVITE_COOKIE)?.value;
   const ordering = container().ordering;
-  const giftCheck = giftCode ? await ordering.promos.check(giftCode) : null;
+  const giftCheck = giftCode ? await ordering.promos.check(giftCode, user.id) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
   const giftPlan = giftCheck?.ok ? ((await ordering.queries.giftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;
@@ -56,6 +60,18 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
         <div>
           <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
           <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
+          {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
+          <p className="mt-1 text-sm text-muted">
+            <Link href={`/books/${book.id}/cover`} className="underline-offset-2 hover:text-ink hover:underline">
+              {t.design.cover(coverName(book.coverTemplate, locale))}
+            </Link>
+            {" · "}
+            <Link href={`/books/${book.id}/pages`} className="underline-offset-2 hover:text-ink hover:underline">
+              {t.design.pages(interiorName(book.interior, locale))}
+            </Link>
+            {" · "}
+            {getFormat(book.format).short}
+          </p>
         </div>
       </div>
 

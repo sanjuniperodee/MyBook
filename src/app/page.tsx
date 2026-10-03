@@ -20,12 +20,18 @@ import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SampleBook } from "@/components/landing/SampleBook";
+import { InteriorShowcase } from "@/components/landing/InteriorShowcase";
+import { Reviews, Stars } from "@/components/landing/Reviews";
+import { AnchorScroll } from "@/components/landing/AnchorScroll";
+import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
 import { countQuestions, getThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
+import { siteReviews } from "@/server/reviews";
+import { invitedBy } from "@/server/invite";
 import { formatPrice, plans, productionDays, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
@@ -36,25 +42,55 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  const [user, locale, m, reviews, invited] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6), invitedBy()]);
   const t = m.landing;
   const cta = user ? "/books/new" : "/register";
   const themes = getThemes(locale);
   const loveCount = countQuestions(themes[0]);
   const faq = t.faq.items(productionDays);
+  // Пример для витрины оформлений — та же история, что в листаемой книге-примере.
+  const s = t.sample;
+  const showcase: SpreadSample = {
+    language: locale,
+    title: s.title,
+    subtitle: s.subtitle,
+    author: s.names,
+    year: new Date().getFullYear(),
+    dedication: s.dedication,
+    dedicationPlaceholder: "",
+    chapter: { number: 2, title: s.chapterTitle, epigraph: s.epigraph },
+    entries: [
+      { heading: s.h1, paragraphs: [s.p1, s.p2] },
+      { heading: s.h2, paragraphs: [s.p3, s.p4] },
+    ],
+    toc: s.tocItems.map(([title, page], i) => ({ number: i + 1, title, page })),
+    showToc: true,
+  };
 
   return (
     <>
       <LandingHeader loggedIn={!!user} />
+      <AnchorScroll />
       <main className="overflow-x-clip">
         {/* ─── HERO ─── */}
         <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24">
           <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%),radial-gradient(40%_40%_at_10%_80%,#efe7da_0%,transparent_70%)]" />
           <div className="container-x grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
             <div>
-              <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft shadow-soft">
-                <Sparkles className="size-4 text-wine" /> {t.hero.badge}
-              </div>
+              {invited ? (
+                // Пришли по приглашению — вместо слогана подарок от друга.
+                <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex max-w-full items-start gap-2.5 rounded-2xl border border-wine/25 bg-rose/50 px-4 py-2.5 text-sm shadow-soft">
+                  <Gift className="mt-0.5 size-4 shrink-0 text-wine" />
+                  <span>
+                    <b className="font-semibold text-wine">{m.invite.welcome(invited.from, invited.percent)}</b>
+                    <span className="block text-ink-soft">{m.invite.welcomeNote}</span>
+                  </span>
+                </div>
+              ) : (
+                <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft shadow-soft">
+                  <Sparkles className="size-4 text-wine" /> {t.hero.badge}
+                </div>
+              )}
               <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
                 {t.hero.titleStart}{" "}
                 <em className="relative inline-block text-wine">
@@ -76,6 +112,12 @@ export default async function HomePage() {
                   {t.hero.sample}
                 </a>
               </div>
+              {reviews.summary && reviews.reviews.length ? (
+                <a href="#reviews" style={{ "--i": 4 } as React.CSSProperties} className="enter mt-5 inline-flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
+                  <Stars value={reviews.summary.average} />
+                  {m.review.showcase.summary(reviews.summary.average.toFixed(1).replace(".", ","), reviews.summary.count)}
+                </a>
+              ) : null}
               <ul style={{ "--i": 4 } as React.CSSProperties} className="enter mt-9 grid max-w-lg grid-cols-1 gap-2.5 text-[15px] text-ink-soft sm:grid-cols-2">
                 {t.hero.bullets.map((b) => (
                   <li key={b} className="flex items-center gap-2">
@@ -87,17 +129,17 @@ export default async function HomePage() {
             <div className="relative mx-auto h-[420px] w-full max-w-[520px] sm:h-[520px]">
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter absolute top-6 left-[2%] w-[44%]">
                 <div className="animate-float [--r:-8deg] [animation-delay:-2s]">
-                  <Book3D template="midnight" title={t.hero.books.dad.title} names={t.hero.books.dad.names} rotate={18} className="drop-shadow-xl" />
+                  <Book3D priority template="midnight" title={t.hero.books.dad.title} names={t.hero.books.dad.names} rotate={18} className="drop-shadow-xl" />
                 </div>
               </div>
               <div style={{ "--i": 4 } as React.CSSProperties} className="enter absolute top-0 right-[4%] w-[40%]">
                 <div className="animate-float [--r:7deg] [animation-delay:-4s]">
-                  <Book3D template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
+                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
                 </div>
               </div>
               <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
                 <div className="animate-float">
-                  <Book3D template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
+                  <Book3D priority template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
                 </div>
               </div>
               {/* Рукописная пометка со стрелкой */}
@@ -125,7 +167,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── HOW ─── */}
-        <section id="how" className="scroll-mt-20 py-20 sm:py-28">
+        <section id="how" className="below-fold scroll-mt-20 py-20 sm:py-28">
           <div className="container-x">
             <div className="reveal max-w-2xl">
               <div className="eyebrow">{t.how.eyebrow}</div>
@@ -149,7 +191,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── INSIDE ─── */}
-        <section id="inside" className="scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
+        <section id="inside" className="below-fold scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
           <div className="container-x grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]">
             <div className="reveal">
               <div className="eyebrow text-[#e3a6ae]">{t.inside.eyebrow}</div>
@@ -173,7 +215,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── THEMES ─── */}
-        <section className="py-20 sm:py-28">
+        <section className="below-fold py-20 sm:py-28">
           <div className="container-x">
             <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div className="max-w-2xl">
@@ -210,7 +252,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── COVERS ─── */}
-        <section id="covers" className="scroll-mt-20 bg-cream/60 py-20 sm:py-28">
+        <section id="covers" className="below-fold scroll-mt-20 bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
             <div className="reveal mx-auto max-w-2xl text-center">
               <div className="eyebrow">{t.covers.eyebrow}</div>
@@ -235,8 +277,15 @@ export default async function HomePage() {
           </div>
         </section>
 
+        {/* ─── INTERIORS ─── */}
+        <section id="pages" className="below-fold scroll-mt-20 py-20 sm:py-28">
+          <div className="reveal container-x">
+            <InteriorShowcase sample={showcase} cta={cta} />
+          </div>
+        </section>
+
         {/* ─── FEATURES ─── */}
-        <section className="py-20 sm:py-28">
+        <section className="below-fold py-20 sm:py-28">
           <div className="container-x">
             <div className="max-w-2xl">
               <div className="eyebrow">{t.features.eyebrow(site.name)}</div>
@@ -254,9 +303,11 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* ─── TESTIMONIALS (показываются, только если заполнены в config/site.ts) ─── */}
-        {site.testimonials.length ? (
-          <section className="bg-rose/40 py-20 sm:py-28">
+        {/* ─── REVIEWS: настоящие отзывы покупателей; пока их нет — подписи из config/site.ts, если заполнены ─── */}
+        {reviews.reviews.length ? (
+          <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} className="below-fold" />
+        ) : site.testimonials.length ? (
+          <section className="below-fold bg-rose/40 py-20 sm:py-28">
             <div className="container-x">
               <h2 className="text-center font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.testimonials.title}</h2>
               <div className="mt-12 grid gap-5 md:grid-cols-3">
@@ -275,7 +326,7 @@ export default async function HomePage() {
         ) : null}
 
         {/* ─── PRICING ─── */}
-        <section id="pricing" className="scroll-mt-20 bg-cream/60 py-20 sm:py-28">
+        <section id="pricing" className="below-fold scroll-mt-20 bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
             <div className="mx-auto max-w-2xl text-center">
               <div className="eyebrow">{t.pricing.eyebrow}</div>
@@ -307,7 +358,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── GIFT CARD ─── */}
-        <section className="py-20 sm:py-28">
+        <section className="below-fold py-20 sm:py-28">
           <div className="reveal container-x grid items-center gap-12 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <GiftCardVisual locale={locale} plan="hardcover" recipientName={t.gift.card.recipient} buyerName={t.gift.card.buyer} message={t.gift.card.message} className="rotate-[-2deg]" />
@@ -326,7 +377,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── FAQ ─── */}
-        <section id="faq" className="scroll-mt-20 py-20 sm:py-28">
+        <section id="faq" className="below-fold scroll-mt-20 py-20 sm:py-28">
           <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.6fr]">
             <div>
               <div className="eyebrow">{t.faq.eyebrow}</div>
@@ -344,7 +395,7 @@ export default async function HomePage() {
         </section>
 
         {/* ─── CTA ─── */}
-        <section className="pb-20 sm:pb-28">
+        <section className="below-fold pb-20 sm:pb-28">
           <div className="container-x">
             <div className="relative overflow-hidden rounded-[32px] bg-wine px-6 py-16 text-center text-white sm:px-16 sm:py-20">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_60%_at_20%_0%,rgba(255,255,255,.18),transparent),radial-gradient(40%_60%_at_100%_100%,rgba(0,0,0,.25),transparent)]" />

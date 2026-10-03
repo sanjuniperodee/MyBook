@@ -11,6 +11,8 @@ export interface OrderRepository {
   /** Заказ клиента (чужой — как будто не существует). */
   findOwned(id: string, userId: string): Promise<Order | null>;
   hasOtherActiveOrders(bookId: string, exceptOrderId: string): Promise<boolean>;
+  /** Клиент уже покупал (оплаченный и не отменённый заказ) — для кодов «только на первую книгу». */
+  hasPaidOrders(userId: string): Promise<boolean>;
   add(order: Order): Promise<void>;
   save(order: Order): Promise<void>;
 }
@@ -19,6 +21,8 @@ export interface PromoCodeRepository {
   nextId(): string;
   findByCode(code: string): Promise<PromoCode | null>;
   findById(id: string): Promise<PromoCode | null>;
+  /** Код-приглашение, который клиент раздаёт друзьям. */
+  findByOwner(ownerId: string): Promise<PromoCode | null>;
   /** Атомарно занять одно использование (условие проверяется в БД — гонки двух заказов исключены). */
   tryReserve(id: string, now: Date): Promise<boolean>;
   release(code: string): Promise<void>;

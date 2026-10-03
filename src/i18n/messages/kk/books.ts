@@ -20,6 +20,7 @@ export const books: typeof ru = {
   },
   wizard: {
     meta: "Жаңа кітап",
+    loading: "Кітап шеберін ашып жатырмыз",
     whoTitle: "Кітап кімге арналады?",
     whoText: "Сұрақтар мен тараулар осы таңдауға байланысты. Өз сұрақтарыңызды қалағаныңызша қоса аласыз.",
     questions: (n: number) => `${n} сұрақ`,
@@ -146,6 +147,12 @@ export const books: typeof ru = {
   },
   cover: {
     meta: "Мұқаба",
+    pairTitle: "Мұқабаға сай беттер",
+    pairSuggest: (cover: string, designs: string[]) =>
+      `«${cover}» мұқабасына ${designs.map((d) => `«${d}»`).join(" немесе ")} беттері сай келеді: кітаптың ішінде де сол түстер мен көңіл-күй.`,
+    pairDone: (design: string, cover: string) => `«${design}» беттері «${cover}» мұқабасына сай. Кітап тұтас көрінеді.`,
+    pairApply: (design: string) => `«${design}» беттерін таңдау`,
+    pairAll: "Беттердің барлық безендірілуі",
     title: "Мұқаба",
     design: "Дизайн",
     moodAria: "Мұқаба көңіл-күйі",

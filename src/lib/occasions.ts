@@ -29,6 +29,33 @@ export function getOccasion(id: string | null | undefined): Occasion | undefined
   return occasions.find((o) => o.id === id);
 }
 
+/** Поводы, уместные для темы книги, — от самых частых. Маме не предлагаем «Годовщину» и «14 февраля». */
+const themeOccasions: Record<string, OccasionId[]> = {
+  love: ["anniversary", "valentine", "birthday", "wedding", "march8", "newyear", "other"],
+  mom: ["birthday", "march8", "parents", "graduation", "wedding", "newyear", "other"],
+  dad: ["birthday", "parents", "newyear", "graduation", "wedding", "other"],
+  friend: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
+};
+
+/** Праздник ближе этого — первым в списке: в феврале маме первым предлагаем «8 марта». */
+const SOON_DAYS = 45;
+
+/**
+ * Поводы для выбора: подходящие теме, ближайшие праздники с фиксированной датой — первыми,
+ * «Другой повод» — последним. Уже выбранный повод остаётся в списке, даже если теме он не типичен.
+ */
+export function occasionsFor(theme: string | null | undefined, now: Date, selected?: string | null): Occasion[] {
+  const ids = themeOccasions[theme ?? ""] ?? occasions.map((o) => o.id);
+  const soon = (id: OccasionId) => {
+    const date = nextFixedDate(getOccasion(id)!, now);
+    return date !== null && daysBetween(now, parseDay(date)) <= SOON_DAYS;
+  };
+  const ordered = [...ids.filter(soon), ...ids.filter((id) => !soon(id))];
+  const chosen = getOccasion(selected)?.id;
+  if (chosen && !ordered.includes(chosen)) ordered.splice(ordered.indexOf("other") >= 0 ? ordered.indexOf("other") : ordered.length, 0, chosen);
+  return ordered.map((id) => getOccasion(id)!);
+}
+
 const DAY = 86_400_000;
 
 /** Дата в формате YYYY-MM-DD → полночь по местному времени. */

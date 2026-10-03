@@ -13,14 +13,14 @@ import type { ChapterDef, ThemeDef, ThemeId } from "./types";
  * на этом языке, на нём же печатаются заголовки глав. Язык интерфейса на это не влияет.
  */
 
-type ThemeBase = Pick<ThemeDef, "id" | "emoji" | "recipientGender" | "defaultRecipientGender" | "defaultCover">;
+type ThemeBase = Pick<ThemeDef, "id" | "emoji" | "recipientGender" | "defaultRecipientGender" | "defaultCover" | "defaultInterior">;
 type ThemeText = Omit<ThemeDef, keyof ThemeBase>;
 
 const base: ThemeBase[] = [
-  { id: "love", emoji: "❤", defaultRecipientGender: "m", defaultCover: "blossom" },
-  { id: "mom", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "sage" },
-  { id: "dad", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "midnight" },
-  { id: "friend", emoji: "☀", defaultRecipientGender: "f", defaultCover: "terracotta" },
+  { id: "love", emoji: "❤", defaultRecipientGender: "m", defaultCover: "blossom", defaultInterior: "romance" },
+  { id: "mom", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "sage", defaultInterior: "herbarium" },
+  { id: "dad", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "midnight", defaultInterior: "stars" },
+  { id: "friend", emoji: "☀", defaultRecipientGender: "f", defaultCover: "terracotta", defaultInterior: "confetti" },
 ];
 
 const text: Record<Locale, Record<ThemeId, ThemeText>> = {

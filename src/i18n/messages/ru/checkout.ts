@@ -4,6 +4,7 @@ import { ruCount } from "../../plural";
 export const checkout = {
   meta: "Оформление заказа",
   title: "Оформление заказа",
+  design: { cover: (name: string) => `Обложка «${name}»`, pages: (name: string) => `страницы «${name}»` },
   summary: (title: string, pages: number, answers: number, photos: number) =>
     `«${title}» · ≈ ${ruCount(pages, "страница", "страницы", "страниц")} · ${ruCount(answers, "ответ", "ответа", "ответов")} · ${photos} фото`,
   checkPreview: "Перед заказом обязательно пролистайте готовый макет — книга будет напечатана именно так.",
@@ -83,5 +84,7 @@ export const checkout = {
     notFound: "Такого промокода нет",
     expired: "Срок действия промокода истёк",
     used: "Промокод уже использован",
+    ownCode: "Это ваш код для друзей: им — скидка, а вам за каждого друга мы дарим свой промокод",
+    firstOrderOnly: "Этот код — на первую книгу, к повторному заказу он не подходит",
   },
 };

@@ -173,7 +173,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
         <div>
           <span className="label">{t.occasion} <span className="font-normal text-muted">{t.optional}</span></span>
           <p className="-mt-1 mb-3 text-sm text-muted">{t.occasionHint}</p>
-          <OccasionPicker />
+          <OccasionPicker theme={theme.id} />
         </div>
 
         <SubmitButton className="btn-lg w-full sm:w-auto" pendingText={t.pending}>{t.submit}</SubmitButton>

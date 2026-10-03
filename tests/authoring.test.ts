@@ -16,6 +16,7 @@ const theme = (lang: "ru" | "kk"): ThemeOnLanguage => ({
   id: "love",
   titleSuggestions: lang === "ru" ? ["Ты — моё всё", "Наша история"] : ["Сен — менің бәрім", "Біздің тарих"],
   defaultCover: "linen",
+  defaultInterior: "classic",
   questions: [{ chapter: "meet", key: "q1", prompt: lang === "ru" ? "Как вы познакомились?" : "Қалай таныстыңдар?", title: "", hint: null }],
 });
 

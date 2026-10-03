@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, systemRoles } from "@/modules/access/domain/permissions";
@@ -15,7 +15,11 @@ import { decryptSecret, encryptSecret, safeEqual } from "@/shared/crypto";
 import { matches } from "@/modules/automation/domain";
 
 const migration = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0013_crm_pro.sql"), "utf8");
-const later = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0014_crm_sales.sql"), "utf8");
+// Все миграции после 0013: права, которые они добавляют системным ролям.
+const later = readdirSync(path.resolve(import.meta.dirname, "../drizzle"))
+  .filter((f) => /^\d{4}_.*\.sql$/.test(f) && Number(f.slice(0, 4)) > 13)
+  .map((f) => readFileSync(path.resolve(import.meta.dirname, "../drizzle", f), "utf8"))
+  .join("\n");
 
 describe("права и системные роли", () => {
   it("у всех прав уникальные ключи, isPermission их узнаёт", () => {

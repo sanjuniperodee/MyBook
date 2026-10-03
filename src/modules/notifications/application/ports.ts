@@ -38,8 +38,8 @@ export interface LifecycleSource {
   draftCandidates(createdBefore: Date): Promise<DraftCandidate[]>;
   /** Заказы, ждущие оплаты дольше суток. */
   unpaidOrders(createdBefore: Date): Promise<OrderReminder[]>;
-  /** Доставленные заказы — просим отзыв. */
-  deliveredOrders(deliveredBefore: Date): Promise<OrderReminder[]>;
+  /** Пора попросить отзыв: печатная книга доставлена, электронная оплачена давно; отзыва ещё нет. */
+  reviewDue(deliveredBefore: Date, digitalPaidBefore: Date): Promise<OrderReminder[]>;
   latestDraft(userId: string): Promise<LatestDraft | null>;
 }
 

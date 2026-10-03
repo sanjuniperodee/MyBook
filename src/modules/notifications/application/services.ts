@@ -45,7 +45,8 @@ export class LifecycleService {
       await this.deliver(o.recipient.id, this.templates.unpaid(o));
       touched.add(o.recipient.id);
     }
-    for (const o of await this.source.deliveredOrders(before(3))) {
+    // Печатную книгу просим оценить через 3 дня после доставки, электронную — через неделю после оплаты: её ещё нужно подарить.
+    for (const o of await this.source.reviewDue(before(3), before(7))) {
       if (touched.has(o.recipient.id) || !(await this.journal.claim(o.recipient.id, `review:${o.orderId}`))) continue;
       await this.deliver(o.recipient.id, this.templates.review(o));
       touched.add(o.recipient.id);

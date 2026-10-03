@@ -1,7 +1,7 @@
 import "server-only";
-import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
-import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
-import { booksId } from "@/shared/infrastructure/db/refs";
+import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, reviews, users } from "@/shared/infrastructure/db/schema";
+import { booksId, ordersId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientTimeline, EmailJournal, LifecycleSource, Recipient, RecipientRepository } from "../application";
 
@@ -40,13 +40,23 @@ export class DrizzleLifecycleSource implements LifecycleSource {
     return rows;
   }
 
-  async deliveredOrders(deliveredBefore: Date) {
+  async reviewDue(deliveredBefore: Date, digitalPaidBefore: Date) {
     return executor()
       .select({ recipient: recipientCols, orderId: orders.id, number: orders.number, amount: orders.amount, contactEmail: orders.contactEmail })
-      .from(orderEvents)
-      .innerJoin(orders, eq(orders.id, orderEvents.orderId))
+      .from(orders)
       .innerJoin(users, eq(users.id, orders.userId))
-      .where(and(eq(orderEvents.status, "delivered"), eq(orders.status, "delivered"), lte(orderEvents.createdAt, deliveredBefore), eq(users.emailOptOut, false)))
+      .where(
+        and(
+          eq(users.emailOptOut, false),
+          // Отзыв уже оставлен из кабинета — второй раз не просим.
+          sql`not exists (select 1 from ${reviews} r where r.order_id = ${ordersId})`,
+          or(
+            and(eq(orders.status, "delivered"), sql`exists (select 1 from ${orderEvents} e where e.order_id = ${ordersId} and e.status = 'delivered' and e.created_at <= ${deliveredBefore})`),
+            // Электронная книга «доставлена» в момент оплаты.
+            and(eq(orders.plan, "digital"), eq(orders.status, "paid"), lte(orders.paidAt, digitalPaidBefore)),
+          ),
+        ),
+      )
       .limit(100);
   }
 

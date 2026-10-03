@@ -17,6 +17,7 @@ export const contentThemes: ThemeCatalog = {
       recipientGender: t.recipientGender,
       titleSuggestions: t.titleSuggestions,
       defaultCover: t.defaultCover,
+      defaultInterior: t.defaultInterior,
       questions: t.chapters.flatMap((ch) => ch.questions.map(([prompt, title, hint], i) => ({ chapter: ch.key, key: `${t.id}.${ch.key}.${i + 1}`, prompt, title, hint: hint ?? null }))),
     };
   },

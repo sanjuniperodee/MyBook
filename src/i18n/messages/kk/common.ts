@@ -35,6 +35,7 @@ export const common: Messages["common"] = {
     logout: "Шығу",
     menu: "Мәзір",
     profileMenu: "Профиль мәзірі",
+    invite: "Досты шақыру",
     noName: "Аты көрсетілмеген",
   },
   widget: {
