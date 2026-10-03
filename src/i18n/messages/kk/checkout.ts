@@ -74,7 +74,7 @@ export const checkout: typeof ru = {
     bookNotFound: "Кітап табылмады",
     alreadyOrdered: "Бұл кітапқа тапсырыс берілген",
     promoGone: "Промокод енді жарамсыз",
-    tooMany: "Әрекет тым көп, кейінірек қайталаңыз",
+    tooMany: "Тым көп әрекет жасалды, кейінірек қайталаңыз",
   },
   promo: {
     empty: "Промокодты енгізіңіз",
