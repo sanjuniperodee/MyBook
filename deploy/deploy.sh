@@ -42,6 +42,13 @@ mkdir -p "$REL/.next"
 cp -a .next/static "$REL/.next/static"
 cp -a public assets drizzle "$REL/"
 
+# PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся (для fork-режима это тот же перезапуск, 1–2 с).
+pm2_apply() {
+  pm2 delete mybook >/dev/null 2>&1 || true
+  pm2 start deploy/ecosystem.config.cjs
+  pm2 save
+}
+
 # Ждём, пока по адресу пройдут все проверки; 0 — всё хорошо.
 check_app() {
   local port="$1" timeout="${2:-40}" i body
@@ -80,20 +87,14 @@ rm -f "$REL/smoke.log"
 echo "→ Переключение на $(basename "$REL")"
 PREV="$(readlink -f "$CURRENT" 2>/dev/null || true)"
 ln -sfn "$REL" "$CURRENT"
-if pm2 describe mybook >/dev/null 2>&1; then
-  pm2 reload deploy/ecosystem.config.cjs --update-env
-else
-  pm2 start deploy/ecosystem.config.cjs
-fi
-pm2 save
+pm2_apply
 
 if ! check_app "$PORT" 30; then
   echo "✗ После переключения приложение не ответило."
   if [ -n "$PREV" ] && [ -d "$PREV" ]; then
     echo "→ Откат на $(basename "$PREV")"
     ln -sfn "$PREV" "$CURRENT"
-    pm2 reload deploy/ecosystem.config.cjs --update-env
-    pm2 save
+    pm2_apply
   fi
   echo "Логи: pm2 logs mybook --nostream --lines 100"
   exit 1

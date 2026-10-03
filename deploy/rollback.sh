@@ -13,7 +13,9 @@ TARGET="${1:-$(ls -1t releases | grep -v -x "$CUR" | head -1)}"
 
 echo "→ Откат: $CUR → $TARGET"
 ln -sfn "$ROOT/releases/$TARGET" current
-pm2 reload deploy/ecosystem.config.cjs --update-env
+# PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся
+pm2 delete mybook >/dev/null 2>&1 || true
+pm2 start deploy/ecosystem.config.cjs
 pm2 save
 
 for i in $(seq 1 30); do
