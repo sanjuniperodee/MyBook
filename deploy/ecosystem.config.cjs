@@ -1,14 +1,16 @@
 // PM2-конфиг MyBooks. Запускается из корня репозитория на сервере: pm2 start deploy/ecosystem.config.cjs
+// Запускается релиз из ../mybook-releases/current → releases/<время>-<sha> (его создаёт deploy/deploy.sh), а не папка сборки.
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- PM2 читает CommonJS-конфиг
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
+const releasesDir = process.env.MYBOOK_RELEASES_DIR || path.join(path.dirname(root), "mybook-releases");
 
 module.exports = {
   apps: [
     {
       name: "mybook",
-      cwd: path.join(root, ".next/standalone"),
+      cwd: path.join(releasesDir, "current"),
       script: "server.js",
       // .env из корня репозитория (DATABASE_URL, APP_URL, SMTP и т.д.)
       node_args: `--env-file=${path.join(root, ".env")}`,
