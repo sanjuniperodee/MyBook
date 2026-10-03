@@ -34,6 +34,8 @@ export interface FlipbookData {
   dedication: string;
   showToc: boolean;
   chapters: FlipbookChapter[];
+  /** Данные объёмной модели: толщина корешка считается по числу страниц. */
+  model: { pageCount: number; backText: string; brand: string };
 }
 
 /** Ширина, на которой считаем разбивку текста по страницам. Вёрстка в cqw, так что от размера на экране она не зависит. */

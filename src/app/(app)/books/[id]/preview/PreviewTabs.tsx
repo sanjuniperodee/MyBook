@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, FileText } from "lucide-react";
+import { BookOpen, Box, FileText } from "lucide-react";
 import { useMessages } from "@/i18n/client";
+import { BookObject3D } from "@/components/book3d/BookObject3D";
 import { Flipbook3D, type FlipbookData } from "@/components/book3d/Flipbook3D";
 import { cn } from "@/lib/utils";
 import { PreviewFrame } from "./PreviewFrame";
 
-type Tab = "book" | "pdf";
+type Tab = "model" | "book" | "pdf";
 
-/** 3D-книга для быстрого просмотра и PDF для точной вычитки; PDF собирается, только когда его открыли. */
+/** 3D-модель — осмотр книги как предмета, «Листать» — чтение страниц, PDF — точная вычитка; PDF собирается, только когда его открыли. */
 export function PreviewTabs({ bookId, initialVersion, flipbook }: { bookId: string; initialVersion: number; flipbook: FlipbookData }) {
   const t = useMessages().books.preview;
-  const [tab, setTab] = useState<Tab>("book");
+  const [tab, setTab] = useState<Tab>("model");
   const tabs: { id: Tab; label: string; icon: typeof BookOpen }[] = [
+    { id: "model", label: t.tabs.model, icon: Box },
     { id: "book", label: t.tabs.book, icon: BookOpen },
     { id: "pdf", label: t.tabs.pdf, icon: FileText },
   ];
@@ -35,7 +37,11 @@ export function PreviewTabs({ bookId, initialVersion, flipbook }: { bookId: stri
           </button>
         ))}
       </div>
-      {tab === "book" ? (
+      {tab === "model" ? (
+        <div role="tabpanel" id="preview-panel-model" aria-labelledby="preview-tab-model">
+          <BookObject3D data={flipbook} onOpenBook={() => setTab("book")} />
+        </div>
+      ) : tab === "book" ? (
         <div role="tabpanel" id="preview-panel-book" aria-labelledby="preview-tab-book">
           <Flipbook3D data={flipbook} />
         </div>

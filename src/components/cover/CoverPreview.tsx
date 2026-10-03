@@ -59,14 +59,35 @@ export function Ornament({ kind, color }: NonNullable<CoverTemplate["ornament"]>
   );
 }
 
+/** Текст лицевой стороны: заголовок, подзаголовок, орнамент и имена. Размеры — в cqw от ширины лицевой стороны. */
+export function CoverText({ template, title, subtitle, names, titlePlaceholder = "…" }: { template: CoverTemplate; title: string; subtitle?: string; names?: string; titlePlaceholder?: string }) {
+  const ta = template.textArea;
+  const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
+  return (
+    <div
+      className="absolute flex flex-col items-center"
+      style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify }}
+    >
+      <div style={textCss(template.title)}>{title || titlePlaceholder}</div>
+      {subtitle ? <div style={{ ...textCss(template.subtitle), marginTop: "1.5cqw" }}>{subtitle}</div> : null}
+      {template.ornament && names ? (
+        <div style={{ margin: "3cqw 0", display: "flex", justifyContent: "center" }}>
+          <Ornament {...template.ornament} />
+        </div>
+      ) : (
+        <div style={{ height: "3.5cqw" }} />
+      )}
+      {names ? <div style={textCss(template.names)}>{names}</div> : null}
+    </div>
+  );
+}
+
 export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, priority, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
   const template = getCoverTemplate(templateId);
   const format = getFormat(formatId);
   // Фон — кэшируемая картинка; встраивать SVG нужно только обложке с фото клиента (картинка-SVG не грузит чужие файлы).
   const inline = template.requiresPhoto && !!photoUrl;
   const svg = inline ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photoHref: photoUrl }, { noTexture: lite }) : null;
-  const ta = template.textArea;
-  const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
 
   return (
     <div
@@ -91,21 +112,7 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
       {template.requiresPhoto && !photoUrl && photoHint ? (
         <div className="absolute inset-x-0 top-[28%] text-center text-[4cqw] text-white/80">{photoHint}</div>
       ) : null}
-      <div
-        className="absolute flex flex-col items-center"
-        style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify }}
-      >
-        <div style={textCss(template.title)}>{title || titlePlaceholder}</div>
-        {subtitle ? <div style={{ ...textCss(template.subtitle), marginTop: "1.5cqw" }}>{subtitle}</div> : null}
-        {template.ornament && names ? (
-          <div style={{ margin: "3cqw 0", display: "flex", justifyContent: "center" }}>
-            <Ornament {...template.ornament} />
-          </div>
-        ) : (
-          <div style={{ height: "3.5cqw" }} />
-        )}
-        {names ? <div style={textCss(template.names)}>{names}</div> : null}
-      </div>
+      <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />
     </div>
   );
 }

@@ -8,7 +8,9 @@ import { photoUrl } from "@/lib/urls";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
-import { buildBookContent } from "@/lib/book/layout";
+import { buildBookContent, estimatePages } from "@/lib/book/layout";
+import { printablePageCount } from "@/lib/book/formats";
+import { site } from "@/config/site";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import type { FlipbookData } from "@/components/book3d/Flipbook3D";
 
@@ -37,6 +39,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
     year: content.year,
     dedication: content.dedication,
     showToc: content.showToc,
+    model: { pageCount: printablePageCount(estimatePages(content)), backText: book.backText, brand: site.name.toUpperCase() },
     chapters: content.chapters.map((c) => ({
       number: c.number,
       title: c.title,
