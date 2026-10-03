@@ -12,7 +12,3 @@ storage/*
 npm-debug.log*
 .DS_Store
 coverage
-
-# релизы на сервере (deploy/deploy.sh)
-/releases
-/current

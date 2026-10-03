@@ -2,7 +2,7 @@
 # Деплой MyBooks на сервер с PM2 и nginx (без Docker) — без «битых» страниц во время выкатки.
 # Запуск на сервере из корня репозитория: bash deploy/deploy.sh [ветка]
 #
-# Сборка идёт в .next репозитория, а запускается копия в releases/<время>-<sha>: пока идёт сборка,
+# Сборка идёт в .next репозитория, а запускается копия в ../mybook-releases/releases/<время>-<sha>: пока идёт сборка,
 # работающая версия не затрагивается. Порядок:
 #   код → зависимости → сборка → релиз → smoke-тест на временном порту → переключение current → перезапуск PM2.
 # Не прошёл smoke-тест — остаётся старая версия. Не ответила после переключения — откат на предыдущий релиз.
@@ -15,8 +15,10 @@ cd "$ROOT"
 PORT="${MYBOOK_PORT:-3040}"
 SMOKE_PORT="${MYBOOK_SMOKE_PORT:-3041}"
 KEEP="${MYBOOK_KEEP_RELEASES:-3}"
-RELEASES="$ROOT/releases"
-CURRENT="$ROOT/current"
+# Релизы лежат рядом с репозиторием, а не внутри: иначе TypeScript и ESLint видят чужие копии исходников
+BASE="${MYBOOK_RELEASES_DIR:-$(dirname "$ROOT")/mybook-releases}"
+RELEASES="$BASE/releases"
+CURRENT="$BASE/current"
 
 [ -f .env ] || { echo "Нет файла .env — скопируйте .env.example и заполните"; exit 1; }
 grep -q '^STORAGE_DIR=/' .env || { echo "В .env укажите абсолютный STORAGE_DIR (например, /home/$USER/mybook-storage)"; exit 1; }
