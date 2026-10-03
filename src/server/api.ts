@@ -43,7 +43,8 @@ function translate(t: ApiMessages, key: string, params: unknown[] = []): string 
 
 /** HTTP-статус для кода ошибки домена. */
 function domainStatus(code: string) {
-  if (code === "bookLocked" || code === "bookHasOrders" || code === "letterPrinted") return 409;
+  if (code === "bookLocked" || code === "bookHasOrders" || code === "letterPrinted" || code === "reviewLocked") return 409;
+  if (code === "reviewNotAllowed") return 403;
   if (/NotFound$/.test(code) || code === "letterClosed" || code === "letterInvalid") return 404;
   return 400;
 }

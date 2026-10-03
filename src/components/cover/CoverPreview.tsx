@@ -1,6 +1,7 @@
 import { getCoverTemplate, renderCoverSvg, type CoverTemplate, type CoverTextStyle } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
+import { coverArtUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
 export interface CoverPreviewProps {
@@ -14,6 +15,8 @@ export interface CoverPreviewProps {
   uid?: string;
   /** Без фактуры — быстрее для множества мелких превью. */
   lite?: boolean;
+  /** Обложка в первом экране: фон грузится сразу и с высоким приоритетом. */
+  priority?: boolean;
   /** Подсказки на языке страницы: пустое название и шаблон «с фото» без фото. */
   titlePlaceholder?: string;
   photoHint?: string;
@@ -56,20 +59,35 @@ export function Ornament({ kind, color }: NonNullable<CoverTemplate["ornament"]>
   );
 }
 
-export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
+export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, priority, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
   const template = getCoverTemplate(templateId);
   const format = getFormat(formatId);
-  const g = coverFrontGeometry(format);
-  const svg = renderCoverSvg(template, g, { uid: uid ?? `${template.id}${format.id}`, photoHref: photoUrl }, { noTexture: lite });
+  // Фон — кэшируемая картинка; встраивать SVG нужно только обложке с фото клиента (картинка-SVG не грузит чужие файлы).
+  const inline = template.requiresPhoto && !!photoUrl;
+  const svg = inline ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photoHref: photoUrl }, { noTexture: lite }) : null;
   const ta = template.textArea;
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
 
   return (
     <div
       className={cn("relative overflow-hidden select-none", className)}
-      style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}`, containerType: "inline-size" }}
+      style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}`, containerType: "inline-size", background: template.swatch }}
     >
-      <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+      {svg ? (
+        <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- SVG-фон: next/image его не оптимизирует, а кэширует браузер
+        <img
+          src={coverArtUrl(template.id, format.id, lite)}
+          alt=""
+          aria-hidden
+          draggable={false}
+          decoding="async"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : undefined}
+          className="absolute inset-0 h-full w-full"
+        />
+      )}
       {template.requiresPhoto && !photoUrl && photoHint ? (
         <div className="absolute inset-x-0 top-[28%] text-center text-[4cqw] text-white/80">{photoHint}</div>
       ) : null}

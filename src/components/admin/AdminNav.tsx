@@ -20,6 +20,7 @@ import {
   PhoneCall,
   Settings,
   ShieldCheck,
+  Star,
   Tag,
   Users,
   Workflow,
@@ -73,6 +74,7 @@ const sections: { title?: string; items: Item[] }[] = [
       { href: "/admin/marketing", label: "Ссылки и каналы", icon: Link2, perm: ["analytics.view", "promo.manage"] },
       { href: "/admin/promo", label: "Промокоды", icon: Tag, perm: ["promo.manage"] },
       { href: "/admin/gifts", label: "Сертификаты", icon: Gift, perm: ["gifts.manage"] },
+      { href: "/admin/reviews", label: "Отзывы", icon: Star, badge: "reviews", perm: ["reviews.manage"] },
     ],
   },
   {

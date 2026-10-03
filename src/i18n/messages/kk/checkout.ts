@@ -3,6 +3,7 @@ import type { checkout as ru } from "../ru/checkout";
 export const checkout: typeof ru = {
   meta: "Тапсырысты рәсімдеу",
   title: "Тапсырысты рәсімдеу",
+  design: { cover: (name: string) => `«${name}» мұқабасы`, pages: (name: string) => `«${name}» беттері` },
   summary: (title: string, pages: number, answers: number, photos: number) => `«${title}» · ≈ ${pages} бет · ${answers} жауап · ${photos} фото`,
   checkPreview: "Тапсырыс бермес бұрын дайын макетті міндетті түрде парақтаңыз — кітап дәл солай басылады.",
   openPreview: "Алдын ала қарауды ашу",
@@ -80,5 +81,7 @@ export const checkout: typeof ru = {
     notFound: "Мұндай промокод жоқ",
     expired: "Промокодтың мерзімі өтті",
     used: "Промокод қолданылған",
+    ownCode: "Бұл — достарыңызға арналған кодыңыз: оларға жеңілдік, ал сізге әр дос үшін жеке промокод сыйлаймыз",
+    firstOrderOnly: "Бұл код тек алғашқы кітапқа жарайды, қайта тапсырысқа қолданылмайды",
   },
 };

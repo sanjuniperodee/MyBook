@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gt, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { StaffContext } from "@/modules/access";
-import { crmCalls, crmConversations, crmDeals, crmTasks, orders } from "@/shared/infrastructure/db/schema";
+import { crmCalls, crmConversations, crmDeals, crmTasks, orders, reviews } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 
 export interface CrmCounters {
@@ -11,6 +11,8 @@ export interface CrmCounters {
   chats: number;
   calls: number;
   deals: number;
+  /** Новые отзывы клиентов, которые ещё никто не посмотрел. */
+  reviews: number;
 }
 
 /** Счётчики для бейджей в меню CRM — с учётом прав и видимости сотрудника. */
@@ -22,7 +24,7 @@ export async function crmCounters(staff: StaffContext): Promise<CrmCounters> {
   endOfToday.setHours(23, 59, 59, 999);
   const zero = Promise.resolve([{ n: 0 }]);
   const count = sql<number>`count(*)::int`;
-  const [[attention], [tasks], [chats], [calls], [deals]] = await Promise.all([
+  const [[attention], [tasks], [chats], [calls], [deals], [fresh]] = await Promise.all([
     staff.can("orders.view")
       ? db
           .select({ n: count })
@@ -51,6 +53,7 @@ export async function crmCounters(staff: StaffContext): Promise<CrmCounters> {
           .from(crmDeals)
           .where(and(eq(crmDeals.unsorted, true), mine(crmDeals.assigneeId)))
       : zero,
+    staff.can("reviews.manage") ? db.select({ n: count }).from(reviews).where(eq(reviews.status, "new")) : zero,
   ]);
-  return { attention: attention.n, tasks: tasks.n, chats: chats.n, calls: calls.n, deals: deals.n };
+  return { attention: attention.n, tasks: tasks.n, chats: chats.n, calls: calls.n, deals: deals.n, reviews: fresh.n };
 }

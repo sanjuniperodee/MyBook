@@ -69,6 +69,9 @@ class MemOrders implements OrderRepository {
   async hasOtherActiveOrders(bookId: string, except: string) {
     return [...this.rows.values()].some((r) => r.bookId === bookId && r.id !== except && r.status !== "cancelled");
   }
+  async hasPaidOrders(userId: string) {
+    return [...this.rows.values()].some((r) => r.userId === userId && r.paidAt && r.status !== "cancelled");
+  }
   async add(o: Order) {
     this.rows.set(o.id, o.snapshot());
     this.flush(o);
@@ -97,6 +100,9 @@ class MemPromos implements PromoCodeRepository {
   }
   async findById(id: string) {
     return this.load(this.rows.get(id));
+  }
+  async findByOwner(ownerId: string) {
+    return this.load([...this.rows.values()].find((r) => r.ownerId === ownerId));
   }
   async tryReserve(id: string, now: Date) {
     const r = this.rows.get(id);
@@ -347,7 +353,7 @@ describe("Ordering: отмена и статусы", () => {
 describe("Ordering: промокоды и сертификаты", () => {
   it("PromoService: проверка, дубликат кода, переключение", async () => {
     const promos = new MemPromos();
-    const svc = new PromoService(promos, clock());
+    const svc = new PromoService(promos, new MemOrders(), clock());
     expect(await svc.check(" ")).toEqual({ ok: false, error: "empty" });
     expect(await svc.check("NOPE")).toEqual({ ok: false, error: "notFound" });
     const p = await svc.create({ code: "spring", kind: "fixed", value: 3000, expiresOn: new Date("2026-12-31") });
@@ -393,3 +399,47 @@ describe("Ordering: промокоды и сертификаты", () => {
 
 // Тип шины используется контейнером; здесь — проверка, что фейк удовлетворяет интерфейсу событий.
 export type _Bus = EventBus;
+
+describe("Ordering: коды-приглашения", () => {
+  const invite = async (promos: MemPromos, ownerId = "friend-owner") => {
+    const p = PromoCode.create(promos.nextId(), { code: "ASEL-7K2Q", kind: "percent", value: 10, ownerId, firstOrderOnly: true }, new Date("2026-01-01"));
+    await promos.add(p);
+    return p;
+  };
+
+  it("свой код применить нельзя, на повторный заказ код «на первую книгу» не подходит", () => {
+    const p = PromoCode.create("p", { code: "ASEL-7K2Q", kind: "percent", value: 10, ownerId: "u-owner", firstOrderOnly: true }, new Date("2026-01-01"));
+    const now = new Date("2026-03-01");
+    expect(p.rejection(now, { userId: "u-owner", hasPaidOrders: false })).toBe("ownCode");
+    expect(p.rejection(now, { userId: "u-friend", hasPaidOrders: true })).toBe("firstOrderOnly");
+    expect(p.rejection(now, { userId: "u-friend", hasPaidOrders: false })).toBeNull();
+    // Без покупателя (страница активации) правила покупателя не применяются.
+    expect(p.rejection(now)).toBeNull();
+  });
+
+  it("PromoService.check учитывает покупателя", async () => {
+    const promos = new MemPromos();
+    const orders = new MemOrders();
+    await invite(promos, "user-1");
+    const svc = new PromoService(promos, orders, clock());
+    expect(await svc.check("asel-7k2q", "user-1")).toEqual({ ok: false, error: "ownCode" });
+    const ok = await svc.check("asel-7k2q", "user-2");
+    expect(ok.ok && ok.promo.ownerId).toBe("user-1");
+    expect(await svc.issueReferral({ ownerId: "user-3", code: "ASEL-7K2Q", percent: 10, note: "" })).toBeNull();
+    expect((await svc.referralOf("user-1"))?.code).toBe("ASEL-7K2Q");
+  });
+
+  it("заказ: друг получает скидку на первую книгу, второй раз — нет, владелец — никогда", async () => {
+    const { place, promos, books, svc } = setup();
+    await invite(promos);
+    const first = await place({ promoCode: "ASEL-7K2Q" });
+    expect(first.snapshot().price.discountAmount).toBeGreaterThan(0);
+    await svc.confirmPayment({ orderId: first.id, paymentId: null }, admin);
+
+    books.books.set("book-2", { userId: "user-1", status: "draft", blocking: null });
+    await expect(place({ bookId: "book-2", promoCode: "ASEL-7K2Q" })).rejects.toMatchObject({ code: "firstOrderOnly" });
+
+    books.books.set("book-3", { userId: "friend-owner", status: "draft", blocking: null });
+    await expect(place({ userId: "friend-owner", bookId: "book-3", promoCode: "ASEL-7K2Q" })).rejects.toMatchObject({ code: "ownCode" });
+  });
+});

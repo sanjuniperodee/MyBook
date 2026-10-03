@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { promoCodes } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { PromoCode, normalizePromoCode, type PromoCodeRepository } from "../../domain";
@@ -8,7 +8,19 @@ import { PromoCode, normalizePromoCode, type PromoCodeRepository } from "../../d
 type Row = typeof promoCodes.$inferSelect;
 
 const toDomain = (r: Row) =>
-  PromoCode.restore(r.id, { code: r.code, kind: r.kind, value: r.value, maxUses: r.maxUses, usedCount: r.usedCount, expiresAt: r.expiresAt, active: r.active, note: r.note, createdAt: r.createdAt });
+  PromoCode.restore(r.id, {
+    code: r.code,
+    kind: r.kind,
+    value: r.value,
+    maxUses: r.maxUses,
+    usedCount: r.usedCount,
+    expiresAt: r.expiresAt,
+    active: r.active,
+    note: r.note,
+    ownerId: r.ownerId,
+    firstOrderOnly: r.firstOrderOnly,
+    createdAt: r.createdAt,
+  });
 
 export class DrizzlePromoCodeRepository implements PromoCodeRepository {
   nextId() {
@@ -25,6 +37,11 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
   async findById(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [row] = await executor().select().from(promoCodes).where(eq(promoCodes.id, id)).limit(1);
+    return row ? toDomain(row) : null;
+  }
+
+  async findByOwner(ownerId: string) {
+    const [row] = await executor().select().from(promoCodes).where(eq(promoCodes.ownerId, ownerId)).orderBy(desc(promoCodes.createdAt)).limit(1);
     return row ? toDomain(row) : null;
   }
 
@@ -55,7 +72,7 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
     const s = promo.snapshot();
     const rows = await executor()
       .insert(promoCodes)
-      .values({ id: promo.id, code: s.code, kind: s.kind, value: s.value, maxUses: s.maxUses, usedCount: s.usedCount, expiresAt: s.expiresAt, active: s.active, note: s.note, createdAt: s.createdAt })
+      .values({ ...s })
       .onConflictDoNothing()
       .returning({ id: promoCodes.id });
     return rows.length > 0;

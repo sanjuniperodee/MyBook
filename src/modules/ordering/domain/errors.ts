@@ -13,6 +13,8 @@ export type OrderingErrorCode =
   | "notFound"
   | "expired"
   | "used"
+  | "ownCode"
+  | "firstOrderOnly"
   | "orderNotFound"
   | "invalidTransition"
   | "promoExists"

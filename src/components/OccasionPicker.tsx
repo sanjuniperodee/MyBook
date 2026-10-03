@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CalendarHeart, Check } from "lucide-react";
-import { deadlineFor, getOccasion, nextFixedDate, occasions, toIsoDay, type OccasionId } from "@/lib/occasions";
+import { deadlineFor, getOccasion, nextFixedDate, occasionsFor, toIsoDay, type OccasionId } from "@/lib/occasions";
 import { useMessages } from "@/i18n/client";
 import { cn, nowMs } from "@/lib/utils";
 
@@ -11,11 +11,14 @@ import { cn, nowMs } from "@/lib/utils";
  * Отдаёт скрытые поля occasion и occasionDate — работает внутри обычной формы.
  */
 export function OccasionPicker({
+  theme,
   defaultOccasion,
   defaultDate,
   onChange,
   disabled,
 }: {
+  /** Тема книги: поводы, уместные для неё, ближайшие праздники — первыми. */
+  theme?: string;
   defaultOccasion?: string | null;
   defaultDate?: string | null;
   onChange?: (occasion: OccasionId | null, date: string | null) => void;
@@ -46,13 +49,15 @@ export function OccasionPicker({
   const m = useMessages().common;
   const dl = date && date >= today ? deadlineFor(date, now) : null;
   const o = getOccasion(occasion);
+  // Порядок считаем по исходному выбору: снятый повод не должен «перепрыгивать» в списке.
+  const [list] = useState(() => occasionsFor(theme, now, defaultOccasion));
 
   return (
     <div>
       <input type="hidden" name="occasion" value={occasion ?? ""} />
       <input type="hidden" name="occasionDate" value={occasion ? date : ""} />
       <div className="flex flex-wrap gap-2">
-        {occasions.map((x) => (
+        {list.map((x) => (
           <button
             key={x.id}
             type="button"

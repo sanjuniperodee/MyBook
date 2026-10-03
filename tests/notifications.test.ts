@@ -72,7 +72,7 @@ function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; deli
   const source: LifecycleSource = {
     draftCandidates: async () => data.drafts ?? [],
     unpaidOrders: async () => data.unpaid ?? [],
-    deliveredOrders: async () => data.delivered ?? [],
+    reviewDue: async () => data.delivered ?? [],
     latestDraft: async (userId) => (userId === "u1" ? { bookId: "b1", title: "Книга", answered: 3, total: 50, firstEmpty: 3 } : null),
   };
   const recipients: RecipientRepository = {
@@ -109,7 +109,7 @@ describe("LifecycleService", () => {
   it("ночью не пишет, если не попросили явно", async () => {
     const s = setup({ drafts: [{ recipient: recipient("u1"), book: book() }] });
     const night = new LifecycleService(
-      { draftCandidates: async () => [{ recipient: recipient("u1"), book: book() }], unpaidOrders: async () => [], deliveredOrders: async () => [], latestDraft: async () => null },
+      { draftCandidates: async () => [{ recipient: recipient("u1"), book: book() }], unpaidOrders: async () => [], reviewDue: async () => [], latestDraft: async () => null },
       { claim: async () => true },
       { find: async () => null, markReminded: async () => {}, optOut: async () => {} },
       templates,

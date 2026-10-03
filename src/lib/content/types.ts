@@ -25,5 +25,7 @@ export interface ThemeDef {
   defaultRecipientGender: Gender;
   titleSuggestions: string[];
   defaultCover: string;
+  /** Оформление страниц новой книги — в пару к обложке темы (id из lib/book/interiors). */
+  defaultInterior: string;
   chapters: ChapterDef[];
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { orderEvents, orders } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { PlanId, DeliveryId } from "@/config/site";
@@ -104,6 +104,15 @@ export class DrizzleOrderRepository implements OrderRepository {
       .select({ id: orders.id })
       .from(orders)
       .where(and(eq(orders.bookId, bookId), ne(orders.id, exceptOrderId), ne(orders.status, "cancelled")))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async hasPaidOrders(userId: string) {
+    const rows = await executor()
+      .select({ id: orders.id })
+      .from(orders)
+      .where(and(eq(orders.userId, userId), isNotNull(orders.paidAt), ne(orders.status, "cancelled")))
       .limit(1);
     return rows.length > 0;
   }

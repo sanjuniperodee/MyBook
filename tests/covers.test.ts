@@ -27,3 +27,33 @@ describe("обложки", () => {
     }
   });
 });
+
+describe("фон обложки отдельным файлом", () => {
+  const get = async (file: string, encoding = "") => {
+    const { GET } = await import("@/app/api/covers/[file]/route");
+    return GET(new Request(`http://x/api/covers/${file}`, { headers: { "accept-encoding": encoding } }), { params: Promise.resolve({ file }) });
+  };
+
+  it("совпадает с рисунком для печати и кэшируется навсегда", async () => {
+    const res = await get("blossom-a5.svg");
+    expect(res.headers.get("content-type")).toContain("image/svg+xml");
+    expect(res.headers.get("cache-control")).toContain("immutable");
+    const t = coverTemplates.find((x) => x.id === "blossom")!;
+    expect(await res.text()).toBe(renderCoverSvg(t, coverFrontGeometry(getFormat("a5")), { uid: "blossoma5" }));
+  });
+
+  it("сжимается: brotli, если браузер умеет, иначе gzip", async () => {
+    const { brotliDecompressSync, gunzipSync } = await import("node:zlib");
+    const raw = await (await get("oyu-square-lite.svg")).text();
+    const br = await get("oyu-square-lite.svg", "gzip, deflate, br");
+    expect(br.headers.get("content-encoding")).toBe("br");
+    expect(brotliDecompressSync(Buffer.from(await br.arrayBuffer())).toString()).toBe(raw);
+    const gz = await get("oyu-square-lite.svg", "gzip");
+    expect(gz.headers.get("content-encoding")).toBe("gzip");
+    expect(gunzipSync(Buffer.from(await gz.arrayBuffer())).toString()).toBe(raw);
+  });
+
+  it("неизвестный шаблон или формат — 404", async () => {
+    for (const file of ["nope-a5.svg", "blossom-a4.svg", "../etc-a5.svg", "blossom-a5.png"]) await expect(get(file)).rejects.toThrow();
+  });
+});
