@@ -43,10 +43,10 @@ describe("поворот и свет", () => {
     }
   });
 
-  it("освещённость в пределах 0.5…1, лицом к зрителю светлее, чем отвёрнутая сторона", () => {
+  it("освещённость в пределах 0.55…1, лицом к зрителю светлее, чем отвёрнутая сторона", () => {
     for (const f of faces) {
       const l = faceLight(f, { rx: -14, ry: 28 });
-      expect(l).toBeGreaterThanOrEqual(0.5);
+      expect(l).toBeGreaterThanOrEqual(0.55);
       expect(l).toBeLessThanOrEqual(1);
     }
     expect(faceLight("front", VIEWS.front)).toBeGreaterThan(faceLight("back", VIEWS.front));
@@ -68,5 +68,68 @@ describe("надпись на корешке", () => {
     expect(spineFontMm(4.9)).toBeNull();
     expect(spineFontMm(8)).toBeCloseTo(8 * 0.42, 5);
     expect(spineFontMm(40)).toBeCloseTo((11 * 25.4) / 72, 5);
+  });
+});
+
+import { fitScale, leafAngle, leafZ, pileState, READ_VIEW, openExtent } from "@/lib/book/book-model";
+
+describe("листы и стопки", () => {
+  it("угол листа: 0 справа, 180 слева, плавно между", () => {
+    expect(leafAngle(0, 0)).toBe(0);
+    expect(leafAngle(0.5, 0)).toBe(90);
+    expect(leafAngle(3, 0)).toBe(180);
+    expect(leafAngle(3, 5)).toBe(0);
+  });
+
+  it("листы блока лежат друг над другом внутри блока, первый — сверху", () => {
+    const d = 6;
+    const zs = [1, 2, 3, 4].map((i) => leafZ(i, 4, d));
+    expect(zs[0]).toBeLessThan(d / 2);
+    expect(zs[3]).toBeGreaterThan(-d / 2);
+    expect([...zs].sort((a, b) => b - a)).toEqual(zs);
+  });
+
+  it("закрытая книга — вся в правой стопке, раскрытая до конца — вся в левой", () => {
+    const closed = pileState(0, 10, 6);
+    expect(closed).toMatchObject({ right: 10, left: 0, rightScale: 1 });
+    expect(closed.rightZ).toBeCloseTo(0, 6);
+    const end = pileState(11, 10, 6);
+    expect(end).toMatchObject({ right: 0, left: 10, leftScale: 1 });
+    expect(end.leftZ).toBeCloseTo(0, 6);
+  });
+
+  it("лист переходит в левую стопку после 90°, число листов сохраняется", () => {
+    for (let pos = 0; pos <= 11; pos += 0.25) {
+      const p = pileState(pos, 10, 6);
+      expect(p.left + p.right).toBe(10);
+    }
+    // лист 1 повёрнут ровно на 90° при pos = 1.5: ещё справа; чуть дальше — уже слева
+    expect(pileState(1.5, 10, 6).left).toBe(0);
+    expect(pileState(1.51, 10, 6).left).toBe(1);
+  });
+
+  it("стопки лежат на столе: нижняя кромка постоянна и равна −blockDepth/2", () => {
+    for (const pos of [0, 1.7, 5, 9.2, 11]) {
+      const p = pileState(pos, 10, 6);
+      const bottomRight = p.rightZ - (6 * (p.right / 10)) / 2;
+      const bottomLeft = p.leftZ - (6 * (p.left / 10)) / 2;
+      if (p.right) expect(bottomRight).toBeCloseTo(-3, 6);
+      if (p.left) expect(bottomLeft).toBeCloseTo(-3, 6);
+    }
+  });
+
+  it("раскрытая книга шире закрытой, масштаб ужимается до нужного и не увеличивает", () => {
+    const d = bookDims(formats.a5, 96);
+    expect(openExtent(d)).toBeGreaterThan(modelExtent(d));
+    expect(fitScale(d, 0)).toBe(1);
+    expect(fitScale(d, 1)).toBeLessThan(1);
+    expect(fitScale(d, 1)).toBeCloseTo(modelExtent(d) / openExtent(d), 6);
+    expect(READ_VIEW.rx).toBeLessThan(0);
+  });
+
+  it("освещённость учитывает поворот листа: перевёрнутая лицевая сторона смотрит как обратная", () => {
+    const o = { rx: 0, ry: 0 };
+    expect(faceLight("front", o, 180)).toBeCloseTo(faceLight("back", o, 0), 6);
+    expect(faceLight("front", o, 0)).toBeGreaterThan(faceLight("front", o, 180));
   });
 });

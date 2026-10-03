@@ -12,7 +12,7 @@ import { buildBookContent, estimatePages } from "@/lib/book/layout";
 import { printablePageCount } from "@/lib/book/formats";
 import { site } from "@/config/site";
 import { splitParagraphs } from "@/lib/book/inline-photo";
-import type { FlipbookData } from "@/components/book3d/Flipbook3D";
+import type { FlipbookData } from "@/components/book3d/pages";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.preview.meta };

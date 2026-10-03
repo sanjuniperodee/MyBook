@@ -71,18 +71,24 @@ export function rotateNormal([x, y, z]: readonly [number, number, number], { rx,
   return [x1, y * cx - z1 * sx, y * sx + z1 * cx];
 }
 
-/** Свет сверху-слева-спереди относительно зрителя (нормированный вектор «на источник»). */
+/** Свет сверху-слева, почти из-за спины зрителя (нормированный вектор «на источник»): обращённые к зрителю грани светлые. */
 const LIGHT: readonly [number, number, number] = (() => {
-  const v = [-0.35, -0.55, 0.76];
+  const v = [-0.3, -0.4, 0.86];
   const len = Math.hypot(...v);
   return [v[0] / len, v[1] / len, v[2] / len] as const;
 })();
 
-/** Освещённость грани: 0.5 в тени и до 1 лицом к свету. Грань, отвёрнутая от зрителя, не важна — она скрыта. */
-export function faceLight(face: FaceId, o: Orientation): number {
-  const n = rotateNormal(FACE_NORMALS[face], o);
+/** Освещённость в тени: бумага не должна уходить в серый даже на боковых гранях. */
+const AMBIENT = 0.55;
+
+/**
+ * Освещённость грани: 0.55 в тени и до 1 лицом к свету. Грань, отвёрнутая от зрителя, не важна — она скрыта.
+ * leafAngle — на сколько градусов грань уже повёрнута вместе с листом вокруг корешка (0 — лежит справа).
+ */
+export function faceLight(face: FaceId, o: Orientation, leafAngle = 0): number {
+  const n = rotateNormal(leafAngle ? rotateNormal(FACE_NORMALS[face], { rx: 0, ry: -leafAngle }) : FACE_NORMALS[face], o);
   const dot = n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2];
-  return 0.5 + 0.5 * Math.max(0, dot);
+  return AMBIENT + (1 - AMBIENT) * Math.max(0, dot);
 }
 
 /** Непрозрачность чёрной плёнки поверх грани: чем меньше света, тем темнее. */
@@ -117,4 +123,55 @@ export const SPINE_FONT_MAX_MM = (11 * 25.4) / 72;
 /** Размер шрифта надписи на корешке, мм; null — корешок слишком узкий для текста (как в PDF: меньше 5 мм). */
 export function spineFontMm(spineWidth: number): number | null {
   return spineWidth >= 5 ? Math.min(spineWidth * 0.42, SPINE_FONT_MAX_MM) : null;
+}
+
+/** Ракурс для чтения раскрытой книги: почти сверху, корешок по центру. */
+export const READ_VIEW: Orientation = { rx: -22, ry: 0 };
+/** Масштаб при чтении: раскрытая книга крупнее, чем закрытая, чтобы текст читался. */
+export const READ_ZOOM = 1.3;
+
+/** Поперечник раскрытой книги: два блока рядом. */
+export const openExtent = (d: BookDims) => Math.hypot(d.block.w * 2, d.h, d.d);
+
+/** Во сколько раз уменьшить модель, чтобы раскрытая книга помещалась в кадр так же, как закрытая (openness 0…1). */
+export function fitScale(d: BookDims, openness: number) {
+  const k = modelExtent(d) / openExtent(d);
+  return 1 + (k - 1) * clamp(openness, 0, 1);
+}
+
+/** Угол поворота листа вокруг корешка: 0 — лежит справа, 180 — перевёрнут налево. */
+export const leafAngle = (pos: number, index: number) => clamp(pos - index, 0, 1) * 180;
+
+/** Высота листа блока над серединой книги, мм: первый лист — сверху, последний — у задней крышки. index с 1, всего sheets листов. */
+export function leafZ(index: number, sheets: number, blockDepth: number) {
+  return blockDepth / 2 - (index - 0.5) * (blockDepth / sheets);
+}
+
+export interface PileState {
+  /** Сколько листов лежит справа (угол ≤ 90°) и слева. */
+  right: number;
+  left: number;
+  /** Положение центра и сжатие по толщине у каждой стопки. */
+  rightZ: number;
+  leftZ: number;
+  rightScale: number;
+  leftScale: number;
+}
+
+/**
+ * Две стопки страниц: правая убывает, левая растёт по мере листания. Обе лежат на «столе» — на крышках,
+ * поэтому растут вверх от −blockDepth/2. Лист переходит из правой стопки в левую, когда повёрнут больше чем на 90°.
+ */
+export function pileState(pos: number, sheets: number, blockDepth: number): PileState {
+  const left = clamp(Math.ceil(pos - 0.5) - 1, 0, sheets);
+  const right = sheets - left;
+  const thickness = (n: number) => (n / sheets) * blockDepth;
+  return {
+    right,
+    left,
+    rightZ: -blockDepth / 2 + thickness(right) / 2,
+    leftZ: -blockDepth / 2 + thickness(left) / 2,
+    rightScale: Math.max(0.0001, right / sheets),
+    leftScale: Math.max(0.0001, left / sheets),
+  };
 }
