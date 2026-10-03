@@ -1,12 +1,11 @@
 "use client";
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { CoverText } from "@/components/cover/CoverPreview";
-import { getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { getCoverTemplate } from "@/lib/book/covers";
 import { cssFont } from "@/lib/book/fonts";
-import { coverSpreadGeometry, getFormat, type Rect } from "@/lib/book/formats";
+import { getFormat } from "@/lib/book/formats";
 import {
   BOARD_MM,
   bookDims,
@@ -31,6 +30,8 @@ import {
 } from "@/lib/book/book-model";
 import { clampPos, RENDER_WINDOW, visibleSpread, type Sheet } from "@/lib/book/flipbook";
 import { cn } from "@/lib/utils";
+import { buildCoverArt } from "./cover-art";
+import { ViewerControls } from "./ViewerControls";
 import { FaceView, usePagedBook, type FaceContext, type FlipbookData } from "./pages";
 
 /** Длина в миллиметрах модели → CSS: --u — пикселей на миллиметр, зависит от размера кадра и масштаба. */
@@ -81,19 +82,6 @@ function Cuboid({ w, h, d, at = [0, 0, 0], leaf, faces }: { w: number; h: number
 const paperEdge = (deg: number): CSSProperties => ({
   background: `repeating-linear-gradient(${deg}deg, rgba(110,90,60,0) 0 2px, rgba(110,90,60,.09) 2px 3px), linear-gradient(${deg + 90}deg, #efe7d8, #f8f3e9 40%, #efe7d8)`,
 });
-
-/**
- * Обрезает развёртку обложки до нужной стороны, чтобы браузер растрировал только её.
- * Фильтры фактуры заданы как «100% области просмотра» — после обрезки это размер стороны, а не развёртки,
- * и фактура пропадает на куске справа и снизу, поэтому размер области фильтра задаётся явно.
- */
-function cropSvg(svg: string, r: Rect, spread: { w: number; h: number }) {
-  return svg
-    .replace(/viewBox="[^"]*"/, `viewBox="${r.x} ${r.y} ${r.w} ${r.h}"`)
-    .replace(/preserveAspectRatio="[^"]*"/, 'preserveAspectRatio="none"')
-    .replace(/(<filter [^>]*?)width="100%" height="100%"/g, `$1width="${spread.w}" height="${spread.h}"`);
-}
-const svgUrl = (svg: string) => `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 
 const endpaper: CSSProperties = { background: "linear-gradient(135deg,#efe7d8,#e4d9c4)" };
 
@@ -171,20 +159,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const M = Math.max(1, count - 2);
 
   // ── Арт обложки: лицо, оборот и корешок — отдельными обрезанными картинками ──
-  const art = useMemo(() => {
-    const g = coverSpreadGeometry(format, pageCount);
-    const uid = `bo${template.id}${format.id}`;
-    const flat = renderCoverSvg(template, g, { uid });
-    const photo = template.requiresPhoto && data.cover.photoUrl ? renderCoverSvg(template, g, { uid: `${uid}p`, photoHref: data.cover.photoUrl }) : null;
-    const { front, back, spine } = dims.rects;
-    return {
-      // Картинка-SVG не загружает чужие файлы, поэтому лицо с фото клиента встраивается как есть.
-      frontInline: photo ? cropSvg(photo, front, dims.spread) : null,
-      front: svgUrl(cropSvg(flat, front, dims.spread)),
-      back: svgUrl(cropSvg(flat, back, dims.spread)),
-      spine: svgUrl(cropSvg(flat, spine, dims.spread)),
-    };
-  }, [format, pageCount, template, data.cover.photoUrl, dims.rects, dims.spread]);
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, data.cover.photoUrl), [template, format, pageCount, dims, data.cover.photoUrl]);
 
   // ── Состояние просмотра хранится вне React: каждый кадр обновляет стили напрямую ──
   const wrapper = useRef<HTMLDivElement>(null);
@@ -609,7 +584,6 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const bw = dims.block.w;
   const bh = dims.block.h;
 
-  const views = ["front", "spine", "back", "edge", "top", "bottom"] as const;
   const sceneStyle = {
     "--zoom": 1,
     "--u": `calc(min(100cqw, 100cqh) / ${Math.round(extent * 1.08)} * var(--zoom))`,
@@ -696,91 +670,34 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
         </div>
       </div>
 
-      <div className="flex w-full max-w-3xl items-center gap-3">
-        <button type="button" className="btn btn-outline btn-sm" aria-label={f.prev} disabled={!count || slot <= 0} onClick={() => { stopAuto(); goTo(target.current - 1); }}>
-          <ChevronLeft className="size-4" />
-        </button>
-        <input
-          type="range"
-          aria-label={f.slider}
-          min={0}
-          max={Math.max(0, count - 1)}
-          step={1}
-          value={slot}
-          disabled={!count}
-          onChange={(e) => { stopAuto(); goTo(Number(e.target.value)); }}
-          className="min-w-0 flex-1 accent-wine"
-        />
-        <button type="button" className="btn btn-outline btn-sm" aria-label={f.next} disabled={!count || slot >= count - 1} onClick={() => { stopAuto(); goTo(target.current + 1); }}>
-          <ChevronRight className="size-4" />
-        </button>
-      </div>
-      <p aria-live="polite" className="text-sm font-medium text-ink-soft">
-        {label}
-      </p>
-
-      <div role="toolbar" aria-label={mm.group} className="flex max-w-3xl flex-wrap items-center justify-center gap-2">
-        {views.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={active === id}
-            onClick={() => {
-              stopAuto();
-              animateTo({ ...VIEWS[id] }, id);
-            }}
-            className={cn("btn btn-sm", active === id ? "btn-primary" : "btn-outline")}
-          >
-            {mm.views[id]}
-          </button>
-        ))}
-        <button
-          type="button"
-          aria-pressed={active === "read"}
-          onClick={() => {
-            stopAuto();
-            if (pos.current < 0.5) goTo(1);
-            animateTo({ ...READ_VIEW, zoom: Math.max(view.current.zoom, READ_ZOOM) }, "read");
-          }}
-          className={cn("btn btn-sm", active === "read" ? "btn-primary" : "btn-outline")}
-        >
-          {mm.views.read}
-        </button>
-        <span className="mx-1 h-5 w-px bg-line" aria-hidden />
-        <button type="button" className="btn btn-outline btn-sm" aria-label={mm.zoomOut} title={mm.zoomOut} onClick={() => zoomBy(1 / ZOOM.step)}>
-          <Minus className="size-4" />
-        </button>
-        <button type="button" className="btn btn-outline btn-sm" aria-label={mm.zoomIn} title={mm.zoomIn} onClick={() => zoomBy(ZOOM.step)}>
-          <Plus className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline btn-sm"
-          aria-pressed={auto}
-          aria-label={auto ? mm.autoOff : mm.autoOn}
-          title={auto ? mm.autoOff : mm.autoOn}
-          onClick={() => {
-            const mo = motion.current;
-            mo.auto = !mo.auto;
-            setAuto(mo.auto);
-            if (mo.auto) kick();
-          }}
-        >
-          {auto ? <Pause className="size-4" /> : <Play className="size-4" />}
-        </button>
-        <button type="button" className="btn btn-outline btn-sm" aria-label={mm.reset} title={mm.reset} onClick={() => { stopAuto(); animateTo({ ...INITIAL_VIEW, zoom: 1 }, "front"); }}>
-          <RotateCcw className="size-4" />
-        </button>
-        {canFull ? (
-          <button type="button" className="btn btn-outline btn-sm" aria-label={full ? f.exitFullscreen : f.fullscreen} title={full ? f.exitFullscreen : f.fullscreen} onClick={toggleFull}>
-            {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-          </button>
-        ) : null}
-      </div>
-      <p className="text-sm font-medium text-ink-soft">{mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(D * 10) / 10, pageCount)}</p>
-      <p className="max-w-xl text-center text-xs text-muted">
-        {mm.hint} {mm.note}
-      </p>
+      <ViewerControls
+        count={count}
+        slot={slot}
+        label={label}
+        active={active}
+        auto={auto}
+        canFull={canFull}
+        full={full}
+        dimsText={mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(D * 10) / 10, pageCount)}
+        onPrev={() => { stopAuto(); goTo(target.current - 1); }}
+        onNext={() => { stopAuto(); goTo(target.current + 1); }}
+        onSeek={(n) => { stopAuto(); goTo(n); }}
+        onView={(id) => { stopAuto(); animateTo({ ...VIEWS[id] }, id); }}
+        onRead={() => {
+          stopAuto();
+          if (pos.current < 0.5) goTo(1);
+          animateTo({ ...READ_VIEW, zoom: Math.max(view.current.zoom, READ_ZOOM) }, "read");
+        }}
+        onZoom={zoomBy}
+        onAuto={() => {
+          const mo = motion.current;
+          mo.auto = !mo.auto;
+          setAuto(mo.auto);
+          if (mo.auto) kick();
+        }}
+        onReset={() => { stopAuto(); animateTo({ ...INITIAL_VIEW, zoom: 1 }, "front"); }}
+        onFull={toggleFull}
+      />
     </div>
   );
 }

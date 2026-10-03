@@ -133,3 +133,45 @@ describe("листы и стопки", () => {
     expect(faceLight("front", o, 0)).toBeGreaterThan(faceLight("front", o, 180));
   });
 });
+
+import { windowPiles } from "@/lib/book/book-model";
+
+describe("стопки вокруг окна листов", () => {
+  const M = 40;
+  const Db = 6;
+  const t = Db / M;
+
+  it("закрытая книга — одна стопка на всю толщину, листы не рисуются", () => {
+    const w = windowPiles(0, M, Db, 3);
+    expect(w.right).toEqual({ count: M, top: Db / 2 });
+    expect(w.left.count).toBe(0);
+    expect(w.last).toBeLessThan(w.first);
+  });
+
+  it("листы окна и две стопки вместе дают все листы блока при любой позиции", () => {
+    for (let pos = 0.01; pos <= M + 1; pos += 0.37) {
+      const w = windowPiles(pos, M, Db, 3);
+      const inWindow = Math.max(0, w.last - w.first + 1);
+      expect(w.right.count + w.left.count + inWindow).toBe(M);
+    }
+  });
+
+  it("верх стопки лежит ниже нижнего отрисованного листа — не перекрывает текст", () => {
+    for (const pos of [0.5, 1.4, 7.2, 20, 39.6, 41]) {
+      const w = windowPiles(pos, M, Db, 3);
+      if (w.right.count && w.last >= w.first) {
+        const lowestRightLeaf = Db / 2 - (w.last - 0.5) * t; // z листа
+        expect(w.right.top).toBeLessThan(lowestRightLeaf);
+      }
+      if (w.left.count && w.last >= w.first) {
+        const lowestLeftLeaf = -(Db / 2 - (w.first - 0.5) * t); // зеркальный z перевёрнутого листа
+        expect(w.left.top).toBeLessThan(lowestLeftLeaf);
+      }
+    }
+  });
+
+  it("в конце книги правая стопка пуста, в начале (сразу после открытия) пуста левая", () => {
+    expect(windowPiles(M + 1, M, Db, 3).right.count).toBe(0);
+    expect(windowPiles(1, M, Db, 3).left.count).toBe(0);
+  });
+});

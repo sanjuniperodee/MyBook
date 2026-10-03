@@ -175,3 +175,30 @@ export function pileState(pos: number, sheets: number, blockDepth: number): Pile
     leftScale: Math.max(0.0001, left / sheets),
   };
 }
+
+export interface WindowPile {
+  /** Сколько листов в стопке и на какой высоте её верхняя грань (низ — всегда −blockDepth/2). */
+  count: number;
+  top: number;
+}
+
+/**
+ * Стопки страниц для сцены с настоящими объёмами. Листы возле текущей позиции (окно ±window) рисуются отдельно,
+ * а всё остальное заменяют две стопки. Верх стопки лежит ровно под нижним отрисованным листом: будь он выше,
+ * закрытая грань стопки перекрыла бы листы с текстом.
+ * Пока книга закрыта, листы не рисуются — вся книга одна стопка справа.
+ */
+export function windowPiles(pos: number, sheets: number, blockDepth: number, window: number): { right: WindowPile; left: WindowPile; first: number; last: number } {
+  const thickness = blockDepth / sheets;
+  if (pos <= 0.001) return { right: { count: sheets, top: blockDepth / 2 }, left: { count: 0, top: -blockDepth / 2 }, first: 1, last: 0 };
+  const last = Math.min(sheets, Math.floor(pos + window));
+  const first = Math.max(1, Math.ceil(pos - window));
+  const rightCount = Math.max(0, sheets - last);
+  const leftCount = Math.max(0, Math.min(sheets, first - 1));
+  return {
+    right: { count: rightCount, top: -blockDepth / 2 + rightCount * thickness },
+    left: { count: leftCount, top: -blockDepth / 2 + leftCount * thickness },
+    first,
+    last,
+  };
+}
