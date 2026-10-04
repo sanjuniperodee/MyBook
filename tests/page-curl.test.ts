@@ -74,3 +74,20 @@ describe("curlCurve", () => {
     expect(c.nz[0]).toBeCloseTo(Math.cos(curlAngle(0.5, 0)), 5);
   });
 });
+
+describe("раскрытие книги «домиком» (span < π)", () => {
+  it("лист переворачивается не на π, а на заданный угол, длина сохраняется", () => {
+    const span = Math.PI * 0.6;
+    expect(curlAngle(1, 0, 0.24, span)).toBeCloseTo(span, 9);
+    expect(curlAngle(1, 1, 0.24, span)).toBeCloseTo(span, 9);
+    const c = curlCurve(1, 148, 0, CURL_SEGMENTS, 0.24, span);
+    expect(c.x[CURL_SEGMENTS]).toBeCloseTo(148 * Math.cos(span), 2);
+    expect(c.z[CURL_SEGMENTS]).toBeCloseTo(148 * Math.sin(span), 2);
+    for (const t of [0.2, 0.6]) {
+      const m = curlCurve(t, 148, 0, CURL_SEGMENTS, 0.24, span);
+      let len = 0;
+      for (let i = 0; i < CURL_SEGMENTS; i++) len += Math.hypot(m.x[i + 1] - m.x[i], m.z[i + 1] - m.z[i]);
+      expect(len).toBeCloseTo(148, 2);
+    }
+  });
+});

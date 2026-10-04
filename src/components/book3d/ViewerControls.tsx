@@ -7,6 +7,18 @@ import { cn } from "@/lib/utils";
 export const VIEW_IDS = ["front", "spine", "back", "edge", "top", "bottom"] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
+export interface ApertureControl {
+  /** Доля 180°: 1 — книга раскрыта плоско. */
+  value: number;
+  min: number;
+  max: number;
+  /** Подпись угла, например «167°». */
+  label: string;
+  /** Книга закрыта — раскрывать нечего. */
+  disabled: boolean;
+  onChange: (value: number) => void;
+}
+
 export interface ViewerControlsProps {
   /** Листов всего (0, пока текст не измерен) и номер текущей позиции. */
   count: number;
@@ -19,6 +31,8 @@ export interface ViewerControlsProps {
   canFull: boolean;
   full: boolean;
   dimsText: string;
+  /** Регулировка раскрытия книги; без неё (CSS-версия) ползунок не показывается. */
+  aperture?: ApertureControl;
   onPrev: () => void;
   onNext: () => void;
   onSeek: (n: number) => void;
@@ -89,6 +103,23 @@ export function ViewerControls(p: ViewerControlsProps) {
           </button>
         ) : null}
       </div>
+      {p.aperture ? (
+        <label className="flex w-full max-w-sm items-center gap-3 text-sm text-ink-soft" title={p.aperture.disabled ? mm.apertureClosed : undefined}>
+          <span className="shrink-0">{mm.aperture}</span>
+          <input
+            type="range"
+            aria-label={mm.aperture}
+            min={p.aperture.min}
+            max={p.aperture.max}
+            step={0.01}
+            value={p.aperture.value}
+            disabled={p.aperture.disabled}
+            onChange={(e) => p.aperture!.onChange(Number(e.target.value))}
+            className="min-w-0 flex-1 accent-wine disabled:opacity-40"
+          />
+          <span className="w-10 shrink-0 text-right tabular-nums">{p.aperture.label}</span>
+        </label>
+      ) : null}
       <p className="text-sm font-medium text-ink-soft">{p.dimsText}</p>
       <p className="max-w-xl text-center text-xs text-muted">
         {mm.hint} {mm.note}

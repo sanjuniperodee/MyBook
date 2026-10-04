@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { BOARD_MM, clamp, leafZ, shortestDelta, windowPiles, type BookDims } from "@/lib/book/book-model";
-import { curlCurve, CURL_SEGMENTS } from "@/lib/book/page-curl";
+import { APERTURE, BOARD_MM, clamp, clampAperture, leafZ, shortestDelta, spineFold, windowPiles, type BookDims } from "@/lib/book/book-model";
+import { curlCurve, CURL_LAG, CURL_SEGMENTS } from "@/lib/book/page-curl";
 import { RENDER_WINDOW } from "@/lib/book/flipbook";
 
 /** Ключ текстуры: сторона обложки или полоса листа (f — лицевая, b — оборотная). */
@@ -31,6 +31,9 @@ export interface SceneInit {
 type FlipHit = "next" | "prev" | null;
 
 const SHADOW_BIAS = -0.0006;
+
+/** Палитра студии: тёплая слоновая кость в тон бумаге сайта — книга выделяется, но фон не спорит с обложкой. */
+const STUDIO = { zenith: "#cfbe9f", horizon: "#e8dbc3", floorCenter: "#f6eddc", floorEdge: "#d9c9ad" } as const;
 /** Сколько листов вокруг текущей позиции рисуются настоящими изогнутыми плоскостями. */
 const WINDOW = RENDER_WINDOW;
 
@@ -73,8 +76,18 @@ export class BookScene {
   private readonly coverBoard: THREE.Mesh;
   private readonly backBoard: THREE.Mesh;
   private readonly spine: THREE.Mesh;
+  /** Корешок крепится к задней крышке и при раскрытии складывается назад (поворот вокруг своего заднего ребра). */
+  private readonly spineHinge = new THREE.Group();
   private readonly pileRight: THREE.Mesh;
   private readonly pileLeft: THREE.Mesh;
+  /** Левая стопка лежит на шарнире и поворачивается вместе с раскрытием книги. */
+  private readonly leftHinge = new THREE.Group();
+  private readonly floor: THREE.Mesh;
+  private readonly floorMat: THREE.MeshStandardMaterial;
+  private readonly contact: THREE.Mesh;
+  private readonly contactMat: THREE.MeshBasicMaterial;
+  private readonly groundY: number;
+  private aperture: number = APERTURE.default;
   private readonly leaves: Leaf[] = [];
   private readonly textures = new Map<FaceKey, THREE.CanvasTexture>();
   private readonly frontMats: THREE.MeshStandardMaterial[];
@@ -140,11 +153,14 @@ export class BookScene {
     key.target.position.set(0, 0, 0);
     this.scene.add(key, key.target);
     this.shadowLight = key;
-    const fill = new THREE.HemisphereLight(0xfff8ee, 0xd8cdb8, 0.2);
+    const fill = new THREE.HemisphereLight(0xfff8ee, 0xe3d9c6, 0.28);
     // Слабый встречный свет сзади и справа без теней: обратная сторона и срез не должны проваливаться в темноту.
     const back = new THREE.DirectionalLight(0xf3efe8, 0.75);
     back.position.set(W * 1.8, H * 1.2, -W * 2.2);
-    this.scene.add(fill, back);
+    // И отражённый от «стола» свет снизу: когда смотрят снизу, нижний торец и обложки не проваливаются в чёрное.
+    const bounce = new THREE.DirectionalLight(0xf6ecda, 0.5);
+    bounce.position.set(-W * 0.4, -H * 2, W * 1.2);
+    this.scene.add(fill, back, bounce);
 
     // Камера: лёгкий «телеобъектив» — меньше перспективных искажений страниц.
     const fov = 24;
@@ -216,6 +232,8 @@ export class BookScene {
     // ── Корешок: изогнутая полоса, соединяющая крышки ──
     this.spine = new THREE.Mesh(this.buildSpineGeometry(), this.spineMat);
     this.spine.castShadow = this.spine.receiveShadow = true;
+    this.spineHinge.position.set(-W / 2, 0, -D / 2);
+    this.spineHinge.add(this.spine);
 
     // ── Стопки страниц ──
     const bw = dims.block.w;
@@ -250,25 +268,33 @@ export class BookScene {
       this.world.add(front, back);
     }
 
-    this.world.add(this.backBoard, this.spine, this.pileRight, this.pileLeft, this.coverPivot);
+    this.leftHinge.position.x = -W / 2;
+    this.leftHinge.add(this.pileLeft);
+    this.world.add(this.backBoard, this.spineHinge, this.pileRight, this.leftHinge, this.coverPivot);
     this.scene.add(this.world);
 
-    // ── «Стол»: мягкая тень от света и пятно контакта, чтобы книга не парила ──
+    // ── Студия: купол с градиентом, «стол» с пятном света, туман для глубины, пятно контакта ──
     const groundY = -H / 2 - 0.3;
-    const catcher = new THREE.Mesh(this.track(new THREE.PlaneGeometry(W * 14, W * 14)), this.track(new THREE.ShadowMaterial({ opacity: 0.13 })));
-    catcher.rotation.x = -Math.PI / 2;
-    catcher.position.y = groundY;
-    catcher.receiveShadow = true;
-    this.scene.add(catcher);
-    const contactTex = this.track(this.contactTexture());
-    const contact = new THREE.Mesh(
-      this.track(new THREE.PlaneGeometry(1, 1)),
-      this.track(new THREE.MeshBasicMaterial({ map: contactTex, transparent: true, depthWrite: false, opacity: 0.55 })),
+    this.groundY = groundY;
+    this.scene.fog = new THREE.Fog(STUDIO.horizon, this.baseDistance * 2.4, this.baseDistance * 7.5);
+    const dome = new THREE.Mesh(
+      this.track(new THREE.SphereGeometry(this.baseDistance * 9, 40, 24)),
+      this.track(new THREE.MeshBasicMaterial({ map: this.track(this.domeTexture()), side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false })),
     );
-    contact.rotation.x = -Math.PI / 2;
-    contact.position.y = groundY + 0.05;
-    contact.scale.set(W * 1.15, D * 5 + 22, 1);
-    this.scene.add(contact);
+    dome.renderOrder = -10;
+    this.scene.add(dome);
+    this.floorMat = this.track(new THREE.MeshStandardMaterial({ map: this.track(this.floorTexture()), roughness: 0.97, metalness: 0, transparent: true }));
+    this.floor = new THREE.Mesh(this.track(new THREE.CircleGeometry(this.baseDistance * 8, 72)), this.floorMat);
+    this.floor.rotation.x = -Math.PI / 2;
+    this.floor.position.y = groundY;
+    this.floor.receiveShadow = true;
+    this.scene.add(this.floor);
+    this.contactMat = this.track(new THREE.MeshBasicMaterial({ map: this.track(this.contactTexture()), transparent: true, depthWrite: false, opacity: 0.5 }));
+    this.contact = new THREE.Mesh(this.track(new THREE.PlaneGeometry(1, 1)), this.contactMat);
+    this.contact.rotation.x = -Math.PI / 2;
+    this.contact.position.y = groundY + 0.05;
+    this.contact.scale.set(W * 1.15, D * 5 + 22, 1);
+    this.scene.add(this.contact);
 
     this.apply();
   }
@@ -301,6 +327,16 @@ export class BookScene {
 
   get position() {
     return this.pos;
+  }
+
+  /** Раскрытие книги: доля 180° между половинами (1 — плоско, меньше — «домиком»). */
+  setAperture(value: number) {
+    const a = clampAperture(value);
+    if (a === this.aperture) return;
+    this.aperture = a;
+    for (const leaf of this.leaves) if (leaf) leaf.drawn = Number.NaN; // форма листов зависит от угла
+    this.apply();
+    this.requestRender();
   }
 
   /** Привязывает загруженную картинку к стороне обложки или полосе листа; null снимает её. */
@@ -461,6 +497,7 @@ export class BookScene {
     // Закрытая книга медленно поворачивается сама; открытую не трогаем — её читают.
     this.controls.autoRotate = this.autoWanted && !this.reduced && this.pos < 0.001;
     const moved = this.controls.update();
+    this.fadeGround();
     this.renderer.render(this.scene, this.camera);
     if (busy || moved || this.controls.autoRotate) this.requestRender();
   };
@@ -473,7 +510,10 @@ export class BookScene {
     const open = clamp(p, 0, 1);
     // Раскрытая книга уходит влево вместе с корешком — центр вращения камеры остаётся посередине разворота.
     this.world.position.x = open * (W / 2);
-    this.coverPivot.rotation.y = -open * Math.PI;
+    const span = this.aperture * Math.PI;
+    this.coverPivot.rotation.y = -open * span;
+    this.leftHinge.rotation.y = -span;
+    this.spineHinge.rotation.y = -spineFold(open, this.aperture);
 
     const thickness = block.d / M;
     const piles = windowPiles(p, M, block.d, WINDOW);
@@ -485,7 +525,14 @@ export class BookScene {
       mesh.position.set(x, 0, -block.d / 2 + h / 2);
     };
     place(this.pileRight, piles.right.count, piles.right.top, -W / 2 + block.w / 2);
-    place(this.pileLeft, piles.left.count, piles.left.top, -W / 2 - block.w / 2);
+    // Левая стопка строится как правая, но зеркально по глубине (она лежит на перевёрнутой крышке) и вместе с шарниром
+    // поворачивается на угол раскрытия — поэтому при любом угле она стыкуется с листами и крышкой.
+    this.pileLeft.visible = piles.left.count > 0;
+    if (piles.left.count) {
+      const h = piles.left.top + block.d / 2;
+      this.pileLeft.scale.z = Math.max(h, 0.001);
+      this.pileLeft.position.set(block.w / 2, 0, block.d / 2 - h / 2);
+    }
 
     for (let i = 1; i <= M; i++) {
       const leaf = this.leaves[i];
@@ -504,7 +551,7 @@ export class BookScene {
   /** Пересчитывает форму листа: кривая изгиба в плоскости «ширина × глубина», вытянутая по высоте. */
   private bend(leaf: Leaf, t: number, zOffset: number, sheetThickness: number) {
     const { block, w: W } = this.dims;
-    const curve = curlCurve(t, block.w, zOffset);
+    const curve = curlCurve(t, block.w, zOffset, CURL_SEGMENTS, CURL_LAG, this.aperture * Math.PI);
     const pos = leaf.geometry.getAttribute("position") as THREE.BufferAttribute;
     const arr = pos.array as Float32Array;
     const half = block.h / 2;
@@ -546,7 +593,7 @@ export class BookScene {
   }
 
   private buildSpineGeometry() {
-    const { w: W, h: H, d: D } = this.dims;
+    const { h: H, d: D } = this.dims;
     const steps = 18;
     // Корешок слегка выпуклый, как у настоящей книги в твёрдом переплёте.
     const bulge = Math.min(1.6, D * 0.14);
@@ -555,8 +602,9 @@ export class BookScene {
     const index: number[] = [];
     for (let j = 0; j <= steps; j++) {
       const t = j / steps;
-      const z = D / 2 - t * D;
-      const x = -W / 2 - bulge * (1 - Math.pow(2 * t - 1, 2));
+      // Локальные координаты: начало — заднее ребро корешка; +z идёт к лицу книги.
+      const z = D - t * D;
+      const x = -bulge * (1 - Math.pow(2 * t - 1, 2));
       positions.push(x, H / 2, z, x, -H / 2, z);
       // Смотрим слева: +z (лицо книги) справа — значит, u растёт к лицу.
       uvs.push(1 - t, 1, 1 - t, 0);
@@ -595,6 +643,101 @@ export class BookScene {
     if (axis === "u") tex.repeat.set(count, 1);
     else tex.repeat.set(1, count);
     return tex;
+  }
+
+  /**
+   * Купол студии: тёмный тёплый верх, светлый «горизонт» на уровне книги и мягкие пятна света (боке) в глубине.
+   * Зерно в градиенте убирает концентрические кольца — 8-битный градиент без него расслаивается на полосы.
+   */
+  private domeTexture() {
+    const w = 1024;
+    const h = 512;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d")!;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, STUDIO.zenith);
+    g.addColorStop(0.5, STUDIO.horizon);
+    g.addColorStop(1, "#dccfb6");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    // Детерминированный «случай»: фон одинаков при каждом открытии.
+    let seed = 7;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let i = 0; i < 70; i++) {
+      const x = rnd() * w;
+      const y = h * (0.06 + rnd() * 0.46);
+      const r = 14 + rnd() * 44;
+      const warm = rnd() < 0.3;
+      const blob = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const rgb = warm ? "246,214,160" : "255,250,238";
+      const a = 0.05 + rnd() * 0.1;
+      blob.addColorStop(0, `rgba(${rgb},${a})`);
+      blob.addColorStop(0.65, `rgba(${rgb},${a * 0.55})`);
+      blob.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = blob;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    this.addGrain(ctx, w, h, 3, true);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = this.maxAnisotropy;
+    return tex;
+  }
+
+  /**
+   * Лёгкий шум по яркости (±amount из 255): ломает полосы градиента, на глаз незаметен.
+   * poles — гасить шум у верха и низа картинки: на куполе эти строки стягиваются в точку, и шум превращается в лучи.
+   */
+  private addGrain(ctx: CanvasRenderingContext2D, w: number, h: number, amount: number, poles = false) {
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    let seed = 91;
+    for (let i = 0; i < d.length; i += 4) {
+      seed = (seed * 16807) % 2147483647;
+      const y = Math.floor(i / 4 / w);
+      const weight = poles ? Math.pow(Math.sin((Math.PI * (y + 0.5)) / h), 1.5) : 1;
+      const n = ((seed / 2147483647) * 2 - 1) * amount * weight;
+      d[i] = clamp(d[i] + n, 0, 255);
+      d[i + 1] = clamp(d[i + 1] + n, 0, 255);
+      d[i + 2] = clamp(d[i + 2] + n, 0, 255);
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  /** «Стол»: пятно света под книгой, к краям темнее — как на студийном снимке; туман растворяет его в горизонте. */
+  private floorTexture() {
+    const size = 512;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, STUDIO.floorCenter);
+    g.addColorStop(0.18, STUDIO.floorCenter);
+    g.addColorStop(1, STUDIO.floorEdge);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    this.addGrain(ctx, size, size, 2.5);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = this.maxAnisotropy;
+    return tex;
+  }
+
+  /**
+   * Когда камера уходит под «стол», пол и тень на нём исчезают плавно: иначе снизу видна изнанка плоскости и
+   * «тень», висящая в воздухе. Книга при этом просто парит в студии.
+   */
+  private fadeGround() {
+    const fade = clamp((this.camera.position.y - (this.groundY - 60)) / 60, 0, 1);
+    this.floor.visible = fade > 0.01;
+    this.floorMat.opacity = fade;
+    this.contact.visible = fade > 0.01;
+    this.contactMat.opacity = 0.5 * fade;
   }
 
   private contactTexture() {

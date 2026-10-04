@@ -251,6 +251,8 @@ export const books: typeof ru = {
       autoOn: "Өздігінен айналдыру",
       autoOff: "Айналдыруды тоқтату",
       reset: "Бастапқы көрініс",
+      aperture: "Кітаптың ашылуы",
+      apertureClosed: "Ашылуын өзгерту үшін кітапты ашыңыз",
       dims: (w: number, h: number, d: number, pages: number) => `${w}×${h} мм · кітап арқасы ${d} мм · ≈ ${pages} бет`,
     },
     flip: {

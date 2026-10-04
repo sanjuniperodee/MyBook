@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useMessages } from "@/i18n/client";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
-import { bookDims, clamp } from "@/lib/book/book-model";
+import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
 import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/utils";
 import { FaceView, usePagedBook, type FlipbookData } from "./pages";
@@ -102,6 +102,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const [active, setActive] = useState<string | null>("front");
   const [jobs, setJobs] = useState<RasterJob[]>([]);
   const [ready, setReady] = useState(false);
+  const [aperture, setAperture] = useState<number>(APERTURE.default);
+  const apertureRef = useRef<number>(APERTURE.default);
   const unsupported = useRef(onUnsupported);
   useEffect(() => {
     countRef.current = count;
@@ -140,6 +142,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     }
     scene.current = s;
     have.current.clear();
+    s.setAperture(apertureRef.current);
     s.setPosition(target.current);
     s.onPosition = (p) => {
       const r = Math.round(p);
@@ -324,6 +327,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
         style={full ? { height: "calc(100dvh - 12rem)" } : { maxWidth: "48rem", aspectRatio: "5 / 4" }}
       >
         <canvas ref={canvas} className="absolute inset-0 block size-full cursor-grab touch-none active:cursor-grabbing" />
+        {/* Лёгкая виньетка: взгляд уходит к книге, края студии мягко темнеют */}
+        <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 44%, transparent 56%, rgba(72,50,26,.16) 100%)" }} />
         {!ready ? <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted">{f.loading}</div> : null}
       </div>
       <ViewerControls
@@ -334,6 +339,18 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
         auto={auto}
         canFull={canFull}
         full={full}
+        aperture={{
+          value: aperture,
+          min: APERTURE.min,
+          max: APERTURE.max,
+          label: `${apertureDegrees(aperture)}°`,
+          disabled: slot === 0,
+          onChange: (v) => {
+            apertureRef.current = v;
+            setAperture(v);
+            scene.current?.setAperture(v);
+          },
+        }}
         dimsText={mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(dims.d * 10) / 10, pageCount)}
         onPrev={() => {
           stopAuto();

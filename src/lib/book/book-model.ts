@@ -202,3 +202,18 @@ export function windowPiles(pos: number, sheets: number, blockDepth: number, win
     last,
   };
 }
+
+/** Раскрытие книги: доля полного угла 180° между половинами. Плоско раскрытая — 1; на столе книга обычно «домиком». */
+export const APERTURE = { min: 0.4, max: 1, default: 0.93 } as const;
+
+export const clampAperture = (a: number) => clamp(a, APERTURE.min, APERTURE.max);
+
+/** Угол между раскрытыми половинами книги, градусы. */
+export const apertureDegrees = (a: number) => Math.round(clampAperture(a) * 180);
+
+/**
+ * Поворот корешка при раскрытии, радианы. Закрытой книге корешок стоит стеной сбоку (0); раскрываясь, он
+ * складывается назад и ложится под разворот — иначе он торчал бы посередине между половинами.
+ * Полностью раскрытой на 180° книге корешок смотрит назад (π/2).
+ */
+export const spineFold = (open: number, aperture: number) => clamp(open, 0, 1) * clampAperture(aperture) * (Math.PI / 2);

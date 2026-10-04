@@ -175,3 +175,24 @@ describe("стопки вокруг окна листов", () => {
     expect(windowPiles(1, M, Db, 3).left.count).toBe(0);
   });
 });
+
+import { APERTURE, apertureDegrees, clampAperture, spineFold } from "@/lib/book/book-model";
+
+describe("раскрытие и корешок", () => {
+  it("угол раскрытия ограничен и переводится в градусы", () => {
+    expect(clampAperture(0)).toBe(APERTURE.min);
+    expect(clampAperture(5)).toBe(APERTURE.max);
+    expect(apertureDegrees(1)).toBe(180);
+    expect(apertureDegrees(0.5)).toBe(90);
+    expect(apertureDegrees(APERTURE.default)).toBe(167);
+  });
+
+  it("корешок стоит у закрытой книги и складывается назад по мере раскрытия", () => {
+    expect(spineFold(0, 1)).toBe(0);
+    expect(spineFold(1, 1)).toBeCloseTo(Math.PI / 2, 9);
+    expect(spineFold(0.5, 1)).toBeCloseTo(Math.PI / 4, 9);
+    // книга «домиком» складывает корешок меньше
+    expect(spineFold(1, 0.5)).toBeCloseTo(Math.PI / 4, 9);
+    expect(spineFold(2, 1)).toBeCloseTo(Math.PI / 2, 9);
+  });
+});

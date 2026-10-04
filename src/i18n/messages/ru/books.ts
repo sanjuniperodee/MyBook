@@ -252,6 +252,8 @@ export const books = {
       autoOn: "Вращать автоматически",
       autoOff: "Остановить вращение",
       reset: "Исходный ракурс",
+      aperture: "Раскрытие книги",
+      apertureClosed: "Откройте книгу, чтобы менять раскрытие",
       dims: (w: number, h: number, d: number, pages: number) => `${w}×${h} мм · корешок ${d} мм · ≈ ${pages} стр.`,
     },
     flip: {
