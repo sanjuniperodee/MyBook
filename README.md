@@ -171,6 +171,7 @@ bash deploy/rollback.sh <релиз>      # на конкретный, спис�
 - `PAYMENT_PROVIDER` — `manual` или `cloudpayments`.
 - `APP_SECRET` — секрет для ссылок отписки. `SCHEDULER=off` — выключить фоновые задачи.
 - `YANDEX_METRIKA_ID`, `GA_MEASUREMENT_ID`, `META_PIXEL_ID` — счётчики (задайте до сборки).
+- `GOOGLE_SITE_VERIFICATION`, `YANDEX_VERIFICATION` — коды подтверждения сайта для Google Search Console и Яндекс Вебмастера (только значение `content`). После подтверждения отправьте `APP_URL/sitemap.xml` в оба сервиса.
 - `REDIS_URL` — необязательно: нужен только при нескольких экземплярах приложения (общие лимиты частоты и защита кодов 2FA); в Docker — `docker compose --profile scale up -d`. Почему без Kafka/RabbitMQ — `docs/adr/0001-messaging-queues-cache.md`.
 - AI-помощник: провайдер (Claude, ChatGPT, DeepSeek или любой OpenAI-совместимый API — OpenRouter, Qwen, своя модель), ключ и модель выбираются в «Интеграциях». Можно и переменными: `CRM_AI_PROVIDER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`.
 - `CRM_IMAP_HOST`, `CRM_IMAP_PORT`, `CRM_IMAP_USER`, `CRM_IMAP_PASSWORD` — входящий ящик для почтового канала (или в «Интеграциях»); `CRM_REPLY_TO` — адрес для ответов, если он отличается от `MAIL_FROM`.

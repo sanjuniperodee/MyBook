@@ -23,13 +23,18 @@ export async function Footer() {
         <div>
           <div className="mb-3 text-sm font-semibold">{f.ideas}</div>
           <ul className="space-y-2 text-sm text-muted">
-            {landings.map((l) => (
+            {landings.slice(0, 8).map((l) => (
               <li key={l.slug}>
                 <Link href={`/kniga/${l.slug}`} className="hover:text-ink">
                   {l.content[locale].label}
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/kniga" className="font-medium text-wine hover:text-ink">
+                {f.allIdeas} →
+              </Link>
+            </li>
           </ul>
         </div>
         <div>
@@ -39,6 +44,7 @@ export async function Footer() {
             <li><Link href="/gift" className="hover:text-ink">{f.gift}</Link></li>
             <li><Link href="/redeem" className="hover:text-ink">{f.redeem}</Link></li>
             <li><Link href="/#faq" className="hover:text-ink">{f.faq}</Link></li>
+            <li><Link href="/blog" className="hover:text-ink">{f.blog}</Link></li>
             <li><Link href="/offer" className="hover:text-ink">{f.offer}</Link></li>
             <li><Link href="/privacy" className="hover:text-ink">{f.privacy}</Link></li>
           </ul>
