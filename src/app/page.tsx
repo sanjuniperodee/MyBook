@@ -36,9 +36,18 @@ import { formatPrice, plans, productionDays, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { coverName } from "@/i18n/labels";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { absoluteUrl, faqLd, ogImage, organizationLd, productLd, socialMeta, websiteLd } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { alternates: alternates("/", await getLocale()) };
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const { title, description } = m.landing.meta;
+  return {
+    title: { absolute: `${title} · ${site.name}` },
+    description,
+    alternates: alternates("/", locale),
+    ...socialMeta({ path: "/", locale, title: `${site.name} — ${title}`, description }),
+  };
 }
 
 export default async function HomePage() {
@@ -67,8 +76,17 @@ export default async function HomePage() {
     showToc: true,
   };
 
+  const planNames = Object.fromEntries(plans.map((p) => [p.id, m.common.plans[p.id].name]));
+  const jsonLd = [
+    organizationLd(m.common.meta.description),
+    websiteLd(locale),
+    productLd({ name: `${site.name} — ${t.meta.title}`, description: t.meta.description, url: absoluteUrl("/", locale), image: ogImage(locale), locale, planNames, reviews: reviews }),
+    faqLd(faq),
+  ];
+
   return (
     <>
+      <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
       <AnchorScroll />
       <main className="overflow-x-clip">

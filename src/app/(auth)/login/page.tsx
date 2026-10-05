@@ -5,7 +5,8 @@ import { getCurrentUser, safeNextPath } from "@/server/auth";
 import { LoginForm } from "./LoginForm";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).auth.login.meta };
+  // Страница входа не нужна в выдаче: пускаем робота по ссылкам, но не индексируем
+  return { title: (await getMessages()).auth.login.meta, robots: { index: false, follow: true } };
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {

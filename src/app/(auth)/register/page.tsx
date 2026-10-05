@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { getMessages, lredirect } from "@/i18n/server";
+import { getLocale, getMessages, lredirect } from "@/i18n/server";
+import { alternates } from "@/i18n/seo";
 import { Gift } from "lucide-react";
 import { getCurrentUser } from "@/server/auth";
 import { invitedBy } from "@/server/invite";
 import { RegisterForm } from "./RegisterForm";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).auth.register.meta };
+  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  // ?theme=… и ?ref=… — те же страницы: каноническим остаётся адрес без параметров
+  return { title: m.auth.register.meta, alternates: alternates("/register", locale) };
 }
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {
