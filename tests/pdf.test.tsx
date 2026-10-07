@@ -21,6 +21,8 @@ const book: Book = {
   coverTemplate: "midnight",
   coverPhotoId: null,
   backText: "Каждая страница — о тебе.",
+  backLayout: "quote",
+  backPhotoId: null,
   dedication: "Моему самому близкому человеку",
   interior: "classic",
   format: "a5",

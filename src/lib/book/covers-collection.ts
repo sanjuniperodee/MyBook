@@ -71,7 +71,7 @@ const oyu: CoverTemplate = {
   names: { font: "montserrat", size: 0.025, color: "#C9A45C", weight: 500, upper: true, tracking: 0.28 },
   ornament: { kind: "star", color: "#C9A45C" },
   spine: { color: "#E9CF93", font: "cormorant" },
-  back: { color: "#D8BC80", font: "cormorant" },
+  back: { color: "#D8BC80", font: "cormorant", mirror: true },
 };
 
 // ─── Рассвет: акварельные пятна ─────────────────────────────────────────────
@@ -116,7 +116,7 @@ const sunrise: CoverTemplate = {
   names: { font: "montserrat", size: 0.025, color: "#7A5468", weight: 500, upper: true, tracking: 0.26 },
   ornament: { kind: "line", color: "#C98B93" },
   spine: { color: "#4B2B3E", font: "cormorant" },
-  back: { color: "#4B2B3E", font: "cormorant" },
+  back: { color: "#4B2B3E", font: "cormorant", area: { x: 0.16, y: 0.3, w: 0.68, h: 0.38 } },
 };
 
 // ─── Гербарий: засушенная веточка на бумаге, приклеенная скотчем ─────────────
@@ -180,7 +180,7 @@ const herbarium: CoverTemplate = {
   subtitle: { font: "lora", size: 0.036, color: "#6B6A55", italic: true },
   names: { font: "caveat", size: 0.058, color: "#6D5B3F", weight: 500 },
   spine: { color: "#3E4431", font: "lora" },
-  back: { color: "#3E4431", font: "lora" },
+  back: { color: "#3E4431", font: "lora", area: { x: 0.14, y: 0.62, w: 0.72, h: 0.26 } },
 };
 
 // ─── Созвездие: звёзды, сложенные в сердце ───────────────────────────────────
@@ -229,7 +229,7 @@ const constellation: CoverTemplate = {
   names: { font: "montserrat", size: 0.025, color: "#CDBF96", weight: 500, upper: true, tracking: 0.3 },
   ornament: { kind: "star", color: "#E9DDB8" },
   spine: { color: "#F3E7C6", font: "cormorant" },
-  back: { color: "#D9CCA6", font: "cormorant" },
+  back: { color: "#D9CCA6", font: "cormorant", area: { x: 0.14, y: 0.3, w: 0.72, h: 0.4 } },
 };
 
 // ─── Гэтсби: ар-деко, золото по чёрному ─────────────────────────────────────
@@ -280,7 +280,7 @@ const deco: CoverTemplate = {
   names: { font: "montserrat", size: 0.024, color: "#C8A55F", weight: 500, upper: true, tracking: 0.32 },
   ornament: { kind: "line", color: "#C8A55F" },
   spine: { color: "#E6CB8F", font: "playfair" },
-  back: { color: "#CFB176", font: "playfair" },
+  back: { color: "#CFB176", font: "playfair", mirror: true },
 };
 
 // ─── Лимоны: средиземноморское лето ─────────────────────────────────────────
@@ -315,7 +315,7 @@ const lemons: CoverTemplate = {
   names: { font: "montserrat", size: 0.023, color: "#4E77A1", weight: 500, upper: true, tracking: 0.24 },
   ornament: { kind: "dots", color: "#E0A92E" },
   spine: { color: "#2F5D8C", font: "playfair" },
-  back: { color: "#2F5D8C", font: "playfair" },
+  back: { color: "#2F5D8C", font: "playfair", mirror: true },
 };
 
 // ─── Тюльпаны: минимализм в духе ризографии ─────────────────────────────────
@@ -372,7 +372,7 @@ const tulips: CoverTemplate = {
   names: { font: "cormorant", size: 0.046, color: "#7E4A4E", italic: true },
   ornament: { kind: "heart", color: "#D9534F" },
   spine: { color: "#5A2A2E", font: "cormorant" },
-  back: { color: "#5A2A2E", font: "cormorant" },
+  back: { color: "#5A2A2E", font: "cormorant", area: { x: 0.12, y: 0.12, w: 0.76, h: 0.4 } },
 };
 
 // ─── Горы: закат над хребтами ───────────────────────────────────────────────
@@ -424,7 +424,7 @@ const mountains: CoverTemplate = {
   subtitle: { font: "cormorant", size: 0.046, color: "#6A4A6F", italic: true },
   names: { font: "montserrat", size: 0.025, color: "#6A4A6F", weight: 500, upper: true, tracking: 0.26 },
   spine: { color: "#FFF1E4", font: "cormorant" },
-  back: { color: "#FFF1E4", font: "cormorant" },
+  back: { color: "#5B3651", font: "cormorant", area: { x: 0.12, y: 0.1, w: 0.76, h: 0.36 } },
 };
 
 // ─── Классика: кожаный переплёт с золотым тиснением ─────────────────────────
@@ -463,7 +463,7 @@ const leather: CoverTemplate = {
   names: { font: "cormorant", size: 0.046, color: "#D2B173", italic: true },
   ornament: { kind: "line", color: "#CFAE6E" },
   spine: { color: "#E2C387", font: "cormorant" },
-  back: { color: "#D2B173", font: "cormorant" },
+  back: { color: "#D2B173", font: "cormorant", mirror: true },
 };
 
 // ─── Письмо: крафт, авиапочта, марка и сургуч ───────────────────────────────
@@ -515,7 +515,7 @@ const letter: CoverTemplate = {
   subtitle: { font: "playfair", size: 0.038, color: "#5B4636", italic: true },
   names: { font: "caveat", size: 0.062, color: "#5B4636", weight: 500 },
   spine: { color: "#3B2A1E", font: "playfair" },
-  back: { color: "#3B2A1E", font: "playfair" },
+  back: { color: "#3B2A1E", font: "playfair", mirror: true },
 };
 
 export const collectionTemplates: CoverTemplate[] = [oyu, constellation, sunrise, herbarium, tulips, deco, leather, letter, lemons, mountains];

@@ -4,6 +4,9 @@ import { Link, useMessages } from "@/i18n/client";
 import { useRef, useState } from "react";
 import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
+import type { BackLayout } from "@/lib/book/cover-back";
+import { BackSection } from "./BackSection";
 import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -22,6 +25,8 @@ export interface CoverState {
   recipientName: string;
   hideRecipientOnCover: boolean;
   backText: string;
+  backLayout: BackLayout;
+  backPhotoId: string | null;
   coverPhotoId: string | null;
   /** Оформление страниц: здесь его можно сменить на подходящее к обложке одной кнопкой. */
   interior: string;
@@ -35,9 +40,15 @@ export function CoverEditor({
   recipientLabel,
   editable,
   sample,
+  theme,
+  year,
 }: {
   bookId: string;
   format: string;
+  /** Тема книги — для готовых фраз на обороте. */
+  theme: string;
+  /** Год на обороте в варианте «Лаконично»: повода или текущий. */
+  year: number;
   initial: CoverState;
   /** Содержимое книги для мини-разворота «страницы в пару». */
   sample: SpreadSample;
@@ -73,12 +84,41 @@ export function CoverEditor({
   const [mood, setMood] = useState<CoverMood | "all">("all");
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
   const coverPhoto = state.coverPhotoId ? photoUrl(state.coverPhotoId, "full") : undefined;
+  const [side, setSide] = useState<"front" | "back">("front");
+  const backPhoto = photos.find((p) => p.id === state.backPhotoId) ?? null;
+  const backContent = {
+    layout: state.backLayout,
+    text: state.backText,
+    signature: state.authorName.trim(),
+    names,
+    year,
+    photo: backPhoto ? { width: backPhoto.width, height: backPhoto.height } : null,
+  };
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
       <div>
         <div className="lg:sticky lg:top-24">
+          <div className="mb-4 flex justify-center">
+            <div className="inline-flex rounded-full bg-cream p-1 text-sm" role="radiogroup" aria-label={t.side.aria}>
+              {(["front", "back"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={side === s}
+                  onClick={() => setSide(s)}
+                  className={cn("rounded-full px-4 py-1.5 transition", side === s ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+                >
+                  {t.side[s]}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mx-auto w-full max-w-[340px] rounded-[28px] bg-cream/70 p-8">
+            {side === "back" ? (
+              <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photoUrl={backPhoto ? photoUrl(backPhoto.id, "full") : undefined} className="rounded-[4px] shadow-book" />
+            ) : (
             <CoverPreview
               template={state.coverTemplate}
               format={format}
@@ -91,6 +131,7 @@ export function CoverEditor({
               titlePlaceholder={t.bookTitle}
               photoHint={t.uploadFirst}
             />
+            )}
           </div>
           <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
             <span className="font-medium text-ink">{m.catalog.covers[template.id] ?? template.id}</span>·<SaveIndicator status={status} error={error} />
@@ -199,19 +240,20 @@ export function CoverEditor({
             {t.hideRecipient}
           </label>
         </div>
-        <div>
-          <label className="label" htmlFor="backText">{t.backText}</label>
-          <textarea
-            id="backText"
-            className="input"
-            rows={3}
-            maxLength={400}
-            placeholder={t.backTextPlaceholder}
-            value={state.backText}
-            onChange={(e) => update({ backText: e.target.value })}
-            disabled={!editable}
-          />
-        </div>
+        <BackSection
+          bookId={bookId}
+          theme={theme}
+          layout={state.backLayout}
+          text={state.backText}
+          photoId={state.backPhotoId}
+          photos={photos}
+          signature={state.authorName.trim()}
+          names={names}
+          year={year}
+          editable={editable}
+          onChange={(patch) => update(patch.backLayout === "photo" && !state.backPhotoId && photos[0] ? { ...patch, backPhotoId: photos[0].id } : patch)}
+          onFocusBack={() => setSide("back")}
+        />
       </div>
     </div>
   );

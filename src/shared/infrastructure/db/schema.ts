@@ -130,6 +130,10 @@ export const books = pgTable(
     coverTemplate: text("cover_template").notNull().default("linen"),
     coverPhotoId: uuid("cover_photo_id"),
     backText: text("back_text").notNull().default(""),
+    /** Вариант задней стороны — src/lib/book/cover-back.ts. */
+    backLayout: text("back_layout").notNull().default("quote"),
+    /** Фото для варианта «Фото» на задней стороне. */
+    backPhotoId: uuid("back_photo_id"),
     dedication: text("dedication").notNull().default(""),
     /** Оформление страниц — id из src/lib/book/interiors.ts. */
     interior: text("interior").notNull().default("classic"),

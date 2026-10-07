@@ -1,3 +1,4 @@
+import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
@@ -32,6 +33,8 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
         recipientLabel={theme.recipientLabel}
         sample={bookSpreadSample(book, questions, m.books.pages.dedicationEmpty)}
         photos={photos.map((p) => ({ id: p.id, width: p.width, height: p.height }))}
+        theme={book.theme}
+        year={book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : new Date().getFullYear()}
         initial={{
           coverTemplate: book.coverTemplate,
           title: book.title,
@@ -40,6 +43,8 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           recipientName: book.recipientName,
           hideRecipientOnCover: book.hideRecipientOnCover,
           backText: book.backText,
+          backLayout: isBackLayout(book.backLayout) ? book.backLayout : DEFAULT_BACK_LAYOUT,
+          backPhotoId: book.backPhotoId,
           coverPhotoId: book.coverPhotoId,
           interior: book.interior,
         }}

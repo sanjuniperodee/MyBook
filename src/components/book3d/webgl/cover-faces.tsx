@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 import { CoverText } from "@/components/cover/CoverPreview";
+import { CoverBackLayer } from "@/components/cover/CoverBack";
+import type { BackDesign } from "@/lib/book/cover-back";
 import type { CoverTemplate } from "@/lib/book/covers";
 import { cssFont } from "@/lib/book/fonts";
 import { spineFontMm } from "@/lib/book/book-model";
@@ -32,24 +34,11 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
   );
 }
 
-export function CoverBackFace({ template, art, backText, brand, width, height, widthMm, heightMm }: { template: CoverTemplate; art: CoverArt; backText: string; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
+export function CoverBackFace({ art, design, photoUrl, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photoUrl?: string; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
-      {backText ? (
-        <div
-          className="absolute flex justify-center text-center"
-          style={{ left: "15%", top: "30%", width: "70%", fontFamily: cssFont(template.back.font), fontStyle: "italic", fontSize: `${((12 * 25.4) / 72 / widthMm) * 100}cqw`, lineHeight: 1.5, color: template.back.color }}
-        >
-          {backText}
-        </div>
-      ) : null}
-      <div
-        className="absolute inset-x-0 text-center uppercase"
-        style={{ top: `${((heightMm - 16) / heightMm) * 100}%`, fontFamily: cssFont("montserrat"), fontWeight: 500, fontSize: `${((6.5 * 25.4) / 72 / widthMm) * 100}cqw`, letterSpacing: "0.3em", color: template.back.color, opacity: 0.75 }}
-      >
-        {brand}
-      </div>
+      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photoUrl={photoUrl} brand={brand} />
     </div>
   );
 }

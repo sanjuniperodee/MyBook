@@ -3,6 +3,7 @@ import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/rendere
 import type { CoverGeometry } from "@/lib/book/formats";
 import { mm } from "@/lib/book/formats";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
+import type { BackDesign } from "@/lib/book/cover-back";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
@@ -49,7 +50,7 @@ export function CoverDocument({
   geometry,
   background,
   text,
-  backText,
+  back,
   title,
   language,
 }: {
@@ -57,7 +58,8 @@ export function CoverDocument({
   geometry: CoverGeometry;
   background: Buffer;
   text: CoverTextContent;
-  backText: string;
+  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и фото для варианта «Фото». */
+  back: { design: BackDesign; photo: Buffer | null };
   title: string;
   language: Locale;
 }) {
@@ -124,42 +126,68 @@ export function CoverDocument({
         ) : null}
 
         {/* Задняя сторона */}
-        {g.back ? (
-          <>
-            {backText ? (
-              <View
-                style={{
-                  position: "absolute",
-                  left: mm(g.back.x + g.back.w * 0.15),
-                  top: mm(g.back.y + g.back.h * 0.3),
-                  width: mm(g.back.w * 0.7),
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ ...face(template.back.font, 400, true), fontSize: 12, lineHeight: 1.5, color: template.back.color, textAlign: "center" }}>
-                  {backText}
-                </Text>
-              </View>
-            ) : null}
-            <Text
-              style={{
-                position: "absolute",
-                left: mm(g.back.x),
-                width: mm(g.back.w),
-                top: mm(g.back.y + g.back.h - 16),
-                textAlign: "center",
-                ...face("montserrat", 500),
-                fontSize: 6.5,
-                letterSpacing: 2,
-                color: template.back.color,
-                opacity: 0.75,
-              }}
-            >
-              {site.name.toUpperCase()}
-            </Text>
-          </>
-        ) : null}
+        {g.back ? <BackSide rect={g.back} design={back.design} photo={back.photo} /> : null}
       </Page>
     </Document>
+  );
+}
+
+/** Задняя крышка по раскладке из cover-back: те же блоки рисуют 3D-книга и превью в редакторе. */
+function BackSide({ rect, design, photo }: { rect: { x: number; y: number; w: number; h: number }; design: BackDesign; photo: Buffer | null }) {
+  return (
+    <>
+      {design.blocks.map((b, i) => {
+        const box = { position: "absolute" as const, left: mm(rect.x + b.x), top: mm(rect.y + b.y), width: mm(b.w) };
+        if (b.kind === "text") {
+          const size = mm(b.size);
+          return (
+            <Text
+              key={i}
+              style={{
+                ...box,
+                ...face(b.font, b.weight, b.italic),
+                fontSize: size,
+                lineHeight: b.lineHeight,
+                color: b.color,
+                textAlign: b.align,
+                letterSpacing: (b.tracking ?? 0) * size,
+                textTransform: b.upper ? "uppercase" : "none",
+              }}
+            >
+              {b.text}
+            </Text>
+          );
+        }
+        if (b.kind === "ornament")
+          return (
+            <View key={i} style={{ ...box, height: mm(b.h), alignItems: "center", justifyContent: "center" }}>
+              <CoverOrnament kind={b.ornament} color={b.color} size={mm(b.w)} />
+            </View>
+          );
+        if (!photo) return null;
+        return (
+          <View key={i} style={{ ...box, height: mm(b.h), backgroundColor: "#FFFFFF", padding: mm(b.mat), borderWidth: 0.3, borderColor: "#00000022" }}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */}
+            <Image src={{ data: photo, format: "jpg" }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </View>
+        );
+      })}
+      <Text
+        style={{
+          position: "absolute",
+          left: mm(rect.x),
+          width: mm(rect.w),
+          top: mm(rect.y + design.brand.y),
+          textAlign: "center",
+          ...face("montserrat", 500),
+          fontSize: mm(design.brand.size),
+          letterSpacing: 2,
+          color: design.brand.color,
+          opacity: 0.75,
+        }}
+      >
+        {site.name.toUpperCase()}
+      </Text>
+    </>
   );
 }

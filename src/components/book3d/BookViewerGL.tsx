@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { useMessages } from "@/i18n/client";
+import { designBack } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
@@ -62,12 +63,13 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const mm = m.model;
   const format = getFormat(data.formatId);
   const template = getCoverTemplate(data.cover.template);
-  const { pageCount, backText, brand } = data.model;
+  const { pageCount, brand, back, backPhotoUrl } = data.model;
   const { sheets, ctx, measure } = usePagedBook(data);
   const count = sheets.length;
   /** Листов блока между обложкой и задней крышкой. */
   const M = Math.max(1, count - 2);
   const dims = useMemo(() => bookDims(format, pageCount), [format, pageCount]);
+  const backDesign = useMemo(() => designBack(template, dims.w, dims.h, back), [template, dims, back]);
 
   // Размер текстуры: на телефонах поменьше, чтобы уложиться в память.
   const texW = useMemo(() => (typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) < 700 ? 768 : 1024), []);
@@ -205,7 +207,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       const title = data.cover.title || data.title;
       if (key === "front")
         return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
-      if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace template={template} art={art} backText={backText} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
+      if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photoUrl={backPhotoUrl} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
       if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} text={[title, data.cover.names].filter(Boolean).join("   ·   ")} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
       if (!ctx) return null;
       const [, index, side] = key.split(":");
@@ -223,7 +225,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       );
       return { key, width: texW, height: pageH, node };
     },
-    [art, backText, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
+    [art, backDesign, backPhotoUrl, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
   );
 
   useEffect(() => {
