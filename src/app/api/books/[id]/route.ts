@@ -16,6 +16,8 @@ const patchSchema = z
     coverTemplate: z.string().max(40),
     coverPhotoId: z.string().uuid().nullable(),
     backText: z.string().trim().max(400),
+    backLayout: z.string().max(20),
+    backPhotoId: z.string().uuid().nullable(),
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
     format: z.string().max(20),

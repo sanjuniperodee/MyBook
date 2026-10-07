@@ -1,18 +1,8 @@
-import { renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
-import { coverSpreadGeometry, type BookFormat, type Rect } from "@/lib/book/formats";
-import type { BookDims } from "@/lib/book/book-model";
+import { cropSvg, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
 
-/**
- * Обрезает развёртку обложки до нужной стороны, чтобы браузер растрировал только её.
- * Фильтры фактуры заданы как «100% области просмотра» — после обрезки это размер стороны, а не развёртки,
- * и фактура пропадает на куске справа и снизу, поэтому размер области фильтра задаётся явно.
- */
-export function cropSvg(svg: string, r: Rect, spread: { w: number; h: number }) {
-  return svg
-    .replace(/viewBox="[^"]*"/, `viewBox="${r.x} ${r.y} ${r.w} ${r.h}"`)
-    .replace(/preserveAspectRatio="[^"]*"/, 'preserveAspectRatio="none"')
-    .replace(/(<filter [^>]*?)width="100%" height="100%"/g, `$1width="${spread.w}" height="${spread.h}"`);
-}
+export { cropSvg };
+import { coverSpreadGeometry, type BookFormat } from "@/lib/book/formats";
+import type { BookDims } from "@/lib/book/book-model";
 
 export const svgUrl = (svg: string) => `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 

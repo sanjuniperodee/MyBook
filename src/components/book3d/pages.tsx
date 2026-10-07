@@ -1,5 +1,7 @@
 "use client";
 
+import type { BackContent } from "@/lib/book/cover-back";
+
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import type { CoverPreviewProps } from "@/components/cover/CoverPreview";
@@ -32,7 +34,7 @@ export interface FlipbookData {
   showToc: boolean;
   chapters: FlipbookChapter[];
   /** Данные объёмной модели: толщина корешка считается по числу страниц. */
-  model: { pageCount: number; backText: string; brand: string };
+  model: { pageCount: number; brand: string; back: BackContent; backPhotoUrl?: string };
 }
 
 /** Ширина, на которой считаем разбивку текста по страницам. Вёрстка в cqw, так что от размера на экране она не зависит. */

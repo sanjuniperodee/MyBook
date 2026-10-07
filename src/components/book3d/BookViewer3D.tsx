@@ -3,6 +3,8 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { useMessages } from "@/i18n/client";
 import { CoverText } from "@/components/cover/CoverPreview";
+import { designBack } from "@/lib/book/cover-back";
+import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { cssFont } from "@/lib/book/fonts";
 import { getFormat } from "@/lib/book/formats";
@@ -149,10 +151,11 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const mm = m.model;
   const format = getFormat(data.formatId);
   const template = getCoverTemplate(data.cover.template);
-  const { pageCount, backText, brand } = data.model;
+  const { pageCount, brand, back, backPhotoUrl } = data.model;
   const { sheets, ctx, measure } = usePagedBook(data);
 
   const dims = useMemo(() => bookDims(format, pageCount), [format, pageCount]);
+  const backDesign = useMemo(() => designBack(template, dims.w, dims.h, back), [template, dims, back]);
   const extent = modelExtent(dims);
   const count = sheets.length;
   /** Листов блока: между обложкой и задней крышкой. */
@@ -553,14 +556,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const backNode = (
     <>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
-      {backText ? (
-        <div className="absolute flex justify-center text-center" style={{ left: "15%", top: "30%", width: "70%", fontFamily: cssFont(template.back.font), fontStyle: "italic", fontSize: `${((12 * 25.4) / 72 / W) * 100}cqw`, lineHeight: 1.5, color: template.back.color }}>
-          {backText}
-        </div>
-      ) : null}
-      <div className="absolute inset-x-0 text-center uppercase" style={{ top: `${((H - 16) / H) * 100}%`, fontFamily: cssFont("montserrat"), fontWeight: 500, fontSize: `${((6.5 * 25.4) / 72 / W) * 100}cqw`, letterSpacing: "0.3em", color: template.back.color, opacity: 0.75 }}>
-        {brand}
-      </div>
+      <CoverBackLayer design={backDesign} widthMm={dims.w} heightMm={dims.h} photoUrl={backPhotoUrl} brand={brand} />
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, transparent calc(var(--sheen-b, 50%) - 14%), rgba(255,255,255,.14) var(--sheen-b, 50%), transparent calc(var(--sheen-b, 50%) + 14%))" }} />
     </>
   );

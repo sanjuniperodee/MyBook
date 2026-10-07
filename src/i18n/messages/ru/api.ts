@@ -33,6 +33,7 @@ export const api = {
   answerTooLong: "Слишком длинный ответ",
   unknownCover: "Неизвестная обложка",
   unknownInterior: "Неизвестное оформление страниц",
+  unknownBackLayout: "Неизвестный вариант задней стороны",
   unknownFormat: "Неизвестный формат",
   unknownOccasion: "Неизвестный повод",
   unknownLanguage: "Неизвестный язык",

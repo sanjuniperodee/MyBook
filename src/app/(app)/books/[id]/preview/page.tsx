@@ -3,6 +3,7 @@ import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { backContent } from "@/lib/book/cover-back";
 import { coverNamesLine } from "@/lib/book/covers";
 import { photoUrl } from "@/lib/urls";
 import { PreviewTabs } from "./PreviewTabs";
@@ -26,6 +27,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 
   // Листаемая книга строится из тех же данных, что и PDF (без фото: их точное место видно в PDF).
   const content = buildBookContent(book, questions, []);
+  const backPhoto = book.backPhotoId ? (await container().authoring.queries.photos(book.id)).find((p) => p.id === book.backPhotoId) : undefined;
   const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
   const photo = book.coverPhotoId ? photoUrl(book.coverPhotoId, "full") : undefined;
   const flipbook: FlipbookData = {
@@ -39,7 +41,12 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
     year: content.year,
     dedication: content.dedication,
     showToc: content.showToc,
-    model: { pageCount: printablePageCount(estimatePages(content)), backText: book.backText, brand: site.name.toUpperCase() },
+    model: {
+      pageCount: printablePageCount(estimatePages(content)),
+      brand: site.name.toUpperCase(),
+      back: backContent(book, backPhoto ? { width: backPhoto.width, height: backPhoto.height } : null, new Date()),
+      backPhotoUrl: backPhoto ? photoUrl(backPhoto.id, "full") : undefined,
+    },
     chapters: content.chapters.map((c) => ({
       number: c.number,
       title: c.title,

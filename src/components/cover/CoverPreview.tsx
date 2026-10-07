@@ -37,9 +37,8 @@ function textCss(s: CoverTextStyle): React.CSSProperties {
   };
 }
 
-export function Ornament({ kind, color }: NonNullable<CoverTemplate["ornament"]>) {
-  const size = "3.5cqw";
-  if (kind === "line") return <span style={{ display: "block", width: "14cqw", height: 1, background: color }} />;
+export function Ornament({ kind, color, size = "3.5cqw" }: NonNullable<CoverTemplate["ornament"]> & { size?: string }) {
+  if (kind === "line") return <span style={{ display: "block", width: `calc(${size} * 4)`, height: 1, background: color }} />;
   if (kind === "dots")
     return (
       <span style={{ display: "flex", gap: "0.8cqw" }}>

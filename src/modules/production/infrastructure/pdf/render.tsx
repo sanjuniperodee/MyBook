@@ -19,6 +19,7 @@ import {
 import { buildBookContent, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
+import { backContent, designBack } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
@@ -209,6 +210,16 @@ async function textureLayer(kind: "grain" | "linen", opacity: number, width: num
     .toBuffer();
 }
 
+/** Задняя сторона: раскладка и, для варианта «Фото», сам снимок. */
+async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "full" | "thumb") {
+  const template = getCoverTemplate(bundle.book.coverTemplate);
+  const p = bundle.book.backPhotoId ? bundle.photos.find((x) => x.id === bundle.book.backPhotoId) : undefined;
+  const b = geometry.back ?? { w: geometry.front.w, h: geometry.front.h };
+  const design = designBack(template, b.w, b.h, backContent(bundle.book, p ? { width: p.width, height: p.height } : null, new Date()));
+  const photo = p && design.blocks.some((x) => x.kind === "photo") ? await getFile(source === "full" ? p.storageKey : p.thumbKey) : null;
+  return { design, photo };
+}
+
 export function coverText(book: Book) {
   const content = buildBookContent(book, [], []);
   return {
@@ -226,9 +237,8 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const background = await coverBackground(bundle, geometry, dpi, source);
   const template = getCoverTemplate(bundle.book.coverTemplate);
   const text = coverText(bundle.book);
-  const pdf = await renderToBuffer(
-    <CoverDocument template={template} geometry={geometry} background={background} text={text} backText={bundle.book.backText} title={text.title} language={bundle.book.language} />,
-  );
+  const back = await backSide(bundle, geometry, source);
+  const pdf = await renderToBuffer(<CoverDocument template={template} geometry={geometry} background={background} text={text} back={back} title={text.title} language={bundle.book.language} />);
   return { pdf: Buffer.from(pdf), geometry };
 }
 

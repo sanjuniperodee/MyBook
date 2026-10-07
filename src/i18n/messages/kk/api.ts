@@ -31,6 +31,7 @@ export const api: typeof ru = {
   answerTooLong: "Жауап тым ұзын",
   unknownCover: "Белгісіз мұқаба",
   unknownInterior: "Беттердің белгісіз безендірілуі",
+  unknownBackLayout: "Артқы беттің белгісіз нұсқасы",
   unknownFormat: "Белгісіз формат",
   unknownOccasion: "Белгісіз мереке",
   unknownLanguage: "Белгісіз тіл",
