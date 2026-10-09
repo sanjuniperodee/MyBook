@@ -4,6 +4,7 @@ import { messagesFor } from "@/i18n/messages";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import type { DraftEmail } from "../domain";
 import type { DraftCandidate, EmailTemplates, OrderReminder, Recipient } from "../application";
+import { reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { unsubscribeUrl } from "./unsubscribe";
 
 const msg = (r: Pick<Recipient, "locale">) => messagesFor(r.locale);
@@ -101,8 +102,8 @@ export const i18nEmailTemplates: EmailTemplates = {
       html: emailLayout({
         locale: r.locale,
         title: t.title,
-        paragraphs: [hello(r), t.text, t.gift(appLink("/gift", r.locale))],
-        button: { label: t.button, url: appLink("/books/new", r.locale) },
+        paragraphs: [hello(r), t.text, t.thanks(THANK_YOU.percent), t.gift(appLink("/gift", r.locale))],
+        button: { label: t.button, url: reviewUrl(o.orderId, r.locale) },
         footnote: footnote(r),
       }),
       note: `Автописьмо: просьба об отзыве по заказу №${o.number}`,

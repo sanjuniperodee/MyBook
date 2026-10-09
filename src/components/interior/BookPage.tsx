@@ -415,7 +415,7 @@ export interface SampleEntry {
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, part = 0, className, style }: PageProps & {
   entries: SampleEntry[];
   folio: number;
   bookTitle: string;
@@ -423,6 +423,8 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
   recto: boolean;
   /** Это первая страница главы: капитель в начале первого ответа. */
   leadIn: boolean;
+  /** Какая по счёту полоса текста главы (с 0): колонки сдвигаются, и видна именно она. */
+  part?: number;
 }) {
   const { design, sizes: S, u } = kit;
   const area = textArea(kit.format);
@@ -432,7 +434,17 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
     <Sheet kit={kit} className={className} style={style}>
       <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={chapterTitle} recto={recto} />
       <TextArea kit={kit} className="overflow-hidden">
-        <div style={{ width: u.mm(textW), height: u.mm(area.h), columnWidth: u.mm(textW), columnGap: u.mm(side * 2), columnFill: "auto" }}>
+        <div
+          data-flow
+          style={{
+            width: u.mm(textW),
+            height: u.mm(area.h),
+            columnWidth: u.mm(textW),
+            columnGap: u.mm(side * 2),
+            columnFill: "auto",
+            transform: part ? `translateX(calc(${-part} * (${u.mm(textW)} + ${u.mm(side * 2)})))` : undefined,
+          }}
+        >
           {entries.map((e, i) => (
             <div key={i} style={{ marginTop: i === 0 ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless) }}>
               {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 ? <Divider kit={kit} /> : null}

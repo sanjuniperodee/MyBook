@@ -7,16 +7,20 @@ import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
 import { coverTemplates } from "@/lib/book/covers";
 import { getCurrentUser } from "@/server/auth";
+import { siteReviews } from "@/server/reviews";
+import { Reviews } from "@/components/landing/Reviews";
 import { Faq } from "@/components/Faq";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { articles } from "@/lib/content/articles";
 import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { deadlineFor, getOccasion, nextFixedDate } from "@/lib/occasions";
 import { formatPrice, plans, site } from "@/config/site";
-import { env } from "@/config/env";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { absoluteUrl, breadcrumbLd, faqLd, ogImage, productLd, socialMeta } from "@/lib/seo";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
-import { localizePath } from "@/i18n/config";
 
 // Тексты статичные, но подсказка «закажите до …» зависит от даты — обновляем раз в час.
 export const revalidate = 3600;
@@ -35,14 +39,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: { absolute: `${c.metaTitle} · ${site.name}` },
     description: c.metaDescription,
     alternates: alternates(path, locale),
-    openGraph: { title: c.metaTitle, description: c.metaDescription, url: localizePath(path, locale) },
+    ...socialMeta({ path, locale, title: c.metaTitle, description: c.metaDescription, key: l.slug }),
   };
 }
 
 export default async function LandingPage({ params }: { params: Promise<{ slug: string }> }) {
   const l = getLanding((await params).slug);
   if (!l) notFound();
-  const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
+  const [user, locale, m, reviews] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(3, l.theme)]);
   const c = l.content[locale];
   const t = m.landing;
   const sp = t.seoPage;
@@ -59,31 +63,34 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   const cta = user ? `/books/new?theme=${l.theme}` : `/register?theme=${l.theme}`;
   const minPrice = Math.min(...plans.map((p) => p.price));
 
+  const path = `/kniga/${l.slug}`;
+  const faqItems: [string, string][] = [...c.faq, [sp.priceQ, sp.priceA(formatPrice(minPrice), formatPrice(plans[1].price))]];
+  // Ссылки на другие идеи: сначала той же темы, остальные — после; статьи блога по теме.
+  const ideas = [...landings.filter((x) => x.slug !== l.slug && x.theme === l.theme), ...landings.filter((x) => x.theme !== l.theme)].slice(0, 9);
+  const guides = articles.filter((x) => x.theme === l.theme || x.landings.includes(l.slug)).slice(0, 3);
+  const planNames = Object.fromEntries(plans.map((p) => [p.id, m.common.plans[p.id].name]));
   const jsonLd = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name: sp.productName(site.name, c.label),
-      description: c.metaDescription,
-      brand: { "@type": "Brand", name: site.name },
-      offers: { "@type": "AggregateOffer", priceCurrency: site.currency, lowPrice: minPrice, highPrice: Math.max(...plans.map((p) => p.price)), url: `${env.appUrl}${localizePath(`/kniga/${l.slug}`, locale)}` },
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: c.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
-    },
+    productLd({ name: sp.productName(site.name, c.label), description: c.metaDescription, url: absoluteUrl(path, locale), image: ogImage(locale, l.slug), locale, planNames, reviews }),
+    faqLd(faqItems),
+    breadcrumbLd(
+      [
+        { name: site.name, path: "/" },
+        { name: c.label, path },
+      ],
+      locale,
+    ),
   ];
 
   return (
     <>
       <LandingHeader loggedIn={!!user} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={jsonLd} />
       <main className="overflow-x-clip">
         <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24">
           <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
           <div className="container-x grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
             <div>
+              <Breadcrumbs items={[{ name: sp.home, href: "/" }, { name: sp.allIdeas, href: "/kniga" }, { name: c.label }]} />
               <div className="eyebrow">{c.label}</div>
               <h1 className="mt-4 font-serif text-[42px] leading-[1.03] font-medium tracking-tight sm:text-6xl">
                 {c.h1} <em className="text-wine">{c.accent}</em>
@@ -112,7 +119,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               <p className="mt-4 text-sm text-muted">{sp.priceNote(formatPrice(minPrice))}</p>
             </div>
             <div className="mx-auto w-full max-w-[320px]">
-              <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={-18} className="animate-float" />
+              <Book3D priority template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={-18} className="animate-float" />
             </div>
           </div>
         </section>
@@ -181,25 +188,44 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           </div>
         </section>
 
+        <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} />
+
         <section className="py-20 sm:py-24">
           <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
             <h2 className="font-serif text-4xl font-medium">{sp.faqTitle}</h2>
-            <Faq items={[...c.faq, [sp.priceQ, sp.priceA(formatPrice(minPrice), formatPrice(plans[1].price))]]} size="md" />
+            <Faq items={faqItems} size="md" />
           </div>
         </section>
 
         <section className="border-t border-line py-14">
-          <div className="container-x">
-            <div className="text-sm font-semibold">{sp.more}</div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {landings
-                .filter((x) => x.slug !== l.slug)
-                .map((x) => (
+          <div className="container-x grid gap-10 md:grid-cols-2">
+            <div>
+              <div className="text-sm font-semibold">{sp.more}</div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {ideas.map((x) => (
                   <Link key={x.slug} href={`/kniga/${x.slug}`} className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink-soft hover:border-ink/30">
                     {x.content[locale].label}
                   </Link>
                 ))}
+                <Link href="/kniga" className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-wine hover:border-ink/30">
+                  {sp.allIdeas} →
+                </Link>
+              </div>
             </div>
+            {guides.length ? (
+              <div>
+                <div className="text-sm font-semibold">{m.landing.blog.moreArticles}</div>
+                <ul className="mt-4 space-y-2 text-sm">
+                  {guides.map((x) => (
+                    <li key={x.slug}>
+                      <Link href={`/blog/${x.slug}`} className="text-ink-soft hover:text-wine">
+                        {x.content[locale].title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </section>
       </main>

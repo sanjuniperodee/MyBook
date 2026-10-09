@@ -53,6 +53,7 @@ export const permissionGroups = [
       ["promo.manage", "Промокоды"],
       ["promo.give", "Давать клиенту персональную скидку из чата (в пределах лимита)"],
       ["gifts.manage", "Подарочные сертификаты"],
+      ["reviews.manage", "Отзывы клиентов: проверка и показ на сайте"],
     ],
   },
   {
@@ -94,7 +95,7 @@ export const systemRoles: Record<string, { name: string; scope: RoleScope; permi
   support: {
     name: "Поддержка",
     scope: "all",
-    permissions: ["deals.view", "chats.view", "chats.send", "calls.view", "calls.make", "clients.view", "clients.contacts", "orders.view"],
+    permissions: ["deals.view", "chats.view", "chats.send", "calls.view", "calls.make", "clients.view", "clients.contacts", "orders.view", "reviews.manage"],
   },
 };
 

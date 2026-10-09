@@ -10,6 +10,7 @@ const kinds: Record<OrderFileKind, { type: string; name: (n: number) => string }
   reading: { type: "application/pdf", name: (n) => `mybook-${n}.pdf` },
   block: { type: "application/pdf", name: (n) => `order-${n}-block.pdf` },
   cover: { type: "application/pdf", name: (n) => `order-${n}-cover.pdf` },
+  layout: { type: "application/pdf", name: (n) => `order-${n}-layout.pdf` },
   spec: { type: "text/plain; charset=utf-8", name: (n) => `order-${n}-spec.txt` },
 };
 

@@ -32,12 +32,12 @@ export const print = {
   /** Толщина одного листа (2 полосы) бумаги блока, мм. 150 г/м² мелованная матовая ≈ 0,13 мм. */
   sheetThicknessMm: 0.13,
   cover: {
-    /** Загиб покровного материала на картон (включает вылет), мм. */
-    wrapMm: 15,
+    /** Отступ по периметру развёртки до картона: загиб покровного материала (включает вылет), мм. */
+    wrapMm: 20,
     /** Выступ картона крышки над блоком (кант), мм. */
     boardOverhangMm: 3,
-    /** Ширина шарнира (расстояние между корешком и крышкой), мм. */
-    hingeMm: 7,
+    /** Ширина шарнира — расстояние между сгибами корешка и крышки (расставы), мм. */
+    hingeMm: 8,
     /** Добавка к толщине блока для корешка: картон + отстав, мм. */
     spineExtraMm: 4,
   },
@@ -96,6 +96,31 @@ export function coverSpreadGeometry(format: BookFormat, pageCount: number): Cove
     front: { x: frontX, y: wrapMm, w: boardW, h: boardH },
     folds: [backX, backX + boardW, spineX, spineX + spine, frontX, frontX + boardW],
   };
+}
+
+export type CoverZoneKey = "wrapLeft" | "back" | "hingeLeft" | "spine" | "hingeRight" | "front" | "wrapRight";
+
+export interface CoverZone {
+  key: CoverZoneKey;
+  x: number;
+  w: number;
+}
+
+/** Зоны развёртки слева направо — для каркаса с размерами. Сумма ширин равна ширине развёртки. */
+export function coverSpreadZones(format: BookFormat, pageCount: number): CoverZone[] {
+  const g = coverSpreadGeometry(format, pageCount);
+  const { wrapMm, hingeMm } = print.cover;
+  const back = g.back!;
+  const spine = g.spine!;
+  return [
+    { key: "wrapLeft", x: 0, w: wrapMm },
+    { key: "back", x: back.x, w: back.w },
+    { key: "hingeLeft", x: back.x + back.w, w: hingeMm },
+    { key: "spine", x: spine.x, w: spine.w },
+    { key: "hingeRight", x: spine.x + spine.w, w: hingeMm },
+    { key: "front", x: g.front.x, w: g.front.w },
+    { key: "wrapRight", x: g.front.x + g.front.w, w: wrapMm },
+  ];
 }
 
 /** Геометрия только лицевой стороны (для превью на сайте). */

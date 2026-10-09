@@ -46,6 +46,10 @@ const actions: Record<string, string> = {
   "client.phones": "Изменил доп. телефоны клиента",
   "staff.shift_on": "Вышел на смену",
   "staff.shift_off": "Ушёл со смены",
+  "review.publish": "Опубликовал отзыв",
+  "review.hide": "Скрыл отзыв",
+  "review.feature": "Закрепил отзыв на главной",
+  "review.unfeature": "Открепил отзыв",
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {

@@ -23,6 +23,6 @@ export const offerTexts = {
   kk: {
     order: (n: number, url: string) => `Сіздің №${n} тапсырысыңыз: ${url}\nСол жерден төлеп, мәртебесін қадағалай аласыз.`,
     book: (title: string, url: string) => `«${title}» кітабыңызды осы жерден жалғастыра аласыз: ${url}`,
-    discount: (p: number, code: string, until: string, url: string) => `Сізге жеке ${p}% жеңілдік — ${code} промокоды, ${until} дейін жарамды. Сілтеме арқылы жеңілдік өзі қосылады: ${url}`,
+    discount: (p: number, code: string, until: string, url: string) => `Сізге жеке ${p}% жеңілдік — ${code} промокоды, жарамдылық мерзімі — ${until}. Сілтеме арқылы жеңілдік өзі қосылады: ${url}`,
   },
 } satisfies Record<Locale, unknown>;

@@ -28,6 +28,7 @@ export const common = {
     logout: "Выйти",
     menu: "Меню",
     profileMenu: "Меню профиля",
+    invite: "Пригласить друга",
     noName: "Без имени",
   },
   widget: {
@@ -54,6 +55,8 @@ export const common = {
   },
   footer: {
     ideas: "Идеи подарков",
+    allIdeas: "Все идеи подарков",
+    blog: "Блог",
     customers: "Покупателям",
     contact: "Связаться",
     pricing: "Цены и доставка",

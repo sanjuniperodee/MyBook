@@ -49,7 +49,7 @@ export class OrderingModule {
     const giftRepo = new DrizzleGiftCardRepository();
     const printFiles = { prepare: (job: { orderId: string; bookId: string; number: number }, opts?: { force?: boolean }) => deps.printFiles.prepare(job, opts) };
     this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), printFiles, envPaymentSettings, deps.uow, deps.clock);
-    this.promos = new PromoService(promoRepo, deps.clock);
+    this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer);

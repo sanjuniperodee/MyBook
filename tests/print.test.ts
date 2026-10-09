@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coverSpreadGeometry, formats, print, printablePageCount, spineWidthMm } from "@/lib/book/formats";
+import { coverSpreadGeometry, coverSpreadZones, formats, print, printablePageCount, spineWidthMm } from "@/lib/book/formats";
 import { buildBookContent, effectiveDpi, estimatePages, photoPages } from "@/lib/book/layout";
 import { calculatePrice, normalizePromoCode } from "@/modules/ordering/domain/Pricing";
 import { coverTemplates, renderCoverSvg } from "@/lib/book/covers";
@@ -23,6 +23,23 @@ describe("печатные параметры", () => {
     expect(g.front.x).toBeCloseTo(g.spine!.x + g.spine!.w + hingeMm);
     expect(g.front.x + g.front.w + wrapMm).toBeCloseTo(g.width);
     expect(g.height).toBeCloseTo(formats.a5.heightMm + 2 * print.cover.boardOverhangMm + 2 * wrapMm);
+  });
+});
+
+describe("каркас обложки", () => {
+  it("расставы 8 мм, отступ по периметру 20 мм", () => {
+    expect(print.cover.hingeMm).toBe(8);
+    expect(print.cover.wrapMm).toBe(20);
+  });
+  it("зоны идут подряд, без зазоров, и в сумме дают ширину развёртки", () => {
+    for (const f of Object.values(formats)) {
+      const g = coverSpreadGeometry(f, 120);
+      const z = coverSpreadZones(f, 120);
+      expect(z.map((x) => x.key)).toEqual(["wrapLeft", "back", "hingeLeft", "spine", "hingeRight", "front", "wrapRight"]);
+      z.slice(1).forEach((cur, i) => expect(cur.x).toBeCloseTo(z[i].x + z[i].w));
+      expect(z.reduce((a, b) => a + b.w, 0)).toBeCloseTo(g.width);
+      expect(z[3].w).toBeCloseTo(spineWidthMm(120));
+    }
   });
 });
 

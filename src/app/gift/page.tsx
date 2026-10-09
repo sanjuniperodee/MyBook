@@ -7,10 +7,12 @@ import { Faq } from "@/components/Faq";
 import { GiftForm } from "./GiftForm";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
+import { socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
-  return { title: m.gift.page.metaTitle, description: m.gift.page.metaDescription, alternates: alternates("/gift", locale) };
+  const { metaTitle, metaDescription } = m.gift.page;
+  return { title: metaTitle, description: metaDescription, alternates: alternates("/gift", locale), ...socialMeta({ path: "/gift", locale, title: metaTitle, description: metaDescription }) };
 }
 
 const icons = [Gift, PenLine, Sparkles];

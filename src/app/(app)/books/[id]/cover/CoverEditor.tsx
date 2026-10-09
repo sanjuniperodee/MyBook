@@ -2,12 +2,18 @@
 
 import { Link, useMessages } from "@/i18n/client";
 import { useRef, useState } from "react";
-import { Check, ImagePlus } from "lucide-react";
+import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
+import type { BackLayout } from "@/lib/book/cover-back";
+import { BackSection } from "./BackSection";
+import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { coverMoods, coverNamesLine, coverTemplates, type CoverMood } from "@/lib/book/covers";
+import { getFormat } from "@/lib/book/formats";
+import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +25,11 @@ export interface CoverState {
   recipientName: string;
   hideRecipientOnCover: boolean;
   backText: string;
+  backLayout: BackLayout;
+  backPhotoId: string | null;
   coverPhotoId: string | null;
+  /** Оформление страниц: здесь его можно сменить на подходящее к обложке одной кнопкой. */
+  interior: string;
 }
 
 export function CoverEditor({
@@ -29,10 +39,19 @@ export function CoverEditor({
   photos,
   recipientLabel,
   editable,
+  sample,
+  theme,
+  year,
 }: {
   bookId: string;
   format: string;
+  /** Тема книги — для готовых фраз на обороте. */
+  theme: string;
+  /** Год на обороте в варианте «Лаконично»: повода или текущий. */
+  year: number;
   initial: CoverState;
+  /** Содержимое книги для мини-разворота «страницы в пару». */
+  sample: SpreadSample;
   photos: { id: string; width: number; height: number }[];
   recipientLabel: string;
   editable: boolean;
@@ -65,12 +84,41 @@ export function CoverEditor({
   const [mood, setMood] = useState<CoverMood | "all">("all");
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
   const coverPhoto = state.coverPhotoId ? photoUrl(state.coverPhotoId, "full") : undefined;
+  const [side, setSide] = useState<"front" | "back">("front");
+  const backPhoto = photos.find((p) => p.id === state.backPhotoId) ?? null;
+  const backContent = {
+    layout: state.backLayout,
+    text: state.backText,
+    signature: state.authorName.trim(),
+    names,
+    year,
+    photo: backPhoto ? { width: backPhoto.width, height: backPhoto.height } : null,
+  };
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
       <div>
         <div className="lg:sticky lg:top-24">
+          <div className="mb-4 flex justify-center">
+            <div className="inline-flex rounded-full bg-cream p-1 text-sm" role="radiogroup" aria-label={t.side.aria}>
+              {(["front", "back"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={side === s}
+                  onClick={() => setSide(s)}
+                  className={cn("rounded-full px-4 py-1.5 transition", side === s ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+                >
+                  {t.side[s]}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mx-auto w-full max-w-[340px] rounded-[28px] bg-cream/70 p-8">
+            {side === "back" ? (
+              <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photoUrl={backPhoto ? photoUrl(backPhoto.id, "full") : undefined} className="rounded-[4px] shadow-book" />
+            ) : (
             <CoverPreview
               template={state.coverTemplate}
               format={format}
@@ -83,6 +131,7 @@ export function CoverEditor({
               titlePlaceholder={t.bookTitle}
               photoHint={t.uploadFirst}
             />
+            )}
           </div>
           <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
             <span className="font-medium text-ink">{m.catalog.covers[template.id] ?? template.id}</span>·<SaveIndicator status={status} error={error} />
@@ -139,6 +188,16 @@ export function CoverEditor({
           </div>
         </section>
 
+        <PairedPages
+          bookId={bookId}
+          cover={state.coverTemplate}
+          interior={state.interior}
+          format={format}
+          sample={sample}
+          editable={editable}
+          onApply={(interior) => update({ interior })}
+        />
+
         <h2 className="text-lg font-semibold">{t.text}</h2>
 
         {template.requiresPhoto ? (
@@ -181,19 +240,20 @@ export function CoverEditor({
             {t.hideRecipient}
           </label>
         </div>
-        <div>
-          <label className="label" htmlFor="backText">{t.backText}</label>
-          <textarea
-            id="backText"
-            className="input"
-            rows={3}
-            maxLength={400}
-            placeholder={t.backTextPlaceholder}
-            value={state.backText}
-            onChange={(e) => update({ backText: e.target.value })}
-            disabled={!editable}
-          />
-        </div>
+        <BackSection
+          bookId={bookId}
+          theme={theme}
+          layout={state.backLayout}
+          text={state.backText}
+          photoId={state.backPhotoId}
+          photos={photos}
+          signature={state.authorName.trim()}
+          names={names}
+          year={year}
+          editable={editable}
+          onChange={(patch) => update(patch.backLayout === "photo" && !state.backPhotoId && photos[0] ? { ...patch, backPhotoId: photos[0].id } : patch)}
+          onFocusBack={() => setSide("back")}
+        />
       </div>
     </div>
   );
@@ -205,5 +265,59 @@ function Field({ label, value, onChange, max, placeholder, disabled }: { label: 
       <label className="label">{label}</label>
       <input className="input" value={value} maxLength={max} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
     </div>
+  );
+}
+
+/**
+ * Связка обложки и страниц: к выбранной обложке — оформление страниц в пару. Если страницы уже
+ * подходят, просто подтверждаем; если нет — показываем подходящие и меняем их одной кнопкой.
+ */
+function PairedPages({
+  bookId,
+  cover,
+  interior,
+  format,
+  sample,
+  editable,
+  onApply,
+}: {
+  bookId: string;
+  cover: string;
+  interior: string;
+  format: string;
+  sample: SpreadSample;
+  editable: boolean;
+  onApply: (interior: string) => void;
+}) {
+  const m = useMessages();
+  const t = m.books.cover;
+  const pairs = interiorsForCover(cover);
+  if (!pairs.length) return null;
+  const current = getInteriorDesign(interior);
+  const matched = pairs.some((d) => d.id === current.id);
+  const shown = matched ? current : pairs[0];
+  const names = m.catalog.interiors;
+  return (
+    <section className="flex flex-col gap-5 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
+      <InteriorSpread design={shown} format={getFormat(format)} sample={sample} className="w-full shrink-0 rounded-[3px] ring-1 ring-line sm:w-56" />
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-xs font-medium tracking-wider text-wine uppercase">
+          <Sparkles className="size-3.5" /> {t.pairTitle}
+        </div>
+        <p className="mt-1.5 text-sm text-ink-soft">
+          {matched ? t.pairDone(names[current.id].name, m.catalog.covers[cover] ?? cover) : t.pairSuggest(m.catalog.covers[cover] ?? cover, pairs.map((d) => names[d.id].name))}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {!matched && editable ? (
+            <button type="button" className="btn btn-dark btn-sm" onClick={() => onApply(shown.id)}>
+              {t.pairApply(names[shown.id].name)}
+            </button>
+          ) : null}
+          <Link href={`/books/${bookId}/pages`} className="inline-flex items-center gap-1 text-sm text-wine hover:underline">
+            {t.pairAll} <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }

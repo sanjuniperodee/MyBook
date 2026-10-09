@@ -23,7 +23,7 @@ export interface SettingsState {
   language: Locale;
 }
 
-export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }: { bookId: string; initial: SettingsState; fixedRecipientGender: boolean; editable: boolean }) {
+export function SettingsForm({ bookId, theme, initial, fixedRecipientGender, editable }: { bookId: string; theme: string; initial: SettingsState; fixedRecipientGender: boolean; editable: boolean }) {
   const [s, setS] = useState(initial);
   const m = useMessages();
   const t = m.books.settings;
@@ -73,7 +73,7 @@ export function SettingsForm({ bookId, initial, fixedRecipientGender, editable }
       </div>
 
       <Section id="occasion" title={t.occasion} description={t.occasionText}>
-        <OccasionPicker defaultOccasion={s.occasion} defaultDate={s.occasionDate} disabled={!editable} onChange={(occasion, occasionDate) => update({ occasion, occasionDate })} />
+        <OccasionPicker theme={theme} defaultOccasion={s.occasion} defaultDate={s.occasionDate} disabled={!editable} onChange={(occasion, occasionDate) => update({ occasion, occasionDate })} />
       </Section>
 
       <Section id="language" title={t.language} description={t.languageText}>

@@ -4,7 +4,7 @@ import { TrackOnce } from "@/components/analytics/TrackOnce";
 import { Confetti } from "@/components/motion/Confetti";
 import { CelebrateArt } from "@/components/illustrations";
 import { notFound } from "next/navigation";
-import { Check, Download } from "lucide-react";
+import { Check, Download, Gift, Star } from "lucide-react";
 import { isStaff, requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { formatPrice, getPlan, site } from "@/config/site";
@@ -12,6 +12,8 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { addonName, deliveryName, planName } from "@/i18n/labels";
 import { env } from "@/config/env";
 import { isOnlinePayment } from "@/modules/ordering";
+import { canReview, THANK_YOU } from "@/modules/feedback";
+import { REFERRAL } from "@/modules/referrals";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine } from "@/lib/book/covers";
@@ -29,7 +31,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const user = await requireUser(`/orders/${id}`);
   const order = await container().ordering.queries.orderDetails(id);
   if (!order || (order.userId !== user.id && !isStaff(user))) notFound();
-  const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const own = order.userId === user.id;
+  const [locale, m, review] = await Promise.all([getLocale(), getMessages(), own ? container().feedback.queries.byOrder(order.id) : null]);
   const t = m.orders.order;
   const plan = getPlan(order.plan);
   const book = order.book;
@@ -47,6 +50,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       ];
   const currentStep = steps.findIndex((s) => s.status === order.status);
   const paid = !["pending_payment", "cancelled"].includes(order.status);
+  const reviewable = own && canReview({ status: order.status, plan: order.plan, paid });
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
@@ -61,10 +65,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       {order.status !== "cancelled" ? (
         <ol className="mt-8 grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
           {steps.map((s, i) => (
-            <li key={s.status} className="flex flex-col gap-2">
+            <li key={s.status} className="flex min-w-0 flex-col gap-2">
               <div className={cn("h-1.5 rounded-full", i <= currentStep ? "bg-wine" : "bg-line")} />
-              <div className={cn("flex items-center gap-1 text-xs sm:text-sm", i <= currentStep ? "text-ink" : "text-muted")}>
-                {i < currentStep || (i === currentStep && paid) ? <Check className="size-3.5 shrink-0 text-wine" /> : null}
+              {/* На телефоне пять подписей в ряд — без галочек и мельче, иначе наезжают друг на друга. */}
+              <div className={cn("flex items-center gap-1 text-[11px] leading-tight break-words hyphens-auto sm:text-sm", i <= currentStep ? "text-ink" : "text-muted", i === currentStep && "font-medium")}>
+                {i < currentStep || (i === currentStep && paid) ? <Check className="hidden size-3.5 shrink-0 text-wine sm:block" /> : null}
                 {s.label}
               </div>
             </li>
@@ -74,7 +79,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
-          {order.status === "pending_payment" && order.userId === user.id ? (
+          {reviewable ? <ReviewCard orderId={order.id} review={review} t={m.review.card} /> : null}
+
+          {order.status === "pending_payment" && own ? (
             <PaymentBlock
               orderId={order.id}
               number={order.number}
@@ -130,6 +137,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               ) : null}
             </section>
           ) : null}
+
+          {own && paid ? <InviteCard t={m.invite.card} /> : null}
 
           <section className="card p-6 sm:p-8">
             <h2 className="text-xl font-semibold">{t.details}</h2>
@@ -212,5 +221,74 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </aside>
       </div>
     </main>
+  );
+}
+
+/** Приглашение оценить книгу — или благодарность с промокодом, если отзыв уже оставлен. */
+function ReviewCard({
+  orderId,
+  review,
+  t,
+}: {
+  orderId: string;
+  review: { rating: number; status: string; thankYouCode: string | null } | null;
+  t: Awaited<ReturnType<typeof getMessages>>["review"]["card"];
+}) {
+  if (!review)
+    return (
+      <section className="card flex flex-col items-start gap-5 bg-[linear-gradient(120deg,#fbf3ef,#fff)] p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="flex shrink-0 gap-0.5 text-amber-400" aria-hidden>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Star key={i} className="size-6 fill-current" strokeWidth={1.5} />
+          ))}
+        </div>
+        <div className="flex-1">
+          <h2 className="font-serif text-2xl font-medium">{t.title}</h2>
+          <p className="mt-1 text-ink-soft">{t.text(THANK_YOU.percent)}</p>
+        </div>
+        <Link href={`/review/${orderId}`} className="btn btn-primary shrink-0">
+          {t.button}
+        </Link>
+      </section>
+    );
+  return (
+    <section className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-5 sm:px-8">
+      <div className="flex items-center gap-2 font-medium">
+        <span className="flex gap-0.5 text-amber-400" aria-label={`${review.rating}/5`}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star key={n} className={cn("size-4", n <= review.rating ? "fill-current" : "text-line")} strokeWidth={1.5} />
+          ))}
+        </span>
+        {t.done}
+      </div>
+      {review.thankYouCode ? (
+        <div className="flex items-center gap-2 text-sm text-ink-soft">
+          <Gift className="size-4 text-wine" /> {t.code}: <code className="rounded bg-cream px-2 py-0.5 font-mono tracking-wider text-ink">{review.thankYouCode}</code>
+        </div>
+      ) : null}
+      {review.status === "new" ? (
+        <Link href={`/review/${orderId}`} className="ml-auto text-sm text-wine hover:underline">
+          {t.edit}
+        </Link>
+      ) : null}
+    </section>
+  );
+}
+
+/** Приглашение друзей — после оплаты, когда клиент уже знает, что книга будет. */
+function InviteCard({ t }: { t: Awaited<ReturnType<typeof getMessages>>["invite"]["card"] }) {
+  return (
+    <section className="card flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:px-8">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose text-wine">
+        <Gift className="size-5" />
+      </span>
+      <div className="flex-1">
+        <h2 className="font-semibold">{t.title}</h2>
+        <p className="mt-0.5 text-sm text-ink-soft">{t.text(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</p>
+      </div>
+      <Link href="/invite" className="btn btn-outline shrink-0">
+        {t.button}
+      </Link>
+    </section>
   );
 }

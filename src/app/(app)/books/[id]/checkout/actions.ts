@@ -89,7 +89,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
 /** Код ошибки домена → текст на языке клиента. */
 function orderingErrorText(err: OrderingError, t: Awaited<ReturnType<typeof getMessages>>["checkout"]) {
   if (err.code === "notReady") return err.message;
-  if (err.code === "empty" || err.code === "notFound" || err.code === "expired" || err.code === "used") return t.promo[err.code];
+  if (err.code === "empty" || err.code === "notFound" || err.code === "expired" || err.code === "used" || err.code === "ownCode" || err.code === "firstOrderOnly") return t.promo[err.code];
   if (err.code === "bookNotFound" || err.code === "alreadyOrdered" || err.code === "promoGone") return t.errors[err.code];
   return t.errors.bookNotFound;
 }
@@ -105,11 +105,11 @@ export interface PromoPreview {
 
 /** Проверка промокода для предпросмотра скидки на странице оформления. */
 export async function checkPromoAction(code: string): Promise<PromoPreview> {
-  await requireUser();
+  const user = await requireUser();
   const t = (await getMessages()).checkout;
   const { clientIp, rateLimit } = await import("@/server/rateLimit");
   if (!await rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
-  const check = await container().ordering.promos.check(code);
+  const check = await container().ordering.promos.check(code, user.id);
   if (!check.ok) return { ok: false, error: t.promo[check.error] };
   const { code: c, kind, value, label } = check.promo;
   return { ok: true, code: c, kind, value, label };

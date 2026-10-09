@@ -19,6 +19,11 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: `${site.name} — ${m.tagline}`, template: `%s · ${site.name}` },
     description: m.description,
     applicationName: site.name,
+    category: "shopping",
+    formatDetection: { telephone: false, email: false, address: false },
+    // Подтверждение прав в Google Search Console и Яндекс Вебмастере (значения — из .env)
+    verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined, yandex: process.env.YANDEX_VERIFICATION || undefined },
+    robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
     openGraph: {
       type: "website",
       locale: localeMeta[locale].og,

@@ -55,7 +55,7 @@ export class OrdersService {
     const now = this.clock.now();
     const promo = cmd.promoCode ? await this.promos.findByCode(cmd.promoCode) : null;
     if (cmd.promoCode && !promo) throw new OrderingError("notFound");
-    promo?.assertUsable(now);
+    promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
     const identity = await this.orders.nextIdentity();
     const order = Order.place(

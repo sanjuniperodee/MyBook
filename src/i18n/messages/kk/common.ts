@@ -35,6 +35,7 @@ export const common: Messages["common"] = {
     logout: "Шығу",
     menu: "Мәзір",
     profileMenu: "Профиль мәзірі",
+    invite: "Досты шақыру",
     noName: "Аты көрсетілмеген",
   },
   widget: {
@@ -61,6 +62,8 @@ export const common: Messages["common"] = {
   },
   footer: {
     ideas: "Сыйлық идеялары",
+    allIdeas: "Барлық сыйлық идеялары",
+    blog: "Блог",
     customers: "Сатып алушыларға",
     contact: "Байланыс",
     pricing: "Бағалар мен жеткізу",
@@ -98,12 +101,12 @@ export const common: Messages["common"] = {
   errors: {
     generic: "Болмады. Қайталап көріңіз.",
     network: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
-    tooMany: "Әрекет тым көп. Кейінірек қайталаңыз.",
+    tooMany: "Тым көп әрекет жасалды. Кейінірек қайталаңыз.",
     notFound: "Табылмады",
-    forbidden: "Қолжетімділік жоқ",
+    forbidden: "Кіруге рұқсат жоқ",
     unauthorized: "Аккаунтқа кіріңіз",
     badRequest: "Енгізілген деректерді тексеріңіз",
-    server: "Біз тарапта бірдеңе дұрыс болмады. Қазір анықтап жатырмыз.",
+    server: "Біздің жақта ақау болды. Қазір анықтап жатырмыз.",
     bookLocked: "Кітапқа тапсырыс берілген — өңдеу жабық",
     status: (code: number) => `${code} қатесі`,
   },
@@ -154,7 +157,7 @@ export const common: Messages["common"] = {
     in_production: "Өндірісте",
     shipped: "Жіберілді",
     delivered: "Жеткізілді",
-    cancelled: "Тоқтатылды",
+    cancelled: "Бас тартылды",
   },
   manualPayment: {
     title: "Kaspi аударымы",

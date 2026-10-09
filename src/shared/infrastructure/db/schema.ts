@@ -7,6 +7,7 @@ import {
   pgTable,
   primaryKey,
   serial,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -18,6 +19,7 @@ import type { Locale } from "@/i18n/config";
 import { ORDER_STATUSES, type OrderStatus } from "@/modules/ordering/domain/OrderStatus";
 import type { OrderPrintSpec } from "@/modules/ordering/domain/Order";
 import type { GiftStatus } from "@/modules/ordering/domain/GiftCard";
+import type { ReviewPhoto, ReviewStatus } from "@/modules/feedback/domain/Review";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -128,6 +130,10 @@ export const books = pgTable(
     coverTemplate: text("cover_template").notNull().default("linen"),
     coverPhotoId: uuid("cover_photo_id"),
     backText: text("back_text").notNull().default(""),
+    /** Вариант задней стороны — src/lib/book/cover-back.ts. */
+    backLayout: text("back_layout").notNull().default("quote"),
+    /** Фото для варианта «Фото» на задней стороне. */
+    backPhotoId: uuid("back_photo_id"),
     dedication: text("dedication").notNull().default(""),
     /** Оформление страниц — id из src/lib/book/interiors.ts. */
     interior: text("interior").notNull().default("classic"),
@@ -286,9 +292,13 @@ export const promoCodes = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     active: boolean("active").notNull().default(true),
     note: text("note").notNull().default(""),
+    /** Код-приглашение клиента: друзья получают скидку, владелец — награду за каждый оплаченный заказ. */
+    ownerId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Только на первую книгу: клиент ещё ничего не покупал. */
+    firstOrderOnly: boolean("first_order_only").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("promo_codes_code_idx").on(t.code)],
+  (t) => [uniqueIndex("promo_codes_code_idx").on(t.code), index("promo_codes_owner_idx").on(t.ownerId)],
 );
 
 /** Журнал автоматических писем: каждое письмо конкретного вида уходит клиенту один раз. */
@@ -403,6 +413,56 @@ export const orderEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("order_events_order_idx").on(t.orderId)],
+);
+
+/** Отзыв клиента о книге — один на заказ. Правила — в modules/feedback/domain. */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rating: smallint("rating").notNull(),
+    text: text("text").notNull().default(""),
+    authorName: text("author_name").notNull(),
+    city: text("city").notNull().default(""),
+    /** Согласие показать отзыв на сайте с именем и городом. */
+    consent: boolean("consent").notNull().default(false),
+    photo: jsonb("photo").$type<ReviewPhoto>(),
+    status: text("status").$type<ReviewStatus>().notNull().default("new"),
+    featured: boolean("featured").notNull().default(false),
+    locale: text("locale").$type<Locale>().notNull().default("ru"),
+    theme: text("theme").notNull(),
+    thankYouCode: text("thank_you_code"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("reviews_order_idx").on(t.orderId), index("reviews_status_idx").on(t.status, t.featured)],
+);
+
+/** Награды за приглашения: друг оплатил заказ по коду — владельцу кода промокод. Одна на заказ. */
+export const referralRewards = pgTable(
+  "referral_rewards",
+  {
+    orderId: uuid("order_id")
+      .primaryKey()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    orderNumber: integer("order_number").notNull(),
+    referrerId: uuid("referrer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    friendId: uuid("friend_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Выданный промокод-награда (null — выдать не удалось, см. журнал ошибок). */
+    code: text("code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("referral_rewards_referrer_idx").on(t.referrerId)],
 );
 
 // ─── CRM: роли, аудит, сделки, коммуникации ─────────────────────────────────
@@ -880,6 +940,7 @@ export const orderEventsRelations = relations(orderEvents, ({ one }) => ({
 
 export type User = typeof users.$inferSelect;
 export type Book = typeof books.$inferSelect;
+export type ReviewRow = typeof reviews.$inferSelect;
 export type BookQuestion = typeof bookQuestions.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type Order = typeof orders.$inferSelect;

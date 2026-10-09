@@ -14,6 +14,7 @@ export type AuthoringErrorCode =
   | "photosOutdated"
   | "unknownCover"
   | "unknownInterior"
+  | "unknownBackLayout"
   | "unknownFormat"
   | "unknownOccasion"
   | "unknownLanguage"

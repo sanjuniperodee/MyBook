@@ -3,6 +3,7 @@ import type { Locale } from "@/i18n/config";
 import { coverTemplates } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
 import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
+import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { getOccasion } from "@/lib/occasions";
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
@@ -23,6 +24,9 @@ export interface BookProps {
   coverTemplate: string;
   coverPhotoId: string | null;
   backText: string;
+  /** Вариант задней стороны: цитата, письмо, фото или лаконично (src/lib/book/cover-back.ts). */
+  backLayout: string;
+  backPhotoId: string | null;
   dedication: string;
   interior: string;
   format: string;
@@ -43,7 +47,7 @@ export interface BookViewer {
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -61,6 +65,8 @@ export interface ThemeOnLanguage {
   recipientGender?: Gender;
   titleSuggestions: string[];
   defaultCover: string;
+  /** Оформление страниц новой книги; неизвестное — классика. */
+  defaultInterior: string;
   questions: QuestionTemplate[];
 }
 
@@ -95,8 +101,10 @@ export class Book extends AggregateRoot<BookProps> {
       coverTemplate: theme.defaultCover,
       coverPhotoId: null,
       backText: "",
+      backLayout: DEFAULT_BACK_LAYOUT,
+      backPhotoId: null,
       dedication: "",
-      interior: DEFAULT_INTERIOR,
+      interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       format: "a5",
       photoPlacement: "chapters",
       showToc: true,
@@ -128,6 +136,9 @@ export class Book extends AggregateRoot<BookProps> {
   get coverPhotoId() {
     return this.props.coverPhotoId;
   }
+  get backPhotoId() {
+    return this.props.backPhotoId;
+  }
   get inviteToken() {
     return this.props.inviteToken;
   }
@@ -152,6 +163,7 @@ export class Book extends AggregateRoot<BookProps> {
     this.assertEditable();
     if (s.coverTemplate !== undefined && !coverTemplates.some((t) => t.id === s.coverTemplate)) throw new AuthoringError("unknownCover");
     if (s.interior !== undefined && !isInteriorId(s.interior)) throw new AuthoringError("unknownInterior");
+    if (s.backLayout !== undefined && !isBackLayout(s.backLayout)) throw new AuthoringError("unknownBackLayout");
     if (s.format !== undefined && !(s.format in formats)) throw new AuthoringError("unknownFormat");
     if (s.occasion && !getOccasion(s.occasion)) throw new AuthoringError("unknownOccasion");
     const clean = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)) as BookSettings;
@@ -164,9 +176,16 @@ export class Book extends AggregateRoot<BookProps> {
     this.props.coverPhotoId = photoId;
   }
 
-  /** Удалённое фото не должно оставаться на обложке. */
+  /** Фото на задней стороне (принадлежность фото книге проверяет сервис). */
+  setBackPhoto(photoId: string | null) {
+    this.assertEditable();
+    this.props.backPhotoId = photoId;
+  }
+
+  /** Удалённое фото не должно оставаться на обложке — ни спереди, ни сзади. */
   forgetPhoto(photoId: string) {
     if (this.props.coverPhotoId === photoId) this.props.coverPhotoId = null;
+    if (this.props.backPhotoId === photoId) this.props.backPhotoId = null;
   }
 
   /**

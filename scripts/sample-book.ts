@@ -1,6 +1,7 @@
 /**
  * Создаёт демонстрационную книгу с ответами и фото и собирает все PDF в папку.
- * Запуск: npx tsx --conditions=react-server scripts/sample-book.ts ./out
+ * Запуск: npm run sample-book -- ./out [обложка] [оформление страниц], например: npm run sample-book -- ./out blossom romance
+ * (без условия react-server: react-pdf работает только с обычной сборкой React).
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -36,7 +37,7 @@ async function main() {
     recipientGender: "m",
     title: "Ты — моё всё",
   });
-  await db.update(books).set({ subtitle: "Четыре года вместе", dedication: "Марғұлану — моему самому близкому человеку. С любовью, Алия.", backText: "Каждая страница этой книги — о тебе.", coverTemplate: process.argv[3] ?? "blossom" }).where(eq(books.id, book.id));
+  await db.update(books).set({ subtitle: "Четыре года вместе", dedication: "Марғұлану — моему самому близкому человеку. С любовью, Алия.", backText: "Каждая страница этой книги — о тебе.", coverTemplate: process.argv[3] ?? "blossom", interior: process.argv[4] ?? "classic" }).where(eq(books.id, book.id));
   const qs = await db.select().from(bookQuestions).where(eq(bookQuestions.bookId, book.id));
   let i = 0;
   for (const q of qs) {
@@ -62,6 +63,7 @@ async function main() {
   console.log("print package", Date.now() - t, "ms, pages", pkg.pageCount, "spine", pkg.spineMm);
   await fs.writeFile(path.join(out, "block.pdf"), pkg.interior);
   await fs.writeFile(path.join(out, "cover.pdf"), pkg.cover);
+  await fs.writeFile(path.join(out, "layout.pdf"), pkg.layout);
   await fs.writeFile(path.join(out, "spec.txt"), printSpecText(bundle, pkg, 1));
   t = Date.now();
   const preview = await renderInterior(bundle, "preview");

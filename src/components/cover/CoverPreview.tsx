@@ -1,6 +1,7 @@
 import { getCoverTemplate, renderCoverSvg, type CoverTemplate, type CoverTextStyle } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
+import { coverArtUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
 export interface CoverPreviewProps {
@@ -14,6 +15,8 @@ export interface CoverPreviewProps {
   uid?: string;
   /** Без фактуры — быстрее для множества мелких превью. */
   lite?: boolean;
+  /** Обложка в первом экране: фон грузится сразу и с высоким приоритетом. */
+  priority?: boolean;
   /** Подсказки на языке страницы: пустое название и шаблон «с фото» без фото. */
   titlePlaceholder?: string;
   photoHint?: string;
@@ -34,9 +37,8 @@ function textCss(s: CoverTextStyle): React.CSSProperties {
   };
 }
 
-export function Ornament({ kind, color }: NonNullable<CoverTemplate["ornament"]>) {
-  const size = "3.5cqw";
-  if (kind === "line") return <span style={{ display: "block", width: "14cqw", height: 1, background: color }} />;
+export function Ornament({ kind, color, size = "3.5cqw" }: NonNullable<CoverTemplate["ornament"]> & { size?: string }) {
+  if (kind === "line") return <span style={{ display: "block", width: `calc(${size} * 4)`, height: 1, background: color }} />;
   if (kind === "dots")
     return (
       <span style={{ display: "flex", gap: "0.8cqw" }}>
@@ -56,38 +58,60 @@ export function Ornament({ kind, color }: NonNullable<CoverTemplate["ornament"]>
   );
 }
 
-export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
-  const template = getCoverTemplate(templateId);
-  const format = getFormat(formatId);
-  const g = coverFrontGeometry(format);
-  const svg = renderCoverSvg(template, g, { uid: uid ?? `${template.id}${format.id}`, photoHref: photoUrl }, { noTexture: lite });
+/** Текст лицевой стороны: заголовок, подзаголовок, орнамент и имена. Размеры — в cqw от ширины лицевой стороны. */
+export function CoverText({ template, title, subtitle, names, titlePlaceholder = "…" }: { template: CoverTemplate; title: string; subtitle?: string; names?: string; titlePlaceholder?: string }) {
   const ta = template.textArea;
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
+  return (
+    <div
+      className="absolute flex flex-col items-center"
+      style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify }}
+    >
+      <div style={textCss(template.title)}>{title || titlePlaceholder}</div>
+      {subtitle ? <div style={{ ...textCss(template.subtitle), marginTop: "1.5cqw" }}>{subtitle}</div> : null}
+      {template.ornament && names ? (
+        <div style={{ margin: "3cqw 0", display: "flex", justifyContent: "center" }}>
+          <Ornament {...template.ornament} />
+        </div>
+      ) : (
+        <div style={{ height: "3.5cqw" }} />
+      )}
+      {names ? <div style={textCss(template.names)}>{names}</div> : null}
+    </div>
+  );
+}
+
+export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, priority, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
+  const template = getCoverTemplate(templateId);
+  const format = getFormat(formatId);
+  // Фон — кэшируемая картинка; встраивать SVG нужно только обложке с фото клиента (картинка-SVG не грузит чужие файлы).
+  const inline = template.requiresPhoto && !!photoUrl;
+  const svg = inline ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photoHref: photoUrl }, { noTexture: lite }) : null;
 
   return (
     <div
       className={cn("relative overflow-hidden select-none", className)}
-      style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}`, containerType: "inline-size" }}
+      style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}`, containerType: "inline-size", background: template.swatch }}
     >
-      <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+      {svg ? (
+        <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- SVG-фон: next/image его не оптимизирует, а кэширует браузер
+        <img
+          src={coverArtUrl(template.id, format.id, lite)}
+          alt=""
+          aria-hidden
+          draggable={false}
+          decoding="async"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : undefined}
+          className="absolute inset-0 h-full w-full"
+        />
+      )}
       {template.requiresPhoto && !photoUrl && photoHint ? (
         <div className="absolute inset-x-0 top-[28%] text-center text-[4cqw] text-white/80">{photoHint}</div>
       ) : null}
-      <div
-        className="absolute flex flex-col items-center"
-        style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify }}
-      >
-        <div style={textCss(template.title)}>{title || titlePlaceholder}</div>
-        {subtitle ? <div style={{ ...textCss(template.subtitle), marginTop: "1.5cqw" }}>{subtitle}</div> : null}
-        {template.ornament && names ? (
-          <div style={{ margin: "3cqw 0", display: "flex", justifyContent: "center" }}>
-            <Ornament {...template.ornament} />
-          </div>
-        ) : (
-          <div style={{ height: "3.5cqw" }} />
-        )}
-        {names ? <div style={textCss(template.names)}>{names}</div> : null}
-      </div>
+      <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />
     </div>
   );
 }

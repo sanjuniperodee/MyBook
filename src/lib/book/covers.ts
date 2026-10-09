@@ -49,7 +49,11 @@ export interface CoverTemplate {
   names: CoverTextStyle;
   ornament?: { kind: "line" | "heart" | "star" | "dots"; color: string };
   spine: { color: string; font: FontKey };
-  back: { color: string; font: FontKey };
+  /**
+   * Задняя сторона. mirror — повторить композицию лица (плашку, рамку, марку): текст ложится туда же,
+   * где на лице название. Иначе — свой спокойный фон из art, а текст — в области area (доли задней крышки).
+   */
+  back: { color: string; font: FontKey; mirror?: boolean; area?: Rect };
 }
 
 // ─── шаблоны ────────────────────────────────────────────────────────────────
@@ -70,7 +74,7 @@ const linen: CoverTemplate = {
   names: { font: "cormorant", size: 0.04, color: "#6B5B4B", italic: true },
   ornament: { kind: "line", color: "#B9A88E" },
   spine: { color: "#3A2F26", font: "cormorant" },
-  back: { color: "#6B5B4B", font: "cormorant" },
+  back: { color: "#6B5B4B", font: "cormorant", mirror: true },
 };
 
 const blossom: CoverTemplate = {
@@ -121,7 +125,7 @@ const blossom: CoverTemplate = {
   names: { font: "cormorant", size: 0.038, color: "#6E5456", italic: true },
   ornament: { kind: "heart", color: "#A94E5B" },
   spine: { color: "#EFE9DF", font: "cormorant" },
-  back: { color: "#EFE9DF", font: "cormorant" },
+  back: { color: "#EFE9DF", font: "cormorant", mirror: true },
 };
 
 const midnight: CoverTemplate = {
@@ -151,7 +155,7 @@ const midnight: CoverTemplate = {
   names: { font: "montserrat", size: 0.026, color: "#C9A96E", weight: 500, upper: true, tracking: 0.28 },
   ornament: { kind: "star", color: "#C9A96E" },
   spine: { color: "#E9D5A6", font: "cormorant" },
-  back: { color: "#D8C08E", font: "cormorant" },
+  back: { color: "#D8C08E", font: "cormorant", mirror: true },
 };
 
 const sage: CoverTemplate = {
@@ -192,7 +196,7 @@ const sage: CoverTemplate = {
   names: { font: "cormorant", size: 0.045, color: "#3F4D37", italic: true },
   ornament: { kind: "dots", color: "#3F4D37" },
   spine: { color: "#2E3A28", font: "cormorant" },
-  back: { color: "#2E3A28", font: "cormorant" },
+  back: { color: "#2E3A28", font: "cormorant", area: { x: 0.12, y: 0.1, w: 0.76, h: 0.36 } },
 };
 
 const terracotta: CoverTemplate = {
@@ -224,7 +228,7 @@ const terracotta: CoverTemplate = {
   subtitle: { font: "playfair", size: 0.042, color: "#FBE7CF", italic: true },
   names: { font: "montserrat", size: 0.027, color: "#FBE7CF", weight: 500, upper: true, tracking: 0.22 },
   spine: { color: "#FBF1E4", font: "playfair" },
-  back: { color: "#FBF1E4", font: "playfair" },
+  back: { color: "#FBF1E4", font: "playfair", area: { x: 0.12, y: 0.12, w: 0.76, h: 0.4 } },
 };
 
 const noir: CoverTemplate = {
@@ -245,7 +249,7 @@ const noir: CoverTemplate = {
   names: { font: "montserrat", size: 0.025, color: "#B8975A", weight: 500, upper: true, tracking: 0.32 },
   ornament: { kind: "line", color: "#B8975A" },
   spine: { color: "#E8D2A2", font: "playfair" },
-  back: { color: "#CDB27A", font: "playfair" },
+  back: { color: "#CDB27A", font: "playfair", mirror: true },
 };
 
 const hearts: CoverTemplate = {
@@ -279,7 +283,7 @@ const hearts: CoverTemplate = {
   names: { font: "cormorant", size: 0.04, color: "#9A4550", italic: true },
   ornament: { kind: "heart", color: "#B53B4C" },
   spine: { color: "#F7EBE3", font: "cormorant" },
-  back: { color: "#F7EBE3", font: "cormorant" },
+  back: { color: "#F7EBE3", font: "cormorant", mirror: true },
 };
 
 const ocean: CoverTemplate = {
@@ -310,7 +314,7 @@ const ocean: CoverTemplate = {
   subtitle: { font: "cormorant", size: 0.045, color: "#E3F0F4", italic: true },
   names: { font: "montserrat", size: 0.026, color: "#E3F0F4", weight: 500, upper: true, tracking: 0.25 },
   spine: { color: "#FFFFFF", font: "cormorant" },
-  back: { color: "#FFFFFF", font: "cormorant" },
+  back: { color: "#FFFFFF", font: "cormorant", area: { x: 0.12, y: 0.1, w: 0.76, h: 0.3 } },
 };
 
 const terrazzo: CoverTemplate = {
@@ -346,7 +350,7 @@ const terrazzo: CoverTemplate = {
   names: { font: "montserrat", size: 0.026, color: "#6B635B", weight: 500, upper: true, tracking: 0.2 },
   ornament: { kind: "dots", color: "#C77C6B" },
   spine: { color: "#2E2A26", font: "montserrat" },
-  back: { color: "#2E2A26", font: "montserrat" },
+  back: { color: "#2E2A26", font: "montserrat", mirror: true },
 };
 
 const script: CoverTemplate = {
@@ -366,7 +370,7 @@ const script: CoverTemplate = {
   names: { font: "cormorant", size: 0.045, color: "#9A5A60", italic: true },
   ornament: { kind: "heart", color: "#C99A95" },
   spine: { color: "#7A2E3A", font: "cormorant" },
-  back: { color: "#7A2E3A", font: "cormorant" },
+  back: { color: "#7A2E3A", font: "cormorant", mirror: true },
 };
 
 const photo: CoverTemplate = {
@@ -394,7 +398,7 @@ const photo: CoverTemplate = {
   subtitle: { font: "cormorant", size: 0.045, color: "#F2F2F2", italic: true },
   names: { font: "montserrat", size: 0.026, color: "#F2F2F2", weight: 500, upper: true, tracking: 0.25 },
   spine: { color: "#FFFFFF", font: "cormorant" },
-  back: { color: "#E6E6E6", font: "cormorant" },
+  back: { color: "#E6E6E6", font: "cormorant", area: { x: 0.14, y: 0.3, w: 0.72, h: 0.4 } },
 };
 
 const byId = Object.fromEntries([blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo, ...collectionTemplates].map((t) => [t.id, t]));
@@ -407,6 +411,19 @@ export const coverTemplates: CoverTemplate[] = [
 
 export function getCoverTemplate(id: string): CoverTemplate {
   return coverTemplates.find((t) => t.id === id) ?? linen;
+}
+
+/**
+ * Задняя крышка повторяет композицию лица — плашку, рамку, марку: тот же рисунок, построенный так,
+ * будто лицо — это задняя крышка, и обрезанный по ней. Узоры во весь холст совпадают и стыкуются
+ * без шва, а свои рисунки задней крышки шаблона этим слоем закрываются.
+ */
+function backMirror(template: CoverTemplate, g: CoverGeometry, ctx: ArtContext): string {
+  if (!g.back || !template.back.mirror) return "";
+  const b = g.back;
+  const id = `${ctx.uid}bk`;
+  const art = template.art({ width: g.width, height: g.height, front: b }, { uid: id });
+  return `<clipPath id="${id}c"><rect x="${n(b.x)}" y="${n(b.y)}" width="${n(b.w)}" height="${n(b.h)}"/></clipPath><g clip-path="url(#${id}c)">${art}</g>`;
 }
 
 export function renderCoverSvg(
@@ -424,7 +441,19 @@ export function renderCoverSvg(
   const size = opts.pxPerMm
     ? ` width="${Math.round(g.width * opts.pxPerMm)}" height="${Math.round(g.height * opts.pxPerMm)}"`
     : ` preserveAspectRatio="xMidYMid slice"`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${n(g.width)} ${n(g.height)}"${size}>${template.art(g, ctx)}${texture}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${n(g.width)} ${n(g.height)}"${size}>${template.art(g, ctx)}${backMirror(template, g, ctx)}${texture}</svg>`;
+}
+
+/**
+ * Обрезает развёртку обложки до нужной стороны, чтобы браузер растрировал только её.
+ * Фильтры фактуры заданы как «100% области просмотра» — после обрезки это размер стороны, а не развёртки,
+ * и фактура пропадает на куске справа и снизу, поэтому размер области фильтра задаётся явно.
+ */
+export function cropSvg(svg: string, r: Rect, spread: { w: number; h: number }) {
+  return svg
+    .replace(/viewBox="[^"]*"/, `viewBox="${r.x} ${r.y} ${r.w} ${r.h}"`)
+    .replace(/preserveAspectRatio="[^"]*"/, 'preserveAspectRatio="none"')
+    .replace(/(<filter [^>]*?)width="100%" height="100%"/g, `$1width="${spread.w}" height="${spread.h}"`);
 }
 
 export interface CoverTextContent {

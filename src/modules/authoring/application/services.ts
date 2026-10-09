@@ -34,13 +34,17 @@ export class BooksService {
   }
 
   /** Настройки из редактора (включая смену языка книги). */
-  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null }, photos: PhotoRepository) {
+  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null }, photos: PhotoRepository) {
     return this.uow.run(async () => {
       const book = await loadBook(this.books, bookId, viewer, { editable: true });
-      const { language, coverPhotoId, ...settings } = patch;
+      const { language, coverPhotoId, backPhotoId, ...settings } = patch;
       if (coverPhotoId !== undefined) {
         if (coverPhotoId && !(await photos.findInBook(book.id, coverPhotoId))) throw new AuthoringError("photoNotFound");
         book.setCoverPhoto(coverPhotoId);
+      }
+      if (backPhotoId !== undefined) {
+        if (backPhotoId && !(await photos.findInBook(book.id, backPhotoId))) throw new AuthoringError("photoNotFound");
+        book.setBackPhoto(backPhotoId);
       }
       if (language && language !== book.language) {
         const texts = book.switchLanguage(language, this.themes.get(book.theme, book.language), this.themes.get(book.theme, language));
@@ -200,7 +204,7 @@ export class PhotosService {
     const photo = await this.photos.findInBook(book.id, photoId);
     if (!photo) throw new AuthoringError("photoNotFound");
     await this.photos.delete(photo);
-    if (book.coverPhotoId === photo.id) {
+    if (book.coverPhotoId === photo.id || book.backPhotoId === photo.id) {
       book.forgetPhoto(photo.id);
       await this.books.save(book);
     }
