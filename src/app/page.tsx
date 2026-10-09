@@ -157,7 +157,7 @@ export default async function HomePage() {
               </div>
               <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
                 <div className="animate-float">
-                  <Book3D priority template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
+                  <Book3D priority template="peony" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
                 </div>
               </div>
               {/* Рукописная пометка со стрелкой */}

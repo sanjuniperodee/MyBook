@@ -15,11 +15,14 @@ export interface CoverArt {
   spine: string;
 }
 
-/** Арт обложки по сторонам: из одной развёртки, обрезанной под лицо, оборот и корешок. photoHref — data-URL фото клиента. */
-export function buildCoverArt(template: CoverTemplate, format: BookFormat, pageCount: number, dims: BookDims, photoHref?: string): CoverArt {
+/**
+ * Арт обложки по сторонам: из одной развёртки, обрезанной под лицо, оборот и корешок. photoHref — data-URL фото клиента,
+ * imageHref — data-URL снимка обложки на фото (картинка-SVG не загружает внешние файлы; пока снимок грузится — подложка).
+ */
+export function buildCoverArt(template: CoverTemplate, format: BookFormat, pageCount: number, dims: BookDims, photoHref?: string, imageHref?: string): CoverArt {
   const g = coverSpreadGeometry(format, pageCount);
   const uid = `bo${template.id}${format.id}`;
-  const flat = renderCoverSvg(template, g, { uid });
+  const flat = renderCoverSvg(template, g, { uid, imageHref: imageHref ?? (template.photo ? "data:," : undefined) });
   const photo = template.requiresPhoto && photoHref ? renderCoverSvg(template, g, { uid: `${uid}p`, photoHref }) : null;
   const { front, back, spine } = dims.rects;
   return {

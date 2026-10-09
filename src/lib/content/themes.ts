@@ -17,10 +17,10 @@ type ThemeBase = Pick<ThemeDef, "id" | "emoji" | "recipientGender" | "defaultRec
 type ThemeText = Omit<ThemeDef, keyof ThemeBase>;
 
 const base: ThemeBase[] = [
-  { id: "love", emoji: "❤", defaultRecipientGender: "m", defaultCover: "blossom", defaultInterior: "romance" },
-  { id: "mom", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "sage", defaultInterior: "herbarium" },
-  { id: "dad", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "midnight", defaultInterior: "stars" },
-  { id: "friend", emoji: "☀", defaultRecipientGender: "f", defaultCover: "terracotta", defaultInterior: "confetti" },
+  { id: "love", emoji: "❤", defaultRecipientGender: "m", defaultCover: "peony", defaultInterior: "romance" },
+  { id: "mom", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "tenderness", defaultInterior: "herbarium" },
+  { id: "dad", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
+  { id: "friend", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
 ];
 
 const text: Record<Locale, Record<ThemeId, ThemeText>> = {

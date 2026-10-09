@@ -5,6 +5,9 @@
  */
 import type { CoverGeometry, Rect } from "./formats";
 import { collectionTemplates } from "./covers-collection";
+import { photoCollection } from "./covers-photo";
+import { activeCustomCovers, customCover } from "./cover-registry";
+import type { PhotoLayout } from "./photo-cover";
 import { bg, frontRect, grainFilter, jitterGrid, label, linenFilter, n, petalPath, rng, shadowFilter } from "./cover-kit";
 import { HEART } from "./motifs";
 import type { FontKey } from "./fonts";
@@ -24,7 +27,12 @@ export interface CoverTextStyle {
 
 export interface ArtContext {
   uid: string;
+  /** Фото клиента — для шаблона «Ваше фото». */
   photoHref?: string;
+  /** Снимок самого шаблона (обложки на фото): data-URL для растрирования, иначе — адрес /api/cover-photos. */
+  imageHref?: string;
+  /** "decor" — только плашка и рамка: так оборот повторяет композицию лица, не рисуя снимок второй раз. */
+  layer?: "decor";
 }
 
 export type CoverMood = "romance" | "tender" | "classic" | "bright" | "photo";
@@ -33,6 +41,15 @@ export const coverMoods: CoverMood[] = ["romance", "tender", "classic", "bright"
 
 export interface CoverTemplate {
   id: string;
+  /** Название из CRM (у встроенных — в словарях i18n, catalog.covers). */
+  name?: { ru: string; kk: string };
+  /** Обложка на снимке: раскладка снимка (src/lib/book/photo-cover.ts). */
+  photo?: PhotoLayout;
+  /** Шаблон из CRM и его версия — для сброса кэша картинок. */
+  custom?: boolean;
+  rev?: number;
+  /** Не показывать в выборе (книги с этой обложкой печатаются как раньше). */
+  hidden?: boolean;
   /** Настроение — для фильтра в выборе обложки. */
   mood: CoverMood;
   /** CSS-фон для миниатюры в выборе шаблона. */
@@ -401,16 +418,44 @@ const photo: CoverTemplate = {
   back: { color: "#E6E6E6", font: "cormorant", area: { x: 0.14, y: 0.3, w: 0.72, h: 0.4 } },
 };
 
-const byId = Object.fromEntries([blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo, ...collectionTemplates].map((t) => [t.id, t]));
+const builtIn = [blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo, ...collectionTemplates, ...photoCollection];
+const byId: Record<string, CoverTemplate> = Object.fromEntries(builtIn.map((t) => [t.id, t]));
 
-/** Порядок в выборе: чередуем настроения, чтобы сетка выглядела разнообразно. */
+/**
+ * Рисованные обложки, у которых есть замена на снимке: из выбора убраны, но книги с ними
+ * по-прежнему открываются и печатаются как раньше.
+ */
+const retired = new Set(["blossom", "sage", "terracotta", "noir", "hearts", "ocean", "terrazzo", "script", "tulips", "mountains"]);
+for (const id of retired) byId[id] = { ...byId[id], hidden: true };
+
+/** Все встроенные обложки, включая убранные из выбора. */
+export const allCoverTemplates: CoverTemplate[] = builtIn.map((t) => byId[t.id]);
+
+/** Встроенные обложки в порядке выбора: сначала снимки (чередуем настроения), затем рисованные. */
 export const coverTemplates: CoverTemplate[] = [
-  "blossom", "oyu", "constellation", "linen", "sunrise", "midnight", "herbarium", "sage", "tulips", "terracotta",
-  "deco", "hearts", "leather", "script", "letter", "ocean", "lemons", "mountains", "terrazzo", "noir", "photo",
+  "peony", "sakura", "alatau", "tenderness", "velvet", "eucalyptus", "milkyway", "flax", "roses", "clouds", "saddle", "lavender",
+  "dusk", "marble", "bouquet", "mist", "lights", "dried", "peaks", "party", "postcards", "meadow", "surf", "autumn", "steppe", "mint",
+  "oyu", "constellation", "linen", "sunrise", "midnight", "herbarium", "deco", "leather", "letter", "lemons", "photo",
 ].map((id) => byId[id]);
 
+/** Что видит клиент в выборе: опубликованные шаблоны из CRM, затем встроенные. */
+export function pickerCovers(): CoverTemplate[] {
+  const custom = activeCustomCovers();
+  return custom.length ? [...custom, ...coverTemplates] : coverTemplates;
+}
+
 export function getCoverTemplate(id: string): CoverTemplate {
-  return coverTemplates.find((t) => t.id === id) ?? linen;
+  return byId[id] ?? customCover(id) ?? linen;
+}
+
+/** Шаблон существует (встроенный — даже убранный из выбора — или из CRM). */
+export function isKnownCover(id: string): boolean {
+  return id in byId || !!customCover(id);
+}
+
+/** Название обложки на языке страницы: встроенные — из словаря, из CRM — своё. */
+export function coverLabel(template: CoverTemplate, names: Record<string, string>, locale: string): string {
+  return names[template.id] ?? template.name?.[locale as "ru" | "kk"] ?? template.name?.ru ?? template.id;
 }
 
 /**
@@ -422,7 +467,7 @@ function backMirror(template: CoverTemplate, g: CoverGeometry, ctx: ArtContext):
   if (!g.back || !template.back.mirror) return "";
   const b = g.back;
   const id = `${ctx.uid}bk`;
-  const art = template.art({ width: g.width, height: g.height, front: b }, { uid: id });
+  const art = template.art({ width: g.width, height: g.height, front: b }, { uid: id, layer: "decor" });
   return `<clipPath id="${id}c"><rect x="${n(b.x)}" y="${n(b.y)}" width="${n(b.w)}" height="${n(b.h)}"/></clipPath><g clip-path="url(#${id}c)">${art}</g>`;
 }
 

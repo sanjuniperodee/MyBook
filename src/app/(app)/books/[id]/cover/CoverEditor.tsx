@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, useMessages } from "@/i18n/client";
+import { Link, useLocale, useMessages } from "@/i18n/client";
 import { useRef, useState } from "react";
 import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
@@ -11,7 +11,7 @@ import { InteriorSpread, type SpreadSample } from "@/components/interior/Interio
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { coverMoods, coverNamesLine, coverTemplates, type CoverMood } from "@/lib/book/covers";
+import { coverLabel, coverMoods, coverNamesLine, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl } from "@/lib/urls";
@@ -58,6 +58,7 @@ export function CoverEditor({
 }) {
   const [state, setState] = useState(initial);
   const m = useMessages();
+  const locale = useLocale();
   const t = m.books.cover;
   const strip = useRef<HTMLDivElement>(null);
   const changes = useRef<Partial<CoverState>>({});
@@ -80,7 +81,9 @@ export function CoverEditor({
     schedule(null);
   };
 
-  const template = coverTemplates.find((t) => t.id === state.coverTemplate) ?? coverTemplates[0];
+  const choices = pickerCovers();
+  const template = getCoverTemplate(state.coverTemplate);
+  const label = (t: { id: string }) => coverLabel(getCoverTemplate(t.id), m.catalog.covers, locale);
   const [mood, setMood] = useState<CoverMood | "all">("all");
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
   const coverPhoto = state.coverPhotoId ? photoUrl(state.coverPhotoId, "full") : undefined;
@@ -134,7 +137,7 @@ export function CoverEditor({
             )}
           </div>
           <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
-            <span className="font-medium text-ink">{m.catalog.covers[template.id] ?? template.id}</span>·<SaveIndicator status={status} error={error} />
+            <span className="font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} />
           </div>
         </div>
       </div>
@@ -143,7 +146,7 @@ export function CoverEditor({
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{t.design}</h2>
-            <span className="text-xs text-muted">{m.common.count.variants(coverTemplates.length)}</span>
+            <span className="text-xs text-muted">{m.common.count.variants(choices.length)}</span>
           </div>
           {/* Фильтр по настроению — чтобы 20+ обложек не превращались в стену */}
           <div className="no-scrollbar -mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={t.moodAria}>
@@ -161,7 +164,7 @@ export function CoverEditor({
             ))}
           </div>
           <div ref={strip} className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
-            {coverTemplates.filter((t) => mood === "all" || t.mood === mood || t.id === state.coverTemplate).map((t) => (
+            {choices.filter((t) => mood === "all" || t.mood === mood || t.id === state.coverTemplate).map((t) => (
               <button
                 key={t.id}
                 onClick={() => update({ coverTemplate: t.id })}
@@ -182,7 +185,7 @@ export function CoverEditor({
                     </span>
                   ) : null}
                 </div>
-                <div className={cn("mt-1.5 truncate text-xs", t.id === state.coverTemplate ? "font-medium text-ink" : "text-muted")}>{m.catalog.covers[t.id] ?? t.id}</div>
+                <div className={cn("mt-1.5 truncate text-xs", t.id === state.coverTemplate ? "font-medium text-ink" : "text-muted")}>{label(t)}</div>
               </button>
             ))}
           </div>
@@ -290,6 +293,7 @@ function PairedPages({
   onApply: (interior: string) => void;
 }) {
   const m = useMessages();
+  const locale = useLocale();
   const t = m.books.cover;
   const pairs = interiorsForCover(cover);
   if (!pairs.length) return null;
@@ -297,6 +301,7 @@ function PairedPages({
   const matched = pairs.some((d) => d.id === current.id);
   const shown = matched ? current : pairs[0];
   const names = m.catalog.interiors;
+  const coverTitle = coverLabel(getCoverTemplate(cover), m.catalog.covers, locale);
   return (
     <section className="flex flex-col gap-5 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
       <InteriorSpread design={shown} format={getFormat(format)} sample={sample} className="w-full shrink-0 rounded-[3px] ring-1 ring-line sm:w-56" />
@@ -305,7 +310,7 @@ function PairedPages({
           <Sparkles className="size-3.5" /> {t.pairTitle}
         </div>
         <p className="mt-1.5 text-sm text-ink-soft">
-          {matched ? t.pairDone(names[current.id].name, m.catalog.covers[cover] ?? cover) : t.pairSuggest(m.catalog.covers[cover] ?? cover, pairs.map((d) => names[d.id].name))}
+          {matched ? t.pairDone(names[current.id].name, coverTitle) : t.pairSuggest(coverTitle, pairs.map((d) => names[d.id].name))}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           {!matched && editable ? (

@@ -18,7 +18,7 @@ export function CoverBackPreview({ template: templateId, format: formatId = "a5"
   return (
     <div className={cn("relative overflow-hidden select-none", className)} style={{ aspectRatio: `${back.w} / ${back.h}`, containerType: "inline-size", background: template.swatch }}>
       {/* eslint-disable-next-line @next/next/no-img-element -- SVG-фон кэширует браузер */}
-      <img src={coverArtUrl(template.id, format.id, false, "back")} alt="" aria-hidden draggable={false} decoding="async" className="absolute inset-0 h-full w-full" />
+      <img src={coverArtUrl(template, format.id, false, "back")} alt="" aria-hidden draggable={false} decoding="async" className="absolute inset-0 h-full w-full" />
       <CoverBackLayer design={design} widthMm={back.w} heightMm={back.h} photoUrl={photoUrl} brand={site.name} />
     </div>
   );

@@ -125,7 +125,7 @@ describe("нет русских строк вне словарей", () => {
     const offenders: string[] = [];
     for (const f of files) {
       if (skipDirs.some((r) => r.test(f)) || skipFiles.has(f)) continue;
-      const lines = readFileSync(path.join(root, f), "utf8").split("\n");
+      const lines = readFileSync(path.join(root, f), "utf8").split(/\r?\n/);
       let inBlockComment = false;
       lines.forEach((raw, i) => {
         let line = raw;

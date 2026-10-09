@@ -98,7 +98,7 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- SVG-фон: next/image его не оптимизирует, а кэширует браузер
         <img
-          src={coverArtUrl(template.id, format.id, lite)}
+          src={coverArtUrl(template, format.id, lite)}
           alt=""
           aria-hidden
           draggable={false}

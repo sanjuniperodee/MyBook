@@ -20,7 +20,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_40%,rgba(233,166,174,.25),transparent)]" />
         <div className="enter relative w-[46%] max-w-[340px]" style={{ "--i": 2 } as React.CSSProperties}>
           <div className="animate-float">
-          <Book3D template="blossom" title={t.book.title} subtitle={t.book.subtitle} names={t.book.names} rotate={-20} />
+          <Book3D template="peony" title={t.book.title} subtitle={t.book.subtitle} names={t.book.names} rotate={-20} />
           </div>
         </div>
         <p style={{ "--i": 4 } as React.CSSProperties} className="enter absolute bottom-10 max-w-sm px-6 text-center font-serif text-2xl leading-snug text-[#f4dcd6]/90 italic">

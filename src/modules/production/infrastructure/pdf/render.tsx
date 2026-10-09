@@ -6,6 +6,7 @@ import sharp from "sharp";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverPhotoDataUrl } from "@/server/cover-photos";
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
@@ -169,7 +170,9 @@ async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi:
       photoHref = `data:image/jpeg;base64,${buf.toString("base64")}`;
     }
   }
-  const svg = renderCoverSvg(template, geometry, { uid: "c", photoHref }, { pxPerMm: dpi / 25.4, noTexture: true });
+  // Обложка на снимке: для печати — оригинал, для превью — уменьшенная копия.
+  const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, source === "full" ? undefined : 2400) : undefined;
+  const svg = renderCoverSvg(template, geometry, { uid: "c", photoHref, imageHref }, { pxPerMm: dpi / 25.4, noTexture: true });
   const base = await sharp(Buffer.from(svg), { limitInputPixels: false, density: 72 }).flatten({ background: "#ffffff" }).png({ compressionLevel: 1 }).toBuffer({ resolveWithObject: true });
   let img = sharp(base.data, { limitInputPixels: false });
   if (template.texture) {
