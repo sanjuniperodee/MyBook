@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
-import { renderCover, renderInterior, type BookBundle } from "@/modules/production/infrastructure/pdf/render";
-import { formats, print } from "@/lib/book/formats";
+import { renderCover, renderInterior, renderLayoutScheme, type BookBundle } from "@/modules/production/infrastructure/pdf/render";
+import { coverSpreadGeometry, formats, print } from "@/lib/book/formats";
 import { interiorDesigns } from "@/lib/book/interiors";
 import type { Book, BookQuestion } from "@/shared/infrastructure/db/schema";
 
@@ -66,6 +66,17 @@ describe("генерация PDF", () => {
     expect(page.getTrimBox().width).toBeCloseTo(mm(148), 0);
   });
 
+  it("каркас для типографии: обложка 1:1 и схема блока", async () => {
+    const pageCount = 120;
+    const pdf = await renderLayoutScheme({ book, questions, photos: [] }, pageCount, 7);
+    const doc = await PDFDocument.load(pdf);
+    expect(doc.getPageCount()).toBe(2);
+    const g = coverSpreadGeometry(formats.a5, pageCount);
+    const mm = (v: number) => (v * 72) / 25.4;
+    expect(doc.getPage(0).getWidth()).toBeCloseTo(mm(g.width), 0);
+    expect(doc.getPage(0).getHeight()).toBeCloseTo(mm(g.height), 0);
+  });
+
   it("казахская книга: блок и обложка собираются, текст с казахскими буквами переносится", async () => {
     const kkBook: Book = { ...book, language: "kk", title: "Сен — менің бәрімсің", subtitle: "Бірге төрт жыл" };
     const kkQuestions = questions.map((q) => ({ ...q, title: `Біз қалай таныстық ${q.position + 1}`, answer: "Біз Алматыға алғашқы қар жауған қарапайым сейсенбіде кездестік. Көктөбеге шығып, қаланың шамдарына ұзақ қарадық. ".repeat(6) }));
@@ -89,6 +100,7 @@ describe("генерация PDF", () => {
     const doc = await PDFDocument.load(res.pdf);
     expect(doc.getPageCount()).toBe(1);
     expect(doc.getPage(0).getWidth()).toBeCloseTo((res.geometry.width * 72) / 25.4, 0);
+    expect(doc.getPage(0).getHeight()).toBeCloseTo((res.geometry.height * 72) / 25.4, 0);
   });
 });
 

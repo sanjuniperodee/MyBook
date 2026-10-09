@@ -9,6 +9,7 @@ import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "@/lib/book/cov
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
+  coverSpreadZones,
   getFormat,
   mm,
   print,
@@ -22,6 +23,7 @@ import { getFile } from "@/shared/infrastructure/storage";
 import { backContent, designBack } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
+import { LayoutSchemeDocument } from "@/modules/production/infrastructure/pdf/layout-scheme";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
 
 export type RenderMode = "print" | "preview" | "reading";
@@ -255,21 +257,44 @@ export async function renderReadingPdf(bundle: BookBundle) {
   return Buffer.from(await out.save());
 }
 
+/** Каркас обложки с размерами и схема блока — чертежи для типографии. */
+export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, orderNumber?: number) {
+  ensureFonts();
+  const format = getFormat(bundle.book.format);
+  const text = coverText(bundle.book);
+  const pdf = await renderToBuffer(
+    <LayoutSchemeDocument
+      format={format}
+      geometry={coverSpreadGeometry(format, pageCount)}
+      zones={coverSpreadZones(format, pageCount)}
+      pageCount={pageCount}
+      spineMm={spineWidthMm(pageCount)}
+      title={text.title}
+      names={text.names}
+      orderNumber={orderNumber}
+    />,
+  );
+  return Buffer.from(pdf);
+}
+
 export interface PrintPackage {
   interior: Buffer;
   cover: Buffer;
+  layout: Buffer;
   pageCount: number;
   spineMm: number;
   coverWidthMm: number;
   coverHeightMm: number;
 }
 
-export async function renderPrintPackage(bundle: BookBundle): Promise<PrintPackage> {
+export async function renderPrintPackage(bundle: BookBundle, orderNumber?: number): Promise<PrintPackage> {
   const interior = await renderInterior(bundle, "print");
   const cover = await renderCover(bundle, interior.pageCount, "print");
+  const layout = await renderLayoutScheme(bundle, interior.pageCount, orderNumber);
   return {
     interior: interior.pdf,
     cover: cover.pdf,
+    layout,
     pageCount: interior.pageCount,
     spineMm: spineWidthMm(interior.pageCount),
     coverWidthMm: Math.round(cover.geometry.width * 10) / 10,
@@ -280,26 +305,30 @@ export async function renderPrintPackage(bundle: BookBundle): Promise<PrintPacka
 export function printSpecText(bundle: BookBundle, pkg: PrintPackage, orderNumber?: number) {
   const format = getFormat(bundle.book.format);
   const g = coverSpreadGeometry(format, pkg.pageCount);
+  const zones = coverSpreadZones(format, pkg.pageCount);
   const r = (v: number) => (Math.round(v * 10) / 10).toString().replace(".", ",");
   return [
     `ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ПЕЧАТЬ${orderNumber ? ` — ЗАКАЗ №${orderNumber}` : ""}`,
     ``,
     `Издание: «${coverText(bundle.book).title}»`,
+    `Чертёж: layout.pdf — каркас развёртки обложки с размерами (стр. 1) и схема блока (стр. 2)`,
     `Формат блока (обрезной): ${format.widthMm}×${format.heightMm} мм`,
     `Объём блока: ${pkg.pageCount} полос (${pkg.pageCount / 2} листов), 4+4`,
     `Вылеты блока: ${print.bleedMm} мм с каждой стороны (TrimBox/BleedBox заданы в PDF)`,
     `Переплёт: твёрдый, 7БЦ, шитьё нитками`,
     ``,
     `ОБЛОЖКА (развёртка): ${r(g.width)}×${r(g.height)} мм, 4+0`,
-    `  Загиб на картон: ${print.cover.wrapMm} мм`,
-    `  Крышка: ${r(g.front.w)}×${r(g.front.h)} мм (кант ${print.cover.boardOverhangMm} мм)`,
-    `  Шарнир: ${print.cover.hingeMm} мм`,
-    `  Корешок: ${r(pkg.spineMm)} мм (лист ${print.sheetThicknessMm} мм + ${print.cover.spineExtraMm} мм)`,
+    `  Отступ по периметру (загиб на картон, включает вылет): ${print.cover.wrapMm} мм`,
+    `  Картон крышки: ${r(g.front.w)}×${r(g.front.h)} мм (кант ${print.cover.boardOverhangMm} мм)`,
+    `  Расставы между сгибами (шарниры): ${print.cover.hingeMm} мм`,
+    `  Корешок: ${r(pkg.spineMm)} мм (${pkg.pageCount / 2} л. × ${print.sheetThicknessMm} мм + ${print.cover.spineExtraMm} мм картон и отстав)`,
+    `  Порядок слева направо, мм: ${zones.map((z) => r(z.w)).join(" | ")}`,
     `  Координаты сгибов слева направо, мм: ${(g.folds ?? []).map(r).join(" / ")}`,
     ``,
     `Файлы:`,
     `  block.pdf — блок, ${pkg.pageCount} стр., ${format.widthMm + print.bleedMm * 2}×${format.heightMm + print.bleedMm * 2} мм с вылетами`,
     `  cover.pdf — развёртка обложки ${r(g.width)}×${r(g.height)} мм`,
+    `  layout.pdf — каркас с размерами корешка, расставов и отступов + схема блока`,
     `Цвет: RGB (sRGB), изображения ${print.dpi} dpi. Шрифты внедрены.`,
   ].join("\n");
 }

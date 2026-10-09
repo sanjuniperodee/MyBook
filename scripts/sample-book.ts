@@ -63,6 +63,7 @@ async function main() {
   console.log("print package", Date.now() - t, "ms, pages", pkg.pageCount, "spine", pkg.spineMm);
   await fs.writeFile(path.join(out, "block.pdf"), pkg.interior);
   await fs.writeFile(path.join(out, "cover.pdf"), pkg.cover);
+  await fs.writeFile(path.join(out, "layout.pdf"), pkg.layout);
   await fs.writeFile(path.join(out, "spec.txt"), printSpecText(bundle, pkg, 1));
   t = Date.now();
   const preview = await renderInterior(bundle, "preview");

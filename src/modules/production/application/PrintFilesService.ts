@@ -1,6 +1,6 @@
 import type { Logger } from "@/shared/application";
 
-export type PrintFileKind = "block" | "cover" | "spec" | "reading";
+export type PrintFileKind = "block" | "cover" | "layout" | "spec" | "reading";
 
 /** Что печатаем: заказ и его книга. */
 export interface PrintJob {
@@ -20,7 +20,9 @@ export interface PrintSpec {
 
 /** Порт рендера: PDF блока, обложки и читательской версии. */
 export interface BookRenderer {
-  renderPrintPackage(bookId: string, orderNumber: number): Promise<{ interior: Buffer; cover: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
+  renderPrintPackage(bookId: string, orderNumber: number): Promise<{ interior: Buffer; cover: Buffer; layout: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
+  /** Каркас обложки и схема блока по готовому PDF блока (для заказов, собранных до появления чертежа). */
+  renderLayout(bookId: string, orderNumber: number, block: Buffer): Promise<Buffer | null>;
   renderReading(bookId: string): Promise<Buffer | null>;
   /** Предпросмотр: отпечаток содержимого (ключ кэша) и отложенный рендер. */
   preview(bookId: string): Promise<{ fingerprint: string; render(): Promise<Buffer> } | null>;
@@ -67,6 +69,7 @@ export class PrintFilesService {
       await this.files.put(keys.block, pkg.interior);
       await this.files.put(keys.cover, pkg.cover);
       await this.files.put(keys.spec, pkg.spec);
+      await this.files.put(this.key(job.orderId, "layout"), pkg.layout);
       return pkg.printSpec;
     });
   }
@@ -83,6 +86,13 @@ export class PrintFilesService {
       });
     }
     await this.prepare(job, opts);
+    if (kind === "layout" && !(await this.files.exists(key))) {
+      const block = await this.files.get(this.key(job.orderId, "block"));
+      const pdf = await this.queue.run(`layout:${job.orderId}`, () => this.renderer.renderLayout(job.bookId, job.number, block));
+      if (!pdf) throw new Error(`book ${job.bookId} not found`);
+      await this.files.put(key, pdf);
+      return pdf;
+    }
     return this.files.get(key);
   }
 

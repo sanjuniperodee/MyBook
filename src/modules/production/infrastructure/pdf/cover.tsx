@@ -77,8 +77,9 @@ export function CoverDocument({
   return (
     <Document title={messagesFor(language).book.coverDoc(title)} creator={site.name} producer={site.name}>
       <Page size={{ width: mm(g.width), height: mm(g.height) }} style={{ position: "relative" }}>
+        {/* Высота на 0,01 pt меньше страницы: при точном совпадении react-pdf из-за округления переносит фон на вторую страницу. */}
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */}
-        <Image src={{ data: background, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: mm(g.width), height: mm(g.height) }} />
+        <Image src={{ data: background, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: mm(g.width), height: mm(g.height) - 0.01 }} />
 
         {/* Лицевая сторона */}
         <View

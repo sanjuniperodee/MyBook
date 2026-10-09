@@ -102,6 +102,7 @@ describe("нет русских строк вне словарей", () => {
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
+    "modules/production/infrastructure/pdf/layout-scheme.tsx", // чертежи для типографии — на русском
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
     "shared/infrastructure/db/schema.ts",
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил

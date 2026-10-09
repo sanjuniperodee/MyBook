@@ -14,13 +14,14 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   if (!order) throw new HttpError(404, "orderNotFound");
   const job = { orderId: order.id, bookId: order.bookId, number: order.number };
   await c.printFiles.prepare(job);
-  const [block, cover, spec] = await Promise.all([c.printFiles.getFile(job, "block"), c.printFiles.getFile(job, "cover"), c.printFiles.getFile(job, "spec")]);
+  const [block, cover, layout, spec] = await Promise.all([c.printFiles.getFile(job, "block"), c.printFiles.getFile(job, "cover"), c.printFiles.getFile(job, "layout"), c.printFiles.getFile(job, "spec")]);
   const zip = new ZipArchive({ zlib: { level: 6 } });
   const out = new PassThrough();
   zip.pipe(out);
   const dir = `order-${order.number}`;
   zip.append(block, { name: `${dir}/block.pdf` });
   zip.append(cover, { name: `${dir}/cover.pdf` });
+  zip.append(layout, { name: `${dir}/layout.pdf` });
   zip.append(spec, { name: `${dir}/spec.txt` });
   void zip.finalize();
   return new Response(Readable.toWeb(out) as ReadableStream, {
