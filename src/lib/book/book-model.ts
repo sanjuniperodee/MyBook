@@ -125,6 +125,14 @@ export function spineFontMm(spineWidth: number): number | null {
   return spineWidth >= 5 ? Math.min(spineWidth * 0.42, SPINE_FONT_MAX_MM) : null;
 }
 
+/**
+ * Надписи корешка по порядку сверху вниз: название, затем имена. Корешок делится между ними поровну,
+ * каждая стоит по центру своей части; одна надпись — по центру всего корешка. Текст читается сверху вниз.
+ */
+export function spineParts(title: string, names?: string): string[] {
+  return [title, names ?? ""].map((s) => s.trim()).filter(Boolean);
+}
+
 /** Ракурс для чтения раскрытой книги: почти сверху, корешок по центру. */
 export const READ_VIEW: Orientation = { rx: -22, ry: 0 };
 /** Масштаб при чтении: раскрытая книга крупнее, чем закрытая, чтобы текст читался. */

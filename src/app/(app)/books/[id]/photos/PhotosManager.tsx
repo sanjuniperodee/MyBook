@@ -18,13 +18,13 @@ import { PhotosArt } from "@/components/illustrations";
 export interface ManagedPhoto {
   id: string;
   caption: string;
-  layout: "full" | "bleed" | "half";
+  layout: "full" | "bleed" | "half" | "grid";
   width: number;
   height: number;
   inAnswer?: string | null;
 }
 
-const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half"];
+const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half", "grid"];
 
 export function PhotosManager({ bookId, format, initial, editable }: { bookId: string; format: string; initial: ManagedPhoto[]; editable: boolean }) {
   const [photos, setPhotos] = useState(initial);
@@ -215,7 +215,7 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
                             title={p.layout === "bleed" ? t.noCaptionBleed : undefined}
                           />
                           {p.inAnswer ? <p className="text-xs text-muted">{t.inAnswerNote}</p> : null}
-                          <div className={cn("grid grid-cols-3 gap-1 rounded-xl bg-cream/70 p-1", p.inAnswer && "hidden")}>
+                          <div className={cn("grid grid-cols-4 gap-1 rounded-xl bg-cream/70 p-1", p.inAnswer && "hidden")}>
                             {layouts.map((l) => (
                               <button
                                 key={l}

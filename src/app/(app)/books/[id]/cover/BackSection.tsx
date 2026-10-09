@@ -2,7 +2,7 @@
 
 import { Check, ImagePlus } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
-import { BACK_TEXT_MAX, backLayouts, type BackLayout } from "@/lib/book/cover-back";
+import { BACK_PHOTO_SLOTS, BACK_TEXT_MAX, backLayouts, type BackLayout } from "@/lib/book/cover-back";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,20 @@ function LayoutIcon({ layout }: { layout: BackLayout }) {
           <rect x="10" y="12" width="20" height="16" fill="currentColor" opacity={0.3} stroke="currentColor" strokeOpacity={0.6} />
           {line(33, 18)}
         </>
+      ) : layout === "fullPhoto" ? (
+        <>
+          <rect x="1" y="1" width="38" height="52" rx="1.5" fill="currentColor" opacity={0.25} />
+          <rect x="1" y="30" width="38" height="23" rx="1.5" fill="currentColor" opacity={0.25} />
+          {line(36, 24)}
+          {line(40, 16)}
+        </>
+      ) : layout === "polaroids" ? (
+        <>
+          <rect x="5" y="9" width="14" height="16" fill="none" stroke="currentColor" strokeOpacity={0.7} transform="rotate(-8 12 17)" />
+          <rect x="21" y="10" width="14" height="16" fill="none" stroke="currentColor" strokeOpacity={0.7} transform="rotate(7 28 18)" />
+          <rect x="13" y="19" width="14" height="16" fill="currentColor" fillOpacity={0.3} stroke="currentColor" strokeOpacity={0.8} transform="rotate(-2 20 27)" />
+          {line(40, 16)}
+        </>
       ) : (
         <>
           <circle cx="20" cy="22" r="1.3" fill="currentColor" />
@@ -47,15 +61,15 @@ function LayoutIcon({ layout }: { layout: BackLayout }) {
 }
 
 /**
- * Задняя сторона обложки: вариант (цитата, письмо, фото, лаконично), текст с готовыми идеями под тему
- * книги и снимок для варианта «Фото». Любое действие здесь показывает в превью оборот.
+ * Задняя сторона обложки: вариант (цитата, письмо, фото, фото во всю, полароиды, лаконично), текст с готовыми
+ * идеями под тему книги и снимки для вариантов с фото. Любое действие здесь показывает в превью оборот.
  */
 export function BackSection({
   bookId,
   theme,
   layout,
   text,
-  photoId,
+  photoIds,
   photos,
   signature,
   names,
@@ -68,17 +82,27 @@ export function BackSection({
   theme: string;
   layout: BackLayout;
   text: string;
-  photoId: string | null;
+  /** Выбранные фото оборота по порядку. */
+  photoIds: string[];
   photos: { id: string; width: number; height: number }[];
   signature: string;
   names: string;
   year: number;
   editable: boolean;
-  onChange: (patch: { backLayout?: BackLayout; backText?: string; backPhotoId?: string | null }) => void;
+  onChange: (patch: { backLayout?: BackLayout; backText?: string; backPhotoId?: string | null; backPhotoExtra?: string[] }) => void;
   onFocusBack: () => void;
 }) {
   const t = useMessages().books.cover.back;
-  const ideas = layout === "quote" ? (t.suggestions[theme] ?? []) : [];
+  const ideas = layout === "quote" || layout === "fullPhoto" || layout === "polaroids" ? (t.suggestions[theme] ?? []) : [];
+  const need = BACK_PHOTO_SLOTS[layout] ?? 0;
+  /** Один снимок — заменить; несколько — добавить или убрать из подборки (порядок — как выбирали). */
+  const toggle = (id: string) => {
+    let next: string[];
+    if (need === 1) next = [id];
+    else if (photoIds.includes(id)) next = photoIds.filter((x) => x !== id);
+    else next = [...photoIds.slice(0, need - 1), id];
+    onChange({ backPhotoId: next[0] ?? null, backPhotoExtra: next.slice(1) });
+  };
 
   return (
     <section className="space-y-5 rounded-2xl border border-line bg-white p-5" onFocusCapture={onFocusBack} onPointerDownCapture={onFocusBack}>
@@ -87,7 +111,7 @@ export function BackSection({
         <p className="mt-1 text-sm text-muted">{t.text}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="radiogroup" aria-label={t.layoutAria}>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" role="radiogroup" aria-label={t.layoutAria}>
         {backLayouts.map((id) => (
           <button
             key={id}
@@ -108,9 +132,9 @@ export function BackSection({
         ))}
       </div>
 
-      {layout === "photo" ? (
+      {need ? (
         <div>
-          <span className="label">{t.photo}</span>
+          <span className="label">{need > 1 ? t.photosPick(need) : t.photo}</span>
           {photos.length ? (
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {photos.map((p) => (
@@ -118,15 +142,15 @@ export function BackSection({
                   key={p.id}
                   type="button"
                   disabled={!editable}
-                  onClick={() => onChange({ backPhotoId: p.id })}
-                  aria-pressed={photoId === p.id}
-                  className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2", photoId === p.id ? "ring-2 ring-wine" : "ring-1 ring-line")}
+                  onClick={() => toggle(p.id)}
+                  aria-pressed={photoIds.slice(0, need).includes(p.id)}
+                  className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2", photoIds.slice(0, need).includes(p.id) ? "ring-2 ring-wine" : "ring-1 ring-line")}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
-                  {photoId === p.id ? (
-                    <span className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-wine text-white">
-                      <Check className="size-3" />
+                  {photoIds.slice(0, need).includes(p.id) ? (
+                    <span className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-wine text-[11px] font-medium text-white">
+                      {need > 1 ? photoIds.indexOf(p.id) + 1 : <Check className="size-3" />}
                     </span>
                   ) : null}
                 </button>

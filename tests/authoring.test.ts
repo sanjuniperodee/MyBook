@@ -266,6 +266,19 @@ describe("PhotosService", () => {
     await new PhotosService(books, photos, noQuestions, images, new MemFiles(), ids).delete("b1", owner, "p1");
     expect(book.coverPhotoId).toBeNull();
   });
+
+  it("удалённое фото уходит и с дополнительных мест коллажа и полароидов", async () => {
+    const books = new MemBooks();
+    const book = startBook();
+    await books.add(book);
+    const photos = new MemPhotos();
+    for (const id of ["p1", "p2"]) await photos.add(Photo.uploaded(id, { bookId: "b1", position: 0, storageKey: id, thumbKey: `${id}t`, width: 1, height: 1 }));
+    book.setExtraPhotos("cover", ["p2", "p1"]);
+    book.setExtraPhotos("back", ["p2"]);
+    await new PhotosService(books, photos, noQuestions, images, new MemFiles(), ids).delete("b1", owner, "p2");
+    expect(book.coverPhotoExtra).toEqual(["p1"]);
+    expect(book.backPhotoExtra).toEqual([]);
+  });
 });
 
 describe("LettersService", () => {

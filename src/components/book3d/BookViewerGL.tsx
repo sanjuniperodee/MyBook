@@ -64,7 +64,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const mm = m.model;
   const format = getFormat(data.formatId);
   const template = getCoverTemplate(data.cover.template);
-  const { pageCount, brand, back, backPhotoUrl } = data.model;
+  const { pageCount, brand, back, backPhotos } = data.model;
   const { sheets, ctx, measure } = usePagedBook(data);
   const count = sheets.length;
   /** Листов блока между обложкой и задней крышкой. */
@@ -78,20 +78,20 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const boardH = Math.round((texW * dims.h) / dims.w);
   const spineW = Math.max(48, Math.round((dims.d * texW) / dims.w));
 
-  const [photoHref, setPhotoHref] = useState<string | undefined>();
-  const photoUrl = data.cover.photoUrl;
+  // Фото обложки встраиваются в SVG data-URL: иначе их не увидит растеризация в текстуру.
+  const [photoHrefs, setPhotoHrefs] = useState<(string | undefined)[] | undefined>();
+  const photoKey = (data.cover.photos ?? []).join("|");
   useEffect(() => {
-    if (!template.requiresPhoto || !photoUrl) return;
+    const urls = photoKey ? photoKey.split("|") : [];
+    if (!template.requiresPhoto || !urls.some(Boolean)) return;
     let alive = true;
-    toDataUrl(photoUrl)
-      .then((href) => alive && setPhotoHref(href))
-      .catch(() => {});
+    Promise.all(urls.map((u) => (u ? toDataUrl(u).catch(() => undefined) : undefined))).then((hrefs) => alive && setPhotoHrefs(hrefs));
     return () => {
       alive = false;
     };
-  }, [template.requiresPhoto, photoUrl]);
+  }, [template.requiresPhoto, photoKey]);
   const imageHref = useCoverImage(template);
-  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, photoHref, imageHref), [template, format, pageCount, dims, photoHref, imageHref]);
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt]);
 
   const wrapper = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -209,8 +209,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       const title = data.cover.title || data.title;
       if (key === "front")
         return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
-      if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photoUrl={backPhotoUrl} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
-      if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} text={[title, data.cover.names].filter(Boolean).join("   ·   ")} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
+      if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
+      if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
       if (!ctx) return null;
       const [, index, side] = key.split(":");
       const sheet = sheets[Number(index)];
@@ -227,7 +227,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       );
       return { key, width: texW, height: pageH, node };
     },
-    [art, backDesign, backPhotoUrl, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
+    [art, backDesign, backPhotos, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
   );
 
   useEffect(() => {

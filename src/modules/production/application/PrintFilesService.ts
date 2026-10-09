@@ -21,8 +21,8 @@ export interface PrintSpec {
 /** Порт рендера: PDF блока, обложки и читательской версии. */
 export interface BookRenderer {
   renderPrintPackage(bookId: string, orderNumber: number): Promise<{ interior: Buffer; cover: Buffer; layout: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
-  /** Каркас обложки (поверх готовой обложки) и схема блока по готовым PDF блока и обложки (для заказов, собранных до появления чертежа). */
-  renderLayout(bookId: string, orderNumber: number, block: Buffer, cover: Buffer): Promise<Buffer | null>;
+  /** Каркас — готовая обложка с рамками крышек и корешка — по готовым PDF блока и обложки (для заказов, собранных до появления каркаса). */
+  renderLayout(bookId: string, block: Buffer, cover: Buffer): Promise<Buffer | null>;
   renderReading(bookId: string): Promise<Buffer | null>;
   /** Предпросмотр: отпечаток содержимого (ключ кэша) и отложенный рендер. */
   preview(bookId: string): Promise<{ fingerprint: string; render(): Promise<Buffer> } | null>;
@@ -88,7 +88,7 @@ export class PrintFilesService {
     await this.prepare(job, opts);
     if (kind === "layout" && !(await this.files.exists(key))) {
       const [block, cover] = await Promise.all([this.files.get(this.key(job.orderId, "block")), this.files.get(this.key(job.orderId, "cover"))]);
-      const pdf = await this.queue.run(`layout:${job.orderId}`, () => this.renderer.renderLayout(job.bookId, job.number, block, cover));
+      const pdf = await this.queue.run(`layout:${job.orderId}`, () => this.renderer.renderLayout(job.bookId, block, cover));
       if (!pdf) throw new Error(`book ${job.bookId} not found`);
       await this.files.put(key, pdf);
       return pdf;

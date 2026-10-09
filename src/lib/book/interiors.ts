@@ -10,6 +10,7 @@
  * печататься так, как клиент видел их в макете, поэтому облик этих дизайнов не меняем.
  */
 import type { FontKey, Typography } from "./fonts";
+import type { PhotoCaption, PhotoFrame } from "./photo-pages";
 
 export type InteriorId =
   | "classic"
@@ -28,7 +29,9 @@ export type InteriorId =
   | "sea"
   | "vintage"
   | "album"
-  | "confetti";
+  | "confetti"
+  | "photobook"
+  | "memories";
 
 export type InteriorMood = "classic" | "romance" | "tender" | "bright" | "modern";
 
@@ -91,6 +94,11 @@ export interface InteriorDesign {
     art?: OpenerArt;
     /** Цветная начальная полоса: фон под обрез и цвета текста на нём. */
     fill?: InteriorPalette & { paper: string };
+    /**
+     * Глава открывается снимком из этой главы: bleed — во всю ширину сверху, под обрез; polaroid — карточка
+     * на скотче. Глава без фото открывается обычной полосой.
+     */
+    photo?: "bleed" | "polaroid";
   };
   heading: {
     align: "left" | "center";
@@ -109,6 +117,8 @@ export interface InteriorDesign {
   /** Колонтитул: на левой полосе — название книги, на правой — глава. */
   runningHead: "none" | "plain" | "ruled";
   frame: FrameKind;
+  /** Фотостраницы: рамка снимков, подпись и цвет скотча (для рамки «скотч»). */
+  photos: { frame: PhotoFrame; caption: PhotoCaption; tape?: string };
   /** Обложки, с которыми дизайн составляет пару, — подсказка в выборе. */
   pairsWith: string[];
 }
@@ -137,6 +147,7 @@ const legacy = (
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
+  photos: { frame: "none", caption: "italic" },
   pairsWith,
 });
 
@@ -178,7 +189,8 @@ const romance: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "corners",
-  pairsWith: ["blossom", "hearts", "script", "tulips", "peony", "roses", "velvet", "bouquet", "tenderness", "dusk"],
+  photos: { frame: "hairline", caption: "italic" },
+  pairsWith: ["blossom", "hearts", "script", "tulips", "peony", "roses", "velvet", "bouquet", "tenderness", "dusk", "heart", "medallion"],
 };
 
 const stars: InteriorDesign = {
@@ -204,6 +216,7 @@ const stars: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
+  photos: { frame: "hairline", caption: "label" },
   pairsWith: ["midnight", "constellation", "milkyway", "lights", "alatau"],
 };
 
@@ -229,6 +242,7 @@ const oyu: InteriorDesign = {
   folio: { align: "center", dashes: true },
   runningHead: "none",
   frame: "double",
+  photos: { frame: "double", caption: "label" },
   pairsWith: ["oyu"],
 };
 
@@ -247,6 +261,7 @@ const herbarium: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "plain",
   frame: "none",
+  photos: { frame: "tape", caption: "hand", tape: "#E3D7B4" },
   pairsWith: ["herbarium", "sage", "lemons", "eucalyptus", "dried", "meadow", "mint", "tenderness"],
 };
 
@@ -272,6 +287,7 @@ const deco: InteriorDesign = {
   folio: { align: "center", dashes: true },
   runningHead: "none",
   frame: "deco",
+  photos: { frame: "double", caption: "label" },
   pairsWith: ["deco", "noir", "leather"],
 };
 
@@ -296,7 +312,8 @@ const editorial: InteriorDesign = {
   folio: { align: "outer", font: "label" },
   runningHead: "ruled",
   frame: "none",
-  pairsWith: ["terracotta", "mountains", "ocean", "terrazzo", "steppe", "autumn"],
+  photos: { frame: "none", caption: "label" },
+  pairsWith: ["terracotta", "mountains", "ocean", "terrazzo", "steppe", "autumn", "magazine", "film"],
 };
 
 const airmail: InteriorDesign = {
@@ -314,6 +331,7 @@ const airmail: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "airmail",
+  photos: { frame: "polaroid", caption: "hand" },
   pairsWith: ["letter", "script", "hearts"],
 };
 
@@ -339,7 +357,8 @@ const watercolor: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
-  pairsWith: ["sunrise", "tulips", "blossom", "mountains", "clouds", "lavender", "sakura"],
+  photos: { frame: "hairline", caption: "italic" },
+  pairsWith: ["sunrise", "tulips", "blossom", "mountains", "clouds", "lavender", "sakura", "arch"],
 };
 
 /** Шаңырақ — венец юрты, символ дома и рода: над каждой главой, терракота и охра. */
@@ -358,6 +377,7 @@ const shanyrak: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
+  photos: { frame: "double", caption: "italic" },
   pairsWith: ["oyu", "terracotta", "leather"],
 };
 
@@ -384,6 +404,7 @@ const mountains: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
+  photos: { frame: "hairline", caption: "label" },
   pairsWith: ["mountains", "sunrise", "alatau", "peaks", "mist"],
 };
 
@@ -403,6 +424,7 @@ const sea: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
+  photos: { frame: "hairline", caption: "italic" },
   pairsWith: ["ocean", "lemons", "surf"],
 };
 
@@ -428,7 +450,8 @@ const vintage: InteriorDesign = {
   folio: { align: "center", dashes: true },
   runningHead: "plain",
   frame: "vintage",
-  pairsWith: ["leather", "linen", "noir", "postcards", "saddle"],
+  photos: { frame: "corners", caption: "italic" },
+  pairsWith: ["leather", "linen", "noir", "postcards", "saddle", "medallion", "passepartout"],
 };
 
 /** Альбом: цветной скотч на начальных полосах и заголовки «синей ручкой». */
@@ -447,7 +470,8 @@ const album: InteriorDesign = {
   folio: { align: "center" },
   runningHead: "none",
   frame: "none",
-  pairsWith: ["photo", "herbarium", "letter", "lemons"],
+  photos: { frame: "polaroid", caption: "hand" },
+  pairsWith: ["photo", "herbarium", "letter", "lemons", "polaroid", "collage"],
 };
 
 /** Конфетти: праздник для книги другу — яркие конфетти, крупные цифры, розовый акцент. */
@@ -473,7 +497,56 @@ const confetti: InteriorDesign = {
   folio: { align: "center", font: "label" },
   runningHead: "none",
   frame: "none",
+  photos: { frame: "polaroid", caption: "hand" },
   pairsWith: ["terracotta", "terrazzo", "lemons", "party"],
+};
+
+/** Фотокнига: каждая глава открывается снимком во всю ширину, строгая типографика и подписи прописными. */
+const photobook: InteriorDesign = {
+  id: "photobook",
+  mood: "modern",
+  type: { heading: "cormorant", headingWeight: 500, headingItalic: false, body: "lora", bodySize: 10, lineHeight: 1.55 },
+  display: { font: "cormorant", weight: 500 },
+  label: { font: "montserrat", weight: 500, upper: true, tracking: 0.32, size: 6.4 },
+  palette: { ink: "#221E1B", muted: "#79706A", accent: "#8E6448", rule: "#DDD5CC", ornament: "#B08A6E" },
+  ornament: "bar",
+  opener: { align: "center", number: "label", titleSize: 28, top: 0.3, photo: "bleed" },
+  heading: { align: "left", size: 1.5 },
+  divider: "rule",
+  leadIn: true,
+  folio: { align: "outer", font: "label" },
+  runningHead: "none",
+  frame: "none",
+  photos: { frame: "none", caption: "label" },
+  pairsWith: ["magazine", "mosaic", "collage", "film", "duotone", "photo"],
+};
+
+/** Воспоминания: глава открывается полароидом на скотче на тёплой бумаге, подписи к фото — от руки. */
+const memories: InteriorDesign = {
+  id: "memories",
+  mood: "tender",
+  type: { heading: "cormorant", headingWeight: 500, headingItalic: true, body: "ptserif", bodySize: 10.5, lineHeight: 1.5 },
+  display: { font: "cormorant", weight: 500, italic: true },
+  label: { font: "montserrat", weight: 500, upper: true, tracking: 0.3, size: 6.4 },
+  palette: { ink: "#2E2622", muted: "#857266", accent: "#A0533F", rule: "#E2D3C3", ornament: "#C08A6A" },
+  ornament: "heart",
+  opener: {
+    align: "center",
+    number: "label",
+    kicker: { font: "caveat", weight: 500, size: 18 },
+    titleSize: 29,
+    top: 0.32,
+    photo: "polaroid",
+    fill: { paper: "#F5EEE3", ink: "#2E2622", muted: "#857266", accent: "#A0533F", rule: "#DCCBB8", ornament: "#C08A6A" },
+  },
+  heading: { align: "left", size: 1.6, accent: true },
+  divider: "glyph",
+  leadIn: false,
+  folio: { align: "center" },
+  runningHead: "none",
+  frame: "none",
+  photos: { frame: "polaroid", caption: "hand" },
+  pairsWith: ["polaroid", "arch", "heart", "passepartout", "medallion"],
 };
 
 const byId: Record<InteriorId, InteriorDesign> = {
@@ -494,12 +567,14 @@ const byId: Record<InteriorId, InteriorDesign> = {
   vintage,
   album,
   confetti,
+  photobook,
+  memories,
 };
 
 /** Порядок в выборе: сначала спокойная классика, дальше чередуем настроения. */
 export const interiorDesigns: InteriorDesign[] = (
   [
-    "classic", "romance", "stars", "herbarium", "oyu", "editorial", "watercolor", "shanyrak", "mountains",
+    "classic", "photobook", "romance", "stars", "memories", "herbarium", "oyu", "editorial", "watercolor", "shanyrak", "mountains",
     "deco", "album", "sea", "airmail", "vintage", "confetti", "modern", "minimal",
   ] as const
 ).map((id) => byId[id]);

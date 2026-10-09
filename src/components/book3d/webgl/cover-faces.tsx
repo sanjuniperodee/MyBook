@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react";
 import { CoverText } from "@/components/cover/CoverPreview";
 import { CoverBackLayer } from "@/components/cover/CoverBack";
+import { CoverSpineText } from "@/components/cover/CoverSpine";
 import type { BackDesign } from "@/lib/book/cover-back";
 import type { CoverTemplate } from "@/lib/book/covers";
-import { cssFont } from "@/lib/book/fonts";
-import { spineFontMm } from "@/lib/book/book-model";
 import type { CoverArt } from "../cover-art";
 
 /**
@@ -34,31 +33,20 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
   );
 }
 
-export function CoverBackFace({ art, design, photoUrl, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photoUrl?: string; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
+export function CoverBackFace({ art, design, photos, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photos?: (string | undefined)[]; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
-      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photoUrl={photoUrl} brand={brand} />
+      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photos={photos} brand={brand} />
     </div>
   );
 }
 
-export function CoverSpineFace({ template, art, text, width, height, widthMm, heightMm }: { template: CoverTemplate; art: CoverArt; text: string; width: number; height: number; widthMm: number; heightMm: number }) {
-  const size = spineFontMm(widthMm);
+export function CoverSpineFace({ template, art, title, names, width, height, widthMm, heightMm }: { template: CoverTemplate; art: CoverArt; title: string; names?: string; width: number; height: number; widthMm: number; heightMm: number }) {
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.spine, backgroundSize: "100% 100%" }} />
-      {size && text ? (
-        // Надпись идёт вдоль корешка снизу вверх, как в PDF; размеры — в cqw от ширины корешка.
-        <div
-          className="absolute top-1/2 left-1/2 flex items-center justify-center whitespace-nowrap"
-          style={{ width: `${(heightMm / widthMm) * 100}cqw`, height: "100cqw", transform: "translate(-50%, -50%) rotate(-90deg)", fontFamily: cssFont(template.spine.font), fontWeight: 500, fontSize: `${(size / widthMm) * 100}cqw`, color: template.spine.color }}
-        >
-          <span className="truncate" style={{ maxWidth: "92%" }}>
-            {text}
-          </span>
-        </div>
-      ) : null}
+      <CoverSpineText template={template} title={title} names={names} widthMm={widthMm} heightMm={heightMm} />
     </div>
   );
 }

@@ -129,11 +129,15 @@ export const books = pgTable(
     hideRecipientOnCover: boolean("hide_recipient_on_cover").notNull().default(false),
     coverTemplate: text("cover_template").notNull().default("linen"),
     coverPhotoId: uuid("cover_photo_id"),
+    /** Остальные снимки обложек на несколько фото (коллаж, мозаика, плёнка) — по порядку мест; первое — coverPhotoId. */
+    coverPhotoExtra: jsonb("cover_photo_extra").$type<string[]>().notNull().default([]),
     backText: text("back_text").notNull().default(""),
     /** Вариант задней стороны — src/lib/book/cover-back.ts. */
     backLayout: text("back_layout").notNull().default("quote"),
     /** Фото для варианта «Фото» на задней стороне. */
     backPhotoId: uuid("back_photo_id"),
+    /** Остальные снимки для оборота «Полароиды»; первый — backPhotoId. */
+    backPhotoExtra: jsonb("back_photo_extra").$type<string[]>().notNull().default([]),
     dedication: text("dedication").notNull().default(""),
     /** Оформление страниц — id из src/lib/book/interiors.ts. */
     interior: text("interior").notNull().default("classic"),
@@ -192,7 +196,7 @@ export const photos = pgTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     caption: text("caption").notNull().default(""),
-    layout: text("layout", { enum: ["full", "bleed", "half"] }).notNull().default("full"),
+    layout: text("layout", { enum: ["full", "bleed", "half", "grid"] }).notNull().default("full"),
     /** Фото, вставленное прямо в ответ на вопрос (печатается сразу после текста ответа). */
     questionId: uuid("question_id").references(() => bookQuestions.id, { onDelete: "set null" }),
     /** Оформление фото внутри ответа: размер, выравнивание, место в тексте, кадр, рамка. */

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
+import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 
 const patchSchema = z
   .object({
@@ -15,9 +16,11 @@ const patchSchema = z
     hideRecipientOnCover: z.boolean(),
     coverTemplate: z.string().max(40),
     coverPhotoId: z.string().uuid().nullable(),
+    coverPhotoExtra: z.array(z.string().uuid()).max(MAX_EXTRA_PHOTOS),
     backText: z.string().trim().max(400),
     backLayout: z.string().max(20),
     backPhotoId: z.string().uuid().nullable(),
+    backPhotoExtra: z.array(z.string().uuid()).max(MAX_EXTRA_PHOTOS),
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
     format: z.string().max(20),

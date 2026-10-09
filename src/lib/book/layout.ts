@@ -62,7 +62,7 @@ export interface ContentItem {
 export interface PhotoItem {
   id: string;
   caption: string;
-  layout: "full" | "bleed" | "half";
+  layout: "full" | "bleed" | "half" | "grid";
   width: number;
   height: number;
   storageKey: string;
@@ -78,6 +78,8 @@ export interface ContentChapter {
   epigraph?: string;
   items: ContentItem[];
   photos: PhotoItem[];
+  /** Снимок на начальной полосе главы — в оформлениях, где глава открывается фото (первое фото главы). */
+  openerPhoto?: PhotoItem;
 }
 
 export interface BookContent {
@@ -202,6 +204,10 @@ export function buildBookContent(
     });
   }
 
+  // Оформление, где глава открывается фото: первое фото главы переезжает на её начальную полосу.
+  const interior = getInteriorDesign(book.interior);
+  if (interior.opener.photo) for (const ch of chapters) ch.openerPhoto = ch.photos.shift();
+
   // Письма близких — последняя глава, после распределения фото.
   const letterItems = letters.filter((l) => l.text.trim());
   if (letterItems.length) {
@@ -218,7 +224,7 @@ export function buildBookContent(
   return {
     language: book.language,
     format: getFormat(book.format),
-    interior: getInteriorDesign(book.interior),
+    interior,
     title: book.title.trim() || theme.titleSuggestions[0],
     subtitle: book.subtitle.trim(),
     authorName: book.authorName.trim(),
@@ -231,12 +237,22 @@ export function buildBookContent(
   };
 }
 
-/** Группирует фото в страницы: «половинки» объединяются по две. */
-export function photoPages(photos: PhotoItem[]): PhotoItem[][] {
-  const pages: PhotoItem[][] = [];
-  let pendingHalf: PhotoItem | null = null;
+/** Сколько фото «сеткой» помещается на страницу. */
+export const GRID_PER_PAGE = 4;
+
+/** Группирует фото в страницы: «половинки» объединяются по две, «сетка» — до четырёх. */
+export function photoPages<T extends Pick<PhotoItem, "layout">>(photos: T[]): T[][] {
+  const pages: T[][] = [];
+  let pendingHalf: T | null = null;
+  let grid: T[] = [];
   for (const p of photos) {
-    if (p.layout === "half") {
+    if (p.layout === "grid") {
+      grid.push(p);
+      if (grid.length === GRID_PER_PAGE) {
+        pages.push(grid);
+        grid = [];
+      }
+    } else if (p.layout === "half") {
       if (pendingHalf) {
         pages.push([pendingHalf, p]);
         pendingHalf = null;
@@ -244,6 +260,7 @@ export function photoPages(photos: PhotoItem[]): PhotoItem[][] {
     } else pages.push([p]);
   }
   if (pendingHalf) pages.push([pendingHalf]);
+  if (grid.length) pages.push(grid);
   return pages;
 }
 
@@ -347,6 +364,7 @@ export function photoAreaMm(format: BookFormat, layout: PhotoItem["layout"] | "i
   const area = textArea(format);
   if (layout === "bleed") return { w: format.widthMm, h: format.heightMm };
   if (layout === "half") return { w: area.w, h: area.h / 2 - 12 };
+  if (layout === "grid") return { w: area.w / 2 - 3, h: area.h / 2 - 8 };
   if (layout === "inline") return { w: area.w, h: area.h * MAX_INLINE_HEIGHT_SHARE };
   return { w: area.w, h: area.h - 14 };
 }

@@ -7,8 +7,8 @@ import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { OpenBookArt } from "@/components/illustrations";
 import { Morph } from "@/components/motion/PageTransition";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
+import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { photoUrls } from "@/lib/urls";
 import { formatDate, nowMs } from "@/lib/utils";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -68,7 +68,7 @@ export default async function BooksPage() {
                   title={book.title}
                   subtitle={book.subtitle}
                   names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-                  photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId, "thumb") : undefined}
+                  photos={photoUrls(coverPhotoIds(book), "thumb")}
                   lite
                   className="rounded-[3px] shadow-book"
                 />

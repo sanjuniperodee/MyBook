@@ -5,16 +5,16 @@ import { useRef, useState } from "react";
 import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
-import type { BackLayout } from "@/lib/book/cover-back";
+import { BACK_PHOTO_SLOTS, type BackLayout } from "@/lib/book/cover-back";
 import { BackSection } from "./BackSection";
 import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { coverLabel, coverMoods, coverNamesLine, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
+import { coverLabel, coverMoods, coverNamesLine, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
-import { photoUrl } from "@/lib/urls";
+import { photoUrl, photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
 export interface CoverState {
@@ -27,7 +27,11 @@ export interface CoverState {
   backText: string;
   backLayout: BackLayout;
   backPhotoId: string | null;
+  /** Остальные фото оборота «Полароиды». */
+  backPhotoExtra: string[];
   coverPhotoId: string | null;
+  /** Остальные фото обложек на несколько снимков, по порядку мест. */
+  coverPhotoExtra: string[];
   /** Оформление страниц: здесь его можно сменить на подходящее к обложке одной кнопкой. */
   interior: string;
 }
@@ -82,20 +86,42 @@ export function CoverEditor({
   };
 
   const choices = pickerCovers();
-  const template = getCoverTemplate(state.coverTemplate);
   const label = (t: { id: string }) => coverLabel(getCoverTemplate(t.id), m.catalog.covers, locale);
+
+  /** Места под фото шаблона: выбранные снимки, пустые — заполняем ещё не занятыми фото книги. */
+  const fillSlots = (templateId: string, s: Pick<CoverState, "coverPhotoId" | "coverPhotoExtra">) => {
+    const n = coverPhotoSlots(getCoverTemplate(templateId));
+    const ids: (string | null)[] = [s.coverPhotoId, ...s.coverPhotoExtra];
+    const free = photos.map((p) => p.id).filter((id) => !ids.includes(id));
+    for (let i = 0; i < n; i++) if (!ids[i]) ids[i] = free.shift() ?? null;
+    return { coverPhotoId: ids[0] ?? null, coverPhotoExtra: ids.slice(1).filter((id): id is string => !!id) };
+  };
+  const chooseTemplate = (id: string) => {
+    const filled = fillSlots(id, state);
+    const changed = filled.coverPhotoId !== state.coverPhotoId || filled.coverPhotoExtra.join() !== state.coverPhotoExtra.join();
+    update(changed ? { coverTemplate: id, ...filled } : { coverTemplate: id });
+  };
+
+  /** Как шаблон выглядел бы с фото книги — для миниатюр в выборе. */
+  const slotUrls = (templateId: string) => {
+    const f = fillSlots(templateId, state);
+    return photoUrls([f.coverPhotoId, ...f.coverPhotoExtra].slice(0, coverPhotoSlots(getCoverTemplate(templateId))));
+  };
+
+  const template = getCoverTemplate(state.coverTemplate);
+  const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
-  const coverPhoto = state.coverPhotoId ? photoUrl(state.coverPhotoId, "full") : undefined;
+  const coverPhotos = photoUrls([state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots), "full");
   const [side, setSide] = useState<"front" | "back">("front");
-  const backPhoto = photos.find((p) => p.id === state.backPhotoId) ?? null;
+  const backPhotos = [state.backPhotoId, ...state.backPhotoExtra].flatMap((id) => photos.filter((p) => p.id === id));
   const backContent = {
     layout: state.backLayout,
     text: state.backText,
     signature: state.authorName.trim(),
     names,
     year,
-    photo: backPhoto ? { width: backPhoto.width, height: backPhoto.height } : null,
+    photos: backPhotos.map((p) => ({ width: p.width, height: p.height })),
   };
 
   return (
@@ -120,7 +146,7 @@ export function CoverEditor({
           </div>
           <div className="mx-auto w-full max-w-[340px] rounded-[28px] bg-cream/70 p-8">
             {side === "back" ? (
-              <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photoUrl={backPhoto ? photoUrl(backPhoto.id, "full") : undefined} className="rounded-[4px] shadow-book" />
+              <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photos={photoUrls(backPhotos.map((p) => p.id), "full")} className="rounded-[4px] shadow-book" />
             ) : (
             <CoverPreview
               template={state.coverTemplate}
@@ -128,7 +154,7 @@ export function CoverEditor({
               title={state.title}
               subtitle={state.subtitle}
               names={names}
-              photoUrl={coverPhoto}
+              photos={coverPhotos}
               className="rounded-[4px] shadow-book"
               uid="editor"
               titlePlaceholder={t.bookTitle}
@@ -167,7 +193,7 @@ export function CoverEditor({
             {choices.filter((t) => mood === "all" || t.mood === mood || t.id === state.coverTemplate).map((t) => (
               <button
                 key={t.id}
-                onClick={() => update({ coverTemplate: t.id })}
+                onClick={() => chooseTemplate(t.id)}
                 disabled={!editable}
                 className="group text-left"
                 aria-pressed={t.id === state.coverTemplate}
@@ -178,7 +204,20 @@ export function CoverEditor({
                     t.id === state.coverTemplate ? "ring-2 ring-wine" : "ring-1 ring-line group-hover:-translate-y-0.5 group-hover:ring-ink/30",
                   )}
                 >
-                  <CoverPreview template={t.id} format={format} title={state.title} names={names} photoUrl={t.requiresPhoto ? coverPhoto : undefined} lite uid={`pick-${t.id}`} />
+                  <CoverPreview
+                    template={t.id}
+                    format={format}
+                    title={state.title}
+                    names={names}
+                    photos={t.requiresPhoto ? slotUrls(t.id) : undefined}
+                    lite
+                    uid={`pick-${t.id}`}
+                  />
+                  {t.requiresPhoto && !photos.length ? (
+                    <span className="absolute bottom-1.5 left-1.5 flex size-5 items-center justify-center rounded-full bg-black/45 text-white" aria-hidden>
+                      <ImagePlus className="size-3" />
+                    </span>
+                  ) : null}
                   {t.id === state.coverTemplate ? (
                     <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-wine text-white">
                       <Check className="size-3" />
@@ -204,27 +243,14 @@ export function CoverEditor({
         <h2 className="text-lg font-semibold">{t.text}</h2>
 
         {template.requiresPhoto ? (
-          <div>
-            <span className="label">{t.photo}</span>
-            {photos.length ? (
-              <div className="grid grid-cols-4 gap-2">
-                {photos.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => update({ coverPhotoId: p.id })}
-                    className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2", state.coverPhotoId === p.id ? "ring-2 ring-wine" : "ring-1 ring-line")}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
-                    {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-0.5 text-[10px] text-white">{t.lowQuality}</span> : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex items-center gap-1.5 text-sm text-wine hover:underline">
-              <ImagePlus className="size-4" /> {photos.length ? t.uploadMore : t.uploadFirst}
-            </Link>
-          </div>
+          <CoverPhotoPicker
+            bookId={bookId}
+            slots={slots}
+            chosen={[state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots)}
+            photos={photos}
+            editable={editable}
+            onChange={(ids) => update({ coverPhotoId: ids[0] ?? null, coverPhotoExtra: ids.slice(1).filter((id): id is string => !!id) })}
+          />
         ) : null}
 
         <Field label={t.bookTitle} value={state.title} max={80} onChange={(v) => update({ title: v })} disabled={!editable} />
@@ -248,16 +274,117 @@ export function CoverEditor({
           theme={theme}
           layout={state.backLayout}
           text={state.backText}
-          photoId={state.backPhotoId}
+          photoIds={backPhotos.map((p) => p.id)}
           photos={photos}
           signature={state.authorName.trim()}
           names={names}
           year={year}
           editable={editable}
-          onChange={(patch) => update(patch.backLayout === "photo" && !state.backPhotoId && photos[0] ? { ...patch, backPhotoId: photos[0].id } : patch)}
+          onChange={(patch) => {
+            // Вариант с фото без выбранных снимков — сразу подставляем первые фото книги.
+            const need = patch.backLayout ? (BACK_PHOTO_SLOTS[patch.backLayout] ?? 0) : 0;
+            if (need && backPhotos.length < Math.min(need, photos.length)) {
+              const ids = [...backPhotos.map((p) => p.id), ...photos.map((p) => p.id).filter((id) => !backPhotos.some((p) => p.id === id))].slice(0, need);
+              update({ ...patch, backPhotoId: ids[0] ?? null, backPhotoExtra: ids.slice(1) });
+            } else update(patch);
+          }}
           onFocusBack={() => setSide("back")}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Фото для обложки: у шаблонов на несколько снимков — по местам. Щелчок по месту делает его текущим,
+ * щелчок по фото ставит снимок в текущее место (если фото уже стоит в другом месте — они меняются).
+ */
+function CoverPhotoPicker({
+  bookId,
+  slots,
+  chosen,
+  photos,
+  editable,
+  onChange,
+}: {
+  bookId: string;
+  slots: number;
+  chosen: (string | null)[];
+  photos: { id: string; width: number; height: number }[];
+  editable: boolean;
+  onChange: (ids: (string | null)[]) => void;
+}) {
+  const t = useMessages().books.cover;
+  const [active, setActive] = useState(0);
+  const current = Math.min(active, slots - 1);
+  const ids = Array.from({ length: slots }, (_, i) => chosen[i] ?? null);
+  const pick = (id: string) => {
+    const next = [...ids];
+    const was = next.indexOf(id);
+    if (was >= 0) next[was] = next[current];
+    next[current] = id;
+    onChange(next);
+    // Дальше — к следующему пустому месту, если оно есть.
+    const empty = next.findIndex((x) => !x);
+    if (empty >= 0) setActive(empty);
+  };
+  return (
+    <div>
+      <span className="label">{slots > 1 ? t.photos(slots) : t.photo}</span>
+      {slots > 1 ? (
+        <div className="mb-3 flex flex-wrap gap-2" role="radiogroup" aria-label={t.photoSlotsAria}>
+          {ids.map((id, i) => (
+            <button
+              key={i}
+              type="button"
+              role="radio"
+              aria-checked={current === i}
+              onClick={() => setActive(i)}
+              className={cn("relative size-14 overflow-hidden rounded-lg ring-offset-2 transition", current === i ? "ring-2 ring-wine" : "ring-1 ring-line hover:ring-ink/30")}
+            >
+              {id ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoUrl(id)} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-cream text-muted">
+                  <ImagePlus className="size-4" />
+                </span>
+              )}
+              <span className="absolute top-0.5 left-0.5 flex size-4 items-center justify-center rounded-full bg-black/55 text-[10px] font-medium text-white">{i + 1}</span>
+            </button>
+          ))}
+          <p className="w-full text-xs text-muted">{t.photoSlotsHint}</p>
+        </div>
+      ) : null}
+      {photos.length ? (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+          {photos.map((p) => {
+            const slot = ids.indexOf(p.id);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                disabled={!editable}
+                onClick={() => pick(p.id)}
+                aria-pressed={slot >= 0}
+                className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2", slot >= 0 ? "ring-2 ring-wine" : "ring-1 ring-line")}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
+                {slot >= 0 ? (
+                  <span className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-wine text-[11px] font-medium text-white">
+                    {slots > 1 ? slot + 1 : <Check className="size-3" />}
+                  </span>
+                ) : null}
+                {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-0.5 text-[10px] text-white">{t.lowQuality}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex items-center gap-1.5 text-sm text-wine hover:underline">
+        <ImagePlus className="size-4" /> {photos.length ? t.uploadMore : t.uploadFirst}
+      </Link>
     </div>
   );
 }

@@ -8,8 +8,8 @@ import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { Book3D } from "@/components/cover/Book3D";
 import { Morph } from "@/components/motion/PageTransition";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
+import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { photoUrl, photoUrls } from "@/lib/urls";
 import { getFormat, print } from "@/lib/book/formats";
 import { getLocale, getMessages } from "@/i18n/server";
 import { coverName, interiorName } from "@/i18n/labels";
@@ -100,7 +100,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             title={book.title}
             subtitle={book.subtitle}
             names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-            photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId, "full") : undefined}
+            photos={photoUrls(coverPhotoIds(book), "full")}
             rotate={-18}
             thickness={Math.min(14, 4 + stats.printedPages / 20)}
           />

@@ -6,11 +6,14 @@
 import type { CoverGeometry, Rect } from "./formats";
 import { collectionTemplates } from "./covers-collection";
 import { photoCollection } from "./covers-photo";
+import { clientPhotoTemplates } from "./covers-client-photo";
 import { activeCustomCovers, customCover } from "./cover-registry";
 import type { PhotoLayout } from "./photo-cover";
-import { bg, frontRect, grainFilter, jitterGrid, label, linenFilter, n, petalPath, rng, shadowFilter } from "./cover-kit";
+import { bg, frontRect, grainFilter, jitterGrid, label, linenFilter, n, petalPath, photoSlot, rng, shadowFilter, type ArtContext } from "./cover-kit";
 import { HEART } from "./motifs";
 import type { FontKey } from "./fonts";
+
+export type { ArtContext };
 
 export interface CoverTextStyle {
   font: FontKey;
@@ -23,16 +26,6 @@ export interface CoverTextStyle {
   /** Трекинг в em. */
   tracking?: number;
   lineHeight?: number;
-}
-
-export interface ArtContext {
-  uid: string;
-  /** Фото клиента — для шаблона «Ваше фото». */
-  photoHref?: string;
-  /** Снимок самого шаблона (обложки на фото): data-URL для растрирования, иначе — адрес /api/cover-photos. */
-  imageHref?: string;
-  /** "decor" — только плашка и рамка: так оборот повторяет композицию лица, не рисуя снимок второй раз. */
-  layer?: "decor";
 }
 
 export type CoverMood = "romance" | "tender" | "classic" | "bright" | "photo";
@@ -55,6 +48,8 @@ export interface CoverTemplate {
   /** CSS-фон для миниатюры в выборе шаблона. */
   swatch: string;
   requiresPhoto?: boolean;
+  /** Сколько фото в композиции (для шаблонов с фото; по умолчанию одно). */
+  photoSlots?: number;
   /** Фактура поверх графики. В PDF накладывается отдельно (быстрее, чем SVG-фильтр в 300 dpi). */
   texture?: { kind: "grain" | "linen"; opacity: number };
   art: (g: CoverGeometry, ctx: ArtContext) => string;
@@ -395,19 +390,12 @@ const photo: CoverTemplate = {
   mood: "photo",
   swatch: "linear-gradient(180deg,#8a8a8a,#2b2b2b)",
   requiresPhoto: true,
-  art: (g, { uid, photoHref }) => {
+  art: (g, ctx) => {
     const f = g.front;
     // Фото занимает лицевую сторону вместе с загибами (до правого, верхнего и нижнего края холста).
-    const px = f.x;
-    const pw = g.width - f.x;
-    let out = `<defs><linearGradient id="${uid}sh" x1="0" y1="0" x2="0" y2="1"><stop offset="0.45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.62"/></linearGradient></defs>${bg(g, "#1E1E1E")}`;
-    if (photoHref) {
-      out += `<image href="${photoHref.replace(/&/g, "&amp;")}" x="${n(px)}" y="0" width="${n(pw)}" height="${n(g.height)}" preserveAspectRatio="xMidYMid slice"/>`;
-    } else {
-      out += `<rect x="${n(px)}" y="0" width="${n(pw)}" height="${n(g.height)}" fill="#8C8C8C"/>`;
-    }
-    out += `<rect x="${n(px)}" y="0" width="${n(pw)}" height="${n(g.height)}" fill="url(#${uid}sh)"/>`;
-    return out;
+    const r = { x: f.x, y: 0, w: g.width - f.x, h: g.height };
+    const { uid } = ctx;
+    return `<defs><linearGradient id="${uid}sh" x1="0" y1="0" x2="0" y2="1"><stop offset="0.45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.62"/></linearGradient></defs>${bg(g, "#1E1E1E")}${photoSlot(ctx, 0, r)}<rect x="${n(r.x)}" y="0" width="${n(r.w)}" height="${n(g.height)}" fill="url(#${uid}sh)"/>`;
   },
   textArea: { x: 0.1, y: 0.6, w: 0.8, h: 0.32 },
   justify: "end",
@@ -418,7 +406,7 @@ const photo: CoverTemplate = {
   back: { color: "#E6E6E6", font: "cormorant", area: { x: 0.14, y: 0.3, w: 0.72, h: 0.4 } },
 };
 
-const builtIn = [blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo, ...collectionTemplates, ...photoCollection];
+const builtIn = [blossom, linen, midnight, sage, terracotta, hearts, script, ocean, terrazzo, noir, photo, ...collectionTemplates, ...photoCollection, ...clientPhotoTemplates];
 const byId: Record<string, CoverTemplate> = Object.fromEntries(builtIn.map((t) => [t.id, t]));
 
 /**
@@ -431,17 +419,33 @@ for (const id of retired) byId[id] = { ...byId[id], hidden: true };
 /** Все встроенные обложки, включая убранные из выбора. */
 export const allCoverTemplates: CoverTemplate[] = builtIn.map((t) => byId[t.id]);
 
-/** Встроенные обложки в порядке выбора: сначала снимки (чередуем настроения), затем рисованные. */
+/**
+ * Встроенные обложки в порядке выбора: сначала на готовых снимках (чередуем настроения), затем
+ * с фото клиента, затем рисованные.
+ */
 export const coverTemplates: CoverTemplate[] = [
   "peony", "sakura", "alatau", "tenderness", "velvet", "eucalyptus", "milkyway", "flax", "roses", "clouds", "saddle", "lavender",
   "dusk", "marble", "bouquet", "mist", "lights", "dried", "peaks", "party", "postcards", "meadow", "surf", "autumn", "steppe", "mint",
-  "oyu", "constellation", "linen", "sunrise", "midnight", "herbarium", "deco", "leather", "letter", "lemons", "photo",
+  "arch", "polaroid", "collage", "medallion", "heart", "magazine", "passepartout", "mosaic", "film", "duotone", "photo",
+  "oyu", "constellation", "linen", "sunrise", "midnight", "herbarium", "deco", "leather", "letter", "lemons",
 ].map((id) => byId[id]);
 
 /** Что видит клиент в выборе: опубликованные шаблоны из CRM, затем встроенные. */
 export function pickerCovers(): CoverTemplate[] {
   const custom = activeCustomCovers();
   return custom.length ? [...custom, ...coverTemplates] : coverTemplates;
+}
+
+/** Сколько фото клиента нужно обложке: 0 — обложка без фото клиента. */
+export function coverPhotoSlots(template: CoverTemplate) {
+  return template.requiresPhoto ? Math.max(1, template.photoSlots ?? 1) : 0;
+}
+
+/** Фото лицевой стороны по местам шаблона: основное (coverPhotoId) и остальные; пустое место — null. */
+export function coverPhotoIds(book: { coverTemplate: string; coverPhotoId: string | null; coverPhotoExtra?: string[] | null }): (string | null)[] {
+  const slots = coverPhotoSlots(getCoverTemplate(book.coverTemplate));
+  const ids = [book.coverPhotoId, ...(book.coverPhotoExtra ?? [])];
+  return Array.from({ length: slots }, (_, i) => ids[i] ?? null);
 }
 
 export function getCoverTemplate(id: string): CoverTemplate {
@@ -475,7 +479,8 @@ export function renderCoverSvg(
   template: CoverTemplate,
   g: CoverGeometry,
   ctx: ArtContext,
-  opts: { pxPerMm?: number; noTexture?: boolean } = {},
+  /** plainBack — оборот без повтора композиции лица (под карточками «Полароидов»). */
+  opts: { pxPerMm?: number; noTexture?: boolean; plainBack?: boolean } = {},
 ): string {
   let texture = "";
   if (template.texture && !opts.noTexture) {
@@ -486,7 +491,7 @@ export function renderCoverSvg(
   const size = opts.pxPerMm
     ? ` width="${Math.round(g.width * opts.pxPerMm)}" height="${Math.round(g.height * opts.pxPerMm)}"`
     : ` preserveAspectRatio="xMidYMid slice"`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${n(g.width)} ${n(g.height)}"${size}>${template.art(g, ctx)}${backMirror(template, g, ctx)}${texture}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${n(g.width)} ${n(g.height)}"${size}>${template.art(g, ctx)}${opts.plainBack ? "" : backMirror(template, g, ctx)}${texture}</svg>`;
 }
 
 /**
