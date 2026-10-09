@@ -208,7 +208,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       if (key === "front")
         return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
       if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photoUrl={backPhotoUrl} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
-      if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} text={[title, data.cover.names].filter(Boolean).join("   ·   ")} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
+      if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
       if (!ctx) return null;
       const [, index, side] = key.split(":");
       const sheet = sheets[Number(index)];

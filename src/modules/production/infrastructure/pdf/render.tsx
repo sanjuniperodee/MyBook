@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
 import sharp from "sharp";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
@@ -23,7 +23,6 @@ import { getFile } from "@/shared/infrastructure/storage";
 import { backContent, designBack } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
-import { LayoutSchemeDocument } from "@/modules/production/infrastructure/pdf/layout-scheme";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
 
 export type RenderMode = "print" | "preview" | "reading";
@@ -258,35 +257,20 @@ export async function renderReadingPdf(bundle: BookBundle) {
 }
 
 /**
- * Чертежи для типографии: стр. 1 — обложка с дизайном и размерами поверх, стр. 2 — чистый каркас,
- * стр. 3 — схема блока. Обложка берётся из готового cover.pdf, поэтому дизайн тот же, что уйдёт в печать.
+ * Каркас для типографии: готовая обложка из cover.pdf (дизайн тот же, что уйдёт в печать) и поверх неё
+ * красные рамки картона — задняя крышка, корешок, передняя крышка. Одна страница, масштаб 1:1.
  */
-export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, cover: Buffer, orderNumber?: number) {
-  ensureFonts();
-  const format = getFormat(bundle.book.format);
-  const text = coverText(bundle.book);
-  const drawings = await renderToBuffer(
-    <LayoutSchemeDocument
-      format={format}
-      geometry={coverSpreadGeometry(format, pageCount)}
-      zones={coverSpreadZones(format, pageCount)}
-      pageCount={pageCount}
-      spineMm={spineWidthMm(pageCount)}
-      title={text.title}
-      names={text.names}
-      orderNumber={orderNumber}
-    />,
-  );
+export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, cover: Buffer) {
+  const g = coverSpreadGeometry(getFormat(bundle.book.format), pageCount);
   const out = await PDFDocument.create();
-  const [drawingsDoc, coverDoc] = await Promise.all([PDFDocument.load(drawings), PDFDocument.load(cover)]);
-  const [coverPage] = await out.embedPdf(coverDoc, [0]);
-  const [overlayPage] = await out.embedPdf(drawingsDoc, [0]);
-  const { width, height } = coverPage;
-  const first = out.addPage([width, height]);
-  first.drawPage(coverPage, { x: 0, y: 0, width, height });
-  first.drawPage(overlayPage, { x: 0, y: 0, width, height });
-  for (const p of await out.copyPages(drawingsDoc, [1, 2])) out.addPage(p);
-  out.setTitle(drawingsDoc.getTitle() ?? text.title);
+  const [page] = await out.copyPages(await PDFDocument.load(cover), [0]);
+  out.addPage(page);
+  const height = page.getHeight();
+  for (const r of [g.back!, g.spine!, g.front]) {
+    // У pdf-lib начало координат внизу слева, в геометрии — вверху слева.
+    page.drawRectangle({ x: mm(r.x), y: height - mm(r.y + r.h), width: mm(r.w), height: mm(r.h), borderColor: rgb(0.85, 0.15, 0.17), borderWidth: mm(0.35) });
+  }
+  out.setTitle(`Каркас обложки — ${coverText(bundle.book).title}`);
   out.setProducer("MyBooks");
   return Buffer.from(await out.save());
 }
@@ -301,10 +285,10 @@ export interface PrintPackage {
   coverHeightMm: number;
 }
 
-export async function renderPrintPackage(bundle: BookBundle, orderNumber?: number): Promise<PrintPackage> {
+export async function renderPrintPackage(bundle: BookBundle): Promise<PrintPackage> {
   const interior = await renderInterior(bundle, "print");
   const cover = await renderCover(bundle, interior.pageCount, "print");
-  const layout = await renderLayoutScheme(bundle, interior.pageCount, cover.pdf, orderNumber);
+  const layout = await renderLayoutScheme(bundle, interior.pageCount, cover.pdf);
   return {
     interior: interior.pdf,
     cover: cover.pdf,
@@ -325,7 +309,7 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, orderNumber
     `ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ПЕЧАТЬ${orderNumber ? ` — ЗАКАЗ №${orderNumber}` : ""}`,
     ``,
     `Издание: «${coverText(bundle.book).title}»`,
-    `Чертёж: layout.pdf — каркас развёртки обложки с размерами (стр. 1 — с дизайном, стр. 2 — чистый) и схема блока (стр. 3)`,
+    `Каркас: layout.pdf — развёртка обложки с дизайном и красными рамками крышек и корешка, 1:1`,
     `Формат блока (обрезной): ${format.widthMm}×${format.heightMm} мм`,
     `Объём блока: ${pkg.pageCount} полос (${pkg.pageCount / 2} листов), 4+4`,
     `Вылеты блока: ${print.bleedMm} мм с каждой стороны (TrimBox/BleedBox заданы в PDF)`,
@@ -342,7 +326,7 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, orderNumber
     `Файлы:`,
     `  block.pdf — блок, ${pkg.pageCount} стр., ${format.widthMm + print.bleedMm * 2}×${format.heightMm + print.bleedMm * 2} мм с вылетами`,
     `  cover.pdf — развёртка обложки ${r(g.width)}×${r(g.height)} мм`,
-    `  layout.pdf — каркас с размерами корешка, расставов и отступов + схема блока`,
+    `  layout.pdf — каркас: обложка с рамками крышек и корешка`,
     `Цвет: RGB (sRGB), изображения ${print.dpi} dpi. Шрифты внедрены.`,
   ].join("\n");
 }

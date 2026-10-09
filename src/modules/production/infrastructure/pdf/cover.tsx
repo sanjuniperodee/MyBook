@@ -2,6 +2,7 @@ import "server-only";
 import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/renderer";
 import type { CoverGeometry } from "@/lib/book/formats";
 import { mm } from "@/lib/book/formats";
+import { spineFontMm, spineParts } from "@/lib/book/book-model";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
 import type { BackDesign } from "@/lib/book/cover-back";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
@@ -71,8 +72,9 @@ export function CoverDocument({
   const ornamentSize = mm(f.w * 0.035);
 
   const spine = g.spine;
-  const spineText = [text.title, text.names].filter(Boolean).join("   ·   ");
-  const spineFont = spine ? Math.min(mm(spine.w * 0.42), 11) : 0;
+  const spineText = spineParts(text.title, text.names);
+  const spineFontSize = spine ? spineFontMm(spine.w) : null;
+  const spineFont = spineFontSize ? mm(spineFontSize) : 0;
 
   return (
     <Document title={messagesFor(language).book.coverDoc(title)} creator={site.name} producer={site.name}>
@@ -106,8 +108,8 @@ export function CoverDocument({
           {text.names ? <Text style={textStyle(template.names, f.w)}>{text.names}</Text> : null}
         </View>
 
-        {/* Корешок */}
-        {spine && spine.w >= 5 && spineText ? (
+        {/* Корешок: название в верхней половине, имена в нижней, читается сверху вниз */}
+        {spine && spineFont && spineText.length ? (
           <View
             style={{
               position: "absolute",
@@ -115,14 +117,15 @@ export function CoverDocument({
               top: mm(spine.y + spine.h / 2 - spine.w / 2),
               width: mm(spine.h),
               height: mm(spine.w),
-              justifyContent: "center",
-              alignItems: "center",
-              transform: "rotate(-90deg)",
+              flexDirection: "row",
+              transform: "rotate(90deg)",
             }}
           >
-            <Text style={{ ...face(template.spine.font, 500), fontSize: spineFont, color: template.spine.color, textAlign: "center", maxLines: 1 }}>
-              {spineText}
-            </Text>
+            {spineText.map((s, i) => (
+              <View key={i} style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                <Text style={{ ...face(template.spine.font, 500), fontSize: spineFont, color: template.spine.color, textAlign: "center", width: "92%", maxLines: 1 }}>{s}</Text>
+              </View>
+            ))}
           </View>
         ) : null}
 
