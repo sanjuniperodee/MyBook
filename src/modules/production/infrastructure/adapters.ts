@@ -23,12 +23,12 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
       const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString() };
       return { interior: pkg.interior, cover: pkg.cover, layout: pkg.layout, spec: Buffer.from(printSpecText(bundle, pkg, orderNumber), "utf8"), printSpec };
     },
-    async renderLayout(bookId, orderNumber, block) {
+    async renderLayout(bookId, orderNumber, block, cover) {
       const bundle = await load(bookId);
       if (!bundle) return null;
       const { PDFDocument } = await import("pdf-lib");
       const pageCount = (await PDFDocument.load(block)).getPageCount();
-      return (await pdf()).renderLayoutScheme(bundle, pageCount, orderNumber);
+      return (await pdf()).renderLayoutScheme(bundle, pageCount, cover, orderNumber);
     },
     async renderReading(bookId) {
       const bundle = await load(bookId);

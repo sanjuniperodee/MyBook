@@ -66,15 +66,18 @@ describe("генерация PDF", () => {
     expect(page.getTrimBox().width).toBeCloseTo(mm(148), 0);
   });
 
-  it("каркас для типографии: обложка 1:1 и схема блока", async () => {
+  it("каркас для типографии: обложка с дизайном и размерами, чистый каркас, схема блока", async () => {
     const pageCount = 120;
-    const pdf = await renderLayoutScheme({ book, questions, photos: [] }, pageCount, 7);
+    const cover = await renderCover({ book, questions, photos: [] }, pageCount, "preview");
+    const pdf = await renderLayoutScheme({ book, questions, photos: [] }, pageCount, cover.pdf, 7);
     const doc = await PDFDocument.load(pdf);
-    expect(doc.getPageCount()).toBe(2);
+    expect(doc.getPageCount()).toBe(3);
     const g = coverSpreadGeometry(formats.a5, pageCount);
     const mm = (v: number) => (v * 72) / 25.4;
-    expect(doc.getPage(0).getWidth()).toBeCloseTo(mm(g.width), 0);
-    expect(doc.getPage(0).getHeight()).toBeCloseTo(mm(g.height), 0);
+    for (const i of [0, 1]) {
+      expect(doc.getPage(i).getWidth()).toBeCloseTo(mm(g.width), 0);
+      expect(doc.getPage(i).getHeight()).toBeCloseTo(mm(g.height), 0);
+    }
   });
 
   it("казахская книга: блок и обложка собираются, текст с казахскими буквами переносится", async () => {

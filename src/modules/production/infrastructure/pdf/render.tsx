@@ -257,12 +257,15 @@ export async function renderReadingPdf(bundle: BookBundle) {
   return Buffer.from(await out.save());
 }
 
-/** Каркас обложки с размерами и схема блока — чертежи для типографии. */
-export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, orderNumber?: number) {
+/**
+ * Чертежи для типографии: стр. 1 — обложка с дизайном и размерами поверх, стр. 2 — чистый каркас,
+ * стр. 3 — схема блока. Обложка берётся из готового cover.pdf, поэтому дизайн тот же, что уйдёт в печать.
+ */
+export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, cover: Buffer, orderNumber?: number) {
   ensureFonts();
   const format = getFormat(bundle.book.format);
   const text = coverText(bundle.book);
-  const pdf = await renderToBuffer(
+  const drawings = await renderToBuffer(
     <LayoutSchemeDocument
       format={format}
       geometry={coverSpreadGeometry(format, pageCount)}
@@ -274,7 +277,18 @@ export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, 
       orderNumber={orderNumber}
     />,
   );
-  return Buffer.from(pdf);
+  const out = await PDFDocument.create();
+  const [drawingsDoc, coverDoc] = await Promise.all([PDFDocument.load(drawings), PDFDocument.load(cover)]);
+  const [coverPage] = await out.embedPdf(coverDoc, [0]);
+  const [overlayPage] = await out.embedPdf(drawingsDoc, [0]);
+  const { width, height } = coverPage;
+  const first = out.addPage([width, height]);
+  first.drawPage(coverPage, { x: 0, y: 0, width, height });
+  first.drawPage(overlayPage, { x: 0, y: 0, width, height });
+  for (const p of await out.copyPages(drawingsDoc, [1, 2])) out.addPage(p);
+  out.setTitle(drawingsDoc.getTitle() ?? text.title);
+  out.setProducer("MyBooks");
+  return Buffer.from(await out.save());
 }
 
 export interface PrintPackage {
@@ -290,7 +304,7 @@ export interface PrintPackage {
 export async function renderPrintPackage(bundle: BookBundle, orderNumber?: number): Promise<PrintPackage> {
   const interior = await renderInterior(bundle, "print");
   const cover = await renderCover(bundle, interior.pageCount, "print");
-  const layout = await renderLayoutScheme(bundle, interior.pageCount, orderNumber);
+  const layout = await renderLayoutScheme(bundle, interior.pageCount, cover.pdf, orderNumber);
   return {
     interior: interior.pdf,
     cover: cover.pdf,
@@ -311,7 +325,7 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, orderNumber
     `ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ПЕЧАТЬ${orderNumber ? ` — ЗАКАЗ №${orderNumber}` : ""}`,
     ``,
     `Издание: «${coverText(bundle.book).title}»`,
-    `Чертёж: layout.pdf — каркас развёртки обложки с размерами (стр. 1) и схема блока (стр. 2)`,
+    `Чертёж: layout.pdf — каркас развёртки обложки с размерами (стр. 1 — с дизайном, стр. 2 — чистый) и схема блока (стр. 3)`,
     `Формат блока (обрезной): ${format.widthMm}×${format.heightMm} мм`,
     `Объём блока: ${pkg.pageCount} полос (${pkg.pageCount / 2} листов), 4+4`,
     `Вылеты блока: ${print.bleedMm} мм с каждой стороны (TrimBox/BleedBox заданы в PDF)`,

@@ -17,7 +17,6 @@ const BLUE = "#2563eb";
 const INK = "#1c1c1c";
 const GREY = "#8a8a8a";
 
-// Высота SVG на 0,01 pt меньше страницы: при точном совпадении react-pdf переносит слой на новую страницу.
 const num = (v: number) => (Math.round(v * 10) / 10).toString().replace(".", ",");
 
 /** Текст, повёрнутый на -90° вокруг центра (cx, cy), все величины в мм. */
@@ -40,9 +39,14 @@ function Rotated({ cx, cy, length, thickness, children }: { cx: number; cy: numb
   );
 }
 
-function Label({ x, y, w, size = 7, color = INK, bold = false, children }: { x: number; y: number; w: number; size?: number; color?: string; bold?: boolean; children: ReactNode }) {
+/** Подложка под подписи, когда каркас лежит поверх дизайна: текст читается на любом фоне. */
+const PLATE = { backgroundColor: "#ffffff", paddingHorizontal: 1.5 } as const;
+
+function Label({ x, y, w, size = 7, color = INK, bold = false, plate = false, children }: { x: number; y: number; w: number; size?: number; color?: string; bold?: boolean; plate?: boolean; children: ReactNode }) {
   return (
-    <Text style={{ position: "absolute", left: mm(x), top: mm(y), width: mm(w), textAlign: "center", ...face("onest", bold ? 600 : 400), fontSize: size, color }}>{children}</Text>
+    <View style={{ position: "absolute", left: mm(x), top: mm(y), width: mm(w), alignItems: "center" }}>
+      <Text style={{ textAlign: "center", ...face("onest", bold ? 600 : 400), fontSize: size, color, ...(plate ? PLATE : {}) }}>{children}</Text>
+    </View>
   );
 }
 
@@ -57,7 +61,8 @@ export interface LayoutSchemeInput {
   orderNumber?: number;
 }
 
-function CoverFramePage({ format, geometry: g, zones, pageCount, spineMm, title, names, orderNumber }: LayoutSchemeInput) {
+/** `overlay` — каркас поверх готовой обложки (прозрачный фон, подписи на подложках); иначе чистый чертёж. */
+function CoverFramePage({ format, geometry: g, zones, pageCount, spineMm, title, names, orderNumber, overlay = false }: LayoutSchemeInput & { overlay?: boolean }) {
   const W = g.width;
   const H = g.height;
   const { wrapMm, hingeMm, boardOverhangMm } = print.cover;
@@ -69,66 +74,69 @@ function CoverFramePage({ format, geometry: g, zones, pageCount, spineMm, title,
   const boardBottom = back.y + back.h;
   const rowSeg = 6.5; // линия размеров по зонам, мм от верхнего края
   const rowTotal = 14; // общая ширина
+  const ink = overlay ? RED : INK;
+  const plate = overlay;
 
   return (
-    <Page size={{ width: mm(W), height: mm(H) }} style={{ position: "relative", backgroundColor: "#ffffff" }}>
+    <Page size={{ width: mm(W), height: mm(H) }} style={{ position: "relative", ...(overlay ? {} : { backgroundColor: "#ffffff" }) }}>
+      {/* Высота SVG на 0,01 pt меньше страницы: при точном совпадении react-pdf переносит слой на новую страницу. */}
       <Svg width={mm(W)} height={mm(H) - 0.01} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", top: 0, left: 0 }}>
         {/* Отступ по периметру (загиб на картон) */}
-        <Rect x={0} y={0} width={W} height={H} fill="#f2f2f2" />
+        {overlay ? null : <Rect x={0} y={0} width={W} height={H} fill="#f2f2f2" />}
         {/* Расставы */}
         {zones
           .filter((z) => z.key === "hingeLeft" || z.key === "hingeRight")
           .map((z) => (
-            <Rect key={z.key} x={z.x} y={boardTop} width={z.w} height={back.h} fill="#e6eefc" />
+            <Rect key={z.key} x={z.x} y={boardTop} width={z.w} height={back.h} fill={overlay ? BLUE : "#e6eefc"} fillOpacity={overlay ? 0.2 : 1} />
           ))}
         {/* Крышки и корешок */}
-        <Rect x={back.x} y={boardTop} width={back.w} height={back.h} fill="#ffffff" stroke={RED} strokeWidth={0.35} />
-        <Rect x={g.front.x} y={boardTop} width={g.front.w} height={g.front.h} fill="#ffffff" stroke={RED} strokeWidth={0.35} />
-        <Rect x={spine.x} y={boardTop} width={spine.w} height={spine.h} fill="#fdecec" stroke={RED} strokeWidth={0.35} />
+        <Rect x={back.x} y={boardTop} width={back.w} height={back.h} fill={overlay ? "none" : "#ffffff"} stroke={RED} strokeWidth={0.35} />
+        <Rect x={g.front.x} y={boardTop} width={g.front.w} height={g.front.h} fill={overlay ? "none" : "#ffffff"} stroke={RED} strokeWidth={0.35} />
+        <Rect x={spine.x} y={boardTop} width={spine.w} height={spine.h} fill={overlay ? "none" : "#fdecec"} stroke={RED} strokeWidth={0.35} />
         {/* Линии сгибов */}
         {(g.folds ?? []).map((x) => (
           <Line key={x} x1={x} y1={0} x2={x} y2={H} stroke={BLUE} strokeWidth={0.15} strokeDasharray="2 1.5" />
         ))}
         {/* Размерные линии по ширине: зоны и общая */}
         {zones.map((z) => (
-          <Line key={`t${z.key}`} x1={z.x} y1={rowSeg - 2} x2={z.x} y2={rowSeg + 1.2} stroke={INK} strokeWidth={0.2} />
+          <Line key={`t${z.key}`} x1={z.x} y1={rowSeg - 2} x2={z.x} y2={rowSeg + 1.2} stroke={ink} strokeWidth={0.2} />
         ))}
-        <Line x1={W} y1={rowSeg - 2} x2={W} y2={rowSeg + 1.2} stroke={INK} strokeWidth={0.2} />
-        <Line x1={0} y1={rowSeg} x2={W} y2={rowSeg} stroke={INK} strokeWidth={0.2} />
-        <Line x1={0} y1={rowTotal - 2} x2={0} y2={rowTotal + 1.2} stroke={INK} strokeWidth={0.2} />
-        <Line x1={W} y1={rowTotal - 2} x2={W} y2={rowTotal + 1.2} stroke={INK} strokeWidth={0.2} />
-        <Line x1={0} y1={rowTotal} x2={W} y2={rowTotal} stroke={INK} strokeWidth={0.2} />
+        <Line x1={W} y1={rowSeg - 2} x2={W} y2={rowSeg + 1.2} stroke={ink} strokeWidth={0.2} />
+        <Line x1={0} y1={rowSeg} x2={W} y2={rowSeg} stroke={ink} strokeWidth={0.2} />
+        <Line x1={0} y1={rowTotal - 2} x2={0} y2={rowTotal + 1.2} stroke={ink} strokeWidth={0.2} />
+        <Line x1={W} y1={rowTotal - 2} x2={W} y2={rowTotal + 1.2} stroke={ink} strokeWidth={0.2} />
+        <Line x1={0} y1={rowTotal} x2={W} y2={rowTotal} stroke={ink} strokeWidth={0.2} />
         {/* Размерные линии по высоте: картон и общая (слева) */}
-        <Line x1={rowSeg - 2} y1={boardTop} x2={rowSeg + 1.2} y2={boardTop} stroke={INK} strokeWidth={0.2} />
-        <Line x1={rowSeg - 2} y1={boardBottom} x2={rowSeg + 1.2} y2={boardBottom} stroke={INK} strokeWidth={0.2} />
-        <Line x1={rowSeg} y1={boardTop} x2={rowSeg} y2={boardBottom} stroke={INK} strokeWidth={0.2} />
-        <Line x1={rowTotal - 2} y1={0} x2={rowTotal + 1.2} y2={0} stroke={INK} strokeWidth={0.2} />
-        <Line x1={rowTotal - 2} y1={H} x2={rowTotal + 1.2} y2={H} stroke={INK} strokeWidth={0.2} />
-        <Line x1={rowTotal} y1={0} x2={rowTotal} y2={H} stroke={INK} strokeWidth={0.2} />
+        <Line x1={rowSeg - 2} y1={boardTop} x2={rowSeg + 1.2} y2={boardTop} stroke={ink} strokeWidth={0.2} />
+        <Line x1={rowSeg - 2} y1={boardBottom} x2={rowSeg + 1.2} y2={boardBottom} stroke={ink} strokeWidth={0.2} />
+        <Line x1={rowSeg} y1={boardTop} x2={rowSeg} y2={boardBottom} stroke={ink} strokeWidth={0.2} />
+        <Line x1={rowTotal - 2} y1={0} x2={rowTotal + 1.2} y2={0} stroke={ink} strokeWidth={0.2} />
+        <Line x1={rowTotal - 2} y1={H} x2={rowTotal + 1.2} y2={H} stroke={ink} strokeWidth={0.2} />
+        <Line x1={rowTotal} y1={0} x2={rowTotal} y2={H} stroke={ink} strokeWidth={0.2} />
       </Svg>
 
       {/* Размеры зон по ширине */}
       {zones.map((z) => (
-        <Label key={`l${z.key}`} x={z.x} y={rowSeg - 3.4} w={z.w} size={6.5} bold={z.key === "spine"}>
+        <Label key={`l${z.key}`} x={z.x} y={rowSeg - 3.4} w={z.w} size={6.5} bold={z.key === "spine"} plate={plate}>
           {num(z.w)}
         </Label>
       ))}
-      <Label x={0} y={rowTotal - 3.9} w={W} size={7.5} bold>
+      <Label x={0} y={rowTotal - 3.9} w={W} size={7.5} bold plate={plate}>
         {`${num(W)} мм — полная ширина развёртки`}
       </Label>
       {/* Высоты (слева, вертикально) */}
       <Rotated cx={rowSeg - 0.9} cy={(boardTop + boardBottom) / 2} length={back.h} thickness={4}>
-        <Text style={{ ...face("onest", 400), fontSize: 6.5, color: INK }}>{num(back.h)}</Text>
+        <Text style={{ ...face("onest", 400), fontSize: 6.5, color: INK, ...(plate ? PLATE : {}) }}>{num(back.h)}</Text>
       </Rotated>
       <Rotated cx={rowTotal - 2.3} cy={H / 2} length={H} thickness={4}>
-        <Text style={{ ...face("onest", 600), fontSize: 7.5, color: INK }}>{`${num(H)} мм — полная высота`}</Text>
+        <Text style={{ ...face("onest", 600), fontSize: 7.5, color: INK, ...(plate ? PLATE : {}) }}>{`${num(H)} мм — полная высота`}</Text>
       </Rotated>
 
-      {/* Подписи внутри крышек */}
-      {[
+      {/* Подписи внутри крышек (на дизайне не нужны — там своя графика) */}
+      {(overlay ? [] : [
         { r: back, name: "ЗАДНЯЯ КРЫШКА (оборот)" },
         { r: g.front, name: "ПЕРЕДНЯЯ КРЫШКА (лицо)" },
-      ].map(({ r, name }) => (
+      ]).map(({ r, name }) => (
         <View key={name} style={{ position: "absolute", left: mm(r.x), top: mm(r.y + r.h / 2 - 12), width: mm(r.w), alignItems: "center" }}>
           <Text style={{ ...face("onest", 600), fontSize: 10, color: RED }}>{name}</Text>
           <Text style={{ ...face("onest", 400), fontSize: 8.5, color: GREY, marginTop: 4 }}>{`${num(r.w)} × ${num(r.h)} мм (картон)`}</Text>
@@ -138,31 +146,33 @@ function CoverFramePage({ format, geometry: g, zones, pageCount, spineMm, title,
 
       {/* Корешок: размер и текст, как на макете */}
       <Rotated cx={spine.x + spine.w / 2} cy={boardTop + 16} length={32} thickness={spine.w}>
-        <Text style={{ ...face("onest", 600), fontSize: Math.min(7, mm(spine.w * 0.5)), color: RED }}>{`корешок ${num(spineMm)} мм`}</Text>
+        <Text style={{ ...face("onest", 600), fontSize: Math.min(7, mm(spine.w * 0.5)), color: RED, ...(plate ? PLATE : {}) }}>{`корешок ${num(spineMm)} мм`}</Text>
       </Rotated>
-      <Rotated cx={spine.x + spine.w / 2} cy={boardTop + 32 + (spine.h - 32) / 2} length={spine.h - 36} thickness={spine.w}>
-        <Text style={{ ...face("onest", 600), fontSize: spineFont, color: INK, textAlign: "center", maxLines: 1 }}>{spineText}</Text>
-      </Rotated>
+      {overlay ? null : (
+        <Rotated cx={spine.x + spine.w / 2} cy={boardTop + 32 + (spine.h - 32) / 2} length={spine.h - 36} thickness={spine.w}>
+          <Text style={{ ...face("onest", 600), fontSize: spineFont, color: INK, textAlign: "center", maxLines: 1 }}>{spineText}</Text>
+        </Rotated>
+      )}
 
       {/* Подписи расставов */}
       {zones
         .filter((z) => z.key === "hingeLeft" || z.key === "hingeRight")
         .map((z) => (
           <Rotated key={`h${z.key}`} cx={z.x + z.w / 2} cy={boardTop + back.h / 2} length={60} thickness={z.w}>
-            <Text style={{ ...face("onest", 400), fontSize: 6.5, color: BLUE }}>{`расстав ${num(hingeMm)} мм`}</Text>
+            <Text style={{ ...face("onest", 400), fontSize: 6.5, color: BLUE, ...(plate ? PLATE : {}) }}>{`расстав ${num(hingeMm)} мм`}</Text>
           </Rotated>
         ))}
 
       {/* Легенда */}
-      <View style={{ position: "absolute", left: mm(wrapMm), top: mm(H - wrapMm + 2.5), width: mm(W - wrapMm * 2), backgroundColor: "#f2f2f2" }}>
+      <View style={{ position: "absolute", left: mm(wrapMm), top: mm(H - wrapMm + 2.5), width: mm(W - wrapMm * 2), backgroundColor: overlay ? "#ffffff" : "#f2f2f2", padding: overlay ? 3 : 0 }}>
         <Text style={{ ...face("onest", 600), fontSize: 8, color: INK }}>
-          {`Каркас развёртки обложки${orderNumber ? ` — заказ №${orderNumber}` : ""} · «${title}» · ${format.short}, ${pageCount} полос`}
+          {`${overlay ? "Обложка с дизайном и размерами" : "Каркас развёртки обложки"}${orderNumber ? ` — заказ №${orderNumber}` : ""} · «${title}» · ${format.short}, ${pageCount} полос`}
         </Text>
         <Text style={{ ...face("onest", 400), fontSize: 7, color: INK, marginTop: 2 }}>
           {`Корешок ${num(spineMm)} мм · расставы между сгибами ${num(hingeMm)} мм · отступ по периметру ${num(wrapMm)} мм · крышка ${num(back.w)}×${num(back.h)} мм`}
         </Text>
         <Text style={{ ...face("onest", 400), fontSize: 6.5, color: GREY, marginTop: 2 }}>
-          {`Красное — картон крышек и корешка · синий пунктир — сгибы · серое по периметру — загиб на картон (включает вылет). Масштаб 1:1, размеры в мм.`}
+          {`Красное — картон крышек и корешка · синий пунктир — сгибы · по периметру — загиб на картон (включает вылет). Масштаб 1:1, размеры в мм.`}
         </Text>
       </View>
     </Page>
@@ -250,6 +260,7 @@ function BlockSchemePage({ format, pageCount, title, orderNumber }: LayoutScheme
 export function LayoutSchemeDocument(props: LayoutSchemeInput) {
   return (
     <Document title={`Каркас и схемы для типографии — ${props.title}`} creator={site.name} producer={site.name}>
+      <CoverFramePage {...props} overlay />
       <CoverFramePage {...props} />
       <BlockSchemePage {...props} />
     </Document>
