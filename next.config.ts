@@ -8,7 +8,7 @@ import type { NextConfig } from "next";
  */
 function coverArtVersion() {
   try {
-    const sources = ["covers", "covers-collection", "cover-kit", "motifs", "formats"].map((f) => readFileSync(`src/lib/book/${f}.ts`, "utf8"));
+    const sources = ["covers", "covers-collection", "covers-photo", "photo-cover", "cover-kit", "motifs", "formats"].map((f) => readFileSync(`src/lib/book/${f}.ts`, "utf8"));
     return createHash("sha1").update(sources.join("\n")).digest("hex").slice(0, 10);
   } catch {
     return "build";

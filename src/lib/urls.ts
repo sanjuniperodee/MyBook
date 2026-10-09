@@ -7,8 +7,14 @@ export function photoUrls(ids: (string | null)[], size: "thumb" | "full" = "thum
   return ids.map((id) => (id ? photoUrl(id, size) : undefined));
 }
 
-/** Фон обложки без текста — статичный SVG; версия в адресе меняется вместе с кодом рисунков. */
-export function coverArtUrl(templateId: string, formatId: string, lite = false, side: "front" | "back" | "backPlain" = "front") {
+/**
+ * Фон обложки без текста: рисованные — статичный SVG, на снимках — JPEG. Версия в адресе меняется
+ * вместе с кодом рисунков, а у шаблонов из CRM — ещё и с каждой правкой. backPlain — оборот без
+ * повтора композиции лица (под карточками «Полароидов»).
+ */
+export function coverArtUrl(template: { id: string; photo?: unknown; rev?: number }, formatId: string, lite = false, side: "front" | "back" | "backPlain" = "front") {
+  const ext = template.photo ? "jpg" : "svg";
+  const v = `${process.env.COVER_ART_VERSION ?? "dev"}${template.rev ? `.${template.rev}` : ""}`;
   const suffix = side === "back" ? "-back" : side === "backPlain" ? "-backplain" : "";
-  return `/api/covers/${templateId}-${formatId}${lite ? "-lite" : ""}${suffix}.svg?v=${process.env.COVER_ART_VERSION ?? "dev"}`;
+  return `/api/covers/${template.id}-${formatId}${lite ? "-lite" : ""}${suffix}.${ext}?v=${v}`;
 }

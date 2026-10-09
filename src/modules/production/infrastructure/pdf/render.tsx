@@ -6,6 +6,7 @@ import sharp from "sharp";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverNamesLine, coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverPhotoDataUrl } from "@/server/cover-photos";
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
@@ -184,7 +185,9 @@ async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi:
       return p ? coverPhotoHref(p, source) : undefined;
     }),
   );
-  let svg = renderCoverSvg(template, geometry, { uid: "c", photos }, { pxPerMm: dpi / 25.4, noTexture: true, plainBack: back.design.plainArt });
+  // Обложка на снимке: для печати — оригинал, для превью — уменьшенная копия.
+  const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, source === "full" ? undefined : 2400) : undefined;
+  let svg = renderCoverSvg(template, geometry, { uid: "c", photos, imageHref }, { pxPerMm: dpi / 25.4, noTexture: true, plainBack: back.design.plainArt });
   // Фото оборота «во всю», затемнение и тени под карточками — частью рисунка развёртки.
   if (geometry.back) {
     const bleed = new Set(back.design.blocks.flatMap((b) => (b.kind === "photo" && b.frame === "bleed" ? [b.slot] : [])));

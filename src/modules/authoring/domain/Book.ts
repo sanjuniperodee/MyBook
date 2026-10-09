@@ -1,6 +1,6 @@
 import { AggregateRoot } from "@/shared/domain";
 import type { Locale } from "@/i18n/config";
-import { coverTemplates } from "@/lib/book/covers";
+import { isKnownCover } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
 import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
@@ -176,7 +176,7 @@ export class Book extends AggregateRoot<BookProps> {
   /** Настройки из редактора: каталоги обложек, оформлений, форматов и поводов проверяются здесь. */
   applySettings(s: BookSettings) {
     this.assertEditable();
-    if (s.coverTemplate !== undefined && !coverTemplates.some((t) => t.id === s.coverTemplate)) throw new AuthoringError("unknownCover");
+    if (s.coverTemplate !== undefined && !isKnownCover(s.coverTemplate)) throw new AuthoringError("unknownCover");
     if (s.interior !== undefined && !isInteriorId(s.interior)) throw new AuthoringError("unknownInterior");
     if (s.backLayout !== undefined && !isBackLayout(s.backLayout)) throw new AuthoringError("unknownBackLayout");
     if (s.format !== undefined && !(s.format in formats)) throw new AuthoringError("unknownFormat");

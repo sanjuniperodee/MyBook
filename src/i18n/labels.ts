@@ -3,6 +3,7 @@ import type { FormatId } from "@/lib/book/formats";
 import type { InteriorId } from "@/lib/book/interiors";
 import type { Locale } from "./config";
 import { messagesFor } from "./messages";
+import { coverLabel, getCoverTemplate } from "@/lib/book/covers";
 
 /**
  * Названия тарифов, доставки, допов, обложек и оформления на нужном языке — для писем, PDF и CRM (CRM — на русском).
@@ -21,7 +22,7 @@ export function addonName(id: string, locale: Locale = "ru") {
 }
 
 export function coverName(id: string, locale: Locale = "ru") {
-  return messagesFor(locale).catalog.covers[id] ?? id;
+  return coverLabel(getCoverTemplate(id), messagesFor(locale).catalog.covers, locale) || id;
 }
 
 export function interiorName(id: string, locale: Locale = "ru") {

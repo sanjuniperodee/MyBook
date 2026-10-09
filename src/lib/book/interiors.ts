@@ -155,7 +155,7 @@ const classic = legacy(
   "classic",
   "classic",
   { heading: "cormorant", headingWeight: 500, headingItalic: false, body: "ptserif", bodySize: 10.5, lineHeight: 1.5 },
-  ["linen", "leather", "photo"],
+  ["linen", "leather", "photo", "marble", "flax"],
 );
 
 const modern = legacy(
@@ -190,7 +190,7 @@ const romance: InteriorDesign = {
   runningHead: "none",
   frame: "corners",
   photos: { frame: "hairline", caption: "italic" },
-  pairsWith: ["blossom", "hearts", "script", "tulips", "heart", "medallion"],
+  pairsWith: ["blossom", "hearts", "script", "tulips", "peony", "roses", "velvet", "bouquet", "tenderness", "dusk", "heart", "medallion"],
 };
 
 const stars: InteriorDesign = {
@@ -217,7 +217,7 @@ const stars: InteriorDesign = {
   runningHead: "none",
   frame: "none",
   photos: { frame: "hairline", caption: "label" },
-  pairsWith: ["midnight", "constellation"],
+  pairsWith: ["midnight", "constellation", "milkyway", "lights", "alatau"],
 };
 
 const oyu: InteriorDesign = {
@@ -262,7 +262,7 @@ const herbarium: InteriorDesign = {
   runningHead: "plain",
   frame: "none",
   photos: { frame: "tape", caption: "hand", tape: "#E3D7B4" },
-  pairsWith: ["herbarium", "sage", "lemons"],
+  pairsWith: ["herbarium", "sage", "lemons", "eucalyptus", "dried", "meadow", "mint", "tenderness"],
 };
 
 const deco: InteriorDesign = {
@@ -313,7 +313,7 @@ const editorial: InteriorDesign = {
   runningHead: "ruled",
   frame: "none",
   photos: { frame: "none", caption: "label" },
-  pairsWith: ["terracotta", "mountains", "ocean", "terrazzo", "magazine", "film"],
+  pairsWith: ["terracotta", "mountains", "ocean", "terrazzo", "steppe", "autumn", "magazine", "film"],
 };
 
 const airmail: InteriorDesign = {
@@ -358,7 +358,7 @@ const watercolor: InteriorDesign = {
   runningHead: "none",
   frame: "none",
   photos: { frame: "hairline", caption: "italic" },
-  pairsWith: ["sunrise", "tulips", "blossom", "mountains", "arch"],
+  pairsWith: ["sunrise", "tulips", "blossom", "mountains", "clouds", "lavender", "sakura", "arch"],
 };
 
 /** Шаңырақ — венец юрты, символ дома и рода: над каждой главой, терракота и охра. */
@@ -405,7 +405,7 @@ const mountains: InteriorDesign = {
   runningHead: "none",
   frame: "none",
   photos: { frame: "hairline", caption: "label" },
-  pairsWith: ["mountains", "sunrise"],
+  pairsWith: ["mountains", "sunrise", "alatau", "peaks", "mist"],
 };
 
 /** Море: слои волн у края полосы, чайки и бирюзовые заголовки. */
@@ -425,7 +425,7 @@ const sea: InteriorDesign = {
   runningHead: "none",
   frame: "none",
   photos: { frame: "hairline", caption: "italic" },
-  pairsWith: ["ocean", "lemons"],
+  pairsWith: ["ocean", "lemons", "surf"],
 };
 
 /** Фолиант: старинная книга — сепия, флероны в углах, римские цифры, колонтитулы. */
@@ -451,7 +451,7 @@ const vintage: InteriorDesign = {
   runningHead: "plain",
   frame: "vintage",
   photos: { frame: "corners", caption: "italic" },
-  pairsWith: ["leather", "linen", "noir", "medallion", "passepartout"],
+  pairsWith: ["leather", "linen", "noir", "postcards", "saddle", "medallion", "passepartout"],
 };
 
 /** Альбом: цветной скотч на начальных полосах и заголовки «синей ручкой». */
@@ -498,7 +498,7 @@ const confetti: InteriorDesign = {
   runningHead: "none",
   frame: "none",
   photos: { frame: "polaroid", caption: "hand" },
-  pairsWith: ["terracotta", "terrazzo", "lemons"],
+  pairsWith: ["terracotta", "terrazzo", "lemons", "party"],
 };
 
 /** Фотокнига: каждая глава открывается снимком во всю ширину, строгая типографика и подписи прописными. */

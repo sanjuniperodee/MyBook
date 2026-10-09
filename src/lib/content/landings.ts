@@ -35,7 +35,7 @@ export const landings: Landing[] = [
   {
     slug: "podarok-lyubimomu",
     theme: "love",
-    coverTemplate: "blossom",
+    coverTemplate: "peony",
     authorGender: "f",
     recipientGender: "m",
     content: {
@@ -80,7 +80,7 @@ export const landings: Landing[] = [
   {
     slug: "kniga-mame",
     theme: "mom",
-    coverTemplate: "sage",
+    coverTemplate: "tenderness",
     authorGender: "f",
     recipientGender: "f",
     content: {
@@ -170,7 +170,7 @@ export const landings: Landing[] = [
   {
     slug: "kniga-drugu",
     theme: "friend",
-    coverTemplate: "terracotta",
+    coverTemplate: "party",
     authorGender: "f",
     recipientGender: "f",
     content: {
@@ -210,7 +210,7 @@ export const landings: Landing[] = [
     slug: "podarok-na-godovshchinu",
     theme: "love",
     occasion: "anniversary",
-    coverTemplate: "hearts",
+    coverTemplate: "roses",
     authorGender: "f",
     recipientGender: "m",
     content: {
@@ -256,7 +256,7 @@ export const landings: Landing[] = [
     slug: "podarok-na-14-fevralya",
     theme: "love",
     occasion: "valentine",
-    coverTemplate: "script",
+    coverTemplate: "bouquet",
     authorGender: "m",
     recipientGender: "f",
     content: {
@@ -380,7 +380,7 @@ export const landings: Landing[] = [
   {
     slug: "podarok-zhene",
     theme: "love",
-    coverTemplate: "blossom",
+    coverTemplate: "peony",
     authorGender: "m",
     recipientGender: "f",
     content: {
@@ -425,7 +425,7 @@ export const landings: Landing[] = [
   {
     slug: "podarok-parnyu",
     theme: "love",
-    coverTemplate: "ocean",
+    coverTemplate: "surf",
     authorGender: "f",
     recipientGender: "m",
     content: {
@@ -470,7 +470,7 @@ export const landings: Landing[] = [
   {
     slug: "podarok-devushke",
     theme: "love",
-    coverTemplate: "script",
+    coverTemplate: "bouquet",
     authorGender: "m",
     recipientGender: "f",
     content: {
@@ -516,7 +516,7 @@ export const landings: Landing[] = [
     slug: "podarok-na-yubilej-mame",
     theme: "mom",
     occasion: "parents",
-    coverTemplate: "terracotta",
+    coverTemplate: "party",
     authorGender: "f",
     recipientGender: "f",
     content: {
@@ -562,7 +562,7 @@ export const landings: Landing[] = [
     slug: "podarok-na-yubilej-pape",
     theme: "dad",
     occasion: "parents",
-    coverTemplate: "noir",
+    coverTemplate: "velvet",
     authorGender: "m",
     recipientGender: "m",
     content: {
@@ -607,7 +607,7 @@ export const landings: Landing[] = [
   {
     slug: "podarok-pape-na-23-fevralya",
     theme: "dad",
-    coverTemplate: "terrazzo",
+    coverTemplate: "marble",
     authorGender: "f",
     recipientGender: "m",
     content: {

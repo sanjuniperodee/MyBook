@@ -10,6 +10,7 @@ import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/utils";
 import { FaceView, usePagedBook, type FlipbookData } from "./pages";
 import { buildCoverArt } from "./cover-art";
+import { useCoverImage } from "./useCoverImage";
 import { ViewerControls, type ViewId } from "./ViewerControls";
 import { RasterHost, type RasterJob } from "./webgl/RasterHost";
 import { CoverBackFace, CoverFrontFace, CoverSpineFace } from "./webgl/cover-faces";
@@ -89,7 +90,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       alive = false;
     };
   }, [template.requiresPhoto, photoKey]);
-  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, photoHrefs, backDesign.plainArt), [template, format, pageCount, dims, photoHrefs, backDesign.plainArt]);
+  const imageHref = useCoverImage(template);
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt]);
 
   const wrapper = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);

@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { messagesFor } from "@/i18n/messages";
-import { coverTemplates } from "@/lib/book/covers";
+import { allCoverTemplates, coverTemplates } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
 import { openerFlow, pageBox } from "@/lib/book/layout";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Shape } from "@/lib/book/interior-art";
@@ -91,7 +91,7 @@ describe("оформление страниц: каталог", () => {
   });
 
   it("у каждой обложки есть оформление в пару, и пары ссылаются на настоящие обложки", () => {
-    const covers = new Set(coverTemplates.map((c) => c.id));
+    const covers = new Set(allCoverTemplates.map((c) => c.id));
     for (const c of coverTemplates) expect(interiorsForCover(c.id).length, c.id).toBeGreaterThan(0);
     for (const d of interiorDesigns) for (const id of d.pairsWith) expect(covers.has(id), `${d.id} → ${id}`).toBe(true);
   });
