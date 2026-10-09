@@ -82,7 +82,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <a href={`/api/admin/orders/${order.id}/package`} className="btn btn-primary btn-sm"><FileArchive className="size-4" /> Скачать всё (ZIP)</a>
               <a href={file("block")} className="btn btn-outline btn-sm"><Download className="size-4" /> Блок</a>
               <a href={file("cover")} className="btn btn-outline btn-sm"><Download className="size-4" /> Обложка</a>
-              <a href={file("layout")} className="btn btn-outline btn-sm"><Download className="size-4" /> Каркас (корешок, размеры)</a>
+              <a href={file("layout")} className="btn btn-outline btn-sm"><Download className="size-4" /> Каркас обложки</a>
               <a href={file("spec")} className="btn btn-outline btn-sm"><Download className="size-4" /> Техзадание</a>
               <a href={file("reading")} className="btn btn-ghost btn-sm"><Download className="size-4" /> PDF для чтения</a>
               <GenerateButton orderId={order.id} hasFiles={!!spec} />

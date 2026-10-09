@@ -5,8 +5,8 @@ import { useMessages } from "@/i18n/client";
 import { CoverText } from "@/components/cover/CoverPreview";
 import { designBack } from "@/lib/book/cover-back";
 import { CoverBackLayer } from "@/components/cover/CoverBack";
+import { CoverSpineText } from "@/components/cover/CoverSpine";
 import { getCoverTemplate } from "@/lib/book/covers";
-import { cssFont } from "@/lib/book/fonts";
 import { getFormat } from "@/lib/book/formats";
 import {
   BOARD_MM,
@@ -23,7 +23,6 @@ import {
   READ_ZOOM,
   shadeOpacity,
   shortestDelta,
-  spineFontMm,
   TILT_LIMIT,
   VIEWS,
   ZOOM,
@@ -536,8 +535,6 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const { w: W, h: H, d: D } = dims;
   const bt = BOARD_MM;
   const strip: CSSProperties = { background: template.swatch, backgroundSize: "cover" };
-  const spineSize = spineFontMm(D);
-  const spineText = [data.cover.title || data.title, data.cover.names].filter(Boolean).join("   ·   ");
   const hinge = Math.min(14, W * 0.05);
   const hingePct = (hinge / W) * 100;
   const frontNode = (
@@ -563,14 +560,8 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const spineNode = (
     <>
       <div className="absolute inset-0" style={{ backgroundImage: art.spine, backgroundSize: "100% 100%" }} />
-      {spineSize && spineText ? (
-        // Размеры — в cqw от ширины самой грани (корешка): внутри грани единица --u уже не годится.
-        <div className="absolute top-1/2 left-1/2 flex items-center justify-center whitespace-nowrap" style={{ width: `${(H / D) * 100}cqw`, height: "100cqw", transform: "translate(-50%, -50%) rotate(-90deg)", fontFamily: cssFont(template.spine.font), fontWeight: 500, fontSize: `${(spineSize / D) * 100}cqw`, color: template.spine.color }}>
-          <span className="truncate" style={{ maxWidth: "92%" }}>
-            {spineText}
-          </span>
-        </div>
-      ) : null}
+      {/* Размеры — в cqw от ширины самой грани (корешка): внутри грани единица --u уже не годится. */}
+      <CoverSpineText template={template} title={data.cover.title || data.title} names={data.cover.names} widthMm={D} heightMm={H} />
       {/* Округлость корешка */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(90deg, rgba(0,0,0,.3), rgba(255,255,255,.1) 28%, rgba(255,255,255,0) 55%, rgba(0,0,0,.24))" }} />
     </>
