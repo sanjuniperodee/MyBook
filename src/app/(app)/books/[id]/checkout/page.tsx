@@ -13,10 +13,10 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine } from "@/lib/book/covers";
+import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { coverName, interiorName } from "@/i18n/labels";
-import { photoUrl } from "@/lib/urls";
+import { photoUrls } from "@/lib/urls";
 import { CheckoutForm } from "./CheckoutForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -52,7 +52,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             title={book.title}
             subtitle={book.subtitle}
             names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-            photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId) : undefined}
+            photos={photoUrls(coverPhotoIds(book))}
             lite
             className="rounded-[3px] shadow-book"
           />

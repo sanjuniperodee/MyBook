@@ -274,7 +274,7 @@ export default async function HomePage() {
           <div className="container-x">
             <div className="reveal mx-auto max-w-2xl text-center">
               <div className="eyebrow">{t.covers.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length)}</h2>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length, coverTemplates.filter((c) => c.requiresPhoto).length)}</h2>
               <p className="mt-4 text-muted">{t.covers.text}</p>
             </div>
             <div className="reveal-stagger mt-14 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">

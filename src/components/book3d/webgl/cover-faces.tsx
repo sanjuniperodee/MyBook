@@ -33,11 +33,11 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
   );
 }
 
-export function CoverBackFace({ art, design, photoUrl, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photoUrl?: string; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
+export function CoverBackFace({ art, design, photos, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photos?: (string | undefined)[]; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
-      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photoUrl={photoUrl} brand={brand} />
+      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photos={photos} brand={brand} />
     </div>
   );
 }

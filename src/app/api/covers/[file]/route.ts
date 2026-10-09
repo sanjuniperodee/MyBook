@@ -11,7 +11,7 @@ import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat } from "@/l
  * Сжимаем сами и держим готовые варианты в памяти: рисунки обложек — до 220 КБ SVG, а сжатие
  * Next к ответам обработчиков маршрутов из кэша не применяется.
  */
-const FILE = /^([a-z]+)-([a-z0-9]+)(-lite)?(-back)?\.svg$/;
+const FILE = /^([a-z]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.svg$/;
 /** Толщина книги для фона задней крышки в редакторе: от неё зависит только стык узора с корешком. */
 const PREVIEW_PAGES = 120;
 const cache = new Map<string, { raw: string; br: Buffer; gzip: Buffer }>();
@@ -27,7 +27,8 @@ function art(file: string) {
   if (m[4]) {
     // Задняя крышка — кусок развёртки: так её узор и повтор композиции лица такие же, как в печати.
     const g = coverSpreadGeometry(format, PREVIEW_PAGES);
-    raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!m[3] }), g.back!, { w: g.width, h: g.height });
+    // -backplain — без повтора композиции лица: под карточками «Полароидов» на обороте.
+    raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!m[3], plainBack: m[4] === "-backplain" }), g.back!, { w: g.width, h: g.height });
   } else raw = renderCoverSvg(template, coverFrontGeometry(format), { uid: `${template.id}${format.id}` }, { noTexture: !!m[3] });
   const entry = { raw, br: brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }), gzip: gzipSync(raw, { level: 9 }) };
   cache.set(file, entry);

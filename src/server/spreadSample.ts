@@ -7,6 +7,7 @@ import { getInteriorDesign } from "@/lib/book/interiors";
 import { buildBookContent, estimateChapterPages, textMetrics } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import type { SpreadSample } from "@/components/interior/InteriorSpread";
+import { photoUrl } from "@/lib/urls";
 
 /** Сколько текста первой главы показывать на развороте: страница всё равно обрезается по полосе набора. */
 const SAMPLE_CHARS = 1800;
@@ -19,6 +20,8 @@ export function bookSpreadSample(
   book: Parameters<typeof buildBookContent>[0],
   questions: Parameters<typeof buildBookContent>[1],
   dedicationPlaceholder: string,
+  /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
+  photos: { id: string; width: number; height: number; caption: string }[] = [],
 ): SpreadSample {
   const format = getFormat(book.format);
   const content = buildBookContent(book, questions, []);
@@ -69,5 +72,6 @@ export function bookSpreadSample(
     entries,
     toc,
     showToc: book.showToc,
+    photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
   };
 }

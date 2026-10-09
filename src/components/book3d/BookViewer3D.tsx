@@ -150,7 +150,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const mm = m.model;
   const format = getFormat(data.formatId);
   const template = getCoverTemplate(data.cover.template);
-  const { pageCount, brand, back, backPhotoUrl } = data.model;
+  const { pageCount, brand, back, backPhotos } = data.model;
   const { sheets, ctx, measure } = usePagedBook(data);
 
   const dims = useMemo(() => bookDims(format, pageCount), [format, pageCount]);
@@ -161,7 +161,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const M = Math.max(1, count - 2);
 
   // ── Арт обложки: лицо, оборот и корешок — отдельными обрезанными картинками ──
-  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, data.cover.photoUrl), [template, format, pageCount, dims, data.cover.photoUrl]);
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, data.cover.photos, backDesign.plainArt), [template, format, pageCount, dims, data.cover.photos, backDesign.plainArt]);
 
   // ── Состояние просмотра хранится вне React: каждый кадр обновляет стили напрямую ──
   const wrapper = useRef<HTMLDivElement>(null);
@@ -553,7 +553,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const backNode = (
     <>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
-      <CoverBackLayer design={backDesign} widthMm={dims.w} heightMm={dims.h} photoUrl={backPhotoUrl} brand={brand} />
+      <CoverBackLayer design={backDesign} widthMm={dims.w} heightMm={dims.h} photos={backPhotos} brand={brand} />
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, transparent calc(var(--sheen-b, 50%) - 14%), rgba(255,255,255,.14) var(--sheen-b, 50%), transparent calc(var(--sheen-b, 50%) + 14%))" }} />
     </>
   );

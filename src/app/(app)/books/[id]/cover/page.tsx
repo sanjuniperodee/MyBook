@@ -31,7 +31,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
         format={book.format}
         editable={book.status === "draft"}
         recipientLabel={theme.recipientLabel}
-        sample={bookSpreadSample(book, questions, m.books.pages.dedicationEmpty)}
+        sample={bookSpreadSample(book, questions, m.books.pages.dedicationEmpty, photos)}
         photos={photos.map((p) => ({ id: p.id, width: p.width, height: p.height }))}
         theme={book.theme}
         year={book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : new Date().getFullYear()}
@@ -45,7 +45,9 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           backText: book.backText,
           backLayout: isBackLayout(book.backLayout) ? book.backLayout : DEFAULT_BACK_LAYOUT,
           backPhotoId: book.backPhotoId,
+          backPhotoExtra: book.backPhotoExtra,
           coverPhotoId: book.coverPhotoId,
+          coverPhotoExtra: book.coverPhotoExtra,
           interior: book.interior,
         }}
       />

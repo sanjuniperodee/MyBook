@@ -8,6 +8,7 @@ import { interiorMetrics, openerFlow, pageBox, photoPages, type BookContent, typ
 import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import { chapterMark, DISPLAY_TOP, interiorSizes, splitLeadIn, trackingPt, VIGNETTE_RULE, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing } from "@/lib/book/interior-art";
+import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { PdfDrawing, PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
 import { site } from "@/config/site";
@@ -237,15 +238,32 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   }
 
   // ── Начальная полоса главы ──
-  const opener = (key: string, number: number | null, title: string, epigraph?: string) => {
+  const opener = (key: string, number: number | null, title: string, epigraph?: string, photo?: PhotoItem) => {
     const { fill, align, art } = design.opener;
     const colors = fill ?? P;
     const mark = number ? chapterMark(design, number, t.chapter) : null;
     const textAlign = align === "left" ? "left" : "center";
     const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : [];
+    // Глава открывается своим снимком (opener.photo): фото сверху, название — ниже него.
+    const img = photo ? options.images.get(photo.id) : undefined;
+    const shot = img ? openerPhotoPlan(format, design, metrics) : null;
+    const imgStyle = (r: { x: number; y: number; w: number; h: number }) => ({ position: "absolute" as const, left: mm(B + r.x), top: mm(B + r.y), width: mm(r.w), height: mm(r.h) });
     return (
       <Page key={`open-${key}`} size={pageSize} style={{ ...pagePadding, backgroundColor: fill?.paper ?? "#FFFFFF" }}>
         <PdfPageLayer shapes={[...artShapes, ...frameShapes(design.frame, box, colors)]} box={box} />
+        {shot && img ? (
+          <>
+            <PdfPageLayer shapes={shot.under} box={box} />
+            {shot.card ? (
+              <View style={{ ...imgStyle(shot.card), backgroundColor: "#FFFFFF", borderWidth: 0.4, borderColor: "#E3DBD0", paddingTop: mm(shot.img.y - shot.card.y), paddingLeft: mm(shot.img.x - shot.card.x), transform: `rotate(${shot.card.rotate}deg)` }}>
+                <Image src={{ data: img.data, format: "jpg" }} style={{ width: mm(shot.img.w), height: mm(shot.img.h) }} />
+              </View>
+            ) : (
+              <Image src={{ data: img.data, format: "jpg" }} style={imgStyle(shot.img)} />
+            )}
+            <PdfPageLayer shapes={shot.over} box={box} />
+          </>
+        ) : null}
         {watermark}
         <Text
           style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? "#FFFFFF" }}
@@ -276,13 +294,20 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
               <Text style={{ ...italicBody, fontSize: S.epigraph, lineHeight: 1.55, textAlign, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</Text>
             ) : null}
           </>,
-          design.opener.top,
+          shot?.textTop ?? design.opener.top,
           align,
         )}
       </Page>
     );
   };
 
+  // ── Фотостраница: места, рамки и подписи — из photo-pages (та же раскладка у превью и у подготовки снимков) ──
+  const area = photoArea(format, metrics);
+  const captionStyle = (size: number): Style => {
+    if (design.photos.caption === "hand") return { ...face("caveat", 500), fontSize: size, lineHeight: 1.15, color: P.ink };
+    if (design.photos.caption === "label") return { ...label(P.muted, size), lineHeight: 1.3 };
+    return { ...italicBody, fontSize: size, lineHeight: 1.3, color: P.muted };
+  };
   const photoPage = (group: PhotoItem[], key: string) => {
     if (group.length === 1 && group[0].layout === "bleed") {
       const img = options.images.get(group[0].id);
@@ -293,28 +318,26 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         </Page>
       );
     }
-    const half = group.length > 1 || group[0].layout === "half";
+    const plan = photoPagePlan(group, area, design, S);
     return (
-      <Page key={key} size={pageSize} style={pagePadding}>
+      <Page key={key} size={pageSize} style={{ backgroundColor: "#FFFFFF" }}>
+        <PdfPageLayer shapes={plan.under} box={box} />
+        {plan.cells.map((c) => {
+          const img = options.images.get(c.id);
+          return img ? <Image key={c.id} src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", left: mm(B + c.img.x), top: mm(B + c.img.y), width: mm(c.img.w), height: mm(c.img.h) }} /> : null;
+        })}
+        <PdfPageLayer shapes={plan.over} box={box} />
+        {plan.cells.map((c) =>
+          c.caption ? (
+            <Text
+              key={`cap-${c.id}`}
+              style={{ ...captionStyle(c.caption.size), position: "absolute", left: mm(B + c.caption.box.x), top: mm(B + c.caption.box.y), width: mm(c.caption.box.w), textAlign: "center", maxLines: c.caption.inside ? 1 : 3, textOverflow: "ellipsis" }}
+            >
+              {c.caption.text}
+            </Text>
+          ) : null,
+        )}
         {watermark}
-        <View style={{ flexGrow: 1, justifyContent: half ? "space-around" : "center" }}>
-          {group.map((p) => {
-            const img = options.images.get(p.id);
-            return (
-              <View key={p.id} style={{ alignItems: "center", flexGrow: half ? 0 : 1, justifyContent: "center", height: half ? "47%" : undefined }}>
-                {img ? (
-                  <Image
-                    src={{ data: img.data, format: "jpg" }}
-                    style={{ maxWidth: "100%", maxHeight: p.caption ? "88%" : "100%", objectFit: "contain" }}
-                  />
-                ) : null}
-                {p.caption ? (
-                  <Text style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: 8 }}>{p.caption}</Text>
-                ) : null}
-              </View>
-            );
-          })}
-        </View>
       </Page>
     );
   };
@@ -431,7 +454,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   // ── Главы ──
   for (const ch of content.chapters) {
-    pages.push(opener(ch.key, ch.number, ch.title, ch.epigraph));
+    pages.push(opener(ch.key, ch.number, ch.title, ch.epigraph, ch.openerPhoto));
     if (ch.items.length) {
       pages.push(
         <Page key={`body-${ch.key}`} size={pageSize} style={pagePadding} wrap>

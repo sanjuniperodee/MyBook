@@ -1,4 +1,4 @@
-import { getCoverTemplate } from "@/lib/book/covers";
+import { coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
 import { getFormat, print } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
 import type { BookStats } from "./stats";
@@ -11,8 +11,8 @@ export interface ReadinessIssue {
   href?: string;
 }
 
-type ReadinessBook = { id: string; coverTemplate: string; coverPhotoId: string | null; authorName: string; format: string };
-type ReadinessPhoto = { width: number; height: number; layout: "full" | "bleed" | "half" };
+type ReadinessBook = { id: string; coverTemplate: string; coverPhotoId: string | null; coverPhotoExtra: string[]; authorName: string; format: string };
+type ReadinessPhoto = { width: number; height: number; layout: "full" | "bleed" | "half" | "grid" };
 
 /** Готова ли книга к печати: ошибки блокируют заказ, предупреждения — подсказки. */
 export function checkReadiness(book: ReadinessBook, stats: BookStats, photos: ReadinessPhoto[], locale: Locale = "ru"): ReadinessIssue[] {
@@ -20,8 +20,10 @@ export function checkReadiness(book: ReadinessBook, stats: BookStats, photos: Re
   const issues: ReadinessIssue[] = [];
   const base = `/books/${book.id}`;
   if (stats.answered === 0) issues.push({ level: "error", text: t.noAnswers, href: `${base}/questions` });
-  if (getCoverTemplate(book.coverTemplate).requiresPhoto && !book.coverPhotoId)
-    issues.push({ level: "error", text: t.coverPhoto, href: `${base}/cover` });
+  const template = getCoverTemplate(book.coverTemplate);
+  const slots = coverPhotoSlots(template);
+  const chosen = [book.coverPhotoId, ...book.coverPhotoExtra.slice(0, slots - 1)].filter(Boolean).length;
+  if (slots && chosen < slots) issues.push({ level: "error", text: t.coverPhoto(messagesFor(locale).catalog.covers[template.id] ?? template.id, slots), href: `${base}/cover` });
   if (!book.authorName.trim()) issues.push({ level: "warning", text: t.authorName, href: `${base}/cover` });
   if (stats.answered > 0 && stats.answered < 10)
     issues.push({ level: "warning", text: t.short(stats.answered), href: `${base}/questions` });

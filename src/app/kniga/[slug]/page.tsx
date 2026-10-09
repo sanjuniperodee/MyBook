@@ -163,7 +163,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               <div className="eyebrow">{t.how.eyebrow}</div>
               <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight">{sp.howTitle}</h2>
               <ol className="mt-8 space-y-5">
-                {sp.howSteps(coverTemplates.filter((x) => !x.requiresPhoto).length).map((step, i) => (
+                {sp.howSteps(coverTemplates.length).map((step, i) => (
                   <li key={step} className="flex gap-4">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-wine font-serif text-white">{i + 1}</span>
                     <span className="pt-1 leading-relaxed text-ink-soft">{step}</span>

@@ -3,6 +3,8 @@ export const book = {
   chapter: (n: number) => `Глава ${n}`,
   toc: "Содержание",
   gallery: "Наши моменты",
+  /** Подписи к фото-примерам в выборе оформления. */
+  samplePhotos: ["Наше первое лето", "Тот самый день", "Просто мы"],
   misc: "Разное",
   letters: { title: "Письма близких", epigraph: "Слова тех, кто любит вас" },
   copyright: (year: number, author: string) => `© ${year}${author ? ` ${author}` : ""}. Все права защищены.`,

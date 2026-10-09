@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ id: string; pid: string }> };
 const schema = z
   .object({
     caption: z.string().trim().max(200),
-    layout: z.enum(["full", "bleed", "half"]),
+    layout: z.enum(["full", "bleed", "half", "grid"]),
     questionId: z.string().uuid().nullable(),
     inline: z
       .object({

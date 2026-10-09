@@ -4,6 +4,7 @@ export const book: typeof ru = {
   chapter: (n: number) => `${n}-тарау`,
   toc: "Мазмұны",
   gallery: "Біздің сәттеріміз",
+  samplePhotos: ["Алғашқы жазымыз", "Сол бір күн", "Жай ғана біз"],
   misc: "Әртүрлі",
   letters: { title: "Жақындардың хаттары", epigraph: "Сізді жақсы көретіндердің сөздері" },
   copyright: (year: number, author: string) => `© ${year}${author ? ` ${author}` : ""}. Барлық құқықтар қорғалған.`,

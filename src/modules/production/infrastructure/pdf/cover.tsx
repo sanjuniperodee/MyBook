@@ -59,8 +59,8 @@ export function CoverDocument({
   geometry: CoverGeometry;
   background: Buffer;
   text: CoverTextContent;
-  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и фото для варианта «Фото». */
-  back: { design: BackDesign; photo: Buffer | null };
+  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и её фото по порядку. */
+  back: { design: BackDesign; photos: (Buffer | null)[] };
   title: string;
   language: Locale;
 }) {
@@ -130,14 +130,14 @@ export function CoverDocument({
         ) : null}
 
         {/* Задняя сторона */}
-        {g.back ? <BackSide rect={g.back} design={back.design} photo={back.photo} /> : null}
+        {g.back ? <BackSide rect={g.back} design={back.design} photos={back.photos} /> : null}
       </Page>
     </Document>
   );
 }
 
 /** Задняя крышка по раскладке из cover-back: те же блоки рисуют 3D-книга и превью в редакторе. */
-function BackSide({ rect, design, photo }: { rect: { x: number; y: number; w: number; h: number }; design: BackDesign; photo: Buffer | null }) {
+function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: number; h: number }; design: BackDesign; photos: (Buffer | null)[] }) {
   return (
     <>
       {design.blocks.map((b, i) => {
@@ -168,11 +168,30 @@ function BackSide({ rect, design, photo }: { rect: { x: number; y: number; w: nu
               <CoverOrnament kind={b.ornament} color={b.color} size={mm(b.w)} />
             </View>
           );
+        // Фото «во всю» и затемнение нарисованы в фоне развёртки (backArtSvg): здесь только карточки и текст.
+        if (b.kind === "shade" || b.frame === "bleed") return null;
+        const photo = photos[b.slot];
         if (!photo) return null;
+        // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt
+        const img = <Image src={{ data: photo, format: "jpg" }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+        const polaroid = b.frame === "polaroid";
         return (
-          <View key={i} style={{ ...box, height: mm(b.h), backgroundColor: "#FFFFFF", padding: mm(b.mat), borderWidth: 0.3, borderColor: "#00000022" }}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */}
-            <Image src={{ data: photo, format: "jpg" }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <View
+            key={i}
+            style={{
+              ...box,
+              height: mm(b.h),
+              backgroundColor: "#FFFFFF",
+              paddingTop: mm(b.mat),
+              paddingLeft: mm(b.mat),
+              paddingRight: mm(b.mat),
+              paddingBottom: mm(polaroid ? (b.matBottom ?? b.mat) : b.mat),
+              borderWidth: 0.3,
+              borderColor: "#00000022",
+              transform: b.rotate ? `rotate(${b.rotate}deg)` : undefined,
+            }}
+          >
+            {img}
           </View>
         );
       })}

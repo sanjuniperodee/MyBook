@@ -3,8 +3,8 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { getTheme } from "@/lib/content/themes";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
+import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { photoUrls } from "@/lib/urls";
 import { container } from "@/server/container";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
@@ -35,7 +35,7 @@ export default async function BookLayout({ children, params }: { children: React
                 format={book.format}
                 title={book.title}
                 names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-                photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId) : undefined}
+                photos={photoUrls(coverPhotoIds(book))}
                 lite
                 className="rounded-[2px] shadow-sm"
               />

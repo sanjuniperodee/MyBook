@@ -23,6 +23,8 @@ import {
   type TextFace,
 } from "@/lib/book/interiors";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Drawing, type Shape } from "@/lib/book/interior-art";
+import { samplePhotoUrl } from "@/lib/book/cover-kit";
+import { openerPhotoPlan, OPENER_POLAROID_RATIO, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/utils";
 import type { PageUnits } from "./units";
 
@@ -298,21 +300,53 @@ function Placed({ top, align = "center", children }: { top: number; align?: "cen
 
 const frame = (kit: PageKit, colors: InteriorPalette) => frameShapes(kit.design.frame, pageBox(kit.format, 0), colors);
 
-/** Начальная полоса главы: номер, название, виньетка, эпиграф и рисунок дизайна. */
-export function OpenerPage({ kit, number, title, epigraph, className, style }: PageProps & { number: number | null; title: string; epigraph?: string }) {
+/** Снимок на странице (мм обрезного формата): фото клиента или пейзаж-заглушка. */
+function PageImage({ kit, rect, url, scene, ratio }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; ratio: number }) {
+  const { u } = kit;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- фото клиента и заглушки-SVG: next/image здесь не нужен
+    <img
+      src={url ?? samplePhotoUrl(scene, ratio)}
+      alt=""
+      draggable={false}
+      className="absolute block object-cover"
+      style={{ left: u.mm(rect.x), top: u.mm(rect.y), width: u.mm(rect.w), height: u.mm(rect.h) }}
+    />
+  );
+}
+
+/**
+ * Начальная полоса главы: номер, название, виньетка, эпиграф и рисунок дизайна. photo — снимок главы
+ * в оформлениях, где глава открывается фото (без url — пейзаж-заглушка для примеров).
+ */
+export function OpenerPage({ kit, number, title, epigraph, photo, className, style }: PageProps & { number: number | null; title: string; epigraph?: string; photo?: { url?: string } }) {
   const { design, format, sizes: S, u } = kit;
   const { fill, align, art } = design.opener;
   const colors = fill ?? design.palette;
   const flow = openerFlow(format, design);
   const mark = number ? chapterMark(design, number, messagesFor(kit.language).book.chapter) : null;
+  const shot = photo ? openerPhotoPlan(format, design, metricsOf(kit)) : null;
   const shapes = [
     ...(art ? openerArtShapes(art, { w: format.widthMm, h: format.heightMm, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : []),
     ...frame(kit, colors),
+    ...(shot?.under ?? []),
   ];
+  const scene = number ?? 0;
   return (
     <Sheet kit={kit} paper={fill?.paper} shapes={shapes} className={className} style={style}>
+      {shot?.card ? (
+        <div
+          className="absolute bg-white"
+          style={{ left: u.mm(shot.card.x), top: u.mm(shot.card.y), width: u.mm(shot.card.w), height: u.mm(shot.card.h), border: `${u.pt(0.4)} solid #E3DBD0`, transform: `rotate(${shot.card.rotate}deg)` }}
+        >
+          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - 0.14, y: shot.img.y - shot.card.y - 0.14, w: shot.img.w, h: shot.img.h }} url={photo?.url} scene={scene} ratio={OPENER_POLAROID_RATIO} />
+        </div>
+      ) : shot ? (
+        <PageImage kit={kit} rect={shot.img} url={photo?.url} scene={scene} ratio={shot.img.w / shot.img.h} />
+      ) : null}
+      {shot ? <PageLayer shapes={shot.over} format={format} /> : null}
       <TextArea kit={kit} className="flex flex-col">
-        <Placed top={design.opener.top} align={align}>
+        <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           {mark?.kind === "label" ? (
             <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: 1.2 } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>
           ) : null}
@@ -324,6 +358,49 @@ export function OpenerPage({ kit, number, title, epigraph, className, style }: P
           {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: 1.55, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</div> : null}
         </Placed>
       </TextArea>
+    </Sheet>
+  );
+}
+
+export interface PagePhoto {
+  id: string;
+  /** Адрес снимка; без него — пейзаж-заглушка (примеры в выборе оформления). */
+  url?: string;
+  width: number;
+  height: number;
+  caption: string;
+  layout: "full" | "bleed" | "half" | "grid";
+}
+
+/** Фотостраница: снимки, рамки и подписи по раскладке photo-pages — как в PDF. */
+export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProps & { photos: PagePhoto[]; /** С какого пейзажа-заглушки начинать. */ scene?: number }) {
+  const { design, format, sizes: S, u } = kit;
+  const P = design.palette;
+  const plan = photoPagePlan(photos, photoArea(format, metricsOf(kit)), design, S);
+  const caption = (size: number): CSSProperties =>
+    design.photos.caption === "hand"
+      ? { fontFamily: cssFont("caveat"), fontWeight: 500, fontSize: u.pt(size), lineHeight: 1.15, color: P.ink }
+      : design.photos.caption === "label"
+        ? { ...labelCss(kit, P.muted, size), lineHeight: 1.3 }
+        : { ...italicBody(kit, size), lineHeight: 1.3, color: P.muted };
+  return (
+    <Sheet kit={kit} shapes={plan.under} className={className} style={style}>
+      {plan.cells.map((c, i) => {
+        const p = photos.find((x) => x.id === c.id)!;
+        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} ratio={c.img.w / c.img.h} />;
+      })}
+      <PageLayer shapes={plan.over} format={format} />
+      {plan.cells.map((c) =>
+        c.caption ? (
+          <div
+            key={`cap-${c.id}`}
+            className={cn("absolute text-center", c.caption.inside ? "truncate" : "line-clamp-3")}
+            style={{ ...caption(c.caption.size), left: u.mm(c.caption.box.x), top: u.mm(c.caption.box.y), width: u.mm(c.caption.box.w) }}
+          >
+            {c.caption.text}
+          </div>
+        ) : null,
+      )}
     </Sheet>
   );
 }

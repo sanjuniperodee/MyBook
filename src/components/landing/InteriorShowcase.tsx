@@ -8,7 +8,7 @@ import { formats } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, type InteriorDesign, type InteriorId } from "@/lib/book/interiors";
 import { cn } from "@/lib/utils";
 
-const spreads: SpreadKind[] = ["chapter", "front", "toc"];
+const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
 
 /** С чего начинаем показ: самые выразительные начальные полосы. */
 const TOUR: InteriorId[] = ["oyu", "stars", "romance", "mountains", "editorial", "shanyrak", "watercolor", "deco", "confetti", "album"];

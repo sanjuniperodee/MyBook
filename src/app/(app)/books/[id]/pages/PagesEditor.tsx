@@ -21,7 +21,7 @@ export interface PagesState {
 
 type Filter = InteriorMood | "all" | "cover";
 
-const spreads: SpreadKind[] = ["chapter", "front", "toc"];
+const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
 
 /**
  * Оформление страниц — как выбор обложки: слева большой разворот книги клиента в выбранном

@@ -16,8 +16,8 @@ import { canReview, THANK_YOU } from "@/modules/feedback";
 import { REFERRAL } from "@/modules/referrals";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
+import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { photoUrls } from "@/lib/urls";
 import { cn, formatDate } from "@/lib/utils";
 import type { OrderStatus } from "@/modules/ordering/domain";
 import { PaymentBlock } from "./PaymentBlock";
@@ -204,7 +204,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 title={book.title}
                 subtitle={book.subtitle}
                 names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-                photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId) : undefined}
+                photos={photoUrls(coverPhotoIds(book))}
                 className="rounded-[3px] shadow-book"
               />
             </div>

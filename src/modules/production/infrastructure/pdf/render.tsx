@@ -5,7 +5,7 @@ import { PDFDocument, rgb } from "pdf-lib";
 import sharp from "sharp";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
-import { coverNamesLine, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverNamesLine, coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
@@ -17,10 +17,12 @@ import {
   spineWidthMm,
   type CoverGeometry,
 } from "@/lib/book/formats";
-import { buildBookContent, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { buildBookContent, interiorMetrics, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { interiorSizes } from "@/lib/book/interiors";
+import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
-import { backContent, designBack } from "@/lib/book/cover-back";
+import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
@@ -45,23 +47,29 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
   const { dpi, source } = modeSettings[mode];
   const inlineIds = new Set(content.chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
   const all: PhotoItem[] = [
-    ...content.chapters.flatMap((c) => [...c.photos, ...c.items.flatMap((it) => it.photos ?? [])]),
+    ...content.chapters.flatMap((c) => [...(c.openerPhoto ? [c.openerPhoto] : []), ...c.photos, ...c.items.flatMap((it) => it.photos ?? [])]),
     ...content.galleryPhotos,
   ];
   const pxPerMm = dpi / 25.4;
   const result = new Map<string, PreparedImage>();
-  const halves = new Set(
-    [...content.chapters.map((c) => c.photos), content.galleryPhotos]
-      .flatMap((list) => photoPages(list))
-      .filter((g) => g.length > 1)
-      .flat()
-      .map((p) => p.id),
-  );
+  const openerIds = new Set(content.chapters.flatMap((c) => (c.openerPhoto ? [c.openerPhoto.id] : [])));
+  const openerShot = openerPhotoPlan(content.format, content.interior, interiorMetrics[content.format.id]);
+  // Места на фотостраницах — по той же раскладке, что и в вёрстке: снимок готовим ровно под своё место.
+  const area = photoArea(content.format, interiorMetrics[content.format.id]);
+  const sizes = interiorSizes(content.interior, interiorMetrics[content.format.id].scale);
+  const cells = new Map<string, PhotoCell>();
+  for (const list of [...content.chapters.map((c) => c.photos), content.galleryPhotos])
+    for (const group of photoPages(list))
+      if (!(group.length === 1 && group[0].layout === "bleed")) for (const c of photoPagePlan(group, area, content.interior, sizes).cells) cells.set(c.id, c);
   await Promise.all(
     all.map(async (p) => {
       const input = await getFile(source === "full" ? p.storageKey : p.thumbKey);
       let img = sharp(input);
-      if (p.layout === "bleed") {
+      const cell = cells.get(p.id);
+      if (openerShot && openerIds.has(p.id)) {
+        // Снимок начальной полосы: кадр по месту с учётом содержимого.
+        img = img.resize(Math.round(openerShot.img.w * pxPerMm), Math.round(openerShot.img.h * pxPerMm), { fit: "cover", position: sharp.strategy.attention });
+      } else if (p.layout === "bleed" && !inlineIds.has(p.id)) {
         const w = Math.round((content.format.widthMm + bleedMm * 2) * pxPerMm);
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);
         img = img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
@@ -72,10 +80,13 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
         const src = { width: meta.width ?? p.width, height: meta.height ?? p.height };
         const text = textArea(content.format);
         const box = inlineBox(src, style, text.w, text.h);
-        img = img.extract(cropRect(src, style)).resize(Math.round(box.w * pxPerMm), Math.round(box.h * pxPerMm), { fit: "fill", withoutEnlargement: true });
+        img = sharp(input).extract(cropRect(src, style)).resize(Math.round(box.w * pxPerMm), Math.round(box.h * pxPerMm), { fit: "fill", withoutEnlargement: true });
+      } else if (cell) {
+        // Сетка — кадр по месту с учётом содержимого снимка; целиком — те же пропорции, просто нужный размер.
+        img = img.resize(Math.max(1, Math.round(cell.img.w * pxPerMm)), Math.max(1, Math.round(cell.img.h * pxPerMm)), { fit: "cover", position: cell.fit === "cover" ? sharp.strategy.attention : "centre" });
       } else {
-        const area = photoAreaMm(content.format, halves.has(p.id) ? "half" : p.layout === "half" ? "half" : "full");
-        img = img.resize(Math.round(area.w * pxPerMm), Math.round(area.h * pxPerMm), { fit: "inside", withoutEnlargement: true });
+        const a = photoAreaMm(content.format, "full");
+        img = img.resize(Math.round(a.w * pxPerMm), Math.round(a.h * pxPerMm), { fit: "inside", withoutEnlargement: true });
       }
       const { data, info } = await img.jpeg({ quality: mode === "preview" ? 75 : 90 }).toBuffer({ resolveWithObject: true });
       result.set(p.id, { data, width: info.width, height: info.height });
@@ -158,17 +169,28 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode): Prom
   return { pdf, pageCount, contentPages };
 }
 
-async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi: number, source: "full" | "thumb") {
+/** Фото для рисунка обложки: data-URL, ужатый до разумного размера (librsvg держит его в памяти целиком). */
+async function coverPhotoHref(p: Photo, source: "full" | "thumb") {
+  const buf = await getFile(source === "full" ? p.storageKey : p.thumbKey);
+  const data = source === "full" ? await sharp(buf).resize(3200, 3200, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 92 }).toBuffer() : buf;
+  return `data:image/jpeg;base64,${data.toString("base64")}`;
+}
+
+async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi: number, source: "full" | "thumb", back: { design: BackDesign; photos: Photo[] }) {
   const template = getCoverTemplate(bundle.book.coverTemplate);
-  let photoHref: string | undefined;
-  if (template.requiresPhoto && bundle.book.coverPhotoId) {
-    const p = bundle.photos.find((x) => x.id === bundle.book.coverPhotoId);
-    if (p) {
-      const buf = await getFile(source === "full" ? p.storageKey : p.thumbKey);
-      photoHref = `data:image/jpeg;base64,${buf.toString("base64")}`;
-    }
+  const photos = await Promise.all(
+    coverPhotoIds(bundle.book).map((id) => {
+      const p = id ? bundle.photos.find((x) => x.id === id) : undefined;
+      return p ? coverPhotoHref(p, source) : undefined;
+    }),
+  );
+  let svg = renderCoverSvg(template, geometry, { uid: "c", photos }, { pxPerMm: dpi / 25.4, noTexture: true, plainBack: back.design.plainArt });
+  // Фото оборота «во всю», затемнение и тени под карточками — частью рисунка развёртки.
+  if (geometry.back) {
+    const bleed = new Set(back.design.blocks.flatMap((b) => (b.kind === "photo" && b.frame === "bleed" ? [b.slot] : [])));
+    const hrefs = await Promise.all(back.photos.map((p, i) => (bleed.has(i) ? coverPhotoHref(p, source) : undefined)));
+    svg = svg.replace(/<\/svg>$/, `${backArtSvg(back.design, geometry.back, hrefs, "cb")}</svg>`);
   }
-  const svg = renderCoverSvg(template, geometry, { uid: "c", photoHref }, { pxPerMm: dpi / 25.4, noTexture: true });
   const base = await sharp(Buffer.from(svg), { limitInputPixels: false, density: 72 }).flatten({ background: "#ffffff" }).png({ compressionLevel: 1 }).toBuffer({ resolveWithObject: true });
   let img = sharp(base.data, { limitInputPixels: false });
   if (template.texture) {
@@ -211,14 +233,15 @@ async function textureLayer(kind: "grain" | "linen", opacity: number, width: num
     .toBuffer();
 }
 
-/** Задняя сторона: раскладка и, для варианта «Фото», сам снимок. */
+/** Задняя сторона: раскладка и снимки, которые на ней стоят (по порядку мест). Фото «во всю» рисуется в фоне. */
 async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "full" | "thumb") {
   const template = getCoverTemplate(bundle.book.coverTemplate);
-  const p = bundle.book.backPhotoId ? bundle.photos.find((x) => x.id === bundle.book.backPhotoId) : undefined;
+  const list = backPhotoIds(bundle.book).flatMap((id) => bundle.photos.filter((x) => x.id === id));
   const b = geometry.back ?? { w: geometry.front.w, h: geometry.front.h };
-  const design = designBack(template, b.w, b.h, backContent(bundle.book, p ? { width: p.width, height: p.height } : null, new Date()));
-  const photo = p && design.blocks.some((x) => x.kind === "photo") ? await getFile(source === "full" ? p.storageKey : p.thumbKey) : null;
-  return { design, photo };
+  const design = designBack(template, b.w, b.h, backContent(bundle.book, list.map((p) => ({ width: p.width, height: p.height })), new Date()));
+  const cards = new Set(design.blocks.flatMap((x) => (x.kind === "photo" && x.frame !== "bleed" ? [x.slot] : [])));
+  const buffers = await Promise.all(list.map((p, i) => (cards.has(i) ? getFile(source === "full" ? p.storageKey : p.thumbKey) : null)));
+  return { design, photos: list, buffers };
 }
 
 export function coverText(book: Book) {
@@ -235,11 +258,11 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const format = getFormat(bundle.book.format);
   const geometry = frontOnly ? coverFrontGeometry(format) : coverSpreadGeometry(format, pageCount);
   const { dpi, source } = modeSettings[mode];
-  const background = await coverBackground(bundle, geometry, dpi, source);
+  const back = await backSide(bundle, geometry, source);
+  const background = await coverBackground(bundle, geometry, dpi, source, back);
   const template = getCoverTemplate(bundle.book.coverTemplate);
   const text = coverText(bundle.book);
-  const back = await backSide(bundle, geometry, source);
-  const pdf = await renderToBuffer(<CoverDocument template={template} geometry={geometry} background={background} text={text} back={back} title={text.title} language={bundle.book.language} />);
+  const pdf = await renderToBuffer(<CoverDocument template={template} geometry={geometry} background={background} text={text} back={{ design: back.design, photos: back.buffers }} title={text.title} language={bundle.book.language} />);
   return { pdf: Buffer.from(pdf), geometry };
 }
 

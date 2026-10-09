@@ -15,12 +15,15 @@ export interface CoverArt {
   spine: string;
 }
 
-/** Арт обложки по сторонам: из одной развёртки, обрезанной под лицо, оборот и корешок. photoHref — data-URL фото клиента. */
-export function buildCoverArt(template: CoverTemplate, format: BookFormat, pageCount: number, dims: BookDims, photoHref?: string): CoverArt {
+/**
+ * Арт обложки по сторонам: из одной развёртки, обрезанной под лицо, оборот и корешок. photos — data-URL фото клиента
+ * по местам шаблона; plainBack — оборот без повтора композиции лица (под «Полароидами»).
+ */
+export function buildCoverArt(template: CoverTemplate, format: BookFormat, pageCount: number, dims: BookDims, photos?: (string | undefined)[], plainBack = false): CoverArt {
   const g = coverSpreadGeometry(format, pageCount);
   const uid = `bo${template.id}${format.id}`;
-  const flat = renderCoverSvg(template, g, { uid });
-  const photo = template.requiresPhoto && photoHref ? renderCoverSvg(template, g, { uid: `${uid}p`, photoHref }) : null;
+  const flat = renderCoverSvg(template, g, { uid }, { plainBack });
+  const photo = template.requiresPhoto && photos?.some(Boolean) ? renderCoverSvg(template, g, { uid: `${uid}p`, photos }) : null;
   const { front, back, spine } = dims.rects;
   return {
     frontInline: photo ? cropSvg(photo, front, dims.spread) : null,

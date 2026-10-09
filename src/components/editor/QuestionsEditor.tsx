@@ -60,7 +60,7 @@ export interface EditorPhoto {
   width: number;
   height: number;
   caption: string;
-  layout: "full" | "bleed" | "half";
+  layout: "full" | "bleed" | "half" | "grid";
   questionId: string | null;
   inline?: InlinePhotoStyle | null;
   /** Счётчик поворотов — сбрасывает кэш картинки в браузере. */
@@ -260,10 +260,13 @@ export function QuestionsEditor({
     const loose = photos.filter((p) => !p.questionId).map((p) => ({ ...p, storageKey: "", thumbKey: "" }));
     const toGallery = book.photoPlacement === "end" || !chapters.length;
     if (!toGallery) loose.forEach((p, i) => chapters[Math.min(chapters.length - 1, Math.floor((i * chapters.length) / loose.length))].photos.push(p));
+    const interior = getInteriorDesign(book.interior);
+    // Как в buildBookContent: в оформлениях с фото в начале главы первое фото главы уходит на её начальную полосу.
+    if (interior.opener.photo) for (const ch of chapters) ch.openerPhoto = ch.photos.shift();
     const content: BookContent = {
       language: book.language,
       format,
-      interior: getInteriorDesign(book.interior),
+      interior,
       title: book.title,
       subtitle: "",
       authorName: "",

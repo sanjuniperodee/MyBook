@@ -10,7 +10,8 @@ export interface CoverPreviewProps {
   title: string;
   subtitle?: string;
   names?: string;
-  photoUrl?: string;
+  /** Фото клиента по местам шаблона (для обложек с фото); пустое место — пейзаж-заглушка. */
+  photos?: (string | undefined)[];
   className?: string;
   uid?: string;
   /** Без фактуры — быстрее для множества мелких превью. */
@@ -81,12 +82,12 @@ export function CoverText({ template, title, subtitle, names, titlePlaceholder =
   );
 }
 
-export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photoUrl, className, uid, lite, priority, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
+export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photos, className, uid, lite, priority, titlePlaceholder = "…", photoHint }: CoverPreviewProps) {
   const template = getCoverTemplate(templateId);
   const format = getFormat(formatId);
   // Фон — кэшируемая картинка; встраивать SVG нужно только обложке с фото клиента (картинка-SVG не грузит чужие файлы).
-  const inline = template.requiresPhoto && !!photoUrl;
-  const svg = inline ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photoHref: photoUrl }, { noTexture: lite }) : null;
+  const hasPhoto = !!template.requiresPhoto && !!photos?.some(Boolean);
+  const svg = hasPhoto ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photos }, { noTexture: lite }) : null;
 
   return (
     <div
@@ -108,8 +109,10 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
           className="absolute inset-0 h-full w-full"
         />
       )}
-      {template.requiresPhoto && !photoUrl && photoHint ? (
-        <div className="absolute inset-x-0 top-[28%] text-center text-[4cqw] text-white/80">{photoHint}</div>
+      {template.requiresPhoto && !hasPhoto && photoHint ? (
+        <div className="absolute inset-x-0 top-[3%] flex justify-center">
+          <span className="rounded-full bg-black/45 px-[3cqw] py-[1cqw] text-[3.2cqw] text-white backdrop-blur-sm">{photoHint}</span>
+        </div>
       ) : null}
       <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />
     </div>

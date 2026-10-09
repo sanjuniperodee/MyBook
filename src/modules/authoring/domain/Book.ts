@@ -10,6 +10,9 @@ import { AuthoringEvents, type BookRef } from "./events";
 
 export type Gender = "m" | "f";
 
+/** Сколько дополнительных мест под фото бывает у обложки или оборота (коллаж из пяти — с запасом). */
+export const MAX_EXTRA_PHOTOS = 5;
+
 export interface BookProps {
   userId: string;
   theme: string;
@@ -23,10 +26,14 @@ export interface BookProps {
   hideRecipientOnCover: boolean;
   coverTemplate: string;
   coverPhotoId: string | null;
+  /** Остальные снимки обложек на несколько фото, по порядку мест (первое — coverPhotoId). */
+  coverPhotoExtra: string[];
   backText: string;
   /** Вариант задней стороны: цитата, письмо, фото или лаконично (src/lib/book/cover-back.ts). */
   backLayout: string;
   backPhotoId: string | null;
+  /** Остальные снимки оборота «Полароиды» (первый — backPhotoId). */
+  backPhotoExtra: string[];
   dedication: string;
   interior: string;
   format: string;
@@ -100,9 +107,11 @@ export class Book extends AggregateRoot<BookProps> {
       hideRecipientOnCover: false,
       coverTemplate: theme.defaultCover,
       coverPhotoId: null,
+      coverPhotoExtra: [],
       backText: "",
       backLayout: DEFAULT_BACK_LAYOUT,
       backPhotoId: null,
+      backPhotoExtra: [],
       dedication: "",
       interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       format: "a5",
@@ -138,6 +147,12 @@ export class Book extends AggregateRoot<BookProps> {
   }
   get backPhotoId() {
     return this.props.backPhotoId;
+  }
+  get coverPhotoExtra() {
+    return this.props.coverPhotoExtra;
+  }
+  get backPhotoExtra() {
+    return this.props.backPhotoExtra;
   }
   get inviteToken() {
     return this.props.inviteToken;
@@ -182,10 +197,24 @@ export class Book extends AggregateRoot<BookProps> {
     this.props.backPhotoId = photoId;
   }
 
+  /** Остальные места под фото на обложке и обороте (принадлежность фото книге проверяет сервис). */
+  setExtraPhotos(side: "cover" | "back", photoIds: string[]) {
+    this.assertEditable();
+    this.props[side === "cover" ? "coverPhotoExtra" : "backPhotoExtra"] = photoIds.slice(0, MAX_EXTRA_PHOTOS);
+  }
+
+  /** Использует ли обложка (лицо или оборот) это фото. */
+  usesPhoto(photoId: string) {
+    const p = this.props;
+    return p.coverPhotoId === photoId || p.backPhotoId === photoId || p.coverPhotoExtra.includes(photoId) || p.backPhotoExtra.includes(photoId);
+  }
+
   /** Удалённое фото не должно оставаться на обложке — ни спереди, ни сзади. */
   forgetPhoto(photoId: string) {
     if (this.props.coverPhotoId === photoId) this.props.coverPhotoId = null;
     if (this.props.backPhotoId === photoId) this.props.backPhotoId = null;
+    this.props.coverPhotoExtra = this.props.coverPhotoExtra.filter((id) => id !== photoId);
+    this.props.backPhotoExtra = this.props.backPhotoExtra.filter((id) => id !== photoId);
   }
 
   /**

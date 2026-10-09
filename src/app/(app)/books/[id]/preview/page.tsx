@@ -3,13 +3,13 @@ import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { backContent } from "@/lib/book/cover-back";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
+import { backContent, backPhotoIds } from "@/lib/book/cover-back";
+import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { photoUrl, photoUrls } from "@/lib/urls";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
-import { buildBookContent, estimatePages } from "@/lib/book/layout";
+import { buildBookContent, estimatePages, toPhotoItem } from "@/lib/book/layout";
 import { printablePageCount } from "@/lib/book/formats";
 import { site } from "@/config/site";
 import { splitParagraphs } from "@/lib/book/inline-photo";
@@ -27,11 +27,16 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 
   // Листаемая книга строится из тех же данных, что и PDF (без фото: их точное место видно в PDF).
   const content = buildBookContent(book, questions, []);
-  const backPhoto = book.backPhotoId ? (await container().authoring.queries.photos(book.id)).find((p) => p.id === book.backPhotoId) : undefined;
+  const allPhotos = await container().authoring.queries.photos(book.id);
+  const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
-  const photo = book.coverPhotoId ? photoUrl(book.coverPhotoId, "full") : undefined;
+  const photos = photoUrls(coverPhotoIds(book), "full");
+  // Оформления, где глава открывается фото: снимки начальных полос — по той же раскладке фото, что в PDF.
+  const openers = content.interior.opener.photo
+    ? new Map(buildBookContent(book, questions, allPhotos.map(toPhotoItem)).chapters.flatMap((c) => (c.openerPhoto ? [[c.key, photoUrl(c.openerPhoto.id, "full")] as const] : [])))
+    : new Map<string, string>();
   const flipbook: FlipbookData = {
-    cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photoUrl: photo },
+    cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photos },
     language: content.language,
     formatId: content.format.id,
     interiorId: content.interior.id,
@@ -44,13 +49,14 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
     model: {
       pageCount: printablePageCount(estimatePages(content)),
       brand: site.name.toUpperCase(),
-      back: backContent(book, backPhoto ? { width: backPhoto.width, height: backPhoto.height } : null, new Date()),
-      backPhotoUrl: backPhoto ? photoUrl(backPhoto.id, "full") : undefined,
+      back: backContent(book, backPhotos.map((p) => ({ width: p.width, height: p.height })), new Date()),
+      backPhotos: photoUrls(backPhotos.map((p) => p.id), "full"),
     },
     chapters: content.chapters.map((c) => ({
       number: c.number,
       title: c.title,
       epigraph: c.epigraph,
+      openerPhoto: openers.get(c.key),
       entries: c.items.flatMap((it) => {
         const paragraphs = splitParagraphs(it.answer);
         return paragraphs.length ? [{ heading: it.heading, paragraphs }] : [];
@@ -76,7 +82,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
               title={book.title}
               subtitle={book.subtitle}
               names={names}
-              photoUrl={photo}
+              photos={photos}
               className="rounded-[3px] shadow-book"
             />
             <Link href={`/books/${book.id}/cover`} className="mt-3 block text-center text-sm text-wine hover:underline">

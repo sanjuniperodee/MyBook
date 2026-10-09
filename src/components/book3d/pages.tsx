@@ -18,11 +18,13 @@ export interface FlipbookChapter {
   title: string;
   epigraph?: string;
   entries: SampleEntry[];
+  /** Снимок на начальной полосе — в оформлениях, где глава открывается фото. */
+  openerPhoto?: string;
 }
 
 /** Всё, что нужно книге, одними сериализуемыми данными (страница-сервер → клиентский компонент). */
 export interface FlipbookData {
-  cover: Pick<CoverPreviewProps, "template" | "format" | "title" | "subtitle" | "names" | "photoUrl" | "titlePlaceholder" | "photoHint">;
+  cover: Pick<CoverPreviewProps, "template" | "format" | "title" | "subtitle" | "names" | "photos" | "titlePlaceholder" | "photoHint">;
   language: Locale;
   formatId: string;
   interiorId: string;
@@ -34,7 +36,7 @@ export interface FlipbookData {
   showToc: boolean;
   chapters: FlipbookChapter[];
   /** Данные объёмной модели: толщина корешка считается по числу страниц. */
-  model: { pageCount: number; brand: string; back: BackContent; backPhotoUrl?: string };
+  model: { pageCount: number; brand: string; back: BackContent; backPhotos?: (string | undefined)[] };
 }
 
 /** Ширина, на которой считаем разбивку текста по страницам. Вёрстка в cqw, так что от размера на экране она не зависит. */
@@ -63,7 +65,7 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       return <TocPage kit={kit} className={faceBox} entries={data.chapters.map((c, i) => ({ number: c.number, title: c.title, page: chapterStarts[i] ?? 0 }))} />;
     case "opener": {
       const ch = data.chapters[face.chapter];
-      return <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} className={faceBox} />;
+      return <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto ? { url: ch.openerPhoto } : undefined} className={faceBox} />;
     }
     case "text": {
       const ch = data.chapters[face.chapter];
