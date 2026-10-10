@@ -71,13 +71,15 @@ describe("обложки на снимках", () => {
 describe("обложки с фото клиента", () => {
   const client = allCoverTemplates.filter((t) => t.requiresPhoto);
 
-  it("у каждой — снимки-примеры из коллекции на все места", async () => {
+  it("у каждой — снимки-примеры с людьми, у каждого снимка указан автор", async () => {
     const { existsSync } = await import("node:fs");
+    const { samplePhotos } = await import("@/lib/book/sample-photos");
     expect(client.length).toBeGreaterThanOrEqual(25);
     for (const t of client) {
       expect(t.samples?.length, t.id).toBeGreaterThan(0);
-      for (const k of t.samples!) expect(existsSync(`assets/cover-photos/${k}.jpg`), `${t.id}: ${k}`).toBe(true);
+      for (const k of t.samples!) expect(samplePhotos[k]?.credit, `${t.id}: ${k}`).toBeTruthy();
     }
+    for (const k of Object.keys(samplePhotos)) expect(existsSync(`assets/cover-photos/${k}.jpg`), k).toBe(true);
   });
 
   it.each(client.map((t) => t.id))("%s: пустые места — снимками-примерами, если их можно загрузить", (id) => {

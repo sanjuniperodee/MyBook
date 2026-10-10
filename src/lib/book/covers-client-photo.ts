@@ -3,7 +3,7 @@
  * (полароид, стопка, марка, ретро), снимок во всю обложку (глянец, монохром, сияние, дуотон, индиго),
  * журнальные раскладки (журнал, дымка, обрывок, ленты, минимализм) и коллажи на несколько снимков.
  *
- * Пока фото не выбрано, место заполняет снимок-пример из коллекции (samples, assets/cover-photos) —
+ * Пока фото не выбрано, место заполняет снимок-пример с людьми (samples, sample-photos.ts) —
  * там, где вызывающий умеет его загрузить; иначе рисованный пейзаж (cover-kit). В печать примеры не попадают:
  * без своих фото заказ не оформить. Обложки на готовых снимках (фото — часть дизайна) — в covers-photo.ts.
  * Оборот у них свой — спокойный фон в цвет лица: композицию с фото на задней крышке не повторяем.
@@ -107,7 +107,7 @@ const arch: CoverTemplate = {
   id: "arch",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["dusk"],
+  samples: ["weddingbeach"],
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(ellipse 30% 29% at 50% 40%,#c99a7e 0 98%,transparent 100%),#efe5d8",
   art: (g, ctx) => {
@@ -145,7 +145,7 @@ const polaroid: CoverTemplate = {
   id: "polaroid",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["surf"],
+  samples: ["friends"],
   texture: { kind: "linen", opacity: 0.2 },
   swatch: "linear-gradient(176deg,transparent 0 12%,#fff 12% 64%,transparent 64%),#e8ded0",
   art: (g, ctx) => {
@@ -191,7 +191,7 @@ const medallion: CoverTemplate = {
   id: "medallion",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["tenderness"],
+  samples: ["weddingstairs"],
   texture: { kind: "grain", opacity: 0.14 },
   swatch: "radial-gradient(ellipse 24% 22% at 50% 38%,#b9a27e 0 92%,#cdae70 93% 100%,transparent 101%),radial-gradient(circle at 50% 42%,#5e2230,#2c0d15)",
   art: (g, ctx) => {
@@ -264,7 +264,7 @@ const passepartout: CoverTemplate = {
   id: "passepartout",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["alatau"],
+  samples: ["autumnlove"],
   texture: { kind: "linen", opacity: 0.32 },
   swatch: "linear-gradient(transparent 0 8%,#f7f3ec 8% 64%,transparent 64%) 50% 0/78% 100% no-repeat,#33414f",
   art: (g, ctx) => {
@@ -303,7 +303,7 @@ const heart: CoverTemplate = {
   id: "heart",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["tenderness"],
+  samples: ["mamahug"],
   texture: { kind: "grain", opacity: 0.08 },
   swatch: "radial-gradient(circle at 37% 30%,#d9a3a8 0 17%,transparent 18%),radial-gradient(circle at 63% 30%,#d9a3a8 0 17%,transparent 18%),conic-gradient(from 135deg at 50% 58%,#d9a3a8 0 90deg,transparent 90deg),#f5deda",
   art: (g, ctx) => {
@@ -345,7 +345,7 @@ const magazine: CoverTemplate = {
   id: "magazine",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["sakura"],
+  samples: ["autumnlove"],
   swatch: "linear-gradient(180deg,#2a2a2a,#7d7d7d 55%,#4a4a4a)",
   art: (g, ctx) => {
     const { uid } = ctx;
@@ -403,8 +403,8 @@ function duo(id: string, stops: string[], base: string, swatch: string, sample: 
   };
 }
 
-const duotone = duo("duotone", ["#3F1232", "#C8607A", "#FCE6D6"], "#4A1638", "linear-gradient(180deg,#f3b9a8,#c8607a 50%,#4a1638)", "alatau", { title: "#FFF3EA", soft: "#FBDCCD" });
-const indigo = duo("indigo", ["#101B36", "#3F6AA6", "#EAF1F8"], "#14213D", "linear-gradient(180deg,#e6eef5,#3f6aa6 50%,#14213d)", "mist", { title: "#F4F8FC", soft: "#CFDDEE" });
+const duotone = duo("duotone", ["#3F1232", "#C8607A", "#FCE6D6"], "#4A1638", "linear-gradient(180deg,#f3b9a8,#c8607a 50%,#4a1638)", "laughter", { title: "#FFF3EA", soft: "#FBDCCD" });
+const indigo = duo("indigo", ["#101B36", "#3F6AA6", "#EAF1F8"], "#14213D", "linear-gradient(180deg,#e6eef5,#3f6aa6 50%,#14213d)", "familydusk", { title: "#F4F8FC", soft: "#CFDDEE" });
 
 // ─── Коллаж: большой кадр и два поменьше, как в фотокниге ────────────────────
 
@@ -413,7 +413,7 @@ const collage: CoverTemplate = {
   mood: "photo",
   requiresPhoto: true,
   photoSlots: 3,
-  samples: ["tenderness", "alatau", "dusk"],
+  samples: ["weddingbeach", "bouquethands", "couple"],
   swatch: "linear-gradient(#9aa6a0,#9aa6a0) 50% 6%/84% 39% no-repeat,linear-gradient(#c9a58c,#c9a58c) 8% 66%/41% 21% no-repeat,linear-gradient(#b7a3bf,#b7a3bf) 92% 66%/41% 21% no-repeat,#f7f3ee",
   art: (g, ctx) => {
     const f = g.front;
@@ -450,7 +450,7 @@ const mosaic: CoverTemplate = {
   mood: "photo",
   requiresPhoto: true,
   photoSlots: 4,
-  samples: ["dusk", "meadow", "peaks", "sakura"],
+  samples: ["couple", "family", "friends", "sunsetwalk"],
   swatch: "linear-gradient(90deg,#9aa6a0 0 49%,transparent 49% 51%,#c9a58c 51%) 0 0/100% 33% no-repeat,linear-gradient(90deg,#b7a3bf 0 49%,transparent 49% 51%,#d8b4a0 51%) 0 100%/100% 33% no-repeat,#f4eee5",
   art: (g, ctx) => {
     const f = g.front;
@@ -487,7 +487,7 @@ const film: CoverTemplate = {
   mood: "photo",
   requiresPhoto: true,
   photoSlots: 3,
-  samples: ["peaks", "sakura", "surf"],
+  samples: ["friends", "laughter", "sunsetwalk"],
   texture: { kind: "grain", opacity: 0.16 },
   swatch: "linear-gradient(-5deg,transparent 0 22%,#141110 22% 49%,transparent 49%),#3a3230",
   art: (g, ctx) => {
@@ -542,7 +542,7 @@ const mono: CoverTemplate = {
   id: "mono",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["peaks"],
+  samples: ["weddingbw"],
   texture: { kind: "grain", opacity: 0.18 },
   swatch: "linear-gradient(180deg,#9a9a9a,#3a3a3a 70%,#111)",
   art: (g, ctx) => {
@@ -573,7 +573,7 @@ const glowCover: CoverTemplate = {
   id: "glow",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["meadow"],
+  samples: ["couple"],
   texture: { kind: "grain", opacity: 0.14 },
   swatch: "radial-gradient(circle at 85% 10%,#ffb36b,transparent 45%),radial-gradient(circle at 10% 80%,#ff7f8e,transparent 40%),linear-gradient(180deg,#c89a7a,#6e4a3a)",
   art: (g, ctx) => {
@@ -606,7 +606,7 @@ const split: CoverTemplate = {
   id: "split",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["dusk"],
+  samples: ["sunsetwalk"],
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(180deg,#b9a3a6 0 60%,#9c4a33 60%)",
   art: (g, ctx) => {
@@ -635,7 +635,7 @@ const fade: CoverTemplate = {
   id: "fade",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["meadow"],
+  samples: ["weddingbeach"],
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "linear-gradient(180deg,#c7ad94 0,#d9c7b3 45%,#f4eee6 68%)",
   art: (g, ctx) => {
@@ -666,7 +666,7 @@ const torn: CoverTemplate = {
   id: "torn",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["surf"],
+  samples: ["familydusk"],
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "linear-gradient(176deg,#6fb0b5 0 60%,#f6f1e8 62%)",
   art: (g, ctx) => {
@@ -701,7 +701,7 @@ const gallery: CoverTemplate = {
   id: "gallery",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["peony"],
+  samples: ["family"],
   texture: { kind: "linen", opacity: 0.22 },
   swatch: "linear-gradient(transparent 0 12%,#c9a45c 12% 62%,transparent 62%) 50% 0/62% 100% no-repeat,radial-gradient(circle at 50% 20%,#3d5f50,#1c3029)",
   art: (g, ctx) => {
@@ -752,7 +752,7 @@ const stamp: CoverTemplate = {
   id: "stamp",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["sakura"],
+  samples: ["daddy"],
   texture: { kind: "grain", opacity: 0.12 },
   swatch: "repeating-linear-gradient(45deg,#c8443f 0 6px,#f3ecdf 6px 12px,#2f5d8c 12px 18px,#f3ecdf 18px 24px)",
   art: (g, ctx) => {
@@ -810,7 +810,7 @@ const vintage: CoverTemplate = {
   id: "retro",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["alatau"],
+  samples: ["weddingstairs"],
   texture: { kind: "grain", opacity: 0.2 },
   swatch: "radial-gradient(ellipse at 50% 38%,#f8f2e6 0 30%,transparent 31%),radial-gradient(circle,#eadcc3,#c9b28c)",
   art: (g, ctx) => {
@@ -850,7 +850,7 @@ const circle: CoverTemplate = {
   id: "circle",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["lavender"],
+  samples: ["newborn"],
   texture: { kind: "grain", opacity: 0.1 },
   swatch: "radial-gradient(circle at 50% 37%,#b5a6c6 0 27%,transparent 28%),#c7ccb6",
   art: (g, ctx) => {
@@ -886,7 +886,7 @@ const strips: CoverTemplate = {
   id: "strips",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["peaks"],
+  samples: ["family"],
   texture: { kind: "grain", opacity: 0.08 },
   swatch: "linear-gradient(90deg,#9cb0c0 0 22%,transparent 22% 26%,#9cb0c0 26% 48%,transparent 48% 52%,#9cb0c0 52% 74%,transparent 74% 78%,#9cb0c0 78%) 50% 20%/84% 50% no-repeat,#f2eee8",
   art: (g, ctx) => {
@@ -921,7 +921,7 @@ const minimal: CoverTemplate = {
   id: "minimal",
   mood: "photo",
   requiresPhoto: true,
-  samples: ["dusk"],
+  samples: ["bouquethands"],
   texture: { kind: "linen", opacity: 0.28 },
   swatch: "linear-gradient(#b8a7a8,#b8a7a8) 50% 26%/52% 44% no-repeat,#e9e4da",
   art: (g, ctx) => {
@@ -952,7 +952,7 @@ const diptych: CoverTemplate = {
   mood: "photo",
   requiresPhoto: true,
   photoSlots: 2,
-  samples: ["dusk", "meadow"],
+  samples: ["mamahug", "daddy"],
   texture: { kind: "grain", opacity: 0.08 },
   swatch: "linear-gradient(90deg,#b9a3a6 0 49%,transparent 49% 51%,#c9b08f 51%) 50% 14%/76% 50% no-repeat,#efeae2",
   art: (g, ctx) => {
@@ -986,7 +986,7 @@ const stack: CoverTemplate = {
   mood: "photo",
   requiresPhoto: true,
   photoSlots: 3,
-  samples: ["sakura", "surf", "meadow"],
+  samples: ["laughter", "sunsetwalk", "daddy"],
   texture: { kind: "grain", opacity: 0.22 },
   swatch: "linear-gradient(-8deg,transparent 0 30%,#fff 30% 60%,transparent 60%) 30% 20%/40% 50% no-repeat,linear-gradient(7deg,transparent 0 30%,#fff 30% 60%,transparent 60%) 70% 20%/40% 50% no-repeat,#d6c2a0",
   art: (g, ctx) => {
@@ -1021,7 +1021,7 @@ const grid: CoverTemplate = {
   mood: "photo",
   requiresPhoto: true,
   photoSlots: 6,
-  samples: ["dusk", "sakura", "meadow", "surf", "tenderness", "peaks"],
+  samples: ["couple", "family", "laughter", "daddy", "mamahug", "weddingbeach"],
   swatch: "repeating-linear-gradient(90deg,#b7a8b0 0 31%,#fbf9f5 31% 34.5%) 50% 10%/86% 30% no-repeat,repeating-linear-gradient(90deg,#a9b9b2 0 31%,#fbf9f5 31% 34.5%) 50% 46%/86% 30% no-repeat,#fbf9f5",
   art: (g, ctx) => {
     const f = g.front;

@@ -192,7 +192,7 @@ export function coverPhotoUrl(key: string, width = 1600) {
 }
 
 /** Снимки коллекции, которыми показаны примеры фотостраниц и начал глав, пока своих фото в книге нет. */
-const PAGE_SAMPLES = ["dusk", "meadow", "peaks", "sakura", "tenderness", "lavender", "surf", "alatau", "mist", "steppe"];
+const PAGE_SAMPLES = ["weddingbeach", "family", "couple", "sunsetwalk", "mamahug", "friends", "daddy", "autumnlove", "laughter", "bouquethands"];
 
 export function samplePageUrl(scene: number, width = 1000) {
   return coverPhotoUrl(PAGE_SAMPLES[((scene % PAGE_SAMPLES.length) + PAGE_SAMPLES.length) % PAGE_SAMPLES.length], width);

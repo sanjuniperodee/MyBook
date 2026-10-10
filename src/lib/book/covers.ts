@@ -399,7 +399,7 @@ const photo: CoverTemplate = {
   mood: "photo",
   swatch: "linear-gradient(180deg,#8a8a8a,#2b2b2b)",
   requiresPhoto: true,
-  samples: ["peaks"],
+  samples: ["couple"],
   art: (g, ctx) => {
     const f = g.front;
     // Фото занимает лицевую сторону вместе с загибами (до правого, верхнего и нижнего края холста).
