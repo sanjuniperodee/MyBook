@@ -72,7 +72,15 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
       const cell = cells.get(p.id);
       if (openerShot && openerIds.has(p.id)) {
         // Снимок начальной полосы: кадр по месту с учётом содержимого.
-        img = img.resize(Math.round(openerShot.img.w * pxPerMm), Math.round(openerShot.img.h * pxPerMm), { fit: "cover", position: sharp.strategy.attention });
+        const w = Math.round(openerShot.img.w * pxPerMm);
+        const h = Math.round(openerShot.img.h * pxPerMm);
+        img = img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
+        // «Во всю полосу»: затемнение снизу под светлое название — прямо в снимке (как градиент в превью).
+        const sh = openerShot.shade;
+        if (sh) {
+          const grad = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="${sh.from}" stop-color="${sh.color}" stop-opacity="0"/><stop offset="1" stop-color="${sh.color}" stop-opacity="${sh.opacity}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`;
+          img = sharp(await img.toBuffer()).composite([{ input: Buffer.from(grad) }]);
+        }
       } else if (p.layout === "bleed" && !inlineIds.has(p.id)) {
         const w = Math.round((content.format.widthMm + bleedMm * 2) * pxPerMm);
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);

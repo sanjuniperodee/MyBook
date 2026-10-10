@@ -11,7 +11,8 @@ import { coverPhotoDataUrl } from "@/server/cover-photos";
  * Так одна и та же обложка не встраивается в HTML страницы несколько раз по 200 КБ.
  *
  * Рисованные обложки — SVG (сжимаем сами: сжатие Next к ответам из кэша не применяется).
- * Обложки на снимках — JPEG: картинка-SVG не может загрузить снимок, поэтому растрируем на сервере.
+ * Обложки на снимках и с фото клиента (на снимках-примерах) — JPEG: картинка-SVG не может загрузить снимок,
+ * поэтому растрируем на сервере.
  */
 const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.(svg|jpg)$/;
 /** Толщина книги для фона задней крышки в редакторе: от неё зависит только стык узора с корешком. */
@@ -25,10 +26,12 @@ const PHOTO_PX = { lite: 420, full: 1000 };
 async function photoArt(template: CoverTemplate, format: BookFormat, lite: boolean, back: boolean, plainBack: boolean): Promise<Buffer> {
   const px = lite ? PHOTO_PX.lite : PHOTO_PX.full;
   // Снимок встраиваем уменьшенным: на холсте развёртки он примерно вдвое шире лица.
-  const imageHref = await coverPhotoDataUrl(template.photo!.photo.key, lite ? 900 : 2400);
+  const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, lite ? 900 : 2400) : undefined;
+  // Обложка с фото клиента — на снимках-примерах: место под фото меньше лица, хватает меньшего размера.
+  const samples = new Map(await Promise.all((template.samples ?? []).map(async (k) => [k, await coverPhotoDataUrl(k, lite ? 700 : 1400)] as const)));
   const g = back ? coverSpreadGeometry(format, PREVIEW_PAGES) : coverFrontGeometry(format);
   const side = back ? g.back! : g.front;
-  let svg = renderCoverSvg(template, g, { uid: `${template.id}${format.id}`, imageHref }, { plainBack });
+  let svg = renderCoverSvg(template, g, { uid: `${template.id}${format.id}`, imageHref, sampleHref: (k) => samples.get(k) ?? "" }, { plainBack });
   if (back) svg = cropSvg(svg, side, { w: g.width, h: g.height });
   // Единицы SVG — миллиметры; librsvg читает их как пиксели при 72 dpi.
   return sharp(Buffer.from(svg), { density: (72 * px) / side.w, limitInputPixels: false })
@@ -42,7 +45,8 @@ async function art(file: string): Promise<Entry | null> {
   const m = FILE.exec(file);
   if (!m || !isKnownCover(m[1]) || !(m[2] in formats)) return null;
   const template = getCoverTemplate(m[1]);
-  if ((m[5] === "jpg") !== !!template.photo) return null;
+  const raster = !!(template.photo || template.samples);
+  if ((m[5] === "jpg") !== raster) return null;
   const key = `${file}@${template.rev ?? 0}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -50,7 +54,7 @@ async function art(file: string): Promise<Entry | null> {
   // -backplain — оборот без повтора композиции лица: под карточками «Полароидов».
   const plainBack = m[4] === "-backplain";
   let entry: Entry;
-  if (template.photo) {
+  if (raster) {
     entry = { type: "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack) };
   } else {
     let raw: string;

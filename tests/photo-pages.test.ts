@@ -93,7 +93,7 @@ describe("фотостраницы", () => {
   });
 
   it("начальная полоса с фото: снимок сверху, название ниже него", () => {
-    for (const id of ["photobook", "memories"]) {
+    for (const id of ["photobook", "memories", "gallery", "arches", "luna"]) {
       const design = interiorDesigns.find((d) => d.id === id)!;
       for (const format of Object.values(formats)) {
         const m = interiorMetrics[format.id];
@@ -104,5 +104,23 @@ describe("фотостраницы", () => {
       }
     }
     expect(openerPhotoPlan(formats.a5, interiorDesigns.find((d) => d.id === "classic")!, interiorMetrics.a5)).toBeNull();
+  });
+
+  it("арка и круг — снимок по центру внутри страницы, во всю полосу — под обрез с затемнением под светлый текст", () => {
+    const byId = (id: string) => interiorDesigns.find((d) => d.id === id)!;
+    for (const format of Object.values(formats)) {
+      const m = interiorMetrics[format.id];
+      const page = { x: 0, y: 0, w: format.widthMm, h: format.heightMm };
+      for (const [id, mask] of [["arches", "arch"], ["luna", "circle"]] as const) {
+        const plan = openerPhotoPlan(format, byId(id), m)!;
+        expect(plan.mask).toBe(mask);
+        expect(inside(page, plan.img)).toBe(true);
+        expect(plan.img.x + plan.img.w / 2).toBeCloseTo(format.widthMm / 2, 6);
+      }
+      const full = openerPhotoPlan(format, byId("cinema"), m)!;
+      expect(full.img).toEqual({ x: -3, y: -3, w: format.widthMm + 6, h: format.heightMm + 6 });
+      expect(full.shade?.opacity).toBeGreaterThan(0.5);
+      expect(byId("cinema").opener.fill?.ink).toBe("#FFFFFF");
+    }
   });
 });

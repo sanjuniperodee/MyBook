@@ -32,7 +32,7 @@ import {
 import { clampPos, RENDER_WINDOW, visibleSpread, type Sheet } from "@/lib/book/flipbook";
 import { cn } from "@/lib/utils";
 import { buildCoverArt } from "./cover-art";
-import { useCoverImage } from "./useCoverImage";
+import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls } from "./ViewerControls";
 import { FaceView, usePagedBook, type FaceContext, type FlipbookData } from "./pages";
 
@@ -163,9 +163,10 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
 
   // ── Арт обложки: лицо, оборот и корешок — отдельными обрезанными картинками ──
   const imageHref = useCoverImage(template);
+  const samples = useCoverSamples(template);
   const art = useMemo(
-    () => buildCoverArt(template, format, pageCount, dims, { photos: data.cover.photos, imageHref, plainBack: backDesign.plainArt }),
-    [template, format, pageCount, dims, data.cover.photos, imageHref, backDesign.plainArt],
+    () => buildCoverArt(template, format, pageCount, dims, { photos: data.cover.photos, imageHref, plainBack: backDesign.plainArt, samples }),
+    [template, format, pageCount, dims, data.cover.photos, imageHref, backDesign.plainArt, samples],
   );
 
   // ── Состояние просмотра хранится вне React: каждый кадр обновляет стили напрямую ──

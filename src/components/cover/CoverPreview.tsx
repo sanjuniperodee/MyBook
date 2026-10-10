@@ -3,6 +3,9 @@ import { getCoverTemplate, renderCoverSvg, type CoverTemplate, type CoverTextSty
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { coverArtUrl } from "@/lib/urls";
+import { coverPhotoUrl } from "@/lib/book/photo-cover";
+
+const samplePhotoHref = (key: string) => coverPhotoUrl(key, 1000);
 import { cn } from "@/lib/utils";
 
 export interface CoverPreviewProps {
@@ -24,7 +27,7 @@ export interface CoverPreviewProps {
   photoHint?: string;
 }
 
-function textCss(s: CoverTextStyle): React.CSSProperties {
+function textCss(s: CoverTextStyle, align: CoverTemplate["align"] = "center"): React.CSSProperties {
   return {
     fontFamily: cssFont(s.font),
     fontSize: `${s.size * 100}cqw`,
@@ -34,7 +37,7 @@ function textCss(s: CoverTextStyle): React.CSSProperties {
     textTransform: s.upper ? "uppercase" : "none",
     letterSpacing: s.tracking ? `${s.tracking}em` : undefined,
     lineHeight: s.lineHeight ?? 1.2,
-    textAlign: "center",
+    textAlign: align,
     overflowWrap: "anywhere",
   };
 }
@@ -63,22 +66,28 @@ export function Ornament({ kind, color, size = "3.5cqw" }: NonNullable<CoverTemp
 /** Текст лицевой стороны: заголовок, подзаголовок, орнамент и имена. Размеры — в cqw от ширины лицевой стороны. */
 export function CoverText({ template, title, subtitle, names, titlePlaceholder = "…" }: { template: CoverTemplate; title: string; subtitle?: string; names?: string; titlePlaceholder?: string }) {
   const ta = template.textArea;
+  const align = template.align ?? "center";
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
+  const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  const ornament = template.ornament && names ? (
+    <div style={{ margin: "3cqw 0", display: "flex", justifyContent: items }}>
+      <Ornament {...template.ornament} />
+    </div>
+  ) : (
+    <div style={{ height: "3.5cqw" }} />
+  );
+  const namesLine = names ? <div style={textCss(template.names, align)}>{names}</div> : null;
   return (
     <div
-      className="absolute flex flex-col items-center"
-      style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify }}
+      className="absolute flex flex-col"
+      style={{ left: `${ta.x * 100}%`, top: `${ta.y * 100}%`, width: `${ta.w * 100}%`, height: `${ta.h * 100}%`, justifyContent: justify, alignItems: items }}
     >
-      <div style={textCss(template.title)}>{title || titlePlaceholder}</div>
-      {subtitle ? <div style={{ ...textCss(template.subtitle), marginTop: "1.5cqw" }}>{subtitle}</div> : null}
-      {template.ornament && names ? (
-        <div style={{ margin: "3cqw 0", display: "flex", justifyContent: "center" }}>
-          <Ornament {...template.ornament} />
-        </div>
-      ) : (
-        <div style={{ height: "3.5cqw" }} />
-      )}
-      {names ? <div style={textCss(template.names)}>{names}</div> : null}
+      {template.namesFirst ? namesLine : null}
+      {template.namesFirst ? ornament : null}
+      <div style={{ ...textCss(template.title, align), alignSelf: "stretch" }}>{title || titlePlaceholder}</div>
+      {subtitle ? <div style={{ ...textCss(template.subtitle, align), alignSelf: "stretch", marginTop: "1.5cqw" }}>{subtitle}</div> : null}
+      {template.namesFirst ? null : ornament}
+      {template.namesFirst ? null : namesLine}
     </div>
   );
 }
@@ -88,7 +97,8 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
   const format = getFormat(formatId);
   // Фон — кэшируемая картинка; встраивать SVG нужно только обложке с фото клиента (картинка-SVG не грузит чужие файлы).
   const hasPhoto = !!template.requiresPhoto && !!photos?.some(Boolean);
-  const svg = hasPhoto ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photos }, { noTexture: lite }) : null;
+  // Пустые места (коллаж заполнен не до конца) — снимками-примерами: встроенный SVG загрузит их сам.
+  const svg = hasPhoto ? renderCoverSvg(template, coverFrontGeometry(format), { uid: uid ?? `${template.id}${format.id}`, photos, sampleHref: samplePhotoHref }, { noTexture: lite }) : null;
 
   return (
     <div

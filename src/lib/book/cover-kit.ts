@@ -192,12 +192,6 @@ export function jitterGrid(g: CoverGeometry, cell: number, rand: () => number) {
   return pts;
 }
 
-/** Пейзаж-заглушка отдельной картинкой (data-URL) — для превью страниц, пока своих фото нет. ratio — ширина к высоте. */
-export function samplePhotoUrl(scene: number, ratio = 4 / 3) {
-  const w = Math.round(100 * ratio);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 100" preserveAspectRatio="xMidYMid slice">${samplePhoto({ x: 0, y: 0, w, h: 100 }, scene, "s")}</svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
 
 // ─── детали для обложек с фото клиента ──────────────────────────────────────
 
@@ -245,18 +239,6 @@ export function tape(cx: number, cy: number, w: number, h: number, deg: number, 
   for (let i = teeth - 1; i >= 0; i--) d += ` L${n(-w / 2 - (i % 2 ? a : 0))},${n(-h / 2 + (h * i) / teeth)}`;
   const tr = `translate(${n(cx)},${n(cy)}) rotate(${n(deg)})`;
   return `<g transform="${tr}"><path d="${d}Z" fill="${color}" fill-opacity="${opacity}"/><rect x="${n(-w / 2)}" y="${n(-h / 2 + h * 0.12)}" width="${n(w)}" height="${n(h * 0.22)}" fill="#FFFFFF" fill-opacity="0.22"/></g>`;
-}
-
-/** Уголок старого фотоальбома: треугольник с прорезью, закрывающий угол снимка. sx, sy — куда смотрит угол (±1). */
-export function photoCorner(x: number, y: number, size: number, sx: 1 | -1, sy: 1 | -1, color: string) {
-  const p = (dx: number, dy: number) => `${n(x + sx * dx)},${n(y + sy * dy)}`;
-  return `<path d="M${p(-1.2, -1.2)} L${p(size, -1.2)} L${p(-1.2, size)}Z" fill="${color}"/><path d="M${p(size * 0.55, size * 0.12)} L${p(size * 0.12, size * 0.55)}" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="0.25"/>`;
-}
-
-/** Прямоугольник со скруглёнными углами (путь — для клипа и тени). */
-export function roundRectPath(r: Rect, rx: number) {
-  const k = Math.min(rx, r.w / 2, r.h / 2);
-  return `M${n(r.x + k)},${n(r.y)} H${n(r.x + r.w - k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x + r.w)},${n(r.y + k)} V${n(r.y + r.h - k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x + r.w - k)},${n(r.y + r.h)} H${n(r.x + k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x)},${n(r.y + r.h - k)} V${n(r.y + k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x + k)},${n(r.y)}Z`;
 }
 
 /** Фигурный край старой фотографии: мелкие полукруглые «зубчики» по всему периметру. */

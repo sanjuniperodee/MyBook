@@ -43,3 +43,24 @@ export function useCoverImage(template: CoverTemplate, width = 1600): string | u
   }, [url]);
   return url && state?.url === url ? state.href : undefined;
 }
+
+/**
+ * Снимки-примеры обложки с фото клиента как data-URL: пустые места на 3D-книге — настоящими снимками, а не
+ * рисованным пейзажем. Пока грузятся — undefined (до тех пор рисуется пейзаж).
+ */
+export function useCoverSamples(template: CoverTemplate, width = 1000): Record<string, string> | undefined {
+  const keys = (template.samples ?? []).join(",");
+  const [state, setState] = useState<{ keys: string; hrefs: Record<string, string> } | null>(null);
+  useEffect(() => {
+    if (!keys) return;
+    let alive = true;
+    const list = keys.split(",");
+    Promise.all(list.map((k) => load(coverPhotoUrl(k, width))))
+      .then((hrefs) => alive && setState({ keys, hrefs: Object.fromEntries(list.map((k, i) => [k, hrefs[i]])) }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [keys, width]);
+  return keys && state?.keys === keys ? state.hrefs : undefined;
+}

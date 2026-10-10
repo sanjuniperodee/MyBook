@@ -68,6 +68,45 @@ describe("обложки на снимках", () => {
   });
 });
 
+describe("обложки с фото клиента", () => {
+  const client = allCoverTemplates.filter((t) => t.requiresPhoto);
+
+  it("у каждой — снимки-примеры из коллекции на все места", async () => {
+    const { existsSync } = await import("node:fs");
+    expect(client.length).toBeGreaterThanOrEqual(25);
+    for (const t of client) {
+      expect(t.samples?.length, t.id).toBeGreaterThan(0);
+      for (const k of t.samples!) expect(existsSync(`assets/cover-photos/${k}.jpg`), `${t.id}: ${k}`).toBe(true);
+    }
+  });
+
+  it.each(client.map((t) => t.id))("%s: пустые места — снимками-примерами, если их можно загрузить", (id) => {
+    const t = getCoverTemplate(id);
+    const slots = Math.max(1, t.photoSlots ?? 1);
+    const svg = renderCoverSvg(t, coverFrontGeometry(getFormat("a5")), { uid: "s", sampleHref: (k) => `/api/cover-photos/${k}` }, { noTexture: true });
+    expect(svg.match(/<image /g)?.length).toBe(slots);
+    expect(svg).not.toContain("ssky");
+  });
+
+  it("повёрнутые карточки сообщают редактору поворот и центр", async () => {
+    const { frontSlotBoxes } = await import("@/lib/book/photo-slots");
+    const boxes = frontSlotBoxes(getCoverTemplate("stack"), getFormat("a5"));
+    expect(boxes).toHaveLength(3);
+    for (const b of boxes) {
+      expect(b.rotate).toBeTruthy();
+      expect(b.origin!.x).toBeGreaterThan(0);
+      expect(b.origin!.x).toBeLessThan(1);
+    }
+    expect(frontSlotBoxes(getCoverTemplate("arch"), getFormat("a5"))[0].rotate).toBeUndefined();
+  });
+
+  it("текст можно выключить влево и поставить имена над названием", () => {
+    const t = getCoverTemplate("split");
+    expect(t.align).toBe("left");
+    expect(t.namesFirst).toBe(true);
+  });
+});
+
 describe("фон обложки отдельным файлом", () => {
   const get = async (file: string, encoding = "") => {
     const { GET } = await import("@/app/api/covers/[file]/route");
@@ -100,6 +139,13 @@ describe("фон обложки отдельным файлом", () => {
     expect(meta.width).toBe(420);
     await expect(get("blossom-a5.jpg")).rejects.toThrow();
     await expect(get("sakura-a5.svg")).rejects.toThrow();
+  }, 60000);
+
+  it("обложка с фото клиента — JPEG на снимке-примере, SVG по её адресу не отдаётся", async () => {
+    const res = await get("arch-a5-lite.jpg");
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect((await sharp(Buffer.from(await res.arrayBuffer())).metadata()).width).toBe(420);
+    await expect(get("arch-a5.svg")).rejects.toThrow();
   }, 60000);
 
   it("неизвестный шаблон или формат — 404", async () => {

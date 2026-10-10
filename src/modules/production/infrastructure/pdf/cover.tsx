@@ -10,7 +10,7 @@ import { site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 
-function textStyle(s: CoverTextStyle, frontWmm: number) {
+function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"] = "center") {
   const size = mm(s.size * frontWmm);
   return {
     ...face(s.font, s.weight ?? 400, s.italic ?? false),
@@ -19,7 +19,7 @@ function textStyle(s: CoverTextStyle, frontWmm: number) {
     lineHeight: s.lineHeight ?? 1.2,
     letterSpacing: (s.tracking ?? 0) * size,
     textTransform: s.upper ? ("uppercase" as const) : ("none" as const),
-    textAlign: "center" as const,
+    textAlign: align,
   };
 }
 
@@ -68,8 +68,19 @@ export function CoverDocument({
   const f = g.front;
   const ta = template.textArea;
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
-  const titleStyle = textStyle(template.title, f.w);
+  const align = template.align ?? "center";
+  const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  const titleStyle = textStyle(template.title, f.w, align);
   const ornamentSize = mm(f.w * 0.035);
+  const ornament =
+    template.ornament && text.names ? (
+      <View style={{ marginVertical: mm(f.w * 0.03), alignItems: items }}>
+        <CoverOrnament kind={template.ornament.kind} color={template.ornament.color} size={ornamentSize} />
+      </View>
+    ) : (
+      <View style={{ height: mm(f.w * 0.035) }} />
+    );
+  const namesLine = text.names ? <Text style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
   const spineText = spineParts(text.title, text.names);
@@ -93,19 +104,15 @@ export function CoverDocument({
             height: mm(ta.h * f.h),
             flexDirection: "column",
             justifyContent: justify,
-            alignItems: "center",
+            alignItems: items,
           }}
         >
-          <Text style={titleStyle}>{text.title}</Text>
-          {text.subtitle ? <Text style={{ ...textStyle(template.subtitle, f.w), marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
-          {template.ornament && text.names ? (
-            <View style={{ marginVertical: mm(f.w * 0.03), alignItems: "center" }}>
-              <CoverOrnament kind={template.ornament.kind} color={template.ornament.color} size={ornamentSize} />
-            </View>
-          ) : (
-            <View style={{ height: mm(f.w * 0.035) }} />
-          )}
-          {text.names ? <Text style={textStyle(template.names, f.w)}>{text.names}</Text> : null}
+          {template.namesFirst ? namesLine : null}
+          {template.namesFirst ? ornament : null}
+          <Text style={{ ...titleStyle, alignSelf: "stretch" }}>{text.title}</Text>
+          {text.subtitle ? <Text style={{ ...textStyle(template.subtitle, f.w, align), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
+          {template.namesFirst ? null : ornament}
+          {template.namesFirst ? null : namesLine}
         </View>
 
         {/* Корешок: название в верхней половине, имена в нижней, читается сверху вниз */}

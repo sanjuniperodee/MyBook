@@ -23,8 +23,8 @@ import {
   type TextFace,
 } from "@/lib/book/interiors";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Drawing, type Shape } from "@/lib/book/interior-art";
-import { samplePhotoUrl } from "@/lib/book/cover-kit";
-import { openerPhotoPlan, OPENER_POLAROID_RATIO, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
+import { samplePageUrl } from "@/lib/book/photo-cover";
+import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/utils";
 import type { PageUnits } from "./units";
 
@@ -263,6 +263,9 @@ export function RunningHead({ kit, bookTitle, chapterTitle, recto }: { kit: Page
 
 // ─── страницы ───────────────────────────────────────────────────────────────
 
+/** #RRGGBB и прозрачность → rgba(). */
+const hexAlpha = (hex: string, a: number) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
+
 type PageProps = { kit: PageKit; className?: string; style?: CSSProperties };
 
 /** Страница: фон, графика и полоса набора. Размер задаёт родитель (width/aspect-ratio). */
@@ -300,17 +303,20 @@ function Placed({ top, align = "center", children }: { top: number; align?: "cen
 
 const frame = (kit: PageKit, colors: InteriorPalette) => frameShapes(kit.design.frame, pageBox(kit.format, 0), colors);
 
-/** Снимок на странице (мм обрезного формата): фото клиента или пейзаж-заглушка. */
-function PageImage({ kit, rect, url, scene, ratio }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; ratio: number }) {
+/** Снимок на странице (мм обрезного формата): фото клиента или снимок-пример из коллекции. */
+function PageImage({ kit, rect, url, scene, mask }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; mask?: "arch" | "circle" }) {
   const { u } = kit;
+  // Форма снимка: арка — скруглённый верх радиусом в половину ширины, круг — 50%.
+  const radius = mask === "circle" ? "50%" : mask === "arch" ? `${u.mm(rect.w / 2)} ${u.mm(rect.w / 2)} 0 0` : undefined;
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- фото клиента и заглушки-SVG: next/image здесь не нужен
+    // eslint-disable-next-line @next/next/no-img-element -- фото клиента и снимки-примеры: next/image здесь не нужен
     <img
-      src={url ?? samplePhotoUrl(scene, ratio)}
+      src={url ?? samplePageUrl(scene)}
       alt=""
       draggable={false}
       className="absolute block object-cover"
-      style={{ left: u.mm(rect.x), top: u.mm(rect.y), width: u.mm(rect.w), height: u.mm(rect.h) }}
+      // max-width: none — снимок под обрез шире страницы, а базовые стили ограничивают картинки шириной родителя.
+      style={{ left: u.mm(rect.x), top: u.mm(rect.y), width: u.mm(rect.w), height: u.mm(rect.h), maxWidth: "none", borderRadius: radius }}
     />
   );
 }
@@ -339,10 +345,22 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
           className="absolute bg-white"
           style={{ left: u.mm(shot.card.x), top: u.mm(shot.card.y), width: u.mm(shot.card.w), height: u.mm(shot.card.h), border: `${u.pt(0.4)} solid #E3DBD0`, transform: `rotate(${shot.card.rotate}deg)` }}
         >
-          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - 0.14, y: shot.img.y - shot.card.y - 0.14, w: shot.img.w, h: shot.img.h }} url={photo?.url} scene={scene} ratio={OPENER_POLAROID_RATIO} />
+          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - 0.14, y: shot.img.y - shot.card.y - 0.14, w: shot.img.w, h: shot.img.h }} url={photo?.url} scene={scene} />
         </div>
       ) : shot ? (
-        <PageImage kit={kit} rect={shot.img} url={photo?.url} scene={scene} ratio={shot.img.w / shot.img.h} />
+        <PageImage kit={kit} rect={shot.img} url={photo?.url} scene={scene} mask={shot.mask} />
+      ) : null}
+      {shot?.shade ? (
+        <div
+          className="absolute"
+          style={{
+            left: u.mm(shot.img.x),
+            top: u.mm(shot.img.y),
+            width: u.mm(shot.img.w),
+            height: u.mm(shot.img.h),
+            background: `linear-gradient(to bottom, transparent ${shot.shade.from * 100}%, ${hexAlpha(shot.shade.color, shot.shade.opacity)})`,
+          }}
+        />
       ) : null}
       {shot ? <PageLayer shapes={shot.over} format={format} /> : null}
       <TextArea kit={kit} className="flex flex-col">
@@ -384,10 +402,10 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
         ? { ...labelCss(kit, P.muted, size), lineHeight: 1.3 }
         : { ...italicBody(kit, size), lineHeight: 1.3, color: P.muted };
   return (
-    <Sheet kit={kit} shapes={plan.under} className={className} style={style}>
+    <Sheet kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {
         const p = photos.find((x) => x.id === c.id)!;
-        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} ratio={c.img.w / c.img.h} />;
+        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} />;
       })}
       <PageLayer shapes={plan.over} format={format} />
       {plan.cells.map((c) =>

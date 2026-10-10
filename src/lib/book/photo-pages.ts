@@ -11,8 +11,11 @@ import { n } from "./cover-kit";
 
 const PT = 25.4 / 72;
 
-/** Оформление снимка: без рамки, тонкая линия, двойная рамка, полароид, уголки старого альбома, скотч. */
-export type PhotoFrame = "none" | "hairline" | "double" | "polaroid" | "corners" | "tape";
+/**
+ * Оформление снимка: без рамки, тонкая линия, двойная рамка, полароид, уголки старого альбома, скотч,
+ * белое паспарту с тенью (как отпечаток в галерее) и мягкая тень приподнятого снимка.
+ */
+export type PhotoFrame = "none" | "hairline" | "double" | "polaroid" | "corners" | "tape" | "mat" | "shadow";
 /** Подпись: курсивом основного шрифта, от руки или прописными, как служебные надписи. */
 export type PhotoCaption = "italic" | "hand" | "label";
 
@@ -94,6 +97,10 @@ function frameRoom(frame: PhotoFrame) {
       return { t: 1.2, s: 1.2, b: 1.2 };
     case "tape":
       return { t: 3, s: 1.5, b: 0.5 };
+    case "mat":
+      return { t: 5.5, s: 5.5, b: 5.5 };
+    case "shadow":
+      return { t: 1, s: 1.5, b: 2.5 };
     default:
       return { t: 0, s: 0, b: 0 };
   }
@@ -172,7 +179,24 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
       img = { x: cell.x + (cell.w - w) / 2, y: top + room.t, w, h };
       if (text) caption = { text, size, inside: false, box: { x: cell.x, y: img.y + h + room.b + 2.4, w: cell.w, h: lines * lineH } };
 
-      if (frame === "hairline") over.push({ kind: "rect", ...grow(img, 1.8), stroke: P.ornament, width: 0.22 });
+      if (frame === "mat") {
+        // Паспарту: белое поле вокруг снимка, мягкая тень под ним и тонкая кромка выреза.
+        const m = grow(img, 5);
+        under.push(
+          { kind: "rect", x: m.x + 0.3, y: m.y + 1.2, w: m.w, h: m.h, fill: "#000000", opacity: 0.045 },
+          { kind: "rect", x: m.x + 0.15, y: m.y + 0.5, w: m.w, h: m.h, fill: "#000000", opacity: 0.07 },
+          { kind: "rect", ...m, fill: "#FFFFFF", stroke: "#E2DACE", width: 0.15 },
+        );
+        over.push({ kind: "rect", ...img, stroke: "#000000", width: 0.15, opacity: 0.14 });
+      } else if (frame === "shadow") {
+        // Снимок приподнят над страницей: ступенчатая тень вниз — без размытия, одинаково в PDF и в браузере.
+        for (const [d, dy, o] of [
+          [1.2, 1.6, 0.035],
+          [0.7, 1.0, 0.05],
+          [0.3, 0.5, 0.07],
+        ] as const)
+          under.push({ kind: "rect", ...grow({ ...img, y: img.y + dy }, d), fill: "#000000", opacity: o });
+      } else if (frame === "hairline") over.push({ kind: "rect", ...grow(img, 1.8), stroke: P.ornament, width: 0.22 });
       else if (frame === "double") over.push({ kind: "rect", ...grow(img, 1.6), stroke: P.ornament, width: 0.4 }, { kind: "rect", ...grow(img, 3), stroke: P.ornament, width: 0.15 });
       else if (frame === "corners") {
         // Уголки старого фотоальбома: треугольники на углах снимка с выходом за край.
@@ -207,8 +231,12 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
 // ─── снимок на начальной полосе главы ───────────────────────────────────────
 
 export interface OpenerPhotoPlan {
-  /** Сам снимок; у «во всю ширину» — с выходом за обрез на 3 мм, как графика под обрез. */
+  /** Сам снимок; у «во всю ширину» и «во всю полосу» — с выходом за обрез на 3 мм, как графика под обрез. */
   img: Rect;
+  /** Форма снимка: арка (скруглённый верх) или круг. В PDF снимок обрезается при подготовке, в браузере — CSS. */
+  mask?: "arch" | "circle";
+  /** Затемнение снимка снизу под светлый текст: прозрачно до доли from высоты, к низу — opacity. */
+  shade?: { from: number; color: string; opacity: number };
   /** Карточка полароида (белое поле вокруг снимка) и её поворот, градусы. */
   card: (Rect & { rotate: number }) | null;
   under: Shape[];
@@ -231,6 +259,69 @@ export function openerPhotoPlan(format: BookFormat, design: InteriorDesign, marg
   if (kind === "bleed") {
     const h = H * 0.52;
     return { img: { x: -3, y: -3, w: W + 6, h: h + 3 }, card: null, under: [], over: [], textTop: textTop(h) };
+  }
+  const P = design.opener.fill ?? design.palette;
+  if (kind === "full") {
+    // Снимок на всю полосу, название — светлым по затемнению снизу.
+    return { img: { x: -3, y: -3, w: W + 6, h: H + 6 }, card: null, shade: { from: 0.34, color: "#0B0907", opacity: 0.82 }, under: [], over: [], textTop: 0.6 };
+  }
+  if (kind === "arch") {
+    const w = Math.min(W * 0.52, H * 0.34);
+    const h = w * 1.3;
+    const img = { x: (W - w) / 2, y: margins.marginTop + 1, w, h };
+    const o = 2.6;
+    const r = w / 2 + o;
+    const top = img.y - o;
+    const d = `M${n(img.x - o)},${n(img.y + h)} L${n(img.x - o)},${n(top + r)} A${n(r)},${n(r)} 0 0 1 ${n(img.x + w + o)},${n(top + r)} L${n(img.x + w + o)},${n(img.y + h)}`;
+    return {
+      img,
+      mask: "arch",
+      card: null,
+      under: [],
+      over: [
+        { kind: "path", d, stroke: P.ornament, width: 0.3 },
+        { kind: "path", d: `M${n(img.x - o - 7)},${n(img.y + h)} H${n(img.x + w + o + 7)}`, stroke: P.ornament, width: 0.3 },
+        { kind: "circle", cx: img.x - o - 8.2, cy: img.y + h, r: 0.6, fill: P.ornament },
+        { kind: "circle", cx: img.x + w + o + 8.2, cy: img.y + h, r: 0.6, fill: P.ornament },
+      ],
+      textTop: textTop(img.y + h),
+    };
+  }
+  if (kind === "circle") {
+    const d = Math.min(W * 0.58, H * 0.38);
+    const img = { x: (W - d) / 2, y: margins.marginTop + 3, w: d, h: d };
+    const cx = W / 2;
+    const cy = img.y + d / 2;
+    const R = d / 2 + 3.2;
+    return {
+      img,
+      mask: "circle",
+      card: null,
+      under: [{ kind: "circle", cx: cx + d * 0.07, cy: cy + d * 0.06, r: d / 2, fill: P.rule, opacity: 0.55 }],
+      over: [
+        { kind: "path", d: `M${n(cx - R)},${n(cy)} A${n(R)},${n(R)} 0 1 0 ${n(cx + R)},${n(cy)} A${n(R)},${n(R)} 0 1 0 ${n(cx - R)},${n(cy)}Z`, stroke: P.ornament, width: 0.3 },
+        ...[0, 1, 2, 3].map((i): Shape => ({ kind: "circle", cx: cx + Math.cos((i * Math.PI) / 2) * R, cy: cy + Math.sin((i * Math.PI) / 2) * R, r: 0.65, fill: P.ornament })),
+      ],
+      textTop: textTop(img.y + d),
+    };
+  }
+  if (kind === "framed") {
+    // Снимок в белом паспарту, как отпечаток на стене галереи: тень, поле и тонкая кромка выреза.
+    const w = Math.min(W * 0.62, H * 0.44);
+    const h = w / 1.25;
+    const img = { x: (W - w) / 2, y: margins.marginTop + 7, w, h };
+    const m = grow(img, Math.max(5, w * 0.075));
+    return {
+      img,
+      card: null,
+      under: [
+        { kind: "rect", x: m.x + 0.4, y: m.y + 1.6, w: m.w, h: m.h, fill: "#000000", opacity: 0.05 },
+        { kind: "rect", x: m.x + 0.2, y: m.y + 0.7, w: m.w, h: m.h, fill: "#000000", opacity: 0.08 },
+        { kind: "rect", ...m, fill: "#FFFFFF" },
+      ],
+      over: [{ kind: "rect", ...img, stroke: "#000000", width: 0.15, opacity: 0.16 }],
+      textTop: textTop(m.y + m.h),
+    };
   }
   const cw = Math.min(W * 0.6, H * 0.43);
   const pad = cw * 0.05;

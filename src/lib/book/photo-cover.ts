@@ -191,6 +191,13 @@ export function coverPhotoUrl(key: string, width = 1600) {
   return `/api/cover-photos/${encodeURIComponent(key)}?w=${width}`;
 }
 
+/** Снимки коллекции, которыми показаны примеры фотостраниц и начал глав, пока своих фото в книге нет. */
+const PAGE_SAMPLES = ["dusk", "meadow", "peaks", "sakura", "tenderness", "lavender", "surf", "alatau", "mist", "steppe"];
+
+export function samplePageUrl(scene: number, width = 1000) {
+  return coverPhotoUrl(PAGE_SAMPLES[((scene % PAGE_SAMPLES.length) + PAGE_SAMPLES.length) % PAGE_SAMPLES.length], width);
+}
+
 export function photoArt(data: Pick<PhotoTemplateData, "layout" | "textArea">) {
   return (g: CoverGeometry, ctx: ArtContext): string => {
     const { layout } = data;

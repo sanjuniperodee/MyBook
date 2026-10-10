@@ -259,7 +259,16 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                 <Image src={{ data: img.data, format: "jpg" }} style={{ width: mm(shot.img.w), height: mm(shot.img.h) }} />
               </View>
             ) : (
-              <Image src={{ data: img.data, format: "jpg" }} style={imgStyle(shot.img)} />
+              <Image
+                // fixed — снимок под обрез выше полосы набора: иначе react-pdf переносит его на следующую страницу.
+                fixed
+                src={{ data: img.data, format: "jpg" }}
+                style={{
+                  ...imgStyle(shot.img),
+                  // Арка и круг: react-pdf обрезает снимок по скруглению углов. Затемнение «во всю полосу» уже в самом снимке.
+                  ...(shot.mask === "circle" ? { borderRadius: mm(shot.img.w / 2) } : shot.mask === "arch" ? { borderTopLeftRadius: mm(shot.img.w / 2), borderTopRightRadius: mm(shot.img.w / 2) } : {}),
+                }}
+              />
             )}
             <PdfPageLayer shapes={shot.over} box={box} />
           </>
@@ -320,7 +329,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     }
     const plan = photoPagePlan(group, area, design, S);
     return (
-      <Page key={key} size={pageSize} style={{ backgroundColor: "#FFFFFF" }}>
+      <Page key={key} size={pageSize} style={{ backgroundColor: design.photos.paper ?? "#FFFFFF" }}>
         <PdfPageLayer shapes={plan.under} box={box} />
         {plan.cells.map((c) => {
           const img = options.images.get(c.id);

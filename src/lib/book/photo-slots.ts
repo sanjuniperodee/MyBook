@@ -22,7 +22,15 @@ export function frontSlotBoxes(template: CoverTemplate, format: BookFormat): Slo
   const g = coverFrontGeometry(format);
   const found: SlotInfo[] = [];
   renderCoverSvg(template, g, { uid: "slots", onSlot: (s) => found.push(s) }, { noTexture: true });
-  return found.map((s) => ({ slot: s.slot, x: round(s.rect.x / g.width), y: round(s.rect.y / g.height), w: round(s.rect.w / g.width), h: round(s.rect.h / g.height) }));
+  return found.map((s) => ({
+    slot: s.slot,
+    x: round(s.rect.x / g.width),
+    y: round(s.rect.y / g.height),
+    w: round(s.rect.w / g.width),
+    h: round(s.rect.h / g.height),
+    // Карточка повёрнута (полароид, марка, плёнка): рамка кадра в редакторе поворачивается вместе с ней.
+    ...(s.rotate ? { rotate: s.rotate.deg, origin: { x: round((s.rotate.cx - s.rect.x) / s.rect.w), y: round((s.rotate.cy - s.rect.y) / s.rect.h) } } : {}),
+  }));
 }
 
 /** Места под фото на обороте: сам снимок внутри поля (паспарту) карточки. Размеры задней крышки — в мм. */

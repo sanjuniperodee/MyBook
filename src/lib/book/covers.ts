@@ -6,7 +6,7 @@
 import type { CoverGeometry, Rect } from "./formats";
 import { collectionTemplates } from "./covers-collection";
 import { photoCollection } from "./covers-photo";
-import { clientPhotoTemplates } from "./covers-client-photo";
+import { clientPhotoOrder, clientPhotoTemplates } from "./covers-client-photo";
 import { activeCustomCovers, customCover } from "./cover-registry";
 import type { PhotoLayout } from "./photo-cover";
 import { bg, frontRect, grainFilter, jitterGrid, label, linenFilter, n, petalPath, photoSlot, rng, shadowFilter, type ArtContext } from "./cover-kit";
@@ -50,12 +50,21 @@ export interface CoverTemplate {
   requiresPhoto?: boolean;
   /** Сколько фото в композиции (для шаблонов с фото; по умолчанию одно). */
   photoSlots?: number;
+  /**
+   * Снимки-примеры из коллекции (ключи assets/cover-photos) по местам: в каталоге и редакторе, пока клиент
+   * не выбрал свои фото, обложка показана на настоящих снимках, а не на рисованном пейзаже.
+   */
+  samples?: string[];
   /** Фактура поверх графики. В PDF накладывается отдельно (быстрее, чем SVG-фильтр в 300 dpi). */
   texture?: { kind: "grain" | "linen"; opacity: number };
   art: (g: CoverGeometry, ctx: ArtContext) => string;
   /** Область текста в долях лицевой стороны. */
   textArea: Rect;
   justify: "center" | "start" | "end";
+  /** Выключка текста в области: по центру (по умолчанию) или к краю — для журнальных раскладок. */
+  align?: "center" | "left" | "right";
+  /** Имена над названием, мелкой строкой-«шапкой» (как в журнале), а не под ним. */
+  namesFirst?: boolean;
   title: CoverTextStyle;
   subtitle: CoverTextStyle;
   names: CoverTextStyle;
@@ -390,6 +399,7 @@ const photo: CoverTemplate = {
   mood: "photo",
   swatch: "linear-gradient(180deg,#8a8a8a,#2b2b2b)",
   requiresPhoto: true,
+  samples: ["peaks"],
   art: (g, ctx) => {
     const f = g.front;
     // Фото занимает лицевую сторону вместе с загибами (до правого, верхнего и нижнего края холста).
@@ -426,7 +436,7 @@ export const allCoverTemplates: CoverTemplate[] = builtIn.map((t) => byId[t.id])
 export const coverTemplates: CoverTemplate[] = [
   "peony", "sakura", "alatau", "tenderness", "velvet", "eucalyptus", "milkyway", "flax", "roses", "clouds", "saddle", "lavender",
   "dusk", "marble", "bouquet", "mist", "lights", "dried", "peaks", "party", "postcards", "meadow", "surf", "autumn", "steppe", "mint",
-  "arch", "polaroid", "collage", "medallion", "heart", "magazine", "passepartout", "mosaic", "film", "duotone", "photo",
+  ...clientPhotoOrder, "photo",
   "oyu", "constellation", "linen", "sunrise", "midnight", "herbarium", "deco", "leather", "letter", "lemons",
 ].map((id) => byId[id]);
 
@@ -491,7 +501,9 @@ export function renderCoverSvg(
   const size = opts.pxPerMm
     ? ` width="${Math.round(g.width * opts.pxPerMm)}" height="${Math.round(g.height * opts.pxPerMm)}"`
     : ` preserveAspectRatio="xMidYMid slice"`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${n(g.width)} ${n(g.height)}"${size}>${template.art(g, ctx)}${opts.plainBack ? "" : backMirror(template, g, ctx)}${texture}</svg>`;
+  // Пустые места под фото — снимками-примерами, если вызывающий умеет их загрузить (sampleHref).
+  const art = template.samples && ctx.sampleHref && !ctx.samples ? { ...ctx, samples: template.samples.map(ctx.sampleHref) } : ctx;
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${n(g.width)} ${n(g.height)}"${size}>${template.art(g, art)}${opts.plainBack ? "" : backMirror(template, g, ctx)}${texture}</svg>`;
 }
 
 /**
