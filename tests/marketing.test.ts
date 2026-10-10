@@ -40,8 +40,9 @@ describe("отчёт по каналам: деньги по ручным сде�
     expect(sales([row({ won: true })])).toMatchObject({ sales: 1, revenue: 20000 });
     expect(sales([row({})])).toMatchObject({ sales: 0, revenue: 0 });
   });
-  it("по сделке есть заказ на сайте — деньги в заказе, платежи не дублируются", () => {
-    expect(sales([row({ hasOrder: true, paid: 10000, won: true })])).toMatchObject({ sales: 0, revenue: 0 });
+  it("по сделке есть заказ на сайте: продажа и деньги заказа — в строке клиента, а предоплата добавляется к выручке без второй продажи", () => {
+    expect(sales([row({ hasOrder: true, paid: 10000, won: true })])).toMatchObject({ sales: 0, revenue: 10000 });
+    expect(sales([row({ hasOrder: true, won: true })])).toMatchObject({ sales: 0, revenue: 0 });
   });
 });
 

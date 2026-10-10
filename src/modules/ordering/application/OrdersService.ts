@@ -4,7 +4,7 @@ import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type OrderStatus, type PromoCodeRepository } from "../domain";
-import type { BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
+import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 
 export interface PlaceOrderCommand {
   userId: string;
@@ -21,6 +21,11 @@ export interface PlaceOrderCommand {
   giftNote?: string;
   desiredDate?: string;
   surprise?: boolean;
+  /**
+   * Что делать с договорённостью по ручной сделке (если она есть): agreed — договорённая цена и предоплата в зачёт (по умолчанию);
+   * advance — обычная цена по каталогу, предоплата засчитывается как аванс (заказ «с нуля»: другой тариф, другая книга).
+   */
+  agreementMode?: "agreed" | "advance";
 }
 
 export interface UpdateOrderCommand {
@@ -42,9 +47,15 @@ export class OrdersService {
     private readonly people: PeopleGateway,
     private readonly printFiles: PrintFiles,
     private readonly payments: PaymentSettings,
+    private readonly agreements: AgreementGateway,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
   ) {}
+
+  /** Договорённая цена и предоплата клиента по ручной сделке (для страницы оформления и расчёта заказа). */
+  agreementFor(userId: string) {
+    return this.agreements.agreementFor(userId);
+  }
 
   async place(cmd: PlaceOrderCommand): Promise<Order> {
     const book = await this.books.checkoutInfo(cmd.bookId, cmd.userId, cmd.locale);
@@ -57,10 +68,14 @@ export class OrdersService {
     if (cmd.promoCode && !promo) throw new OrderingError("notFound");
     promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
+    const found = await this.agreements.agreementFor(cmd.userId);
+    // «Аванс»: цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
+    const agreement = found && { agreedTotal: cmd.agreementMode === "advance" ? Number.POSITIVE_INFINITY : found.agreedTotal, prepaid: found.prepaid };
     const identity = await this.orders.nextIdentity();
     const order = Order.place(
       {
         ...identity,
+        agreement,
         userId: cmd.userId,
         bookId: cmd.bookId,
         plan: cmd.plan,
@@ -89,8 +104,8 @@ export class OrdersService {
       this.uow.track(order);
     });
 
-    // Заказ полностью оплачен промокодом или сертификатом — сразу передаём в работу.
-    if (order.isFree) await this.confirmPayment({ orderId: order.id, paymentId: promo?.code ?? null }, { label: "promo" });
+    // Заказ полностью оплачен промокодом, сертификатом или предоплатой по договорённости — сразу передаём в работу.
+    if (order.isFree) await this.confirmPayment({ orderId: order.id, paymentId: promo?.code ?? (found ? `prepaid:${found.dealNumber}` : null) }, { label: found && !promo ? "prepaid" : "promo" });
     return order;
   }
 

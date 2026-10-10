@@ -180,10 +180,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <Card title="Оплата">
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{planName(order.plan)} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
-              {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>Промокод {order.promoCode}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
+              {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>{order.promoCode ? `Промокод ${order.promoCode}` : "Договорённая цена"}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
               {order.addons.length ? <div className="flex justify-between"><dt className="text-muted">{order.addons.map((a) => addonName(a)).join(", ")}</dt><dd>{formatPrice(order.addonsAmount)}</dd></div> : null}
               <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{formatPrice(order.deliveryAmount)}</dd></div>
-              <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Итого</dt><dd>{formatPrice(order.amount)}</dd></div>
+              {order.prepaidAmount ? <div className="flex justify-between text-emerald-700"><dt>Внесено ранее менеджеру (предоплата)</dt><dd>−{formatPrice(order.prepaidAmount)}</dd></div> : null}
+              <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>{order.prepaidAmount ? "К оплате сейчас" : "Итого"}</dt><dd>{formatPrice(order.amount)}</dd></div>
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>
               {order.paidAt ? <div className="flex justify-between text-xs text-muted"><dt>Оплачен</dt><dd>{formatDate(order.paidAt, true)}</dd></div> : null}
             </dl>

@@ -12,7 +12,7 @@ export const GET = api(async (req) => {
   const rows = await container().reporting.paymentsExport(days);
   const csv = toCsv(
     ["Дата оплаты", "Сумма, ₸", "Откуда", "Тип", "Заказ / сделка", "Клиент", "Телефон", "Менеджер", "Чек приложен"],
-    rows.map((r) => [r.at, r.amount, r.kind === "order" ? "заказ на сайте" : r.kind === "payment" ? "платёж менеджеру" : "успешная сделка", r.type, r.ref, r.client, r.phone, r.manager, r.receipt]),
+    rows.map((r) => [r.at, r.amount, r.kind === "order" ? "заказ на сайте" : r.kind === "payment" ? "платёж менеджеру" : r.kind === "refund" ? "возврат клиенту" : "успешная сделка", r.type, r.ref, r.client, r.phone, r.manager, r.receipt]),
   );
   return new Response(csv, {
     headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="payments-${new Date().toISOString().slice(0, 10)}.csv"`, "Cache-Control": "no-store" },

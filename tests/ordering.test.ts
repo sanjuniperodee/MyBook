@@ -158,7 +158,9 @@ function setup() {
   const books = new MemBooks();
   const c = clock();
   const uow = new FakeUow([orders, promos, books]);
-  const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, uow, c);
+  let agreement: { dealId: string; dealNumber: number; agreedTotal: number; prepaid: number } | null = null;
+  const agreements = { agreementFor: async () => agreement };
+  const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, agreements, uow, c);
   books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });
   const place = (extra: Partial<Parameters<OrdersService["place"]>[0]> = {}) =>
     svc.place({
@@ -173,7 +175,8 @@ function setup() {
       contact: { name: "Айжан", phone: "+77010000000", email: "a@b.kz" },
       ...extra,
     });
-  return { orders, promos, books, c, uow, svc, place };
+  const setAgreement = (a: typeof agreement) => void (agreement = a);
+  return { orders, promos, books, c, uow, svc, place, setAgreement };
 }
 
 const addPromo = async (promos: MemPromos, code: string, input: Partial<{ kind: "percent" | "fixed"; value: number; maxUses: number | null; expiresAt: Date | null }> = {}) => {
@@ -183,6 +186,49 @@ const addPromo = async (promos: MemPromos, code: string, input: Partial<{ kind: 
 };
 
 // ─── домен ─────────────────────────────────────────────────────────────────
+
+describe("Ordering: договорённая цена и предоплата по ручной сделке", () => {
+  const deal = (agreedTotal: number, prepaid: number) => ({ dealId: "d1", dealNumber: 6, agreedTotal, prepaid });
+
+  it("цена по договорённости: скидка до согласованной суммы, предоплата вычтена из «к оплате»", async () => {
+    const { place, setAgreement, orders, uow } = setup();
+    setAgreement(deal(20000, 10000));
+    const o = await place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    // каталог: твёрдая обложка 24 900, самовывоз → итог по договорённости 20 000, из них внесено 10 000
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 24900, discountAmount: 4900, prepaidAmount: 10000, amount: 10000 });
+    expect(o.status).toBe("pending_payment");
+    expect(orders.history[0].note).toContain("по договорённости с менеджером: итог 20");
+    expect(uow.types()).toEqual(["ordering.order_placed"]);
+    expect(o.ref()).toMatchObject({ amount: 10000, prepaid: 10000 });
+  });
+
+  it("«с нуля»: обычная цена по каталогу, внесённые деньги засчитываются как аванс", async () => {
+    const { place, setAgreement } = setup();
+    setAgreement(deal(20000, 10000));
+    const o = await place({ agreementMode: "advance", delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 24900, discountAmount: 0, prepaidAmount: 10000, amount: 14900 });
+  });
+
+  it("предоплата покрыла всё — заказ сразу оплачен и уходит в работу", async () => {
+    const { place, setAgreement, svc, uow } = setup();
+    setAgreement(deal(20000, 20000));
+    const o = await place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect((await svc.findByNumber(o.number))!.snapshot()).toMatchObject({ status: "paid", price: { amount: 0, prepaidAmount: 20000 } });
+    expect(uow.types()).toEqual(["ordering.order_placed", "ordering.order_paid"]);
+  });
+
+  it("договорённость не может поднять цену, предоплата не больше итога, без договорённости всё как раньше", async () => {
+    const a = setup();
+    a.setAgreement(deal(90000, 10000)); // договорились на сумму больше каталога
+    const high = await a.place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect(high.snapshot().price).toMatchObject({ discountAmount: 0, prepaidAmount: 10000, amount: 14900 });
+    const b = setup();
+    b.setAgreement(deal(20000, 50000)); // внесли больше итога — зачёт не больше итога
+    expect((await b.place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } })).snapshot().price).toMatchObject({ prepaidAmount: 20000, amount: 0 });
+    const c = setup();
+    expect((await c.place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } })).snapshot().price).toEqual({ itemsAmount: 24900, discountAmount: 0, deliveryAmount: 0, addonsAmount: 0, addons: [], amount: 24900 });
+  });
+});
 
 describe("Ordering: агрегат Order", () => {
   it("цена считается в агрегате: тариф, доставка, скидка только на книги", async () => {

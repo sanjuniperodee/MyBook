@@ -8,7 +8,7 @@ import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPrev
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
-import { availableAddons, deliveryOptions, formatPrice, plans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { availableAddons, deliveryOptions, formatPrice, plans, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn, nowMs } from "@/lib/utils";
 import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
@@ -19,7 +19,10 @@ export function CheckoutForm({
   blocked,
   initialPromo = null,
   initialPlan,
+  agreement = null,
 }: {
+  /** Договорённость менеджера с клиентом: итоговая цена и внесённая предоплата (ручная сделка). */
+  agreement?: { dealNumber: number; agreedTotal: number; prepaid: number } | null;
   initialPlan?: PlanId;
   initialPromo?: PromoPreview | null;
   bookId: string;
@@ -51,7 +54,14 @@ export function CheckoutForm({
   const discount = promo?.ok && promo.kind && promo.value ? { kind: promo.kind, value: promo.value } : null;
   const [addonIds, setAddonIds] = useState<AddonId[]>([]);
   const offered = availableAddons(planId);
-  const { itemsAmount: items, discountAmount, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = calculatePrice(planId, qty, delivery, discount, addonIds);
+  // Договорённость: продолжить по ней или оформить заказ «с нуля» по обычной цене (внесённое засчитается как аванс).
+  const [mode, setMode] = useState<"agreed" | "advance">("agreed");
+  const plain = calculatePrice(planId, qty, delivery, discount, addonIds);
+  const priced = agreement ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: mode === "agreed" ? agreement.agreedTotal : Number.POSITIVE_INFINITY, prepaid: agreement.prepaid }) : plain;
+  const { itemsAmount: items, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = priced;
+  const discountAmount = plain.discountAmount;
+  const agreedDiscount = priced.discountAmount - plain.discountAmount;
+  const prepaidApplied = priced.prepaidAmount ?? 0;
   const express = planId === "premium" || appliedAddons.includes("express");
   const toggleAddon = (id: AddonId) => setAddonIds((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
   // Успеваем ли к дате с выбранным тарифом и доставкой.
@@ -84,6 +94,34 @@ export function CheckoutForm({
       <input type="hidden" name="addons" value={appliedAddons.join(",")} />
 
       <div className="space-y-10">
+        {agreement ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="agreement">
+            <input type="hidden" name="agreementMode" value={mode} />
+            <h2 className="text-lg font-semibold text-emerald-950">{t.agreement.title}</h2>
+            <p className="mt-1 text-sm text-emerald-900">{t.agreement.summary(agreement.dealNumber, formatPrice(agreement.agreedTotal), formatPrice(agreement.prepaid))}</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2" role="radiogroup">
+              {(["agreed", "advance"] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === id}
+                  onClick={() => setMode(id)}
+                  className={cn("rounded-xl border bg-white p-4 text-left transition", mode === id ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
+                >
+                  <div className="text-sm font-semibold">{id === "agreed" ? t.agreement.continueTitle : t.agreement.newTitle}</div>
+                  <div className="mt-1 text-xs leading-snug text-muted">{id === "agreed" ? t.agreement.continueHint : t.agreement.newHint(formatPrice(agreement.prepaid))}</div>
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-emerald-900">
+              {t.agreement.refund}{" "}
+              <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="font-medium underline">
+                {t.agreement.refundLink}
+              </a>
+            </p>
+          </section>
+        ) : null}
         <section>
           <h2 className="text-xl font-semibold">1. {t.step.plan}</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -303,6 +341,18 @@ export function CheckoutForm({
                   {promo?.code?.startsWith("GIFT-") ? t.certificate : t.promoCode} {promo?.code} ({promo?.label})
                 </dt>
                 <dd>−{formatPrice(discountAmount)}</dd>
+              </div>
+            ) : null}
+            {agreedDiscount > 0 ? (
+              <div className="flex justify-between text-emerald-700">
+                <dt>{t.agreement.agreedLine}</dt>
+                <dd>−{formatPrice(agreedDiscount)}</dd>
+              </div>
+            ) : null}
+            {prepaidApplied > 0 ? (
+              <div className="flex justify-between text-emerald-700" data-testid="prepaid-line">
+                <dt>{t.agreement.prepaidLine}</dt>
+                <dd>−{formatPrice(prepaidApplied)}</dd>
               </div>
             ) : null}
             {appliedAddons.map((id) => {

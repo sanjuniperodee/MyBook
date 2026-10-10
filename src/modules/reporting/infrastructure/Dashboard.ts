@@ -54,7 +54,7 @@ export async function dashboard(period: number, staffId: string) {
     // Сроки ручных сделок (без заказа на сайте): дата в поле «Дата события», открытые, с деньгами и без.
     db.execute<{ id: string; number: number; title: string; contact_name: string; due: string; amount: number; paid: number }>(sql`
       select d.id, d.number, d.title, d.contact_name, d.custom_fields->>'event_date' as due, d.amount,
-        coalesce((select sum(p.amount) from crm_payments p where p.deal_id = d.id), 0)::int as paid
+        coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = d.id), 0)::int as paid
       from crm_deals d join crm_stages s on s.id = d.stage_id
       where s.kind = 'open' and d.order_id is null and (d.custom_fields->>'event_date') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
         and (d.custom_fields->>'event_date') <= ${iso(localDay(14))}

@@ -8,7 +8,10 @@ export interface OrderRef {
   userId: string;
   bookId: string;
   plan: string;
+  /** К оплате сейчас (за вычетом предоплаты, внесённой по договорённости). */
   amount: number;
+  /** Внесённая ранее предоплата: цена заказа целиком — amount + prepaid. */
+  prepaid: number;
   contactName: string;
   contactPhone: string;
   contactEmail: string;

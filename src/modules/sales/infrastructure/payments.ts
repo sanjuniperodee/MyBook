@@ -8,7 +8,7 @@ export type PaymentRow = typeof crmPayments.$inferSelect;
 export const MAX_PAYMENT = 100_000_000;
 
 export class PaymentError extends Error {
-  constructor(public readonly code: "amount" | "date") {
+  constructor(public readonly code: "amount" | "date" | "refundTooBig") {
     super(code);
   }
 }
@@ -24,11 +24,22 @@ export class DealPayments {
     const paidAt = input.paidAt ?? new Date();
     // Деньги из будущего в выручку не попадают: платёж принят не позже, чем «сейчас» (запас на часовые пояса).
     if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 36 * 3600_000) throw new PaymentError("date");
-    const [{ n }] = await executor().select({ n: sql<number>`count(*)::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
+    const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
     const [row] = await executor()
       .insert(crmPayments)
       .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById })
       .returning();
+    return row;
+  }
+
+  /** Возврат денег клиенту: записывается платежом типа refund (в выручке — со знаком минус) и не может превышать принятое. */
+  async refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string }): Promise<PaymentRow> {
+    const amount = Math.round(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
+    const paidAt = input.paidAt ?? new Date();
+    if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 36 * 3600_000) throw new PaymentError("date");
+    if (amount > (await this.paidTotal(input.dealId))) throw new PaymentError("refundTooBig");
+    const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById }).returning();
     return row;
   }
 
@@ -42,9 +53,9 @@ export class DealPayments {
     return row ?? null;
   }
 
-  /** Сумма принятых денег по сделке. */
+  /** Сколько денег принято по сделке: платежи минус возвраты. */
   async paidTotal(dealId: string) {
-    const [r] = await executor().select({ s: sql<number>`coalesce(sum(${crmPayments.amount}), 0)::int` }).from(crmPayments).where(eq(crmPayments.dealId, dealId));
+    const [r] = await executor().select({ s: sql<number>`coalesce(sum(case when ${crmPayments.kind} = 'refund' then -${crmPayments.amount} else ${crmPayments.amount} end), 0)::int` }).from(crmPayments).where(eq(crmPayments.dealId, dealId));
     return r.s;
   }
 

@@ -14,6 +14,8 @@ export const DELETE = api(async (req, { params }: { params: Promise<{ id: string
   if (!payment) throw new HttpError(404, "notFound");
   const deal = await c.sales.deals.findById(payment.dealId);
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
+  // Деньги уже учтены в заказе по договорённости (предоплата вычтена из «к оплате») — удалять платёж нельзя.
+  if (deal.orderId) return NextResponse.json({ error: "По сделке оформлен заказ: платёж учтён в нём и не удаляется" }, { status: 409 });
   await c.sales.payments.remove(payment.id);
   const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
   await c.clients.notes.add(actor, { kind: "note", text: `Платёж удалён: ${formatPrice(payment.amount)}`, dealId: deal.id, clientId: deal.clientId ?? undefined });

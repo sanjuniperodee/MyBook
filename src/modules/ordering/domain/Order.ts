@@ -1,6 +1,6 @@
 import { AggregateRoot } from "@/shared/domain";
 import { getPlan, type DeliveryId, type PlanId } from "@/config/site";
-import { calculatePrice, type PriceBreakdown } from "./Pricing";
+import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
 import type { OrderStatus } from "./OrderStatus";
@@ -74,6 +74,8 @@ export interface PlaceOrderInput {
   addons: readonly string[];
   contact: OrderContact;
   promo: PromoCode | null;
+  /** Договорённая цена и внесённая предоплата по ручной сделке клиента (если есть). */
+  agreement?: Agreement | null;
   currency: string;
   paymentProvider: string;
   customerComment?: string | null;
@@ -105,7 +107,7 @@ export class Order extends AggregateRoot<OrderProps> {
     if (!plan) throw new OrderingError("bookNotFound", `unknown plan ${input.plan}`);
     if (input.promo) input.promo.assertUsable(now);
     const delivery: OrderDelivery = plan.printed ? input.delivery : { method: null, city: null, address: null, postalCode: null };
-    const price = calculatePrice(plan.id, input.quantity, delivery.method, input.promo?.discount ?? null, input.addons);
+    const price = calculatePrice(plan.id, input.quantity, delivery.method, input.promo?.discount ?? null, input.addons, input.agreement ?? null);
     const order = new Order(input.id, {
       number: input.number,
       userId: input.userId,
@@ -133,7 +135,14 @@ export class Order extends AggregateRoot<OrderProps> {
       createdAt: now,
     });
     const promoNote = input.promo ? `, промокод ${input.promo.code} (${input.promo.describe(input.formatMoney)})` : "";
-    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}`, "customer", now);
+    // Договорённость (итог зафиксирован) или аванс (обычная цена, внесённые деньги — в зачёт).
+    const agreed =
+      price.prepaidAmount === undefined
+        ? ""
+        : Number.isFinite(input.agreement?.agreedTotal)
+          ? `, по договорённости с менеджером: итог ${input.formatMoney(price.amount + price.prepaidAmount)}, предоплата ${input.formatMoney(price.prepaidAmount)} учтена`
+          : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
+    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${agreed}`, "customer", now);
     order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity }));
     return order;
   }
@@ -183,7 +192,7 @@ export class Order extends AggregateRoot<OrderProps> {
 
   ref(): OrderRef {
     const p = this.props;
-    return { orderId: this.id, number: p.number, userId: p.userId, bookId: p.bookId, plan: p.plan, amount: p.price.amount, contactName: p.contact.name, contactPhone: p.contact.phone, contactEmail: p.contact.email, promoCode: p.promoCode };
+    return { orderId: this.id, number: p.number, userId: p.userId, bookId: p.bookId, plan: p.plan, amount: p.price.amount, prepaid: p.price.prepaidAmount ?? 0, contactName: p.contact.name, contactPhone: p.contact.phone, contactEmail: p.contact.email, promoCode: p.promoCode };
   }
 
   /** Совпадает ли платёж платёжной системы с заказом (защита от подмены суммы). */

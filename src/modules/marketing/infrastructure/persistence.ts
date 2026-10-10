@@ -21,7 +21,7 @@ export const sqlReportSource: ReportSource = {
         from users u where u.role = 'user' and u.created_at >= ${from}`),
       db.execute<{ utm: unknown; source: string; client_id: string | null; won: boolean; amount: number; has_order: boolean; paid: number }>(sql`
         select d.utm, d.source, d.client_id, s.kind = 'won' as won, d.amount, d.order_id is not null as has_order,
-          coalesce((select sum(p.amount) from crm_payments p where p.deal_id = d.id), 0)::int as paid
+          coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = d.id), 0)::int as paid
         from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${from}`),
       db.execute<{ slug: string; source: string; medium: string; campaign: string; clicks: number }>(sql`
         select l.slug, l.utm_source as source, l.utm_medium as medium, l.utm_campaign as campaign, coalesce(sum(c.clicks), 0)::int as clicks

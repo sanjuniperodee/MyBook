@@ -1,6 +1,7 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import { DealsService, PipelinesService, SiteFunnelService } from "./application";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress } from "./infrastructure/adapters";
+import { agreementForClient } from "./infrastructure/agreements";
 import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -8,6 +9,7 @@ import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineReposito
 export { currentMonth, shiftMonth, type PlanProgress, dealSourceLabels, dealSources, sourceFromChannel, SalesError, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type DealSource, type StageMilestone } from "./domain";
 export type { DealView, NewDeal } from "./application";
 export { ReceiptError, type ReceiptRow } from "./infrastructure/receipts";
+export type { DealAgreement } from "./infrastructure/agreements";
 export { MAX_PAYMENT, PaymentError, type PaymentRow } from "./infrastructure/payments";
 export { RECEIPT_MAX_BYTES } from "./domain";
 
@@ -23,6 +25,8 @@ export class SalesModule {
   readonly receipts = new DealReceipts();
   /** Принятые деньги по сделкам, оформленным вручную (предоплата, доплаты) — источник выручки наряду с заказами. */
   readonly payments = new DealPayments();
+  /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */
+  readonly agreementFor = agreementForClient;
 
   constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger }) {
     const repo = new DrizzleDealRepository();

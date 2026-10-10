@@ -146,6 +146,14 @@ export const books = {
     photosEnd: "Отдельной главой в конце",
     photosEndText: "Раздел «Наши моменты»",
   },
+  agreementBanner: {
+    title: "Предоплата внесена",
+    text: (deal: number, paid: string, left: string) => `По договорённости с менеджером (сделка №${deal}) вы уже внесли ${paid}. После оформления заказа останется оплатить ${left}.`,
+    ready: "Книга готова — оформите заказ",
+    notReady: "Допишите книгу и оформите заказ",
+    refund: "Передумали? Напишите менеджеру — вернём предоплату.",
+    refundLink: "Написать в WhatsApp",
+  },
   cover: {
     meta: "Обложка",
     pairTitle: "Страницы в пару",

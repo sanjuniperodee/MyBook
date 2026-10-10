@@ -3,7 +3,7 @@ import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/appli
 import { toIsoDay } from "@/lib/occasions";
 import type { PrintFilesService } from "@/modules/production";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { GiftsService, OrdersService, PromoService, type BookGateway } from "./application";
+import { GiftsService, OrdersService, PromoService, type AgreementGateway, type BookGateway } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -31,6 +31,8 @@ export interface OrderingDeps {
   printFiles: PrintFilesService;
   /** Книги (контекст Authoring) — через узкий порт, реализацию даёт корень композиции. */
   books: BookGateway;
+  /** Договорённая цена и предоплата клиента по ручной сделке (контекст «Продажи»). */
+  agreements: AgreementGateway;
   mailer: Mailer;
 }
 
@@ -48,7 +50,7 @@ export class OrderingModule {
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
     const printFiles = { prepare: (job: { orderId: string; bookId: string; number: number }, opts?: { force?: boolean }) => deps.printFiles.prepare(job, opts) };
-    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), printFiles, envPaymentSettings, deps.uow, deps.clock);
+    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);

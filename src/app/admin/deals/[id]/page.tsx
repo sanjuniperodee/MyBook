@@ -147,6 +147,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             dealId={deal.id}
             agreed={deal.amount}
             canEdit={canEdit}
+            order={order ? { id: order.id, number: order.number } : null}
             payments={paymentRows.map((p) => ({
               id: p.id,
               amount: p.amount,

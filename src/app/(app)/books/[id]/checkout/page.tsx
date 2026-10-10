@@ -37,6 +37,8 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const jar = await cookies();
   const giftCode = jar.get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined) || jar.get(INVITE_COOKIE)?.value;
   const ordering = container().ordering;
+  // Договорённость с менеджером (ручная сделка): клиент выбирает — продолжить по ней или оформить заказ с нуля.
+  const agreement = await ordering.orders.agreementFor(user.id);
   const giftCheck = giftCode ? await ordering.promos.check(giftCode, user.id) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
@@ -107,6 +109,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           blocked={blocked}
           initialPromo={initialPromo}
           initialPlan={giftPlan}
+          agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid }}
           defaults={{
             name: user.name,
             email: user.email,

@@ -39,6 +39,7 @@ const schema = (e: CheckoutErrors) =>
         .optional()
         .or(z.literal("")),
       surprise: z.literal("on").optional(),
+      agreementMode: z.enum(["agreed", "advance"]).optional(),
       consent: z.literal("on", { message: e.consent }),
     })
     .superRefine((d, ctx) => {
@@ -77,6 +78,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       giftNote: d.giftNote,
       desiredDate: d.desiredDate || undefined,
       surprise: d.surprise === "on",
+      agreementMode: d.agreementMode,
     });
   } catch (err) {
     if (OrderingError.is(err)) return { error: orderingErrorText(err, m.checkout) };

@@ -199,14 +199,15 @@ export class DrizzleSalesQueries {
           from crm_deals d join crm_stages s on s.id = d.stage_id
           where s.kind = 'won' and d.assignee_id is not null
             and to_char(d.closed_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
-            and (d.order_id is not null or not exists (select 1 from crm_payments p where p.deal_id = d.id))
+            and not exists (select 1 from crm_payments p where p.deal_id = d.id)
           union all
-          -- платежи месяца по ручным сделкам; сделка засчитывается, когда принят первый платёж по ней
-          select d.assignee_id, p.amount,
-            case when p.id = (select p2.id from crm_payments p2 where p2.deal_id = d.id order by p2.paid_at, p2.created_at limit 1) then 1 else 0 end
-          from crm_payments p join crm_deals d on d.id = p.deal_id
-          where d.order_id is null and d.assignee_id is not null
-            and to_char(p.paid_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
+          -- деньги по сделкам с платежами (предоплата, доплаты, возвраты и оплата заказа по договорённости) — по дате получения;
+          -- сделка засчитывается, когда принят первый платёж по ней
+          select e.manager_id, e.amount,
+            case when e.kind = 'payment' and e.ref_id = (select p2.id from crm_payments p2 where p2.deal_id = e.deal_id and p2.kind <> 'refund' order by p2.paid_at, p2.created_at limit 1) then 1 else 0 end
+          from revenue_events e
+          where e.manager_id is not null and e.deal_id in (select deal_id from crm_payments)
+            and to_char(e.at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
         ) x group by user_id`),
     ]);
     const out = new Map<string, PlanProgress>();

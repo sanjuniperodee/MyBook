@@ -18,6 +18,11 @@ export interface PeopleGateway {
   staffLabel(userId: string): Promise<string | null>;
 }
 
+/** Договорённость менеджера с клиентом о цене и предоплате (контекст «Продажи»). */
+export interface AgreementGateway {
+  agreementFor(userId: string): Promise<{ dealId: string; dealNumber: number; agreedTotal: number; prepaid: number } | null>;
+}
+
 /** Файлы для типографии (контекст Production). */
 export interface PrintFiles {
   prepare(job: { orderId: string; bookId: string; number: number }, opts?: { force?: boolean }): Promise<OrderPrintSpec | null>;

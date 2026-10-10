@@ -34,7 +34,7 @@ export async function salesAnalytics(pipelineId: string, period: number) {
       where e.at >= ${prevSince} and ${inPipeline}`),
     db.execute<Row>(sql`
       select d.source, d.utm, s.kind = 'won' as won, d.amount,
-        coalesce((select sum(p.amount) from crm_payments p where p.deal_id = d.id), 0)::int as paid
+        coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = d.id), 0)::int as paid
       from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${since} and ${inPipeline}`),
     db.execute<Row>(sql`select d.stage_id, count(*)::int as n, coalesce(sum(d.amount), 0)::int as sum from crm_deals d where d.created_at >= ${since} group by d.stage_id`),
     db.execute<Row>(sql`

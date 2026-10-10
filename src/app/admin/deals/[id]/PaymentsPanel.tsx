@@ -8,7 +8,7 @@ import { formatPrice } from "@/config/site";
 export interface PaymentItem {
   id: string;
   amount: number;
-  kind: "prepayment" | "payment";
+  kind: "prepayment" | "payment" | "refund";
   dateLabel: string;
   author: string;
   note: string;
@@ -65,15 +65,21 @@ function AttachReceipt({ dealId, payment, onDone }: { dealId: string; payment: P
  * Оплата по сделке: что обещано, сколько принято, платежи с чеками. Каждый принятый платёж сразу попадает в выручку
  * (обзор, аналитика, планы менеджеров, карточка клиента). Платёж без чека не принимается — а если чек пропал, виден алерт.
  */
-export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: string; payments: PaymentItem[]; agreed: number; canEdit: boolean }) {
+export function PaymentsPanel({ dealId, payments, agreed, canEdit, order }: { dealId: string; payments: PaymentItem[]; agreed: number; canEdit: boolean; order: { id: string; number: number } | null }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const paid = payments.reduce((s, p) => s + p.amount, 0);
-  const noReceipt = payments.filter((p) => !p.receipts.length);
+  // Получено = платежи минус возвраты клиенту.
+  const paid = payments.reduce((s, p) => s + (p.kind === "refund" ? -p.amount : p.amount), 0);
+  const locked = !!order; // по сделке оформлен заказ: дальше деньги идут через него
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundNote, setRefundNote] = useState("");
+  const refundFile = useRef<HTMLInputElement>(null);
+  const noReceipt = payments.filter((p) => !p.receipts.length && p.kind !== "refund");
   const refresh = () => router.refresh();
 
   async function add() {
@@ -90,6 +96,30 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: s
       if (file.current) file.current.value = "";
       setAmount("");
       setDay("");
+      refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function giveBack() {
+    const f = refundFile.current?.files?.[0];
+    if (!f) return setError("Приложите чек возврата");
+    if (refundNote.trim().length < 3) return setError("Укажите причину возврата");
+    setBusy(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.set("file", f);
+      body.set("amount", refundAmount);
+      body.set("kind", "refund");
+      body.set("note", refundNote);
+      await send(`/api/admin/deals/${dealId}/payments`, body);
+      setRefundOpen(false);
+      setRefundAmount("");
+      setRefundNote("");
       refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -115,7 +145,16 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: s
           <div className="font-medium tabular-nums">{formatPrice(Math.max(0, agreed - paid))}</div>
         </div>
       </div>
-      {paid > agreed && agreed > 0 ? <p className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900">Получено больше, чем договорились: проверьте сумму сделки или платежи.</p> : null}
+      {order ? (
+        <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-900" data-testid="order-linked">
+          Оформлен{" "}
+          <a href={`/admin/orders/${order.id}`} className="font-medium underline">
+            заказ №{order.number}
+          </a>
+          : внесённая предоплата вычтена из его «к оплате». Дальнейшую оплату принимайте в заказе.
+        </p>
+      ) : null}
+      {paid > agreed && agreed > 0 && !locked ? <p className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900">Получено больше, чем договорились: проверьте сумму сделки или платежи.</p> : null}
       {noReceipt.length ? (
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-900" role="alert">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
@@ -128,12 +167,15 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: s
           {payments.map((p) => (
             <li key={p.id} className="rounded-xl border border-line px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="font-medium tabular-nums">{formatPrice(p.amount)}</span>
-                <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : "платёж"}</span>
+                <span className={`font-medium tabular-nums ${p.kind === "refund" ? "text-red-700" : ""}`}>
+                  {p.kind === "refund" ? "−" : ""}
+                  {formatPrice(p.amount)}
+                </span>
+                <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
                 <span className="ml-auto truncate text-xs text-muted">
                   {p.dateLabel} · {p.author}
                 </span>
-                {canEdit ? (
+                {canEdit && !locked ? (
                   <button
                     type="button"
                     className="text-muted hover:text-red-700"
@@ -162,7 +204,7 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: s
                     </li>
                   ))}
                 </ul>
-              ) : canEdit ? (
+              ) : canEdit && p.kind !== "refund" ? (
                 <AttachReceipt dealId={dealId} payment={p} onDone={refresh} />
               ) : null}
             </li>
@@ -172,7 +214,7 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: s
         <p className="text-xs text-muted">Платежей пока нет.</p>
       )}
 
-      {canEdit ? (
+      {canEdit && !locked ? (
         <div className="space-y-2 border-t border-line pt-3">
           <div className="text-xs font-medium text-ink-soft">Принять платёж</div>
           <div className="grid grid-cols-2 gap-2">
@@ -185,6 +227,30 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit }: { dealId: s
           </button>
           <p className="text-xs text-muted">Платёж сразу попадает в выручку: обзор, аналитику, план менеджера и карточку клиента.</p>
           {error ? <p className="text-xs text-red-700">{error}</p> : null}
+          {paid > 0 ? (
+            <div className="border-t border-line pt-3">
+              {refundOpen ? (
+                <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/50 p-3">
+                  <div className="text-xs font-medium text-red-900">Возврат денег клиенту</div>
+                  <input value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} type="number" min={1} max={paid} step={500} placeholder={`Сумма, ₸ (не больше ${formatPrice(paid)})`} className="input h-10 w-full" aria-label="Сумма возврата" />
+                  <input value={refundNote} onChange={(e) => setRefundNote(e.target.value)} maxLength={300} placeholder="Причина возврата" className="input h-10 w-full" aria-label="Причина возврата" />
+                  <input ref={refundFile} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="input h-10 w-full py-1.5 text-xs" aria-label="Чек возврата" />
+                  <div className="flex gap-2">
+                    <button type="button" className="btn btn-outline btn-sm flex-1" disabled={busy || !refundAmount} onClick={() => void giveBack()}>
+                      {busy ? <LoaderCircle className="size-4 animate-spin" /> : null} Оформить возврат
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRefundOpen(false)}>
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="text-xs text-muted underline hover:text-red-700" onClick={() => setRefundOpen(true)}>
+                  Вернуть деньги клиенту
+                </button>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

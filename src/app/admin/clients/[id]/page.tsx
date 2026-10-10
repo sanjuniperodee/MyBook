@@ -231,8 +231,8 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               <div className="divide-y divide-line">
                 {paymentRows.map((p) => (
                   <Link key={p.id} href={`/admin/deals/${p.deal_id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-                    <span className="w-24 font-medium tabular-nums">{formatPrice(p.amount)}</span>
-                    <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : "платёж"}</span>
+                    <span className={cn("w-24 font-medium tabular-nums", p.kind === "refund" && "text-red-700")}>{p.kind === "refund" ? "−" : ""}{formatPrice(p.amount)}</span>
+                    <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
                     <span className="min-w-0 flex-1 truncate text-muted">
                       сделка №{p.number} · {p.title}
                     </span>

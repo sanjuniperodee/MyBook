@@ -230,6 +230,7 @@ export class Container {
         unlock: (bookId) => this.authoring.ordering.unlock(bookId),
         toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
       },
+      agreements: { agreementFor: (userId) => this.sales.agreementFor(userId) },
     }));
   }
 

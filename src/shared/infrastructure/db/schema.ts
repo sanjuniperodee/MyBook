@@ -248,6 +248,8 @@ export const orders = pgTable(
     /** Дополнения (экспресс, упаковка) и их стоимость. */
     addons: text("addons").array().notNull().default(sql`'{}'::text[]`),
     addonsAmount: integer("addons_amount").notNull().default(0),
+    /** Внесено ранее менеджеру по договорённости (предоплата): оплачено до заказа, в «к оплате» не входит. */
+    prepaidAmount: integer("prepaid_amount").notNull().default(0),
     amount: integer("amount").notNull(),
     currency: text("currency").notNull(),
     status: text("status").$type<OrderStatus>().notNull().default("pending_payment"),
@@ -579,8 +581,8 @@ export const crmPayments = pgTable(
     clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
     /** Сумма платежа, ₸ (больше нуля). */
     amount: integer("amount").notNull(),
-    /** prepayment — первый платёж по сделке, payment — следующие. */
-    kind: text("kind", { enum: ["prepayment", "payment"] }).notNull().default("payment"),
+    /** prepayment — первый платёж по сделке, payment — следующие, refund — возврат денег клиенту (в выручке со знаком минус). */
+    kind: text("kind", { enum: ["prepayment", "payment", "refund"] }).notNull().default("payment"),
     /** Когда деньги получены (по нему платёж попадает в выручку по дням). */
     paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
     note: text("note").notNull().default(""),
