@@ -30,10 +30,11 @@ git pull --ff-only origin "$BRANCH"
 SHA="$(git rev-parse --short HEAD)"
 
 echo "→ Зависимости"
-PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --no-audit --no-fund
+# nice: сборка отдаёт процессор работающему сайту (на 2 ядрах она иначе заметно замедляет ответы)
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 nice -n 15 npm ci --no-audit --no-fund
 
 echo "→ Сборка"
-NEXT_TELEMETRY_DISABLED=1 npm run build
+NEXT_TELEMETRY_DISABLED=1 nice -n 15 npm run build
 
 echo "→ Релиз $SHA"
 REL="$RELEASES/$(date +%Y%m%d-%H%M%S)-$SHA"
