@@ -4,6 +4,7 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
+import { parseFrames } from "@/lib/book/photo-frame";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { CoverEditor } from "./CoverEditor";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -48,6 +49,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           backPhotoExtra: book.backPhotoExtra,
           coverPhotoId: book.coverPhotoId,
           coverPhotoExtra: book.coverPhotoExtra,
+          photoFrames: parseFrames(book.photoFrames),
           interior: book.interior,
         }}
       />

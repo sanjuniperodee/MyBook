@@ -16,7 +16,7 @@ import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { coverName, interiorName } from "@/i18n/labels";
-import { photoUrls } from "@/lib/urls";
+import { coverPhotoRefs } from "@/lib/book/photo-refs";
 import { CheckoutForm } from "./CheckoutForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -52,7 +52,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             title={book.title}
             subtitle={book.subtitle}
             names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-            photos={photoUrls(coverPhotoIds(book))}
+            photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "thumb")}
             lite
             className="rounded-[3px] shadow-book"
           />

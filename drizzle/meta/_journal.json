@@ -183,6 +183,13 @@
       "when": 1791633836732,
       "tag": "0025_crm_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791635066325,
+      "tag": "0026_book_photo_frames",
+      "breakpoints": true
     }
   ]
 }

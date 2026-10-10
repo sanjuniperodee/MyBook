@@ -24,7 +24,7 @@ const book: Book = {
   backText: "Каждая страница — о тебе.",
   backLayout: "quote",
   backPhotoId: null,
-  backPhotoExtra: [],
+  backPhotoExtra: [], photoFrames: {},
   dedication: "Моему самому близкому человеку",
   interior: "classic",
   format: "a5",

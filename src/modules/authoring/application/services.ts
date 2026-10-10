@@ -34,10 +34,10 @@ export class BooksService {
   }
 
   /** Настройки из редактора (включая смену языка книги). */
-  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[] }, photos: PhotoRepository) {
+  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown }, photos: PhotoRepository) {
     return this.uow.run(async () => {
       const book = await loadBook(this.books, bookId, viewer, { editable: true });
-      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, ...settings } = patch;
+      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, ...settings } = patch;
       for (const [side, ids] of [
         ["cover", coverPhotoExtra],
         ["back", backPhotoExtra],
@@ -54,6 +54,7 @@ export class BooksService {
         if (backPhotoId && !(await photos.findInBook(book.id, backPhotoId))) throw new AuthoringError("photoNotFound");
         book.setBackPhoto(backPhotoId);
       }
+      if (photoFrames !== undefined) book.setPhotoFrames(photoFrames);
       if (language && language !== book.language) {
         const texts = book.switchLanguage(language, this.themes.get(book.theme, book.language), this.themes.get(book.theme, language));
         await this.questions.replaceTemplates(book.id, texts);

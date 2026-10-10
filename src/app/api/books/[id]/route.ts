@@ -21,6 +21,8 @@ const patchSchema = z
     backLayout: z.string().max(20),
     backPhotoId: z.string().uuid().nullable(),
     backPhotoExtra: z.array(z.string().uuid()).max(MAX_EXTRA_PHOTOS),
+    // Кадры фото на обложке: форму и числа проверяет домен (parseFrames), здесь — только размер.
+    photoFrames: z.record(z.string().max(12), z.object({ zoom: z.number(), x: z.number(), y: z.number() })).refine((o) => Object.keys(o).length <= 12),
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
     format: z.string().max(20),

@@ -42,7 +42,7 @@ const book: Book = {
   backText: "Каждая страница — о тебе.",
   backLayout: "polaroids",
   backPhotoId: null,
-  backPhotoExtra: [],
+  backPhotoExtra: [], photoFrames: {},
   dedication: "",
   interior: "photobook",
   format: "a5",

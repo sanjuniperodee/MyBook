@@ -4,6 +4,7 @@
  * поэтому то, что клиент видит на экране, совпадает с напечатанным.
  */
 import { coverNamesLine, type CoverTemplate } from "./covers";
+import { photoHref, photoImage, type PhotoRef } from "./cover-kit";
 import type { FontKey } from "./fonts";
 import type { Rect } from "./formats";
 
@@ -280,14 +281,14 @@ export function designBack(template: CoverTemplate, W: number, H: number, conten
  * под загибы сверху, снизу и с внешнего края — и мягкие тени под карточками. В браузере то же
  * рисуют <img>, CSS-градиент и box-shadow (components/cover/CoverBack). back — задняя крышка на развёртке, мм.
  */
-export function backArtSvg(design: BackDesign, back: { x: number; y: number; w: number; h: number }, photos: (string | undefined)[], uid: string) {
+export function backArtSvg(design: BackDesign, back: { x: number; y: number; w: number; h: number }, photos: (PhotoRef | undefined)[], uid: string) {
   const r = (v: number) => Math.round(v * 100) / 100;
   let defs = "";
   let out = "";
   design.blocks.forEach((b, i) => {
     if (b.kind === "photo" && b.frame === "bleed") {
-      const href = photos[b.slot];
-      if (href) out += `<image href="${href.replace(/&/g, "&amp;")}" x="0" y="0" width="${r(back.x + b.w)}" height="${r(back.y * 2 + b.h)}" preserveAspectRatio="xMidYMid slice"/>`;
+      const ref = photos[b.slot];
+      if (photoHref(ref)) out += photoImage(ref!, { x: 0, y: 0, w: r(back.x + b.w), h: r(back.y * 2 + b.h) });
     } else if (b.kind === "shade") {
       // Доля from — от высоты крышки; на развёртке с загибами пересчитываем в доли всей высоты.
       const H = back.y * 2 + b.h;

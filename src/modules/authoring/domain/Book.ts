@@ -4,6 +4,7 @@ import { isKnownCover } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
 import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
+import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
 import { getOccasion } from "@/lib/occasions";
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
@@ -34,6 +35,8 @@ export interface BookProps {
   backPhotoId: string | null;
   /** Остальные снимки оборота «Полароиды» (первый — backPhotoId). */
   backPhotoExtra: string[];
+  /** Кадры фото на обложке по местам: масштаб и положение (src/lib/book/photo-frame.ts). */
+  photoFrames: FrameMap;
   dedication: string;
   interior: string;
   format: string;
@@ -112,6 +115,7 @@ export class Book extends AggregateRoot<BookProps> {
       backLayout: DEFAULT_BACK_LAYOUT,
       backPhotoId: null,
       backPhotoExtra: [],
+      photoFrames: {},
       dedication: "",
       interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       format: "a5",
@@ -188,19 +192,45 @@ export class Book extends AggregateRoot<BookProps> {
   /** Фото обложки (принадлежность фото книге проверяет сервис). */
   setCoverPhoto(photoId: string | null) {
     this.assertEditable();
+    const before = this.slotIds("cover");
     this.props.coverPhotoId = photoId;
+    this.dropChangedFrames("cover", before);
   }
 
   /** Фото на задней стороне (принадлежность фото книге проверяет сервис). */
   setBackPhoto(photoId: string | null) {
     this.assertEditable();
+    const before = this.slotIds("back");
     this.props.backPhotoId = photoId;
+    this.dropChangedFrames("back", before);
   }
 
   /** Остальные места под фото на обложке и обороте (принадлежность фото книге проверяет сервис). */
   setExtraPhotos(side: "cover" | "back", photoIds: string[]) {
     this.assertEditable();
+    const before = this.slotIds(side);
     this.props[side === "cover" ? "coverPhotoExtra" : "backPhotoExtra"] = photoIds.slice(0, MAX_EXTRA_PHOTOS);
+    this.dropChangedFrames(side, before);
+  }
+
+  /** Снимки по местам стороны обложки: первое — основное фото, дальше — остальные. */
+  private slotIds(side: "cover" | "back") {
+    const p = this.props;
+    return side === "cover" ? [p.coverPhotoId, ...p.coverPhotoExtra] : [p.backPhotoId, ...p.backPhotoExtra];
+  }
+
+  /** На месте теперь другое фото — прежний кадр (масштаб и сдвиг) к нему не подходит. */
+  private dropChangedFrames(side: "cover" | "back", before: (string | null)[]) {
+    const after = this.slotIds(side);
+    const frames = { ...this.props.photoFrames };
+    for (let i = 0; i < Math.max(before.length, after.length); i++) if ((before[i] ?? null) !== (after[i] ?? null)) delete frames[frameKey(side, i)];
+    this.props.photoFrames = frames;
+  }
+
+  /** Кадры фото на обложке (масштаб и положение по местам). Принимаются только известные места и допустимые числа. */
+  setPhotoFrames(raw: unknown) {
+    this.assertEditable();
+    this.props.photoFrames = parseFrames(raw);
   }
 
   /** Использует ли обложка (лицо или оборот) это фото. */
@@ -211,10 +241,14 @@ export class Book extends AggregateRoot<BookProps> {
 
   /** Удалённое фото не должно оставаться на обложке — ни спереди, ни сзади. */
   forgetPhoto(photoId: string) {
+    const coverBefore = this.slotIds("cover");
+    const backBefore = this.slotIds("back");
     if (this.props.coverPhotoId === photoId) this.props.coverPhotoId = null;
     if (this.props.backPhotoId === photoId) this.props.backPhotoId = null;
     this.props.coverPhotoExtra = this.props.coverPhotoExtra.filter((id) => id !== photoId);
     this.props.backPhotoExtra = this.props.backPhotoExtra.filter((id) => id !== photoId);
+    this.dropChangedFrames("cover", coverBefore);
+    this.dropChangedFrames("back", backBefore);
   }
 
   /**

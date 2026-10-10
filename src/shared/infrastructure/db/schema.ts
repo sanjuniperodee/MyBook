@@ -138,6 +138,8 @@ export const books = pgTable(
     backPhotoId: uuid("back_photo_id"),
     /** Остальные снимки для оборота «Полароиды»; первый — backPhotoId. */
     backPhotoExtra: jsonb("back_photo_extra").$type<string[]>().notNull().default([]),
+    /** Кадры фото на обложке: масштаб и положение по местам («cover:0», «back:1») — см. lib/book/photo-frame. */
+    photoFrames: jsonb("photo_frames").$type<Record<string, { zoom: number; x: number; y: number }>>().notNull().default({}),
     dedication: text("dedication").notNull().default(""),
     /** Оформление страниц — id из src/lib/book/interiors.ts. */
     interior: text("interior").notNull().default("classic"),

@@ -1,3 +1,4 @@
+import type { PhotoRef } from "@/lib/book/cover-kit";
 import { getCoverTemplate, renderCoverSvg, type CoverTemplate, type CoverTextStyle } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
@@ -11,7 +12,7 @@ export interface CoverPreviewProps {
   subtitle?: string;
   names?: string;
   /** Фото клиента по местам шаблона (для обложек с фото); пустое место — пейзаж-заглушка. */
-  photos?: (string | undefined)[];
+  photos?: (PhotoRef | undefined)[];
   className?: string;
   uid?: string;
   /** Без фактуры — быстрее для множества мелких превью. */

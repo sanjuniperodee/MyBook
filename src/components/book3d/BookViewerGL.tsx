@@ -9,6 +9,7 @@ import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-mode
 import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/utils";
 import { FaceView, usePagedBook, type FlipbookData } from "./pages";
+import { photoHref, type PhotoRef } from "@/lib/book/cover-kit";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage } from "./useCoverImage";
 import { ViewerControls, type ViewId } from "./ViewerControls";
@@ -41,6 +42,13 @@ function averageColor(canvas: HTMLCanvasElement) {
   ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 1, 1);
   const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
   return `rgb(${r}, ${g}, ${b})`;
+}
+
+/** Короткий отпечаток строки: версия арта обложки должна меняться при любой правке кадра. */
+function hash(text: string) {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }
 
 /** Фото клиента как data-URL: картинка-SVG и снимок вёрстки не загружают чужие файлы. */
@@ -78,21 +86,30 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const boardH = Math.round((texW * dims.h) / dims.w);
   const spineW = Math.max(48, Math.round((dims.d * texW) / dims.w));
 
-  // Фото обложки встраиваются в SVG data-URL: иначе их не увидит растеризация в текстуру.
-  const [photoHrefs, setPhotoHrefs] = useState<(string | undefined)[] | undefined>();
-  const photoKey = (data.cover.photos ?? []).join("|");
+  // Фото обложки встраиваются в SVG data-URL: иначе их не увидит растеризация в текстуру. Размеры и кадр (масштаб,
+  // положение) едут вместе с адресом: по ним снимок ставится в место так же, как в редакторе.
+  const [photoHrefs, setPhotoHrefs] = useState<(PhotoRef | undefined)[] | undefined>();
+  const photoKey = JSON.stringify(data.cover.photos ?? []);
   useEffect(() => {
-    const urls = photoKey ? photoKey.split("|") : [];
-    if (!template.requiresPhoto || !urls.some(Boolean)) return;
+    const refs = (JSON.parse(photoKey) as (PhotoRef | null)[]).map((r) => r ?? undefined);
+    if (!template.requiresPhoto || !refs.some(Boolean)) return;
     let alive = true;
-    Promise.all(urls.map((u) => (u ? toDataUrl(u).catch(() => undefined) : undefined))).then((hrefs) => alive && setPhotoHrefs(hrefs));
+    Promise.all(
+      refs.map(async (ref) => {
+        const url = photoHref(ref);
+        if (!url) return undefined;
+        const href = await toDataUrl(url).catch(() => undefined);
+        if (!href) return undefined;
+        return typeof ref === "string" || !ref ? href : { ...ref, href };
+      }),
+    ).then((list) => alive && setPhotoHrefs(list));
     return () => {
       alive = false;
     };
   }, [template.requiresPhoto, photoKey]);
   const imageHref = useCoverImage(template);
   // Фото и снимок обложки приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
-  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${imageHref ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
+  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
   const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt]);
 
   const wrapper = useRef<HTMLDivElement>(null);

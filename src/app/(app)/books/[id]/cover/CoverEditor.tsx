@@ -1,10 +1,14 @@
 "use client";
 
 import { Link, useLocale, useMessages } from "@/i18n/client";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
+import { backPreviewLayout, CoverBackPreview } from "@/components/cover/CoverBackPreview";
+import { FrameControls, FrameLayer, type FrameSlot } from "@/components/cover/FrameEditor";
+import { DEFAULT_FRAME, frameKey, isDefaultFrame, type FrameMap, type PhotoFrame } from "@/lib/book/photo-frame";
+import { backSlotBoxes, frontSlotBoxes } from "@/lib/book/photo-slots";
+import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
 import { BACK_PHOTO_SLOTS, type BackLayout } from "@/lib/book/cover-back";
 import { BackSection } from "./BackSection";
 import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
@@ -34,6 +38,8 @@ export interface CoverState {
   coverPhotoExtra: string[];
   /** Оформление страниц: здесь его можно сменить на подходящее к обложке одной кнопкой. */
   interior: string;
+  /** Кадры фото на обложке (масштаб и положение) по местам: «cover:0», «back:1». */
+  photoFrames: FrameMap;
 }
 
 export function CoverEditor({
@@ -78,11 +84,39 @@ export function CoverEditor({
     }
   }, 700);
 
-  const update = (patch: Partial<CoverState>) => {
+  /** Поставили другое фото на место — прежний кадр (масштаб, сдвиг) к нему не подходит: сбрасываем, как это делает и сервер. */
+  const withFrameReset = (s: CoverState, patch: Partial<CoverState>): Partial<CoverState> => {
+    if (patch.photoFrames) return patch;
+    const next = { ...s, ...patch };
+    const ids = (c: CoverState) => ({ cover: [c.coverPhotoId, ...c.coverPhotoExtra], back: [c.backPhotoId, ...c.backPhotoExtra] });
+    const before = ids(s);
+    const after = ids(next);
+    let frames = s.photoFrames;
+    for (const side of ["cover", "back"] as const)
+      for (let i = 0; i < Math.max(before[side].length, after[side].length); i++) {
+        const key = frameKey(side, i);
+        if ((before[side][i] ?? null) !== (after[side][i] ?? null) && frames[key]) {
+          frames = { ...frames };
+          delete frames[key];
+        }
+      }
+    return frames === s.photoFrames ? patch : { ...patch, photoFrames: frames };
+  };
+
+  const update = (raw: Partial<CoverState>) => {
     if (!editable) return;
+    const patch = withFrameReset(state, raw);
     setState((s) => ({ ...s, ...patch }));
     changes.current = { ...changes.current, ...patch };
     schedule(null);
+  };
+
+  /** Кадр фото на обложке: «по умолчанию» не храним. */
+  const setFrame = (key: string, frame: PhotoFrame) => {
+    const frames = { ...state.photoFrames };
+    if (isDefaultFrame(frame)) delete frames[key];
+    else frames[key] = frame;
+    update({ photoFrames: frames });
   };
 
   const choices = pickerCovers();
@@ -112,8 +146,10 @@ export function CoverEditor({
   const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
   const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
-  const coverPhotos = photoUrls([state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots), "full");
+  const coverIds = [state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots);
+  const coverPhotos = coverPhotoRefs(coverIds, photos, state, "view");
   const [side, setSide] = useState<"front" | "back">("front");
+  const [frameSel, setFrameSel] = useState<string | null>(null);
   const backPhotos = [state.backPhotoId, ...state.backPhotoExtra].flatMap((id) => photos.filter((p) => p.id === id));
   const backContent = {
     layout: state.backLayout,
@@ -123,6 +159,21 @@ export function CoverEditor({
     year,
     photos: backPhotos.map((p) => ({ width: p.width, height: p.height })),
   };
+  // Места под фото на превью: по ним поверх снимков ложится управление кадром (перетащить, увеличить).
+  const frontBoxes = useMemo(() => (template.requiresPhoto ? frontSlotBoxes(template, getFormat(format)) : []), [template, format]);
+  const frontSlots: FrameSlot[] = frontBoxes.flatMap((b) => {
+    const p = coverIds[b.slot] ? photos.find((x) => x.id === coverIds[b.slot]) : undefined;
+    const key = frameKey("cover", b.slot);
+    return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
+  });
+  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent);
+  const backSlots: FrameSlot[] = backSlotBoxes(backLayoutInfo.design, backLayoutInfo.back.w, backLayoutInfo.back.h).flatMap((b) => {
+    const p = backPhotos[b.slot];
+    const key = frameKey("back", b.slot);
+    return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
+  });
+  const frameSlots = side === "back" ? backSlots : frontSlots;
+  const frameSelected = frameSlots.some((s) => s.key === frameSel) ? frameSel : (frameSlots[0]?.key ?? null);
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
@@ -145,23 +196,27 @@ export function CoverEditor({
             </div>
           </div>
           <div className="mx-auto w-full max-w-[340px] rounded-[28px] bg-cream/70 p-8">
-            {side === "back" ? (
-              <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photos={photoUrls(backPhotos.map((p) => p.id), "full")} className="rounded-[4px] shadow-book" />
-            ) : (
-            <CoverPreview
-              template={state.coverTemplate}
-              format={format}
-              title={state.title}
-              subtitle={state.subtitle}
-              names={names}
-              photos={coverPhotos}
-              className="rounded-[4px] shadow-book"
-              uid="editor"
-              titlePlaceholder={t.bookTitle}
-              photoHint={t.uploadFirst}
-            />
-            )}
+            <div className="relative">
+              {side === "back" ? (
+                <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photos={backPhotoRefs(backPhotos, state, "view")} className="rounded-[4px] shadow-book" />
+              ) : (
+                <CoverPreview
+                  template={state.coverTemplate}
+                  format={format}
+                  title={state.title}
+                  subtitle={state.subtitle}
+                  names={names}
+                  photos={coverPhotos}
+                  className="rounded-[4px] shadow-book"
+                  uid="editor"
+                  titlePlaceholder={t.bookTitle}
+                  photoHint={t.uploadFirst}
+                />
+              )}
+              {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
+            </div>
           </div>
+          {editable && frameSlots.length ? <FrameControls slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} labels={t.frame} /> : null}
           <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
             <span className="font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} />
           </div>

@@ -1,4 +1,5 @@
 import { cropSvg, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
+import type { PhotoRef } from "@/lib/book/cover-kit";
 
 export { cropSvg };
 import { coverSpreadGeometry, type BookFormat } from "@/lib/book/formats";
@@ -25,7 +26,7 @@ export function buildCoverArt(
   format: BookFormat,
   pageCount: number,
   dims: BookDims,
-  opts: { photos?: (string | undefined)[]; imageHref?: string; plainBack?: boolean } = {},
+  opts: { photos?: (PhotoRef | undefined)[]; imageHref?: string; plainBack?: boolean } = {},
 ): CoverArt {
   const g = coverSpreadGeometry(format, pageCount);
   const uid = `bo${template.id}${format.id}`;

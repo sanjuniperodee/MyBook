@@ -4,6 +4,7 @@
  * без feTurbulence в самой графике (фактура накладывается отдельно), разумное число элементов.
  */
 import type { CoverGeometry, Rect } from "./formats";
+import { framedImageRect, isDefaultFrame, type PhotoFrame } from "./photo-frame";
 
 
 export function rng(seed: number) {
@@ -59,19 +60,51 @@ export function petalPath(r: number, width = 0.42) {
 
 // ─── фото ───────────────────────────────────────────────────────────────────
 
+/**
+ * Фото на обложке: адрес (data-URL) или адрес с размерами и кадром. Кадр (масштаб и положение) нужен
+ * размерам снимка: без них фото просто заполняет место по центру.
+ */
+export interface PhotoSpec {
+  href: string;
+  width?: number;
+  height?: number;
+  frame?: PhotoFrame;
+}
+export type PhotoRef = string | PhotoSpec;
+
+export const photoHref = (p: PhotoRef | null | undefined) => (typeof p === "string" ? p : p?.href);
+
+/** Место под фото, которое рисует шаблон: нужно редактору, чтобы наложить на него управление кадром. */
+export interface SlotInfo {
+  slot: number;
+  rect: Rect;
+  /** Есть ли на месте снимок клиента (а не пейзаж-заглушка). */
+  filled: boolean;
+}
+
 export interface ArtContext {
   uid: string;
-  /** Фото клиента по местам шаблона (data-URL или адрес). Пустое место — пейзаж-заглушка. */
-  photos?: (string | undefined)[];
+  /** Фото клиента по местам шаблона (data-URL или адрес, при желании с кадром). Пустое место — пейзаж-заглушка. */
+  photos?: (PhotoRef | undefined)[];
+  /** Вызывается для каждого места под фото в порядке рисования — так редактор узнаёт их положение. */
+  onSlot?: (info: SlotInfo) => void;
   /** Снимок самого шаблона (обложки на готовых снимках): data-URL для растрирования, иначе — адрес /api/cover-photos. */
   imageHref?: string;
   /** "decor" — только плашка и рамка: так оборот повторяет композицию лица, не рисуя снимок второй раз. */
   layer?: "decor";
 }
 
-/** Снимок, заполняющий прямоугольник целиком: лишнее обрезается по центру, как object-fit: cover. */
-export function photoImage(href: string, r: Rect) {
-  return `<image href="${href.replace(/&/g, "&amp;")}" x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" preserveAspectRatio="xMidYMid slice"/>`;
+/**
+ * Снимок, заполняющий прямоугольник целиком: лишнее обрезается по центру, как object-fit: cover. С кадром и размерами
+ * снимок увеличен и сдвинут (src/lib/book/photo-frame.ts): рисуется во вложенном <svg>, который обрезает его по месту.
+ */
+export function photoImage(ref: PhotoRef, r: Rect) {
+  const href = (photoHref(ref) ?? "").replace(/&/g, "&amp;");
+  if (typeof ref !== "string" && ref.frame && !isDefaultFrame(ref.frame) && ref.width && ref.height) {
+    const d = framedImageRect({ x: 0, y: 0, w: r.w, h: r.h }, { width: ref.width, height: ref.height }, ref.frame);
+    return `<svg x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" viewBox="0 0 ${n(r.w)} ${n(r.h)}" overflow="hidden"><image href="${href}" x="${n(d.x)}" y="${n(d.y)}" width="${n(d.w)}" height="${n(d.h)}" preserveAspectRatio="none"/></svg>`;
+  }
+  return `<image href="${href}" x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" preserveAspectRatio="xMidYMid slice"/>`;
 }
 
 const SCENES = [
@@ -122,8 +155,10 @@ export function samplePhoto(r: Rect, scene: number, uid: string) {
  * овал) в тех же миллиметрах; прямоугольник обрезает сам снимок (preserveAspectRatio slice).
  */
 export function photoSlot(ctx: ArtContext, i: number, r: Rect, opts: { clip?: string; clipTransform?: string; scene?: number } = {}) {
-  const href = ctx.photos?.[i];
-  const body = href ? photoImage(href, r) : samplePhoto(r, opts.scene ?? i, `${ctx.uid}p${i}`);
+  const ref = ctx.photos?.[i];
+  const filled = !!photoHref(ref);
+  ctx.onSlot?.({ slot: i, rect: r, filled });
+  const body = ref && filled ? photoImage(ref, r) : samplePhoto(r, opts.scene ?? i, `${ctx.uid}p${i}`);
   if (!opts.clip) return body;
   const id = `${ctx.uid}k${i}`;
   return `<clipPath id="${id}"><path d="${opts.clip}"${opts.clipTransform ? ` transform="${opts.clipTransform}"` : ""}/></clipPath><g clip-path="url(#${id})">${body}</g>`;

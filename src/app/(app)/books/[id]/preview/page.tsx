@@ -5,7 +5,8 @@ import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { backContent, backPhotoIds } from "@/lib/book/cover-back";
 import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
-import { photoUrl, photoUrls } from "@/lib/urls";
+import { photoUrl } from "@/lib/urls";
+import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
@@ -30,7 +31,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const allPhotos = await container().authoring.queries.photos(book.id);
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
-  const photos = photoUrls(coverPhotoIds(book), "view");
+  const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
   // Оформления, где глава открывается фото: снимки начальных полос — по той же раскладке фото, что в PDF.
   const openers = content.interior.opener.photo
     ? new Map(buildBookContent(book, questions, allPhotos.map(toPhotoItem)).chapters.flatMap((c) => (c.openerPhoto ? [[c.key, photoUrl(c.openerPhoto.id, "view")] as const] : [])))
@@ -50,7 +51,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       pageCount: printablePageCount(estimatePages(content)),
       brand: site.name.toUpperCase(),
       back: backContent(book, backPhotos.map((p) => ({ width: p.width, height: p.height })), new Date()),
-      backPhotos: photoUrls(backPhotos.map((p) => p.id), "view"),
+      backPhotos: backPhotoRefs(backPhotos, book, "view"),
     },
     chapters: content.chapters.map((c) => ({
       number: c.number,

@@ -23,6 +23,9 @@ import { interiorSizes } from "@/lib/book/interiors";
 import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
+import { bakeFrame } from "./frame";
+import { frameKey, parseFrames } from "@/lib/book/photo-frame";
+import type { PhotoSpec } from "@/lib/book/cover-kit";
 import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
@@ -179,10 +182,11 @@ async function coverPhotoHref(p: Photo, source: "full" | "thumb") {
 
 async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi: number, source: "full" | "thumb", back: { design: BackDesign; photos: Photo[] }) {
   const template = getCoverTemplate(bundle.book.coverTemplate);
+  const frames = parseFrames(bundle.book.photoFrames);
   const photos = await Promise.all(
-    coverPhotoIds(bundle.book).map((id) => {
+    coverPhotoIds(bundle.book).map(async (id, i): Promise<PhotoSpec | undefined> => {
       const p = id ? bundle.photos.find((x) => x.id === id) : undefined;
-      return p ? coverPhotoHref(p, source) : undefined;
+      return p ? { href: await coverPhotoHref(p, source), width: p.width, height: p.height, frame: frames[frameKey("cover", i)] } : undefined;
     }),
   );
   // Обложка на снимке: для печати — оригинал, для превью — уменьшенная копия.
@@ -191,7 +195,7 @@ async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi:
   // Фото оборота «во всю», затемнение и тени под карточками — частью рисунка развёртки.
   if (geometry.back) {
     const bleed = new Set(back.design.blocks.flatMap((b) => (b.kind === "photo" && b.frame === "bleed" ? [b.slot] : [])));
-    const hrefs = await Promise.all(back.photos.map((p, i) => (bleed.has(i) ? coverPhotoHref(p, source) : undefined)));
+    const hrefs = await Promise.all(back.photos.map(async (p, i): Promise<PhotoSpec | undefined> => (bleed.has(i) ? { href: await coverPhotoHref(p, source), width: p.width, height: p.height, frame: frames[frameKey("back", i)] } : undefined)));
     svg = svg.replace(/<\/svg>$/, `${backArtSvg(back.design, geometry.back, hrefs, "cb")}</svg>`);
   }
   const base = await sharp(Buffer.from(svg), { limitInputPixels: false, density: 72 }).flatten({ background: "#ffffff" }).png({ compressionLevel: 1 }).toBuffer({ resolveWithObject: true });
@@ -243,7 +247,17 @@ async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "fu
   const b = geometry.back ?? { w: geometry.front.w, h: geometry.front.h };
   const design = designBack(template, b.w, b.h, backContent(bundle.book, list.map((p) => ({ width: p.width, height: p.height })), new Date()));
   const cards = new Set(design.blocks.flatMap((x) => (x.kind === "photo" && x.frame !== "bleed" ? [x.slot] : [])));
-  const buffers = await Promise.all(list.map((p, i) => (cards.has(i) ? getFile(source === "full" ? p.storageKey : p.thumbKey) : null)));
+  const frames = parseFrames(bundle.book.photoFrames);
+  // Карточки рисует react-pdf (он не умеет увеличивать и сдвигать снимок): кадр вырезаем в сам файл по пропорциям карточки.
+  const area = new Map(design.blocks.flatMap((x) => (x.kind === "photo" && x.frame !== "bleed" ? [[x.slot, { w: x.w - x.mat * 2, h: x.h - x.mat - (x.frame === "polaroid" ? (x.matBottom ?? x.mat) : x.mat) }] as const] : [])));
+  const buffers = await Promise.all(
+    list.map(async (p, i) => {
+      if (!cards.has(i)) return null;
+      const file = await getFile(source === "full" ? p.storageKey : p.thumbKey);
+      const a = area.get(i);
+      return a && a.h > 0 ? bakeFrame(file, a.w / a.h, frames[frameKey("back", i)]) : file;
+    }),
+  );
   return { design, photos: list, buffers };
 }
 

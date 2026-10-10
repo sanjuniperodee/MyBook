@@ -1,4 +1,6 @@
 import type { BackDesign } from "@/lib/book/cover-back";
+import { photoHref, type PhotoRef } from "@/lib/book/cover-kit";
+import { cssFrame } from "@/lib/book/photo-frame";
 import { cssFont } from "@/lib/book/fonts";
 import { Ornament } from "./CoverPreview";
 
@@ -9,7 +11,7 @@ const hexAlpha = (hex: string, a: number) => `rgba(${[1, 3, 5].map((i) => parseI
  * Задняя сторона поверх фона — по той же раскладке, что и PDF (src/lib/book/cover-back.ts).
  * Контейнер — задняя крышка с container-type: inline-size; размеры — в % и cqw от её ширины.
  */
-export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }: { design: BackDesign; widthMm: number; heightMm: number; photos?: (string | undefined)[]; brand: string }) {
+export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }: { design: BackDesign; widthMm: number; heightMm: number; photos?: (PhotoRef | undefined)[]; brand: string }) {
   const x = (v: number) => `${(v / widthMm) * 100}%`;
   const y = (v: number) => `${(v / heightMm) * 100}%`;
   const cq = (v: number) => `${(v / widthMm) * 100}cqw`;
@@ -48,10 +50,14 @@ export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }
           );
         if (b.kind === "shade")
           return <div key={i} style={{ ...box, height: y(b.h), background: `linear-gradient(to bottom, transparent ${b.from * 100}%, ${hexAlpha(b.color, b.opacity)})` }} />;
-        const url = photos[b.slot];
+        const ref = photos[b.slot];
+        const url = photoHref(ref);
         const img = url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="" draggable={false} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
+          // Обёртка обрезает увеличенный снимок по месту (масштаб кадра выходит за рамку).
+          <div data-photo-slot={b.slot} style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt="" draggable={false} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", ...cssFrame(typeof ref === "string" ? null : ref?.frame) }} />
+          </div>
         ) : (
           <div style={{ width: "100%", height: "100%", background: "#e9e4dc" }} />
         );
