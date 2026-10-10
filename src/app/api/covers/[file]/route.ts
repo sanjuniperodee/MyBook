@@ -14,7 +14,7 @@ import { coverPhotoDataUrl } from "@/server/cover-photos";
  * Обложки на снимках и с фото клиента (на снимках-примерах) — JPEG: картинка-SVG не может загрузить снимок,
  * поэтому растрируем на сервере.
  */
-const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.(svg|jpg)$/;
+const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.(svg|jpg|webp)$/;
 /** Толщина книги для фона задней крышки в редакторе: от неё зависит только стык узора с корешком. */
 const PREVIEW_PAGES = 120;
 type Entry = { type: string; raw: string | Buffer; br?: Buffer; gzip?: Buffer };
@@ -23,7 +23,7 @@ const cache = new Map<string, Entry>();
 /** Ширина растра снимка-обложки: миниатюра в выборе и крупное превью. */
 const PHOTO_PX = { lite: 420, full: 1000 };
 
-async function photoArt(template: CoverTemplate, format: BookFormat, lite: boolean, back: boolean, plainBack: boolean): Promise<Buffer> {
+async function photoArt(template: CoverTemplate, format: BookFormat, lite: boolean, back: boolean, plainBack: boolean, webp: boolean): Promise<Buffer> {
   const px = lite ? PHOTO_PX.lite : PHOTO_PX.full;
   // Снимок встраиваем уменьшенным: на холсте развёртки он примерно вдвое шире лица.
   const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, lite ? 900 : 2400) : undefined;
@@ -34,11 +34,11 @@ async function photoArt(template: CoverTemplate, format: BookFormat, lite: boole
   let svg = renderCoverSvg(template, g, { uid: `${template.id}${format.id}`, imageHref, sampleHref: (k) => samples.get(k) ?? "" }, { plainBack });
   if (back) svg = cropSvg(svg, side, { w: g.width, h: g.height });
   // Единицы SVG — миллиметры; librsvg читает их как пиксели при 72 dpi.
-  return sharp(Buffer.from(svg), { density: (72 * px) / side.w, limitInputPixels: false })
+  const raster = sharp(Buffer.from(svg), { density: (72 * px) / side.w, limitInputPixels: false })
     .resize(px, Math.round((px * side.h) / side.w), { fit: "fill" })
-    .flatten({ background: "#ffffff" })
-    .jpeg({ quality: lite ? 78 : 86, mozjpeg: true })
-    .toBuffer();
+    .flatten({ background: "#ffffff" });
+  // WebP вдвое легче JPEG при том же виде — по медленному каналу обложка появляется заметно раньше; .jpg оставлен для старых ссылок.
+  return (webp ? raster.webp({ quality: lite ? 72 : 78, effort: 5 }) : raster.jpeg({ quality: lite ? 78 : 86, mozjpeg: true })).toBuffer();
 }
 
 async function art(file: string): Promise<Entry | null> {
@@ -46,7 +46,7 @@ async function art(file: string): Promise<Entry | null> {
   if (!m || !isKnownCover(m[1]) || !(m[2] in formats)) return null;
   const template = getCoverTemplate(m[1]);
   const raster = !!(template.photo || template.samples);
-  if ((m[5] === "jpg") !== raster) return null;
+  if ((m[5] !== "svg") !== raster) return null;
   const key = `${file}@${template.rev ?? 0}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -55,7 +55,8 @@ async function art(file: string): Promise<Entry | null> {
   const plainBack = m[4] === "-backplain";
   let entry: Entry;
   if (raster) {
-    entry = { type: "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack) };
+    const webp = m[5] === "webp";
+    entry = { type: webp ? "image/webp" : "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack, webp) };
   } else {
     let raw: string;
     if (m[4]) {

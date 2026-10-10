@@ -143,6 +143,17 @@ describe("фон обложки отдельным файлом", () => {
     await expect(get("sakura-a5.svg")).rejects.toThrow();
   }, 60000);
 
+  it("обложка на снимке по адресу .webp — WebP той же ширины и заметно легче JPEG; рисованная и по .webp не отдаётся", async () => {
+    const webp = await get("sakura-a5-lite.webp");
+    expect(webp.headers.get("content-type")).toBe("image/webp");
+    const bytes = Buffer.from(await webp.arrayBuffer());
+    expect((await sharp(bytes).metadata())).toMatchObject({ format: "webp", width: 420 });
+    const jpg = Buffer.from(await (await get("sakura-a5-lite.jpg")).arrayBuffer());
+    expect(bytes.length).toBeLessThan(jpg.length * 0.8);
+    await expect(get("blossom-a5.webp")).rejects.toThrow();
+    await expect(get("sakura-a5.svg")).rejects.toThrow();
+  }, 60000);
+
   it("обложка с фото клиента — JPEG на снимке-примере, SVG по её адресу не отдаётся", async () => {
     const res = await get("arch-a5-lite.jpg");
     expect(res.headers.get("content-type")).toBe("image/jpeg");

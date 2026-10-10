@@ -104,6 +104,18 @@ if ! check_app "$PORT" 30; then
 fi
 echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"
 
+# Прогрев: обложки рисуются на сервере при первом запросе (на снимках — до 1–3 с), а кэш живёт в памяти процесса и после
+# каждого деплоя пуст. Прогреваем обложки, видимые на входных страницах, пока посетители не пришли (ошибки прогрева деплой не ломают).
+warm_covers() {
+  local page
+  for page in / /login /kk /kk/login; do
+    curl -fsS -m 20 "http://localhost:$PORT$page" 2>/dev/null | grep -oE '/api/covers/[^"&< ]+' || true
+  done | sort -u | while read -r u; do
+    curl -fsS -m 30 -o /dev/null -H "Accept-Encoding: br, gzip" "http://localhost:$PORT$u" 2>/dev/null || true
+  done
+}
+warm_covers && echo "  обложки прогреты" || true
+
 # Оставляем последние $KEEP релизов (текущий и предыдущий — всегда)
 ls -1dt "$RELEASES"/*/ 2>/dev/null | sed 's:/$::' | tail -n +"$((KEEP + 1))" | while read -r old; do
   [ "$old" = "$(readlink -f "$CURRENT")" ] || [ "$old" = "$PREV" ] || { rm -rf "$old" && echo "  удалён старый релиз $(basename "$old")"; }

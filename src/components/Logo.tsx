@@ -3,14 +3,14 @@ import { Link } from "@/i18n/client";
 import { site } from "@/config/site";
 import { cn } from "@/lib/utils";
 
-/** Знак логотипа: буква M с пером над раскрытой книгой на бордовом фоне. */
+/** Знак логотипа: буква M с пером над раскрытой книгой на бордовом фоне. Готовые лёгкие WebP отдаются как есть: оптимизатор next/image после каждого деплоя начинал с пустого кэша. */
 export function LogoMark({ className }: { className?: string }) {
-  return <Image src="/mark.png" alt="" width={512} height={512} className={cn("size-9 rounded-[10px]", className)} aria-hidden />;
+  return <Image src="/mark.webp" alt="" width={144} height={144} unoptimized className={cn("size-9 rounded-[10px]", className)} aria-hidden />;
 }
 
 /** Основной логотип целиком (знак + надпись MYBOOKS), для крупных мест. */
 export function LogoFull({ className }: { className?: string }) {
-  return <Image src="/logo.png" alt={site.name} width={438} height={312} className={cn("h-24 w-auto rounded-xl", className)} />;
+  return <Image src="/logo.webp" alt={site.name} width={438} height={312} unoptimized className={cn("h-24 w-auto rounded-xl", className)} />;
 }
 
 /**
