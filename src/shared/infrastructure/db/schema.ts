@@ -564,7 +564,33 @@ export const crmDeals = pgTable(
   (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId)],
 );
 
-/** Чеки об оплате по сделке (скриншот перевода, фото чека, PDF): файл лежит в хранилище, здесь — метаданные. */
+/**
+ * Платежи по сделке, оформленной вручную (предоплата, доплата): деньги, которые менеджер принял помимо заказа на сайте.
+ * Это единственный источник правды о таких деньгах: из него (вместе с оплаченными заказами) строится вьюха
+ * revenue_events, а её читают обзор, аналитика, планы, карточка клиента и каналы.
+ */
+export const crmPayments = pgTable(
+  "crm_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => crmDeals.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
+    /** Сумма платежа, ₸ (больше нуля). */
+    amount: integer("amount").notNull(),
+    /** prepayment — первый платёж по сделке, payment — следующие. */
+    kind: text("kind", { enum: ["prepayment", "payment"] }).notNull().default("payment"),
+    /** Когда деньги получены (по нему платёж попадает в выручку по дням). */
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+    note: text("note").notNull().default(""),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_payments_deal_idx").on(t.dealId), index("crm_payments_paid_idx").on(t.paidAt)],
+);
+
+/** Чеки об оплате (скриншот перевода, фото чека, PDF): файл лежит в хранилище, здесь — метаданные. */
 export const crmReceipts = pgTable(
   "crm_receipts",
   {
@@ -572,12 +598,14 @@ export const crmReceipts = pgTable(
     dealId: uuid("deal_id")
       .notNull()
       .references(() => crmDeals.id, { onDelete: "cascade" }),
+    /** Платёж, который подтверждает чек. */
+    paymentId: uuid("payment_id").references(() => crmPayments.id, { onDelete: "set null" }),
     clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
     storageKey: text("storage_key").notNull(),
     fileName: text("file_name").notNull(),
     mime: text("mime").notNull(),
     size: integer("size").notNull(),
-    /** Сумма платежа по чеку, ₸ (0 — не указана). */
+    /** Сумма по чеку, ₸ (0 — не указана). Деньги считаются по платежам, а не по чекам. */
     amount: integer("amount").notNull().default(0),
     uploadedById: uuid("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

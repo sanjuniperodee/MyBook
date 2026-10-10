@@ -18,6 +18,8 @@ export interface DealCard {
   contactName: string;
   stageId: string;
   amount: number;
+  /** Принято денег по сделке, ₸. */
+  paid?: number;
   source: string;
   assigneeId: string | null;
   assigneeLabel: string | null;
@@ -216,6 +218,11 @@ function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean
       ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c.amount ? <span className="text-xs font-medium tabular-nums">{formatPrice(c.amount)}</span> : null}
+        {c.paid ? (
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-800 tabular-nums" title="Получено платежами">
+            получено {formatPrice(c.paid)}
+          </span>
+        ) : null}
         {c.eventDate ? <EventChip date={c.eventDate} /> : null}
         {c.task ? (
           <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]", c.task.overdue ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>

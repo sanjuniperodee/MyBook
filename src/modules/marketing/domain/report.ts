@@ -39,6 +39,8 @@ export interface DealRow {
   won: boolean;
   amount: number;
   hasOrder: boolean;
+  /** Принято денег по сделке (платежи менеджера), ₸. */
+  paid?: number;
 }
 export interface ClickRow {
   slug: string;
@@ -85,8 +87,12 @@ export function buildChannelReport(clients: ClientRow[], deals: DealRow[], click
     bump(toAttribution(d.utm), d.source, (m) => {
       m.leads++;
       if (!d.clientId) m.leadsWithoutClient++;
-      // Продажа без заказа на сайте (договорились в чате и оплатили переводом) — учитываем по сделке.
-      if (d.won && !d.hasOrder) {
+      // Продажа без заказа на сайте (договорились в чате и оплатили переводом) — учитываем по сделке: если приняты платежи
+      // (предоплата, доплата), продажа считается с первого платежа и на сумму принятых денег; иначе — успешная сделка на её сумму.
+      if (!d.hasOrder && (d.paid ?? 0) > 0) {
+        m.sales++;
+        m.revenue += d.paid!;
+      } else if (d.won && !d.hasOrder) {
         m.sales++;
         m.revenue += d.amount;
       }

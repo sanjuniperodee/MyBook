@@ -1,4 +1,5 @@
 import { dashboard } from "./infrastructure/Dashboard";
+import { paymentsExport } from "./infrastructure/PaymentsExport";
 import { myDay } from "./infrastructure/MyDay";
 import { search } from "./infrastructure/Search";
 import { clientBrief, dealById, dealCard } from "./infrastructure/DealCard";
@@ -28,6 +29,7 @@ export { STALLED_DAYS, type ClientSort } from "./infrastructure/Clients";
 export class ReportingModule {
   readonly salesAnalytics = salesAnalytics;
   readonly dashboard = dashboard;
+  readonly paymentsExport = paymentsExport;
   readonly myDay = myDay;
   readonly search = search;
   readonly dealById = dealById;

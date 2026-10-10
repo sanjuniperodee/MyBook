@@ -75,6 +75,7 @@ function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
       const body = new FormData();
       body.set("file", receipt);
       body.set("amount", String(d.prepaid));
+      if (d.paymentId) body.set("paymentId", d.paymentId);
       const res = await fetch(`/api/admin/deals/${d.dealId}/receipts`, { method: "POST", body });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Не удалось загрузить чек");

@@ -13,7 +13,7 @@ export async function clientById(id: string) {
 /** Карточка клиента: книги с прогрессом, заказы, задачи, лента, сделки. */
 export async function clientCard(id: string, sections: { deals: boolean }) {
   const db = executor();
-  const [bookRows, orderRows, taskRows, noteRows, dealRows] = await Promise.all([
+  const [bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money] = await Promise.all([
     db
       .select({
         book: books,
@@ -37,6 +37,14 @@ export async function clientCard(id: string, sections: { deals: boolean }) {
           .orderBy(desc(crmDeals.createdAt))
           .limit(20)
       : Promise.resolve([]),
+    // Платежи менеджера по сделкам клиента (предоплата, доплаты) — вместе с оплаченными заказами это его покупки.
+    sections.deals
+      ? db.execute<{ id: string; amount: number; kind: string; paid_at: Date; deal_id: string; number: number; title: string }>(sql`
+          select p.id, p.amount, p.kind, p.paid_at, p.deal_id, d.number, d.title
+          from crm_payments p join crm_deals d on d.id = p.deal_id where p.client_id = ${id} order by p.paid_at desc limit 50`)
+      : Promise.resolve({ rows: [] as { id: string; amount: number; kind: string; paid_at: Date; deal_id: string; number: number; title: string }[] }),
+    // Сумма покупок и число продаж — из единого журнала выручки (то же, что в обзоре и аналитике).
+    db.execute<{ total: number; sales: number }>(sql`select coalesce(sum(amount), 0)::int as total, count(distinct sale_id)::int as sales from revenue_events where client_id = ${id}`),
   ]);
-  return { bookRows, orderRows, taskRows, noteRows, dealRows };
+  return { bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows: paymentRows.rows, money: money.rows[0] ?? { total: 0, sales: 0 } };
 }

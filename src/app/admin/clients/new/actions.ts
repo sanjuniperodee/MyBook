@@ -16,6 +16,8 @@ export interface NewClientDone {
   clientName: string;
   dealId: string | null;
   dealNumber: number | null;
+  /** Платёж предоплаты (чек к нему догружается отдельным запросом). */
+  paymentId: string | null;
   login: string;
   loginText: string;
   password: string;
@@ -99,8 +101,11 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
 
   const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
   let deal: { id: string; number: number } | null = null;
+  let paymentId: string | null = null;
   let tasks = 0;
   if (withDeal) deal = await createDeal(staff, assigneeId, account.id, d);
+  // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
+  if (deal && d.prepaid > 0) paymentId = (await container().sales.payments.add({ dealId: deal.id, clientId: account.id, amount: d.prepaid, createdById: staff.user.id })).id;
   if (deal) {
     const terms = [
       d.recipient ? `Кому книга: ${d.recipient}.` : null,
@@ -131,6 +136,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
       clientName: d.name,
       dealId: deal?.id ?? null,
       dealNumber: deal?.number ?? null,
+      paymentId,
       login: account.login,
       loginText: displayLogin(account.login),
       password,
@@ -146,7 +152,6 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
 
 async function createDeal(staff: Staff, assigneeId: string, clientId: string, d: z.infer<typeof schema>) {
   const custom: Record<string, string | number> = {};
-  if (d.prepaid > 0) custom.prepaid = d.prepaid;
   if (d.recipient) custom.recipient = d.recipient;
   if (d.deadline) custom.event_date = d.deadline;
   const deals = container().sales.deals;
@@ -154,7 +159,7 @@ async function createDeal(staff: Staff, assigneeId: string, clientId: string, d:
   const stages = await container().sales.queries.listStages();
   const stageId = d.stageId || stages.find((s) => s.kind === "open" && s.name === "Взяли в работу")?.id;
   const deal = await deals.create({
-    title: d.recipient ? `Книга для ${d.recipient.toLowerCase()} — ${d.name}` : `Книга — ${d.name}`,
+    title: d.recipient ? `Книга — ${d.name} (${d.recipient})` : `Книга — ${d.name}`,
     source: "manual",
     clientId,
     contactName: d.name,

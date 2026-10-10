@@ -30,7 +30,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const client = await container().reporting.clientById(id);
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
-  const [{ bookRows, orderRows, taskRows, noteRows, dealRows }, admins, clientFields] = await Promise.all([
+  const [{ bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money }, admins, clientFields] = await Promise.all([
     container().reporting.clientCard(id, { deals: can(staff, "deals.view") }),
     container().access.queries.allStaff(),
     listFields("client"),
@@ -39,8 +39,8 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const orderNumber = new Map(orderRows.map((o) => [o.id, o.number]));
-  const paid = orderRows.filter((o) => o.paidAt && o.status !== "cancelled");
-  const ltv = paid.reduce((s, o) => s + o.amount, 0);
+  // Покупки клиента — из единого журнала выручки: оплаченные заказы и платежи менеджера по его сделкам.
+  const ltv = money.total;
   const now = new Date();
   const tasks: TaskItem[] = taskRows.map((t) => ({
     id: t.id,
@@ -164,7 +164,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               </div>
               <div className="flex justify-between">
                 <dt>Средний чек</dt>
-                <dd className="text-ink">{paid.length ? formatPrice(Math.round(ltv / paid.length)) : "—"}</dd>
+                <dd className="text-ink">{money.sales ? formatPrice(Math.round(ltv / money.sales)) : "—"}</dd>
               </div>
             </dl>
           </section>
@@ -220,6 +220,23 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                       {stage.name}
                     </span>
                     <span className="w-24 text-right tabular-nums">{deal.amount ? formatPrice(deal.amount) : "—"}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+          {paymentRows.length ? (
+            <section className="overflow-hidden rounded-2xl border border-line bg-white" data-testid="client-payments">
+              <h2 className="border-b border-line px-5 py-3.5 font-semibold">Платежи менеджеру</h2>
+              <div className="divide-y divide-line">
+                {paymentRows.map((p) => (
+                  <Link key={p.id} href={`/admin/deals/${p.deal_id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
+                    <span className="w-24 font-medium tabular-nums">{formatPrice(p.amount)}</span>
+                    <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : "платёж"}</span>
+                    <span className="min-w-0 flex-1 truncate text-muted">
+                      сделка №{p.number} · {p.title}
+                    </span>
+                    <span className="text-xs text-muted">{formatDate(p.paid_at)}</span>
                   </Link>
                 ))}
               </div>

@@ -80,6 +80,8 @@ export interface SlotInfo {
   rect: Rect;
   /** Есть ли на месте снимок клиента (а не пейзаж-заглушка). */
   filled: boolean;
+  /** Карточка повёрнута: угол в градусах и центр поворота, мм холста. */
+  rotate?: { deg: number; cx: number; cy: number };
 }
 
 export interface ArtContext {
@@ -92,6 +94,13 @@ export interface ArtContext {
   imageHref?: string;
   /** "decor" — только плашка и рамка: так оборот повторяет композицию лица, не рисуя снимок второй раз. */
   layer?: "decor";
+  /**
+   * Адрес снимка-примера из коллекции (assets/cover-photos) по ключу: им заполняются пустые места, пока клиент
+   * не выбрал фото. Без него — рисованный пейзаж (там, где внешний снимок не загрузится: картинка-SVG, 3D-книга).
+   */
+  sampleHref?: (key: string) => string;
+  /** Снимки-примеры по местам — renderCoverSvg заполняет из CoverTemplate.samples через sampleHref. */
+  samples?: string[];
 }
 
 /**
@@ -154,11 +163,18 @@ export function samplePhoto(r: Rect, scene: number, uid: string) {
  * Место под фото в шаблоне: снимок клиента или пейзаж-заглушка. clip — контур формы (арка, сердце,
  * овал) в тех же миллиметрах; прямоугольник обрезает сам снимок (preserveAspectRatio slice).
  */
-export function photoSlot(ctx: ArtContext, i: number, r: Rect, opts: { clip?: string; clipTransform?: string; scene?: number } = {}) {
+export function photoSlot(
+  ctx: ArtContext,
+  i: number,
+  r: Rect,
+  opts: { clip?: string; clipTransform?: string; scene?: number; filter?: string; rotate?: SlotInfo["rotate"] } = {},
+) {
   const ref = ctx.photos?.[i];
   const filled = !!photoHref(ref);
-  ctx.onSlot?.({ slot: i, rect: r, filled });
-  const body = ref && filled ? photoImage(ref, r) : samplePhoto(r, opts.scene ?? i, `${ctx.uid}p${i}`);
+  ctx.onSlot?.({ slot: i, rect: r, filled, ...(opts.rotate ? { rotate: opts.rotate } : {}) });
+  const sample = ctx.samples?.length ? ctx.samples[i % ctx.samples.length] : undefined;
+  let body = ref && filled ? photoImage(ref, r) : sample ? photoImage(sample, r) : samplePhoto(r, opts.scene ?? i, `${ctx.uid}p${i}`);
+  if (opts.filter) body = `<g filter="url(#${opts.filter})">${body}</g>`;
   if (!opts.clip) return body;
   const id = `${ctx.uid}k${i}`;
   return `<clipPath id="${id}"><path d="${opts.clip}"${opts.clipTransform ? ` transform="${opts.clipTransform}"` : ""}/></clipPath><g clip-path="url(#${id})">${body}</g>`;
@@ -181,4 +197,104 @@ export function samplePhotoUrl(scene: number, ratio = 4 / 3) {
   const w = Math.round(100 * ratio);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 100" preserveAspectRatio="xMidYMid slice">${samplePhoto({ x: 0, y: 0, w, h: 100 }, scene, "s")}</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+// ─── детали для обложек с фото клиента ──────────────────────────────────────
+
+/** Тонирование фото: чёрно-белое, сепия, тёплая плёнка, выцветшее (приподнятый чёрный). */
+export type PhotoTone = "mono" | "sepia" | "warm" | "fade";
+
+const TONES: Record<PhotoTone, { matrix: string; slope: number; intercept: number }> = {
+  mono: { matrix: "0.3 0.59 0.11 0 0 0.3 0.59 0.11 0 0 0.3 0.59 0.11 0 0 0 0 0 1 0", slope: 1.14, intercept: -0.06 },
+  sepia: { matrix: "0.36 0.66 0.16 0 0.03 0.31 0.6 0.14 0 0.02 0.24 0.47 0.11 0 0.01 0 0 0 1 0", slope: 1.04, intercept: 0.02 },
+  warm: { matrix: "1.04 0.06 0 0 0.02 0.02 0.98 0.02 0 0.015 0 0.06 0.84 0 0.02 0 0 0 1 0", slope: 0.96, intercept: 0.03 },
+  fade: { matrix: "0.82 0.13 0.05 0 0 0.07 0.85 0.08 0 0 0.05 0.12 0.83 0 0 0 0 0 1 0", slope: 0.84, intercept: 0.09 },
+};
+
+export function toneFilter(id: string, tone: PhotoTone) {
+  const t = TONES[tone];
+  const f = (c: string) => `<feFunc${c} type="linear" slope="${t.slope}" intercept="${t.intercept}"/>`;
+  return `<filter id="${id}" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${t.matrix}"/><feComponentTransfer>${f("R")}${f("G")}${f("B")}</feComponentTransfer></filter>`;
+}
+
+/**
+ * Тень приподнятой карточки: широкая мягкая и плотная контактная — так карточка «лежит» на бумаге,
+ * а не висит над ней. path — контур карточки (по умолчанию прямоугольник r).
+ */
+export function liftShadow(r: Rect, uid: string, opts: { transform?: string; strength?: number; path?: string } = {}) {
+  const k = opts.strength ?? 1;
+  const tr = opts.transform ? ` transform="${opts.transform}"` : "";
+  const shape = (dx: number, dy: number, attrs: string) =>
+    opts.path
+      ? `<path d="${opts.path}" ${attrs} transform="translate(${n(dx)} ${n(dy)})${opts.transform ? ` ${opts.transform}` : ""}"/>`
+      : `<rect x="${n(r.x + dx)}" y="${n(r.y + dy)}" width="${n(r.w)}" height="${n(r.h)}" ${attrs}${tr}/>`;
+  return (
+    `<defs><filter id="${uid}w" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6"/></filter><filter id="${uid}c" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="0.5"/></filter></defs>` +
+    shape(0.6, 2.2, `fill="#000" fill-opacity="${n(0.22 * k)}" filter="url(#${uid}w)"`) +
+    shape(0.15, 0.45, `fill="#000" fill-opacity="${n(0.2 * k)}" filter="url(#${uid}c)"`)
+  );
+}
+
+/** Полоска скотча с зубчатыми торцами и бликом. cx, cy — центр, deg — поворот. */
+export function tape(cx: number, cy: number, w: number, h: number, deg: number, color: string, opacity = 0.82) {
+  const teeth = 5;
+  const a = h * 0.09;
+  let d = `M${n(-w / 2)},${n(-h / 2)} L${n(w / 2)},${n(-h / 2)}`;
+  for (let i = 1; i <= teeth; i++) d += ` L${n(w / 2 + (i % 2 ? a : 0))},${n(-h / 2 + (h * i) / teeth)}`;
+  d += ` L${n(-w / 2)},${n(h / 2)}`;
+  for (let i = teeth - 1; i >= 0; i--) d += ` L${n(-w / 2 - (i % 2 ? a : 0))},${n(-h / 2 + (h * i) / teeth)}`;
+  const tr = `translate(${n(cx)},${n(cy)}) rotate(${n(deg)})`;
+  return `<g transform="${tr}"><path d="${d}Z" fill="${color}" fill-opacity="${opacity}"/><rect x="${n(-w / 2)}" y="${n(-h / 2 + h * 0.12)}" width="${n(w)}" height="${n(h * 0.22)}" fill="#FFFFFF" fill-opacity="0.22"/></g>`;
+}
+
+/** Уголок старого фотоальбома: треугольник с прорезью, закрывающий угол снимка. sx, sy — куда смотрит угол (±1). */
+export function photoCorner(x: number, y: number, size: number, sx: 1 | -1, sy: 1 | -1, color: string) {
+  const p = (dx: number, dy: number) => `${n(x + sx * dx)},${n(y + sy * dy)}`;
+  return `<path d="M${p(-1.2, -1.2)} L${p(size, -1.2)} L${p(-1.2, size)}Z" fill="${color}"/><path d="M${p(size * 0.55, size * 0.12)} L${p(size * 0.12, size * 0.55)}" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="0.25"/>`;
+}
+
+/** Прямоугольник со скруглёнными углами (путь — для клипа и тени). */
+export function roundRectPath(r: Rect, rx: number) {
+  const k = Math.min(rx, r.w / 2, r.h / 2);
+  return `M${n(r.x + k)},${n(r.y)} H${n(r.x + r.w - k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x + r.w)},${n(r.y + k)} V${n(r.y + r.h - k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x + r.w - k)},${n(r.y + r.h)} H${n(r.x + k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x)},${n(r.y + r.h - k)} V${n(r.y + k)} A${n(k)},${n(k)} 0 0 1 ${n(r.x + k)},${n(r.y)}Z`;
+}
+
+/** Фигурный край старой фотографии: мелкие полукруглые «зубчики» по всему периметру. */
+export function scallopPath(r: Rect, step: number) {
+  const nx = Math.max(4, Math.round(r.w / step));
+  const ny = Math.max(4, Math.round(r.h / step));
+  const sx = r.w / nx;
+  const sy = r.h / ny;
+  const ax = sx / 2;
+  const ay = sy / 2;
+  let d = `M${n(r.x)},${n(r.y)}`;
+  for (let i = 1; i <= nx; i++) d += ` A${n(ax)},${n(ax * 0.8)} 0 0 1 ${n(r.x + sx * i)},${n(r.y)}`;
+  for (let i = 1; i <= ny; i++) d += ` A${n(ay * 0.8)},${n(ay)} 0 0 1 ${n(r.x + r.w)},${n(r.y + sy * i)}`;
+  for (let i = nx - 1; i >= 0; i--) d += ` A${n(ax)},${n(ax * 0.8)} 0 0 1 ${n(r.x + sx * i)},${n(r.y + r.h)}`;
+  for (let i = ny - 1; i >= 0; i--) d += ` A${n(ay * 0.8)},${n(ay)} 0 0 1 ${n(r.x)},${n(r.y + sy * i)}`;
+  return `${d}Z`;
+}
+
+/** Рваный край бумаги по горизонтали: ломаная от x0 до x1 вокруг y; down — бумага снизу от края. */
+export function tornEdgePath(x0: number, x1: number, y: number, amp: number, seed: number, bottom: number) {
+  const rand = rng(seed);
+  let d = `M${n(x0)},${n(bottom)} L${n(x0)},${n(y)}`;
+  for (let x = x0; x < x1; ) {
+    x = Math.min(x1, x + 0.8 + rand() * 2.2);
+    d += ` L${n(x)},${n(y + (rand() - 0.5) * amp * 2 + Math.sin(x * 0.07) * amp * 1.4)}`;
+  }
+  return `${d} L${n(x1)},${n(bottom)}Z`;
+}
+
+/** Почтовый штемпель: двойное кольцо и волнистые линии гашения. */
+export function postmark(cx: number, cy: number, r: number, color: string, opacity = 0.55) {
+  const s = `fill="none" stroke="${color}" stroke-opacity="${opacity}"`;
+  let out = `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" ${s} stroke-width="0.45"/><circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r * 0.78)}" ${s} stroke-width="0.25"/>`;
+  for (let i = 0; i < 4; i++) {
+    const y = cy - r * 0.45 + i * r * 0.3;
+    let d = `M${n(cx + r * 1.1)},${n(y)}`;
+    for (let k = 0; k < 6; k++) d += ` q${n(r * 0.3)},${n(k % 2 ? r * 0.16 : -r * 0.16)} ${n(r * 0.6)},0`;
+    out += `<path d="${d}" ${s} stroke-width="0.35"/>`;
+  }
+  return out;
 }

@@ -20,6 +20,7 @@ export interface DealRow {
   campaign: string | null;
   assignee: string | null;
   amount: string;
+  paid?: string | null;
   created: string;
 }
 
@@ -169,7 +170,10 @@ export function DealsTable({
                 {r.campaign ? <span className="block text-[11px]">{r.campaign}</span> : null}
               </td>
               <td className="px-4 py-2.5">{r.assignee ?? <span className="text-muted">—</span>}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums">{r.amount}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums">
+                {r.amount}
+                {r.paid ? <div className="text-[11px] text-emerald-700">получено {r.paid}</div> : null}
+              </td>
               <td className="px-4 py-2.5 whitespace-nowrap text-muted">{r.created}</td>
             </tr>
           ))}

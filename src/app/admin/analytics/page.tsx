@@ -24,7 +24,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const pipelines = await container().sales.queries.listPipelines();
   const pipeline = pipelines.find((x) => x.id === pipelineParam) ?? pipelines[0];
   const period = periods.find((p) => String(p) === raw) ?? 30;
-  const [stages, admins, { totals, prevTotals, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }] = await Promise.all([
+  const [stages, admins, { totals, prevTotals, received, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }] = await Promise.all([
     container().sales.queries.listStages(pipeline.id),
     container().access.queries.allStaff(),
     container().reporting.salesAnalytics(pipeline.id, period),
@@ -46,7 +46,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         const key = channelOf(toAttribution(r.utm), String(r.source));
         const cur = acc.get(key) ?? { key, label: channels[key], created: 0, won: 0, revenue: 0 };
         cur.created++;
-        if (r.won) {
+        // Деньги по ручным сделкам: с первого платежа сделка — продажа на сумму принятых денег; без платежей — успешная сделка на её сумму.
+        if (num(r.paid) > 0) {
+          cur.won++;
+          cur.revenue += num(r.paid);
+        } else if (r.won) {
           cur.won++;
           cur.revenue += num(r.amount);
         }
@@ -58,7 +62,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const c = calls.rows[0] ?? {};
   const team = managers.rows
     .map((r): Row & { name: string; resp: Row | undefined } => ({ ...r, name: names.get(String(r.id)) ?? "—", resp: respByAuthor.get(String(r.id)) }))
-    .filter((r) => num(r.deals) || num(r.won) || num(r.messages) || num(r.calls) || num(r.open))
+    .filter((r) => num(r.deals) || num(r.won) || num(r.messages) || num(r.calls) || num(r.open) || num(r.received))
     .sort((a, b) => num(b.revenue) - num(a.revenue) || num(b.won) - num(a.won));
 
   return (
@@ -66,6 +70,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">Аналитика продаж</h1>
+          <a href={`/api/admin/export/payments?days=${period}`} className="text-xs text-wine hover:underline">
+            Поступления денег, CSV
+          </a>
           {pipelines.length > 1 ? (
             <div className="flex rounded-xl border border-line bg-white p-0.5 text-sm">
               {pipelines.map((x) => (
@@ -85,11 +92,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <StatTile label="Новых сделок" value={String(num(t.created))} delta={change(num(t.created), num(p.created))} />
         <StatTile label="Успешных" value={String(num(t.won))} delta={change(num(t.won), num(p.won))} />
         <StatTile label="Конверсия в продажу" value={pct(num(t.won), num(t.created))} />
-        <StatTile label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} />
+        <StatTile label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint="суммы договорённостей по успешным сделкам" />
+        <StatTile label="Получено деньгами" value={formatPrice(num(received.rows[0]?.cur))} delta={change(num(received.rows[0]?.cur), num(received.rows[0]?.prev))} hint="оплаченные заказы и платежи менеджеров" />
         <StatTile label="Первый ответ (медиана)" value={mins(respAll?.median === undefined || respAll?.median === null ? null : num(respAll.median))} goodWhenUp={false} hint={`ждут ответа сейчас: ${num(awaiting.rows[0]?.n)}`} />
       </div>
 
@@ -166,13 +174,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
       <section className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
         <h2 className="mb-4 font-semibold">Менеджеры</h2>
-        <table className="w-full min-w-[900px] text-sm" data-testid="leaderboard">
+        <table className="w-full min-w-[980px] text-sm" data-testid="leaderboard">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="pb-2 font-medium">Сотрудник</th>
               <th className="pb-2 text-right font-medium">Новых сделок</th>
               <th className="pb-2 text-right font-medium">Продаж</th>
               <th className="pb-2 text-right font-medium">Выручка</th>
+              <th className="pb-2 text-right font-medium">Получено</th>
               <th className="pb-2 text-right font-medium">В работе</th>
               <th className="pb-2 text-right font-medium">Сообщений</th>
               <th className="pb-2 text-right font-medium">Первый ответ</th>
@@ -189,6 +198,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 <td className="py-2.5 text-right tabular-nums">{num(r.deals)}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.won)}</td>
                 <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.revenue))}</td>
+                <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.received))}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.open)}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.messages)}</td>
                 <td className="py-2.5 text-right tabular-nums">{r.resp ? mins(num(r.resp.median)) : "—"}</td>

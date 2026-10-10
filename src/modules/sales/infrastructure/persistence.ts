@@ -193,11 +193,21 @@ export class DrizzleSalesQueries {
         .from(crmPlans)
         .where(and(eq(crmPlans.month, month), userIds ? inArray(crmPlans.userId, userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]) : undefined)),
       executor().execute<{ user_id: string; amount: number; deals: number }>(sql`
-        select d.assignee_id as user_id, coalesce(sum(d.amount), 0)::int as amount, count(*)::int as deals
-        from crm_deals d join crm_stages s on s.id = d.stage_id
-        where s.kind = 'won' and d.assignee_id is not null
-          and to_char(d.closed_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
-        group by d.assignee_id`),
+        select user_id, coalesce(sum(amount), 0)::int as amount, coalesce(sum(deals), 0)::int as deals from (
+          -- успешные сделки месяца (как раньше); сделки с принятыми платежами считаются по деньгам — ниже
+          select d.assignee_id as user_id, d.amount, 1 as deals
+          from crm_deals d join crm_stages s on s.id = d.stage_id
+          where s.kind = 'won' and d.assignee_id is not null
+            and to_char(d.closed_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
+            and (d.order_id is not null or not exists (select 1 from crm_payments p where p.deal_id = d.id))
+          union all
+          -- платежи месяца по ручным сделкам; сделка засчитывается, когда принят первый платёж по ней
+          select d.assignee_id, p.amount,
+            case when p.id = (select p2.id from crm_payments p2 where p2.deal_id = d.id order by p2.paid_at, p2.created_at limit 1) then 1 else 0 end
+          from crm_payments p join crm_deals d on d.id = p.deal_id
+          where d.order_id is null and d.assignee_id is not null
+            and to_char(p.paid_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
+        ) x group by user_id`),
     ]);
     const out = new Map<string, PlanProgress>();
     const get = (id: string) => out.get(id) ?? out.set(id, { userId: id, planAmount: 0, planDeals: 0, factAmount: 0, factDeals: 0 }).get(id)!;

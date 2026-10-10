@@ -16,7 +16,7 @@ export class ReceiptError extends Error {
 
 /** Чеки об оплате по сделкам: метаданные в базе, файлы в хранилище (receipts/<сделка>/<id>.<тип>). */
 export class DealReceipts {
-  async add(input: { dealId: string; clientId: string | null; bytes: Buffer; fileName: string; amount: number; uploadedById: string }): Promise<ReceiptRow> {
+  async add(input: { dealId: string; clientId: string | null; paymentId?: string | null; bytes: Buffer; fileName: string; amount: number; uploadedById: string }): Promise<ReceiptRow> {
     if (!input.bytes.length) throw new ReceiptError("empty");
     if (input.bytes.length > RECEIPT_MAX_BYTES) throw new ReceiptError("tooBig");
     const type = sniffReceipt(input.bytes);
@@ -26,7 +26,7 @@ export class DealReceipts {
     await putFile(storageKey, input.bytes);
     const [row] = await executor()
       .insert(crmReceipts)
-      .values({ id, dealId: input.dealId, clientId: input.clientId, storageKey, fileName: safeReceiptName(input.fileName, type.ext), mime: type.mime, size: input.bytes.length, amount: Math.max(0, Math.round(input.amount)), uploadedById: input.uploadedById })
+      .values({ id, dealId: input.dealId, paymentId: input.paymentId ?? null, clientId: input.clientId, storageKey, fileName: safeReceiptName(input.fileName, type.ext), mime: type.mime, size: input.bytes.length, amount: Math.max(0, Math.round(input.amount)), uploadedById: input.uploadedById })
       .returning();
     return row;
   }

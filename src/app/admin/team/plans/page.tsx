@@ -32,7 +32,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
           {total.plan ? ` · ${Math.round((total.fact / total.plan) * 100)}%` : ""}
         </span>
       </div>
-      <p className="text-sm text-muted">Факт — сумма успешных сделок сотрудника, закрытых в этом месяце. Прогресс виден сотруднику в «Моём дне» и руководителю в аналитике.</p>
+      <p className="text-sm text-muted">Факт — сумма успешных сделок сотрудника, закрытых в этом месяце, и деньги, принятые по его ручным сделкам (предоплата засчитывается с первого платежа). Прогресс виден сотруднику в «Моём дне» и руководителю в аналитике.</p>
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full min-w-[760px] text-sm" data-testid="plans">
           <thead className="border-b border-line text-left text-muted">

@@ -190,6 +190,13 @@
       "when": 1791635066325,
       "tag": "0026_book_photo_frames",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791636656145,
+      "tag": "0027_crm_payments",
+      "breakpoints": true
     }
   ]
 }

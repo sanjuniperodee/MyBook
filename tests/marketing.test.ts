@@ -24,6 +24,27 @@ describe("отчёт по каналам", () => {
   });
 });
 
+describe("отчёт по каналам: деньги по ручным сделкам", () => {
+  const utm = { source: "instagram", medium: "social", campaign: "mama" };
+  const row = (p: { won?: boolean; amount?: number; hasOrder?: boolean; paid?: number }) => ({ utm, source: "manual", clientId: "c1", won: false, amount: 20000, hasOrder: false, ...p });
+  const sales = (deals: ReturnType<typeof row>[]) => buildChannelReport([], deals, []).total;
+
+  it("предоплата — уже продажа на сумму принятых денег, даже пока сделка не закрыта", () => {
+    expect(sales([row({ paid: 10000 })])).toMatchObject({ sales: 1, revenue: 10000 });
+  });
+  it("сделку с платежами закрыли — деньги не считаются второй раз", () => {
+    expect(sales([row({ won: true, paid: 10000 })])).toMatchObject({ sales: 1, revenue: 10000 });
+    expect(sales([row({ won: true, paid: 20000 })])).toMatchObject({ sales: 1, revenue: 20000 });
+  });
+  it("успешная сделка без платежей — по её сумме; открытая без денег — не продажа", () => {
+    expect(sales([row({ won: true })])).toMatchObject({ sales: 1, revenue: 20000 });
+    expect(sales([row({})])).toMatchObject({ sales: 0, revenue: 0 });
+  });
+  it("по сделке есть заказ на сайте — деньги в заказе, платежи не дублируются", () => {
+    expect(sales([row({ hasOrder: true, paid: 10000, won: true })])).toMatchObject({ sales: 0, revenue: 0 });
+  });
+});
+
 describe("короткие ссылки", () => {
   it("на сайт — с UTM и кодом, в WhatsApp — текст с кодом ссылки", () => {
     expect(linkTarget(link(), "https://mybook.kz", "77010000000")).toContain("utm_source=instagram");

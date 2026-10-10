@@ -57,6 +57,8 @@ export async function dealList(
         deal: crmDeals,
         stageKind: crmStages.kind,
         nextTask: sql<Date | null>`(select min(t.due_at) from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`,
+        // Принятые деньги по сделке (платежи менеджеров): на карточке видно, сколько уже получено.
+        paid: sql<number>`coalesce((select sum(p.amount) from crm_payments p where p.deal_id = ${crmDealsId}), 0)::int`,
         unread: sql<number>`coalesce((select sum(c.unread) from crm_conversations c where c.deal_id = ${crmDealsId}), 0)::int`,
         // Прогресс лучшей книги клиента: сколько вопросов с ответом из скольких.
         book: sql<{ answered: number; total: number } | null>`(

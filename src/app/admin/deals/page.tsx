@@ -30,13 +30,14 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   ]);
   const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const now = nowMs();
-  const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book }) => ({
+  const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book, paid }) => ({
     id: deal.id,
     number: deal.number,
     title: deal.title,
     contactName: deal.contactName,
     stageId: deal.stageId,
     amount: deal.amount,
+    paid,
     source: deal.utm ? channelLabel(toAttribution(deal.utm), deal.source) : dealSourceLabels[deal.source],
     assigneeId: deal.assigneeId,
     assigneeLabel: deal.assigneeId ? (names.get(deal.assigneeId) ?? null) : null,
@@ -177,7 +178,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         <DealsBoard stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} initial={cards} canEdit={can(staff, "deals.edit")} />
       ) : (
         <DealsTable
-          rows={rows.map(({ deal }) => {
+          rows={rows.map(({ deal, paid }) => {
             const st = stages.find((x) => x.id === deal.stageId);
             return {
               id: deal.id,
@@ -190,6 +191,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
               campaign: deal.utm?.campaign ?? null,
               assignee: deal.assigneeId ? (names.get(deal.assigneeId) ?? null) : null,
               amount: deal.amount ? formatPrice(deal.amount) : "—",
+              paid: paid ? formatPrice(paid) : null,
               created: formatDate(deal.createdAt),
             };
           })}

@@ -19,8 +19,9 @@ export const sqlReportSource: ReportSource = {
           exists (select 1 from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled') as paid,
           coalesce((select sum(o.amount) from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled'), 0)::int as revenue
         from users u where u.role = 'user' and u.created_at >= ${from}`),
-      db.execute<{ utm: unknown; source: string; client_id: string | null; won: boolean; amount: number; has_order: boolean }>(sql`
-        select d.utm, d.source, d.client_id, s.kind = 'won' as won, d.amount, d.order_id is not null as has_order
+      db.execute<{ utm: unknown; source: string; client_id: string | null; won: boolean; amount: number; has_order: boolean; paid: number }>(sql`
+        select d.utm, d.source, d.client_id, s.kind = 'won' as won, d.amount, d.order_id is not null as has_order,
+          coalesce((select sum(p.amount) from crm_payments p where p.deal_id = d.id), 0)::int as paid
         from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${from}`),
       db.execute<{ slug: string; source: string; medium: string; campaign: string; clicks: number }>(sql`
         select l.slug, l.utm_source as source, l.utm_medium as medium, l.utm_campaign as campaign, coalesce(sum(c.clicks), 0)::int as clicks
@@ -29,7 +30,7 @@ export const sqlReportSource: ReportSource = {
     ]);
     return {
       clients: clients.rows,
-      deals: deals.rows.map((d) => ({ utm: d.utm, source: d.source, clientId: d.client_id, won: d.won, amount: d.amount, hasOrder: d.has_order })),
+      deals: deals.rows.map((d) => ({ utm: d.utm, source: d.source, clientId: d.client_id, won: d.won, amount: d.amount, hasOrder: d.has_order, paid: d.paid })),
       clicks: clicks.rows,
     };
   },

@@ -14,7 +14,7 @@ export async function salesAnalytics(pipelineId: string, period: number) {
   const since = sql`now() - make_interval(days => ${period})`;
   const prevSince = sql`now() - make_interval(days => ${period * 2})`;
   const pipeline = { id: pipelineId };
-  const [totals, prevTotals, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime] = await Promise.all([
+  const [totals, prevTotals, received, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime] = await Promise.all([
     db.execute<Row>(sql`
       select count(*)::int as created,
         count(*) filter (where s.kind = 'won')::int as won,
@@ -25,8 +25,16 @@ export async function salesAnalytics(pipelineId: string, period: number) {
     db.execute<Row>(sql`
       select count(*)::int as created, count(*) filter (where s.kind = 'won')::int as won, coalesce(sum(d.amount) filter (where s.kind = 'won'), 0)::int as revenue
       from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${prevSince} and d.created_at < ${since} and ${inPipeline}`),
+    // Деньги, реально полученные по сделкам воронки (оплаченные заказы и платежи менеджеров) — в отличие от «выручки по сделкам»,
+    // которая считает суммы договорённостей по успешным сделкам.
     db.execute<Row>(sql`
-      select d.source, d.utm, s.kind = 'won' as won, d.amount
+      select coalesce(sum(e.amount) filter (where e.at >= ${since}), 0)::int as cur,
+        coalesce(sum(e.amount) filter (where e.at >= ${prevSince} and e.at < ${since}), 0)::int as prev
+      from revenue_events e join crm_deals d on d.id = e.deal_id join crm_stages s on s.id = d.stage_id
+      where e.at >= ${prevSince} and ${inPipeline}`),
+    db.execute<Row>(sql`
+      select d.source, d.utm, s.kind = 'won' as won, d.amount,
+        coalesce((select sum(p.amount) from crm_payments p where p.deal_id = d.id), 0)::int as paid
       from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${since} and ${inPipeline}`),
     db.execute<Row>(sql`select d.stage_id, count(*)::int as n, coalesce(sum(d.amount), 0)::int as sum from crm_deals d where d.created_at >= ${since} group by d.stage_id`),
     db.execute<Row>(sql`
@@ -38,6 +46,7 @@ export async function salesAnalytics(pipelineId: string, period: number) {
         (select count(*) from crm_deals d where d.assignee_id = u.id and d.created_at >= ${since})::int as deals,
         (select count(*) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'won' and d.closed_at >= ${since})::int as won,
         (select coalesce(sum(d.amount), 0) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'won' and d.closed_at >= ${since})::int as revenue,
+        (select coalesce(sum(e.amount), 0) from revenue_events e where e.manager_id = u.id and e.at >= ${since})::int as received,
         (select count(*) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'open')::int as open,
         (select count(*) from crm_messages m where m.author_id = u.id and m.created_at >= ${since})::int as messages,
         (select count(*) from crm_calls c where c.staff_id = u.id and c.started_at >= ${since} and c.status = 'answered')::int as calls,
@@ -89,5 +98,5 @@ export async function salesAnalytics(pipelineId: string, period: number) {
       where next_at is not null and next_at >= ${since}
       group by to_stage_id`),
   ]);
-  return { totals, prevTotals, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime };
+  return { totals, prevTotals, received, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime };
 }

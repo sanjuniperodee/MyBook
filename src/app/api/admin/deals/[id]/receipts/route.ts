@@ -25,8 +25,14 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const amount = Number(form.get("amount") ?? 0);
   if (!Number.isFinite(amount) || amount < 0 || amount > 100_000_000) return bad("Проверьте сумму");
 
+  // Чек можно привязать к платежу этой же сделки (так делает форма «Новый клиент»: платёж создан, чек догружается).
+  const paymentId = String(form.get("paymentId") ?? "") || null;
+  if (paymentId) {
+    const payment = await container().sales.payments.find(paymentId);
+    if (!payment || payment.dealId !== deal.id) return bad("Платёж не найден");
+  }
   try {
-    const row = await container().sales.receipts.add({ dealId: deal.id, clientId: deal.clientId, bytes: Buffer.from(await file.arrayBuffer()), fileName: file.name, amount, uploadedById: staff.user.id });
+    const row = await container().sales.receipts.add({ dealId: deal.id, clientId: deal.clientId, paymentId, bytes: Buffer.from(await file.arrayBuffer()), fileName: file.name, amount, uploadedById: staff.user.id });
     const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
     await container().clients.notes.add(actor, { kind: "note", text: `Приложен чек${row.amount ? ` на ${formatPrice(row.amount)}` : ""}: ${row.fileName}`, dealId: deal.id, clientId: deal.clientId ?? undefined });
     await audit(staff, "receipt.add", "deal", deal.id, { receipt: row.id, amount: row.amount });

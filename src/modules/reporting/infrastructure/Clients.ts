@@ -7,15 +7,17 @@ import type { ClientSegment } from "@/modules/clients/domain/segments";
 
 export const STALLED_DAYS = 14;
 
-const ltv = sql<number>`coalesce((select sum(o.amount) from orders o where o.user_id = ${usersId} and o.paid_at is not null and o.status <> 'cancelled'), 0)::int`;
+// Деньги клиента — из единого журнала revenue_events: оплаченные заказы и платежи по ручным сделкам.
+const ltv = sql<number>`coalesce((select sum(e.amount) from revenue_events e where e.client_id = ${usersId}), 0)::int`;
 const ordersCount = sql<number>`(select count(*)::int from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
 const booksCount = sql<number>`(select count(*)::int from books b where b.user_id = ${usersId})`;
 const bestAnswered = sql<number>`coalesce((select max((select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0)) from books b where b.user_id = ${usersId}), 0)::int`;
 const lastBookUpdate = sql<Date | null>`(select max(b.updated_at) from books b where b.user_id = ${usersId})`;
 const lastOrderAt = sql<Date | null>`(select max(o.created_at) from orders o where o.user_id = ${usersId})`;
 
-const hasPaid = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.paid_at is not null and o.status <> 'cancelled')`;
-const hasAnyOrder = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
+const hasPaid = sql`exists (select 1 from revenue_events e where e.client_id = ${usersId})`;
+// «Оформил»: есть заказ или принятые деньги — такой клиент уже не «пишет книгу» и не «застрял».
+const hasAnyOrder = sql`(exists (select 1 from orders o where o.user_id = ${usersId} and o.status <> 'cancelled') or exists (select 1 from revenue_events e where e.client_id = ${usersId}))`;
 const hasPending = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.status = 'pending_payment')`;
 const draftRecent = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft' and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
 const draftStale = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft') and not exists (select 1 from books b where b.user_id = ${usersId} and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
