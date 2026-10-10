@@ -158,7 +158,7 @@ function setup() {
   const books = new MemBooks();
   const c = clock();
   const uow = new FakeUow([orders, promos, books]);
-  let agreement: { dealId: string; dealNumber: number; agreedTotal: number; prepaid: number } | null = null;
+  let agreement: { dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null } | null = null;
   const agreements = { agreementFor: async () => agreement };
   const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, agreements, uow, c);
   books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });
@@ -188,7 +188,7 @@ const addPromo = async (promos: MemPromos, code: string, input: Partial<{ kind: 
 // ─── домен ─────────────────────────────────────────────────────────────────
 
 describe("Ordering: договорённая цена и предоплата по ручной сделке", () => {
-  const deal = (agreedTotal: number, prepaid: number) => ({ dealId: "d1", dealNumber: 6, agreedTotal, prepaid });
+  const deal = (agreedTotal: number, prepaid: number) => ({ dealId: "d1", dealNumber: 6, agreedTotal, prepaid, deadline: null });
 
   it("цена по договорённости: скидка до согласованной суммы, предоплата вычтена из «к оплате»", async () => {
     const { place, setAgreement, orders, uow } = setup();

@@ -33,6 +33,6 @@ export class SalesModule {
     const funnels = new DrizzleFunnelRepository();
     this.deals = new DealsService(repo, funnels, drizzleClients, crmSalesSettings, roundRobinRouter, deps.uow, deps.clock);
     this.pipelines = new PipelinesService(new DrizzlePipelineRepository(), () => this.deals.defaultPipelineId());
-    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, crmSalesSettings, sqlBookProgress, this.deals, deps.logger);
+    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, crmSalesSettings, sqlBookProgress, this.deals, deps.logger, (dealId) => this.payments.paidTotal(dealId));
   }
 }

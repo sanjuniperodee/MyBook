@@ -142,6 +142,11 @@ export class Deal extends AggregateRoot<DealProps> {
     if (amount) this.props.amount = amount;
   }
 
+  /** Заказ отменён, а сделка остаётся (деньги клиента у нас): отвязать заказ, чтобы клиент мог оформить новый. */
+  detachOrder() {
+    this.props.orderId = null;
+  }
+
   setAmount(amount: number) {
     this.props.amount = amount;
   }

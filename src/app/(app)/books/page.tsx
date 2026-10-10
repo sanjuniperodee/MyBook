@@ -12,6 +12,7 @@ import { photoUrls } from "@/lib/urls";
 import { formatDate, nowMs } from "@/lib/utils";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
+import { AgreementCard } from "@/components/AgreementCard";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.list.meta };
@@ -19,12 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BooksPage() {
   const user = await requireUser("/books");
-  const [rows, locale, m] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages()]);
+  const [rows, locale, m, agreement] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
+  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, answered: r.answered }))} /> : null;
   const t = m.books.list;
   const now = new Date(nowMs());
   if (rows.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-14 text-center sm:px-6 sm:py-20">
+        {card ? <div className="mb-10 text-left">{card}</div> : null}
         <OpenBookArt className="enter mx-auto h-44 w-auto sm:h-52" />
         <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-4xl font-medium sm:text-5xl">
           {t.hello(user.name)}
@@ -45,6 +48,7 @@ export default async function BooksPage() {
   }
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      {card ? <div className="mb-8">{card}</div> : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>

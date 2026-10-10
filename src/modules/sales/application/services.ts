@@ -207,6 +207,11 @@ export class DealsService {
     return (await this.deals.findOpen(opts))?.snapshot() ?? null;
   }
 
+  /** Сделки, связанные с заказом (обычно одна). */
+  async byOrder(orderId: string) {
+    return (await this.deals.findByOrder(orderId)).map((d) => d.snapshot());
+  }
+
   findClientByPhone(phone: string | null | undefined) {
     return this.clients.findByPhone(phone);
   }
@@ -247,6 +252,8 @@ export class SiteFunnelService {
     private readonly books: BookProgress,
     private readonly service: DealsService,
     private readonly logger: Logger,
+    /** Сколько денег принято по сделке (платежи минус возвраты) — решает, что делать со сделкой при отмене заказа. */
+    private readonly paid: (dealId: string) => Promise<number> = async () => 0,
   ) {}
 
   async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomValues } = {}): Promise<{ id: string } | null> {
@@ -325,11 +332,24 @@ export class SiteFunnelService {
     return deals[0]?.id ?? null;
   }
 
-  /** Отмена заказа — связанные сделки в «отказ». */
-  async orderCancelled(orderId: string) {
+  /**
+   * Отмена заказа. Сделка без принятых денег уходит в «отказ». Если по ней есть предоплата, клиент не потерял договорённость:
+   * сделка отвязывается от заказа и возвращается в работу, а менеджер видит в ленте, что деньги остались и нужно решить — продолжать или вернуть.
+   */
+  async orderCancelled(orderId: string, number?: number) {
     const funnel = await this.funnels.load();
     for (const d of await this.deals.findByOrder(orderId)) {
-      const lost = funnel.firstOfKind("lost", funnel.stage(d.stageId)?.pipelineId ?? null);
+      const pipelineId = funnel.stage(d.stageId)?.pipelineId ?? null;
+      const held = d.source === "manual" ? await this.paid(d.id) : 0;
+      const reopen = held > 0 ? (["book_ready", "book_half", "book_started"] as const).map((m) => funnel.milestoneStage(m, pipelineId)).find(Boolean) ?? funnel.firstOfKind("open", pipelineId) : null;
+      if (reopen) {
+        d.detachOrder();
+        await this.deals.save(d);
+        await this.service.move(d.id, reopen.id, null);
+        await this.service.note(d, `Заказ${number ? ` №${number}` : ""} отменён. Предоплата ${held.toLocaleString("ru-RU")} ₸ осталась у нас — сделка снова в работе, клиент может оформить новый заказ по договорённости. Если он не продолжает — оформите возврат в блоке «Оплата».`, null);
+        continue;
+      }
+      const lost = funnel.firstOfKind("lost", pipelineId);
       if (lost) await this.service.move(d.id, lost.id, null, "Заказ отменён");
     }
   }

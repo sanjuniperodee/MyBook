@@ -119,7 +119,7 @@ class FakeUow implements UnitOfWork {
   }
 }
 
-function setup(autoFrom: "off" | "registered" | "book_started" = "book_started") {
+function setup(autoFrom: "off" | "registered" | "book_started" = "book_started", paid: (dealId: string) => Promise<number> = async () => 0) {
   const deals = new MemDeals();
   const uow = new FakeUow();
   const funnels: FunnelRepository = { load: async () => funnel };
@@ -131,7 +131,7 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started")
   const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom };
   const service = new DealsService(deals, funnels, clients, settings, { nextRoundRobin: async () => null }, uow, { now: () => now });
   const books = { progress: async () => ({ answered: 26, total: 40 }) };
-  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, { info: () => {}, warn: () => {}, error: () => {} });
+  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, { info: () => {}, warn: () => {}, error: () => {} }, paid);
   return { deals, uow, service, site };
 }
 
@@ -176,5 +176,28 @@ describe("SiteFunnelService", () => {
     await site.orderCreated({ id: "o1", userId: "c1", number: 1, amount: 9000 });
     await site.orderCancelled("o1");
     expect([...deals.rows.values()][0]).toMatchObject({ stageId: "lost", lostReason: "Заказ отменён" });
+  });
+
+  it("отмена заказа по договорённости с предоплатой — сделка возвращается в работу, заказ отвязан, договорённость цела", async () => {
+    const { site, service, deals } = setup("book_started", async () => 10000);
+    const manual = await service.create({ title: "Клиент менеджера", source: "manual", clientId: "c1", amount: 20000 });
+    await site.orderCreated({ id: "o1", userId: "c1", number: 5, amount: 10000 });
+    expect(deals.rows.get(manual.id)).toMatchObject({ stageId: "order", orderId: "o1" });
+    await site.orderCancelled("o1", 5);
+    expect(deals.rows.get(manual.id)).toMatchObject({ stageId: "ready", orderId: null, closedAt: null, lostReason: null });
+    // и после отмены оплаченного заказа (сделка была в «Оплачен») — то же самое
+    await site.orderCreated({ id: "o2", userId: "c1", number: 6, amount: 10000 });
+    await site.orderPaid({ id: "o2", userId: "c1", amount: 20000 });
+    expect(deals.rows.get(manual.id)?.stageId).toBe("won");
+    await site.orderCancelled("o2", 6);
+    expect(deals.rows.get(manual.id)).toMatchObject({ stageId: "ready", orderId: null, closedAt: null });
+  });
+
+  it("отмена заказа по ручной сделке без принятых денег — по-прежнему «Отказ»", async () => {
+    const { site, service, deals } = setup("book_started", async () => 0);
+    const manual = await service.create({ title: "Клиент менеджера", source: "manual", clientId: "c1", amount: 20000 });
+    await site.orderCreated({ id: "o1", userId: "c1", number: 5, amount: 20000 });
+    await site.orderCancelled("o1", 5);
+    expect(deals.rows.get(manual.id)).toMatchObject({ stageId: "lost", lostReason: "Заказ отменён" });
   });
 });

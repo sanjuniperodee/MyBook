@@ -15,11 +15,12 @@ import { getFormat, print } from "@/lib/book/formats";
 import { getLocale, getMessages } from "@/i18n/server";
 import { coverName, interiorName } from "@/i18n/labels";
 import { localeMeta } from "@/i18n/config";
-import { formatPrice, site } from "@/config/site";
+import { site } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
+import { AgreementCard } from "@/components/AgreementCard";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.hub.meta };
@@ -93,23 +94,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
-      {agreement && agreement.prepaid > 0 ? (
-        <section className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5" data-testid="agreement-banner">
-          <div className="min-w-0 max-w-2xl">
-            <h2 className="font-semibold text-emerald-950">{m.books.agreementBanner.title}</h2>
-            <p className="mt-1 text-sm text-emerald-900">{m.books.agreementBanner.text(agreement.dealNumber, formatPrice(agreement.prepaid), formatPrice(Math.max(0, agreement.agreedTotal - agreement.prepaid)))}</p>
-            <p className="mt-2 text-xs text-emerald-900">
-              {m.books.agreementBanner.refund}{" "}
-              <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="font-medium underline">
-                {m.books.agreementBanner.refundLink}
-              </a>
-            </p>
-          </div>
-          <Link href={`/books/${book.id}/checkout`} className="btn btn-primary">
-            {stats.answered >= 10 ? m.books.agreementBanner.ready : m.books.agreementBanner.notReady}
-          </Link>
-        </section>
-      ) : null}
+      {agreement ? <div className="mb-8"><AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, answered: stats.answered }]} /></div> : null}
       {/* Книга */}
       <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:gap-16">
         <div className="mx-auto w-full max-w-[260px] lg:max-w-[300px]">

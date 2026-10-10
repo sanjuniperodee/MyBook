@@ -1,5 +1,5 @@
 import "server-only";
-import type { OrderCancelled, OrderPaid, OrderPlaced } from "@/modules/ordering";
+import type { OrderCancelled, OrderPaid, OrderPlaced, PaymentClaimed } from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealCreated, DealStageChanged } from "@/modules/sales";
@@ -27,7 +27,20 @@ export function registerSubscriptions(c: Container) {
     },
     "crm.deal.order_paid",
   );
-  c.bus.subscribe<OrderCancelled>("ordering.order_cancelled", (e) => c.sales.funnel.orderCancelled(e.payload.orderId), "crm.deal.order_cancelled");
+  c.bus.subscribe<OrderCancelled>("ordering.order_cancelled", (e) => c.sales.funnel.orderCancelled(e.payload.orderId, e.payload.number), "crm.deal.order_cancelled");
+
+  // ─── заказы → ответственному менеджеру сделки: клиент оформил заказ или сообщил об оплате ──
+  const tellManager = async (orderId: string, title: (dealNumber: number) => string, body: (dealTitle: string) => string) => {
+    for (const d of await c.sales.deals.byOrder(orderId)) {
+      if (d.assigneeId) await (await notify()).notify([d.assigneeId], { kind: "deal", title: title(d.number), body: body(d.title), link: `/admin/deals/${d.id}` });
+    }
+  };
+  c.bus.subscribe<OrderPlaced>(
+    "ordering.order_placed",
+    (e) => tellManager(e.payload.orderId, (n) => `Клиент оформил заказ №${e.payload.number} (сделка №${n})`, (t) => `${t}${e.payload.prepaid ? ` · предоплата ${e.payload.prepaid.toLocaleString("ru-RU")} ₸ учтена` : ""}`),
+    "crm.notify.order_placed",
+  );
+  c.bus.subscribe<PaymentClaimed>("ordering.payment_claimed", (e) => tellManager(e.payload.orderId, () => `Проверьте оплату заказа №${e.payload.number}`, (t) => `${t} · клиент сообщил, что оплатил`), "crm.notify.payment_claimed");
 
   // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──
   c.bus.subscribe<OrderPaid>(

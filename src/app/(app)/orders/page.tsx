@@ -8,6 +8,7 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
+import { AgreementCard } from "@/components/AgreementCard";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).orders.list.meta };
@@ -15,12 +16,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function OrdersPage() {
   const user = await requireUser("/orders");
-  const [list, locale, m] = await Promise.all([container().ordering.queries.userOrders(user.id), getLocale(), getMessages()]);
+  const [list, locale, m, agreement] = await Promise.all([container().ordering.queries.userOrders(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
+  // Заказа ещё нет, но есть договорённость с менеджером: показываем «бронь» вместо пустого списка.
+  const books = agreement ? await container().authoring.queries.userBooks(user.id) : [];
   const t = m.orders.list;
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
-      {list.length === 0 ? (
+      {agreement ? <div className="mt-8"><AgreementCard agreement={agreement} books={books.map((r) => ({ id: r.book.id, status: r.book.status, answered: r.answered }))} /></div> : null}
+      {list.length === 0 && agreement ? null : list.length === 0 ? (
         <div className="card mt-10">
           <EmptyState
             art={GiftArt}

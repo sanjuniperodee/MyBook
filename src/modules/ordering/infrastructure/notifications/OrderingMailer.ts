@@ -53,11 +53,11 @@ export class OrderingMailer {
       emailLayout({
         locale,
         title: m.title,
-        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), m.amount(formatPrice(order.amount))],
+        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), ...(p.prepaid ? [m.prepaid(formatPrice(p.prepaid))] : []), m.amount(formatPrice(order.amount))],
         button: { label: m.button, url: orderUrl(order.id, locale) },
       }),
     );
-    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}`], {
+    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}${p.prepaid ? ` (предоплата ${formatPrice(p.prepaid)} уже внесена)` : ""}`], {
       label: "Открыть в админке",
       url: `${env.appUrl}/admin/orders/${order.id}`,
     });

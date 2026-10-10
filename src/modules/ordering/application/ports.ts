@@ -20,7 +20,7 @@ export interface PeopleGateway {
 
 /** Договорённость менеджера с клиентом о цене и предоплате (контекст «Продажи»). */
 export interface AgreementGateway {
-  agreementFor(userId: string): Promise<{ dealId: string; dealNumber: number; agreedTotal: number; prepaid: number } | null>;
+  agreementFor(userId: string): Promise<{ dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null } | null>;
 }
 
 /** Файлы для типографии (контекст Production). */

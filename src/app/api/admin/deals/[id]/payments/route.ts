@@ -6,6 +6,7 @@ import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "@/modules/sales";
 import { sniffReceipt } from "@/modules/sales/domain";
+import { mailPaymentToClient } from "@/server/client-mail";
 
 export const maxDuration = 60;
 
@@ -48,6 +49,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
     await c.clients.notes.add(actor, { kind: "note", text: refund ? `Возврат ${formatPrice(payment.amount)} клиенту: ${payment.note}. Чек: ${receipt.fileName}` : `${payment.kind === "prepayment" ? "Предоплата" : "Платёж"} ${formatPrice(payment.amount)} принят(а). Чек: ${receipt.fileName}`, dealId: deal.id, clientId: deal.clientId ?? undefined });
     await audit(staff, "payment.add", "deal", deal.id, { payment: payment.id, amount: payment.amount, receipt: receipt.id });
+    await mailPaymentToClient(c, { clientId: deal.clientId, dealNumber: deal.number, kind: refund ? "refund" : "payment", amount: payment.amount, left: Math.max(0, deal.amount - (await c.sales.payments.paidTotal(deal.id))) });
     revalidatePath(`/admin/deals/${deal.id}`);
     revalidatePath("/admin");
     revalidatePath("/admin/analytics");
