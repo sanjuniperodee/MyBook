@@ -38,7 +38,9 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const giftCode = jar.get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined) || jar.get(INVITE_COOKIE)?.value;
   const ordering = container().ordering;
   // Договорённость с менеджером (ручная сделка): клиент выбирает — продолжить по ней или оформить заказ с нуля.
-  const agreement = await ordering.orders.agreementFor(user.id);
+  // Смотрит сотрудник — договорённость берём у владельца книги, а не у сотрудника: он видит ровно то, что увидит клиент.
+  const agreement = await ordering.orders.agreementFor(book.userId);
+  const staffView = book.userId !== user.id;
   const giftCheck = giftCode ? await ordering.promos.check(giftCode, user.id) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
@@ -76,6 +78,8 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           </p>
         </div>
       </div>
+
+      {staffView ? <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">{t.staffView}</p> : null}
 
       <div className="mt-8 rounded-2xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">

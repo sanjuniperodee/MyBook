@@ -7,6 +7,7 @@ export const checkout = {
   design: { cover: (name: string) => `Обложка «${name}»`, pages: (name: string) => `страницы «${name}»` },
   summary: (title: string, pages: number, answers: number, photos: number) =>
     `«${title}» · ≈ ${ruCount(pages, "страница", "страницы", "страниц")} · ${ruCount(answers, "ответ", "ответа", "ответов")} · ${photos} фото`,
+  staffView: "Вы смотрите оформление чужой книги как сотрудник: цена и предоплата показаны так, как их видит клиент. Заказ оформляет сам клиент из своего кабинета.",
   checkPreview: "Перед заказом обязательно пролистайте готовый макет — книга будет напечатана именно так.",
   openPreview: "Открыть предпросмотр",
   fix: "Исправить",

@@ -38,7 +38,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     container().authoring.queries.letters(book.id),
   ]);
   // Договорённость с менеджером и внесённая предоплата — клиенту видно, что уже оплачено и что остаётся.
-  const agreement = book.status === "draft" ? await container().ordering.orders.agreementFor(user.id) : null;
+  const agreement = book.status === "draft" ? await container().ordering.orders.agreementFor(book.userId) : null;
   const letterStats = {
     approved: letterRows.filter((l) => l.status === "approved").length,
     pending: letterRows.filter((l) => l.status === "pending").length,
