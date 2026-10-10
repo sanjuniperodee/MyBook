@@ -562,6 +562,27 @@ export const crmDeals = pgTable(
   (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId)],
 );
 
+/** Чеки об оплате по сделке (скриншот перевода, фото чека, PDF): файл лежит в хранилище, здесь — метаданные. */
+export const crmReceipts = pgTable(
+  "crm_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => crmDeals.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull(),
+    fileName: text("file_name").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    /** Сумма платежа по чеку, ₸ (0 — не указана). */
+    amount: integer("amount").notNull().default(0),
+    uploadedById: uuid("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_receipts_deal_idx").on(t.dealId)],
+);
+
 /** Диалог в мессенджере (WhatsApp, Instagram, Telegram через Wazzup). */
 export interface ConversationMeta {
   /** Чат с сайта: страница, с которой написали, и контакты, которые оставил посетитель. */

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { channelLabel, channels, toAttribution } from "@/modules/marketing/domain/channels";
-import { Download } from "lucide-react";
+import { Download, UserPlus } from "lucide-react";
 import { clientSegments, type ClientSegment } from "@/modules/clients/domain/segments";
 import type { ClientSort } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";
@@ -49,11 +49,18 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-semibold">Клиенты</h1>
           <p className="text-sm text-muted">Найдено {total}{sp.tag ? ` · тег «${sp.tag}»` : ""}</p>
         </div>
-        {can(staff, "clients.export", "clients.contacts") ? (
-          <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
-            <Download className="size-4" /> CSV
-          </a>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {can(staff, "clients.export", "clients.contacts") ? (
+            <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
+              <Download className="size-4" /> CSV
+            </a>
+          ) : null}
+          {can(staff, "clients.create") ? (
+            <Link href="/admin/clients/new" className="btn btn-primary btn-sm">
+              <UserPlus className="size-4" /> Новый клиент
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5">

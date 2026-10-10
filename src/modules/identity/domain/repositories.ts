@@ -4,6 +4,8 @@ export interface UserRepository {
   nextId(): string;
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  /** Клиенты (не сотрудники) с этим номером телефона; номер сравнивается по цифрам. */
+  findClientsByPhone(phone: string): Promise<User[]>;
   add(user: User): Promise<void>;
   save(user: User): Promise<void>;
 }

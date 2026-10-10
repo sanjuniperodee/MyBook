@@ -31,6 +31,7 @@ export const permissionGroups = [
     items: [
       ["clients.view", "Видеть клиентов и их книги"],
       ["clients.edit", "Менять клиентов: теги, ответственного, заметки"],
+      ["clients.create", "Заводить клиентов и выдавать им доступ (логин и пароль)"],
       ["clients.contacts", "Видеть телефоны и e-mail полностью"],
       ["clients.export", "Выгружать базу в CSV"],
     ],
@@ -85,7 +86,7 @@ export const systemRoles: Record<string, { name: string; scope: RoleScope; permi
   manager: {
     name: "Менеджер продаж",
     scope: "own",
-    permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.view", "calls.make", "calls.recordings", "clients.view", "clients.edit", "clients.contacts", "orders.view", "promo.give"],
+    permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.view", "calls.make", "calls.recordings", "clients.view", "clients.edit", "clients.create", "clients.contacts", "orders.view", "promo.give"],
   },
   production: {
     name: "Производство",

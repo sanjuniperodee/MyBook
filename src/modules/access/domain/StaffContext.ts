@@ -1,3 +1,4 @@
+import { isPhoneEmail } from "@/modules/identity/domain/Login";
 import { maskEmail, maskPhone, type Permission, type RoleScope } from "./permissions";
 
 /**
@@ -30,6 +31,8 @@ export class StaffContext {
   /** Контакты клиента с учётом права clients.contacts. */
   contacts(v: { phone?: string | null; email?: string | null }) {
     const full = this.can("clients.contacts");
-    return { phone: full ? (v.phone ?? "") : maskPhone(v.phone), email: full ? (v.email ?? "") : maskEmail(v.email), masked: !full };
+    // Адрес-заглушка клиента без почты (@phone.invalid) — не контакт: показывать и подставлять в письма его не нужно.
+    const email = isPhoneEmail(v.email) ? "" : v.email;
+    return { phone: full ? (v.phone ?? "") : maskPhone(v.phone), email: full ? (email ?? "") : maskEmail(email), masked: !full };
   }
 }

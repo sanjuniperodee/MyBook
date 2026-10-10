@@ -14,6 +14,9 @@ import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/statu
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
 import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
+import { ClientAccess } from "./ClientAccess";
+import { displayLogin } from "@/app/admin/clients/new/access-message";
+import { isPhoneEmail } from "@/modules/identity/domain";
 import { formatPhone } from "@/shared/domain/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
@@ -181,6 +184,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               </div>
             )}
           </section>
+          {can(staff, "clients.create") && client.role === "user" ? (
+            <section className="rounded-2xl border border-line bg-white p-5">
+              <h2 className="mb-3 text-sm font-semibold">Доступ в кабинет</h2>
+              <ClientAccess clientId={client.id} loginText={displayLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email)} />
+            </section>
+          ) : null}
           {canEdit ? (
             <section className="space-y-3 rounded-2xl border border-line bg-white p-5">
               <RemindButton clientId={client.id} disabled={!hasDraft || !!cooldown} hint={remindHint} />

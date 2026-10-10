@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Clock, UnitOfWork } from "@/shared/application";
+import { normalizePhone } from "@/shared/domain/phone";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
-import { User, totp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
+import { User, isPhoneEmail, parseLoginId, phoneEmail, totp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
 import { AuthService } from "@/modules/identity/application/AuthService";
 import { AccountService } from "@/modules/identity/application/AccountService";
 import { Role, SecurityPolicy, StaffContext, StaffMember, allPermissions, type RoleRepository, type StaffRepository } from "@/modules/access/domain";
@@ -38,6 +39,9 @@ class MemUsers implements UserRepository {
   async findByEmail(e: string) {
     const u = [...this.rows.values()].find((x) => x.email === e.toLowerCase());
     return u ? this.findById(u.id) : null;
+  }
+  async findClientsByPhone(phone: string) {
+    return [...this.rows.values()].filter((x) => x.role === "user" && normalizePhone(x.phone ?? "") === normalizePhone(phone));
   }
   async add(u: User) {
     this.rows.set(u.id, u);
@@ -128,15 +132,75 @@ describe("Identity: регистрация и вход", () => {
   it("неверный пароль и незнакомый адрес — одна и та же ошибка", async () => {
     const { auth } = identity();
     await auth.register({ email: "a@b.kz", name: "А", password: "secret123", locale: "ru", source: null });
-    await expect(auth.login({ email: "a@b.kz", password: "wrong", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
-    await expect(auth.login({ email: "x@b.kz", password: "secret123", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    await expect(auth.login({ login: "a@b.kz", password: "wrong", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    await expect(auth.login({ login: "x@b.kz", password: "secret123", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
   });
 
   it("вход запоминает язык", async () => {
     const { auth, users } = identity();
     const { user } = await auth.register({ email: "a@b.kz", name: "А", password: "secret123", locale: "ru", source: null });
-    await auth.login({ email: "a@b.kz", password: "secret123", locale: "kk" });
+    await auth.login({ login: "a@b.kz", password: "secret123", locale: "kk" });
     expect((await users.findById(user.id))!.locale).toBe("kk");
+  });
+});
+
+describe("Identity: клиент, которого завёл менеджер", () => {
+  it("логин: почта или телефон в любом написании", () => {
+    expect(parseLoginId(" Aliya@Mail.KZ ")).toEqual({ kind: "email", value: "aliya@mail.kz" });
+    for (const raw of ["87758613077", "+7 775 861-30-77", "8 (775) 861 30 77", "7758613077"]) expect(parseLoginId(raw)).toEqual({ kind: "phone", value: "77758613077" });
+    expect(parseLoginId("")).toBeNull();
+    expect(parseLoginId("12345")).toBeNull();
+    expect(phoneEmail("87758613077")).toBe("77758613077@phone.invalid");
+    expect(isPhoneEmail("77758613077@phone.invalid")).toBe(true);
+    expect(isPhoneEmail("a@mail.kz")).toBe(false);
+  });
+
+  it("без почты: аккаунт с адресом-заглушкой, вход по телефону в любом написании", async () => {
+    const { accounts, auth, users } = identity();
+    const made = await accounts.provisionClient({ name: "Насиба", phone: "8 775 861-30-77", email: null, password: "Pass12345", locale: "ru" });
+    expect(made.login).toBe("77758613077");
+    const u = (await users.findById(made.id))!;
+    expect(u.email).toBe("77758613077@phone.invalid");
+    expect(u.phone).toBe("77758613077");
+    expect(u.role).toBe("user");
+    for (const login of ["87758613077", "+7 (775) 861-30-77", "77758613077@phone.invalid"]) {
+      const r = await auth.login({ login, password: "Pass12345", locale: "ru" });
+      expect(r.kind).toBe("session");
+    }
+    await expect(auth.login({ login: "87758613077", password: "wrong", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+  });
+
+  it("с почтой: логин — почта; дубликат по телефону или почте не создаётся", async () => {
+    const { accounts, auth } = identity();
+    const made = await accounts.provisionClient({ name: "Аян", phone: "+7 701 000 11 22", email: "Ayan@Mail.kz", password: "Pass12345", locale: "ru" });
+    expect(made.login).toBe("ayan@mail.kz");
+    expect((await auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" })).kind).toBe("session");
+    await expect(accounts.provisionClient({ name: "Другой", phone: "87010001122", email: null, password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "exists", existingId: made.id });
+    await expect(accounts.provisionClient({ name: "Другой", phone: "87770000000", email: "ayan@mail.kz", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "exists", existingId: made.id });
+    await expect(accounts.provisionClient({ name: "Х", phone: "123", email: null, password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "phone" });
+    await expect(accounts.provisionClient({ name: "Х", phone: "87770000000", email: null, password: "short", locale: "ru" })).rejects.toMatchObject({ code: "password" });
+  });
+
+  it("по телефону вход только при однозначном номере", async () => {
+    const { accounts, auth } = identity();
+    await accounts.provisionClient({ name: "А", phone: "87771112233", email: "a@mail.kz", password: "Pass12345", locale: "ru" });
+    // тот же номер у второго аккаунта (регистрация на сайте) — вход по телефону не угадывает, чей это аккаунт
+    const b = await auth.register({ email: "b@mail.kz", name: "Б", password: "Pass12345", locale: "ru", source: null });
+    await accounts.updateProfile(b.user.id, "Б", "87771112233");
+    await expect(auth.login({ login: "87771112233", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    expect((await auth.login({ login: "a@mail.kz", password: "Pass12345", locale: "ru" })).kind).toBe("session");
+  });
+
+  it("новый пароль клиенту: старый перестаёт работать, сессии завершены", async () => {
+    const { accounts, auth, sessions } = identity();
+    const made = await accounts.provisionClient({ name: "Аян", phone: "87010001122", email: null, password: "Pass12345", locale: "ru" });
+    const first = await auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" });
+    if (first.kind !== "session") throw new Error("ожидалась сессия");
+    const issued = await accounts.issueClientPassword(made.id, "Новый-пароль-77");
+    expect(issued.login).toBe("77010001122");
+    expect(await sessions.findUserId(`#${first.token}`, new Date())).toBeNull();
+    await expect(auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    expect((await auth.login({ login: "87010001122", password: "Новый-пароль-77", locale: "ru" })).kind).toBe("session");
   });
 });
 
@@ -155,7 +219,7 @@ describe("Identity: двухфакторный вход сотрудника", (
 
   it("после пароля нужен код; тот же код повторно не проходит", async () => {
     const { auth, userId, secret, clock } = await staffWith2fa();
-    const r = await auth.login({ email: "boss@b.kz", password: "secret123", locale: "ru" });
+    const r = await auth.login({ login: "boss@b.kz", password: "secret123", locale: "ru" });
     expect(r).toEqual({ kind: "second_factor", userId });
     clock.tick(30);
     const code = totp(secret, clock.now().getTime());
@@ -195,7 +259,7 @@ describe("Identity: двухфакторный вход сотрудника", (
   it("смена пароля из профиля: остальные устройства выходят, текущее остаётся", async () => {
     const { auth, accounts, sessions } = identity();
     const a = await auth.register({ email: "a@b.kz", name: "А", password: "secret123", locale: "ru", source: null });
-    const b = await auth.login({ email: "a@b.kz", password: "secret123", locale: "ru" });
+    const b = await auth.login({ login: "a@b.kz", password: "secret123", locale: "ru" });
     await expect(accounts.changePassword(a.user.id, "wrong", "newsecret1", a.token)).rejects.toMatchObject({ code: "credentials" });
     await accounts.changePassword(a.user.id, "secret123", "newsecret1", a.token);
     expect(await sessions.findUserId(`#${a.token}`, new Date())).toBe(a.user.id);

@@ -70,6 +70,22 @@ export class User extends AggregateRoot<UserProps> {
     });
   }
 
+  /** Клиент, которого завёл сотрудник по телефону (продажи): с паролем для входа, без события «зарегистрировался на сайте». */
+  static provisionClient(id: string, input: { email: Email; name: string; phone: string; passwordHash: string; locale: Locale }, now: Date) {
+    return new User(id, {
+      email: input.email.value,
+      name: input.name.trim().slice(0, 100),
+      phone: input.phone,
+      passwordHash: input.passwordHash,
+      role: "user",
+      locale: input.locale,
+      staffDisabled: false,
+      source: null,
+      twoFactor: { encryptedSecret: null, enabledAt: null, backupHashes: [] },
+      createdAt: now,
+    });
+  }
+
   static assertPasswordPolicy(password: string) {
     if (password.length < MIN_PASSWORD_LENGTH || password.length > 200) throw new IdentityError("password");
   }

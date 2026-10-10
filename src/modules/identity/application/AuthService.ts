@@ -1,6 +1,6 @@
 import type { Clock, OneTimeStepStore, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
-import { Email, IdentityError, User, hashBackupCode, isBackupCodeShape, verifyTotp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
+import { Email, IdentityError, User, hashBackupCode, isBackupCodeShape, parseLoginId, verifyTotp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 import type { AdminEmailsPolicy, PasswordHasher, PasswordResetMailer, SecretCipher, TokenService } from "./ports";
 
 export const SESSION_TTL_DAYS = 30;
@@ -41,8 +41,17 @@ export class AuthService {
     return { user, ...(await this.openSession(user.id)) };
   }
 
-  async login(input: { email: string; password: string; locale: Locale }): Promise<LoginResult> {
-    const user = await this.users.findByEmail(input.email.trim().toLowerCase());
+  /** Вход по e-mail или по телефону (клиент, которого завёл менеджер, может не иметь почты). */
+  async login(input: { login: string; password: string; locale: Locale }): Promise<LoginResult> {
+    const id = parseLoginId(input.login);
+    if (!id) throw new IdentityError("credentials");
+    let user: User | null;
+    if (id.kind === "email") user = await this.users.findByEmail(id.value);
+    else {
+      // Телефон — только у клиентов, и только если он однозначно указывает на один аккаунт.
+      const found = await this.users.findClientsByPhone(id.value);
+      user = found.length === 1 ? found[0] : null;
+    }
     if (!user || !(await this.hasher.verify(input.password, user.passwordHash))) throw new IdentityError("credentials");
     if (user.needsSecondFactor) return { kind: "second_factor", userId: user.id };
     await this.rememberLocale(user, input.locale);

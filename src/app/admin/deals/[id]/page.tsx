@@ -18,6 +18,7 @@ import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { cn, formatDate } from "@/lib/utils";
 import { DealAi } from "./DealAi";
+import { ReceiptsPanel } from "./ReceiptsPanel";
 import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 
 export const metadata = { title: "Сделка" };
@@ -40,6 +41,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const conv = convs[0] ?? null;
   const pipelineId = allStages.find((s) => s.id === deal.stageId)?.pipelineId;
   const stages = allStages.filter((s) => s.pipelineId === pipelineId);
+  const receiptRows = await container().sales.receipts.list(deal.id);
   const [duplicates, suggestedClientId, dealFields] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
@@ -141,6 +143,13 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             </div>
             <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
           </section>
+          <ReceiptsPanel
+            dealId={deal.id}
+            agreed={deal.amount}
+            prepaid={Number(deal.customFields.prepaid) || 0}
+            canEdit={canEdit}
+            items={receiptRows.map((r) => ({ id: r.id, fileName: r.fileName, amount: r.amount, isPdf: r.mime === "application/pdf", dateLabel: formatDate(r.createdAt, true), author: r.uploadedById ? (names.get(r.uploadedById) ?? "—") : "система" }))}
+          />
           {bookRows.length ? (
             <section className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-books">
               <div className="flex items-baseline justify-between">

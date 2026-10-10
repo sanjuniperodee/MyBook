@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import type { Clock, UnitOfWork } from "@/shared/application";
-import { Email, IdentityError, User, generateBackupCodes, generateSecret, hashBackupCode, otpauthUrl, verifyTotp, type UserRepository } from "../domain";
+import { normalizePhone } from "@/shared/domain/phone";
+import { Email, IdentityError, User, generateBackupCodes, generateSecret, hashBackupCode, isPhoneEmail, otpauthUrl, phoneEmail, verifyTotp, type UserRepository } from "../domain";
 import type { AuthService } from "./AuthService";
 import type { PasswordHasher, SecretCipher } from "./ports";
 
@@ -61,6 +62,41 @@ export class AccountService {
     const user = User.provision(this.users.nextId(), { email, name: input.name, passwordHash: await this.hasher.hash(input.password) }, this.clock.now());
     await this.users.add(user);
     return user.id;
+  }
+
+  /**
+   * Клиент, которого завёл менеджер: телефон обязателен, почта — нет (тогда ставится служебный адрес, а входит клиент
+   * по телефону). Пароль задаёт менеджер или генерируется; клиент получает его от менеджера и может сменить в профиле.
+   * Дубликат по телефону или почте — IdentityError("exists") с id уже существующего клиента в `existingId`.
+   */
+  async provisionClient(input: { name: string; phone: string; email: string | null; password: string; locale: Locale }): Promise<{ id: string; login: string }> {
+    const phone = normalizePhone(input.phone);
+    if (phone.length < 10 || phone.length > 15) throw new IdentityError("phone");
+    const email = input.email?.trim() ? Email.parse(input.email) : Email.parse(phoneEmail(phone));
+    User.assertPasswordPolicy(input.password);
+    const name = input.name.trim();
+    if (!name) throw new IdentityError("credentials");
+    const [sameEmail, samePhone] = await Promise.all([this.users.findByEmail(email.value), this.users.findClientsByPhone(phone)]);
+    const duplicate = sameEmail ?? samePhone[0] ?? null;
+    if (duplicate) throw Object.assign(new IdentityError("exists"), { existingId: duplicate.id });
+    const user = User.provisionClient(this.users.nextId(), { email, name, phone, passwordHash: await this.hasher.hash(input.password), locale: input.locale }, this.clock.now());
+    await this.users.add(user);
+    return { id: user.id, login: isPhoneEmail(email.value) ? phone : email.value };
+  }
+
+  /** Новый пароль клиенту (потерял, не получил): прежние сессии завершаются. Возвращает логин для сообщения клиенту. */
+  async issueClientPassword(userId: string, password: string): Promise<{ login: string; name: string; locale: Locale }> {
+    User.assertPasswordPolicy(password);
+    const user = await this.load(userId);
+    if (user.role !== "user") throw new IdentityError("credentials");
+    const hash = await this.hasher.hash(password);
+    await this.uow.run(async () => {
+      user.changePassword(hash, true);
+      await this.users.save(user);
+      await this.auth.revokeAllSessions(user.id, null);
+      this.uow.track(user);
+    });
+    return { login: isPhoneEmail(user.email) ? normalizePhone(user.phone ?? "") : user.email, name: user.name, locale: user.locale };
   }
 
   /** Пароль, выданный руководителем (сброс сотруднику). */

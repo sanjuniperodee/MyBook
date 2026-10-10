@@ -7,6 +7,7 @@ export const auth = {
   fields: {
     name: "Ваше имя",
     email: "E-mail",
+    login: "E-mail или телефон",
     password: "Пароль",
     newPassword: "Новый пароль",
     passwordHint: "Минимум 8 символов",
@@ -59,6 +60,7 @@ export const auth = {
   },
   errors: {
     email: "Проверьте адрес почты",
+    phone: "Проверьте номер телефона",
     password: "Пароль — минимум 8 символов",
     name: "Как вас зовут?",
     consent: "Нужно согласие с условиями",
@@ -66,8 +68,8 @@ export const auth = {
     tooManyLogin: "Слишком много попыток входа. Подождите 15 минут.",
     tooManyForgot: "Слишком много запросов. Попробуйте позже.",
     exists: "Этот e-mail уже зарегистрирован. Войдите в аккаунт.",
-    credentialsMissing: "Введите e-mail и пароль",
-    credentials: "Неверный e-mail или пароль",
+    credentialsMissing: "Введите e-mail или телефон и пароль",
+    credentials: "Неверный логин или пароль",
     resetExpired: "Ссылка устарела или уже использована. Запросите новую.",
     twoFactorCode: "Неверный код. Проверьте время на телефоне и попробуйте ещё раз.",
     twoFactorExpired: "Время на ввод кода истекло. Войдите заново.",

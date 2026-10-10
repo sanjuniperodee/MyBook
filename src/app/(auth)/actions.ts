@@ -23,6 +23,7 @@ const passwordSchema = (e: AuthErrors) => z.string().min(8, e.password).max(200)
 function identityText(err: IdentityError, e: AuthErrors): string {
   const map: Partial<Record<IdentityError["code"], string>> = {
     email: e.email,
+    phone: e.phone,
     password: e.password,
     exists: e.exists,
     credentials: e.credentials,
@@ -61,13 +62,14 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
 export async function loginAction(_: FormState, form: FormData): Promise<FormState> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const e = m.auth.errors;
-  const email = emailSchema(e).safeParse(form.get("email"));
+  // Поле называется email, но принимает и телефон: клиент, которого завёл менеджер, может не иметь почты.
+  const login = String(form.get("email") ?? "").trim().slice(0, 200);
   const password = String(form.get("password") ?? "");
-  if (!email.success || !password) return { error: e.credentialsMissing };
-  if (!await rateLimit(`login:${await clientIp()}`, 30, 900_000) || !await rateLimit(`login:${email.data}`, 10, 900_000)) return { error: e.tooManyLogin };
+  if (!login || !password) return { error: e.credentialsMissing };
+  if (!await rateLimit(`login:${await clientIp()}`, 30, 900_000) || !await rateLimit(`login:${login.toLowerCase()}`, 10, 900_000)) return { error: e.tooManyLogin };
   const next = safeNextPath(form.get("next"));
   try {
-    const result = await container().identity.auth.login({ email: email.data, password, locale });
+    const result = await container().identity.auth.login({ login, password, locale });
     // Сотрудник с включённой 2FA: сессию создаём только после кода из приложения.
     if (result.kind === "second_factor") {
       await issueTwoFactorTicket(result.userId);

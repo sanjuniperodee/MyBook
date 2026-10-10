@@ -8,6 +8,7 @@ export const auth: typeof ru = {
   fields: {
     name: "Есіміңіз",
     email: "E-mail",
+    login: "E-mail немесе телефон",
     password: "Құпиясөз",
     newPassword: "Жаңа құпиясөз",
     passwordHint: "Кемінде 8 таңба",
@@ -60,6 +61,7 @@ export const auth: typeof ru = {
   },
   errors: {
     email: "Пошта мекенжайын тексеріңіз",
+    phone: "Телефон нөмірін тексеріңіз",
     password: "Құпиясөз — кемінде 8 таңба",
     name: "Есіміңіз кім?",
     consent: "Шарттармен келісу қажет",
@@ -67,8 +69,8 @@ export const auth: typeof ru = {
     tooManyLogin: "Тым көп кіру әрекеті жасалды. 15 минут күтіңіз.",
     tooManyForgot: "Тым көп сұраныс жіберілді. Кейінірек қайталаңыз.",
     exists: "Бұл e-mail тіркелген. Аккаунтқа кіріңіз.",
-    credentialsMissing: "E-mail мен құпиясөзді енгізіңіз",
-    credentials: "E-mail немесе құпиясөз қате",
+    credentialsMissing: "E-mail немесе телефон мен құпиясөзді енгізіңіз",
+    credentials: "Логин немесе құпиясөз қате",
     resetExpired: "Сілтеменің мерзімі өткен немесе ол қолданылған. Жаңасын сұратыңыз.",
     twoFactorCode: "Код қате. Телефондағы уақытты тексеріп, қайталап көріңіз.",
     twoFactorExpired: "Кодты енгізу уақыты өтті. Қайта кіріңіз.",
