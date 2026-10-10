@@ -6,6 +6,7 @@ import type { LetterSubmitted } from "./domain";
 import { contentThemes, randomIds, sharpImages, storageFiles } from "./infrastructure/adapters";
 import { notifyOwnerAboutLetter } from "./infrastructure/LetterMailer";
 import { DrizzleBookRepository, DrizzleLetterRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
+import { photoViewFile } from "./infrastructure/photoView";
 import { DrizzleAuthoringQueries } from "./infrastructure/queries";
 
 export * from "./domain";
@@ -23,6 +24,10 @@ export class AuthoringModule {
   /** Файл фото (оригинал или миниатюра) из хранилища — права проверяет вызывающий через queries.photoFor(). */
   photoFile(storageKey: string) {
     return storageFiles.get(storageKey);
+  }
+  /** Уменьшенная копия фото для 3D-просмотра (кэшируется): права проверяет вызывающий. */
+  photoViewFile(storageKey: string) {
+    return photoViewFile(storageKey);
   }
   readonly photoRepository = new DrizzlePhotoRepository();
   readonly themes = contentThemes;

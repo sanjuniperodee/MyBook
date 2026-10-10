@@ -6,12 +6,17 @@ import { toCanvas } from "html-to-image";
 /** Что нужно превратить в картинку: вёрстка страницы в пикселях заданного размера. */
 export interface RasterJob {
   key: string;
+  /** Версия содержимого: сменилась (например, догрузились фото) — задание снимается заново, хотя ключ тот же. */
+  version?: string;
   width: number;
   height: number;
   /** Плотность пикселей именно для этого задания (обложке нужна выше, чем странице); по умолчанию — общая. */
   pixelRatio?: number;
   node: ReactNode;
 }
+
+/** Идентификатор «ключ + версия»: по нему различаем, снято ли задание в его нынешнем виде. */
+const jobId = (j: Pick<RasterJob, "key" | "version">) => (j.version ? `${j.key}@${j.version}` : j.key);
 
 const isSafari = () => typeof navigator !== "undefined" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -122,7 +127,7 @@ async function loadFontsUsedBy(root: HTMLElement) {
  * а затем по очереди превращается в холст — из холстов делаются текстуры WebGL.
  * Задания обрабатываются по одному в порядке списка: сначала то, что ближе к читаемой странице.
  */
-export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: RasterJob[]; pixelRatio?: number; onDone: (key: string, canvas: HTMLCanvasElement) => void; onError?: (key: string, error: unknown) => void }) {
+export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: RasterJob[]; pixelRatio?: number; onDone: (key: string, canvas: HTMLCanvasElement, version?: string) => void; onError?: (key: string, error: unknown) => void }) {
   const root = useRef<HTMLDivElement>(null);
   const latest = useRef({ jobs, onDone, onError, pixelRatio });
   const state = useRef({ busy: false, again: false, mounted: true, failed: new Set<string>(), done: new Set<string>() });
@@ -144,7 +149,7 @@ export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: Ra
           for (;;) {
             const { jobs: queue, onDone: done, onError: fail, pixelRatio: ratio } = latest.current;
             // Готовое задание остаётся в списке, пока родитель не перерисуется: второй раз его снимать нельзя (разметки уже нет).
-            const job = queue.find((j) => !st.failed.has(j.key) && !st.done.has(j.key));
+            const job = queue.find((j) => !st.failed.has(jobId(j)) && !st.done.has(jobId(j)));
             if (!job || !st.mounted) break;
             const el = root.current?.querySelector<HTMLElement>(`[data-raster="${CSS.escape(job.key)}"]`);
             if (!el) break; // разметка задания ещё не появилась: цикл разбудит следующая отрисовка
@@ -156,10 +161,10 @@ export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: Ra
               if (isSafari()) await toCanvas(el, options);
               const canvas = await toCanvas(el, options);
               if (!st.mounted) break;
-              st.done.add(job.key);
-              done(job.key, canvas);
+              st.done.add(jobId(job));
+              done(job.key, canvas, job.version);
             } catch (e) {
-              st.failed.add(job.key);
+              st.failed.add(jobId(job));
               fail?.(job.key, e);
             }
             // Отдаём браузеру кадр между страницами: интерфейс не должен замирать.
@@ -174,7 +179,7 @@ export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: Ra
   useEffect(() => {
     latest.current = { jobs, onDone, onError, pixelRatio };
     // Ключ, которого в списке больше нет, можно снимать заново, если он когда-нибудь вернётся.
-    const keys = new Set(jobs.map((j) => j.key));
+    const keys = new Set(jobs.map(jobId));
     for (const k of state.current.done) if (!keys.has(k)) state.current.done.delete(k);
     for (const k of state.current.failed) if (!keys.has(k)) state.current.failed.delete(k);
     void pump.current();

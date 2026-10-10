@@ -1,9 +1,10 @@
-export function photoUrl(photoId: string, size: "thumb" | "full" = "thumb") {
+/** thumb — миниатюра, view — уменьшенная копия для просмотра (3D-книга), full — оригинал после обработки. */
+export function photoUrl(photoId: string, size: "thumb" | "view" | "full" = "thumb") {
   return `/api/photos/${photoId}?size=${size}`;
 }
 
 /** Адреса фото по местам обложки; пустое место остаётся пустым (там рисуется заглушка). */
-export function photoUrls(ids: (string | null)[], size: "thumb" | "full" = "thumb") {
+export function photoUrls(ids: (string | null)[], size: "thumb" | "view" | "full" = "thumb") {
   return ids.map((id) => (id ? photoUrl(id, size) : undefined));
 }
 

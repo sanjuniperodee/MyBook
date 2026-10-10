@@ -30,10 +30,10 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const allPhotos = await container().authoring.queries.photos(book.id);
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
-  const photos = photoUrls(coverPhotoIds(book), "full");
+  const photos = photoUrls(coverPhotoIds(book), "view");
   // Оформления, где глава открывается фото: снимки начальных полос — по той же раскладке фото, что в PDF.
   const openers = content.interior.opener.photo
-    ? new Map(buildBookContent(book, questions, allPhotos.map(toPhotoItem)).chapters.flatMap((c) => (c.openerPhoto ? [[c.key, photoUrl(c.openerPhoto.id, "full")] as const] : [])))
+    ? new Map(buildBookContent(book, questions, allPhotos.map(toPhotoItem)).chapters.flatMap((c) => (c.openerPhoto ? [[c.key, photoUrl(c.openerPhoto.id, "view")] as const] : [])))
     : new Map<string, string>();
   const flipbook: FlipbookData = {
     cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photos },
@@ -50,7 +50,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       pageCount: printablePageCount(estimatePages(content)),
       brand: site.name.toUpperCase(),
       back: backContent(book, backPhotos.map((p) => ({ width: p.width, height: p.height })), new Date()),
-      backPhotos: photoUrls(backPhotos.map((p) => p.id), "full"),
+      backPhotos: photoUrls(backPhotos.map((p) => p.id), "view"),
     },
     chapters: content.chapters.map((c) => ({
       number: c.number,

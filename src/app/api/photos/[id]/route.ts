@@ -7,12 +7,14 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   const { viewer } = await apiViewer(req);
   const photo = await container().authoring.queries.photoFor(id, viewer);
   if (!photo) throw new HttpError(404, "notFound");
-  const size = new URL(req.url).searchParams.get("size") === "full" ? "full" : "thumb";
-  const key = size === "full" ? photo.storageKey : photo.thumbKey;
+  const param = new URL(req.url).searchParams.get("size");
+  const size = param === "full" || param === "view" ? param : "thumb";
+  const key = size === "thumb" ? photo.thumbKey : photo.storageKey;
   // Файл может смениться (поворот), поэтому кэш проверяется по ключу хранилища.
-  const etag = `"${createHash("sha1").update(key).digest("hex").slice(0, 16)}"`;
-  const headers = { "Content-Type": "image/jpeg", "Cache-Control": "private, no-cache", ETag: etag };
+  const etag = `"${createHash("sha1").update(`${size}:${key}`).digest("hex").slice(0, 16)}"`;
+  // «view» запрашивается пачкой (3D-книга снимает одно фото на несколько сторон) — минуты кэша убирают повторные загрузки.
+  const headers = { "Content-Type": "image/jpeg", "Cache-Control": size === "view" ? "private, max-age=60, must-revalidate" : "private, no-cache", ETag: etag };
   if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
-  const data = await container().authoring.photoFile(key);
+  const data = size === "view" ? await container().authoring.photoViewFile(key) : await container().authoring.photoFile(key);
   return new Response(new Uint8Array(data), { headers });
 });

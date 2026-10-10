@@ -91,6 +91,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     };
   }, [template.requiresPhoto, photoKey]);
   const imageHref = useCoverImage(template);
+  // Фото и снимок обложки приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
+  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${imageHref ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
   const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt]);
 
   const wrapper = useRef<HTMLDivElement>(null);
@@ -208,9 +210,9 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     (key: FaceKey): RasterJob | null => {
       const title = data.cover.title || data.title;
       if (key === "front")
-        return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
-      if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
-      if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
+        return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
+      if (key === "back") return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
+      if (key === "spine") return { key, version: artVersion, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
       if (!ctx) return null;
       const [, index, side] = key.split(":");
       const sheet = sheets[Number(index)];
@@ -227,12 +229,19 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       );
       return { key, width: texW, height: pageH, node };
     },
-    [art, backDesign, backPhotos, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
+    [art, artVersion, backDesign, backPhotos, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
   );
 
+  // Версия арта, для которой текстуры обложки уже учтены как готовые.
+  const coverVersion = useRef(artVersion);
   useEffect(() => {
     const s = scene.current;
     if (!s) return;
+    // Фото обложки догрузились — текстуры обложки, снятые с заглушкой, устарели: снимаем заново.
+    if (coverVersion.current !== artVersion) {
+      coverVersion.current = artVersion;
+      for (const k of ["front", "back", "spine"] as const) have.current.delete(k);
+    }
     // Освобождаем текстуры дальних листов (память и видеопамять), оставляя обложку и окно вокруг страницы.
     const keep = new Set<FaceKey>(wanted);
     for (const key of s.textureKeys()) {
@@ -243,15 +252,16 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     }
     const missing = wanted.filter((k) => !have.current.has(k));
     const next = missing.flatMap((k) => nodeFor(k) ?? []);
-    setJobs((prev) => (prev.length === next.length && prev.every((j, i) => j.key === next[i].key) ? prev : next));
-  }, [wanted, nodeFor, count]);
+    setJobs((prev) => (prev.length === next.length && prev.every((j, i) => j.key === next[i].key && j.version === next[i].version) ? prev : next));
+  }, [wanted, nodeFor, count, artVersion]);
 
-  const onRasterDone = useCallback((key: string, source: HTMLCanvasElement) => {
+  const onRasterDone = useCallback((key: string, source: HTMLCanvasElement, version?: string) => {
     const s = scene.current;
     const k = key as FaceKey;
     if (s) {
       s.setTexture(k, source);
-      have.current.add(k);
+      // Снимок старой версии (пока шло фото) ставим как временный, но готовым не считаем — следом придёт новый.
+      if (!version || version === coverVersion.current) have.current.add(k);
       if (k === "front") {
         const color = averageColor(source);
         if (color) s.setEdgeColor(color);
