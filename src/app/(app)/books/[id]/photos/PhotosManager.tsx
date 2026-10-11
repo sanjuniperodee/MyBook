@@ -183,14 +183,14 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
       ) : (
         <DndContext id="photos-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={photos.map((p) => p.id)} strategy={rectSortingStrategy}>
-            <div className={cn("mt-6 grid gap-3 rounded-3xl sm:mt-8 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3", dragOver && "outline-2 outline-offset-8 outline-wine outline-dashed")}>
+            <div className={cn("mt-6 grid gap-3 rounded-3xl sm:mt-8 sm:gap-5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-3", dragOver && "outline-2 outline-offset-8 outline-wine outline-dashed")}>
               {photos.map((p, i) => {
                 const fit = p.layout === "bleed" ? "cover" : "contain";
                 const dpi = effectiveDpi(p, photoAreaMm(fmt, p.layout), fit);
                 return (
                   <SortablePhoto key={p.id} id={p.id} disabled={!editable}>
                     {(handle) => (
-                      <div className="card overflow-hidden max-sm:flex">
+                      <div className="card min-w-0 overflow-hidden max-sm:flex">
                         <div className="relative bg-cream max-sm:w-28 max-sm:shrink-0 sm:aspect-[4/3]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={photoUrl(p.id)} alt={p.caption} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
@@ -267,7 +267,7 @@ function SortablePhoto({ id, disabled, children }: { id: string; disabled: boole
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined }}
-      className={cn(isDragging && "opacity-80 shadow-lift")}
+      className={cn("min-w-0", isDragging && "opacity-80 shadow-lift")}
     >
       {children({ ...attributes, ...listeners })}
     </div>
