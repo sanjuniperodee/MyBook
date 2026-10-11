@@ -30,6 +30,8 @@ const INITIAL = { azimuth: -0.49, polar: 1.33 };
 const READ = { azimuth: 0, polar: 1.36, zoom: 1.04 };
 /** Листы вокруг читаемой страницы, для которых держим текстуры: окно отрисовки плюс запас на следующий переворот. */
 const KEEP = RENDER_WINDOW + 1;
+/** Сколько ждём снимки обложки (фото, снимки-примеры), прежде чем снять обложку с тем, что есть. */
+const ART_WAIT_MS = 6000;
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -109,9 +111,19 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   }, [template.requiresPhoto, photoKey]);
   const imageHref = useCoverImage(template);
   const samples = useCoverSamples(template);
-  // Фото и снимок обложки приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
-  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
+  // Фото, снимок обложки и снимки-примеры приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
+  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
   const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples]);
+  // Пока снимки обложки ещё грузятся, растеризация даёт пустую (чёрную) текстуру: до их прихода обложку не снимаем,
+  // а на случай медленной сети или сбоя ждём не дольше нескольких секунд — потом рисуем с тем, что есть.
+  const pendingArt = (!!template.photo && !imageHref) || (!!template.samples && !samples) || (template.requiresPhoto && !!data.cover.photos?.some(Boolean) && !photoHrefs);
+  const [waitedFor, setWaitedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingArt) return;
+    const t = setTimeout(() => setWaitedFor(template.id), ART_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [pendingArt, template.id]);
+  const coverReady = !pendingArt || waitedFor === template.id;
 
   const wrapper = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -268,10 +280,10 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
         have.current.delete(key);
       }
     }
-    const missing = wanted.filter((k) => !have.current.has(k));
+    const missing = wanted.filter((k) => !have.current.has(k) && (coverReady || (k !== "front" && k !== "back" && k !== "spine")));
     const next = missing.flatMap((k) => nodeFor(k) ?? []);
     setJobs((prev) => (prev.length === next.length && prev.every((j, i) => j.key === next[i].key && j.version === next[i].version) ? prev : next));
-  }, [wanted, nodeFor, count, artVersion]);
+  }, [wanted, nodeFor, count, artVersion, coverReady]);
 
   const onRasterDone = useCallback((key: string, source: HTMLCanvasElement, version?: string) => {
     const s = scene.current;
