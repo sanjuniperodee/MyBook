@@ -70,7 +70,7 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
     }
     case "text": {
       const ch = data.chapters[face.chapter];
-      return <TextPage kit={kit} entries={ch.entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0} part={face.part} className={faceBox} />;
+      return <TextPage kit={kit} entries={ch.entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0} part={face.part} tail className={faceBox} />;
     }
     case "end":
       return <EndPage kit={kit} year={data.year} className={faceBox} />;
@@ -127,7 +127,7 @@ export function usePagedBook(data: FlipbookData): PagedBook {
   const measure = (
     <div ref={root} aria-hidden className="pointer-events-none invisible fixed top-0 -left-[10000px]" style={{ width: MEASURE_WIDTH }}>
       {measured.map((c) => (
-        <TextPage key={c.number} kit={kit} entries={c.entries} folio={1} bookTitle="" chapterTitle="" recto={false} leadIn={false} style={{ width: MEASURE_WIDTH, aspectRatio: `${format.widthMm} / ${format.heightMm}` }} />
+        <TextPage key={c.number} kit={kit} entries={c.entries} folio={1} bookTitle="" chapterTitle="" recto={false} leadIn={false} tail style={{ width: MEASURE_WIDTH, aspectRatio: `${format.widthMm} / ${format.heightMm}` }} />
       ))}
     </div>
   );

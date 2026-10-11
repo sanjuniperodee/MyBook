@@ -10,7 +10,8 @@ import type { InteriorDesign } from "@/lib/book/interiors";
 import { interiorMetrics } from "@/lib/book/layout";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { Divider, Folio, LeadParagraph, OpenerPage, pageKit, QuestionHeading, RunningHead } from "@/components/interior/BookPage";
+import { AnswerBlockView, Divider, Folio, OpenerPage, pageKit, QuestionHeading, RunningHead } from "@/components/interior/BookPage";
+import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { pxUnits, PT_TO_MM } from "@/components/interior/units";
 
 const END = Number.POSITIVE_INFINITY;
@@ -153,7 +154,8 @@ export function PagePreview({
   }, [textW, gap]);
 
   type Item = { p: PreviewPhoto; style: InlinePhotoStyle };
-  const info = new Map<string, { paragraphs: string[]; items: Item[]; layout: Map<number, Item[][]>; live: boolean }>();
+  // layout — ряды фото по блокам набора (answer-blocks): −1 — перед текстом, i — после блока i, END — в конце.
+  const info = new Map<string, { paragraphs: string[]; blocks: AnswerBlock[]; items: Item[]; layout: Map<number, Item[][]>; live: boolean }>();
   for (const ch of chapters)
     for (const e of ch.entries) {
       const paragraphs = splitParagraphs(e.answer);
@@ -162,7 +164,8 @@ export function PagePreview({
         if (drag?.kind === "resize" && drag.id === p.id) style.width = drag.width;
         return { p, style };
       });
-      info.set(e.id, { paragraphs, items, layout: layoutInline(items, paragraphs.length), live: e.id === currentId });
+      const blocks = answerBlocks(paragraphs);
+      info.set(e.id, { paragraphs, blocks, items, layout: rowsByBlock(blocks, layoutInline(items, paragraphs.length)), live: e.id === currentId });
     }
   const current = info.get(currentId);
   const curParas = current?.paragraphs.length ?? 0;
@@ -224,7 +227,9 @@ export function PagePreview({
       const i = Number(para);
       if (i < 0) return -1;
       const rect = [...node.getClientRects()].find((r) => y >= r.top && y <= r.bottom && x >= r.left - 4 && x <= r.right + 4) ?? node.getBoundingClientRect();
-      const after = y > rect.top + rect.height / 2 ? i : i - 1;
+      // Блок (список, стихи) может занимать несколько абзацев: «перед ним» — перед первым из них.
+      const from = node.dataset?.paraFrom === undefined ? i : Number(node.dataset.paraFrom);
+      const after = y > rect.top + rect.height / 2 ? i : from - 1;
       return after >= curParas - 1 ? null : after;
     }
     return undefined;
@@ -286,10 +291,12 @@ export function PagePreview({
     return undefined;
   };
 
-  const renderRows = (entry: PreviewEntry, anchor: number, isMeasure: boolean) => {
+  const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean) => {
     const d = info.get(entry.id)!;
     const live = d.live && interactive;
-    return (d.layout.get(anchor) ?? []).map((row, r) => {
+    // Место вставки в тексте — номер абзаца, после которого встаёт ряд (последний абзац блока).
+    const anchor = key === END || key < 0 ? key : d.blocks[key].to;
+    return (d.layout.get(key) ?? []).map((row, r) => {
       const align = row[0].style.align;
       return (
         <div
@@ -442,10 +449,18 @@ export function PagePreview({
         )}
         {paragraphs.length ? renderRows(entry, -1, isMeasure) : null}
         {paragraphs.length ? (
-          paragraphs.map((text, i) => (
+          d.blocks.map((b, i) => (
             <Fragment key={i}>
-              <LeadParagraph kit={kit} text={text} leadIn={design.leadIn && first && i === 0} data-entry={entry.id} data-para={i} style={{ boxShadow: d.live ? hint(i) : undefined }} />
-              {i < paragraphs.length - 1 ? renderRows(entry, i, isMeasure) : null}
+              <AnswerBlockView
+                kit={kit}
+                block={b}
+                leadIn={design.leadIn && first && i === 0}
+                data-entry={entry.id}
+                data-para={b.to}
+                data-para-from={b.from}
+                style={{ boxShadow: d.live ? (hint(b.to) ?? (b.from > 0 ? undefined : hint(0))) : undefined }}
+              />
+              {i < d.blocks.length - 1 ? renderRows(entry, i, isMeasure) : null}
             </Fragment>
           ))
         ) : entry.photos.length ? null : (

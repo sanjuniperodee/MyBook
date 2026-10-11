@@ -25,6 +25,7 @@ import {
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Drawing, type Shape } from "@/lib/book/interior-art";
 import { samplePageUrl } from "@/lib/book/photo-cover";
 import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
+import { answerBlocks, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { cn } from "@/lib/utils";
 import type { PageUnits } from "./units";
 
@@ -164,6 +165,86 @@ export function LeadParagraph({ kit, text, leadIn, style, ...rest }: { kit: Page
       {lead ? <span style={leadInCss(kit)}>{lead}</span> : null}
       {tail}
     </p>
+  );
+}
+
+/** Ширина полосы набора, мм. */
+const textWidthMm = (kit: PageKit) => kit.format.widthMm - sideOf(kit) * 2;
+
+/**
+ * Блок набора ответа — как в PDF (answer-blocks): абзац, лид, выделенный короткий ответ, список, стихи.
+ * Остальные атрибуты (data-*) — на корневом элементе блока.
+ */
+export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit: PageKit; block: AnswerBlock; leadIn: boolean; style?: CSSProperties } & React.HTMLAttributes<HTMLElement>) {
+  const { design, sizes: S, u } = kit;
+  const P = design.palette;
+  const centered = design.heading.align === "center";
+  const lines = (list: string[]) => list.map((l, i) => (i ? [<br key={i} />, l] : l));
+  switch (b.kind) {
+    case "para":
+      return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} style={style} {...rest} />;
+    case "lede":
+      return (
+        <p style={{ ...italicBody(kit, S.body * 1.08), lineHeight: 1.4, color: P.muted, textAlign: centered ? "center" : "left", marginBottom: u.pt(S.body * 0.7), breakAfter: "avoid", ...style }} {...rest}>
+          {b.text}
+        </p>
+      );
+    case "quote": {
+      const text: CSSProperties = { ...italicBody(kit, S.body * 1.32), lineHeight: 1.42, color: P.ink };
+      return (
+        <div
+          style={{
+            breakInside: "avoid",
+            marginTop: u.pt(S.body * 0.15),
+            marginBottom: u.pt(S.body * 0.6),
+            ...(centered
+              ? { ...text, textAlign: "center", paddingInline: u.mm(textWidthMm(kit) * 0.08) }
+              : { ...text, borderLeft: `${u.pt(1.6)} solid ${P.accent}`, paddingLeft: u.pt(S.body * 1.1) }),
+            ...style,
+          }}
+          {...rest}
+        >
+          {lines(b.lines)}
+        </div>
+      );
+    }
+    case "list":
+      return (
+        <div style={{ marginBottom: u.pt(S.body * 0.45), ...style }} {...rest}>
+          {b.items.map((item, i) => (
+            <div key={i} style={{ display: "flex", marginBottom: i < b.items.length - 1 ? u.pt(S.body * 0.3) : 0 }}>
+              <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: "none", width: u.pt(S.body * (b.ordered ? 1.6 : 1.2)), textAlign: "left", color: P.accent }}>{item.marker}</span>
+              <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: 1, textAlign: "left" }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      );
+    case "verse":
+      return (
+        <p
+          style={{
+            ...paragraphCss(kit),
+            hyphens: "manual",
+            textAlign: centered ? "center" : "left",
+            paddingLeft: centered ? 0 : u.mm(textWidthMm(kit) * 0.08),
+            marginTop: u.pt(S.body * 0.2),
+            marginBottom: u.pt(S.body * 0.65),
+            ...style,
+          }}
+          {...rest}
+        >
+          {lines(b.lines)}
+        </p>
+      );
+  }
+}
+
+/** Концовка главы — небольшая виньетка после последнего ответа, как в PDF. */
+export function ChapterTail({ kit }: { kit: PageKit }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", breakBefore: "avoid", breakInside: "avoid", marginTop: kit.u.pt(kit.sizes.beforeHeading * 1.1) }}>
+      <InlineDrawing drawing={vignetteDrawing(kit.design.ornament, VIGNETTE_RULE.end, kit.design.palette)} u={kit.u} />
+    </div>
   );
 }
 
@@ -510,7 +591,7 @@ export interface SampleEntry {
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, part = 0, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, part = 0, tail = false, className, style }: PageProps & {
   entries: SampleEntry[];
   folio: number;
   bookTitle: string;
@@ -520,6 +601,8 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
   leadIn: boolean;
   /** Какая по счёту полоса текста главы (с 0): колонки сдвигаются, и видна именно она. */
   part?: number;
+  /** Концовка главы после последнего ответа (в листаемой книге — да, в образцах разворота — нет). */
+  tail?: boolean;
 }) {
   const { design, sizes: S, u } = kit;
   const area = textArea(kit.format);
@@ -543,11 +626,12 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
           {entries.map((e, i) => (
             <div key={i} style={{ marginTop: i === 0 ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless) }}>
               {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 ? <Divider kit={kit} /> : null}
-              {e.paragraphs.map((p, j) => (
-                <LeadParagraph key={j} kit={kit} text={p} leadIn={leadIn && design.leadIn && i === 0 && j === 0} />
+              {answerBlocks(e.paragraphs).map((b, j) => (
+                <AnswerBlockView key={j} kit={kit} block={b} leadIn={leadIn && design.leadIn && i === 0 && j === 0} />
               ))}
             </div>
           ))}
+          {tail ? <ChapterTail kit={kit} /> : null}
         </div>
       </TextArea>
       <Folio kit={kit} recto={recto}>

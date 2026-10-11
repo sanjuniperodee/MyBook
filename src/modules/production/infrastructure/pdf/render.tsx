@@ -30,6 +30,7 @@ import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } fr
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
+import { emptyFlow, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 
 export type RenderMode = "print" | "preview" | "reading";
 
@@ -111,9 +112,13 @@ export function contentFor(bundle: BookBundle): BookContent {
   return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), undefined, bundle.letters ?? []);
 }
 
+/** Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается. */
+const LAYOUT_VERSION = 2;
+
 /** Отпечаток содержимого: меняется вместе с текстом, фото и их раскладкой — ключ кэша предпросмотра. */
 export function contentFingerprint(bundle: BookBundle): string {
   return createHash("sha1")
+    .update(`v${LAYOUT_VERSION}`)
     .update(JSON.stringify(contentFor(bundle)))
     .update(bundle.photos.map((p) => `${p.id}:${p.layout}:${p.caption}`).join("|"))
     .digest("hex")
@@ -145,21 +150,43 @@ export interface InteriorResult {
   contentPages: number;
 }
 
+/** Сколько раз собираем блок, доводя вёрстку (обычно хватает 2–4). */
+const MAX_FLOW_PASSES = 12;
+
+let placeholderJpeg: Promise<Buffer> | undefined;
+/** Крошечный снимок-заглушка: на раскладку влияют только заданные размеры фото, а не сами пиксели. */
+const placeholder = () => (placeholderJpeg ??= sharp({ create: { width: 4, height: 4, channels: 3, background: "#cccccc" } }).jpeg().toBuffer());
+
 export async function renderInterior(bundle: BookBundle, mode: RenderMode): Promise<InteriorResult> {
   ensureFonts();
   const content = contentFor(bundle);
   const { bleed, watermark } = modeSettings[mode];
   const images = await prepareImages(content, mode, bleed);
 
+  // Доводка вёрстки: собираем блок с заглушками вместо фото, читаем раскладку, принимаем решения
+  // (разрывы перед заголовками, размер фото под свободное место — см. flow.ts) и повторяем, пока есть что поправить.
+  // Заодно узнаём номера страниц глав для оглавления.
+  const stub = await placeholder();
+  const draftImages = new Map([...images].map(([id, img]) => [id, { ...img, data: stub }]));
+  const chapterOf = new Map(content.chapters.flatMap((c) => c.items.map((it) => [it.id, c.key] as const)));
+  const flow = emptyFlow();
+  const typo = content.interior.type;
+  const minLead = interiorSizes(content.interior, interiorMetrics[content.format.id].scale).body * typo.lineHeight * 2.6;
   let tocPages: Record<string, number> | undefined;
-  if (content.showToc && content.chapters.length) {
+  for (let pass = 0; pass < MAX_FLOW_PASSES; pass++) {
+    let layout: unknown;
     const captured: Record<string, number> = {};
+    const rowHeights = new Map<string, number>();
     await renderToBuffer(
-      <InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, onChapterPage: (k, p) => (captured[k] = p) }} />,
+      <InteriorDocument
+        content={content}
+        options={{ bleedMm: bleed, watermark, images: draftImages, flow, rowHeights, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
+      />,
     );
     tocPages = captured;
+    if (!layout || !refineFlow(layout, flow, rowHeights, chapterOf, minLead)) break;
   }
-  const raw = await renderToBuffer(<InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, tocPages }} />);
+  const raw = await renderToBuffer(<InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, tocPages, flow }} />);
 
   const doc = await PDFDocument.load(raw);
   const contentPages = doc.getPageCount();

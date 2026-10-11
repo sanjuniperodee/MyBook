@@ -123,10 +123,25 @@ export function questionHeading(q: Pick<BookQuestion, "title" | "displayText">, 
   return q.displayText ?? applyGender(q.title, book.authorGender, book.recipientGender);
 }
 
+/** Эмодзи (кроме ©, ®, ™), их модификаторы, склейки и флаги: в книжных шрифтах их нет — в печати они превращаются в мусор. */
+const EMOJI = /(?![©®™])\p{Extended_Pictographic}|\p{Emoji_Modifier}|[\u200D\uFE0E\uFE0F\u20E3]|[\u{1F1E6}-\u{1F1FF}]/gu;
+
+/** Текст для печати: без эмодзи и оставшихся после них лишних пробелов. */
+export function printableText(text: string) {
+  if (!EMOJI.test(text)) return text;
+  EMOJI.lastIndex = 0;
+  return text
+    .replace(EMOJI, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([,.!?…:;)»”])/g, "$1")
+    .replace(/[ \t]+$/gm, "")
+    .trim();
+}
+
 export function toPhotoItem(p: Photo): PhotoItem {
   return {
     id: p.id,
-    caption: p.caption,
+    caption: printableText(p.caption),
     layout: p.layout,
     width: p.width,
     height: p.height,
@@ -173,8 +188,8 @@ export function buildBookContent(
     }
     byChapter.get(q.chapter)!.push({
       id: q.id,
-      heading: q.hideHeading ? null : questionHeading(q, book),
-      answer: q.answer.trim(),
+      heading: q.hideHeading ? null : printableText(questionHeading(q, book)),
+      answer: printableText(q.answer.trim()),
       photos: qPhotos,
     });
   }
@@ -216,7 +231,7 @@ export function buildBookContent(
       number: chapters.length + 1,
       title: t.letters.title,
       epigraph: t.letters.epigraph,
-      items: letterItems.map((l) => ({ id: l.id, heading: l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim(), answer: l.text.trim() })),
+      items: letterItems.map((l) => ({ id: l.id, heading: printableText(l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim()), answer: printableText(l.text.trim()) })),
       photos: [],
     });
   }
@@ -225,11 +240,11 @@ export function buildBookContent(
     language: book.language,
     format: getFormat(book.format),
     interior,
-    title: book.title.trim() || theme.titleSuggestions[0],
-    subtitle: book.subtitle.trim(),
+    title: printableText(book.title.trim()) || theme.titleSuggestions[0],
+    subtitle: printableText(book.subtitle.trim()),
     authorName: book.authorName.trim(),
     recipientName: book.recipientName.trim(),
-    dedication: book.dedication.trim(),
+    dedication: printableText(book.dedication.trim()),
     showToc: book.showToc,
     chapters,
     galleryPhotos,

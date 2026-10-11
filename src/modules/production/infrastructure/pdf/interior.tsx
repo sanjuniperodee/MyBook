@@ -9,7 +9,9 @@ import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, spl
 import { chapterMark, DISPLAY_TOP, interiorSizes, splitLeadIn, trackingPt, VIGNETTE_RULE, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing } from "@/lib/book/interior-art";
 import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
+import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
+import { emptyFlow, FLOW_MARK, type FlowDecisions } from "@/modules/production/infrastructure/pdf/flow";
 import { PdfDrawing, PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
 import { site } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
@@ -27,7 +29,19 @@ export interface InteriorOptions {
   tocPages?: Record<string, number>;
   onChapterPage?: (key: string, page: number) => void;
   images: Map<string, PreparedImage>;
+  /** Решения доводки вёрстки из прошлого прохода (см. flow.ts). */
+  flow?: FlowDecisions;
+  /** Готовая раскладка — для следующего прохода доводки. */
+  onLayout?: (layout: unknown) => void;
+  /** Сюда записывается высота фото в каждом ряду (без подписи), pt — для доводки. */
+  rowHeights?: Map<string, number>;
 }
+
+/** Пометка блока для доводки вёрстки (react-pdf сохраняет её в раскладке). */
+const mark = (id: string) => ({ [FLOW_MARK]: id }) as object;
+
+/** Без переносов: в выделенных строках по центру («короткий ответ», лид, стихи) перенос рвёт строку некрасиво. */
+const noHyphens = (word: string) => [word];
 
 /** Начертание из дизайна: шрифт, регистр и разрядка. */
 function textFace(f: TextFace, size: number): Style {
@@ -58,7 +72,8 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const textWidthPt = mm(format.widthMm - side * 2);
   const textHeightPt = mm(format.heightMm - metrics.marginTop - metrics.marginBottom);
   const box = pageBox(format, B);
-  const flow = openerFlow(format, design);
+  const openerAt = openerFlow(format, design);
+  const flow = options.flow ?? emptyFlow();
 
   const pagePadding: Style = {
     paddingTop: mm(B + metrics.marginTop),
@@ -243,7 +258,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     const colors = fill ?? P;
     const mark = number ? chapterMark(design, number, t.chapter) : null;
     const textAlign = align === "left" ? "left" : "center";
-    const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : [];
+    const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors, seed: number ?? 0 }) : [];
     // Глава открывается своим снимком (opener.photo): фото сверху, название — ниже него.
     const img = photo ? options.images.get(photo.id) : undefined;
     const shot = img ? openerPhotoPlan(format, design, metrics) : null;
@@ -351,13 +366,20 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     );
   };
 
-  // ── Ответ с фото внутри: фото встают после нужного абзаца, узкие — в ряд ──
-  const inlineRows = (anchor: number, layout: Map<number, { p: PhotoItem; style: ReturnType<typeof normalizeStyle> }[][]>) =>
-    (layout.get(anchor) ?? []).map((row, r) => {
+  // ── Ответ с фото внутри: фото встают после нужного блока текста, узкие — в ряд ──
+  type InlineItem = { p: PhotoItem; style: ReturnType<typeof normalizeStyle> };
+  const inlineRows = (itemId: string, key: number, rows: InlineItem[][] | undefined) =>
+    (rows ?? []).map((row, r) => {
+      const rowKey = `r:${itemId}:${key}:${r}`;
       const align = row[0].style.align;
+      // Доводка: ряд уменьшен под свободное место полосы или стоит один по центру полосы.
+      const k = flow.rowScale.get(rowKey) ?? 1;
+      const boxes = row.map(({ p, style }) => framedBox(p, style, textWidthPt, textHeightPt, row.length));
+      options.rowHeights?.set(rowKey, Math.max(...boxes.map((b) => b.outerH)));
       return (
         <View
-          key={`r-${anchor}-${r}`}
+          key={rowKey}
+          {...mark(rowKey)}
           wrap={false}
           style={{
             flexDirection: "row",
@@ -365,12 +387,14 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
             alignItems: "flex-start",
             marginTop: bodyPt * 0.5,
             marginBottom: bodyPt,
+            paddingTop: flow.rowOffset.get(rowKey) ?? 0,
           }}
         >
           {row.map(({ p, style }, i) => {
             const img = options.images.get(p.id);
             if (!img) return null;
-            const box = framedBox(p, style, textWidthPt, textHeightPt, row.length);
+            const b = boxes[i];
+            const box = { outerW: b.outerW * k, outerH: b.outerH * k, imgW: b.imgW * k, imgH: b.imgH * k, pad: b.pad * k, padBottom: b.padBottom * k, radius: b.radius * k };
             const polaroid = style.frame === "polaroid";
             const bw = polaroid ? 0.5 : style.frame === "line" ? 1 : 0;
             return (
@@ -408,35 +432,95 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   /** Начальные слова главы капителью (если дизайн это предполагает). */
   const leadInStyle: Style = { ...face(typo.body, 400), fontSize: bodyPt * 0.86, letterSpacing: bodyPt * 0.07, textTransform: "uppercase", color: P.accent };
+  const centered = design.heading.align === "center";
+
+  /** Блок набора ответа: абзац, лид, выделенный короткий ответ, список или стихи (см. answer-blocks). */
+  const textBlock = (b: AnswerBlock, id: string, leadIn: boolean) => {
+    switch (b.kind) {
+      case "para": {
+        const [lead, rest] = leadIn ? splitLeadIn(b.text) : ["", b.text];
+        return (
+          <Text {...mark(id)} style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
+            {lead ? <Text style={leadInStyle}>{lead}</Text> : null}
+            {rest}
+          </Text>
+        );
+      }
+      case "lede":
+        return (
+          <Text {...mark(id)} hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: bodyPt * 1.08, lineHeight: 1.4, color: P.muted, textAlign: centered ? "center" : "left", marginBottom: bodyPt * 0.7 }}>
+            {b.text}
+          </Text>
+        );
+      case "quote": {
+        const style: Style = { ...italicBody, fontSize: bodyPt * 1.32, lineHeight: 1.42, color: P.ink };
+        return centered ? (
+          <View {...mark(id)} wrap={false} style={{ alignItems: "center", paddingHorizontal: textWidthPt * 0.08, marginTop: bodyPt * 0.15, marginBottom: bodyPt * 0.6 }}>
+            <Text hyphenationCallback={noHyphens} style={{ ...style, textAlign: "center" }}>
+              {b.lines.join("\n")}
+            </Text>
+          </View>
+        ) : (
+          <View {...mark(id)} wrap={false} style={{ borderLeftWidth: 1.6, borderLeftColor: P.accent, borderLeftStyle: "solid", paddingLeft: bodyPt * 1.1, marginTop: bodyPt * 0.15, marginBottom: bodyPt * 0.6 }}>
+            <Text hyphenationCallback={noHyphens} style={style}>
+              {b.lines.join("\n")}
+            </Text>
+          </View>
+        );
+      }
+      case "list":
+        return (
+          <View {...mark(id)} style={{ marginBottom: bodyPt * 0.45 }}>
+            {b.items.map((item, i) => (
+              <View key={i} wrap={item.text.length > 260} style={{ flexDirection: "row", marginBottom: i < b.items.length - 1 ? bodyPt * 0.3 : 0 }}>
+                <Text style={{ ...body, width: bodyPt * (b.ordered ? 1.6 : 1.2), textAlign: "left", color: P.accent }}>{item.marker}</Text>
+                <Text style={{ ...body, flex: 1, textAlign: "left" }} orphans={2} widows={2}>
+                  {item.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      case "verse":
+        return (
+          <Text
+            {...mark(id)}
+            hyphenationCallback={noHyphens}
+            style={{ ...body, textAlign: centered ? "center" : "left", paddingLeft: centered ? 0 : textWidthPt * 0.08, marginTop: bodyPt * 0.2, marginBottom: bodyPt * 0.65 }}
+            orphans={2}
+            widows={2}
+          >
+            {b.lines.join("\n")}
+          </Text>
+        );
+    }
+  };
 
   const inlineBody = (it: BookContent["chapters"][number]["items"][number], leadIn: boolean) => {
-    const paragraphs = splitParagraphs(it.answer);
+    const blocks = answerBlocks(splitParagraphs(it.answer));
     const photos = (it.photos ?? []).filter((p) => options.images.has(p.id));
-    const layout = layoutInline(
-      photos.map((p) => ({ p, style: normalizeStyle(p.inline) })),
-      paragraphs.length,
+    const rows = rowsByBlock(
+      blocks,
+      layoutInline(
+        photos.map((p) => ({ p, style: normalizeStyle(p.inline) })),
+        splitParagraphs(it.answer).length,
+      ),
     );
     return (
       <>
-        {paragraphs.length ? inlineRows(-1, layout) : null}
-        {paragraphs.map((p, i) => {
-          const [lead, rest] = leadIn && i === 0 ? splitLeadIn(p) : ["", p];
-          return (
-            <Fragment key={i}>
-              <Text style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
-                {lead ? <Text style={leadInStyle}>{lead}</Text> : null}
-                {rest}
-              </Text>
-              {i < paragraphs.length - 1 ? inlineRows(i, layout) : null}
-            </Fragment>
-          );
-        })}
-        {inlineRows(Number.POSITIVE_INFINITY, layout)}
+        {blocks.length ? inlineRows(it.id, -1, rows.get(-1)) : null}
+        {blocks.map((b, i) => (
+          <Fragment key={i}>
+            {textBlock(b, `${b.kind === "lede" ? "k" : "b"}:${it.id}:${i}`, leadIn && i === 0)}
+            {i < blocks.length - 1 ? inlineRows(it.id, i, rows.get(i)) : null}
+          </Fragment>
+        ))}
+        {inlineRows(it.id, Number.POSITIVE_INFINITY, rows.get(Number.POSITIVE_INFINITY))}
       </>
     );
   };
 
-  const heading = (text: string) => {
+  const heading = (text: string, id: string) => {
     const style: Style = {
       ...headingFace,
       fontSize: S.heading,
@@ -445,20 +529,29 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       textAlign: design.heading.align,
       marginBottom: S.afterHeading,
     };
-    if (!design.heading.bar) return <Text minPresenceAhead={40} style={style}>{text}</Text>;
+    if (!design.heading.bar)
+      return (
+        <Text {...mark(id)} minPresenceAhead={40} style={style}>
+          {text}
+        </Text>
+      );
     return (
-      <View wrap={false} minPresenceAhead={40}>
+      <View {...mark(id)} wrap={false} minPresenceAhead={40}>
         <View style={{ width: 14 * scale, height: 1.2, backgroundColor: P.accent, marginBottom: 6 * scale, alignSelf: design.heading.align === "center" ? "center" : "flex-start" }} />
         <Text style={style}>{text}</Text>
       </View>
     );
   };
 
-  const divider =
+  const divider = (id: string) =>
     design.divider === "stars" ? (
-      <Text style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>* * *</Text>
+      <Text {...mark(id)} minPresenceAhead={40} style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>
+        * * *
+      </Text>
     ) : (
-      <PdfDrawing drawing={dividerDrawing(design.ornament, design.divider, P)} style={{ alignSelf: "center", marginTop: bodyPt * 0.3, marginBottom: S.beforeHeadless + bodyPt * 0.2 }} />
+      <View {...mark(id)} minPresenceAhead={40} style={{ alignSelf: "center", marginTop: bodyPt * 0.3, marginBottom: S.beforeHeadless + bodyPt * 0.2 }}>
+        <PdfDrawing drawing={dividerDrawing(design.ornament, design.divider, P)} />
+      </View>
     );
 
   // ── Главы ──
@@ -470,12 +563,21 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           {watermark}
           {runningHead(ch.title)}
           {folio}
-          {ch.items.map((it, idx) => (
-            <View key={it.id} style={{ marginTop: idx === 0 ? 0 : it.heading ? S.beforeHeading : S.beforeHeadless }}>
-              {it.heading ? heading(it.heading) : idx > 0 ? divider : null}
-              {inlineBody(it, design.leadIn && idx === 0)}
+          {ch.items.map((it, idx) => {
+            const fresh = idx === 0 || flow.breakBefore.has(it.id);
+            return (
+              <View key={it.id} break={idx > 0 && flow.breakBefore.has(it.id)} style={{ marginTop: fresh ? 0 : it.heading ? S.beforeHeading : S.beforeHeadless }}>
+                {it.heading ? heading(it.heading, `h:${it.id}`) : idx > 0 ? divider(`h:${it.id}`) : null}
+                {inlineBody(it, design.leadIn && idx === 0)}
+              </View>
+            );
+          })}
+          {/* Концовка главы — небольшая виньетка: последняя полоса главы не выглядит оборванной. */}
+          {flow.noTail.has(ch.key) ? null : (
+            <View {...mark(`t:${ch.key}`)} wrap={false} style={{ alignItems: "center", marginTop: S.beforeHeading * 1.1 }}>
+              <PdfDrawing drawing={vignetteDrawing(design.ornament, VIGNETTE_RULE.end, P)} />
             </View>
-          ))}
+          )}
         </Page>,
       );
     }
@@ -505,7 +607,10 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   );
 
   return (
-    <Document title={content.title} author={content.authorName || site.name} creator={site.name} producer={site.name} language={content.language}>
+    <Document
+      // Раскладку react-pdf отдаёт только во внутреннем поле onRender — другого способа узнать, где что встало, нет.
+      onRender={options.onLayout ? (r) => options.onLayout?.((r as { _INTERNAL__LAYOUT__DATA_?: unknown })._INTERNAL__LAYOUT__DATA_) : undefined}
+      title={content.title} author={content.authorName || site.name} creator={site.name} producer={site.name} language={content.language}>
       {pages}
     </Document>
   );
