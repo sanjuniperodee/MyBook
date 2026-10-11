@@ -54,7 +54,7 @@ export function BookTabs({ bookId }: { bookId: string }) {
     <div className="relative">
       <nav
         ref={nav}
-        className="no-scrollbar -mb-px flex gap-1 overflow-x-auto"
+        className="no-scrollbar -mx-1 -mb-px flex justify-between gap-0.5 overflow-x-auto sm:mx-0 sm:justify-start sm:gap-1"
         aria-label={labels.aria}
         style={{
           maskImage: `linear-gradient(90deg, ${edges.left ? "transparent" : "#000"} 0, #000 28px, #000 calc(100% - 28px), ${edges.right ? "transparent" : "#000"} 100%)`,
@@ -68,16 +68,18 @@ export function BookTabs({ bookId }: { bookId: string }) {
               key={t.key}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={cn("relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors sm:py-3", active ? "text-ink" : "text-muted hover:text-ink")}
+              title={labels[t.key]}
+              className={cn("relative flex shrink-0 items-center gap-2 px-2.5 py-2.5 text-sm font-medium transition-colors sm:px-3 sm:py-3", active ? "text-ink" : "text-muted hover:text-ink")}
             >
-              <t.icon className={cn("size-4 transition-colors", active && "text-wine")} strokeWidth={1.8} />
-              {labels[t.key]}
+              <t.icon className={cn("size-[18px] transition-colors sm:size-4", active && "text-wine")} strokeWidth={1.8} />
+              {/* Телефон: все вкладки умещаются в строку — подпись только у открытой */}
+              <span className={cn(!active && "max-sm:sr-only")}>{labels[t.key]}</span>
               {active ? <Indicator /> : null}
             </Link>
           );
         })}
         {checkout ? (
-          <span aria-current="page" className="relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium sm:py-3">
+          <span aria-current="page" className="relative flex shrink-0 items-center gap-2 px-2.5 py-2.5 text-sm font-medium sm:px-3 sm:py-3">
             <BookOpen className="size-4 text-wine" /> {labels.order}
             <Indicator />
           </span>

@@ -24,12 +24,12 @@ export default async function BookLayout({ children, params }: { children: React
     <>
       <div className="border-b border-line/70 bg-white/70">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-center gap-3 pt-3 sm:gap-4 sm:pt-4">
+          <div className="flex items-center gap-3 pt-2 sm:gap-4 sm:pt-4">
             <Link href="/books" className="hidden text-sm text-muted hover:text-ink sm:block">
               {t.myBooks}
             </Link>
             <span className="hidden text-line sm:block">/</span>
-            <div className="w-7 shrink-0">
+            <div className="w-6 shrink-0 sm:w-7">
               <CoverPreview
                 template={book.coverTemplate}
                 format={book.format}
@@ -55,7 +55,7 @@ export default async function BookLayout({ children, params }: { children: React
               </Link>
             ) : null}
           </div>
-          <div className="mt-1 sm:mt-2">
+          <div className="sm:mt-2">
             <BookTabs bookId={book.id} />
           </div>
         </div>
