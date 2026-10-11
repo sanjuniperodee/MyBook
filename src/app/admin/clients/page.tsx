@@ -76,7 +76,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm" />
         <select name="ch" defaultValue={sp.ch ?? ""} className="input h-10 w-48 text-sm" aria-label="Канал">
           <option value="">Все каналы</option>
-          {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
+          {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "youtube", "vk", "call", "recommendation", "repeat", "offline", "other", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
             <option key={k} value={k}>
               {channels[k]}
             </option>

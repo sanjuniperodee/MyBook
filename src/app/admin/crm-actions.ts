@@ -8,6 +8,7 @@ import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
+import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/modules/marketing/domain/channels";
 
 type Target = ContactTarget;
 
@@ -33,6 +34,30 @@ export async function setClientManagerAction(clientId: string, managerId: string
   revalidatePath(`/admin/clients/${client.id}`);
   revalidatePath("/admin/clients");
   return { ok: true };
+}
+
+/**
+ * Канал привлечения клиента: менеджер указывает, откуда клиент пришёл (Instagram, звонок, рекомендация…).
+ * Метка заменяет прежнюю (старая — в журнале действий) и переносится на сделки клиента без настоящих UTM-меток.
+ */
+export async function setClientChannelAction(clientId: string, channel: string): Promise<ActionResult> {
+  const staff = await assertStaff("clients.edit");
+  if (!isManualChannel(channel)) return { ok: false, message: "Выберите канал из списка" };
+  const c = container();
+  const client = await c.clients.clients.find(uuid.parse(clientId));
+  if (!client) return { ok: false, message: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  const source = client.source;
+  const before = channelOf(toAttribution(source));
+  const next = manualAttribution(channel) as Record<string, string>;
+  await c.clients.clients.setSource(client.id, next);
+  await c.sales.setClientAttribution(client.id, next);
+  await audit(staff, "client.channel", "client", client.id, { from: source ?? null, fromChannel: channels[before], to: channels[channel] });
+  revalidatePath(`/admin/clients/${client.id}`);
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/analytics");
+  revalidatePath("/admin/marketing");
+  return { ok: true, message: `Канал: ${channels[channel]}` };
 }
 
 /** Номер для звонка/чата берём на сервере: сотрудник без права видеть контакты всё равно может связаться. */

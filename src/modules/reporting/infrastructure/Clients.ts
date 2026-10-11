@@ -4,6 +4,7 @@ import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { users } from "@/shared/infrastructure/db/schema";
 import type { ClientSegment } from "@/modules/clients/domain/segments";
+import { isManualChannel, MANUAL_MEDIUM } from "@/modules/marketing/domain/channels";
 
 export const STALLED_DAYS = 14;
 
@@ -82,7 +83,8 @@ export function channelWhere(ch: string | undefined): SQL | undefined {
     case "direct":
       return sql`(${s} = '' and ${m} = '' and ${r} = '')`;
     default:
-      return undefined;
+      // Остальные каналы выбирает менеджер вручную: метка {source: канал, medium: manual}.
+      return isManualChannel(ch) ? sql`(${m} = ${MANUAL_MEDIUM} and ${s} = ${ch})` : undefined;
   }
 }
 

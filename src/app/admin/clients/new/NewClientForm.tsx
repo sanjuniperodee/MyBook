@@ -7,6 +7,7 @@ import { createClientAction, type NewClientDone, type NewClientState } from "./a
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice } from "@/config/site";
+import { channels, manualChannels } from "@/modules/marketing/domain/channels";
 
 function CopyButton({ text, label = "Копировать" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -189,6 +190,20 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
         <div>
           <label className="label">Город</label>
           <input name="city" maxLength={80} className="input h-11" placeholder="Алматы" defaultValue={v.city} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label">Откуда пришёл клиент *</label>
+          <select name="channel" required className="input h-11" defaultValue={v.channel ?? ""}>
+            <option value="" disabled>
+              Выберите канал продаж
+            </option>
+            {manualChannels.map((k) => (
+              <option key={k} value={k}>
+                {channels[k]}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted">Попадёт в отчёты по каналам и в аналитику продаж. Позже канал можно поменять в карточке клиента.</p>
         </div>
         <div>
           <label className="label">Язык</label>

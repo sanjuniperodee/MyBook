@@ -7,6 +7,8 @@ export interface ClientProfile {
   email: string;
   phone: string | null;
   managerId: string | null;
+  /** Откуда пришёл клиент: UTM-метки, реферер или канал, выбранный менеджером. */
+  source: Record<string, string> | null;
   customFields: Record<string, string | number | boolean | null>;
 }
 
@@ -16,6 +18,8 @@ export interface ClientRepository {
   setExtraPhones(id: string, phones: string[]): Promise<void>;
   setCustomFields(id: string, values: ClientProfile["customFields"]): Promise<void>;
   setTags(id: string, tags: string[]): Promise<void>;
+  /** Откуда пришёл клиент (метки источника) — JSON как у UTM; null снимает метку. */
+  setSource(id: string, source: Record<string, string> | null): Promise<void>;
 }
 
 export interface TaskRepository {

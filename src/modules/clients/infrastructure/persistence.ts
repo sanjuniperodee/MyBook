@@ -8,13 +8,14 @@ import type { ClientRepository, CrmLinks, NoteRepository, StaffDirectory, TaskRe
 export const drizzleClients: ClientRepository = {
   async find(id) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-    const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, phone: users.phone, managerId: users.managerId, customFields: users.customFields }).from(users).where(eq(users.id, id)).limit(1);
+    const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, phone: users.phone, managerId: users.managerId, source: users.source, customFields: users.customFields }).from(users).where(eq(users.id, id)).limit(1);
     return u ?? null;
   },
   setManager: async (id, managerId) => void (await executor().update(users).set({ managerId }).where(eq(users.id, id))),
   setExtraPhones: async (id, phones) => void (await executor().update(users).set({ extraPhones: phones }).where(eq(users.id, id))),
   setCustomFields: async (id, values) => void (await executor().update(users).set({ customFields: values }).where(eq(users.id, id))),
   setTags: async (id, tags) => void (await executor().update(users).set({ tags }).where(eq(users.id, id))),
+  setSource: async (id, source) => void (await executor().update(users).set({ source }).where(eq(users.id, id))),
 };
 
 export const drizzleTasks: TaskRepository = {

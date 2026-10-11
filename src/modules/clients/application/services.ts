@@ -40,6 +40,11 @@ export class ClientsService {
     return this.clients.setCustomFields(client.id, values);
   }
 
+  /** Канал привлечения: менеджер указал, откуда пришёл клиент. */
+  setSource(clientId: string, source: Record<string, string> | null) {
+    return this.clients.setSource(clientId, source);
+  }
+
   async setTags(clientId: string, tags: string[]) {
     const clean = normalizeTags(tags);
     await this.clients.setTags(clientId, clean);

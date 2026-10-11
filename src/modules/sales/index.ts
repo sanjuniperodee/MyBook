@@ -2,6 +2,7 @@ import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import { DealsService, PipelinesService, SiteFunnelService } from "./application";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress } from "./infrastructure/adapters";
 import { agreementForClient } from "./infrastructure/agreements";
+import { setClientDealsAttribution } from "./infrastructure/attribution";
 import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -27,6 +28,8 @@ export class SalesModule {
   readonly payments = new DealPayments();
   /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */
   readonly agreementFor = agreementForClient;
+  /** Перенести вручную выбранный канал клиента на его сделки (у которых нет настоящих UTM-меток). */
+  readonly setClientAttribution = setClientDealsAttribution;
 
   constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger }) {
     const repo = new DrizzleDealRepository();

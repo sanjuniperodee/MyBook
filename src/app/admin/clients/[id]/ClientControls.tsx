@@ -5,7 +5,8 @@ import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomField
 import type { CustomValues } from "@/modules/sales/domain";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
-import { setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { setClientChannelAction, setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { channels, manualChannels } from "@/modules/marketing/domain/channels";
 import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,53 @@ export function RemindButton({ clientId, disabled, hint }: { clientId: string; d
 
 export function ClientManager({ clientId, value, options, disabled }: { clientId: string; value: string | null; options: { id: string; label: string }[]; disabled?: boolean }) {
   return <ManagerSelect value={value} options={options} disabled={disabled} onChange={(v) => setClientManagerAction(clientId, v)} />;
+}
+
+/**
+ * Канал привлечения: откуда клиент пришёл. Выбранный вручную — «как есть»; если клиент пришёл по меткам (реклама, ссылка),
+ * они показаны подписью «по меткам», и выбор канала заменяет их для отчётов.
+ */
+export function ClientChannel({ clientId, value, auto, disabled }: { clientId: string; value: string; auto?: string; disabled?: boolean }) {
+  const [pending, start] = useTransition();
+  const [current, setCurrent] = useState(value);
+  return (
+    <select
+      className="input h-9 text-sm"
+      value={current}
+      disabled={disabled || pending}
+      aria-label="Канал привлечения"
+      data-testid="client-channel-select"
+      onChange={(e) => {
+        const next = e.target.value;
+        const prev = current;
+        setCurrent(next);
+        start(async () => {
+          const r = await setClientChannelAction(clientId, next);
+          if (r.ok) toast(r.message ?? "Канал сохранён", "success");
+          else {
+            setCurrent(prev);
+            toast(r.message, "error");
+          }
+        });
+      }}
+    >
+      {value === "" ? (
+        <option value="" disabled>
+          Не указан
+        </option>
+      ) : null}
+      {auto ? (
+        <option value="auto" disabled>
+          {auto} (по меткам)
+        </option>
+      ) : null}
+      {manualChannels.map((k) => (
+        <option key={k} value={k}>
+          {channels[k]}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 export function ExtraPhones({ clientId, value }: { clientId: string; value: string }) {

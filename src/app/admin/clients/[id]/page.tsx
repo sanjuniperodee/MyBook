@@ -1,6 +1,6 @@
 import { planName } from "@/i18n/labels";
 import { listFields } from "@/modules/workspace";
-import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, describeAttribution, isManualChannel, MANUAL_MEDIUM, toAttribution } from "@/modules/marketing/domain/channels";
 import { nowMs } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,7 +13,7 @@ import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
-import { ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
+import { ClientChannel, ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
 import { ClientAccess } from "./ClientAccess";
 import { displayLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
@@ -63,6 +63,9 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const phoneDigits = rawPhone.replace(/\D/g, "");
   const contact = contactView(staff, { phone: rawPhone, email: client.email });
   const canEdit = can(staff, "clients.edit");
+  // Канал: выбранный менеджером — по ключу; пришёл по меткам (реклама, ссылка) — «auto»; не определён — пусто.
+  const src = client.source;
+  const channelValue = !src || !Object.keys(src).length ? "" : src.medium === MANUAL_MEDIUM && isManualChannel(src.source) ? src.source : "auto";
   // «Только свои» может взять неразобранного клиента себе, но не отдать другому.
   const managerOptions = canAssignOthers(staff) ? adminOptions : adminOptions.filter((a) => a.id === staff.user.id || a.id === client.managerId);
   const hasDraft = bookRows.some((b) => b.book.status === "draft");
@@ -144,10 +147,14 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                 <dt>Последний визит</dt>
                 <dd className="text-ink">{client.lastSeenAt ? formatDate(client.lastSeenAt, true) : "—"}</dd>
               </div>
-              <div className="flex justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <dt>Канал</dt>
-                <dd className="truncate text-right font-medium text-ink" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
-                  {channelLabel(toAttribution(client.source))}
+                <dd className="min-w-0 flex-1 text-right font-medium text-ink" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
+                  {canEdit ? (
+                    <ClientChannel clientId={client.id} value={channelValue} auto={channelValue === "auto" ? channelLabel(toAttribution(client.source)) : undefined} />
+                  ) : (
+                    <span className="truncate">{channelLabel(toAttribution(client.source))}</span>
+                  )}
                 </dd>
               </div>
               {describeAttribution(toAttribution(client.source)) || client.source?.link ? (

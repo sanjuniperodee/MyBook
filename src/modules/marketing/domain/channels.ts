@@ -31,6 +31,8 @@ export const channels = {
   referral: "Другие сайты",
   call: "Звонок",
   offline: "Офлайн (листовки, QR)",
+  recommendation: "Рекомендация знакомых",
+  repeat: "Повторный клиент",
   other: "Другое",
   direct: "Прямой заход",
 } as const;
@@ -50,12 +52,27 @@ export const sourcePresets: { key: ChannelKey; label: string; source: string; me
   { key: "offline", label: "Листовка / QR", source: "offline", medium: "qr" },
 ];
 
+/**
+ * Каналы, которые менеджер выбирает вручную, когда заводит клиента или правит его карточку (порядок — как в списке).
+ * Клиент сохраняется с меткой {source: ключ канала, medium: "manual"} — отчёты и фильтры читают её как обычный источник.
+ */
+export const manualChannels = ["instagram", "whatsapp", "telegram", "tiktok", "facebook", "youtube", "vk", "bloggers", "call", "recommendation", "repeat", "offline", "other"] as const satisfies readonly ChannelKey[];
+export type ManualChannel = (typeof manualChannels)[number];
+export const MANUAL_MEDIUM = "manual";
+
+export const isManualChannel = (v: unknown): v is ManualChannel => typeof v === "string" && (manualChannels as readonly string[]).includes(v);
+
+/** Метка источника для выбранного вручную канала. */
+export const manualAttribution = (channel: ManualChannel): Attribution => ({ source: channel, medium: MANUAL_MEDIUM });
+
 const paid = (m: string) => /^(cpc|ppc|paid|cpm|ads?|paidsocial|banner|display)$/.test(m);
 
 export function channelOf(a: Attribution | null | undefined, dealSource?: string | null): ChannelKey {
   const src = (a?.source ?? "").toLowerCase().trim();
   const med = (a?.medium ?? "").toLowerCase().trim();
   const ref = (a?.referrer ?? "").toLowerCase().trim();
+  // Канал выбрал менеджер — это он и есть, без догадок по тексту метки.
+  if (med === MANUAL_MEDIUM && isManualChannel(src)) return src;
   if (src || med) {
     if (/^(blog|influenc)/.test(src) || /^(blogger|influencer|influence)$/.test(med)) return "bloggers";
     if (/^(ig|insta)/.test(src)) return "instagram";
@@ -102,7 +119,8 @@ export const channelLabel = (a: Attribution | null | undefined, dealSource?: str
 
 /** «instagram / social / new-year» — кратко для карточек. */
 export function describeAttribution(a: Attribution | null | undefined) {
-  if (!a) return "";
+  // Канал выбран вручную — «метки» нет, сам канал уже показан отдельно.
+  if (!a || a.medium === MANUAL_MEDIUM) return "";
   const utm = [a.source, a.medium, a.campaign].filter(Boolean).join(" / ");
   return utm || a.referrer || "";
 }

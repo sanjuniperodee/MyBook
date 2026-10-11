@@ -7,6 +7,7 @@ import { formatPrice } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
+import { channels, isManualChannel, manualAttribution } from "@/modules/marketing/domain/channels";
 import { normalizePhone } from "@/shared/domain/phone";
 import { assertStaff, audit, can, canAssignOthers, type Staff } from "@/server/access";
 import { container } from "@/server/container";
@@ -56,6 +57,8 @@ const schema = z.object({
   stageId: z.union([z.literal(""), uuid]).default(""),
   assigneeId: z.union([z.literal(""), uuid]).default(""),
   comment: z.string().trim().max(1000).default(""),
+  /** Откуда пришёл клиент (канал продаж) — обязателен: от него считаются отчёты по каналам. */
+  channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент (канал продаж)"),
 });
 
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
@@ -72,6 +75,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const parsed = schema.safeParse(values);
   if (!parsed.success) return fail(parsed.error.issues[0].message);
   const d = parsed.data;
+  const channel = d.channel as Parameters<typeof manualAttribution>[0];
   const withDeal = d.createDeal === "on" && can(staff, "deals.edit");
   if (withDeal && d.prepaid > d.agreed) return fail("Предоплата не может быть больше суммы договорённости");
   if (!normalizePhone(d.phone) || normalizePhone(d.phone).length < 10) return fail("Проверьте номер телефона");
@@ -98,6 +102,8 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
     await crm.clients.setManager(profile, assigneeId);
     await crm.clients.setTags(account.id, ["вручную", ...(withDeal && d.prepaid > 0 ? ["предоплата"] : [])]);
   }
+  // Канал привлечения ставим до сделки: она подхватывает метки клиента, и отчёты по каналам сразу видят эту продажу.
+  await crm.clients.setSource(account.id, manualAttribution(channel) as Record<string, string>);
 
   const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
   let deal: { id: string; number: number } | null = null;
@@ -108,6 +114,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   if (deal && d.prepaid > 0) paymentId = (await container().sales.payments.add({ dealId: deal.id, clientId: account.id, amount: d.prepaid, createdById: staff.user.id })).id;
   if (deal) {
     const terms = [
+      `Канал: ${channels[channel]}.`,
       d.recipient ? `Кому книга: ${d.recipient}.` : null,
       `Клиент: ${d.name}${d.city ? `, г. ${d.city}` : ""}, тел. ${displayLogin(normalizePhone(d.phone))}${d.email ? `, ${d.email}` : ""}, язык — ${d.locale === "kk" ? "казахский" : "русский"}.`,
       d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
@@ -126,7 +133,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
     }
   }
 
-  await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, agreed: d.agreed, prepaid: d.prepaid });
+  await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, agreed: d.agreed, prepaid: d.prepaid, channel });
   revalidatePath("/admin/clients");
   revalidatePath("/admin/deals");
   const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
