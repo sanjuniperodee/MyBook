@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { SaveIndicator } from "@/components/SaveIndicator";
+import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
 import { Choice, FormSection } from "@/components/ui/Choice";
 import { InteriorSpread, type SpreadKind, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -77,16 +78,27 @@ export function PagesEditor({
   const filters: Filter[] = ["all", ...(paired.size ? (["cover"] as const) : []), ...interiorMoods];
   const shown = interiorDesigns.filter((d) => filter === "all" || d.id === state.interior || (filter === "cover" ? paired.has(d.id) : d.mood === filter));
   const names = m.catalog.interiors;
+  const bigPreview = useRef<HTMLDivElement>(null);
+  const scrolled = useScrolledPast(bigPreview);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12">
+      <PreviewDock show={scrolled}>
+        <div className="shrink-0" style={{ width: 150 }}>
+          <InteriorSpread design={design} format={format} sample={live} kind={spread} className="rounded-[2px] shadow-soft" />
+        </div>
+        <div className="min-w-0 flex-1 text-sm">
+          <div className="truncate font-medium text-ink">{names[design.id].name}</div>
+          <SaveIndicator status={status} error={error} className="text-xs" />
+        </div>
+      </PreviewDock>
       <div>
         <div className="lg:sticky lg:top-24">
-          <div className="rounded-[28px] bg-cream/70 p-4 sm:p-8">
+          <div ref={bigPreview} className="rounded-[28px] bg-cream/70 p-3 sm:p-8">
             <InteriorSpread design={design} format={format} sample={live} kind={spread} className="rounded-[3px] shadow-book" />
           </div>
           <div className="mt-4 flex justify-center">
-            <div role="radiogroup" aria-label={t.spreadsAria} className="inline-flex gap-1 rounded-2xl bg-cream/70 p-1">
+            <div role="radiogroup" aria-label={t.spreadsAria} className="no-scrollbar inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-cream/70 p-1">
               {spreads.map((k) => (
                 <button
                   key={k}
@@ -94,7 +106,7 @@ export function PagesEditor({
                   role="radio"
                   aria-checked={spread === k}
                   onClick={() => setSpread(k)}
-                  className={cn("h-9 rounded-xl px-4 text-sm font-medium transition", spread === k ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
+                  className={cn("h-10 shrink-0 rounded-xl px-3.5 text-sm font-medium transition sm:h-9 sm:px-4", spread === k ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
                 >
                   {t.spreads[k]}
                 </button>

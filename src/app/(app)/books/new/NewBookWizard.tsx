@@ -74,9 +74,9 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
   if (!theme) {
     return (
       <div>
-        <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.whoTitle}</h1>
+        <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.whoTitle}</h1>
         <p className="mt-3 text-lg text-muted">{t.whoText}</p>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+        <div className="mt-6 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5">
           {themes.map((th) => (
             <button key={th.id} type="button" onClick={() => selectTheme(th)} className="card group flex items-center gap-5 p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lift">
               <div className="w-24 shrink-0">
@@ -102,7 +102,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
           <ArrowLeft className="size-4" /> {theme.name}
         </button>
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.detailsTitle}</h1>
+          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.detailsTitle}</h1>
           <p className="mt-3 text-muted">{t.detailsText}</p>
         </div>
         {state.error ? <Alert>{state.error}</Alert> : null}

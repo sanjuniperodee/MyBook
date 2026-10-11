@@ -68,7 +68,7 @@ export function BookTabs({ bookId }: { bookId: string }) {
               key={t.key}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={cn("relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium transition-colors", active ? "text-ink" : "text-muted hover:text-ink")}
+              className={cn("relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors sm:py-3", active ? "text-ink" : "text-muted hover:text-ink")}
             >
               <t.icon className={cn("size-4 transition-colors", active && "text-wine")} strokeWidth={1.8} />
               {labels[t.key]}
@@ -77,7 +77,7 @@ export function BookTabs({ bookId }: { bookId: string }) {
           );
         })}
         {checkout ? (
-          <span aria-current="page" className="relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium">
+          <span aria-current="page" className="relative flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-medium sm:py-3">
             <BookOpen className="size-4 text-wine" /> {labels.order}
             <Indicator />
           </span>

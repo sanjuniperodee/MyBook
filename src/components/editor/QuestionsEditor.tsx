@@ -33,6 +33,7 @@ import { photoUrl } from "@/lib/urls";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useDictation } from "@/hooks/useDictation";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { apiFetch } from "@/lib/client-api";
 import { getFormat, printablePageCount } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
@@ -227,7 +228,7 @@ export function QuestionsEditor({
     const el = textarea.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, 280)}px`;
+    el.style.height = `${Math.max(el.scrollHeight, 220)}px`;
   }, [q?.answer, index]);
 
   useEffect(() => {
@@ -397,10 +398,42 @@ export function QuestionsEditor({
     setIndex((i) => Math.max(0, i - 1));
   };
 
+  /** Диктовка: кнопка + язык. На компьютере — в панели под ответом, на телефоне — в нижней панели (compact). */
+  const dictateControl = (className: string, compact: boolean) =>
+    editable && dictation.supported ? (
+      <div className={cn("flex items-center rounded-full border border-line bg-white", className)}>
+        <button
+          className={cn("flex h-11 items-center gap-1.5 rounded-full text-sm sm:h-9", compact ? "px-3" : "px-3.5", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
+          onClick={toggleDictation}
+          title={t.dictateTitle}
+          aria-label={t.dictateTitle}
+        >
+          {dictation.listening ? <MicOff className="size-5 sm:size-4" /> : <Mic className="size-5 sm:size-4" />}
+          {compact ? (dictation.listening ? t.stop : null) : dictation.listening ? t.stop : t.dictate}
+        </button>
+        <select
+          value={lang}
+          onChange={(e) => {
+            const l = e.target.value;
+            setLang(l);
+            if (dictation.listening) dictation.start(l);
+          }}
+          className="h-11 rounded-full bg-transparent pr-1.5 pl-0.5 text-xs text-muted outline-none sm:h-9 sm:pr-2 sm:pl-1"
+          aria-label={t.dictationLang}
+        >
+          {locales.map((l) => (
+            <option key={l} value={localeMeta[l].speech}>
+              {localeMeta[l].short}
+            </option>
+          ))}
+        </select>
+      </div>
+    ) : null;
+
   const sidebar = <ChapterNav groups={groups} current={index} onPick={goTo} />;
 
   return (
-    <div className={cn("mx-auto px-4 py-6 sm:px-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
+    <div className={cn("mx-auto px-4 pt-4 pb-28 sm:px-6 sm:py-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
       <div className={cn("gap-8 xl:gap-10", !focus && "lg:grid lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_280px]")}>
         {/* Навигация по главам */}
         {!focus ? (
@@ -411,14 +444,14 @@ export function QuestionsEditor({
 
         {/* Лист */}
         <section className="min-w-0">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <button className={cn("btn btn-outline btn-sm", !focus && "lg:hidden")} onClick={() => setDrawer(true)}>
+          <div className="mb-3 flex items-center gap-2 sm:mb-4">
+            <button className={cn("btn btn-outline btn-sm shrink-0", !focus && "lg:hidden")} onClick={() => setDrawer(true)}>
               <ListTree className="size-4" /> {t.chapters}
             </button>
             <div className="min-w-0 flex-1 truncate text-sm text-muted">
               <span className="text-ink">{t.chapter(chapterNumber)}</span> · <span lang={book.language}>{q.chapterTitle}</span>
             </div>
-            <span className="flex items-center gap-1.5 rounded-full bg-rose/70 px-3 py-1.5 text-xs font-medium text-wine" title={t.pagesEstimate}>
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose/70 px-3 py-1.5 text-xs font-medium text-wine" title={t.pagesEstimate}>
               <BookOpen className="size-3.5" /> {t.pagesShort(pages.printed || 0)}
             </span>
             {!focus ? (
@@ -426,7 +459,7 @@ export function QuestionsEditor({
                 <Eye className="size-4" />
               </button>
             ) : null}
-            <button className="btn btn-ghost btn-sm size-9 px-0" onClick={toggleFocus} title={focus ? t.focusOff : t.focusOn}>
+            <button className="btn btn-ghost btn-sm size-9 px-0 max-lg:hidden" onClick={toggleFocus} title={focus ? t.focusOff : t.focusOn}>
               {focus ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
             </button>
           </div>
@@ -436,16 +469,16 @@ export function QuestionsEditor({
             <div className="absolute inset-x-0 top-0 h-0.5 bg-cream" aria-hidden>
               <div className="h-full bg-wine/70 transition-[width] duration-500 ease-out" style={{ width: `${((posInChapter + 1) / group.items.length) * 100}%` }} />
             </div>
-            <div className="flex items-center justify-between border-b border-line/60 px-6 py-3 text-xs text-muted sm:px-10">
+            <div className="flex items-center justify-between border-b border-line/60 px-4 py-2.5 text-xs text-muted sm:px-10 sm:py-3">
               <span>
                 {t.questionOf(posInChapter + 1, group.items.length)}
               </span>
               <SaveIndicator status={status} error={error} className="text-xs" />
             </div>
 
-            <div className="px-6 pt-8 pb-6 sm:px-10 sm:pt-10">
+            <div className="px-4 pt-5 pb-4 sm:px-10 sm:pt-10 sm:pb-6">
               {/* key — чтобы при переходе к другому вопросу формулировка мягко проявлялась */}
-              <h1 key={q.id} lang={book.language} className="enter font-serif text-[28px] leading-tight font-medium text-ink sm:text-[38px]">
+              <h1 key={q.id} lang={book.language} className="enter font-serif text-2xl leading-tight font-medium text-ink sm:text-[38px]">
                 {q.prompt}
               </h1>
               {q.hint ? (
@@ -468,7 +501,7 @@ export function QuestionsEditor({
               ) : null}
 
               {/* Заголовок, как он будет в книге */}
-              <div className="mt-8 flex items-start gap-3 rounded-2xl border border-dashed border-line px-4 py-3">
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-dashed border-line px-4 py-3 sm:mt-8">
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] tracking-wider text-muted uppercase">{t.headingInBook}</div>
                   <input
@@ -479,17 +512,17 @@ export function QuestionsEditor({
                     onBlur={() => q.displayText !== null && !q.displayText.trim() && patchQuestion(q.id, { displayText: null })}
                     disabled={!editable || q.hideHeading}
                     maxLength={200}
-                    className="mt-0.5 w-full bg-transparent text-lg outline-none disabled:text-muted"
+                    className="fs-keep mt-0.5 w-full bg-transparent text-lg outline-none disabled:text-muted"
                     style={{ fontFamily: cssFont(typography.heading), fontStyle: typography.headingItalic ? "italic" : "normal" }}
                   />
                 </div>
                 {q.displayText !== null && q.displayText !== q.defaultTitle && !q.hideHeading ? (
-                  <button className="mt-4 shrink-0 text-xs text-wine hover:underline" onClick={() => patchQuestion(q.id, { displayText: null })}>
+                  <button className="mt-3.5 shrink-0 py-1 text-xs text-wine hover:underline" onClick={() => patchQuestion(q.id, { displayText: null })}>
                     {t.headingReset}
                   </button>
                 ) : null}
                 <button
-                  className="mt-3 shrink-0 rounded-lg p-1.5 text-muted hover:bg-cream hover:text-ink"
+                  className="-mt-1 shrink-0 rounded-lg p-3 text-muted hover:bg-cream hover:text-ink sm:mt-1.5 sm:p-1.5"
                   onClick={() => patchQuestion(q.id, { hideHeading: !q.hideHeading })}
                   disabled={!editable}
                   title={q.hideHeading ? t.headingShow : t.headingHide}
@@ -507,7 +540,7 @@ export function QuestionsEditor({
                 placeholder={editable ? t.answerPlaceholder : ""}
                 aria-label={t.answerAria}
                 lang={book.language}
-                className="mt-6 block min-h-[280px] w-full resize-none bg-transparent text-lg leading-[1.75] outline-none placeholder:text-muted/60 sm:text-[19px]"
+                className="fs-keep mt-5 block min-h-[220px] w-full scroll-mb-40 resize-none bg-transparent text-[17px] leading-[1.7] outline-none placeholder:text-muted/60 sm:mt-6 sm:min-h-[280px] sm:text-[19px] sm:leading-[1.75]"
                 style={{ fontFamily: cssFont(typography.body) }}
                 maxLength={40000}
               />
@@ -527,7 +560,7 @@ export function QuestionsEditor({
             </div>
 
             {qPhotos.length ? (
-              <div className="space-y-3 px-6 pb-6 sm:px-10">
+              <div className="space-y-3 px-4 pb-5 sm:px-10 sm:pb-6">
                 <div className="flex flex-wrap items-center gap-2">
                   {qPhotos.map((p) => {
                     const st = normalizeStyle(p.inline);
@@ -570,37 +603,10 @@ export function QuestionsEditor({
               </div>
             ) : null}
 
-            <div className="flex flex-wrap items-center gap-2 border-t border-line/60 px-4 py-3 sm:px-8">
-              {editable && dictation.supported ? (
-                <div className="flex items-center rounded-full border border-line">
-                  <button
-                    className={cn("flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
-                    onClick={toggleDictation}
-                    title={t.dictateTitle}
-                  >
-                    {dictation.listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
-                    {dictation.listening ? t.stop : t.dictate}
-                  </button>
-                  <select
-                    value={lang}
-                    onChange={(e) => {
-                      const l = e.target.value;
-                      setLang(l);
-                      if (dictation.listening) dictation.start(l);
-                    }}
-                    className="h-9 rounded-full bg-transparent pr-2 pl-1 text-xs text-muted outline-none"
-                    aria-label={t.dictationLang}
-                  >
-                    {locales.map((l) => (
-                      <option key={l} value={localeMeta[l].speech}>
-                        {localeMeta[l].short}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/60 px-3 py-2 sm:px-8 sm:py-3">
+              {dictateControl("max-lg:hidden", false)}
               {editable ? (
-                <button className="btn btn-ghost btn-sm text-muted" onClick={() => setPicker(true)}>
+                <button className="btn btn-ghost btn-sm text-muted max-lg:hidden" onClick={() => setPicker(true)}>
                   <ImagePlus className="size-4" /> {t.photoInAnswer}
                 </button>
               ) : null}
@@ -619,7 +625,7 @@ export function QuestionsEditor({
                 {answerPages > 0 ? t.answerPages((Math.round(Math.max(answerPages, 0.1) * 10) / 10).toLocaleString("ru-RU")) : ""}
               </span>
             </div>
-            {dictation.error ? <p className="px-6 pb-3 text-sm text-red-700 sm:px-10">{dictation.error}</p> : null}
+            {dictation.error ? <p className="px-4 pb-3 text-sm text-red-700 sm:px-10">{dictation.error}</p> : null}
             {adding ? (
               <div className="border-t border-line/60 p-4 sm:px-8">
                 <AddQuestion onAdd={addQuestion} onCancel={() => setAdding(false)} />
@@ -628,7 +634,7 @@ export function QuestionsEditor({
           </article>
 
           {/* Переход между вопросами */}
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="mt-5 grid grid-cols-2 gap-3 max-lg:hidden">
             <button
               onClick={() => goTo(index - 1)}
               disabled={!prev}
@@ -688,6 +694,34 @@ export function QuestionsEditor({
         ) : null}
       </div>
 
+      <MobileBar>
+        <button
+          onClick={() => goTo(index - 1)}
+          disabled={!prev}
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white disabled:opacity-35"
+          aria-label={t.prev}
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        {dictateControl("shrink-0", true)}
+        {editable ? (
+          <button className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white" onClick={() => setPicker(true)} aria-label={t.photoInAnswer}>
+            <ImagePlus className="size-5" />
+          </button>
+        ) : null}
+        {next ? (
+          <button onClick={() => goTo(index + 1)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft">
+            <span className="truncate">{q.answer.trim() ? t.next : t.skip}</span>
+            <ArrowRight className="size-4 shrink-0" />
+          </button>
+        ) : (
+          <Link href={`/books/${book.id}/preview`} onClick={() => void flush()} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-wine px-4 text-[15px] font-medium text-white">
+            <span className="truncate">{t.toPreview}</span>
+            <ArrowRight className="size-4 shrink-0" />
+          </Link>
+        )}
+      </MobileBar>
+
       {picker ? (
         <PhotoPicker
           bookId={book.id}
@@ -713,6 +747,16 @@ export function QuestionsEditor({
           <ChapterNav groups={groups} current={index} onPick={goTo} />
         </Drawer>
       ) : null}
+    </div>
+  );
+}
+
+/** Нижняя панель действий на телефоне: всегда под рукой и над экранной клавиатурой. */
+function MobileBar({ children }: { children: React.ReactNode }) {
+  const inset = useKeyboardInset();
+  return (
+    <div className="fixed inset-x-0 z-30 border-t border-line/80 bg-paper/95 backdrop-blur-xl lg:hidden" style={{ bottom: inset }}>
+      <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">{children}</div>
     </div>
   );
 }

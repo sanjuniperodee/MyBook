@@ -114,6 +114,17 @@ body {
   .container-x { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
 }
 
+/*
+ * iOS Safari приближает страницу при фокусе в поле со шрифтом меньше 16px и не возвращает назад.
+ * На сенсорных экранах держим 16px; поля, которым нужен крупнее (текст ответа), помечены .fs-keep.
+ * Правило вне @layer — чтобы перекрыть утилиты text-sm/text-xs у конкретных полей.
+ */
+@media (pointer: coarse) {
+  :is(input, select, textarea):not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], .fs-keep) {
+    font-size: 16px;
+  }
+}
+
 /* Скрытая полоса прокрутки для горизонтальных лент */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }

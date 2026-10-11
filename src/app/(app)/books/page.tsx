@@ -29,7 +29,7 @@ export default async function BooksPage() {
       <main className="mx-auto max-w-3xl px-4 py-14 text-center sm:px-6 sm:py-20">
         {card ? <div className="mb-10 text-left">{card}</div> : null}
         <OpenBookArt className="enter mx-auto h-44 w-auto sm:h-52" />
-        <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-4xl font-medium sm:text-5xl">
+        <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-3xl font-medium sm:text-5xl">
           {t.hello(user.name)}
         </h1>
         <p style={{ "--i": 2 } as React.CSSProperties} className="enter mx-auto mt-4 max-w-lg text-lg text-muted">
@@ -51,7 +51,7 @@ export default async function BooksPage() {
       {card ? <div className="mb-8">{card}</div> : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
           <p className="mt-2 text-muted">{t.autosave}</p>
         </div>
         <Link href="/books/new" className="btn btn-primary">

@@ -14,7 +14,7 @@ export default async function AccountPage() {
   const t = (await getMessages()).orders.account;
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+      <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <section className="card p-6">
           <h2 className="mb-5 text-lg font-semibold">{t.personal}</h2>

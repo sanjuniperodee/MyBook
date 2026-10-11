@@ -26,7 +26,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
   const theme = getTheme(book.theme, locale);
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="mb-8 font-serif text-4xl font-medium sm:text-5xl">{m.books.cover.title}</h1>
+      <h1 className="mb-5 font-serif text-3xl font-medium sm:mb-8 sm:text-5xl">{m.books.cover.title}</h1>
       <CoverEditor
         bookId={book.id}
         format={book.format}

@@ -24,7 +24,7 @@ export default async function BookLayout({ children, params }: { children: React
     <>
       <div className="border-b border-line/70 bg-white/70">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-center gap-4 pt-4">
+          <div className="flex items-center gap-3 pt-3 sm:gap-4 sm:pt-4">
             <Link href="/books" className="hidden text-sm text-muted hover:text-ink sm:block">
               {t.myBooks}
             </Link>
@@ -41,7 +41,7 @@ export default async function BookLayout({ children, params }: { children: React
               />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate font-serif text-xl leading-tight font-medium">{book.title}</div>
+              <div className="truncate font-serif text-lg leading-tight font-medium sm:text-xl">{book.title}</div>
               <div className="truncate text-xs text-muted">
                 {theme.name}
                 {book.recipientName ? ` · ${book.recipientName}` : ""}
@@ -55,7 +55,7 @@ export default async function BookLayout({ children, params }: { children: React
               </Link>
             ) : null}
           </div>
-          <div className="mt-2">
+          <div className="mt-1 sm:mt-2">
             <BookTabs bookId={book.id} />
           </div>
         </div>

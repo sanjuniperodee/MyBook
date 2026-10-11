@@ -165,7 +165,7 @@ export function PhotoInspector({
     <div className="space-y-4 rounded-3xl border border-line bg-white p-4 shadow-[0_10px_30px_-18px_rgba(0,0,0,.35)] sm:p-5" data-testid="photo-inspector">
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">{t.title}</div>
-        <button type="button" onClick={onClose} className="rounded-full p-1.5 text-muted hover:bg-cream hover:text-ink" aria-label={t.close}>
+        <button type="button" onClick={onClose} className="rounded-full p-2.5 text-muted hover:bg-cream hover:text-ink sm:p-1.5" aria-label={t.close}>
           <X className="size-4" />
         </button>
       </div>
@@ -194,7 +194,7 @@ export function PhotoInspector({
                   key={s.w}
                   type="button"
                   onClick={() => onChange({ width: s.w })}
-                  className={cn("h-7 w-8 rounded-lg text-[11px] font-medium", style.width === s.w ? "bg-ink text-white" : "bg-cream text-muted hover:text-ink")}
+                  className={cn("h-7 w-8 rounded-lg text-[11px] font-medium max-sm:h-10 max-sm:w-10", style.width === s.w ? "bg-ink text-white" : "bg-cream text-muted hover:text-ink")}
                   title={`${s.w}%`}
                 >
                   {s.label}
@@ -232,7 +232,7 @@ export function PhotoInspector({
               value={String(pos)}
               onChange={(e) => onChange({ anchor: positions[Number(e.target.value)] })}
               aria-label={t.placeAria}
-              className="h-9 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm"
+              className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm sm:h-9"
             >
               {positions.map((a, i) => (
                 <option key={i} value={i}>
@@ -244,7 +244,7 @@ export function PhotoInspector({
               type="button"
               disabled={pos === 0}
               onClick={() => onChange({ anchor: positions[pos - 1] })}
-              className="flex size-9 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40"
+              className="flex size-10 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
               aria-label={t.upAria}
               title={t.up}
             >
@@ -254,7 +254,7 @@ export function PhotoInspector({
               type="button"
               disabled={pos === positions.length - 1}
               onClick={() => onChange({ anchor: positions[pos + 1] })}
-              className="flex size-9 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40"
+              className="flex size-10 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
               aria-label={t.downAria}
               title={t.down}
             >
@@ -298,7 +298,7 @@ export function PhotoInspector({
             onChange={(e) => onCaption(e.target.value)}
             placeholder={t.captionPlaceholder}
             maxLength={200}
-            className="h-9 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-ink/40"
+            className="h-10 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-ink/40 sm:h-9"
           />
         </Field>
 
@@ -314,7 +314,7 @@ export function PhotoInspector({
               }
             }}
             disabled={rotating}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream"
+            className="flex h-10 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
           >
             {rotating ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
             {t.rotate}
@@ -322,12 +322,12 @@ export function PhotoInspector({
           <button
             type="button"
             onClick={() => onChange({ width: 100, align: "center", aspect: "original", focusX: 0.5, focusY: 0.5, frame: "none" })}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream"
+            className="flex h-10 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
           >
             <RotateCcw className="size-4" />
             {t.reset}
           </button>
-          <button type="button" onClick={onRemove} className="ml-auto flex h-9 items-center rounded-full px-3.5 text-sm text-muted hover:bg-red-50 hover:text-red-700">
+          <button type="button" onClick={onRemove} className="ml-auto flex h-10 items-center rounded-full px-3.5 text-sm text-muted hover:bg-red-50 hover:text-red-700 sm:h-9">
             {t.remove}
           </button>
         </div>

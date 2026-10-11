@@ -62,7 +62,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           />
         </div>
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
           <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
           {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
           <p className="mt-1 text-sm text-muted">

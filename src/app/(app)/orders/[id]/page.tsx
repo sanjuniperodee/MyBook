@@ -56,7 +56,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       <Link href="/orders" className="text-sm text-muted hover:text-ink">{t.back}</Link>
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title(order.number)}</h1>
+        <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title(order.number)}</h1>
         <span className={cn("rounded-full px-3 py-1 text-sm font-medium", orderStatusColors[order.status])}>{orderStatusLabel(order.status, locale)}</span>
       </div>
       <p className="mt-2 text-muted">{t.created(formatDate(order.createdAt, true, locale))}</p>

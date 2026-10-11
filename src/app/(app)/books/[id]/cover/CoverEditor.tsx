@@ -13,6 +13,7 @@ import { BACK_PHOTO_SLOTS, type BackLayout } from "@/lib/book/cover-back";
 import { BackSection } from "./BackSection";
 import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { SaveIndicator } from "@/components/SaveIndicator";
+import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { coverLabel, coverMoods, coverNamesLine, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
@@ -174,45 +175,62 @@ export function CoverEditor({
   });
   const frameSlots = side === "back" ? backSlots : frontSlots;
   const frameSelected = frameSlots.some((s) => s.key === frameSel) ? frameSel : (frameSlots[0]?.key ?? null);
+  const bigPreview = useRef<HTMLDivElement>(null);
+  const scrolled = useScrolledPast(bigPreview);
+
+  /** Обложка или оборот (без управления кадром) — для большого превью и для мини-копии под шапкой. */
+  const renderSide = (className: string, uid: string, lite = false) =>
+    side === "back" ? (
+      <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photos={backPhotoRefs(backPhotos, state, "view")} className={className} />
+    ) : (
+      <CoverPreview
+        template={state.coverTemplate}
+        format={format}
+        title={state.title}
+        subtitle={state.subtitle}
+        names={names}
+        photos={coverPhotos}
+        className={className}
+        uid={uid}
+        lite={lite}
+        titlePlaceholder={t.bookTitle}
+        photoHint={t.uploadFirst}
+      />
+    );
+  const sideToggle = (className?: string) => (
+    <div className={cn("inline-flex rounded-full bg-cream p-1 text-sm", className)} role="radiogroup" aria-label={t.side.aria}>
+      {(["front", "back"] as const).map((s) => (
+        <button
+          key={s}
+          type="button"
+          role="radio"
+          aria-checked={side === s}
+          onClick={() => setSide(s)}
+          className={cn("rounded-full px-4 py-1.5 transition max-lg:min-h-9", side === s ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+        >
+          {t.side[s]}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
+      <PreviewDock show={scrolled}>
+        <div className="shrink-0" style={{ width: 68 }}>{renderSide("rounded-[3px] shadow-soft", "mini", true)}</div>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span className="truncate font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} className="shrink-0 text-xs" />
+          </div>
+          {sideToggle()}
+        </div>
+      </PreviewDock>
       <div>
         <div className="lg:sticky lg:top-24">
-          <div className="mb-4 flex justify-center">
-            <div className="inline-flex rounded-full bg-cream p-1 text-sm" role="radiogroup" aria-label={t.side.aria}>
-              {(["front", "back"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  role="radio"
-                  aria-checked={side === s}
-                  onClick={() => setSide(s)}
-                  className={cn("rounded-full px-4 py-1.5 transition", side === s ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
-                >
-                  {t.side[s]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="mx-auto w-full max-w-[340px] rounded-[28px] bg-cream/70 p-8">
+          <div className="mb-4 flex justify-center">{sideToggle()}</div>
+          <div ref={bigPreview} className="mx-auto w-full max-w-[300px] rounded-[28px] bg-cream/70 p-5 sm:max-w-[340px] sm:p-8">
             <div className="relative">
-              {side === "back" ? (
-                <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photos={backPhotoRefs(backPhotos, state, "view")} className="rounded-[4px] shadow-book" />
-              ) : (
-                <CoverPreview
-                  template={state.coverTemplate}
-                  format={format}
-                  title={state.title}
-                  subtitle={state.subtitle}
-                  names={names}
-                  photos={coverPhotos}
-                  className="rounded-[4px] shadow-book"
-                  uid="editor"
-                  titlePlaceholder={t.bookTitle}
-                  photoHint={t.uploadFirst}
-                />
-              )}
+              {renderSide("rounded-[4px] shadow-book", "editor")}
               {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
             </div>
           </div>

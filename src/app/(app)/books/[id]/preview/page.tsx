@@ -67,7 +67,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+        <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
         {book.status === "draft" ? (
           <Link href={`/books/${book.id}/checkout`} className="btn btn-primary">
             {t.order}
