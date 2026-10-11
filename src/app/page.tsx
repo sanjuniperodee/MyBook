@@ -152,12 +152,12 @@ export default async function HomePage() {
               </div>
               <div style={{ "--i": 4 } as React.CSSProperties} className="enter absolute top-0 right-[4%] w-[40%]">
                 <div className="animate-float [--r:7deg] [animation-delay:-4s]">
-                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
+                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={12} />
                 </div>
               </div>
               <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
                 <div className="animate-float">
-                  <Book3D priority template="peony" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
+                  <Book3D priority template="peony" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={15} />
                 </div>
               </div>
               {/* Рукописная пометка со стрелкой */}

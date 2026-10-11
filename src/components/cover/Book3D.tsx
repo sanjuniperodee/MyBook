@@ -5,7 +5,7 @@ import { CoverPreview, type CoverPreviewProps } from "./CoverPreview";
 /** Обложка, собранная в объёмную книгу с корешком и обрезом страниц (чистый CSS 3D). */
 export function Book3D({
   className,
-  rotate = -22,
+  rotate = 22,
   thickness = 7,
   ...cover
 }: CoverPreviewProps & { rotate?: number; thickness?: number }) {
@@ -20,7 +20,7 @@ export function Book3D({
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/0 to-white/15" />
         </div>
         <div className="book-3d__spine" style={{ width: `${thickness}%`, background: template.spine.color === "#FFFFFF" ? "#333" : undefined }}>
-          <div className="h-full w-full" style={{ background: "linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.1)), " + template.swatch }} />
+          <div className="h-full w-full" style={{ background: "linear-gradient(270deg, rgba(0,0,0,.35), rgba(0,0,0,.1)), " + template.swatch }} />
         </div>
         <div className="book-3d__pages" style={{ width: `${thickness - 1}%` }} />
       </div>

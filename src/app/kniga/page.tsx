@@ -73,7 +73,7 @@ export default async function IdeasPage() {
                     return (
                       <Link key={l.slug} href={`/kniga/${l.slug}`} className="card card-hover flex gap-5 p-5">
                         <div className="w-24 shrink-0">
-                          <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={-14} />
+                          <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={14} />
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-semibold">{c.label}</h3>
