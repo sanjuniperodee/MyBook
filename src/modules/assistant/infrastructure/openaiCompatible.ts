@@ -1,6 +1,8 @@
 import "server-only";
 import type { LanguageModel } from "../application";
 import { AssistantError, aiProviders, type AiConnection } from "../domain";
+import { env } from "@/config/env";
+import { site } from "@/config/site";
 
 type Request = Parameters<LanguageModel["ask"]>[0];
 
@@ -25,9 +27,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Модели OpenAI с рассуждением (GPT-5, o-серия) принимают reasoning_effort; остальные его отвергают. */
 const supportsReasoningEffort = (c: AiConnection) => c.provider === "openai" && /^(gpt-5|o\d)/.test(c.model);
 
-/** Структурированный ответ: OpenAI — строгая JSON-схема; остальные — JSON-режим и схема в инструкции. */
+/** Структурированный ответ: OpenAI и OpenRouter — строгая JSON-схема; остальные — JSON-режим и схема в инструкции. */
 function body(c: AiConnection, req: Request, structured: boolean) {
-  const strictSchema = structured && c.provider === "openai";
+  const strictSchema = structured && (c.provider === "openai" || c.provider === "openrouter");
   const system = req.schema && !strictSchema ? `${req.system}\n\nОтветь только JSON-объектом по этой JSON-схеме, без пояснений и без markdown:\n${JSON.stringify(req.schema)}` : req.system;
   return {
     model: c.model,
@@ -48,7 +50,12 @@ async function post(c: AiConnection, payload: unknown): Promise<ChatResponse> {
     try {
       const res = await fetch(`${c.baseUrl}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(c.apiKey ? { Authorization: `Bearer ${c.apiKey}` } : {}) },
+        headers: {
+          "Content-Type": "application/json",
+          ...(c.apiKey ? { Authorization: `Bearer ${c.apiKey}` } : {}),
+          // OpenRouter показывает приложение в своей статистике по этим заголовкам.
+          ...(c.provider === "openrouter" ? { "HTTP-Referer": env.appUrl, "X-Title": site.name } : {}),
+        },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(90_000),
       });
@@ -94,7 +101,7 @@ export function cleanModelText(text: string, json: boolean) {
 }
 
 /**
- * ChatGPT, DeepSeek и любой сервер с OpenAI-совместимым Chat Completions API (OpenRouter, Qwen, vLLM, Ollama).
+ * ChatGPT, DeepSeek, OpenRouter и любой сервер с OpenAI-совместимым Chat Completions API (Qwen, vLLM, Ollama).
  * Если сервер не поддерживает структурированный ответ (400), запрос повторяется с JSON-схемой только в инструкции.
  */
 export async function askOpenAiCompatible(c: AiConnection, req: Request) {

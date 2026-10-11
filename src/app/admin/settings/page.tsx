@@ -4,7 +4,7 @@ import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { env } from "@/config/env";
 import { templateVars } from "@/modules/automation/domain/meta";
-import { AiForm, Blocklist, EmailForm, SmtpForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
+import { AiForm, Blocklist, EmailForm, ProofreadForm, SmtpForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
 import { parseWorkHours } from "@/modules/workspace/domain/schedule";
 import { BotForm } from "./BotForm";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
@@ -37,6 +37,7 @@ export default async function SettingsPage() {
   const [wEnabled, wChat, zPbx, zWebphone] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone")]);
   const em = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.webhookToken"]);
   const [aiProvider, aiEnabled, aiKnowledge] = await Promise.all([getSetting("ai.provider"), getSetting("ai.enabled"), getSetting("ai.knowledge")]);
+  const pr = await getSettings(["proofread.provider", "proofread.model", "proofread.enabled"]);
   const aiSaved = Object.fromEntries(
     await Promise.all(
       aiProviderIds.map(async (p) => {
@@ -90,6 +91,14 @@ export default async function SettingsPage() {
       />
 
       <AiForm provider={isAiProvider(aiProvider) ? aiProvider : "anthropic"} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} knowledge={aiKnowledge} />
+
+      <ProofreadForm
+        provider={isAiProvider(pr["proofread.provider"]) ? pr["proofread.provider"] : ""}
+        assistantProvider={isAiProvider(aiProvider) ? aiProvider : "anthropic"}
+        model={pr["proofread.model"]}
+        enabled={pr["proofread.enabled"] !== "off"}
+        providers={aiSaved}
+      />
 
       <CrmSettingsForm slaMinutes={Number(sla) || 15} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
-import { Link, useMessages } from "@/i18n/client";
+import { Link, useLocale, useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { PagePreview, type PreviewChapter, type PreviewPhoto } from "./PagePreview";
 import { PhotoInspector } from "./PhotoInspector";
+import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
+import { useProofread } from "./proofread/useProofread";
 import { normalizeStyle } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
@@ -79,6 +81,8 @@ export interface EditorBook {
   title: string;
   /** Язык книги: вопросы, заголовки и превью — на нём; интерфейс редактора — на языке сайта. */
   language: Locale;
+  /** Имена автора и адресата — проверка орфографии их не отмечает. */
+  names?: string[];
 }
 
 interface ChapterGroup {
@@ -104,6 +108,7 @@ export function QuestionsEditor({
   initialIndex,
   initialPhotos,
   editable,
+  proofreadAi = false,
 }: {
   book: EditorBook;
   /** Эпиграфы глав (по ключу главы) — для начальных полос в превью. */
@@ -112,6 +117,8 @@ export function QuestionsEditor({
   initialIndex: number;
   initialPhotos: EditorPhoto[];
   editable: boolean;
+  /** AI-корректор подключён в «Интеграциях» — показываем кнопку «Проверить грамотность». */
+  proofreadAi?: boolean;
 }) {
   const [questions, setQuestions] = useState(initialQuestions);
   const [photos, setPhotos] = useState(initialPhotos);
@@ -127,12 +134,15 @@ export function QuestionsEditor({
   // Диктуют обычно на языке книги.
   const [lang, setLang] = useState<string>(localeMeta[book.language].speech);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const proof = useRef<ProofHandle>(null);
   const dirty = useRef(new Map<string, Patch>());
+  const ui = useLocale();
 
   const format = getFormat(book.format);
   const design = getInteriorDesign(book.interior);
   const typography = design.type;
   const q = questions[index];
+  const proofread = useProofread({ bookId: book.id, docId: q.id, text: q.answer, language: book.language, ui, names: book.names ?? [], enabled: editable });
 
   useEffect(() => {
     try {
@@ -531,19 +541,46 @@ export function QuestionsEditor({
                 </button>
               </div>
 
-              <textarea
-                id="answer"
+              <ProofTextarea
                 ref={textarea}
+                handle={proof}
+                id="answer"
                 value={q.answer}
-                onChange={(e) => patchQuestion(q.id, { answer: e.target.value })}
+                onValue={(answer) => patchQuestion(q.id, { answer })}
+                issues={proofread.issues}
+                onApply={(issue, replacement) => patchQuestion(q.id, { answer: proofread.apply(issue, replacement) })}
+                onSkip={proofread.ignore}
+                onAddWord={proofread.addWord}
                 readOnly={!editable}
                 placeholder={editable ? t.answerPlaceholder : ""}
                 aria-label={t.answerAria}
                 lang={book.language}
-                className="fs-keep mt-5 block min-h-[220px] w-full scroll-mb-40 resize-none bg-transparent text-[17px] leading-[1.7] outline-none placeholder:text-muted/60 sm:mt-6 sm:min-h-[280px] sm:text-[19px] sm:leading-[1.75]"
+                wrapperClassName="mt-5 sm:mt-6"
+                textClassName="text-[17px] leading-[1.7] sm:text-[19px] sm:leading-[1.75]"
+                className="fs-keep min-h-[220px] scroll-mb-40 resize-none outline-none placeholder:text-muted/60 sm:min-h-[280px]"
                 style={{ fontFamily: cssFont(typography.body) }}
                 maxLength={40000}
               />
+              {editable ? (
+                <ProofBar
+                  issues={proofread.issues}
+                  hasText={!!q.answer.trim()}
+                  safeCount={proofread.safeCount}
+                  onFixAll={() => {
+                    const fixed = proofread.fixAll();
+                    if (fixed !== q.answer) {
+                      patchQuestion(q.id, { answer: fixed });
+                      toast(t.proofread.fixed(proofread.safeCount), "info");
+                    }
+                  }}
+                  onOpen={(issue) => proof.current?.open(issue)}
+                  ai={proofreadAi}
+                  aiState={proofread.aiState}
+                  onAi={() => {
+                    void proofread.runAi().catch((e) => toastError(e));
+                  }}
+                />
+              ) : null}
               {dictation.listening ? (
                 <div className="mt-2 rounded-2xl bg-rose/50 px-4 py-3">
                   <div className="flex items-center gap-2 text-xs font-medium text-wine">

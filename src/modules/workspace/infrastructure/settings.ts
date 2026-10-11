@@ -46,7 +46,7 @@ export const settingDefs = {
   /** Ключи Web Push (создаются автоматически). */
   "push.vapidPublic": {},
   "push.vapidPrivate": { secret: true },
-  /** AI-помощник: выбранный провайдер (anthropic | openai | deepseek | custom), включён ли, база знаний для ответов. */
+  /** AI-помощник: выбранный провайдер (anthropic | openai | deepseek | openrouter | custom), включён ли, база знаний для ответов. */
   "ai.provider": { env: "CRM_AI_PROVIDER", default: "anthropic" },
   "ai.enabled": { default: "on" },
   "ai.knowledge": {},
@@ -62,7 +62,18 @@ export const settingDefs = {
   "ai.deepseek.apiKey": { secret: true, env: "DEEPSEEK_API_KEY" },
   "ai.deepseek.baseUrl": {},
   "ai.deepseek.model": {},
-  /** Любой OpenAI-совместимый сервер: OpenRouter, Qwen, локальная модель. */
+  /** OpenRouter: сотни моделей по одному ключу, в том числе бесплатные (…:free, openrouter/free). */
+  "ai.openrouter.apiKey": { secret: true, env: "OPENROUTER_API_KEY" },
+  "ai.openrouter.baseUrl": {},
+  "ai.openrouter.model": {},
+  /**
+   * Проверка текста в редакторе книги (AI-корректор): свой провайдер (пусто — как у AI-помощника) и своя модель
+   * (пусто — модель провайдера), чтобы, например, корректор работал на бесплатной модели OpenRouter, а помощник — на Claude.
+   */
+  "proofread.enabled": { default: "on" },
+  "proofread.provider": {},
+  "proofread.model": {},
+  /** Любой OpenAI-совместимый сервер: Qwen, локальная модель и т. п. */
   "ai.custom.apiKey": { secret: true },
   "ai.custom.baseUrl": {},
   "ai.custom.model": {},

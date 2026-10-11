@@ -8,7 +8,7 @@ import { ensureToken, fromEnv, getSettings, saveSettings, smtpConfig, smtpFromEn
 import { randomToken } from "@/shared/crypto";
 import { isValidTime } from "@/modules/workspace/domain/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/modules/messaging";
-import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
+import { AssistantError, isAiProvider, proofreadProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 
 export interface SettingsState {
   error?: string;
@@ -205,6 +205,44 @@ export async function testAiAction(): Promise<{ ok: boolean; message: string }> 
   try {
     const answer = await assistant.test();
     return { ok: true, message: `Подключено, ${label === "AI" ? `модель ${model}` : label} отвечает: «${answer}»` };
+  } catch (err) {
+    return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
+  }
+}
+
+// ─── проверка текста в редакторе (AI-корректор) ────────────────────────────
+
+export async function saveProofreadAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const provider = String(form.get("provider") ?? "");
+  if (provider && !isAiProvider(provider)) return { error: "Выберите провайдера" };
+  const model = String(form.get("model") ?? "").trim();
+  if (model && !/^[\w.:/@-]{1,100}$/.test(model)) return { error: "Название модели — латиница, цифры и символы . : / - _" };
+  // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
+  const keyFor = isAiProvider(provider) ? provider : (await proofreadProvider()).provider;
+  await saveSettings(
+    {
+      "proofread.provider": provider,
+      "proofread.model": model,
+      "proofread.enabled": form.get("enabled") === "on" ? "on" : "off",
+      ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey),
+    },
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "proofread", { provider: provider || "assistant", model: model || null, enabled: form.get("enabled") === "on" });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
+export async function testProofreadAction(): Promise<{ ok: boolean; message: string }> {
+  await assertStaff("settings.manage");
+  const proofreader = container().assistant.proofreader;
+  const { label, model } = await proofreader.describe();
+  try {
+    const t0 = Date.now();
+    const fixes = await proofreader.test();
+    const took = ((Date.now() - t0) / 1000).toFixed(1);
+    return { ok: true, message: `${label} · ${model} отвечает за ${took} с. В проверочной фразе исправил: ${fixes || "ничего (слабая модель — попробуйте другую)"}` };
   } catch (err) {
     return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
   }

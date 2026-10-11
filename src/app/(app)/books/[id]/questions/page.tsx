@@ -16,7 +16,11 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const { q } = await searchParams;
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
-  const [rows, photos] = await Promise.all([container().authoring.queries.questions(book.id), container().authoring.queries.photos(book.id)]);
+  const [rows, photos, proofreadAi] = await Promise.all([
+    container().authoring.queries.questions(book.id),
+    container().authoring.queries.photos(book.id),
+    book.status === "draft" ? container().assistant.proofreader.configured() : false,
+  ]);
   const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const questions: EditorQuestion[] = rows.map((r) => ({
@@ -43,7 +47,9 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         photoPlacement: book.photoPlacement,
         title: book.title,
         language: book.language,
+        names: [book.authorName, book.recipientName].filter(Boolean),
       }}
+      proofreadAi={proofreadAi}
       initialQuestions={questions}
       initialIndex={Math.max(0, (Number(q) || 1) - 1)}
       initialPhotos={photos

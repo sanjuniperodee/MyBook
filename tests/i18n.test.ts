@@ -105,6 +105,8 @@ describe("нет русских строк вне словарей", () => {
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
     "shared/infrastructure/db/schema.ts",
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
+    "lib/proofread/rules.ts", // слова и сокращения для правил проверки текста
+    "lib/proofread/spelling.ts", // алфавит для отбора слов на проверку словарём
     "modules/referrals/domain/translit.ts", // таблица транслитерации имени в код-приглашение
   ]);
   // Строки для команды, а не для клиента.

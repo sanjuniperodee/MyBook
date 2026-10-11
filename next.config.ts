@@ -18,7 +18,7 @@ function coverArtVersion() {
 const nextConfig: NextConfig = {
   output: "standalone",
   // Heavy Node-only packages used by PDF generation and image processing.
-  serverExternalPackages: ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver"],
+  serverExternalPackages: ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm"],
   outputFileTracingIncludes: {
     "/**": ["./assets/**/*", "./drizzle/**/*"],
   },
