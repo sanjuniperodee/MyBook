@@ -38,6 +38,8 @@ export interface Plan {
   printed: boolean;
   /** Выделить на витрине («Популярный выбор»). */
   featured?: boolean;
+  /** Не продаётся: нет на витрине, в оформлении, сертификатах, SEO и ответах помощника. Старые заказы с таким тарифом читаются как раньше. */
+  hidden?: boolean;
 }
 
 export const plans: Plan[] = [
@@ -48,18 +50,22 @@ export const plans: Plan[] = [
   },
   {
     id: "hardcover",
-    price: 24900,
+    price: 30000,
     extraCopyPrice: 17900,
     printed: true,
     featured: true,
   },
   {
     id: "premium",
-    price: 34900,
+    price: 35000,
     extraCopyPrice: 24900,
     printed: true,
+    hidden: true,
   },
 ];
+
+/** Тарифы, которые сейчас можно купить. Остальные (hidden) остаются в `plans` — по ним читаются старые заказы и сертификаты. */
+export const visiblePlans = plans.filter((p) => !p.hidden);
 
 export type DeliveryId = "pickup" | "courier" | "post";
 
@@ -74,7 +80,7 @@ export type AddonId = "express" | "giftwrap";
 /** Дополнения к печатному заказу. hiddenFor — тарифы, где услуга уже включена. */
 export const addons: { id: AddonId; price: number; hiddenFor: PlanId[] }[] = [
   { id: "express", price: 5000, hiddenFor: ["digital", "premium"] },
-  { id: "giftwrap", price: 3000, hiddenFor: ["digital", "premium"] },
+  { id: "giftwrap", price: 5000, hiddenFor: ["digital", "premium"] },
 ];
 
 export function availableAddons(plan: PlanId) {

@@ -3,6 +3,7 @@ import { DealsService, PipelinesService, SiteFunnelService } from "./application
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress } from "./infrastructure/adapters";
 import { agreementForClient } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
+import { dealAgreedPlan, setDealAgreedPlan } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -28,6 +29,8 @@ export class SalesModule {
   readonly payments = new DealPayments();
   /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */
   readonly agreementFor = agreementForClient;
+  /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
+  readonly agreedPlan = { set: setDealAgreedPlan, get: dealAgreedPlan };
   /** Перенести вручную выбранный канал клиента на его сделки (у которых нет настоящих UTM-меток). */
   readonly setClientAttribution = setClientDealsAttribution;
 

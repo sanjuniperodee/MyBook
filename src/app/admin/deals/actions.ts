@@ -8,6 +8,7 @@ import { z } from "zod";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
+import { getPlan } from "@/config/site";
 import { dealSources, stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
 
 export interface DealFormState {
@@ -90,6 +91,24 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
   );
   revalidateDeal(deal.id, deal.clientId);
   return { ok: "Сохранено" };
+}
+
+/**
+ * Тариф договорённости. Клиент оформляет заказ по договорённости только на него. Пока по сделке нет заказа, тариф можно сменить;
+ * пустое значение снимает фиксацию (клиент выберет тариф сам).
+ */
+export async function setDealAgreedPlanAction(dealId: string, plan: string | null): Promise<{ ok: boolean; message?: string }> {
+  const staff = await assertStaff("deals.edit");
+  const deal = await loadDeal(staff, dealId);
+  if (deal.orderId) return { ok: false, message: "По сделке уже оформлен заказ: тариф не изменить" };
+  const value = plan || null;
+  if (value && !getPlan(value)) return { ok: false, message: "Выберите тариф из списка" };
+  const before = await container().sales.agreedPlan.get(deal.id);
+  if (!(await container().sales.agreedPlan.set(deal.id, value))) return { ok: false, message: "Не удалось сохранить тариф" };
+  await container().sales.deals.note(deal, `Тариф договорённости: ${before ?? "не указан"} → ${value ?? "не указан"}`, staff.user.id, "system");
+  await audit(staff, "deal.plan", "deal", deal.id, { from: before, to: value });
+  revalidateDeal(deal.id, deal.clientId);
+  return { ok: true };
 }
 
 export async function moveDealAction(dealId: string, stageId: string, lostReason?: string) {

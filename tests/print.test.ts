@@ -84,17 +84,17 @@ describe("вёрстка", () => {
 
 describe("цены", () => {
   it("считает доп. экземпляры и доставку", () => {
-    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 24900 + 17900, discountAmount: 0, deliveryAmount: 2000, addonsAmount: 0, addons: [], amount: 44800 });
+    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 30000 + 17900, discountAmount: 0, deliveryAmount: 2000, addonsAmount: 0, addons: [], amount: 49900 });
   });
   it("у электронной версии нет доставки и количества", () => {
     expect(calculatePrice("digital", 5, "courier")).toEqual({ itemsAmount: 9900, discountAmount: 0, deliveryAmount: 0, addonsAmount: 0, addons: [], amount: 9900 });
   });
   it("промокод уменьшает стоимость книг, но не доставку", () => {
     const p = calculatePrice("hardcover", 1, "post", { kind: "percent", value: 10 });
-    expect(p.discountAmount).toBe(2490);
-    expect(p.amount).toBe(24900 - 2490 + 3500);
+    expect(p.discountAmount).toBe(3000);
+    expect(p.amount).toBe(30000 - 3000 + 3500);
     const fixed = calculatePrice("hardcover", 1, "post", { kind: "fixed", value: 100000 });
-    expect(fixed.discountAmount).toBe(24900);
+    expect(fixed.discountAmount).toBe(30000);
     expect(fixed.amount).toBe(3500);
     expect(calculatePrice("digital", 1, null, { kind: "percent", value: 100 }).amount).toBe(0);
   });

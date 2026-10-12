@@ -204,6 +204,13 @@
       "when": 1791639100627,
       "tag": "0028_order_prepaid",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791811010008,
+      "tag": "0029_deal_agreed_plan",
+      "breakpoints": true
     }
   ]
 }

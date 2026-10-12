@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { GIFT_COOKIE } from "@/modules/ordering";
 import { INVITE_COOKIE } from "@/modules/referrals";
 import { container } from "@/server/container";
-import type { PlanId } from "@/config/site";
+import { getPlan, type PlanId } from "@/config/site";
 import type { PromoPreview } from "./actions";
 import { getOccasion } from "@/lib/occasions";
 import { Link } from "@/i18n/client";
@@ -113,7 +113,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           blocked={blocked}
           initialPromo={initialPromo}
           initialPlan={giftPlan}
-          agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid }}
+          agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid, plan: agreement.plan && getPlan(agreement.plan) ? (agreement.plan as PlanId) : null }}
           defaults={{
             name: user.name,
             email: user.email,

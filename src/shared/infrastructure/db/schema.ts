@@ -556,6 +556,8 @@ export const crmDeals = pgTable(
     /** Значения своих полей (crm_fields, entity = deal): { key: значение }. */
     customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    /** Тариф, о котором договорились с клиентом (договорная цена относится к нему): при заказе по договорённости тариф фиксирован. */
+    agreedPlan: text("agreed_plan"),
     /** Последнее AI-резюме сделки: ситуация, следующий шаг, «температура». */
     aiSummary: jsonb("ai_summary").$type<{ summary: string; nextStep: string; dueDays: number; temperature: "hot" | "warm" | "cold"; risks: string; at: string }>(),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),

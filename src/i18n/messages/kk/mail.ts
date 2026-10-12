@@ -15,8 +15,8 @@ export const mail: typeof ru = {
     deadline: {
       subject: (occasion: string, until: string) => `«${occasion}» мерекесіне үлгеру үшін кітапқа ${until} тапсырыс беріңіз`,
       title: (untilOccasion: string, when: string) => `${untilOccasion.charAt(0).toUpperCase()}${untilOccasion.slice(1)} ${when}`,
-      premium: (book: string, until: string) => `Қарапайым өндіріс енді үлгермейді, бірақ «Премиум» тарифі кезексіз басылады — тапсырысты <b>${until}</b> рәсімдесеңіз, «${book}» кітабы уақытында жетеді.`,
-      normal: (book: string, until: string) => `«${book}» кітабы уақытында жетуі үшін тапсырысты <b>${until}</b> рәсімдеңіз. Үлгермесеңіз — «Премиум» тарифі кезексіз басылады.`,
+      premium: (book: string, until: string) => `Қарапайым өндіріс енді үлгермейді, бірақ экспресс-баспа кезексіз басылады — тапсырысты <b>${until}</b> рәсімдесеңіз, «${book}» кітабы уақытында жетеді.`,
+      normal: (book: string, until: string) => `«${book}» кітабы уақытында жетуі үшін тапсырысты <b>${until}</b> рәсімдеңіз. Үлгермесеңіз — экспресс-баспаны қосыңыз: ол кезексіз басылады.`,
       ready: (n: number) => `Кітапта ${n} жауап бар — макетті қараңыз: мүмкін, ол дайын шығар.`,
       short: "15–20 қысқа жауаптың өзі тебірентетін кітап болады — бұл бірнеше кештік жұмыс.",
       preview: "Макетті қарау",

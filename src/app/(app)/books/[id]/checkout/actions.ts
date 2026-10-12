@@ -60,7 +60,9 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
   const parsed = schema(e).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const plan = getPlan(d.plan)!;
+  // Скрытый тариф продать нельзя; он приходит только из договорённости, а там тариф подставляет сервис заказов.
+  const requested = getPlan(d.plan)!;
+  const plan = requested.hidden ? getPlan("hardcover")! : requested;
   let order;
   try {
     order = await container().ordering.orders.place({

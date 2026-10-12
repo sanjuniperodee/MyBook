@@ -4,6 +4,7 @@ import { formatPrice, site } from "@/config/site";
 import { formatDate } from "@/lib/utils";
 import { getLocale, getMessages } from "@/i18n/server";
 import type { DealAgreement } from "@/modules/sales";
+import { getPlan } from "@/config/site";
 
 /** С какого числа ответов книга считается готовой к заказу (подсказка клиенту, не запрет). */
 const READY_ANSWERS = 10;
@@ -53,6 +54,7 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
         </span>
       </div>
       <p className="mt-1 text-sm text-emerald-900">{agreement.prepaid > 0 ? t.hasPrepaid : t.noPrepaid}</p>
+      {agreement.plan && getPlan(agreement.plan) ? <p className="mt-1 text-sm font-medium text-emerald-950">{t.plan(m.common.plans[agreement.plan as "digital" | "hardcover" | "premium"].name)}</p> : null}
       <dl className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl bg-white/70 px-4 py-3">
           <dt className="text-xs text-emerald-900/80">{t.price}</dt>
@@ -67,6 +69,7 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
           <dd className="mt-0.5 text-lg font-semibold text-emerald-950">{formatPrice(left)}</dd>
         </div>
       </dl>
+      <p className="mt-2 text-xs text-emerald-900">{t.extras}</p>
       <ol className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-emerald-900">
         {progress.map((p) => (
           <li key={p.label} className="inline-flex items-center gap-1.5">

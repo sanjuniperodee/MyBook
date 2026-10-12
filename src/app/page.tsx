@@ -32,7 +32,7 @@ import { countQuestions, getThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
-import { formatPrice, plans, productionDays, site } from "@/config/site";
+import { formatPrice, productionDays, site, visiblePlans } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { coverName } from "@/i18n/labels";
@@ -76,7 +76,7 @@ export default async function HomePage() {
     showToc: true,
   };
 
-  const planNames = Object.fromEntries(plans.map((p) => [p.id, m.common.plans[p.id].name]));
+  const planNames = Object.fromEntries(visiblePlans.map((p) => [p.id, m.common.plans[p.id].name]));
   const jsonLd = [
     organizationLd(m.common.meta.description),
     websiteLd(locale),
@@ -351,8 +351,8 @@ export default async function HomePage() {
               <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.pricing.title}</h2>
               <p className="mt-4 text-muted">{t.pricing.text}</p>
             </div>
-            <div className="reveal-stagger mt-14 grid gap-5 lg:grid-cols-3">
-              {plans.map((p) => ({ ...p, ...m.common.plans[p.id] })).map((p) => (
+            <div className={`reveal-stagger mt-14 grid gap-5 ${visiblePlans.length === 2 ? "lg:mx-auto lg:max-w-4xl lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+              {visiblePlans.map((p) => ({ ...p, ...m.common.plans[p.id] })).map((p) => (
                 <div key={p.id} className={`card relative flex flex-col p-8 ${p.featured ? "border-wine/40 ring-4 ring-wine/10" : ""}`}>
                   {"badge" in p && p.badge ? <span className="absolute -top-3 left-8 rounded-full bg-wine px-3 py-1 text-xs font-medium text-white">{p.badge}</span> : null}
                   <h3 className="text-lg font-semibold">{p.name}</h3>

@@ -9,6 +9,7 @@ import { toIsoDay } from "@/lib/occasions";
 import { queueEvent } from "@/server/track";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
+import { visiblePlans, type PlanId } from "@/config/site";
 
 export interface GiftFormState {
   error?: string;
@@ -17,7 +18,7 @@ export interface GiftFormState {
 type GiftErrors = Awaited<ReturnType<typeof getMessages>>["gift"]["form"]["errors"];
 const schema = (e: GiftErrors) =>
   z.object({
-    plan: z.enum(["digital", "hardcover", "premium"]),
+    plan: z.enum(visiblePlans.map((p) => p.id) as [PlanId, ...PlanId[]]),
     buyerName: z.string().trim().min(1, e.buyerName).max(60),
     buyerEmail: z.string().trim().toLowerCase().email(e.buyerEmail),
     buyerPhone: z.string().trim().max(30).optional().default(""),

@@ -13,10 +13,15 @@ export interface PriceBreakdown {
   amount: number;
 }
 
-/** Договорённость менеджера с клиентом: итоговая цена заказа и сколько уже внесено. */
+/**
+ * Договорённость менеджера с клиентом: цена книги (первого экземпляра выбранного тарифа), сколько уже внесено и тариф, на который договорились.
+ * Доставка, допы и дополнительные экземпляры считаются сверху.
+ */
 export interface Agreement {
   agreedTotal: number;
   prepaid: number;
+  /** Тариф договорённости: при заказе по ней он фиксирован. Нет — клиент выбирает тариф сам. */
+  plan?: PlanId | null;
 }
 
 export interface Discount {
@@ -44,19 +49,21 @@ export function calculatePrice(planId: PlanId, quantity: number, delivery: Deliv
   const total = itemsAmount - discountAmount + deliveryAmount + addonsAmount;
   const base = { itemsAmount, discountAmount, deliveryAmount, addonsAmount, addons: chosen.map((a) => a.id) };
   if (!agreement || agreement.agreedTotal <= 0) return { ...base, amount: total };
-  return applyAgreement({ ...base, amount: total }, agreement);
+  return applyAgreement({ ...base, amount: total }, agreement, itemsAmount - plan.price);
 }
 
 /**
- * Договорённая цена: итог заказа не выше согласованного — разница идёт в скидку (повысить цену договорённость не может),
- * а внесённая предоплата вычитается из «к оплате» (но не больше итога). Промокод со скидкой, выгоднее договорённости, остаётся в силе.
+ * Договорённая цена относится к книге: стоимость книг не выше согласованной — разница идёт в скидку (повысить цену договорённость
+ * не может), дополнительные экземпляры (extraCopiesAmount) — по прайсу сверху. Доставка и допы считаются сверху всегда.
+ * Внесённая предоплата вычитается из «к оплате» (но не больше итога). Промокод со скидкой, выгоднее договорённости, остаётся в силе.
  */
-export function applyAgreement(price: PriceBreakdown, agreement: Agreement): PriceBreakdown {
-  const total = price.amount;
-  const extraDiscount = Math.max(0, total - agreement.agreedTotal);
-  const agreedTotal = total - extraDiscount;
-  const prepaid = Math.min(Math.max(0, Math.round(agreement.prepaid)), agreedTotal);
-  return { ...price, discountAmount: price.discountAmount + extraDiscount, prepaidAmount: prepaid, amount: agreedTotal - prepaid };
+export function applyAgreement(price: PriceBreakdown, agreement: Agreement, extraCopiesAmount = 0): PriceBreakdown {
+  const books = price.itemsAmount - price.discountAmount;
+  const extraDiscount = Math.max(0, books - (agreement.agreedTotal + extraCopiesAmount));
+  const extras = price.deliveryAmount + price.addonsAmount;
+  const total = books - extraDiscount + extras;
+  const prepaid = Math.min(Math.max(0, Math.round(agreement.prepaid)), total);
+  return { ...price, discountAmount: price.discountAmount + extraDiscount, prepaidAmount: prepaid, amount: total - prepaid };
 }
 
 export function normalizePromoCode(code: string) {

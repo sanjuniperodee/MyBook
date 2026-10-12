@@ -1,7 +1,7 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import { NotFoundError } from "@/shared/domain";
 import type { DeliveryId, PlanId } from "@/config/site";
-import { formatPrice } from "@/config/site";
+import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type OrderStatus, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
@@ -70,7 +70,11 @@ export class OrdersService {
 
     const found = await this.agreements.agreementFor(cmd.userId);
     // «Аванс»: цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
-    const agreement = found && { agreedTotal: cmd.agreementMode === "advance" ? Number.POSITIVE_INFINITY : found.agreedTotal, prepaid: found.prepaid };
+    const agreedMode = !!found && cmd.agreementMode !== "advance";
+    const agreedPlan = found?.plan && getPlan(found.plan) ? (found.plan as PlanId) : null;
+    // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
+    const plan = agreedMode && agreedPlan ? agreedPlan : cmd.plan;
+    const agreement = found && { agreedTotal: agreedMode ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid };
     const identity = await this.orders.nextIdentity();
     const order = Order.place(
       {
@@ -78,7 +82,7 @@ export class OrdersService {
         agreement,
         userId: cmd.userId,
         bookId: cmd.bookId,
-        plan: cmd.plan,
+        plan,
         quantity: cmd.quantity,
         delivery: cmd.delivery,
         addons: cmd.addons,

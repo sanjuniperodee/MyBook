@@ -146,6 +146,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           <PaymentsPanel
             dealId={deal.id}
             agreed={deal.amount}
+            plan={await container().sales.agreedPlan.get(deal.id)}
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
             payments={paymentRows.map((p) => ({

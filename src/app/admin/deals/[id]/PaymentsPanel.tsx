@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, LoaderCircle, Paperclip, Trash2, TriangleAlert } from "lucide-react";
-import { formatPrice } from "@/config/site";
+import { formatPrice, plans } from "@/config/site";
+import { setDealAgreedPlanAction } from "../actions";
 
 export interface PaymentItem {
   id: string;
@@ -65,7 +66,9 @@ function AttachReceipt({ dealId, payment, onDone }: { dealId: string; payment: P
  * Оплата по сделке: что обещано, сколько принято, платежи с чеками. Каждый принятый платёж сразу попадает в выручку
  * (обзор, аналитика, планы менеджеров, карточка клиента). Платёж без чека не принимается — а если чек пропал, виден алерт.
  */
-export function PaymentsPanel({ dealId, payments, agreed, canEdit, order }: { dealId: string; payments: PaymentItem[]; agreed: number; canEdit: boolean; order: { id: string; number: number } | null }) {
+const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
+
+export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; order: { id: string; number: number } | null }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
   const [amount, setAmount] = useState("");
@@ -81,6 +84,9 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit, order }: { de
   const refundFile = useRef<HTMLInputElement>(null);
   const noReceipt = payments.filter((p) => !p.receipts.length && p.kind !== "refund");
   const refresh = () => router.refresh();
+  const [planValue, setPlanValue] = useState(plan ?? "");
+  const [planMsg, setPlanMsg] = useState<string | null>(null);
+  const planOptions = plans.filter((p) => !p.hidden || p.id === plan);
 
   async function add() {
     const f = file.current?.files?.[0];
@@ -133,7 +139,7 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit, order }: { de
       <h2 className="text-sm font-semibold">Оплата и чеки</h2>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-cream/70 p-2">
-          <div className="text-[11px] text-muted">Договорились</div>
+          <div className="text-[11px] text-muted">Книга по договорённости</div>
           <div className="font-medium tabular-nums">{formatPrice(agreed)}</div>
         </div>
         <div className="rounded-xl bg-emerald-50 p-2">
@@ -141,9 +147,42 @@ export function PaymentsPanel({ dealId, payments, agreed, canEdit, order }: { de
           <div className="font-medium text-emerald-900 tabular-nums">{formatPrice(paid)}</div>
         </div>
         <div className="rounded-xl bg-cream/70 p-2">
-          <div className="text-[11px] text-muted">Остаток</div>
+          <div className="text-[11px] text-muted">Остаток за книгу</div>
           <div className="font-medium tabular-nums">{formatPrice(Math.max(0, agreed - paid))}</div>
         </div>
+      </div>
+      <div data-testid="agreed-plan">
+        <label className="mb-1 block text-[11px] text-muted" htmlFor="agreed-plan">
+          Тариф договорённости
+        </label>
+        <select
+          id="agreed-plan"
+          className="input h-9 w-full text-sm"
+          value={planValue}
+          disabled={!canEdit || locked}
+          onChange={async (e) => {
+            const next = e.target.value;
+            const prev = planValue;
+            setPlanValue(next);
+            setPlanMsg(null);
+            const r = await setDealAgreedPlanAction(dealId, next || null);
+            if (r.ok) {
+              setPlanMsg("Тариф сохранён");
+              refresh();
+            } else {
+              setPlanValue(prev);
+              setPlanMsg(r.message ?? "Не удалось");
+            }
+          }}
+        >
+          <option value="">Не указан — клиент выберет тариф сам</option>
+          {planOptions.map((p) => (
+            <option key={p.id} value={p.id}>
+              {planLabels[p.id]}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-[11px] text-muted">{planMsg ?? "Клиент оформит заказ по договорённости только на этот тариф. Доставка и допы считаются сверху."}</p>
       </div>
       {order ? (
         <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-900" data-testid="order-linked">

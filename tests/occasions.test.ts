@@ -68,9 +68,9 @@ import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 
 describe("addons pricing", () => {
   it("adds addons only where available and never discounts them", () => {
-    const p = calculatePrice("hardcover", 1, "courier", { kind: "fixed", value: 24900 }, ["express", "giftwrap"]);
+    const p = calculatePrice("hardcover", 1, "courier", { kind: "fixed", value: 30000 }, ["express", "giftwrap"]);
     expect(p.addons).toEqual(["express", "giftwrap"]);
-    expect(p.discountAmount).toBe(24900);
+    expect(p.discountAmount).toBe(30000);
     expect(p.amount).toBe(p.deliveryAmount + p.addonsAmount);
     const prem = calculatePrice("premium", 1, "courier", null, ["express", "giftwrap"]);
     expect(prem.addons).toEqual([]);

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { env } from "@/config/env";
-import { formatPrice } from "@/config/site";
+import { formatPrice, getPlan, visiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
@@ -57,6 +57,8 @@ const schema = z.object({
   stageId: z.union([z.literal(""), uuid]).default(""),
   assigneeId: z.union([z.literal(""), uuid]).default(""),
   comment: z.string().trim().max(1000).default(""),
+  /** Тариф договорённости: обязателен, если создаём сделку; заказ по договорённости оформляется только на него. */
+  plan: z.string().default(""),
   /** Откуда пришёл клиент (канал продаж) — обязателен: от него считаются отчёты по каналам. */
   channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент (канал продаж)"),
 });
@@ -78,6 +80,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const channel = d.channel as Parameters<typeof manualAttribution>[0];
   const withDeal = d.createDeal === "on" && can(staff, "deals.edit");
   if (withDeal && d.prepaid > d.agreed) return fail("Предоплата не может быть больше суммы договорённости");
+  if (withDeal && !visiblePlans.some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
   if (!normalizePhone(d.phone) || normalizePhone(d.phone).length < 10) return fail("Проверьте номер телефона");
 
   const password = d.password || generateAccessPassword();
@@ -118,7 +121,8 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
       d.recipient ? `Кому книга: ${d.recipient}.` : null,
       `Клиент: ${d.name}${d.city ? `, г. ${d.city}` : ""}, тел. ${displayLogin(normalizePhone(d.phone))}${d.email ? `, ${d.email}` : ""}, язык — ${d.locale === "kk" ? "казахский" : "русский"}.`,
       d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
-      `Договорились на ${formatPrice(d.agreed)}; предоплата ${formatPrice(d.prepaid)}${d.agreed > d.prepaid ? `; остаток ${formatPrice(d.agreed - d.prepaid)}` : ""}.`,
+      `Тариф: ${getPlan(d.plan)?.id === "digital" ? "электронная версия" : getPlan(d.plan)?.id === "hardcover" ? "твёрдая обложка" : d.plan} (зафиксирован для заказа клиента).`,
+      `Договорились на ${formatPrice(d.agreed)} за книгу (доставка и допы — сверху); предоплата ${formatPrice(d.prepaid)}${d.agreed > d.prepaid ? `; остаток ${formatPrice(d.agreed - d.prepaid)}` : ""}.`,
       d.comment || null,
       d.email ? null : "Почты нет: клиент входит по телефону.",
     ].filter(Boolean) as string[];
@@ -133,7 +137,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
     }
   }
 
-  await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, agreed: d.agreed, prepaid: d.prepaid, channel });
+  await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, agreed: d.agreed, prepaid: d.prepaid, channel, plan: withDeal ? d.plan : null });
   revalidatePath("/admin/clients");
   revalidatePath("/admin/deals");
   const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
@@ -178,6 +182,7 @@ async function createDeal(staff: Staff, assigneeId: string, clientId: string, d:
     stageId,
     customFields: custom,
   });
+  await container().sales.agreedPlan.set(deal.id, d.plan);
   for (const tag of ["вручную", ...(d.prepaid > 0 ? ["предоплата"] : []), ...(d.city ? [d.city.toLowerCase().slice(0, 30)] : [])]) await deals.addTag(deal.id, tag);
   return { id: deal.id, number: deal.number };
 }

@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice } from "@/config/site";
 import { channels, manualChannels } from "@/modules/marketing/domain/channels";
+import { visiblePlans } from "@/config/site";
 
 function CopyButton({ text, label = "Копировать" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -60,6 +61,8 @@ export function AccessCard({ login, password, message, title = "Доступ к�
     </div>
   );
 }
+
+const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
 
 type Upload = "none" | "uploading" | "ok" | "error";
 
@@ -236,8 +239,23 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                 <input name="deadline" type="date" className="input h-11" defaultValue={v.deadline} />
               </div>
               <div>
-                <label className="label">Договорились на, ₸ *</label>
+                <label className="label">Тариф *</label>
+                <select name="plan" required className="input h-11" defaultValue={v.plan ?? ""}>
+                  <option value="" disabled>
+                    Выберите тариф
+                  </option>
+                  {visiblePlans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {planLabels[p.id]} · по прайсу {formatPrice(p.price)}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-muted">Клиент оформит заказ именно на этот тариф — сменить его самому нельзя.</p>
+              </div>
+              <div>
+                <label className="label">Цена книги по договорённости, ₸ *</label>
                 <input name="agreed" type="number" min={0} step={500} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
+                <p className="mt-1 text-xs text-muted">Доставка и допы считаются сверху при оформлении заказа.</p>
               </div>
               <div>
                 <label className="label">Предоплата, ₸</label>
@@ -254,7 +272,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                 </div>
               ) : null}
               <div className={`rounded-xl px-3 py-2 text-sm sm:col-span-2 ${p > a ? "bg-red-50 text-red-800" : "bg-cream/70 text-ink-soft"}`}>
-                {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `Остаток к оплате: ${formatPrice(a - p)}` : "Укажите сумму — посчитаем остаток"}
+                {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `Остаток за книгу: ${formatPrice(a - p)} (доставка — сверху)` : "Укажите сумму — посчитаем остаток"}
               </div>
               <div>
                 <label className="label">Этап воронки</label>

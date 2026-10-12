@@ -8,7 +8,7 @@ import { createGiftAction, type GiftFormState } from "./actions";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
-import { formatPrice, plans, type PlanId } from "@/config/site";
+import { formatPrice, plans, visiblePlans, type PlanId } from "@/config/site";
 import { cn, nowMs } from "@/lib/utils";
 import { toIsoDay } from "@/lib/occasions";
 
@@ -34,7 +34,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
         <section>
           <h2 className="text-lg font-semibold">1. {t.step1}</h2>
           <div className="mt-3 grid gap-2.5">
-            {plans.map((p) => (
+            {visiblePlans.map((p) => (
               <button
                 key={p.id}
                 type="button"
