@@ -8,7 +8,7 @@ import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPrev
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
-import { availableAddons, deliveryOptions, formatPrice, plans, site, visiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { availableAddons, getDeliveryOptions, formatPrice, getPlans, site, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn, nowMs } from "@/lib/utils";
 import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
@@ -52,7 +52,7 @@ export function CheckoutForm({
   useEffect(() => track("begin_checkout"), []);
   const today = toIsoDay(now);
   const [desiredDate, setDesiredDate] = useState(defaults.desiredDate && defaults.desiredDate >= today ? defaults.desiredDate : "");
-  const plan = plans.find((p) => p.id === planId)!;
+  const plan = getPlans().find((p) => p.id === planId)!;
   const [promo, setPromo] = useState<PromoPreview | null>(initialPromo);
   const [promoInput, setPromoInput] = useState(initialPromo?.code ?? "");
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -129,8 +129,8 @@ export function CheckoutForm({
         <section>
           <h2 className="text-xl font-semibold">1. {t.step.plan}</h2>
           {lockedPlan ? <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" data-testid="plan-locked">{t.agreement.planLocked(c.plans[lockedPlan].name)}</p> : null}
-          <div className={`mt-4 grid gap-3 ${(lockedPlan ? 1 : visiblePlans.length) === 2 ? "sm:grid-cols-2" : lockedPlan ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
-            {(lockedPlan ? plans.filter((x) => x.id === lockedPlan) : visiblePlans).map((p) => (
+          <div className={`mt-4 grid gap-3 ${(lockedPlan ? 1 : getVisiblePlans().length) === 2 ? "sm:grid-cols-2" : lockedPlan ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
+            {(lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : getVisiblePlans()).map((p) => (
               <button
                 type="button"
                 key={p.id}
@@ -207,7 +207,7 @@ export function CheckoutForm({
           <section>
             <h2 className="text-xl font-semibold">2. {t.step.delivery}</h2>
             <div className="mt-4 grid gap-3">
-              {deliveryOptions.map((d) => (
+              {getDeliveryOptions().map((d) => (
                 <label
                   key={d.id}
                   className={cn("flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 transition", delivery === d.id ? "border-wine ring-4 ring-wine/10" : "border-line")}
@@ -275,7 +275,7 @@ export function CheckoutForm({
                         <button type="button" className="font-medium underline" onClick={() => toggleAddon("express")}>
                           {t.addExpress}
                         </button>
-                      ) : visiblePlans.some((p) => p.id === "premium") ? (
+                      ) : getVisiblePlans().some((p) => p.id === "premium") ? (
                         <button type="button" className="font-medium underline" onClick={() => setPlanId("premium")}>
                           {t.choosePremium}
                         </button>

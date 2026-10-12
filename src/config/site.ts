@@ -29,6 +29,8 @@ export const site = {
  */
 
 export type PlanId = "digital" | "hardcover" | "premium";
+export type DeliveryId = "pickup" | "courier" | "post";
+export type AddonId = "express" | "giftwrap";
 
 export interface Plan {
   id: PlanId;
@@ -42,7 +44,26 @@ export interface Plan {
   hidden?: boolean;
 }
 
-export const plans: Plan[] = [
+export interface DeliveryOption {
+  id: DeliveryId;
+  price: number;
+  /** Максимальный срок доставки, дней — для расчёта «успеть к дате». */
+  maxDays: number;
+}
+
+/** Дополнения к печатному заказу. hiddenFor — тарифы, где услуга уже включена. */
+export interface Addon {
+  id: AddonId;
+  price: number;
+  hiddenFor: PlanId[];
+}
+
+/*
+ * Цены и тарифы, как они заданы в коде, — «заводские». Владелец меняет их в админке («Цены и тарифы»): значения хранятся
+ * в настройках (crm_settings, ключ catalog.overrides) и накладываются поверх. Читайте цены только через функции ниже
+ * (getPlans, getAddons…), а не из этих констант: так изменения из админки подхватываются без перезапуска.
+ */
+const defaultPlans: readonly Plan[] = [
   {
     id: "digital",
     price: 9900,
@@ -64,27 +85,102 @@ export const plans: Plan[] = [
   },
 ];
 
-/** Тарифы, которые сейчас можно купить. Остальные (hidden) остаются в `plans` — по ним читаются старые заказы и сертификаты. */
-export const visiblePlans = plans.filter((p) => !p.hidden);
-
-export type DeliveryId = "pickup" | "courier" | "post";
-
-export const deliveryOptions: { id: DeliveryId; price: number; /** Максимальный срок доставки, дней — для расчёта «успеть к дате». */ maxDays: number }[] = [
+const defaultDelivery: readonly DeliveryOption[] = [
   { id: "courier", price: 2000, maxDays: 2 },
   { id: "post", price: 3500, maxDays: 7 },
   { id: "pickup", price: 0, maxDays: 0 },
 ];
 
-export type AddonId = "express" | "giftwrap";
-
-/** Дополнения к печатному заказу. hiddenFor — тарифы, где услуга уже включена. */
-export const addons: { id: AddonId; price: number; hiddenFor: PlanId[] }[] = [
+const defaultAddons: readonly Addon[] = [
   { id: "express", price: 5000, hiddenFor: ["digital", "premium"] },
   { id: "giftwrap", price: 5000, hiddenFor: ["digital", "premium"] },
 ];
 
+/** Что владелец поменял в админке: только цены и видимость тарифов, остальное (сроки, состав) — в коде и словарях. */
+export interface CatalogOverrides {
+  plans?: Partial<Record<PlanId, { price?: number; extraCopyPrice?: number; hidden?: boolean }>>;
+  addons?: Partial<Record<AddonId, { price?: number }>>;
+  delivery?: Partial<Record<DeliveryId, { price?: number }>>;
+}
+
+export const MAX_PRICE = 10_000_000;
+
+const price = (v: unknown): number | undefined => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= MAX_PRICE ? v : undefined);
+
+/** Приводит сырое значение (JSON из настроек, данные формы) к допустимым переопределениям: всё лишнее и неверное отбрасывается. */
+export function sanitizeOverrides(raw: unknown): CatalogOverrides {
+  const out: CatalogOverrides = {};
+  const o = raw && typeof raw === "object" ? (raw as Record<string, Record<string, Record<string, unknown>> | undefined>) : {};
+  for (const d of defaultPlans) {
+    const r = o.plans?.[d.id];
+    if (!r || typeof r !== "object") continue;
+    const e: { price?: number; extraCopyPrice?: number; hidden?: boolean } = {};
+    if (price(r.price) !== undefined) e.price = price(r.price);
+    if (d.printed && price(r.extraCopyPrice) !== undefined) e.extraCopyPrice = price(r.extraCopyPrice);
+    if (typeof r.hidden === "boolean") e.hidden = r.hidden;
+    if (Object.keys(e).length) (out.plans ??= {})[d.id] = e;
+  }
+  for (const d of defaultAddons) {
+    const v = price(o.addons?.[d.id]?.price);
+    if (v !== undefined) (out.addons ??= {})[d.id] = { price: v };
+  }
+  for (const d of defaultDelivery) {
+    const v = price(o.delivery?.[d.id]?.price);
+    if (v !== undefined) (out.delivery ??= {})[d.id] = { price: v };
+  }
+  // Хотя бы один тариф должен продаваться: иначе оформить заказ нельзя.
+  if (defaultPlans.every((d) => (out.plans?.[d.id]?.hidden ?? d.hidden) === true)) delete out.plans;
+  return out;
+}
+
+interface Effective {
+  json: string;
+  overrides: CatalogOverrides;
+  plans: Plan[];
+  visible: Plan[];
+  addons: Addon[];
+  delivery: DeliveryOption[];
+}
+
+function build(overrides: CatalogOverrides): Effective {
+  const plans = defaultPlans.map((d) => ({ ...d, ...overrides.plans?.[d.id] }));
+  return {
+    json: JSON.stringify(overrides),
+    overrides,
+    plans,
+    visible: plans.filter((p) => !p.hidden),
+    addons: defaultAddons.map((d) => ({ ...d, ...overrides.addons?.[d.id] })),
+    delivery: defaultDelivery.map((d) => ({ ...d, ...overrides.delivery?.[d.id] })),
+  };
+}
+
+/**
+ * Действующий каталог живёт в globalThis: Next.js грузит этот модуль в разные слои бандла (страницы, server actions,
+ * серверный рендер клиентских компонентов), а цены должны быть общими. В браузере его задаёт сервер через пропсы страницы.
+ */
+const store = globalThis as unknown as { __mybookCatalog?: Effective };
+const current = () => (store.__mybookCatalog ??= build({}));
+
+/** Применить цены из админки (null — заводские). Повторный вызов с тем же значением ничего не делает. */
+export function applyCatalog(raw: CatalogOverrides | null | undefined) {
+  const overrides = sanitizeOverrides(raw ?? {});
+  if (current().json === JSON.stringify(overrides)) return;
+  store.__mybookCatalog = build(overrides);
+}
+
+export const getCatalogOverrides = (): CatalogOverrides => current().overrides;
+/** Заводские значения — для подсказок в админке. */
+export const factoryCatalog = { plans: defaultPlans, addons: defaultAddons, delivery: defaultDelivery };
+
+/** Все тарифы, включая скрытые (старые заказы и сертификаты читаются по ним). */
+export const getPlans = (): readonly Plan[] => current().plans;
+/** Тарифы, которые сейчас можно купить. */
+export const getVisiblePlans = (): readonly Plan[] => current().visible;
+export const getAddons = (): readonly Addon[] => current().addons;
+export const getDeliveryOptions = (): readonly DeliveryOption[] => current().delivery;
+
 export function availableAddons(plan: PlanId) {
-  return addons.filter((a) => !a.hiddenFor.includes(plan));
+  return getAddons().filter((a) => !a.hiddenFor.includes(plan));
 }
 
 /** Сроки производства печатной книги в рабочих днях. */
@@ -97,5 +193,5 @@ export function formatPrice(amount: number): string {
 }
 
 export function getPlan(id: string): Plan | undefined {
-  return plans.find((p) => p.id === id);
+  return getPlans().find((p) => p.id === id);
 }

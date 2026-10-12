@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, LoaderCircle, Paperclip, Trash2, TriangleAlert } from "lucide-react";
-import { formatPrice, plans } from "@/config/site";
+import { formatPrice, getPlans } from "@/config/site";
 import { setDealAgreedPlanAction } from "../actions";
 
 export interface PaymentItem {
@@ -86,7 +86,7 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order }
   const refresh = () => router.refresh();
   const [planValue, setPlanValue] = useState(plan ?? "");
   const [planMsg, setPlanMsg] = useState<string | null>(null);
-  const planOptions = plans.filter((p) => !p.hidden || p.id === plan);
+  const planOptions = getPlans().filter((p) => !p.hidden || p.id === plan);
 
   async function add() {
     const f = file.current?.files?.[0];

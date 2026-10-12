@@ -106,6 +106,8 @@ export const settingDefs = {
   /** Безопасность CRM: обязательная 2FA для сотрудников и список разрешённых IP (по строке на адрес/подсеть). */
   "security.require2fa": { default: "off" },
   "security.ipAllowlist": {},
+  /** Цены и видимость тарифов из админки («Цены и тарифы»): JSON CatalogOverrides (config/site.ts) поверх заводских значений. */
+  "catalog.overrides": {},
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;

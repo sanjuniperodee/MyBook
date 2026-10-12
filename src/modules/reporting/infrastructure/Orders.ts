@@ -2,7 +2,7 @@ import "server-only";
 import { and, desc, eq, gte, ilike, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmNotes, crmTasks, orders, orderStatuses } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { plans } from "@/config/site";
+import { getPlans } from "@/config/site";
 
 export interface OrderFilters {
   status?: string;
@@ -17,7 +17,7 @@ export interface OrderFilters {
 function orderWhere(f: OrderFilters, adminId: string): SQL | undefined {
   const w: SQL[] = [];
   if (f.status && (orderStatuses as readonly string[]).includes(f.status)) w.push(eq(orders.status, f.status as never));
-  if (f.plan && plans.some((p) => p.id === f.plan)) w.push(eq(orders.plan, f.plan));
+  if (f.plan && getPlans().some((p) => p.id === f.plan)) w.push(eq(orders.plan, f.plan));
   if (f.assignee === "me") w.push(eq(orders.assigneeId, adminId));
   else if (f.assignee === "none") w.push(isNull(orders.assigneeId));
   else if (f.assignee && /^[0-9a-f-]{36}$/i.test(f.assignee)) w.push(eq(orders.assigneeId, f.assignee));

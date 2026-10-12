@@ -2,7 +2,7 @@
  * Поводы для подарка и расчёт «успеть к дате».
  * Модуль общий для сервера и браузера: без server-only и без обращений к базе.
  */
-import { deliveryOptions, productionWorkdays, type DeliveryId, type PlanId } from "@/config/site";
+import { getDeliveryOptions, productionWorkdays, type DeliveryId, type PlanId } from "@/config/site";
 
 export type OccasionId = "anniversary" | "birthday" | "valentine" | "march8" | "newyear" | "wedding" | "parents" | "graduation" | "other";
 
@@ -99,7 +99,7 @@ export function subtractWorkdays(d: Date, n: number): Date {
 
 /** Последний день, когда нужно оформить заказ, чтобы книга приехала к дате. */
 export function orderByDate(target: string, plan: PlanId, delivery: DeliveryId): Date {
-  const deliveryDays = deliveryOptions.find((d) => d.id === delivery)?.maxDays ?? 7;
+  const deliveryDays = getDeliveryOptions().find((d) => d.id === delivery)?.maxDays ?? 7;
   const production = plan === "premium" ? productionWorkdays.premium : productionWorkdays.standard;
   // День запаса на проверку макета и передачу в печать.
   const shipped = new Date(parseDay(target).getTime() - deliveryDays * DAY);

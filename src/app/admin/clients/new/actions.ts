@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { env } from "@/config/env";
-import { formatPrice, getPlan, visiblePlans } from "@/config/site";
+import { formatPrice, getPlan, getVisiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
@@ -80,7 +80,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const channel = d.channel as Parameters<typeof manualAttribution>[0];
   const withDeal = d.createDeal === "on" && can(staff, "deals.edit");
   if (withDeal && d.prepaid > d.agreed) return fail("Предоплата не может быть больше суммы договорённости");
-  if (withDeal && !visiblePlans.some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
+  if (withDeal && !getVisiblePlans().some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
   if (!normalizePhone(d.phone) || normalizePhone(d.phone).length < 10) return fail("Проверьте номер телефона");
 
   const password = d.password || generateAccessPassword();

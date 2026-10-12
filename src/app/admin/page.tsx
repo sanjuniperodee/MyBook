@@ -3,7 +3,7 @@ import { iso, localDay, SHOP_TZ } from "@/modules/reporting/time";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
-import { formatPrice, plans } from "@/config/site";
+import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff } from "@/server/access";
 import { MyDay } from "./MyDay";
@@ -138,7 +138,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           <BarList
             format={formatPrice}
             rows={[
-              ...plans.map((p) => {
+              ...getPlans().map((p) => {
                 const r = byPlan.find((b) => b.plan === p.id);
                 return { label: planName(p.id), value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
               }),

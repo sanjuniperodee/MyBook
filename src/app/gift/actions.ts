@@ -9,7 +9,8 @@ import { toIsoDay } from "@/lib/occasions";
 import { queueEvent } from "@/server/track";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
-import { visiblePlans, type PlanId } from "@/config/site";
+import { ensureCatalog } from "@/server/catalog";
+import { getVisiblePlans, type PlanId } from "@/config/site";
 
 export interface GiftFormState {
   error?: string;
@@ -18,7 +19,7 @@ export interface GiftFormState {
 type GiftErrors = Awaited<ReturnType<typeof getMessages>>["gift"]["form"]["errors"];
 const schema = (e: GiftErrors) =>
   z.object({
-    plan: z.enum(visiblePlans.map((p) => p.id) as [PlanId, ...PlanId[]]),
+    plan: z.enum(getVisiblePlans().map((p) => p.id) as [PlanId, ...PlanId[]]),
     buyerName: z.string().trim().min(1, e.buyerName).max(60),
     buyerEmail: z.string().trim().toLowerCase().email(e.buyerEmail),
     buyerPhone: z.string().trim().max(30).optional().default(""),
@@ -32,6 +33,7 @@ const schema = (e: GiftErrors) =>
   });
 
 export async function createGiftAction(_: GiftFormState, form: FormData): Promise<GiftFormState> {
+  await ensureCatalog();
   const e = (await getMessages()).gift.form.errors;
   if (!await rateLimit(`gift:${await clientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
   const parsed = schema(e).safeParse(Object.fromEntries(form));

@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice } from "@/config/site";
 import { channels, manualChannels } from "@/modules/marketing/domain/channels";
-import { visiblePlans } from "@/config/site";
+import { getVisiblePlans } from "@/config/site";
 
 function CopyButton({ text, label = "Копировать" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -244,7 +244,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                   <option value="" disabled>
                     Выберите тариф
                   </option>
-                  {visiblePlans.map((p) => (
+                  {getVisiblePlans().map((p) => (
                     <option key={p.id} value={p.id}>
                       {planLabels[p.id]} · по прайсу {formatPrice(p.price)}
                     </option>

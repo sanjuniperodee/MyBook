@@ -3,7 +3,7 @@
  * Модуль без обращений к базе — им пользуются страницы, sitemap и тесты.
  */
 import { env } from "@/config/env";
-import { site, visiblePlans } from "@/config/site";
+import { site, getVisiblePlans } from "@/config/site";
 import { localeMeta, localizePath, type Locale } from "@/i18n/config";
 
 type Json = Record<string, unknown>;
@@ -92,7 +92,7 @@ export function faqLd(items: [string, string][]): Json {
 
 /** По одному предложению на каждый тариф: цена, валюта, наличие. */
 export function planOffers(names: Record<string, string>, url: string): Json[] {
-  return visiblePlans.map((p) => ({
+  return getVisiblePlans().map((p) => ({
     "@type": "Offer",
     name: names[p.id] ?? p.id,
     price: p.price,
@@ -124,7 +124,7 @@ export function reviewsLd({ summary, reviews }: ReviewLdInput): Json {
 }
 
 export function productLd(opts: { name: string; description: string; url: string; image: string; locale: Locale; planNames: Record<string, string>; reviews?: ReviewLdInput }): Json {
-  const prices = visiblePlans.map((p) => p.price);
+  const prices = getVisiblePlans().map((p) => p.price);
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -139,7 +139,7 @@ export function productLd(opts: { name: string; description: string; url: string
       priceCurrency: site.currency,
       lowPrice: Math.min(...prices),
       highPrice: Math.max(...prices),
-      offerCount: visiblePlans.length,
+      offerCount: getVisiblePlans().length,
       availability: "https://schema.org/InStock",
       url: opts.url,
       offers: planOffers(opts.planNames, opts.url),

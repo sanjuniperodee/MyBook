@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { setShiftAction } from "@/app/admin/crm-actions";
 import {
   BarChart3,
+  Coins,
   BookOpen,
   CheckSquare,
   Gift,
@@ -83,6 +84,7 @@ const sections: { title?: string; items: Item[] }[] = [
     items: [
       { href: "/admin/automations", label: "Автоматизации", icon: Workflow, perm: ["settings.manage"] },
       { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
+      { href: "/admin/pricing", label: "Цены и тарифы", icon: Coins, perm: ["settings.manage"] },
       { href: "/admin/settings", label: "Интеграции", icon: Settings, perm: ["settings.manage"] },
       { href: "/admin/security", label: "Безопасность", icon: LockKeyhole },
     ],

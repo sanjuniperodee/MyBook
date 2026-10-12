@@ -16,7 +16,7 @@ import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { deadlineFor, getOccasion, nextFixedDate } from "@/lib/occasions";
-import { formatPrice, getPlan, site, visiblePlans } from "@/config/site";
+import { formatPrice, getPlan, site, getVisiblePlans } from "@/config/site";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { absoluteUrl, breadcrumbLd, faqLd, ogImage, productLd, socialMeta } from "@/lib/seo";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -61,14 +61,14 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   const fixed = occasion ? nextFixedDate(occasion, new Date()) : null;
   const dl = fixed ? deadlineFor(fixed, new Date()) : null;
   const cta = user ? `/books/new?theme=${l.theme}` : `/register?theme=${l.theme}`;
-  const minPrice = Math.min(...visiblePlans.map((p) => p.price));
+  const minPrice = Math.min(...getVisiblePlans().map((p) => p.price));
 
   const path = `/kniga/${l.slug}`;
   const faqItems: [string, string][] = [...c.faq, [sp.priceQ, sp.priceA(formatPrice(minPrice), formatPrice(getPlan("hardcover")!.price))]];
   // Ссылки на другие идеи: сначала той же темы, остальные — после; статьи блога по теме.
   const ideas = [...landings.filter((x) => x.slug !== l.slug && x.theme === l.theme), ...landings.filter((x) => x.theme !== l.theme)].slice(0, 9);
   const guides = articles.filter((x) => x.theme === l.theme || x.landings.includes(l.slug)).slice(0, 3);
-  const planNames = Object.fromEntries(visiblePlans.map((p) => [p.id, m.common.plans[p.id].name]));
+  const planNames = Object.fromEntries(getVisiblePlans().map((p) => [p.id, m.common.plans[p.id].name]));
   const jsonLd = [
     productLd({ name: sp.productName(site.name, c.label), description: c.metaDescription, url: absoluteUrl(path, locale), image: ogImage(locale, l.slug), locale, planNames, reviews }),
     faqLd(faqItems),
@@ -172,7 +172,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               </ol>
             </div>
             <div className="grid gap-3 self-start">
-              {visiblePlans.map((p) => (
+              {getVisiblePlans().map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white px-5 py-4">
                   <div>
                     <div className="font-medium">{m.common.plans[p.id].name}</div>

@@ -1,4 +1,4 @@
-import { availableAddons, deliveryOptions, getPlan, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { availableAddons, getDeliveryOptions, getPlan, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 
 export interface PriceBreakdown {
   itemsAmount: number;
@@ -43,7 +43,7 @@ export function calculatePrice(planId: PlanId, quantity: number, delivery: Deliv
   const qty = plan.printed ? Math.min(Math.max(1, Math.floor(quantity)), 20) : 1;
   const itemsAmount = plan.price + (qty - 1) * (plan.extraCopyPrice ?? plan.price);
   const discountAmount = discountFor(itemsAmount, discount);
-  const deliveryAmount = plan.printed ? (deliveryOptions.find((d) => d.id === delivery)?.price ?? 0) : 0;
+  const deliveryAmount = plan.printed ? (getDeliveryOptions().find((d) => d.id === delivery)?.price ?? 0) : 0;
   const chosen = availableAddons(plan.id).filter((a) => addonIds.includes(a.id));
   const addonsAmount = chosen.reduce((s, a) => s + a.price, 0);
   const total = itemsAmount - discountAmount + deliveryAmount + addonsAmount;

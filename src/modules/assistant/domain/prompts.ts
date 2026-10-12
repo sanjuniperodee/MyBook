@@ -2,7 +2,7 @@
  * Чистая часть AI-помощника: промпты, схемы структурированного ответа и разбор результата.
  * Без обращений к сети и базе — покрывается юнит-тестами.
  */
-import { addons, deliveryOptions, visiblePlans } from "@/config/site";
+import { getAddons, getDeliveryOptions, getVisiblePlans } from "@/config/site";
 
 export interface AiMessage {
   direction: "in" | "out";
@@ -65,9 +65,9 @@ export function businessContext(knowledge = ""): string {
   const addonNames: Record<string, string> = { express: "экспресс-печать за 3–4 рабочих дня", giftwrap: "подарочная упаковка" };
   return [
     "MyBooks — сервис персональных книг-подарков в Казахстане. Клиент на сайте отвечает на вопросы о близком человеке, добавляет фото и выбирает обложку, а мы печатаем настоящую книгу в твёрдом переплёте. Языки сайта — русский и казахский.",
-    `Тарифы: ${visiblePlans.map((p) => `${planNames[p.id] ?? p.id} — ${kzt(p.price)}${p.extraCopyPrice ? ` (доп. экземпляр ${kzt(p.extraCopyPrice)})` : ""}`).join("; ")}.`,
-    `Доставка: ${deliveryOptions.map((d) => `${deliveryNames[d.id] ?? d.id} — ${d.price ? kzt(d.price) : "бесплатно"}${d.maxDays ? `, до ${d.maxDays} дн.` : ""}`).join("; ")}.`,
-    `Допы: ${addons.map((a) => `${addonNames[a.id] ?? a.id} — ${kzt(a.price)}`).join("; ")}.`,
+    `Тарифы: ${getVisiblePlans().map((p) => `${planNames[p.id] ?? p.id} — ${kzt(p.price)}${p.extraCopyPrice ? ` (доп. экземпляр ${kzt(p.extraCopyPrice)})` : ""}`).join("; ")}.`,
+    `Доставка: ${getDeliveryOptions().map((d) => `${deliveryNames[d.id] ?? d.id} — ${d.price ? kzt(d.price) : "бесплатно"}${d.maxDays ? `, до ${d.maxDays} дн.` : ""}`).join("; ")}.`,
+    `Допы: ${getAddons().map((a) => `${addonNames[a.id] ?? a.id} — ${kzt(a.price)}`).join("; ")}.`,
     knowledge.trim() ? `Правила и ответы на частые вопросы от владельца:\n${knowledge.trim().slice(0, 6000)}` : "",
   ]
     .filter(Boolean)

@@ -4,7 +4,7 @@ import { Download, Kanban } from "lucide-react";
 import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
 import { requireStaff } from "@/server/access";
-import { formatPrice, plans } from "@/config/site";
+import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { adminLabel } from "@/modules/access/ui";
 import type { OrderFilters } from "@/modules/reporting";
@@ -69,7 +69,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
         </select>
         <select name="plan" defaultValue={params.plan ?? ""} className="input h-10 text-sm">
           <option value="">Все тарифы</option>
-          {plans.map((pl) => (
+          {getPlans().map((pl) => (
             <option key={pl.id} value={pl.id}>
               {planName(pl.id)}
             </option>

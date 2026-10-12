@@ -10,6 +10,8 @@ export async function registerNode() {
       throw err;
     }
   }
+  const { startCatalogSync } = await import("@/server/catalog");
+  startCatalogSync();
   const { startScheduler } = await import("@/server/scheduler");
   startScheduler();
 }

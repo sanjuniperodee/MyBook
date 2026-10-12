@@ -4,9 +4,10 @@ import { queueEvent } from "@/server/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
 import { requireUser } from "@/server/auth";
-import { deliveryOptions, getPlan, plans, type DeliveryId } from "@/config/site";
+import { getDeliveryOptions, getPlan, getPlans, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
+import { ensureCatalog } from "@/server/catalog";
 
 export interface CheckoutState {
   error?: string;
@@ -17,7 +18,7 @@ const schema = (e: CheckoutErrors) =>
   z
     .object({
       bookId: z.string().uuid(),
-      plan: z.enum(plans.map((p) => p.id) as [string, ...string[]]),
+      plan: z.enum(getPlans().map((p) => p.id) as [string, ...string[]]),
       quantity: z.coerce.number().int().min(1).max(20).default(1),
       delivery: z.string().optional(),
       contactName: z.string().trim().min(2, e.contactName).max(100),
@@ -45,7 +46,7 @@ const schema = (e: CheckoutErrors) =>
     .superRefine((d, ctx) => {
       const plan = getPlan(d.plan);
       if (!plan?.printed) return;
-      const del = deliveryOptions.find((o) => o.id === d.delivery);
+      const del = getDeliveryOptions().find((o) => o.id === d.delivery);
       if (!del) ctx.addIssue({ code: "custom", message: e.delivery });
       if (del && del.id !== "pickup") {
         if (!d.city) ctx.addIssue({ code: "custom", message: e.city });
@@ -55,6 +56,8 @@ const schema = (e: CheckoutErrors) =>
 
 export async function createOrderAction(_: CheckoutState, form: FormData): Promise<CheckoutState> {
   const user = await requireUser();
+  await ensureCatalog(); // цену считаем по действующему каталогу, а не по тому, что видел клиент
+
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const e = m.checkout.errors;
   const parsed = schema(e).safeParse(Object.fromEntries(form));
