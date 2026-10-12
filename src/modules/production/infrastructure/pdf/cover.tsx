@@ -8,6 +8,9 @@ import type { BackDesign } from "@/lib/book/cover-back";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
+
+/** На обложке переносов нет: «кі-тапқа» на обороте или «навсе-гда» в названии выглядят как ошибка. */
+const noHyphens = (word: string) => [word];
 import { messagesFor } from "@/i18n/messages";
 
 function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"] = "center") {
@@ -80,7 +83,7 @@ export function CoverDocument({
     ) : (
       <View style={{ height: mm(f.w * 0.035) }} />
     );
-  const namesLine = text.names ? <Text style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
+  const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
   const spineText = spineParts(text.title, text.names);
@@ -109,8 +112,8 @@ export function CoverDocument({
         >
           {template.namesFirst ? namesLine : null}
           {template.namesFirst ? ornament : null}
-          <Text style={{ ...titleStyle, alignSelf: "stretch" }}>{text.title}</Text>
-          {text.subtitle ? <Text style={{ ...textStyle(template.subtitle, f.w, align), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
+          <Text hyphenationCallback={noHyphens} style={{ ...titleStyle, alignSelf: "stretch" }}>{text.title}</Text>
+          {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.subtitle, f.w, align), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
           {template.namesFirst ? null : ornament}
           {template.namesFirst ? null : namesLine}
         </View>
@@ -130,7 +133,7 @@ export function CoverDocument({
           >
             {spineText.map((s, i) => (
               <View key={i} style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text style={{ ...face(template.spine.font, 500), fontSize: spineFont, color: template.spine.color, textAlign: "center", width: "92%", maxLines: 1 }}>{s}</Text>
+                <Text hyphenationCallback={noHyphens} style={{ ...face(template.spine.font, 500), fontSize: spineFont, color: template.spine.color, textAlign: "center", width: "92%", maxLines: 1 }}>{s}</Text>
               </View>
             ))}
           </View>
@@ -152,7 +155,7 @@ function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: n
         if (b.kind === "text") {
           const size = mm(b.size);
           return (
-            <Text
+            <Text hyphenationCallback={noHyphens}
               key={i}
               style={{
                 ...box,
@@ -202,7 +205,7 @@ function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: n
           </View>
         );
       })}
-      <Text
+      <Text hyphenationCallback={noHyphens}
         style={{
           position: "absolute",
           left: mm(rect.x),
