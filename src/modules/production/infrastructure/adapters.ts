@@ -35,11 +35,11 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
       if (!bundle) return null;
       return (await pdf()).renderReadingPdf(bundle);
     },
-    async preview(bookId) {
+    async preview(bookId, opts) {
       const bundle = await load(bookId);
       if (!bundle) return null;
       const { contentFingerprint, renderInterior } = await pdf();
-      return { fingerprint: contentFingerprint(bundle), render: async () => (await renderInterior(bundle, "preview")).pdf };
+      return { fingerprint: contentFingerprint(bundle), render: async () => (await renderInterior(bundle, "preview", { watermark: opts?.watermark })).pdf };
     },
     async manuscript(bookId) {
       const bundle = await load(bookId);

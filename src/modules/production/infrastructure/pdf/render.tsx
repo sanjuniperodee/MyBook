@@ -157,10 +157,11 @@ let placeholderJpeg: Promise<Buffer> | undefined;
 /** Крошечный снимок-заглушка: на раскладку влияют только заданные размеры фото, а не сами пиксели. */
 const placeholder = () => (placeholderJpeg ??= sharp({ create: { width: 4, height: 4, channels: 3, background: "#cccccc" } }).jpeg().toBuffer());
 
-export async function renderInterior(bundle: BookBundle, mode: RenderMode): Promise<InteriorResult> {
+export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts: { watermark?: boolean } = {}): Promise<InteriorResult> {
   ensureFonts();
   const content = contentFor(bundle);
-  const { bleed, watermark } = modeSettings[mode];
+  const { bleed } = modeSettings[mode];
+  const watermark = opts.watermark ?? modeSettings[mode].watermark;
   const images = await prepareImages(content, mode, bleed);
 
   // Доводка вёрстки: собираем блок с заглушками вместо фото, читаем раскладку, принимаем решения

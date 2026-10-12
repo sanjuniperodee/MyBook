@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { giftCards, orderEvents, orders, promoCodes } from "@/shared/infrastructure/db/schema";
 import { rootDb } from "@/shared/infrastructure/database";
 
@@ -56,6 +56,16 @@ export class DrizzleOrderingQueries {
   /** Последний заказ книги — для карточки книги в кабинете клиента. */
   async lastOrderOfBook(bookId: string) {
     return (await rootDb.query.orders.findFirst({ where: eq(orders.bookId, bookId), orderBy: desc(orders.createdAt) })) ?? null;
+  }
+
+  /** У книги есть оплаченный заказ (оплачен, в печати, отправлен или доставлен). */
+  async bookPaid(bookId: string) {
+    const [r] = await rootDb
+      .select({ id: orders.id })
+      .from(orders)
+      .where(and(eq(orders.bookId, bookId), inArray(orders.status, ["paid", "in_production", "shipped", "delivered"])))
+      .limit(1);
+    return !!r;
   }
 
   async bookHasOrders(bookId: string) {

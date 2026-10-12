@@ -213,7 +213,7 @@ export class Container {
   }
 
   get previews(): BookPreviewService {
-    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue));
+    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, (bookId) => this.ordering.queries.bookPaid(bookId)));
   }
 
   get ordering(): OrderingModule {

@@ -24,8 +24,8 @@ export interface BookRenderer {
   /** Каркас — готовая обложка с рамками крышек и корешка — по готовым PDF блока и обложки (для заказов, собранных до появления каркаса). */
   renderLayout(bookId: string, block: Buffer, cover: Buffer): Promise<Buffer | null>;
   renderReading(bookId: string): Promise<Buffer | null>;
-  /** Предпросмотр: отпечаток содержимого (ключ кэша) и отложенный рендер. */
-  preview(bookId: string): Promise<{ fingerprint: string; render(): Promise<Buffer> } | null>;
+  /** Предпросмотр: отпечаток содержимого (ключ кэша) и отложенный рендер; watermark — водяной знак «Предпросмотр». */
+  preview(bookId: string, opts?: { watermark?: boolean }): Promise<{ fingerprint: string; render(): Promise<Buffer> } | null>;
   /** Текст книги одним файлом. */
   manuscript(bookId: string): Promise<{ title: string; text: string } | null>;
 }
@@ -110,7 +110,7 @@ export class PrintFilesService {
 }
 
 /**
- * Предпросмотр книги для автора (с водяным знаком и облегчёнными фото) и выгрузка текста.
+ * Предпросмотр книги для автора (облегчённые фото; пока книга не оплачена — с водяным знаком) и выгрузка текста.
  * PDF кэшируется по отпечатку содержимого, пока книга не изменилась; старые версии удаляются.
  */
 export class BookPreviewService {
@@ -118,12 +118,15 @@ export class BookPreviewService {
     private readonly renderer: BookRenderer,
     private readonly files: FileStore,
     private readonly queue: RenderQueue,
+    /** Книга оплачена — водяной знак больше не нужен. */
+    private readonly paid: (bookId: string) => Promise<boolean> = async () => false,
   ) {}
 
   async preview(bookId: string): Promise<Buffer | null> {
-    const draft = await this.renderer.preview(bookId);
+    const watermark = !(await this.paid(bookId));
+    const draft = await this.renderer.preview(bookId, { watermark });
     if (!draft) return null;
-    const key = `cache/preview/${bookId}/${draft.fingerprint}.pdf`;
+    const key = `cache/preview/${bookId}/${draft.fingerprint}${watermark ? "" : "-clean"}.pdf`;
     if (await this.files.exists(key)) return this.files.get(key);
     return this.queue.run(key, async () => {
       const pdf = await draft.render();
