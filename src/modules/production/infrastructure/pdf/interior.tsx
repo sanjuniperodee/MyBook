@@ -40,7 +40,7 @@ export interface InteriorOptions {
 /** Пометка блока для доводки вёрстки (react-pdf сохраняет её в раскладке). */
 const mark = (id: string) => ({ [FLOW_MARK]: id }) as object;
 
-/** Без переносов: в выделенных строках по центру («короткий ответ», лид, стихи) перенос рвёт строку некрасиво. */
+/** Без переносов: в крупных надписях (название, главы, заголовки, подписи) и выделенных строках перенос выглядит как ошибка — переносы только в основном тексте. */
 const noHyphens = (word: string) => [word];
 
 /** Начертание из дизайна: шрифт, регистр и разрядка. */
@@ -181,12 +181,12 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       {watermark}
       {placed(
         <>
-          <Text style={{ ...textFace(design.display, S.title), lineHeight: 1.15, textAlign: "center", color: P.ink }}>{content.title}</Text>
+          <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.title), lineHeight: 1.15, textAlign: "center", color: P.ink }}>{content.title}</Text>
           {content.subtitle ? (
-            <Text style={{ ...italicBody, fontSize: S.subtitle, marginTop: 10, textAlign: "center", color: P.muted }}>{content.subtitle}</Text>
+            <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.subtitle, marginTop: 10, textAlign: "center", color: P.muted }}>{content.subtitle}</Text>
           ) : null}
           {vignette(VIGNETTE_RULE.title, P)}
-          {content.authorName ? <Text style={{ ...label(P.muted), textAlign: "center" }}>{content.authorName}</Text> : null}
+          {content.authorName ? <Text hyphenationCallback={noHyphens} style={{ ...label(P.muted), textAlign: "center" }}>{content.authorName}</Text> : null}
         </>,
         DISPLAY_TOP.title,
       )}
@@ -213,7 +213,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         {frame(P)}
         {watermark}
         {placed(
-          <Text style={{ ...italicBody, fontSize: S.dedication, lineHeight: 1.6, textAlign: "center", color: P.ink, maxWidth: "85%" }}>{content.dedication}</Text>,
+          <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.dedication, lineHeight: 1.6, textAlign: "center", color: P.ink, maxWidth: "85%" }}>{content.dedication}</Text>,
           DISPLAY_TOP.dedication,
         )}
       </Page>,
@@ -228,6 +228,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       <Page key="toc" size={pageSize} style={pagePadding} wrap>
         {watermark}
         <Text
+          hyphenationCallback={noHyphens}
           style={{
             ...textFace(design.display, S.tocTitle),
             textAlign: design.opener.align === "left" ? "left" : "center",
@@ -240,7 +241,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         </Text>
         {entries.map((e) => (
           <View key={e.key} wrap={false} style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 7 * scale }}>
-            <Text style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.ink, maxWidth: "82%" }}>
+            <Text hyphenationCallback={noHyphens} style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.ink, maxWidth: "82%" }}>
               {e.num ? `${e.num}. ` : ""}
               {e.label}
             </Text>
@@ -300,6 +301,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           <>
             {mark?.kind === "label" ? (
               <Text
+                hyphenationCallback={noHyphens}
                 style={{
                   ...(design.opener.kicker ? { ...textFace(design.opener.kicker, S.kicker), color: colors.accent } : label(colors.accent)),
                   textAlign,
@@ -312,10 +314,10 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
             {mark?.kind === "numeral" ? (
               <Text style={{ ...textFace(design.opener.numeral ?? design.display, S.numeral), lineHeight: 1, textAlign, color: colors.accent, marginBottom: S.numeral * 0.12 }}>{mark.text}</Text>
             ) : null}
-            <Text style={{ ...textFace(design.display, S.openerTitle), lineHeight: 1.15, textAlign, color: colors.ink, maxWidth: "90%" }}>{title}</Text>
+            <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.openerTitle), lineHeight: 1.15, textAlign, color: colors.ink, maxWidth: "90%" }}>{title}</Text>
             {vignette(VIGNETTE_RULE.opener, colors, align)}
             {epigraph ? (
-              <Text style={{ ...italicBody, fontSize: S.epigraph, lineHeight: 1.55, textAlign, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</Text>
+              <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: 1.55, textAlign, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</Text>
             ) : null}
           </>,
           shot?.textTop ?? design.opener.top,
@@ -355,6 +357,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           c.caption ? (
             <Text
               key={`cap-${c.id}`}
+              hyphenationCallback={noHyphens}
               style={{ ...captionStyle(c.caption.size), position: "absolute", left: mm(B + c.caption.box.x), top: mm(B + c.caption.box.y), width: mm(c.caption.box.w), textAlign: "center", maxLines: c.caption.inside ? 1 : 3, textOverflow: "ellipsis" }}
             >
               {c.caption.text}
@@ -422,7 +425,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                     </Text>
                   ) : null}
                 </View>
-                {!polaroid && p.caption ? <Text style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
+                {!polaroid && p.caption ? <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
               </View>
             );
           })}
@@ -531,14 +534,16 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     };
     if (!design.heading.bar)
       return (
-        <Text {...mark(id)} minPresenceAhead={40} style={style}>
+        <Text {...mark(id)} hyphenationCallback={noHyphens} minPresenceAhead={40} style={style}>
           {text}
         </Text>
       );
     return (
       <View {...mark(id)} wrap={false} minPresenceAhead={40}>
         <View style={{ width: 14 * scale, height: 1.2, backgroundColor: P.accent, marginBottom: 6 * scale, alignSelf: design.heading.align === "center" ? "center" : "flex-start" }} />
-        <Text style={style}>{text}</Text>
+        <Text hyphenationCallback={noHyphens} style={style}>
+          {text}
+        </Text>
       </View>
     );
   };
@@ -598,7 +603,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       {placed(
         <>
           {vignette(VIGNETTE_RULE.end, P)}
-          <Text style={{ ...italicBody, fontSize: S.end, textAlign: "center", color: P.ink }}>{t.theEnd}</Text>
+          <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.end, textAlign: "center", color: P.ink }}>{t.theEnd}</Text>
           <Text style={{ ...label(P.muted), textAlign: "center", marginTop: 16 }}>{content.year}</Text>
         </>,
         DISPLAY_TOP.end,
