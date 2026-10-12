@@ -10,7 +10,8 @@ import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
-import { buildBookContent, estimatePages, toPhotoItem } from "@/lib/book/layout";
+import { buildBookContent, estimatePages, photoPages, toPhotoItem, type PhotoItem } from "@/lib/book/layout";
+import { messagesFor } from "@/i18n/messages";
 import { printablePageCount } from "@/lib/book/formats";
 import { site } from "@/config/site";
 import { splitParagraphs } from "@/lib/book/inline-photo";
@@ -26,16 +27,14 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const book = await getAccessibleBook(id, user);
   const [t, questions] = await Promise.all([getMessages().then((m) => m.books.preview), container().authoring.queries.questions(book.id)]);
 
-  // Листаемая книга строится из тех же данных, что и PDF (без фото: их точное место видно в PDF).
-  const content = buildBookContent(book, questions, []);
-  const allPhotos = await container().authoring.queries.photos(book.id);
+  // Листаемая книга строится из тех же данных, что и PDF: ответы, фото в ответах, фотостраницы глав, галерея, письма.
+  const bundle = await container().authoring.queries.bundle(book.id);
+  const allPhotos = bundle?.photos ?? [];
+  const content = buildBookContent(book, questions, allPhotos.map(toPhotoItem), undefined, bundle?.letters ?? []);
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
-  // Оформления, где глава открывается фото: снимки начальных полос — по той же раскладке фото, что в PDF.
-  const openers = content.interior.opener.photo
-    ? new Map(buildBookContent(book, questions, allPhotos.map(toPhotoItem)).chapters.flatMap((c) => (c.openerPhoto ? [[c.key, photoUrl(c.openerPhoto.id, "view")] as const] : [])))
-    : new Map<string, string>();
+  const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout });
   const flipbook: FlipbookData = {
     cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photos },
     language: content.language,
@@ -57,12 +56,15 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       number: c.number,
       title: c.title,
       epigraph: c.epigraph,
-      openerPhoto: openers.get(c.key),
+      openerPhoto: c.openerPhoto ? photoUrl(c.openerPhoto.id, "view") : undefined,
       entries: c.items.flatMap((it) => {
         const paragraphs = splitParagraphs(it.answer);
-        return paragraphs.length ? [{ heading: it.heading, paragraphs }] : [];
+        const inline = (it.photos ?? []).map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
+        return paragraphs.length || inline.length ? [{ heading: it.heading, paragraphs, photos: inline }] : [];
       }),
+      photoPages: photoPages(c.photos).map((group) => group.map(pagePhoto)),
     })),
+    gallery: content.galleryPhotos.length ? { title: messagesFor(content.language).book.gallery, pages: photoPages(content.galleryPhotos).map((group) => group.map(pagePhoto)) } : undefined,
   };
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">

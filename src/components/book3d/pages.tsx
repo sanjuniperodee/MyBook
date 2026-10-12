@@ -6,7 +6,7 @@ import type { PhotoRef } from "@/lib/book/cover-kit";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import type { CoverPreviewProps } from "@/components/cover/CoverPreview";
-import { DedicationPage, EndPage, OpenerPage, pageKit, TextPage, TitlePage, TocPage, type PageKit, type SampleEntry } from "@/components/interior/BookPage";
+import { DedicationPage, EndPage, OpenerPage, pageKit, PhotoPage, TextPage, TitlePage, TocPage, type PageKit, type PagePhoto, type SampleEntry } from "@/components/interior/BookPage";
 import { cqwUnits } from "@/components/interior/units";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
@@ -21,6 +21,8 @@ export interface FlipbookChapter {
   entries: SampleEntry[];
   /** Снимок на начальной полосе — в оформлениях, где глава открывается фото. */
   openerPhoto?: string;
+  /** Фотостраницы главы — после её текста, по той же группировке, что в PDF. */
+  photoPages?: PagePhoto[][];
 }
 
 /** Всё, что нужно книге, одними сериализуемыми данными (страница-сервер → клиентский компонент). */
@@ -36,6 +38,8 @@ export interface FlipbookData {
   dedication: string;
   showToc: boolean;
   chapters: FlipbookChapter[];
+  /** Галерея в конце книги (фото не по главам): подпись начальной полосы и фотостраницы. */
+  gallery?: { title: string; pages: PagePhoto[][] };
   /** Данные объёмной модели: толщина корешка считается по числу страниц. */
   model: { pageCount: number; brand: string; back: BackContent; backPhotos?: (PhotoRef | undefined)[] };
 }
@@ -72,6 +76,13 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       const ch = data.chapters[face.chapter];
       return <TextPage kit={kit} entries={ch.entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0} part={face.part} tail className={faceBox} />;
     }
+    case "photos": {
+      const pages = face.chapter < 0 ? data.gallery?.pages : data.chapters[face.chapter]?.photoPages;
+      const photos = pages?.[face.page];
+      return photos ? <PhotoPage kit={kit} photos={photos} className={faceBox} /> : <div className={cn(faceBox, "bg-white")} />;
+    }
+    case "galleryOpener":
+      return <OpenerPage kit={kit} number={null} title={data.gallery?.title ?? ""} className={faceBox} />;
     case "end":
       return <EndPage kit={kit} year={data.year} className={faceBox} />;
   }
@@ -119,8 +130,14 @@ export function usePagedBook(data: FlipbookData): PagedBook {
     if (!textPages) return null;
     let k = 0;
     const perChapter = data.chapters.map((c) => (c.entries.length ? (textPages[k++] ?? 1) : 0));
-    return planFaces({ hasDedication: !!data.dedication, hasToc: data.showToc, textPages: perChapter });
-  }, [textPages, data.chapters, data.dedication, data.showToc]);
+    return planFaces({
+      hasDedication: !!data.dedication,
+      hasToc: data.showToc,
+      textPages: perChapter,
+      photoPages: data.chapters.map((c) => c.photoPages?.length ?? 0),
+      galleryPages: data.gallery?.pages.length ?? 0,
+    });
+  }, [textPages, data.chapters, data.dedication, data.showToc, data.gallery]);
   const sheets = useMemo(() => (plan ? planSheets(plan.faces) : []), [plan]);
   const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts } : null), [plan, data, kit]);
 

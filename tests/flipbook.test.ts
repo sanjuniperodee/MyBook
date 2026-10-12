@@ -2,6 +2,24 @@ import { describe, expect, it } from "vitest";
 import { bookShift, clampPos, planFaces, planSheets, settle, visibleSpread } from "@/lib/book/flipbook";
 
 describe("planFaces", () => {
+  it("фотостраницы глав — после их текста, галерея — перед финалом с правой полосы", () => {
+    const { faces } = planFaces({ hasDedication: false, hasToc: false, textPages: [1, 1], photoPages: [2, 0], galleryPages: 1 });
+    expect(faces.map((f) => (f.kind === "photos" ? `photos:${f.chapter}:${f.page}` : f.kind))).toEqual([
+      "title",
+      "blank",
+      "opener",
+      "text",
+      "photos:0:0",
+      "photos:0:1",
+      "opener",
+      "text",
+      "galleryOpener",
+      "photos:-1:0",
+      "end",
+      "blank",
+    ]);
+  });
+
   it("идёт в порядке PDF: титул, оборот, посвящение, оглавление, главы, финал", () => {
     const { faces } = planFaces({ hasDedication: true, hasToc: true, textPages: [2] });
     expect(faces.map((f) => f.kind)).toEqual(["title", "blank", "dedication", "toc", "opener", "text", "text", "end"]);

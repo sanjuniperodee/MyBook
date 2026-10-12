@@ -1,7 +1,8 @@
 /**
  * Раскладка листаемой 3D-книги: какие полосы идут в каком порядке и как они складываются в листы.
  * Порядок повторяет PDF для типографии (modules/production/.../pdf/interior.tsx): титул, оборот
- * титула, посвящение, оглавление, главы (начальная полоса — всегда справа), финал.
+ * титула, посвящение, оглавление, главы (начальная полоса — всегда справа, после текста — фотостраницы),
+ * галерея, финал.
  * Чистые функции без React — поэтому проверяются юнит-тестами.
  */
 
@@ -12,6 +13,10 @@ export type Face =
   | { kind: "toc" }
   | { kind: "opener"; chapter: number }
   | { kind: "text"; chapter: number; part: number }
+  /** Фотостраница главы (как в PDF — после её текста); chapter = −1 — галерея в конце книги. */
+  | { kind: "photos"; chapter: number; page: number }
+  /** Начальная полоса галереи (фото, вынесенные в конец книги). */
+  | { kind: "galleryOpener" }
   | { kind: "end" };
 
 export interface FacePlanInput {
@@ -19,6 +24,10 @@ export interface FacePlanInput {
   hasToc: boolean;
   /** Сколько полос текста занимает каждая глава (0 — у главы нет текста). */
   textPages: number[];
+  /** Сколько фотостраниц у каждой главы (после её текста). */
+  photoPages?: number[];
+  /** Фотостраницы галереи в конце книги (0 — галереи нет). */
+  galleryPages?: number;
 }
 
 export interface FacePlan {
@@ -31,7 +40,7 @@ export interface FacePlan {
 /** Нечётные полосы (1, 3, …) — правые; индекс в `faces` у них чётный. */
 const isRecto = (index: number) => index % 2 === 0;
 
-export function planFaces({ hasDedication, hasToc, textPages }: FacePlanInput): FacePlan {
+export function planFaces({ hasDedication, hasToc, textPages, photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
   const faces: Face[] = [{ kind: "title" }, { kind: "blank" }];
   if (hasDedication) faces.push({ kind: "dedication" });
   if (hasToc && textPages.length) faces.push({ kind: "toc" });
@@ -42,7 +51,13 @@ export function planFaces({ hasDedication, hasToc, textPages }: FacePlanInput): 
     chapterStarts.push(faces.length + 1);
     faces.push({ kind: "opener", chapter });
     for (let part = 0; part < count; part++) faces.push({ kind: "text", chapter, part });
+    for (let page = 0; page < (photoPages[chapter] ?? 0); page++) faces.push({ kind: "photos", chapter, page });
   });
+  if (galleryPages) {
+    if (!isRecto(faces.length)) faces.push({ kind: "blank" });
+    faces.push({ kind: "galleryOpener" });
+    for (let page = 0; page < galleryPages; page++) faces.push({ kind: "photos", chapter: -1, page });
+  }
   faces.push({ kind: "end" });
   // Лист двусторонний — последняя полоса должна иметь пару.
   if (faces.length % 2) faces.push({ kind: "blank" });

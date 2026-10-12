@@ -4,7 +4,7 @@
  * та же графика из interior-art. Размеры задаются через PageUnits, поэтому одни и те же компоненты
  * рисуют и превью в редакторе (пиксели), и масштабируемые миниатюры в выборе оформления (cqw).
  */
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { messagesFor } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { cssFont } from "@/lib/book/fonts";
@@ -25,7 +25,8 @@ import {
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Drawing, type Shape } from "@/lib/book/interior-art";
 import { samplePageUrl } from "@/lib/book/photo-cover";
 import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
-import { answerBlocks, type AnswerBlock } from "@/lib/book/answer-blocks";
+import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
+import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { cn } from "@/lib/utils";
 import type { PageUnits } from "./units";
 
@@ -582,9 +583,120 @@ export function EndPage({ kit, year, className, style }: PageProps & { year: num
   );
 }
 
+/** Фото внутри ответа (как в PDF: после нужного абзаца, узкие — в ряд). */
+export interface EntryPhoto {
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+  caption: string;
+  inline?: InlinePhotoStyle | null;
+}
+
 export interface SampleEntry {
   heading: string | null;
   paragraphs: string[];
+  photos?: EntryPhoto[];
+}
+
+type RowItem = { p: EntryPhoto; style: InlinePhotoStyle };
+
+/** Ряд фото внутри ответа — те же размеры, рамки и подписи, что в PDF (inline-photo.ts). */
+function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
+  const { design, sizes: S, u } = kit;
+  const P = design.palette;
+  const textW = textWidthMm(kit);
+  const textH = textArea(kit.format).h;
+  const align = row[0].style.align;
+  const pt = (mm: number) => mm * PT_PER_MM;
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
+        alignItems: "flex-start",
+        gap: u.mm(textW * ROW_GAP),
+        marginTop: u.pt(S.body * 0.5),
+        marginBottom: u.pt(S.body),
+        breakInside: "avoid",
+      }}
+    >
+      {row.map(({ p, style }) => {
+        const b = framedBox(p, style, textW, textH, row.length);
+        const polaroid = style.frame === "polaroid";
+        const bw = polaroid ? 0.5 : style.frame === "line" ? 1 : 0;
+        return (
+          <figure key={p.id} style={{ width: u.mm(b.outerW), margin: 0, flex: "none" }}>
+            <div
+              style={{
+                position: "relative",
+                width: u.mm(b.outerW),
+                height: u.mm(b.outerH),
+                padding: `${u.mm(b.pad)} ${u.mm(b.pad)} ${u.mm(b.padBottom)}`,
+                background: polaroid ? "#FFFFFF" : undefined,
+                border: bw ? `${u.pt(bw)} solid ${polaroid ? "#DDD6CE" : P.ink}` : undefined,
+                borderRadius: u.mm(b.radius),
+                boxShadow: polaroid ? "0 1px 3px rgba(0,0,0,.12)" : undefined,
+                overflow: "hidden",
+                boxSizing: "border-box",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы */}
+              <img
+                src={p.url}
+                alt=""
+                draggable={false}
+                style={{ display: "block", width: "100%", height: u.mm(b.imgH - (bw * 2) / PT_PER_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
+              />
+              {polaroid && p.caption ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: u.mm(b.pad),
+                    right: u.mm(b.pad),
+                    bottom: u.mm(b.padBottom * 0.22),
+                    fontFamily: cssFont("caveat"),
+                    fontWeight: 500,
+                    fontSize: u.pt(polaroidFontSize({ imgW: pt(b.imgW), padBottom: pt(b.padBottom) }, p.caption, S.body)),
+                    lineHeight: 1.1,
+                    color: "#3A332E",
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                  }}
+                >
+                  {p.caption}
+                </div>
+              ) : null}
+            </div>
+            {!polaroid && p.caption ? <figcaption style={{ ...italicBody(kit, S.caption), color: P.muted, textAlign: "center", marginTop: u.pt(6), lineHeight: 1.3 }}>{p.caption}</figcaption> : null}
+          </figure>
+        );
+      })}
+    </div>
+  );
+}
+
+const PT_PER_MM = 72 / 25.4;
+
+/** Ответ целиком: блоки набора и фото между ними, как в PDF. */
+export function EntryBody({ kit, entry, leadIn }: { kit: PageKit; entry: SampleEntry; leadIn: boolean }) {
+  const blocks = answerBlocks(entry.paragraphs);
+  const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
+  const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
+  const rowsAt = (key: number) => (rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} />);
+  return (
+    <>
+      {blocks.length ? rowsAt(-1) : null}
+      {blocks.map((b, j) => (
+        <Fragment key={j}>
+          <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} />
+          {j < blocks.length - 1 ? rowsAt(j) : null}
+        </Fragment>
+      ))}
+      {rowsAt(Number.POSITIVE_INFINITY)}
+    </>
+  );
 }
 
 /**
@@ -626,9 +738,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
           {entries.map((e, i) => (
             <div key={i} style={{ marginTop: i === 0 ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless) }}>
               {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 ? <Divider kit={kit} /> : null}
-              {answerBlocks(e.paragraphs).map((b, j) => (
-                <AnswerBlockView key={j} kit={kit} block={b} leadIn={leadIn && design.leadIn && i === 0 && j === 0} />
-              ))}
+              <EntryBody kit={kit} entry={e} leadIn={leadIn && design.leadIn && i === 0} />
             </div>
           ))}
           {tail ? <ChapterTail kit={kit} /> : null}
