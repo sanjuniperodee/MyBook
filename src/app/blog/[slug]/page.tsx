@@ -8,7 +8,7 @@ import { Faq } from "@/components/Faq";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getCurrentUser } from "@/server/auth";
-import { site } from "@/config/site";
+import { registrationOpen, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { articles, getArticle } from "@/lib/content/articles";
@@ -42,7 +42,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const c = a.content[locale];
   const t = m.landing.blog;
   const path = `/blog/${a.slug}`;
-  const cta = user ? `/books/new?theme=${a.theme}` : `/register?theme=${a.theme}`;
+  const guestClosed = !user && !registrationOpen();
+  const cta = user ? `/books/new?theme=${a.theme}` : guestClosed ? "/login" : `/register?theme=${a.theme}`;
 
   // Вопросы из банка темы: по несколько из каждой главы, формулировки подстроены под род автора и адресата.
   const theme = getTheme(a.theme, locale);
@@ -152,7 +153,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 <h2 className="font-serif text-3xl font-medium">{c.cta.title}</h2>
                 <p className="mx-auto mt-3 max-w-lg text-white/80">{c.cta.text}</p>
                 <Link href={cta} className="btn btn-primary btn-lg mt-6">
-                  {m.landing.hero.cta} <ArrowRight className="size-5" />
+                  {guestClosed ? m.common.nav.login : m.landing.hero.cta} <ArrowRight className="size-5" />
                 </Link>
               </div>
 

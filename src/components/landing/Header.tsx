@@ -6,12 +6,14 @@ import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Link, useLocalizePath, useMessages } from "@/i18n/client";
 import { cn } from "@/lib/utils";
+import { registrationOpen } from "@/config/site";
 
 export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const m = useMessages().common.nav;
   const lp = useLocalizePath();
+  const canRegister = registrationOpen();
   // Абсолютные ссылки на якоря — шапка общая для лендинга и внутренних публичных страниц.
   const nav = [
     { href: "/#how", label: m.how },
@@ -55,9 +57,11 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
               <Link href="/login" className="btn btn-ghost btn-sm">
                 {m.login}
               </Link>
-              <Link href="/register" className="btn btn-primary btn-sm">
-                {m.createBook}
-              </Link>
+              {canRegister ? (
+                <Link href="/register" className="btn btn-primary btn-sm">
+                  {m.createBook}
+                </Link>
+              ) : null}
             </>
           )}
         </div>
@@ -82,12 +86,14 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
               </Link>
             ) : (
               <>
-                <Link href="/login" className="btn btn-outline">
+                <Link href="/login" className={canRegister ? "btn btn-outline" : "btn btn-primary col-span-2"}>
                   {m.login}
                 </Link>
-                <Link href="/register" className="btn btn-primary">
-                  {m.createBook}
-                </Link>
+                {canRegister ? (
+                  <Link href="/register" className="btn btn-primary">
+                    {m.createBook}
+                  </Link>
+                ) : null}
               </>
             )}
           </div>

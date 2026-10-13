@@ -32,7 +32,7 @@ import { countQuestions, getThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
-import { formatPrice, productionDays, site, getVisiblePlans } from "@/config/site";
+import { formatPrice, productionDays, registrationOpen, site, getVisiblePlans } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { coverName } from "@/i18n/labels";
@@ -53,7 +53,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   const [user, locale, m, reviews, invited] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6), invitedBy()]);
   const t = m.landing;
-  const cta = user ? "/books/new" : "/register";
+  // Регистрацию можно закрыть в админке («Сайт»): гостю вместо «начать» — вход и пояснение.
+  const guestClosed = !user && !registrationOpen();
+  const cta = user ? "/books/new" : guestClosed ? "/login" : "/register";
+  const ctaLabel = (label: string) => (guestClosed ? m.common.nav.login : label);
   const themes = getThemes(locale);
   const loveCount = countQuestions(themes[0]);
   const faq = t.faq.items(productionDays);
@@ -124,12 +127,17 @@ export default async function HomePage() {
               </p>
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link href={cta} className="btn btn-primary btn-lg">
-                  {t.hero.cta} <ArrowRight className="size-5" />
+                  {ctaLabel(t.hero.cta)} <ArrowRight className="size-5" />
                 </Link>
                 <a href="#inside" className="btn btn-outline btn-lg">
                   {t.hero.sample}
                 </a>
               </div>
+              {guestClosed ? (
+                <p style={{ "--i": 3 } as React.CSSProperties} className="enter mt-4 max-w-xl text-sm text-muted" data-testid="registration-closed">
+                  {t.hero.closed}
+                </p>
+              ) : null}
               {reviews.summary && reviews.reviews.length ? (
                 <a href="#reviews" style={{ "--i": 4 } as React.CSSProperties} className="enter mt-5 inline-flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
                   <Stars value={reviews.summary.average} />
@@ -246,7 +254,7 @@ export default async function HomePage() {
               {themes.map((th) => {
                 const qn = countQuestions(th);
                 return (
-                  <Link key={th.id} href={user ? `/books/new?theme=${th.id}` : `/register?theme=${th.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
+                  <Link key={th.id} href={user ? `/books/new?theme=${th.id}` : guestClosed ? "/login" : `/register?theme=${th.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
                     <div className="flex justify-center bg-cream/60 px-10 pt-8 pb-0">
                       <div className="w-[62%] translate-y-4 transition duration-500 group-hover:translate-y-1">
                         <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={t.coverSamples[th.defaultCover]?.names} lite className="rounded-sm shadow-book" />
@@ -366,7 +374,7 @@ export default async function HomePage() {
                     ))}
                   </ul>
                   <Link href={cta} className={`btn mt-8 ${p.featured ? "btn-primary" : "btn-outline"}`}>
-                    {t.pricing.start}
+                    {ctaLabel(t.pricing.start)}
                   </Link>
                 </div>
               ))}
@@ -420,7 +428,7 @@ export default async function HomePage() {
               <h2 className="reveal relative mx-auto max-w-3xl font-serif text-4xl leading-tight font-medium sm:text-6xl">{t.cta.title}</h2>
               <p className="relative mx-auto mt-5 max-w-xl text-lg text-white/80">{t.cta.text}</p>
               <Link href={cta} className="btn btn-lg relative mt-9 bg-white text-wine hover:bg-paper">
-                {t.cta.button} <ArrowRight className="size-5" />
+                {ctaLabel(t.cta.button)} <ArrowRight className="size-5" />
               </Link>
             </div>
           </div>

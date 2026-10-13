@@ -108,6 +108,8 @@ export const settingDefs = {
   "security.ipAllowlist": {},
   /** Цены и видимость тарифов из админки («Цены и тарифы»): JSON CatalogOverrides (config/site.ts) поверх заводских значений. */
   "catalog.overrides": {},
+  /** Регистрация новых клиентов на сайте: on | off (выключена — страница регистрации закрыта, ссылки скрыты). */
+  "site.registration": { default: "on" },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;

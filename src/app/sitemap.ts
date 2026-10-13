@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { articles } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
 import { absoluteUrl } from "@/lib/seo";
+import { registrationOpen } from "@/config/site";
 
 type Entry = { path: string; changeFrequency: "weekly" | "monthly" | "yearly"; priority: number; lastModified?: string };
 
@@ -20,7 +21,7 @@ const pages: Entry[] = [
 
 /** Обе языковые версии каждой публичной страницы, связанные через hreflang. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return pages.flatMap((p) =>
+  return pages.filter((p) => p.path !== "/register" || registrationOpen()).flatMap((p) =>
     (["ru", "kk"] as const).map((locale) => ({
       url: absoluteUrl(p.path, locale),
       changeFrequency: p.changeFrequency,

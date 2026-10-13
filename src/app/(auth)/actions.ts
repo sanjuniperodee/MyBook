@@ -7,6 +7,8 @@ import { clientIp, rateLimit } from "@/server/rateLimit";
 import { isThemeId } from "@/lib/content/themes";
 import { IdentityError } from "@/modules/identity";
 import { container } from "@/server/container";
+import { ensureCatalog } from "@/server/catalog";
+import { registrationOpen } from "@/config/site";
 import { clearTwoFactorTicket, destroySession, issueTwoFactorTicket, readTwoFactorTicket, safeNextPath, startSession } from "@/server/auth";
 
 export interface FormState {
@@ -37,6 +39,9 @@ function identityText(err: IdentityError, e: AuthErrors): string {
 export async function registerAction(_: FormState, form: FormData): Promise<FormState> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const e = m.auth.errors;
+  // Регистрация закрыта в админке: форму могли открыть заранее — аккаунт не создаём.
+  await ensureCatalog();
+  if (!registrationOpen()) return { error: e.registrationClosed };
   const parsed = z
     .object({
       name: z.string().trim().min(1, e.name).max(100),

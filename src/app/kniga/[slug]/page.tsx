@@ -16,7 +16,7 @@ import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
 import { deadlineFor, getOccasion, nextFixedDate } from "@/lib/occasions";
-import { formatPrice, getPlan, site, getVisiblePlans } from "@/config/site";
+import { formatPrice, getPlan, registrationOpen, site, getVisiblePlans } from "@/config/site";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { absoluteUrl, breadcrumbLd, faqLd, ogImage, productLd, socialMeta } from "@/lib/seo";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -60,7 +60,9 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   const occasion = getOccasion(l.occasion);
   const fixed = occasion ? nextFixedDate(occasion, new Date()) : null;
   const dl = fixed ? deadlineFor(fixed, new Date()) : null;
-  const cta = user ? `/books/new?theme=${l.theme}` : `/register?theme=${l.theme}`;
+  const guestClosed = !user && !registrationOpen();
+  const cta = user ? `/books/new?theme=${l.theme}` : guestClosed ? "/login" : `/register?theme=${l.theme}`;
+  const ctaLabel = (label: string) => (guestClosed ? m.common.nav.login : label);
   const minPrice = Math.min(...getVisiblePlans().map((p) => p.price));
 
   const path = `/kniga/${l.slug}`;
@@ -110,7 +112,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               ) : null}
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link href={cta} className="btn btn-primary btn-lg">
-                  {t.hero.cta} <ArrowRight className="size-5" />
+                  {ctaLabel(t.hero.cta)} <ArrowRight className="size-5" />
                 </Link>
                 <Link href="/gift" className="btn btn-outline btn-lg">
                   <Gift className="size-5" /> {t.gift.cta}
@@ -182,7 +184,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
                 </div>
               ))}
               <Link href={cta} className="btn btn-primary btn-lg mt-2">
-                {sp.create} <ArrowRight className="size-5" />
+                {ctaLabel(sp.create)} <ArrowRight className="size-5" />
               </Link>
             </div>
           </div>

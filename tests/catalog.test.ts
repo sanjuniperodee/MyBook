@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyCatalog, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
+import { applyCatalog, applySiteFlags, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 
-afterEach(() => applyCatalog(null));
+afterEach(() => {
+  applyCatalog(null);
+  applySiteFlags({ registration: true });
+});
 
 describe("цены из админки", () => {
   it("по умолчанию действуют заводские цены; «Премиум» скрыт", () => {
@@ -54,5 +57,17 @@ describe("цены из админки", () => {
     expect(sanitizeOverrides("мусор")).toEqual({});
     // нельзя скрыть всё: переопределение тарифов отбрасывается целиком
     expect(sanitizeOverrides({ plans: { digital: { hidden: true }, hardcover: { hidden: true }, premium: { hidden: true } } })).toEqual({});
+  });
+});
+
+describe("переключатели сайта", () => {
+  it("регистрация по умолчанию открыта; закрывается и открывается из админки", () => {
+    expect(registrationOpen()).toBe(true);
+    applySiteFlags({ registration: false });
+    expect(registrationOpen()).toBe(false);
+    applySiteFlags({});
+    expect(registrationOpen()).toBe(false);
+    applySiteFlags({ registration: true });
+    expect(registrationOpen()).toBe(true);
   });
 });
