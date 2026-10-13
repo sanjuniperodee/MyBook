@@ -56,9 +56,20 @@ import { z } from "zod";
   "src/shared/s.ts": 'import type { X } from "@/modules/a/domain/x";\nexport const s = 1, t = 2;\n',
   "src/app/page.tsx": 'import { ui } from "@/modules/b/ui";\nimport { srv } from "../server/srv";\n',
   "src/lib/l.ts": 'import { x } from "@/modules/a/domain/x";\n',
+  "src/modules/a/lazy.ts": 'export const load = () => import("@/server/srv");\nexport { x } from "./domain/x";\n',
   "src/lib/sideEffect.ts": 'import "./l";\nimport type { B } from "@/modules/b";\nimport "./l";\n',
-  "src/lib/swallowed.ts": 'export const load = () => import("@/server/srv");\nexport { x } from "./l";\n',
-  "src/lib/commented.ts": '// import { ui } from "@/modules/b/ui";\n',
+  "src/lib/commented.ts": '// import { ui } from "@/modules/b/ui";\n/* import "@/server/srv"; */\nexport const s = \'import("@/server/srv")\';\n',
+  "src/lib/typeNamed.ts": `import { type B } from "@/modules/b";
+import l, { type L } from "./l";
+export { type B as C } from "@/modules/b";
+export type { L as M } from "./l";
+`,
+  "src/lib/typeQuery.ts": `export type Srv = typeof import("@/server/srv");
+export type L = import("./l").X;
+import legacy = require("./l");
+export const byName = (name: string) => import(name);
+export const tpl = () => import(\`./l\`);
+`,
 };
 
 describe("граф импортов", () => {
@@ -103,22 +114,40 @@ describe("граф импортов", () => {
     ]);
     expect(pairs(v.moduleOutward)).toEqual([
       "src/modules/a/dynamic.ts -> src/server/srv.ts",
+      "src/modules/a/lazy.ts -> src/server/srv.ts",
       "src/modules/a/multiline.ts -> src/components/Card.tsx",
     ]);
     expect(pairs(v.sharedToModules)).toEqual(["src/shared/s.ts -> src/modules/a/domain/x.ts"]);
   });
 
-  // Баги регулярки ниже не меняют нарушений в текущем src/ (сверено с TypeScript AST), но оставляют дыры в храповике.
-  it("баг: побочный import \"…\" перед импортом с from теряется, а следующий импорт теряет пометку type", () => {
-    // Ленивое [\s\S]*? дотягивается до from следующего импорта. Последний побочный импорт в файле виден.
-    expect(importsOf("src/lib/sideEffect.ts")).toEqual([imp("src/modules/b/index.ts"), imp("src/lib/l.ts")]);
+  // Случаи, на которых ошибалась прежняя регулярка.
+  it("побочный import \"…\" не теряется и не съедает пометку type у следующего импорта", () => {
+    expect(importsOf("src/lib/sideEffect.ts")).toEqual([imp("src/lib/l.ts"), imp("src/modules/b/index.ts", { typeOnly: true }), imp("src/lib/l.ts")]);
   });
 
-  it("баг: import() между export и следующим from \"…\" не попадает в граф", () => {
-    expect(importsOf("src/lib/swallowed.ts")).toEqual([imp("src/lib/l.ts")]);
+  it("import() между export и следующим from \"…\" — ребро и нарушение", () => {
+    expect(importsOf("src/modules/a/lazy.ts")).toEqual([imp("src/server/srv.ts", { dynamic: true }), imp("src/modules/a/domain/x.ts")]);
   });
 
-  it("баг: закомментированный импорт попадает в граф", () => {
-    expect(importsOf("src/lib/commented.ts")).toEqual([imp("src/modules/b/ui/index.tsx")]);
+  it("импорты в комментариях и строках в граф не попадают", () => {
+    expect(importsOf("src/lib/commented.ts")).toEqual([]);
+  });
+
+  it("type у каждой именованной привязки — type-импорт, при импорте по умолчанию — нет", () => {
+    expect(importsOf("src/lib/typeNamed.ts")).toEqual([
+      imp("src/modules/b/index.ts", { typeOnly: true }),
+      imp("src/lib/l.ts"),
+      imp("src/modules/b/index.ts", { typeOnly: true }),
+      imp("src/lib/l.ts", { typeOnly: true }),
+    ]);
+  });
+
+  it("import(\"…\") в типах — type, import = require() — статический, import() без литерала пропускается", () => {
+    expect(importsOf("src/lib/typeQuery.ts")).toEqual([
+      imp("src/server/srv.ts", { typeOnly: true }),
+      imp("src/lib/l.ts", { typeOnly: true }),
+      imp("src/lib/l.ts"),
+      imp("src/lib/l.ts", { dynamic: true }),
+    ]);
   });
 });

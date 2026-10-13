@@ -1,10 +1,11 @@
-// Граф импортов src/: статические, динамические import(), type-импорты и реэкспорты,
-// и нарушения границ по нему. Общий для scripts/refactor/imports.mjs и tests/architecture.test.ts.
+// Граф импортов src/ по TypeScript AST: статические и побочные импорты, import type, реэкспорты,
+// import(), import("…") в типах, import x = require(); комментарии и строки не считаются.
+// Нарушения границ по нему. Общий для scripts/refactor/imports.mjs и tests/architecture.test.ts.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
-const IMPORT = /(?:import|export)\s+(type\s+)?(?:[\s\S]*?\sfrom\s+)?["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
-
+/** Все .ts/.tsx в каталоге, рекурсивно. */
 function sourceFiles(dir, out = []) {
   for (const name of readdirSync(dir)) {
     const p = path.join(dir, name);
@@ -14,8 +15,43 @@ function sourceFiles(dir, out = []) {
   return out;
 }
 
-// "@/…" и относительные пути; пакеты — null. Если файла нет, остаётся путь без расширения.
-function resolve(src, from, spec) {
+// Непустой список привязок, каждая с type: `import { type A, type B }`, `export { type A }`.
+const allTypeOnly = (elements) => elements.length > 0 && elements.every((e) => e.isTypeOnly);
+
+// Узел-импорт → { spec: узел пути, typeOnly, dynamic }; остальное → null.
+function importOf(node) {
+  if (ts.isImportDeclaration(node)) {
+    const c = node.importClause;
+    const named = c && !c.name && c.namedBindings && ts.isNamedImports(c.namedBindings) && allTypeOnly(c.namedBindings.elements);
+    return { spec: node.moduleSpecifier, typeOnly: !!c && (c.isTypeOnly || !!named), dynamic: false };
+  }
+  if (ts.isExportDeclaration(node) && node.moduleSpecifier) {
+    const named = node.exportClause && ts.isNamedExports(node.exportClause) && allTypeOnly(node.exportClause.elements);
+    return { spec: node.moduleSpecifier, typeOnly: node.isTypeOnly || !!named, dynamic: false };
+  }
+  if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) return { spec: node.arguments[0], typeOnly: false, dynamic: true };
+  if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) return { spec: node.argument.literal, typeOnly: true, dynamic: false };
+  if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) return { spec: node.moduleReference.expression, typeOnly: node.isTypeOnly, dynamic: false };
+  return null;
+}
+
+/** Импорты файла в порядке текста: { spec, typeOnly, dynamic }. import() с вычисляемым путём пропускается. */
+function parseImports(file) {
+  const kind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const out = [];
+  const visit = (node) => {
+    const imp = importOf(node);
+    if (imp?.spec && ts.isStringLiteralLike(imp.spec)) out.push({ spec: imp.spec.text, typeOnly: imp.typeOnly, dynamic: imp.dynamic });
+    ts.forEachChild(node, visit);
+  };
+  // JSDoc не разбираем: на импорты не влияет, а разбор быстрее.
+  const options = { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone };
+  visit(ts.createSourceFile(file, readFileSync(file, "utf8"), options, false, kind));
+  return out;
+}
+
+/** "@/…" (от src) и относительные пути; пакеты — null. Если файла нет, остаётся путь без расширения. */
+function resolveImport(src, from, spec) {
   let base;
   if (spec.startsWith("@/")) base = path.join(src, spec.slice(2));
   else if (spec.startsWith(".")) base = path.resolve(path.dirname(from), spec);
@@ -30,10 +66,9 @@ export function importGraph(root) {
   const files = sourceFiles(src);
   const edges = [];
   for (const f of files) {
-    const text = readFileSync(f, "utf8");
-    for (const m of text.matchAll(IMPORT)) {
-      const to = resolve(src, f, m[2] ?? m[3]);
-      if (to) edges.push({ from: path.relative(root, f), to: path.relative(root, to), typeOnly: !!m[1], dynamic: !!m[3] });
+    for (const { spec, typeOnly, dynamic } of parseImports(f)) {
+      const to = resolveImport(src, f, spec);
+      if (to) edges.push({ from: path.relative(root, f), to: path.relative(root, to), typeOnly, dynamic });
     }
   }
   return { files, edges };
