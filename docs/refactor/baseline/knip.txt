@@ -1,0 +1,216 @@
+Unused files (23)
+deploy/ecosystem.config.cjs
+public/crm-sw.js
+scripts/crm-security-reset.mjs
+scripts/e2e-back.mjs
+scripts/e2e-crm-pro.mjs
+scripts/e2e-crm-sales.mjs
+scripts/e2e-crm-v3.mjs
+scripts/e2e-crm-v4.mjs
+scripts/e2e-crm.mjs
+scripts/e2e-dictation.mjs
+scripts/e2e-gift.mjs
+scripts/e2e-inline-photo.mjs
+scripts/e2e-invite.mjs
+scripts/e2e-kk.mjs
+scripts/e2e-letters.mjs
+scripts/e2e-order.mjs
+scripts/e2e-review.mjs
+scripts/e2e-smoke.mjs
+scripts/photo-covers-sheet.ts
+scripts/shot-admin.mjs
+scripts/shot.mjs
+src/components/BackLink.tsx
+tests/server-only-stub.ts
+Unused devDependencies (1)
+package.json: playwright
+Unlisted dependencies (3)
+postcss.config.mjs: postcss
+src/modules/production/infrastructure/pdf/art.tsx: @react-pdf/stylesheet
+src/modules/production/infrastructure/pdf/interior.tsx: @react-pdf/stylesheet
+Unused exports (71)
+src/app/fonts.ts: onest, cormorant, playfair, lora, ptserif, montserrat, badscript, caveat
+src/components/AgreementCard.tsx: agreementStep
+src/components/Logo.tsx: LogoFull
+src/components/book3d/cover-art.ts: cropSvg, svgUrl
+src/components/book3d/pages.tsx: faceBox
+src/components/editor/proofread/ProofTextarea.tsx: kindColor
+src/components/interior/BookPage.tsx: InlineDrawing, faceCss, labelCss, paragraphCss, leadInCss, LeadParagraph, ChapterTail, folioText, TextArea, EntryBody
+src/i18n/server.ts: lpath
+src/lib/book/answer-blocks.ts: QUOTE_MAX_CHARS, blockOfParagraph
+src/lib/book/book-model.ts: SPINE_FONT_MAX_MM
+src/lib/book/cover-back.ts: resolveBackLayout
+src/lib/book/cover-kit.ts: samplePhoto
+src/lib/book/cover-registry.ts: setCustomCovers, customCoversSnapshot
+src/lib/book/formats.ts: MM_TO_PT
+src/lib/book/inline-photo.ts: defaultInlineStyle, aspectRatios, ROW_MAX_WIDTH, photoRatio, frameExtra, POLAROID_BOTTOM, POLAROID_SIDE
+src/lib/book/interior-art.ts: glyphDrawing
+src/lib/book/layout.ts: questionHeading, GRID_PER_PAGE, answerLines, headingLines, inlinePhotosPages, pluralRu
+src/lib/book/photo-cover.ts: plateRect, photoArt, photoDpi
+src/lib/book/photo-pages.ts: photoCaptionSize, OPENER_POLAROID_RATIO
+src/lib/content/themes.ts: CUSTOM_CHAPTER
+src/lib/csv.ts: csvEscape
+src/lib/occasions.ts: occasions, daysBetween
+src/lib/seo.ts: planOffers
+src/modules/access/domain/ip.ts: parseRule
+src/modules/assistant/domain/proofread.ts: proofreadKinds
+src/modules/assistant/index.ts: temperatureLabels
+src/modules/assistant/infrastructure/connection.ts: activeProvider
+src/modules/authoring/domain/Question.ts: MAX_ANSWER_LENGTH
+src/modules/authoring/infrastructure/photoView.ts: VIEW_SIDE
+src/modules/automation/domain/rules.ts: automationActions, automationHours, automationTriggers, isTrigger, templateVars
+src/modules/automation/index.ts: matches
+src/modules/feedback/index.ts: reviewToken
+src/modules/feedback/infrastructure/adapters.ts: reviewToken
+src/modules/identity/application/AuthService.ts: SESSION_TTL_DAYS
+src/modules/identity/domain/Login.ts: PHONE_EMAIL_DOMAIN
+src/modules/identity/domain/User.ts: MIN_PASSWORD_LENGTH
+src/modules/identity/domain/totp.ts: STEP_SEC
+src/modules/identity/index.ts: SESSION_TTL_DAYS
+src/modules/messaging/domain/bot.ts: defaultBotConfig, parseBotConfig, firstName
+src/modules/messaging/domain/conversation.ts: channelLabels
+src/modules/messaging/domain/wazzup.ts: mediaCaption
+src/modules/messaging/index.ts: channelLabels, wazzupConfigured
+src/modules/messaging/infrastructure/email.ts: imapConfigured, lastEmailOfDeal
+src/modules/notifications/index.ts: ALMOST_READY_ANSWERS, isSendingHour
+src/modules/notifications/infrastructure/unsubscribe.ts: unsubscribeToken
+src/modules/ordering/domain/OrderStatus.ts: isOrderStatus, ACTIVE_ORDER_STATUSES
+src/modules/ordering/domain/Pricing.ts: discountFor, applyAgreement
+src/modules/ordering/domain/PromoCode.ts: describePromo
+src/modules/ordering/index.ts: giftUrl
+src/modules/ordering/infrastructure/notifications/OrderingMailer.ts: giftUrl
+src/modules/production/infrastructure/pdf/cover.tsx: CoverOrnament
+src/modules/production/infrastructure/pdf/flow.ts: flowSize, MIN_ROW_SCALE
+src/modules/production/infrastructure/pdf/fonts.ts: fontsDir
+src/modules/referrals/index.ts: inviteCode, latinName
+src/modules/reporting/infrastructure/Clients.ts: segmentWhere, channelWhere
+src/modules/sales/domain/sources.ts: lostReasons, milestoneOrder, stageMilestones
+src/modules/sales/index.ts: SalesError, MAX_PAYMENT
+src/modules/sales/infrastructure/payments.ts: MAX_PAYMENT
+src/modules/telephony/domain/Call.ts: callDuration
+src/modules/telephony/domain/protocol.ts: zadarmaDisposition
+src/modules/workspace/domain/schedule.ts: SHOP_TZ, defaultWorkHours
+src/server/access.ts: staffGate, actorLabel
+src/server/books.ts: isEditable
+src/server/cover-photos.ts: coverPhotoOriginal
+src/server/invite.ts: inviteCodeFromCookie
+src/server/scheduler.ts: tick, crmTick, outboxTick
+src/server/track.ts: EVENTS_COOKIE
+src/shared/crypto.ts: hmacSha1Base64
+src/shared/domain/DomainError.ts: AccessDeniedError
+src/shared/infrastructure/db/index.ts: schema
+src/shared/infrastructure/redis.ts: redisClient
+Unused exported types (113)
+src/app/(app)/books/[id]/cover/CoverEditor.tsx: CoverState
+src/app/(app)/books/[id]/letters/LettersManager.tsx: ManagedLetter
+src/app/(app)/books/[id]/pages/PagesEditor.tsx: PagesState
+src/app/(app)/books/[id]/photos/PhotosManager.tsx: ManagedPhoto
+src/app/(app)/books/[id]/settings/SettingsForm.tsx: SettingsState
+src/app/admin/automations/actions.ts: AutomationInput
+src/app/admin/clients/new/access-message.ts: AccessMessageInput
+src/app/admin/crm-actions.ts: ActionResult
+src/app/admin/deals/DealsTable.tsx: DealRow
+src/app/admin/deals/[id]/PaymentsPanel.tsx: PaymentItem
+src/app/review/[orderId]/ReviewForm.tsx: ReviewDraft
+src/components/AgreementCard.tsx: CardBook
+src/components/analytics/Analytics.tsx: AnalyticsIds
+src/components/book3d/ViewerControls.tsx: ApertureControl, ViewerControlsProps
+src/components/book3d/pages.tsx: PagedBook
+src/components/book3d/webgl/scene.ts: ViewTarget, SceneInit
+src/components/editor/PhotoInspector.tsx: InspectorPhoto
+src/components/editor/QuestionsEditor.tsx: EditorPhoto, EditorBook
+src/components/landing/Reviews.tsx: ShowcaseReview
+src/config/site.ts: Plan, DeliveryOption, Addon
+src/lib/book/book-model.ts: PileState, WindowPile
+src/lib/book/cover-kit.ts: PhotoTone
+src/lib/book/cover-registry.ts: CustomCoverStatus, CustomCoverData
+src/lib/book/flipbook.ts: FacePlanInput, FacePlan
+src/lib/book/fonts.ts: FontFace
+src/lib/book/formats.ts: CoverZoneKey, CoverZone
+src/lib/book/inline-photo.ts: Anchored
+src/lib/book/interior-art.ts: ArtContext
+src/lib/book/layout.ts: InteriorMetrics, LetterLike, TextMetrics
+src/lib/book/page-curl.ts: CurlCurve
+src/lib/book/photo-frame.ts: FrameRect
+src/lib/book/photo-pages.ts: PhotoPagePlan, OpenerPhotoPlan
+src/lib/content/articles.ts: ArticleSection, ArticleContent, Article
+src/lib/content/landings.ts: LandingContent, Landing
+src/lib/occasions.ts: Occasion, DeadlineState, Deadline
+src/lib/proofread/spelling.ts: WordAt
+src/lib/seo.ts: ReviewLdInput
+src/modules/access/application/services.ts: StaffAccount
+src/modules/access/domain/Role.ts: RoleProps
+src/modules/access/domain/StaffMember.ts: StaffMemberProps
+src/modules/access/domain/errors.ts: AccessErrorCode
+src/modules/access/index.ts: StaffAccount
+src/modules/authoring/application/services.ts: PhotoLayout
+src/modules/authoring/domain/Letter.ts: LetterProps
+src/modules/authoring/domain/Question.ts: QuestionProps
+src/modules/authoring/domain/errors.ts: AuthoringErrorCode
+src/modules/authoring/domain/events.ts: AuthoringEvent
+src/modules/authoring/domain/readiness.ts: ReadinessIssue
+src/modules/authoring/index.ts: BookBundle, LetterRow, PhotoRow, QuestionRow
+src/modules/authoring/infrastructure/images.ts: ProcessedImage
+src/modules/authoring/infrastructure/queries.ts: QuestionRow, PhotoRow, LetterRow, BookBundle
+src/modules/automation/domain/rules.ts: AutomationActionType
+src/modules/automation/index.ts: TriggerContext, AutomationTrigger, SalesGateway
+src/modules/feedback/domain/Review.ts: ReviewProps
+src/modules/feedback/domain/errors.ts: FeedbackErrorCode
+src/modules/feedback/domain/events.ts: ReviewSubmitted, FeedbackEvent
+src/modules/feedback/domain/rules.ts: ReviewableOrder
+src/modules/feedback/index.ts: PublicReview
+src/modules/feedback/infrastructure/persistence.ts: PublicReview
+src/modules/identity/application/AuthService.ts: LoginResult
+src/modules/identity/domain/Login.ts: LoginId
+src/modules/identity/domain/User.ts: UserRole, TwoFactorState, UserProps
+src/modules/identity/domain/errors.ts: IdentityErrorCode
+src/modules/identity/domain/events.ts: PasswordChanged, TwoFactorEnabled, TwoFactorDisabled, IdentityEvent
+src/modules/identity/index.ts: LoginResult
+src/modules/marketing/domain/channels.ts: ManualChannel
+src/modules/marketing/domain/report.ts: Metrics, CohortMetrics, Report
+src/modules/marketing/index.ts: Report
+src/modules/messaging/application/services.ts: IngestExtra
+src/modules/messaging/domain/bot.ts: BotQuestion
+src/modules/messaging/index.ts: Conversation, InboundMessage, IngestExtra, MessagingSalesGateway, IncomingRules
+src/modules/messaging/infrastructure/wazzup.ts: WazzupChannel
+src/modules/ordering/application/GiftsService.ts: PurchaseGiftCommand
+src/modules/ordering/application/OrdersService.ts: PlaceOrderCommand, UpgradeOffer, UpdateOrderCommand
+src/modules/ordering/application/PromoService.ts: PromoView, PromoCheck
+src/modules/ordering/domain/GiftCard.ts: GiftCardProps
+src/modules/ordering/domain/Order.ts: OrderHistoryEntry, OrderProps, PlaceOrderInput
+src/modules/ordering/domain/PromoCode.ts: PromoBuyer, PromoCodeProps
+src/modules/ordering/domain/errors.ts: OrderingErrorCode
+src/modules/ordering/index.ts: PlaceOrderCommand, PromoCheck, PromoView, PurchaseGiftCommand, UpdateOrderCommand, OrderDetailsView, GiftView, OrderingDeps
+src/modules/ordering/infrastructure/payments/CloudPayments.ts: CloudPaymentsCode
+src/modules/ordering/infrastructure/persistence/DrizzleOrderingQueries.ts: OrderDetailsView
+src/modules/production/application/PrintFilesService.ts: PrintJob
+src/modules/production/index.ts: FileStore, PrintJob, PrintSpec, RenderQueue, GiftPdfData
+src/modules/production/infrastructure/adapters.ts: BookBundleSource
+src/modules/production/infrastructure/pdf/gift.tsx: GiftPdfData
+src/modules/production/infrastructure/pdf/interior.tsx: InteriorOptions
+src/modules/referrals/application/ReferralService.ts: PaidOrder
+src/modules/referrals/index.ts: PaidOrder, ReferralPromos
+src/modules/reporting/index.ts: Viewer
+src/modules/reporting/infrastructure/Books.ts: BookFilter
+src/modules/reporting/infrastructure/Duplicates.ts: DuplicateGroup
+src/modules/reporting/infrastructure/Inbox.ts: InboxFilter
+src/modules/reporting/infrastructure/Lists.ts: CallFilter
+src/modules/sales/application/services.ts: NewDeal, DealView
+src/modules/sales/domain/Deal.ts: DealProps, DealNote, StageChange
+src/modules/sales/domain/errors.ts: SalesErrorCode
+src/modules/sales/domain/events.ts: DealAssigned, SalesEvent
+src/modules/sales/domain/receipt.ts: ReceiptType
+src/modules/sales/index.ts: PlanProgress, DealAssigned, SalesEvent, CustomValues, DealSource, StageMilestone, DealView, NewDeal, ReceiptRow, PaymentRow
+src/modules/sales/infrastructure/payments.ts: PaymentRow
+src/modules/sales/infrastructure/receipts.ts: ReceiptRow
+src/modules/telephony/application/ports.ts: CallEvent
+src/modules/telephony/domain/Call.ts: CallStage, CallStatus, CallProps
+src/modules/telephony/index.ts: CallEvent, TelephonySalesGateway, CallSideEffects
+src/modules/workspace/domain/schedule.ts: WorkHours
+src/modules/workspace/infrastructure/push.ts: PushPayload
+src/server/access.ts: StaffGate
+src/server/api.ts: ApiErrorKey
+src/server/track.ts: TrackEvent
+src/shared/application/UseCase.ts: UseCase
+src/shared/infrastructure/database.ts: Database, Transaction, Executor
+src/shared/infrastructure/mail.ts: SmtpConfigSource
