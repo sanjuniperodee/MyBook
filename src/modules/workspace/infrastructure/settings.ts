@@ -9,6 +9,8 @@ interface Def {
   secret?: boolean;
   /** Переменная окружения, которая переопределяет значение из админки. */
   env?: string;
+  /** Переменная окружения со значением по умолчанию: админка может его изменить (адреса сервисов в docker compose). */
+  envDefault?: string;
   default?: string;
 }
 
@@ -112,20 +114,23 @@ export const settingDefs = {
   "site.registration": { default: "on" },
   /**
    * Оплата через Kaspi Pay (kaspi-pos-automation): адрес сервиса, включена ли оплата, сессия кассира (JSON после входа
-   * по SMS-коду) и секрет подписи вебхуков (тот же, что в webhooks.json сервиса).
+   * по SMS-коду) и секрет подписи вебхуков — необязательный: без подписи уведомление лишь повод сверить счёт с Kaspi.
    */
-  "kaspi.apiUrl": { env: "KASPI_API_URL", default: "http://localhost:3010" },
+  "kaspi.apiUrl": { envDefault: "KASPI_API_URL", default: "http://127.0.0.1:3010" },
   "kaspi.enabled": { default: "off" },
   "kaspi.session": { secret: true },
   "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
   /**
    * WhatsApp: через Wazzup (по умолчанию) или свой шлюз GOWA (go-whatsapp-web-multidevice, номер привязывается по QR).
-   * Для GOWA — адрес шлюза, логин:пароль его API (APP_BASIC_AUTH) и секрет подписи вебхуков (WHATSAPP_WEBHOOK_SECRET).
+   * Для GOWA — адрес шлюза и логин:пароль его API (APP_BASIC_AUTH); вебхук устройства магазина сайт настраивает в шлюзе сам.
    */
-  "whatsapp.provider": { env: "WHATSAPP_PROVIDER", default: "wazzup" },
-  "gowa.baseUrl": { env: "GOWA_API_URL", default: "http://localhost:3020" },
-  "gowa.basicAuth": { secret: true, env: "GOWA_BASIC_AUTH" },
-  "gowa.webhookSecret": { secret: true, env: "GOWA_WEBHOOK_SECRET" },
+  "whatsapp.provider": { envDefault: "WHATSAPP_PROVIDER", default: "wazzup" },
+  "gowa.baseUrl": { envDefault: "GOWA_API_URL", default: "http://127.0.0.1:3020" },
+  "gowa.basicAuth": { secret: true, envDefault: "GOWA_BASIC_AUTH" },
+  /** Куда шлюз отправляет входящие (вебхук устройства магазина); пусто — адрес сайта + /api/integrations/gowa. */
+  "gowa.callbackUrl": { envDefault: "GOWA_CALLBACK_URL" },
+  /** Секрет подписи вебхука: сайт сам передаёт его шлюзу при подключении устройства. */
+  "gowa.webhookSecret": { secret: true },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;
@@ -161,7 +166,7 @@ export async function getSetting(key: SettingKey): Promise<string> {
   const def = defs[key];
   const fromEnv = def.env ? process.env[def.env] : undefined;
   if (fromEnv) return fromEnv;
-  return (await load()).get(key) ?? def.default ?? "";
+  return (await load()).get(key) ?? (def.envDefault ? process.env[def.envDefault] : undefined) ?? def.default ?? "";
 }
 
 export async function getSettings<K extends SettingKey>(keys: K[]): Promise<Record<K, string>> {

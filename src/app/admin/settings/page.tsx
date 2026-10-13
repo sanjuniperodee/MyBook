@@ -59,7 +59,7 @@ export default async function SettingsPage() {
     : { host: smtpDb["mail.smtpHost"], port: smtpDb["mail.smtpPort"], secure: smtpDb["mail.smtpSecure"], user: smtpDb["mail.smtpUser"], password: maskSecret(smtpDb["mail.smtpPassword"]), from: smtpDb["mail.from"], replyTo: smtpDb["mail.replyTo"] };
   const [kaspi, gowa] = await Promise.all([
     container().ordering.kaspiSetup.status(),
-    (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth"]), status: await container().messaging.gowa.status() }))(),
+    (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl"]), status: await container().messaging.gowa.status() }))(),
   ]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
@@ -77,14 +77,11 @@ export default async function SettingsPage() {
 
       <GowaForm
         provider={gowa.provider}
-        providerFromEnv={fromEnv("whatsapp.provider")}
         baseUrl={gowa.settings["gowa.baseUrl"]}
-        baseUrlFromEnv={fromEnv("gowa.baseUrl")}
         authSaved={maskSecret(gowa.settings["gowa.basicAuth"])}
-        authFromEnv={fromEnv("gowa.basicAuth")}
         status={gowa.status}
-        webhookUrl={hook("/api/integrations/gowa")}
-        webhookSecret={fromEnv("gowa.webhookSecret") ? null : await ensureToken("gowa.webhookSecret")}
+        callbackUrl={gowa.settings["gowa.callbackUrl"]}
+        callbackDefault={hook("/api/integrations/gowa")}
       />
 
       <WazzupForm

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import { gowaChatId, gowaJid, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
-import { GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
+import { GOWA_DEVICE, GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
 import { whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
 
 const media = (path: string) => `/media?path=${path}`;
@@ -86,17 +86,40 @@ describe("GOWA: клиент шлюза", () => {
     });
     expect(await client.sendText("77011234567", "Добрый день!")).toBe("3EB0B4");
     expect(calls[0].url).toBe("http://gowa:3000/send/message");
-    expect(calls[0].init.headers).toMatchObject({ Authorization: `Basic ${Buffer.from("admin:pass").toString("base64")}`, "Content-Type": "application/json" });
+    expect(calls[0].init.headers).toMatchObject({ Authorization: `Basic ${Buffer.from("admin:pass").toString("base64")}`, "X-Device-Id": "mybooks", "Content-Type": "application/json" });
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ phone: "77011234567@s.whatsapp.net", message: "Добрый день!" });
   });
 
-  it("состояние: привязанный номер; шлюз недоступен — reachable=false, без исключения", async () => {
+  it("состояние: привязанный номер; устройство не заведено; неверный пароль; шлюз недоступен — без исключений", async () => {
     const ok = new GowaClient(config, async () => json({ results: { is_connected: true, is_logged_in: true, jid: "77001112233:5@s.whatsapp.net" } }));
-    expect(await ok.status()).toEqual({ reachable: true, connected: true, loggedIn: true, phone: "77001112233" });
+    expect(await ok.status()).toEqual({ reachable: true, registered: true, connected: true, loggedIn: true, phone: "77001112233", problem: null });
+    const fresh = new GowaClient(config, async () => json({ code: "DEVICE_NOT_FOUND", message: "device not found" }, 404));
+    expect(await fresh.status()).toEqual({ reachable: true, registered: false, connected: false, loggedIn: false, phone: "", problem: null });
+    const wrongPass = new GowaClient(config, async () => new Response("Unauthorized", { status: 401 }));
+    expect(await wrongPass.status()).toMatchObject({ reachable: true, registered: false, problem: "Шлюз WhatsApp не принял логин и пароль" });
     const down = new GowaClient(config, async () => {
       throw new TypeError("fetch failed");
     });
-    expect(await down.status()).toEqual({ reachable: false, connected: false, loggedIn: false, phone: "" });
+    expect(await down.status()).toMatchObject({ reachable: false, registered: false, loggedIn: false, phone: "" });
+  });
+
+  it("подключение: сайт сам заводит устройство магазина с вебхуком, повторно — обновляет вебхук", async () => {
+    const calls: { method: string; path: string; body: unknown }[] = [];
+    let devices: { id: string }[] = [];
+    const client = new GowaClient(config, async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      calls.push({ method: init?.method ?? "GET", path, body: init?.body ? JSON.parse(String(init.body)) : null });
+      if (path === "/devices" && init?.method === "GET") return json({ results: devices });
+      return json({ code: "SUCCESS", results: {} });
+    });
+    const hook = { url: "https://mybooks.kz/api/integrations/gowa", secret: "s3cret" };
+    await client.connect(hook);
+    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack" } });
+    devices = [{ id: "other" }, { id: GOWA_DEVICE }];
+    await client.connect({ ...hook, url: "http://127.0.0.1:3040/api/integrations/gowa" });
+    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack" } });
+    await client.logout();
+    expect(calls.slice(-1)[0]).toMatchObject({ method: "POST", path: `/devices/${GOWA_DEVICE}/logout` });
   });
 
   it("QR: картинку со шлюза забираем сервером и отдаём data-URL", async () => {

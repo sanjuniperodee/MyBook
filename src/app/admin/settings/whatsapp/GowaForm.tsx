@@ -1,51 +1,36 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Copy, LoaderCircle, QrCode, RefreshCw } from "lucide-react";
-import { toast } from "@/components/ui/overlays";
+import { LoaderCircle, QrCode, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GowaStatus } from "@/modules/messaging";
 import { gowaLogoutAction, gowaPairCodeAction, gowaQrAction, gowaStatusAction, saveWhatsappSettingsAction } from "./actions";
 
 export interface GowaFormProps {
   provider: "wazzup" | "gowa";
-  providerFromEnv: boolean;
   baseUrl: string;
-  baseUrlFromEnv: boolean;
   /** «••••abcd», если логин:пароль шлюза сохранён. */
   authSaved: string;
-  authFromEnv: boolean;
   status: GowaStatus;
-  webhookUrl: string;
-  /** Секрет для WHATSAPP_WEBHOOK_SECRET шлюза; null — задан переменной окружения GOWA_WEBHOOK_SECRET. */
-  webhookSecret: string | null;
+  /** Свой адрес для событий шлюза; пусто — адрес по умолчанию (callbackDefault). */
+  callbackUrl: string;
+  callbackDefault: string;
 }
 
-function Copyable({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="mb-1 text-xs text-muted">{label}</div>
-      <div className="flex gap-2">
-        <input readOnly value={value} className="input h-9 min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.target.select()} />
-        <button type="button" className="btn btn-outline btn-sm h-9" onClick={() => navigator.clipboard.writeText(value).then(() => toast("Скопировано"))} aria-label="Скопировать">
-          <Copy className="size-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const statusLabel = (s: GowaStatus) => (!s.reachable ? "шлюз недоступен" : s.loggedIn ? `номер привязан${s.phone ? ` · +${s.phone}` : ""}` : "номер не привязан");
+const statusLabel = (s: GowaStatus) =>
+  !s.reachable ? "шлюз недоступен" : s.problem ? "ошибка подключения" : s.loggedIn ? `номер привязан${s.phone ? ` · +${s.phone}` : ""}` : s.registered ? "номер не привязан" : "не подключён";
 
 /**
  * WhatsApp через свой шлюз GOWA (go-whatsapp-web-multidevice) вместо Wazzup: номер магазина привязывается по QR,
- * переписка идёт в единый инбокс в реальном времени, менеджеры отвечают из CRM.
+ * переписка идёт в единый инбокс в реальном времени, менеджеры отвечают из CRM. Всё настраивается здесь: сайт сам
+ * заводит в шлюзе устройство магазина и направляет его события на себя.
  */
 export function GowaForm(props: GowaFormProps) {
   const [pending, start] = useTransition();
   const [provider, setProvider] = useState(props.provider);
   const [baseUrl, setBaseUrl] = useState(props.baseUrl);
   const [auth, setAuth] = useState("");
+  const [callbackUrl, setCallbackUrl] = useState(props.callbackUrl);
   const [status, setStatus] = useState(props.status);
   const [qr, setQr] = useState<{ image: string; until: number } | null>(null);
   const [phone, setPhone] = useState("");
@@ -73,8 +58,8 @@ export function GowaForm(props: GowaFormProps) {
 
   const save = () =>
     start(async () => {
-      const r = await saveWhatsappSettingsAction({ provider, baseUrl, basicAuth: auth, clearAuth: false });
-      setMessage(r.ok ? { ok: true, text: "Сохранено" } : { ok: false, text: r.error });
+      const r = await saveWhatsappSettingsAction({ provider, baseUrl, basicAuth: auth, clearAuth: false, callbackUrl });
+      setMessage(!r.ok ? { ok: false, text: r.error } : r.warning ? { ok: false, text: `Сохранено, но шлюз не подключён: ${r.warning}` } : { ok: true, text: provider === "gowa" ? "Сохранено, шлюз подключён" : "Сохранено" });
       if (r.ok) {
         setAuth("");
         setStatus(await gowaStatusAction());
@@ -114,8 +99,8 @@ export function GowaForm(props: GowaFormProps) {
         Вместо Wazzup — бесплатный шлюз GOWA на вашем сервере: номер магазина привязывается по QR как «связанное устройство», входящие и ответы с телефона приходят в инбокс сразу, менеджеры отвечают из CRM. Instagram и Telegram по-прежнему идут через Wazzup.
       </p>
 
-      <fieldset className="mt-4 space-y-2" disabled={props.providerFromEnv}>
-        <legend className="mb-1 text-xs text-muted">WhatsApp работает через{props.providerFromEnv ? " (задано в WHATSAPP_PROVIDER)" : ""}</legend>
+      <fieldset className="mt-4 space-y-2">
+        <legend className="mb-1 text-xs text-muted">WhatsApp работает через</legend>
         <label className="flex items-center gap-2 text-sm">
           <input type="radio" name="provider" className="accent-wine" checked={provider === "wazzup"} onChange={() => setProvider("wazzup")} /> Wazzup
         </label>
@@ -127,7 +112,7 @@ export function GowaForm(props: GowaFormProps) {
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-xs text-muted">Адрес шлюза</span>
-          <input className="input h-10 text-sm" value={baseUrl} disabled={props.baseUrlFromEnv} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://gowa:3000" />
+          <input className="input h-10 text-sm" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://127.0.0.1:3020" />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-muted">Логин:пароль шлюза (APP_BASIC_AUTH)</span>
@@ -136,10 +121,13 @@ export function GowaForm(props: GowaFormProps) {
             type="password"
             autoComplete="off"
             value={auth}
-            disabled={props.authFromEnv}
             onChange={(e) => setAuth(e.target.value)}
-            placeholder={props.authFromEnv ? "задан в переменных окружения" : props.authSaved ? `сохранён ${props.authSaved} — оставьте пустым, чтобы не менять` : "admin:пароль"}
+            placeholder={props.authSaved ? `сохранён ${props.authSaved} — оставьте пустым, чтобы не менять` : "admin:пароль"}
           />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-xs text-muted">Куда шлюз отправляет входящие (адрес сайта, доступный шлюзу)</span>
+          <input className="input h-10 text-sm" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} placeholder={props.callbackDefault} />
         </label>
       </div>
       <button className="btn btn-primary btn-sm mt-3" disabled={pending} onClick={save}>
@@ -179,14 +167,8 @@ export function GowaForm(props: GowaFormProps) {
             ) : null}
           </>
         )}
+        {status.problem ? <p className="text-xs text-red-700">{status.problem}</p> : null}
         {message ? <p className={cn("text-xs", message.ok ? "text-emerald-700" : "text-red-700")}>{message.text}</p> : null}
-      </div>
-
-      <div className="mt-4 space-y-3 border-t border-line pt-4">
-        <div className="text-sm font-medium">Вебхук шлюза</div>
-        <p className="text-xs text-muted">В настройках шлюза: WHATSAPP_WEBHOOK — адрес ниже, WHATSAPP_WEBHOOK_SECRET — секрет ниже, WHATSAPP_WEBHOOK_IGNORE_JIDS=@g.us (группы в CRM не нужны). В docker compose это уже настроено.</p>
-        <Copyable label="Адрес" value={props.webhookUrl} />
-        {props.webhookSecret ? <Copyable label="Секрет подписи" value={props.webhookSecret} /> : <p className="text-xs text-muted">Секрет задан переменной окружения GOWA_WEBHOOK_SECRET.</p>}
       </div>
     </section>
   );

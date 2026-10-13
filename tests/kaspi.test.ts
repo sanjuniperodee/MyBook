@@ -193,12 +193,29 @@ describe("Kaspi: оплата заказа", () => {
     const order = await t.place();
     const inv = await t.svc.payOrder(order.id, "user-1", { method: "invoice", phone: "+7 701 000 00 00" });
     expect(t.kaspi.created).toEqual([{ method: "invoice", phone: "77010000000", amount: order.amount, comment: `MyBooks №${order.number}` }]);
-    expect(await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: order.amount })).toBe("ok");
+    expect(await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: order.amount }, true)).toBe("ok");
     expect((await t.orders.findById(order.id))!.status).toBe("paid");
     expect((await t.orders.findById(order.id))!.snapshot().paymentId).toBe(`kaspi:${inv.externalId}`);
-    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: order.amount });
+    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: order.amount }, true);
     expect(t.uow.types().filter((x) => x === "ordering.order_paid")).toHaveLength(1);
-    expect(await t.svc.onWebhook({ event: "payment.success", externalId: "чужой", method: "qr", status: "Processed", amount: 1 })).toBe("unknown");
+    expect(await t.svc.onWebhook({ event: "payment.success", externalId: "чужой", method: "qr", status: "Processed", amount: 1 }, true)).toBe("unknown");
+  });
+
+  it("уведомление без подписи — только повод спросить Kaspi: статус берётся из ответа Kaspi, не из тела", async () => {
+    const t = kaspiSetup();
+    const order = await t.place();
+    const inv = await t.svc.payOrder(order.id, "user-1", { method: "qr" });
+    const forged = { event: "payment.success", externalId: inv.externalId, method: "qr", status: "Processed", amount: order.amount } as const;
+    t.c.set("2026-10-01T10:00:05Z");
+    expect(await t.svc.onWebhook(forged, false)).toBe("ok");
+    expect((await t.orders.findById(order.id))!.status).toBe("pending_payment");
+    // Kaspi подтвердил оплату: следующее уведомление (не раньше чем через секунду после прошлой сверки) её проводит.
+    t.kaspi.statuses.set(inv.externalId, { status: "Processed", amount: order.amount });
+    await t.svc.onWebhook(forged, false);
+    expect((await t.orders.findById(order.id))!.status).toBe("pending_payment");
+    t.c.set("2026-10-01T10:00:07Z");
+    await t.svc.onWebhook(forged, false);
+    expect((await t.orders.findById(order.id))!.status).toBe("paid");
   });
 
   it("повторное нажатие отдаёт тот же счёт; другой способ отменяет прежний счёт в Kaspi", async () => {
@@ -232,7 +249,7 @@ describe("Kaspi: оплата заказа", () => {
     const t = kaspiSetup();
     const order = await t.place();
     const inv = await t.svc.payOrder(order.id, "user-1", { method: "qr" });
-    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "qr", status: "Processed", amount: 1 });
+    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "qr", status: "Processed", amount: 1 }, true);
     expect((await t.orders.findById(order.id))!.status).toBe("pending_payment");
     expect((await t.invoices.findById(inv.id))!.snapshot()).toMatchObject({ status: "failed", providerStatus: "AmountMismatch:1" });
   });
@@ -257,8 +274,8 @@ describe("Kaspi: оплата заказа", () => {
     t.c.set("2026-10-01T10:09:00Z");
     await t.svc.reconcile(3600_000);
     const second = await t.svc.payOrder(order.id, "user-1", { method: "qr" });
-    await t.svc.onWebhook({ event: "payment.success", externalId: second.externalId, method: "qr", status: "Processed", amount: null });
-    await t.svc.onWebhook({ event: "payment.success", externalId: first.externalId, method: "qr", status: "Processed", amount: null });
+    await t.svc.onWebhook({ event: "payment.success", externalId: second.externalId, method: "qr", status: "Processed", amount: null }, true);
+    await t.svc.onWebhook({ event: "payment.success", externalId: first.externalId, method: "qr", status: "Processed", amount: null }, true);
     expect(t.uow.types().filter((x) => x === "ordering.order_paid")).toHaveLength(1);
     expect(t.orders.history.at(-1)!.note).toContain("нужен возврат");
   });
@@ -291,7 +308,7 @@ describe("Kaspi: оплата сертификата", () => {
     const gift = await t.giftsService.purchase({ plan: "hardcover", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "+77010000000", recipientName: "Б", recipientEmail: null, sendAt: null, message: "", locale: "ru", buyerLocale: "ru" });
     const inv = await t.svc.payGift(gift.token, { method: "invoice", phone: "+77010000000" });
     await expect(t.svc.status(inv.id, { giftToken: "x".repeat(24) })).rejects.toMatchObject({ code: "invoiceNotFound" });
-    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: gift.amount });
+    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: gift.amount }, true);
     expect((await t.gifts.findById(gift.id))!.status).toBe("paid");
     expect(await t.promos.findByCode("GIFT-KASPI-0001")).not.toBeNull();
   });
@@ -301,13 +318,14 @@ describe("Kaspi: оплата сертификата", () => {
 
 const session: KaspiSession = { tokenSn: "TSN", vtokenSecret: "VSEC", profileId: 12345, organizationId: 6789, orgName: "ИП MyBooks", phone: "77010000000" };
 
-function memConfig(initial: KaspiSession | null = session): KaspiConfigStore & { state: { enabled: boolean; session: KaspiSession | null } } {
-  const state = { enabled: false, session: initial };
+function memConfig(initial: KaspiSession | null = session): KaspiConfigStore & { state: { enabled: boolean; session: KaspiSession | null; apiUrl: string } } {
+  const state = { enabled: false, session: initial, apiUrl: "http://kaspi-pos:3000/" };
   return {
     state,
-    config: async () => ({ enabled: state.enabled, apiUrl: "http://kaspi-pos:3000/", session: state.session }),
+    config: async () => ({ enabled: state.enabled, apiUrl: state.apiUrl, session: state.session }),
     saveSession: async (s) => void (state.session = s),
     setEnabled: async (v) => void (state.enabled = v),
+    saveApiUrl: async (url) => void (state.apiUrl = url),
     webhookSecret: async () => "secret",
   };
 }
@@ -351,6 +369,7 @@ describe("Kaspi: клиент kaspi-pos", () => {
         expect(JSON.parse(String(init!.body))).toEqual({ processId: "p1", otp: "1234" });
         return json({ success: true, tokenSN: "T", vtokenSecret: "V", profileId: 1, organizationId: 2, orgName: "ИП Тест", phone: "77010000000" });
       }
+      if (path === "/health") return json({ status: "ok" });
       return json({ active: true });
     });
     const setup = new KaspiSetupService(client, store);
@@ -359,10 +378,29 @@ describe("Kaspi: клиент kaspi-pos", () => {
     expect(await setup.confirmCode("p1", " 1234 ", "staff-1")).toEqual({ orgName: "ИП Тест", phone: "77010000000" });
     expect(store.state).toMatchObject({ enabled: true, session: { tokenSn: "T", vtokenSecret: "V", profileId: 1 } });
     expect(paths).toEqual(["/api/auth/init", "/api/auth/send-phone", "/api/auth/verify-otp"]);
-    expect(await setup.status()).toMatchObject({ enabled: true, connected: true, active: true, orgName: "ИП Тест" });
+    expect(await setup.status()).toMatchObject({ enabled: true, reachable: true, connected: true, active: true, orgName: "ИП Тест" });
     await setup.disconnect("staff-1");
-    expect(store.state).toEqual({ enabled: false, session: null });
+    expect(store.state).toMatchObject({ enabled: false, session: null });
     await expect(setup.setEnabled(true, "staff-1")).rejects.toMatchObject({ code: "kaspiNotConnected" });
+  });
+
+  it("адрес сервиса меняется в админке и сразу проверяется; недоступный сервис — без запроса сессии", async () => {
+    const store = memConfig();
+    const paths: string[] = [];
+    let up = true;
+    const client = new KaspiPosClient(store, async (url) => {
+      paths.push(String(url));
+      if (!up) throw new TypeError("fetch failed");
+      return json(new URL(String(url)).pathname === "/health" ? { status: "ok" } : { active: true });
+    });
+    const setup = new KaspiSetupService(client, store);
+    expect(await setup.setApiUrl(" http://127.0.0.1:3010/ ", "staff-1")).toBe(true);
+    expect(store.state.apiUrl).toBe("http://127.0.0.1:3010");
+    expect(paths).toEqual(["http://127.0.0.1:3010/health"]);
+    up = false;
+    paths.length = 0;
+    expect(await setup.status()).toMatchObject({ reachable: false, connected: true, active: false });
+    expect(paths).toEqual(["http://127.0.0.1:3010/health"]);
   });
 
   it("Kaspi просит пароль — вход не завершён", async () => {

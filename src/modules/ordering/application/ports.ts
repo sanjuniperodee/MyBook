@@ -64,6 +64,8 @@ export interface KaspiConfigStore {
   config(): Promise<{ enabled: boolean; apiUrl: string; session: KaspiSession | null }>;
   saveSession(session: KaspiSession | null, actorId: string | null): Promise<void>;
   setEnabled(enabled: boolean, actorId: string | null): Promise<void>;
+  /** Адрес сервиса kaspi-pos-automation, указанный в «Интеграциях». */
+  saveApiUrl(apiUrl: string, actorId: string | null): Promise<void>;
   /** Секрет подписи вебхуков kaspi-pos (создаётся при первом обращении). */
   webhookSecret(): Promise<string>;
 }
@@ -74,4 +76,6 @@ export interface KaspiAuthGateway {
   verify(processId: string, otp: string): Promise<KaspiSession>;
   /** Сессия ещё принимается Kaspi (запрос к Kaspi). */
   sessionActive(): Promise<boolean>;
+  /** Сервис kaspi-pos отвечает по указанному адресу (без запроса к Kaspi). */
+  reachable(): Promise<boolean>;
 }

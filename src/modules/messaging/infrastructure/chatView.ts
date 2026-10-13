@@ -55,6 +55,7 @@ export async function sendBlocker(conv: Pick<CrmConversation, "channelId" | "cha
   if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await container().messaging.whatsappProvider()) === "gowa")) {
     const s = await container().messaging.gowa.status();
     if (!s.reachable) return "Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.";
+    if (s.problem) return `${s.problem} — сообщения не уйдут клиенту. Проверьте настройки в «Интеграциях».`;
     return s.loggedIn ? null : "Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».";
   }
   if (!(await wazzupConfigured())) return "Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».";

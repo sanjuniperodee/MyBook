@@ -7,6 +7,13 @@ const GOWA_ERROR = Symbol.for("mybook.gowa-error");
 /** Ошибка шлюза с понятным сотруднику текстом. Проверка — GowaError.is(): классы в разных слоях бандла Next.js разные. */
 export class GowaError extends Error {
   readonly [GOWA_ERROR] = true;
+  constructor(
+    message: string,
+    /** Код ошибки шлюза (DEVICE_NOT_FOUND, INVALID_JID…), если он его прислал. */
+    readonly code: string | null = null,
+  ) {
+    super(message);
+  }
   static is(err: unknown): err is GowaError {
     return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[GOWA_ERROR] === true;
   }
@@ -18,24 +25,55 @@ export interface GowaConfig {
   basicAuth: string;
 }
 
+/** Куда шлюз шлёт события номера магазина и чем их подписывает. */
+export interface GowaWebhook {
+  url: string;
+  secret: string;
+}
+
 /** Подключение номера магазина: привязан ли он и какой номер. */
 export interface GowaStatus {
   reachable: boolean;
+  /** Устройство магазина заведено в шлюзе, и его события идут на сайт. */
+  registered: boolean;
   connected: boolean;
   loggedIn: boolean;
   /** Номер магазина (77011234567), пока номер привязан. */
   phone: string;
+  /** Что мешает работе, — текстом для сотрудника; null — всё в порядке или номер просто не привязан. */
+  problem: string | null;
 }
 
 /**
- * HTTP-клиент GOWA — go-whatsapp-web-multidevice (docs/openapi.yaml): отправка, вход по QR или коду, состояние, файлы.
- * Шлюз держит сессию WhatsApp номера магазина, поэтому доступен только из внутренней сети и под логином.
+ * Устройство магазина в шлюзе. С GOWA v8 каждый номер — отдельное «устройство» со своим вебхуком, и запросы к номеру
+ * адресуются заголовком X-Device-Id: так сайт сам настраивает шлюз, без переменных окружения на его стороне.
+ */
+export const GOWA_DEVICE = "mybooks";
+/** События, которые нужны CRM: сообщения и отметки о доставке. */
+const WEBHOOK_EVENTS = "message,message.ack";
+
+type Method = "GET" | "POST" | "PATCH";
+
+/**
+ * HTTP-клиент GOWA — go-whatsapp-web-multidevice (docs/openapi.yaml): устройство и вебхук, отправка, вход по QR или коду,
+ * состояние, файлы. Шлюз держит сессию WhatsApp номера магазина, поэтому доступен только из внутренней сети и под логином.
  */
 export class GowaClient {
   constructor(
     private readonly config: () => Promise<GowaConfig>,
     private readonly fetchImpl: typeof fetch = (...args) => fetch(...args),
   ) {}
+
+  /**
+   * Завести устройство магазина в шлюзе (или обновить его) и направить его события на сайт с нашей подписью.
+   * Повторный вызов безопасен — так же меняется адрес сайта или секрет.
+   */
+  async connect(hook: GowaWebhook): Promise<void> {
+    const config = { webhook_url: hook.url, webhook_secret: hook.secret, webhook_events: WEBHOOK_EVENTS };
+    const list = await this.json<{ results?: { id?: string }[] | null }>("GET", "/devices");
+    if ((list.results ?? []).some((d) => d.id === GOWA_DEVICE)) await this.json("PATCH", `/devices/${GOWA_DEVICE}/webhook`, config);
+    else await this.json("POST", "/devices", { device_id: GOWA_DEVICE, ...config });
+  }
 
   /** Отправить текст собеседнику. Возвращает id сообщения — по нему придут статусы доставки. */
   async sendText(chatId: string, text: string): Promise<string | null> {
@@ -44,12 +82,15 @@ export class GowaClient {
   }
 
   async status(): Promise<GowaStatus> {
+    const off = { registered: false, connected: false, loggedIn: false, phone: "" };
     try {
       const res = await this.json<{ results?: { is_connected?: boolean; is_logged_in?: boolean; jid?: string } }>("GET", "/app/status");
       const r = res.results ?? {};
-      return { reachable: true, connected: !!r.is_connected, loggedIn: !!r.is_logged_in, phone: (r.jid ?? "").split("@")[0].split(":")[0] };
-    } catch {
-      return { reachable: false, connected: false, loggedIn: false, phone: "" };
+      return { reachable: true, registered: true, connected: !!r.is_connected, loggedIn: !!r.is_logged_in, phone: (r.jid ?? "").split("@")[0].split(":")[0], problem: null };
+    } catch (err) {
+      if (!GowaError.is(err) || err.code === "UNREACHABLE") return { reachable: false, ...off, problem: "Шлюз WhatsApp недоступен — проверьте адрес и что шлюз запущен" };
+      if (err.code === "DEVICE_NOT_FOUND" || err.code === "DEVICE_ID_REQUIRED") return { reachable: true, ...off, problem: null };
+      return { reachable: true, ...off, problem: err.message };
     }
   }
 
@@ -72,8 +113,9 @@ export class GowaClient {
     return res.results.pair_code;
   }
 
+  /** Отвязать номер: сессия WhatsApp удаляется, устройство и его вебхук остаются — номер можно привязать заново. */
   async logout() {
-    await this.json("GET", "/app/logout");
+    await this.json("POST", `/devices/${GOWA_DEVICE}/logout`);
   }
 
   /** Файл вложения, скачанный шлюзом (statics/media/…), — для прокси в CRM. */
@@ -86,7 +128,7 @@ export class GowaClient {
 
   private async headers(): Promise<Record<string, string>> {
     const { basicAuth } = await this.config();
-    return basicAuth ? { Authorization: `Basic ${Buffer.from(basicAuth).toString("base64")}` } : {};
+    return { "X-Device-Id": GOWA_DEVICE, ...(basicAuth ? { Authorization: `Basic ${Buffer.from(basicAuth).toString("base64")}` } : {}) };
   }
 
   private async raw(path: string): Promise<Response> {
@@ -95,13 +137,13 @@ export class GowaClient {
     try {
       res = await this.fetchImpl(`${baseUrl.replace(/\/+$/, "")}${path}`, { headers: await this.headers(), signal: AbortSignal.timeout(20_000) });
     } catch {
-      throw new GowaError("Шлюз WhatsApp (GOWA) недоступен");
+      throw new GowaError("Шлюз WhatsApp (GOWA) недоступен", "UNREACHABLE");
     }
     if (!res.ok) throw new GowaError(res.status === 401 ? "Шлюз WhatsApp не принял логин и пароль" : `Шлюз WhatsApp: HTTP ${res.status}`);
     return res;
   }
 
-  private async json<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+  private async json<T>(method: Method, path: string, body?: unknown): Promise<T> {
     const { baseUrl } = await this.config();
     let res: Response;
     try {
@@ -112,7 +154,7 @@ export class GowaClient {
         signal: AbortSignal.timeout(15_000),
       });
     } catch {
-      throw new GowaError("Шлюз WhatsApp (GOWA) недоступен");
+      throw new GowaError("Шлюз WhatsApp (GOWA) недоступен", "UNREACHABLE");
     }
     const text = await res.text();
     let data: Record<string, unknown> = {};
@@ -122,8 +164,9 @@ export class GowaClient {
       data = {};
     }
     if (!res.ok) {
-      if (res.status === 401) throw new GowaError("Шлюз WhatsApp не принял логин и пароль");
-      throw new GowaError(`WhatsApp: ${String(data.message ?? data.code ?? `HTTP ${res.status}`)}`);
+      const code = typeof data.code === "string" ? data.code : null;
+      if (res.status === 401) throw new GowaError("Шлюз WhatsApp не принял логин и пароль", code ?? "UNAUTHORIZED");
+      throw new GowaError(`WhatsApp: ${String(data.message ?? data.code ?? `HTTP ${res.status}`)}`, code);
     }
     return data as T;
   }

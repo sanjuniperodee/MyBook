@@ -29,15 +29,22 @@ export class KaspiSetupService {
     await this.store.setEnabled(enabled, actorId);
   }
 
+  /** Новый адрес сервиса kaspi-pos; отвечает ли он по этому адресу. */
+  async setApiUrl(apiUrl: string, actorId: string) {
+    await this.store.saveApiUrl(apiUrl.trim().replace(/\/+$/, ""), actorId);
+    return this.auth.reachable();
+  }
+
   async disconnect(actorId: string) {
     await this.store.setEnabled(false, actorId);
     await this.store.saveSession(null, actorId);
   }
 
-  /** Для карточки в «Интеграциях»: подключён ли кассир и жива ли его сессия. */
+  /** Для карточки в «Интеграциях»: отвечает ли сервис, подключён ли кассир и жива ли его сессия. */
   async status() {
     const { enabled, apiUrl, session } = await this.store.config();
-    const active = session ? await this.auth.sessionActive().catch(() => false) : false;
-    return { enabled, apiUrl, connected: !!session, active, orgName: session?.orgName ?? "", phone: session?.phone ?? "" };
+    const reachable = await this.auth.reachable();
+    const active = reachable && session ? await this.auth.sessionActive().catch(() => false) : false;
+    return { enabled, apiUrl, reachable, connected: !!session, active, orgName: session?.orgName ?? "", phone: session?.phone ?? "" };
   }
 }

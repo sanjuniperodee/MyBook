@@ -2,13 +2,13 @@ import type { Clock } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
 import { crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds, whatsappTransport, widgetSettings } from "./infrastructure/adapters";
-import { GowaClient, verifyGowaSignature, type GowaConfig } from "./infrastructure/gowa";
+import { GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 
 export { channelLabel, channelLabels, type Conversation, type InboundMessage } from "./domain";
 export { loadChatMessages, listTemplates, chatVars, sendBlocker } from "./infrastructure/chatView";
 export { listChannels, registerWebhook, wazzupConfigured, WazzupError } from "./infrastructure/wazzup";
-export { GowaError, type GowaConfig, type GowaStatus } from "./infrastructure/gowa";
+export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export { ingestEmail, sendEmailToContact, testImap, pollImap } from "./infrastructure/email";
 export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
 
@@ -16,8 +16,8 @@ export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules 
 export interface WhatsappSettings {
   provider(): Promise<"wazzup" | "gowa">;
   gowa(): Promise<GowaConfig>;
-  /** Секрет подписи вебхуков GOWA (создаётся при первом обращении). */
-  gowaWebhookSecret(): Promise<string>;
+  /** Адрес вебхука на сайте и секрет подписи (создаётся при первом обращении) — их сайт передаёт шлюзу сам. */
+  gowaWebhook(): Promise<GowaWebhook>;
 }
 
 /** Cookie посетителя для чата на сайте. */
@@ -45,9 +45,17 @@ export class MessagingModule {
     return this.deps.whatsappSettings.provider();
   }
 
+  /**
+   * Завести в шлюзе устройство магазина и направить его события на сайт — при сохранении настроек и перед привязкой
+   * номера. Ничего настраивать на стороне шлюза не нужно.
+   */
+  async connectGowa() {
+    await this.gowa.connect(await this.deps.whatsappSettings.gowaWebhook());
+  }
+
   /** Подпись вебхука GOWA. */
   async verifyGowaWebhook(rawBody: string, signature: string | null) {
-    return verifyGowaSignature(rawBody, signature, await this.deps.whatsappSettings.gowaWebhookSecret());
+    return verifyGowaSignature(rawBody, signature, (await this.deps.whatsappSettings.gowaWebhook()).secret);
   }
 
   /** Настройки виджета на сайте (кнопка WhatsApp, онлайн-чат). */

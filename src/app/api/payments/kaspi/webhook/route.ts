@@ -4,12 +4,13 @@ import { container } from "@/server/container";
 
 /**
  * Уведомления kaspi-pos-automation (webhooks.json: payment.success / failed / expired / lost).
- * Подпись — X-Webhook-Signature (HMAC-SHA256 тела, секрет из «Интеграций» → Kaspi Pay). Ошибка — 500, и kaspi-pos повторит.
+ * Подпись — X-Webhook-Signature (HMAC-SHA256 тела, секрет из «Интеграций» → Kaspi Pay). Без верной подписи уведомление
+ * лишь повод сверить счёт с Kaspi — статус берётся из ответа Kaspi, а не из тела. Ошибка — 500, и kaspi-pos повторит.
  */
 export async function POST(req: Request) {
   const raw = await req.text();
   const ordering = container().ordering;
-  if (!(await ordering.verifyKaspiWebhook(raw, req.headers.get("x-webhook-signature")))) return NextResponse.json({ ok: false }, { status: 401 });
+  const signed = await ordering.verifyKaspiWebhook(raw, req.headers.get("x-webhook-signature"));
   let body: unknown;
   try {
     body = JSON.parse(raw);
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   const hook = parseKaspiWebhook(body);
   if (!hook) return NextResponse.json({ ok: true, ignored: true });
   try {
-    return NextResponse.json({ ok: true, result: await ordering.kaspi.onWebhook(hook) });
+    return NextResponse.json({ ok: true, result: await ordering.kaspi.onWebhook(hook, signed) });
   } catch (err) {
     console.error("[kaspi] webhook", err);
     return NextResponse.json({ ok: false }, { status: 500 });

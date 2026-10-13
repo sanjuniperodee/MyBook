@@ -66,6 +66,14 @@ export class KaspiPosClient implements KaspiGateway, KaspiAuthGateway {
     return res?.active === true;
   }
 
+  async reachable() {
+    try {
+      return record(await this.call("/health", { method: "GET", session: false }, "read"))?.status === "ok";
+    } catch {
+      return false;
+    }
+  }
+
   // ─── внутреннее ──────────────────────────────────────────────────────────
 
   private created(body: unknown): KaspiPaymentView {

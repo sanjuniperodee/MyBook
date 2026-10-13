@@ -56,6 +56,28 @@ export async function setKaspiEnabledAction(enabled: boolean): Promise<Result> {
   }
 }
 
+/** Адрес сервиса kaspi-pos-automation; сразу проверяем, отвечает ли он. */
+export async function saveKaspiApiUrlAction(apiUrl: string): Promise<Result<{ reachable: boolean }>> {
+  const staff = await assertStaff("settings.manage");
+  const input = z
+    .string()
+    .trim()
+    .max(300)
+    .regex(/^https?:\/\/[^\s]+$/, "Адрес сервиса должен начинаться с http:// или https://")
+    .safeParse(apiUrl);
+  if (!input.success) return { ok: false, error: input.error.issues[0].message };
+  const reachable = await container().ordering.kaspiSetup.setApiUrl(input.data, staff.user.id);
+  await audit(staff, "settings.update", "settings", "kaspi", { apiUrl: input.data });
+  revalidatePath("/admin/settings");
+  return { ok: true, reachable };
+}
+
+/** Состояние для карточки: отвечает ли сервис, жива ли сессия кассира. */
+export async function kaspiStatusAction() {
+  await assertStaff("settings.manage");
+  return container().ordering.kaspiSetup.status();
+}
+
 /** Отключить кассира: оплата через Kaspi выключается, сессия удаляется (клиентам снова показывается перевод по номеру). */
 export async function disconnectKaspiAction(): Promise<Result> {
   const staff = await assertStaff("settings.manage");

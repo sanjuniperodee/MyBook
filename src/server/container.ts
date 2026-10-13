@@ -1,4 +1,5 @@
 import "server-only";
+import { env } from "@/config/env";
 import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
 import { rootDb } from "@/shared/infrastructure/database";
@@ -290,6 +291,7 @@ const kaspiConfig: KaspiConfigStore = {
   },
   saveSession: (session, actorId) => saveSettings({ "kaspi.session": session ? JSON.stringify(session) : "" }, actorId),
   setEnabled: (enabled, actorId) => saveSettings({ "kaspi.enabled": enabled ? "on" : "off" }, actorId),
+  saveApiUrl: (apiUrl, actorId) => saveSettings({ "kaspi.apiUrl": apiUrl }, actorId),
   webhookSecret: () => ensureToken("kaspi.webhookSecret"),
 };
 
@@ -300,7 +302,11 @@ const whatsappSettings: WhatsappSettings = {
     const v = await getSettings(["gowa.baseUrl", "gowa.basicAuth"]);
     return { baseUrl: v["gowa.baseUrl"], basicAuth: v["gowa.basicAuth"] };
   },
-  gowaWebhookSecret: () => ensureToken("gowa.webhookSecret"),
+  gowaWebhook: async () => {
+    const callback = (await getSettings(["gowa.callbackUrl"]))["gowa.callbackUrl"];
+    // По умолчанию — публичный адрес сайта; в docker compose — внутренний (GOWA_CALLBACK_URL), можно сменить в «Интеграциях».
+    return { url: callback || `${env.appUrl}/api/integrations/gowa`, secret: await ensureToken("gowa.webhookSecret") };
+  },
 };
 
 const g = globalThis as unknown as { __mybookContainer?: Container };

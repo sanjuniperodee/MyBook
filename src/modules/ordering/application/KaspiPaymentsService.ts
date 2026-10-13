@@ -23,6 +23,8 @@ export type InvoiceOwner = { userId: string } | { giftToken: string };
 
 /** Не чаще раза в столько спрашиваем Kaspi о счёте, когда клиент ждёт на странице. */
 const REFRESH_EVERY_MS = 3_000;
+/** Уведомление без подписи — повод сверить счёт, но не чаще раза в столько. */
+const NUDGE_EVERY_MS = 1_000;
 
 /**
  * Оплата через Kaspi Pay: счёт в приложение Kaspi по номеру телефона или QR-код. Оплату подтверждает
@@ -90,13 +92,17 @@ export class KaspiPaymentsService {
     if (invoice?.isOpen(this.clock.now())) await this.close(invoice);
   }
 
-  /** Вебхук kaspi-pos-automation (подпись уже проверена). unknown — не наш счёт. */
-  async onWebhook(hook: KaspiWebhook): Promise<"ok" | "unknown"> {
+  /**
+   * Вебхук kaspi-pos-automation. С верной подписью событие применяется как есть. Без неё (секрет в webhooks.json сервиса
+   * не задан) уведомлению не верим, а сверяем счёт с Kaspi сами — так вебхук работает без общего секрета.
+   * unknown — не наш счёт.
+   */
+  async onWebhook(hook: KaspiWebhook, signed: boolean): Promise<"ok" | "unknown"> {
     const invoice = await this.invoices.findByExternalId("kaspi", hook.externalId);
     if (!invoice) return "unknown";
-    // «Статус потерян» (сессия кассира вытеснена): спрашиваем Kaspi сами.
-    if (hook.event === "payment.lost") await this.refresh(invoice);
-    else await this.settle(invoice.id, webhookOutcome(hook), hook.status, hook.amount);
+    if (signed && hook.event !== "payment.lost") await this.settle(invoice.id, webhookOutcome(hook), hook.status, hook.amount);
+    // «Статус потерян» (сессия кассира вытеснена) или уведомление без подписи: спрашиваем Kaspi сами.
+    else if (signed || this.clock.now().getTime() - invoice.updatedAt.getTime() >= NUDGE_EVERY_MS) await this.refresh(invoice);
     return "ok";
   }
 
