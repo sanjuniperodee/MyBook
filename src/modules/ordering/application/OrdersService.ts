@@ -26,6 +26,17 @@ export interface PlaceOrderCommand {
    * advance — обычная цена по каталогу, предоплата засчитывается как аванс (заказ «с нуля»: другой тариф, другая книга).
    */
   agreementMode?: "agreed" | "advance";
+  /** Печатная версия к уже оплаченной электронной (заказ клиента): та оплата засчитывается, книга остаётся закрытой для правок. */
+  upgradeFromOrderId?: string;
+}
+
+/** Можно ли дозаказать печатную книгу к оплаченной электронной и сколько уже оплачено (зачёт). */
+export interface UpgradeOffer {
+  orderId: string;
+  number: number;
+  bookId: string;
+  /** Сколько клиент заплатил за электронную версию (₸), будет вычтено из печатной. */
+  credit: number;
 }
 
 export interface UpdateOrderCommand {
@@ -57,10 +68,24 @@ export class OrdersService {
     return this.agreements.agreementFor(userId);
   }
 
+  /**
+   * Предложение «заказать печатную книгу»: у клиента оплаченный заказ электронной версии (его заказ, не отменён), по этой книге нет других
+   * живых заказов — значит, печатный ещё не заказан. Оплата электронной версии засчитывается в печатную.
+   */
+  async upgradeOffer(orderId: string, userId: string): Promise<UpgradeOffer | null> {
+    const digital = await this.orders.findOwned(orderId, userId);
+    if (!digital || digital.isPrinted || digital.status !== "paid") return null;
+    if (await this.orders.hasOtherActiveOrders(digital.bookId, digital.id)) return null;
+    const price = digital.snapshot().price;
+    return { orderId: digital.id, number: digital.number, bookId: digital.bookId, credit: price.amount + (price.prepaidAmount ?? 0) };
+  }
+
   async place(cmd: PlaceOrderCommand): Promise<Order> {
     const book = await this.books.checkoutInfo(cmd.bookId, cmd.userId, cmd.locale);
     if (!book) throw new OrderingError("bookNotFound");
-    if (book.status !== "draft") throw new OrderingError("alreadyOrdered");
+    const upgrade = cmd.upgradeFromOrderId ? await this.upgradeOffer(cmd.upgradeFromOrderId, cmd.userId) : null;
+    if (cmd.upgradeFromOrderId && (!upgrade || upgrade.bookId !== cmd.bookId || !getPlan(cmd.plan)?.printed)) throw new OrderingError("upgradeUnavailable");
+    if (book.status !== "draft" && !upgrade) throw new OrderingError("alreadyOrdered");
     if (book.blockingIssue) throw new OrderingError("notReady", book.blockingIssue);
 
     const now = this.clock.now();
@@ -68,18 +93,20 @@ export class OrdersService {
     if (cmd.promoCode && !promo) throw new OrderingError("notFound");
     promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
-    const found = await this.agreements.agreementFor(cmd.userId);
+    // Дозаказ печатной версии к электронной: оплата электронной засчитывается как аванс; договорённость менеджера не применяется.
+    const found = upgrade ? null : await this.agreements.agreementFor(cmd.userId);
     // «Аванс»: цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
     const agreedMode = !!found && cmd.agreementMode !== "advance";
     const agreedPlan = found?.plan && getPlan(found.plan) ? (found.plan as PlanId) : null;
     // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
     const plan = agreedMode && agreedPlan ? agreedPlan : cmd.plan;
-    const agreement = found && { agreedTotal: agreedMode ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid };
+    const agreement = upgrade ? { agreedTotal: Number.POSITIVE_INFINITY, prepaid: upgrade.credit } : found && { agreedTotal: agreedMode ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid };
     const identity = await this.orders.nextIdentity();
     const order = Order.place(
       {
         ...identity,
         agreement,
+        credit: upgrade ? { orderNumber: upgrade.number, amount: upgrade.credit } : null,
         userId: cmd.userId,
         bookId: cmd.bookId,
         plan,
@@ -102,7 +129,8 @@ export class OrdersService {
 
     await this.uow.run(async () => {
       if (promo && !(await this.promos.tryReserve(promo.id, now))) throw new OrderingError("promoGone");
-      if (!(await this.books.lockForOrder(cmd.bookId))) throw new OrderingError("alreadyOrdered");
+      // Дозаказ печатной версии: книга уже закрыта электронным заказом — блокировать нечего.
+      if (!(upgrade && book.status === "ordered") && !(await this.books.lockForOrder(cmd.bookId))) throw new OrderingError("alreadyOrdered");
       await this.orders.add(order);
       if (!cmd.userPhone) await this.people.rememberPhoneIfMissing(cmd.userId, cmd.contact.phone);
       this.uow.track(order);

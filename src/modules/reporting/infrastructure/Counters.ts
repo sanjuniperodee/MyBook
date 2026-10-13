@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gt, gte, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, gte, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { StaffContext } from "@/modules/access";
 import { crmCalls, crmConversations, crmDeals, crmTasks, orders, reviews } from "@/shared/infrastructure/db/schema";
@@ -29,7 +29,7 @@ export async function crmCounters(staff: StaffContext): Promise<CrmCounters> {
       ? db
           .select({ n: count })
           .from(orders)
-          .where(or(eq(orders.status, "paid"), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
+          .where(or(and(eq(orders.status, "paid"), ne(orders.plan, "digital")), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
       : zero,
     db
       .select({ n: count })

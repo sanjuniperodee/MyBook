@@ -19,7 +19,7 @@ export async function dealCard(deal: { id: string; clientId: string | null; orde
     sections.calls ? db.select().from(crmCalls).where(eq(crmCalls.dealId, deal.id)).orderBy(desc(crmCalls.startedAt)).limit(30) : Promise.resolve([]),
     sections.chats ? db.select().from(crmConversations).where(eq(crmConversations.dealId, deal.id)).orderBy(desc(crmConversations.lastMessageAt)) : Promise.resolve([]),
     deal.clientId ? db.select({ id: users.id, name: users.name, email: users.email, phone: users.phone, lastSeenAt: users.lastSeenAt }).from(users).where(eq(users.id, deal.clientId)).limit(1) : Promise.resolve([]),
-    deal.orderId ? db.select({ id: orders.id, number: orders.number, status: orders.status, amount: orders.amount }).from(orders).where(eq(orders.id, deal.orderId)).limit(1) : Promise.resolve([]),
+    deal.orderId ? db.select({ id: orders.id, number: orders.number, status: orders.status, amount: orders.amount, plan: orders.plan }).from(orders).where(eq(orders.id, deal.orderId)).limit(1) : Promise.resolve([]),
     deal.clientId
       ? db
           .select({

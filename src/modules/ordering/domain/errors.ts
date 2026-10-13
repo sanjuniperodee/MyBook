@@ -7,6 +7,7 @@ import { contextError } from "@/shared/domain";
 export type OrderingErrorCode =
   | "bookNotFound"
   | "alreadyOrdered"
+  | "upgradeUnavailable"
   | "notReady"
   | "promoGone"
   | "empty"

@@ -23,12 +23,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).checkout.meta };
 }
 
-export default async function CheckoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ promo?: string }> }) {
+export default async function CheckoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ promo?: string; upgrade?: string }> }) {
   const { id } = await params;
-  const { promo: promoParam } = await searchParams;
+  const { promo: promoParam, upgrade: upgradeParam } = await searchParams;
   const user = await requireUser(`/books/${id}/checkout`);
   const book = await getAccessibleBook(id, user);
-  if (book.status !== "draft") return lredirect(`/books/${book.id}`);
+  // Книга уже заказана — оформлять можно только печатную версию к оплаченной электронной (?upgrade=<номер заказа>).
+  const upgrade = upgradeParam && /^[0-9a-f-]{36}$/i.test(upgradeParam) ? await container().ordering.orders.upgradeOffer(upgradeParam, user.id) : null;
+  const upgradeOk = !!upgrade && upgrade.bookId === book.id;
+  if (book.status !== "draft" && !upgradeOk) return lredirect(`/books/${book.id}`);
   const [stats, photos, locale, m] = await Promise.all([container().authoring.queries.stats(book), container().authoring.queries.photos(book.id), getLocale(), getMessages()]);
   const t = m.checkout;
   const issues = checkReadiness(book, stats, photos, locale);
@@ -39,7 +42,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const ordering = container().ordering;
   // Договорённость с менеджером (ручная сделка): клиент выбирает — продолжить по ней или оформить заказ с нуля.
   // Смотрит сотрудник — договорённость берём у владельца книги, а не у сотрудника: он видит ровно то, что увидит клиент.
-  const agreement = await ordering.orders.agreementFor(book.userId);
+  const agreement = upgradeOk ? null : await ordering.orders.agreementFor(book.userId);
   const staffView = book.userId !== user.id;
   const giftCheck = giftCode ? await ordering.promos.check(giftCode, user.id) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
@@ -113,6 +116,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           blocked={blocked}
           initialPromo={initialPromo}
           initialPlan={giftPlan}
+          upgrade={upgradeOk ? { orderId: upgrade.orderId, number: upgrade.number, credit: upgrade.credit } : null}
           agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid, plan: agreement.plan && getPlan(agreement.plan) ? (agreement.plan as PlanId) : null }}
           defaults={{
             name: user.name,

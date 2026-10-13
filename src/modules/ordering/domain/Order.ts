@@ -76,6 +76,8 @@ export interface PlaceOrderInput {
   promo: PromoCode | null;
   /** Договорённая цена и внесённая предоплата по ручной сделке клиента (если есть). */
   agreement?: Agreement | null;
+  /** Печатная версия к уже оплаченной электронной: её оплата засчитывается (в agreement — как аванс), здесь — для журнала. */
+  credit?: { orderNumber: number; amount: number } | null;
   currency: string;
   paymentProvider: string;
   customerComment?: string | null;
@@ -142,7 +144,8 @@ export class Order extends AggregateRoot<OrderProps> {
         : Number.isFinite(input.agreement?.agreedTotal)
           ? `, по договорённости с менеджером: итог ${input.formatMoney(price.amount + price.prepaidAmount)}, предоплата ${input.formatMoney(price.prepaidAmount)} учтена`
           : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
-    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${agreed}`, "customer", now);
+    const credited = input.credit && input.credit.amount > 0 ? `, засчитана оплата электронной версии (заказ №${input.credit.orderNumber}): ${input.formatMoney(input.credit.amount)}` : input.credit ? `, печатная версия к электронной (заказ №${input.credit.orderNumber})` : "";
+    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}`, "customer", now);
     order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity }));
     return order;
   }

@@ -89,7 +89,7 @@ export const mail = {
       title: "Заказ оформлен",
       number: (n: number) => `Номер заказа: <b>№${n}</b>`,
       plan: (plan: string, qty: number) => `Тариф: ${plan}, ${qty} экз.`,
-      prepaid: (paid: string) => `Внесённая ранее предоплата <b>${paid}</b> уже учтена.`,
+      prepaid: (paid: string) => `Ранее оплачено <b>${paid}</b> — эта сумма уже учтена.`,
       amount: (a: string) => `Сумма к оплате: <b>${a}</b>`,
       button: "Перейти к оплате",
     },

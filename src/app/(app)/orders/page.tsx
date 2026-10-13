@@ -6,7 +6,7 @@ import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
 import { AgreementCard } from "@/components/AgreementCard";
 
@@ -44,7 +44,7 @@ export default async function OrdersPage() {
                   {o.quantity > 1 ? ` × ${o.quantity}` : ""}
                 </div>
               </div>
-              <span className={cn("rounded-full px-3 py-1 text-xs font-medium", orderStatusColors[o.status])}>{orderStatusLabel(o.status, locale)}</span>
+              <span className={cn("rounded-full px-3 py-1 text-xs font-medium", orderStatusColors[o.status])}>{orderStatusLabel(o.status, locale, isPrintedPlan(o.plan))}</span>
               <span className="w-28 text-right font-medium">{formatPrice(o.amount)}</span>
             </Link>
           ))}

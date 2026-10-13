@@ -10,7 +10,7 @@ import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { canRemind } from "@/modules/notifications";
 import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { cn, formatDate } from "@/lib/utils";
 import { ClientChannel, ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
@@ -295,7 +295,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                     {o.quantity > 1 ? ` × ${o.quantity}` : ""}
                     {o.promoCode ? ` · ${o.promoCode}` : ""}
                   </span>
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>
+                  <span className={cn("rounded-full px-2.5 py-1 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan))}</span>
                   <span className="w-24 text-right tabular-nums">{formatPrice(o.amount)}</span>
                 </Link>
               ))}

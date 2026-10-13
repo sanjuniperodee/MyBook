@@ -262,6 +262,61 @@ describe("Ordering: договорённая цена и предоплата п
   });
 });
 
+describe("Ordering: печатная версия к оплаченной электронной", () => {
+  const pickup = { method: "pickup" as const, city: null, address: null, postalCode: null };
+  const digitalPaid = async (t: ReturnType<typeof setup>) => {
+    const d = await t.place({ plan: "digital", delivery: pickup });
+    await t.svc.confirmPayment({ orderId: d.id, paymentId: null }, admin);
+    return d;
+  };
+
+  it("предложение есть только у оплаченной электронной версии без других живых заказов", async () => {
+    const t = setup();
+    const d = await t.place({ plan: "digital", delivery: pickup });
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toBeNull(); // ещё не оплачена
+    await t.svc.confirmPayment({ orderId: d.id, paymentId: null }, admin);
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toMatchObject({ number: d.number, bookId: "book-1", credit: 9900 });
+    expect(await t.svc.upgradeOffer(d.id, "user-2")).toBeNull(); // чужой заказ
+  });
+
+  it("оплата электронной засчитывается; книга остаётся закрытой; повторно дозаказать нельзя, отмена печатного книгу не открывает", async () => {
+    const t = setup();
+    const d = await digitalPaid(t);
+    expect(t.books.books.get("book-1")!.status).toBe("ordered");
+    const o = await t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: pickup });
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, prepaidAmount: 9900, amount: 20100 });
+    expect(t.orders.history.find((h) => h.orderId === o.id)?.note).toContain(`засчитана оплата электронной версии (заказ №${d.number}): 9`);
+    expect(t.books.books.get("book-1")!.status).toBe("ordered");
+    // печатный уже заказан — второй дозаказ невозможен
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toBeNull();
+    await expect(t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: pickup })).rejects.toMatchObject({ code: "upgradeUnavailable" });
+    // отмена печатного: электронный остаётся живым, книга не открывается для правок
+    await t.svc.cancelByCustomer(o.id, "user-1");
+    expect(t.books.books.get("book-1")!.status).toBe("ordered");
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toMatchObject({ credit: 9900 });
+  });
+
+  it("нельзя дозаказать электронный тариф или заказ, который не оплачен/чужой; доставка считается сверху", async () => {
+    const t = setup();
+    const d = await digitalPaid(t);
+    await expect(t.place({ plan: "digital", upgradeFromOrderId: d.id, delivery: pickup })).rejects.toMatchObject({ code: "upgradeUnavailable" });
+    await expect(t.place({ plan: "hardcover", upgradeFromOrderId: crypto.randomUUID(), delivery: pickup })).rejects.toMatchObject({ code: "upgradeUnavailable" });
+    const o = await t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: { method: "courier", city: "Алматы", address: "Абая, 1", postalCode: null } });
+    expect(o.snapshot().price).toMatchObject({ prepaidAmount: 9900, deliveryAmount: 2000, amount: 30000 + 2000 - 9900 });
+  });
+
+  it("бесплатная электронная (по промокоду): зачёта нет, печатную можно заказать по полной цене", async () => {
+    const t = setup();
+    const promo = await addPromo(t.promos, "FREE", { kind: "percent", value: 100 });
+    const d = await t.place({ plan: "digital", promoCode: promo.code, delivery: pickup });
+    expect((await t.svc.findByNumber(d.number))!.status).toBe("paid");
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toMatchObject({ credit: 0 });
+    const o = await t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: pickup });
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, amount: 30000 });
+    expect(o.snapshot().price.prepaidAmount ?? 0).toBe(0);
+  });
+});
+
 describe("Ordering: агрегат Order", () => {
   it("цена считается в агрегате: тариф, доставка, скидка только на книги", async () => {
     const { place, orders, uow } = setup();

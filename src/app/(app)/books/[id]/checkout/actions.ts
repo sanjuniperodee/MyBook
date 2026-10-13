@@ -41,6 +41,7 @@ const schema = (e: CheckoutErrors) =>
         .or(z.literal("")),
       surprise: z.literal("on").optional(),
       agreementMode: z.enum(["agreed", "advance"]).optional(),
+      upgradeFrom: z.string().uuid().optional().or(z.literal("")),
       consent: z.literal("on", { message: e.consent }),
     })
     .superRefine((d, ctx) => {
@@ -84,6 +85,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       desiredDate: d.desiredDate || undefined,
       surprise: d.surprise === "on",
       agreementMode: d.agreementMode,
+      upgradeFromOrderId: d.upgradeFrom || undefined,
     });
   } catch (err) {
     if (OrderingError.is(err)) return { error: orderingErrorText(err, m.checkout) };
@@ -97,7 +99,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
 function orderingErrorText(err: OrderingError, t: Awaited<ReturnType<typeof getMessages>>["checkout"]) {
   if (err.code === "notReady") return err.message;
   if (err.code === "empty" || err.code === "notFound" || err.code === "expired" || err.code === "used" || err.code === "ownCode" || err.code === "firstOrderOnly") return t.promo[err.code];
-  if (err.code === "bookNotFound" || err.code === "alreadyOrdered" || err.code === "promoGone") return t.errors[err.code];
+  if (err.code === "bookNotFound" || err.code === "alreadyOrdered" || err.code === "promoGone" || err.code === "upgradeUnavailable") return t.errors[err.code];
   return t.errors.bookNotFound;
 }
 

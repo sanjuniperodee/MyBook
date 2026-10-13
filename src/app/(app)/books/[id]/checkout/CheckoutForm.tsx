@@ -8,7 +8,7 @@ import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPrev
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
-import { availableAddons, getDeliveryOptions, formatPrice, getPlans, site, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { availableAddons, getDeliveryOptions, formatPrice, getPlan, getPlans, site, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn, nowMs } from "@/lib/utils";
 import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
@@ -20,10 +20,13 @@ export function CheckoutForm({
   initialPromo = null,
   initialPlan,
   agreement = null,
+  upgrade = null,
 }: {
   /** Договорённость менеджера с клиентом: цена книги, внесённая предоплата и тариф (ручная сделка). Доставка и допы — сверху. */
   agreement?: { dealNumber: number; agreedTotal: number; prepaid: number; plan: PlanId | null } | null;
   initialPlan?: PlanId;
+  /** Печатная версия к уже оплаченной электронной: её оплата засчитывается, выбор — только печатные тарифы. */
+  upgrade?: { orderId: string; number: number; credit: number } | null;
   initialPromo?: PromoPreview | null;
   bookId: string;
   defaults: {
@@ -39,7 +42,7 @@ export function CheckoutForm({
   const m = useMessages();
   const t = m.checkout;
   const c = m.common;
-  const [chosenPlan, setPlanId] = useState<PlanId>(agreement?.plan ?? initialPlan ?? "hardcover");
+  const [chosenPlan, setPlanId] = useState<PlanId>(agreement?.plan ?? (upgrade && !getPlan(initialPlan ?? "digital")?.printed ? "hardcover" : initialPlan) ?? "hardcover");
 
   // Договорённость: продолжить по ней или оформить заказ «с нуля» по обычной цене (внесённое засчитается как аванс).
   const [mode, setMode] = useState<"agreed" | "advance">("agreed");
@@ -60,8 +63,14 @@ export function CheckoutForm({
   const discount = promo?.ok && promo.kind && promo.value ? { kind: promo.kind, value: promo.value } : null;
   const [addonIds, setAddonIds] = useState<AddonId[]>([]);
   const offered = availableAddons(planId);
+  // Какие тарифы предлагаем: зафиксированный договорённостью; при дозаказе печатной версии — только печатные; иначе все, что продаются.
+  const shownPlans = lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : upgrade ? getVisiblePlans().filter((x) => x.printed) : getVisiblePlans();
   const plain = calculatePrice(planId, qty, delivery, discount, addonIds);
-  const priced = agreement ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: mode === "agreed" ? agreement.agreedTotal : Number.POSITIVE_INFINITY, prepaid: agreement.prepaid }) : plain;
+  const priced = upgrade
+    ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: Number.POSITIVE_INFINITY, prepaid: upgrade.credit })
+    : agreement
+      ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: mode === "agreed" ? agreement.agreedTotal : Number.POSITIVE_INFINITY, prepaid: agreement.prepaid })
+      : plain;
   const { itemsAmount: items, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = priced;
   const discountAmount = plain.discountAmount;
   const agreedDiscount = priced.discountAmount - plain.discountAmount;
@@ -96,8 +105,15 @@ export function CheckoutForm({
       <input type="hidden" name="delivery" value={plan.printed ? delivery : ""} />
       <input type="hidden" name="promoCode" value={promo?.ok ? promo.code : ""} />
       <input type="hidden" name="addons" value={appliedAddons.join(",")} />
+      {upgrade ? <input type="hidden" name="upgradeFrom" value={upgrade.orderId} /> : null}
 
       <div className="space-y-10">
+        {upgrade ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="upgrade">
+            <h2 className="text-lg font-semibold text-emerald-950">{t.upgrade.title}</h2>
+            <p className="mt-1 text-sm text-emerald-900">{t.upgrade.text(upgrade.number, upgrade.credit > 0 ? formatPrice(upgrade.credit) : "0")}</p>
+          </section>
+        ) : null}
         {agreement ? (
           <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="agreement">
             <input type="hidden" name="agreementMode" value={mode} />
@@ -129,8 +145,8 @@ export function CheckoutForm({
         <section>
           <h2 className="text-xl font-semibold">1. {t.step.plan}</h2>
           {lockedPlan ? <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" data-testid="plan-locked">{t.agreement.planLocked(c.plans[lockedPlan].name)}</p> : null}
-          <div className={`mt-4 grid gap-3 ${(lockedPlan ? 1 : getVisiblePlans().length) === 2 ? "sm:grid-cols-2" : lockedPlan ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
-            {(lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : getVisiblePlans()).map((p) => (
+          <div className={`mt-4 grid gap-3 ${shownPlans.length === 1 ? "sm:grid-cols-1" : shownPlans.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+            {shownPlans.map((p) => (
               <button
                 type="button"
                 key={p.id}
@@ -357,7 +373,7 @@ export function CheckoutForm({
             ) : null}
             {prepaidApplied > 0 ? (
               <div className="flex justify-between text-emerald-700" data-testid="prepaid-line">
-                <dt>{t.agreement.prepaidLine}</dt>
+                <dt>{upgrade ? t.upgrade.creditLine(upgrade.number) : t.agreement.prepaidLine}</dt>
                 <dd>−{formatPrice(prepaidApplied)}</dd>
               </div>
             ) : null}

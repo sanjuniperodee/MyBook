@@ -4,7 +4,7 @@ import { audit } from "@/server/access";
 import { container } from "@/server/container";
 import { toCsv } from "@/lib/csv";
 
-import { orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 
 export const GET = api(async (req) => {
   const staff = await apiStaff(req, "orders.view", "clients.export", "clients.contacts");
@@ -18,7 +18,7 @@ export const GET = api(async (req) => {
       o.number,
       o.createdAt,
       o.paidAt,
-      orderStatusLabel(o.status),
+      orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan)),
       planName(o.plan),
       o.quantity,
       o.itemsAmount,

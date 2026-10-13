@@ -12,7 +12,7 @@ import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/module
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
@@ -207,7 +207,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             {order && can(staff, "orders.view") ? (
               <Link href={`/admin/orders/${order.id}`} className="flex items-center gap-2 hover:text-wine">
                 <Package className="size-4 text-muted" /> Заказ №{order.number} · {formatPrice(order.amount)}
-                <span className={cn("ml-auto rounded-full px-2 py-0.5 text-[11px]", orderStatusColors[order.status])}>{orderStatusLabel(order.status)}</span>
+                <span className={cn("ml-auto rounded-full px-2 py-0.5 text-[11px]", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
               </Link>
             ) : null}
             {convs.map((c) => (

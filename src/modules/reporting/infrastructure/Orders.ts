@@ -48,12 +48,12 @@ export function orderExport(f: OrderFilters, viewerId: string) {
   return executor().select().from(orders).where(orderWhere(f, viewerId)).orderBy(desc(orders.createdAt)).limit(20_000);
 }
 
-/** Канбан производства: не отменённые, доставленные — только за последний месяц. */
+/** Канбан производства: не отменённые, доставленные — только за последний месяц. Электронные версии печати не требуют — их здесь нет. */
 export function productionBoard(deliveredSince: Date) {
   return executor()
     .select()
     .from(orders)
-    .where(and(ne(orders.status, "cancelled"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, deliveredSince))))
+    .where(and(ne(orders.status, "cancelled"), ne(orders.plan, "digital"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, deliveredSince))))
     .orderBy(sql`${orders.desiredDate} asc nulls last`, desc(orders.createdAt))
     .limit(500);
 }

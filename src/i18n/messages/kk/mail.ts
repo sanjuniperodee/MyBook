@@ -81,7 +81,7 @@ export const mail: typeof ru = {
       title: "Тапсырыс рәсімделді",
       number: (n: number) => `Тапсырыс нөмірі: <b>№${n}</b>`,
       plan: (plan: string, qty: number) => `Тариф: ${plan}, ${qty} дана`,
-      prepaid: (paid: string) => `Бұрын енгізілген алдын ала төлем <b>${paid}</b> есепке алынды.`,
+      prepaid: (paid: string) => `Бұрын төленген <b>${paid}</b> — бұл сома есепке алынды.`,
       amount: (a: string) => `Төленетін сома: <b>${a}</b>`,
       button: "Төлемге өту",
     },

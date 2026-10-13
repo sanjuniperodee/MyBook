@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
 import { bulkStatusAction } from "../actions";
-import { orderStatusColors, orderStatusLabels } from "@/modules/ordering/ui/status";
+import { orderStatusColors, orderStatusLabel, orderStatusLabels } from "@/modules/ordering/ui/status";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,8 @@ export interface OrderRow {
   contactName: string;
   contactLine: string;
   planLabel: string;
+  /** Печатный ли тариф: у электронной версии оплаченный заказ — «Выполнен», печати нет. */
+  printed: boolean;
   desiredLabel: string | null;
   amountLabel: string;
   status: OrderStatus;
@@ -114,7 +116,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{o.amountLabel}</td>
                 <td className="px-3 py-3">
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs whitespace-nowrap", orderStatusColors[o.status])}>{orderStatusLabels[o.status]}</span>
+                  <span className={cn("rounded-full px-2.5 py-1 text-xs whitespace-nowrap", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", o.printed)}</span>
                   {o.claimed ? <div className="mt-1 text-xs text-amber-700">сообщил об оплате</div> : null}
                 </td>
                 <td className="px-3 py-3 text-muted">{o.assignee ?? "—"}</td>

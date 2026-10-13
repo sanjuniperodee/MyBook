@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
 import { formatPrice, getPlan } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { cn, formatDate } from "@/lib/utils";
@@ -56,7 +56,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       <Link href="/admin/orders" className="text-sm text-muted hover:text-ink">← Заказы</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Заказ №{order.number}</h1>
-        <span className={cn("rounded-full px-3 py-1 text-sm", orderStatusColors[order.status])}>{orderStatusLabel(order.status)}</span>
+        <span className={cn("rounded-full px-3 py-1 text-sm", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
         {order.paymentClaimedAt && order.status === "pending_payment" ? (
           <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Клиент сообщил об оплате {formatDate(order.paymentClaimedAt, true)}</span>
         ) : null}
@@ -192,7 +192,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           {canEdit ? (
             <>
               <Card title="Управление">
-                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} />
+                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} printed={isPrintedPlan(order.plan)} />
               </Card>
               <Card title="Заметка">
                 <NoteForm orderId={order.id} note={order.adminNote} />

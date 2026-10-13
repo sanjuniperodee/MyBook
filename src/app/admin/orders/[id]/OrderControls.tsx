@@ -6,10 +6,13 @@ import { LoaderCircle, RefreshCw } from "lucide-react";
 import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
-import { orderStatusLabels } from "@/modules/ordering/ui/status";
+import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
 
-export function StatusForm({ orderId, status, trackingNumber }: { orderId: string; status: OrderStatus; trackingNumber: string | null }) {
+/** У электронной версии нет печати и доставки: только «ждёт оплаты → выполнен» и отмена. */
+const digitalStatuses: readonly OrderStatus[] = ["pending_payment", "paid", "cancelled"];
+
+export function StatusForm({ orderId, status, trackingNumber, printed = true }: { orderId: string; status: OrderStatus; trackingNumber: string | null; printed?: boolean }) {
   const [state, action] = useActionState<AdminState, FormData>(updateOrderAction, {});
   return (
     <form action={action} className="space-y-3">
@@ -17,15 +20,19 @@ export function StatusForm({ orderId, status, trackingNumber }: { orderId: strin
       <div>
         <label className="label">Статус</label>
         <select name="status" defaultValue={status} className="input h-11">
-          {orderStatuses.map((s) => (
-            <option key={s} value={s}>{orderStatusLabels[s]}</option>
+          {orderStatuses.filter((s) => printed || digitalStatuses.includes(s)).map((s) => (
+            <option key={s} value={s}>{orderStatusLabel(s, "ru", printed)}</option>
           ))}
         </select>
       </div>
-      <div>
-        <label className="label">Трек-номер</label>
-        <input name="trackingNumber" defaultValue={trackingNumber ?? ""} className="input h-11" maxLength={100} />
-      </div>
+      {printed ? (
+        <div>
+          <label className="label">Трек-номер</label>
+          <input name="trackingNumber" defaultValue={trackingNumber ?? ""} className="input h-11" maxLength={100} />
+        </div>
+      ) : (
+        <input type="hidden" name="trackingNumber" value={trackingNumber ?? ""} />
+      )}
       <div>
         <label className="label">Комментарий в журнал</label>
         <input name="note" className="input h-11" maxLength={1000} placeholder="необязательно" />

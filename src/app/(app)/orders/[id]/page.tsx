@@ -51,13 +51,15 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const currentStep = steps.findIndex((s) => s.status === order.status);
   const paid = !["pending_payment", "cancelled"].includes(order.status);
   const reviewable = own && canReview({ status: order.status, plan: order.plan, paid });
+  // Оплаченная электронная версия без печатного заказа: можно дозаказать книгу на бумаге, оплата электронной засчитается.
+  const upgrade = own && !plan?.printed && order.status === "paid" ? await container().ordering.orders.upgradeOffer(order.id, user.id) : null;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       <Link href="/orders" className="text-sm text-muted hover:text-ink">{t.back}</Link>
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title(order.number)}</h1>
-        <span className={cn("rounded-full px-3 py-1 text-sm font-medium", orderStatusColors[order.status])}>{orderStatusLabel(order.status, locale)}</span>
+        <span className={cn("rounded-full px-3 py-1 text-sm font-medium", orderStatusColors[order.status])}>{orderStatusLabel(order.status, locale, !!plan?.printed)}</span>
       </div>
       <p className="mt-2 text-muted">{t.created(formatDate(order.createdAt, true, locale))}</p>
       {paid ? <TrackOnce id={`order_${order.id}`} name="purchase" value={order.amount} /> : null}
@@ -135,6 +137,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                   {t.tracking} <b>{order.trackingNumber}</b>
                 </p>
               ) : null}
+            </section>
+          ) : null}
+
+          {upgrade ? (
+            <section className="card p-6 sm:p-8" data-testid="upgrade-card">
+              <h2 className="text-xl font-semibold">{t.upgrade.title}</h2>
+              <p className="mt-1 text-sm text-muted">{t.upgrade.text(upgrade.credit > 0 ? formatPrice(upgrade.credit) : "0")}</p>
+              <Link href={`/books/${upgrade.bookId}/checkout?upgrade=${upgrade.orderId}`} className="btn btn-primary mt-5">
+                {t.upgrade.cta}
+              </Link>
             </section>
           ) : null}
 

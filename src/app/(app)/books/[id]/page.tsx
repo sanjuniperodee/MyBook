@@ -16,7 +16,7 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { coverName, interiorName } from "@/i18n/labels";
 import { localeMeta } from "@/i18n/config";
 import { site } from "@/config/site";
-import { orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { cn } from "@/lib/utils";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
@@ -86,7 +86,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     {
       icon: Truck,
       title: t.steps.order,
-      value: order ? orderStatusLabel(order.status, locale) : t.steps.orderLater,
+      value: order ? orderStatusLabel(order.status, locale, isPrintedPlan(order.plan)) : t.steps.orderLater,
       done: !!order && order.status !== "pending_payment" && order.status !== "cancelled",
       href: order ? `/orders/${order.id}` : `${base}/checkout`,
     },

@@ -5,7 +5,7 @@ import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
 import { requireStaff } from "@/server/access";
 import { formatPrice, getPlans } from "@/config/site";
-import { orderStatusLabel } from "@/modules/ordering/ui/status";
+import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { adminLabel } from "@/modules/access/ui";
 import type { OrderFilters } from "@/modules/reporting";
 import { formatDate } from "@/lib/utils";
@@ -28,6 +28,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
     contactName: o.contactName,
     contactLine: `${o.contactPhone} · ${o.contactEmail}`,
     planLabel: `${planName(o.plan)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
+    printed: isPrintedPlan(o.plan),
     desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
     amountLabel: formatPrice(o.amount),
     status: o.status,

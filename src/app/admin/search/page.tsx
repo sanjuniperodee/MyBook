@@ -2,7 +2,7 @@ import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { cn, formatDate } from "@/lib/utils";
 import { can, contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/shared/domain/phone";
@@ -65,7 +65,7 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
               <span className="min-w-0 flex-1 truncate">
                 {o.contactName} · {mask({ phone: o.contactPhone }).phone} · {planName(o.plan)}
               </span>
-              <span className={cn("rounded-full px-2 py-0.5 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>
+              <span className={cn("rounded-full px-2 py-0.5 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan))}</span>
               <span className="w-24 text-right tabular-nums">{formatPrice(o.amount)}</span>
             </Link>
           ))}
