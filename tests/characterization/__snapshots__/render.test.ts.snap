@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderInterior: страниц в PDF рядом с оценкой > оценка · полос в PDF → после добивки до кратности 1`] = `
+{
+  "airmail-a5-ru": "оценка 28 · PDF 28 → 28",
+  "album-a5-ru": "оценка 28 · PDF 28 → 28",
+  "arches-a5-ru": "оценка 25 · PDF 25 → 28",
+  "cinema-a5-ru": "оценка 25 · PDF 25 → 28",
+  "classic-a5-ru": "оценка 28 · PDF 28 → 28",
+  "classic-square-kk": "оценка 32 · PDF 31 → 32 · предупреждений react-pdf: 6",
+  "classic-square-ru": "оценка 31 · PDF 30 → 32 · предупреждений react-pdf: 6",
+  "confetti-a5-ru": "оценка 28 · PDF 28 → 28",
+  "deco-a5-ru": "оценка 28 · PDF 28 → 28",
+  "editorial-a5-ru": "оценка 28 · PDF 28 → 28",
+  "gallery-a5-ru": "оценка 25 · PDF 25 → 28",
+  "herbarium-a5-ru": "оценка 28 · PDF 28 → 28",
+  "luna-a5-ru": "оценка 25 · PDF 25 → 28",
+  "memories-a5-ru": "оценка 25 · PDF 25 → 28",
+  "minimal-a5-ru": "оценка 28 · PDF 28 → 28",
+  "modern-a5-ru": "оценка 28 · PDF 28 → 28",
+  "mountains-a5-ru": "оценка 28 · PDF 28 → 28",
+  "oyu-a5-ru": "оценка 28 · PDF 28 → 28",
+  "photobook-a5-ru": "оценка 25 · PDF 25 → 28",
+  "romance-a5-ru": "оценка 28 · PDF 28 → 28",
+  "sea-a5-ru": "оценка 28 · PDF 28 → 28",
+  "shanyrak-a5-ru": "оценка 28 · PDF 28 → 28",
+  "stars-a5-ru": "оценка 28 · PDF 28 → 28",
+  "vintage-a5-ru": "оценка 28 · PDF 28 → 28",
+  "watercolor-a5-ru": "оценка 28 · PDF 28 → 28",
+}
+`;
