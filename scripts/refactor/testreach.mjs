@@ -1,7 +1,7 @@
 // Какие файлы src/ импортируют тесты: напрямую и транзитивно (по статическим и динамическим импортам, без type-импортов).
 // Грубая замена покрытию: файл, до которого не дотягивается ни один тест, точно не проверен.
 // Импорты — по TypeScript AST из import-graph.mjs. Запуск: node scripts/refactor/testreach.mjs
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { parseImports, resolveImport, sourceFiles } from "./import-graph.mjs";
 
@@ -15,9 +15,8 @@ const depsOf = (file) =>
     .map((i) => resolveImport(src, file, i.spec))
     .filter((p) => p && /\.tsx?$/.test(p) && existsSync(p));
 
-const tests = readdirSync(path.join(root, "tests"))
-  .filter((f) => /\.test\.tsx?$/.test(f))
-  .map((f) => path.join(root, "tests", f));
+// Как include в vitest.config.ts: tests/**/*.test.ts(x).
+const tests = sourceFiles(path.join(root, "tests")).filter((f) => /\.test\.tsx?$/.test(f));
 const direct = new Set();
 const reached = new Set();
 for (const t of tests) {
