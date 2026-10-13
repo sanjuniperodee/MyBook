@@ -12,7 +12,7 @@ import { fixtureTexts } from "./texts";
  * Детерминированный набор книг без БД — для эталонных PDF, снимков HTML и характеристических тестов:
  * каждое оформление × каждый формат × ru и kk. Фиксированы id, даты и тексты; фото — tests/fixtures/photos.ts
  * (для рендера — `useFixtureStorage()` до импорта рендера). Казахские книги квадратного формата собирают фото
- * в конце книги (photoPlacement: "end"), остальные — по главам.
+ * в конце книги (photoPlacement: "end"), остальные — по главам. Крайние случаи вне матрицы — fixtureVariants().
  */
 
 const fixtureLanguages: Locale[] = ["ru", "kk"];
@@ -24,7 +24,7 @@ export interface FixtureOptions {
 }
 
 export interface FixtureBook {
-  /** «<оформление>-<формат>-<язык>», например «classic-a5-ru». */
+  /** «<оформление>-<формат>-<язык>», например «classic-a5-ru», или имя варианта (fixtureVariants). */
   key: string;
   bundle: BookBundle;
 }
@@ -210,11 +210,15 @@ function letterRows(key: string, book: Book): BookLetter[] {
   }));
 }
 
-export function fixtureBook(design: InteriorId, format: FormatId, language: Locale): FixtureBook {
-  const key = `${design}-${format}-${language}`;
+/** Книга под ключом key: от ключа зависят все id, поэтому книги вариантов не совпадают с книгами матрицы. */
+function buildBook(key: string, design: InteriorId, format: FormatId, language: Locale): FixtureBook {
   const book = bookRow(key, design, format, language);
   const questions = questionRows(key, book);
   return { key, bundle: { book, questions, photos: photoRows(key, book, questions), letters: letterRows(key, book) } };
+}
+
+export function fixtureBook(design: InteriorId, format: FormatId, language: Locale): FixtureBook {
+  return buildBook(`${design}-${format}-${language}`, design, format, language);
 }
 
 /** Набор книг в стабильном порядке: оформления — как в interiorDesigns, затем формат, затем язык. Каждый вызов строит новые объекты. */
@@ -223,4 +227,62 @@ export function fixtureBooks(opts: FixtureOptions = {}): FixtureBook[] {
   const formatIds = (Object.keys(formats) as FormatId[]).filter((id) => !opts.formats || opts.formats.includes(id));
   const languages = fixtureLanguages.filter((l) => !opts.languages || opts.languages.includes(l));
   return designs.flatMap((d) => formatIds.flatMap((f) => languages.map((l) => fixtureBook(d, f, l))));
+}
+
+// ─── варианты вне матрицы ──────────────────────────────────────────────────
+
+/** Вариант: книга-основа (под ключом варианта) и правка её бандла. */
+interface Variant {
+  base: [InteriorId, FormatId, Locale];
+  patch: (b: BookBundle) => BookBundle;
+}
+
+const withBook = (b: BookBundle, patch: Partial<Book>): BookBundle => ({ ...b, book: { ...b.book, ...patch } });
+
+/** Ответы тонкой книги: «Ты в трёх словах» и «Одно слово напоследок». */
+const THIN_ANSWERS = [1, 11];
+/** Главы набора → главы темы «Другу» (intro и meet в ней есть). */
+const FRIEND_CHAPTERS: Record<string, string> = { travel: "adventures", dreams: "future" };
+
+const VARIANTS: Record<string, Variant> = {
+  // Два коротких ответа, из фото — только обложка: оценка меньше print.minPages, печать добивает до минимума.
+  thin: {
+    base: ["classic", "a5", "ru"],
+    patch: (b) => ({
+      ...withBook(b, { coverPhotoExtra: [], backPhotoId: null, backPhotoExtra: [] }),
+      questions: b.questions.map((q) => (THIN_ANSWERS.includes(q.position) ? q : { ...q, answer: "" })),
+      photos: b.photos.filter((p) => p.id === b.book.coverPhotoId),
+    }),
+  },
+  // Без оглавления, посвящения, писем и фото обложки; адресат на обложке скрыт.
+  bare: {
+    base: ["gallery", "square", "kk"],
+    patch: (b) => ({
+      ...withBook(b, { showToc: false, dedication: "", coverPhotoId: null, coverPhotoExtra: [], hideRecipientOnCover: true }),
+      photos: b.photos.filter((p) => p.id !== b.book.coverPhotoId),
+      letters: [],
+    }),
+  },
+  // Автор — мужчина, адресат — женщина, тема «Другу»; второе письмо не одобрено.
+  gender: {
+    base: ["confetti", "a5", "ru"],
+    patch: (b) => ({
+      ...withBook(b, { theme: "friend", authorGender: "m", recipientGender: "f", authorName: b.book.recipientName, recipientName: b.book.authorName }),
+      questions: b.questions.map((q) => ({ ...q, chapter: FRIEND_CHAPTERS[q.chapter] ?? q.chapter })),
+      letters: b.letters?.map((l, i) => (i === 1 ? { ...l, status: "pending" as const } : l)),
+    }),
+  },
+  // Фотостраница p1 — она же фото оборота «во всю» — снимок 4000×3000: печать ужимает его под 300 dpi, фон обложки — до 3200 px.
+  bigphoto: {
+    base: ["minimal", "a5", "ru"],
+    patch: (b) => ({
+      ...b,
+      photos: b.photos.map((p) => (p.storageKey === photoKey("p1") ? { ...p, storageKey: photoKey("big"), thumbKey: thumbKey("big"), width: photoSpecs.big[0], height: photoSpecs.big[1] } : p)),
+    }),
+  },
+};
+
+/** Крайние случаи вне матрицы: thin, bare, gender, bigphoto. Каждый вызов строит новые объекты. */
+export function fixtureVariants(): FixtureBook[] {
+  return Object.entries(VARIANTS).map(([key, v]) => ({ key, bundle: v.patch(buildBook(key, ...v.base).bundle) }));
 }

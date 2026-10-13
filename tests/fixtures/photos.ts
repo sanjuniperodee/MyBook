@@ -34,6 +34,8 @@ export const photoSpecs = {
   p14: [1000, 1500],
   p15: [1500, 1100],
   p16: [1300, 1300],
+  // Вариант «bigphoto»: крупнее, чем нужно печати (300 dpi) и фону обложки (3200 px).
+  big: [4000, 3000],
 } as const satisfies Record<string, readonly [number, number]>;
 
 export type PhotoName = keyof typeof photoSpecs;

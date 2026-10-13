@@ -2,16 +2,18 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { decodePDFRawStream, PDFArray, PDFDocument, PDFRawStream } from "pdf-lib";
+import { decodePDFRawStream, PDFArray, PDFDocument, PDFName, PDFNumber, PDFRawStream } from "pdf-lib";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { getTheme, isThemeId } from "@/lib/content/themes";
 import { answerBlocks } from "@/lib/book/answer-blocks";
 import { backLayouts } from "@/lib/book/cover-back";
-import { formats, print } from "@/lib/book/formats";
+import { coverPhotoIds, coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
+import { formats, getFormat, print, printablePageCount } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import { interiorDesigns } from "@/lib/book/interiors";
-import { buildBookContent, toPhotoItem } from "@/lib/book/layout";
-import { fixtureBook, fixtureBooks, type FixtureBook } from "./fixtures/books";
-import { photoFiles, photoKey, photoNames, prepareFixturePhotos, renderPhoto, useFixtureStorage } from "./fixtures/photos";
+import { buildBookContent, effectiveDpi, estimatePages, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
+import { fixtureBook, fixtureBooks, fixtureVariants, type FixtureBook } from "./fixtures/books";
+import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, thumbKey, useFixtureStorage } from "./fixtures/photos";
 
 // Свои папки хранилища: проверяем запись фото с нуля и не мешаем другим тестам.
 const dir = mkdtempSync(path.join(tmpdir(), "mybook-fixtures-test-"));
@@ -82,8 +84,10 @@ describe("набор книг для визуальных и характери�
     expect(files.size).toBe(photoNames.length * 2);
     const again = await renderPhoto("p3");
     expect(again.full.equals(files.get(photoKey("p3"))!)).toBe(true);
-    const digest = sha256([...files].map(([key, data]) => `${key}:${sha256(data)}`).join("\n"));
-    expect(digest).toBe("ec0b97ed61b23e864892dc8837ede75da6e754a7794eef6db4d1390c04043a27");
+    // Снимки книг матрицы — одним хешем (не менялся с появлением вариантов), крупный снимок варианта — отдельно.
+    const keys = photoNames.filter((name) => name !== "big").flatMap((name) => [photoKey(name), thumbKey(name)]);
+    expect(sha256(keys.map((key) => `${key}:${sha256(files.get(key)!)}`).join("\n"))).toBe("ec0b97ed61b23e864892dc8837ede75da6e754a7794eef6db4d1390c04043a27");
+    expect(sha256(files.get(photoKey("big"))!)).toBe("cf1ed36035f9a61bcb73ef9bbecd621597636a64460c98d0eadd197e568a01aa");
     for (const { bundle } of fixtureBooks()) for (const p of bundle.photos) expect(files.has(p.storageKey) && files.has(p.thumbKey)).toBe(true);
   });
 
@@ -93,6 +97,66 @@ describe("набор книг для визуальных и характери�
     expect(await prepareFixturePhotos(target)).toBe(0);
   });
 });
+
+const variant = (key: string) => fixtureVariants().find((v) => v.key === key)!;
+
+describe("варианты набора вне матрицы", () => {
+  it("ключи и id не пересекаются с матрицей, два построения дают одинаковые данные", () => {
+    const variants = fixtureVariants();
+    const matrix = fixtureBooks();
+    expect(variants.map((v) => v.key)).toEqual(["thin", "bare", "gender", "bigphoto"]);
+    const ids = new Set(matrix.flatMap((b) => [b.key, b.bundle.book.id]));
+    expect(variants.filter((v) => ids.has(v.key) || ids.has(v.bundle.book.id))).toEqual([]);
+    expect(JSON.stringify(fixtureVariants())).toBe(JSON.stringify(variants));
+    expect(fixtureVariants()[0].bundle.book).not.toBe(variants[0].bundle.book);
+  });
+
+  it("thin: два коротких ответа, из фото — только обложка; оценка меньше минимума, печать добивает до print.minPages", () => {
+    const fb = variant("thin");
+    const c = content(fb);
+    expect(c.chapters.filter((ch) => ch.key !== LETTERS_CHAPTER).flatMap((ch) => ch.items.map((it) => it.answer.length))).toEqual([50, 21]);
+    expect(fb.bundle.photos.map((p) => p.id)).toEqual([fb.bundle.book.coverPhotoId]);
+    expect(estimatePages(c)).toBeLessThan(print.minPages);
+    expect(printablePageCount(estimatePages(c))).toBe(print.minPages);
+  });
+
+  it("bare: без оглавления, посвящения, писем и фото обложки, адресат на обложке скрыт", () => {
+    const { book, photos, letters } = variant("bare").bundle;
+    expect({ showToc: book.showToc, dedication: book.dedication, letters: letters?.length, hide: book.hideRecipientOnCover }).toEqual({ showToc: false, dedication: "", letters: 0, hide: true });
+    // Шаблон обложки ждёт фото, а мест под фото не заполнено ни одно.
+    expect(coverPhotoSlots(getCoverTemplate(book.coverTemplate))).toBeGreaterThan(0);
+    expect(coverPhotoIds(book).every((id) => id === null)).toBe(true);
+    expect(photos.some((p) => p.storageKey === photoKey("cover"))).toBe(false);
+  });
+
+  it("gender: автор — м, адресат — ж, тема не love, одно письмо не одобрено", () => {
+    const fb = variant("gender");
+    const { book, letters } = fb.bundle;
+    expect([book.authorGender, book.recipientGender, book.theme !== "love" && isThemeId(book.theme)]).toEqual(["m", "f", true]);
+    expect(letters?.map((l) => l.status)).toEqual(["approved", "pending"]);
+    const c = content(fb);
+    const theme = getTheme(book.theme, book.language);
+    expect(c.chapters.every((ch) => ch.key === LETTERS_CHAPTER || theme.chapters.some((d) => d.key === ch.key))).toBe(true);
+    expect(c.chapters[0].items.map((it) => it.heading)).toEqual(["Почему я решил написать эту книгу", "Ты в трёх словах", "За что я люблю тебя, моя любимая"]);
+  });
+
+  it("bigphoto: один снимок 4000×3000 — фотостраница и оборот «во всю»; печати и обложке он велик", () => {
+    const { book, photos } = variant("bigphoto").bundle;
+    const big = photos.filter((p) => p.width > 2000);
+    expect(big.map((p) => [p.storageKey, p.width, p.height, p.layout, p.questionId])).toEqual([[photoKey("big"), ...photoSpecs.big, "full", null]]);
+    expect([book.backPhotoId, book.backLayout]).toEqual([big[0].id, "fullPhoto"]);
+    expect(effectiveDpi(big[0], photoAreaMm(getFormat(book.format), "full"), "contain")).toBeGreaterThan(print.dpi);
+    expect(Math.max(big[0].width, big[0].height)).toBeGreaterThan(3200);
+  });
+});
+
+/** Ширина каждого растрового изображения в PDF, px. */
+async function imageWidths(pdf: Buffer) {
+  const doc = await PDFDocument.load(pdf);
+  return doc.context
+    .enumerateIndirectObjects()
+    .flatMap(([, obj]) => (obj instanceof PDFRawStream && obj.dict.get(PDFName.of("Subtype")) === PDFName.of("Image") ? [obj.dict.lookup(PDFName.of("Width"), PDFNumber).asNumber()] : []));
+}
 
 /** Номера полос (с 1) без текста: в превью на каждой полосе есть хотя бы водяной знак. */
 async function pagesWithoutText(pdf: Buffer, count: number) {
@@ -119,6 +183,14 @@ describe("рендер книг набора", () => {
     const res = await render.renderInterior(fixtureBook("memories", "a5", "ru").bundle, "print");
     expect(res.contentPages).toBeGreaterThan(0);
     expect(res.pageCount % print.pageMultiple).toBe(0);
+  });
+
+  it("варианты собираются: thin добит пустыми полосами до минимума, снимок bigphoto в печати ужат", async () => {
+    const thin = await render.renderInterior(variant("thin").bundle, "preview");
+    expect(thin.contentPages).toBeLessThan(print.minPages);
+    expect(thin.pageCount).toBe(print.minPages);
+    const big = await render.renderInterior(variant("bigphoto").bundle, "print");
+    expect(Math.max(...(await imageWidths(big.pdf)))).toBeLessThan(photoSpecs.big[0] / 2);
   });
 
   it("превью A5: водяной знак на каждой полосе, в том числе на фото под обрез", async () => {
