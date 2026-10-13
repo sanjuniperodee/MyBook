@@ -8,6 +8,7 @@ import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
 import { channels, isManualChannel, manualAttribution } from "@/modules/marketing/domain/channels";
+import { planLabels } from "@/modules/ordering/ui/labels";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
 import { assertStaff, audit, can, canAssignOthers, type Staff } from "@/server/access";
@@ -117,12 +118,13 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
   if (deal && d.prepaid > 0) paymentId = (await container().sales.payments.add({ dealId: deal.id, clientId: account.id, amount: d.prepaid, createdById: staff.user.id })).id;
   if (deal) {
+    const plan = getPlan(d.plan);
     const terms = [
       `Канал: ${channels[channel]}.`,
       d.recipient ? `Кому книга: ${d.recipient}.` : null,
       `Клиент: ${d.name}${d.city ? `, г. ${d.city}` : ""}, тел. ${displayLogin(normalizePhone(d.phone))}${d.email ? `, ${d.email}` : ""}, язык — ${d.locale === "kk" ? "казахский" : "русский"}.`,
       d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
-      `Тариф: ${getPlan(d.plan)?.id === "digital" ? "электронная версия" : getPlan(d.plan)?.id === "hardcover" ? "твёрдая обложка" : d.plan} (зафиксирован для заказа клиента).`,
+      `Тариф: ${plan ? planLabels[plan.id].toLowerCase() : d.plan} (зафиксирован для заказа клиента).`,
       `Договорились на ${formatPrice(d.agreed)} за книгу (доставка и допы — сверху); предоплата ${formatPrice(d.prepaid)}${d.agreed > d.prepaid ? `; остаток ${formatPrice(d.agreed - d.prepaid)}` : ""}.`,
       d.comment || null,
       d.email ? null : "Почты нет: клиент входит по телефону.",
