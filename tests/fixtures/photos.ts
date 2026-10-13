@@ -9,8 +9,8 @@ import sharp from "sharp";
  * по нему на растре видно поворот, отражение и кадрирование.
  */
 
-/** Размеры снимков, px: альбомные, книжные и квадратные — под все раскладки и рамки. */
-export const photoSpecs = {
+/** Размеры снимков книг матрицы, px: альбомные, книжные и квадратные — под все раскладки и рамки. */
+const matrixSpecs = {
   cover: [1200, 1500],
   a: [1600, 1067],
   b: [1200, 1600],
@@ -34,13 +34,20 @@ export const photoSpecs = {
   p14: [1000, 1500],
   p15: [1500, 1100],
   p16: [1300, 1300],
-  // Вариант «bigphoto»: крупнее, чем нужно печати (300 dpi) и фону обложки (3200 px).
-  big: [4000, 3000],
 } as const satisfies Record<string, readonly [number, number]>;
+
+/** Снимки вариантов вне матрицы: big (вариант «bigphoto») крупнее, чем нужно печати (300 dpi) и фону обложки (3200 px). */
+const variantSpecs = { big: [4000, 3000] } as const satisfies Record<string, readonly [number, number]>;
+
+export const photoSpecs = { ...matrixSpecs, ...variantSpecs };
 
 export type PhotoName = keyof typeof photoSpecs;
 
-export const photoNames = Object.keys(photoSpecs) as PhotoName[];
+/** Снимки книг матрицы — набор по умолчанию у photoFiles, prepareFixturePhotos и useFixtureStorage. */
+export const photoNames = Object.keys(matrixSpecs) as PhotoName[];
+/** Снимки вариантов — только по запросу: big рисуется около секунды, а набор открывает каждый процесс рендера. */
+export const variantPhotoNames = Object.keys(variantSpecs) as PhotoName[];
+const allNames = [...photoNames, ...variantPhotoNames];
 
 /** Превью — как у загруженных фото: по длинной стороне не больше 1000 px. */
 const THUMB_SIDE = 1000;
@@ -53,7 +60,7 @@ const FIXTURE_STORAGE_DIR = path.join(tmpdir(), "mybook-fixtures");
 
 function photoSvg(name: PhotoName) {
   const [w, h] = photoSpecs[name];
-  const i = photoNames.indexOf(name);
+  const i = allNames.indexOf(name);
   const hue = (i * 47) % 360;
   const m = Math.min(w, h);
   const sun = { x: w * (0.2 + (i % 4) * 0.2), y: h * (0.25 + (i % 3) * 0.15) };
@@ -74,20 +81,23 @@ export async function renderPhoto(name: PhotoName): Promise<{ full: Buffer; thum
   return { full, thumb };
 }
 
-let files: Promise<Map<string, Buffer>> | undefined;
+const rendered = new Map<PhotoName, ReturnType<typeof renderPhoto>>();
 
-/** Все файлы набора: ключ хранилища → байты (считаются один раз за процесс). */
-export function photoFiles(): Promise<Map<string, Buffer>> {
-  files ??= Promise.all(photoNames.map(async (name) => ({ name, ...(await renderPhoto(name)) }))).then(
-    (list) => new Map(list.flatMap((p) => [[photoKey(p.name), p.full] as const, [thumbKey(p.name), p.thumb] as const])),
+/** Файлы снимков: ключ хранилища → байты. Каждый снимок рисуется один раз за процесс. */
+export async function photoFiles(names = photoNames): Promise<Map<string, Buffer>> {
+  const list = await Promise.all(
+    names.map(async (name) => {
+      if (!rendered.has(name)) rendered.set(name, renderPhoto(name));
+      return { name, ...(await rendered.get(name)!) };
+    }),
   );
-  return files;
+  return new Map(list.flatMap((p) => [[photoKey(p.name), p.full] as const, [thumbKey(p.name), p.thumb] as const]));
 }
 
 /** Кладёт фото в папку хранилища. Файл с теми же байтами не переписывается; возвращает, сколько файлов записано. */
-export async function prepareFixturePhotos(dir: string): Promise<number> {
+export async function prepareFixturePhotos(dir: string, names = photoNames): Promise<number> {
   let written = 0;
-  for (const [key, data] of await photoFiles()) {
+  for (const [key, data] of await photoFiles(names)) {
     const full = path.join(dir, key);
     const current = await readFile(full).catch(() => null);
     if (current?.equals(data)) continue;
@@ -102,12 +112,12 @@ export async function prepareFixturePhotos(dir: string): Promise<number> {
 }
 
 /**
- * Хранилище для рендера: STORAGE_DIR → папка с фото набора. Модуль env читает STORAGE_DIR один раз,
- * поэтому вызывать до первого импорта рендера (в тестах — рендер через `await import(...)`).
+ * Хранилище для рендера: STORAGE_DIR → папка с фото набора (для вариантов — names с variantPhotoNames). Модуль env
+ * читает STORAGE_DIR один раз, поэтому вызывать до первого импорта рендера (в тестах — рендер через `await import(...)`).
  */
-export async function useFixtureStorage(dir = FIXTURE_STORAGE_DIR): Promise<string> {
+export async function useFixtureStorage(dir = FIXTURE_STORAGE_DIR, names = photoNames): Promise<string> {
   process.env.STORAGE_DIR = dir;
-  await prepareFixturePhotos(dir);
+  await prepareFixturePhotos(dir, names);
   const { getFile } = await import("@/shared/infrastructure/storage");
   const probe = await getFile(photoKey("cover")).catch(() => null);
   const expected = (await photoFiles()).get(photoKey("cover"));

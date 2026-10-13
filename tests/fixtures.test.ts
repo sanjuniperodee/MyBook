@@ -13,7 +13,7 @@ import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline
 import { interiorDesigns } from "@/lib/book/interiors";
 import { buildBookContent, effectiveDpi, estimatePages, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
 import { fixtureBook, fixtureBooks, fixtureVariants, type FixtureBook } from "./fixtures/books";
-import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, thumbKey, useFixtureStorage } from "./fixtures/photos";
+import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, useFixtureStorage, variantPhotoNames } from "./fixtures/photos";
 
 // Свои папки хранилища: проверяем запись фото с нуля и не мешаем другим тестам.
 const dir = mkdtempSync(path.join(tmpdir(), "mybook-fixtures-test-"));
@@ -84,11 +84,16 @@ describe("набор книг для визуальных и характери�
     expect(files.size).toBe(photoNames.length * 2);
     const again = await renderPhoto("p3");
     expect(again.full.equals(files.get(photoKey("p3"))!)).toBe(true);
-    // Снимки книг матрицы — одним хешем (не менялся с появлением вариантов), крупный снимок варианта — отдельно.
-    const keys = photoNames.filter((name) => name !== "big").flatMap((name) => [photoKey(name), thumbKey(name)]);
-    expect(sha256(keys.map((key) => `${key}:${sha256(files.get(key)!)}`).join("\n"))).toBe("ec0b97ed61b23e864892dc8837ede75da6e754a7794eef6db4d1390c04043a27");
-    expect(sha256(files.get(photoKey("big"))!)).toBe("cf1ed36035f9a61bcb73ef9bbecd621597636a64460c98d0eadd197e568a01aa");
+    const digest = sha256([...files].map(([key, data]) => `${key}:${sha256(data)}`).join("\n"));
+    expect(digest).toBe("ec0b97ed61b23e864892dc8837ede75da6e754a7794eef6db4d1390c04043a27");
     for (const { bundle } of fixtureBooks()) for (const p of bundle.photos) expect(files.has(p.storageKey) && files.has(p.thumbKey)).toBe(true);
+  });
+
+  it("снимки вариантов — по запросу, тоже одинаковы при каждом запуске", async () => {
+    const files = await photoFiles([...photoNames, ...variantPhotoNames]);
+    expect(sha256(files.get(photoKey("big"))!)).toBe("cf1ed36035f9a61bcb73ef9bbecd621597636a64460c98d0eadd197e568a01aa");
+    for (const { bundle } of fixtureVariants()) for (const p of bundle.photos) expect(files.has(p.storageKey) && files.has(p.thumbKey)).toBe(true);
+    expect((await photoFiles()).has(photoKey("big"))).toBe(false);
   });
 
   it("подготовка фото идемпотентна: второй раз ничего не пишет", async () => {
@@ -174,10 +179,11 @@ async function pagesWithoutText(pdf: Buffer, count: number) {
 
 describe("рендер книг набора", () => {
   let render: typeof import("@/modules/production/infrastructure/pdf/render");
+  // Свои снимки (с крупным big) и импорт рендера под нагрузкой полного прогона могут не уложиться в 10 с по умолчанию.
   beforeAll(async () => {
-    await useFixtureStorage(path.join(dir, "storage"));
+    await useFixtureStorage(path.join(dir, "storage"), [...photoNames, ...variantPhotoNames]);
     render = await import("@/modules/production/infrastructure/pdf/render");
-  });
+  }, 60_000);
 
   it("renderInterior (print) собирает книгу с фото: страниц больше нуля и кратно четырём", async () => {
     const res = await render.renderInterior(fixtureBook("memories", "a5", "ru").bundle, "print");
