@@ -2,6 +2,7 @@ import { api, apiUser, HttpError } from "@/server/api";
 import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import type { PrintFileKind as OrderFileKind } from "@/modules/production";
+import { isPaid } from "@/modules/ordering/domain";
 import { getPlan } from "@/config/site";
 
 export const maxDuration = 300;
@@ -26,7 +27,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   const isAdmin = can(staff, kind === "reading" ? "orders.view" : "orders.files");
   if (!isAdmin) {
     if (order.userId !== user.id) throw new HttpError(404, "orderNotFound");
-    const paid = !["pending_payment", "cancelled"].includes(order.status);
+    const paid = isPaid(order.status);
     const digital = !getPlan(order.plan)?.printed;
     // Покупателю доступна читательская версия после оплаты; файлы для печати — в электронном тарифе.
     if (!paid || (kind !== "reading" && !digital)) throw new HttpError(403, "fileNotReady");

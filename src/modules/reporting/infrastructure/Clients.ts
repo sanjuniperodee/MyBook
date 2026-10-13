@@ -10,6 +10,7 @@ export const STALLED_DAYS = 14;
 
 // Деньги клиента — из единого журнала revenue_events: оплаченные заказы и платежи по ручным сделкам.
 const ltv = sql<number>`coalesce((select sum(e.amount) from revenue_events e where e.client_id = ${usersId}), 0)::int`;
+// Заказы — все, кроме отменённых (неоплаченные тоже): это «оформил», а не «оплатил» (оплаты — в revenue_events).
 const ordersCount = sql<number>`(select count(*)::int from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
 const booksCount = sql<number>`(select count(*)::int from books b where b.user_id = ${usersId})`;
 const bestAnswered = sql<number>`coalesce((select max((select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0)) from books b where b.user_id = ${usersId}), 0)::int`;

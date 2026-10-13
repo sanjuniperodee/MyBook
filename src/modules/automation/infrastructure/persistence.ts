@@ -9,6 +9,11 @@ import { executor } from "@/shared/infrastructure/database";
 import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";
 import type { AutomationRule, RuleSubject, TriggerContext } from "../domain";
 
+/** Заказ (алиас o) оплачен по paid_at и не отменён; не isPaid() из ordering (тот — по статусу). */
+const paidAndNotCancelled = sql`o.paid_at is not null and o.status <> 'cancelled'`;
+/** Заказ (алиас o) не отменён — в том числе ещё не оплачен. */
+const notCancelled = sql`o.status <> 'cancelled'`;
+
 export class DrizzleRuleRepository implements RuleRepository {
   async active(trigger?: string): Promise<AutomationRule[]> {
     return executor()
@@ -91,7 +96,7 @@ export class SqlScheduledSource implements ScheduledSource {
       join users u on u.id = d.client_id
       where coalesce(u.last_seen_at, u.created_at) < now() - make_interval(days => ${days})
         and exists (select 1 from books b where b.user_id = u.id and b.status = 'draft')
-        and not exists (select 1 from orders o where o.user_id = u.id and o.status <> 'cancelled' and o.created_at > coalesce(u.last_seen_at, u.created_at))
+        and not exists (select 1 from orders o where o.user_id = u.id and ${notCancelled} and o.created_at > coalesce(u.last_seen_at, u.created_at))
       limit 200`);
     return rows.map((r) => ({ dealId: r.deal_id, clientId: r.client_id, lastSeen: new Date(r.last_seen) }));
   }
@@ -102,7 +107,7 @@ export class SqlScheduledSource implements ScheduledSource {
       with base as (
         select o.id as order_id, o.user_id as client_id, b.occasion, coalesce(b.occasion_date, o.desired_date)::date as d
         from orders o join books b on b.id = o.book_id
-        where o.paid_at is not null and o.status <> 'cancelled' and coalesce(b.occasion_date, o.desired_date) is not null
+        where ${paidAndNotCancelled} and coalesce(b.occasion_date, o.desired_date) is not null
           and coalesce(b.occasion, '') <> 'graduation'
       ), nxt as (
         select *, (d + make_interval(years => extract(year from current_date)::int - extract(year from d)::int))::date as this_year from base

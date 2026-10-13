@@ -28,6 +28,7 @@ export function bookList(f: BookFilter, opts: { q?: string; theme?: string; stal
       answered,
       total,
       photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
+      // Есть заказ — любой, кроме отменённого, в том числе ещё не оплаченный.
       hasOrder: sql<boolean>`exists (select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
     })
     .from(books)

@@ -2,6 +2,10 @@ import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { giftCards, orderEvents, orders, paymentInvoices, promoCodes } from "@/shared/infrastructure/db/schema";
 import { rootDb } from "@/shared/infrastructure/database";
+import { PAID_ORDER_STATUSES } from "../../domain";
+
+/** SQL-версия isPaid(): заказ оплачен по статусу. */
+const paidOrder = inArray(orders.status, [...PAID_ORDER_STATUSES]);
 
 /**
  * Read-модели заказов для страниц (CQRS-lite): чтение не обязано собирать агрегаты —
@@ -68,7 +72,7 @@ export class DrizzleOrderingQueries {
     const [r] = await rootDb
       .select({ id: orders.id })
       .from(orders)
-      .where(and(eq(orders.bookId, bookId), inArray(orders.status, ["paid", "in_production", "shipped", "delivered"])))
+      .where(and(eq(orders.bookId, bookId), paidOrder))
       .limit(1);
     return !!r;
   }

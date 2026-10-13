@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventBus } from "@/shared/application";
-import { Order, OrderingError, PromoCode } from "@/modules/ordering/domain";
+import { isPaid, Order, ORDER_STATUSES, OrderingError, PromoCode } from "@/modules/ordering/domain";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { PromoService } from "@/modules/ordering/application/PromoService";
 import { addPromo, admin, clock, FakeUow, MemGifts, MemOrders, MemPromos, setup } from "./doubles/ordering";
@@ -259,6 +259,11 @@ function setupWith(promos: MemPromos) {
 }
 
 describe("Ordering: отмена и статусы", () => {
+  it("«заказ оплачен» — одно правило: всё, кроме ожидания оплаты и отмены", () => {
+    expect(ORDER_STATUSES.filter(isPaid)).toEqual(["paid", "in_production", "shipped", "delivered"]);
+    expect(ORDER_STATUSES.filter((s) => !isPaid(s))).toEqual(["pending_payment", "cancelled"]);
+  });
+
   it("отмена неоплаченного возвращает промокод и открывает книгу", async () => {
     const { place, promos, books, svc } = setup();
     await addPromo(promos, "BACK", { maxUses: 1 });

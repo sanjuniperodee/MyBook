@@ -20,7 +20,7 @@ import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import type { OrderStatus } from "@/modules/ordering/domain";
+import { isPaid, type OrderStatus } from "@/modules/ordering/domain";
 import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { PaymentBlock } from "./PaymentBlock";
 
@@ -51,7 +51,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         { status: "paid", label: t.steps.ready },
       ];
   const currentStep = steps.findIndex((s) => s.status === order.status);
-  const paid = !["pending_payment", "cancelled"].includes(order.status);
+  const paid = isPaid(order.status);
   const reviewable = own && canReview({ status: order.status, plan: order.plan, paid });
   // Оплаченная электронная версия без печатного заказа: можно дозаказать книгу на бумаге, оплата электронной засчитается.
   const upgrade = own && !plan?.printed && order.status === "paid" ? await container().ordering.orders.upgradeOffer(order.id, user.id) : null;
