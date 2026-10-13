@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { buildBookContent, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
-import { fixtureBook } from "../fixtures/books";
+import { buildBookContent, LETTERS_CHAPTER, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { fixtureBook, fixtureVariants } from "../fixtures/books";
 import { characterizationBooks, contentOf, fixtureNames, YEAR } from "./books";
 
 /**
@@ -52,6 +52,13 @@ describe("buildBookContent: структура книги", () => {
     expect(new Set(placed).size).toBe(input.length - 1);
     expect(placed).toHaveLength(input.length - 1);
     expect(placed.every((p) => input.includes(p))).toBe(true);
+  });
+
+  it("статус письма не проверяется: неодобренное письмо в бандле печатается — отбор только в queries.approvedLetters", () => {
+    const fb = fixtureVariants().find((v) => v.key === "gender")!;
+    const letters = contentOf(fb).chapters.find((ch) => ch.key === LETTERS_CHAPTER)?.items ?? [];
+    expect(fb.bundle.letters?.map((l) => l.status)).toEqual(["approved", "pending"]);
+    expect(letters.map((it) => fixtureNames(fb).get(it.id))).toEqual(["letter0", "letter1"]);
   });
 
   it.each(characterizationBooks().map((fb) => [fb.key, fb] as const))("%s", (_, fb) => {
