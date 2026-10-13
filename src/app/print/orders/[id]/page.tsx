@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { PrintButton } from "./PrintButton";
 
 export const metadata = { title: "Упаковочный лист", robots: { index: false } };

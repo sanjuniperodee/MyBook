@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { ask } from "@/components/ui/overlays";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { deleteFieldAction, saveFieldAction, type FieldState } from "./actions";
 
 const typeLabels = { text: "Текст", number: "Число", date: "Дата", select: "Список", checkbox: "Да / нет" } as const;

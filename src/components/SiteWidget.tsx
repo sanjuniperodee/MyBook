@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MessageCircle, MessagesSquare, PhoneCall, SendHorizontal, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface Msg {
   id: string;

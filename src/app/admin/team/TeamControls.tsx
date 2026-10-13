@@ -6,7 +6,7 @@ import { KeyRound, LoaderCircle, Power, ShieldOff } from "lucide-react";
 import { createStaffAction, resetStaffPasswordAction, revokeStaffAction, setStaffDisabledAction, setStaffExtensionAction, setStaffRoleAction, type TeamState } from "./actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export function StaffForm({ roles }: { roles: { id: string; name: string }[] }) {
   const [state, action] = useActionState<TeamState, FormData>(createStaffAction, {});

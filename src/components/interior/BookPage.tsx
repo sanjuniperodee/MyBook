@@ -27,7 +27,7 @@ import { samplePageUrl } from "@/lib/book/photo-cover";
 import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import type { PageUnits } from "./units";
 
 /** Всё, что нужно странице: дизайн, формат, кегли и единицы измерения. */

@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { OccasionPicker } from "@/components/OccasionPicker";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import type { ThemeId } from "@/lib/content/types";

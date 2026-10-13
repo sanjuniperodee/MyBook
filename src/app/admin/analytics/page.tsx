@@ -6,7 +6,7 @@ import { adminLabel } from "@/modules/access/ui";
 import { channelOf, channels, toAttribution } from "@/modules/marketing/domain/channels";
 import { formatPrice } from "@/config/site";
 import { BarList, StatTile } from "@/components/admin/charts";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export const metadata = { title: "Аналитика продаж" };
 

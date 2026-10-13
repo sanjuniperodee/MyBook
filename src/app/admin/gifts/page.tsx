@@ -2,7 +2,8 @@ import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
-import { formatDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 

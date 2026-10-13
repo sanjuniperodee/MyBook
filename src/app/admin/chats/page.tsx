@@ -11,7 +11,7 @@ import { formatPhone } from "@/shared/domain/phone";
 import { getSetting } from "@/modules/workspace";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { ChatSideControls } from "./ChatControls";
 
 export const metadata = { title: "Чаты" };

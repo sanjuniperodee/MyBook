@@ -13,7 +13,7 @@ import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface Stage {
   id: string;

@@ -17,7 +17,7 @@ import { coverName, interiorName } from "@/i18n/labels";
 import { localeMeta } from "@/i18n/config";
 import { site } from "@/config/site";
 import { orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
 import { AgreementCard } from "@/components/AgreementCard";

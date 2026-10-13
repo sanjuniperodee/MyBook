@@ -7,7 +7,8 @@ import { can, canAssignOthers, requireStaff } from "@/server/access";
 import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { dealSourceLabels, dealSources } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
-import { cn, formatDate, nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate, nowMs } from "@/lib/dates";
 import { DealsBoard, type DealCard } from "./DealsBoard";
 import { DealsTable, SavedViews } from "./DealsTable";
 

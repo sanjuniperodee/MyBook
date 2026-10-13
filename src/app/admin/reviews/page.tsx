@@ -4,7 +4,8 @@ import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { PUBLIC_TEXT_MIN, LOW_RATING, type ReviewStatus, type StaffReview } from "@/modules/feedback";
 import { messagesFor } from "@/i18n/messages";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { ReviewActions } from "./ReviewActions";
 
 export const metadata = { title: "Отзывы" };

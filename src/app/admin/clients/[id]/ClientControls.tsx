@@ -9,7 +9,7 @@ import { setClientChannelAction, setClientFieldsAction, setClientManagerAction, 
 import { channels, manualChannels } from "@/modules/marketing/domain/channels";
 import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const suggested = ["vip", "блогер", "корпоратив", "повторный", "жалоба", "опт"];
 

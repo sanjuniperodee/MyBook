@@ -7,7 +7,8 @@ import { landings } from "@/lib/content/landings";
 import { env } from "@/config/env";
 import { formatPrice } from "@/config/site";
 import { BarList } from "@/components/admin/charts";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { LinkBuilder, LinkRowActions, WhatsappNumberForm } from "./MarketingControls";
 
 export const metadata = { title: "Ссылки и каналы" };

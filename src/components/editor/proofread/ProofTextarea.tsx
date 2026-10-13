@@ -5,7 +5,7 @@ import { ArrowRight, BookPlus, Check, CheckCircle2, EyeOff, LoaderCircle, Sparkl
 import { useMessages } from "@/i18n/client";
 import type { Issue, IssueKind } from "@/lib/proofread/types";
 import { issueKinds } from "@/lib/proofread/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import type { AiState } from "./useProofread";
 
 /** Цвет замечания: красный — ошибка в слове, синий — запятые и грамматика, янтарный — оформление, фиолетовый — стиль. */

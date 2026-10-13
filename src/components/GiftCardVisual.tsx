@@ -2,7 +2,7 @@ import { Heart } from "lucide-react";
 import { formatPrice, getPlan, site, type PlanId } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** HTML-копия PDF-сертификата: живое превью при покупке и на странице сертификата. Язык — язык сертификата. */
 export function GiftCardVisual({

@@ -12,7 +12,7 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { interiorMetrics } from "@/lib/book/layout";
 import { planFaces, planSheets, type Face, type Sheet } from "@/lib/book/flipbook";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface FlipbookChapter {
   number: number;

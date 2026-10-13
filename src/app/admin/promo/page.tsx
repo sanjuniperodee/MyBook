@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { PromoForm, PromoToggle } from "./PromoForm";
 import { requireStaff } from "@/server/access";
 

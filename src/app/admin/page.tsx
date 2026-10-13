@@ -8,7 +8,8 @@ import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/statu
 import { can, requireStaff } from "@/server/access";
 import { MyDay } from "./MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Обзор" };
 

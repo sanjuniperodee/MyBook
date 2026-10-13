@@ -12,7 +12,7 @@ import { BotForm } from "./BotForm";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { listFields } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Интеграции" };
 

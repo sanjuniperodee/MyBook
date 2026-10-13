@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { AutomationCard } from "./AutomationEditor";
 
 export const metadata = { title: "Автоматизации" };

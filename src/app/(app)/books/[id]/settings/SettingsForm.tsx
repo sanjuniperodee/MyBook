@@ -7,7 +7,7 @@ import { Choice, FormSection as Section } from "@/components/ui/Choice";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { formats, type FormatId } from "@/lib/book/formats";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import { useRouter } from "next/navigation";

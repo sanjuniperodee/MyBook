@@ -7,7 +7,7 @@ import { Bookmark, X } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { bulkDealsAction, deleteViewAction, saveViewAction } from "./actions";
 import { LostDialog } from "./DealsBoard";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface DealRow {
   id: string;

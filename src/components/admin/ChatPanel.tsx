@@ -9,7 +9,7 @@ import { MentionTextarea } from "./MentionTextarea";
 import type { ChatOffers } from "@/modules/marketing";
 import { fillTemplate } from "@/modules/automation/domain/meta";
 import { toast, toastError } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface ChatMessage {
   id: string;

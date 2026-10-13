@@ -5,7 +5,7 @@ import { Archive, ArchiveRestore, Copy, ExternalLink, Link2, MessageCircle, Glob
 import { toast } from "@/components/ui/overlays";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { normalizeSlug, sourcePresets } from "@/modules/marketing/domain/channels";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { archiveLinkAction, createLinkAction, saveWhatsappNumberAction, type LinkState } from "./actions";
 
 const copy = (text: string) => navigator.clipboard.writeText(text).then(() => toast("Скопировано"));

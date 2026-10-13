@@ -34,7 +34,7 @@ import { LogoMark } from "@/components/Logo";
 import type { Permission } from "@/modules/access/domain/permissions";
 import type { CrmCounters } from "@/modules/reporting";
 import { useLive } from "./CrmLive";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface Item {
   href: string;

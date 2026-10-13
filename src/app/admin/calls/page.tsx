@@ -4,7 +4,8 @@ import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-reac
 import { can, contactView, requireStaff } from "@/server/access";
 import { adminLabel } from "@/modules/access/ui";
 import { formatPhone } from "@/shared/domain/phone";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { CallRowActions } from "./CallActions";
 
 export const metadata = { title: "Звонки" };

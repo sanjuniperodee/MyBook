@@ -18,7 +18,8 @@ import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/statu
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import type { OrderStatus } from "@/modules/ordering/domain";
 import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { PaymentBlock } from "./PaymentBlock";

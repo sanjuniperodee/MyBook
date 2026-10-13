@@ -9,7 +9,8 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
 import { availableAddons, getDeliveryOptions, formatPrice, getPlan, getPlans, site, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
-import { cn, nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { nowMs } from "@/lib/dates";
 import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 

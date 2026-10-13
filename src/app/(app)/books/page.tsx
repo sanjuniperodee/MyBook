@@ -9,7 +9,7 @@ import { OpenBookArt } from "@/components/illustrations";
 import { Morph } from "@/components/motion/PageTransition";
 import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
-import { formatDate, nowMs } from "@/lib/utils";
+import { formatDate, nowMs } from "@/lib/dates";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
 import { AgreementCard } from "@/components/AgreementCard";

@@ -1,7 +1,8 @@
 import { planName } from "@/i18n/labels";
 import { listFields } from "@/modules/workspace";
 import { channelLabel, describeAttribution, isManualChannel, MANUAL_MEDIUM, toAttribution } from "@/modules/marketing/domain/channels";
-import { nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate, nowMs } from "@/lib/dates";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Mail, MessageCircle, Phone } from "lucide-react";
@@ -12,7 +13,6 @@ import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { cn, formatDate } from "@/lib/utils";
 import { ClientChannel, ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
 import { ClientAccess } from "./ClientAccess";
 import { displayLogin } from "@/app/admin/clients/new/access-message";

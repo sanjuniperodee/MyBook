@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
 import { listFields } from "@/modules/workspace";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { FieldEditor } from "./FieldEditor";
 
 export const metadata = { title: "Свои поля" };

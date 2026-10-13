@@ -1,5 +1,5 @@
 import { planName } from "@/i18n/labels";
-import { nowMs } from "@/lib/utils";
+import { nowMs } from "@/lib/dates";
 import Link from "next/link";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";

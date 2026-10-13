@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Вопросы-ответы с плавным раскрытием — одинаковые на лендинге, сертификате и посадочных страницах. */
 export function Faq({ items, className, size = "lg" }: { items: [string, string][]; className?: string; size?: "lg" | "md" }) {

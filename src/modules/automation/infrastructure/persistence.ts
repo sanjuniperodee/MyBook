@@ -3,7 +3,7 @@ import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, orders, users } from "@/shared/infrastructure/db/schema";
 import { adminLabel } from "@/modules/access/ui";
 import { fieldVars, listFields } from "@/modules/workspace";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { messagesFor } from "@/i18n/messages";
 import { executor } from "@/shared/infrastructure/database";
 import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";

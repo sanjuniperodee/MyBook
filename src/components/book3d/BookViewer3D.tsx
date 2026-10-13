@@ -30,7 +30,7 @@ import {
   type Orientation,
 } from "@/lib/book/book-model";
 import { clampPos, RENDER_WINDOW, visibleSpread, type Sheet } from "@/lib/book/flipbook";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls } from "./ViewerControls";

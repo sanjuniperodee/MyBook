@@ -5,7 +5,7 @@ import { CheckCircle2, Copy, LoaderCircle, PlugZap, RefreshCw, Send, SpellCheck,
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import {
   deleteTemplateAction,
   registerWazzupWebhookAction,

@@ -7,7 +7,7 @@ import { getCoverTemplate } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
 import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { FaceView, usePagedBook, type FlipbookData } from "./pages";
 import { photoHref, type PhotoRef } from "@/lib/book/cover-kit";
 import { buildCoverArt } from "./cover-art";

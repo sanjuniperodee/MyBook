@@ -3,7 +3,7 @@ import { can, requireStaffShell } from "@/server/access";
 import { getSetting } from "@/modules/workspace";
 import { adminLabel } from "@/modules/access/ui";
 import { trustedClientIp } from "@/server/rateLimit";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { IpAllowlistForm, ResetStaffButton, TwoFactorCard } from "./SecurityControls";
 
 export const metadata = { title: "Безопасность" };

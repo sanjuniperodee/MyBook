@@ -6,7 +6,7 @@ import { CalendarPlus, ListChecks, LoaderCircle, Sparkles } from "lucide-react";
 import { aiApplyFieldsAction, aiExtractFieldsAction, aiNextStepTaskAction, aiSummaryAction, type FieldProposal } from "@/app/admin/ai-actions";
 import { temperatureLabels, type AiSummary } from "@/modules/assistant/domain";
 import { toast, toastError } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const tempColors = { hot: "bg-red-100 text-red-800", warm: "bg-amber-100 text-amber-800", cold: "bg-sky-100 text-sky-800" } as const;
 

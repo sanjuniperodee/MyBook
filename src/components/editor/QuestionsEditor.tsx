@@ -41,7 +41,7 @@ import { getFormat, printablePageCount } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { countWords, estimateAnswerPages, estimatePages, type BookContent, type ContentChapter } from "@/lib/book/layout";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface EditorQuestion {
   id: string;

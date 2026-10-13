@@ -5,7 +5,7 @@ import { Check, Copy, Gift, ImagePlus, Star, X } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
 import { apiFetch } from "@/lib/client-api";
 import { toastError } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface ReviewDraft {
   rating: number;

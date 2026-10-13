@@ -4,7 +4,7 @@ import { Check, ImagePlus } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
 import { BACK_PHOTO_SLOTS, BACK_TEXT_MAX, backLayouts, type BackLayout } from "@/lib/book/cover-back";
 import { photoUrl } from "@/lib/urls";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Схематичная миниатюра варианта — как он ляжет на заднюю крышку. */
 function LayoutIcon({ layout }: { layout: BackLayout }) {

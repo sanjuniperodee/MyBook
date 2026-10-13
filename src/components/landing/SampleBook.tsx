@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { useLocale, useMessages } from "@/i18n/client";
 import type { Messages } from "@/i18n/messages";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /**
  * Листаемая книга-пример: те же шрифты и композиция, что в PDF для печати.

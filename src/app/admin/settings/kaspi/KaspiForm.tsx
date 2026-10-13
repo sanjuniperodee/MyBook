@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Copy, LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { confirmKaspiCodeAction, disconnectKaspiAction, kaspiStatusAction, requestKaspiCodeAction, saveKaspiApiUrlAction, setKaspiEnabledAction } from "./actions";
 
 interface KaspiStatusView {

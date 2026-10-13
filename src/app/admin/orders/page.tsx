@@ -8,7 +8,7 @@ import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { adminLabel } from "@/modules/access/ui";
 import type { OrderFilters } from "@/modules/reporting";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { OrdersTable, type OrderRow } from "./OrdersTable";
 
 export const metadata = { title: "Заказы" };

@@ -6,7 +6,7 @@ import { coverArtUrl } from "@/lib/urls";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
 
 const samplePhotoHref = (key: string) => coverPhotoUrl(key, 1000);
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface CoverPreviewProps {
   template: string;

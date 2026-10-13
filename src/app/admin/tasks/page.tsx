@@ -3,7 +3,8 @@ import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Задачи" };
 

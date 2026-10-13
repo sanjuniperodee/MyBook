@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { site } from "@/config/site";
 import { env } from "@/config/env";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { getSetting } from "@/modules/workspace";
 import { appLink } from "@/shared/infrastructure/mail";
 import type { AppLinks, MarketingSettings } from "../application";

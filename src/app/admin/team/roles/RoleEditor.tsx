@@ -6,7 +6,7 @@ import { Lock, Plus, Trash2 } from "lucide-react";
 import { deleteRoleAction, saveRoleAction, type TeamState } from "../actions";
 import { permissionGroups, type Permission } from "@/modules/access/domain/permissions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface RoleData {
   id: string;

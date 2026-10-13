@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Link } from "@/i18n/client";
 import { site } from "@/config/site";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Знак логотипа: буква M с пером над раскрытой книгой на бордовом фоне. Готовые лёгкие WebP отдаются как есть: оптимизатор next/image после каждого деплоя начинал с пустого кэша. */
 export function LogoMark({ className }: { className?: string }) {

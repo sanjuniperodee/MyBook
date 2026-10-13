@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Bot, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { saveBotAction } from "./actions";
 import type { BotConfig } from "@/modules/messaging/domain/botConfig";
 

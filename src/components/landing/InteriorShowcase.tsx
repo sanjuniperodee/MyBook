@@ -6,7 +6,7 @@ import { Link, useMessages } from "@/i18n/client";
 import { InteriorSpread, type SpreadKind, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { formats } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, type InteriorDesign, type InteriorId } from "@/lib/book/interiors";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
 

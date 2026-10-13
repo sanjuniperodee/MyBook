@@ -2,7 +2,7 @@ import { memo } from "react";
 import type { Locale } from "@/i18n/config";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { messagesFor } from "@/i18n/messages";
 import { DedicationPage, EndPage, OpenerPage, pageKit, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto, type SampleEntry } from "./BookPage";
 import { cqwUnits } from "./units";

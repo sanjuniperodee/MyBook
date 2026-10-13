@@ -2,7 +2,7 @@
 
 import { BadgeCheck, Eye, LockKeyhole, RefreshCcw } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Обещания сервиса — одинаковые на лендинге, в заказе и у сертификата. Тексты — common.trust. */
 const icons = [Eye, RefreshCcw, BadgeCheck, LockKeyhole];

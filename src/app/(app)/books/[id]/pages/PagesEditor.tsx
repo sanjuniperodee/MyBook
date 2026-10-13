@@ -11,7 +11,7 @@ import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, type InteriorMood } from "@/lib/book/interiors";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface PagesState {
   interior: InteriorId;

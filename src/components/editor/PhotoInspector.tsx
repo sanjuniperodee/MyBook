@@ -4,7 +4,7 @@ import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, LoaderCircl
 import { useState } from "react";
 import { cropRect, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 
 export interface InspectorPhoto {

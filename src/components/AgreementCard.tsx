@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/client";
 import { ArrowRight, Check, Circle } from "lucide-react";
 import { formatPrice, site } from "@/config/site";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { getLocale, getMessages } from "@/i18n/server";
 import type { DealAgreement } from "@/modules/sales";
 import { getPlan } from "@/config/site";

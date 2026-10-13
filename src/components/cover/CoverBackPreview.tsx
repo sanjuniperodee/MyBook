@@ -4,7 +4,7 @@ import type { PhotoRef } from "@/lib/book/cover-kit";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { coverArtUrl } from "@/lib/urls";
 import { site } from "@/config/site";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { CoverBackLayer } from "./CoverBack";
 
 /** Толщина не влияет на заднюю крышку — берём типичную, как у фона из /api/covers/…-back.svg. */

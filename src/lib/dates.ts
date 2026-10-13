@@ -1,9 +1,4 @@
-import { clsx, type ClassValue } from "clsx";
 import { messagesFor } from "@/i18n/messages";
-
-export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs);
-}
 
 /**
  * «14 февраля 2027 г.» / «2027 жылғы 14 ақпан». Казахский собираем из словаря, а не через Intl("kk-KZ"):

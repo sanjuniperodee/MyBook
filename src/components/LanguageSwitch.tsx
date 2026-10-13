@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Globe } from "lucide-react";
 import { localeMeta, localizePath, splitLocale, type Locale } from "@/i18n/config";
 import { useLocale } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /**
  * Переключатель «Рус / Қаз». Запоминает выбор (cookie + профиль) и открывает эту же страницу на другом языке.

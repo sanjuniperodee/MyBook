@@ -2,7 +2,7 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/shared/domain/phone";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Дубли сделок" };
 

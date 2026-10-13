@@ -5,7 +5,7 @@ import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Link, useLocalizePath, useMessages } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { registrationOpen } from "@/config/site";
 
 export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {

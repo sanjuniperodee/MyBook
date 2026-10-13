@@ -9,7 +9,8 @@ import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice, getPlans, getVisiblePlans, type PlanId } from "@/config/site";
-import { cn, nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 
 export function GiftForm({ defaults }: { defaults: { name: string; email: string; locale: Locale } }) {

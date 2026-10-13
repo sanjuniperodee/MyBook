@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { LoaderCircle, QrCode, RefreshCw } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import type { GowaStatus } from "@/modules/messaging";
 import { gowaLogoutAction, gowaPairCodeAction, gowaQrAction, gowaStatusAction, saveWhatsappSettingsAction } from "./actions";
 

@@ -7,7 +7,7 @@ import { Mail, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { MentionTextarea } from "./MentionTextarea";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export const taskKinds = { task: "Задача", call: "Позвонить", message: "Написать", meeting: "Встреча" } as const;
 
