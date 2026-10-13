@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import { consoleLogger } from "@/shared/application";
-import { GiftCard, kaspiOutcome, kaspiPhone, OrderingError, parseKaspiPayment, parseKaspiWebhook, PaymentInvoice, type GiftCardRepository, type KaspiPaymentView, type PaymentInvoiceRepository, type PaymentTarget } from "@/modules/ordering/domain";
+import { kaspiOutcome, kaspiPhone, OrderingError, parseKaspiPayment, parseKaspiWebhook, PaymentInvoice, type KaspiPaymentView, type PaymentInvoiceRepository, type PaymentTarget } from "@/modules/ordering/domain";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { KaspiPaymentsService } from "@/modules/ordering/application/KaspiPaymentsService";
 import { KaspiSetupService } from "@/modules/ordering/application/KaspiSetupService";
 import type { KaspiConfigStore, KaspiGateway, KaspiSession } from "@/modules/ordering/application/ports";
 import { KaspiPosClient, verifyKaspiSignature } from "@/modules/ordering/infrastructure/payments/KaspiPosClient";
-import { FakeUow, MemPromos, setup } from "./doubles/ordering";
+import { FakeUow, MemGifts, MemPromos, setup } from "./doubles/ordering";
 
 // ─── протокол kaspi-pos ────────────────────────────────────────────────────
 
@@ -165,26 +165,15 @@ function kaspiSetup() {
   const base = setup();
   const invoices = new MemInvoices();
   const promos = new MemPromos();
-  const giftStore = new Map<string, ReturnType<GiftCard["snapshot"]>>();
-  const loadGift = (r?: ReturnType<GiftCard["snapshot"]>) => (r ? GiftCard.restore(r.id, (({ id: _id, ...p }) => (void _id, p))(structuredClone(r))) : null);
-  const gifts: GiftCardRepository = {
-    nextIdentity: async () => ({ id: crypto.randomUUID(), number: 7 }),
-    findById: async (id) => loadGift(giftStore.get(id)),
-    findByNumber: async (n) => loadGift([...giftStore.values()].find((g) => g.number === n)),
-    findByToken: async (t) => loadGift([...giftStore.values()].find((g) => g.token === t)),
-    findByPromoId: async () => null,
-    findDueForDelivery: async () => [],
-    lockById: async (id) => loadGift(giftStore.get(id)),
-    add: async (g) => void giftStore.set(g.id, g.snapshot()),
-    save: async (g) => void giftStore.set(g.id, g.snapshot()),
-  };
-  const uow = new FakeUow([base.orders, promos, invoices]);
+  const gifts = new MemGifts();
+  const uow = new FakeUow([base.orders, promos, invoices, gifts]);
   const giftsService = new GiftsService(gifts, promos, { giftCode: () => "GIFT-KASPI-0001", giftToken: () => "g".repeat(24) }, { provider: () => "manual", currency: () => "KZT" }, uow, base.c, () => "2026-10-01");
   const kaspi = new FakeKaspi();
   let enabled = true;
   const logger = { ...consoleLogger("test"), warn: () => {}, error: () => {} };
   const svc = new KaspiPaymentsService(invoices, base.orders, gifts, base.svc, giftsService, kaspi, async () => enabled, uow, base.c, logger);
-  return { ...base, invoices, kaspi, svc, giftsService, gifts, promos, setEnabled: (v: boolean) => void (enabled = v) };
+  // kaspiUow — события сервиса Kaspi и сертификатов; события заказов — в uow из setup().
+  return { ...base, kaspiUow: uow, invoices, kaspi, svc, giftsService, gifts, promos, setEnabled: (v: boolean) => void (enabled = v) };
 }
 
 describe("Kaspi: оплата заказа", () => {
@@ -308,9 +297,14 @@ describe("Kaspi: оплата сертификата", () => {
     const gift = await t.giftsService.purchase({ plan: "hardcover", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "+77010000000", recipientName: "Б", recipientEmail: null, sendAt: null, message: "", locale: "ru", buyerLocale: "ru" });
     const inv = await t.svc.payGift(gift.token, { method: "invoice", phone: "+77010000000" });
     await expect(t.svc.status(inv.id, { giftToken: "x".repeat(24) })).rejects.toMatchObject({ code: "invoiceNotFound" });
-    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: gift.amount }, true);
+    const hook = { event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: gift.amount } as const;
+    await t.svc.onWebhook(hook, true);
     expect((await t.gifts.findById(gift.id))!.status).toBe("paid");
     expect(await t.promos.findByCode("GIFT-KASPI-0001")).not.toBeNull();
+    // Повтор уведомления: код не выпускается второй раз, событие оплаты одно.
+    expect(await t.svc.onWebhook(hook, true)).toBe("ok");
+    expect(t.promos.rows.size).toBe(1);
+    expect(t.kaspiUow.types().filter((x) => x === "ordering.gift_paid")).toHaveLength(1);
   });
 });
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { EventBus } from "@/shared/application";
-import { GiftCard, Order, OrderingError, PromoCode, type GiftCardRepository } from "@/modules/ordering/domain";
+import { Order, OrderingError, PromoCode } from "@/modules/ordering/domain";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { PromoService } from "@/modules/ordering/application/PromoService";
-import { addPromo, admin, clock, FakeUow, MemOrders, MemPromos, setup } from "./doubles/ordering";
+import { addPromo, admin, clock, FakeUow, MemGifts, MemOrders, MemPromos, setup } from "./doubles/ordering";
 
 // ─── домен ─────────────────────────────────────────────────────────────────
 
@@ -321,20 +321,8 @@ describe("Ordering: промокоды и сертификаты", () => {
 
   it("GiftsService: оплата выпускает одноразовый код на номинал, повтор безопасен", async () => {
     const promos = new MemPromos();
-    const store = new Map<string, ReturnType<GiftCard["snapshot"]>>();
-    const load = (r?: ReturnType<GiftCard["snapshot"]>) => (r ? GiftCard.restore(r.id, (({ id: _id, ...p }) => (void _id, p))(structuredClone(r))) : null);
-    const gifts: GiftCardRepository = {
-      nextIdentity: async () => ({ id: crypto.randomUUID(), number: 7 }),
-      findById: async (id) => load(store.get(id)),
-      findByNumber: async (n) => load([...store.values()].find((g) => g.number === n)),
-      findByToken: async (t) => load([...store.values()].find((g) => g.token === t)),
-      findByPromoId: async () => null,
-      findDueForDelivery: async () => [],
-      lockById: async (id) => load(store.get(id)),
-      add: async (g) => void store.set(g.id, g.snapshot()),
-      save: async (g) => void store.set(g.id, g.snapshot()),
-    };
-    const uow = new FakeUow([promos, { snapshot: () => new Map(store), restore: () => {} }]);
+    const gifts = new MemGifts();
+    const uow = new FakeUow([promos, gifts]);
     const svc = new GiftsService(gifts, promos, { giftCode: () => "GIFT-TEST-0001", giftToken: () => "t".repeat(24) }, { provider: () => "manual", currency: () => "KZT" }, uow, clock(), () => "2026-10-01");
     await expect(svc.purchase({ plan: "premium", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "", recipientName: "Б", recipientEmail: "b@c.kz", sendAt: "2026-09-01", message: "", locale: "ru", buyerLocale: "ru" })).rejects.toMatchObject({ code: "giftPastDate" });
     const gift = await svc.purchase({ plan: "premium", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "", recipientName: "Б", recipientEmail: null, sendAt: "2026-12-01", message: "", locale: "ru", buyerLocale: "ru" });

@@ -1,6 +1,6 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
-import { Order, PromoCode, type OrderRepository, type PromoCodeRepository } from "@/modules/ordering/domain";
+import { GiftCard, Order, PromoCode, type GiftCardRepository, type OrderRepository, type PromoCodeRepository } from "@/modules/ordering/domain";
 import { OrdersService } from "@/modules/ordering/application/OrdersService";
 import type { BookGateway, PeopleGateway } from "@/modules/ordering/application/ports";
 
@@ -119,6 +119,30 @@ export class MemPromos implements PromoCodeRepository {
   async save(p: PromoCode) {
     this.rows.set(p.id, p.snapshot());
   }
+}
+
+/** Сертификаты в памяти; номер у всех один — тестам хватает одного сертификата. */
+export class MemGifts implements GiftCardRepository {
+  rows = new Map<string, ReturnType<GiftCard["snapshot"]>>();
+  snapshot = () => new Map(this.rows);
+  restore = (s: unknown) => (this.rows = structuredClone(s) as typeof this.rows);
+  private load(r?: ReturnType<GiftCard["snapshot"]>) {
+    if (!r) return null;
+    const { id, ...p } = structuredClone(r);
+    return GiftCard.restore(id, p);
+  }
+  private find(test: (r: ReturnType<GiftCard["snapshot"]>) => boolean) {
+    return this.load([...this.rows.values()].find(test));
+  }
+  nextIdentity = async () => ({ id: crypto.randomUUID(), number: 7 });
+  findById = async (id: string) => this.load(this.rows.get(id));
+  findByNumber = async (n: number) => this.find((r) => r.number === n);
+  findByToken = async (t: string) => this.find((r) => r.token === t);
+  findByPromoId = async (id: string) => this.find((r) => r.promoCodeId === id);
+  findDueForDelivery = async () => [];
+  lockById = async (id: string) => this.load(this.rows.get(id));
+  add = async (g: GiftCard) => void this.rows.set(g.id, g.snapshot());
+  save = async (g: GiftCard) => void this.rows.set(g.id, g.snapshot());
 }
 
 export class MemBooks implements BookGateway {
