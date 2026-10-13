@@ -1,5 +1,6 @@
 import { requireStaff } from "@/server/access";
-import { fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
+import { ensureToken, fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
+import { KaspiForm } from "./kaspi/KaspiForm";
 import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { env } from "@/config/env";
@@ -55,6 +56,7 @@ export default async function SettingsPage() {
   const smtpSaved = smtpCfg
     ? { host: smtpCfg.host, port: String(smtpCfg.port), secure: String(smtpCfg.secure), user: smtpCfg.user, password: maskSecret(smtpCfg.password), from: smtpCfg.from, replyTo: smtpCfg.replyTo }
     : { host: smtpDb["mail.smtpHost"], port: smtpDb["mail.smtpPort"], secure: smtpDb["mail.smtpSecure"], user: smtpDb["mail.smtpUser"], password: maskSecret(smtpDb["mail.smtpPassword"]), from: smtpDb["mail.from"], replyTo: smtpDb["mail.replyTo"] };
+  const kaspi = await container().ordering.kaspiSetup.status();
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -62,6 +64,12 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold">Интеграции и настройки</h1>
         <p className="mt-1 text-sm text-muted">Ключи хранятся в базе в зашифрованном виде и не показываются целиком. Значения из переменных окружения сервера имеют приоритет и здесь только для чтения.</p>
       </div>
+
+      <KaspiForm
+        {...kaspi}
+        webhookUrl={hook("/api/payments/kaspi/webhook")}
+        webhookSecret={fromEnv("kaspi.webhookSecret") ? null : await ensureToken("kaspi.webhookSecret")}
+      />
 
       <WazzupForm
         saved={{ apiKey: maskSecret(apiKey), baseUrl, channelId }}

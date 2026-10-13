@@ -35,11 +35,27 @@ services:
     environment:
       DATABASE_URL: postgres://mybook:${POSTGRES_PASSWORD:-mybook}@db:5432/mybook
       STORAGE_DIR: /data/storage
+      KASPI_API_URL: ${KASPI_API_URL:-http://kaspi-pos:3000}
     ports:
       - "3000:3000"
     volumes:
       - storage:/data/storage
 
+  # Оплата через Kaspi Pay (необязательно): docker compose --profile kaspi up -d --build, затем кассир подключается
+  # в CRM → «Интеграции» → Kaspi Pay. Порт наружу не открываем: сервис держит сессию кассира.
+  kaspi-pos:
+    build: ./deploy/kaspi-pos
+    restart: unless-stopped
+    profiles: ["kaspi"]
+    environment:
+      # Ключ шифрования сессии (64 hex-символа: openssl rand -hex 32), задаётся один раз.
+      TOKEN_SECRET_KEY: ${KASPI_TOKEN_SECRET_KEY:-}
+      KASPI_WEBHOOK_URL: http://app:3000/api/payments/kaspi/webhook
+      KASPI_WEBHOOK_SECRET: ${KASPI_WEBHOOK_SECRET:-}
+    volumes:
+      - kaspi:/data
+
 volumes:
   pgdata:
   storage:
+  kaspi:

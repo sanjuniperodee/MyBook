@@ -45,6 +45,7 @@ function translate(t: ApiMessages, key: string, params: unknown[] = []): string 
 function domainStatus(code: string) {
   if (code === "bookLocked" || code === "bookHasOrders" || code === "letterPrinted" || code === "reviewLocked") return 409;
   if (code === "reviewNotAllowed") return 403;
+  if (code === "kaspiUnavailable" || code === "kaspiNotConnected") return 503;
   if (/NotFound$/.test(code) || code === "letterClosed" || code === "letterInvalid") return 404;
   return 400;
 }

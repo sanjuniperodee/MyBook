@@ -20,6 +20,7 @@ import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
 import { cn, formatDate } from "@/lib/utils";
 import type { OrderStatus } from "@/modules/ordering/domain";
+import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { PaymentBlock } from "./PaymentBlock";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -53,6 +54,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const reviewable = own && canReview({ status: order.status, plan: order.plan, paid });
   // Оплаченная электронная версия без печатного заказа: можно дозаказать книгу на бумаге, оплата электронной засчитается.
   const upgrade = own && !plan?.printed && order.status === "paid" ? await container().ordering.orders.upgradeOffer(order.id, user.id) : null;
+  const kaspi = own && order.status === "pending_payment" ? await kaspiPaymentProps({ kind: "order", id: order.id }, order.contactPhone) : null;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
@@ -94,6 +96,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               online={isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null}
               manual={m.common.manualPayment}
               claimed={!!order.paymentClaimedAt}
+              kaspi={kaspi}
             />
           ) : null}
 

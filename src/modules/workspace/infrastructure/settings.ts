@@ -110,6 +110,14 @@ export const settingDefs = {
   "catalog.overrides": {},
   /** Регистрация новых клиентов на сайте: on | off (выключена — страница регистрации закрыта, ссылки скрыты). */
   "site.registration": { default: "on" },
+  /**
+   * Оплата через Kaspi Pay (kaspi-pos-automation): адрес сервиса, включена ли оплата, сессия кассира (JSON после входа
+   * по SMS-коду) и секрет подписи вебхуков (тот же, что в webhooks.json сервиса).
+   */
+  "kaspi.apiUrl": { env: "KASPI_API_URL", default: "http://localhost:3010" },
+  "kaspi.enabled": { default: "off" },
+  "kaspi.session": { secret: true },
+  "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;
@@ -173,7 +181,7 @@ export async function saveSettings(values: Partial<Record<SettingKey, string>>, 
 }
 
 /** Токен вебхука: создаётся при первом обращении, чтобы адрес для провайдера был сразу готов. */
-export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken"): Promise<string> {
+export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken" | "kaspi.webhookSecret"): Promise<string> {
   const existing = await getSetting(key);
   if (existing) return existing;
   const token = randomToken();

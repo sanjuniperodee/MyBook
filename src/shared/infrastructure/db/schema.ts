@@ -365,6 +365,37 @@ export const giftCards = pgTable(
 
 export type GiftCard = typeof giftCards.$inferSelect;
 
+/**
+ * Счета онлайн-оплаты Kaspi Pay: попытки оплатить заказ или сертификат (счёт в приложение по номеру или QR).
+ * У одного заказа их может быть несколько — истёк, отменён, выставлен заново; заказ подтверждает оплаченный.
+ */
+export const paymentInvoices = pgTable(
+  "payment_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").$type<"kaspi">().notNull(),
+    targetKind: text("target_kind").$type<"order" | "gift">().notNull(),
+    targetId: uuid("target_id").notNull(),
+    method: text("method").$type<"invoice" | "qr">().notNull(),
+    /** Номер операции у провайдера (Kaspi: id счёта или QR-операции). */
+    externalId: text("external_id").notNull(),
+    phone: text("phone"),
+    amount: integer("amount").notNull(),
+    status: text("status").$type<"pending" | "paid" | "failed" | "cancelled" | "expired">().notNull().default("pending"),
+    providerStatus: text("provider_status"),
+    checkoutUrl: text("checkout_url"),
+    qrToken: text("qr_token"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("payment_invoices_external_idx").on(t.provider, t.externalId),
+    index("payment_invoices_target_idx").on(t.targetKind, t.targetId, t.createdAt),
+    index("payment_invoices_status_idx").on(t.status, t.createdAt),
+  ],
+);
+
 export const giftCardsRelations = relations(giftCards, ({ one }) => ({
   promo: one(promoCodes, { fields: [giftCards.promoCodeId], references: [promoCodes.id] }),
 }));

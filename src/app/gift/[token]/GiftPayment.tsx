@@ -7,6 +7,8 @@ import { useState, useTransition } from "react";
 import { CreditCard, LoaderCircle } from "lucide-react";
 import { claimGiftPaymentAction } from "../actions";
 import { Alert } from "@/components/ui/Alert";
+import { KaspiPay } from "@/components/payments/KaspiPay";
+import type { KaspiInvoiceView } from "@/modules/ordering/ui/kaspi";
 
 export function GiftPayment(props: {
   token: string;
@@ -18,6 +20,8 @@ export function GiftPayment(props: {
   online: { publicId: string } | null;
   manual: { title: string; steps: string[] };
   claimed: boolean;
+  /** Оплата через Kaspi Pay подключена: сертификат выпускается сам после оплаты. */
+  kaspi: { initial: KaspiInvoiceView | null; defaultPhone: string } | null;
 }) {
   const router = useRouter();
   const t = useMessages().gift.payment;
@@ -47,6 +51,29 @@ export function GiftPayment(props: {
     );
   };
 
+  const manualTransfer = (
+    <div className="mt-5">
+      <div className="font-medium">{props.manual.title}</div>
+      <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[15px] text-ink-soft">
+        {props.manual.steps.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+        <li>
+          {t.sum} <b>{props.amountLabel}</b>, {t.commentLabel} <b>{t.commentValue(props.number)}</b>
+        </li>
+      </ol>
+      {props.claimed ? (
+        <Alert kind="success" className="mt-5">
+          {t.claimed(props.email)}
+        </Alert>
+      ) : (
+        <button className="btn btn-primary btn-lg mt-6" disabled={pending} onClick={() => start(() => claimGiftPaymentAction(props.token))}>
+          {pending ? <LoaderCircle className="size-5 animate-spin" /> : null} {t.claim}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <section className="card p-6 sm:p-8">
       <h2 className="text-xl font-semibold">{t.title}</h2>
@@ -54,7 +81,8 @@ export function GiftPayment(props: {
         {t.toPay} <b className="text-ink">{props.amountLabel}</b>
       </p>
       {error ? <Alert className="mt-4">{error}</Alert> : null}
-      {props.online ? (
+      {props.kaspi ? <KaspiPay target={{ kind: "gift", token: props.token }} amountLabel={props.amountLabel} defaultPhone={props.kaspi.defaultPhone} initial={props.kaspi.initial} fallback={manualTransfer} /> : null}
+      {props.kaspi && !props.online ? null : props.online ? (
         <>
           <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" onReady={() => setReady(true)} />
           <button className="btn btn-primary btn-lg mt-6 w-full sm:w-auto" onClick={pay} disabled={!ready}>
@@ -62,26 +90,7 @@ export function GiftPayment(props: {
           </button>
         </>
       ) : (
-        <div className="mt-5">
-          <div className="font-medium">{props.manual.title}</div>
-          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[15px] text-ink-soft">
-            {props.manual.steps.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-            <li>
-              {t.sum} <b>{props.amountLabel}</b>, {t.commentLabel} <b>{t.commentValue(props.number)}</b>
-            </li>
-          </ol>
-          {props.claimed ? (
-            <Alert kind="success" className="mt-5">
-              {t.claimed(props.email)}
-            </Alert>
-          ) : (
-            <button className="btn btn-primary btn-lg mt-6" disabled={pending} onClick={() => start(() => claimGiftPaymentAction(props.token))}>
-              {pending ? <LoaderCircle className="size-5 animate-spin" /> : null} {t.claim}
-            </button>
-          )}
-        </div>
+        manualTransfer
       )}
     </section>
   );

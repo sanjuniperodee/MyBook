@@ -16,6 +16,10 @@ import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
+import { formatPhone } from "@/shared/domain/phone";
+
+/** Статусы счетов Kaspi в карточке заказа. */
+const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("orders.view");
@@ -24,7 +28,12 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }] = await Promise.all([container().authoring.queries.stats(book), container().access.queries.allStaff(), container().reporting.orderCrm(order)]);
+  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices] = await Promise.all([
+    container().authoring.queries.stats(book),
+    container().access.queries.allStaff(),
+    container().reporting.orderCrm(order),
+    container().ordering.queries.paymentInvoices("order", order.id),
+  ]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
   const now = new Date();
@@ -188,6 +197,23 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>
               {order.paidAt ? <div className="flex justify-between text-xs text-muted"><dt>Оплачен</dt><dd>{formatDate(order.paidAt, true)}</dd></div> : null}
             </dl>
+            {kaspiInvoices.length ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="mb-1.5 text-xs text-muted">Счета Kaspi</div>
+                <ul className="space-y-1 text-xs">
+                  {kaspiInvoices.map((i) => (
+                    <li key={i.id} className="flex justify-between gap-2">
+                      <span>
+                        {i.method === "qr" ? "QR" : `счёт на ${formatPhone(i.phone) || i.phone}`} · №{i.externalId}
+                      </span>
+                      <span className={i.status === "paid" ? "text-emerald-700" : "text-muted"} title={i.providerStatus ?? undefined}>
+                        {invoiceStatusLabels[i.status]} {formatDate(i.paidAt ?? i.createdAt, true)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </Card>
           {canEdit ? (
             <>

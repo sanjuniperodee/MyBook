@@ -1,5 +1,6 @@
 import type { GiftCard } from "./GiftCard";
 import type { Order } from "./Order";
+import type { PaymentInvoice, PaymentTarget } from "./PaymentInvoice";
 import type { PromoCode } from "./PromoCode";
 
 /** Порты хранения. Реализации — в infrastructure; домен о SQL не знает. */
@@ -43,4 +44,18 @@ export interface GiftCardRepository {
   lockById(id: string): Promise<GiftCard | null>;
   add(gift: GiftCard): Promise<void>;
   save(gift: GiftCard): Promise<void>;
+}
+
+export interface PaymentInvoiceRepository {
+  nextId(): string;
+  findById(id: string): Promise<PaymentInvoice | null>;
+  /** Блокирует строку до конца транзакции: вебхук и сверка могут прийти одновременно. */
+  lockById(id: string): Promise<PaymentInvoice | null>;
+  findByExternalId(provider: "kaspi", externalId: string): Promise<PaymentInvoice | null>;
+  /** Последний счёт по заказу или сертификату (любой статус). */
+  latestFor(target: PaymentTarget): Promise<PaymentInvoice | null>;
+  /** Счета, которые стоит сверить с Kaspi: ждущие и закрытые нами по сроку, созданные не раньше since. */
+  toReconcile(since: Date, limit: number): Promise<PaymentInvoice[]>;
+  add(invoice: PaymentInvoice): Promise<void>;
+  save(invoice: PaymentInvoice): Promise<void>;
 }

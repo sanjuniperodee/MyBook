@@ -18,10 +18,10 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, notify, smtpConfig, staffWith } from "@/modules/workspace";
+import { WorkspaceModule, ensureToken, getSettings, notify, saveSettings, smtpConfig, staffWith } from "@/modules/workspace";
 import { FeedbackModule } from "@/modules/feedback";
 import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
-import type { PromoCode } from "@/modules/ordering";
+import type { KaspiConfigStore, KaspiSession, PromoCode } from "@/modules/ordering";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
@@ -231,6 +231,7 @@ export class Container {
         toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId) },
+      kaspiConfig,
     }));
   }
 
@@ -273,6 +274,23 @@ export class Container {
     return this;
   }
 }
+
+/** Настройки Kaspi Pay в «Интеграциях»: сессия кассира хранится одним зашифрованным JSON. */
+const kaspiConfig: KaspiConfigStore = {
+  async config() {
+    const v = await getSettings(["kaspi.enabled", "kaspi.apiUrl", "kaspi.session"]);
+    let session: KaspiSession | null = null;
+    try {
+      session = v["kaspi.session"] ? (JSON.parse(v["kaspi.session"]) as KaspiSession) : null;
+    } catch {
+      session = null;
+    }
+    return { enabled: v["kaspi.enabled"] === "on", apiUrl: v["kaspi.apiUrl"], session };
+  },
+  saveSession: (session, actorId) => saveSettings({ "kaspi.session": session ? JSON.stringify(session) : "" }, actorId),
+  setEnabled: (enabled, actorId) => saveSettings({ "kaspi.enabled": enabled ? "on" : "off" }, actorId),
+  webhookSecret: () => ensureToken("kaspi.webhookSecret"),
+};
 
 const g = globalThis as unknown as { __mybookContainer?: Container };
 
