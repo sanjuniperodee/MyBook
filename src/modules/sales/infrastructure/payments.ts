@@ -2,10 +2,9 @@ import "server-only";
 import { asc, eq, sql } from "drizzle-orm";
 import { crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
+import { MAX_PAYMENT } from "../domain";
 
 export type PaymentRow = typeof crmPayments.$inferSelect;
-
-export const MAX_PAYMENT = 100_000_000;
 
 export class PaymentError extends Error {
   constructor(public readonly code: "amount" | "date" | "refundTooBig") {

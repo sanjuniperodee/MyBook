@@ -4,8 +4,9 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { audit, can, canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
-import { PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "@/modules/sales";
-import { sniffReceipt } from "@/modules/sales/domain";
+import { PaymentError, ReceiptError } from "@/modules/sales";
+import { receiptProblem } from "@/modules/sales/domain";
+import { receiptProblemText } from "@/modules/sales/ui/receipt";
 import { mailPaymentToClient } from "@/server/client-mail";
 
 export const maxDuration = 60;
@@ -32,9 +33,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (refund && note.trim().length < 3) return bad("Укажите причину возврата");
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) return bad("Приложите чек: платёж без чека не принимается");
-  if (file.size > RECEIPT_MAX_BYTES) return bad("Файл больше 12 МБ");
   const bytes = Buffer.from(await file.arrayBuffer());
-  if (!sniffReceipt(bytes)) return bad("Нужен файл JPG, PNG, WEBP или PDF");
+  const problem = receiptProblem(bytes);
+  if (problem) return bad(receiptProblemText[problem]);
   const amount = Number(form.get("amount") ?? 0);
   const day = String(form.get("paidAt") ?? "");
   if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) return bad("Проверьте дату платежа");

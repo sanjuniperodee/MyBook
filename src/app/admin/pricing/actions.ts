@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { factoryCatalog, getCatalogOverrides, MAX_PRICE, type CatalogOverrides } from "@/config/site";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
+import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 
 export interface PricingState {
   error?: string;
@@ -17,10 +18,6 @@ function money(form: FormData, name: string, label: string, min = 0): number {
   if (!raw || !Number.isInteger(n) || n < min || n > MAX_PRICE) throw new Error(`${label}: укажите целое число от ${min} до ${MAX_PRICE.toLocaleString("ru-RU")} ₸`);
   return n;
 }
-
-const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
-const addonLabels: Record<string, string> = { express: "Экспресс-печать", giftwrap: "Подарочная упаковка" };
-const deliveryLabels: Record<string, string> = { courier: "Курьер по городу", post: "Доставка по Казахстану", pickup: "Самовывоз" };
 
 /**
  * Цены и видимость тарифов. Действуют сразу на витрине, в оформлении, сертификатах и в ответах помощника;

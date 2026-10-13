@@ -10,6 +10,7 @@ import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { dealSources, stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
+import { MAX_PAYMENT } from "@/modules/sales/domain";
 
 export interface DealFormState {
   error?: string;
@@ -36,7 +37,7 @@ const dealSchema = z.object({
   contactName: z.string().trim().max(120).default(""),
   contactPhone: z.string().trim().max(40).default(""),
   contactEmail: z.union([z.literal(""), z.string().trim().email("Некорректный e-mail").max(200)]).default(""),
-  amount: z.coerce.number().int().min(0).max(100_000_000).default(0),
+  amount: z.coerce.number().int().min(0).max(MAX_PAYMENT).default(0),
   source: z.enum(dealSources).default("manual"),
   stageId: z.union([z.literal(""), uuid]).default(""),
   assigneeId: z.union([z.literal(""), uuid]).default(""),

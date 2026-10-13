@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { applyCatalog, applySiteFlags, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
+import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 
 afterEach(() => {
   applyCatalog(null);
@@ -57,6 +58,17 @@ describe("цены из админки", () => {
     expect(sanitizeOverrides("мусор")).toEqual({});
     // нельзя скрыть всё: переопределение тарифов отбрасывается целиком
     expect(sanitizeOverrides({ plans: { digital: { hidden: true }, hardcover: { hidden: true }, premium: { hidden: true } } })).toEqual({});
+  });
+});
+
+describe("подписи каталога в CRM", () => {
+  it("одна подпись на каждый тариф, доп и способ доставки; порядок доставки — как в списках выбора", () => {
+    expect(planLabels).toEqual({ digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" });
+    expect(addonLabels).toEqual({ express: "Экспресс-печать", giftwrap: "Подарочная упаковка" });
+    expect(Object.entries(deliveryLabels)).toEqual([["courier", "Курьер по городу"], ["post", "Доставка по Казахстану"], ["pickup", "Самовывоз"]]);
+    expect(Object.keys(planLabels).sort()).toEqual(getPlans().map((p) => p.id).sort());
+    expect(Object.keys(addonLabels).sort()).toEqual(getAddons().map((a) => a.id).sort());
+    expect(Object.keys(deliveryLabels).sort()).toEqual(getDeliveryOptions().map((d) => d.id).sort());
   });
 });
 

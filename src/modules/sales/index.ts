@@ -12,8 +12,8 @@ export { currentMonth, shiftMonth, type PlanProgress, dealSourceLabels, dealSour
 export type { DealView, NewDeal } from "./application";
 export { ReceiptError, type ReceiptRow } from "./infrastructure/receipts";
 export type { DealAgreement } from "./infrastructure/agreements";
-export { MAX_PAYMENT, PaymentError, type PaymentRow } from "./infrastructure/payments";
-export { RECEIPT_MAX_BYTES } from "./domain";
+export { PaymentError, type PaymentRow } from "./infrastructure/payments";
+export { MAX_PAYMENT, RECEIPT_MAX_BYTES } from "./domain";
 
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {

@@ -4,7 +4,8 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { audit, can, canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
-import { ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
+import { MAX_PAYMENT, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
+import { receiptProblemText } from "@/modules/sales/ui/receipt";
 
 export const maxDuration = 60;
 
@@ -21,9 +22,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) return bad("Выберите файл чека");
-  if (file.size > RECEIPT_MAX_BYTES) return bad("Файл больше 12 МБ");
+  if (file.size > RECEIPT_MAX_BYTES) return bad(receiptProblemText.tooBig);
   const amount = Number(form.get("amount") ?? 0);
-  if (!Number.isFinite(amount) || amount < 0 || amount > 100_000_000) return bad("Проверьте сумму");
+  if (!Number.isFinite(amount) || amount < 0 || amount > MAX_PAYMENT) return bad("Проверьте сумму");
 
   // Чек можно привязать к платежу этой же сделки (так делает форма «Новый клиент»: платёж создан, чек догружается).
   const paymentId = String(form.get("paymentId") ?? "") || null;
@@ -39,7 +40,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     revalidatePath(`/admin/deals/${deal.id}`);
     return NextResponse.json({ receipt: { id: row.id, fileName: row.fileName, amount: row.amount, mime: row.mime, size: row.size, createdAt: row.createdAt } });
   } catch (err) {
-    if (err instanceof ReceiptError) return bad(err.code === "type" ? "Нужен файл JPG, PNG, WEBP или PDF" : err.code === "tooBig" ? "Файл больше 12 МБ" : "Файл пустой");
+    if (err instanceof ReceiptError) return bad(receiptProblemText[err.code]);
     throw err;
   }
 });

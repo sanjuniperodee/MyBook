@@ -8,6 +8,7 @@ import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
 import { channels, isManualChannel, manualAttribution } from "@/modules/marketing/domain/channels";
+import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
 import { assertStaff, audit, can, canAssignOthers, type Staff } from "@/server/access";
 import { container } from "@/server/container";
@@ -40,7 +41,7 @@ export interface NewClientState {
 }
 
 const uuid = z.string().uuid();
-const money = z.coerce.number().int("Сумма — целое число").min(0, "Сумма не может быть отрицательной").max(100_000_000);
+const money = z.coerce.number().int("Сумма — целое число").min(0, "Сумма не может быть отрицательной").max(MAX_PAYMENT);
 
 const schema = z.object({
   name: z.string().trim().min(1, "Укажите имя клиента").max(100),

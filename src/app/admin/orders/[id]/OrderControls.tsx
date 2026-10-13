@@ -7,6 +7,7 @@ import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateO
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
+import { deliveryLabels } from "@/modules/ordering/ui/labels";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
 
 /** У электронной версии нет печати и доставки: только «ждёт оплаты → выполнен» и отмена. */
@@ -109,9 +110,11 @@ export function DetailsForm({
           <span className="label">Способ доставки</span>
           <select name="deliveryMethod" defaultValue={order.deliveryMethod ?? ""} className="input h-10">
             <option value="">—</option>
-            <option value="courier">Курьер по городу</option>
-            <option value="post">Доставка по Казахстану</option>
-            <option value="pickup">Самовывоз</option>
+            {Object.entries(deliveryLabels).map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="text-sm">
