@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`contentFingerprint > отпечатки книг набора 1`] = `
+{
+  "airmail-a5-ru": "342f35e0707b7441",
+  "album-a5-ru": "be712e55dd73dd36",
+  "arches-a5-ru": "c89d50507e0e234f",
+  "cinema-a5-ru": "8f7a628e7fe398a1",
+  "classic-a5-kk": "cef62f9e6e0e97b0",
+  "classic-a5-ru": "34243e390d70fe69",
+  "classic-square-kk": "f0ce0da2b028214f",
+  "classic-square-ru": "b38228c8095fd939",
+  "confetti-a5-ru": "a3648d8a16195524",
+  "deco-a5-ru": "b6d0b1599dd3284b",
+  "editorial-a5-ru": "9cc0c1e2fe44e72e",
+  "gallery-a5-ru": "4626f7f7a39be9db",
+  "herbarium-a5-ru": "846df5076cc212e5",
+  "luna-a5-ru": "1d4977fd66fab76d",
+  "luna-square-kk": "de1514a01da7a331",
+  "memories-a5-ru": "ec401944e205d7bc",
+  "minimal-a5-ru": "479c74525992ecfd",
+  "modern-a5-ru": "cc6e92d010d7b4c5",
+  "mountains-a5-ru": "ccbf66a8b1d3ed1c",
+  "oyu-a5-ru": "a6105d87ea11486b",
+  "photobook-a5-ru": "120727b00f22f55e",
+  "photobook-square-ru": "318a498ab41286db",
+  "romance-a5-ru": "8e1172aab49f4149",
+  "sea-a5-ru": "e5378b6956f6901f",
+  "shanyrak-a5-ru": "ddfa5ec65d77e997",
+  "stars-a5-ru": "317883173154fbe5",
+  "vintage-a5-ru": "0129551853817f1e",
+  "watercolor-a5-ru": "67d4da1183231a35",
+}
+`;

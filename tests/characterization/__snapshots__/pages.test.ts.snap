@@ -1,0 +1,151 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`объём книги > estimatePages: оценка, по главам и после добивки до печатного объёма 1`] = `
+{
+  "airmail-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "album-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "arches-a5-ru": "25 (главы 5, 4, 5, 4, 2) → печать 28",
+  "cinema-a5-ru": "25 (главы 5, 4, 5, 4, 2) → печать 28",
+  "classic-a5-kk": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "classic-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "classic-square-kk": "32 (главы 4, 4, 4, 3, 2) → печать 32",
+  "classic-square-ru": "31 (главы 7, 5, 7, 5, 2) → печать 32",
+  "confetti-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "deco-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "editorial-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "gallery-a5-ru": "25 (главы 5, 4, 5, 4, 2) → печать 28",
+  "herbarium-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "luna-a5-ru": "25 (главы 5, 4, 5, 4, 2) → печать 28",
+  "luna-square-kk": "32 (главы 4, 4, 4, 3, 2) → печать 32",
+  "memories-a5-ru": "25 (главы 5, 4, 5, 4, 2) → печать 28",
+  "minimal-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "modern-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "mountains-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "oyu-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "photobook-a5-ru": "25 (главы 5, 4, 5, 4, 2) → печать 28",
+  "photobook-square-ru": "28 (главы 6, 5, 6, 4, 2) → печать 28",
+  "romance-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "sea-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "shanyrak-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "stars-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "vintage-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+  "watercolor-a5-ru": "28 (главы 6, 4, 6, 5, 2) → печать 28",
+}
+`;
+
+exports[`объём книги > planFaces: полосы 3D-книги по порядку и первые полосы глав 1`] = `
+{
+  "airmail-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "album-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "arches-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 25",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 blank opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 blank opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "cinema-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 25",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 blank opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 blank opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "classic-a5-kk": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "classic-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "classic-square-kk": {
+    "chapterStarts": "5, 9, 13, 17, 21",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 text0.2 opener1 text1.0 text1.1 text1.2 opener2 text2.0 text2.1 text2.2 opener3 text3.0 text3.1 blank opener4 text4.0 galleryOpener photos-1.0 photos-1.1 photos-1.2 photos-1.3 photos-1.4 photos-1.5 photos-1.6 photos-1.7 photos-1.8 end blank",
+  },
+  "classic-square-ru": {
+    "chapterStarts": "5, 13, 19, 27, 33",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 text0.2 photos0.0 photos0.1 photos0.2 blank opener1 text1.0 text1.1 text1.2 photos1.0 blank opener2 text2.0 text2.1 text2.2 photos2.0 photos2.1 photos2.2 blank opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "confetti-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "deco-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "editorial-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "gallery-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 25",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 blank opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 blank opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "herbarium-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "luna-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 25",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 blank opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 blank opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "luna-square-kk": {
+    "chapterStarts": "5, 9, 13, 17, 21",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 text0.2 opener1 text1.0 text1.1 text1.2 opener2 text2.0 text2.1 text2.2 opener3 text3.0 text3.1 blank opener4 text4.0 galleryOpener photos-1.0 photos-1.1 photos-1.2 photos-1.3 photos-1.4 photos-1.5 photos-1.6 photos-1.7 photos-1.8 end blank",
+  },
+  "memories-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 25",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 blank opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 blank opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "minimal-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "modern-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "mountains-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "oyu-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "photobook-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 25",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 blank opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 blank opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "photobook-square-ru": {
+    "chapterStarts": "5, 11, 17, 23, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 text0.2 photos0.0 photos0.1 opener1 text1.0 text1.1 text1.2 photos1.0 blank opener2 text2.0 text2.1 text2.2 photos2.0 photos2.1 opener3 text3.0 text3.1 photos3.0 opener4 text4.0 end blank",
+  },
+  "romance-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "sea-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "shanyrak-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "stars-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "vintage-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+  "watercolor-a5-ru": {
+    "chapterStarts": "5, 11, 15, 21, 27",
+    "faces": "title blank dedication toc opener0 text0.0 text0.1 photos0.0 photos0.1 photos0.2 opener1 text1.0 text1.1 photos1.0 opener2 text2.0 text2.1 photos2.0 photos2.1 photos2.2 opener3 text3.0 text3.1 photos3.0 photos3.1 blank opener4 text4.0 end blank",
+  },
+}
+`;
