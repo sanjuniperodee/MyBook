@@ -26,6 +26,11 @@ export interface IngestExtra {
   clientId?: string | null;
   meta?: ConversationMeta;
   subject?: string | null;
+  /**
+   * WhatsApp через свой шлюз: продолжить прежний диалог с этим номером, даже если он шёл через другой канал (Wazzup) —
+   * при переходе с Wazzup история переписки с клиентом не разрывается.
+   */
+  anyWhatsappChannel?: boolean;
 }
 
 /**
@@ -100,7 +105,7 @@ export class MessagingService {
 
   /** Диалог по собеседнику; новый сразу связываем с клиентом по телефону. */
   private async upsert(m: InboundMessage, extra: IngestExtra): Promise<{ conv: Conversation; created: boolean }> {
-    const existing = await this.conversations.findByChat(m.chatType, m.channelId, m.chatId);
+    const existing = (await this.conversations.findByChat(m.chatType, m.channelId, m.chatId)) ?? (extra.anyWhatsappChannel && m.chatType === "whatsapp" ? await this.conversations.latestWhatsapp(m.chatId) : null);
     if (existing) {
       const patch = contactChanges(existing, m, extra);
       return { conv: patch ? await this.conversations.updateContact(existing.id, patch) : existing, created: false };

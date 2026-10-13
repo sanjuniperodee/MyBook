@@ -9,7 +9,8 @@ import { listFields } from "@/modules/workspace";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";
 import type { BotSettings, ChannelTransport, LiveUpdates, StaffNotifier, Tasks } from "../application";
-import type { BotMode } from "../domain";
+import { GOWA_CHANNEL, type BotMode } from "../domain";
+import { GowaError, type GowaClient } from "./gowa";
 
 /** Исходящие по каналу диалога: виджет забирает сообщения сам, почта и мессенджеры — через свои интеграции. */
 export const channelTransport: ChannelTransport = {
@@ -30,6 +31,25 @@ export const channelTransport: ChannelTransport = {
     }
   },
 };
+
+/**
+ * WhatsApp через свой шлюз GOWA: диалоги, пришедшие через него, и все WhatsApp-диалоги, когда в «Интеграциях»
+ * выбран GOWA (в том числе начатые при Wazzup). Остальное — как раньше, через channelTransport.
+ */
+export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"wazzup" | "gowa">): ChannelTransport {
+  return {
+    async send(conv, messageId, text) {
+      if (conv.channel !== "whatsapp" || (conv.channelId !== GOWA_CHANNEL && (await provider()) !== "gowa")) return channelTransport.send(conv, messageId, text);
+      try {
+        return { ok: true, externalId: await gowa.sendText(conv.chatId, text) };
+      } catch (err) {
+        if (GowaError.is(err)) return { ok: false, error: err.message };
+        console.error("[chats] gowa send", err);
+        return { ok: false, error: "Не удалось отправить" };
+      }
+    },
+  };
+}
 
 export const crmNotifier: StaffNotifier = {
   notify: (assigneeId, permission, n) => notifyOwnerOr(assigneeId, permission, n),

@@ -1,6 +1,7 @@
 import { requireStaff } from "@/server/access";
 import { ensureToken, fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
 import { KaspiForm } from "./kaspi/KaspiForm";
+import { GowaForm } from "./whatsapp/GowaForm";
 import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { env } from "@/config/env";
@@ -56,7 +57,10 @@ export default async function SettingsPage() {
   const smtpSaved = smtpCfg
     ? { host: smtpCfg.host, port: String(smtpCfg.port), secure: String(smtpCfg.secure), user: smtpCfg.user, password: maskSecret(smtpCfg.password), from: smtpCfg.from, replyTo: smtpCfg.replyTo }
     : { host: smtpDb["mail.smtpHost"], port: smtpDb["mail.smtpPort"], secure: smtpDb["mail.smtpSecure"], user: smtpDb["mail.smtpUser"], password: maskSecret(smtpDb["mail.smtpPassword"]), from: smtpDb["mail.from"], replyTo: smtpDb["mail.replyTo"] };
-  const kaspi = await container().ordering.kaspiSetup.status();
+  const [kaspi, gowa] = await Promise.all([
+    container().ordering.kaspiSetup.status(),
+    (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth"]), status: await container().messaging.gowa.status() }))(),
+  ]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -69,6 +73,18 @@ export default async function SettingsPage() {
         {...kaspi}
         webhookUrl={hook("/api/payments/kaspi/webhook")}
         webhookSecret={fromEnv("kaspi.webhookSecret") ? null : await ensureToken("kaspi.webhookSecret")}
+      />
+
+      <GowaForm
+        provider={gowa.provider}
+        providerFromEnv={fromEnv("whatsapp.provider")}
+        baseUrl={gowa.settings["gowa.baseUrl"]}
+        baseUrlFromEnv={fromEnv("gowa.baseUrl")}
+        authSaved={maskSecret(gowa.settings["gowa.basicAuth"])}
+        authFromEnv={fromEnv("gowa.basicAuth")}
+        status={gowa.status}
+        webhookUrl={hook("/api/integrations/gowa")}
+        webhookSecret={fromEnv("gowa.webhookSecret") ? null : await ensureToken("gowa.webhookSecret")}
       />
 
       <WazzupForm

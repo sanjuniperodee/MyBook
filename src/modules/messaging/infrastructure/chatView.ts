@@ -8,6 +8,7 @@ import { container } from "@/server/container";
 import { adminLabel } from "@/modules/access/ui";
 import { getSetting } from "@/modules/workspace";
 import { wazzupConfigured } from "@/modules/messaging/infrastructure/wazzup";
+import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import type { ChatMessage } from "@/components/admin/ChatPanel";
 
 /** Последние сообщения диалога в виде, готовом для ChatPanel. */
@@ -51,6 +52,11 @@ export async function chatVars(conv: Pick<CrmConversation, "contactName" | "clie
 export async function sendBlocker(conv: Pick<CrmConversation, "channelId" | "channel">) {
   if (conv.channel === "site") return null;
   if (conv.channel === "email") return (await container().mailer.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
+  if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await container().messaging.whatsappProvider()) === "gowa")) {
+    const s = await container().messaging.gowa.status();
+    if (!s.reachable) return "Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.";
+    return s.loggedIn ? null : "Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».";
+  }
   if (!(await wazzupConfigured())) return "Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».";
   if (!conv.channelId && !(await getSetting("wazzup.channelId"))) return "Не выбран канал WhatsApp для отправки.";
   return null;

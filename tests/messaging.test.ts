@@ -65,7 +65,7 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
       c.botStep = to;
       return true;
     },
-    latestWhatsapp: async () => null,
+    latestWhatsapp: async (chatId) => [...convs.values()].filter((c) => c.channel === "whatsapp" && c.chatId === chatId).at(-1) ?? null,
     assignByDeal: async () => {},
     chatIdsByDeal: async () => [],
     closeByDeal: async () => {},
@@ -160,6 +160,18 @@ describe("MessagingService", () => {
     expect(deals[0].unsorted).toBe(false);
     await service.ingest(inbound({ externalId: "wz-1", isEcho: true, text: "Добрый день!" }));
     expect(msgs.filter((m) => m.dir === "out")).toHaveLength(1);
+  });
+
+  it("переход с Wazzup на свой шлюз: переписка с номером продолжается в прежнем диалоге", async () => {
+    const { service, convs, deals } = setup();
+    await service.ingest(inbound({ channelId: "wazzup-channel" }));
+    await service.ingest(inbound({ externalId: "gowa-1", channelId: "gowa", text: "Это снова я" }), { anyWhatsappChannel: true });
+    expect(convs.size).toBe(1);
+    expect(deals).toHaveLength(1);
+    expect([...convs.values()][0]).toMatchObject({ channelId: "wazzup-channel", unread: 2 });
+    // Без флага (другие каналы) — отдельный диалог, как раньше.
+    await service.ingest(inbound({ externalId: "x-1", channelId: "other" }));
+    expect(convs.size).toBe(2);
   });
 
   it("спам: сообщение сохранено, заявки нет, диалог закрыт", async () => {

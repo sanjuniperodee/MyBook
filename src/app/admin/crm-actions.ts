@@ -1,5 +1,6 @@
 "use server";
 
+import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -86,7 +87,8 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
   assertVisible(staff, c.assigneeId);
-  const channelId = await getSetting("wazzup.channelId");
+  // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
+  const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
   const conv = await container().messaging.chats.conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
   if (c.dealId && !conv.dealId) await container().messaging.chats.attachDeal(conv.id, c.dealId);

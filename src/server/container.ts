@@ -12,7 +12,7 @@ import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
 import { SalesModule, sourceFromChannel } from "@/modules/sales";
-import { MessagingModule } from "@/modules/messaging";
+import { MessagingModule, type WhatsappSettings } from "@/modules/messaging";
 import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
@@ -83,6 +83,7 @@ export class Container {
       rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),
+      whatsappSettings,
       sales: {
         findClientByPhone: (phone) => this.sales.deals.findClientByPhone(phone),
         findOpenDeal: (opts) => this.sales.deals.findOpen(opts),
@@ -290,6 +291,16 @@ const kaspiConfig: KaspiConfigStore = {
   saveSession: (session, actorId) => saveSettings({ "kaspi.session": session ? JSON.stringify(session) : "" }, actorId),
   setEnabled: (enabled, actorId) => saveSettings({ "kaspi.enabled": enabled ? "on" : "off" }, actorId),
   webhookSecret: () => ensureToken("kaspi.webhookSecret"),
+};
+
+/** WhatsApp: Wazzup или свой шлюз GOWA — выбирается в «Интеграциях». */
+const whatsappSettings: WhatsappSettings = {
+  provider: async () => ((await getSettings(["whatsapp.provider"]))["whatsapp.provider"] === "gowa" ? "gowa" : "wazzup"),
+  gowa: async () => {
+    const v = await getSettings(["gowa.baseUrl", "gowa.basicAuth"]);
+    return { baseUrl: v["gowa.baseUrl"], basicAuth: v["gowa.basicAuth"] };
+  },
+  gowaWebhookSecret: () => ensureToken("gowa.webhookSecret"),
 };
 
 const g = globalThis as unknown as { __mybookContainer?: Container };

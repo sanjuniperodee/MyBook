@@ -118,6 +118,14 @@ export const settingDefs = {
   "kaspi.enabled": { default: "off" },
   "kaspi.session": { secret: true },
   "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
+  /**
+   * WhatsApp: через Wazzup (по умолчанию) или свой шлюз GOWA (go-whatsapp-web-multidevice, номер привязывается по QR).
+   * Для GOWA — адрес шлюза, логин:пароль его API (APP_BASIC_AUTH) и секрет подписи вебхуков (WHATSAPP_WEBHOOK_SECRET).
+   */
+  "whatsapp.provider": { env: "WHATSAPP_PROVIDER", default: "wazzup" },
+  "gowa.baseUrl": { env: "GOWA_API_URL", default: "http://localhost:3020" },
+  "gowa.basicAuth": { secret: true, env: "GOWA_BASIC_AUTH" },
+  "gowa.webhookSecret": { secret: true, env: "GOWA_WEBHOOK_SECRET" },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;
@@ -181,7 +189,7 @@ export async function saveSettings(values: Partial<Record<SettingKey, string>>, 
 }
 
 /** Токен вебхука: создаётся при первом обращении, чтобы адрес для провайдера был сразу готов. */
-export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken" | "kaspi.webhookSecret"): Promise<string> {
+export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken" | "kaspi.webhookSecret" | "gowa.webhookSecret"): Promise<string> {
   const existing = await getSetting(key);
   if (existing) return existing;
   const token = randomToken();

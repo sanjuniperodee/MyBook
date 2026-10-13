@@ -36,6 +36,7 @@ services:
       DATABASE_URL: postgres://mybook:${POSTGRES_PASSWORD:-mybook}@db:5432/mybook
       STORAGE_DIR: /data/storage
       KASPI_API_URL: ${KASPI_API_URL:-http://kaspi-pos:3000}
+      GOWA_API_URL: ${GOWA_API_URL:-http://gowa:3000}
     ports:
       - "3000:3000"
     volumes:
@@ -55,7 +56,31 @@ services:
     volumes:
       - kaspi:/data
 
+  # Свой шлюз WhatsApp вместо Wazzup (необязательно): GOWA — go-whatsapp-web-multidevice (MIT, Go, ~50 МБ памяти).
+  # docker compose --profile whatsapp up -d, затем CRM → «Интеграции» → «WhatsApp — свой шлюз»: выбрать GOWA и привязать
+  # номер по QR. Порт наружу не открываем: шлюз держит сессию номера магазина. GOWA_WEBHOOK_SECRET обязателен
+  # (без него шлюз подписывает вебхуки словом «secret», и сайт их отклонит).
+  gowa:
+    image: aldinokemal2104/go-whatsapp-web-multidevice:v9.6.0
+    restart: unless-stopped
+    profiles: ["whatsapp"]
+    environment:
+      APP_PORT: "3000"
+      APP_OS: MyBooks CRM
+      APP_BASIC_AUTH: ${GOWA_BASIC_AUTH:-}
+      WHATSAPP_WEBHOOK: http://app:3000/api/integrations/gowa
+      WHATSAPP_WEBHOOK_SECRET: ${GOWA_WEBHOOK_SECRET:-}
+      WHATSAPP_WEBHOOK_EVENTS: message,message.ack
+      WHATSAPP_WEBHOOK_IGNORE_JIDS: "@g.us"
+      WHATSAPP_AUTO_DOWNLOAD_MEDIA: "true"
+      WHATSAPP_ACCOUNT_VALIDATION: "false"
+    volumes:
+      - gowa-storages:/app/storages
+      - gowa-statics:/app/statics
+
 volumes:
   pgdata:
   storage:
   kaspi:
+  gowa-storages:
+  gowa-statics:
