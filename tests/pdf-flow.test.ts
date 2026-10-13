@@ -20,6 +20,12 @@ describe("доводка вёрстки", () => {
     expect([...flow.breakBefore]).toEqual(["b"]);
   });
 
+  it("разделитель-линейка (тоньше пункта) внизу полосы без текста → ответ с новой полосы", () => {
+    const flow = emptyFlow();
+    refineFlow(layout(page(["b:a:0", 50, 480], ["h:b", 540, 0.6]), page(["b:b:0", 50, 300])), flow, new Map(), chapters);
+    expect([...flow.breakBefore]).toEqual(["b"]);
+  });
+
   it("фото перескочило и оставило пустоту → уменьшается под неё", () => {
     const flow = emptyFlow();
     const heights = new Map([["r:a:Infinity:0", 400]]);

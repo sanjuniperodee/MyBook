@@ -65,6 +65,17 @@ interface PageInfo {
   contentBottom: number;
 }
 
+const kind = (mark: string) => mark.slice(0, mark.indexOf(":"));
+/** Ответ, к которому относится пометка (у концовки — глава). */
+const itemOf = (mark: string) => mark.split(":")[1];
+
+/**
+ * Кусок блока в счёт, если он не пустой: react-pdf оставляет абзац нулевой высоты внизу полосы, а текст переносит.
+ * У заголовка и разделителя кусков меньше строки не бывает, а линейка-разделитель тоньше пункта — их считаем при
+ * любой ненулевой высоте.
+ */
+const counts = (mark: string, height: number) => height >= 1 || (kind(mark) === "h" && height > 0);
+
 /** Все помеченные блоки по порядку: для блока, разбитого на несколько полос, — каждый кусок. */
 function collect(layout: LayoutNode) {
   const placed: Placed[] = [];
@@ -75,8 +86,7 @@ function collect(layout: LayoutNode) {
     const walk = (node: LayoutNode, offset: number) => {
       const top = offset + (node.box?.top ?? 0);
       const mark = node.props?.[FLOW_MARK];
-      // Пустой кусок (react-pdf оставляет абзац нулевой высоты внизу полосы, а текст переносит) — не в счёт.
-      if (typeof mark === "string" && node.box && node.box.height >= 1)
+      if (typeof mark === "string" && node.box && counts(mark, node.box.height))
         placed.push({ mark, page: pageIndex, top, bottom: top + node.box.height, marginTop: node.box.marginTop ?? 0, marginBottom: node.box.marginBottom ?? 0 });
       for (const c of node.children ?? []) walk(c, top);
     };
@@ -84,10 +94,6 @@ function collect(layout: LayoutNode) {
   });
   return { placed, pages };
 }
-
-const kind = (mark: string) => mark.slice(0, mark.indexOf(":"));
-/** Ответ, к которому относится пометка (у концовки — глава). */
-const itemOf = (mark: string) => mark.split(":")[1];
 
 /**
  * Решения для следующего прохода. Возвращает true, если что-то добавилось.

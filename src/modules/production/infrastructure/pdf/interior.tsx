@@ -548,16 +548,23 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     );
   };
 
-  const divider = (id: string) =>
-    design.divider === "stars" ? (
-      <Text {...mark(id)} minPresenceAhead={40} style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>
-        * * *
-      </Text>
-    ) : (
-      <View {...mark(id)} minPresenceAhead={40} style={{ alignSelf: "center", marginTop: bodyPt * 0.3, marginBottom: S.beforeHeadless + bodyPt * 0.2 }}>
-        <PdfDrawing drawing={dividerDrawing(design.ornament, design.divider, P)} />
+  const divider = (id: string) => {
+    if (design.divider === "stars")
+      return (
+        <Text {...mark(id)} minPresenceAhead={40} style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>
+          * * *
+        </Text>
+      );
+    const art = dividerDrawing(design.ornament, design.divider, P);
+    // Внизу полосы поместился сам разделитель, но не его нижнее поле и не текст: react-pdf оставляет его в части
+    // ответа высотой в остаток полосы и ужимает вместе с рисунком — у <Svg> нулевой высоты pdfkit получает Infinity.
+    // minHeight не даёт ужать (flexShrink: 0 react-pdf заменяет на 1), а разделитель внизу полосы убирает доводка.
+    return (
+      <View {...mark(id)} minPresenceAhead={40} style={{ alignSelf: "center", minHeight: art.h, marginTop: bodyPt * 0.3, marginBottom: S.beforeHeadless + bodyPt * 0.2 }}>
+        <PdfDrawing drawing={art} />
       </View>
     );
+  };
 
   // ── Главы ──
   for (const ch of content.chapters) {

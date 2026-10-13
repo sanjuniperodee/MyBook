@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { decodePDFRawStream, PDFArray, PDFDocument, PDFName, PDFNumber, PDFRawStream } from "pdf-lib";
@@ -8,12 +8,13 @@ import { getTheme, isThemeId } from "@/lib/content/themes";
 import { answerBlocks } from "@/lib/book/answer-blocks";
 import { backLayouts } from "@/lib/book/cover-back";
 import { coverPhotoIds, coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
-import { formats, getFormat, print, printablePageCount } from "@/lib/book/formats";
+import { formats, getFormat, mm, print, printablePageCount, type BookFormat } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import { interiorDesigns } from "@/lib/book/interiors";
-import { buildBookContent, effectiveDpi, estimatePages, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
+import { buildBookContent, effectiveDpi, estimatePages, interiorMetrics, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
 import { fixtureBook, fixtureBooks, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, useFixtureStorage, variantPhotoNames } from "./fixtures/photos";
+import { grayPage, hasTool, textRows } from "./pdf-inspect";
 
 // Свои папки хранилища: проверяем запись фото с нуля и не мешаем другим тестам.
 const dir = mkdtempSync(path.join(tmpdir(), "mybook-fixtures-test-"));
@@ -177,6 +178,27 @@ async function pagesWithoutText(pdf: Buffer, count: number) {
     });
 }
 
+/** Лист с вылетами и полоса набора по высоте, pt от верха листа. */
+function sheetOf(format: BookFormat) {
+  const m = interiorMetrics[format.id];
+  return {
+    width: mm(format.widthMm + print.bleedMm * 2),
+    height: mm(format.heightMm + print.bleedMm * 2),
+    textTop: mm(print.bleedMm + m.marginTop),
+    textBottom: mm(print.bleedMm + format.heightMm - m.marginBottom),
+  };
+}
+
+/** Есть ли рисунок посередине полосы (с 1) — там, где стоит разделитель, — между y0 и y1, pt от верха листа. */
+function inkedMiddle(file: string, page: number, sheet: ReturnType<typeof sheetOf>, y0: number, y1: number) {
+  const dpi = 144;
+  const img = grayPage(file, page, dpi, sheet);
+  const px = (pt: number) => Math.round((pt * dpi) / 72);
+  const [x0, x1] = [px(sheet.width / 2 - 12), px(sheet.width / 2 + 12)];
+  for (let y = px(y0); y < px(y1); y++) for (let x = x0; x < x1; x++) if (img.data[y * img.stride + x] < 250) return true;
+  return false;
+}
+
 describe("рендер книг набора", () => {
   let render: typeof import("@/modules/production/infrastructure/pdf/render");
   // Свои снимки (с крупным big) и импорт рендера под нагрузкой полного прогона могут не уложиться в 10 с по умолчанию.
@@ -215,11 +237,22 @@ describe("рендер книг набора", () => {
     expect(await pagesWithoutText(res.pdf, res.contentPages)).toEqual([10, 26]);
   });
 
-  it("баг: ответ без заголовка сразу после длинного роняет сборку — разделитель-рисунок попадает на границу полосы", async () => {
-    // Разделитель-рисунок (здесь линейка 18×0,6 pt) переносится через границу полосы, на полосе остаётся его кусок
-    // нулевой высоты → pdfkit получает Infinity. Так же падают оформления с глифом вместо «* * *».
-    const { bundle } = fixtureBook("photobook", "a5", "ru");
+  it.skipIf(!hasTool("pdftotext") || !hasTool("pdftoppm")).each([
+    { design: "photobook", art: "линейка 18×0,6 pt" },
+    { design: "romance", art: "глиф" },
+  ] as const)("ответ без заголовка сразу после длинного ($design, $art): разделитель не остаётся внизу полосы, а открывает ответ на следующей", async ({ design }) => {
+    // Раньше react-pdf оставлял разделитель внизу полосы и ужимал до нулевой высоты — pdfkit падал на Infinity.
+    const { bundle } = fixtureBook(design, "a5", "ru");
     const questions = bundle.questions.map((q) => (q.position === 11 ? { ...q, hideHeading: true } : q));
-    await expect(render.renderInterior({ ...bundle, questions }, "preview")).rejects.toThrow("unsupported number: Infinity");
+    const res = await render.renderInterior({ ...bundle, questions }, "preview", { watermark: false });
+    const file = path.join(dir, `headless-${design}.pdf`);
+    writeFileSync(file, res.pdf);
+    const sheet = sheetOf(render.contentFor(bundle).format);
+    const pages = textRows(file).map((rows) => rows.filter((r) => r.top >= sheet.textTop - 3 && r.bottom <= sheet.textBottom + 4));
+    const at = pages.findIndex((rows) => rows.some((r) => r.text === "Спасибо, что ты есть."));
+    const answer = pages[at][0];
+    expect(answer.text).toBe("Спасибо, что ты есть.");
+    expect(inkedMiddle(file, at + 1, sheet, sheet.textTop, answer.top - 1)).toBe(true);
+    expect(inkedMiddle(file, at, sheet, pages[at - 1].at(-1)!.bottom + 2, sheet.textBottom)).toBe(false);
   });
 });
