@@ -1,22 +1,19 @@
-// Какие файлы src/ импортируют тесты: напрямую и транзитивно (по статическим импортам, без type-импортов).
+// Какие файлы src/ импортируют тесты: напрямую и транзитивно (по статическим и динамическим импортам, без type-импортов).
 // Грубая замена покрытию: файл, до которого не дотягивается ни один тест, точно не проверен.
-// Запуск: node scripts/refactor/testreach.mjs
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+// Импорты — по TypeScript AST из import-graph.mjs. Запуск: node scripts/refactor/testreach.mjs
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { parseImports, resolveImport, sourceFiles } from "./import-graph.mjs";
 
 const root = process.cwd();
 const src = path.join(root, "src");
-const IMPORT = /(?:import|export)\s+(type\s+)?(?:[\s\S]*?\sfrom\s+)?["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
 
-function resolve(from, spec) {
-  let base;
-  if (spec.startsWith("@/")) base = path.join(src, spec.slice(2));
-  else if (spec.startsWith(".")) base = path.resolve(path.dirname(from), spec);
-  else return null;
-  for (const c of [`${base}.ts`, `${base}.tsx`, path.join(base, "index.ts"), path.join(base, "index.tsx")]) if (existsSync(c) && statSync(c).isFile()) return c;
-  return null;
-}
-const depsOf = (file) => [...readFileSync(file, "utf8").matchAll(IMPORT)].filter((m) => !m[1]).flatMap((m) => resolve(file, m[2] ?? m[3]) ?? []);
+// Обходим только существующие .ts/.tsx: стили, .mjs и пакеты пропускаем.
+const depsOf = (file) =>
+  parseImports(file)
+    .filter((i) => !i.typeOnly)
+    .map((i) => resolveImport(src, file, i.spec))
+    .filter((p) => p && /\.tsx?$/.test(p) && existsSync(p));
 
 const tests = readdirSync(path.join(root, "tests"))
   .filter((f) => /\.test\.tsx?$/.test(f))
@@ -34,14 +31,7 @@ for (const t of tests) {
   }
 }
 
-const all = [];
-(function walk(dir) {
-  for (const name of readdirSync(dir)) {
-    const p = path.join(dir, name);
-    if (statSync(p).isDirectory()) walk(p);
-    else if (/\.(ts|tsx)$/.test(name)) all.push(p);
-  }
-})(src);
+const all = sourceFiles(src);
 const group = (f) => {
   const r = path.relative(src, f).split(path.sep);
   if (r[0] === "modules") return `modules/${r[1]}/${r[2].replace(/\.tsx?$/, "")}`;

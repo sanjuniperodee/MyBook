@@ -1,12 +1,12 @@
 // Граф импортов src/ по TypeScript AST: статические и побочные импорты, import type, реэкспорты,
 // import(), import("…") в типах, import x = require(); комментарии и строки не считаются.
-// Нарушения границ по нему. Общий для scripts/refactor/imports.mjs и tests/architecture.test.ts.
+// Нарушения границ по нему. Общий для scripts/refactor/{imports,testreach}.mjs и tests/architecture.test.ts.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
 /** Все .ts/.tsx в каталоге, рекурсивно. */
-function sourceFiles(dir, out = []) {
+export function sourceFiles(dir, out = []) {
   for (const name of readdirSync(dir)) {
     const p = path.join(dir, name);
     if (statSync(p).isDirectory()) sourceFiles(p, out);
@@ -36,7 +36,7 @@ function importOf(node) {
 }
 
 /** Импорты файла в порядке текста: { spec, typeOnly, dynamic }. import() с вычисляемым путём пропускается. */
-function parseImports(file) {
+export function parseImports(file) {
   const kind = file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const out = [];
   const visit = (node) => {
@@ -51,7 +51,7 @@ function parseImports(file) {
 }
 
 /** "@/…" (от src) и относительные пути; пакеты — null. Если файла нет, остаётся путь без расширения. */
-function resolveImport(src, from, spec) {
+export function resolveImport(src, from, spec) {
   let base;
   if (spec.startsWith("@/")) base = path.join(src, spec.slice(2));
   else if (spec.startsWith(".")) base = path.resolve(path.dirname(from), spec);
