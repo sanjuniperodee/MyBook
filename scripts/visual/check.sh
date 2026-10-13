@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Визуальная сверка текущего дерева с эталонным коммитом (S3): снимки PDF в ref и здесь
+# Визуальная сверка текущего дерева с эталонным коммитом (S3, S4): снимки PDF и HTML в ref и здесь
 # с одними и теми же флагами, затем compare.ts. Код выхода 1 — есть отличия (или снимок не собрался).
 #
-#   scripts/visual/check.sh [ref=HEAD] [--ref-tools] [--quick] [--filter <подстрока>] [--jobs N]
+#   scripts/visual/check.sh [ref=HEAD] [--kind pdf|html|all] [--ref-tools] [--quick] [--filter <подстрока>] [--jobs N]
 #
 # ref собирается во временном git worktree вне репозитория (node_modules — симлинк на здешние).
 # Инструменты и набор книг (scripts/visual, scripts/preload.mjs, tests/fixtures) копируются туда из текущего
@@ -19,11 +19,15 @@ if [[ $# -gt 0 && $1 != -* ]]; then
   ref=$1
   shift
 fi
-kinds=(pdf)
+kinds=(pdf html)
 ref_tools=0
 flags=()
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --kind)
+      [[ $2 == all ]] || kinds=("$2")
+      shift 2
+      ;;
     --ref-tools)
       ref_tools=1
       shift
