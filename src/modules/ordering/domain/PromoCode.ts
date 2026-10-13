@@ -115,6 +115,6 @@ export class PromoCode extends AggregateRoot<PromoCodeProps> {
   }
 }
 
-export function describePromo(p: { kind: PromoKind; value: number }, formatMoney: (n: number) => string) {
+function describePromo(p: { kind: PromoKind; value: number }, formatMoney: (n: number) => string) {
   return p.kind === "percent" ? `−${p.value}%` : `−${formatMoney(p.value)}`;
 }

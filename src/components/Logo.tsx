@@ -9,7 +9,7 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 /** Основной логотип целиком (знак + надпись MYBOOKS), для крупных мест. */
-export function LogoFull({ className }: { className?: string }) {
+function LogoFull({ className }: { className?: string }) {
   return <Image src="/logo.webp" alt={site.name} width={438} height={312} unoptimized className={cn("h-24 w-auto rounded-xl", className)} />;
 }
 

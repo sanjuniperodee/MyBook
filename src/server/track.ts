@@ -2,9 +2,9 @@ import "server-only";
 import { cookies } from "next/headers";
 
 /** Cookie с событиями для счётчиков: сервер кладёт, браузер отправляет в Метрику/GA/Pixel и очищает. */
-export const EVENTS_COOKIE = "mb_ev";
+const EVENTS_COOKIE = "mb_ev";
 
-export type TrackEvent = { name: string; value?: number };
+type TrackEvent = { name: string; value?: number };
 
 /** Ставит событие в очередь — его отправит компонент Analytics на следующей странице. */
 export async function queueEvent(name: string, value?: number) {

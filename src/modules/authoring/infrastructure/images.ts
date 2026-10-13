@@ -5,7 +5,7 @@ export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_SIDE = 4200;
 const THUMB_SIDE = 1000;
 
-export interface ProcessedImage {
+interface ProcessedImage {
   full: Buffer;
   thumb: Buffer;
   width: number;

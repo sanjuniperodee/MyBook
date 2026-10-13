@@ -7,13 +7,13 @@ import { getDeliveryOptions, productionWorkdays, type DeliveryId, type PlanId } 
 export type OccasionId = "anniversary" | "birthday" | "valentine" | "march8" | "newyear" | "wedding" | "parents" | "graduation" | "other";
 
 /** Названия поводов на обоих языках — в словаре: common.occasions[id]. */
-export interface Occasion {
+interface Occasion {
   id: OccasionId;
   /** Фиксированная дата праздника (месяц 1–12, день). */
   fixed?: { month: number; day: number };
 }
 
-export const occasions: Occasion[] = [
+const occasions: Occasion[] = [
   { id: "anniversary" },
   { id: "birthday" },
   { id: "valentine", fixed: { month: 2, day: 14 } },
@@ -81,7 +81,7 @@ export function nextFixedDate(o: Occasion, now: Date): string | null {
   return toIsoDay(d);
 }
 
-export function daysBetween(from: Date, to: Date) {
+function daysBetween(from: Date, to: Date) {
   return Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / DAY);
 }
 
@@ -106,9 +106,9 @@ export function orderByDate(target: string, plan: PlanId, delivery: DeliveryId):
   return subtractWorkdays(shipped, production + 1);
 }
 
-export type DeadlineState = "relaxed" | "soon" | "urgent" | "premium" | "digital" | "past";
+type DeadlineState = "relaxed" | "soon" | "urgent" | "premium" | "digital" | "past";
 
-export interface Deadline {
+interface Deadline {
   target: string;
   daysToTarget: number;
   /** Заказать до (обычная книга, курьер). */

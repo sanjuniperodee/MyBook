@@ -9,7 +9,7 @@ export const storageFileStore: FileStore = { exists: fileExists, get: getFile, p
 export const pdfRenderQueue: RenderQueue = { run: (key, task) => dedupe(key, () => withRenderSlot(task)) };
 
 /** Откуда рендер берёт содержимое книги (read-модель Authoring — подключается в корне композиции). */
-export type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
+type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
 
 /** Рендер через @react-pdf (тяжёлый модуль загружаем лениво). */
 export function reactPdfRenderer(load: BookBundleSource): BookRenderer {

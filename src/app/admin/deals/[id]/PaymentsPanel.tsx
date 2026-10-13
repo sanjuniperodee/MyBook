@@ -6,7 +6,7 @@ import { FileText, LoaderCircle, Paperclip, Trash2, TriangleAlert } from "lucide
 import { formatPrice, getPlans } from "@/config/site";
 import { setDealAgreedPlanAction } from "../actions";
 
-export interface PaymentItem {
+interface PaymentItem {
   id: string;
   amount: number;
   kind: "prepayment" | "payment" | "refund";

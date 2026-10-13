@@ -14,7 +14,7 @@ import { getMessages } from "@/i18n/server";
 import type { Messages } from "@/i18n/messages";
 
 type ApiMessages = Messages["api"];
-export type ApiErrorKey = keyof ApiMessages;
+type ApiErrorKey = keyof ApiMessages;
 type Params<K extends ApiErrorKey> = ApiMessages[K] extends (...a: infer A) => string ? A : [];
 
 /** Ошибка с HTTP-статусом. message — ключ словаря api, текст подставляется на языке пользователя. */

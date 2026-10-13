@@ -9,7 +9,7 @@ function secret() {
 }
 
 /** Совместимо с уже отправленными письмами: HMAC(APP_SECRET, "unsub:<id>"), 32 символа base64url. */
-export function unsubscribeToken(userId: string) {
+function unsubscribeToken(userId: string) {
   return createHmac("sha256", secret()).update(`unsub:${userId}`).digest("base64url").slice(0, 32);
 }
 

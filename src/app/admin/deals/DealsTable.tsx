@@ -9,7 +9,7 @@ import { bulkDealsAction, deleteViewAction, saveViewAction } from "./actions";
 import { LostDialog } from "./DealsBoard";
 import { cn } from "@/lib/utils";
 
-export interface DealRow {
+interface DealRow {
   id: string;
   number: number;
   title: string;

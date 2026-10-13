@@ -37,7 +37,7 @@ export function normalizeIp(ip: string): string {
   return mapped ? mapped[1] : s;
 }
 
-export function parseRule(line: string): AllowRule | null {
+function parseRule(line: string): AllowRule | null {
   const raw = line.replace(/#.*$/, "").trim();
   if (!raw) return null;
   const [addrRaw, prefixRaw] = raw.split("/");

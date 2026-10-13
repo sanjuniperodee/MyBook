@@ -4,7 +4,7 @@ import { bookQuestions, books, orders, photos, users } from "@/shared/infrastruc
 import { booksId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 
-export type BookFilter = "all" | "writing" | "stalled" | "ready" | "ordered";
+type BookFilter = "all" | "writing" | "stalled" | "ready" | "ordered";
 
 /** Книги клиентов для CRM: пишут, забросили (дольше staleDays), почти готовы, заказаны; поиск и тема. */
 export function bookList(f: BookFilter, opts: { q?: string; theme?: string; staleDays: number; now: number }) {

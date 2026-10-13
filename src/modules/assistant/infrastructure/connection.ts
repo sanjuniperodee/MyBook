@@ -13,7 +13,7 @@ const keys = {
 /** Ключи настроек провайдера (для формы в «Интеграциях»). */
 export const providerSettingKeys = keys;
 
-export async function activeProvider(): Promise<AiProvider> {
+async function activeProvider(): Promise<AiProvider> {
   const p = await getSetting("ai.provider");
   return isAiProvider(p) ? p : "anthropic";
 }

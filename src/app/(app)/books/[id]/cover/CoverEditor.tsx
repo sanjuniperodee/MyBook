@@ -22,7 +22,7 @@ import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/utils";
 
-export interface CoverState {
+interface CoverState {
   coverTemplate: string;
   title: string;
   subtitle: string;

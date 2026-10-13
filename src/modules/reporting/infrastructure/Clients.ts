@@ -23,7 +23,7 @@ const hasPending = sql`exists (select 1 from orders o where o.user_id = ${usersI
 const draftRecent = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft' and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
 const draftStale = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft') and not exists (select 1 from books b where b.user_id = ${usersId} and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
 
-export function segmentWhere(segment: ClientSegment): SQL | undefined {
+function segmentWhere(segment: ClientSegment): SQL | undefined {
   switch (segment) {
     case "customers":
       return hasPaid;
@@ -52,7 +52,7 @@ function managerScope(managerId?: string | null, onlyMine?: boolean): SQL | unde
 /**
  * Фильтр по каналу привлечения в SQL — те же правила, что channelOf() (marketing/domain/channels), для основных каналов.
  */
-export function channelWhere(ch: string | undefined): SQL | undefined {
+function channelWhere(ch: string | undefined): SQL | undefined {
   if (!ch) return undefined;
   const s = sql`lower(coalesce(${users.source}->>'source', ''))`;
   const m = sql`lower(coalesce(${users.source}->>'medium', ''))`;

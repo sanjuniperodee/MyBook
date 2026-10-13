@@ -1,7 +1,7 @@
 import { normalizePhone } from "@/shared/domain/phone";
 
 /** Служебный домен для клиента без почты: зарезервирован (RFC 2606), письма на него никуда не уходят. */
-export const PHONE_EMAIL_DOMAIN = "phone.invalid";
+const PHONE_EMAIL_DOMAIN = "phone.invalid";
 
 /** Адрес-заглушка для клиента без почты: в аккаунте e-mail обязателен, а входит такой клиент по телефону. */
 export const phoneEmail = (phone: string) => `${normalizePhone(phone)}@${PHONE_EMAIL_DOMAIN}`;

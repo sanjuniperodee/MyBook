@@ -37,7 +37,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return data as T;
 }
 
-export interface WazzupChannel {
+interface WazzupChannel {
   channelId: string;
   transport: string;
   plainId: string;

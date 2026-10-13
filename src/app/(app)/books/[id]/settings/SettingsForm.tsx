@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import type { Gender } from "@/modules/authoring/domain";
 
-export interface SettingsState {
+interface SettingsState {
   format: FormatId;
   authorGender: Gender;
   recipientGender: Gender;

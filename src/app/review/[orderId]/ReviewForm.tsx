@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/client-api";
 import { toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";
 
-export interface ReviewDraft {
+interface ReviewDraft {
   rating: number;
   text: string;
   authorName: string;

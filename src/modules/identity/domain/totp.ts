@@ -53,7 +53,7 @@ export function hotp(key: Buffer, counter: number, digits = 6, algo: "sha1" | "s
   return String(bin % 10 ** digits).padStart(digits, "0");
 }
 
-export const STEP_SEC = 30;
+const STEP_SEC = 30;
 
 export function totp(secret: string, at = Date.now(), digits = 6): string {
   return hotp(base32Decode(secret), Math.floor(at / 1000 / STEP_SEC), digits);

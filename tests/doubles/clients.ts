@@ -18,7 +18,7 @@ import { clock } from "./ordering";
 // ─── тестовые двойники ─────────────────────────────────────────────────────
 
 /** Профили клиентов; доп. телефоны и теги — отдельно, как колонки users. Нет строки — запись ничего не меняет (UPDATE … WHERE id). */
-export class MemClients implements ClientRepository {
+class MemClients implements ClientRepository {
   rows = new Map<string, ClientProfile>();
   extraPhones = new Map<string, string[]>();
   tags = new Map<string, string[]>();
@@ -47,7 +47,7 @@ export class MemClients implements ClientRepository {
   }
 }
 
-export class MemTasks implements TaskRepository {
+class MemTasks implements TaskRepository {
   rows = new Map<string, Task>();
   private seq = 0;
   async find(id: string) {
@@ -74,7 +74,7 @@ export class MemTasks implements TaskRepository {
   }
 }
 
-export class MemNotes implements NoteRepository {
+class MemNotes implements NoteRepository {
   rows = new Map<string, Note & { authorId: string }>();
   private seq = 0;
   async find(id: string) {
@@ -91,7 +91,7 @@ export class MemNotes implements NoteRepository {
 }
 
 /** Справочник сотрудников; checked — кого проверяли на «действующий», lookups — сколько раз брали список для упоминаний. */
-export class FakeStaff implements StaffDirectory {
+class FakeStaff implements StaffDirectory {
   checked: string[] = [];
   lookups = 0;
   constructor(readonly list: { id: string; label: string; active: boolean }[]) {}
@@ -105,7 +105,7 @@ export class FakeStaff implements StaffDirectory {
   }
 }
 
-export class SpyNotifier implements StaffNotifier {
+class SpyNotifier implements StaffNotifier {
   sent: { userIds: string[]; n: Parameters<StaffNotifier["notify"]>[1] }[] = [];
   async notify(userIds: string[], n: Parameters<StaffNotifier["notify"]>[1]) {
     this.sent.push({ userIds, n });
@@ -115,7 +115,7 @@ export class SpyNotifier implements StaffNotifier {
 /** Заказ order-1 — клиента client-1, сделка deal-1 — клиента client-2. */
 const orderClients: Record<string, string> = { "order-1": "client-1" };
 const dealClients: Record<string, string> = { "deal-1": "client-2" };
-export const links: CrmLinks = {
+const links: CrmLinks = {
   clientOfOrder: async (id) => orderClients[id] ?? null,
   clientOfDeal: async (id) => dealClients[id] ?? null,
   dealAssignee: async (id) => (id === "deal-1" ? "m1" : null),

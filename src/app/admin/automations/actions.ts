@@ -36,7 +36,7 @@ const schema = z.object({
   active: z.boolean().default(true),
 });
 
-export type AutomationInput = z.input<typeof schema>;
+type AutomationInput = z.input<typeof schema>;
 
 export async function saveAutomationAction(input: AutomationInput): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("settings.manage");

@@ -15,7 +15,7 @@ import type { GiftsService } from "../../application";
 import type { DrizzleOrderingQueries, GiftView } from "../persistence/DrizzleOrderingQueries";
 
 const orderUrl = (orderId: string, locale: Locale = "ru") => appLink(`/orders/${orderId}`, locale);
-export const giftUrl = (token: string, locale: Locale = "ru") => appLink(`/gift/${token}`, locale);
+const giftUrl = (token: string, locale: Locale = "ru") => appLink(`/gift/${token}`, locale);
 export const redeemUrl = (code: string, locale: Locale = "ru") => appLink(`/redeem?code=${encodeURIComponent(code)}`, locale);
 
 /**

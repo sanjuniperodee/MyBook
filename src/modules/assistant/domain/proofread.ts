@@ -8,7 +8,7 @@
 import type { Locale } from "@/i18n/config";
 import type { Issue, IssueKind } from "@/lib/proofread/types";
 
-export const proofreadKinds = ["spelling", "punctuation", "grammar", "style"] as const satisfies readonly IssueKind[];
+const proofreadKinds = ["spelling", "punctuation", "grammar", "style"] as const satisfies readonly IssueKind[];
 
 export const proofreadSchema = {
   type: "object",

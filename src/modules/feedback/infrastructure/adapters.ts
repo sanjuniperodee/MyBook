@@ -83,7 +83,7 @@ export const thankYouCode: PromoCodeGenerator = () => {
  * Ссылка на отзыв из письма работает без входа: в ней подпись HMAC от номера заказа.
  * Подделать её без APP_SECRET нельзя, а владельцу заказа в кабинете подпись не нужна.
  */
-export function reviewToken(orderId: string) {
+function reviewToken(orderId: string) {
   const signed = signValue(`review:${orderId}`);
   return signed.slice(signed.lastIndexOf(".") + 1, signed.lastIndexOf(".") + 33);
 }

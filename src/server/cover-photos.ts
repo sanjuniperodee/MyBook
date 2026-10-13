@@ -15,7 +15,7 @@ export function isCoverPhotoKey(key: string) {
   return BUILTIN.test(key) || STORED.test(key);
 }
 
-export async function coverPhotoOriginal(key: string): Promise<Buffer> {
+async function coverPhotoOriginal(key: string): Promise<Buffer> {
   if (BUILTIN.test(key)) return readFile(path.join(process.cwd(), "assets", "cover-photos", `${key}.jpg`));
   if (STORED.test(key)) return getFile(key);
   throw new Error("Invalid cover photo key");

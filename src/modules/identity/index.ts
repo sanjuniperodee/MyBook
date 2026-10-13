@@ -7,7 +7,6 @@ import { DrizzleIdentityQueries } from "./infrastructure/queries";
 
 export * from "./domain";
 export type { LoginResult } from "./application";
-export { SESSION_TTL_DAYS } from "./application";
 export type { CurrentUser } from "./infrastructure/queries";
 
 /** Публичный фасад контекста Identity: учётные записи, вход, пароли, второй фактор. */

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { GowaStatus } from "@/modules/messaging";
 import { gowaLogoutAction, gowaPairCodeAction, gowaQrAction, gowaStatusAction, saveWhatsappSettingsAction } from "./actions";
 
-export interface GowaFormProps {
+interface GowaFormProps {
   provider: "wazzup" | "gowa";
   baseUrl: string;
   /** «••••abcd», если логин:пароль шлюза сохранён. */

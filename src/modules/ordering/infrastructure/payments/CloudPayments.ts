@@ -5,7 +5,7 @@ import { systemActor } from "@/shared/application";
 import type { GiftsService, OrdersService } from "../../application";
 
 /** Коды ответа CloudPayments: 0 — принято, 10 — неизвестный счёт, 12 — неверная сумма, 13 — платёж не принимается. */
-export type CloudPaymentsCode = 0 | 10 | 12 | 13;
+type CloudPaymentsCode = 0 | 10 | 12 | 13;
 
 export function isOnlinePayment() {
   return env.paymentProvider === "cloudpayments" && !!env.cloudpayments.publicId;

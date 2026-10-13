@@ -1,6 +1,6 @@
 import { formatPhone } from "@/shared/domain/phone";
 
-export interface AccessMessageInput {
+interface AccessMessageInput {
   name: string;
   /** Номер телефона (цифры) или e-mail — то, что вводят в поле входа. */
   login: string;

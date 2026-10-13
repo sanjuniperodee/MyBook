@@ -4,7 +4,7 @@ import type { Logger } from "@/shared/application";
 // ─── тестовые двойники ─────────────────────────────────────────────────────
 
 /** Хранилище в памяти. deletePrefix — как rm -r каталога в настоящем хранилище: ключ целиком или всё под «ключ/». */
-export class MemFiles implements FileStore {
+class MemFiles implements FileStore {
   data = new Map<string, Buffer>();
   puts: string[] = [];
   async exists(key: string) {
@@ -34,7 +34,7 @@ export class MemFiles implements FileStore {
  * Рендер-заглушка: «PDF» — строки с номером рендера (block#1, reading#2…), calls — журнал вызовов.
  * Книги нет в books — рендер отвечает null, как настоящий адаптер; crash — рендер падает с ошибкой.
  */
-export class FakeRenderer implements BookRenderer {
+class FakeRenderer implements BookRenderer {
   books = new Map<string, { fingerprint: string }>();
   crash = new Set<"package" | "layout" | "reading">();
   calls: string[] = [];
@@ -78,7 +78,7 @@ export class FakeRenderer implements BookRenderer {
 }
 
 /** Очередь как настоящая: одновременные задачи с одним ключом склеиваются. requested — все запросы, started — реально запущенные. */
-export class FakeQueue implements RenderQueue {
+class FakeQueue implements RenderQueue {
   requested: string[] = [];
   started: string[] = [];
   private inflight = new Map<string, Promise<unknown>>();
@@ -93,7 +93,7 @@ export class FakeQueue implements RenderQueue {
   }
 }
 
-export class SpyLogger implements Logger {
+class SpyLogger implements Logger {
   errors: { message: string; error: unknown }[] = [];
   info() {}
   warn() {}

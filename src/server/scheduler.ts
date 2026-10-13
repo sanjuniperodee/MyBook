@@ -7,7 +7,7 @@ const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
 const LOCK_ID = 7_310_451;
 
-export async function tick() {
+async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
   let locked = false;
@@ -31,7 +31,7 @@ export async function tick() {
 const CRM_INTERVAL_MS = 60_000;
 const CRM_LOCK_ID = 7_310_452;
 
-export async function crmTick() {
+async function crmTick() {
   const client = await pool.connect();
   let locked = false;
   try {
@@ -56,7 +56,7 @@ export async function crmTick() {
 const OUTBOX_INTERVAL_MS = 15_000;
 let outboxBusy = false;
 
-export async function outboxTick() {
+async function outboxTick() {
   if (outboxBusy) return 0;
   outboxBusy = true;
   try {
@@ -82,7 +82,7 @@ const PAYMENTS_SLOW_WINDOW_MS = 72 * 3600_000;
 const PAYMENTS_LOCK_ID = 7_310_453;
 let paymentsBusy = false;
 
-export async function paymentsTick(windowMs: number) {
+async function paymentsTick(windowMs: number) {
   if (paymentsBusy) return;
   paymentsBusy = true;
   let client: PoolClient | null = null;

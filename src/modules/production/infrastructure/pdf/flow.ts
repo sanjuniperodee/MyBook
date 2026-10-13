@@ -30,8 +30,6 @@ export interface FlowDecisions {
 
 export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScale: new Map(), rowOffset: new Map(), noTail: new Set() });
 
-export const flowSize = (f: FlowDecisions) => f.breakBefore.size + f.rowScale.size + f.rowOffset.size + f.noTail.size;
-
 /** Фото не уменьшаем сильнее — и не мельче этой доли высоты полосы набора. */
 export const MIN_ROW_SCALE = 0.45;
 const MIN_ROW_SHARE = 0.3;

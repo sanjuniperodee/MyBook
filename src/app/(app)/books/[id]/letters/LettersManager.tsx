@@ -11,7 +11,7 @@ import { useLocale, useMessages } from "@/i18n/client";
 import { localizePath, type Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 
-export interface ManagedLetter {
+interface ManagedLetter {
   id: string;
   authorName: string;
   relation: string;

@@ -23,7 +23,7 @@ export interface CallProps {
   recordingRef: string | null;
 }
 
-export const callDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const callDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /**
  * Звонок из АТС. События провайдера приходят по одному и повторно: звонит → ответили → запись → завершён.

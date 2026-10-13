@@ -13,7 +13,7 @@ import { GOWA_CHANNEL, type BotMode } from "../domain";
 import { GowaError, type GowaClient } from "./gowa";
 
 /** Исходящие по каналу диалога: виджет забирает сообщения сам, почта и мессенджеры — через свои интеграции. */
-export const channelTransport: ChannelTransport = {
+const channelTransport: ChannelTransport = {
   async send(conv, messageId, text) {
     if (conv.channel === "site") return { ok: true, externalId: null };
     if (conv.channel === "email") {

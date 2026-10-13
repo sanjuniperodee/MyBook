@@ -9,7 +9,7 @@ import { formatPhone } from "@/shared/domain/phone";
 import { Alert } from "@/components/ui/Alert";
 import type { KaspiInvoiceView as InvoiceView } from "@/modules/ordering/ui/kaspi";
 
-export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string };
+type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string };
 
 /** Как часто спрашиваем о счёте, пока клиент платит в приложении Kaspi. */
 const POLL_MS = 3_000;

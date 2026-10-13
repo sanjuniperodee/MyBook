@@ -47,10 +47,3 @@ export class NotFoundError extends DomainError<"not_found"> {
     super("not_found", `${entity} ${id ?? ""} not found`.trim());
   }
 }
-
-/** Доступ запрещён правилами домена (не путать с RBAC сотрудников). */
-export class AccessDeniedError extends DomainError<"access_denied"> {
-  constructor(message = "access denied") {
-    super("access_denied", message);
-  }
-}

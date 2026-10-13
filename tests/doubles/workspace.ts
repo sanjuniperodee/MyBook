@@ -3,7 +3,7 @@ import type { CustomFieldType, FieldEntity } from "@/modules/workspace/domain";
 
 // ─── тестовые двойники ─────────────────────────────────────────────────────
 
-export interface FieldRow {
+interface FieldRow {
   id: string;
   entity: FieldEntity;
   key: string;

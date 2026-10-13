@@ -13,7 +13,7 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, type InteriorMood } from "@/lib/book/interiors";
 import { cn } from "@/lib/utils";
 
-export interface PagesState {
+interface PagesState {
   interior: InteriorId;
   dedication: string;
   showToc: boolean;

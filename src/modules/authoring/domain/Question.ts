@@ -17,7 +17,7 @@ export interface QuestionProps {
 }
 
 export const MAX_QUESTIONS = 600;
-export const MAX_ANSWER_LENGTH = 40_000;
+const MAX_ANSWER_LENGTH = 40_000;
 
 /** Вопрос книги. Сохраняется часто (автосохранение), поэтому это отдельный небольшой агрегат. */
 export class Question extends AggregateRoot<QuestionProps> {

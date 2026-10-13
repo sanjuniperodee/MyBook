@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/utils";
 import { confirmKaspiCodeAction, disconnectKaspiAction, kaspiStatusAction, requestKaspiCodeAction, saveKaspiApiUrlAction, setKaspiEnabledAction } from "./actions";
 
-export interface KaspiStatusView {
+interface KaspiStatusView {
   enabled: boolean;
   /** Сервис kaspi-pos отвечает по указанному адресу. */
   reachable: boolean;
@@ -18,7 +18,7 @@ export interface KaspiStatusView {
   apiUrl: string;
 }
 
-export interface KaspiFormProps extends KaspiStatusView {
+interface KaspiFormProps extends KaspiStatusView {
   webhookUrl: string;
   /** Секрет для webhooks.json сервиса; null — задан переменной окружения KASPI_WEBHOOK_SECRET. */
   webhookSecret: string | null;

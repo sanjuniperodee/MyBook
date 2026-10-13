@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmConversations, crmMessages, crmNotes, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
@@ -144,7 +144,7 @@ export async function ingestEmail(mail: InboundEmail) {
   );
 }
 
-export async function imapConfigured() {
+async function imapConfigured() {
   const s = await getSettings(["email.imapHost", "email.imapUser", "email.imapPassword"]);
   return !!(s["email.imapHost"] && s["email.imapUser"] && s["email.imapPassword"]);
 }
@@ -227,11 +227,5 @@ export async function testImap(): Promise<string> {
     await client.close();
     throw new Error(err instanceof Error ? `IMAP: ${err.message}` : "Не удалось подключиться к IMAP");
   }
-}
-
-/** Последний адрес клиента в почтовом диалоге сделки — чтобы предложить его в форме письма. */
-export async function lastEmailOfDeal(dealId: string) {
-  const [c] = await db.select({ chatId: crmConversations.chatId, subject: sql<string | null>`${crmConversations.meta}->>'subject'` }).from(crmConversations).where(and(eq(crmConversations.dealId, dealId), eq(crmConversations.channel, "email"))).orderBy(desc(crmConversations.lastMessageAt)).limit(1);
-  return c ?? null;
 }
 

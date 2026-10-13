@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { track } from "@/lib/analytics-client";
 
-export interface AnalyticsIds {
+interface AnalyticsIds {
   ym?: string;
   ga?: string;
   pixel?: string;

@@ -11,7 +11,7 @@ export interface WorkHours {
 }
 
 export const SHOP_TZ = "Asia/Almaty";
-export const defaultWorkHours: WorkHours = { days: [1, 2, 3, 4, 5, 6, 7], from: "09:00", to: "21:00" };
+const defaultWorkHours: WorkHours = { days: [1, 2, 3, 4, 5, 6, 7], from: "09:00", to: "21:00" };
 
 const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));

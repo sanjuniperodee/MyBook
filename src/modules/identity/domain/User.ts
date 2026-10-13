@@ -26,7 +26,7 @@ export interface UserProps {
   createdAt: Date;
 }
 
-export const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Учётная запись (контекст Identity): вход, пароль, профиль и второй фактор.

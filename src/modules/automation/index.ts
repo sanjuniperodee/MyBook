@@ -5,7 +5,7 @@ import { appInfo, crmEffects, crmWorkSchedule } from "./infrastructure/adapters"
 import { DrizzleRuleRepository, DrizzleSubjectLoader, SqlScheduledSource } from "./infrastructure/persistence";
 import { rulesAdmin } from "./infrastructure/admin";
 
-export { matches, type TriggerContext, type AutomationTrigger } from "./domain";
+export type { TriggerContext, AutomationTrigger } from "./domain";
 export type { SalesGateway } from "./application";
 
 /** Публичный фасад контекста «Автоматизации» (цифровая воронка CRM). */

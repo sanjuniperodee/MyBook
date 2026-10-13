@@ -5,10 +5,10 @@ import { crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds,
 import { GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 
-export { channelLabel, channelLabels, type Conversation, type InboundMessage } from "./domain";
+export { channelLabel, type Conversation, type InboundMessage } from "./domain";
 export { loadChatMessages, listTemplates, chatVars, sendBlocker } from "./infrastructure/chatView";
-export { listChannels, registerWebhook, wazzupConfigured, WazzupError } from "./infrastructure/wazzup";
-export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
+export { listChannels, registerWebhook, WazzupError } from "./infrastructure/wazzup";
+export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export { ingestEmail, sendEmailToContact, testImap, pollImap } from "./infrastructure/email";
 export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
 

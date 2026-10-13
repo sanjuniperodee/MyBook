@@ -22,8 +22,6 @@ export interface Staff {
   context: StaffContext;
 }
 
-export type { StaffGate };
-
 export class ForbiddenError extends Error {
   constructor(message = "Недостаточно прав для этого действия") {
     super(message);
@@ -42,7 +40,7 @@ const loadStaff = cache(async (): Promise<Staff | null> => {
 });
 
 /** Что мешает сотруднику работать в CRM: вход не из разрешённой сети или не настроена обязательная 2FA. */
-export const staffGate = cache(async (): Promise<StaffGate> => {
+const staffGate = cache(async (): Promise<StaffGate> => {
   const staff = await loadStaff();
   if (!staff) return null;
   return container().access.resolver.gate(account(staff.user), await trustedClientIp());
@@ -119,5 +117,3 @@ export function contactView(staff: Staff, v: { phone?: string | null; email?: st
 export async function audit(staff: Staff | null, action: string, entity: string, entityId?: string | null, details?: Record<string, unknown>) {
   await container().access.audit.record({ actorId: staff?.user.id ?? null, action, entity, entityId, details });
 }
-
-export const actorLabel = (staff: Staff) => `admin:${staff.user.email}`;

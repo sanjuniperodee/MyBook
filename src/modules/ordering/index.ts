@@ -20,7 +20,7 @@ export * from "./domain";
 export type { InvoiceOwner, KaspiConfigStore, KaspiSession, PlaceOrderCommand, PromoCheck, PromoView, PurchaseGiftCommand, UpdateOrderCommand } from "./application";
 export type { OrderDetailsView, GiftView } from "./infrastructure/persistence/DrizzleOrderingQueries";
 export { isOnlinePayment } from "./infrastructure/payments/CloudPayments";
-export { giftUrl, redeemUrl } from "./infrastructure/notifications/OrderingMailer";
+export { redeemUrl } from "./infrastructure/notifications/OrderingMailer";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */
 export const GIFT_COOKIE = "mb_gift";

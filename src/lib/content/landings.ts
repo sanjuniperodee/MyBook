@@ -8,7 +8,7 @@ import type { OccasionId } from "../occasions";
  * казахская версия написана под казахские запросы), вопросы — из настоящего банка вопросов темы.
  * Адрес общий: /kniga/<slug> и /kk/kniga/<slug>, связаны через hreflang.
  */
-export interface LandingContent {
+interface LandingContent {
   /** Короткое имя для ссылок в футере. */
   label: string;
   h1: string;
@@ -21,7 +21,7 @@ export interface LandingContent {
   faq: [string, string][];
 }
 
-export interface Landing {
+interface Landing {
   slug: string;
   theme: ThemeId;
   occasion?: OccasionId;

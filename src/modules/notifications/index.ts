@@ -4,7 +4,7 @@ import { crmTimeline, DrizzleEmailJournal, DrizzleLifecycleSource, DrizzleRecipi
 import { i18nEmailTemplates } from "./infrastructure/templates";
 import { hmacUnsubscribeLinks } from "./infrastructure/unsubscribe";
 
-export { ALMOST_READY_ANSWERS, REMINDER_COOLDOWN_DAYS, canRemind, isSendingHour } from "./domain";
+export { REMINDER_COOLDOWN_DAYS, canRemind } from "./domain";
 export type { ReminderResult } from "./application";
 
 /** Публичный фасад контекста «Уведомления»: автописьма, напоминания из CRM, отписка. */

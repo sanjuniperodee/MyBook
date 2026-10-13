@@ -19,7 +19,7 @@ export function taskList(viewer: Viewer, opts: { who: "mine" | "all"; done: bool
     .limit(300);
 }
 
-export type CallFilter = "all" | "missed" | "in" | "out" | "mine";
+type CallFilter = "all" | "missed" | "in" | "out" | "mine";
 
 /** Журнал звонков за N дней с фильтром и сводкой (видимость «только свои»). */
 export async function callJournal(viewer: Viewer, f: CallFilter, days: number) {

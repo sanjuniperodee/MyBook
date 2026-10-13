@@ -30,7 +30,7 @@ export interface Discount {
 }
 
 /** Скидка применяется к стоимости книг, но не к доставке. */
-export function discountFor(itemsAmount: number, discount: Discount | null | undefined): number {
+function discountFor(itemsAmount: number, discount: Discount | null | undefined): number {
   if (!discount || discount.value <= 0) return 0;
   const raw = discount.kind === "percent" ? Math.round((itemsAmount * Math.min(discount.value, 100)) / 100) : discount.value;
   return Math.min(Math.max(0, raw), itemsAmount);
@@ -57,7 +57,7 @@ export function calculatePrice(planId: PlanId, quantity: number, delivery: Deliv
  * не может), дополнительные экземпляры (extraCopiesAmount) — по прайсу сверху. Доставка и допы считаются сверху всегда.
  * Внесённая предоплата вычитается из «к оплате» (но не больше итога). Промокод со скидкой, выгоднее договорённости, остаётся в силе.
  */
-export function applyAgreement(price: PriceBreakdown, agreement: Agreement, extraCopiesAmount = 0): PriceBreakdown {
+function applyAgreement(price: PriceBreakdown, agreement: Agreement, extraCopiesAmount = 0): PriceBreakdown {
   const books = price.itemsAmount - price.discountAmount;
   const extraDiscount = Math.max(0, books - (agreement.agreedTotal + extraCopiesAmount));
   const extras = price.deliveryAmount + price.addonsAmount;

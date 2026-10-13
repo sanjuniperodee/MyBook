@@ -103,11 +103,6 @@ export function layoutInline<T extends { style: InlinePhotoStyle }>(photos: T[],
   return result;
 }
 
-/** Добавочная высота рамки (в единицах текста) — для оценки объёма. */
-export function frameExtra(style: InlinePhotoStyle, unit: number) {
-  return style.frame === "polaroid" ? unit * POLAROID_BOTTOM : 0;
-}
-
 /** Нижнее поле полароида — доля высоты текстовой области (там же подпись). */
 export const POLAROID_BOTTOM = 0.06;
 /** Боковые поля полароида — доля ширины блока. */

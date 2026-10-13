@@ -14,5 +14,3 @@ export const getAccessibleBook = cache(async (bookId: string, user: User): Promi
   if (!book) notFound();
   return book;
 });
-
-export const isEditable = (book: Pick<BookRow, "status">) => book.status === "draft";

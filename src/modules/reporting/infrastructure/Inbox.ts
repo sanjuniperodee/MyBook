@@ -4,7 +4,7 @@ import { crmConversations, crmDeals, crmStages, users } from "@/shared/infrastru
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 
-export type InboxFilter = "open" | "mine" | "unread" | "waiting" | "closed";
+type InboxFilter = "open" | "mine" | "unread" | "waiting" | "closed";
 
 /** Список диалогов единого инбокса по фильтру и поиску (видимость «только свои»). */
 export async function inbox(viewer: Viewer, f: InboxFilter, q: string | undefined) {

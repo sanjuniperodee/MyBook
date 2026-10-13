@@ -8,13 +8,13 @@ import type { ThemeId } from "./types";
  * поэтому он всегда совпадает с тем, что человек увидит в редакторе книги.
  * Тексты на каждом языке написаны отдельно, а не переведены дословно.
  */
-export interface ArticleSection {
+interface ArticleSection {
   heading: string;
   paragraphs?: string[];
   list?: string[];
 }
 
-export interface ArticleContent {
+interface ArticleContent {
   title: string;
   description: string;
   lead: string;
@@ -25,7 +25,7 @@ export interface ArticleContent {
   cta: { title: string; text: string };
 }
 
-export interface Article {
+interface Article {
   slug: string;
   /** Даты в формате YYYY-MM-DD. */
   published: string;

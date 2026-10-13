@@ -13,7 +13,7 @@ import { channelOf, channels, isManualChannel, manualAttribution, toAttribution 
 
 type Target = ContactTarget;
 
-export type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
+type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
 
 const uuid = z.string().uuid();
 

@@ -145,7 +145,7 @@ export class MemGifts implements GiftCardRepository {
   save = async (g: GiftCard) => void this.rows.set(g.id, g.snapshot());
 }
 
-export class MemBooks implements BookGateway {
+class MemBooks implements BookGateway {
   books = new Map<string, { userId: string; status: "draft" | "ordered"; blocking: string | null }>();
   snapshot = () => new Map([...this.books].map(([k, v]) => [k, { ...v }]));
   restore = (s: unknown) => (this.books = s as typeof this.books);
@@ -170,7 +170,7 @@ export class MemBooks implements BookGateway {
   }
 }
 
-export const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, staffLabel: async (id) => (id === "staff-1" ? "Айгерим" : null) };
+const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, staffLabel: async (id) => (id === "staff-1" ? "Айгерим" : null) };
 export const admin: Actor = { label: "admin:a@b.kz" };
 
 export function setup() {

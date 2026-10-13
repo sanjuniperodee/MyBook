@@ -91,7 +91,7 @@ export function faqLd(items: [string, string][]): Json {
 }
 
 /** По одному предложению на каждый тариф: цена, валюта, наличие. */
-export function planOffers(names: Record<string, string>, url: string): Json[] {
+function planOffers(names: Record<string, string>, url: string): Json[] {
   return getVisiblePlans().map((p) => ({
     "@type": "Offer",
     name: names[p.id] ?? p.id,
@@ -103,7 +103,7 @@ export function planOffers(names: Record<string, string>, url: string): Json[] {
   }));
 }
 
-export interface ReviewLdInput {
+interface ReviewLdInput {
   summary: { average: number; count: number } | null;
   reviews: { authorName: string; text: string; rating: number; publishedAt: Date | null }[];
 }

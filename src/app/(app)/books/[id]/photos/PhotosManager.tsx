@@ -15,7 +15,7 @@ import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
 import { cn } from "@/lib/utils";
 import { PhotosArt } from "@/components/illustrations";
 
-export interface ManagedPhoto {
+interface ManagedPhoto {
   id: string;
   caption: string;
   layout: "full" | "bleed" | "half" | "grid";

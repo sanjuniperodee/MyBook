@@ -55,7 +55,7 @@ function parseTime(v: string | undefined) {
   return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
-export function zadarmaDisposition(d: string | undefined): CallEvent["status"] {
+function zadarmaDisposition(d: string | undefined): CallEvent["status"] {
   switch ((d ?? "").toLowerCase()) {
     case "answered":
       return "answered";
