@@ -154,7 +154,7 @@ describe("requireStaffShell и assertStaffShell: каркас админки и 
 describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, photoFor", () => {
   const bookOf = (opts?: { editable?: boolean }) => respond(async (r) => (await apiBook(r, BOOK, opts)).book.id);
 
-  it("viewerOf: «сотрудник» — роль admin и не отключён, без учёта прав и правил безопасности", () => {
+  it("V1: так сейчас — viewerOf: сотрудник — любой с ролью admin, не отключённый, без учёта прав и правил безопасности (закроет E6)", () => {
     expect(viewerOf(client)).toEqual({ userId: "u1", isStaff: false });
     expect(viewerOf(anna)).toEqual({ userId: "anna", isStaff: true });
     expect(viewerOf(person("old", { role: "admin", staffDisabled: true }))).toEqual({ userId: "old", isStaff: false });
@@ -183,7 +183,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
     expect(await bookOf({ editable: true })).toEqual({ status: 409, body: { error: "Книга уже передана в печать и не может быть изменена", code: "bookLocked" } });
   });
 
-  it("так сейчас (V1, будет закрыто в E6): сотрудник без clients.view и не из разрешённой сети читает и меняет книги клиентов", async () => {
+  it("V1: так сейчас — сотрудник без clients.view и не из разрешённой сети читает и меняет книги клиентов (закроет E6)", async () => {
     security.allowlist = OFFICE;
     security.require2fa = true;
     request.headers.set("x-real-ip", "8.8.8.8");

@@ -59,7 +59,7 @@ describe("Доступ к чужой книге", () => {
     expect(t.state()).toBe(before);
   });
 
-  it("та же правка проходит у владельца и у сотрудника (так сейчас: любой сотрудник, без прав CRM — V1)", async () => {
+  it("V1: так сейчас — книгу клиента правит владелец и любой сотрудник, без прав CRM (закроет E6)", async () => {
     const t = await bookSetup();
     await t.books.updateSettings("b1", owner, { title: "Своё" }, t.photoRepo);
     expect(t.book.title).toBe("Своё");
