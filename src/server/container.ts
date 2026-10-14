@@ -20,13 +20,13 @@ import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
 import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
-import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
-import type { PromoCode } from "@/modules/ordering";
+import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, renderGiftPdf, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { referralPromos } from "./promo-ports";
 import { clientIp } from "./rateLimit";
 
 /**
@@ -135,30 +135,7 @@ export class Container {
 
   /** Приглашения: коды для друзей и награды — промокоды контекста заказов. */
   get referrals(): ReferralsModule {
-    const promos = this.ordering.promos;
-    const now = () => this.clock.now();
-    const view = (p: PromoCode): InvitePromo => ({ code: p.code, ownerId: p.ownerId, percent: p.kind === "percent" ? p.value : 0, usable: p.rejection(now()) === null });
-    return (this.#referrals ??= new ReferralsModule({
-      mailer: this.mailer,
-      clock: this.clock,
-      logger: consoleLogger("referrals"),
-      promos: {
-        ownedBy: async (userId) => {
-          const p = await promos.referralOf(userId);
-          return p ? view(p) : null;
-        },
-        createInvite: async (input) => (await promos.issueReferral(input))?.code ?? null,
-        lookup: async (code) => {
-          const p = await promos.findByCode(code);
-          return p ? view(p) : null;
-        },
-        issueReward: async (input) => (await promos.issuePersonal(input))?.code ?? null,
-        status: async (codes) => {
-          const found = await Promise.all(codes.map((c) => promos.findByCode(c)));
-          return new Map(found.flatMap((p) => (p ? [[p.code, { used: p.rejection(now()) === "used", expiresAt: p.expiresAt }] as const] : [])));
-        },
-      },
-    }));
+    return (this.#referrals ??= new ReferralsModule({ mailer: this.mailer, clock: this.clock, logger: consoleLogger("referrals"), promos: referralPromos(this.ordering.promos, () => this.clock.now()) }));
   }
 
   /** Отзывы: благодарность — промокод контекста заказов, низкая оценка — уведомление тем, кто разбирает отзывы. */
