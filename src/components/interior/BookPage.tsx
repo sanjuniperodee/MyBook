@@ -28,6 +28,7 @@ import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-page
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { cn } from "@/lib/class-names";
+import { hexAlpha } from "@/lib/color";
 import type { PageUnits } from "./units";
 
 /** Всё, что нужно странице: дизайн, формат, кегли и единицы измерения. */
@@ -340,9 +341,6 @@ export function RunningHead({ kit, bookTitle, chapterTitle, recto }: { kit: Page
 }
 
 // ─── страницы ───────────────────────────────────────────────────────────────
-
-/** #RRGGBB и прозрачность → rgba(). */
-const hexAlpha = (hex: string, a: number) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
 
 type PageProps = { kit: PageKit; className?: string; style?: CSSProperties };
 

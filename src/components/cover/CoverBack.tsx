@@ -2,10 +2,8 @@ import type { BackDesign } from "@/lib/book/cover-back";
 import { photoHref, type PhotoRef } from "@/lib/book/cover-kit";
 import { cssFrame } from "@/lib/book/photo-frame";
 import { cssFont } from "@/lib/book/fonts";
+import { hexAlpha } from "@/lib/color";
 import { Ornament } from "./CoverPreview";
-
-/** #RRGGBB и прозрачность → rgba(). */
-const hexAlpha = (hex: string, a: number) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
 
 /**
  * Задняя сторона поверх фона — по той же раскладке, что и PDF (src/lib/book/cover-back.ts).
