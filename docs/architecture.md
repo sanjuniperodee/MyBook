@@ -17,8 +17,10 @@ src/
     domain/                   Entity, AggregateRoot, ValueObject, DomainEvent, DomainError; общий словарь модулей —
                               каналы привлечения (channels), источник сделки (deals), график работы (schedule),
                               упоминания (mentions), переменные шаблонов (templates), подпись сотрудника (staff),
-                              телефон (phone), часовой пояс (time), код ссылки (slug)
-    application/              UseCase, UnitOfWork, EventBus, Clock, Logger, Mailer, RateLimiter — порты
+                              телефон (phone), часовой пояс (time), код ссылки (slug), свои поля (customFields)
+    application/              UseCase, UnitOfWork, EventBus, Clock, Logger, Mailer, RateLimiter — порты; порты рабочего
+                              пространства: SettingsReader/SettingsStore (модуль объявляет только свои ключи), StaffNotifier,
+                              LiveFeed, CustomFieldsReader, WorkSchedule — реализует workspace, модулям раздаёт container
     infrastructure/           db/ (схема Drizzle, пул, миграции), database.ts (executor() — текущая транзакция или пул),
                               DrizzleUnitOfWork (транзакции), OutboxDispatcher (надёжная доставка событий), InProcessEventBus,
                               redis.ts (лимиты и шаги TOTP: Redis при REDIS_URL, иначе память), background.ts,

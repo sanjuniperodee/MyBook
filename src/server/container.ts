@@ -19,7 +19,7 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, ensureToken, getSettings, notify, saveSettings, smtpConfig, staffWith } from "@/modules/workspace";
+import { WorkspaceModule, ensureToken, getSettings, saveSettings, smtpConfig } from "@/modules/workspace";
 import { FeedbackModule } from "@/modules/feedback";
 import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
 import type { KaspiConfigStore, KaspiSession, PromoCode } from "@/modules/ordering";
@@ -167,8 +167,8 @@ export class Container {
       logger: consoleLogger("feedback"),
       promos: { issue: async (input) => (await this.ordering.promos.issuePersonal(input))?.code ?? null },
       alerts: {
-        lowRating: async (r) =>
-          notify(await staffWith("reviews.manage"), {
+        lowRating: (r) =>
+          this.workspace.notifier.notifyAllWith("reviews.manage", {
             kind: "system",
             title: `Отзыв ${r.rating}★ к заказу №${r.orderNumber} — свяжитесь с клиентом`,
             body: r.text ? `${r.authorName}: ${r.text}` : r.authorName,

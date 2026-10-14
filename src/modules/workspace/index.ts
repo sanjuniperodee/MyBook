@@ -7,13 +7,12 @@ import { liveFeed } from "./infrastructure/realtime";
 import { workSchedule } from "./infrastructure/schedule";
 
 export { WorkspaceError, customFieldTypes, type CustomFieldType } from "./domain";
-export { getSetting, getSettings, saveSettings, deleteSetting, ensureToken, fromEnv, maskSecret, invalidateSettings, type SettingKey } from "./infrastructure/settings";
-export { listFields, fieldByKey, readFieldValues } from "./infrastructure/fields";
-export { fieldVars } from "@/shared/domain/customFields";
-export { notify, notifyOwnerOr, staffWith } from "./infrastructure/notify";
-export { publish, subscribe, type LiveEvent } from "./infrastructure/realtime";
+export { getSetting, getSettings, saveSettings, deleteSetting, ensureToken, fromEnv, maskSecret, type SettingKey } from "./infrastructure/settings";
+export { listFields, readFieldValues } from "./infrastructure/fields";
+export { notify } from "./infrastructure/notify";
+export { subscribe, type LiveEvent } from "./infrastructure/realtime";
 export { mentionableStaff, notifyMentions } from "./infrastructure/mentions";
-export { vapidKeys, pushTo } from "./infrastructure/push";
+export { vapidKeys } from "./infrastructure/push";
 export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 
 /** Публичный фасад «Рабочего пространства CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */

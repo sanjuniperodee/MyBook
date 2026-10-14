@@ -159,7 +159,7 @@ async function load() {
   return values;
 }
 
-export function invalidateSettings() {
+function invalidateSettings() {
   store.__mybookSettings = null;
 }
 

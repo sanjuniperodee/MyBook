@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmFields, type CrmField, type CustomValues } from "@/shared/infrastructure/db/schema";
 import type { CustomFieldsReader } from "@/shared/application";
@@ -33,10 +33,6 @@ export function readFieldValues(fields: CrmField[], form: FormData, current: Cus
     } else out[f.key] = raw;
   }
   return out;
-}
-
-export async function fieldByKey(entity: "deal" | "client", key: string) {
-  return (await db.query.crmFields.findFirst({ where: and(eq(crmFields.entity, entity), eq(crmFields.key, key)) })) ?? null;
 }
 
 /** Порт своих полей для других модулей (src/shared/application): только чтение. */
