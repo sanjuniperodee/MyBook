@@ -30,7 +30,7 @@ const restrict = (patterns) => ({ "no-restricted-imports": ["error", { patterns 
 const config = [
   ...nextVitals,
   ...nextTs,
-  { ignores: [".next/**", "node_modules/**", "storage/**", "drizzle/**", "next-env.d.ts"] },
+  { ignores: [".next/**", "node_modules/**", "storage/**", "drizzle/**", "next-env.d.ts", ".claude/**"] },
   // В flat config одноимённое правило из более позднего блока заменяет раннее, поэтому для каждого
   // модуля и слоя собираем полный список ограничений в одном блоке.
   ...modules.flatMap((name) => [
