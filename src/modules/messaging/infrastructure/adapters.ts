@@ -4,7 +4,7 @@ import { crmTasks } from "@/shared/infrastructure/db/schema";
 import { notifyOwnerOr } from "@/modules/workspace";
 import { publish } from "@/modules/workspace";
 import { getSetting } from "@/modules/workspace";
-import { isWorkTime, parseWorkHours } from "@/modules/workspace/domain/schedule";
+import { isWorkTime, parseWorkHours } from "@/shared/domain/schedule";
 import { listFields } from "@/modules/workspace";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";

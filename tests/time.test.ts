@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fromZonedTime, storeTimeZone, timeZoneOffset, zonedDay, zonedMonth, zonedParts } from "@/shared/domain/time";
-import { isWorkTime, parseWorkHours } from "@/modules/workspace/domain/schedule";
+import { isWorkTime, parseWorkHours } from "@/shared/domain/schedule";
 import { isSendingHour } from "@/modules/notifications/domain";
 import { currentMonth } from "@/modules/sales/domain";
 import { parseKaspiPayment } from "@/modules/ordering/domain";

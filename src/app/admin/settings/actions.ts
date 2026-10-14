@@ -6,7 +6,7 @@ import { z } from "zod";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, fromEnv, getSettings, saveSettings, smtpConfig, smtpFromEnvironment, type SettingKey } from "@/modules/workspace";
 import { randomToken } from "@/shared/crypto";
-import { isValidTime } from "@/modules/workspace/domain/schedule";
+import { isValidTime } from "@/shared/domain/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/modules/messaging";
 import { AssistantError, isAiProvider, proofreadProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { crmConversations, crmTasks } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
 import { getSetting } from "@/modules/workspace";
-import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/modules/workspace/domain/schedule";
+import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { notify, staffWith } from "@/modules/workspace";
 import { executor } from "@/shared/infrastructure/database";
 import type { AppInfo, AutomationEffects, WorkSchedule } from "../application";

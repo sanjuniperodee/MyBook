@@ -6,7 +6,7 @@ import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/shared/dom
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
 import { automationActions, automationTriggers, fillTemplate, isTrigger } from "@/modules/automation/domain/meta";
-import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/modules/workspace/domain/schedule";
+import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/modules/workspace/infrastructure/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";

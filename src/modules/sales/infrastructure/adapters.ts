@@ -5,7 +5,7 @@ import { usersId } from "@/shared/infrastructure/db/refs";
 import { phoneKey, normalizePhone } from "@/shared/domain/phone";
 import { toAttribution } from "@/shared/domain/channels";
 import { getSetting } from "@/modules/workspace";
-import { isWorkTime, parseWorkHours } from "@/modules/workspace/domain/schedule";
+import { isWorkTime, parseWorkHours } from "@/shared/domain/schedule";
 import { executor } from "@/shared/infrastructure/database";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
 import type { StageMilestone } from "../domain";

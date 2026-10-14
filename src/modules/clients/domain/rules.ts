@@ -1,5 +1,5 @@
 import { normalizePhone } from "@/shared/domain/phone";
-import { findMentions } from "@/modules/workspace/domain/mentions";
+import { findMentions } from "@/shared/domain/mentions";
 
 export type TaskKind = "task" | "call" | "message" | "meeting";
 export type NoteKind = "note" | "call" | "message" | "email" | "system";

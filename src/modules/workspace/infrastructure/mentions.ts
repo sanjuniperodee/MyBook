@@ -5,7 +5,7 @@ import { users } from "@/shared/infrastructure/db/schema";
 import { adminLabel } from "@/modules/access/ui";
 import { notify } from "@/modules/workspace/infrastructure/notify";
 
-import { findMentions } from "@/modules/workspace/domain/mentions";
+import { findMentions } from "@/shared/domain/mentions";
 
 export { findMentions };
 

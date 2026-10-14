@@ -7,7 +7,7 @@ import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiP
 import { env } from "@/config/env";
 import { templateVars } from "@/modules/automation/domain/meta";
 import { AiForm, Blocklist, EmailForm, ProofreadForm, SmtpForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
-import { parseWorkHours } from "@/modules/workspace/domain/schedule";
+import { parseWorkHours } from "@/shared/domain/schedule";
 import { BotForm } from "./BotForm";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { listFields } from "@/modules/workspace";
