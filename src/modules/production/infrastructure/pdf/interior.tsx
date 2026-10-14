@@ -22,6 +22,7 @@ import {
   KEEP_WITH_NEXT,
   LEAD_IN,
   OPENER,
+  photoCaptionFace,
   RUNNING_HEAD,
   runningHeadTop,
   runningRuleTop,
@@ -353,11 +354,11 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   // ── Фотостраница: места, рамки и подписи — из photo-pages (та же раскладка у превью и у подготовки снимков) ──
   const area = photoArea(format);
-  const captionStyle = (size: number): Style => {
-    if (design.photos.caption === "hand") return { ...face("caveat", 500), fontSize: size, lineHeight: 1.15, color: P.ink };
-    if (design.photos.caption === "label") return { ...label(P.muted, size), lineHeight: 1.3 };
-    return { ...italicBody, fontSize: size, lineHeight: 1.3, color: P.muted };
-  };
+  const caption = photoCaptionFace(design);
+  const captionStyle = (size: number): Style =>
+    caption.label
+      ? { ...label(caption.color, size), lineHeight: caption.lineHeight }
+      : { ...face(caption.face.font, caption.face.weight, caption.face.italic), fontSize: size, lineHeight: caption.lineHeight, color: caption.color };
   const photoPage = (group: PhotoItem[], key: string) => {
     if (group.length === 1 && group[0].layout === "bleed") {
       const img = options.images.get(group[0].id);

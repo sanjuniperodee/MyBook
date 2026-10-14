@@ -25,6 +25,7 @@ import {
   interiorSizes,
   LEAD_IN,
   OPENER,
+  photoCaptionFace,
   RUNNING_HEAD,
   runningHeadTop,
   runningRuleTop,
@@ -489,14 +490,10 @@ export interface PagePhoto {
 /** Фотостраница: снимки, рамки и подписи по раскладке photo-pages — как в PDF. */
 export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProps & { photos: PagePhoto[]; /** С какого пейзажа-заглушки начинать. */ scene?: number }) {
   const { design, format, sizes: S, u } = kit;
-  const P = design.palette;
   const plan = photoPagePlan(photos, photoArea(format), design, S);
+  const face = photoCaptionFace(design);
   const caption = (size: number): CSSProperties =>
-    design.photos.caption === "hand"
-      ? { fontFamily: cssFont("caveat"), fontWeight: 500, fontSize: u.pt(size), lineHeight: 1.15, color: P.ink }
-      : design.photos.caption === "label"
-        ? { ...labelCss(kit, P.muted, size), lineHeight: 1.3 }
-        : { ...italicBody(kit, size), lineHeight: 1.3, color: P.muted };
+    face.label ? { ...labelCss(kit, face.color, size), lineHeight: face.lineHeight } : { ...faceCss(face.face, size, u), lineHeight: face.lineHeight, color: face.color };
   return (
     <Sheet kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {

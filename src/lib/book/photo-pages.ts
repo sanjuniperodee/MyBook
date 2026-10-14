@@ -6,7 +6,7 @@
  */
 import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
 import { PHOTO_COLORS, type InteriorDesign } from "./interiors";
-import type { InteriorSizes } from "./typesetting";
+import { photoCaptionFace, photoCaptionSize, type InteriorSizes } from "./typesetting";
 import type { Shape } from "./interior-art";
 import { n } from "./cover-kit";
 import { interiorMetrics, pageSide, textArea } from "./page-geometry";
@@ -109,11 +109,6 @@ function frameRoom(frame: PhotoFrame) {
 /** Доли ширины карточки полароида: поле сверху и по бокам, нижнее поле. */
 const POLA = { pad: 0.05, bottom: 0.17 };
 
-/** Кегль подписи на фотостранице, pt. */
-export function photoCaptionSize(design: InteriorDesign, S: InteriorSizes) {
-  return design.photos.caption === "hand" ? S.caption * 1.5 : design.photos.caption === "label" ? S.caption * 0.8 : S.caption;
-}
-
 /** Сколько строк займёт подпись: оценка по средней ширине знака (подписи короткие, с запасом). */
 function captionLines(text: string, sizePt: number, widthMm: number, hand: boolean) {
   const perLine = Math.max(8, Math.floor(widthMm / (sizePt * PT_TO_MM * (hand ? 0.42 : 0.52))));
@@ -129,7 +124,7 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
   const P = design.palette;
   const grid = group[0]?.layout === "grid" && group.length > 1;
   const size = photoCaptionSize(design, S);
-  const lineH = size * PT_TO_MM * (face === "hand" ? 1.15 : 1.3);
+  const lineH = size * PT_TO_MM * photoCaptionFace(design).lineHeight;
   const cells: PhotoCell[] = [];
   const under: Shape[] = [];
   const over: Shape[] = [];

@@ -143,6 +143,32 @@ export const INLINE_ROW = { before: 0.5, after: 1, polaroidBorder: 0.5, lineBord
 /** Концовка главы: отбивка перед виньеткой — доля отбивки перед заголовком. */
 export const CHAPTER_TAIL = { before: 1.1 } as const;
 
+// ─── подписи к снимкам на фотостранице ──────────────────────────────────────
+
+/** Начертание подписи; label — служебной надписью оформления (разрядка — от её базового кегля, как у колонтитула). */
+export interface PhotoCaptionFace {
+  face: TextFace;
+  label: boolean;
+  lineHeight: number;
+  color: string;
+}
+
+/**
+ * Подпись по design.photos.caption: от руки — Caveat цветом текста, прописными — служебной надписью,
+ * курсивом — основным шрифтом. Интерлиньяж — и в вёрстке, и в оценке высоты подписи (photo-pages.ts).
+ */
+export function photoCaptionFace(design: InteriorDesign): PhotoCaptionFace {
+  const P = design.palette;
+  if (design.photos.caption === "hand") return { face: { font: "caveat", weight: 500 }, label: false, lineHeight: 1.15, color: P.ink };
+  if (design.photos.caption === "label") return { face: design.label, label: true, lineHeight: 1.3, color: P.muted };
+  return { face: { font: design.type.body, weight: 400, italic: true }, label: false, lineHeight: 1.3, color: P.muted };
+}
+
+/** Кегль подписи на фотостранице, pt. */
+export function photoCaptionSize(design: InteriorDesign, S: InteriorSizes) {
+  return design.photos.caption === "hand" ? S.caption * 1.5 : design.photos.caption === "label" ? S.caption * 0.8 : S.caption;
+}
+
 // ─── колонтитул и колонцифра ────────────────────────────────────────────────
 
 /** Колонтитул: строка и линейка — на доле верхнего поля от обреза; толщина линейки, pt. */
