@@ -36,34 +36,34 @@
 
 ## Фаза 4. Рефакторинг
 
-### A. Быстрые победы (Н) — A1, A3–A6 ✅ (A2 — в дорожке вёрстки вместе с C1)
+### A. Быстрые победы (Н) — ✅
 
 | # | Шаг | Цель | Файлы | Проверка |
 |---|---|---|---|---|
 | A1 | Удалить мёртвое | `BackLink.tsx`; снять `export` у функций, нужных только внутри файла; удалить невостребованные `tick`/`crmTick`/`outboxTick`-экспорты, `MAX_PAYMENT`-дубли и т. п. по отчёту knip | ~40 файлов | knip, tsc |
-| A2 | Единицы и геометрия полосы в одном месте | `MM_TO_PT`/`PT_TO_MM` в `formats.ts`; `pageSide(format)` и `textArea()` вместо 5 копий `side` и 4 копий ширины и высоты; `hexAlpha` → `lib/color.ts` | `lib/book/*`, `components/interior/*`, `PagePreview`, `pdf/interior.tsx`, `book3d/pages.tsx`, `CoverBack`, `ProofTextarea` | S3, S4: 0 отличий |
+| A2 ✅ | Единицы и геометрия полосы в одном месте | `MM_TO_PT`/`PT_TO_MM` в `formats.ts`; `pageSide(format)` и `textArea()` вместо 5 копий `side` и 4 копий ширины и высоты; `hexAlpha` → `lib/color.ts` | `lib/book/*`, `components/interior/*`, `PagePreview`, `pdf/interior.tsx`, `book3d/pages.tsx`, `CoverBack`, `ProofTextarea` | S3, S4: 0 отличий |
 | A3 | `lib/utils.ts` по предметам | `cn` → `lib/class-names.ts` (без словарей), `formatDate`/`nowMs` → `lib/dates.ts` | все импорты `@/lib/utils` | tsc, бандлы |
 | A4 | Подписи тарифов и доставки — один словарь | `ordering/ui/labels.ts`, тексты те же | 5 + 3 места в `app/admin` | tsc, снимок текстов |
 | A5 | «Заказ оплачен» — одно правило | `isPaid(status)` в домене `ordering` и SQL-фрагмент в read-модели. Заменяются три одинаковые проверки в `app/`. SQL с другой семантикой (`paid_at`) не трогаю, но документирую | `ordering/domain/OrderStatus.ts`, 3 файла `app/` | tsc, тесты |
 | A6 | Видимость книги — одно правило | `queries.visibleBook` и `photoFor` берут правило из домена `Book.isVisibleTo` | `authoring/*` | `authoring.test.ts` |
 
-### B. Границы модулей (Н–С)
+### B. Границы модулей (Н–С) — B1, B2 ✅; после них нарушений 9 / 5 / 5 (было 46 / 5 / 6)
 
 | # | Шаг | Цель | Файлы | Проверка |
 |---|---|---|---|---|
-| B1 | Общий словарь в `shared/domain` | Каналы, график работы, упоминания, мета сделок и правил, подпись сотрудника `staffLabel` переезжают из чужих доменов. Старые места реэкспортируют на время переезда, затем реэкспорты удаляются | `shared/domain/{channels,schedule,mentions,staff,dealSources,templates,slug}.ts`, ~15 импортов | S1: −14 нарушений между модулями и −1 из общего ядра (схема берёт источник сделки из `shared/domain`) |
-| B2 | Порты рабочего пространства | `SettingsReader`, `StaffNotifier`, `LiveFeed`, `CustomFieldsReader`, `WorkSchedule` в `shared/application`; реализации в `workspace/infrastructure`; модули получают их в конструкторе из `container` | `messaging`, `automation`, `assistant`, `telephony`, `sales`, `clients`, `marketing`, `access` | S1: −23 (аудит насчитал 27 вместе с четырьмя импортами графика и упоминаний из `workspace/domain` — их убрал B1); тесты модулей с фейками |
+| B1 ✅ | Общий словарь в `shared/domain` | Каналы, график работы, упоминания, мета сделок и правил, подпись сотрудника `staffLabel` переезжают из чужих доменов. Старые места реэкспортируют на время переезда, затем реэкспорты удаляются | `shared/domain/{channels,schedule,mentions,staff,dealSources,templates,slug}.ts`, ~15 импортов | S1: −14 нарушений между модулями и −1 из общего ядра (схема берёт источник сделки из `shared/domain`) |
+| B2 ✅ | Порты рабочего пространства | `SettingsReader`, `StaffNotifier`, `LiveFeed`, `CustomFieldsReader`, `WorkSchedule` в `shared/application`; реализации в `workspace/infrastructure`; модули получают их в конструкторе из `container` | `messaging`, `automation`, `assistant`, `telephony`, `sales`, `clients`, `marketing`, `access` | S1: −23 (аудит насчитал 27 вместе с четырьмя импортами графика и упоминаний из `workspace/domain` — их убрал B1); тесты модулей с фейками |
 | B3 | Порты между модулями | `GiftPdfRenderer` (`ordering` ← `production`), `ReviewLinks` (`notifications` ← `feedback`), `ConversationReader` (`assistant` ← `messaging`), `LoginFormat` (`access` ← `identity`) | 4 модуля + `container.ts` | S1: −4 |
 | B4 | Модули не ходят в `server/` и `components/` | `ChatMessage` переезжает в `messaging`; `chatView`/`email` получают почтовый порт вместо `container()`; лимиты для `access` — порт `RateLimiter`, уже есть в общем ядре; источник фото обложек — в `production/infrastructure` | `messaging/infrastructure/*`, `access/infrastructure/persistence.ts`, `server/cover-photos.ts` | S1: −5 |
 | B5 | Схема БД по модулям | `schema.ts` (1022 строки) делится на `modules/<m>/infrastructure/schema.ts`; `shared/infrastructure/db/schema.ts` остаётся сборным реэкспортом для drizzle-kit, отчётов и `lib`. Общее ядро больше не импортирует домены (−5; шестую связь убрал B1). SQL не меняется | `drizzle.config.ts` (массив путей), 17 новых файлов | **`drizzle-kit generate` → «No schema changes»**; интеграционные тесты |
 | B6 | Линтер без исключений | Модуль не импортирует чужой модуль вообще (даже фасад), `domain` и `ui`; модуль не импортирует `server`, `components`, `app`; `shared` не импортирует модули; правило для `src/server`. Храповик S1 → 0 | `eslint.config.mjs`, `tests/architecture.test.ts` | lint, S1 |
 
-### C. Книга: одна сущность — одно место (С, визуальная сверка обязательна)
+### C. Книга: одна сущность — одно место (С, визуальная сверка обязательна) — C1, C2 ✅ (PDF: 0 отличий на 192 ключах и 2940 полосах; `COVER_ART_VERSION` один раз сменился из-за правки `formats.ts`, рисунки обложек те же)
 
 | # | Шаг | Цель | Файлы | Проверка |
 |---|---|---|---|---|
-| C1 | Спецификация набора в `lib/book` | Все отбивки, кегли и отступы блоков ответа, капители, заголовка с линейкой, колонтитула, колонцифры, начальной полосы, оглавления — данными в `lib/book/typesetting.ts`, в pt и мм. PDF и `BookPage` только переводят их в единицы своей среды | `lib/book/typesetting.ts`, `pdf/interior.tsx`, `BookPage.tsx` | S3, S4: 0 отличий |
-| C2 | Цвета и рамки фото | Константы бумаги, поляроида, подписи и паспарту в `interiors`; `photoCaptionFace(design)` для подписи | `lib/book/interiors/*`, оба рендерера | S3, S4 |
+| C1 ✅ | Спецификация набора в `lib/book` | Все отбивки, кегли и отступы блоков ответа, капители, заголовка с линейкой, колонтитула, колонцифры, начальной полосы, оглавления — данными в `lib/book/typesetting.ts`, в pt и мм. PDF и `BookPage` только переводят их в единицы своей среды | `lib/book/typesetting.ts`, `pdf/interior.tsx`, `BookPage.tsx` | S3, S4: 0 отличий |
+| C2 ✅ | Цвета и рамки фото | Константы бумаги, поляроида, подписи и паспарту в `interiors`; `photoCaptionFace(design)` для подписи | `lib/book/interiors/*`, оба рендерера | S3, S4 |
 | C3 | Разбить PDF-документ | `pdf/interior/` по полосам: `TitlePage`, `Colophon`, `Dedication`, `Toc`, `Opener`, `PhotoPage`, `ChapterBody` (`TextBlock`, `InlineRows`, `Heading`, `Divider`), `Folio`, `RunningHead` | `modules/production/infrastructure/pdf/interior/*` | S3: 0 отличий, страниц столько же |
 | C4 | Разбить `BookPage` | `components/interior/{graphics,typography,folio,pages,entry}.tsx`; `Sheet` → `PageSurface` (конфликт имени с листом 3D) | `components/interior/*` | S4 |
 | C5 | Решения вёрстки — чистая функция | `refineFlow`: разбор раскладки react-pdf остаётся в адаптере, решения (разрыв перед заголовком, масштаб ряда, концовка) уходят в `lib/book/flow-decisions.ts` с юнит-тестами | `pdf/flow.ts`, `lib/book/flow-decisions.ts` | `pdf-flow.test.ts`, S3 |
