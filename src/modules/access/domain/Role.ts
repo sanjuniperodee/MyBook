@@ -1,6 +1,6 @@
 import { AggregateRoot } from "@/shared/domain";
 import { AccessError } from "./errors";
-import { allPermissions, isPermission, type Permission, type RoleScope } from "./permissions";
+import { allPermissions, isPermission, type Permission, type RoleScope } from "@/shared/domain/permissions";
 
 export interface RoleProps {
   name: string;

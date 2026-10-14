@@ -1,4 +1,5 @@
-import { AccessError, Role, SecurityPolicy, StaffContext, allPermissions, type LoginFormat, type RoleRepository, type RoleScope, type StaffGate, type StaffMember, type StaffRepository } from "../domain";
+import { allPermissions, type RoleScope } from "@/shared/domain/permissions";
+import { AccessError, Role, SecurityPolicy, StaffContext, type LoginFormat, type RoleRepository, type StaffGate, type StaffMember, type StaffRepository } from "../domain";
 import type { AccountGateway, AuditLog, PasswordGenerator, SecuritySettingsStore } from "./ports";
 
 /** Аккаунт, для которого собираем контекст сотрудника. */

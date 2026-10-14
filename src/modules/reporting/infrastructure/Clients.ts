@@ -3,7 +3,7 @@ import { usersId } from "@/shared/infrastructure/db/refs";
 import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { users } from "@/shared/infrastructure/db/schema";
-import type { ClientSegment } from "@/modules/clients/domain/segments";
+import type { ClientSegment } from "@/shared/domain/segments";
 import { isManualChannel, MANUAL_MEDIUM } from "@/shared/domain/channels";
 
 export const STALLED_DAYS = 14;

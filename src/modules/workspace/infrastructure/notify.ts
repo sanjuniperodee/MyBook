@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmNotifications, crmRoles, users } from "@/shared/infrastructure/db/schema";
 import type { StaffNotification, StaffNotifier } from "@/shared/application";
-import type { Permission } from "@/modules/access/domain/permissions";
+import type { Permission } from "@/shared/domain/permissions";
 
 /** Активные сотрудники с правом perm (руководители — всегда). */
 export async function staffWith(perm: Permission): Promise<string[]> {

@@ -2,7 +2,8 @@ import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { trustedClientIp } from "@/server/rateLimit";
-import type { Permission, RoleScope, StaffContext, StaffGate } from "@/modules/access";
+import type { StaffContext, StaffGate } from "@/modules/access";
+import type { Permission, RoleScope } from "@/shared/domain/permissions";
 import { getCurrentUser, type User } from "./auth";
 import { container } from "./container";
 

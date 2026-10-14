@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { allPermissions, type Permission } from "@/modules/access/domain/permissions";
+import { allPermissions, type Permission } from "@/shared/domain/permissions";
 import { RoleEditor } from "./RoleEditor";
 
 export const metadata = { title: "Роли и права" };

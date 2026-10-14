@@ -9,7 +9,7 @@ import { viewerOf } from "@/server/books";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
 import { can, getStaff, type Staff } from "@/server/access";
-import type { Permission } from "@/modules/access/domain/permissions";
+import type { Permission } from "@/shared/domain/permissions";
 import { getMessages } from "@/i18n/server";
 import type { Messages } from "@/i18n/messages";
 

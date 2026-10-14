@@ -3,7 +3,7 @@ import type { BookRow, PhotoRow } from "@/modules/authoring/infrastructure/queri
 import type { User } from "@/server/auth";
 import { DrizzleAuthoringQueries } from "@/modules/authoring/infrastructure/queries";
 import { AuthoringError, Book, type BookViewer } from "@/modules/authoring/domain";
-import { allPermissions } from "@/modules/access/domain";
+import { allPermissions } from "@/shared/domain/permissions";
 import { IdentityError } from "@/modules/identity/domain";
 import { assertStaff, assertStaffShell, ForbiddenError, requireStaff, requireStaffShell } from "@/server/access";
 import { api, apiBook, apiStaff, apiViewer } from "@/server/api";

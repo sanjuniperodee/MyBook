@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, systemRoles } from "@/modules/access/domain/permissions";
+import { maskEmail, maskPhone, systemRoles } from "@/modules/access/domain/permissions";
+import { allPermissions, isPermission, permissionGroups } from "@/shared/domain/permissions";
 import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";

@@ -4,7 +4,8 @@ import { and, asc, desc, eq, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmAudit, crmCalls, crmDeals, crmRoles, users } from "@/shared/infrastructure/db/schema";
 import { crmRolesId, usersId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
-import { Role, StaffMember, type Permission, type RoleRepository, type StaffRepository } from "../domain";
+import type { Permission } from "@/shared/domain/permissions";
+import { Role, StaffMember, type RoleRepository, type StaffRepository } from "../domain";
 import type { AuditLog, RequestOrigin } from "../application/ports";
 
 const roleToDomain = (r: typeof crmRoles.$inferSelect) => Role.restore(r.id, { name: r.name, scope: r.scope, permissions: r.permissions as Permission[], key: r.key });

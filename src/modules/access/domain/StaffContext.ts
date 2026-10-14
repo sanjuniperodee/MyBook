@@ -1,4 +1,5 @@
-import { maskEmail, maskPhone, type Permission, type RoleScope } from "./permissions";
+import type { Permission, RoleScope } from "@/shared/domain/permissions";
+import { maskEmail, maskPhone } from "./permissions";
 
 /** Формат логина клиента (контекст Identity): адрес-заглушка клиента без почты не считается контактом. */
 export interface LoginFormat {

@@ -5,7 +5,8 @@ import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import { User, isPhoneEmail, parseLoginId, phoneEmail, totp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
 import { AuthService } from "@/modules/identity/application/AuthService";
 import { AccountService } from "@/modules/identity/application/AccountService";
-import { Role, SecurityPolicy, StaffContext, StaffMember, allPermissions, type RoleRepository, type StaffRepository } from "@/modules/access/domain";
+import { Role, SecurityPolicy, StaffContext, StaffMember, type RoleRepository, type StaffRepository } from "@/modules/access/domain";
+import { allPermissions } from "@/shared/domain/permissions";
 import { RoleService, StaffResolver, TeamService } from "@/modules/access/application/services";
 
 // ─── двойники ──────────────────────────────────────────────────────────────
