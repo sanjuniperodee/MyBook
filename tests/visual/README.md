@@ -68,8 +68,8 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 кода в `src` без правки копии даёт у `html:preview` и `html:flipbook` ложное «0 отличий».
 
 Стенд собирается из `src`: JS — esbuild (вход `scripts/visual/html-stand.tsx`, пути `@/` из tsconfig, `next/link` и
-`next/navigation` — заглушка, `process.env.COVER_ART_VERSION` подставляется при сборке, как в `next.config.ts`), CSS — `src/app/globals.css` через Tailwind (PostCSS, как в `postcss.config.mjs`),
-шрифты — `@font-face` и переменные `--font-*` по `src/app/fonts.ts`, как их делает `next/font/local` (WOFF2 из
+`next/navigation` — заглушка, `process.env.COVER_ART_VERSION` подставляется при сборке, как в `next.config.ts`),
+CSS — `src/app/globals.css` через Tailwind (PostCSS, как в `postcss.config.mjs`), шрифты — `@font-face` и переменные `--font-*` по `src/app/fonts.ts`, как их делает `next/font/local` (WOFF2 из
 `assets/fonts/web`). Запросы страницы отдаёт `scripts/visual/html-server.ts`, как сайт: фото книг —
 `/api/photos/<id>` (превью, файл хранилища, `view` — `photoViewFile` во временном хранилище запуска), фоны обложек
 `/api/covers/<файл>` и снимки шаблонов `/api/cover-photos/<ключ>` (пейзажи-заглушки пустых фотостраниц, снимки
@@ -84,8 +84,8 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 ## Сверка с коммитом
 
 ```sh
-scripts/visual/check.sh                  # текущее дерево против HEAD: PDF и HTML, все книги
-scripts/visual/check.sh HEAD --quick     # каждое оформление один раз и варианты
+npm run visual:check                     # = scripts/visual/check.sh: текущее дерево против HEAD, PDF и HTML, все книги
+scripts/visual/check.sh HEAD --quick     # каждое оформление один раз и варианты (npm run visual:check -- HEAD --quick)
 scripts/visual/check.sh main --kind pdf --filter classic-a5
 scripts/visual/check.sh HEAD --quick --no-cache   # снять эталон заново
 ```
@@ -149,31 +149,47 @@ npx tsx scripts/visual/compare.ts tests/visual/out/before/pdf tests/visual/out/a
 - Шум фактуры обложек (`crypto.randomBytes` в `renderCover`) и `Math.random` — генератор с постоянным зерном.
 - Каждая книга PDF собирается в своём процессе: результат не зависит от `--jobs` и порядка книг.
 - HTML: все начертания загружаются до первой раскладки, снимок — после того, как фото декодированы и разметка
-  не меняется три кадра подряд. Любой запрос, который стенд не отдаёт, — ошибка снимка.
+  не меняется три кадра подряд (3D-книга сначала меряет главы невидимой копией и перерисовывается — ждём и её).
+  Любой запрос, который стенд не отдаёт, — ошибка снимка. Копии фото для просмотра строятся во временном
+  хранилище каждого запуска: снимок эталона не возьмёт копию, построенную кодом текущего дерева.
+- PDF: хеш файла — без метаданных (см. «Что снимается»), так что сверка не зависит от времени сборки и Producer.
 
-Проверено: два прогона текущего дерева (HTML — с `--jobs 3` и `--jobs 2`) — 0 отличий; `check.sh HEAD --quick` —
-0 отличий.
+Проверено: два прогона текущего дерева (HTML — с `--jobs 3` и `--jobs 2`, `--quick` со всеми видами: 189 ключей,
+1297 PNG) — 0 отличий; `check.sh HEAD --quick` — 0 отличий, повторный запуск берёт эталон из кэша.
 
 Растр зависит от машины: версий poppler, Chromium, libvips (sharp) и системных шрифтов (эмодзи, знаки вне
 WOFF2-подмножеств). Сравнивать можно только снимки с одной машины — `check.sh` так и делает.
 
 ## Длительность
 
-Замерено на 4 ядрах (`--jobs 3`, разброс — от соседней нагрузки на машину):
+Замерено на 4 ядрах (`--jobs 3`; на машине параллельно работали другие процессы, load average 2–7 — без них
+быстрее):
 
 | Прогон | PDF | HTML |
 |---|---|---|
-| полный | 92 книги, 184 ключа, 2828 PNG — 22–25 мин | 46 книг, 230 ключей, 782 PNG — 3–3,5 мин |
-| `--quick` | 23 книги, 46 ключей, 667 PNG — 4–6 мин | 23 книги, 115 ключей, 368 PNG — 70 с |
+| полный | 96 книг, 192 ключа — около 25 мин (до вариантов: 92 книги, 2828 PNG, 22–25 мин) | 96 книг, 672 ключа — около 7 мин (оценка по `--quick`, не замерено) |
+| `--quick` | 27 книг, 54 ключа, 819 PNG — 3,7 мин | 27 книг, 189 ключей, 1297 PNG — 1,8 мин |
 
-`check.sh` — два снимка каждого вида и сверка (сама сверка — секунды): `--quick` — 12 мин, полный — около часа.
-Узкое место PDF — обложка: фон 300 dpi с фактурой (~8 с на сборку) и его растр в pdftoppm (~9 с). Полный
-снимок PDF занимает около 400 МБ.
+`check.sh` — снимок эталона (или кэш), снимок текущего дерева и сверка (сама сверка — секунды):
+
+| Прогон | без кэша | эталон из кэша |
+|---|---|---|
+| `--quick` | 11 мин 10 с | 5 мин 35 с |
+| полный | около часа (оценка) | около 30 мин (оценка) |
+
+Узкое место PDF — обложка: фон 300 dpi с фактурой (~8 с на сборку) и его растр в pdftoppm (~9 с); сводка PDF
+(pdf-lib) — десятки миллисекунд на файл. Снимок `--quick` занимает около 160 МБ (PDF 115, HTML 48), полный —
+около 450 МБ (оценка); столько же — запись кэша.
 
 ## Ограничения
 
 - `check.sh` берёт инструменты из текущего дерева. Если рефакторинг переносит модуль, который импортирует стенд
-  (`pdf/render`, `components/interior/InteriorSpread`, `components/editor/PagePreview`, `server/spreadSample`,
-  `app/fonts`), коммиты до переноса сверяются с `--ref-tools` (инструменты в них уже должны быть) — при условии,
-  что набор книг между ними не менялся.
-- В vitest долгих прогонов нет: `tests/visual-compare.test.ts` проверяет только сверку.
+  (`pdf/render`, `components/interior/InteriorSpread`, `components/editor/PagePreview`, `components/book3d/pages`,
+  `components/cover/CoverBackPreview`, `server/spreadSample`, `app/fonts`, `app/api/covers/[file]/route`,
+  `app/api/cover-photos/[key]/route`, `modules/authoring/infrastructure/photoView`, а также модули `lib`, которые
+  зовут копии в `html-data.ts`), коммиты до переноса сверяются с `--ref-tools` (инструменты в них уже должны быть) —
+  при условии, что набор книг между ними не менялся. Если инструменты `ref` старше сводки PDF и видов `flipbook`,
+  `back`, сводка не сверяется (строка в итоге), а ключи новых видов и вариантов — отличие «нет в эталоне».
+- Копии из `src` в `html-data.ts` (`editorPreview`, `flipbookData`) не следят за оригиналом — см. «Что снимается».
+- В vitest долгих прогонов нет: `tests/visual-compare.test.ts` проверяет сверку и сводку PDF. Весь набор в
+  `tests/pdf-critical.test.ts` — `npm run test:pdf-all`.
