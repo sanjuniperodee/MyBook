@@ -7,7 +7,7 @@ import { mm } from "@/lib/book/formats";
 import { photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
-import { chapterMark, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
+import { chapterMark, PAPER, PHOTO_COLORS, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
 import {
   ANSWER,
   CHAPTER_TAIL,
@@ -104,7 +104,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     paddingBottom: mm(B + metrics.marginBottom),
     paddingLeft: mm(B + side),
     paddingRight: mm(B + side),
-    backgroundColor: "#FFFFFF",
+    backgroundColor: PAPER,
   };
 
   const body: Style = {
@@ -289,13 +289,13 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     const shot = img ? openerPhotoPlan(format, design) : null;
     const imgStyle = (r: { x: number; y: number; w: number; h: number }) => ({ position: "absolute" as const, left: mm(B + r.x), top: mm(B + r.y), width: mm(r.w), height: mm(r.h) });
     return (
-      <Page key={`open-${key}`} size={pageSize} style={{ ...pagePadding, backgroundColor: fill?.paper ?? "#FFFFFF" }}>
+      <Page key={`open-${key}`} size={pageSize} style={{ ...pagePadding, backgroundColor: fill?.paper ?? PAPER }}>
         <PdfPageLayer shapes={[...artShapes, ...frameShapes(design.frame, box, colors)]} box={box} />
         {shot && img ? (
           <>
             <PdfPageLayer shapes={shot.under} box={box} />
             {shot.card ? (
-              <View style={{ ...imgStyle(shot.card), backgroundColor: "#FFFFFF", borderWidth: OPENER.cardBorder, borderColor: "#E3DBD0", paddingTop: mm(shot.img.y - shot.card.y), paddingLeft: mm(shot.img.x - shot.card.x), transform: `rotate(${shot.card.rotate}deg)` }}>
+              <View style={{ ...imgStyle(shot.card), backgroundColor: PHOTO_COLORS.card, borderWidth: OPENER.cardBorder, borderColor: PHOTO_COLORS.openerCardEdge, paddingTop: mm(shot.img.y - shot.card.y), paddingLeft: mm(shot.img.x - shot.card.x), transform: `rotate(${shot.card.rotate}deg)` }}>
                 <Image src={{ data: img.data, format: "jpg" }} style={{ width: mm(shot.img.w), height: mm(shot.img.h) }} />
               </View>
             ) : (
@@ -315,7 +315,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         ) : null}
         {watermark}
         <Text
-          style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? "#FFFFFF" }}
+          style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? PAPER }}
           render={({ pageNumber }) => {
             options.onChapterPage?.(key, pageNumber);
             return " ";
@@ -365,7 +365,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       // (yoga считает во float32) с высотой полосы (double): в квадрате 583,937… pt округляется вверх, снимок «выше
       // полосы», и всё после него — водяной знак превью — уходит на следующую полосу, которую react-pdf отбрасывает.
       return (
-        <Page key={key} size={pageSize} style={{ backgroundColor: "#FFFFFF" }}>
+        <Page key={key} size={pageSize} style={{ backgroundColor: PAPER }}>
           {img ? <Image fixed src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: pageSize.width, height: pageSize.height }} /> : null}
           {watermark}
         </Page>
@@ -373,7 +373,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     }
     const plan = photoPagePlan(group, area, design, S);
     return (
-      <Page key={key} size={pageSize} style={{ backgroundColor: design.photos.paper ?? "#FFFFFF" }}>
+      <Page key={key} size={pageSize} style={{ backgroundColor: design.photos.paper ?? PAPER }}>
         <PdfPageLayer shapes={plan.under} box={box} />
         {plan.cells.map((c) => {
           const img = options.images.get(c.id);
@@ -437,9 +437,9 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                     paddingLeft: box.pad,
                     paddingRight: box.pad,
                     paddingBottom: box.padBottom,
-                    backgroundColor: polaroid ? "#FFFFFF" : undefined,
+                    backgroundColor: polaroid ? PHOTO_COLORS.card : undefined,
                     borderWidth: bw,
-                    borderColor: polaroid ? "#DDD6CE" : P.ink,
+                    borderColor: polaroid ? PHOTO_COLORS.polaroidEdge : P.ink,
                     borderStyle: "solid",
                     borderRadius: box.radius,
                     overflow: "hidden",
@@ -447,7 +447,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                 >
                   <Image src={{ data: img.data, format: "jpg" }} style={{ width: box.imgW - bw * 2, height: box.imgH - bw * 2, borderRadius: box.radius, objectFit: "cover" }} />
                   {polaroid && p.caption ? (
-                    <Text style={{ ...face("caveat", 500), position: "absolute", left: box.pad, right: box.pad, bottom: box.padBottom * INLINE_ROW.polaroidCaption, fontSize: polaroidFontSize(box, p.caption, bodyPt), color: "#3A332E", textAlign: "center", maxLines: 1 }}>
+                    <Text style={{ ...face("caveat", 500), position: "absolute", left: box.pad, right: box.pad, bottom: box.padBottom * INLINE_ROW.polaroidCaption, fontSize: polaroidFontSize(box, p.caption, bodyPt), color: PHOTO_COLORS.polaroidInk, textAlign: "center", maxLines: 1 }}>
                       {p.caption}
                     </Text>
                   ) : null}

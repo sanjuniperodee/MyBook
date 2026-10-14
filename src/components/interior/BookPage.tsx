@@ -10,7 +10,7 @@ import type { Locale } from "@/i18n/config";
 import { cssFont } from "@/lib/book/fonts";
 import { mm, PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
-import { chapterMark, type InteriorDesign, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
+import { chapterMark, PAPER, PHOTO_COLORS, type InteriorDesign, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
 import {
   ANSWER,
   CHAPTER_TAIL,
@@ -358,7 +358,7 @@ export function RunningHead({ kit, bookTitle, chapterTitle, recto }: { kit: Page
 type PageProps = { kit: PageKit; className?: string; style?: CSSProperties };
 
 /** Страница: фон, графика и полоса набора. Размер задаёт родитель (width/aspect-ratio). */
-function Sheet({ kit, paper = "#FFFFFF", shapes = [], className, style, children }: PageProps & { paper?: string; shapes?: Shape[]; children: ReactNode }) {
+function Sheet({ kit, paper = PAPER, shapes = [], className, style, children }: PageProps & { paper?: string; shapes?: Shape[]; children: ReactNode }) {
   return (
     <div lang={kit.language} className={cn("relative overflow-hidden", className)} style={{ background: paper, containerType: "inline-size", ...style }}>
       <PageLayer shapes={shapes} format={kit.format} />
@@ -430,8 +430,16 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
     <Sheet kit={kit} paper={fill?.paper} shapes={shapes} className={className} style={style}>
       {shot?.card ? (
         <div
-          className="absolute bg-white"
-          style={{ left: u.mm(shot.card.x), top: u.mm(shot.card.y), width: u.mm(shot.card.w), height: u.mm(shot.card.h), border: `${u.pt(OPENER.cardBorder)} solid #E3DBD0`, transform: `rotate(${shot.card.rotate}deg)` }}
+          className="absolute"
+          style={{
+            left: u.mm(shot.card.x),
+            top: u.mm(shot.card.y),
+            width: u.mm(shot.card.w),
+            height: u.mm(shot.card.h),
+            background: PHOTO_COLORS.card,
+            border: `${u.pt(OPENER.cardBorder)} solid ${PHOTO_COLORS.openerCardEdge}`,
+            transform: `rotate(${shot.card.rotate}deg)`,
+          }}
         >
           <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={photo?.url} scene={scene} />
         </div>
@@ -637,8 +645,8 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
                 width: u.mm(b.outerW),
                 height: u.mm(b.outerH),
                 padding: `${u.mm(b.pad)} ${u.mm(b.pad)} ${u.mm(b.padBottom)}`,
-                background: polaroid ? "#FFFFFF" : undefined,
-                border: bw ? `${u.pt(bw)} solid ${polaroid ? "#DDD6CE" : P.ink}` : undefined,
+                background: polaroid ? PHOTO_COLORS.card : undefined,
+                border: bw ? `${u.pt(bw)} solid ${polaroid ? PHOTO_COLORS.polaroidEdge : P.ink}` : undefined,
                 borderRadius: u.mm(b.radius),
                 boxShadow: polaroid ? "0 1px 3px rgba(0,0,0,.12)" : undefined,
                 overflow: "hidden",
@@ -663,7 +671,7 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
                     fontWeight: 500,
                     fontSize: u.pt(polaroidFontSize({ imgW: mm(b.imgW), padBottom: mm(b.padBottom) }, p.caption, S.body)),
                     lineHeight: HTML_LINE_HEIGHT.polaroidCaption,
-                    color: "#3A332E",
+                    color: PHOTO_COLORS.polaroidInk,
                     textAlign: "center",
                     whiteSpace: "nowrap",
                     overflow: "hidden",

@@ -6,7 +6,7 @@ import type { Messages } from "@/i18n/messages";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cssFont } from "@/lib/book/fonts";
 import { PT_TO_MM, type BookFormat } from "@/lib/book/formats";
-import type { InteriorDesign } from "@/lib/book/interiors";
+import { PHOTO_COLORS, type InteriorDesign } from "@/lib/book/interiors";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -341,8 +341,8 @@ export function PagePreview({
                     height: box.outerH,
                     padding: polaroid ? `${box.pad}px ${box.pad}px ${box.padBottom}px` : 0,
                     boxSizing: "border-box",
-                    background: polaroid ? "#fff" : undefined,
-                    border: polaroid ? "1px solid #ddd6ce" : style.frame === "line" ? `${Math.max(1, 0.35 * px)}px solid ${P.ink}` : undefined,
+                    background: polaroid ? PHOTO_COLORS.card : undefined,
+                    border: polaroid ? `1px solid ${PHOTO_COLORS.polaroidEdge}` : style.frame === "line" ? `${Math.max(1, 0.35 * px)}px solid ${P.ink}` : undefined,
                     boxShadow: polaroid ? "0 1px 2px rgba(0,0,0,.08)" : undefined,
                     borderRadius: box.radius,
                     overflow: "hidden",
@@ -372,7 +372,7 @@ export function PagePreview({
                         justifyContent: "center",
                         fontFamily: cssFont("caveat"),
                         fontSize: polaroidFontSize(box, p.caption, bodyPx),
-                        color: "#3a332e",
+                        color: PHOTO_COLORS.polaroidInk,
                         overflow: "hidden",
                         whiteSpace: "nowrap",
                         textOverflow: "ellipsis",
