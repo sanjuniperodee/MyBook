@@ -7,7 +7,7 @@ import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserR
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
-import { dealSourceLabels } from "@/shared/domain/deals";
+import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";

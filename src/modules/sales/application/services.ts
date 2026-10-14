@@ -1,6 +1,6 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type CustomValues, type DealRepository, type FunnelRepository, type NoteKind, type StageMilestone } from "../domain";
-import type { DealSource } from "@/shared/domain/deals";
+import type { DealSource } from "@/shared/domain/dealSources";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "./ports";
 
 export interface NewDeal {

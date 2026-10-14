@@ -1,4 +1,4 @@
-import type { DealSource } from "@/shared/domain/deals";
+import type { DealSource } from "@/shared/domain/dealSources";
 
 export { BOOK_READY_ANSWERS, type StageMilestone } from "@/modules/sales/domain/meta";
 

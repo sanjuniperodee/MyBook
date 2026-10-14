@@ -107,7 +107,7 @@ describe("нет русских строк вне словарей", () => {
     "shared/infrastructure/db/schema.ts",
     "shared/domain/channels.ts", // подписи каналов привлечения для CRM — на русском
     "shared/domain/slug.ts", // таблица транслитерации кода ссылки
-    "shared/domain/deals.ts", // подписи источников сделки для CRM — на русском
+    "shared/domain/dealSources.ts", // подписи источников сделки для CRM — на русском
     "shared/domain/templates.ts", // переменные шаблонов CRM: {имя}, {заказ}…
     "shared/domain/staff.ts", // подпись сотрудника в CRM: имя учётки по умолчанию «Администратор»
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил

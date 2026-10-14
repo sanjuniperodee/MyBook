@@ -1,5 +1,5 @@
 import { domainEvent, type DomainEvent } from "@/shared/domain";
-import type { DealSource } from "@/shared/domain/deals";
+import type { DealSource } from "@/shared/domain/dealSources";
 
 export interface DealRef {
   dealId: string;

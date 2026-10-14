@@ -558,7 +558,7 @@ export const crmStages = pgTable("crm_stages", {
 });
 
 import type { StageMilestone } from "@/modules/sales/domain/meta";
-import type { DealSource } from "@/shared/domain/deals";
+import type { DealSource } from "@/shared/domain/dealSources";
 
 /** Сделка (лид): обращение, которое ведём до заказа. */
 export const crmDeals = pgTable(

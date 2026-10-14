@@ -10,7 +10,7 @@ import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
-import { dealSources } from "@/shared/domain/deals";
+import { dealSources } from "@/shared/domain/dealSources";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
 
 export interface DealFormState {

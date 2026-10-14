@@ -6,7 +6,7 @@ import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
-import { dealSourceLabels, dealSources } from "@/shared/domain/deals";
+import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";

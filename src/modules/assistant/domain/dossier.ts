@@ -1,4 +1,4 @@
-import { dealSourceLabels } from "@/shared/domain/deals";
+import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { transcript, type AiMessage } from "./prompts";
 
 /** Всё, что известно о сделке, — для резюме и извлечения полей. */
