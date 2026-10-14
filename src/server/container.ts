@@ -1,5 +1,4 @@
 import "server-only";
-import { env } from "@/config/env";
 import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
 import { rootDb } from "@/shared/infrastructure/database";
@@ -13,20 +12,21 @@ import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
 import { SalesModule, sourceFromChannel } from "@/modules/sales";
-import { MessagingModule, type WhatsappSettings } from "@/modules/messaging";
+import { MessagingModule } from "@/modules/messaging";
 import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, ensureToken, getSettings, saveSettings, smtpConfig } from "@/modules/workspace";
+import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
 import { FeedbackModule } from "@/modules/feedback";
 import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
-import type { KaspiConfigStore, KaspiSession, PromoCode } from "@/modules/ordering";
+import type { PromoCode } from "@/modules/ordering";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
+import { kaspiConfig, whatsappSettings } from "./integration-settings";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -289,38 +289,6 @@ export class Container {
     return this;
   }
 }
-
-/** Настройки Kaspi Pay в «Интеграциях»: сессия кассира хранится одним зашифрованным JSON. */
-const kaspiConfig: KaspiConfigStore = {
-  async config() {
-    const v = await getSettings(["kaspi.enabled", "kaspi.apiUrl", "kaspi.session"]);
-    let session: KaspiSession | null = null;
-    try {
-      session = v["kaspi.session"] ? (JSON.parse(v["kaspi.session"]) as KaspiSession) : null;
-    } catch {
-      session = null;
-    }
-    return { enabled: v["kaspi.enabled"] === "on", apiUrl: v["kaspi.apiUrl"], session };
-  },
-  saveSession: (session, actorId) => saveSettings({ "kaspi.session": session ? JSON.stringify(session) : "" }, actorId),
-  setEnabled: (enabled, actorId) => saveSettings({ "kaspi.enabled": enabled ? "on" : "off" }, actorId),
-  saveApiUrl: (apiUrl, actorId) => saveSettings({ "kaspi.apiUrl": apiUrl }, actorId),
-  webhookSecret: () => ensureToken("kaspi.webhookSecret"),
-};
-
-/** WhatsApp: Wazzup или свой шлюз GOWA — выбирается в «Интеграциях». */
-const whatsappSettings: WhatsappSettings = {
-  provider: async () => ((await getSettings(["whatsapp.provider"]))["whatsapp.provider"] === "gowa" ? "gowa" : "wazzup"),
-  gowa: async () => {
-    const v = await getSettings(["gowa.baseUrl", "gowa.basicAuth"]);
-    return { baseUrl: v["gowa.baseUrl"], basicAuth: v["gowa.basicAuth"] };
-  },
-  gowaWebhook: async () => {
-    const callback = (await getSettings(["gowa.callbackUrl"]))["gowa.callbackUrl"];
-    // По умолчанию — публичный адрес сайта; в docker compose — внутренний (GOWA_CALLBACK_URL), можно сменить в «Интеграциях».
-    return { url: callback || `${env.appUrl}/api/integrations/gowa`, secret: await ensureToken("gowa.webhookSecret") };
-  },
-};
 
 const g = globalThis as unknown as { __mybookContainer?: Container };
 
