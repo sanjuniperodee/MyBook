@@ -20,7 +20,7 @@ import { isPhoneEmail } from "@/modules/identity/domain";
 import { formatPhone } from "@/shared/domain/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
-import { dealSourceLabels } from "@/modules/sales";
+import { dealSourceLabels } from "@/shared/domain/deals";
 
 export const metadata = { title: "Клиент" };
 

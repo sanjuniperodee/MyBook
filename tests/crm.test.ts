@@ -5,7 +5,8 @@ import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, s
 import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
-import { automationActions, automationTriggers, fillTemplate, isTrigger } from "@/modules/automation/domain/meta";
+import { automationActions, automationTriggers, isTrigger } from "@/modules/automation/domain/meta";
+import { fillTemplate } from "@/shared/domain/templates";
 import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/modules/workspace/infrastructure/mentions";

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
 import { adminLabel, staffOptions } from "@/modules/access/ui";
-import { dealSourceLabels, dealSources } from "@/modules/sales";
+import { dealSourceLabels, dealSources } from "@/shared/domain/deals";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";

@@ -9,7 +9,8 @@ import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError
 import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
-import { dealSources, stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
+import { stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
+import { dealSources } from "@/shared/domain/deals";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
 
 export interface DealFormState {

@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { adminLabel, staffOptions } from "@/modules/access/ui";
-import { dealSourceLabels } from "@/modules/sales";
+import { dealSourceLabels } from "@/shared/domain/deals";
 import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";

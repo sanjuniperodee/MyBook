@@ -1,5 +1,5 @@
 import { AggregateRoot } from "@/shared/domain";
-import { dealSourceLabels, type DealSource } from "@/modules/sales/domain/meta";
+import { dealSourceLabels, type DealSource } from "@/shared/domain/deals";
 import { formatPrice } from "@/config/site";
 import { normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { SalesEvents } from "./events";

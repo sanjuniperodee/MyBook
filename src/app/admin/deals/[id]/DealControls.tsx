@@ -12,7 +12,7 @@ import { Ban, Inbox, Merge, UserRound } from "lucide-react";
 import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
+import { dealSourceLabels, dealSources } from "@/shared/domain/deals";
 import { cn } from "@/lib/class-names";
 
 interface Stage {

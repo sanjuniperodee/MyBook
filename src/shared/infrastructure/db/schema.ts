@@ -557,8 +557,8 @@ export const crmStages = pgTable("crm_stages", {
   ...timestamps,
 });
 
-export { dealSources, type DealSource, type StageMilestone } from "@/modules/sales/domain/meta";
-import type { DealSource, StageMilestone } from "@/modules/sales/domain/meta";
+import type { StageMilestone } from "@/modules/sales/domain/meta";
+import type { DealSource } from "@/shared/domain/deals";
 
 /** Сделка (лид): обращение, которое ведём до заказа. */
 export const crmDeals = pgTable(

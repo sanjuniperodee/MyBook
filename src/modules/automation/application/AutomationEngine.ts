@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock, Logger } from "@/shared/application";
-import { conditionNumber, fillTemplate, linkFor, matches, needsWorkTime, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
+import { conditionNumber, linkFor, matches, needsWorkTime, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
+import { fillTemplate } from "@/shared/domain/templates";
 import type { AppInfo, AutomationEffects, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader, WorkSchedule } from "./ports";
 
 /** Защита от зацикливания: правило двигает сделку → срабатывает правило на этап → … */

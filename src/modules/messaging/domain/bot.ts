@@ -1,4 +1,4 @@
-import { fillTemplate } from "@/modules/automation/domain/meta";
+import { fillTemplate } from "@/shared/domain/templates";
 import { matchOption, parseDateAnswer, questionText, type BotConfig } from "@/modules/messaging/domain/botConfig";
 
 export type { BotConfig } from "@/modules/messaging/domain/botConfig";

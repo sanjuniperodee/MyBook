@@ -5,7 +5,7 @@ import { GowaForm } from "./whatsapp/GowaForm";
 import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { env } from "@/config/env";
-import { templateVars } from "@/modules/automation/domain/meta";
+import { templateVars } from "@/shared/domain/templates";
 import { AiForm, Blocklist, EmailForm, ProofreadForm, SmtpForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { BotForm } from "./BotForm";

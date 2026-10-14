@@ -8,7 +8,7 @@ import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
 
-export { currentMonth, shiftMonth, type PlanProgress, dealSourceLabels, dealSources, sourceFromChannel, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type DealSource, type StageMilestone } from "./domain";
+export { currentMonth, shiftMonth, type PlanProgress, sourceFromChannel, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type StageMilestone } from "./domain";
 export type { DealView, NewDeal } from "./application";
 export { ReceiptError, type ReceiptRow } from "./infrastructure/receipts";
 export type { DealAgreement } from "./infrastructure/agreements";

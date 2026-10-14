@@ -3,7 +3,6 @@
   "crossModule": [
     "src/modules/access/domain/StaffContext.ts -> src/modules/identity/domain/Login.ts",
     "src/modules/access/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/assistant/domain/dossier.ts -> src/modules/sales/domain/meta.ts",
     "src/modules/assistant/infrastructure/connection.ts -> src/modules/workspace/index.ts",
     "src/modules/assistant/infrastructure/data.ts -> src/modules/messaging/index.ts",
     "src/modules/assistant/infrastructure/data.ts -> src/modules/workspace/index.ts",
@@ -15,7 +14,6 @@
     "src/modules/clients/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
     "src/modules/clients/infrastructure/persistence.ts -> src/modules/access/ui/index.ts",
     "src/modules/marketing/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/messaging/domain/bot.ts -> src/modules/automation/domain/meta.ts",
     "src/modules/messaging/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
     "src/modules/messaging/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
     "src/modules/messaging/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
@@ -53,7 +51,6 @@
     "src/shared/infrastructure/db/schema.ts -> src/modules/ordering/domain/GiftCard.ts",
     "src/shared/infrastructure/db/schema.ts -> src/modules/ordering/domain/Order.ts",
     "src/shared/infrastructure/db/schema.ts -> src/modules/ordering/domain/OrderStatus.ts",
-    "src/shared/infrastructure/db/schema.ts -> src/modules/sales/domain/meta.ts",
     "src/shared/infrastructure/db/schema.ts -> src/modules/sales/domain/meta.ts"
   ]
 }

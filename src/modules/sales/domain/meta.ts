@@ -1,19 +1,4 @@
-/** Справочники сделок без серверных зависимостей — для интерфейса и сервера. */
-export const dealSources = ["site", "whatsapp", "instagram", "telegram", "call", "email", "gift", "referral", "repeat", "manual"] as const;
-export type DealSource = (typeof dealSources)[number];
-
-export const dealSourceLabels: Record<DealSource, string> = {
-  site: "Сайт",
-  whatsapp: "WhatsApp",
-  instagram: "Instagram",
-  telegram: "Telegram",
-  call: "Звонок",
-  email: "E-mail",
-  gift: "Сертификат",
-  referral: "Рекомендация",
-  repeat: "Повторная продажа",
-  manual: "Вручную",
-};
+/** Справочники сделок без серверных зависимостей — для интерфейса и сервера. Источник сделки — в shared/domain/deals. */
 
 /** События на сайте, по которым сделка сама идёт по воронке. */
 export const stageMilestones = {
