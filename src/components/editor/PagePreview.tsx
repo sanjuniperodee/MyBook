@@ -7,7 +7,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { cssFont } from "@/lib/book/fonts";
 import { PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
-import { interiorMetrics } from "@/lib/book/layout";
+import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { AnswerBlockView, Divider, Folio, OpenerPage, pageKit, QuestionHeading, RunningHead } from "@/components/interior/BookPage";
@@ -108,7 +108,8 @@ export function PagePreview({
   const m = interiorMetrics[format.id];
   const W = format.widthMm;
   const H = format.heightMm;
-  const side = (m.marginInner + m.marginOuter) / 2;
+  const side = pageSide(format);
+  const area = textArea(format);
   const scroll = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const measureRefs = useRef(new Map<string, HTMLDivElement>());
@@ -128,8 +129,8 @@ export function PagePreview({
   }, []);
 
   const px = pageW / W; // пикселей на миллиметр
-  const textW = (W - side * 2) * px;
-  const textH = (H - m.marginTop - m.marginBottom) * px;
+  const textW = area.w * px;
+  const textH = area.h * px;
   const gap = side * 2 * px;
   const kit = pageKit(design, format, pxUnits(px), language);
   const S = kit.sizes;

@@ -8,6 +8,7 @@ import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
 import type { InteriorDesign, InteriorSizes } from "./interiors";
 import type { Shape } from "./interior-art";
 import { n } from "./cover-kit";
+import { interiorMetrics, pageSide, textArea } from "./page-geometry";
 
 /**
  * Оформление снимка: без рамки, тонкая линия, двойная рамка, полароид, уголки старого альбома, скотч,
@@ -42,9 +43,9 @@ export interface PhotoPagePlan {
 }
 
 /** Полоса набора фотостраницы — та же, что у текста (поля симметричны, как в PDF). */
-export function photoArea(format: BookFormat, margins: { marginTop: number; marginBottom: number; marginInner: number; marginOuter: number }): Rect {
-  const side = (margins.marginInner + margins.marginOuter) / 2;
-  return { x: side, y: margins.marginTop, w: format.widthMm - side * 2, h: format.heightMm - margins.marginTop - margins.marginBottom };
+export function photoArea(format: BookFormat): Rect {
+  const { w, h } = textArea(format);
+  return { x: pageSide(format), y: interiorMetrics[format.id].marginTop, w, h };
 }
 
 /** Места под снимки на странице. «Сетка» — до четырёх фото, «половинки» — по два одно над другим. */
@@ -247,12 +248,13 @@ export interface OpenerPhotoPlan {
 export const OPENER_POLAROID_RATIO = 1.15;
 
 /** Где на начальной полосе лежит снимок главы и с какой высоты пойдёт название. */
-export function openerPhotoPlan(format: BookFormat, design: InteriorDesign, margins: { marginTop: number; marginBottom: number }): OpenerPhotoPlan | null {
+export function openerPhotoPlan(format: BookFormat, design: InteriorDesign): OpenerPhotoPlan | null {
   const kind = design.opener.photo;
   if (!kind) return null;
   const W = format.widthMm;
   const H = format.heightMm;
-  const areaH = H - margins.marginTop - margins.marginBottom;
+  const margins = interiorMetrics[format.id];
+  const areaH = textArea(format).h;
   const textTop = (bottom: number) => Math.min(0.75, (bottom + 13 - margins.marginTop) / areaH);
   if (kind === "bleed") {
     const h = H * 0.52;

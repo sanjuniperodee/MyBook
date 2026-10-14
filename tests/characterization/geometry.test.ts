@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { formats, type BookFormat, type FormatId } from "@/lib/book/formats";
 import { interiorDesigns, type InteriorDesign } from "@/lib/book/interiors";
-import { openerFlow, textArea, textMetrics } from "@/lib/book/layout";
+import { textMetrics } from "@/lib/book/layout";
+import { openerFlow, textArea } from "@/lib/book/page-geometry";
 
 /** Характеристика геометрии полосы: полоса набора, начальная полоса главы и метрики оценки объёма — все форматы × оформления. */
 

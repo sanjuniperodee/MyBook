@@ -7,49 +7,10 @@ import { applyGender } from "../content/gender";
 import { getTheme } from "../content/themes";
 import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { framedBox, layoutInline, MAX_INLINE_HEIGHT_SHARE, normalizeStyle, splitParagraphs } from "./inline-photo";
-import { formats, getFormat, MM_TO_PT, type BookFormat, type FormatId } from "./formats";
+import { getFormat, MM_TO_PT, type BookFormat } from "./formats";
 import type { Typography } from "./fonts";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
-import type { PageBox } from "./interior-art";
-
-export interface InteriorMetrics {
-  /** Поля от линии реза, мм. */
-  marginTop: number;
-  marginBottom: number;
-  marginInner: number;
-  marginOuter: number;
-  /** Масштаб кегля относительно A5. */
-  scale: number;
-}
-
-export const interiorMetrics: Record<FormatId, InteriorMetrics> = {
-  a5: { marginTop: 17, marginBottom: 21, marginInner: 18, marginOuter: 16, scale: 1 },
-  square: { marginTop: 22, marginBottom: 24, marginInner: 24, marginOuter: 22, scale: 1.12 },
-};
-
-export function textArea(format: BookFormat) {
-  const m = interiorMetrics[format.id];
-  return {
-    w: format.widthMm - m.marginInner - m.marginOuter,
-    h: format.heightMm - m.marginTop - m.marginBottom,
-  };
-}
-
-/** Обрезной формат с вылетами и отступ рамки парадных полос — для графики из interior-art. */
-export function pageBox(format: BookFormat, bleed: number): PageBox {
-  const m = interiorMetrics[format.id];
-  return { w: format.widthMm, h: format.heightMm, bleed, inset: Math.min(m.marginTop, m.marginOuter) * 0.55 };
-}
-
-/**
- * Начальная полоса главы: где начинается блок с номером и названием (мм от верхнего обреза)
- * и во сколько раз полоса набора больше, чем у A5, — по этому масштабу рисуются картинки.
- */
-export function openerFlow(format: BookFormat, design: InteriorDesign) {
-  const m = interiorMetrics[format.id];
-  const h = textArea(format).h;
-  return { top: m.marginTop + design.opener.top * h, k: h / textArea(formats.a5).h };
-}
+import { interiorMetrics, textArea } from "./page-geometry";
 
 export interface ContentItem {
   id: string;

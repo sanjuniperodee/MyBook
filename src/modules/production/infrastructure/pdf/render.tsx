@@ -18,7 +18,8 @@ import {
   spineWidthMm,
   type CoverGeometry,
 } from "@/lib/book/formats";
-import { buildBookContent, interiorMetrics, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { buildBookContent, photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/interiors";
 import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
@@ -58,9 +59,9 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
   const pxPerMm = dpi / 25.4;
   const result = new Map<string, PreparedImage>();
   const openerIds = new Set(content.chapters.flatMap((c) => (c.openerPhoto ? [c.openerPhoto.id] : [])));
-  const openerShot = openerPhotoPlan(content.format, content.interior, interiorMetrics[content.format.id]);
+  const openerShot = openerPhotoPlan(content.format, content.interior);
   // Места на фотостраницах — по той же раскладке, что и в вёрстке: снимок готовим ровно под своё место.
-  const area = photoArea(content.format, interiorMetrics[content.format.id]);
+  const area = photoArea(content.format);
   const sizes = interiorSizes(content.interior, interiorMetrics[content.format.id].scale);
   const cells = new Map<string, PhotoCell>();
   for (const list of [...content.chapters.map((c) => c.photos), content.galleryPhotos])

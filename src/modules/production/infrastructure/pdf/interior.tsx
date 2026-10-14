@@ -4,7 +4,8 @@ import { Fragment } from "react";
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { mm } from "@/lib/book/formats";
-import { interiorMetrics, openerFlow, pageBox, photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import { chapterMark, DISPLAY_TOP, interiorSizes, splitLeadIn, trackingPt, VIGNETTE_RULE, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing } from "@/lib/book/interior-art";
@@ -67,10 +68,11 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const P = design.palette;
   const typo = design.type;
   const pageSize = { width: mm(format.widthMm + B * 2), height: mm(format.heightMm + B * 2) };
-  const side = (metrics.marginInner + metrics.marginOuter) / 2;
+  const side = pageSide(format);
   const bodyPt = S.body;
-  const textWidthPt = mm(format.widthMm - side * 2);
-  const textHeightPt = mm(format.heightMm - metrics.marginTop - metrics.marginBottom);
+  const typeArea = textArea(format);
+  const textWidthPt = mm(typeArea.w);
+  const textHeightPt = mm(typeArea.h);
   const box = pageBox(format, B);
   const openerAt = openerFlow(format, design);
   const flow = options.flow ?? emptyFlow();
@@ -262,7 +264,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors, seed: number ?? 0 }) : [];
     // Глава открывается своим снимком (opener.photo): фото сверху, название — ниже него.
     const img = photo ? options.images.get(photo.id) : undefined;
-    const shot = img ? openerPhotoPlan(format, design, metrics) : null;
+    const shot = img ? openerPhotoPlan(format, design) : null;
     const imgStyle = (r: { x: number; y: number; w: number; h: number }) => ({ position: "absolute" as const, left: mm(B + r.x), top: mm(B + r.y), width: mm(r.w), height: mm(r.h) });
     return (
       <Page key={`open-${key}`} size={pageSize} style={{ ...pagePadding, backgroundColor: fill?.paper ?? "#FFFFFF" }}>
@@ -328,7 +330,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   };
 
   // ── Фотостраница: места, рамки и подписи — из photo-pages (та же раскладка у превью и у подготовки снимков) ──
-  const area = photoArea(format, metrics);
+  const area = photoArea(format);
   const captionStyle = (size: number): Style => {
     if (design.photos.caption === "hand") return { ...face("caveat", 500), fontSize: size, lineHeight: 1.15, color: P.ink };
     if (design.photos.caption === "label") return { ...label(P.muted, size), lineHeight: 1.3 };

@@ -9,7 +9,7 @@ import { messagesFor } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { cssFont } from "@/lib/book/fonts";
 import { mm, PT_TO_MM, type BookFormat } from "@/lib/book/formats";
-import { interiorMetrics, openerFlow, pageBox, textArea } from "@/lib/book/layout";
+import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import {
   chapterMark,
   DISPLAY_TOP,
@@ -169,9 +169,6 @@ export function LeadParagraph({ kit, text, leadIn, style, ...rest }: { kit: Page
   );
 }
 
-/** Ширина полосы набора, мм. */
-const textWidthMm = (kit: PageKit) => kit.format.widthMm - sideOf(kit) * 2;
-
 /**
  * Блок набора ответа — как в PDF (answer-blocks): абзац, лид, выделенный короткий ответ, список, стихи.
  * Остальные атрибуты (data-*) — на корневом элементе блока.
@@ -199,7 +196,7 @@ export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit
             marginTop: u.pt(S.body * 0.15),
             marginBottom: u.pt(S.body * 0.6),
             ...(centered
-              ? { ...text, textAlign: "center", paddingInline: u.mm(textWidthMm(kit) * 0.08) }
+              ? { ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * 0.08) }
               : { ...text, borderLeft: `${u.pt(1.6)} solid ${P.accent}`, paddingLeft: u.pt(S.body * 1.1) }),
             ...style,
           }}
@@ -227,7 +224,7 @@ export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit
             ...paragraphCss(kit),
             hyphens: "manual",
             textAlign: centered ? "center" : "left",
-            paddingLeft: centered ? 0 : u.mm(textWidthMm(kit) * 0.08),
+            paddingLeft: centered ? 0 : u.mm(textArea(kit.format).w * 0.08),
             marginTop: u.pt(S.body * 0.2),
             marginBottom: u.pt(S.body * 0.65),
             ...style,
@@ -302,7 +299,6 @@ function Vignette({ kit, rule, colors, align = "center" }: { kit: PageKit; rule:
 // ─── колонцифра и колонтитул ────────────────────────────────────────────────
 
 const metricsOf = (kit: PageKit) => interiorMetrics[kit.format.id];
-const sideOf = (kit: PageKit) => (metricsOf(kit).marginInner + metricsOf(kit).marginOuter) / 2;
 
 /** Колонцифра. recto — правая (нечётная) полоса: «снаружи» значит справа. */
 export function Folio({ kit, children, recto }: { kit: PageKit; children: ReactNode; recto: boolean }) {
@@ -313,7 +309,7 @@ export function Folio({ kit, children, recto }: { kit: PageKit; children: ReactN
   return (
     <div
       className="absolute"
-      style={{ ...font, bottom: u.mm(m.marginBottom / 2 - 2), left: outer ? u.mm(sideOf(kit)) : 0, right: outer ? u.mm(sideOf(kit)) : 0, textAlign: outer ? (recto ? "right" : "left") : "center" }}
+      style={{ ...font, bottom: u.mm(m.marginBottom / 2 - 2), left: outer ? u.mm(pageSide(kit.format)) : 0, right: outer ? u.mm(pageSide(kit.format)) : 0, textAlign: outer ? (recto ? "right" : "left") : "center" }}
     >
       {children}
     </div>
@@ -332,12 +328,12 @@ export function RunningHead({ kit, bookTitle, chapterTitle, recto }: { kit: Page
     <>
       <div
         className="absolute truncate"
-        style={{ ...labelCss(kit, design.palette.muted, S.runningHead), top: u.mm(m.marginTop * 0.36), left: u.mm(sideOf(kit)), right: u.mm(sideOf(kit)), textAlign: outer ? (recto ? "right" : "left") : "center" }}
+        style={{ ...labelCss(kit, design.palette.muted, S.runningHead), top: u.mm(m.marginTop * 0.36), left: u.mm(pageSide(kit.format)), right: u.mm(pageSide(kit.format)), textAlign: outer ? (recto ? "right" : "left") : "center" }}
       >
         {recto ? chapterTitle : bookTitle}
       </div>
       {design.runningHead === "ruled" ? (
-        <div className="absolute" style={{ top: u.mm(m.marginTop * 0.62), left: u.mm(sideOf(kit)), right: u.mm(sideOf(kit)), height: u.pt(0.4), background: design.palette.rule }} />
+        <div className="absolute" style={{ top: u.mm(m.marginTop * 0.62), left: u.mm(pageSide(kit.format)), right: u.mm(pageSide(kit.format)), height: u.pt(0.4), background: design.palette.rule }} />
       ) : null}
     </>
   );
@@ -364,10 +360,9 @@ function Sheet({ kit, paper = "#FFFFFF", shapes = [], className, style, children
 export function TextArea({ kit, children, className, style }: { kit: PageKit; children: ReactNode; className?: string; style?: CSSProperties }) {
   const m = metricsOf(kit);
   const area = textArea(kit.format);
-  const side = sideOf(kit);
   const { u } = kit;
   return (
-    <div className={cn("absolute", className)} style={{ left: u.mm(side), top: u.mm(m.marginTop), width: u.mm(kit.format.widthMm - side * 2), height: u.mm(area.h), ...style }}>
+    <div className={cn("absolute", className)} style={{ left: u.mm(pageSide(kit.format)), top: u.mm(m.marginTop), width: u.mm(area.w), height: u.mm(area.h), ...style }}>
       {children}
     </div>
   );
@@ -413,7 +408,7 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
   const colors = fill ?? design.palette;
   const flow = openerFlow(format, design);
   const mark = number ? chapterMark(design, number, messagesFor(kit.language).book.chapter) : null;
-  const shot = photo ? openerPhotoPlan(format, design, metricsOf(kit)) : null;
+  const shot = photo ? openerPhotoPlan(format, design) : null;
   const shapes = [
     ...(art ? openerArtShapes(art, { w: format.widthMm, h: format.heightMm, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : []),
     ...frame(kit, colors),
@@ -476,7 +471,7 @@ export interface PagePhoto {
 export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProps & { photos: PagePhoto[]; /** С какого пейзажа-заглушки начинать. */ scene?: number }) {
   const { design, format, sizes: S, u } = kit;
   const P = design.palette;
-  const plan = photoPagePlan(photos, photoArea(format, metricsOf(kit)), design, S);
+  const plan = photoPagePlan(photos, photoArea(format), design, S);
   const caption = (size: number): CSSProperties =>
     design.photos.caption === "hand"
       ? { fontFamily: cssFont("caveat"), fontWeight: 500, fontSize: u.pt(size), lineHeight: 1.15, color: P.ink }
@@ -605,8 +600,7 @@ type RowItem = { p: EntryPhoto; style: InlinePhotoStyle };
 function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
-  const textW = textWidthMm(kit);
-  const textH = textArea(kit.format).h;
+  const { w: textW, h: textH } = textArea(kit.format);
   const align = row[0].style.align;
   return (
     <div
@@ -715,8 +709,8 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
 }) {
   const { design, sizes: S, u } = kit;
   const area = textArea(kit.format);
-  const side = sideOf(kit);
-  const textW = kit.format.widthMm - side * 2;
+  const side = pageSide(kit.format);
+  const textW = area.w;
   return (
     <Sheet kit={kit} className={className} style={style}>
       <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={chapterTitle} recto={recto} />
