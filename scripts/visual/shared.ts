@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import sharp from "sharp";
+import type { PdfSummary } from "./pdf-digest";
 
 /**
  * Общее для снимков (pdf-snapshot, html-snapshot) и сверки (compare). Снимок — каталог с manifest.json
@@ -20,6 +21,8 @@ export interface ManifestEntry {
   sha256: string[];
   /** Сборка упала: текст ошибки вместо страниц. */
   error?: string;
+  /** Только у PDF: хеш файла без метаданных и структура полос. */
+  pdf?: PdfSummary;
 }
 
 export type Manifest = Record<string, ManifestEntry>;

@@ -1,7 +1,8 @@
 /**
  * Эталонные PDF (S2): для каждой книги набора (tests/fixtures/books.ts) — блок (renderInterior, "print")
- * и обложка-развёртка (renderCover), растр pdftoppm 150 dpi по страницам и manifest.json. Ключи —
- * pdf:block:<книга> и pdf:cover:<книга>. Сверка — compare.ts, с эталонным коммитом — check.sh.
+ * и обложка-развёртка (renderCover), растр pdftoppm 150 dpi по страницам, сводка PDF (pdf-digest.ts: хеш без
+ * метаданных, боксы, фото, шрифты) и manifest.json. Ключи — pdf:block:<книга> и pdf:cover:<книга>. Сверка —
+ * compare.ts, с эталонным коммитом — check.sh.
  *
  * Запуск из корня репозитория:
  *   npx tsx --import ./scripts/preload.mjs scripts/visual/pdf-snapshot.ts --out <каталог> [--filter <подстрока ключа>] [--quick] [--jobs N]
@@ -18,7 +19,8 @@ import { fixtureBooks } from "../../tests/fixtures/books";
 // Не React-хук, несмотря на имя: под другим именем правило хуков не путает его с ними.
 import { useFixtureStorage as openFixtureStorage } from "../../tests/fixtures/photos";
 import { freezeRuntime } from "./freeze";
-import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, ROOT, runPool, seconds, snapshotFlags, writeManifest, type Manifest } from "./shared";
+import { pdfSummary } from "./pdf-digest";
+import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, ROOT, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry } from "./shared";
 
 const DPI = 150;
 const SCRIPT = fileURLToPath(import.meta.url);
@@ -50,6 +52,12 @@ async function rasterize(pdf: Buffer, out: string, key: string): Promise<string[
   );
 }
 
+/** Запись манифеста PDF: растр по страницам и сводка самого файла. */
+async function pdfEntry(pdf: Buffer, out: string, key: string): Promise<ManifestEntry> {
+  const [entry, summary] = await Promise.all([rasterize(pdf, out, key).then(entryFor), pdfSummary(pdf)]);
+  return { ...entry, pdf: summary };
+}
+
 /** Дочерний процесс: одна книга → записи манифеста её ключей (через IPC). */
 async function worker(task: Task) {
   freezeRuntime();
@@ -61,8 +69,8 @@ async function worker(task: Task) {
   const want = (key: string) => task.keys.includes(key);
   // Растр блока идёт в pdftoppm параллельно со сборкой обложки.
   const [block, cover] = await Promise.all([
-    want(blockKey(task.book)) ? rasterize(interior.pdf, task.out, blockKey(task.book)).then(entryFor) : null,
-    want(coverKey(task.book)) ? render.renderCover(fixture.bundle, interior.pageCount, "print").then((c) => rasterize(c.pdf, task.out, coverKey(task.book))).then(entryFor) : null,
+    want(blockKey(task.book)) ? pdfEntry(interior.pdf, task.out, blockKey(task.book)) : null,
+    want(coverKey(task.book)) ? render.renderCover(fixture.bundle, interior.pageCount, "print").then((c) => pdfEntry(c.pdf, task.out, coverKey(task.book))) : null,
   ]);
   const result: Manifest = {};
   if (block) result[blockKey(task.book)] = block;

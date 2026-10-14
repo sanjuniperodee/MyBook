@@ -1,8 +1,9 @@
 /**
  * Сверка двух снимков (S3, S4) — pdf-snapshot или html-snapshot: эталон <ref> и текущий <cur>.
  * Отличие — любое: ключа нет в одном из снимков, другое число страниц, другая ошибка сборки, хотя бы один
- * пиксель (порог 0). Для различающихся страниц — PNG в <cur>/diff/: отличающиеся пиксели красным поверх
- * бледной текущей страницы.
+ * пиксель (порог 0), у PDF — другой хеш файла без метаданных (в том числе при том же растре) или структура
+ * полос. Для различающихся страниц — PNG в <cur>/diff/: отличающиеся пиксели красным поверх бледной текущей
+ * страницы.
  *
  * Запуск: npx tsx scripts/visual/compare.ts <ref> <cur> — код выхода 1 при любом отличии, 2 — при ошибке.
  */
@@ -10,6 +11,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
+import { pdfNotes } from "./pdf-digest";
 import { keyDir, pagePath, readManifest, readPixels, type ManifestEntry, type Pixels } from "./shared";
 
 export interface Difference {
@@ -17,13 +19,19 @@ export interface Difference {
   text: string;
   /** PNG-диффы различающихся страниц. */
   diffs: string[];
+  /** Растр совпал, а PDF — нет. */
+  pdfOnly?: boolean;
 }
 
 export interface CompareReport {
   keys: number;
   pages: number;
   differences: Difference[];
+  /** Ключи, у которых сводка PDF есть только в одном снимке (эталон снят инструментами без неё): сверен только растр. */
+  pdfUnchecked: number;
 }
+
+export const PDF_ONLY = "PDF изменился при том же растре";
 
 /** Доля исходного цвета на совпадающих пикселях дифф-картинки: остальное — белый. */
 const FADE = 0.25;
@@ -69,6 +77,15 @@ async function comparePages(key: string, ref: ManifestEntry, cur: ManifestEntry,
   return notes.length ? { key, text: notes.join("; "), diffs } : null;
 }
 
+/** Растр и сводка PDF ключа: хеш файла другой — отличие, даже если пиксели совпали. */
+async function compareEntry(key: string, ref: ManifestEntry, cur: ManifestEntry, dirs: { ref: string; cur: string; diff: string }): Promise<Difference | null> {
+  const raster = await comparePages(key, ref, cur, dirs);
+  if (!ref.pdf || !cur.pdf || ref.pdf.sha256 === cur.pdf.sha256) return raster;
+  const notes = pdfNotes(ref.pdf, cur.pdf);
+  if (raster) return notes.length ? { ...raster, text: [raster.text, ...notes].join("; ") } : raster;
+  return { key, text: notes.length ? `${PDF_ONLY}: ${notes.join("; ")}` : PDF_ONLY, diffs: [], pdfOnly: true };
+}
+
 /** Сравнивает снимки по манифестам; диффы пишет в <cur>/diff/ (прежние удаляются). */
 export async function compareSnapshots(refDir: string, curDir: string): Promise<CompareReport> {
   const [ref, cur] = await Promise.all([readManifest(refDir), readManifest(curDir)]);
@@ -77,6 +94,7 @@ export async function compareSnapshots(refDir: string, curDir: string): Promise<
   const keys = [...new Set([...Object.keys(ref), ...Object.keys(cur)])].sort();
   const differences: Difference[] = [];
   let pages = 0;
+  let pdfUnchecked = 0;
   for (const key of keys) {
     const a = ref[key];
     const b = cur[key];
@@ -87,11 +105,12 @@ export async function compareSnapshots(refDir: string, curDir: string): Promise<
     pages += Math.max(a.pages, b.pages);
     if (a.error !== b.error) differences.push({ key, text: `ошибка сборки: ${a.error ?? "нет"} → ${b.error ?? "нет"}`, diffs: [] });
     else {
-      const d = await comparePages(key, a, b, dirs);
+      if (!a.pdf !== !b.pdf) pdfUnchecked++;
+      const d = await compareEntry(key, a, b, dirs);
       if (d) differences.push(d);
     }
   }
-  return { keys: keys.length, pages, differences };
+  return { keys: keys.length, pages, differences, pdfUnchecked };
 }
 
 async function main() {
@@ -105,6 +124,9 @@ async function main() {
   for (const d of report.differences) console.log(`✗ ${d.key} — ${d.text}${d.diffs.length ? `\n  ${d.diffs[0]}${d.diffs.length > 1 ? ` и ещё ${d.diffs.length - 1}` : ""}` : ""}`);
   const total = `ключей ${report.keys}, страниц ${report.pages}`;
   console.log(report.differences.length ? `Отличия: ключей с отличиями ${report.differences.length}; всего ${total}` : `Отличий нет: ${total}`);
+  const pdfOnly = report.differences.filter((d) => d.pdfOnly).length;
+  if (pdfOnly) console.log(`${PDF_ONLY}: ключей ${pdfOnly}`);
+  if (report.pdfUnchecked) console.log(`Сводка PDF есть только в одном снимке: ключей ${report.pdfUnchecked} — сверен только растр`);
   process.exitCode = report.differences.length ? 1 : 0;
 }
 
