@@ -7,7 +7,29 @@ import { mm } from "@/lib/book/formats";
 import { photoPages, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
-import { chapterMark, DISPLAY_TOP, interiorSizes, splitLeadIn, trackingPt, VIGNETTE_RULE, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
+import { chapterMark, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
+import {
+  ANSWER,
+  CHAPTER_TAIL,
+  DISPLAY_TOP,
+  DIVIDER,
+  FOLIO,
+  folioBottom,
+  FRONT,
+  HEADING,
+  INLINE_ROW,
+  interiorSizes,
+  KEEP_WITH_NEXT,
+  LEAD_IN,
+  OPENER,
+  RUNNING_HEAD,
+  runningHeadTop,
+  runningRuleTop,
+  splitLeadIn,
+  TOC,
+  trackingPt,
+  VIGNETTE_RULE,
+} from "@/lib/book/typesetting";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing } from "@/lib/book/interior-art";
 import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
@@ -127,9 +149,9 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   // ── Колонцифра и колонтитул: «снаружи» — у внешнего края (нечётные полосы — правые) ──
   const outer = design.folio.align === "outer";
   const folioStyle: Style = {
-    ...(design.folio.font === "label" ? label(P.muted, S.folio * 0.85) : { ...face(typo.body, 400), fontSize: S.folio, color: P.muted }),
+    ...(design.folio.font === "label" ? label(P.muted, S.folio * FOLIO.labelSize) : { ...face(typo.body, 400), fontSize: S.folio, color: P.muted }),
     position: "absolute",
-    bottom: mm(B + metrics.marginBottom / 2 - 2),
+    bottom: mm(B + folioBottom(format)),
     left: outer ? mm(B + side) : 0,
     right: outer ? mm(B + side) : 0,
     textAlign: "center",
@@ -146,7 +168,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   const runningHead = (chapterTitle: string) => {
     if (design.runningHead === "none") return null;
-    const style: Style = { ...label(P.muted, S.runningHead), position: "absolute", top: mm(B + metrics.marginTop * 0.36), left: mm(B + side), right: mm(B + side), maxLines: 1, textOverflow: "ellipsis" };
+    const style: Style = { ...label(P.muted, S.runningHead), position: "absolute", top: mm(B + runningHeadTop(format)), left: mm(B + side), right: mm(B + side), maxLines: 1, textOverflow: "ellipsis" };
     const verso = { ...style, textAlign: outer ? "left" : "center" } as Style;
     const recto = { ...style, textAlign: outer ? "right" : "center" } as Style;
     return (
@@ -154,7 +176,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         <Text fixed style={verso} render={({ pageNumber }) => (pageNumber % 2 === 0 ? content.title : "")} />
         <Text fixed style={recto} render={({ pageNumber }) => (pageNumber % 2 === 1 ? chapterTitle : "")} />
         {design.runningHead === "ruled" ? (
-          <View fixed style={{ position: "absolute", top: mm(B + metrics.marginTop * 0.62), left: mm(B + side), right: mm(B + side), height: 0.4, backgroundColor: P.rule }} />
+          <View fixed style={{ position: "absolute", top: mm(B + runningRuleTop(format)), left: mm(B + side), right: mm(B + side), height: RUNNING_HEAD.rule, backgroundColor: P.rule }} />
         ) : null}
       </>
     );
@@ -183,9 +205,9 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       {watermark}
       {placed(
         <>
-          <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.title), lineHeight: 1.15, textAlign: "center", color: P.ink }}>{content.title}</Text>
+          <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.title), lineHeight: FRONT.title.lineHeight, textAlign: "center", color: P.ink }}>{content.title}</Text>
           {content.subtitle ? (
-            <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.subtitle, marginTop: 10, textAlign: "center", color: P.muted }}>{content.subtitle}</Text>
+            <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.subtitle, marginTop: FRONT.subtitle.before, textAlign: "center", color: P.muted }}>{content.subtitle}</Text>
           ) : null}
           {vignette(VIGNETTE_RULE.title, P)}
           {content.authorName ? <Text hyphenationCallback={noHyphens} style={{ ...label(P.muted), textAlign: "center" }}>{content.authorName}</Text> : null}
@@ -201,7 +223,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     <Page key="colophon" size={pageSize} style={pagePadding}>
       {watermark}
       <View style={{ flexGrow: 1 }} />
-      <Text style={{ ...face(typo.body, 400), fontSize: S.colophon, lineHeight: 1.6, color: P.muted }}>
+      <Text style={{ ...face(typo.body, 400), fontSize: S.colophon, lineHeight: FRONT.colophon.lineHeight, color: P.muted }}>
         {`${t.copyright(content.year, content.authorName)}\n`}
         {t.colophon(site.name)}
       </Text>
@@ -215,7 +237,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         {frame(P)}
         {watermark}
         {placed(
-          <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.dedication, lineHeight: 1.6, textAlign: "center", color: P.ink, maxWidth: "85%" }}>{content.dedication}</Text>,
+          <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.dedication, lineHeight: FRONT.dedication.lineHeight, textAlign: "center", color: P.ink, maxWidth: FRONT.dedication.maxWidth }}>{content.dedication}</Text>,
           DISPLAY_TOP.dedication,
         )}
       </Page>,
@@ -234,20 +256,20 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           style={{
             ...textFace(design.display, S.tocTitle),
             textAlign: design.opener.align === "left" ? "left" : "center",
-            marginTop: 20 * scale,
-            marginBottom: 26 * scale,
+            marginTop: TOC.title.before * scale,
+            marginBottom: TOC.title.after * scale,
             color: P.ink,
           }}
         >
           {t.toc}
         </Text>
         {entries.map((e) => (
-          <View key={e.key} wrap={false} style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: 7 * scale }}>
-            <Text hyphenationCallback={noHyphens} style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.ink, maxWidth: "82%" }}>
+          <View key={e.key} wrap={false} style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: TOC.entry.after * scale }}>
+            <Text hyphenationCallback={noHyphens} style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.num ? `${e.num}. ` : ""}
               {e.label}
             </Text>
-            <View style={{ flexGrow: 1, borderBottomWidth: 0.6, borderBottomColor: P.rule, borderBottomStyle: "dotted", marginHorizontal: 5, marginBottom: 3 }} />
+            <View style={{ flexGrow: 1, borderBottomWidth: TOC.leader.width, borderBottomColor: P.rule, borderBottomStyle: "dotted", marginHorizontal: TOC.leader.side, marginBottom: TOC.leader.bottom }} />
             <Text style={{ ...face(typo.body, 400), fontSize: bodyPt, color: P.muted }}>{options.tocPages?.[e.key] ?? "00"}</Text>
           </View>
         ))}
@@ -273,7 +295,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           <>
             <PdfPageLayer shapes={shot.under} box={box} />
             {shot.card ? (
-              <View style={{ ...imgStyle(shot.card), backgroundColor: "#FFFFFF", borderWidth: 0.4, borderColor: "#E3DBD0", paddingTop: mm(shot.img.y - shot.card.y), paddingLeft: mm(shot.img.x - shot.card.x), transform: `rotate(${shot.card.rotate}deg)` }}>
+              <View style={{ ...imgStyle(shot.card), backgroundColor: "#FFFFFF", borderWidth: OPENER.cardBorder, borderColor: "#E3DBD0", paddingTop: mm(shot.img.y - shot.card.y), paddingLeft: mm(shot.img.x - shot.card.x), transform: `rotate(${shot.card.rotate}deg)` }}>
                 <Image src={{ data: img.data, format: "jpg" }} style={{ width: mm(shot.img.w), height: mm(shot.img.h) }} />
               </View>
             ) : (
@@ -314,12 +336,12 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
               </Text>
             ) : null}
             {mark?.kind === "numeral" ? (
-              <Text style={{ ...textFace(design.opener.numeral ?? design.display, S.numeral), lineHeight: 1, textAlign, color: colors.accent, marginBottom: S.numeral * 0.12 }}>{mark.text}</Text>
+              <Text style={{ ...textFace(design.opener.numeral ?? design.display, S.numeral), lineHeight: OPENER.numeral.lineHeight, textAlign, color: colors.accent, marginBottom: S.numeral * OPENER.numeral.after }}>{mark.text}</Text>
             ) : null}
-            <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.openerTitle), lineHeight: 1.15, textAlign, color: colors.ink, maxWidth: "90%" }}>{title}</Text>
+            <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.openerTitle), lineHeight: OPENER.title.lineHeight, textAlign, color: colors.ink, maxWidth: OPENER.title.maxWidth }}>{title}</Text>
             {vignette(VIGNETTE_RULE.opener, colors, align)}
             {epigraph ? (
-              <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: 1.55, textAlign, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</Text>
+              <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: OPENER.epigraph.lineHeight, textAlign, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align] }}>{epigraph}</Text>
             ) : null}
           </>,
           shot?.textTop ?? design.opener.top,
@@ -393,8 +415,8 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
             flexDirection: "row",
             justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
             alignItems: "flex-start",
-            marginTop: bodyPt * 0.5,
-            marginBottom: bodyPt,
+            marginTop: bodyPt * INLINE_ROW.before,
+            marginBottom: bodyPt * INLINE_ROW.after,
             paddingTop: flow.rowOffset.get(rowKey) ?? 0,
           }}
         >
@@ -404,7 +426,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
             const b = boxes[i];
             const box = { outerW: b.outerW * k, outerH: b.outerH * k, imgW: b.imgW * k, imgH: b.imgH * k, pad: b.pad * k, padBottom: b.padBottom * k, radius: b.radius * k };
             const polaroid = style.frame === "polaroid";
-            const bw = polaroid ? 0.5 : style.frame === "line" ? 1 : 0;
+            const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
             return (
               <View key={p.id} style={{ width: box.outerW, marginLeft: i ? textWidthPt * ROW_GAP : 0 }}>
                 <View
@@ -425,12 +447,12 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
                 >
                   <Image src={{ data: img.data, format: "jpg" }} style={{ width: box.imgW - bw * 2, height: box.imgH - bw * 2, borderRadius: box.radius, objectFit: "cover" }} />
                   {polaroid && p.caption ? (
-                    <Text style={{ ...face("caveat", 500), position: "absolute", left: box.pad, right: box.pad, bottom: box.padBottom * 0.22, fontSize: polaroidFontSize(box, p.caption, bodyPt), color: "#3A332E", textAlign: "center", maxLines: 1 }}>
+                    <Text style={{ ...face("caveat", 500), position: "absolute", left: box.pad, right: box.pad, bottom: box.padBottom * INLINE_ROW.polaroidCaption, fontSize: polaroidFontSize(box, p.caption, bodyPt), color: "#3A332E", textAlign: "center", maxLines: 1 }}>
                       {p.caption}
                     </Text>
                   ) : null}
                 </View>
-                {!polaroid && p.caption ? <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: 6 }}>{p.caption}</Text> : null}
+                {!polaroid && p.caption ? <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.caption, color: P.muted, textAlign: "center", marginTop: INLINE_ROW.captionGap }}>{p.caption}</Text> : null}
               </View>
             );
           })}
@@ -439,7 +461,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     });
 
   /** Начальные слова главы капителью (если дизайн это предполагает). */
-  const leadInStyle: Style = { ...face(typo.body, 400), fontSize: bodyPt * 0.86, letterSpacing: bodyPt * 0.07, textTransform: "uppercase", color: P.accent };
+  const leadInStyle: Style = { ...face(typo.body, 400), fontSize: bodyPt * LEAD_IN.size, letterSpacing: bodyPt * LEAD_IN.tracking, textTransform: "uppercase", color: P.accent };
   const centered = design.heading.align === "center";
 
   /** Блок набора ответа: абзац, лид, выделенный короткий ответ, список или стихи (см. answer-blocks). */
@@ -448,7 +470,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       case "para": {
         const [lead, rest] = leadIn ? splitLeadIn(b.text) : ["", b.text];
         return (
-          <Text {...mark(id)} style={{ ...body, marginBottom: bodyPt * 0.45 }} orphans={2} widows={2}>
+          <Text {...mark(id)} style={{ ...body, marginBottom: bodyPt * ANSWER.para.after }} orphans={2} widows={2}>
             {lead ? <Text style={leadInStyle}>{lead}</Text> : null}
             {rest}
           </Text>
@@ -456,20 +478,20 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       }
       case "lede":
         return (
-          <Text {...mark(id)} hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: bodyPt * 1.08, lineHeight: 1.4, color: P.muted, textAlign: centered ? "center" : "left", marginBottom: bodyPt * 0.7 }}>
+          <Text {...mark(id)} hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: bodyPt * ANSWER.lede.size, lineHeight: ANSWER.lede.lineHeight, color: P.muted, textAlign: centered ? "center" : "left", marginBottom: bodyPt * ANSWER.lede.after }}>
             {b.text}
           </Text>
         );
       case "quote": {
-        const style: Style = { ...italicBody, fontSize: bodyPt * 1.32, lineHeight: 1.42, color: P.ink };
+        const style: Style = { ...italicBody, fontSize: bodyPt * ANSWER.quote.size, lineHeight: ANSWER.quote.lineHeight, color: P.ink };
         return centered ? (
-          <View {...mark(id)} wrap={false} style={{ alignItems: "center", paddingHorizontal: textWidthPt * 0.08, marginTop: bodyPt * 0.15, marginBottom: bodyPt * 0.6 }}>
+          <View {...mark(id)} wrap={false} style={{ alignItems: "center", paddingHorizontal: textWidthPt * ANSWER.quote.inset, marginTop: bodyPt * ANSWER.quote.before, marginBottom: bodyPt * ANSWER.quote.after }}>
             <Text hyphenationCallback={noHyphens} style={{ ...style, textAlign: "center" }}>
               {b.lines.join("\n")}
             </Text>
           </View>
         ) : (
-          <View {...mark(id)} wrap={false} style={{ borderLeftWidth: 1.6, borderLeftColor: P.accent, borderLeftStyle: "solid", paddingLeft: bodyPt * 1.1, marginTop: bodyPt * 0.15, marginBottom: bodyPt * 0.6 }}>
+          <View {...mark(id)} wrap={false} style={{ borderLeftWidth: ANSWER.quote.rule, borderLeftColor: P.accent, borderLeftStyle: "solid", paddingLeft: bodyPt * ANSWER.quote.indent, marginTop: bodyPt * ANSWER.quote.before, marginBottom: bodyPt * ANSWER.quote.after }}>
             <Text hyphenationCallback={noHyphens} style={style}>
               {b.lines.join("\n")}
             </Text>
@@ -478,10 +500,10 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
       }
       case "list":
         return (
-          <View {...mark(id)} style={{ marginBottom: bodyPt * 0.45 }}>
+          <View {...mark(id)} style={{ marginBottom: bodyPt * ANSWER.list.after }}>
             {b.items.map((item, i) => (
-              <View key={i} wrap={item.text.length > 260} style={{ flexDirection: "row", marginBottom: i < b.items.length - 1 ? bodyPt * 0.3 : 0 }}>
-                <Text style={{ ...body, width: bodyPt * (b.ordered ? 1.6 : 1.2), textAlign: "left", color: P.accent }}>{item.marker}</Text>
+              <View key={i} wrap={item.text.length > 260} style={{ flexDirection: "row", marginBottom: i < b.items.length - 1 ? bodyPt * ANSWER.list.gap : 0 }}>
+                <Text style={{ ...body, width: bodyPt * (b.ordered ? ANSWER.list.orderedMarker : ANSWER.list.marker), textAlign: "left", color: P.accent }}>{item.marker}</Text>
                 <Text style={{ ...body, flex: 1, textAlign: "left" }} orphans={2} widows={2}>
                   {item.text}
                 </Text>
@@ -494,7 +516,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           <Text
             {...mark(id)}
             hyphenationCallback={noHyphens}
-            style={{ ...body, textAlign: centered ? "center" : "left", paddingLeft: centered ? 0 : textWidthPt * 0.08, marginTop: bodyPt * 0.2, marginBottom: bodyPt * 0.65 }}
+            style={{ ...body, textAlign: centered ? "center" : "left", paddingLeft: centered ? 0 : textWidthPt * ANSWER.verse.indent, marginTop: bodyPt * ANSWER.verse.before, marginBottom: bodyPt * ANSWER.verse.after }}
             orphans={2}
             widows={2}
           >
@@ -532,20 +554,20 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     const style: Style = {
       ...headingFace,
       fontSize: S.heading,
-      lineHeight: 1.22,
+      lineHeight: HEADING.lineHeight,
       color: design.heading.accent ? P.accent : P.ink,
       textAlign: design.heading.align,
       marginBottom: S.afterHeading,
     };
     if (!design.heading.bar)
       return (
-        <Text {...mark(id)} hyphenationCallback={noHyphens} minPresenceAhead={40} style={style}>
+        <Text {...mark(id)} hyphenationCallback={noHyphens} minPresenceAhead={KEEP_WITH_NEXT} style={style}>
           {text}
         </Text>
       );
     return (
-      <View {...mark(id)} wrap={false} minPresenceAhead={40}>
-        <View style={{ width: 14 * scale, height: 1.2, backgroundColor: P.accent, marginBottom: 6 * scale, alignSelf: design.heading.align === "center" ? "center" : "flex-start" }} />
+      <View {...mark(id)} wrap={false} minPresenceAhead={KEEP_WITH_NEXT}>
+        <View style={{ width: HEADING.bar.width * scale, height: HEADING.bar.thickness, backgroundColor: P.accent, marginBottom: HEADING.bar.after * scale, alignSelf: design.heading.align === "center" ? "center" : "flex-start" }} />
         <Text hyphenationCallback={noHyphens} style={style}>
           {text}
         </Text>
@@ -556,7 +578,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const divider = (id: string) => {
     if (design.divider === "stars")
       return (
-        <Text {...mark(id)} minPresenceAhead={40} style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>
+        <Text {...mark(id)} minPresenceAhead={KEEP_WITH_NEXT} style={{ textAlign: "center", color: P.rule, fontSize: bodyPt, marginBottom: S.beforeHeadless }}>
           * * *
         </Text>
       );
@@ -565,7 +587,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     // ответа высотой в остаток полосы и ужимает вместе с рисунком — у <Svg> нулевой высоты pdfkit получает Infinity.
     // minHeight не даёт ужать (flexShrink: 0 react-pdf заменяет на 1), а разделитель внизу полосы убирает доводка.
     return (
-      <View {...mark(id)} minPresenceAhead={40} style={{ alignSelf: "center", minHeight: art.h, marginTop: bodyPt * 0.3, marginBottom: S.beforeHeadless + bodyPt * 0.2 }}>
+      <View {...mark(id)} minPresenceAhead={KEEP_WITH_NEXT} style={{ alignSelf: "center", minHeight: art.h, marginTop: bodyPt * DIVIDER.before, marginBottom: S.beforeHeadless + bodyPt * DIVIDER.after }}>
         <PdfDrawing drawing={art} />
       </View>
     );
@@ -591,7 +613,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
           })}
           {/* Концовка главы — небольшая виньетка: последняя полоса главы не выглядит оборванной. */}
           {flow.noTail.has(ch.key) ? null : (
-            <View {...mark(`t:${ch.key}`)} wrap={false} style={{ alignItems: "center", marginTop: S.beforeHeading * 1.1 }}>
+            <View {...mark(`t:${ch.key}`)} wrap={false} style={{ alignItems: "center", marginTop: S.beforeHeading * CHAPTER_TAIL.before }}>
               <PdfDrawing drawing={vignetteDrawing(design.ornament, VIGNETTE_RULE.end, P)} />
             </View>
           )}
@@ -616,7 +638,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
         <>
           {vignette(VIGNETTE_RULE.end, P)}
           <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.end, textAlign: "center", color: P.ink }}>{t.theEnd}</Text>
-          <Text style={{ ...label(P.muted), textAlign: "center", marginTop: 16 }}>{content.year}</Text>
+          <Text style={{ ...label(P.muted), textAlign: "center", marginTop: FRONT.endYear.before }}>{content.year}</Text>
         </>,
         DISPLAY_TOP.end,
       )}

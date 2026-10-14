@@ -4,7 +4,8 @@
  *
  * Дизайн — только данные. Их одинаково читают PDF для типографии (react-pdf) и превью на сайте
  * (HTML), поэтому клиент видит в редакторе ту же книгу, что уедет в печать. Графика — виньетки,
- * рамки и рисунки на начальных полосах — строится по этим данным в interior-art.ts.
+ * рамки и рисунки на начальных полосах — строится по этим данным в interior-art.ts, кегли и отбивки —
+ * в typesetting.ts.
  *
  * «classic», «modern» и «minimal» — прежние стили вёрстки. Заказанные с ними книги должны
  * печататься так, как клиент видел их в макете, поэтому облик этих дизайнов не меняем.
@@ -713,73 +714,7 @@ export function interiorsForCover(coverId: string): InteriorDesign[] {
   return interiorDesigns.filter((d) => d.pairsWith.includes(coverId));
 }
 
-// ─── размеры ────────────────────────────────────────────────────────────────
-
-/** Кегли и отбивки в pt для конкретного формата — общие для PDF и HTML-превью. */
-export interface InteriorSizes {
-  body: number;
-  heading: number;
-  label: number;
-  /** Отбивка после подписи «Глава N». */
-  kickerGap: number;
-  openerTitle: number;
-  numeral: number;
-  kicker: number;
-  epigraph: number;
-  /** Отбивка виньетки сверху и снизу. */
-  vignetteGap: number;
-  title: number;
-  subtitle: number;
-  dedication: number;
-  tocTitle: number;
-  end: number;
-  caption: number;
-  folio: number;
-  colophon: number;
-  year: number;
-  runningHead: number;
-  /** Отбивки в тексте: после заголовка, перед заголовком и перед ответом без заголовка. */
-  afterHeading: number;
-  beforeHeading: number;
-  beforeHeadless: number;
-}
-
-export function interiorSizes(design: InteriorDesign, scale: number): InteriorSizes {
-  const body = design.type.bodySize * scale;
-  const { opener } = design;
-  return {
-    body,
-    heading: body * design.heading.size,
-    label: design.label.size * scale,
-    kickerGap: 14 * scale,
-    openerTitle: opener.titleSize * scale,
-    numeral: (opener.numeral?.size ?? 56) * scale,
-    kicker: (opener.kicker?.size ?? design.label.size) * scale,
-    epigraph: 10 * scale,
-    vignetteGap: 14 * scale,
-    title: 30 * scale,
-    subtitle: 12 * scale,
-    dedication: 13 * scale,
-    tocTitle: 22 * scale,
-    end: 14 * scale,
-    caption: 9 * scale,
-    folio: 8 * scale,
-    colophon: 7.5 * scale,
-    year: 7 * scale,
-    runningHead: Math.min(design.label.size, 6.6) * scale,
-    afterHeading: 8 * scale,
-    beforeHeading: 20 * scale,
-    beforeHeadless: 10 * scale,
-  };
-}
-
-/** Длина линеек виньетки, pt: на титуле, в начале главы и в конце книги. */
-export const VIGNETTE_RULE = { title: 34, opener: 26, end: 20 } as const;
-
-/** Где по высоте полосы набора начинается блок на парадных полосах. */
-export const DISPLAY_TOP = { title: 0.32, dedication: 0.34, end: 0.36 } as const;
-
-// ─── номера, капитель ───────────────────────────────────────────────────────
+// ─── номер главы ────────────────────────────────────────────────────────────
 
 export function romanNumeral(n: number): string {
   const table: [number, string][] = [
@@ -808,27 +743,4 @@ export function chapterMark(design: InteriorDesign, n: number, label: (n: number
     default:
       return { kind: "label", text: label(n) };
   }
-}
-
-/**
- * Начальные слова главы для капители: до трёх слов, но не длиннее ~22 знаков и не дальше
- * первого знака препинания. Возвращает [капитель, остаток абзаца].
- */
-export function splitLeadIn(paragraph: string): [string, string] {
-  const words = paragraph.match(/\S+\s*/g) ?? [];
-  const lead: string[] = [];
-  for (const w of words) {
-    if (lead.length && (lead.length >= 3 || (lead.join("") + w).trim().length > 22)) break;
-    lead.push(w);
-    if (/[,.;:!?…—)»]$/.test(w.trim())) break;
-  }
-  // Капитель не обрывается на предлоге или союзе: «МЫ ВСТРЕТИЛИСЬ в самый…», а не «МЫ ВСТРЕТИЛИСЬ В самый…».
-  while (lead.length > 1 && lead[lead.length - 1].trim().replace(/[^\p{L}]/gu, "").length <= 2) lead.pop();
-  const head = lead.join("").trimEnd();
-  return [head, paragraph.slice(head.length)];
-}
-
-/** CSS-трекинг и регистр начертания (для HTML); в PDF те же значения в pt. */
-export function trackingPt(face: Pick<TextFace, "tracking">, size: number) {
-  return (face.tracking ?? 0) * size;
 }

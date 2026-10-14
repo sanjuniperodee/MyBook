@@ -14,8 +14,8 @@ import {
   interiorsForCover,
   isInteriorId,
   romanNumeral,
-  splitLeadIn,
 } from "@/lib/book/interiors";
+import { splitLeadIn } from "@/lib/book/typesetting";
 
 /** Минимальный сериализатор фигур в SVG — проверяем, что графика валидна и растрируется. */
 function toSvg(shapes: Shape[], w: number, h: number) {

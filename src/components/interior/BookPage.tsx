@@ -10,18 +10,30 @@ import type { Locale } from "@/i18n/config";
 import { cssFont } from "@/lib/book/fonts";
 import { mm, PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
+import { chapterMark, type InteriorDesign, type InteriorPalette, type TextFace } from "@/lib/book/interiors";
 import {
-  chapterMark,
+  ANSWER,
+  CHAPTER_TAIL,
   DISPLAY_TOP,
+  DIVIDER,
+  FOLIO,
+  folioBottom,
+  FRONT,
+  HEADING,
+  HTML_LINE_HEIGHT,
+  INLINE_ROW,
   interiorSizes,
+  LEAD_IN,
+  OPENER,
+  RUNNING_HEAD,
+  runningHeadTop,
+  runningRuleTop,
   splitLeadIn,
+  TOC,
   trackingPt,
   VIGNETTE_RULE,
-  type InteriorDesign,
-  type InteriorPalette,
   type InteriorSizes,
-  type TextFace,
-} from "@/lib/book/interiors";
+} from "@/lib/book/typesetting";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Drawing, type Shape } from "@/lib/book/interior-art";
 import { samplePageUrl } from "@/lib/book/photo-cover";
 import { openerPhotoPlan, photoArea, photoPagePlan } from "@/lib/book/photo-pages";
@@ -128,7 +140,7 @@ export function labelCss(kit: PageKit, color: string, size = kit.sizes.label): C
     fontSize: kit.u.pt(size),
     letterSpacing: kit.u.pt(trackingPt(label, kit.sizes.label)),
     textTransform: label.upper ? "uppercase" : undefined,
-    lineHeight: 1.2,
+    lineHeight: HTML_LINE_HEIGHT.label,
     color,
   };
 }
@@ -145,7 +157,7 @@ export function paragraphCss(kit: PageKit): CSSProperties {
     fontSize: u.pt(S.body),
     lineHeight: design.type.lineHeight,
     color: design.palette.ink,
-    marginBottom: u.pt(S.body * 0.45),
+    marginBottom: u.pt(S.body * ANSWER.para.after),
     textAlign: "justify",
     hyphens: "auto",
     orphans: 2,
@@ -156,7 +168,7 @@ export function paragraphCss(kit: PageKit): CSSProperties {
 /** Начальные слова главы капителью. */
 export function leadInCss(kit: PageKit): CSSProperties {
   const { sizes: S, u, design } = kit;
-  return { fontSize: u.pt(S.body * 0.86), letterSpacing: u.pt(S.body * 0.07), textTransform: "uppercase", color: design.palette.accent };
+  return { fontSize: u.pt(S.body * LEAD_IN.size), letterSpacing: u.pt(S.body * LEAD_IN.tracking), textTransform: "uppercase", color: design.palette.accent };
 }
 
 /** Абзац с капителью в начале (если она нужна). */
@@ -184,21 +196,21 @@ export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit
       return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} style={style} {...rest} />;
     case "lede":
       return (
-        <p style={{ ...italicBody(kit, S.body * 1.08), lineHeight: 1.4, color: P.muted, textAlign: centered ? "center" : "left", marginBottom: u.pt(S.body * 0.7), breakAfter: "avoid", ...style }} {...rest}>
+        <p style={{ ...italicBody(kit, S.body * ANSWER.lede.size), lineHeight: ANSWER.lede.lineHeight, color: P.muted, textAlign: centered ? "center" : "left", marginBottom: u.pt(S.body * ANSWER.lede.after), breakAfter: "avoid", ...style }} {...rest}>
           {b.text}
         </p>
       );
     case "quote": {
-      const text: CSSProperties = { ...italicBody(kit, S.body * 1.32), lineHeight: 1.42, color: P.ink };
+      const text: CSSProperties = { ...italicBody(kit, S.body * ANSWER.quote.size), lineHeight: ANSWER.quote.lineHeight, color: P.ink };
       return (
         <div
           style={{
             breakInside: "avoid",
-            marginTop: u.pt(S.body * 0.15),
-            marginBottom: u.pt(S.body * 0.6),
+            marginTop: u.pt(S.body * ANSWER.quote.before),
+            marginBottom: u.pt(S.body * ANSWER.quote.after),
             ...(centered
-              ? { ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * 0.08) }
-              : { ...text, borderLeft: `${u.pt(1.6)} solid ${P.accent}`, paddingLeft: u.pt(S.body * 1.1) }),
+              ? { ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * ANSWER.quote.inset) }
+              : { ...text, borderLeft: `${u.pt(ANSWER.quote.rule)} solid ${P.accent}`, paddingLeft: u.pt(S.body * ANSWER.quote.indent) }),
             ...style,
           }}
           {...rest}
@@ -209,10 +221,10 @@ export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit
     }
     case "list":
       return (
-        <div style={{ marginBottom: u.pt(S.body * 0.45), ...style }} {...rest}>
+        <div style={{ marginBottom: u.pt(S.body * ANSWER.list.after), ...style }} {...rest}>
           {b.items.map((item, i) => (
-            <div key={i} style={{ display: "flex", marginBottom: i < b.items.length - 1 ? u.pt(S.body * 0.3) : 0 }}>
-              <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: "none", width: u.pt(S.body * (b.ordered ? 1.6 : 1.2)), textAlign: "left", color: P.accent }}>{item.marker}</span>
+            <div key={i} style={{ display: "flex", marginBottom: i < b.items.length - 1 ? u.pt(S.body * ANSWER.list.gap) : 0 }}>
+              <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: "none", width: u.pt(S.body * (b.ordered ? ANSWER.list.orderedMarker : ANSWER.list.marker)), textAlign: "left", color: P.accent }}>{item.marker}</span>
               <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: 1, textAlign: "left" }}>{item.text}</span>
             </div>
           ))}
@@ -225,9 +237,9 @@ export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit
             ...paragraphCss(kit),
             hyphens: "manual",
             textAlign: centered ? "center" : "left",
-            paddingLeft: centered ? 0 : u.mm(textArea(kit.format).w * 0.08),
-            marginTop: u.pt(S.body * 0.2),
-            marginBottom: u.pt(S.body * 0.65),
+            paddingLeft: centered ? 0 : u.mm(textArea(kit.format).w * ANSWER.verse.indent),
+            marginTop: u.pt(S.body * ANSWER.verse.before),
+            marginBottom: u.pt(S.body * ANSWER.verse.after),
             ...style,
           }}
           {...rest}
@@ -241,7 +253,7 @@ export function AnswerBlockView({ kit, block: b, leadIn, style, ...rest }: { kit
 /** Концовка главы — небольшая виньетка после последнего ответа, как в PDF. */
 export function ChapterTail({ kit }: { kit: PageKit }) {
   return (
-    <div style={{ display: "flex", justifyContent: "center", breakBefore: "avoid", breakInside: "avoid", marginTop: kit.u.pt(kit.sizes.beforeHeading * 1.1) }}>
+    <div style={{ display: "flex", justifyContent: "center", breakBefore: "avoid", breakInside: "avoid", marginTop: kit.u.pt(kit.sizes.beforeHeading * CHAPTER_TAIL.before) }}>
       <InlineDrawing drawing={vignetteDrawing(kit.design.ornament, VIGNETTE_RULE.end, kit.design.palette)} u={kit.u} />
     </div>
   );
@@ -255,7 +267,7 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
   return (
     <div style={{ breakInside: "avoid", breakAfter: "avoid", ...style }} {...rest}>
       {heading.bar ? (
-        <div style={{ width: u.pt(14 * scale), height: u.pt(1.2), background: design.palette.accent, marginBottom: u.pt(6 * scale), marginInline: heading.align === "center" ? "auto" : undefined }} />
+        <div style={{ width: u.pt(HEADING.bar.width * scale), height: u.pt(HEADING.bar.thickness), background: design.palette.accent, marginBottom: u.pt(HEADING.bar.after * scale), marginInline: heading.align === "center" ? "auto" : undefined }} />
       ) : null}
       <div
         style={{
@@ -263,7 +275,7 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
           fontWeight: design.type.headingWeight,
           fontStyle: design.type.headingItalic ? "italic" : "normal",
           fontSize: u.pt(S.heading),
-          lineHeight: 1.22,
+          lineHeight: HEADING.lineHeight,
           color: heading.accent ? design.palette.accent : design.palette.ink,
           textAlign: heading.align,
           marginBottom: u.pt(S.afterHeading),
@@ -279,14 +291,14 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
 export function Divider({ kit, style }: { kit: PageKit; style?: CSSProperties }) {
   const { design, sizes: S, u } = kit;
   if (design.divider === "stars")
-    return <div style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: 1.2, marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }}>* * *</div>;
+    return <div style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }}>* * *</div>;
   // flow-root: отступ обёртки и собственный отступ глифа складываются, как в PDF, а не схлопываются.
   return (
     <div style={{ display: "flow-root", breakAfter: "avoid", ...style }}>
       <InlineDrawing
         drawing={dividerDrawing(design.ornament, design.divider, design.palette)}
         u={u}
-        style={{ margin: `${u.pt(S.body * 0.3)} auto ${u.pt(S.beforeHeadless + S.body * 0.2)}` }}
+        style={{ margin: `${u.pt(S.body * DIVIDER.before)} auto ${u.pt(S.beforeHeadless + S.body * DIVIDER.after)}` }}
       />
     </div>
   );
@@ -304,13 +316,15 @@ const metricsOf = (kit: PageKit) => interiorMetrics[kit.format.id];
 /** Колонцифра. recto — правая (нечётная) полоса: «снаружи» значит справа. */
 export function Folio({ kit, children, recto }: { kit: PageKit; children: ReactNode; recto: boolean }) {
   const { design, sizes: S, u } = kit;
-  const m = metricsOf(kit);
   const outer = design.folio.align === "outer";
-  const font = design.folio.font === "label" ? labelCss(kit, design.palette.muted, S.folio * 0.85) : { fontFamily: cssFont(design.type.body), fontSize: u.pt(S.folio), color: design.palette.muted, lineHeight: 1.2 };
+  const font =
+    design.folio.font === "label"
+      ? labelCss(kit, design.palette.muted, S.folio * FOLIO.labelSize)
+      : { fontFamily: cssFont(design.type.body), fontSize: u.pt(S.folio), color: design.palette.muted, lineHeight: HTML_LINE_HEIGHT.folio };
   return (
     <div
       className="absolute"
-      style={{ ...font, bottom: u.mm(m.marginBottom / 2 - 2), left: outer ? u.mm(pageSide(kit.format)) : 0, right: outer ? u.mm(pageSide(kit.format)) : 0, textAlign: outer ? (recto ? "right" : "left") : "center" }}
+      style={{ ...font, bottom: u.mm(folioBottom(kit.format)), left: outer ? u.mm(pageSide(kit.format)) : 0, right: outer ? u.mm(pageSide(kit.format)) : 0, textAlign: outer ? (recto ? "right" : "left") : "center" }}
     >
       {children}
     </div>
@@ -323,18 +337,17 @@ export const folioText = (design: InteriorDesign, n: number | string) => (design
 export function RunningHead({ kit, bookTitle, chapterTitle, recto }: { kit: PageKit; bookTitle: string; chapterTitle: string; recto: boolean }) {
   const { design, sizes: S, u } = kit;
   if (design.runningHead === "none") return null;
-  const m = metricsOf(kit);
   const outer = design.folio.align === "outer";
   return (
     <>
       <div
         className="absolute truncate"
-        style={{ ...labelCss(kit, design.palette.muted, S.runningHead), top: u.mm(m.marginTop * 0.36), left: u.mm(pageSide(kit.format)), right: u.mm(pageSide(kit.format)), textAlign: outer ? (recto ? "right" : "left") : "center" }}
+        style={{ ...labelCss(kit, design.palette.muted, S.runningHead), top: u.mm(runningHeadTop(kit.format)), left: u.mm(pageSide(kit.format)), right: u.mm(pageSide(kit.format)), textAlign: outer ? (recto ? "right" : "left") : "center" }}
       >
         {recto ? chapterTitle : bookTitle}
       </div>
       {design.runningHead === "ruled" ? (
-        <div className="absolute" style={{ top: u.mm(m.marginTop * 0.62), left: u.mm(pageSide(kit.format)), right: u.mm(pageSide(kit.format)), height: u.pt(0.4), background: design.palette.rule }} />
+        <div className="absolute" style={{ top: u.mm(runningRuleTop(kit.format)), left: u.mm(pageSide(kit.format)), right: u.mm(pageSide(kit.format)), height: u.pt(RUNNING_HEAD.rule), background: design.palette.rule }} />
       ) : null}
     </>
   );
@@ -418,9 +431,9 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
       {shot?.card ? (
         <div
           className="absolute bg-white"
-          style={{ left: u.mm(shot.card.x), top: u.mm(shot.card.y), width: u.mm(shot.card.w), height: u.mm(shot.card.h), border: `${u.pt(0.4)} solid #E3DBD0`, transform: `rotate(${shot.card.rotate}deg)` }}
+          style={{ left: u.mm(shot.card.x), top: u.mm(shot.card.y), width: u.mm(shot.card.w), height: u.mm(shot.card.h), border: `${u.pt(OPENER.cardBorder)} solid #E3DBD0`, transform: `rotate(${shot.card.rotate}deg)` }}
         >
-          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - 0.14, y: shot.img.y - shot.card.y - 0.14, w: shot.img.w, h: shot.img.h }} url={photo?.url} scene={scene} />
+          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={photo?.url} scene={scene} />
         </div>
       ) : shot ? (
         <PageImage kit={kit} rect={shot.img} url={photo?.url} scene={scene} mask={shot.mask} />
@@ -441,14 +454,14 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           {mark?.kind === "label" ? (
-            <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: 1.2 } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>
+            <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: HTML_LINE_HEIGHT.kicker } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>
           ) : null}
           {mark?.kind === "numeral" ? (
-            <div style={{ ...faceCss(design.opener.numeral ?? design.display, S.numeral, u), lineHeight: 1, color: colors.accent, marginBottom: u.pt(S.numeral * 0.12) }}>{mark.text}</div>
+            <div style={{ ...faceCss(design.opener.numeral ?? design.display, S.numeral, u), lineHeight: OPENER.numeral.lineHeight, color: colors.accent, marginBottom: u.pt(S.numeral * OPENER.numeral.after) }}>{mark.text}</div>
           ) : null}
-          <div style={{ ...faceCss(design.display, S.openerTitle, u), lineHeight: 1.15, color: colors.ink, maxWidth: "90%", overflowWrap: "anywhere" }}>{title}</div>
+          <div style={{ ...faceCss(design.display, S.openerTitle, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
           <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />
-          {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: 1.55, color: colors.muted, maxWidth: align === "left" ? "85%" : "78%" }}>{epigraph}</div> : null}
+          {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align] }}>{epigraph}</div> : null}
         </Placed>
       </TextArea>
     </Sheet>
@@ -506,8 +519,8 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
     <Sheet kit={kit} shapes={frame(kit, P)} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.title}>
-          <div style={{ ...faceCss(design.display, S.title, u), lineHeight: 1.15, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
-          {subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(10), lineHeight: 1.3 }}>{subtitle}</div> : null}
+          <div style={{ ...faceCss(design.display, S.title, u), lineHeight: FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
+          {subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null}
           <Vignette kit={kit} rule={VIGNETTE_RULE.title} colors={P} />
           {author ? <div style={labelCss(kit, P.muted)}>{author}</div> : null}
         </Placed>
@@ -527,7 +540,7 @@ export function DedicationPage({ kit, text, placeholder, className, style }: Pag
     <Sheet kit={kit} shapes={frame(kit, P)} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.dedication}>
-          <div style={{ ...italicBody(kit, S.dedication), lineHeight: 1.6, color: P.ink, maxWidth: "85%", whiteSpace: "pre-line", overflowWrap: "anywhere", opacity: text ? 1 : 0.4 }}>{text || placeholder}</div>
+          <div style={{ ...italicBody(kit, S.dedication), lineHeight: FRONT.dedication.lineHeight, color: P.ink, maxWidth: FRONT.dedication.maxWidth, whiteSpace: "pre-line", overflowWrap: "anywhere", opacity: text ? 1 : 0.4 }}>{text || placeholder}</div>
         </Placed>
       </TextArea>
     </Sheet>
@@ -542,15 +555,15 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
   return (
     <Sheet kit={kit} className={className} style={style}>
       <TextArea kit={kit} className="overflow-hidden" style={{ opacity: muted ? 0.4 : 1 }}>
-        <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: 1.2, color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(20 * scale), marginBottom: u.pt(26 * scale) }}>
+        <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: HTML_LINE_HEIGHT.tocTitle, color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(TOC.title.before * scale), marginBottom: u.pt(TOC.title.after * scale) }}>
           {messagesFor(kit.language).book.toc}
         </div>
         {entries.map((e) => (
-          <div key={e.number} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: 1.25, marginBottom: u.pt(7 * scale) }}>
-            <span className="truncate" style={{ color: P.ink, maxWidth: "82%" }}>
+          <div key={e.number} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale) }}>
+            <span className="truncate" style={{ color: P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.number}. {e.title}
             </span>
-            <span className="min-w-0 flex-1" style={{ borderBottom: `${u.pt(0.6)} dotted ${P.rule}`, margin: `0 ${u.pt(5)} ${u.pt(3)}` }} />
+            <span className="min-w-0 flex-1" style={{ borderBottom: `${u.pt(TOC.leader.width)} dotted ${P.rule}`, margin: `0 ${u.pt(TOC.leader.side)} ${u.pt(TOC.leader.bottom)}` }} />
             <span style={{ color: P.muted }}>{e.page}</span>
           </div>
         ))}
@@ -568,8 +581,8 @@ export function EndPage({ kit, year, className, style }: PageProps & { year: num
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.end}>
           <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-          <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: 1.3 }}>{messagesFor(kit.language).book.theEnd}</div>
-          <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(16) }}>{year}</div>
+          <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end }}>{messagesFor(kit.language).book.theEnd}</div>
+          <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(FRONT.endYear.before) }}>{year}</div>
         </Placed>
       </TextArea>
     </Sheet>
@@ -607,15 +620,15 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
         justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
         alignItems: "flex-start",
         gap: u.mm(textW * ROW_GAP),
-        marginTop: u.pt(S.body * 0.5),
-        marginBottom: u.pt(S.body),
+        marginTop: u.pt(S.body * INLINE_ROW.before),
+        marginBottom: u.pt(S.body * INLINE_ROW.after),
         breakInside: "avoid",
       }}
     >
       {row.map(({ p, style }) => {
         const b = framedBox(p, style, textW, textH, row.length);
         const polaroid = style.frame === "polaroid";
-        const bw = polaroid ? 0.5 : style.frame === "line" ? 1 : 0;
+        const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
         return (
           <figure key={p.id} style={{ width: u.mm(b.outerW), margin: 0, flex: "none" }}>
             <div
@@ -645,11 +658,11 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
                     position: "absolute",
                     left: u.mm(b.pad),
                     right: u.mm(b.pad),
-                    bottom: u.mm(b.padBottom * 0.22),
+                    bottom: u.mm(b.padBottom * INLINE_ROW.polaroidCaption),
                     fontFamily: cssFont("caveat"),
                     fontWeight: 500,
                     fontSize: u.pt(polaroidFontSize({ imgW: mm(b.imgW), padBottom: mm(b.padBottom) }, p.caption, S.body)),
-                    lineHeight: 1.1,
+                    lineHeight: HTML_LINE_HEIGHT.polaroidCaption,
                     color: "#3A332E",
                     textAlign: "center",
                     whiteSpace: "nowrap",
@@ -660,7 +673,7 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
                 </div>
               ) : null}
             </div>
-            {!polaroid && p.caption ? <figcaption style={{ ...italicBody(kit, S.caption), color: P.muted, textAlign: "center", marginTop: u.pt(6), lineHeight: 1.3 }}>{p.caption}</figcaption> : null}
+            {!polaroid && p.caption ? <figcaption style={{ ...italicBody(kit, S.caption), color: P.muted, textAlign: "center", marginTop: u.pt(INLINE_ROW.captionGap), lineHeight: HTML_LINE_HEIGHT.caption }}>{p.caption}</figcaption> : null}
           </figure>
         );
       })}

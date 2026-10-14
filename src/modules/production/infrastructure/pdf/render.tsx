@@ -20,7 +20,7 @@ import {
 } from "@/lib/book/formats";
 import { buildBookContent, photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
-import { interiorSizes } from "@/lib/book/interiors";
+import { interiorSizes } from "@/lib/book/typesetting";
 import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";

@@ -5,7 +5,8 @@
  * обрезного формата; рамки — фигуры interior-art (under — под снимком, over — поверх).
  */
 import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
-import type { InteriorDesign, InteriorSizes } from "./interiors";
+import type { InteriorDesign } from "./interiors";
+import type { InteriorSizes } from "./typesetting";
 import type { Shape } from "./interior-art";
 import { n } from "./cover-kit";
 import { interiorMetrics, pageSide, textArea } from "./page-geometry";
