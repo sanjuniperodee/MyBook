@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
  * и растр полосы (pdftoppm). Координаты — pt от левого верхнего угла полосы (MediaBox).
  */
 
-/** Есть ли программа в системе: тесты, которым она нужна, пропускаются. */
+/** Есть ли программа в системе. */
 export const hasTool = (tool: "pdftotext" | "pdftoppm") => !spawnSync(tool, ["-v"]).error;
 
 function run(tool: string, args: string[]) {
