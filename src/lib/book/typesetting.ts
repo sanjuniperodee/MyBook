@@ -1,6 +1,6 @@
 /**
  * Спецификация набора блока — кегли, интерлиньяж, отбивки и отступы данными, в одном месте.
- * PDF (modules/production/infrastructure/pdf/interior.tsx) и HTML-страницы (components/interior/BookPage.tsx)
+ * PDF (modules/production/infrastructure/pdf/interior/) и HTML-страницы (components/interior/BookPage.tsx)
  * только переводят эти числа в единицы своей среды: react-pdf — пункты, HTML — PageUnits (px или cqw).
  *
  * Единицы — в описании каждой группы: pt (кегли и отступы даны для A5, «× scale» — умножаются на масштаб

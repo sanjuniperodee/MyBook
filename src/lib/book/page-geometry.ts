@@ -1,6 +1,6 @@
 /**
  * Геометрия полосы блока: поля, полоса набора, рамка парадных полос и начало блока с названием главы.
- * Одно место для PDF (pdf/interior.tsx), HTML-страниц (components/interior), превью в редакторе,
+ * Одно место для PDF (pdf/interior/), HTML-страниц (components/interior), превью в редакторе,
  * 3D-книги и фотостраниц (photo-pages.ts). Единицы — мм обрезного формата.
  */
 import { formats, type BookFormat, type FormatId } from "./formats";
