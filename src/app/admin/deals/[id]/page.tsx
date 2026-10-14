@@ -5,7 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/deals";
 import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
@@ -39,7 +40,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
     container().access.queries.allStaff(),
     container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
   ]);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const conv = convs[0] ?? null;
   const pipelineId = allStages.find((s) => s.id === deal.stageId)?.pipelineId;
   const stages = allStages.filter((s) => s.pipelineId === pipelineId);
@@ -52,7 +53,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
   const [messages, templates, vars, blocker, offers] = conv
-    ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, adminLabel(staff.user)), sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
+    ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, staffLabel(staff.user)), sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
   const ai = await container().assistant.service.configured();
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);

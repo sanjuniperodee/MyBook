@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientRepository, CrmLinks, NoteRepository, StaffDirectory, TaskRepository } from "../application";
 
@@ -59,7 +59,7 @@ export const drizzleStaff: StaffDirectory = {
   },
   async mentionable() {
     const rows = await executor().select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, "admin"), eq(users.staffDisabled, false)));
-    return rows.map((r) => ({ id: r.id, label: adminLabel(r) }));
+    return rows.map((r) => ({ id: r.id, label: staffLabel(r) }));
   },
 };
 

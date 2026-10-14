@@ -2,7 +2,7 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { channelOf, channels, toAttribution } from "@/shared/domain/channels";
 import { formatPrice } from "@/config/site";
 import { BarList, StatTile } from "@/components/admin/charts";
@@ -36,7 +36,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const t = totals.rows[0] ?? {};
   const p = prevTotals.rows[0] ?? {};
   const change = (a: number, b: number) => (b ? (a - b) / b : a ? null : 0);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const respByAuthor = new Map(responses.rows.filter((r) => r.author_id).map((r) => [String(r.author_id), r]));
   const respAll = responses.rows.find((r) => r.author_id === null);
   // Каналы привлечения сделок: по UTM, если есть, иначе по источнику сделки (чат, звонок).

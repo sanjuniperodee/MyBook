@@ -9,7 +9,7 @@ import { site } from "@/config/site";
 import { getSettings, saveSettings, smtpConfig } from "@/modules/workspace";
 import { publish } from "@/modules/workspace";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "@/modules/messaging/domain/email";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 
 
 /**
@@ -46,7 +46,7 @@ async function authorName(messageId: string) {
     .innerJoin(users, eq(users.id, crmMessages.authorId))
     .where(eq(crmMessages.id, messageId))
     .limit(1);
-  return row[0] ? adminLabel(row[0]) : undefined;
+  return row[0] ? staffLabel(row[0]) : undefined;
 }
 
 /** Ответ из единого инбокса в почтовый диалог: «Re: тема» и In-Reply-To последнего письма клиента. */

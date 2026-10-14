@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Журнал действий" };
@@ -80,7 +80,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               <td className="px-4 py-2.5">
                 {a.actorId ? (
                   <Link href={`/admin/team/audit?actor=${a.actorId}`} className="hover:text-wine">
-                    {adminLabel(actor?.email ? { name: actor.name ?? "", email: actor.email } : null)}
+                    {staffLabel(actor?.email ? { name: actor.name ?? "", email: actor.email } : null)}
                   </Link>
                 ) : (
                   <span className="text-muted">система</span>

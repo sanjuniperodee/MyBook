@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import { can, requireStaffShell } from "@/server/access";
 import { getSetting } from "@/modules/workspace";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { trustedClientIp } from "@/server/rateLimit";
 import { formatDate } from "@/lib/dates";
 import { IpAllowlistForm, ResetStaffButton, TwoFactorCard } from "./SecurityControls";
@@ -41,9 +41,9 @@ export default async function SecurityPage() {
             <ul className="divide-y divide-line text-sm" data-testid="team-2fa">
               {team.map((u) => (
                 <li key={u.id} className="flex items-center gap-3 py-2.5">
-                  <span className={u.staffDisabled ? "text-muted line-through" : ""}>{adminLabel({ name: u.name, email: u.email })}</span>
+                  <span className={u.staffDisabled ? "text-muted line-through" : ""}>{staffLabel({ name: u.name, email: u.email })}</span>
                   <span className={u.totpEnabledAt ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800" : "rounded-full bg-cream px-2 py-0.5 text-xs text-muted"}>{u.totpEnabledAt ? `включена с ${formatDate(u.totpEnabledAt)}` : "не настроена"}</span>
-                  {u.totpEnabledAt && u.id !== staff.user.id ? <ResetStaffButton userId={u.id} name={adminLabel({ name: u.name, email: u.email })} /> : null}
+                  {u.totpEnabledAt && u.id !== staff.user.id ? <ResetStaffButton userId={u.id} name={staffLabel({ name: u.name, email: u.email })} /> : null}
                 </li>
               ))}
             </ul>

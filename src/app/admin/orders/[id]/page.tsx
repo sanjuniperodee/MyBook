@@ -13,7 +13,8 @@ import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
@@ -36,7 +37,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
     container().ordering.queries.paymentInvoices("order", order.id),
   ]);
   const adminOptions = staffOptions(admins);
-  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = new Date();
   const tasks: TaskItem[] = taskRows.map((t) => ({
     id: t.id,

@@ -7,7 +7,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { container } from "@/server/container";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { canRemind } from "@/modules/notifications";
 import { getTheme } from "@/lib/content/themes";
 import { formatPrice } from "@/config/site";
@@ -37,7 +38,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   ]);
 
   const adminOptions = staffOptions(admins);
-  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const orderNumber = new Map(orderRows.map((o) => [o.id, o.number]));
   // Покупки клиента — из единого журнала выручки: оплаченные заказы и платежи менеджера по его сделкам.
   const ltv = money.total;

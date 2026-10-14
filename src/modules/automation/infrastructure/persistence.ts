@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, orders, users } from "@/shared/infrastructure/db/schema";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { fieldVars, listFields } from "@/modules/workspace";
 import { formatDate } from "@/lib/dates";
 import { messagesFor } from "@/i18n/messages";
@@ -57,7 +57,7 @@ export class DrizzleSubjectLoader implements SubjectLoader {
   async managerName(userId: string | null) {
     if (!userId) return "";
     const [u] = await executor().select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
-    return u ? adminLabel(u) : "";
+    return u ? staffLabel(u) : "";
   }
 
   async dealFieldVars(customFields: Record<string, string | number | boolean | null>) {

@@ -2,7 +2,8 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { channelLabel } from "@/modules/messaging";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/domain/channels";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
@@ -43,7 +44,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     selectedId ? container().messaging.queries.conversation(selectedId) : null,
   ]);
   const sla = Number(slaRaw) || 15;
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const conv = selected && canSeeAssigned(staff, selected.assigneeId) ? selected : null;
   const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) =>
     c.contactName ||
@@ -66,7 +67,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai] = await Promise.all([
       loadChatMessages(conv.id),
       listTemplates(),
-      chatVars(conv, adminLabel(staff.user)),
+      chatVars(conv, staffLabel(staff.user)),
       sendBlocker(conv),
       container().reporting.conversationContext(conv),
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),

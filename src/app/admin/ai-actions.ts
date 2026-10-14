@@ -4,7 +4,7 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, assertVisible, audit } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
 import { listFields } from "@/modules/workspace";
 import { rateLimit } from "@/server/rateLimit";
@@ -38,7 +38,7 @@ export async function aiSuggestReplyAction(conversationId: string): Promise<Resu
   if (!conv) return { ok: false, message: "Диалог не найден" };
   assertVisible(staff, conv.assigneeId);
   return guard(staff.user.id, async () => {
-    const r = await container().assistant.service.suggestReply(conv.id, adminLabel(staff.user));
+    const r = await container().assistant.service.suggestReply(conv.id, staffLabel(staff.user));
     await audit(staff, "ai.reply", "conversation", conv.id, r.usage);
     return { text: r.text };
   });

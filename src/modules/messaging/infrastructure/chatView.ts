@@ -5,7 +5,7 @@ import { db } from "@/shared/infrastructure/db";
 import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
 import { container } from "@/server/container";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { getSetting } from "@/modules/workspace";
 import { wazzupConfigured } from "@/modules/messaging/infrastructure/wazzup";
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
@@ -28,7 +28,7 @@ export async function loadChatMessages(conversationId: string, limit = 150): Pro
     mediaUrl: m.mediaUrl,
     status: m.status,
     error: m.error,
-    author: m.internal ? (author?.email ? adminLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? adminLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
+    author: m.internal ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
     at: m.createdAt.toISOString(),
     internal: m.internal,
   }));

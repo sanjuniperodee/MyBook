@@ -4,7 +4,8 @@ import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels, dealSources } from "@/shared/domain/deals";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
@@ -29,7 +30,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     container().access.queries.allStaff(),
     container().reporting.savedViews(staff.user.id),
   ]);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = nowMs();
   const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book, paid }) => ({
     id: deal.id,

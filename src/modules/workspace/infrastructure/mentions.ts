@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { users } from "@/shared/infrastructure/db/schema";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { notify } from "@/modules/workspace/infrastructure/notify";
 
 import { findMentions } from "@/shared/domain/mentions";
@@ -14,7 +14,7 @@ export async function mentionableStaff() {
     .select({ id: users.id, name: users.name, email: users.email })
     .from(users)
     .where(and(eq(users.role, "admin"), eq(users.staffDisabled, false)));
-  return rows.map((r) => ({ id: r.id, label: adminLabel(r) }));
+  return rows.map((r) => ({ id: r.id, label: staffLabel(r) }));
 }
 
 /** Уведомить упомянутых (кроме автора). */
