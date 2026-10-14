@@ -3,7 +3,7 @@ import { getPlan, type DeliveryId, type PlanId } from "@/config/site";
 import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
-import type { OrderStatus } from "./OrderStatus";
+import { isPaid, type OrderStatus } from "./OrderStatus";
 import type { PromoCode } from "./PromoCode";
 
 export interface OrderContact {
@@ -248,7 +248,7 @@ export class Order extends AggregateRoot<OrderProps> {
     this.props.status = "cancelled";
     const releasePromo = from === "pending_payment" && !!this.props.promoCode;
     this.log("cancelled", note, actor, now);
-    this.record(OrderingEvents.orderCancelled({ ...this.ref(), wasPaid: from !== "pending_payment", releasedPromo: releasePromo, actor }));
+    this.record(OrderingEvents.orderCancelled({ ...this.ref(), wasPaid: isPaid(from), releasedPromo: releasePromo, actor }));
     return { releasePromo };
   }
 

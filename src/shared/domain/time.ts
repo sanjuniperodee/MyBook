@@ -4,12 +4,12 @@
  * часы автописем, время в CRM и SQL-выборки (пояс передаётся параметром). В браузере TZ не задан, поэтому
  * клиентский компонент, которому нужен пояс магазина, получает его от сервера.
  */
-export const DEFAULT_STORE_TIME_ZONE = "Asia/Almaty";
+const DEFAULT_STORE_TIME_ZONE = "Asia/Almaty";
 
 export const storeTimeZone = (): string => process.env.TZ || DEFAULT_STORE_TIME_ZONE;
 
 /** Местные дата и время момента: день недели 1 — понедельник … 7 — воскресенье, minutes — минуты от полуночи. */
-export interface ZonedParts {
+interface ZonedParts {
   y: number;
   m: number;
   d: number;

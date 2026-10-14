@@ -5,7 +5,7 @@ import { audit, can, canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { PaymentError, ReceiptError } from "@/modules/sales";
-import { receiptProblem } from "@/modules/sales/domain";
+import { RECEIPT_MAX_BYTES, receiptProblem } from "@/modules/sales/domain";
 import { receiptProblemText } from "@/modules/sales/ui/receipt";
 import { mailPaymentToClient } from "@/server/client-mail";
 import { fromZonedTime } from "@/shared/domain/time";
@@ -34,6 +34,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (refund && note.trim().length < 3) return bad("Укажите причину возврата");
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) return bad("Приложите чек: платёж без чека не принимается");
+  // Размер — до чтения в память: большой файл не копируем ради отказа.
+  if (file.size > RECEIPT_MAX_BYTES) return bad(receiptProblemText.tooBig);
   const bytes = Buffer.from(await file.arrayBuffer());
   const problem = receiptProblem(bytes);
   if (problem) return bad(receiptProblemText[problem]);
