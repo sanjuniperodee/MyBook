@@ -1,5 +1,6 @@
 import type { Clock } from "@/shared/application";
 import { formatPhone } from "@/shared/domain/phone";
+import { staffLabel } from "@/shared/domain/staff";
 import { Call, TelephonyError, type CallEvent } from "../domain";
 import type { CallRepository, CallSideEffects, CallTimeline, SalesGateway, StaffDirectory, TelephonyProvider } from "./ports";
 
@@ -56,7 +57,8 @@ export class CallsService {
       call.linkDeal(deal.id, deal.clientId);
       await this.calls.save(call);
     }
-    const staffName = call.staffId ? await this.staff.displayName(call.staffId) : null;
+    const staff = call.staffId ? await this.staff.byId(call.staffId) : null;
+    const staffName = staff ? staffLabel(staff) : null;
     if (call.clientId) await this.timeline.record({ clientId: call.clientId, dealId: call.dealId, authorId: call.staffId, text: call.summary(staffName) });
     if (call.status === "answered" && call.clientPhone) await this.calls.markMissedHandled(call.clientPhone, this.clock.now());
     if (call.isMissed) {

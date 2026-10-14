@@ -16,7 +16,8 @@ export interface CallRepository {
 
 export interface StaffDirectory {
   byExtension(extension: string | null): Promise<string | null>;
-  displayName(userId: string): Promise<string | null>;
+  /** Сотрудник — для подписи в ленте клиента; null, если такого нет. */
+  byId(userId: string): Promise<{ name: string; email: string } | null>;
 }
 
 export interface SalesGateway {

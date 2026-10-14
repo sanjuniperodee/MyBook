@@ -23,7 +23,7 @@ describe("Call", () => {
   });
 });
 
-function setup(opts: { blocked?: boolean } = {}) {
+function setup(opts: { blocked?: boolean; client?: string; staff?: { name: string; email: string } } = {}) {
   const rows = new Map<string, Call>();
   const log: string[] = [];
   const repo: CallRepository = {
@@ -36,7 +36,7 @@ function setup(opts: { blocked?: boolean } = {}) {
     markHandled: async () => {},
   };
   const sales: SalesGateway = {
-    findClientByPhone: async () => null,
+    findClientByPhone: async () => opts.client ?? null,
     findOpenDealId: async () => null,
     createCallDeal: async (i) => (log.push(`deal:${i.title}`), { id: "d1", clientId: null }),
     dealOwner: async () => ({ assigneeId: "m2", contactName: "Айгерим" }),
@@ -47,7 +47,7 @@ function setup(opts: { blocked?: boolean } = {}) {
     callChanged: () => {},
     missedRules: async (ctx) => void log.push(`rules:${ctx.callId}`),
   };
-  const service = new CallsService(repo, { byExtension: async (e) => (e ? "m1" : null), displayName: async () => "Менеджер" }, sales, { record: async (e) => void log.push(`note:${e.text}`) }, effects, { now: () => now });
+  const service = new CallsService(repo, { byExtension: async (e) => (e ? "m1" : null), byId: async () => opts.staff ?? { name: "Менеджер", email: "manager@mybook.kz" } }, sales, { record: async (e) => void log.push(`note:${e.text}`) }, effects, { now: () => now });
   return { service, log };
 }
 
@@ -66,6 +66,18 @@ describe("CallsService", () => {
     await service.handle(event({ stage: "end", durationSec: 30 }));
     expect(log).toContain("handled:77011234567");
     expect(log.some((l) => l.startsWith("notify"))).toBe(false);
+  });
+
+  it("в ленту клиента сотрудник записывается как везде в CRM: имя, а у «Администратора» — логин из почты", async () => {
+    for (const [staff, who] of [
+      [{ name: "Айгерим", email: "aigerim@mybook.kz" }, "Айгерим"],
+      [{ name: "Администратор", email: "boss@mybook.kz" }, "boss"],
+    ] as const) {
+      const { service, log } = setup({ client: "u7", staff });
+      await service.handle(event({ stage: "answer", extension: "101" }));
+      await service.handle(event({ stage: "end", durationSec: 30 }));
+      expect(log).toContain(`note:Входящий звонок, 0:30 · ${who}`);
+    }
   });
 
   it("номер в спаме: звонок в журнале, без заявки и уведомлений; запись без звонка игнорируется", async () => {
