@@ -110,6 +110,7 @@ describe("нет русских строк вне словарей", () => {
     "shared/domain/dealSources.ts", // подписи источников сделки для CRM — на русском
     "shared/domain/templates.ts", // переменные шаблонов CRM: {имя}, {заказ}…
     "shared/domain/staff.ts", // подпись сотрудника в CRM: имя учётки по умолчанию «Администратор»
+    "shared/domain/customFields.ts", // переменные своих полей для шаблонов CRM: флажок — «да»/«нет»
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
     "lib/proofread/rules.ts", // слова и сокращения для правил проверки текста
     "lib/proofread/spelling.ts", // алфавит для отбора слов на проверку словарём

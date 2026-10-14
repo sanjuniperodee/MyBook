@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmSettings } from "@/shared/infrastructure/db/schema";
 import { decryptSecret, encryptSecret, randomToken } from "@/shared/crypto";
+import type { SettingsStore } from "@/shared/application";
 
 interface Def {
   /** Хранится зашифрованным и никогда не отдаётся в браузер целиком. */
@@ -206,6 +207,9 @@ export async function deleteSetting(key: SettingKey) {
   await db.delete(crmSettings).where(eq(crmSettings.key, key));
   invalidateSettings();
 }
+
+/** Порт настроек для других модулей (src/shared/application): каждый объявляет только свои ключи. */
+export const settingsStore: SettingsStore<SettingKey> = { get: getSetting, getMany: getSettings, save: saveSettings };
 
 /** «••••1a2b» — для показа сохранённого секрета. */
 export const maskSecret = (v: string) => (v ? `••••${v.slice(-4)}` : "");

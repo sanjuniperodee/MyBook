@@ -1,18 +1,14 @@
 import "server-only";
 import type { PoolClient } from "pg";
 import { pool } from "@/shared/infrastructure/db";
+import type { LiveEvent, LiveFeed } from "@/shared/application";
 
-/**
+export type { LiveEvent };
+
+/*
  * Мгновенные обновления CRM: события идут через PostgreSQL LISTEN/NOTIFY, поэтому работают
  * и при нескольких процессах приложения. Браузер получает их по SSE (/api/admin/live/stream).
  */
-export interface LiveEvent {
-  /** notify — новое уведомление, chat — сообщение/статус в чате, call — звонок. */
-  type: "notify" | "chat" | "call";
-  /** Кому адресовано (для notify); без users — всем сотрудникам. */
-  users?: string[];
-  conversationId?: string;
-}
 
 const CHANNEL = "crm_live";
 type Bus = { subs: Set<(e: LiveEvent) => void>; client: PoolClient | null; starting: Promise<void> | null };
@@ -69,3 +65,6 @@ export async function publish(e: LiveEvent) {
     console.error("[realtime] publish", err);
   }
 }
+
+/** Порт живого обновления для других модулей (src/shared/application). */
+export const liveFeed: LiveFeed = { publish };
