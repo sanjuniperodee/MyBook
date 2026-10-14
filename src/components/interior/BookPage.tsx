@@ -8,7 +8,7 @@ import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { messagesFor } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { cssFont } from "@/lib/book/fonts";
-import type { BookFormat } from "@/lib/book/formats";
+import { mm, PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import { interiorMetrics, openerFlow, pageBox, textArea } from "@/lib/book/layout";
 import {
   chapterMark,
@@ -608,7 +608,6 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
   const textW = textWidthMm(kit);
   const textH = textArea(kit.format).h;
   const align = row[0].style.align;
-  const pt = (mm: number) => mm * PT_PER_MM;
   return (
     <div
       style={{
@@ -646,7 +645,7 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
                 src={p.url}
                 alt=""
                 draggable={false}
-                style={{ display: "block", width: "100%", height: u.mm(b.imgH - (bw * 2) / PT_PER_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
+                style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
               />
               {polaroid && p.caption ? (
                 <div
@@ -657,7 +656,7 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
                     bottom: u.mm(b.padBottom * 0.22),
                     fontFamily: cssFont("caveat"),
                     fontWeight: 500,
-                    fontSize: u.pt(polaroidFontSize({ imgW: pt(b.imgW), padBottom: pt(b.padBottom) }, p.caption, S.body)),
+                    fontSize: u.pt(polaroidFontSize({ imgW: mm(b.imgW), padBottom: mm(b.padBottom) }, p.caption, S.body)),
                     lineHeight: 1.1,
                     color: "#3A332E",
                     textAlign: "center",
@@ -676,8 +675,6 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
     </div>
   );
 }
-
-const PT_PER_MM = 72 / 25.4;
 
 /** Ответ целиком: блоки набора и фото между ними, как в PDF. */
 export function EntryBody({ kit, entry, leadIn }: { kit: PageKit; entry: SampleEntry; leadIn: boolean }) {

@@ -4,7 +4,7 @@
  * корешка и выступ крышек на экране совпадают с тем, что получится в типографии. Единица — миллиметр.
  * Чистые функции без React и DOM — проверяются юнит-тестами.
  */
-import { coverSpreadGeometry, print, type BookFormat, type Rect } from "./formats";
+import { coverSpreadGeometry, print, PT_TO_MM, type BookFormat, type Rect } from "./formats";
 
 /** Толщина картонной крышки, мм (картон + покровный материал; вместе с отставом даёт spineExtraMm). */
 export const BOARD_MM = print.cover.spineExtraMm / 2;
@@ -118,7 +118,7 @@ export const VIEWS: Record<"front" | "spine" | "back" | "edge" | "top" | "bottom
 export const INITIAL_VIEW: Orientation = { rx: -14, ry: 28 };
 
 /** Максимальная ширина шрифта корешка, мм: 11 pt, как в PDF обложки. */
-export const SPINE_FONT_MAX_MM = (11 * 25.4) / 72;
+export const SPINE_FONT_MAX_MM = 11 * PT_TO_MM;
 
 /** Размер шрифта надписи на корешке, мм; null — корешок слишком узкий для текста (как в PDF: меньше 5 мм). */
 export function spineFontMm(spineWidth: number): number | null {

@@ -4,12 +4,10 @@
  * поэтому снимки в превью и в печати лежат одинаково. Единицы — мм от левого верхнего угла
  * обрезного формата; рамки — фигуры interior-art (under — под снимком, over — поверх).
  */
-import type { BookFormat, Rect } from "./formats";
+import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
 import type { InteriorDesign, InteriorSizes } from "./interiors";
 import type { Shape } from "./interior-art";
 import { n } from "./cover-kit";
-
-const PT = 25.4 / 72;
 
 /**
  * Оформление снимка: без рамки, тонкая линия, двойная рамка, полароид, уголки старого альбома, скотч,
@@ -116,7 +114,7 @@ export function photoCaptionSize(design: InteriorDesign, S: InteriorSizes) {
 
 /** Сколько строк займёт подпись: оценка по средней ширине знака (подписи короткие, с запасом). */
 function captionLines(text: string, sizePt: number, widthMm: number, hand: boolean) {
-  const perLine = Math.max(8, Math.floor(widthMm / (sizePt * PT * (hand ? 0.42 : 0.52))));
+  const perLine = Math.max(8, Math.floor(widthMm / (sizePt * PT_TO_MM * (hand ? 0.42 : 0.52))));
   return Math.min(3, Math.ceil(text.length / perLine));
 }
 
@@ -129,7 +127,7 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
   const P = design.palette;
   const grid = group[0]?.layout === "grid" && group.length > 1;
   const size = photoCaptionSize(design, S);
-  const lineH = size * PT * (face === "hand" ? 1.15 : 1.3);
+  const lineH = size * PT_TO_MM * (face === "hand" ? 1.15 : 1.3);
   const cells: PhotoCell[] = [];
   const under: Shape[] = [];
   const over: Shape[] = [];
@@ -159,8 +157,8 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
       under.push({ kind: "rect", x: card.x + 0.5, y: card.y + 0.7, w: card.w, h: card.h, fill: "#000000", opacity: 0.05 });
       under.push({ kind: "rect", ...card, fill: "#FFFFFF", stroke: "#DDD6CE", width: 0.18 });
       if (text) {
-        const s = Math.min(size, (bottom * 0.5) / PT);
-        caption = { text, size: s, inside: true, box: { x: img.x, y: img.y + ih + (bottom - s * PT * 1.2) / 2, w: iw, h: s * PT * 1.2 } };
+        const s = Math.min(size, (bottom * 0.5) / PT_TO_MM);
+        caption = { text, size: s, inside: true, box: { x: img.x, y: img.y + ih + (bottom - s * PT_TO_MM * 1.2) / 2, w: iw, h: s * PT_TO_MM * 1.2 } };
       }
     } else {
       const room = frameRoom(frame);

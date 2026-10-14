@@ -5,14 +5,14 @@ import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cssFont } from "@/lib/book/fonts";
-import type { BookFormat } from "@/lib/book/formats";
+import { PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import { interiorMetrics } from "@/lib/book/layout";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { AnswerBlockView, Divider, Folio, OpenerPage, pageKit, QuestionHeading, RunningHead } from "@/components/interior/BookPage";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
-import { pxUnits, PT_TO_MM } from "@/components/interior/units";
+import { pxUnits } from "@/components/interior/units";
 
 const END = Number.POSITIVE_INFINITY;
 

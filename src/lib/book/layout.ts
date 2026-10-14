@@ -7,7 +7,7 @@ import { applyGender } from "../content/gender";
 import { getTheme } from "../content/themes";
 import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { framedBox, layoutInline, MAX_INLINE_HEIGHT_SHARE, normalizeStyle, splitParagraphs } from "./inline-photo";
-import { formats, getFormat, type BookFormat, type FormatId } from "./formats";
+import { formats, getFormat, MM_TO_PT, type BookFormat, type FormatId } from "./formats";
 import type { Typography } from "./fonts";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
 import type { PageBox } from "./interior-art";
@@ -281,7 +281,6 @@ export function photoPages<T extends Pick<PhotoItem, "layout">>(photos: T[]): T[
 
 // ─── оценка объёма ─────────────────────────────────────────────────────────
 
-const PT_PER_MM = 72 / 25.4;
 const AVG_CHAR_EM = 0.5;
 
 export interface TextMetrics {
@@ -295,10 +294,10 @@ export function textMetrics(format: BookFormat, typo: Typography): TextMetrics {
   const scale = interiorMetrics[format.id].scale;
   const bodyPt = typo.bodySize * scale;
   const headingPt = bodyPt * 1.55;
-  const widthPt = area.w * PT_PER_MM;
+  const widthPt = area.w * MM_TO_PT;
   return {
     charsPerLine: Math.floor(widthPt / (bodyPt * AVG_CHAR_EM)),
-    linesPerPage: Math.floor((area.h * PT_PER_MM - 18) / (bodyPt * typo.lineHeight)),
+    linesPerPage: Math.floor((area.h * MM_TO_PT - 18) / (bodyPt * typo.lineHeight)),
     headingCharsPerLine: Math.floor(widthPt / (headingPt * AVG_CHAR_EM)),
   };
 }
