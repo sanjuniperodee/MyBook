@@ -23,7 +23,7 @@ import { FeedbackModule } from "@/modules/feedback";
 import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
 import type { PromoCode } from "@/modules/ordering";
 import { AutomationModule } from "@/modules/automation";
-import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
+import { BookPreviewService, PrintFilesService, renderGiftPdf, type BookRenderer } from "@/modules/production";
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
@@ -238,6 +238,7 @@ export class Container {
       clock: this.clock,
       logger: consoleLogger("ordering"),
       printFiles: this.printFiles,
+      giftPdf: { render: renderGiftPdf },
       mailer: this.mailer,
       books: {
         checkoutInfo: (bookId, userId, locale) => this.authoring.ordering.checkoutInfo(bookId, userId, locale),

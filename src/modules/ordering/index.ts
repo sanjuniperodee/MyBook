@@ -1,9 +1,8 @@
 import "server-only";
 import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
-import type { PrintFilesService } from "@/modules/production";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { GiftsService, KaspiPaymentsService, KaspiSetupService, OrdersService, PromoService, type AgreementGateway, type BookGateway, type KaspiConfigStore } from "./application";
+import { GiftsService, KaspiPaymentsService, KaspiSetupService, OrdersService, PromoService, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -30,7 +29,10 @@ export interface OrderingDeps {
   bus: EventBus;
   clock: Clock;
   logger: Logger;
-  printFiles: PrintFilesService;
+  /** Файлы для типографии (контекст Production). */
+  printFiles: PrintFiles;
+  /** PDF подарочного сертификата (контекст Production). */
+  giftPdf: GiftPdfRenderer;
   /** Книги (контекст Authoring) — через узкий порт, реализацию даёт корень композиции. */
   books: BookGateway;
   /** Договорённая цена и предоплата клиента по ручной сделке (контекст «Продажи»). */
@@ -57,8 +59,7 @@ export class OrderingModule {
     const orderRepo = new DrizzleOrderRepository();
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
-    const printFiles = { prepare: (job: { orderId: string; bookId: string; number: number }, opts?: { force?: boolean }) => deps.printFiles.prepare(job, opts) };
-    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock);
+    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);
@@ -66,7 +67,7 @@ export class OrderingModule {
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
     this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger);
     this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
-    this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer);
+    this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);
     this.subscribe(deps.bus);
   }
 

@@ -23,9 +23,37 @@ export interface AgreementGateway {
   agreementFor(userId: string): Promise<{ dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null; plan: string | null } | null>;
 }
 
+/** Заказ, для которого готовим файлы. */
+export interface PrintJob {
+  orderId: string;
+  bookId: string;
+  number: number;
+}
+
 /** Файлы для типографии (контекст Production). */
 export interface PrintFiles {
-  prepare(job: { orderId: string; bookId: string; number: number }, opts?: { force?: boolean }): Promise<OrderPrintSpec | null>;
+  prepare(job: PrintJob, opts?: { force?: boolean }): Promise<OrderPrintSpec | null>;
+  /** После оплаты: готовит файлы заранее; сбой не бросается, а пишется в лог (тогда null). */
+  warmUp(job: PrintJob): Promise<OrderPrintSpec | null>;
+}
+
+/** Что напечатано на подарочном сертификате. */
+export interface GiftPdfData {
+  /** Язык сертификата. */
+  locale: Locale;
+  number: number;
+  code: string;
+  plan: string;
+  amount: number;
+  buyerName: string;
+  recipientName: string;
+  message: string;
+  validUntil: Date;
+}
+
+/** PDF подарочного сертификата (контекст Production). */
+export interface GiftPdfRenderer {
+  render(data: GiftPdfData): Promise<Buffer>;
 }
 
 /** Выпуск кода сертификата и платёжные настройки. */

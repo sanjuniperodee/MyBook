@@ -56,7 +56,7 @@ export class OrdersService {
     private readonly promos: PromoCodeRepository,
     private readonly books: BookGateway,
     private readonly people: PeopleGateway,
-    private readonly printFiles: PrintFiles,
+    private readonly printFiles: Pick<PrintFiles, "prepare">,
     private readonly payments: PaymentSettings,
     private readonly agreements: AgreementGateway,
     private readonly uow: UnitOfWork,

@@ -4,8 +4,6 @@
     "src/modules/access/domain/StaffContext.ts -> src/modules/identity/domain/Login.ts",
     "src/modules/assistant/infrastructure/data.ts -> src/modules/messaging/index.ts",
     "src/modules/notifications/infrastructure/templates.ts -> src/modules/feedback/index.ts",
-    "src/modules/ordering/index.ts -> src/modules/production/index.ts",
-    "src/modules/ordering/infrastructure/notifications/OrderingMailer.ts -> src/modules/production/index.ts",
     "src/modules/reporting/infrastructure/Clients.ts -> src/modules/clients/domain/segments.ts",
     "src/modules/reporting/infrastructure/Counters.ts -> src/modules/access/index.ts",
     "src/modules/reporting/infrastructure/Live.ts -> src/modules/access/index.ts",

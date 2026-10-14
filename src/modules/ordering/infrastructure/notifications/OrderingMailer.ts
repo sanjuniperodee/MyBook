@@ -11,7 +11,7 @@ import type { Mailer } from "@/shared/application";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { parseDay, toIsoDay } from "@/lib/occasions";
 import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed } from "../../domain";
-import type { GiftsService } from "../../application";
+import type { GiftPdfRenderer, GiftsService } from "../../application";
 import type { DrizzleOrderingQueries, GiftView } from "../persistence/DrizzleOrderingQueries";
 
 const orderUrl = (orderId: string, locale: Locale = "ru") => appLink(`/orders/${orderId}`, locale);
@@ -27,6 +27,7 @@ export class OrderingMailer {
     private readonly queries: DrizzleOrderingQueries,
     private readonly gifts: GiftsService,
     private readonly mail: Mailer,
+    private readonly giftPdfRenderer: GiftPdfRenderer,
   ) {}
 
   private async customerLocale(userId: string): Promise<Locale> {
@@ -161,8 +162,7 @@ export class OrderingMailer {
 
   async giftPdf(gift: GiftView): Promise<Buffer> {
     if (!gift.promo) throw new Error("gift is not paid yet");
-    const { renderGiftPdf } = await import("@/modules/production");
-    return renderGiftPdf({ locale: gift.locale, number: gift.number, code: gift.promo.code, plan: gift.plan, amount: gift.amount, buyerName: gift.buyerName, recipientName: gift.recipientName, message: gift.message, validUntil: gift.promo.expiresAt ?? new Date() });
+    return this.giftPdfRenderer.render({ locale: gift.locale, number: gift.number, code: gift.promo.code, plan: gift.plan, amount: gift.amount, buyerName: gift.buyerName, recipientName: gift.recipientName, message: gift.message, validUntil: gift.promo.expiresAt ?? new Date() });
   }
 
   async sendToRecipient(gift: GiftView, pdf?: Buffer) {
