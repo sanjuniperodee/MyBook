@@ -14,7 +14,10 @@
 ```
 src/
   shared/                     общее ядро (shared kernel)
-    domain/                   Entity, AggregateRoot, ValueObject, DomainEvent, DomainError
+    domain/                   Entity, AggregateRoot, ValueObject, DomainEvent, DomainError; общий словарь модулей —
+                              каналы привлечения (channels), источник сделки (deals), график работы (schedule),
+                              упоминания (mentions), переменные шаблонов (templates), подпись сотрудника (staff),
+                              телефон (phone), часовой пояс (time), код ссылки (slug)
     application/              UseCase, UnitOfWork, EventBus, Clock, Logger, Mailer, RateLimiter — порты
     infrastructure/           db/ (схема Drizzle, пул, миграции), database.ts (executor() — текущая транзакция или пул),
                               DrizzleUnitOfWork (транзакции), OutboxDispatcher (надёжная доставка событий), InProcessEventBus,
@@ -39,7 +42,7 @@ src/
   app/                        слой представления: страницы, server actions, роуты — тонкие контроллеры
 ```
 
-Зависимости направлены внутрь: `app → server/container → modules/*/index → application → domain`. Домен не зависит ни от чего, кроме `shared/domain` и справочников каталога (`config/site`).
+Зависимости направлены внутрь: `app → server/container → modules/*/index → application → domain`. Домен не зависит ни от чего, кроме `shared/domain` и справочников каталога (`config/site`). Словарь, которым пользуются несколько модулей, лежит в `shared/domain`, а не в домене одного из них.
 
 ### Правила, которые проверяет линтер (`eslint.config.mjs`)
 
