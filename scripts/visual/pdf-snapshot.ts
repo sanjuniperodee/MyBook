@@ -7,6 +7,8 @@
  * Запуск из корня репозитория:
  *   npx tsx --import ./scripts/preload.mjs scripts/visual/pdf-snapshot.ts --out <каталог> [--filter <подстрока ключа>] [--quick] [--jobs N]
  *
+ * Книги — books.ts: весь набор и варианты, --quick — каждое оформление один раз (формат и язык по кругу) и варианты.
+ *
  * Каждая книга собирается в своём дочернем процессе с зафиксированными временем и случайностью (freeze.ts):
  * книги не делят состояние, результат не зависит от --jobs и порядка.
  */
@@ -15,9 +17,9 @@ import { readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { fixtureBooks } from "../../tests/fixtures/books";
 // Не React-хук, несмотря на имя: под другим именем правило хуков не путает его с ними.
 import { useFixtureStorage as openFixtureStorage } from "../../tests/fixtures/photos";
+import { photoNamesFor, snapshotBooks } from "./books";
 import { freezeRuntime } from "./freeze";
 import { pdfSummary } from "./pdf-digest";
 import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, ROOT, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry } from "./shared";
@@ -61,10 +63,10 @@ async function pdfEntry(pdf: Buffer, out: string, key: string): Promise<Manifest
 /** Дочерний процесс: одна книга → записи манифеста её ключей (через IPC). */
 async function worker(task: Task) {
   freezeRuntime();
-  await openFixtureStorage();
-  const render = await import("@/modules/production/infrastructure/pdf/render");
-  const fixture = fixtureBooks().find((b) => b.key === task.book);
+  const fixture = snapshotBooks(false).find((b) => b.key === task.book);
   if (!fixture) throw new Error(`Нет книги ${task.book} в наборе`);
+  await openFixtureStorage(undefined, photoNamesFor([fixture]));
+  const render = await import("@/modules/production/infrastructure/pdf/render");
   const interior = await render.renderInterior(fixture.bundle, "print");
   const want = (key: string) => task.keys.includes(key);
   // Растр блока идёт в pdftoppm параллельно со сборкой обложки.
@@ -98,12 +100,12 @@ function runWorker(task: Task): Promise<Manifest> {
 
 async function main() {
   const flags = snapshotFlags(process.argv.slice(2));
-  const books = flags.quick ? fixtureBooks({ formats: ["a5"], languages: ["ru"] }) : fixtureBooks();
-  const tasks = books
-    .map((b) => ({ book: b.key, out: flags.out, keys: [blockKey(b.key), coverKey(b.key)].filter((k) => !flags.filter || k.includes(flags.filter)) }))
-    .filter((t) => t.keys.length);
+  const books = snapshotBooks(flags.quick)
+    .map((b) => ({ book: b, keys: [blockKey(b.key), coverKey(b.key)].filter((k) => !flags.filter || k.includes(flags.filter)) }))
+    .filter((b) => b.keys.length);
+  const tasks: Task[] = books.map(({ book, keys }) => ({ book: book.key, out: flags.out, keys }));
   await prepareOut(flags.out);
-  await openFixtureStorage(); // фото пишутся один раз здесь, а не в каждом процессе
+  await openFixtureStorage(undefined, photoNamesFor(books.map((b) => b.book))); // фото пишутся один раз здесь, а не в каждом процессе
   const started = performance.now();
   let done = 0;
   const results = await runPool(tasks, flags.jobs, async (task) => {

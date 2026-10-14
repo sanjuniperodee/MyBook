@@ -6,9 +6,19 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 
 ## Что снимается
 
-**PDF** — `scripts/visual/pdf-snapshot.ts`. Каждая книга набора (23 оформления × A5 и квадрат × ru и kk = 92):
-блок `renderInterior(…, "print")` и обложка-развёртка `renderCover(…, "print")`, растр `pdftoppm -r 150`.
-Ключи `pdf:block:<книга>` и `pdf:cover:<книга>`, книга — `<оформление>-<формат>-<язык>`.
+Книги (`scripts/visual/books.ts`, одни и те же для PDF и HTML):
+
+- полный прогон — весь набор (23 оформления × A5 и квадрат × ru и kk = 92) и варианты `fixtureVariants()`
+  (`thin`, `bare`, `gender`, `bigphoto`) — 96 книг;
+- `--quick` — каждое оформление один раз, формат и язык по кругу: a5-ru, square-kk, a5-kk, square-ru
+  (`fixtureSample()`, та же выборка, что у `tests/pdf-critical.test.ts`), и те же варианты — 27 книг. Так быстрый
+  прогон покрывает все оформления, оба формата и языка, оба размещения фото (kk-квадрат — в конце книги) и крайние
+  случаи.
+
+Книга — `<оформление>-<формат>-<язык>` или имя варианта.
+
+**PDF** — `scripts/visual/pdf-snapshot.ts`. Блок `renderInterior(…, "print")` и обложка-развёртка
+`renderCover(…, "print")`, растр `pdftoppm -r 150`. Ключи `pdf:block:<книга>` и `pdf:cover:<книга>`.
 
 Кроме растра — сводка самого PDF (`scripts/visual/pdf-digest.ts`, pdf-lib): `sha256` файла без `/CreationDate`,
 `/ModDate`, `/Producer` и `/ID` (pdf-lib прячет словарь Info в сжатый поток объектов, поэтому ключи удаляются
@@ -21,15 +31,17 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 
 **HTML** — `scripts/visual/html-snapshot.ts`. `InteriorSpread` во всех видах разворота (`chapter`, `front`, `toc`,
 `photos`) шириной 960 px и `PagePreview` редактора — каждая полоса отдельным PNG, ширина полосы 480 px.
-Книги: на каждое оформление A5 ru и квадрат kk (у него фото в конце книги) — 46. Данные готовятся так же, как на
-страницах сайта (`bookSpreadSample`, главы из `books/[id]/questions`). Chromium через Playwright: окно 1280×900,
+Данные готовятся так же, как на страницах сайта (`bookSpreadSample`, главы из `books/[id]/questions`). Chromium через Playwright: окно 1280×900,
 deviceScaleFactor 1, анимации выключены. Ключи `html:<вид>:<книга>`, вид — `chapter`, `front`, `toc`, `photos`
 или `preview`.
 
 Стенд собирается из `src`: JS — esbuild (вход `scripts/visual/html-stand.tsx`, пути `@/` из tsconfig, `next/link` и
 `next/navigation` — заглушка), CSS — `src/app/globals.css` через Tailwind (PostCSS, как в `postcss.config.mjs`),
 шрифты — `@font-face` и переменные `--font-*` по `src/app/fonts.ts`, как их делает `next/font/local` (WOFF2 из
-`assets/fonts/web`). Фото отдаются по `/api/photos/<id>` из набора.
+`assets/fonts/web`). Запросы страницы отдаёт `scripts/visual/html-server.ts`, как сайт: фото книг —
+`/api/photos/<id>` (превью, файл хранилища, `view` — `photoViewFile` во временном хранилище запуска), фоны обложек
+`/api/covers/<файл>` и снимки шаблонов `/api/cover-photos/<ключ>` (пейзажи-заглушки пустых фотостраниц, снимки
+обложек) — обработчики маршрутов из `src/app/api`, вызванные в Node.
 
 Снимок — каталог: `manifest.json` вида `{ "<ключ>": { "pages": N, "sha256": ["…", …], "pdf": {…} } }` и PNG по
 страницам `<ключ через />/001.png`, например `pdf/block/classic-a5-ru/001.png`. Хеш страницы — по пикселям
@@ -41,7 +53,7 @@ deviceScaleFactor 1, анимации выключены. Ключи `html:<ви
 
 ```sh
 scripts/visual/check.sh                  # текущее дерево против HEAD: PDF и HTML, все книги
-scripts/visual/check.sh HEAD --quick     # по книге на оформление (A5, ru)
+scripts/visual/check.sh HEAD --quick     # каждое оформление один раз и варианты
 scripts/visual/check.sh main --kind pdf --filter classic-a5
 ```
 

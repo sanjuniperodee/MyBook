@@ -12,7 +12,7 @@ import { formats, getFormat, mm, print, printablePageCount, type BookFormat } fr
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import { interiorDesigns } from "@/lib/book/interiors";
 import { buildBookContent, effectiveDpi, estimatePages, interiorMetrics, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
-import { fixtureBook, fixtureBooks, fixtureVariants, type FixtureBook } from "./fixtures/books";
+import { fixtureBook, fixtureBooks, fixtureSample, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, useFixtureStorage, variantPhotoNames } from "./fixtures/photos";
 import { grayPage, hasTool, textRows } from "./pdf-inspect";
 
@@ -37,6 +37,13 @@ describe("набор книг для визуальных и характери�
     const some = fixtureBooks({ designs: ["luna", "classic"], formats: ["square"], languages: ["kk"] });
     expect(some.map((b) => b.key)).toEqual(["classic-square-kk", "luna-square-kk"]);
     expect(some[1]).toEqual(fixtureBooks().find((b) => b.key === "luna-square-kk"));
+  });
+
+  it("выборка: каждое оформление один раз, формат и язык по кругу — все четыре сочетания", () => {
+    const sample = fixtureSample();
+    expect(sample.map((b) => b.bundle.book.interior)).toEqual(interiorDesigns.map((d) => d.id));
+    expect(sample.slice(0, 5).map((b) => b.key)).toEqual(["classic-a5-ru", "photobook-square-kk", "gallery-a5-kk", "romance-square-ru", "cinema-a5-ru"]);
+    expect(sample[1]).toEqual(fixtureBook("photobook", "square", "kk"));
   });
 
   it("два построения дают одинаковые данные, а объекты — новые", () => {

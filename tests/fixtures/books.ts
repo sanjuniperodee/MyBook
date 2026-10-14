@@ -229,6 +229,19 @@ export function fixtureBooks(opts: FixtureOptions = {}): FixtureBook[] {
   return designs.flatMap((d) => formatIds.flatMap((f) => languages.map((l) => fixtureBook(d, f, l))));
 }
 
+/** Сочетания формата и языка по кругу для выборки fixtureSample: все четыре и оба размещения фото (kk-квадрат — в конце книги). */
+const SAMPLE_COMBOS: [FormatId, Locale][] = [
+  ["a5", "ru"],
+  ["square", "kk"],
+  ["a5", "kk"],
+  ["square", "ru"],
+];
+
+/** Каждое оформление один раз, формат и язык по кругу (a5-ru, square-kk, a5-kk, square-ru): быстрые прогоны вместо всего набора. */
+export function fixtureSample(): FixtureBook[] {
+  return interiorDesigns.map((d, i) => fixtureBook(d.id, ...SAMPLE_COMBOS[i % SAMPLE_COMBOS.length]));
+}
+
 // ─── варианты вне матрицы ──────────────────────────────────────────────────
 
 /** Вариант: книга-основа (под ключом варианта) и правка её бандла. */

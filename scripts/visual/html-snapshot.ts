@@ -7,27 +7,21 @@
  * Запуск из корня репозитория:
  *   npx tsx --import ./scripts/preload.mjs scripts/visual/html-snapshot.ts --out <каталог> [--filter <подстрока ключа>] [--quick] [--jobs N]
  *
- * Книги: на каждое оформление A5 ru и квадрат kk (с фото в конце книги), --quick — только A5 ru.
+ * Книги — books.ts: весь набор и варианты, --quick — каждое оформление один раз (формат и язык по кругу) и варианты.
  */
-import { chromium, type Browser, type Route } from "playwright";
-import { fixtureBooks, type FixtureBook } from "../../tests/fixtures/books";
-import { photoFiles } from "../../tests/fixtures/photos";
+import { chromium, type Browser } from "playwright";
+import type { FixtureBook } from "../../tests/fixtures/books";
+import { snapshotBooks } from "./books";
 import { FIXED_TIME, freezeRuntime } from "./freeze";
-import { buildStandAssets, standHtml, type StandAssets } from "./html-assets";
+import { buildStandAssets } from "./html-assets";
 import type { StandView } from "./html-data";
-import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry } from "./shared";
+import { ORIGIN, startStandServer, type StandServer } from "./html-server";
+import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry, type SnapshotFlags } from "./shared";
 
-const ORIGIN = "http://stand.local";
 const VIEWPORT = { width: 1280, height: 900 };
 /** Что снимать: разворот целиком или каждую полосу превью (начальные полосы и полосы текста, без скрытых копий для замера). */
 const TARGETS = { spread: "#stand > div", preview: "#stand > div > div > :not([aria-hidden])" };
 const CHROMIUM = process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-
-interface Stand {
-  assets: StandAssets;
-  /** Фото книг по id: превью (?size=thumb) и файл хранилища (?size=full). */
-  photos: Map<string, { thumb: Buffer; full: Buffer }>;
-}
 
 /** Данные стенда: строятся с замороженным временем (год на развороте), затем время возвращается — Playwright нужны настоящие часы. */
 async function views(books: FixtureBook[], filter?: string): Promise<StandView[]> {
@@ -40,41 +34,14 @@ async function views(books: FixtureBook[], filter?: string): Promise<StandView[]
   }
 }
 
-async function photoIndex(books: FixtureBook[]): Promise<Stand["photos"]> {
-  const files = await photoFiles();
-  const file = (key: string) => {
-    const data = files.get(key);
-    if (!data) throw new Error(`Нет фото ${key} в наборе`);
-    return data;
-  };
-  return new Map(books.flatMap((b) => b.bundle.photos.map((p) => [p.id, { thumb: file(p.thumbKey), full: file(p.storageKey) }] as const)));
-}
-
-/** Ответ стенда на запрос; undefined — такого стенд не отдаёт. */
-function respond(url: URL, stand: Stand, view: StandView): Parameters<Route["fulfill"]>[0] | undefined {
-  if (url.origin !== ORIGIN) return undefined;
-  if (url.pathname === "/") return { contentType: "text/html", body: standHtml(view) };
-  if (url.pathname === "/stand.js") return { contentType: "text/javascript", body: stand.assets.js };
-  if (url.pathname === "/stand.css") return { contentType: "text/css", body: stand.assets.css };
-  if (url.pathname === "/favicon.ico") return { status: 404 };
-  const [, dir, name] = url.pathname.match(/^\/(fonts|api\/photos)\/([^/]+)$/) ?? [];
-  const font = dir === "fonts" ? stand.assets.fonts.get(name) : undefined;
-  if (font) return { contentType: "font/woff2", path: font };
-  // Как /api/photos/[id]: full — файл хранилища, иначе превью; view (уменьшенная копия для 3D) стенду не нужна.
-  const photo = dir === "api/photos" ? stand.photos.get(name) : undefined;
-  const size = url.searchParams.get("size");
-  if (photo && size !== "view") return { contentType: "image/jpeg", body: size === "full" ? photo.full : photo.thumb };
-  return undefined;
-}
-
-async function shoot(browser: Browser, stand: Stand, view: StandView, out: string): Promise<ManifestEntry> {
+async function shoot(browser: Browser, server: StandServer, view: StandView, out: string): Promise<ManifestEntry> {
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1, reducedMotion: "reduce", locale: "ru-RU", timezoneId: "UTC" });
   try {
     const unexpected: string[] = [];
     const errors: string[] = [];
     // Любой запрос, который стенд не отдаёт, — ошибка снимка: значит, компонент стал грузить что-то новое.
-    await context.route("**/*", (route) => {
-      const response = respond(new URL(route.request().url()), stand, view);
+    await context.route("**/*", async (route) => {
+      const response = await server.respond(new URL(route.request().url()), view).catch(() => undefined);
       if (response) return route.fulfill(response);
       unexpected.push(route.request().url());
       return route.abort();
@@ -99,27 +66,37 @@ async function shoot(browser: Browser, stand: Stand, view: StandView, out: strin
   }
 }
 
-async function main() {
-  const flags = snapshotFlags(process.argv.slice(2));
-  const books = [...fixtureBooks({ formats: ["a5"], languages: ["ru"] }), ...(flags.quick ? [] : fixtureBooks({ formats: ["square"], languages: ["kk"] }))];
-  const started = performance.now();
-  const list = await views(books, flags.filter);
-  const [assets, photos] = await Promise.all([buildStandAssets(), photoIndex(books)]);
-  console.log(`Стенд собран за ${seconds(started)}: видов ${list.length}`);
-  await prepareOut(flags.out);
+/** Все виды в одном Chromium, не больше jobs вкладок одновременно. */
+async function shootAll(server: StandServer, list: StandView[], flags: SnapshotFlags, started: number): Promise<Manifest> {
   const browser = await chromium.launch({ executablePath: CHROMIUM });
   const manifest: Manifest = {};
   let done = 0;
   try {
     await runPool(list, flags.jobs, async (view) => {
-      manifest[view.key] = await shoot(browser, { assets, photos }, view, flags.out).catch(errorEntry);
+      manifest[view.key] = await shoot(browser, server, view, flags.out).catch(errorEntry);
       if (++done % 20 === 0 || done === list.length) console.log(`[${done}/${list.length}] ${seconds(started)}`);
     });
   } finally {
     await browser.close();
   }
-  await writeManifest(flags.out, manifest);
-  reportSnapshot(manifest, flags.out, started);
+  return manifest;
+}
+
+async function main() {
+  const flags = snapshotFlags(process.argv.slice(2));
+  const books = snapshotBooks(flags.quick);
+  const started = performance.now();
+  const server = await startStandServer(await buildStandAssets(), books);
+  try {
+    const list = await views(books, flags.filter);
+    console.log(`Стенд собран за ${seconds(started)}: видов ${list.length}`);
+    await prepareOut(flags.out);
+    const manifest = await shootAll(server, list, flags, started);
+    await writeManifest(flags.out, manifest);
+    reportSnapshot(manifest, flags.out, started);
+  } finally {
+    await server.close();
+  }
 }
 
 main().catch((err: unknown) => {

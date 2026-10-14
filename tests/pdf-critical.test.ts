@@ -3,13 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PDFDocument } from "pdf-lib";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
-import { mm, print, type FormatId } from "@/lib/book/formats";
-import { interiorDesigns } from "@/lib/book/interiors";
+import { mm, print } from "@/lib/book/formats";
 import { interiorMetrics, photoPages, type BookContent, type ContentItem, type PhotoItem } from "@/lib/book/layout";
 import type { InteriorResult } from "@/modules/production/infrastructure/pdf/render";
-import { fixtureBook, fixtureBooks, type FixtureBook } from "./fixtures/books";
+import { fixtureBooks, fixtureSample, type FixtureBook } from "./fixtures/books";
 import { useFixtureStorage } from "./fixtures/photos";
 import { edgeMax, grayPage, hasTool, textRows, type TextRow } from "./pdf-inspect";
 
@@ -20,13 +18,7 @@ import { edgeMax, grayPage, hasTool, textRows, type TextRow } from "./pdf-inspec
  * По умолчанию каждое оформление один раз, формат и язык по кругу (около минуты); PDF_CRITICAL=all — весь набор (92 книги, около 4,5 минуты).
  */
 
-const combos: [FormatId, Locale][] = [
-  ["a5", "ru"],
-  ["square", "kk"],
-  ["a5", "kk"],
-  ["square", "ru"],
-];
-const books: FixtureBook[] = process.env.PDF_CRITICAL === "all" ? fixtureBooks() : interiorDesigns.map((d, i) => fixtureBook(d.id, ...combos[i % combos.length]));
+const books: FixtureBook[] = process.env.PDF_CRITICAL === "all" ? fixtureBooks() : fixtureSample();
 
 const textless = !hasTool("pdftotext");
 const rasterless = textless || !hasTool("pdftoppm");
