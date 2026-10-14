@@ -183,7 +183,7 @@ export class Container {
   }
 
   get assistant(): AssistantModule {
-    return (this.#assistant ??= new AssistantModule({ clock: this.clock, settings: this.workspace.settings, fields: this.workspace.fieldsReader }));
+    return (this.#assistant ??= new AssistantModule({ clock: this.clock, settings: this.workspace.settings, fields: this.workspace.fieldsReader, conversations: { messages: (conversationId, limit) => this.messaging.view.messages(conversationId, limit) } }));
   }
 
   get sales(): SalesModule {

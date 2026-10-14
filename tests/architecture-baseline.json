@@ -2,7 +2,6 @@
   "$comment": "Храповик tests/architecture.test.ts: разрешённые нарушения границ «from -> to»; повтор строки — ещё один импорт. Строки только удаляются.",
   "crossModule": [
     "src/modules/access/domain/StaffContext.ts -> src/modules/identity/domain/Login.ts",
-    "src/modules/assistant/infrastructure/data.ts -> src/modules/messaging/index.ts",
     "src/modules/reporting/infrastructure/Clients.ts -> src/modules/clients/domain/segments.ts",
     "src/modules/reporting/infrastructure/Counters.ts -> src/modules/access/index.ts",
     "src/modules/reporting/infrastructure/Live.ts -> src/modules/access/index.ts",
@@ -10,7 +9,6 @@
   ],
   "moduleOutward": [
     "src/modules/access/infrastructure/persistence.ts -> src/server/rateLimit.ts",
-    "src/modules/messaging/infrastructure/chatView.ts -> src/components/admin/ChatPanel.tsx",
     "src/modules/messaging/infrastructure/chatView.ts -> src/server/container.ts",
     "src/modules/messaging/infrastructure/email.ts -> src/server/container.ts",
     "src/modules/production/infrastructure/pdf/render.tsx -> src/server/cover-photos.ts"

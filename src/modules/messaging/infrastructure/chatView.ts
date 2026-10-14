@@ -9,10 +9,24 @@ import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
 import type { WazzupClient } from "@/modules/messaging/infrastructure/wazzup";
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
-import type { ChatMessage } from "@/components/admin/ChatPanel";
+
+/** Сообщение диалога в виде, готовом для ChatPanel. */
+export interface ChatMessage {
+  id: string;
+  direction: "in" | "out";
+  type: string;
+  text: string;
+  mediaUrl: string | null;
+  status: string;
+  error: string | null;
+  author: string | null;
+  at: string;
+  /** Внутренняя заметка сотрудника — клиент её не видит. */
+  internal?: boolean;
+}
 
 /** Последние сообщения диалога в виде, готовом для ChatPanel. */
-export async function loadChatMessages(conversationId: string, limit = 150): Promise<ChatMessage[]> {
+async function loadChatMessages(conversationId: string, limit: number): Promise<ChatMessage[]> {
   const rows = await db
     .select({ m: crmMessages, author: { name: users.name, email: users.email } })
     .from(crmMessages)
@@ -38,8 +52,8 @@ export async function loadChatMessages(conversationId: string, limit = 150): Pro
 export class ChatView {
   constructor(private readonly deps: { fields: CustomFieldsReader; settings: SettingsReader<"wazzup.channelId">; wazzup: WazzupClient }) {}
 
-  messages(conversationId: string) {
-    return loadChatMessages(conversationId);
+  messages(conversationId: string, limit = 150) {
+    return loadChatMessages(conversationId, limit);
   }
 
   templates() {

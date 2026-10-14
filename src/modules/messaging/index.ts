@@ -10,7 +10,7 @@ import { WazzupClient } from "./infrastructure/wazzup";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 
 export { channelLabel, type Conversation, type InboundMessage } from "./domain";
-export { loadChatMessages } from "./infrastructure/chatView";
+export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";

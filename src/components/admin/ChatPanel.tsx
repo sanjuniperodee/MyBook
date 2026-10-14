@@ -7,23 +7,10 @@ import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
 import type { ChatOffers } from "@/modules/marketing";
+import type { ChatMessage } from "@/modules/messaging";
 import { fillTemplate } from "@/shared/domain/templates";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
-
-export interface ChatMessage {
-  id: string;
-  direction: "in" | "out";
-  type: string;
-  text: string;
-  mediaUrl: string | null;
-  status: string;
-  error: string | null;
-  author: string | null;
-  at: string;
-  /** Внутренняя заметка сотрудника — клиент её не видит. */
-  internal?: boolean;
-}
 
 const REFRESH_MS = 15_000;
 

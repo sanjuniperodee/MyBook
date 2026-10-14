@@ -136,9 +136,22 @@ describe("assistant: подключения и данные", () => {
   });
 
   it("база знаний — из настроек, поля сделки — из рабочего пространства", async () => {
-    const data = crmAssistantData(new MemSettings<"ai.knowledge">({ "ai.knowledge": "Доставка по Алматы — 1 день" }), new MemFieldsReader({ deal: dealFields }));
+    const data = crmAssistantData(new MemSettings<"ai.knowledge">({ "ai.knowledge": "Доставка по Алматы — 1 день" }), new MemFieldsReader({ deal: dealFields }), { messages: async () => [] });
     expect(await data.knowledge()).toBe("Доставка по Алматы — 1 день");
     expect(await data.dealFields()).toEqual(dealFields);
+  });
+
+  it("переписка — от порта ConversationReader: вложение без подписи становится «[тип]», заметка остаётся заметкой", async () => {
+    const asked: [string, number][] = [];
+    const message = { direction: "in" as const, type: "text", text: "Добрый день", mediaUrl: null, author: null, at: "2026-10-14T09:00:00.000Z" };
+    const data = crmAssistantData(new MemSettings<"ai.knowledge">(), new MemFieldsReader(), {
+      messages: async (id, limit) => (asked.push([id, limit]), [message, { ...message, direction: "out", type: "image", text: "", mediaUrl: "/m/1.jpg", author: "Айгерим", internal: true }]),
+    });
+    expect(await data.transcript("conv-1", 40)).toEqual([
+      { direction: "in", text: "Добрый день", internal: undefined, author: null, at: message.at },
+      { direction: "out", text: "[image]", internal: true, author: "Айгерим", at: message.at },
+    ]);
+    expect(asked).toEqual([["conv-1", 40]]);
   });
 });
 

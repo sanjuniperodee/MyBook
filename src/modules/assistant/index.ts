@@ -1,5 +1,5 @@
 import type { Clock, CustomFieldsReader, SettingsReader } from "@/shared/application";
-import { AssistantService, ProofreadService } from "./application";
+import { AssistantService, ProofreadService, type ConversationReader } from "./application";
 import { modelOf } from "./infrastructure/models";
 import { aiConnections, type AssistantSettingKey } from "./infrastructure/connection";
 import { crmAssistantData } from "./infrastructure/data";
@@ -15,10 +15,10 @@ export class AssistantModule {
   readonly proofreader: ProofreadService;
   readonly #ai: ReturnType<typeof aiConnections>;
 
-  /** Настройки «Интеграций» и свои поля сделки — порты рабочего пространства. */
-  constructor(deps: { clock: Clock; settings: SettingsReader<AssistantSettingKey>; fields: CustomFieldsReader }) {
+  /** Настройки «Интеграций» и свои поля сделки — порты рабочего пространства, переписка диалога — порт Messaging. */
+  constructor(deps: { clock: Clock; settings: SettingsReader<AssistantSettingKey>; fields: CustomFieldsReader; conversations: ConversationReader }) {
     this.#ai = aiConnections(deps.settings);
-    this.service = new AssistantService(modelOf(this.#ai.active), crmAssistantData(deps.settings, deps.fields), deps.clock);
+    this.service = new AssistantService(modelOf(this.#ai.active), crmAssistantData(deps.settings, deps.fields, deps.conversations), deps.clock);
     this.proofreader = new ProofreadService(modelOf(this.#ai.proofread));
   }
 
