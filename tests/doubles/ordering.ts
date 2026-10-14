@@ -170,7 +170,12 @@ class MemBooks implements BookGateway {
   }
 }
 
-const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, assigneeLabel: async (id) => (id === "staff-1" ? "Айгерим" : null) };
+const staff: Record<string, { name: string; email: string }> = {
+  "staff-1": { name: "Айгерим", email: "aigerim@mybook.kz" },
+  // Учётка с именем по умолчанию: подписывается логином из почты.
+  "staff-2": { name: "Администратор", email: "boss@mybook.kz" },
+};
+const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, activeStaff: async (id) => staff[id] ?? null };
 export const admin: Actor = { label: "admin:a@b.kz" };
 
 export function setup() {

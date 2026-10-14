@@ -1,5 +1,6 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import { NotFoundError } from "@/shared/domain";
+import { staffLabel } from "@/shared/domain/staff";
 import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
@@ -197,9 +198,9 @@ export class OrdersService {
   }
 
   async assign(orderId: string, assigneeId: string | null, actor: Actor) {
-    const label = assigneeId ? await this.people.assigneeLabel(assigneeId) : null;
-    if (assigneeId && !label) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
-    return this.mutate(orderId, (order, now) => order.assign(assigneeId, label ?? "", actor.label, now));
+    const staff = assigneeId ? await this.people.activeStaff(assigneeId) : null;
+    if (assigneeId && !staff) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
+    return this.mutate(orderId, (order, now) => order.assign(assigneeId, staff ? staffLabel(staff) : "", actor.label, now));
   }
 
   async updateDetails(cmd: { orderId: string; contact: OrderContact; delivery: OrderDelivery; desiredDate: string | null; giftNote: string | null }, actor: Actor) {

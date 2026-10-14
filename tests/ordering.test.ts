@@ -299,6 +299,15 @@ describe("Ordering: отмена и статусы", () => {
     await expect(svc.assign(o.id, "client-9", admin)).rejects.toMatchObject({ code: "staffNotFound" });
   });
 
+  it("ответственный в журнале подписан как везде в CRM: имя, а у «Администратора» — логин из почты (не полный адрес)", async () => {
+    const { place, svc, orders } = setup();
+    const o = await place();
+    await svc.assign(o.id, "staff-2", admin);
+    expect(orders.history.at(-1)!.note).toBe("Ответственный: boss");
+    await svc.assign(o.id, null, admin);
+    expect(orders.history.at(-1)!.note).toBe("Ответственный: снят");
+  });
+
   it("сообщение об оплате переводом — один раз", async () => {
     const { place, svc, uow } = setup();
     const o = await place();
