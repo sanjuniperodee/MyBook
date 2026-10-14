@@ -4,11 +4,14 @@ import type { User } from "@/server/auth";
 import { DrizzleAuthoringQueries } from "@/modules/authoring/infrastructure/queries";
 import { AuthoringError, Book, type BookViewer } from "@/modules/authoring/domain";
 import { allPermissions } from "@/modules/access/domain";
+import { IdentityError } from "@/modules/identity/domain";
 import { assertStaff, assertStaffShell, ForbiddenError, requireStaff, requireStaffShell } from "@/server/access";
 import { api, apiBook, apiStaff, apiViewer } from "@/server/api";
 import { getAccessibleBook, viewerOf } from "@/server/books";
+import { clientIp, trustedClientIp } from "@/server/rateLimit";
 import { PATCH as patchQuestion } from "@/app/api/books/[id]/questions/[qid]/route";
 import { GET as getPhoto } from "@/app/api/photos/[id]/route";
+import { loginAction } from "@/app/(auth)/actions";
 import { anna, client, fake, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, withTwoFactor } from "./doubles/web";
 
 /** База с одной книгой клиента u1 и одним её фото: запросы DrizzleAuthoringQueries настоящие, условия where не разбираются. */
@@ -224,5 +227,36 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
     expect((await patch(person("u2"))).status).toBe(404);
     expect((await patch(anna)).status).toBe(200);
     expect(edits).toEqual([{ answer: "чужой текст" }]);
+  });
+});
+
+describe("IP для лимитов частоты: clientIp() (src/server/rateLimit.ts)", () => {
+  it("V2: так сейчас — первый адрес X-Forwarded-For подставляет сам клиент: сменил заголовок — новый ключ лимита входа по IP (закроет G)", async () => {
+    // Прокси пишет настоящий адрес в X-Real-IP и дописывает его в конец X-Forwarded-For.
+    resetRequest({ "x-real-ip": "10.0.0.1", "x-forwarded-for": "1.1.1.1, 10.0.0.1" });
+    expect(await clientIp()).toBe("1.1.1.1");
+    expect(await trustedClientIp()).toBe("10.0.0.1");
+
+    const keys: string[] = [];
+    fake.rateLimiter = {
+      hit: async (key: string) => {
+        keys.push(key);
+        return true;
+      },
+    };
+    fake.identity.auth = {
+      login: async () => {
+        throw new IdentityError("credentials");
+      },
+    };
+    const form = new FormData();
+    form.set("email", "a@b.kz");
+    form.set("password", "secret123");
+    for (const first of ["1.1.1.1", "2.2.2.2"]) {
+      request.headers.set("x-forwarded-for", `${first}, 10.0.0.1`);
+      expect(await loginAction({}, form)).toEqual({ error: "Неверный логин или пароль" });
+    }
+    // Лимит по логину держится, лимит по IP каждый раз начинается заново.
+    expect(keys).toEqual(["login:1.1.1.1", "login:a@b.kz", "login:2.2.2.2", "login:a@b.kz"]);
   });
 });
