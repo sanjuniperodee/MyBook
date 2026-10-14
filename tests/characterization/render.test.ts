@@ -45,9 +45,9 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
     expect(Object.fromEntries([...pages].map(([key, p]) => [key, p.contentPages]))).toEqual(pdfContentPages);
   });
 
-  it("react-pdf не может перенести узел только в квадрате — фото под обрез (баг в fixtures.test)", () => {
+  it("react-pdf переносит все узлы: фото под обрез в квадрате больше не «выше полосы» (B9)", () => {
     const wraps = Object.fromEntries([...pages].filter(([, p]) => p.wraps).map(([key, p]) => [key, p.wraps]));
-    expect(wraps).toEqual({ "classic-square-ru": 6, "classic-square-kk": 6 });
+    expect(wraps).toEqual({});
   });
 
   it("оценка совпадает с PDF в A5, а в квадрате на полосу больше — так сейчас", () => {

@@ -221,20 +221,19 @@ describe("рендер книг набора", () => {
     expect(Math.max(...(await imageWidths(big.pdf)))).toBeLessThan(photoSpecs.big[0] / 2);
   });
 
-  it("превью A5: водяной знак на каждой полосе, в том числе на фото под обрез", async () => {
-    const res = await render.renderInterior(fixtureBook("classic", "a5", "ru").bundle, "preview");
-    expect(await pagesWithoutText(res.pdf, res.contentPages)).toEqual([]);
-  });
-
-  it("баг: в квадратном формате на фотостранице под обрез нет водяного знака превью", async () => {
-    // react-pdf считает снимок во всю полосу выше доступной высоты, переносит всё, что после него, на следующую
-    // полосу, а её отбрасывает: там только fixed-узлы (водяной знак). В A5 снимок помещается — знак на месте.
+  it.each([
+    ["a5", "ru"],
+    ["square", "ru"],
+    ["square", "kk"],
+  ] as const)("превью %s %s: водяной знак на каждой полосе, в том числе на фото под обрез, без предупреждений react-pdf", async (format, language) => {
+    // В квадрате react-pdf считал снимок во весь лист выше полосы («can't wrap between pages») и отбрасывал водяной
+    // знак на фотостраницах под обрез. В kk фото в конце книги — фотостраницы идут после начальной полосы галереи.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const res = await render.renderInterior(fixtureBook("classic", "square", "ru").bundle, "preview");
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("can't wrap between pages"));
+    const res = await render.renderInterior(fixtureBook("classic", format, language).bundle, "preview");
+    const warnings = warn.mock.calls.map((args) => String(args[0]));
     warn.mockRestore();
-    // 10 и 26 — фотостраницы «под обрез» (p2 и p13).
-    expect(await pagesWithoutText(res.pdf, res.contentPages)).toEqual([10, 26]);
+    expect(warnings).toEqual([]);
+    expect(await pagesWithoutText(res.pdf, res.contentPages)).toEqual([]);
   });
 
   it.skipIf(!hasTool("pdftotext") || !hasTool("pdftoppm")).each([

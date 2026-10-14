@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PDFDocument } from "pdf-lib";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { mm, print, type FormatId } from "@/lib/book/formats";
@@ -15,7 +15,8 @@ import { edgeMax, grayPage, hasTool, textRows, type TextRow } from "./pdf-inspec
 
 /**
  * Критичное для типографии — по готовому блоку (режим print) книг из набора: кратность тетради, TrimBox и BleedBox,
- * фото «под обрез» до края вылета, ни один заголовок не остаётся последним на полосе.
+ * фото «под обрез» до края вылета, ни один заголовок не остаётся последним на полосе, react-pdf ничего не переносит
+ * и не отбрасывает молча.
  * По умолчанию каждое оформление один раз, формат и язык по кругу (около минуты); PDF_CRITICAL=all — весь набор (92 книги, около 4,5 минуты).
  */
 
@@ -41,6 +42,8 @@ beforeAll(async () => {
 interface Rendered {
   file: string;
   res: InteriorResult;
+  /** console.warn при сборке: так react-pdf сообщает, что узел не поместился и перенесён (или отброшен). */
+  warnings: string[];
   doc: PDFDocument;
   content: BookContent;
   /** Строки полосы набора по полосам (без pdftotext — пусто). */
@@ -127,12 +130,19 @@ const startsWith = (rows: TextRow[], it: ContentItem) =>
 
 async function renderBook(fb: FixtureBook): Promise<Rendered> {
   const file = path.join(dir, `${fb.key}.pdf`);
-  const res = await render.renderInterior(fb.bundle, "print");
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  let res: InteriorResult, warnings: string[];
+  try {
+    res = await render.renderInterior(fb.bundle, "print");
+    warnings = warn.mock.calls.map((args) => String(args[0]));
+  } finally {
+    warn.mockRestore();
+  }
   writeFileSync(file, res.pdf);
   const content = render.contentFor(fb.bundle);
   const pages = textless ? [] : bodyRows(content, textRows(file));
   const openers = content.chapters.map((ch) => pages.flatMap((rows, p) => (findRows(rows, ch.title) ? [p] : [])));
-  return { file, res, doc: await PDFDocument.load(res.pdf), content, pages, openers };
+  return { file, res, warnings, doc: await PDFDocument.load(res.pdf), content, pages, openers };
 }
 
 describe.each(books.map((b) => [b.key, b] as const))("блок %s", (_key, fb) => {
@@ -146,6 +156,10 @@ describe.each(books.map((b) => [b.key, b] as const))("блок %s", (_key, fb) =
     expect(b.res.pageCount - least).toBeGreaterThanOrEqual(0);
     expect(b.res.pageCount - least).toBeLessThan(print.pageMultiple);
     expect(b.doc.getPages().slice(b.res.contentPages).filter((p) => p.node.Contents())).toEqual([]);
+  });
+
+  it("react-pdf без предупреждений: ни один узел не перенесён на другую полосу как «не помещается»", () => {
+    expect(b.warnings).toEqual([]);
   });
 
   it("на каждой полосе BleedBox — весь лист с вылетами, TrimBox — обрезной формат", () => {

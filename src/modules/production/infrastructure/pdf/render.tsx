@@ -113,7 +113,7 @@ export function contentFor(bundle: BookBundle): BookContent {
 }
 
 /** Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается. */
-const LAYOUT_VERSION = 3;
+const LAYOUT_VERSION = 4;
 
 /** Отпечаток содержимого: меняется вместе с текстом, фото и их раскладкой — ключ кэша предпросмотра. */
 export function contentFingerprint(bundle: BookBundle): string {

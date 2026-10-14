@@ -337,9 +337,12 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const photoPage = (group: PhotoItem[], key: string) => {
     if (group.length === 1 && group[0].layout === "bleed") {
       const img = options.images.get(group[0].id);
+      // fixed — снимок во весь лист не участвует в разбиении на страницы. Иначе react-pdf сравнивает его высоту
+      // (yoga считает во float32) с высотой полосы (double): в квадрате 583,937… pt округляется вверх, снимок «выше
+      // полосы», и всё после него — водяной знак превью — уходит на следующую полосу, которую react-pdf отбрасывает.
       return (
         <Page key={key} size={pageSize} style={{ backgroundColor: "#FFFFFF" }}>
-          {img ? <Image src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: pageSize.width, height: pageSize.height }} /> : null}
+          {img ? <Image fixed src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: pageSize.width, height: pageSize.height }} /> : null}
           {watermark}
         </Page>
       );

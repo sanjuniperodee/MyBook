@@ -28,10 +28,10 @@ describe("contentFingerprint", () => {
     expect(Object.fromEntries(characterizationBooks().map((fb) => [fb.key, contentFingerprint(fb.bundle)]))).toMatchSnapshot();
   });
 
-  it("формула: sha1 от версии вёрстки 3, содержимого книги и id:раскладка:подпись каждого фото, первые 16 знаков", () => {
+  it("формула: sha1 от версии вёрстки 4, содержимого книги и id:раскладка:подпись каждого фото, первые 16 знаков", () => {
     const b = bundle();
     const photos = b.photos.map((p) => `${p.id}:${p.layout}:${p.caption}`).join("|");
-    const expected = createHash("sha1").update("v3").update(JSON.stringify(contentFor(b))).update(photos).digest("hex").slice(0, 16);
+    const expected = createHash("sha1").update("v4").update(JSON.stringify(contentFor(b))).update(photos).digest("hex").slice(0, 16);
     expect(contentFingerprint(b)).toBe(expected);
   });
 
