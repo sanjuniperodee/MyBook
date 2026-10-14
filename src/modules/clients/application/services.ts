@@ -1,6 +1,7 @@
 import type { Clock } from "@/shared/application";
+import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
-import { canManageTask, extraPhones, findMentions, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
+import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
 import type { ClientProfile, ClientRepository, CrmLinks, NoteRepository, StaffDirectory, StaffNotifier, TaskRepository } from "./ports";
 
 /** Кто действует и что ему разрешено (из контекста Access). */
