@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthoringError, Letter, Photo } from "@/modules/authoring/domain";
 import { BooksService, LettersService, PhotosService, QuestionsService } from "@/modules/authoring/application/services";
 import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noQuestions, now, owner, staff, startBook, stranger, themes } from "./doubles/authoring";
-import { anna, client, fake, olga, owner as boss, pavel, person, request, resetContainer, resetRequest, security, signIn, withTwoFactor } from "./doubles/web";
+import { requireStaff } from "@/server/access";
+import { anna, client, fake, NotFound, olga, owner as boss, pavel, person, Redirect, request, resetContainer, resetRequest, security, signIn, withTwoFactor } from "./doubles/web";
 
 // ─── книга: сервисы Authoring ──────────────────────────────────────────────
 
@@ -162,5 +163,65 @@ describe("Доступ к файлам чужого заказа", () => {
     expect(await download("archive")).toMatchObject({ status: 404, body: "notFound" });
     resetRequest();
     expect(await download("reading")).toMatchObject({ status: 401, body: "unauthorized" });
+  });
+});
+
+// ─── страница заказа клиента /orders/[id] ──────────────────────────────────
+
+/** Заказ клиента u1, как его отдаёт orderDetails: всё, что показывает страница. */
+const orderView = {
+  id: "o1", number: 101, userId: client.id, bookId: "b1", status: "paid", plan: "hardcover", quantity: 1, createdAt: new Date("2026-10-01T10:00:00Z"),
+  itemsAmount: 24900, discountAmount: 0, promoCode: null, deliveryAmount: 0, addons: [], addonsAmount: 0, prepaidAmount: 0, amount: 24900, currency: "KZT",
+  paymentClaimedAt: null, trackingNumber: null, contactName: "Айжан", contactPhone: "+77010000000", contactEmail: "aizhan@b.kz",
+  deliveryMethod: "courier", city: "Алматы", address: "Абая, 1", postalCode: null, giftNote: null, desiredDate: null, surprise: false, customerComment: null,
+  book: { id: "b1", title: "Наша история", subtitle: "", coverTemplate: "linen", format: "a5", authorName: "Айжан", recipientName: "Марат", hideRecipientOnCover: false, coverPhotoId: null, coverPhotoExtra: [] },
+};
+
+/** Строки дерева, которое вернула страница: компоненты не вызываются, видны данные самой страницы. */
+function texts(node: unknown): string[] {
+  if (typeof node === "string" || typeof node === "number") return [String(node)];
+  if (Array.isArray(node)) return node.flatMap(texts);
+  if (node && typeof node === "object" && "props" in node) return texts((node as { props: { children?: unknown } }).props.children);
+  return [];
+}
+
+/** Серверный компонент страницы с подменёнными redirect() и notFound(): адрес редиректа, 404 или текст страницы. */
+async function openOrder() {
+  const { default: OrderPage } = await import("@/app/(app)/orders/[id]/page");
+  try {
+    return texts(await OrderPage({ params: Promise.resolve({ id: "o1" }) })).join("");
+  } catch (err) {
+    if (err instanceof Redirect) return `redirect:${err.url}`;
+    if (err instanceof NotFound) return "404";
+    throw err;
+  }
+}
+
+describe("Страница заказа клиента /orders/[id]", () => {
+  beforeEach(() => {
+    resetRequest({ "x-real-ip": "10.1.2.5" });
+    resetContainer();
+    fake.ordering = { queries: { orderDetails: async (id: string) => (id === orderView.id ? orderView : null) } };
+    fake.feedback = { queries: { byOrder: async () => null } };
+  });
+
+  it("без входа — на вход, чужой клиент — 404, владелец видит заказ и свои контакты", async () => {
+    expect(await openOrder()).toBe("redirect:/login?next=%2Forders%2Fo1");
+    signIn(person("u2"));
+    expect(await openOrder()).toBe("404");
+    signIn(client);
+    expect(await openOrder()).toContain("Айжан, +77010000000");
+  });
+
+  it("V1: так сейчас — чужой заказ с контактами клиента видит любой сотрудник: без прав CRM, не из разрешённой сети, без обязательной 2FA (закроет E6)", async () => {
+    security.allowlist = OFFICE;
+    security.require2fa = true;
+    request.headers.set("x-real-ip", "8.8.8.8");
+    signIn(anna);
+    // В CRM такого сотрудника не пускают даже к заказам…
+    await expect(requireStaff("orders.view")).rejects.toMatchObject({ url: "/admin-denied" });
+    // …а страница проверяет только роль admin (isStaff): телефон, почта и адрес клиента — на странице.
+    const page = await openOrder();
+    for (const shown of ["Айжан, +77010000000", "aizhan@b.kz", "Алматы, Абая, 1"]) expect(page).toContain(shown);
   });
 });
