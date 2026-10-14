@@ -1,6 +1,6 @@
 import { planName } from "@/i18n/labels";
 import { listFields } from "@/modules/workspace";
-import { channelLabel, describeAttribution, isManualChannel, MANUAL_MEDIUM, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, describeAttribution, isManualChannel, MANUAL_MEDIUM, toAttribution } from "@/shared/domain/channels";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";
 import Link from "next/link";

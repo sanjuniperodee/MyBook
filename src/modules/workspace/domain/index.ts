@@ -1,5 +1,5 @@
 import { contextError } from "@/shared/domain";
-import { normalizeSlug } from "@/modules/marketing/domain/channels";
+import { normalizeSlug } from "@/shared/domain/slug";
 
 export const customFieldTypes = ["text", "number", "date", "select", "checkbox"] as const;
 export type CustomFieldType = (typeof customFieldTypes)[number];

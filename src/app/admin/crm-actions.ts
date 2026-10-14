@@ -9,7 +9,7 @@ import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
-import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
 

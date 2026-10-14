@@ -10,7 +10,9 @@ import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/modules/worksp
 import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/modules/workspace/infrastructure/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
-import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/modules/marketing/domain/channels";
+import { buildSiteUrl, linkCodeFromText } from "@/modules/marketing/domain/links";
+import { channelOf, toAttribution } from "@/shared/domain/channels";
+import { normalizeSlug } from "@/shared/domain/slug";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, questionText } from "@/modules/messaging/domain/botConfig";
 import { decryptSecret, encryptSecret, safeEqual } from "@/shared/crypto";
 import { matches } from "@/modules/automation/domain";

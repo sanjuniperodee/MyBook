@@ -3,7 +3,7 @@ import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
 import { requireStaff } from "@/server/access";
 import { adminLabel } from "@/modules/access/ui";
-import { channelOf, channels, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelOf, channels, toAttribution } from "@/shared/domain/channels";
 import { formatPrice } from "@/config/site";
 import { BarList, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";

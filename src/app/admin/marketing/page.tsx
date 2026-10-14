@@ -2,7 +2,7 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { can, requireStaff } from "@/server/access";
 import { conversion } from "@/modules/marketing";
-import { channelLabel } from "@/modules/marketing/domain/channels";
+import { channelLabel } from "@/shared/domain/channels";
 import { landings } from "@/lib/content/landings";
 import { env } from "@/config/env";
 import { formatPrice } from "@/config/site";

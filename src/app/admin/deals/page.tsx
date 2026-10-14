@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
-import { channelLabel, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";

@@ -6,7 +6,7 @@ import type { CustomValues } from "@/modules/sales/domain";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
 import { setClientChannelAction, setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
-import { channels, manualChannels } from "@/modules/marketing/domain/channels";
+import { channels, manualChannels } from "@/shared/domain/channels";
 import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { cn } from "@/lib/class-names";

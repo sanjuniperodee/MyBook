@@ -1,5 +1,5 @@
 import { addonName, coverName, deliveryName, formatName, interiorName, planName } from "@/i18n/labels";
-import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, describeAttribution, toAttribution } from "@/shared/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";

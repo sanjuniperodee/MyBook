@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildChannelReport, conversion, isPreviewBot, linkTarget, type TrackedLink } from "@/modules/marketing/domain";
-import { channelOf, isManualChannel, manualAttribution, manualChannels } from "@/modules/marketing/domain/channels";
+import { channelOf, isManualChannel, manualAttribution, manualChannels } from "@/shared/domain/channels";
 import { MarketingService, type LinkRepository } from "@/modules/marketing/application";
 
 const now = new Date("2026-10-01T06:00:00Z");

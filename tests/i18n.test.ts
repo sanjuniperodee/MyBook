@@ -105,6 +105,8 @@ describe("нет русских строк вне словарей", () => {
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
     "shared/infrastructure/db/schema.ts",
+    "shared/domain/channels.ts", // подписи каналов привлечения для CRM — на русском
+    "shared/domain/slug.ts", // таблица транслитерации кода ссылки
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
     "lib/proofread/rules.ts", // слова и сокращения для правил проверки текста
     "lib/proofread/spelling.ts", // алфавит для отбора слов на проверку словарём

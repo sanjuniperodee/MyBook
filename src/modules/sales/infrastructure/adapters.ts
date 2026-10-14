@@ -3,7 +3,7 @@ import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { crmRoles, orders, users } from "@/shared/infrastructure/db/schema";
 import { usersId } from "@/shared/infrastructure/db/refs";
 import { phoneKey, normalizePhone } from "@/shared/domain/phone";
-import { toAttribution } from "@/modules/marketing/domain/channels";
+import { toAttribution } from "@/shared/domain/channels";
 import { getSetting } from "@/modules/workspace";
 import { isWorkTime, parseWorkHours } from "@/modules/workspace/domain/schedule";
 import { executor } from "@/shared/infrastructure/database";

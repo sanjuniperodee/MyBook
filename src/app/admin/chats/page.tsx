@@ -4,7 +4,7 @@ import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { adminLabel, staffOptions } from "@/modules/access/ui";
 import { channelLabel } from "@/modules/messaging";
-import { channelLabel as acquisitionChannel, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/domain/channels";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";

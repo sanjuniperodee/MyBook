@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { channelLabel, channels, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
 import { Download, UserPlus } from "lucide-react";
 import { clientSegments, type ClientSegment } from "@/modules/clients/domain/segments";
 import type { ClientSort } from "@/modules/reporting";

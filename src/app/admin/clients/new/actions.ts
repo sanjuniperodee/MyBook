@@ -7,7 +7,7 @@ import { formatPrice, getPlan, getVisiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
-import { channels, isManualChannel, manualAttribution } from "@/modules/marketing/domain/channels";
+import { channels, isManualChannel, manualAttribution } from "@/shared/domain/channels";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
