@@ -10,8 +10,8 @@ import type { FixtureBook } from "../../tests/fixtures/books";
 
 /**
  * Данные стенда html-snapshot — так же, как их готовят страницы сайта: развороты InteriorSpread —
- * bookSpreadSample (books/[id]/pages), превью PagePreview — главы из books/[id]/questions и QuestionsEditor.
- * Строятся в Node (время заморожено — год на развороте), в браузер уходят JSON.
+ * bookSpreadSample (books/[id]/pages), превью PagePreview — editorPreview (копия из books/[id]/questions и
+ * QuestionsEditor). Строятся в Node (время заморожено — год на развороте), в браузер уходят JSON.
  */
 
 /** Все виды разворота: TypeScript требует перечислить каждый SpreadKind. */
@@ -40,8 +40,12 @@ export interface PreviewData {
 
 export type StandView = ViewBase & ({ kind: SpreadKind; sample: SpreadSample } | { kind: "preview"; preview: PreviewData });
 
-/** Главы превью: как questions/page.tsx (заголовки и главы с учётом рода) и QuestionsEditor (кто попадает в превью). */
-function previewData({ book, questions, photos }: FixtureBook["bundle"]): PreviewData {
+/**
+ * Превью редактора. Копия, перевести на экспорт из src в первом коммите C7/D1: маппинг глав в src не экспортирован —
+ * заголовки глав и вопросов с учётом рода, эпиграфы и фото без обложки — из books/[id]/questions/page.tsx,
+ * группы глав подряд и кто попадает в превью (текущий вопрос, ответы и вопросы с фото) — из QuestionsEditor.
+ */
+function editorPreview({ book, questions, photos }: FixtureBook["bundle"]): PreviewData {
   const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const epigraphs = new Map(theme.chapters.map((c) => [c.key, c.epigraph]));
@@ -76,6 +80,6 @@ export function standViews(fixture: FixtureBook): StandView[] {
   const sample = bookSpreadSample(book, questions, messagesFor(book.language).books.pages.dedicationEmpty, photos);
   return [
     ...spreadKinds.map((kind) => ({ ...base, key: `html:${kind}:${fixture.key}`, width: SPREAD_WIDTH, kind, sample })),
-    { ...base, key: `html:preview:${fixture.key}`, width: PREVIEW_WIDTH, kind: "preview" as const, preview: previewData(fixture.bundle) },
+    { ...base, key: `html:preview:${fixture.key}`, width: PREVIEW_WIDTH, kind: "preview" as const, preview: editorPreview(fixture.bundle) },
   ];
 }

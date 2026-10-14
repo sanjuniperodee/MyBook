@@ -31,7 +31,10 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 
 **HTML** — `scripts/visual/html-snapshot.ts`. `InteriorSpread` во всех видах разворота (`chapter`, `front`, `toc`,
 `photos`) шириной 960 px и `PagePreview` редактора — каждая полоса отдельным PNG, ширина полосы 480 px.
-Данные готовятся так же, как на страницах сайта (`bookSpreadSample`, главы из `books/[id]/questions`). Chromium через Playwright: окно 1280×900,
+Данные готовятся так же, как на страницах сайта (`scripts/visual/html-data.ts`): развороты — `bookSpreadSample`,
+превью — главы, как их строят `books/[id]/questions/page.tsx` и `QuestionsEditor`. Этот маппинг в `src` не
+экспортирован, поэтому в стенде — его копия одной функцией `editorPreview`; перевести на экспорт из `src` в первом
+коммите C7/D1 (до тех пор правка маппинга в `src` без правки копии — ложное «0 отличий» у `html:preview`). Chromium через Playwright: окно 1280×900,
 deviceScaleFactor 1, анимации выключены. Ключи `html:<вид>:<книга>`, вид — `chapter`, `front`, `toc`, `photos`
 или `preview`.
 
