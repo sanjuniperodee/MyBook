@@ -55,6 +55,9 @@ export interface BookViewer {
   isStaff: boolean;
 }
 
+/** Книгу видят её владелец и сотрудник. Одно правило для агрегата (Book.isVisibleTo) и read-моделей. */
+export const isBookVisibleTo = (ownerId: string, viewer: BookViewer) => viewer.isStaff || viewer.userId === ownerId;
+
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
   Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
@@ -170,7 +173,7 @@ export class Book extends AggregateRoot<BookProps> {
   }
 
   isVisibleTo(viewer: BookViewer) {
-    return viewer.isStaff || viewer.userId === this.props.userId;
+    return isBookVisibleTo(this.props.userId, viewer);
   }
 
   assertEditable() {

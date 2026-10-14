@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AuthoringError, Book, Photo, Question } from "@/modules/authoring/domain";
+import { AuthoringError, Book, isBookVisibleTo, Photo, Question } from "@/modules/authoring/domain";
 import { BooksService, LettersService, PhotosService } from "@/modules/authoring/application/services";
 import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noQuestions, now, owner, rejectsWith, staff, startBook, stranger, theme, themes } from "./doubles/authoring";
 
@@ -62,6 +62,12 @@ describe("Book", () => {
     expect(book.isVisibleTo(owner)).toBe(true);
     expect(book.isVisibleTo(staff)).toBe(true);
     expect(book.isVisibleTo(stranger)).toBe(false);
+  });
+
+  it("то же правило видимости — для read-моделей по владельцу книги", () => {
+    expect(isBookVisibleTo(owner.userId, owner)).toBe(true);
+    expect(isBookVisibleTo(owner.userId, staff)).toBe(true);
+    expect(isBookVisibleTo(owner.userId, stranger)).toBe(false);
   });
 });
 
