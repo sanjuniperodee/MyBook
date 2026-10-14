@@ -1,5 +1,7 @@
-/** Текущий месяц по Алматы: YYYY-MM. */
-export const currentMonth = (now = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: process.env.TZ || "Asia/Almaty", year: "numeric", month: "2-digit" }).format(now);
+import { zonedMonth } from "@/shared/domain/time";
+
+/** Текущий месяц по часовому поясу магазина: YYYY-MM. */
+export const currentMonth = (now = new Date()) => zonedMonth(now);
 
 export function shiftMonth(month: string, delta: number) {
   const [y, m] = month.split("-").map(Number);

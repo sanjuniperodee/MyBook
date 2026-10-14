@@ -7,6 +7,7 @@ import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, 
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
 import { automationActions, automationTriggers, fillTemplate, isTrigger } from "@/modules/automation/domain/meta";
 import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/modules/workspace/domain/schedule";
+import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/modules/workspace/infrastructure/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
 import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/modules/marketing/domain/channels";
@@ -187,7 +188,8 @@ describe("шифрование секретов", () => {
 
 describe("рабочее время", () => {
   const hours = parseWorkHours('{"days":[1,2,3,4,5],"from":"09:00","to":"18:00"}');
-  // Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  // Магазин в Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  storeTimeZoneIs("Asia/Almaty");
   const at = (iso: string) => new Date(iso);
 
   it("разбирает настройку и подставляет значения по умолчанию", () => {

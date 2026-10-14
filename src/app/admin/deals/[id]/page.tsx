@@ -11,6 +11,7 @@ import { channelLabel } from "@/modules/messaging";
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
+import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
@@ -234,7 +235,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   Открыть в чатах
                 </Link>
               </div>
-              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} ai={ai && can(staff, "chats.send")} />
+              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} ai={ai && can(staff, "chats.send")} timeZone={storeTimeZone()} />
             </section>
           ) : null}
 

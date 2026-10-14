@@ -8,6 +8,7 @@ import { PaymentError, ReceiptError } from "@/modules/sales";
 import { receiptProblem } from "@/modules/sales/domain";
 import { receiptProblemText } from "@/modules/sales/ui/receipt";
 import { mailPaymentToClient } from "@/server/client-mail";
+import { fromZonedTime } from "@/shared/domain/time";
 
 export const maxDuration = 60;
 
@@ -39,8 +40,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const amount = Number(form.get("amount") ?? 0);
   const day = String(form.get("paidAt") ?? "");
   if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) return bad("Проверьте дату платежа");
-  // Дата платежа — день по времени магазина; полдень, чтобы платёж не «съезжал» на соседние сутки.
-  const paidAt = day ? new Date(`${day}T12:00:00+05:00`) : new Date();
+  // Дата платежа — день по времени магазина (storeTimeZone); полдень, чтобы платёж не «съезжал» на соседние сутки.
+  const paidAt = day ? fromZonedTime(`${day}T12:00:00`) : new Date();
 
   try {
     const payment = refund

@@ -1,11 +1,12 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
+import { storeTimeZone } from "@/shared/domain/time";
 
-/** Поступления денег за период для выгрузки: журнал revenue_events с клиентом, менеджером и признаком «чек приложен». */
+/** Поступления денег за период для выгрузки (время — по часовому поясу магазина): журнал revenue_events с клиентом, менеджером и признаком «чек приложен». */
 export async function paymentsExport(days: number) {
   const r = await executor().execute<{ at: Date; amount: number; kind: string; type: string; ref: string; client: string; phone: string; manager: string; receipt: string }>(sql`
-    select to_char(e.at at time zone 'Asia/Almaty', 'YYYY-MM-DD HH24:MI') as at, e.amount, e.kind,
+    select to_char(e.at at time zone ${storeTimeZone()}, 'YYYY-MM-DD HH24:MI') as at, e.amount, e.kind,
       case when e.kind in ('payment', 'refund') then (select case p.kind when 'prepayment' then 'предоплата' when 'refund' then 'возврат' else 'платёж' end from crm_payments p where p.id = e.ref_id) else '' end as type,
       coalesce((select '№' || o.number from orders o where o.id = e.sale_id and e.kind = 'order'), '') ||
         case when e.deal_id is not null then ' сделка №' || (select d.number from crm_deals d where d.id = e.deal_id) else '' end as ref,

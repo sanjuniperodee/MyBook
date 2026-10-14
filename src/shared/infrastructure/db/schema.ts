@@ -947,7 +947,7 @@ export const crmLinkClicks = pgTable(
     linkId: uuid("link_id")
       .notNull()
       .references(() => crmLinks.id, { onDelete: "cascade" }),
-    day: text("day").notNull(), // YYYY-MM-DD по Алматы
+    day: text("day").notNull(), // YYYY-MM-DD по часовому поясу магазина (storeTimeZone)
     clicks: integer("clicks").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.linkId, t.day] })],

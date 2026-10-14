@@ -1,4 +1,5 @@
 import { normalizePhone } from "@/shared/domain/phone";
+import { fromZonedTime } from "@/shared/domain/time";
 
 /**
  * Протокол kaspi-pos-automation (github.com/tapter-dev/kaspi-pos-automation): статусы Kaspi Pay, вебхуки
@@ -65,11 +66,15 @@ function money(...values: unknown[]): number | null {
   return null;
 }
 
-/** Даты Kaspi приходят без зоны («2026-10-13T12:05:00») — это время Алматы (UTC+5). */
+/**
+ * Даты Kaspi приходят без зоны («2026-10-13T12:05:00») — это время Kaspi, то есть Казахстана (Алматы, UTC+5),
+ * а не пояс магазина: часы банка не зависят от TZ нашего сервера.
+ */
+const KASPI_TIME_ZONE = "Asia/Almaty";
+
 function kaspiDate(raw: string | null): Date | null {
   if (!raw) return null;
-  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}+05:00`;
-  const d = new Date(withZone);
+  const d = fromZonedTime(raw, KASPI_TIME_ZONE);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

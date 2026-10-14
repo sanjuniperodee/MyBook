@@ -8,6 +8,7 @@ import { channelLabel as acquisitionChannel, toAttribution } from "@/modules/mar
 import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
+import { storeTimeZone } from "@/shared/domain/time";
 import { getSetting } from "@/modules/workspace";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
@@ -25,7 +26,7 @@ function waitMinutes(d: Date | null) {
 const shortTime = (d: Date | null) => {
   if (!d) return "";
   const today = new Date();
-  return d.toDateString() === today.toDateString() ? d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: process.env.TZ || "Asia/Almaty" }) : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return d.toDateString() === today.toDateString() ? d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: storeTimeZone() }) : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 };
 
 export default async function ChatsPage({ searchParams }: { searchParams: Promise<{ c?: string; f?: string; q?: string }> }) {
@@ -102,6 +103,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           offers={can(staff, "chats.send") ? offers : null}
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
           ai={ai && can(staff, "chats.send")}
+          timeZone={storeTimeZone()}
         />
       </div>
     );
