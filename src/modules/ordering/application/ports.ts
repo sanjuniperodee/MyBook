@@ -15,7 +15,7 @@ export interface BookGateway {
 export interface PeopleGateway {
   rememberPhoneIfMissing(userId: string, phone: string): Promise<void>;
   /** Активный сотрудник CRM — подпись для журнала; null, если такого нет. */
-  staffLabel(userId: string): Promise<string | null>;
+  assigneeLabel(userId: string): Promise<string | null>;
 }
 
 /** Договорённость менеджера с клиентом о цене и предоплате (контекст «Продажи»). */

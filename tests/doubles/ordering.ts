@@ -170,7 +170,7 @@ class MemBooks implements BookGateway {
   }
 }
 
-const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, staffLabel: async (id) => (id === "staff-1" ? "Айгерим" : null) };
+const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, assigneeLabel: async (id) => (id === "staff-1" ? "Айгерим" : null) };
 export const admin: Actor = { label: "admin:a@b.kz" };
 
 export function setup() {

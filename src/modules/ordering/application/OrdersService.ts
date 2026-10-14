@@ -197,7 +197,7 @@ export class OrdersService {
   }
 
   async assign(orderId: string, assigneeId: string | null, actor: Actor) {
-    const label = assigneeId ? await this.people.staffLabel(assigneeId) : null;
+    const label = assigneeId ? await this.people.assigneeLabel(assigneeId) : null;
     if (assigneeId && !label) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
     return this.mutate(orderId, (order, now) => order.assign(assigneeId, label ?? "", actor.label, now));
   }
