@@ -1,8 +1,9 @@
 /**
- * Снимки HTML (S4): развороты InteriorSpread (все SpreadKind) и превью PagePreview на книгах набора в Chromium
- * (Playwright): окно фиксированного размера, deviceScaleFactor 1, анимации выключены, время зафиксировано.
- * Ключи — html:<вид>:<книга>, вид — chapter, front, toc, photos (разворот целиком) или preview (полосы превью
- * по одной). Формат снимка тот же, что у pdf-snapshot; сверка — compare.ts, с эталонным коммитом — check.sh.
+ * Снимки HTML (S4): развороты InteriorSpread (все SpreadKind), превью PagePreview, полосы 3D-книги и оборот
+ * CoverBackPreview на книгах набора в Chromium (Playwright): окно фиксированного размера, deviceScaleFactor 1,
+ * анимации выключены, время зафиксировано. Ключи — html:<вид>:<книга>, вид — chapter, front, toc, photos
+ * (разворот целиком), preview и flipbook (полосы по одной) или back (оборот целиком). Формат снимка тот же,
+ * что у pdf-snapshot; сверка — compare.ts, с эталонным коммитом — check.sh.
  *
  * Запуск из корня репозитория:
  *   npx tsx --import ./scripts/preload.mjs scripts/visual/html-snapshot.ts --out <каталог> [--filter <подстрока ключа>] [--quick] [--jobs N]
@@ -19,8 +20,12 @@ import { ORIGIN, startStandServer, type StandServer } from "./html-server";
 import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry, type SnapshotFlags } from "./shared";
 
 const VIEWPORT = { width: 1280, height: 900 };
-/** Что снимать: разворот целиком или каждую полосу превью (начальные полосы и полосы текста, без скрытых копий для замера). */
-const TARGETS = { spread: "#stand > div", preview: "#stand > div > div > :not([aria-hidden])" };
+/**
+ * Что снимать: разворот или оборот целиком, каждую полосу превью (начальные полосы и полосы текста, без скрытых
+ * копий для замера) или каждую полосу 3D-книги.
+ */
+const TARGETS: Record<string, string> = { preview: "#stand > div > div > :not([aria-hidden])", flipbook: "#stand > [data-face]" };
+const WHOLE = "#stand > div";
 const CHROMIUM = process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 
 /** Данные стенда: строятся с замороженным временем (год на развороте), затем время возвращается — Playwright нужны настоящие часы. */
@@ -53,7 +58,7 @@ async function shoot(browser: Browser, server: StandServer, view: StandView, out
     await page.waitForSelector("body[data-ready]", { state: "attached", timeout: 60_000 });
     if (errors.length) throw new Error(`Ошибка на странице: ${errors[0]}`);
     if (unexpected.length) throw new Error(`Неожиданный запрос: ${unexpected[0]}`);
-    const targets = page.locator(view.kind === "preview" ? TARGETS.preview : TARGETS.spread);
+    const targets = page.locator(TARGETS[view.kind] ?? WHOLE);
     const dir = await freshKeyDir(out, view.key);
     const files: string[] = [];
     for (let i = 0, n = await targets.count(); i < n; i++) {

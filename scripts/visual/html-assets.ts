@@ -68,7 +68,8 @@ async function standJs() {
     target: "es2022",
     jsx: "automatic",
     tsconfig: path.join(ROOT, "tsconfig.json"),
-    define: { "process.env.NODE_ENV": JSON.stringify("production") },
+    // Как в next.config: COVER_ART_VERSION подставляется в адреса фонов обложек при сборке.
+    define: { "process.env.NODE_ENV": JSON.stringify("production"), "process.env.COVER_ART_VERSION": JSON.stringify("stand") },
     logLevel: "silent",
     plugins: [{ name: "next-stub", setup: (b) => b.onResolve({ filter: /^next\/(link|navigation)$/ }, () => ({ path: path.join(HERE, "next-stub.tsx") })) }],
   });

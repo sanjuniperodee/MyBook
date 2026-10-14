@@ -29,17 +29,31 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 пропускает: сдвиг на доли пункта (проверено: колонцифра на 0,05 pt выше — растр тот же, хеш другой), другой
 шрифт с теми же очертаниями, фото другого разрешения.
 
-**HTML** — `scripts/visual/html-snapshot.ts`. `InteriorSpread` во всех видах разворота (`chapter`, `front`, `toc`,
-`photos`) шириной 960 px и `PagePreview` редактора — каждая полоса отдельным PNG, ширина полосы 480 px.
-Данные готовятся так же, как на страницах сайта (`scripts/visual/html-data.ts`): развороты — `bookSpreadSample`,
-превью — главы, как их строят `books/[id]/questions/page.tsx` и `QuestionsEditor`. Этот маппинг в `src` не
-экспортирован, поэтому в стенде — его копия одной функцией `editorPreview`; перевести на экспорт из `src` в первом
-коммите C7/D1 (до тех пор правка маппинга в `src` без правки копии — ложное «0 отличий» у `html:preview`). Chromium через Playwright: окно 1280×900,
-deviceScaleFactor 1, анимации выключены. Ключи `html:<вид>:<книга>`, вид — `chapter`, `front`, `toc`, `photos`
-или `preview`.
+**HTML** — `scripts/visual/html-snapshot.ts`, Chromium через Playwright: окно 1280×900, deviceScaleFactor 1,
+анимации выключены. Ключи `html:<вид>:<книга>`:
+
+| Вид | Что | PNG |
+|---|---|---|
+| `chapter`, `front`, `toc`, `photos` | `InteriorSpread` — развороты страницы `books/[id]/pages`, шириной 960 px | разворот |
+| `preview` | `PagePreview` — превью в редакторе вопросов | каждая полоса, 480 px |
+| `flipbook` | полосы 3D-книги `books/[id]/preview`: раскладка `usePagedBook` и `FaceView` из `book3d/pages.tsx` | каждая полоса, 480 px |
+| `back` | `CoverBackPreview` — оборот обложки в редакторе `books/[id]/cover` | оборот, 480 px |
+
+3D-книга снимается без WebGL: `BookViewer3D` строит листы из тех же DOM-полос (`FaceView`) в CSS 3D, а
+`BookViewerGL` растрирует их в текстуры (`RasterHost`, html-to-image). Снимаются полосы блока по порядку (без
+обложки, форзацев и тени у корешка — их добавляют просмотрщики), каждая в рамке листа (формат блока). Оборот:
+фон — `/api/covers/<шаблон>-<формат>-back.svg|webp`, текст и фото — `CoverBackLayer`, тот же, что у оборота
+3D-книги.
+
+Данные готовятся так же, как на страницах сайта (`scripts/visual/html-data.ts`): развороты — `bookSpreadSample`;
+превью — главы, как их строят `books/[id]/questions/page.tsx` и `QuestionsEditor`; 3D-книга — `FlipbookData`, как
+в `books/[id]/preview/page.tsx`; оборот — `backContent` и `backPhotoRefs`, как в редакторе обложки. Маппинг глав
+превью и сборка `FlipbookData` в `src` не экспортированы, поэтому в стенде — их копии, каждая одной функцией
+(`editorPreview`, `flipbookData`); перевести на экспорт из `src` в первом коммите C7/D1. До тех пор правка этого
+кода в `src` без правки копии даёт у `html:preview` и `html:flipbook` ложное «0 отличий».
 
 Стенд собирается из `src`: JS — esbuild (вход `scripts/visual/html-stand.tsx`, пути `@/` из tsconfig, `next/link` и
-`next/navigation` — заглушка), CSS — `src/app/globals.css` через Tailwind (PostCSS, как в `postcss.config.mjs`),
+`next/navigation` — заглушка, `process.env.COVER_ART_VERSION` подставляется при сборке, как в `next.config.ts`), CSS — `src/app/globals.css` через Tailwind (PostCSS, как в `postcss.config.mjs`),
 шрифты — `@font-face` и переменные `--font-*` по `src/app/fonts.ts`, как их делает `next/font/local` (WOFF2 из
 `assets/fonts/web`). Запросы страницы отдаёт `scripts/visual/html-server.ts`, как сайт: фото книг —
 `/api/photos/<id>` (превью, файл хранилища, `view` — `photoViewFile` во временном хранилище запуска), фоны обложек
