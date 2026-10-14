@@ -6,9 +6,7 @@
     "src/modules/reporting/infrastructure/Live.ts -> src/modules/access/index.ts",
     "src/modules/workspace/infrastructure/notify.ts -> src/modules/access/domain/permissions.ts"
   ],
-  "moduleOutward": [
-    "src/modules/production/infrastructure/pdf/render.tsx -> src/server/cover-photos.ts"
-  ],
+  "moduleOutward": [],
   "sharedToModules": [
     "src/shared/infrastructure/db/schema.ts -> src/modules/feedback/domain/Review.ts",
     "src/shared/infrastructure/db/schema.ts -> src/modules/ordering/domain/GiftCard.ts",

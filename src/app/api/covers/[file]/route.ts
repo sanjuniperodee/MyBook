@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import sharp from "sharp";
 import { cropSvg, getCoverTemplate, isKnownCover, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
 import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, type BookFormat } from "@/lib/book/formats";
-import { coverPhotoDataUrl } from "@/server/cover-photos";
+import { coverPhotoDataUrl } from "@/modules/production";
 
 /**
  * Фон обложки (без текста) отдельным файлом: браузер кэширует его навсегда — версия в адресе

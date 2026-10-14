@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { coverPhotoResized, isCoverPhotoKey } from "@/server/cover-photos";
+import { coverPhotoResized, isCoverPhotoKey } from "@/modules/production";
 
 /** Снимок шаблона обложки для браузера: превью в выборе, редакторе и 3D-книге. Файлы не меняются — кэш навсегда. */
 const WIDTHS = [480, 900, 1600, 2400];

@@ -8,6 +8,7 @@ export {
   type PrintSpec,
   type RenderQueue,
 } from "./application/PrintFilesService";
+export { coverPhotoDataUrl, coverPhotoResized, isCoverPhotoKey } from "./infrastructure/coverPhotos";
 
 /** PDF подарочного сертификата. Рендерер тяжёлый, поэтому загружается только при первом вызове. */
 export async function renderGiftPdf(d: import("./infrastructure/pdf/gift").GiftPdfData): Promise<Buffer> {

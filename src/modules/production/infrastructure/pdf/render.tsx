@@ -6,7 +6,7 @@ import sharp from "sharp";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverNamesLine, coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
-import { coverPhotoDataUrl } from "@/server/cover-photos";
+import { coverPhotoDataUrl } from "../coverPhotos";
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
