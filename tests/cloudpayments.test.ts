@@ -22,11 +22,35 @@ describe("CloudPayments: уведомления о заказе", () => {
     const body = payment(String(order.number), order.amount);
     expect(await t.webhook.handle("pay", body)).toBe(0);
     expect(await t.webhook.handle("pay", body)).toBe(0);
-    // Повтор с другим номером транзакции тоже принимается молча: заказ и журнал не меняются.
-    expect(await t.webhook.handle("pay", { ...body, TransactionId: "3002" })).toBe(0);
     expect(t.orders.rows.get(order.id)).toMatchObject({ status: "paid", paymentId: "3001" });
     expect(t.orders.history.filter((h) => h.status === "paid")).toEqual([{ orderId: order.id, note: "Платёж 3001", status: "paid" }]);
     expect(count(t.uow.types(), "ordering.order_paid")).toBe(1);
+  });
+
+  it("так сейчас: второй платёж по оплаченному заказу (другой TransactionId) принят молча — без заметки «нужен возврат», как у Kaspi (B13)", async () => {
+    const t = cloudSetup();
+    const order = await t.place();
+    const first = payment(String(order.number), order.amount);
+    const second = { ...first, TransactionId: "3002" };
+    // Две вкладки оплаты: оба платежа прошли check, пока заказ ждал оплаты.
+    expect([await t.webhook.handle("check", first), await t.webhook.handle("check", second)]).toEqual([0, 0]);
+    await t.webhook.handle("pay", first);
+    const history = [...t.orders.history];
+    expect(await t.webhook.handle("pay", second)).toBe(0);
+    expect(t.orders.rows.get(order.id)).toMatchObject({ status: "paid", paymentId: "3001" });
+    expect(t.orders.history).toEqual(history);
+    expect(count(t.uow.types(), "ordering.order_paid")).toBe(1);
+  });
+
+  it("так сейчас: pay по отменённому заказу — тоже 0, заказ отменён, в журнале ни слова (B13)", async () => {
+    const t = cloudSetup();
+    const order = await t.place();
+    await t.svc.cancelByCustomer(order.id, "user-1");
+    const history = [...t.orders.history];
+    expect(await t.webhook.handle("pay", payment(String(order.number), order.amount))).toBe(0);
+    expect(t.orders.rows.get(order.id)!.status).toBe("cancelled");
+    expect(t.orders.history).toEqual(history);
+    expect(count(t.uow.types(), "ordering.order_paid")).toBe(0);
   });
 
   it("check: ждёт оплаты — 0, оплачен — 13; неизвестный счёт — 10, другая сумма или валюта — 12", async () => {
