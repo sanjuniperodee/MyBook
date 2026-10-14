@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSetting } from "@/modules/workspace";
 import { safeEqual } from "@/shared/crypto";
 import { parseInboundWebhook } from "@/modules/messaging/domain/email";
-import { ingestEmail } from "@/modules/messaging";
+import { container } from "@/server/container";
 
 /**
  * Входящие письма от почтового сервиса (Mailgun, Postmark, SendGrid Inbound Parse, Cloudflare Email Workers…)
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const mail = parseInboundWebhook(body);
   if (!mail) return NextResponse.json({ error: "Нужны поля from (адрес отправителя) и text или html" }, { status: 400 });
   try {
-    await ingestEmail(mail);
+    await container().messaging.email.ingest(mail);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[email-hook]", err);

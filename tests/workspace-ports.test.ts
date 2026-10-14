@@ -5,6 +5,10 @@ import { crmAssistantData } from "@/modules/assistant/infrastructure/data";
 import { crmEffects } from "@/modules/automation/infrastructure/adapters";
 import { DrizzleSubjectLoader } from "@/modules/automation/infrastructure/persistence";
 import { crmMarketingSettings } from "@/modules/marketing/infrastructure/adapters";
+import { crmBotSettings, crmNotifier, realtimeUpdates, widgetSettings } from "@/modules/messaging/infrastructure/adapters";
+import { ChatView } from "@/modules/messaging/infrastructure/chatView";
+import { EmailChannel, type EmailSettingKey } from "@/modules/messaging/infrastructure/email";
+import { WazzupClient, WazzupError } from "@/modules/messaging/infrastructure/wazzup";
 import { crmSalesSettings, roundRobinRouter } from "@/modules/sales/infrastructure/adapters";
 import { TelephonyError } from "@/modules/telephony/domain";
 import { crmCallEffects } from "@/modules/telephony/infrastructure/effects";
@@ -21,6 +25,7 @@ vi.mock("@/server/container", () => ({
 
 afterEach(() => vi.restoreAllMocks());
 
+const n = { kind: "task" as const, title: "Перезвонить: Айгерим", body: "Заявка с сайта", link: "/admin/deals/d1" };
 const dealFields = [
   { key: "recipient", label: "Для кого", type: "text", options: [] },
   { key: "event_date", label: "Дата события", type: "date", options: [] },
@@ -134,5 +139,76 @@ describe("assistant: подключения и данные", () => {
     const data = crmAssistantData(new MemSettings<"ai.knowledge">({ "ai.knowledge": "Доставка по Алматы — 1 день" }), new MemFieldsReader({ deal: dealFields }));
     expect(await data.knowledge()).toBe("Доставка по Алматы — 1 день");
     expect(await data.dealFields()).toEqual(dealFields);
+  });
+});
+
+describe("messaging: настройки, уведомления, живое обновление", () => {
+  it("уведомление — ответственному или всем с правом; экраны CRM обновляются", async () => {
+    const notifier = new SpyStaffNotifier({ "chats.view": ["m1", "m2"] });
+    const live = new SpyLiveFeed();
+    await crmNotifier(notifier).notify(null, "chats.view", { ...n, kind: "message" });
+    await crmNotifier(notifier).notify("m3", "deals.view", n);
+    realtimeUpdates(live).chatChanged("conv-1");
+    realtimeUpdates(live).notificationsChanged();
+    expect(notifier.sent.map((s) => s.to)).toEqual([["m1", "m2"], ["m3"]]);
+    expect(live.events).toEqual([{ type: "chat", conversationId: "conv-1" }, { type: "notify" }]);
+  });
+
+  it("бот: режим (пусто — выключен) и вопросы из настроек, рабочее время и поля сделки — из рабочего пространства", async () => {
+    const schedule = new FixedSchedule(false);
+    const bot = crmBotSettings({ settings: new MemSettings<"bot.mode" | "bot.config">(), schedule, fields: new MemFieldsReader({ deal: dealFields }) });
+    expect(await bot.mode()).toBe("off");
+    expect((await bot.config()).questions.length).toBeGreaterThan(0);
+    expect(await bot.isWorkTime(new Date("2026-10-14T03:00:00Z"))).toBe(false);
+    expect(await bot.dealFields()).toEqual(dealFields);
+  });
+
+  it("виджет: выключен — без кнопки WhatsApp и чата, номер не спрашиваем", async () => {
+    const whatsapp = vi.fn(async () => "77011234567");
+    expect(await widgetSettings(new MemSettings<"widget.enabled" | "widget.chat">(), whatsapp)).toEqual({ enabled: true, chat: true, whatsapp: "77011234567" });
+    expect(await widgetSettings(new MemSettings<"widget.enabled" | "widget.chat">({ "widget.chat": "off" }), whatsapp)).toEqual({ enabled: true, chat: false, whatsapp: "77011234567" });
+    whatsapp.mockClear();
+    expect(await widgetSettings(new MemSettings<"widget.enabled" | "widget.chat">({ "widget.enabled": "off" }), whatsapp)).toEqual({ enabled: false, chat: false, whatsapp: "" });
+    expect(whatsapp).not.toHaveBeenCalled();
+  });
+
+  it("Wazzup: без ключа — понятная ошибка без запроса; с ключом — адрес из настроек без «/» на конце", async () => {
+    const settings = new MemSettings<"wazzup.apiKey" | "wazzup.baseUrl">();
+    const wazzup = new WazzupClient(settings);
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify([{ channelId: "ch1", transport: "whatsapp", plainId: "77001112233", state: "active" }])));
+    expect(await wazzup.configured()).toBe(false);
+    const err = await wazzup.listChannels().catch((e) => e);
+    expect([err instanceof WazzupError, err.message]).toEqual([true, "Wazzup не подключён: укажите API-ключ в разделе «Интеграции»"]);
+    expect(fetch).not.toHaveBeenCalled();
+    settings.values.set("wazzup.apiKey", "wz-key");
+    settings.values.set("wazzup.baseUrl", "https://wz.example/");
+    expect(await wazzup.listChannels()).toHaveLength(1);
+    expect(fetch.mock.calls[0][0]).toBe("https://wz.example/v3/channels");
+    expect((fetch.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe("Bearer wz-key");
+  });
+
+  it("почему отправка не сработает: Wazzup не подключён, не выбран канал, всё готово", async () => {
+    const settings = new MemSettings<"wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId">();
+    const view = new ChatView({ fields: new MemFieldsReader(), settings, wazzup: new WazzupClient(settings) });
+    const conv = { channel: "telegram", channelId: "" };
+    expect(await view.sendBlocker({ channel: "site", channelId: "" })).toBeNull();
+    expect(await view.sendBlocker(conv)).toBe("Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».");
+    settings.values.set("wazzup.apiKey", "wz-key");
+    expect(await view.sendBlocker(conv)).toBe("Не выбран канал WhatsApp для отправки.");
+    settings.values.set("wazzup.channelId", "ch1");
+    expect(await view.sendBlocker(conv)).toBeNull();
+  });
+
+  it("почта: копия своего письма и автоответы не становятся заявками; IMAP без настроек не опрашивается", async () => {
+    const settings = new MemSettings<EmailSettingKey>();
+    const smtpConfig = vi.fn(async () => ({ host: "smtp.example", port: 587, secure: false, user: "", password: "", from: "MyBooks <hello@mybook.kz>", replyTo: "" }));
+    const email = new EmailChannel({ settings, live: new SpyLiveFeed(), smtpConfig });
+    const mail = { from: "hello@mybook.kz", fromName: "MyBooks", subject: "Заказ", text: "Текст", messageId: "<m1@mybook.kz>", inReplyTo: null, date: new Date(), auto: false };
+    await email.ingest(mail);
+    await email.ingest({ ...mail, from: "client@example.kz", auto: true });
+    expect(smtpConfig).toHaveBeenCalledTimes(2);
+    expect(await email.pollImap()).toBe(0);
+    await expect(email.testImap()).rejects.toThrow("Заполните сервер, логин и пароль IMAP");
+    expect(settings.saves).toEqual([]);
   });
 });

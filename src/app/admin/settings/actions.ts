@@ -7,7 +7,7 @@ import { assertStaff, audit } from "@/server/access";
 import { ensureToken, fromEnv, getSettings, saveSettings, smtpConfig, smtpFromEnvironment, type SettingKey } from "@/modules/workspace";
 import { randomToken } from "@/shared/crypto";
 import { isValidTime } from "@/shared/domain/schedule";
-import { listChannels, registerWebhook, WazzupError } from "@/modules/messaging";
+import { WazzupError } from "@/modules/messaging";
 import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 
 export interface SettingsState {
@@ -38,7 +38,7 @@ export async function saveWazzupAction(_: SettingsState, form: FormData): Promis
 export async function testWazzupAction(): Promise<{ ok: boolean; message: string; channels?: { id: string; label: string; state: string }[] }> {
   await assertStaff("settings.manage");
   try {
-    const channels = await listChannels();
+    const channels = await container().messaging.wazzup.listChannels();
     return {
       ok: true,
       message: channels.length ? `Подключено. Каналов: ${channels.length}` : "Ключ верный, но в Wazzup нет подключённых каналов",
@@ -52,7 +52,7 @@ export async function testWazzupAction(): Promise<{ ok: boolean; message: string
 export async function registerWazzupWebhookAction(): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("settings.manage");
   try {
-    const uri = await registerWebhook(await ensureToken("wazzup.webhookToken"));
+    const uri = await container().messaging.wazzup.registerWebhook(await ensureToken("wazzup.webhookToken"));
     await audit(staff, "settings.update", "settings", "wazzup.webhook", {});
     return { ok: true, message: `Вебхук подключён: ${uri.replace(/token=[^&]+/, "token=••••")}` };
   } catch (err) {
@@ -160,8 +160,7 @@ export async function saveEmailAction(_: SettingsState, form: FormData): Promise
 export async function testImapAction(): Promise<{ ok: boolean; message: string }> {
   await assertStaff("settings.manage");
   try {
-    const { testImap } = await import("@/modules/messaging");
-    return { ok: true, message: await testImap() };
+    return { ok: true, message: await container().messaging.email.testImap() };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Не удалось подключиться" };
   }

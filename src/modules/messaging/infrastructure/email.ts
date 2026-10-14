@@ -3,14 +3,15 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmConversations, crmMessages, crmNotes, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
-import { escapeHtml } from "@/shared/infrastructure/mail";
+import { escapeHtml, type SmtpConfigSource } from "@/shared/infrastructure/mail";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
-import { getSettings, saveSettings, smtpConfig } from "@/modules/workspace";
-import { publish } from "@/modules/workspace";
+import type { LiveFeed, SettingsStore } from "@/shared/application";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "@/modules/messaging/domain/email";
 import { staffLabel } from "@/shared/domain/staff";
 
+/** Настройки CRM, которые читает и пишет почтовый канал: ящик IMAP и UID последнего забранного письма. */
+export type EmailSettingKey = "email.imapHost" | "email.imapPort" | "email.imapUser" | "email.imapPassword" | "email.imapMailbox" | "email.imapLastUid";
 
 /**
  * Письмо менеджера клиенту: ошибки не глотаются (их видно в чате), возвращается Message-ID для цепочки ответов.
@@ -87,145 +88,149 @@ async function emailConversation(address: string, patch: { clientId?: string | n
   return conv ?? (await db.query.crmConversations.findFirst({ where: and(eq(crmConversations.channel, "email"), eq(crmConversations.chatId, email)) }))!;
 }
 
-/** Письмо из карточки сделки/клиента: уходит клиенту, попадает в историю и в единый инбокс (там же придёт ответ). */
-export async function sendEmailToContact(input: { to: string; subject: string; text: string; authorId: string; dealId?: string | null; clientId?: string | null; contactName?: string }) {
-  const addr = parseAddress(input.to);
-  if (!addr) throw new Error("Некорректный e-mail");
-  const conv = await emailConversation(addr.email, { dealId: input.dealId, clientId: input.clientId, contactName: input.contactName, assigneeId: input.authorId });
-  const subject = input.subject.trim().slice(0, 200) || replySubject(conv.meta.subject);
-  const [msg] = await db.insert(crmMessages).values({ conversationId: conv.id, direction: "out", authorId: input.authorId, text: input.text, subject, status: "pending" }).returning();
-  const now = new Date();
-  await db
-    .update(crmConversations)
-    .set({ lastMessageAt: now, lastMessageText: input.text.replace(/\s+/g, " ").slice(0, 160), meta: { ...conv.meta, subject }, unread: 0, awaitingSince: null, updatedAt: now, assigneeId: conv.assigneeId ?? input.authorId })
-    .where(eq(crmConversations.id, conv.id));
-  let result: { ok: true } | { ok: false; error: string };
-  try {
-    const { messageId } = await sendCrmMail({ to: addr.email, subject, text: input.text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(msg.id) });
-    await db.update(crmMessages).set({ status: "sent", externalId: `email:${messageId}` }).where(eq(crmMessages.id, msg.id));
-    result = { ok: true };
-  } catch (err) {
-    const error = err instanceof Error ? err.message.slice(0, 300) : "Не удалось отправить письмо";
-    await db.update(crmMessages).set({ status: "error", error }).where(eq(crmMessages.id, msg.id));
-    result = { ok: false, error };
-  }
-  if (result.ok && (input.dealId || input.clientId)) {
-    await db.insert(crmNotes).values({ dealId: input.dealId ?? null, clientId: input.clientId ?? null, authorId: input.authorId, kind: "email", text: `✉️ Письмо «${subject}» на ${addr.email}:\n${input.text.slice(0, 1000)}` });
-  }
-  void publish({ type: "chat", conversationId: conv.id });
-  return { ...result, conversationId: conv.id };
-}
-
-/** Входящее письмо → сообщение в единый инбокс (диалог по адресу отправителя), со сделкой и уведомлением. */
-export async function ingestEmail(mail: InboundEmail) {
-  const ours = ((await smtpConfig())?.from ?? site.contacts.email).toLowerCase();
-  if (ours.includes(mail.from)) return; // своё же письмо (копия в ящике)
-  // Автоответы и рассылки («я в отпуске», новости сервисов) не превращаем в заявки.
-  if (mail.auto) return;
-  // Повторная доставка того же письма (вебхук, IMAP после сбоя) не должна менять тему и цепочку диалога.
-  if (await db.query.crmMessages.findFirst({ where: eq(crmMessages.externalId, `email:${mail.messageId}`), columns: { id: true } })) return;
-  const text = mail.subject && !mail.text.includes(mail.subject) ? `${mail.subject}\n\n${mail.text}` : mail.text;
-  await container().messaging.chats.ingest(
-    {
-      externalId: `email:${mail.messageId}`,
-      channelId: "",
-      chatType: "email",
-      chatId: mail.from,
-      at: mail.date,
-      isEcho: false,
-      type: "text",
-      text: text.slice(0, 20_000),
-      mediaUrl: null,
-      contactName: mail.fromName,
-      avatarUrl: null,
-      status: null,
-    },
-    { meta: { subject: mail.subject, lastMessageId: mail.messageId.startsWith("<") ? mail.messageId : undefined, email: mail.from }, subject: mail.subject },
-  );
-}
-
-async function imapConfigured() {
-  const s = await getSettings(["email.imapHost", "email.imapUser", "email.imapPassword"]);
-  return !!(s["email.imapHost"] && s["email.imapUser"] && s["email.imapPassword"]);
-}
-
 let polling = false;
 
-/**
- * Забирает новые письма из ящика по IMAP (раз в минуту из планировщика). Помним UID последнего письма,
- * поэтому при первом подключении берём только письма за последние сутки.
- */
-export async function pollImap(): Promise<number> {
-  if (polling || !(await imapConfigured())) return 0;
-  polling = true;
-  const s = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.imapLastUid"]);
-  const { ImapFlow } = await import("imapflow");
-  const { simpleParser } = await import("mailparser");
-  const client = new ImapFlow({
-    host: s["email.imapHost"],
-    port: Number(s["email.imapPort"]) || 993,
-    secure: Number(s["email.imapPort"] || 993) !== 143,
-    auth: { user: s["email.imapUser"], pass: s["email.imapPassword"] },
-    logger: false,
-    socketTimeout: 60_000,
-  });
-  let count = 0;
-  try {
-    await client.connect();
-    const lock = await client.getMailboxLock(s["email.imapMailbox"] || "INBOX");
+/** Почта как канал: письма из карточки, входящие по IMAP и вебхуком почтового сервиса. Ответы из инбокса — sendEmailReply. */
+export class EmailChannel {
+  constructor(private readonly deps: { settings: SettingsStore<EmailSettingKey>; live: LiveFeed; smtpConfig: SmtpConfigSource }) {}
+
+  /** Письмо из карточки сделки/клиента: уходит клиенту, попадает в историю и в единый инбокс (там же придёт ответ). */
+  async sendToContact(input: { to: string; subject: string; text: string; authorId: string; dealId?: string | null; clientId?: string | null; contactName?: string }) {
+    const addr = parseAddress(input.to);
+    if (!addr) throw new Error("Некорректный e-mail");
+    const conv = await emailConversation(addr.email, { dealId: input.dealId, clientId: input.clientId, contactName: input.contactName, assigneeId: input.authorId });
+    const subject = input.subject.trim().slice(0, 200) || replySubject(conv.meta.subject);
+    const [msg] = await db.insert(crmMessages).values({ conversationId: conv.id, direction: "out", authorId: input.authorId, text: input.text, subject, status: "pending" }).returning();
+    const now = new Date();
+    await db
+      .update(crmConversations)
+      .set({ lastMessageAt: now, lastMessageText: input.text.replace(/\s+/g, " ").slice(0, 160), meta: { ...conv.meta, subject }, unread: 0, awaitingSince: null, updatedAt: now, assigneeId: conv.assigneeId ?? input.authorId })
+      .where(eq(crmConversations.id, conv.id));
+    let result: { ok: true } | { ok: false; error: string };
     try {
-      const lastUid = Number(s["email.imapLastUid"]) || 0;
-      const query = lastUid ? { uid: `${lastUid + 1}:*` } : { since: new Date(Date.now() - 86_400_000) };
-      let maxUid = lastUid;
-      for await (const msg of client.fetch(query, { uid: true, source: true }, { uid: true })) {
-        if (msg.uid <= lastUid || !msg.source) continue;
-        maxUid = Math.max(maxUid, msg.uid);
-        const parsed = await simpleParser(msg.source);
-        const from = parsed.from?.value[0];
-        if (!from?.address) continue;
-        const headers = parsed.headers;
-        const autoHeader = `${headers.get("auto-submitted") ?? ""} ${headers.get("precedence") ?? ""}`.toLowerCase();
-        const raw = parsed.text || (typeof parsed.html === "string" ? htmlToText(parsed.html) : "");
-        await ingestEmail({
-          from: from.address.toLowerCase(),
-          fromName: from.name ?? "",
-          subject: (parsed.subject ?? "").slice(0, 300),
-          text: stripQuoted(raw).slice(0, 20_000) || "(пустое письмо)",
-          messageId: parsed.messageId ?? `${from.address}:${msg.uid}`,
-          inReplyTo: typeof parsed.inReplyTo === "string" ? parsed.inReplyTo : null,
-          date: parsed.date ?? new Date(),
-          auto: /auto-(replied|generated)|bulk|list|junk/.test(autoHeader),
-        });
-        count++;
-      }
-      if (maxUid > lastUid) await saveSettings({ "email.imapLastUid": String(maxUid) }, null);
-    } finally {
-      lock.release();
+      const { messageId } = await sendCrmMail({ to: addr.email, subject, text: input.text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(msg.id) });
+      await db.update(crmMessages).set({ status: "sent", externalId: `email:${messageId}` }).where(eq(crmMessages.id, msg.id));
+      result = { ok: true };
+    } catch (err) {
+      const error = err instanceof Error ? err.message.slice(0, 300) : "Не удалось отправить письмо";
+      await db.update(crmMessages).set({ status: "error", error }).where(eq(crmMessages.id, msg.id));
+      result = { ok: false, error };
     }
-    await client.logout();
-  } catch (err) {
-    console.error("[crm-mail] imap", err instanceof Error ? err.message : err);
-    await client.close();
-  } finally {
-    polling = false;
+    if (result.ok && (input.dealId || input.clientId)) {
+      await db.insert(crmNotes).values({ dealId: input.dealId ?? null, clientId: input.clientId ?? null, authorId: input.authorId, kind: "email", text: `✉️ Письмо «${subject}» на ${addr.email}:\n${input.text.slice(0, 1000)}` });
+    }
+    void this.deps.live.publish({ type: "chat", conversationId: conv.id });
+    return { ...result, conversationId: conv.id };
   }
-  return count;
-}
 
-/** Проверка IMAP из «Интеграций»: подключение и число писем в ящике. */
-export async function testImap(): Promise<string> {
-  const s = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox"]);
-  if (!s["email.imapHost"] || !s["email.imapUser"] || !s["email.imapPassword"]) throw new Error("Заполните сервер, логин и пароль IMAP");
-  const { ImapFlow } = await import("imapflow");
-  const client = new ImapFlow({ host: s["email.imapHost"], port: Number(s["email.imapPort"]) || 993, secure: Number(s["email.imapPort"] || 993) !== 143, auth: { user: s["email.imapUser"], pass: s["email.imapPassword"] }, logger: false, socketTimeout: 20_000 });
-  try {
-    await client.connect();
-    const status = await client.status(s["email.imapMailbox"] || "INBOX", { messages: true });
-    await client.logout();
-    return `Подключено, писем в ящике: ${(status && status.messages) ?? 0}`;
-  } catch (err) {
-    await client.close();
-    throw new Error(err instanceof Error ? `IMAP: ${err.message}` : "Не удалось подключиться к IMAP");
+  /** Входящее письмо → сообщение в единый инбокс (диалог по адресу отправителя), со сделкой и уведомлением. */
+  async ingest(mail: InboundEmail) {
+    const ours = ((await this.deps.smtpConfig())?.from ?? site.contacts.email).toLowerCase();
+    if (ours.includes(mail.from)) return; // своё же письмо (копия в ящике)
+    // Автоответы и рассылки («я в отпуске», новости сервисов) не превращаем в заявки.
+    if (mail.auto) return;
+    // Повторная доставка того же письма (вебхук, IMAP после сбоя) не должна менять тему и цепочку диалога.
+    if (await db.query.crmMessages.findFirst({ where: eq(crmMessages.externalId, `email:${mail.messageId}`), columns: { id: true } })) return;
+    const text = mail.subject && !mail.text.includes(mail.subject) ? `${mail.subject}\n\n${mail.text}` : mail.text;
+    await container().messaging.chats.ingest(
+      {
+        externalId: `email:${mail.messageId}`,
+        channelId: "",
+        chatType: "email",
+        chatId: mail.from,
+        at: mail.date,
+        isEcho: false,
+        type: "text",
+        text: text.slice(0, 20_000),
+        mediaUrl: null,
+        contactName: mail.fromName,
+        avatarUrl: null,
+        status: null,
+      },
+      { meta: { subject: mail.subject, lastMessageId: mail.messageId.startsWith("<") ? mail.messageId : undefined, email: mail.from }, subject: mail.subject },
+    );
+  }
+
+  private async imapConfigured() {
+    const s = await this.deps.settings.getMany(["email.imapHost", "email.imapUser", "email.imapPassword"]);
+    return !!(s["email.imapHost"] && s["email.imapUser"] && s["email.imapPassword"]);
+  }
+
+  /**
+   * Забирает новые письма из ящика по IMAP (раз в минуту из планировщика). Помним UID последнего письма,
+   * поэтому при первом подключении берём только письма за последние сутки.
+   */
+  async pollImap(): Promise<number> {
+    if (polling || !(await this.imapConfigured())) return 0;
+    polling = true;
+    const s = await this.deps.settings.getMany(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.imapLastUid"]);
+    const { ImapFlow } = await import("imapflow");
+    const { simpleParser } = await import("mailparser");
+    const client = new ImapFlow({
+      host: s["email.imapHost"],
+      port: Number(s["email.imapPort"]) || 993,
+      secure: Number(s["email.imapPort"] || 993) !== 143,
+      auth: { user: s["email.imapUser"], pass: s["email.imapPassword"] },
+      logger: false,
+      socketTimeout: 60_000,
+    });
+    let count = 0;
+    try {
+      await client.connect();
+      const lock = await client.getMailboxLock(s["email.imapMailbox"] || "INBOX");
+      try {
+        const lastUid = Number(s["email.imapLastUid"]) || 0;
+        const query = lastUid ? { uid: `${lastUid + 1}:*` } : { since: new Date(Date.now() - 86_400_000) };
+        let maxUid = lastUid;
+        for await (const msg of client.fetch(query, { uid: true, source: true }, { uid: true })) {
+          if (msg.uid <= lastUid || !msg.source) continue;
+          maxUid = Math.max(maxUid, msg.uid);
+          const parsed = await simpleParser(msg.source);
+          const from = parsed.from?.value[0];
+          if (!from?.address) continue;
+          const headers = parsed.headers;
+          const autoHeader = `${headers.get("auto-submitted") ?? ""} ${headers.get("precedence") ?? ""}`.toLowerCase();
+          const raw = parsed.text || (typeof parsed.html === "string" ? htmlToText(parsed.html) : "");
+          await this.ingest({
+            from: from.address.toLowerCase(),
+            fromName: from.name ?? "",
+            subject: (parsed.subject ?? "").slice(0, 300),
+            text: stripQuoted(raw).slice(0, 20_000) || "(пустое письмо)",
+            messageId: parsed.messageId ?? `${from.address}:${msg.uid}`,
+            inReplyTo: typeof parsed.inReplyTo === "string" ? parsed.inReplyTo : null,
+            date: parsed.date ?? new Date(),
+            auto: /auto-(replied|generated)|bulk|list|junk/.test(autoHeader),
+          });
+          count++;
+        }
+        if (maxUid > lastUid) await this.deps.settings.save({ "email.imapLastUid": String(maxUid) }, null);
+      } finally {
+        lock.release();
+      }
+      await client.logout();
+    } catch (err) {
+      console.error("[crm-mail] imap", err instanceof Error ? err.message : err);
+      await client.close();
+    } finally {
+      polling = false;
+    }
+    return count;
+  }
+
+  /** Проверка IMAP из «Интеграций»: подключение и число писем в ящике. */
+  async testImap(): Promise<string> {
+    const s = await this.deps.settings.getMany(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox"]);
+    if (!s["email.imapHost"] || !s["email.imapUser"] || !s["email.imapPassword"]) throw new Error("Заполните сервер, логин и пароль IMAP");
+    const { ImapFlow } = await import("imapflow");
+    const client = new ImapFlow({ host: s["email.imapHost"], port: Number(s["email.imapPort"]) || 993, secure: Number(s["email.imapPort"] || 993) !== 143, auth: { user: s["email.imapUser"], pass: s["email.imapPassword"] }, logger: false, socketTimeout: 20_000 });
+    try {
+      await client.connect();
+      const status = await client.status(s["email.imapMailbox"] || "INBOX", { messages: true });
+      await client.logout();
+      return `Подключено, писем в ящике: ${(status && status.messages) ?? 0}`;
+    } catch (err) {
+      await client.close();
+      throw new Error(err instanceof Error ? `IMAP: ${err.message}` : "Не удалось подключиться к IMAP");
+    }
   }
 }
-

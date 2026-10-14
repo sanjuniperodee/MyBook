@@ -3,7 +3,9 @@ import { createHmac } from "node:crypto";
 import { gowaChatId, gowaJid, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
 import { GOWA_DEVICE, GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
-import { whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
+import { channelTransport, whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
+import { WazzupClient } from "@/modules/messaging/infrastructure/wazzup";
+import { MemSettings } from "./doubles/workspace";
 
 const media = (path: string) => `/media?path=${path}`;
 const device = "77001112233@s.whatsapp.net";
@@ -149,10 +151,12 @@ describe("GOWA: клиент шлюза", () => {
 describe("GOWA: транспорт исходящих", () => {
   const conv = (p: Partial<Conversation>): Conversation => ({ id: "c1", channel: "whatsapp", channelId: "gowa", chatId: "77011234567", contactName: "", avatarUrl: null, clientId: null, dealId: null, assigneeId: null, botStep: null, meta: {}, ...p });
   const gowa = (sent: string[]) => new GowaClient(config, async (_url, init) => (sent.push(String(init?.body)), json({ results: { message_id: "g1" } })));
+  // Остальные каналы — настоящий транспорт; Wazzup не подключён (настройки пусты).
+  const others = channelTransport(new WazzupClient(new MemSettings()));
 
   it("диалоги шлюза и все WhatsApp-диалоги при выбранном GOWA уходят через шлюз", async () => {
     const sent: string[] = [];
-    const transport = whatsappTransport(gowa(sent), async () => "gowa");
+    const transport = whatsappTransport(gowa(sent), async () => "gowa", others);
     expect(await transport.send(conv({}), "m1", "Привет")).toEqual({ ok: true, externalId: "g1" });
     // Диалог, начатый при Wazzup, после перехода на шлюз продолжается через шлюз.
     expect(await transport.send(conv({ channelId: "wazzup-channel" }), "m2", "Ещё")).toEqual({ ok: true, externalId: "g1" });
@@ -161,13 +165,13 @@ describe("GOWA: транспорт исходящих", () => {
 
   it("чат на сайте и прочие каналы — как раньше", async () => {
     const sent: string[] = [];
-    const transport = whatsappTransport(gowa(sent), async () => "gowa");
+    const transport = whatsappTransport(gowa(sent), async () => "gowa", others);
     expect(await transport.send(conv({ channel: "site", channelId: "" }), "m1", "Ответ")).toEqual({ ok: true, externalId: null });
     expect(sent).toEqual([]);
   });
 
   it("ошибка шлюза — текстом в статус сообщения", async () => {
-    const transport = whatsappTransport(new GowaClient(config, async () => json({ message: "not logged in" }, 500)), async () => "gowa");
+    const transport = whatsappTransport(new GowaClient(config, async () => json({ message: "not logged in" }, 500)), async () => "gowa", others);
     expect(await transport.send(conv({}), "m1", "Привет")).toEqual({ ok: false, error: "WhatsApp: not logged in" });
   });
 });

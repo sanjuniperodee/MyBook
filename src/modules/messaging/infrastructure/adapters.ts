@@ -1,19 +1,16 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
+import type { CustomFieldsReader, LiveFeed, SettingsReader, StaffNotifier as StaffNotifierPort, WorkSchedule } from "@/shared/application";
 import { crmTasks } from "@/shared/infrastructure/db/schema";
-import { notifyOwnerOr } from "@/modules/workspace";
-import { publish } from "@/modules/workspace";
-import { getSetting } from "@/modules/workspace";
-import { isWorkTime, parseWorkHours } from "@/shared/domain/schedule";
-import { listFields } from "@/modules/workspace";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";
 import type { BotSettings, ChannelTransport, LiveUpdates, StaffNotifier, Tasks } from "../application";
 import { GOWA_CHANNEL, type BotMode } from "../domain";
 import { GowaError, type GowaClient } from "./gowa";
+import { WazzupError, type WazzupClient } from "./wazzup";
 
 /** Исходящие по каналу диалога: виджет забирает сообщения сам, почта и мессенджеры — через свои интеграции. */
-const channelTransport: ChannelTransport = {
+export const channelTransport = (wazzup: WazzupClient): ChannelTransport => ({
   async send(conv, messageId, text) {
     if (conv.channel === "site") return { ok: true, externalId: null };
     if (conv.channel === "email") {
@@ -21,25 +18,24 @@ const channelTransport: ChannelTransport = {
       const r = await sendEmailReply(conv, messageId, text);
       return r.ok ? { ok: true, externalId: null } : r;
     }
-    const { sendWazzupMessage, WazzupError } = await import("@/modules/messaging/infrastructure/wazzup");
     try {
-      return { ok: true, externalId: await sendWazzupMessage({ channelId: conv.channelId, chatType: conv.channel, chatId: conv.chatId, text, crmMessageId: messageId }) };
+      return { ok: true, externalId: await wazzup.send({ channelId: conv.channelId, chatType: conv.channel, chatId: conv.chatId, text, crmMessageId: messageId }) };
     } catch (err) {
       if (err instanceof WazzupError) return { ok: false, error: err.message };
       console.error("[chats] send", err);
       return { ok: false, error: "Не удалось отправить" };
     }
   },
-};
+});
 
 /**
  * WhatsApp через свой шлюз GOWA: диалоги, пришедшие через него, и все WhatsApp-диалоги, когда в «Интеграциях»
- * выбран GOWA (в том числе начатые при Wazzup). Остальное — как раньше, через channelTransport.
+ * выбран GOWA (в том числе начатые при Wazzup). Остальное — как раньше, через channelTransport (others).
  */
-export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"wazzup" | "gowa">): ChannelTransport {
+export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"wazzup" | "gowa">, others: ChannelTransport): ChannelTransport {
   return {
     async send(conv, messageId, text) {
-      if (conv.channel !== "whatsapp" || (conv.channelId !== GOWA_CHANNEL && (await provider()) !== "gowa")) return channelTransport.send(conv, messageId, text);
+      if (conv.channel !== "whatsapp" || (conv.channelId !== GOWA_CHANNEL && (await provider()) !== "gowa")) return others.send(conv, messageId, text);
       try {
         return { ok: true, externalId: await gowa.sendText(conv.chatId, text) };
       } catch (err) {
@@ -51,21 +47,25 @@ export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"waz
   };
 }
 
-export const crmNotifier: StaffNotifier = {
-  notify: (assigneeId, permission, n) => notifyOwnerOr(assigneeId, permission, n),
-};
+/** Права, по которым переписка ищет, кого уведомить. */
+export type MessagingPermission = "chats.view" | "deals.view";
 
-export const realtimeUpdates: LiveUpdates = {
-  chatChanged: (conversationId) => void publish({ type: "chat", conversationId }),
-  notificationsChanged: () => void publish({ type: "notify" }),
-};
+export const crmNotifier = (notifier: StaffNotifierPort<MessagingPermission>): StaffNotifier => ({
+  notify: (assigneeId, permission, n) => notifier.notifyOwnerOr(assigneeId, permission, n),
+});
 
-export const crmBotSettings: BotSettings = {
-  mode: async () => ((await getSetting("bot.mode")) || "off") as BotMode,
-  config: async () => parseBotConfig(await getSetting("bot.config")),
-  isWorkTime: async (at) => isWorkTime(at, parseWorkHours(await getSetting("crm.workHours"))),
-  dealFields: async () => (await listFields("deal")).map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options })),
-};
+export const realtimeUpdates = (live: LiveFeed): LiveUpdates => ({
+  chatChanged: (conversationId) => void live.publish({ type: "chat", conversationId }),
+  notificationsChanged: () => void live.publish({ type: "notify" }),
+});
+
+/** Бот-квалификатор: режим и вопросы — из настроек CRM, рабочее время и свои поля сделки — из рабочего пространства. */
+export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config">; schedule: WorkSchedule; fields: CustomFieldsReader }): BotSettings => ({
+  mode: async () => ((await deps.settings.get("bot.mode")) || "off") as BotMode,
+  config: async () => parseBotConfig(await deps.settings.get("bot.config")),
+  isWorkTime: (at) => deps.schedule.isWorkTime(at),
+  dealFields: () => deps.fields.list("deal"),
+});
 
 export const crmTasksAdapter: Tasks = {
   async create(t) {
@@ -74,9 +74,8 @@ export const crmTasksAdapter: Tasks = {
 };
 
 /** Что показывает виджет на сайте: кнопка WhatsApp, онлайн-чат. */
-export async function widgetSettings(whatsapp: () => Promise<string>) {
-  const { getSettings } = await import("@/modules/workspace");
-  const s = await getSettings(["widget.enabled", "widget.chat"]);
+export async function widgetSettings(settings: SettingsReader<"widget.enabled" | "widget.chat">, whatsapp: () => Promise<string>) {
+  const s = await settings.getMany(["widget.enabled", "widget.chat"]);
   const enabled = s["widget.enabled"] !== "off";
   return { enabled, chat: enabled && s["widget.chat"] !== "off", whatsapp: enabled ? await whatsapp() : "" };
 }

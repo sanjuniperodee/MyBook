@@ -84,6 +84,12 @@ export class Container {
   get messaging(): MessagingModule {
     return (this.#messaging ??= new MessagingModule({
       clock: this.clock,
+      settings: this.workspace.settings,
+      notifier: this.workspace.notifier,
+      live: this.workspace.live,
+      schedule: this.workspace.schedule,
+      fields: this.workspace.fieldsReader,
+      smtpConfig,
       rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),

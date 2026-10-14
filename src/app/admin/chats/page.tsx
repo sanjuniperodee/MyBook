@@ -6,7 +6,6 @@ import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { channelLabel } from "@/modules/messaging";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/domain/channels";
-import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -64,11 +63,12 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   let side: React.ReactNode = null;
 
   if (conv) {
+    const chat = container().messaging.view;
     const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai] = await Promise.all([
-      loadChatMessages(conv.id),
-      listTemplates(),
-      chatVars(conv, staffLabel(staff.user)),
-      sendBlocker(conv),
+      chat.messages(conv.id),
+      chat.templates(),
+      chat.vars(conv, staffLabel(staff.user)),
+      chat.sendBlocker(conv),
       container().reporting.conversationContext(conv),
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),

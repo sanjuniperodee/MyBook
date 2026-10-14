@@ -1,13 +1,13 @@
 import "server-only";
-import { fieldVars, listFields } from "@/modules/workspace";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
 import { container } from "@/server/container";
 import { staffLabel } from "@/shared/domain/staff";
-import { getSetting } from "@/modules/workspace";
-import { wazzupConfigured } from "@/modules/messaging/infrastructure/wazzup";
+import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
+import { fieldVars } from "@/shared/domain/customFields";
+import type { WazzupClient } from "@/modules/messaging/infrastructure/wazzup";
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import type { ChatMessage } from "@/components/admin/ChatPanel";
 
@@ -34,31 +34,40 @@ export async function loadChatMessages(conversationId: string, limit = 150): Pro
   }));
 }
 
-export async function listTemplates() {
-  return db.select({ id: crmTemplates.id, title: crmTemplates.title, text: crmTemplates.text }).from(crmTemplates).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt));
-}
+/** Экран чата (ChatPanel): сообщения, шаблоны ответов, их переменные и почему отправка сейчас не сработает. */
+export class ChatView {
+  constructor(private readonly deps: { fields: CustomFieldsReader; settings: SettingsReader<"wazzup.channelId">; wazzup: WazzupClient }) {}
 
-/** Переменные шаблонов для конкретного диалога. */
-export async function chatVars(conv: Pick<CrmConversation, "contactName" | "clientId" | "dealId">, managerName: string) {
-  const [lastOrder, deal, fields] = await Promise.all([
-    conv.clientId ? db.query.orders.findFirst({ where: eq(orders.userId, conv.clientId), orderBy: desc(orders.createdAt), columns: { number: true } }) : null,
-    conv.dealId ? db.query.crmDeals.findFirst({ where: eq(crmDeals.id, conv.dealId), columns: { customFields: true } }) : null,
-    listFields("deal"),
-  ]);
-  return { name: conv.contactName.split(" ")[0] ?? "", order: lastOrder?.number ?? null, link: env.appUrl, manager: managerName, fields: fieldVars(fields, deal?.customFields) };
-}
-
-/** Почему отправка сейчас не сработает (показываем над полем ввода). */
-export async function sendBlocker(conv: Pick<CrmConversation, "channelId" | "channel">) {
-  if (conv.channel === "site") return null;
-  if (conv.channel === "email") return (await container().mailer.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
-  if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await container().messaging.whatsappProvider()) === "gowa")) {
-    const s = await container().messaging.gowa.status();
-    if (!s.reachable) return "Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.";
-    if (s.problem) return `${s.problem} — сообщения не уйдут клиенту. Проверьте настройки в «Интеграциях».`;
-    return s.loggedIn ? null : "Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».";
+  messages(conversationId: string) {
+    return loadChatMessages(conversationId);
   }
-  if (!(await wazzupConfigured())) return "Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».";
-  if (!conv.channelId && !(await getSetting("wazzup.channelId"))) return "Не выбран канал WhatsApp для отправки.";
-  return null;
+
+  templates() {
+    return db.select({ id: crmTemplates.id, title: crmTemplates.title, text: crmTemplates.text }).from(crmTemplates).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt));
+  }
+
+  /** Переменные шаблонов для конкретного диалога. */
+  async vars(conv: Pick<CrmConversation, "contactName" | "clientId" | "dealId">, managerName: string) {
+    const [lastOrder, deal, fields] = await Promise.all([
+      conv.clientId ? db.query.orders.findFirst({ where: eq(orders.userId, conv.clientId), orderBy: desc(orders.createdAt), columns: { number: true } }) : null,
+      conv.dealId ? db.query.crmDeals.findFirst({ where: eq(crmDeals.id, conv.dealId), columns: { customFields: true } }) : null,
+      this.deps.fields.list("deal"),
+    ]);
+    return { name: conv.contactName.split(" ")[0] ?? "", order: lastOrder?.number ?? null, link: env.appUrl, manager: managerName, fields: fieldVars(fields, deal?.customFields) };
+  }
+
+  /** Почему отправка сейчас не сработает (показываем над полем ввода). */
+  async sendBlocker(conv: Pick<CrmConversation, "channelId" | "channel">) {
+    if (conv.channel === "site") return null;
+    if (conv.channel === "email") return (await container().mailer.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
+    if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await container().messaging.whatsappProvider()) === "gowa")) {
+      const s = await container().messaging.gowa.status();
+      if (!s.reachable) return "Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.";
+      if (s.problem) return `${s.problem} — сообщения не уйдут клиенту. Проверьте настройки в «Интеграциях».`;
+      return s.loggedIn ? null : "Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».";
+    }
+    if (!(await this.deps.wazzup.configured())) return "Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».";
+    if (!conv.channelId && !(await this.deps.settings.get("wazzup.channelId"))) return "Не выбран канал WhatsApp для отправки.";
+    return null;
+  }
 }

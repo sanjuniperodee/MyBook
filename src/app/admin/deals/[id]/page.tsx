@@ -9,7 +9,6 @@ import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { channelLabel } from "@/modules/messaging";
-import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -52,8 +51,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   ]);
   const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
+  const chat = container().messaging.view;
   const [messages, templates, vars, blocker, offers] = conv
-    ? await Promise.all([loadChatMessages(conv.id), listTemplates(), chatVars(conv, staffLabel(staff.user)), sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
+    ? await Promise.all([chat.messages(conv.id), chat.templates(), chat.vars(conv, staffLabel(staff.user)), chat.sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
   const ai = await container().assistant.service.configured();
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);

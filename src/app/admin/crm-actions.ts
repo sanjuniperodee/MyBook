@@ -102,8 +102,7 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
   assertVisible(staff, c.assigneeId);
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
-  const { sendEmailToContact } = await import("@/modules/messaging");
-  const r = await sendEmailToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
+  const r = await container().messaging.email.sendToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
   if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
   if (c.clientId) revalidatePath(`/admin/clients/${c.clientId}`);
