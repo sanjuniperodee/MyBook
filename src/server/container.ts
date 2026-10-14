@@ -90,6 +90,7 @@ export class Container {
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
       smtpConfig,
+      smtp: this.smtp,
       rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),

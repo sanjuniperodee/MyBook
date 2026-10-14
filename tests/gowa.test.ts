@@ -151,8 +151,8 @@ describe("GOWA: клиент шлюза", () => {
 describe("GOWA: транспорт исходящих", () => {
   const conv = (p: Partial<Conversation>): Conversation => ({ id: "c1", channel: "whatsapp", channelId: "gowa", chatId: "77011234567", contactName: "", avatarUrl: null, clientId: null, dealId: null, assigneeId: null, botStep: null, meta: {}, ...p });
   const gowa = (sent: string[]) => new GowaClient(config, async (_url, init) => (sent.push(String(init?.body)), json({ results: { message_id: "g1" } })));
-  // Остальные каналы — настоящий транспорт; Wazzup не подключён (настройки пусты).
-  const others = channelTransport(new WazzupClient(new MemSettings()));
+  // Остальные каналы — настоящий транспорт; Wazzup не подключён (настройки пусты), почта не используется.
+  const others = channelTransport(new WazzupClient(new MemSettings()), { reply: async () => ({ ok: true }) });
 
   it("диалоги шлюза и все WhatsApp-диалоги при выбранном GOWA уходят через шлюз", async () => {
     const sent: string[] = [];

@@ -9,8 +9,6 @@
   ],
   "moduleOutward": [
     "src/modules/access/infrastructure/persistence.ts -> src/server/rateLimit.ts",
-    "src/modules/messaging/infrastructure/chatView.ts -> src/server/container.ts",
-    "src/modules/messaging/infrastructure/email.ts -> src/server/container.ts",
     "src/modules/production/infrastructure/pdf/render.tsx -> src/server/cover-photos.ts"
   ],
   "sharedToModules": [

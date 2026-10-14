@@ -6,8 +6,10 @@ import { crmEffects } from "@/modules/automation/infrastructure/adapters";
 import { DrizzleSubjectLoader } from "@/modules/automation/infrastructure/persistence";
 import { crmMarketingSettings } from "@/modules/marketing/infrastructure/adapters";
 import { crmBotSettings, crmNotifier, realtimeUpdates, widgetSettings } from "@/modules/messaging/infrastructure/adapters";
+import { channelTransport } from "@/modules/messaging/infrastructure/adapters";
 import { ChatView } from "@/modules/messaging/infrastructure/chatView";
-import { EmailChannel, type EmailSettingKey } from "@/modules/messaging/infrastructure/email";
+import { EmailChannel, type EmailSettingKey, type MailTransport } from "@/modules/messaging/infrastructure/email";
+import type { GowaStatus } from "@/modules/messaging/infrastructure/gowa";
 import { WazzupClient, WazzupError } from "@/modules/messaging/infrastructure/wazzup";
 import { crmSalesSettings, roundRobinRouter } from "@/modules/sales/infrastructure/adapters";
 import { TelephonyError } from "@/modules/telephony/domain";
@@ -16,14 +18,22 @@ import { zadarmaProvider, type TelephonySettingKey } from "@/modules/telephony/i
 import { fieldVars } from "@/shared/domain/customFields";
 import { FixedSchedule, MemFieldsReader, MemSettings, SpyLiveFeed, SpyStaffNotifier } from "./doubles/workspace";
 
-// Корень композиции здесь не нужен: все зависимости приходят портами. Обращение к нему — ошибка теста.
-vi.mock("@/server/container", () => ({
-  container: () => {
-    throw new Error("container() не должен вызываться");
-  },
-}));
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
-afterEach(() => vi.restoreAllMocks());
+// Экран чата с портами по умолчанию: Wazzup через настройки, шлюз GOWA недоступен, SMTP настроен.
+const chatView = (settings: MemSettings<"wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId">, ports: Partial<ConstructorParameters<typeof ChatView>[0]> = {}) =>
+  new ChatView({
+    fields: new MemFieldsReader(),
+    settings,
+    wazzup: new WazzupClient(settings),
+    gowa: { status: async () => ({ reachable: false, registered: false, connected: false, loggedIn: false, phone: "", problem: null }) },
+    whatsappProvider: async () => "wazzup",
+    smtp: { configured: async () => true },
+    ...ports,
+  });
 
 const n = { kind: "task" as const, title: "Перезвонить: Айгерим", body: "Заявка с сайта", link: "/admin/deals/d1" };
 const dealFields = [
@@ -202,7 +212,7 @@ describe("messaging: настройки, уведомления, живое об
 
   it("почему отправка не сработает: Wazzup не подключён, не выбран канал, всё готово", async () => {
     const settings = new MemSettings<"wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId">();
-    const view = new ChatView({ fields: new MemFieldsReader(), settings, wazzup: new WazzupClient(settings) });
+    const view = chatView(settings);
     const conv = { channel: "telegram", channelId: "" };
     expect(await view.sendBlocker({ channel: "site", channelId: "" })).toBeNull();
     expect(await view.sendBlocker(conv)).toBe("Wazzup не подключён — сообщения не уйдут клиенту. Подключите в разделе «Интеграции».");
@@ -212,14 +222,51 @@ describe("messaging: настройки, уведомления, живое об
     expect(await view.sendBlocker(conv)).toBeNull();
   });
 
+  it("почему отправка не сработает: почта (SMTP) — в продакшене без настроек письма не уйдут, в разработке пишутся в лог", async () => {
+    const view = chatView(new MemSettings(), { smtp: { configured: async () => false } });
+    const email = { channel: "email", channelId: "" };
+    expect(await view.sendBlocker(email)).toBeNull();
+    vi.stubEnv("NODE_ENV", "production");
+    expect(await view.sendBlocker(email)).toBe("Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.");
+    expect(await chatView(new MemSettings(), { smtp: { configured: async () => true } }).sendBlocker(email)).toBeNull();
+  });
+
+  it("почему отправка не сработает: WhatsApp через шлюз GOWA — недоступен, ошибка, номер не привязан, готов", async () => {
+    const status: GowaStatus = { reachable: false, registered: false, connected: false, loggedIn: false, phone: "", problem: null };
+    const view = chatView(new MemSettings(), { gowa: { status: async () => status }, whatsappProvider: async () => "gowa" });
+    const conv = { channel: "whatsapp", channelId: "wazzup-channel" };
+    expect(await view.sendBlocker(conv)).toBe("Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.");
+    Object.assign(status, { reachable: true, problem: "WhatsApp: неверный пароль" });
+    expect(await view.sendBlocker(conv)).toBe("WhatsApp: неверный пароль — сообщения не уйдут клиенту. Проверьте настройки в «Интеграциях».");
+    Object.assign(status, { problem: null });
+    expect(await view.sendBlocker(conv)).toBe("Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».");
+    Object.assign(status, { loggedIn: true });
+    expect(await view.sendBlocker(conv)).toBeNull();
+    // Диалог шлюза идёт через него и при Wazzup в настройках.
+    expect(await chatView(new MemSettings(), { gowa: { status: async () => status } }).sendBlocker({ channel: "whatsapp", channelId: "gowa" })).toBeNull();
+  });
+
+  it("ответ в почтовый диалог уходит через EmailChannel.reply; ошибка отправки — текстом в статус", async () => {
+    const replies: [string, string][] = [];
+    const ok = channelTransport(new WazzupClient(new MemSettings()), { reply: async (_conv, id, text) => (replies.push([id, text]), { ok: true as const }) });
+    const conv = { id: "c1", channel: "email", channelId: "", chatId: "client@example.kz", contactName: "", avatarUrl: null, clientId: null, dealId: null, assigneeId: null, botStep: null, meta: {} };
+    expect(await ok.send(conv, "m1", "Здравствуйте")).toEqual({ ok: true, externalId: null });
+    expect(replies).toEqual([["m1", "Здравствуйте"]]);
+    const failing = channelTransport(new WazzupClient(new MemSettings()), { reply: async () => ({ ok: false as const, error: "SMTP: отказ" }) });
+    expect(await failing.send(conv, "m2", "Ещё")).toEqual({ ok: false, error: "SMTP: отказ" });
+  });
+
   it("почта: копия своего письма и автоответы не становятся заявками; IMAP без настроек не опрашивается", async () => {
     const settings = new MemSettings<EmailSettingKey>();
     const smtpConfig = vi.fn(async () => ({ host: "smtp.example", port: 587, secure: false, user: "", password: "", from: "MyBooks <hello@mybook.kz>", replyTo: "" }));
-    const email = new EmailChannel({ settings, live: new SpyLiveFeed(), smtpConfig });
+    // SMTP здесь не нужен (письма не отправляются); сервис переписки — шпион: до него эти письма доходить не должны.
+    const chats = { ingest: vi.fn() };
+    const email = new EmailChannel({ settings, live: new SpyLiveFeed(), smtpConfig, smtp: {} as MailTransport, chats });
     const mail = { from: "hello@mybook.kz", fromName: "MyBooks", subject: "Заказ", text: "Текст", messageId: "<m1@mybook.kz>", inReplyTo: null, date: new Date(), auto: false };
     await email.ingest(mail);
     await email.ingest({ ...mail, from: "client@example.kz", auto: true });
     expect(smtpConfig).toHaveBeenCalledTimes(2);
+    expect(chats.ingest).not.toHaveBeenCalled();
     expect(await email.pollImap()).toBe(0);
     await expect(email.testImap()).rejects.toThrow("Заполните сервер, логин и пароль IMAP");
     expect(settings.saves).toEqual([]);

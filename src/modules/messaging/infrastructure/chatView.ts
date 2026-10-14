@@ -3,12 +3,13 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
-import { container } from "@/server/container";
 import { staffLabel } from "@/shared/domain/staff";
 import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
-import type { WazzupClient } from "@/modules/messaging/infrastructure/wazzup";
-import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
+import { GOWA_CHANNEL } from "../domain/gowa";
+import type { MailTransport } from "./email";
+import type { GowaClient } from "./gowa";
+import type { WazzupClient } from "./wazzup";
 
 /** Сообщение диалога в виде, готовом для ChatPanel. */
 export interface ChatMessage {
@@ -50,7 +51,17 @@ async function loadChatMessages(conversationId: string, limit: number): Promise<
 
 /** Экран чата (ChatPanel): сообщения, шаблоны ответов, их переменные и почему отправка сейчас не сработает. */
 export class ChatView {
-  constructor(private readonly deps: { fields: CustomFieldsReader; settings: SettingsReader<"wazzup.channelId">; wazzup: WazzupClient }) {}
+  constructor(
+    private readonly deps: {
+      fields: CustomFieldsReader;
+      settings: SettingsReader<"wazzup.channelId">;
+      wazzup: WazzupClient;
+      gowa: Pick<GowaClient, "status">;
+      /** Через что сейчас работает WhatsApp. */
+      whatsappProvider: () => Promise<"wazzup" | "gowa">;
+      smtp: Pick<MailTransport, "configured">;
+    },
+  ) {}
 
   messages(conversationId: string, limit = 150) {
     return loadChatMessages(conversationId, limit);
@@ -73,9 +84,9 @@ export class ChatView {
   /** Почему отправка сейчас не сработает (показываем над полем ввода). */
   async sendBlocker(conv: Pick<CrmConversation, "channelId" | "channel">) {
     if (conv.channel === "site") return null;
-    if (conv.channel === "email") return (await container().mailer.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
-    if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await container().messaging.whatsappProvider()) === "gowa")) {
-      const s = await container().messaging.gowa.status();
+    if (conv.channel === "email") return (await this.deps.smtp.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
+    if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await this.deps.whatsappProvider()) === "gowa")) {
+      const s = await this.deps.gowa.status();
       if (!s.reachable) return "Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.";
       if (s.problem) return `${s.problem} — сообщения не уйдут клиенту. Проверьте настройки в «Интеграциях».`;
       return s.loggedIn ? null : "Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».";

@@ -3,22 +3,25 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmConversations, crmMessages, crmNotes, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
-import { escapeHtml, type SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { container } from "@/server/container";
+import { escapeHtml, type SmtpConfigSource, type SmtpMailer } from "@/shared/infrastructure/mail";
 import { site } from "@/config/site";
 import type { LiveFeed, SettingsStore } from "@/shared/application";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "@/modules/messaging/domain/email";
 import { staffLabel } from "@/shared/domain/staff";
+import type { MessagingService } from "../application";
 
 /** Настройки CRM, которые читает и пишет почтовый канал: ящик IMAP и UID последнего забранного письма. */
 export type EmailSettingKey = "email.imapHost" | "email.imapPort" | "email.imapUser" | "email.imapPassword" | "email.imapMailbox" | "email.imapLastUid";
+
+/** Почта по SMTP: настроена ли и транспорт для писем менеджеров (корень композиции даёт SmtpMailer). */
+export type MailTransport = Pick<SmtpMailer, "configured" | "transport">;
 
 /**
  * Письмо менеджера клиенту: ошибки не глотаются (их видно в чате), возвращается Message-ID для цепочки ответов.
  * Без SMTP в разработке письмо только пишется в лог; в продакшене — ошибка с подсказкой.
  */
-async function sendCrmMail(opts: { to: string; subject: string; text: string; inReplyTo?: string | null; fromName?: string }): Promise<{ messageId: string }> {
-  const t = await container().smtp.transport();
+async function sendCrmMail(smtp: MailTransport, opts: { to: string; subject: string; text: string; inReplyTo?: string | null; fromName?: string }): Promise<{ messageId: string }> {
+  const t = await smtp.transport();
   if (!t) {
     if (process.env.NODE_ENV === "production") throw new Error("Почта не настроена: укажите SMTP-сервер в «Интеграциях»");
     console.log(`[crm-mail] SMTP не настроен. Письмо для ${opts.to}: «${opts.subject}»\n${opts.text.slice(0, 500)}`);
@@ -51,10 +54,10 @@ async function authorName(messageId: string) {
 }
 
 /** Ответ из единого инбокса в почтовый диалог: «Re: тема» и In-Reply-To последнего письма клиента. */
-export async function sendEmailReply(conv: Pick<CrmConversation, "chatId" | "meta">, messageId: string, text: string): Promise<{ ok: true } | { ok: false; error: string }> {
+async function sendEmailReply(smtp: MailTransport, conv: Pick<CrmConversation, "chatId" | "meta">, messageId: string, text: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const subject = replySubject(conv.meta.subject);
   try {
-    const { messageId: externalId } = await sendCrmMail({ to: conv.chatId, subject, text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(messageId) });
+    const { messageId: externalId } = await sendCrmMail(smtp, { to: conv.chatId, subject, text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(messageId) });
     await db.update(crmMessages).set({ status: "sent", subject, externalId: `email:${externalId}` }).where(eq(crmMessages.id, messageId));
     return { ok: true };
   } catch (err) {
@@ -90,9 +93,14 @@ async function emailConversation(address: string, patch: { clientId?: string | n
 
 let polling = false;
 
-/** Почта как канал: письма из карточки, входящие по IMAP и вебхуком почтового сервиса. Ответы из инбокса — sendEmailReply. */
+/** Почта как канал: письма из карточки, ответы из инбокса, входящие по IMAP и вебхуком почтового сервиса. */
 export class EmailChannel {
-  constructor(private readonly deps: { settings: SettingsStore<EmailSettingKey>; live: LiveFeed; smtpConfig: SmtpConfigSource }) {}
+  constructor(private readonly deps: { settings: SettingsStore<EmailSettingKey>; live: LiveFeed; smtpConfig: SmtpConfigSource; smtp: MailTransport; chats: Pick<MessagingService, "ingest"> }) {}
+
+  /** Ответ из единого инбокса в почтовый диалог (сообщение уже записано, здесь оно уходит и получает статус). */
+  reply(conv: Pick<CrmConversation, "chatId" | "meta">, messageId: string, text: string) {
+    return sendEmailReply(this.deps.smtp, conv, messageId, text);
+  }
 
   /** Письмо из карточки сделки/клиента: уходит клиенту, попадает в историю и в единый инбокс (там же придёт ответ). */
   async sendToContact(input: { to: string; subject: string; text: string; authorId: string; dealId?: string | null; clientId?: string | null; contactName?: string }) {
@@ -108,7 +116,7 @@ export class EmailChannel {
       .where(eq(crmConversations.id, conv.id));
     let result: { ok: true } | { ok: false; error: string };
     try {
-      const { messageId } = await sendCrmMail({ to: addr.email, subject, text: input.text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(msg.id) });
+      const { messageId } = await sendCrmMail(this.deps.smtp, { to: addr.email, subject, text: input.text, inReplyTo: conv.meta.lastMessageId, fromName: await authorName(msg.id) });
       await db.update(crmMessages).set({ status: "sent", externalId: `email:${messageId}` }).where(eq(crmMessages.id, msg.id));
       result = { ok: true };
     } catch (err) {
@@ -132,7 +140,7 @@ export class EmailChannel {
     // Повторная доставка того же письма (вебхук, IMAP после сбоя) не должна менять тему и цепочку диалога.
     if (await db.query.crmMessages.findFirst({ where: eq(crmMessages.externalId, `email:${mail.messageId}`), columns: { id: true } })) return;
     const text = mail.subject && !mail.text.includes(mail.subject) ? `${mail.subject}\n\n${mail.text}` : mail.text;
-    await container().messaging.chats.ingest(
+    await this.deps.chats.ingest(
       {
         externalId: `email:${mail.messageId}`,
         channelId: "",

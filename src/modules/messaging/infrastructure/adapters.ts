@@ -6,16 +6,16 @@ import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";
 import type { BotSettings, ChannelTransport, LiveUpdates, StaffNotifier, Tasks } from "../application";
 import { GOWA_CHANNEL, type BotMode } from "../domain";
+import type { EmailChannel } from "./email";
 import { GowaError, type GowaClient } from "./gowa";
 import { WazzupError, type WazzupClient } from "./wazzup";
 
 /** Исходящие по каналу диалога: виджет забирает сообщения сам, почта и мессенджеры — через свои интеграции. */
-export const channelTransport = (wazzup: WazzupClient): ChannelTransport => ({
+export const channelTransport = (wazzup: WazzupClient, email: Pick<EmailChannel, "reply">): ChannelTransport => ({
   async send(conv, messageId, text) {
     if (conv.channel === "site") return { ok: true, externalId: null };
     if (conv.channel === "email") {
-      const { sendEmailReply } = await import("@/modules/messaging/infrastructure/email");
-      const r = await sendEmailReply(conv, messageId, text);
+      const r = await email.reply(conv, messageId, text);
       return r.ok ? { ok: true, externalId: null } : r;
     }
     try {

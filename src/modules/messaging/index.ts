@@ -4,7 +4,7 @@ import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
 import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
-import { EmailChannel, type EmailSettingKey } from "./infrastructure/email";
+import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
@@ -27,6 +27,8 @@ interface WorkspacePorts {
   fields: CustomFieldsReader;
   /** Настройки SMTP: свой адрес отправителя — чтобы не принять копию своего письма за входящее. */
   smtpConfig: SmtpConfigSource;
+  /** SMTP-клиент: ответы и письма менеджеров из CRM (нужны Message-ID и цепочки), проверка «почта настроена». */
+  smtp: MailTransport;
 }
 
 /** Через что работает WhatsApp и настройки своего шлюза GOWA («Интеграции»). */
@@ -63,9 +65,10 @@ export class MessagingModule {
     const bot = new QualifierBot(conversations, crmBotSettings(deps), deps.sales, notifier, deps.clock);
     this.gowa = new GowaClient(deps.whatsappSettings.gowa);
     this.wazzup = new WazzupClient(deps.settings);
-    this.email = new EmailChannel(deps);
-    this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup });
-    const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup));
+    // Входящие письма уходят в сервис переписки, а он отправляет ответы через почту: ссылка на chats берётся при вызове.
+    this.email = new EmailChannel({ ...deps, chats: { ingest: (message, extra) => this.chats.ingest(message, extra) } });
+    this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup, gowa: this.gowa, whatsappProvider: deps.whatsappSettings.provider, smtp: deps.smtp });
+    const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup, this.email));
     this.chats = new MessagingService(conversations, new DrizzleMessageRepository(), drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"));
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
   }
