@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Mailer } from "@/shared/application";
 import { ALMOST_READY_ANSWERS, canRemind, draftEmails, isSendingHour, type DraftProgress } from "@/modules/notifications/domain";
+import { emailTemplates } from "@/modules/notifications/infrastructure/templates";
 import { BookRemindersService, LifecycleService, SubscriptionsService, type DraftCandidate, type EmailTemplates, type LifecycleSource, type OrderReminder, type Recipient, type RecipientRepository } from "@/modules/notifications/application";
 import { storeTimeZoneIs } from "./doubles/time";
 
@@ -154,5 +155,17 @@ describe("SubscriptionsService", () => {
     expect(await s.subscriptions.unsubscribe(id, "forged")).toBe(false);
     expect(await s.subscriptions.unsubscribe(id, `sig-${id}`)).toBe(true);
     expect(s.people.has(id)).toBe(false);
+  });
+});
+
+describe("письмо с просьбой об отзыве: ссылка и скидка — от порта ReviewLinks", () => {
+  it("кнопка ведёт по ссылке порта, скидка в тексте — из порта", () => {
+    const asked: [string, string][] = [];
+    const templates = emailTemplates({ url: (orderId, locale) => (asked.push([orderId, locale]), `https://reviews.test/${orderId}?l=${locale}`), thankYouPercent: 15 });
+    const mail = templates.review(order("o1", recipient("00000000-0000-4000-8000-000000000001")));
+    expect(asked).toEqual([["o1", "ru"]]);
+    expect(mail.html).toContain('href="https://reviews.test/o1?l=ru"');
+    expect(mail.html).toContain("промокод на 15%");
+    expect(mail.note).toBe("Автописьмо: просьба об отзыве по заказу №1");
   });
 });

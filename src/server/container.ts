@@ -19,7 +19,7 @@ import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
 import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
-import { FeedbackModule } from "@/modules/feedback";
+import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
 import type { PromoCode } from "@/modules/ordering";
 import { AutomationModule } from "@/modules/automation";
@@ -191,7 +191,7 @@ export class Container {
   }
 
   get notifications(): NotificationsModule {
-    return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock }));
+    return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock, reviews: { url: reviewUrl, thankYouPercent: THANK_YOU.percent } }));
   }
 
   get authoring(): AuthoringModule {
