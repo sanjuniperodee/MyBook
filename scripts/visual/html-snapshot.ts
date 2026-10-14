@@ -25,7 +25,7 @@ const VIEWPORT = { width: 1280, height: 900 };
  * Что снимать: разворот или оборот целиком, каждую полосу превью (начальные полосы и полосы текста, без скрытых
  * копий для замера) или каждую полосу 3D-книги.
  */
-const TARGETS: Record<string, string> = { preview: "#stand > div > div > :not([aria-hidden])", flipbook: "#stand > [data-face]" };
+const TARGETS: Partial<Record<StandView["kind"], string>> = { preview: "#stand > div > div > :not([aria-hidden])", flipbook: "#stand > [data-face]" };
 const WHOLE = "#stand > div";
 const CHROMIUM = process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 
