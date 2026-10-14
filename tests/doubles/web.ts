@@ -47,10 +47,14 @@ export const nextCache = { revalidatePath: () => {} };
 
 /** Роль без «Видеть клиентов и их книги» (clients.view). */
 const manager = Role.restore("r-manager", { name: "Менеджер", scope: "own", permissions: ["deals.view", "orders.edit"], key: "manager" });
+/** Роли с одним правом из «Заказы и производство»: видеть заказы и скачивать файлы для типографии. */
+const orderViewer = Role.restore("r-orders", { name: "Заказы", scope: "all", permissions: ["orders.view"], key: null });
+const printer = Role.restore("r-print", { name: "Типография", scope: "all", permissions: ["orders.files"], key: null });
+const allRoles = [manager, orderViewer, printer];
 
 const roles: RoleRepository = {
   nextId: () => "r-new",
-  findById: async (id) => (id === manager.id ? manager : null),
+  findById: async (id) => allRoles.find((r) => r.id === id) ?? null,
   findByKey: async () => null,
   assignedCount: async () => 0,
   add: async () => {},
@@ -69,6 +73,10 @@ export const client = person("u1");
 export const owner = person("boss", { role: "admin" });
 /** Менеджер: сделки и заказы, клиентов и их книги по роли не видит. */
 export const anna = person("anna", { role: "admin", crmRoleId: manager.id });
+/** Видит заказы (orders.view), файлы для типографии — нет. */
+export const olga = person("olga", { role: "admin", crmRoleId: orderViewer.id });
+/** Скачивает файлы для типографии (orders.files), заказы в CRM не видит. */
+export const pavel = person("pavel", { role: "admin", crmRoleId: printer.id });
 export const withTwoFactor = { totpEnabledAt: new Date(), totpSecret: "secret" };
 
 const sessions = new Map<string, User>();
