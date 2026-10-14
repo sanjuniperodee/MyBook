@@ -4,7 +4,9 @@ import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
 import { messagesFor } from "@/i18n/messages";
-import { DedicationPage, EndPage, OpenerPage, pageKit, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto, type SampleEntry } from "./BookPage";
+import type { SampleEntry } from "./entry";
+import { pageKit } from "./kit";
+import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "./pages";
 import { cqwUnits } from "./units";
 
 export type SpreadKind = "chapter" | "front" | "toc" | "photos";

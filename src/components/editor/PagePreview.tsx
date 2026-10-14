@@ -10,7 +10,11 @@ import { PHOTO_COLORS, type InteriorDesign } from "@/lib/book/interiors";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { AnswerBlockView, Divider, Folio, OpenerPage, pageKit, QuestionHeading, RunningHead } from "@/components/interior/BookPage";
+import { AnswerBlockView } from "@/components/interior/answer-block";
+import { Divider, QuestionHeading } from "@/components/interior/entry";
+import { Folio, RunningHead } from "@/components/interior/folio";
+import { pageKit } from "@/components/interior/kit";
+import { OpenerPage } from "@/components/interior/pages";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { pxUnits } from "@/components/interior/units";
 
