@@ -1,6 +1,7 @@
 import "server-only";
 import type { SettingsStore } from "@/shared/application";
-import { RoleService, SecurityService, StaffResolver, TeamService, type AccountGateway } from "./application";
+import { RoleService, SecurityService, StaffResolver, TeamService, type AccountGateway, type AuditLog, type RequestOrigin } from "./application";
+import type { LoginFormat } from "./domain";
 import { randomPasswords, settingsSecurityStore, type AccessSettingKey } from "./infrastructure/adapters";
 import { DrizzleAccessQueries, DrizzleRoleRepository, DrizzleStaffRepository, drizzleAuditLog, drizzleShifts } from "./infrastructure/persistence";
 
@@ -13,16 +14,18 @@ export class AccessModule {
   readonly team: TeamService;
   readonly roles: RoleService;
   readonly security: SecurityService;
-  readonly audit = drizzleAuditLog;
+  readonly audit: AuditLog;
   readonly queries = new DrizzleAccessQueries();
   readonly shifts = drizzleShifts;
 
-  constructor(deps: { accounts: AccountGateway; settings: SettingsStore<AccessSettingKey> }) {
+  /** accounts и login — порты Identity (учётные записи, формат логина); origin — адрес запроса для журнала. */
+  constructor(deps: { accounts: AccountGateway; login: LoginFormat; origin: RequestOrigin; settings: SettingsStore<AccessSettingKey> }) {
     const roles = new DrizzleRoleRepository();
     const security = settingsSecurityStore(deps.settings);
-    this.resolver = new StaffResolver(roles, security);
-    this.team = new TeamService(new DrizzleStaffRepository(), roles, deps.accounts, randomPasswords, drizzleAuditLog);
-    this.roles = new RoleService(roles, drizzleAuditLog);
-    this.security = new SecurityService(security, drizzleAuditLog);
+    this.audit = drizzleAuditLog(deps.origin);
+    this.resolver = new StaffResolver(roles, security, deps.login);
+    this.team = new TeamService(new DrizzleStaffRepository(), roles, deps.accounts, randomPasswords, this.audit);
+    this.roles = new RoleService(roles, this.audit);
+    this.security = new SecurityService(security, this.audit);
   }
 }

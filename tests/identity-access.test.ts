@@ -341,7 +341,7 @@ function access() {
     { generate: () => "GENERATED" },
     { record: async (e) => void audit.push(e.action) },
   );
-  const ctx = (userId: string, isOwner: boolean) => new StaffContext(userId, "", isOwner ? "owner" : "manager", isOwner ? "all" : "own", new Set(isOwner ? allPermissions : ["team.manage"] as const), isOwner);
+  const ctx = (userId: string, isOwner: boolean) => new StaffContext(userId, "", isOwner ? "owner" : "manager", isOwner ? "all" : "own", new Set(isOwner ? allPermissions : ["team.manage"] as const), isOwner, { isPhoneEmail });
   return { roles, staff, team, audit, ctx };
 }
 
@@ -392,7 +392,7 @@ describe("Access: роли и команда", () => {
 
   it("StaffResolver: роль «только свои», маскирование контактов, владелец без роли", async () => {
     const { roles } = access();
-    const resolver = new StaffResolver(roles, { load: async () => ({ allowlist: "", require2fa: false }), save: async () => {} });
+    const resolver = new StaffResolver(roles, { load: async () => ({ allowlist: "", require2fa: false }), save: async () => {} }, { isPhoneEmail });
     const anna = (await resolver.resolve({ id: "anna", role: "admin", staffDisabled: false, crmRoleId: "r-manager", twoFactorEnabled: false }))!;
     expect(anna.can("deals.view")).toBe(true);
     expect(anna.can("orders.view")).toBe(false);
@@ -400,6 +400,10 @@ describe("Access: роли и команда", () => {
     expect(anna.contacts({ phone: "+77011234567", email: "aliya@mail.kz" })).toEqual({ phone: "+7 701 ••• •• 67", email: "al•••@mail.kz", masked: true });
     const legacy = (await resolver.resolve({ id: "old", role: "admin", staffDisabled: false, crmRoleId: null, twoFactorEnabled: false }))!;
     expect(legacy.isOwner && legacy.can("team.manage")).toBe(true);
+    // Адрес-заглушка клиента без почты (формат логина — порт LoginFormat) не показывается контактом ни полностью, ни маской.
+    const placeholder = phoneEmail("87011234567");
+    expect(legacy.contacts({ phone: "+77011234567", email: placeholder })).toEqual({ phone: "+77011234567", email: "", masked: false });
+    expect(anna.contacts({ phone: "+77011234567", email: placeholder })).toEqual({ phone: "+7 701 ••• •• 67", email: "", masked: true });
     expect(await resolver.resolve({ id: "c", role: "user", staffDisabled: false, crmRoleId: null, twoFactorEnabled: false })).toBeNull();
     expect(await resolver.resolve({ id: "d", role: "admin", staffDisabled: true, crmRoleId: null, twoFactorEnabled: false })).toBeNull();
   });

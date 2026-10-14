@@ -1,4 +1,4 @@
-import { AccessError, Role, SecurityPolicy, StaffContext, allPermissions, type RoleRepository, type RoleScope, type StaffGate, type StaffMember, type StaffRepository } from "../domain";
+import { AccessError, Role, SecurityPolicy, StaffContext, allPermissions, type LoginFormat, type RoleRepository, type RoleScope, type StaffGate, type StaffMember, type StaffRepository } from "../domain";
 import type { AccountGateway, AuditLog, PasswordGenerator, SecuritySettingsStore } from "./ports";
 
 /** Аккаунт, для которого собираем контекст сотрудника. */
@@ -15,14 +15,15 @@ export class StaffResolver {
   constructor(
     private readonly roles: RoleRepository,
     private readonly security: SecuritySettingsStore,
+    private readonly login: LoginFormat,
   ) {}
 
   async resolve(account: StaffAccount): Promise<StaffContext | null> {
     if (account.role !== "admin" || account.staffDisabled) return null;
     const role = account.crmRoleId ? await this.roles.findById(account.crmRoleId) : null;
     // Сотрудник без роли — владелец (аккаунты, созданные до появления ролей).
-    if (!role) return new StaffContext(account.id, "Руководитель", "owner", "all", new Set(allPermissions), true);
-    return new StaffContext(account.id, role.name, role.key, role.scope, new Set(role.permissions), role.isOwner);
+    if (!role) return new StaffContext(account.id, "Руководитель", "owner", "all", new Set(allPermissions), true, this.login);
+    return new StaffContext(account.id, role.name, role.key, role.scope, new Set(role.permissions), role.isOwner, this.login);
   }
 
   async policy(): Promise<SecurityPolicy> {

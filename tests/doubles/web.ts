@@ -1,6 +1,7 @@
 import type { User } from "@/server/auth";
 import { Role, type RoleRepository } from "@/modules/access/domain";
 import { StaffResolver } from "@/modules/access/application/services";
+import { isPhoneEmail } from "@/modules/identity/domain";
 
 // ─── двойники веб-слоя: next/headers, next/navigation, next/cache, container() ─
 // Подключаются в тесте так:
@@ -102,7 +103,7 @@ export function resetContainer() {
   security.require2fa = false;
   Object.assign(fake, {
     identity: { tokens: { hash: (t: string) => t }, queries: { userBySession: async (hash: string) => sessions.get(hash) ?? null, touch: async () => {} } },
-    access: { resolver: new StaffResolver(roles, { load: async () => security, save: async () => {} }), audit: { record: async () => {} } },
+    access: { resolver: new StaffResolver(roles, { load: async () => security, save: async () => {} }, { isPhoneEmail }), audit: { record: async () => {} } },
     rateLimiter: { hit: async () => true },
   });
 }

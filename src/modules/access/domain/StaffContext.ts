@@ -1,5 +1,9 @@
-import { isPhoneEmail } from "@/modules/identity/domain/Login";
 import { maskEmail, maskPhone, type Permission, type RoleScope } from "./permissions";
+
+/** Формат логина клиента (контекст Identity): адрес-заглушка клиента без почты не считается контактом. */
+export interface LoginFormat {
+  isPhoneEmail(email: string | null | undefined): boolean;
+}
 
 /**
  * Кто действует в CRM и что ему можно. Неизменяемый объект: собирается из роли на каждый запрос.
@@ -13,6 +17,7 @@ export class StaffContext {
     readonly scope: RoleScope,
     readonly permissions: ReadonlySet<Permission>,
     readonly isOwner: boolean,
+    private readonly login: LoginFormat,
   ) {}
 
   can(...perms: Permission[]) {
@@ -32,7 +37,7 @@ export class StaffContext {
   contacts(v: { phone?: string | null; email?: string | null }) {
     const full = this.can("clients.contacts");
     // Адрес-заглушка клиента без почты (@phone.invalid) — не контакт: показывать и подставлять в письма его не нужно.
-    const email = isPhoneEmail(v.email) ? "" : v.email;
+    const email = this.login.isPhoneEmail(v.email) ? "" : v.email;
     return { phone: full ? (v.phone ?? "") : maskPhone(v.phone), email: full ? (email ?? "") : maskEmail(email), masked: !full };
   }
 }

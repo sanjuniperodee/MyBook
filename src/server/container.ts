@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
 import { SmtpMailer } from "@/shared/infrastructure/mail";
 import { OrderingModule } from "@/modules/ordering";
-import { IdentityModule } from "@/modules/identity";
+import { IdentityModule, isPhoneEmail } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
@@ -27,6 +27,7 @@ import { BookPreviewService, PrintFilesService, renderGiftPdf, type BookRenderer
 import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
 import { registerSubscriptions } from "./subscriptions";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { clientIp } from "./rateLimit";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -207,6 +208,9 @@ export class Container {
   get access(): AccessModule {
     return (this.#access ??= new AccessModule({
       settings: this.workspace.settings,
+      login: { isPhoneEmail },
+      // Журнал действий пишет адрес запроса; вне запроса (планировщик, скрипт) адреса нет.
+      origin: { ip: () => clientIp().catch(() => null) },
       accounts: {
         create: (input) => this.identity.accounts.provision(input),
         setPassword: (userId, password) => this.identity.accounts.setPassword(userId, password),

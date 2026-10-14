@@ -4,9 +4,8 @@ import { and, asc, desc, eq, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmAudit, crmCalls, crmDeals, crmRoles, users } from "@/shared/infrastructure/db/schema";
 import { crmRolesId, usersId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
-import { clientIp } from "@/server/rateLimit";
 import { Role, StaffMember, type Permission, type RoleRepository, type StaffRepository } from "../domain";
-import type { AuditLog } from "../application/ports";
+import type { AuditLog, RequestOrigin } from "../application/ports";
 
 const roleToDomain = (r: typeof crmRoles.$inferSelect) => Role.restore(r.id, { name: r.name, scope: r.scope, permissions: r.permissions as Permission[], key: r.key });
 
@@ -71,16 +70,16 @@ export class DrizzleStaffRepository implements StaffRepository {
   }
 }
 
-/** Журнал действий. Ошибка журнала не ломает основное действие. */
-export const drizzleAuditLog: AuditLog = {
+/** Журнал действий; адрес запроса даёт слой представления. Ошибка журнала не ломает основное действие. */
+export const drizzleAuditLog = (origin: RequestOrigin): AuditLog => ({
   async record(e) {
     try {
-      await executor().insert(crmAudit).values({ actorId: e.actorId, action: e.action, entity: e.entity, entityId: e.entityId ?? null, details: e.details ?? null, ip: await clientIp().catch(() => null) });
+      await executor().insert(crmAudit).values({ actorId: e.actorId, action: e.action, entity: e.entity, entityId: e.entityId ?? null, details: e.details ?? null, ip: await origin.ip() });
     } catch (err) {
       console.error("[audit]", err);
     }
   },
-};
+});
 
 /** «На смене» — сотрудник получает новые заявки по кругу. */
 export const drizzleShifts = {

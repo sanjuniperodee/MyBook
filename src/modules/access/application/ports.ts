@@ -3,6 +3,11 @@ export interface AuditLog {
   record(entry: { actorId: string | null; action: string; entity: string; entityId?: string | null; details?: Record<string, unknown> }): Promise<void>;
 }
 
+/** Откуда пришёл запрос (слой представления): адрес для журнала действий; null — вне запроса (планировщик, скрипт). */
+export interface RequestOrigin {
+  ip(): Promise<string | null>;
+}
+
 /** Хранилище правил безопасности (настройки CRM). */
 export interface SecuritySettingsStore {
   load(): Promise<{ allowlist: string; require2fa: boolean }>;
