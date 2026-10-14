@@ -9,7 +9,7 @@ import { automationActions, automationTriggers, isTrigger } from "@/modules/auto
 import { fillTemplate } from "@/shared/domain/templates";
 import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { storeTimeZoneIs } from "./doubles/time";
-import { findMentions } from "@/modules/workspace/infrastructure/mentions";
+import { findMentions } from "@/shared/domain/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
 import { buildSiteUrl, linkCodeFromText } from "@/modules/marketing/domain/links";
 import { channelOf, toAttribution } from "@/shared/domain/channels";

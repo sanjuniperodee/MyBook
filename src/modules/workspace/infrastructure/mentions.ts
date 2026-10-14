@@ -3,11 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
-import { notify } from "@/modules/workspace/infrastructure/notify";
-
 import { findMentions } from "@/shared/domain/mentions";
-
-export { findMentions };
+import { notify } from "@/modules/workspace/infrastructure/notify";
 
 export async function mentionableStaff() {
   const rows = await db
