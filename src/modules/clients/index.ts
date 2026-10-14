@@ -1,6 +1,5 @@
-import type { Clock } from "@/shared/application";
+import type { Clock, StaffNotifier } from "@/shared/application";
 import { ClientsService, NotesService, TasksService } from "./application";
-import { crmNotifier } from "./infrastructure/adapters";
 import { drizzleClients, drizzleLinks, drizzleNotes, drizzleStaff, drizzleTasks, resolveContact, type ContactTarget } from "./infrastructure/persistence";
 
 export { ClientsError } from "./domain";
@@ -11,11 +10,13 @@ export type { ContactTarget };
 export class ClientsModule {
   readonly clients = new ClientsService(drizzleClients, drizzleStaff);
   readonly tasks: TasksService;
-  readonly notes = new NotesService(drizzleNotes, drizzleStaff, crmNotifier);
+  readonly notes: NotesService;
   readonly links = drizzleLinks;
 
-  constructor(deps: { clock: Clock }) {
-    this.tasks = new TasksService(drizzleTasks, drizzleLinks, crmNotifier, deps.clock);
+  /** Уведомления о задачах и упоминаниях — порт рабочего пространства. */
+  constructor(deps: { clock: Clock; notifier: StaffNotifier }) {
+    this.tasks = new TasksService(drizzleTasks, drizzleLinks, deps.notifier, deps.clock);
+    this.notes = new NotesService(drizzleNotes, drizzleStaff, deps.notifier);
   }
 
   /** Контакт для звонка, чата или письма (номер и адрес — только на сервере). */

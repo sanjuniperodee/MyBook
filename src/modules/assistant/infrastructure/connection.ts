@@ -1,5 +1,5 @@
 import "server-only";
-import { getSetting, getSettings } from "@/modules/workspace";
+import type { SettingsReader } from "@/shared/application";
 import { aiProviders, isAiProvider, type AiConnection, type AiProvider } from "../domain";
 
 const keys = {
@@ -13,40 +13,49 @@ const keys = {
 /** Ключи настроек провайдера (для формы в «Интеграциях»). */
 export const providerSettingKeys = keys;
 
-async function activeProvider(): Promise<AiProvider> {
-  const p = await getSetting("ai.provider");
-  return isAiProvider(p) ? p : "anthropic";
-}
+/** Настройки CRM, которые читает AI-помощник: провайдеры, база знаний и AI-корректор. */
+export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model";
 
-async function connectionOf(provider: AiProvider, modelOverride = "") {
-  const k = keys[provider];
-  const v = await getSettings([k.apiKey, k.baseUrl, k.model, "ai.enabled"]);
-  const def = aiProviders[provider];
-  return {
-    provider,
-    apiKey: v[k.apiKey],
-    baseUrl: (v[k.baseUrl] || def.defaultBaseUrl).replace(/\/+$/, ""),
-    model: modelOverride || v[k.model] || def.defaultModel,
-    enabled: v["ai.enabled"] !== "off",
+/** Подключение к модели: пустые модель и адрес заменены значениями по умолчанию. */
+export type Connection = () => Promise<AiConnection & { enabled: boolean }>;
+
+/** Подключения AI-помощника CRM и AI-корректора в редакторе книги — по настройкам «Интеграций». */
+export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
+  async function activeProvider(): Promise<AiProvider> {
+    const p = await settings.get("ai.provider");
+    return isAiProvider(p) ? p : "anthropic";
+  }
+
+  async function connectionOf(provider: AiProvider, modelOverride = "") {
+    const k = keys[provider];
+    const v = await settings.getMany([k.apiKey, k.baseUrl, k.model, "ai.enabled"]);
+    const def = aiProviders[provider];
+    return {
+      provider,
+      apiKey: v[k.apiKey],
+      baseUrl: (v[k.baseUrl] || def.defaultBaseUrl).replace(/\/+$/, ""),
+      model: modelOverride || v[k.model] || def.defaultModel,
+      enabled: v["ai.enabled"] !== "off",
+    };
+  }
+
+  /** Провайдер AI-корректора: свой или (пусто) — как у помощника. */
+  async function proofreadProvider(): Promise<{ provider: AiProvider; own: boolean }> {
+    const p = await settings.get("proofread.provider");
+    return isAiProvider(p) ? { provider: p, own: true } : { provider: await activeProvider(), own: false };
+  }
+
+  /** Подключение к выбранному провайдеру помощника. */
+  const active: Connection = async () => connectionOf(await activeProvider());
+
+  /**
+   * Подключение AI-корректора в редакторе книги: свой провайдер и модель (или как у помощника).
+   * Включается своим флажком — кнопки помощника в CRM на него не влияют.
+   */
+  const proofread: Connection = async () => {
+    const [{ provider }, model, enabled] = await Promise.all([proofreadProvider(), settings.get("proofread.model"), settings.get("proofread.enabled")]);
+    return { ...(await connectionOf(provider, model)), enabled: enabled !== "off" };
   };
-}
 
-/** Подключение к выбранному провайдеру: пустые модель и адрес заменяются значениями по умолчанию. */
-export async function activeConnection(): Promise<AiConnection & { enabled: boolean }> {
-  return connectionOf(await activeProvider());
-}
-
-/** Провайдер AI-корректора: свой или (пусто) — как у помощника. */
-export async function proofreadProvider(): Promise<{ provider: AiProvider; own: boolean }> {
-  const p = await getSetting("proofread.provider");
-  return isAiProvider(p) ? { provider: p, own: true } : { provider: await activeProvider(), own: false };
-}
-
-/**
- * Подключение AI-корректора в редакторе книги: свой провайдер и модель (или как у помощника).
- * Включается своим флажком — кнопки помощника в CRM на него не влияют.
- */
-export async function proofreadConnection(): Promise<AiConnection & { enabled: boolean }> {
-  const [{ provider }, model, enabled] = await Promise.all([proofreadProvider(), getSetting("proofread.model"), getSetting("proofread.enabled")]);
-  return { ...(await connectionOf(provider, model)), enabled: enabled !== "off" };
+  return { active, proofread, proofreadProvider };
 }

@@ -2,16 +2,7 @@
   "$comment": "Храповик tests/architecture.test.ts: разрешённые нарушения границ «from -> to»; повтор строки — ещё один импорт. Строки только удаляются.",
   "crossModule": [
     "src/modules/access/domain/StaffContext.ts -> src/modules/identity/domain/Login.ts",
-    "src/modules/access/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/assistant/infrastructure/connection.ts -> src/modules/workspace/index.ts",
     "src/modules/assistant/infrastructure/data.ts -> src/modules/messaging/index.ts",
-    "src/modules/assistant/infrastructure/data.ts -> src/modules/workspace/index.ts",
-    "src/modules/assistant/infrastructure/data.ts -> src/modules/workspace/index.ts",
-    "src/modules/automation/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/automation/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/automation/infrastructure/persistence.ts -> src/modules/workspace/index.ts",
-    "src/modules/clients/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/marketing/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
     "src/modules/messaging/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
     "src/modules/messaging/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
     "src/modules/messaging/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
@@ -28,10 +19,6 @@
     "src/modules/reporting/infrastructure/Clients.ts -> src/modules/clients/domain/segments.ts",
     "src/modules/reporting/infrastructure/Counters.ts -> src/modules/access/index.ts",
     "src/modules/reporting/infrastructure/Live.ts -> src/modules/access/index.ts",
-    "src/modules/sales/infrastructure/adapters.ts -> src/modules/workspace/index.ts",
-    "src/modules/telephony/infrastructure/effects.ts -> src/modules/workspace/index.ts",
-    "src/modules/telephony/infrastructure/effects.ts -> src/modules/workspace/index.ts",
-    "src/modules/telephony/infrastructure/zadarma.ts -> src/modules/workspace/index.ts",
     "src/modules/workspace/infrastructure/notify.ts -> src/modules/access/domain/permissions.ts"
   ],
   "moduleOutward": [

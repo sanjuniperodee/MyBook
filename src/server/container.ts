@@ -66,6 +66,9 @@ export class Container {
   get automation(): AutomationModule {
     return (this.#automation ??= new AutomationModule({
       clock: this.clock,
+      notifier: this.workspace.notifier,
+      schedule: this.workspace.schedule,
+      fields: this.workspace.fieldsReader,
       sendMessage: async (conversationId, text) => void (await this.messaging.chats.send(conversationId, text, null)),
       sales: {
         nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
@@ -103,6 +106,9 @@ export class Container {
   get telephony(): TelephonyModule {
     return (this.#telephony ??= new TelephonyModule({
       clock: this.clock,
+      settings: this.workspace.settings,
+      notifier: this.workspace.notifier,
+      live: this.workspace.live,
       isBlocked: (phone) => this.messaging.chats.isBlocked(phone),
       missedRules: (ctx) => this.automation.engine.run("call.missed", ctx),
       sales: {
@@ -116,7 +122,7 @@ export class Container {
 
   /** Персональные промокоды выпускает контекст заказов. */
   get marketing(): MarketingModule {
-    return (this.#marketing ??= new MarketingModule({ clock: this.clock, promos: { issuePersonal: (input) => this.ordering.promos.issuePersonal(input) } }));
+    return (this.#marketing ??= new MarketingModule({ clock: this.clock, settings: this.workspace.settings, promos: { issuePersonal: (input) => this.ordering.promos.issuePersonal(input) } }));
   }
 
   /** Приглашения: коды для друзей и награды — промокоды контекста заказов. */
@@ -167,15 +173,15 @@ export class Container {
   }
 
   get clients(): ClientsModule {
-    return (this.#clients ??= new ClientsModule({ clock: this.clock }));
+    return (this.#clients ??= new ClientsModule({ clock: this.clock, notifier: this.workspace.notifier }));
   }
 
   get assistant(): AssistantModule {
-    return (this.#assistant ??= new AssistantModule({ clock: this.clock }));
+    return (this.#assistant ??= new AssistantModule({ clock: this.clock, settings: this.workspace.settings, fields: this.workspace.fieldsReader }));
   }
 
   get sales(): SalesModule {
-    return (this.#sales ??= new SalesModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("sales") }));
+    return (this.#sales ??= new SalesModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("sales"), settings: this.workspace.settings, schedule: this.workspace.schedule }));
   }
 
   get notifications(): NotificationsModule {
@@ -193,6 +199,7 @@ export class Container {
   /** Access пользуется учётными записями Identity через узкий порт — модули не импортируют друг друга. */
   get access(): AccessModule {
     return (this.#access ??= new AccessModule({
+      settings: this.workspace.settings,
       accounts: {
         create: (input) => this.identity.accounts.provision(input),
         setPassword: (userId, password) => this.identity.accounts.setPassword(userId, password),

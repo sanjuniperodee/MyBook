@@ -36,11 +36,6 @@ export interface SalesGateway {
   createDeal(input: { title: string; source: "repeat" | "manual"; clientId: string; contactName: string; contactPhone: string | null; contactEmail: string; assigneeId: string | null }): Promise<{ id: string; assigneeId: string | null }>;
 }
 
-export interface WorkSchedule {
-  isWorkTime(at: Date): Promise<boolean>;
-  workMinutesBetween(from: Date, to: Date): Promise<number>;
-}
-
 /** Кандидаты для правил по времени. */
 export interface ScheduledSource {
   unanswered(awaitingSince: Date): Promise<{ conversationId: string; dealId: string | null; clientId: string | null; channel: string; awaitingSince: Date }[]>;

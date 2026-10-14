@@ -4,8 +4,7 @@ import { crmRoles, orders, users } from "@/shared/infrastructure/db/schema";
 import { usersId } from "@/shared/infrastructure/db/refs";
 import { phoneKey, normalizePhone } from "@/shared/domain/phone";
 import { toAttribution } from "@/shared/domain/channels";
-import { getSetting } from "@/modules/workspace";
-import { isWorkTime, parseWorkHours } from "@/shared/domain/schedule";
+import type { SettingsReader, WorkSchedule } from "@/shared/application";
 import { executor } from "@/shared/infrastructure/database";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
 import type { StageMilestone } from "../domain";
@@ -34,10 +33,13 @@ export const drizzleClients: ClientDirectory = {
   },
 };
 
-export const crmSalesSettings: SalesSettings = {
-  unsortedEnabled: async () => (await getSetting("crm.unsorted")) !== "off",
-  autoDealFrom: async () => (await getSetting("crm.autoDealFrom")) as StageMilestone | "off",
-};
+/** Настройки CRM, которые читают продажи: «Неразобранное» и с какого действия клиента заводить сделку. */
+export type SalesSettingKey = "crm.unsorted" | "crm.autoDealFrom";
+
+export const crmSalesSettings = (settings: SettingsReader<SalesSettingKey>): SalesSettings => ({
+  unsortedEnabled: async () => (await settings.get("crm.unsorted")) !== "off",
+  autoDealFrom: async () => (await settings.get("crm.autoDealFrom")) as StageMilestone | "off",
+});
 
 const lastDealAt = sql`(select max(d.created_at) from crm_deals d where d.assignee_id = ${usersId}) asc nulls first`;
 
@@ -45,9 +47,9 @@ const lastDealAt = sql`(select max(d.created_at) from crm_deals d where d.assign
  * Следующий менеджер по кругу: активный сотрудник на смене с правом deals.edit (не руководитель),
  * которому дольше всех не доставалась новая сделка. Вне рабочего времени — никому: утром возьмёт первый на смене.
  */
-export const roundRobinRouter: StaffRouter = {
+export const roundRobinRouter = (schedule: WorkSchedule): StaffRouter => ({
   async nextRoundRobin() {
-    if (!isWorkTime(new Date(), parseWorkHours(await getSetting("crm.workHours")))) return null;
+    if (!(await schedule.isWorkTime(new Date()))) return null;
     const base = and(eq(users.role, "admin"), eq(users.staffDisabled, false), eq(users.onShift, true), sql`'deals.edit' = any(${crmRoles.permissions})`);
     const [row] = await executor().select({ id: users.id }).from(users).innerJoin(crmRoles, eq(crmRoles.id, users.crmRoleId)).where(and(base, ne(crmRoles.key, "owner"))).orderBy(lastDealAt, asc(users.createdAt)).limit(1);
     if (row) return row.id;
@@ -55,7 +57,7 @@ export const roundRobinRouter: StaffRouter = {
     const [custom] = await executor().select({ id: users.id }).from(users).innerJoin(crmRoles, eq(crmRoles.id, users.crmRoleId)).where(and(base, isNull(crmRoles.key))).orderBy(lastDealAt).limit(1);
     return custom?.id ?? null;
   },
-};
+});
 
 export const sqlBookProgress: BookProgress = {
   async progress(bookId) {

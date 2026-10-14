@@ -2,9 +2,9 @@ import "server-only";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { bookQuestions, books, crmCalls, crmConversations, crmDeals, crmNotes, crmStages, crmTasks, orders } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
-import { getSetting } from "@/modules/workspace";
 import { loadChatMessages } from "@/modules/messaging";
-import { fieldVars, listFields } from "@/modules/workspace";
+import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
+import { fieldVars } from "@/shared/domain/customFields";
 import { executor } from "@/shared/infrastructure/database";
 import type { AssistantData } from "../application";
 import type { AiMessage } from "../domain";
@@ -12,10 +12,11 @@ import type { AiMessage } from "../domain";
 const transcript = async (conversationId: string, limit: number): Promise<AiMessage[]> =>
   (await loadChatMessages(conversationId, limit)).map((m) => ({ direction: m.direction, text: m.text || (m.mediaUrl ? `[${m.type}]` : ""), internal: m.internal, author: m.author, at: m.at }));
 
-export const crmAssistantData: AssistantData = {
+/** Данные CRM для помощника; база знаний и свои поля сделки — из рабочего пространства. */
+export const crmAssistantData = (settings: SettingsReader<"ai.knowledge">, fields: CustomFieldsReader): AssistantData => ({
   transcript,
-  knowledge: () => getSetting("ai.knowledge"),
-  dealFields: async () => (await listFields("deal")).map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options })),
+  knowledge: () => settings.get("ai.knowledge"),
+  dealFields: () => fields.list("deal"),
   async saveSummary(dealId, summary) {
     await executor().update(crmDeals).set({ aiSummary: summary }).where(eq(crmDeals.id, dealId));
   },
@@ -23,9 +24,9 @@ export const crmAssistantData: AssistantData = {
     const db = executor();
     const [deal] = await db.select().from(crmDeals).where(eq(crmDeals.id, dealId)).limit(1);
     if (!deal) return null;
-    const [[stage], fields, notes, tasks, calls, [conv], [order], bookRows] = await Promise.all([
+    const [[stage], dealFields, notes, tasks, calls, [conv], [order], bookRows] = await Promise.all([
       db.select({ name: crmStages.name }).from(crmStages).where(eq(crmStages.id, deal.stageId)).limit(1),
-      listFields("deal"),
+      fields.list("deal"),
       db.select({ kind: crmNotes.kind, text: crmNotes.text, at: crmNotes.createdAt }).from(crmNotes).where(eq(crmNotes.dealId, deal.id)).orderBy(desc(crmNotes.createdAt)).limit(30),
       db.select({ title: crmTasks.title, dueAt: crmTasks.dueAt }).from(crmTasks).where(and(eq(crmTasks.dealId, deal.id), isNull(crmTasks.doneAt))).limit(10),
       db.select({ direction: crmCalls.direction, status: crmCalls.status, durationSec: crmCalls.durationSec, at: crmCalls.startedAt }).from(crmCalls).where(eq(crmCalls.dealId, deal.id)).orderBy(desc(crmCalls.startedAt)).limit(10),
@@ -49,7 +50,7 @@ export const crmAssistantData: AssistantData = {
     return {
       deal,
       stageName: stage?.name ?? null,
-      fieldValues: fieldVars(fields, deal.customFields),
+      fieldValues: fieldVars(dealFields, deal.customFields),
       notes,
       tasks,
       calls,
@@ -58,4 +59,4 @@ export const crmAssistantData: AssistantData = {
       messages: conv ? await transcript(conv.id, 80) : [],
     };
   },
-};
+});

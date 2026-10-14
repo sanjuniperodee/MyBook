@@ -8,7 +8,7 @@ import { ensureToken, fromEnv, getSettings, saveSettings, smtpConfig, smtpFromEn
 import { randomToken } from "@/shared/crypto";
 import { isValidTime } from "@/shared/domain/schedule";
 import { listChannels, registerWebhook, WazzupError } from "@/modules/messaging";
-import { AssistantError, isAiProvider, proofreadProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
+import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 
 export interface SettingsState {
   error?: string;
@@ -219,7 +219,7 @@ export async function saveProofreadAction(_: SettingsState, form: FormData): Pro
   const model = String(form.get("model") ?? "").trim();
   if (model && !/^[\w.:/@-]{1,100}$/.test(model)) return { error: "Название модели — латиница, цифры и символы . : / - _" };
   // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
-  const keyFor = isAiProvider(provider) ? provider : (await proofreadProvider()).provider;
+  const keyFor = isAiProvider(provider) ? provider : (await container().assistant.proofreadProvider()).provider;
   await saveSettings(
     {
       "proofread.provider": provider,

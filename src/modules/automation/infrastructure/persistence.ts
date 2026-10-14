@@ -2,10 +2,11 @@ import "server-only";
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
-import { fieldVars, listFields } from "@/modules/workspace";
 import { formatDate } from "@/lib/dates";
 import { messagesFor } from "@/i18n/messages";
 import { executor } from "@/shared/infrastructure/database";
+import type { CustomFieldsReader } from "@/shared/application";
+import { fieldVars } from "@/shared/domain/customFields";
 import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";
 import type { AutomationRule, RuleSubject, TriggerContext } from "../domain";
 
@@ -34,6 +35,8 @@ export class DrizzleRuleRepository implements RuleRepository {
 }
 
 export class DrizzleSubjectLoader implements SubjectLoader {
+  constructor(private readonly fields: CustomFieldsReader) {}
+
   async load(ctx: TriggerContext): Promise<RuleSubject> {
     const db = executor();
     const [deal] = ctx.dealId ? await db.select().from(crmDeals).where(eq(crmDeals.id, ctx.dealId)).limit(1) : [];
@@ -61,7 +64,7 @@ export class DrizzleSubjectLoader implements SubjectLoader {
   }
 
   async dealFieldVars(customFields: Record<string, string | number | boolean | null>) {
-    return fieldVars(await listFields("deal"), customFields);
+    return fieldVars(await this.fields.list("deal"), customFields);
   }
 
   async latestConversation(dealId: string | null, clientId: string | null) {
