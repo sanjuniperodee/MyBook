@@ -10,6 +10,7 @@
  *
  * Книги — books.ts: весь набор и варианты, --quick — каждое оформление один раз (формат и язык по кругу) и варианты.
  */
+import { existsSync } from "node:fs";
 import { chromium, type Browser } from "playwright";
 import type { FixtureBook } from "../../tests/fixtures/books";
 import { snapshotBooks } from "./books";
@@ -17,7 +18,7 @@ import { FIXED_TIME, freezeRuntime } from "./freeze";
 import { buildStandAssets } from "./html-assets";
 import type { StandView } from "./html-data";
 import { ORIGIN, startStandServer, type StandServer } from "./html-server";
-import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry, type SnapshotFlags } from "./shared";
+import { entryFor, errorEntry, failSnapshot, freshKeyDir, pagePath, prepareOut, reportSnapshot, runPool, seconds, SetupError, snapshotFlags, writeManifest, type Manifest, type ManifestEntry, type SnapshotFlags } from "./shared";
 
 const VIEWPORT = { width: 1280, height: 900 };
 /**
@@ -27,6 +28,18 @@ const VIEWPORT = { width: 1280, height: 900 };
 const TARGETS: Record<string, string> = { preview: "#stand > div > div > :not([aria-hidden])", flipbook: "#stand > [data-face]" };
 const WHOLE = "#stand > div";
 const CHROMIUM = process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+
+/** Chromium есть? Playwright по умолчанию ищет свою сборку, а на машине может стоять другая — путь задаётся явно. */
+function requireChromium() {
+  if (existsSync(CHROMIUM)) return;
+  throw new SetupError(
+    [
+      `Нет Chromium: ${CHROMIUM} (${process.env.CHROMIUM_PATH ? "CHROMIUM_PATH" : "путь по умолчанию"}).`,
+      "Укажите исполняемый файл в CHROMIUM_PATH, например: CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome | tail -1)",
+      `или поставьте сборку Playwright (npx playwright install chromium) — её путь: node -e "console.log(require('playwright').chromium.executablePath())".`,
+    ].join("\n"),
+  );
+}
 
 /** Данные стенда: строятся с замороженным временем (год на развороте), затем время возвращается — Playwright нужны настоящие часы. */
 async function views(books: FixtureBook[], filter?: string): Promise<StandView[]> {
@@ -89,6 +102,7 @@ async function shootAll(server: StandServer, list: StandView[], flags: SnapshotF
 
 async function main() {
   const flags = snapshotFlags(process.argv.slice(2));
+  requireChromium();
   const books = snapshotBooks(flags.quick);
   const started = performance.now();
   const server = await startStandServer(await buildStandAssets(), books);
@@ -104,7 +118,4 @@ async function main() {
   }
 }
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exitCode = 2;
-});
+main().catch(failSnapshot);

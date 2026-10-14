@@ -22,7 +22,7 @@ import { useFixtureStorage as openFixtureStorage } from "../../tests/fixtures/ph
 import { photoNamesFor, snapshotBooks } from "./books";
 import { freezeRuntime } from "./freeze";
 import { pdfSummary } from "./pdf-digest";
-import { entryFor, errorEntry, freshKeyDir, pagePath, prepareOut, reportSnapshot, ROOT, runPool, seconds, snapshotFlags, writeManifest, type Manifest, type ManifestEntry } from "./shared";
+import { entryFor, errorEntry, failSnapshot, freshKeyDir, pagePath, prepareOut, reportSnapshot, ROOT, runPool, seconds, SetupError, snapshotFlags, writeManifest, type Manifest, type ManifestEntry } from "./shared";
 
 const DPI = 150;
 const SCRIPT = fileURLToPath(import.meta.url);
@@ -98,8 +98,16 @@ function runWorker(task: Task): Promise<Manifest> {
   });
 }
 
+/** pdftoppm есть? Без него каждая книга упала бы с ENOENT в своём процессе. */
+async function requirePoppler() {
+  await run("pdftoppm", ["-v"]).catch(() => {
+    throw new SetupError("Нет pdftoppm: растр PDF снимается им. Поставьте poppler-utils (apt install poppler-utils, macOS — brew install poppler).");
+  });
+}
+
 async function main() {
   const flags = snapshotFlags(process.argv.slice(2));
+  await requirePoppler();
   const books = snapshotBooks(flags.quick)
     .map((b) => ({ book: b, keys: [blockKey(b.key), coverKey(b.key)].filter((k) => !flags.filter || k.includes(flags.filter)) }))
     .filter((b) => b.keys.length);
@@ -127,8 +135,5 @@ if (process.argv[2] === "--worker") {
     (err: unknown) => reply({ error: errorEntry(err).error }, 1),
   );
 } else {
-  main().catch((err: unknown) => {
-    console.error(err);
-    process.exitCode = 2;
-  });
+  main().catch(failSnapshot);
 }

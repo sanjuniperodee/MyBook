@@ -116,6 +116,15 @@ export async function runPool<T, R>(items: T[], jobs: number, fn: (item: T) => P
 
 export const seconds = (from: number) => `${((performance.now() - from) / 1000).toFixed(1)} с`;
 
+/** Нет внешней программы снимка (pdftoppm, Chromium): печатается одним сообщением с подсказкой, без трассировки. */
+export class SetupError extends Error {}
+
+/** Снимок не состоялся: код выхода 2 (check.sh тогда не сверяет); ошибка окружения — одним сообщением. */
+export function failSnapshot(err: unknown) {
+  console.error(err instanceof SetupError ? `✗ ${err.message}` : err);
+  process.exitCode = 2;
+}
+
 /** Итог снимка; код выхода 1, если какая-то сборка упала (ошибка записана в манифест). */
 export function reportSnapshot(manifest: Manifest, out: string, started: number) {
   const entries = Object.entries(manifest);

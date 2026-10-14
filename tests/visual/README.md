@@ -4,6 +4,21 @@
 PDF и HTML-страницы книги, и попиксельная сверка двух снимков. Данные — набор книг `tests/fixtures/books.ts`
 (без БД, фото рисует sharp).
 
+## Требования
+
+- **poppler-utils** — `pdftoppm` растрирует PDF (`apt install poppler-utils`, macOS — `brew install poppler`). Нет его —
+  `pdf-snapshot` сразу завершается с кодом 2 и подсказкой.
+- **Chromium** для Playwright — путь в `CHROMIUM_PATH`, по умолчанию `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+  Путь задан явно: Playwright 1.63 ищет свою сборку (`chromium-1243`), а на машине может стоять другая. Нет файла —
+  `html-snapshot` сразу завершается с кодом 2 и подсказкой: какой путь проверен, как найти установленный
+  (`ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome`) или поставить сборку Playwright
+  (`npx playwright install chromium`).
+- **esbuild и postcss** — стенд HTML собирает ими JS и CSS, но в `package.json` их нет: они приходят транзитивно
+  (esbuild — от `tsx` и `vite`/`vitest`, postcss — от `@tailwindcss/postcss` и `next`). Если после обновления
+  зависимостей они пропадут из `node_modules` (`Cannot find package 'esbuild'`/`'postcss'`), их нужно добавить в
+  `devDependencies` той же версии, что была в `package-lock.json` (`npm i -D esbuild@<версия> postcss@<версия>`) —
+  отдельным коммитом с согласованием, как любую новую зависимость.
+
 ## Что снимается
 
 Книги (`scripts/visual/books.ts`, одни и те же для PDF и HTML):
@@ -93,8 +108,8 @@ npx tsx scripts/visual/compare.ts tests/visual/out/before/pdf tests/visual/out/a
 
 Запуск — из корня репозитория. Флаги обоих снимков: `--out <каталог>`, `--filter <подстрока ключа>`
 (например `cover`, `luna-square`, `html:preview`), `--quick`, `--jobs N` (по умолчанию ядра − 1; у PDF — дочерние
-процессы, у HTML — вкладки Chromium). Путь к Chromium — `CHROMIUM_PATH`, по умолчанию
-`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+процессы, у HTML — вкладки Chromium). Код выхода снимка: 0 — всё собралось, 1 — есть ключи с `error` (манифест
+записан), 2 — снимок не состоялся (нет pdftoppm или Chromium, ошибка флагов).
 
 ## Что считается отличием
 
