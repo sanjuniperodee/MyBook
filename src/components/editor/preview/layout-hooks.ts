@@ -23,7 +23,8 @@ export function usePageWidth(wrap: RefObject<HTMLDivElement | null>) {
  * Полосы превью и прокрутка к текущему ответу.
  *
  * Полос в каждой главе: невидимая копия главы раскладывается CSS-колонками шириной в полосу набора, и полосы
- * считаются по её ширине. Пересчёт — при смене содержимого (liveKey), ширины и после загрузки шрифтов.
+ * считаются по её ширине. Каждая глава перемеряет себя сама, когда меняется её содержимое (measure(key));
+ * все главы — при смене ширины и после загрузки шрифтов.
  * К началу текущего ответа превью прокручивается сразу при смене ответа и пока полосы ещё дорисовываются.
  */
 export function usePreviewPages({
@@ -31,9 +32,6 @@ export function usePreviewPages({
   currentId,
   textW,
   gap,
-  liveKey,
-  pageW,
-  resizeWidth,
   marginTop,
 }: {
   chapters: PreviewChapter[];
@@ -41,10 +39,6 @@ export function usePreviewPages({
   /** Полоса набора и промежуток между колонками, px. */
   textW: number;
   gap: number;
-  liveKey: string;
-  pageW: number;
-  /** Ширина фото, пока тянут уголок: раскладка меняется до сохранения. */
-  resizeWidth: number;
   /** Верхнее поле страницы, px. */
   marginTop: number;
 }) {
@@ -52,29 +46,38 @@ export function usePreviewPages({
   const measureRefs = useRef(new Map<string, HTMLDivElement>());
   const [pagesBy, setPagesBy] = useState<Record<string, number>>({});
 
-  const measure = useCallback(() => {
-    if (!textW) return;
-    setPagesBy((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const [key, el] of measureRefs.current) {
-        const n = columnPages(el.scrollWidth, textW, gap);
-        if (next[key] !== n) {
-          next[key] = n;
-          changed = true;
+  const setMeasureRef = useCallback((key: string, el: HTMLDivElement | null) => {
+    if (el) measureRefs.current.set(key, el);
+    else measureRefs.current.delete(key);
+  }, []);
+
+  /** Перемерить главы keys (по умолчанию — все). */
+  const measureKeys = useCallback(
+    (keys?: string[]) => {
+      if (!textW) return;
+      setPagesBy((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const key of keys ?? measureRefs.current.keys()) {
+          const el = measureRefs.current.get(key);
+          if (!el) continue;
+          const n = columnPages(el.scrollWidth, textW, gap);
+          if (next[key] !== n) {
+            next[key] = n;
+            changed = true;
+          }
         }
-      }
-      return changed ? next : prev;
-    });
-  }, [textW, gap]);
+        return changed ? next : prev;
+      });
+    },
+    [textW, gap],
+  );
+  const measure = useCallback((key: string) => measureKeys([key]), [measureKeys]);
 
   useEffect(() => {
-    measure();
-  }, [measure, liveKey, pageW, resizeWidth]);
-
-  useEffect(() => {
-    void document.fonts?.ready.then(measure);
-  }, [measure]);
+    measureKeys();
+    void document.fonts?.ready.then(() => measureKeys());
+  }, [measureKeys]);
 
   const settleUntil = useRef(0);
   const scrolledOnce = useRef(false);
@@ -106,5 +109,5 @@ export function usePreviewPages({
     if (Date.now() < settleUntil.current || !scrolledOnce.current) if (scrollToCurrent("auto")) scrolledOnce.current = true;
   }, [pagesBy, scrollToCurrent]);
 
-  return { scroll, measureRefs, pagesBy, measure };
+  return { scroll, pagesBy, setMeasureRef, measure };
 }
