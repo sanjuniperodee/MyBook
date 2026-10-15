@@ -75,8 +75,6 @@ export const orders = pgTable(
   ],
 );
 
-export type Order = typeof orders.$inferSelect;
-
 export const promoCodes = pgTable(
   "promo_codes",
   {
@@ -100,8 +98,6 @@ export const promoCodes = pgTable(
   },
   (t) => [uniqueIndex("promo_codes_code_idx").on(t.code), index("promo_codes_owner_idx").on(t.ownerId)],
 );
-
-export type PromoCode = typeof promoCodes.$inferSelect;
 
 /** Подарочный сертификат. После оплаты для него создаётся одноразовый промокод на сумму сертификата. */
 export const giftCards = pgTable(
@@ -139,8 +135,6 @@ export const giftCards = pgTable(
   },
   (t) => [uniqueIndex("gift_cards_number_idx").on(t.number), uniqueIndex("gift_cards_token_idx").on(t.token), index("gift_cards_status_idx").on(t.status)],
 );
-
-export type GiftCard = typeof giftCards.$inferSelect;
 
 /**
  * Счета онлайн-оплаты Kaspi Pay: попытки оплатить заказ или сертификат (счёт в приложение по номеру или QR).
@@ -187,5 +181,3 @@ export const orderEvents = pgTable(
   },
   (t) => [index("order_events_order_idx").on(t.orderId)],
 );
-
-export type OrderEvent = typeof orderEvents.$inferSelect;

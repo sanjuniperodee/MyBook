@@ -16,8 +16,6 @@ export const crmRoles = pgTable("crm_roles", {
   ...timestamps,
 });
 
-export type CrmRole = typeof crmRoles.$inferSelect;
-
 /** Журнал действий сотрудников: кто, что и когда изменил. */
 export const crmAudit = pgTable(
   "crm_audit",

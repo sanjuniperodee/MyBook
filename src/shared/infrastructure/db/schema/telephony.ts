@@ -32,5 +32,3 @@ export const crmCalls = pgTable(
   },
   (t) => [uniqueIndex("crm_calls_ext_idx").on(t.provider, t.externalId), index("crm_calls_started_idx").on(t.startedAt), index("crm_calls_phone_idx").on(t.clientPhone)],
 );
-
-export type CrmCall = typeof crmCalls.$inferSelect;

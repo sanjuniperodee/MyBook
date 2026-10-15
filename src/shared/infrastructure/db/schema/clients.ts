@@ -21,8 +21,6 @@ export const crmNotes = pgTable(
   (t) => [index("crm_notes_client_idx").on(t.clientId), index("crm_notes_deal_idx").on(t.dealId)],
 );
 
-export type CrmNote = typeof crmNotes.$inferSelect;
-
 /** Задачи менеджеров: перезвонить, проверить макет, отправить трек-номер… */
 export const crmTasks = pgTable(
   "crm_tasks",
@@ -44,5 +42,3 @@ export const crmTasks = pgTable(
   },
   (t) => [index("crm_tasks_due_idx").on(t.doneAt, t.dueAt)],
 );
-
-export type CrmTask = typeof crmTasks.$inferSelect;

@@ -22,8 +22,6 @@ export const crmLinks = pgTable("crm_links", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type CrmLink = typeof crmLinks.$inferSelect;
-
 /** Переходы по ссылкам по дням — для отчётов за период. */
 export const crmLinkClicks = pgTable(
   "crm_link_clicks",

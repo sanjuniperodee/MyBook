@@ -27,8 +27,6 @@ export const crmPipelines = pgTable("crm_pipelines", {
   ...timestamps,
 });
 
-export type CrmPipeline = typeof crmPipelines.$inferSelect;
-
 /** Этапы воронки продаж. kind: open — в работе, won — успех, lost — отказ. */
 export const crmStages = pgTable("crm_stages", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -43,8 +41,6 @@ export const crmStages = pgTable("crm_stages", {
   milestone: text("milestone").$type<StageMilestone>(),
   ...timestamps,
 });
-
-export type CrmStage = typeof crmStages.$inferSelect;
 
 /** Сделка (лид): обращение, которое ведём до заказа. */
 export const crmDeals = pgTable(
@@ -84,8 +80,6 @@ export const crmDeals = pgTable(
   },
   (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId)],
 );
-
-export type CrmDeal = typeof crmDeals.$inferSelect;
 
 /**
  * Платежи по сделке, оформленной вручную (предоплата, доплата): деньги, которые менеджер принял помимо заказа на сайте.

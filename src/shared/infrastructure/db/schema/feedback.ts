@@ -44,5 +44,3 @@ export const reviews = pgTable(
   },
   (t) => [uniqueIndex("reviews_order_idx").on(t.orderId), index("reviews_status_idx").on(t.status, t.featured)],
 );
-
-export type ReviewRow = typeof reviews.$inferSelect;

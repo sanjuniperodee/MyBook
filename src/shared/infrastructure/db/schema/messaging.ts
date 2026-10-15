@@ -80,8 +80,6 @@ export const crmMessages = pgTable(
   (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],
 );
 
-export type CrmMessage = typeof crmMessages.$inferSelect;
-
 /** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */
 export const crmBlocklist = pgTable("crm_blocklist", {
   value: text("value").primaryKey(),

@@ -23,8 +23,6 @@ export const crmNotifications = pgTable(
   (t) => [index("crm_notif_user_idx").on(t.userId, t.readAt, t.createdAt)],
 );
 
-export type CrmNotification = typeof crmNotifications.$inferSelect;
-
 /** Быстрые ответы для чатов. Переменные: {имя}, {заказ}, {ссылка}. */
 export const crmTemplates = pgTable("crm_templates", {
   id: uuid("id").primaryKey().defaultRandom(),

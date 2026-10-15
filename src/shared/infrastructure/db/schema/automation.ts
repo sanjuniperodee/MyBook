@@ -25,8 +25,6 @@ export const crmAutomations = pgTable("crm_automations", {
   ...timestamps,
 });
 
-export type CrmAutomation = typeof crmAutomations.$inferSelect;
-
 /** Журнал срабатываний: одно правило не срабатывает дважды для одного объекта. */
 export const crmAutomationRuns = pgTable(
   "crm_automation_runs",
