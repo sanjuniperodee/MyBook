@@ -1,5 +1,5 @@
 {
-  "$comment": "Храповик tests/architecture.test.ts: разрешённые нарушения границ «from -> to»; повтор строки — ещё один импорт. Строки только удаляются.",
+  "$comment": "Храповик tests/architecture.test.ts дошёл до нуля (B6): все три категории пусты, любое нарушение границ роняет тест. Строки сюда не добавляются: уберите импорт (порт, shared/domain, фасад).",
   "crossModule": [],
   "moduleOutward": [],
   "sharedToModules": []

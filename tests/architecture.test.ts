@@ -22,7 +22,7 @@ function compare(found: ImportEdge[], allowed: string[]) {
   return { added, gone };
 }
 
-// Храповик: число нарушений границ только опускается (docs/refactor/plan.md, S1).
+// Храповик дошёл до нуля (docs/refactor/plan.md, S1 и B6): baseline пуст, любое нарушение границ роняет тест.
 describe("границы модулей", () => {
   const found = violations(importGraph(path.join(__dirname, "..")).edges);
   for (const [key, title] of CATEGORIES) {

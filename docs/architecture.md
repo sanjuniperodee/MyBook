@@ -15,13 +15,17 @@
 src/
   shared/                     общее ядро (shared kernel)
     domain/                   Entity, AggregateRoot, ValueObject, DomainEvent, DomainError; общий словарь модулей —
-                              каналы привлечения (channels), источник сделки (deals), график работы (schedule),
+                              каналы привлечения (channels), источник сделки (dealSources), график работы (schedule),
                               упоминания (mentions), переменные шаблонов (templates), подпись сотрудника (staff),
-                              телефон (phone), часовой пояс (time), код ссылки (slug), свои поля (customFields)
+                              права сотрудников (permissions), сегменты клиентов (segments), телефон (phone),
+                              часовой пояс (time), код ссылки (slug), свои поля и их типы (customFields); значения,
+                              которые хранят колонки схемы БД: статусы заказа и сертификата, снимок печати (orders),
+                              статус и фото отзыва (reviews), события этапа воронки (stageMilestones)
     application/              UseCase, UnitOfWork, EventBus, Clock, Logger, Mailer, RateLimiter — порты; порты рабочего
                               пространства: SettingsReader/SettingsStore (модуль объявляет только свои ключи), StaffNotifier,
                               LiveFeed, CustomFieldsReader, WorkSchedule — реализует workspace, модулям раздаёт container
-    infrastructure/           db/ (схема Drizzle, пул, миграции), database.ts (executor() — текущая транзакция или пул),
+    infrastructure/           db/ (схема Drizzle: schema.ts — сборный файл, schema/<владелец>.ts — таблицы по модулям;
+                              пул, миграции), database.ts (executor() — текущая транзакция или пул),
                               DrizzleUnitOfWork (транзакции), OutboxDispatcher (надёжная доставка событий), InProcessEventBus,
                               redis.ts (лимиты и шаги TOTP: Redis при REDIS_URL, иначе память), background.ts,
                               mail.ts (SMTP-адаптер Mailer — настройки из «Интеграций» через workspace; общий HTML-шаблон писем), storage.ts (файлы)
@@ -52,11 +56,13 @@ src/
 |---|---|
 | `modules/*/domain` | drizzle, `shared/infrastructure`, Next.js/React, `server-only`, application/infrastructure |
 | `modules/*/application` | drizzle, `shared/infrastructure`, Next.js/React, infrastructure, `server/*` |
-| `modules/X/**` | `application`/`infrastructure` другого модуля — только его `index.ts`, `domain` или `ui` |
+| `modules/X/**` | любой файл другого модуля — даже фасад, `domain` и `ui`; `server`, `components`, `app`. Нужное от соседа потребитель объявляет портом, а `container.ts` подставляет адаптер |
+| `shared/**` | модули, `server`, `components`, `app`: общее ядро ничего не знает о них |
+| `server/**` | `components`, `app`; `application` и `infrastructure` модулей — только фасады (`index.ts`), `domain` и `ui`. Корню композиции можно `shared/infrastructure` и drizzle |
 | `app/**`, `components/**` | `application`/`infrastructure` модулей, `shared/infrastructure`, drizzle и `pg`: страницы и действия не ходят в БД |
-| `lib/**` | drizzle, `pg`, `server-only`, `server/*`, модули, `shared/infrastructure` (кроме типов строк из `db/schema`) |
+| `lib/**` | drizzle, `pg`, `server-only`, модули, `server`, `components`, `app`, `shared/infrastructure` (кроме типов строк из `db/schema`) |
 
-Динамический `import()` линтер не проверяет — для него действует то же правило: чужой модуль только через фасад. Модули вообще не импортируют друг друга: нужное от соседа потребитель объявляет портом, а `container.ts` подставляет адаптер.
+Границы «по пути» (кто кого может импортировать) проверяет `import/no-restricted-paths`: он разрешает путь до файла, поэтому видит `@/…`, относительные пути, `import()`, реэкспорты и `import type`. Запреты «по имени» (drizzle, Next.js, infrastructure внутри модуля) — `no-restricted-imports`. Исключений в правилах нет. Независимо от линтера те же границы держит `tests/architecture.test.ts` по графу импортов: baseline пуст, любое нарушение роняет тест; он видит и `typeof import("…")` в типах, которых линтер не видит.
 
 ## Строительные блоки
 
@@ -74,7 +80,7 @@ src/
 
 1. Правило бизнеса оформляется методом агрегата (или новым агрегатом) и юнит-тестом на него.
 2. Сценарий — метод сервиса в `application`. Нужен другой контекст — объявите порт в `ports.ts`.
-3. Хранение — метод репозитория и его реализация на Drizzle. Схема меняется через миграцию (`npm run db:generate`).
+3. Хранение — метод репозитория и его реализация на Drizzle. Таблица — в `shared/infrastructure/db/schema/<модуль>.ts` владельца (новый файл подключите в `schema.ts`); значения колонок, которые нужны и домену (статусы, типы), — в `shared/domain`: схема не импортирует модули. Схема меняется через миграцию (`npm run db:generate`); `tests/schema.test.ts` следит, что схема совпадает со снимком последней миграции.
 4. Реакции других контекстов — подписка в `server/subscriptions.ts` (или в фасаде модуля, если это собственная реакция).
 5. Server action или роут: проверить права, разобрать ввод через zod, вызвать `container().<модуль>.<сервис>.<команда>()`, перевести `DomainError` в текст.
 

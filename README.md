@@ -222,7 +222,7 @@ bash deploy/rollback.sh <релиз>      # на конкретный, спис�
 | `npm run build && npm start` | Продакшен-сборка и запуск |
 | `npm run typecheck` / `npm run lint` | Проверка типов и линтер |
 | `npm test` | Unit-тесты и смоук-тест генерации PDF |
-| `npm run db:generate` | Новая миграция после изменения `src/shared/infrastructure/db/schema.ts` |
+| `npm run db:generate` | Новая миграция после изменения схемы (`src/shared/infrastructure/db/schema/`) |
 | `npm run db:migrate` | Применить миграции вручную |
 | `npm run create-admin -- email пароль` | Создать администратора |
 | `npm run scheduler:once -- --any-hour` | Один проход фоновых задач вручную (сертификаты + автописьма) |
