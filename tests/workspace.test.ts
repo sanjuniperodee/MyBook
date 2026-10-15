@@ -16,7 +16,7 @@ describe("CustomFieldsService: свои поля сделки и клиента"
     await svc.save({ id: null, entity: "client", label: "Қала", type: "text", options: "" });
     await svc.save({ id: null, entity: "deal", label: "Повод / событие", type: "date", options: "" });
     await svc.save({ id: null, entity: "deal", label: "!!!", type: "checkbox", options: "" });
-    // так сейчас: ь и ъ не транслитерируются и становятся разделителем
+    // ь и ъ не транслитерируются и становятся разделителем — так оставлено: смена транслитерации поменяла бы ключи новых полей (B12)
     await svc.save({ id: null, entity: "deal", label: "Подъезд", type: "number", options: "" });
     expect([...fields.rows.values()].map((f) => f.key)).toEqual(["gorod", "qala", "povod_sobytie", "field", "pod_ezd"]);
   });
@@ -31,11 +31,11 @@ describe("CustomFieldsService: свои поля сделки и клиента"
     expect(fields.last().key).toBe("razmer_3");
   });
 
-  it("список: варианты через запятую или строку, без пустых и точных повторов, до 30 штук по 60 символов", async () => {
+  it("список: варианты через запятую или строку, без пустых и повторов (без учёта регистра), до 30 штук по 60 символов", async () => {
     const { fields, svc } = setup();
     await svc.save({ id: null, entity: "deal", label: "Повод", type: "select", options: " Да , нет,да,\n, Да ,Может быть" });
-    // повторы сравниваются с учётом регистра: «Да» и «да» — разные варианты
-    expect(fields.last().options).toEqual(["Да", "нет", "да", "Может быть"]);
+    // «Да» и «да» — один вариант, остаётся первый (B12)
+    expect(fields.last().options).toEqual(["Да", "нет", "Может быть"]);
     const many = Array.from({ length: 35 }, (_, i) => `${i}`.padEnd(70, "x")).join(",");
     await svc.save({ id: null, entity: "deal", label: "Много", type: "select", options: many });
     expect(fields.last().options).toHaveLength(30);
