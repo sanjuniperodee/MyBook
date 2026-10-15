@@ -3,7 +3,7 @@ const DOMAIN_ERROR = Symbol.for("mybook.domain-error");
 
 /**
  * Нарушение бизнес-правила. code — стабильный машинный код (по нему слой представления
- * подбирает текст на языке пользователя), message — для логов и внутренних инструментов.
+ * подбирает текст на языке пользователя), params — значения для этого текста, message — для логов и внутренних инструментов.
  *
  * Next.js может загрузить один модуль в разные слои бандла, и тогда `instanceof` ложно
  * отвечает «нет». Поэтому проверяйте ошибки через `XError.is(err)` — по метке и контексту.
@@ -16,6 +16,8 @@ export class DomainError<TCode extends string = string> extends Error {
   constructor(
     readonly code: TCode,
     message?: string,
+    /** Значения для текста словаря, если он зависит от них (предел фото: «до 120 фото»). */
+    readonly params: readonly unknown[] = [],
   ) {
     super(message ?? code);
     this.name = new.target.name;

@@ -50,7 +50,7 @@ export function api<C>(handler: Handler<C>): Handler<C> {
       // Нет прав (assertStaff, assertVisible) — как у apiStaff: 403, а не общая ошибка сервера.
       if (ForbiddenError.is(err)) return fail(t, 403, "forbidden");
       // Ошибки домена с кодом из словаря api (Authoring и др.) — сразу в ответ с подходящим статусом.
-      if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return fail(t, domainStatus(err.code), err.code);
+      if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return fail(t, domainStatus(err.code), err.code, [...err.params]);
       if (err instanceof SyntaxError) return fail(t, 400, "badRequest");
       if (err instanceof ZodError) {
         // В схемах сообщения — ключи словаря; встроенные сообщения zod (английские) заменяем общим текстом.

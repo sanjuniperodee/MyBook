@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AuthoringError, Book, isBookVisibleTo, Photo, Question } from "@/modules/authoring/domain";
+import { AuthoringError, Book, isBookVisibleTo, MAX_PHOTOS, Photo, Question } from "@/modules/authoring/domain";
 import { BooksService, LettersService, PhotosService } from "@/modules/authoring/application/services";
 import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noQuestions, now, owner, rejectsWith, staff, startBook, stranger, theme, themes } from "./doubles/authoring";
 
@@ -153,6 +153,16 @@ describe("PhotosService", () => {
       { name: "bad.heic", reason: "format" },
     ]);
     expect(files.data.size).toBe(2);
+  });
+
+  it("больше предела за раз — photosLimit с пределом в параметрах: из них собирается текст «до N фото»", async () => {
+    const books = new MemBooks();
+    await books.add(startBook());
+    const service = new PhotosService(books, new MemPhotos(), noQuestions, images, new MemFiles(), ids);
+    const many = Array.from({ length: MAX_PHOTOS + 1 }, (_, i) => ({ name: `${i}.jpg`, size: 5, bytes: async () => Buffer.from("image") }));
+    const err = await service.upload("b1", owner, many).catch((e: unknown) => e);
+    expect(AuthoringError.is(err)).toBe(true);
+    expect(err).toMatchObject({ code: "photosLimit", params: [MAX_PHOTOS] });
   });
 
   it("удалённое фото снимается с обложки", async () => {

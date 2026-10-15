@@ -169,7 +169,7 @@ export class PhotosService {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     if (!files.length) throw new AuthoringError("photosPick");
     const { count, maxPosition } = await this.photos.stats(book.id);
-    if (count + files.length > MAX_PHOTOS) throw new AuthoringError("photosLimit");
+    if (count + files.length > MAX_PHOTOS) throw new AuthoringError("photosLimit", undefined, [MAX_PHOTOS]);
     const created: Photo[] = [];
     const failed: { name: string; reason: "tooBig" | "format" }[] = [];
     let position = maxPosition + 1;

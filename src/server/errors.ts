@@ -34,7 +34,7 @@ export function errorText(t: ApiMessages, key: string, params: unknown[] = []): 
 }
 
 /**
- * Статус HTTP для кода ошибки домена. Код, которого нет в реестре, — 400; коды «…NotFound» — 404.
+ * Статус HTTP для кода ошибки домена. Код, которого нет в реестре, — 400; «notFound» и коды «…NotFound» — 404.
  */
 const STATUS_BY_CODE = new Map<string, number>([
   ["bookLocked", 409],
@@ -49,7 +49,7 @@ const STATUS_BY_CODE = new Map<string, number>([
 ]);
 
 export function domainStatus(code: string): number {
-  return STATUS_BY_CODE.get(code) ?? (/NotFound$/.test(code) ? 404 : 400);
+  return STATUS_BY_CODE.get(code) ?? (/NotFound$/i.test(code) ? 404 : 400);
 }
 
 type ErrorKind = { is(err: unknown): boolean };

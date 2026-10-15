@@ -80,7 +80,8 @@ describe("api(): перевод ошибок в HTTP", () => {
       kaspiNotConnected: 503,
       letterClosed: 404,
       letterInvalid: 404,
-      // …NotFound$ → 404; «notFound» с маленькой буквы под правило не попадает и даёт 400
+      // …NotFound и «notFound» (регистр не важен, B10) → 404
+      notFound: 404,
       bookNotFound: 404,
       photoNotFound: 404,
       questionNotFound: 404,
@@ -92,16 +93,18 @@ describe("api(): перевод ошибок в HTTP", () => {
     const statuses: Record<string, number> = {};
     for (const code of Object.keys(ru)) statuses[code] = (await failWith(new DomainError(code))).status;
     expect(statuses).toEqual(Object.fromEntries(Object.keys(ru).map((code) => [code, special[code] ?? 400])));
-    expect(statuses.notFound).toBe(400);
 
     expect((await failWith(new AuthoringError("bookLocked"))).body).toEqual({ error: ru.bookLocked, code: "bookLocked" });
     request.cookies.set("mb_locale", "kk");
     expect((await failWith(new OrderingError("kaspiUnavailable"))).body).toEqual({ error: kk.kaspiUnavailable, code: "kaspiUnavailable" });
   });
 
-  it("так сейчас: у ошибки домена нет параметров — текст с параметром получает undefined", async () => {
-    // photos/route.ts поэтому ловит photosLimit сам и бросает HttpError с MAX_PHOTOS
-    expect((await failWith(new AuthoringError("photosLimit"))).body.error).toBe("В книгу можно добавить до undefined фото");
+  it("B10: параметры ошибки домена попадают в текст — предел фото приходит из домена, роуту не нужно ловить ошибку", async () => {
+    expect(await failWith(new AuthoringError("photosLimit", undefined, [30]))).toEqual({ status: 400, body: { error: "В книгу можно добавить до 30 фото", code: "photosLimit" } });
+    request.cookies.set("mb_locale", "kk");
+    expect((await failWith(new AuthoringError("photosLimit", undefined, [30]))).body.error).toBe(kk.photosLimit(30));
+    // код без параметров и ошибка без params работают как раньше
+    expect((await failWith(new AuthoringError("bookLocked"))).body.error).toBe(kk.bookLocked);
   });
 
   it("ForbiddenError (assertStaff, assertVisible) → 403 forbidden, как у apiStaff; текст на языке пользователя; сбоем не считается", async () => {
