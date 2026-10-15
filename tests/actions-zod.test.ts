@@ -13,11 +13,10 @@ describe("server actions: вход через zod", () => {
     expect(report.split("\n").filter((l) => l.startsWith("  без zod:"))).toEqual([]);
   });
 
-  it("без проверок прав — только выход, сброс пароля по токену и оплата сертификата по токену из письма", () => {
+  it("без проверок прав и лимитов — только выход и сброс пароля по токену из письма", () => {
     expect(report.split("\n").filter((l) => l.startsWith("  без проверок:"))).toEqual([
       "  без проверок: src/app/(auth)/actions.ts::logoutAction",
       "  без проверок: src/app/(auth)/actions.ts::resetAction",
-      "  без проверок: src/app/gift/actions.ts::claimGiftPaymentAction",
     ]);
   });
 });
