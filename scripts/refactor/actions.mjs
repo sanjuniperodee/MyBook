@@ -16,8 +16,8 @@ const files = [];
 })(path.join(root, "src"));
 
 const GUARD = /\b(requireStaff|assertStaff|assertStaffShell|requireStaffShell|requireUser|getCurrentUser|getStaff|getAccessibleBook|assertVisible|rateLimit|require[A-Z]\w*|assert[A-Z]\w*)\s*\(/g;
-// zod напрямую или общие схемы из server/input (uuid, formText, textForm, idParam).
-const ZOD = /\.(safeParse|parse)\(|z\.\w+\(|\b(uuid|formText|textForm|idParam)\b/;
+// zod напрямую или вызовы общих схем из server/input (uuid.parse, textForm(), idParam()); formText стоит внутри z.object().
+const ZOD = /\.(safeParse|parse)\(|z\.\w+\(|\b(textForm|idParams?)\(/;
 
 let total = 0;
 const unguarded = [];

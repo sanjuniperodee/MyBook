@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
-import { BAD_FORM, textForm } from "@/server/input";
+import { BAD_FORM, textForm, uuid } from "@/server/input";
 
 export type LinkState = { ok?: string; error?: string; slug?: string };
 

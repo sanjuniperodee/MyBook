@@ -8,8 +8,8 @@ export const maxDuration = 300;
 
 /** ZIP-пакет для типографии: блок, обложка и техзадание. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = idParams(await params, "id");
   await apiStaff(req, "orders.files");
+  const { id } = idParams(await params, "id");
   const c = container();
   const order = await c.ordering.queries.orderDetails(id);
   if (!order) throw new HttpError(404, "orderNotFound");
