@@ -69,7 +69,7 @@ describe("admin/actions.ts: ошибки заказов и промокодов"
   });
 });
 
-describe("admin/team/actions.ts: run и orThrow", () => {
+describe("admin/team/actions.ts: run и действия без ответа в форме", () => {
   beforeEach(() => signIn(owner));
   const create = (add: () => Promise<string>, email = "new@b.kz") => {
     fake.access.team = { add };
@@ -122,7 +122,7 @@ describe("admin/security/actions.ts: fail", () => {
   });
 });
 
-describe("(auth)/actions.ts: identityText — ошибки входа на языке пользователя", () => {
+describe("(auth)/actions.ts: ошибки входа на языке пользователя", () => {
   const login = (err: unknown, fields = { email: "a@b.kz", password: "secret123" }) => {
     fake.identity.auth = { login: failing(err) };
     return loginAction({}, form(fields));

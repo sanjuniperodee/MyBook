@@ -66,7 +66,7 @@ function identityText(m: Messages, err: DomainError): string {
  * Код OrderingError совпадает с ключом словаря (docs/architecture.md): оформление — checkout.promo и checkout.errors,
  * платёж и подарок — api и gift, действия сотрудника над заказом — admin. notReady несёт готовый текст: что мешает заказать книгу.
  */
-function orderingText(m: Messages, err: DomainError): string {
+function orderingText(m: Messages, err: DomainError): string | null {
   const { promo, errors } = m.checkout;
   const texts: Record<OrderingErrorCode, string> = {
     bookNotFound: errors.bookNotFound,
@@ -93,17 +93,20 @@ function orderingText(m: Messages, err: DomainError): string {
     kaspiNotConnected: m.api.kaspiNotConnected,
     kaspiUnavailable: m.api.kaspiUnavailable,
   };
-  return has(texts, err.code) ? texts[err.code as OrderingErrorCode] : err.message;
+  return has(texts, err.code) ? texts[err.code as OrderingErrorCode] : messageText(err);
 }
+
+/** message как готовый текст для сотрудника; если его нет (message — сам код), текста нет: машинный код не показываем. */
+const messageText = (err: DomainError) => (err.message === err.code ? null : err.message);
 
 /**
  * Текст ошибки домена для пользователя. Identity и ordering — из словарей по коду; у остальных контекстов
- * (access, sales, clients…) message — готовый текст для сотрудника. Машинный код вместо текста не показываем: null.
+ * (access, sales, clients…) message — готовый текст для сотрудника.
  */
-export function domainText(m: Messages, err: DomainError): string | null {
+function domainText(m: Messages, err: DomainError): string | null {
   if (err.context === "identity") return identityText(m, err);
   if (err.context === "ordering") return orderingText(m, err);
-  return err.message === err.code ? null : err.message;
+  return messageText(err);
 }
 
 /**
