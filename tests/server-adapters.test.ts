@@ -104,12 +104,20 @@ describe("api(): перевод ошибок в HTTP", () => {
     expect((await failWith(new AuthoringError("photosLimit"))).body.error).toBe("В книгу можно добавить до undefined фото");
   });
 
-  it("код домена не из словаря api, ForbiddenError и прочие исключения → 500 без утечки текста", async () => {
+  it("ForbiddenError (assertStaff, assertVisible) → 403 forbidden, как у apiStaff; текст на языке пользователя; сбоем не считается", async () => {
+    expect(await failWith(new ForbiddenError())).toEqual({ status: 403, body: { error: "Запрос отклонён", code: "forbidden" } });
+    request.cookies.set("mb_locale", "kk");
+    expect(await failWith(new ForbiddenError("нет прав"))).toEqual({ status: 403, body: { error: kk.forbidden, code: "forbidden" } });
+    // ошибка из другой копии класса (другой слой бандла) узнаётся по метке
+    const otherLayer = Object.assign(new Error("копия"), { [Symbol.for("mybook.forbidden-error")]: true });
+    expect((await failWith(otherLayer)).status).toBe(403);
+    expect(logged).not.toHaveBeenCalled();
+  });
+
+  it("код домена не из словаря api и прочие исключения → 500 без утечки текста", async () => {
     const server = { status: 500, body: { error: "Внутренняя ошибка сервера", code: "server" } };
     expect(await failWith(new NotFoundError("Book", "b1"))).toEqual(server);
     expect(await failWith(new OrderingError("invalidTransition", "переход draft → shipped"))).toEqual(server);
-    // так сейчас: api() не знает ForbiddenError (E4: станет 403)
-    expect(await failWith(new ForbiddenError())).toEqual(server);
     const leak = await failWith(new Error("password=hunter2 at db.internal:5432"));
     expect(leak).toEqual(server);
     expect(JSON.stringify(leak.body)).not.toContain("hunter2");

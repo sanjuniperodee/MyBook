@@ -9,7 +9,7 @@ import { viewerOf } from "@/server/books";
 import { domainStatus } from "@/server/errors";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
-import { can, getStaff, type Staff } from "@/server/access";
+import { can, ForbiddenError, getStaff, type Staff } from "@/server/access";
 import type { Permission } from "@/shared/domain/permissions";
 import { getMessages } from "@/i18n/server";
 import type { Messages } from "@/i18n/messages";
@@ -18,8 +18,11 @@ type ApiMessages = Messages["api"];
 type ApiErrorKey = keyof ApiMessages;
 type Params<K extends ApiErrorKey> = ApiMessages[K] extends (...a: infer A) => string ? A : [];
 
+const HTTP_ERROR = Symbol.for("mybook.http-error");
+
 /** Ошибка с HTTP-статусом. message — ключ словаря api, текст подставляется на языке пользователя. */
 export class HttpError<K extends ApiErrorKey = ApiErrorKey> extends Error {
+  readonly [HTTP_ERROR] = true;
   public params: unknown[];
   constructor(
     public status: number,
@@ -28,6 +31,10 @@ export class HttpError<K extends ApiErrorKey = ApiErrorKey> extends Error {
   ) {
     super(code);
     this.params = params;
+  }
+  /** Проверка по метке, а не instanceof: класс в разных слоях бандла Next.js загружается заново. */
+  static is(err: unknown): err is HttpError {
+    return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[HTTP_ERROR] === true;
   }
 }
 
@@ -55,7 +62,9 @@ export function api<C>(handler: Handler<C>): Handler<C> {
       return await handler(req, ctx);
     } catch (err) {
       const t = (await getMessages()).api;
-      if (err instanceof HttpError) return fail(t, err.status, err.code, err.params);
+      if (HttpError.is(err)) return fail(t, err.status, err.code, err.params);
+      // Нет прав (assertStaff, assertVisible) — как у apiStaff: 403, а не общая ошибка сервера.
+      if (ForbiddenError.is(err)) return fail(t, 403, "forbidden");
       // Ошибки домена с кодом из словаря api (Authoring и др.) — сразу в ответ с подходящим статусом.
       if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return fail(t, domainStatus(err.code), err.code);
       if (err instanceof SyntaxError) return fail(t, 400, "badRequest");

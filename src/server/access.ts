@@ -23,9 +23,16 @@ export interface Staff {
   context: StaffContext;
 }
 
+/** Метка общая для слоёв бандла Next.js: ForbiddenError.is() узнаёт ошибку, даже если класс загружен дважды. */
+const FORBIDDEN_ERROR = Symbol.for("mybook.forbidden-error");
+
 export class ForbiddenError extends Error {
+  readonly [FORBIDDEN_ERROR] = true;
   constructor(message = "Недостаточно прав для этого действия") {
     super(message);
+  }
+  static is(err: unknown): err is ForbiddenError {
+    return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[FORBIDDEN_ERROR] === true;
   }
 }
 
