@@ -1,10 +1,12 @@
-// Замер перерисовок редактора на вводе (F1): node scripts/profile-editor.mjs [baseUrl] [--chars 50] [--answers 36] [--runs 3]
+// Замер перерисовок редактора на вводе (F1): node scripts/profile-editor.mjs [baseUrl] [--chars 50] [--answers 36] [--runs 3] [--cpu 1]
 //
 // Заводит пользователя и книгу, заполняет ответы в нескольких главах (по три абзаца), открывает вопрос в середине
 // книги и печатает --chars символов в ответ с паузой 40 мс, как человек. Коммиты React и время их рендера
 // считает хук devtools (window.__REACT_DEVTOOLS_GLOBAL_HOOK__: onCommitFiberRoot, actualDuration корня) —
 // числа есть в dev-сборке и в `next build --profile`. Время браузера на скрипты, стили и раскладку (раскладка
-// колонок превью в React не видна) — метрики CDP Performance. Печатает медиану по --runs прогонам.
+// колонок превью в React не видна) — метрики CDP Performance; задержка ввода — Event Timing (события клавиатуры
+// дольше кадра). --cpu N — замедлить процессор в N раз на время печати (CDP), как на телефоне.
+// Печатает медиану по --runs прогонам.
 import { chromium } from "playwright";
 
 const args = process.argv.slice(2);
@@ -16,12 +18,17 @@ const opt = (name, def) => {
 const CHARS = opt("chars", 50);
 const ANSWERS = opt("answers", 36);
 const RUNS = opt("runs", 3);
+const CPU = opt("cpu", 1);
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 await ctx.addInitScript(() => {
-  const prof = { on: false, commits: 0, total: 0, max: 0 };
+  const prof = { on: false, commits: 0, total: 0, max: 0, events: [] };
   window.__prof = prof;
+  // Задержка ввода (как INP): от нажатия до следующей отрисовки, по событиям клавиатуры и ввода.
+  new PerformanceObserver((list) => {
+    if (prof.on) for (const e of list.getEntries()) if (/^key|^input|^beforeinput/.test(e.name)) prof.events.push(e.duration);
+  }).observe({ type: "event", durationThreshold: 16, buffered: false });
   let next = 1;
   window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
     renderers: new Map(),
@@ -82,12 +89,14 @@ for (let run = 0; run < RUNS; run++) {
   await page.waitForTimeout(2500);
   await page.focus("#answer");
   await page.keyboard.press("End");
-  await page.evaluate(() => Object.assign(window.__prof, { on: true, commits: 0, total: 0, max: 0 }));
+  await page.evaluate(() => Object.assign(window.__prof, { on: true, commits: 0, total: 0, max: 0, events: [] }));
   const before = await metrics();
+  if (CPU > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU });
   const started = Date.now();
   await page.keyboard.type("а".repeat(CHARS), { delay: 40 });
   const typed = Date.now() - started;
   await page.waitForTimeout(2000); // автосохранение и отложенные перерисовки
+  if (CPU > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   const p = await page.evaluate(() => ({ ...window.__prof, on: false }));
   await page.evaluate(() => (window.__prof.on = false));
   const after = await metrics();
@@ -100,10 +109,13 @@ for (let run = 0; run < RUNS; run++) {
     styleMs: ms("RecalcStyleDuration"),
     layoutMs: ms("LayoutDuration"),
     taskMs: ms("TaskDuration"),
+    // События ввода дольше 16 мс (кадр) и самое долгое — задержка, которую чувствует человек.
+    slowInputs: p.events.length,
+    maxInputMs: Math.round(Math.max(0, ...p.events)),
     typedMs: typed,
   });
 }
 const median = (k) => results.map((r) => r[k]).sort((a, b) => a - b)[Math.floor(results.length / 2)];
-console.log(JSON.stringify({ chars: CHARS, answers: ANSWERS, runs: results, median: Object.fromEntries(Object.keys(results[0]).map((k) => [k, median(k)])) }, null, 2));
+console.log(JSON.stringify({ chars: CHARS, answers: ANSWERS, cpu: CPU, runs: results, median: Object.fromEntries(Object.keys(results[0]).map((k) => [k, median(k)])) }, null, 2));
 if (errors.length) console.log("page errors:", errors);
 await browser.close();

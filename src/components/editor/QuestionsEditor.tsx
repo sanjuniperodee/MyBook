@@ -3,9 +3,8 @@
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import { Link, useLocale, useMessages } from "@/i18n/client";
 import { localeMeta } from "@/i18n/config";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ImagePlus, Lightbulb } from "lucide-react";
-import { PagePreview } from "./preview/PagePreview";
 import { AddQuestion } from "./questions/AddQuestion";
 import { ChapterNav } from "./questions/ChapterNav";
 import { Drawer } from "./questions/Drawer";
@@ -17,7 +16,8 @@ import { PhotoStrip } from "./questions/PhotoStrip";
 import { ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { AnswerToolbar, EditorTopBar } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
-import { usePageEstimate } from "./questions/usePageEstimate";
+import { answerPagesOf, useBookPages } from "./questions/usePageEstimate";
+import { PreviewPane } from "./questions/PreviewPane";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
@@ -25,14 +25,16 @@ import { SaveIndicator } from "@/components/SaveIndicator";
 import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
-import { groupByChapter, previewChapters, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
+import { groupByChapter, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import { cn } from "@/lib/class-names";
 
+const NO_EPIGRAPHS: Record<string, string> = {};
+
 export function QuestionsEditor({
   book,
-  epigraphs = {},
+  epigraphs = NO_EPIGRAPHS,
   initialQuestions,
   initialIndex,
   initialPhotos,
@@ -144,6 +146,12 @@ export function QuestionsEditor({
   }, [goTo, index]);
 
   const groups = useMemo(() => groupByChapter(questions), [questions]);
+  // Оглавление получает стабильный обработчик, чтобы не перерисовываться на каждый символ.
+  const goToRef = useRef(goTo);
+  useLayoutEffect(() => {
+    goToRef.current = goTo;
+  });
+  const pick = useCallback((i: number) => goToRef.current(i), []);
 
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
@@ -161,7 +169,8 @@ export function QuestionsEditor({
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
-  const { pages, answerPages } = usePageEstimate({ book, format, design, questions, photos, letters, current: q });
+  const pages = useBookPages(book, questions, photos, letters);
+  const answerPages = answerPagesOf(q, qPhotos, format, design);
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
 
   const previewProps = {
@@ -169,7 +178,9 @@ export function QuestionsEditor({
     format,
     design,
     bookTitle: book.title,
-    chapters: previewChapters(groups, photos, epigraphs, q.id),
+    questions,
+    photos,
+    epigraphs,
     currentId: q.id,
     selectedId: selectedPhoto?.id ?? null,
     onSelect: setSelectedPhotoId,
@@ -195,7 +206,7 @@ export function QuestionsEditor({
   const dictateControl = (className: string, compact: boolean) =>
     editable && dictation.supported ? <DictationControl dictation={dictation} lang={lang} onLang={setLang} onToggle={toggleDictation} compact={compact} className={className} /> : null;
 
-  const sidebar = <ChapterNav groups={groups} current={index} onPick={goTo} />;
+  const sidebar = <ChapterNav groups={groups} current={index} onPick={pick} />;
 
   return (
     <div className={cn("mx-auto px-4 pt-4 pb-28 sm:px-6 sm:py-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
@@ -341,7 +352,7 @@ export function QuestionsEditor({
 
           {showPreview && !focus ? (
             <div className="mt-6 xl:hidden">
-              <PagePreview {...previewProps} className="max-h-[75dvh] overflow-y-auto rounded-3xl bg-cream/60 p-4" />
+              <PreviewPane {...previewProps} className="max-h-[75dvh] overflow-y-auto rounded-3xl bg-cream/60 p-4" />
             </div>
           ) : null}
         </section>
@@ -351,7 +362,7 @@ export function QuestionsEditor({
           <aside className="hidden xl:block">
             <div className="sticky top-20 space-y-4">
               <div className="text-xs font-medium tracking-wider text-muted uppercase">{t.inBook}</div>
-              <PagePreview {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
+              <PreviewPane {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
               <ProgressCard answered={answeredCount} total={questions.length} />
             </div>
           </aside>
@@ -405,7 +416,7 @@ export function QuestionsEditor({
 
       {drawer ? (
         <Drawer onClose={() => setDrawer(false)}>
-          <ChapterNav groups={groups} current={index} onPick={goTo} />
+          <ChapterNav groups={groups} current={index} onPick={pick} />
         </Drawer>
       ) : null}
     </div>

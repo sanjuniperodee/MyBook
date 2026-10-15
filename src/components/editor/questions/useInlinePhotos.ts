@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toastError } from "@/components/ui/overlays";
 import { apiFetch } from "@/lib/client-api";
 import type { EditorPhoto } from "@/lib/book/editor-model";
@@ -14,21 +14,29 @@ export function useInlinePhotos({ bookId, editable, initialPhotos }: { bookId: s
   const [photos, setPhotos] = useState(initialPhotos);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
+  // Актуальные фото для обработчиков: updateInline стабилен, чтобы превью не перерисовывалось из-за нового обработчика.
+  const photosRef = useRef(photos);
+  useLayoutEffect(() => {
+    photosRef.current = photos;
+  });
   const inlineTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const updateInline = (id: string, patch: Partial<InlinePhotoStyle>) => {
-    if (!editable) return;
-    const cur = photos.find((p) => p.id === id);
-    if (!cur) return;
-    const inline = normalizeStyle({ ...normalizeStyle(cur.inline), ...patch });
-    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, inline } : p)));
-    clearTimeout(inlineTimers.current.get(id));
-    inlineTimers.current.set(
-      id,
-      setTimeout(() => {
-        apiFetch(`/api/books/${bookId}/photos/${id}`, { method: "PATCH", json: { inline } }).catch((e) => toastError(e));
-      }, 350),
-    );
-  };
+  const updateInline = useCallback(
+    (id: string, patch: Partial<InlinePhotoStyle>) => {
+      if (!editable) return;
+      const cur = photosRef.current.find((p) => p.id === id);
+      if (!cur) return;
+      const inline = normalizeStyle({ ...normalizeStyle(cur.inline), ...patch });
+      setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, inline } : p)));
+      clearTimeout(inlineTimers.current.get(id));
+      inlineTimers.current.set(
+        id,
+        setTimeout(() => {
+          apiFetch(`/api/books/${bookId}/photos/${id}`, { method: "PATCH", json: { inline } }).catch((e) => toastError(e));
+        }, 350),
+      );
+    },
+    [bookId, editable],
+  );
 
   const rotatePhoto = async (id: string) => {
     try {

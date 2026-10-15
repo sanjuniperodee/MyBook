@@ -2,7 +2,7 @@
 
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
-import { useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent } from "react";
 import type { PreviewChapter } from "@/lib/book/editor-model";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
@@ -25,7 +25,7 @@ import { usePhotoDrag } from "./usePhotoDrag";
  * Если передан onChange, фото текущего ответа интерактивны: щелчок выделяет, уголок меняет размер,
  * перетаскивание переносит фото в другое место текста.
  */
-export function PagePreview({
+function PagePreviewView({
   format,
   design,
   bookTitle,
@@ -136,3 +136,6 @@ export function PagePreview({
     </div>
   );
 }
+
+/** Превью перерисовывается, только когда меняются его данные: книга в редакторе приходит отложенно (useDeferredValue). */
+export const PagePreview = memo(PagePreviewView);

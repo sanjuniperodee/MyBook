@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useDeferredValue, useEffect, useRef, useState } from "react";
 import { Check, Search } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import type { ChapterGroup } from "@/lib/book/editor-model";
 import { cn } from "@/lib/class-names";
 
 /** Оглавление вопросов по главам: поиск, «только без ответа», текущая глава раскрыта. */
-export function ChapterNav({ groups, current, onPick }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
+function ChapterNavView({ groups, current, onPick }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
   const t = useMessages().editor;
   const currentKey = groups.find((g) => g.items.some((x) => x.i === current))?.key;
   const [open, setOpen] = useState<string | undefined>(currentKey);
@@ -82,4 +82,15 @@ export function ChapterNav({ groups, current, onPick }: { groups: ChapterGroup[]
       </ol>
     </div>
   );
+}
+
+const ChapterNavList = memo(ChapterNavView);
+
+/**
+ * Оглавление получает главы отложенно (useDeferredValue): отметки «есть ответ» догоняют ввод, а сам список
+ * перерисовывается, только когда меняются главы или текущий вопрос.
+ */
+export function ChapterNav({ groups, ...rest }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
+  const deferred = useDeferredValue(groups);
+  return <ChapterNavList groups={deferred} {...rest} />;
 }
