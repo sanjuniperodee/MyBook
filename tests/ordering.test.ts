@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EventBus } from "@/shared/application";
-import { isPaid, Order, OrderingError, PromoCode } from "@/modules/ordering/domain";
+import { canDownloadFile, filePermission, isPaid, Order, OrderingError, PromoCode } from "@/modules/ordering/domain";
 import { ORDER_STATUSES } from "@/shared/domain/orders";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { PromoService } from "@/modules/ordering/application/PromoService";
@@ -397,5 +397,35 @@ describe("Ordering: коды-приглашения", () => {
 
     books.books.set("book-3", { userId: "friend-owner", status: "draft", blocking: null });
     await expect(place({ userId: "friend-owner", bookId: "book-3", promoCode: "ASEL-7K2Q" })).rejects.toMatchObject({ code: "ownCode" });
+  });
+});
+
+describe("Ordering: доступ к файлам заказа", () => {
+  const order = (status: "pending_payment" | "paid") => ({ userId: "u1", status });
+  const owner = { userId: "u1", can: () => false };
+  const stranger = { userId: "u2", can: () => false };
+  const printed = { printed: true };
+  const digital = { printed: false };
+
+  it("сотрудник: читательская версия по orders.view, файлы типографии — по orders.files", () => {
+    const viewer = { userId: "s", can: (p: string) => p === "orders.view" };
+    expect(canDownloadFile(order("pending_payment"), printed, "reading", viewer)).toBe("staff");
+    expect(canDownloadFile(order("pending_payment"), printed, "block", viewer)).toBe("notFound");
+    const files = { userId: "s", can: (p: string) => p === "orders.files" };
+    expect(canDownloadFile(order("pending_payment"), printed, "block", files)).toBe("staff");
+    expect(filePermission("spec")).toBe("orders.files");
+  });
+
+  it("покупатель: после оплаты — читательская версия, файлы печати только в электронном тарифе", () => {
+    expect(canDownloadFile(order("pending_payment"), digital, "reading", owner)).toBe("notReady");
+    expect(canDownloadFile(order("paid"), printed, "reading", owner)).toBe("owner");
+    expect(canDownloadFile(order("paid"), printed, "cover", owner)).toBe("notReady");
+    expect(canDownloadFile(order("paid"), digital, "cover", owner)).toBe("owner");
+    // тарифа больше нет в каталоге — как раньше, считается электронным
+    expect(canDownloadFile(order("paid"), undefined, "layout", owner)).toBe("owner");
+  });
+
+  it("чужой заказ — «не найден», даже оплаченный", () => {
+    expect(canDownloadFile(order("paid"), digital, "reading", stranger)).toBe("notFound");
   });
 });

@@ -2,13 +2,13 @@ import { api, apiUser, HttpError } from "@/server/api";
 import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import type { PrintFileKind as OrderFileKind } from "@/modules/production";
-import { isPaid } from "@/modules/ordering/domain";
+import { canDownloadFile, type OrderFile } from "@/modules/ordering/domain";
 import { getPlan } from "@/config/site";
 import { idParams } from "@/server/input";
 
 export const maxDuration = 300;
 
-const kinds: Record<OrderFileKind, { type: string; name: (n: number) => string }> = {
+const kinds: Record<OrderFile & OrderFileKind, { type: string; name: (n: number) => string }> = {
   reading: { type: "application/pdf", name: (n) => `mybook-${n}.pdf` },
   block: { type: "application/pdf", name: (n) => `order-${n}-block.pdf` },
   cover: { type: "application/pdf", name: (n) => `order-${n}-cover.pdf` },
@@ -23,17 +23,11 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   const c = container();
   const order = await c.ordering.queries.orderDetails(id);
   if (!order) throw new HttpError(404, "orderNotFound");
-  // Сотруднику нужны права: читательская версия — orders.view, файлы для типографии — orders.files.
   const staff = await getStaff();
-  const isAdmin = can(staff, kind === "reading" ? "orders.view" : "orders.files");
-  if (!isAdmin) {
-    if (order.userId !== user.id) throw new HttpError(404, "orderNotFound");
-    const paid = isPaid(order.status);
-    const digital = !getPlan(order.plan)?.printed;
-    // Покупателю доступна читательская версия после оплаты; файлы для печати — в электронном тарифе.
-    if (!paid || (kind !== "reading" && !digital)) throw new HttpError(403, "fileNotReady");
-  }
-  const force = isAdmin && new URL(req.url).searchParams.get("regenerate") === "1";
+  const access = canDownloadFile(order, getPlan(order.plan), kind as OrderFile, { userId: user.id, can: (p) => can(staff, p) });
+  if (access === "notFound") throw new HttpError(404, "orderNotFound");
+  if (access === "notReady") throw new HttpError(403, "fileNotReady");
+  const force = access === "staff" && new URL(req.url).searchParams.get("regenerate") === "1";
   const data = await c.printFiles.getFile({ orderId: order.id, bookId: order.bookId, number: order.number }, kind as OrderFileKind, { force });
   const meta = kinds[kind as OrderFileKind];
   return new Response(new Uint8Array(data), {

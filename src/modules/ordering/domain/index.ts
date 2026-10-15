@@ -1,5 +1,6 @@
 export * from "./errors";
 export * from "./events";
+export * from "./fileAccess";
 export * from "./GiftCard";
 export * from "./kaspi";
 export * from "./Order";
