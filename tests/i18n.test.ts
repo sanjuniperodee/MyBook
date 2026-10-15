@@ -104,7 +104,6 @@ describe("нет русских строк вне словарей", () => {
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
-    "shared/infrastructure/db/schema.ts",
     "shared/domain/channels.ts", // подписи каналов привлечения для CRM — на русском
     "shared/domain/slug.ts", // таблица транслитерации кода ссылки
     "shared/domain/dealSources.ts", // подписи источников сделки для CRM — на русском
