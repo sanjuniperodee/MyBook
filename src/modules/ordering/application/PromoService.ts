@@ -60,6 +60,10 @@ export class PromoService {
     return this.promos.findByOwner(ownerId);
   }
 
+  findByCodes(codes: string[]) {
+    return this.promos.findByCodes(codes);
+  }
+
   findByCode(code: string) {
     return this.promos.findByCode(code);
   }

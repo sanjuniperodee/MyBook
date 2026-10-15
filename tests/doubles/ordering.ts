@@ -95,6 +95,10 @@ export class MemPromos implements PromoCodeRepository {
   async findByCode(code: string) {
     return this.load([...this.rows.values()].find((r) => r.code === code.trim().toUpperCase()));
   }
+  async findByCodes(codes: string[]) {
+    const set = new Set(codes.map((c) => c.trim().toUpperCase()));
+    return [...this.rows.values()].filter((r) => set.has(r.code)).map((r) => this.load(r)!);
+  }
   async findById(id: string) {
     return this.load(this.rows.get(id));
   }

@@ -300,8 +300,9 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
   }
   let done = 0;
   let skipped = 0;
+  const deals = new Map((await container().sales.deals.findByIds(list)).map((d) => [d.id, d]));
   for (const id of list) {
-    const deal = await container().sales.deals.findById(id);
+    const deal = deals.get(id);
     if (!deal || (staff.scope !== "all" && deal.assigneeId && deal.assigneeId !== staff.user.id)) {
       skipped++;
       continue;

@@ -51,6 +51,11 @@ export class DrizzleDealRepository implements DealRepository {
     return r ? toDomain(r) : null;
   }
 
+  async findByIds(ids: string[]) {
+    const list = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    return list.length ? (await executor().select().from(crmDeals).where(inArray(crmDeals.id, list))).map(toDomain) : [];
+  }
+
   async findByOrder(orderId: string) {
     return (await executor().select().from(crmDeals).where(eq(crmDeals.orderId, orderId))).map(toDomain);
   }

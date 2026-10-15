@@ -93,6 +93,7 @@ class MemDeals implements DealRepository {
   };
   nextIdentity = async () => ({ id: `d${++this.seq}`, number: this.seq });
   findById = async (id: string) => this.load(id);
+  findByIds = async (ids: string[]) => ids.flatMap((id) => this.load(id) ?? []);
   findByOrder = async (orderId: string) => [...this.rows.values()].filter((r) => r.orderId === orderId).map((r) => this.load(r.id)!);
   findOpen = async (o: { clientId?: string | null }) => {
     const r = [...this.rows.values()].find((d) => d.clientId === o.clientId && funnel.stage(d.stageId)?.kind === "open");
@@ -136,6 +137,17 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
 }
 
 describe("DealsService", () => {
+  it("findByIds — одним запросом к хранилищу, в порядке запроса, без ненайденных (F4)", async () => {
+    const { service, deals } = setup();
+    const a = await service.create({ title: "А", source: "site", clientId: "c1" });
+    const b = await service.create({ title: "Б", source: "site", clientId: "c1" });
+    const calls: string[][] = [];
+    const findByIds = deals.findByIds;
+    deals.findByIds = async (ids) => (calls.push(ids), findByIds(ids));
+    expect((await service.findByIds([b.id, "нет", a.id])).map((d) => d.title)).toEqual(["Б", "А"]);
+    expect(calls).toEqual([[b.id, "нет", a.id]]);
+  });
+
   it("ответственный и UTM клиента переходят в сделку; без клиента — «Неразобранное»", async () => {
     const { service, uow } = setup();
     const known = await service.create({ title: "Сайт", source: "site", clientId: "c1" });

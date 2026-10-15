@@ -21,8 +21,8 @@ export function referralPromos(promos: OrderingModule["promos"], now: () => Date
     },
     issueReward: async (input) => (await promos.issuePersonal(input))?.code ?? null,
     status: async (codes) => {
-      const found = await Promise.all(codes.map((c) => promos.findByCode(c)));
-      return new Map(found.flatMap((p) => (p ? [[p.code, { used: p.rejection(now()) === "used", expiresAt: p.expiresAt }] as const] : [])));
+      const found = await promos.findByCodes(codes);
+      return new Map(found.map((p) => [p.code, { used: p.rejection(now()) === "used", expiresAt: p.expiresAt }] as const));
     },
   };
 }

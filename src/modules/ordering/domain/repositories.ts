@@ -21,6 +21,8 @@ export interface OrderRepository {
 export interface PromoCodeRepository {
   nextId(): string;
   findByCode(code: string): Promise<PromoCode | null>;
+  /** Несколько кодов одним запросом; ненайденных в ответе нет. */
+  findByCodes(codes: string[]): Promise<PromoCode[]>;
   findById(id: string): Promise<PromoCode | null>;
   /** Код-приглашение, который клиент раздаёт друзьям. */
   findByOwner(ownerId: string): Promise<PromoCode | null>;

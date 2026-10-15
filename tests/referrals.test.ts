@@ -110,3 +110,19 @@ describe("ReferralService", () => {
     expect((await service.summary("asel")).rewards[0].used).toBe(true);
   });
 });
+
+describe("Порт промокодов для приглашений (server/promo-ports)", () => {
+  it("состояние наград — один запрос findByCodes на все коды, ненайденные пропускаются (F4)", async () => {
+    const { referralPromos } = await import("@/server/promo-ports");
+    const { PromoCode } = await import("@/modules/ordering/domain");
+    const now = new Date("2026-03-01");
+    const created = PromoCode.create("p1", { code: "R-1", kind: "percent", value: 10, maxUses: 1, expiresAt: new Date("2026-04-01") }, now).snapshot();
+    const used = PromoCode.restore("p1", { ...created, usedCount: 1 });
+    const fresh = PromoCode.create("p2", { code: "R-2", kind: "percent", value: 10, maxUses: 1, expiresAt: null }, now);
+    const calls: string[][] = [];
+    const promos = { findByCodes: async (codes: string[]) => (calls.push(codes), [used, fresh]), findByCode: async () => { throw new Error("по одному не ищем"); } };
+    const status = await referralPromos(promos as never, () => now).status(["R-1", "R-2", "R-3"]);
+    expect(calls).toEqual([["R-1", "R-2", "R-3"]]);
+    expect([...status]).toEqual([["R-1", { used: true, expiresAt: new Date("2026-04-01") }], ["R-2", { used: false, expiresAt: null }]]);
+  });
+});

@@ -206,6 +206,12 @@ export class DealsService {
     return (await this.deals.findById(dealId))?.snapshot() ?? null;
   }
 
+  /** Сделки по списку id — одним запросом; порядок как в ids, ненайденных нет. */
+  async findByIds(ids: string[]) {
+    const found = new Map((await this.deals.findByIds(ids)).map((d) => [d.id, d.snapshot()]));
+    return ids.flatMap((id) => found.get(id) ?? []);
+  }
+
   async findOpen(opts: { clientId?: string | null; phone?: string | null }) {
     return (await this.deals.findOpen(opts))?.snapshot() ?? null;
   }
