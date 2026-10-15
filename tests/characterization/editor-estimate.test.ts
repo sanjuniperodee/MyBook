@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { editorModel, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
-import { getFormat, printablePageCount, type BookFormat } from "@/lib/book/formats";
+import { editorModel, type EditorBook } from "@/lib/book/editor-model";
+import { editorEstimate } from "@/lib/book/editor-estimate";
+import { printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { estimatePages, type BookContent, type ContentChapter } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/layout";
 import { fixtureVariants, type FixtureBook } from "../fixtures/books";
 import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
 /**
- * Характеристика собственной оценки объёма в редакторе (QuestionsEditor, useMemo pages): содержимое она собирает
+ * Характеристика оценки объёма в редакторе (editorEstimate, ею считает QuestionsEditor): содержимое она собирает
  * сама, а не через buildBookContent, и с ним расходится (B3). Снимок — по всем книгам набора и вариантам; таблица
  * расхождений с estimatePages(buildBookContent) и с полосами PDF — «так сейчас».
  */
@@ -27,47 +28,7 @@ function editorInput({ bundle }: FixtureBook) {
     language: book.language,
     names: [book.authorName, book.recipientName].filter(Boolean),
   };
-  return { questions, photos, book: editorBook, format: getFormat(editorBook.format) };
-}
-
-/**
- * Копия QuestionsEditor.tsx@8ae30f9 (useMemo pages, строки 259–293), удалить в C7 — вынесенная функция должна
- * повторить этот снимок. Тело дословное (с точностью до отступа), добавлена только обёртка в функцию.
- */
-function editorEstimate(questions: EditorQuestion[], photos: EditorPhoto[], format: BookFormat, book: EditorBook) {
-  const chapters: ContentChapter[] = [];
-  for (const x of questions) {
-    if (!x.answer.trim()) continue;
-    let ch = chapters[chapters.length - 1];
-    if (!ch || ch.key !== x.chapter) {
-      ch = { key: x.chapter, number: chapters.length + 1, title: x.chapterTitle, items: [], photos: [] };
-      chapters.push(ch);
-    }
-    const inline = photos.filter((p) => p.questionId === x.id).map((p) => ({ ...p, storageKey: "", thumbKey: "" }));
-    ch.items.push({ id: x.id, heading: x.hideHeading ? null : (x.displayText ?? x.defaultTitle), answer: x.answer, photos: inline });
-  }
-  const loose = photos.filter((p) => !p.questionId).map((p) => ({ ...p, storageKey: "", thumbKey: "" }));
-  const toGallery = book.photoPlacement === "end" || !chapters.length;
-  if (!toGallery) loose.forEach((p, i) => chapters[Math.min(chapters.length - 1, Math.floor((i * chapters.length) / loose.length))].photos.push(p));
-  const interior = getInteriorDesign(book.interior);
-  // Как в buildBookContent: в оформлениях с фото в начале главы первое фото главы уходит на её начальную полосу.
-  if (interior.opener.photo) for (const ch of chapters) ch.openerPhoto = ch.photos.shift();
-  const content: BookContent = {
-    language: book.language,
-    format,
-    interior,
-    title: book.title,
-    subtitle: "",
-    authorName: "",
-    recipientName: "",
-    dedication: book.dedication,
-    showToc: book.showToc,
-    chapters,
-    galleryPhotos: toGallery ? loose : [],
-    year: 2000,
-  };
-  const raw = chapters.length ? estimatePages(content) : 0;
-  return { raw, printed: raw ? printablePageCount(raw) : 0 };
+  return { questions, photos, book: editorBook };
 }
 
 const variants = new Set(fixtureVariants().map((v) => v.key));
@@ -77,7 +38,7 @@ const books = characterizationBooks().map((fb) => {
   // Группа для таблицы расхождений: у книг группы числа одинаковые. Варианты — по имени.
   const opener = getInteriorDesign(book.interior).opener.photo ? " · фото на начальной полосе" : "";
   const group = variants.has(fb.key) ? fb.key : `${book.format === "a5" ? "A5" : "квадрат"} ${book.language}${opener}`;
-  return { key: fb.key, group, editor: editorEstimate(input.questions, input.photos, input.format, input.book), estimate: estimatePages(contentOf(fb)) };
+  return { key: fb.key, group, editor: editorEstimate(input.questions, input.photos, input.book), estimate: estimatePages(contentOf(fb)) };
 });
 type Row = (typeof books)[number];
 
