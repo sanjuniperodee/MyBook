@@ -4,15 +4,16 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { env } from "@/config/env";
-import { formatPrice, getPlan, getVisiblePlans } from "@/config/site";
+import { getPlan, getVisiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
-import { channels, isManualChannel, manualAttribution } from "@/shared/domain/channels";
+import type { OnboardingResult } from "@/modules/clients";
+import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
-import { assertStaff, audit, can, canAssignOthers, type Staff } from "@/server/access";
+import { assertStaff, audit, can, canAssignOthers } from "@/server/access";
 import { container } from "@/server/container";
 
 export interface NewClientDone {
@@ -65,12 +66,10 @@ const schema = z.object({
   channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент (канал продаж)"),
 });
 
-const ruDate = (iso: string) => iso.split("-").reverse().join(".");
-
 /**
- * Менеджер заводит клиента: аккаунт с логином и паролем (по телефону, если почты нет), сделка в воронке
- * с суммой договорённости и предоплатой, заметка с условиями и задачи (срок, остаток к оплате).
- * Пароль возвращается один раз — в базе остаётся только его хэш.
+ * Менеджер заводит клиента. Сценарий — ClientOnboardingService (modules/clients): аккаунт, профиль, сделка,
+ * предоплата, заметка с условиями и задачи. Здесь — форма, права и ответ: пароль возвращается один раз,
+ * в базе остаётся только его хэш.
  */
 export async function createClientAction(_: NewClientState, form: FormData): Promise<NewClientState> {
   const staff = await assertStaff("clients.create");
@@ -79,16 +78,32 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const parsed = schema.safeParse(values);
   if (!parsed.success) return fail(parsed.error.issues[0].message);
   const d = parsed.data;
-  const channel = d.channel as Parameters<typeof manualAttribution>[0];
+  const channel = d.channel as ManualChannel;
   const withDeal = d.createDeal === "on" && can(staff, "deals.edit");
   if (withDeal && d.prepaid > d.agreed) return fail("Предоплата не может быть больше суммы договорённости");
   if (withDeal && !getVisiblePlans().some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
   if (!normalizePhone(d.phone) || normalizePhone(d.phone).length < 10) return fail("Проверьте номер телефона");
 
   const password = d.password || generateAccessPassword();
-  let account: { id: string; login: string };
+  const plan = getPlan(d.plan);
+  let result: OnboardingResult;
   try {
-    account = await container().identity.accounts.provisionClient({ name: d.name, phone: d.phone, email: d.email || null, password, locale: d.locale });
+    result = await container().clients.onboarding.onboard(
+      {
+        name: d.name,
+        phone: d.phone,
+        email: d.email,
+        locale: d.locale,
+        password,
+        city: d.city,
+        recipient: d.recipient,
+        channel,
+        // Ответственный: сам менеджер (роль «только свои» видит лишь своих клиентов), руководитель может назначить другого.
+        assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : staff.user.id,
+        deal: withDeal ? { agreed: d.agreed, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan } : null,
+      },
+      { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
+    );
   } catch (err) {
     if (IdentityError.is(err)) {
       if (err.code === "exists") return fail("Клиент с таким телефоном или почтой уже есть", { existingId: (err as unknown as { existingId?: string }).existingId });
@@ -98,47 +113,8 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
     }
     throw err;
   }
-
-  // Ответственный: сам менеджер (роль «только свои» видит лишь своих клиентов), руководитель может назначить другого.
-  const assigneeId = d.assigneeId && canAssignOthers(staff) ? d.assigneeId : staff.user.id;
-  const crm = container().clients;
-  const profile = await crm.clients.find(account.id);
-  if (profile) {
-    await crm.clients.setManager(profile, assigneeId);
-    await crm.clients.setTags(account.id, ["вручную", ...(withDeal && d.prepaid > 0 ? ["предоплата"] : [])]);
-  }
-  // Канал привлечения ставим до сделки: она подхватывает метки клиента, и отчёты по каналам сразу видят эту продажу.
-  await crm.clients.setSource(account.id, manualAttribution(channel) as Record<string, string>);
-
-  const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
-  let deal: { id: string; number: number } | null = null;
-  let paymentId: string | null = null;
-  let tasks = 0;
-  if (withDeal) deal = await createDeal(staff, assigneeId, account.id, d);
-  // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
-  if (deal && d.prepaid > 0) paymentId = (await container().sales.payments.add({ dealId: deal.id, clientId: account.id, amount: d.prepaid, createdById: staff.user.id })).id;
-  if (deal) {
-    const plan = getPlan(d.plan);
-    const terms = [
-      `Канал: ${channels[channel]}.`,
-      d.recipient ? `Кому книга: ${d.recipient}.` : null,
-      `Клиент: ${d.name}${d.city ? `, г. ${d.city}` : ""}, тел. ${displayLogin(normalizePhone(d.phone))}${d.email ? `, ${d.email}` : ""}, язык — ${d.locale === "kk" ? "казахский" : "русский"}.`,
-      d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
-      `Тариф: ${plan ? planLabels[plan.id].toLowerCase() : d.plan} (зафиксирован для заказа клиента).`,
-      `Договорились на ${formatPrice(d.agreed)} за книгу (доставка и допы — сверху); предоплата ${formatPrice(d.prepaid)}${d.agreed > d.prepaid ? `; остаток ${formatPrice(d.agreed - d.prepaid)}` : ""}.`,
-      d.comment || null,
-      d.email ? null : "Почты нет: клиент входит по телефону.",
-    ].filter(Boolean) as string[];
-    await crm.notes.add(actor, { kind: "note", text: terms.join("\n"), clientId: account.id, dealId: deal.id });
-    if (d.deadline) {
-      await crm.tasks.create(actor, { title: `Книга для клиента ${d.name}: готова и передана до ${ruDate(d.deadline)} — желательно раньше`, kind: "task", dueAt: d.deadline, dealId: deal.id, clientId: account.id, assigneeId });
-      tasks++;
-    }
-    if (d.agreed > d.prepaid) {
-      await crm.tasks.create(actor, { title: `Получить остаток ${formatPrice(d.agreed - d.prepaid)} от ${d.name}`, kind: "task", dueAt: d.deadline || undefined, dealId: deal.id, clientId: account.id, assigneeId });
-      tasks++;
-    }
-  }
+  const { deal, paymentId, tasks } = result;
+  const account = { id: result.clientId, login: result.login };
 
   await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, agreed: d.agreed, prepaid: d.prepaid, channel, plan: withDeal ? d.plan : null });
   revalidatePath("/admin/clients");
@@ -162,32 +138,6 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
       tasks,
     },
   };
-}
-
-async function createDeal(staff: Staff, assigneeId: string, clientId: string, d: z.infer<typeof schema>) {
-  const custom: Record<string, string | number> = {};
-  if (d.recipient) custom.recipient = d.recipient;
-  if (d.deadline) custom.event_date = d.deadline;
-  const deals = container().sales.deals;
-  // Этап по умолчанию — «Взяли в работу»: договорённость уже есть, это не новая заявка.
-  const stages = await container().sales.queries.listStages();
-  const stageId = d.stageId || stages.find((s) => s.kind === "open" && s.name === "Взяли в работу")?.id;
-  const deal = await deals.create({
-    title: d.recipient ? `Книга — ${d.name} (${d.recipient})` : `Книга — ${d.name}`,
-    source: "manual",
-    clientId,
-    contactName: d.name,
-    contactPhone: normalizePhone(d.phone),
-    contactEmail: d.email || null,
-    amount: d.agreed,
-    assigneeId,
-    createdById: staff.user.id,
-    stageId,
-    customFields: custom,
-  });
-  await container().sales.agreedPlan.set(deal.id, d.plan);
-  for (const tag of ["вручную", ...(d.prepaid > 0 ? ["предоплата"] : []), ...(d.city ? [d.city.toLowerCase().slice(0, 30)] : [])]) await deals.addTag(deal.id, tag);
-  return { id: deal.id, number: deal.number };
 }
 
 /** Выдать клиенту новый пароль (потерял, не получил): прежние входы завершаются. Пароль показывается один раз. */

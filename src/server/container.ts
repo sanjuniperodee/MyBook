@@ -157,7 +157,19 @@ export class Container {
   }
 
   get clients(): ClientsModule {
-    return (this.#clients ??= new ClientsModule({ clock: this.clock, notifier: this.workspace.notifier }));
+    return (this.#clients ??= new ClientsModule({
+      clock: this.clock,
+      notifier: this.workspace.notifier,
+      // Онбординг клиента ходит в identity и sales через порты — модули друг друга не знают.
+      accounts: { provisionClient: (input) => this.identity.accounts.provisionClient(input) },
+      sales: {
+        stages: () => this.sales.queries.listStages(),
+        createDeal: (input) => this.sales.deals.create(input),
+        setAgreedPlan: async (dealId, plan) => void (await this.sales.agreedPlan.set(dealId, plan)),
+        tagDeal: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
+        addPayment: (input) => this.sales.payments.add(input),
+      },
+    }));
   }
 
   get assistant(): AssistantModule {
