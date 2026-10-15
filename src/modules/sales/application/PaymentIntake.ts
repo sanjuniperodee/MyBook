@@ -7,12 +7,13 @@ export interface PaymentStore {
   paidTotal(dealId: string): Promise<number>;
   /** Удалить платёж — откат, если чек к нему записать не удалось. */
   remove(id: string): Promise<void>;
+  find(id: string): Promise<{ dealId: string } | null>;
 }
 
 /** Хранилище чеков (infrastructure/receipts.ts): сначала файл (stage), затем запись о нём (record); discard убирает файл. */
 export interface ReceiptStore<S = unknown> {
   stage(input: { dealId: string; bytes: Buffer; fileName: string }): Promise<S>;
-  record(staged: S, input: { clientId: string | null; paymentId: string; amount: number; uploadedById: string }): Promise<IntakeReceipt>;
+  record(staged: S, input: { clientId: string | null; paymentId: string | null; amount: number; uploadedById: string }): Promise<IntakeReceipt>;
   discard(staged: S): Promise<void>;
 }
 
@@ -27,6 +28,10 @@ export interface IntakePayment {
 export interface IntakeReceipt {
   id: string;
   fileName: string;
+  amount: number;
+  mime: string;
+  size: number;
+  createdAt: Date;
 }
 
 /** Кто принимает деньги — сотрудник CRM, как его видят заметки клиента. */
@@ -103,5 +108,28 @@ export class PaymentIntakeService<S = unknown> {
     await this.effects.audit({ actorId: actor.userId, action: "payment.add", entity: "deal", entityId: deal.id, details: { payment: payment.id, amount: payment.amount, receipt: receipt.id } });
     await this.effects.mailClient({ clientId: deal.clientId, dealNumber: deal.number, kind: refund ? "refund" : "payment", amount: payment.amount, left: Math.max(0, deal.amount - (await this.payments.paidTotal(deal.id))) });
     return { payment, receipt };
+  }
+
+  /**
+   * Приложить чек к сделке — без денег (форма «Новый клиент» догружает чек к созданному платежу; можно и просто чек).
+   * Платёж, если указан, — только этой сделки; иначе null и ничего не записано. Заметка о чеке и запись в журнале.
+   */
+  async attachReceipt(input: { deal: { id: string; clientId: string | null }; paymentId: string | null; amount: number; receipt: { bytes: Buffer; fileName: string }; actor: IntakeActor }): Promise<IntakeReceipt | null> {
+    const { deal, actor } = input;
+    if (input.paymentId) {
+      const payment = await this.payments.find(input.paymentId);
+      if (!payment || payment.dealId !== deal.id) return null;
+    }
+    const staged = await this.receipts.stage({ dealId: deal.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName });
+    let receipt: IntakeReceipt;
+    try {
+      receipt = await this.receipts.record(staged, { clientId: deal.clientId, paymentId: input.paymentId, amount: input.amount, uploadedById: actor.userId });
+    } catch (err) {
+      await this.receipts.discard(staged);
+      throw err;
+    }
+    await this.effects.note(actor, { text: `Приложен чек${receipt.amount ? ` на ${formatPrice(receipt.amount)}` : ""}: ${receipt.fileName}`, dealId: deal.id, clientId: deal.clientId });
+    await this.effects.audit({ actorId: actor.userId, action: "receipt.add", entity: "deal", entityId: deal.id, details: { receipt: receipt.id, amount: receipt.amount } });
+    return receipt;
   }
 }
