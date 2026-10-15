@@ -1,7 +1,7 @@
 import { Heart } from "lucide-react";
 import { formatPrice, getPlan, site, type PlanId } from "@/config/site";
 import type { Locale } from "@/i18n/config";
-import { messagesFor } from "@/i18n/messages";
+import { giftCardMessagesFor, plansFor } from "@/i18n/messages/partial";
 import { cn } from "@/lib/class-names";
 
 /** HTML-копия PDF-сертификата: живое превью при покупке и на странице сертификата. Язык — язык сертификата. */
@@ -23,8 +23,7 @@ export function GiftCardVisual({
   className?: string;
 }) {
   const p = getPlan(plan);
-  const m = messagesFor(locale);
-  const t = m.gift.card;
+  const t = giftCardMessagesFor(locale);
   return (
     <div className={cn("@container aspect-[210/148] w-full bg-[#fbf7f1] p-[4.3%] shadow-[0_30px_60px_-30px_rgba(60,20,20,.45),0_2px_6px_rgba(0,0,0,.06)]", className)}>
       <div className="h-full border border-wine p-[1.5%]" lang={locale}>
@@ -40,7 +39,7 @@ export function GiftCardVisual({
           <div className="flex w-[30%] shrink-0 flex-col items-center justify-center border-l border-[#d9c9bc] pl-[4%] text-center">
             <Heart className="size-[7cqw] fill-wine text-wine" />
             <div className="mt-[2cqw] text-[2.3cqw] text-muted">{t.book}</div>
-            <div className="font-serif text-[3.8cqw] leading-tight font-semibold">«{p ? m.common.plans[p.id as PlanId].name : plan}»</div>
+            <div className="font-serif text-[3.8cqw] leading-tight font-semibold">«{p ? plansFor(locale)[p.id as PlanId].name : plan}»</div>
             <div className="text-[2.2cqw] text-muted">{p ? t.amount(formatPrice(p.price)) : ""}</div>
             <div className="mt-[2.8cqw] w-full rounded-[0.8cqw] border border-dashed border-wine bg-white px-[1cqw] py-[1.4cqw]">
               <div className="text-[1.7cqw] tracking-widest text-muted">{t.code}</div>

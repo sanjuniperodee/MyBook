@@ -1,4 +1,5 @@
 import type { api as ru } from "../ru/api";
+import { review } from "./review";
 
 export const api: typeof ru = {
   widgetPhone: "Қайта қоңырау шалуымыз үшін телефон нөмірін көрсетіңіз",
@@ -48,7 +49,7 @@ export const api: typeof ru = {
   reviewInvalid: "Бағаны және есімді тексеріңіз",
   reviewLocked: "Пікір тексерілді — оны өзгертуге болмайды. Түзету керек болса, бізге жазыңыз",
   reviewNotPublishable: "Автордың келісімі бар және мәтіні кемінде 20 таңба пікірді ғана жариялауға болады",
-  reviewPhotoInvalid: "Фотоны оқу мүмкін болмады — 15 МБ-қа дейінгі JPG немесе PNG жүктеңіз",
+  reviewPhotoInvalid: review.photoInvalid,
   reviewRate: "Тым көп жіберілді. Сәлден кейін қайталаңыз.",
   proofreadRate: "Тексеру тым жиі сұралды. Біраз күтіп, қайталап көріңіз.",
   proofreadOff: "Сауаттылықты тексеру қазір қолжетімсіз. Емле мен безендіру әдеттегідей тексеріледі.",

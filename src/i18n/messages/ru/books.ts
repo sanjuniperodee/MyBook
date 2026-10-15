@@ -1,4 +1,5 @@
 import { ruCount } from "../../plural";
+import { share } from "./letter-share";
 
 /** Кабинет: список книг, мастер создания и разделы книги (кроме редактора текста и заказа). */
 export const books = {
@@ -270,7 +271,7 @@ export const books = {
     meta: "Письма близких",
     title: "Письма близких",
     tabs: { pending: "Новые", approved: "В книге", hidden: "Скрытые" },
-    share: (recipient: string, link: string) => `Я готовлю книгу-сюрприз${recipient ? ` — её получит ${recipient}` : ""}. Напишите, пожалуйста, пару тёплых слов — они войдут в книгу: ${link}`,
+    share,
     deleteTitle: "Удалить письмо?",
     deleteText: "Письмо будет удалено безвозвратно.",
     linkTitle: "Ссылка для близких",

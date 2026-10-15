@@ -3,7 +3,7 @@ import type { Locale } from "@/i18n/config";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
-import { messagesFor } from "@/i18n/messages";
+import { bookMessagesFor } from "@/i18n/messages/partial";
 import type { SampleEntry } from "./entry";
 import { pageKit } from "./kit";
 import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "./pages";
@@ -34,7 +34,7 @@ const TEXT_FOLIO = 7;
 
 /** Фото для разворота «Фото»: снимок на всю полосу и сетка из трёх (пейзажи-заглушки с подписями на языке книги). */
 function samplePhotos(language: Locale, own: NonNullable<SpreadSample["photos"]> = []): { single: PagePhoto[]; grid: PagePhoto[] } {
-  const [a, b, c] = messagesFor(language).book.samplePhotos;
+  const [a, b, c] = bookMessagesFor(language).samplePhotos;
   const stock = [
     { width: 1500, height: 1200, caption: a },
     { width: 1600, height: 1000, caption: b },

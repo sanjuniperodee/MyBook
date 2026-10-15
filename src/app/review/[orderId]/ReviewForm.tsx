@@ -59,7 +59,7 @@ export function ReviewForm({
   const choosePhoto = (file: File | null) => {
     if (file && file.size > PHOTO_MAX_BYTES) {
       if (fileInput.current) fileInput.current.value = "";
-      return toastError(new Error(m.api.reviewPhotoInvalid));
+      return toastError(new Error(m.review.photoInvalid));
     }
     setPhoto(file ? { file, url: URL.createObjectURL(file) } : null);
   };

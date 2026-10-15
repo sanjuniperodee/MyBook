@@ -71,7 +71,7 @@ async function standJs() {
     // Как в next.config: COVER_ART_VERSION подставляется в адреса фонов обложек при сборке.
     define: { "process.env.NODE_ENV": JSON.stringify("production"), "process.env.COVER_ART_VERSION": JSON.stringify("stand") },
     logLevel: "silent",
-    plugins: [{ name: "next-stub", setup: (b) => b.onResolve({ filter: /^next\/(link|navigation)$/ }, () => ({ path: path.join(HERE, "next-stub.tsx") })) }],
+    plugins: [{ name: "next-stub", setup: (b) => b.onResolve({ filter: /^next\/(link|navigation|dynamic)$/ }, (args) => ({ path: path.join(HERE, args.path === "next/dynamic" ? "next-dynamic-stub.tsx" : "next-stub.tsx") })) }],
   });
   return Buffer.from(result.outputFiles[0].contents);
 }

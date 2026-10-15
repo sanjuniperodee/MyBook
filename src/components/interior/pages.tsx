@@ -9,7 +9,7 @@
  */
 import type { CSSProperties } from "react";
 import { site } from "@/config/site";
-import { messagesFor } from "@/i18n/messages";
+import { bookMessagesFor } from "@/i18n/messages/partial";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { openerArtShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
@@ -68,7 +68,7 @@ function OpenerShot({ kit, shot, url, scene }: { kit: PageKit; shot: OpenerPhoto
 /** Номер главы: подпись («Глава 1») или крупная цифра — по дизайну. */
 function ChapterMark({ kit, colors, number }: { kit: PageKit; colors: InteriorPalette; number: number | null }) {
   const { design, sizes: S, u } = kit;
-  const mark = number ? chapterMark(design, number, messagesFor(kit.language).book.chapter) : null;
+  const mark = number ? chapterMark(design, number, bookMessagesFor(kit.language).chapter) : null;
   if (mark?.kind === "label")
     return <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: HTML_LINE_HEIGHT.kicker } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>;
   if (mark?.kind === "numeral")
@@ -169,7 +169,7 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
 /** Оборот титула: копирайт и выходные данные внизу полосы — как в PDF (pdf/interior/colophon.tsx). */
 export function ColophonPage({ kit, year, author, className, style }: PageProps & { year: number; author: string }) {
   const { design, sizes: S, u } = kit;
-  const t = messagesFor(kit.language).book;
+  const t = bookMessagesFor(kit.language);
   return (
     <PageSurface kit={kit} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
@@ -206,7 +206,7 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
     <PageSurface kit={kit} className={className} style={style}>
       <TextArea kit={kit} className="overflow-hidden" style={{ opacity: muted ? 0.4 : 1 }}>
         <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: HTML_LINE_HEIGHT.tocTitle, color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(TOC.title.before * scale), marginBottom: u.pt(TOC.title.after * scale) }}>
-          {messagesFor(kit.language).book.toc}
+          {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
           <div key={e.number} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale) }}>
@@ -231,7 +231,7 @@ export function EndPage({ kit, year, className, style }: PageProps & { year: num
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.end}>
           <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-          <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end }}>{messagesFor(kit.language).book.theEnd}</div>
+          <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end }}>{bookMessagesFor(kit.language).theEnd}</div>
           <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(FRONT.endYear.before) }}>{year}</div>
         </Placed>
       </TextArea>

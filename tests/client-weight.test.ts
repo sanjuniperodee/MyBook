@@ -41,3 +41,21 @@ describe("вес клиентских модулей: обложки (F3)", () =
     expect(catalog).toEqual([]);
   });
 });
+
+describe("вес клиентских модулей: словари (F2)", () => {
+  // Клиентские модули — «use client» и всё, что они статически импортируют. Словарь страницы грузится
+  // лениво (i18n/dictionary/* через next/dynamic), поэтому в статическом графе его быть не должно вовсе.
+  const clientEntries = (edges as ImportEdge[]).map((e) => e.from).filter((f, i, all) => all.indexOf(f) === i && /^\s*["']use client["']/.test(readFileSync(f, "utf8")));
+  const lazyDictionary = (f: string) => f.startsWith("src/i18n/dictionary/");
+  const heavy = (f: string) => f === "src/i18n/messages/index.ts" || /^src\/i18n\/messages\/(ru|kk)\/(index|client|mail|legal|api)\.ts$/.test(f);
+
+  it("ни один клиентский модуль статически не тянет словари целиком, письма, юридические тексты и ошибки API", () => {
+    const leaks = clientEntries.filter((f) => !lazyDictionary(f)).flatMap((entry) => [...reach(entry)].filter(heavy).map((f) => `${entry} → ${f}`));
+    expect(leaks).toEqual([]);
+  });
+
+  it("словарь страницы — только своего языка: i18n/dictionary/ru не тянет kk и наоборот", () => {
+    expect([...reach("src/i18n/dictionary/ru.tsx")].filter((f) => f.startsWith("src/i18n/messages/kk/"))).toEqual([]);
+    expect([...reach("src/i18n/dictionary/kk.tsx")].filter((f) => f.startsWith("src/i18n/messages/ru/"))).toEqual([]);
+  });
+});

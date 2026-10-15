@@ -10,7 +10,7 @@ import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { useLocale, useMessages } from "@/i18n/client";
 import { localizePath, type Locale } from "@/i18n/config";
-import { messagesFor } from "@/i18n/messages";
+import { letterShareFor } from "@/i18n/messages/partial";
 
 interface ManagedLetter {
   id: string;
@@ -52,7 +52,7 @@ export function LettersManager({
   const [editing, setEditing] = useState<string | null>(null);
   // Близкие пишут для книги — страница письма и текст приглашения на языке книги.
   const link = token ? `${appUrl}${localizePath(`/letters/${token}`, bookLanguage)}` : "";
-  const shareText = messagesFor(bookLanguage).books.letters.share(recipient, link);
+  const shareText = letterShareFor(bookLanguage)(recipient, link);
 
   const setInvite = async (enabled: boolean, regenerate = false) => {
     setBusy(true);

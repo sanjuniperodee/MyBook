@@ -1,4 +1,5 @@
 import type { books as ru } from "../ru/books";
+import { share } from "./letter-share";
 
 export const books: typeof ru = {
   list: {
@@ -269,7 +270,7 @@ export const books: typeof ru = {
     meta: "Жақындардың хаттары",
     title: "Жақындардың хаттары",
     tabs: { pending: "Жаңа", approved: "Кітапта", hidden: "Жасырын" },
-    share: (recipient: string, link: string) => `Мен тосынсый-кітап дайындап жатырмын${recipient ? ` — оны ${recipient} алады` : ""}. Бірнеше жылы сөз жазып жіберіңізші — олар кітапқа кіреді: ${link}`,
+    share,
     deleteTitle: "Хатты жою керек пе?",
     deleteText: "Хат біржола жойылады.",
     linkTitle: "Жақындарға арналған сілтеме",

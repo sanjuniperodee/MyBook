@@ -1,4 +1,4 @@
-import { messagesFor } from "@/i18n/messages";
+import { dateFor } from "@/i18n/messages/partial";
 import { storeTimeZone } from "@/shared/domain/time";
 
 /**
@@ -15,7 +15,7 @@ export function formatDate(d: Date | string, withTime = false, locale: "ru" | "k
       .formatToParts(date)
       .map((p) => [p.type, p.value]),
   );
-  const day = messagesFor("kk").common.date(new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day)), true);
+  const day = dateFor("kk")(new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day)), true);
   return withTime ? `${day}, ${parts.hour}:${parts.minute}` : day;
 }
 
