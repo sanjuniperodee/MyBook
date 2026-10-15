@@ -3,9 +3,10 @@ import { api, apiViewer, HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { user, viewer } = await apiViewer(req);
   if (!(await rateLimit(`upload:${user.id}`, 60, 3600_000))) throw new HttpError(429, "photosRate");
   const form = await req.formData();

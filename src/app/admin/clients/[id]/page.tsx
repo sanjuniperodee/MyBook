@@ -22,12 +22,13 @@ import { formatPhone } from "@/shared/domain/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
+import { pageId } from "@/server/input";
 
 export const metadata = { title: "Клиент" };
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("clients.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const client = await container().reporting.clientById(id);
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 

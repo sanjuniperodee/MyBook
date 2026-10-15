@@ -77,19 +77,22 @@ vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders)
 vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
+/** id заказа: роут файлов проверяет, что это UUID (решение 7). */
+const ORDER = "0f000000-0000-4000-8000-000000000001";
+
 const OFFICE = "10.1.2.0/24";
 const orders = new Map<string, { id: string; number: number; userId: string; bookId: string; status: string; plan: string }>();
 let built: { kind: string; force: boolean }[] = [];
 
 async function download(kind: string, query = "") {
   const { GET } = await import("@/app/api/orders/[id]/files/[kind]/route");
-  const res = await GET(new Request(`http://localhost/api/orders/o1/files/${kind}${query}`), { params: Promise.resolve({ id: "o1", kind }) });
+  const res = await GET(new Request(`http://localhost/api/orders/${ORDER}/files/${kind}${query}`), { params: Promise.resolve({ id: ORDER, kind }) });
   const type = res.headers.get("content-type") ?? "";
   return { status: res.status, body: type.includes("json") ? ((await res.json()) as { code?: string }).code : await res.text(), name: res.headers.get("content-disposition") };
 }
 
 describe("Доступ к файлам чужого заказа", () => {
-  const order = (status: string, plan: string) => orders.set("o1", { id: "o1", number: 101, userId: client.id, bookId: "b1", status, plan });
+  const order = (status: string, plan: string) => orders.set(ORDER, { id: ORDER, number: 101, userId: client.id, bookId: "b1", status, plan });
   beforeEach(() => {
     resetRequest({ "x-real-ip": "10.1.2.5" });
     resetContainer();
@@ -170,7 +173,7 @@ describe("Доступ к файлам чужого заказа", () => {
 
 /** Заказ клиента u1, как его отдаёт orderDetails: всё, что показывает страница. */
 const orderView = {
-  id: "o1", number: 101, userId: client.id, bookId: "b1", status: "paid", plan: "hardcover", quantity: 1, createdAt: new Date("2026-10-01T10:00:00Z"),
+  id: ORDER, number: 101, userId: client.id, bookId: "b1", status: "paid", plan: "hardcover", quantity: 1, createdAt: new Date("2026-10-01T10:00:00Z"),
   itemsAmount: 24900, discountAmount: 0, promoCode: null, deliveryAmount: 0, addons: [], addonsAmount: 0, prepaidAmount: 0, amount: 24900, currency: "KZT",
   paymentClaimedAt: null, trackingNumber: null, contactName: "Айжан", contactPhone: "+77010000000", contactEmail: "aizhan@b.kz",
   deliveryMethod: "courier", city: "Алматы", address: "Абая, 1", postalCode: null, giftNote: null, desiredDate: null, surprise: false, customerComment: null,
@@ -189,7 +192,7 @@ function texts(node: unknown): string[] {
 async function openOrder() {
   const { default: OrderPage } = await import("@/app/(app)/orders/[id]/page");
   try {
-    return texts(await OrderPage({ params: Promise.resolve({ id: "o1" }) })).join("");
+    return texts(await OrderPage({ params: Promise.resolve({ id: ORDER }) })).join("");
   } catch (err) {
     if (err instanceof Redirect) return `redirect:${err.url}`;
     if (err instanceof NotFound) return "404";
@@ -206,7 +209,7 @@ describe("Страница заказа клиента /orders/[id]", () => {
   });
 
   it("без входа — на вход, чужой клиент — 404, владелец видит заказ и свои контакты", async () => {
-    expect(await openOrder()).toBe("redirect:/login?next=%2Forders%2Fo1");
+    expect(await openOrder()).toBe(`redirect:/login?next=%2Forders%2F${ORDER}`);
     signIn(person("u2"));
     expect(await openOrder()).toBe("404");
     signIn(client);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 const schema = z
   .object({
@@ -16,14 +17,14 @@ type Ctx = { params: Promise<{ id: string; qid: string }> };
 
 /** Автосохранение ответа и заголовка вопроса. */
 export const PATCH = api(async (req, { params }: Ctx) => {
-  const { id, qid } = await params;
+  const { id, qid } = idParams(await params, "id", "qid");
   const { viewer } = await apiViewer(req);
   await container().authoring.questions.edit(id, viewer, qid, schema.parse(await req.json()));
   return NextResponse.json({ ok: true, updatedAt: new Date() });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
-  const { id, qid } = await params;
+  const { id, qid } = idParams(await params, "id", "qid");
   const { viewer } = await apiViewer(req);
   await container().authoring.questions.deleteCustom(id, viewer, qid);
   return NextResponse.json({ ok: true });

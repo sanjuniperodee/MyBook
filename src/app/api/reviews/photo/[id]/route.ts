@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser, isStaff } from "@/server/auth";
 import { container } from "@/server/container";
+import { uuid } from "@/server/input";
 
 /** Фото отзыва: опубликованного — всем (кэшируется), остальных — только автору и сотрудникам. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  if (!uuid.safeParse(id).success) notFound();
   const feedback = container().feedback;
   const photo = await feedback.queries.photo(id);
   if (!photo) notFound();

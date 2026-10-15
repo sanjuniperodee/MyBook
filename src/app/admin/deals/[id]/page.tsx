@@ -22,6 +22,7 @@ import { formatDate } from "@/lib/dates";
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
 import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
+import { pageId } from "@/server/input";
 
 export const metadata = { title: "Сделка" };
 
@@ -29,7 +30,7 @@ const dur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("deals.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const deal = await container().reporting.dealById(id);
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
 

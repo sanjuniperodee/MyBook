@@ -53,9 +53,9 @@ export function api<C>(handler: Handler<C>): Handler<C> {
       if (DomainError.isDomainError(err) && isApiKey(t, err.code)) return fail(t, domainStatus(err.code), err.code, [...err.params]);
       if (err instanceof SyntaxError) return fail(t, 400, "badRequest");
       if (err instanceof ZodError) {
-        // В схемах сообщения — ключи словаря; встроенные сообщения zod (английские) заменяем общим текстом.
+        // В схемах сообщения — ключи словаря (api или admin); встроенные сообщения zod (английские) заменяем общим текстом.
         const key = err.issues[0]?.message ?? "";
-        return fail(t, 400, isApiKey(t, key) ? key : "badData");
+        return fail(t, 400, isErrorKey(t, key) ? key : "badData");
       }
       console.error("[api]", err);
       return fail(t, 500, "server");

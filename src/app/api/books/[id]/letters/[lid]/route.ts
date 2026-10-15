@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 type Ctx = { params: Promise<{ id: string; lid: string }> };
 
@@ -16,7 +17,7 @@ const schema = z
   .strict();
 
 export const PATCH = api(async (req, { params }: Ctx) => {
-  const { id, lid } = await params;
+  const { id, lid } = idParams(await params, "id", "lid");
   const { viewer } = await apiViewer(req);
   const authoring = container().authoring;
   await authoring.letters.edit(id, viewer, lid, schema.parse(await req.json()));
@@ -24,7 +25,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
-  const { id, lid } = await params;
+  const { id, lid } = idParams(await params, "id", "lid");
   const { viewer } = await apiViewer(req);
   await container().authoring.letters.delete(id, viewer, lid);
   return NextResponse.json({ ok: true });

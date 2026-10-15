@@ -19,13 +19,14 @@ import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
+import { pageId } from "@/server/input";
 
 /** Статусы счетов Kaspi в карточке заказа. */
 const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("orders.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
   if (!order) notFound();
   const plan = getPlan(order.plan);

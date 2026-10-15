@@ -24,6 +24,7 @@ import { isPaid } from "@/modules/ordering/domain";
 import type { OrderStatus } from "@/shared/domain/orders";
 import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { PaymentBlock } from "./PaymentBlock";
+import { pageId } from "@/server/input";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).orders.order.meta };
@@ -32,6 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser(`/orders/${id}`);
+  pageId(id);
   const order = await container().ordering.queries.orderDetails(id);
   if (!order || (order.userId !== user.id && !isStaff(user))) notFound();
   const own = order.userId === user.id;

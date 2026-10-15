@@ -1,11 +1,12 @@
 import { api, apiStaff, HttpError } from "@/server/api";
 import { audit, canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 /** Чек об оплате: открывается в браузере (картинка или PDF), только сотруднику, который видит сделку. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "deals.view");
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const sales = container().sales;
   const receipt = await sales.receipts.find(id);
   if (!receipt) throw new HttpError(404, "notFound");

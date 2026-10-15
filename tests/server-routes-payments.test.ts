@@ -112,11 +112,17 @@ describe("POST /api/admin/deals/[id]/receipts: отказы", () => {
     expect(await attach({ amount: "100000001" })).toMatchObject({ status: 400, body: { error: "Проверьте сумму" } });
   });
 
-  it("платёж другой сделки — 400 «Платёж не найден»; ReceiptError — текст по причине", async () => {
-    payments.find = async () => ({ id: "p9", dealId: "other" });
-    expect(await attach({ paymentId: "p9" })).toMatchObject({ status: 400, body: { error: "Платёж не найден" } });
+  it("платёж другой сделки, неизвестный или не UUID — 400 «Платёж не найден»; ReceiptError — текст по причине", async () => {
+    const P9 = "99999999-9999-4999-8999-999999999999";
+    payments.find = async () => ({ id: P9, dealId: "other" });
+    expect(await attach({ paymentId: P9 })).toMatchObject({ status: 400, body: { error: "Платёж не найден" } });
     payments.find = async () => null;
-    expect(await attach({ paymentId: "p9" })).toMatchObject({ status: 400, body: { error: "Платёж не найден" } });
+    expect(await attach({ paymentId: P9 })).toMatchObject({ status: 400, body: { error: "Платёж не найден" } });
+    // Мусор вместо id отсекает схема — до запроса к базе (решение 7), текст тот же.
+    payments.find = async () => {
+      throw new Error("не должен вызываться");
+    };
+    expect(await attach({ paymentId: "p9" })).toMatchObject({ status: 400, body: { error: "Платёж не найден", code: "paymentNotFound" } });
     const texts = { empty: "Файл пустой", tooBig: "Файл больше 12 МБ", type: "Нужен файл JPG, PNG, WEBP или PDF" } as const;
     for (const [problem, error] of Object.entries(texts)) {
       receipts.add = async () => {

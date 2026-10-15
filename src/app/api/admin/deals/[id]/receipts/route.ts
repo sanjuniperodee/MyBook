@@ -6,13 +6,18 @@ import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { MAX_PAYMENT, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
 import { receiptProblemError } from "@/server/payment-errors";
+import { z } from "zod";
+import { formText, idParams, uuid } from "@/server/input";
 
 export const maxDuration = 60;
+
+/** Поля формы чека, кроме файла: сумма текстом и платёж этой сделки (UUID или пусто; иначе — «Платёж не найден»). Подмена → 400. */
+const receiptForm = z.object({ amount: formText, paymentId: formText.refine((v) => v === "" || uuid.safeParse(v).success, "paymentNotFound") });
 
 /** Приложить чек об оплате к сделке: multipart — file (фото, скриншот или PDF до 12 МБ) и amount (сумма платежа, ₸). */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "deals.edit");
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const deal = await container().sales.deals.findById(id);
   if (!deal) throw new HttpError(404, "dealNotFound");
   if (!canSeeAssigned(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
@@ -21,11 +26,12 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) throw new HttpError(400, "receiptPick");
   if (file.size > RECEIPT_MAX_BYTES) throw receiptProblemError("tooBig");
-  const amount = Number(form.get("amount") ?? 0);
+  const fields = receiptForm.parse({ amount: form.get("amount") ?? undefined, paymentId: form.get("paymentId") ?? undefined });
+  const amount = Number(fields.amount || 0);
   if (!Number.isFinite(amount) || amount < 0 || amount > MAX_PAYMENT) throw new HttpError(400, "amountInvalid");
 
   // Чек можно привязать к платежу этой же сделки (так делает форма «Новый клиент»: платёж создан, чек догружается).
-  const paymentId = String(form.get("paymentId") ?? "") || null;
+  const paymentId = fields.paymentId || null;
   if (paymentId) {
     const payment = await container().sales.payments.find(paymentId);
     if (!payment || payment.dealId !== deal.id) throw new HttpError(400, "paymentNotFound");

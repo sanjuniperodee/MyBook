@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { uuid } from "@/server/input";
+import { idParams, uuid } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
@@ -38,7 +38,7 @@ const patchSchema = z
 
 /** Настройки книги из редактора. Каталоги обложек, оформлений и поводов проверяет домен. */
 export const PATCH = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req);
   const { language, ...rest } = patchSchema.parse(await req.json());
   const authoring = container().authoring;
@@ -47,7 +47,7 @@ export const PATCH = api(async (req, { params }: { params: Promise<{ id: string 
 });
 
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req);
   await container().authoring.books.delete(id, viewer);
   return NextResponse.json({ ok: true });

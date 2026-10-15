@@ -31,6 +31,7 @@ vi.mock("@/shared/infrastructure/database", () => ({
 
 const BOOK = "0b0b0b0b-0000-4000-8000-000000000001";
 const PHOTO = "0f0f0f0f-0000-4000-8000-000000000001";
+const QUESTION = "0a0a0a0a-0000-4000-8000-000000000001";
 const OFFICE = "10.1.2.0/24";
 const queries = new DrizzleAuthoringQueries();
 
@@ -222,7 +223,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
     };
     const patch = (who: User) => {
       signIn(who);
-      return patchQuestion(new Request(`http://localhost/api/books/${BOOK}/questions/q1`, { method: "PATCH", body: JSON.stringify({ answer: "чужой текст" }) }), { params: Promise.resolve({ id: BOOK, qid: "q1" }) });
+      return patchQuestion(new Request(`http://localhost/api/books/${BOOK}/questions/${QUESTION}`, { method: "PATCH", body: JSON.stringify({ answer: "чужой текст" }) }), { params: Promise.resolve({ id: BOOK, qid: QUESTION }) });
     };
     expect((await patch(person("u2"))).status).toBe(404);
     expect((await patch(anna)).status).toBe(200);

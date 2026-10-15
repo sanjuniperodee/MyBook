@@ -4,6 +4,7 @@ import { container } from "@/server/container";
 import type { PrintFileKind as OrderFileKind } from "@/modules/production";
 import { isPaid } from "@/modules/ordering/domain";
 import { getPlan } from "@/config/site";
+import { idParams } from "@/server/input";
 
 export const maxDuration = 300;
 
@@ -16,7 +17,7 @@ const kinds: Record<OrderFileKind, { type: string; name: (n: number) => string }
 };
 
 export const GET = api(async (req, { params }: { params: Promise<{ id: string; kind: string }> }) => {
-  const { id, kind } = await params;
+  const { id, kind } = idParams(await params, "id");
   if (!(kind in kinds)) throw new HttpError(404, "notFound");
   const user = await apiUser(req);
   const c = container();

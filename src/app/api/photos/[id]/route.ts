@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { api, apiViewer, HttpError } from "@/server/api";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req);
   const photo = await container().authoring.queries.photoFor(id, viewer);
   if (!photo) throw new HttpError(404, "notFound");

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { uuid } from "@/server/input";
+import { idParams, uuid } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 
@@ -11,7 +11,7 @@ const schema = z.object({
 
 /** Добавляет собственный вопрос сразу после указанного, в ту же главу. */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req);
   const { afterId, prompt } = schema.parse(await req.json());
   const authoring = container().authoring;
