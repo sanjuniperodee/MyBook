@@ -10,6 +10,7 @@ import { randomToken } from "@/shared/crypto";
 import { isValidTime } from "@/shared/domain/schedule";
 import { WazzupError } from "@/modules/messaging";
 import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
+import { BAD_FORM, textForm } from "@/server/input";
 
 export interface SettingsState {
   error?: string;
@@ -26,6 +27,7 @@ function secretValue(form: FormData, name: string, key: SettingKey): Partial<Rec
 
 export async function saveWazzupAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   const baseUrl = String(form.get("baseUrl") ?? "").trim();
   if (baseUrl && !/^https?:\/\/[^\s]+$/.test(baseUrl)) return { error: "Адрес API должен начинаться с https://" };
   const channelId = String(form.get("channelId") ?? "").trim().slice(0, 100);
@@ -171,6 +173,7 @@ export async function testImapAction(): Promise<{ ok: boolean; message: string }
 
 export async function saveAiAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   const provider = fromEnv("ai.provider") ? null : String(form.get("provider") ?? "anthropic");
   if (provider !== null && !isAiProvider(provider)) return { error: "Выберите провайдера" };
   const p: AiProvider = provider ?? ((await getSettings(["ai.provider"]))["ai.provider"] as AiProvider);
@@ -214,6 +217,7 @@ export async function testAiAction(): Promise<{ ok: boolean; message: string }> 
 
 export async function saveProofreadAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   const provider = String(form.get("provider") ?? "");
   if (provider && !isAiProvider(provider)) return { error: "Выберите провайдера" };
   const model = String(form.get("model") ?? "").trim();

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { formObject, formText } from "@/server/input";
 import { requireUser, sessionToken } from "@/server/auth";
 import { container } from "@/server/container";
 import { IdentityError } from "@/modules/identity";
@@ -32,9 +33,11 @@ export async function changePasswordAction(_: AccountState, form: FormData): Pro
   const user = await requireUser();
   const t = (await getMessages()).orders.account;
   if (!await rateLimit(`pwd:${user.id}:${await clientIp()}`, 10, 900_000)) return { error: t.errors.tooMany };
+  const input = z.object({ current: formText, next: formText }).safeParse(formObject(form));
+  if (!input.success) return { error: t.errors.wrong };
   try {
     // Выходим на всех остальных устройствах, текущая сессия остаётся.
-    await container().identity.accounts.changePassword(user.id, String(form.get("current") ?? ""), String(form.get("next") ?? ""), await sessionToken());
+    await container().identity.accounts.changePassword(user.id, input.data.current, input.data.next, await sessionToken());
   } catch (err) {
     if (IdentityError.is(err)) return { error: err.code === "password" ? t.errors.short : t.errors.wrong };
     throw err;

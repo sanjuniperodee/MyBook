@@ -133,9 +133,10 @@ export async function setClientPhonesAction(clientId: string, raw: string): Prom
 }
 
 /** «На смене» — получать новые заявки по кругу. */
-export async function setShiftAction(onShift: boolean) {
+export async function setShiftAction(rawOnShift: boolean) {
   const staff = await assertStaff();
-  await container().access.shifts.set(staff.user.id, !!onShift);
+  const onShift = z.boolean().parse(rawOnShift);
+  await container().access.shifts.set(staff.user.id, onShift);
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
 }
 

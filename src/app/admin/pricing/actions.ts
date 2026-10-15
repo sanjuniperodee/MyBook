@@ -5,6 +5,7 @@ import { factoryCatalog, getCatalogOverrides, MAX_PRICE, type CatalogOverrides }
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
+import { BAD_FORM, textForm } from "@/server/input";
 
 export interface PricingState {
   error?: string;
@@ -25,6 +26,7 @@ function money(form: FormData, name: string, label: string, min = 0): number {
  */
 export async function savePricingAction(_: PricingState, form: FormData): Promise<PricingState> {
   const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   const next: CatalogOverrides = { plans: {}, addons: {}, delivery: {} };
   try {
     for (const p of factoryCatalog.plans) {

@@ -3,6 +3,7 @@
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { readSource, queueEvent } from "@/server/track";
 import { z } from "zod";
+import { formObject, formText } from "@/server/input";
 import { clientIp, rateLimit } from "@/server/rateLimit";
 import { isThemeId } from "@/lib/content/themes";
 import { IdentityError } from "@/modules/identity";
@@ -55,8 +56,10 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const e = m.auth.errors;
   // Поле называется email, но принимает и телефон: клиент, которого завёл менеджер, может не иметь почты.
-  const login = String(form.get("email") ?? "").trim().slice(0, 200);
-  const password = String(form.get("password") ?? "");
+  const input = z.object({ email: formText, password: formText }).safeParse(formObject(form));
+  if (!input.success) return { error: e.credentialsMissing };
+  const login = input.data.email.trim().slice(0, 200);
+  const password = input.data.password;
   if (!login || !password) return { error: e.credentialsMissing };
   if (!await rateLimit(`login:${await clientIp()}`, 30, 900_000) || !await rateLimit(`login:${login.toLowerCase()}`, 10, 900_000)) return { error: e.tooManyLogin };
   const next = safeNextPath(form.get("next"));
@@ -82,8 +85,10 @@ export async function twoFactorAction(_: FormState, form: FormData): Promise<For
   const userId = await readTwoFactorTicket();
   if (!userId) return { error: e.twoFactorExpired };
   if (!await rateLimit(`2fa:${userId}`, 8, 900_000) || !await rateLimit(`2fa-ip:${await clientIp()}`, 30, 900_000)) return { error: e.tooManyLogin };
+  const code = formText.safeParse(form.get("code") ?? undefined);
+  if (!code.success) return { error: e.twoFactorCode };
   try {
-    const { token, expiresAt } = await container().identity.auth.completeSecondFactor(userId, String(form.get("code") ?? ""), locale);
+    const { token, expiresAt } = await container().identity.auth.completeSecondFactor(userId, code.data, locale);
     await clearTwoFactorTicket();
     await startSession(token, expiresAt);
   } catch (err) {

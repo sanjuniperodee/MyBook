@@ -10,6 +10,7 @@ import { staffActionError } from "@/server/errors";
 import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
+import { BAD_FORM, textForm } from "@/server/input";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 
@@ -93,6 +94,7 @@ export async function resetStaffTwoFactorAction(userId: string): Promise<Result>
 export async function saveSecurityAction(_: { ok?: string; error?: string }, form: FormData): Promise<{ ok?: string; error?: string }> {
   const staff = await assertStaff("settings.manage");
   if (!can(staff, "team.manage")) throw new ForbiddenError();
+  if (!textForm(form).success) return { error: BAD_FORM };
   try {
     await container().access.security.save(staff.context, {
       allowlist: String(form.get("ipAllowlist") ?? ""),

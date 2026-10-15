@@ -67,8 +67,11 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
 }
 
 /** Покупатель сообщил об оплате переводом. */
-export async function claimGiftPaymentAction(token: string) {
-  const gift = await container().ordering.gifts.claimPayment(token);
+export async function claimGiftPaymentAction(rawToken: string) {
+  // Токен сертификата — 24 знака base64url (randomBytes(18)); мусор до базы не доходит.
+  const token = z.string().regex(/^[\w-]{16,64}$/).safeParse(rawToken);
+  if (!token.success) return; // как и для неизвестного токена
+  const gift = await container().ordering.gifts.claimPayment(token.data);
   if (!gift) return;
   return lredirect(`/gift/${gift.token}`);
 }

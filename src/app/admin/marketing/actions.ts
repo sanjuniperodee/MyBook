@@ -6,6 +6,7 @@ import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
+import { BAD_FORM, textForm } from "@/server/input";
 
 export type LinkState = { ok?: string; error?: string; slug?: string };
 
@@ -54,6 +55,7 @@ export async function archiveLinkAction(id: string, archived: boolean) {
 
 export async function saveWhatsappNumberAction(_: LinkState, form: FormData): Promise<LinkState> {
   const staff = await assertStaff("promo.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   const digits = String(form.get("number") ?? "").replace(/\D/g, "");
   if (digits && (digits.length < 10 || digits.length > 15)) return { error: "Номер в международном формате, например 77001234567" };
   await saveSettings({ "crm.whatsappNumber": digits }, staff.user.id);
