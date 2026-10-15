@@ -6,7 +6,8 @@ import type { Locale } from "@/i18n/config";
 import { applyGender } from "@/lib/content/gender";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { photoUrl } from "@/lib/urls";
-import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
+import type { Book, BookLetter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
+import type { LetterLike } from "./layout";
 
 export interface EditorQuestion {
   id: string;
@@ -46,6 +47,10 @@ export interface EditorBook {
   language: Locale;
   /** Имена автора и адресата — проверка орфографии их не отмечает. */
   names?: string[];
+  /** Тема и род автора и адресата: по ним собирается содержимое книги для оценки объёма (главы темы, заголовки вопросов). */
+  theme: Book["theme"];
+  authorGender: Book["authorGender"];
+  recipientGender: Book["recipientGender"];
 }
 
 export interface PreviewPhoto {
@@ -83,12 +88,13 @@ export interface ChapterGroup {
 type ModelBook = Pick<Book, "theme" | "language" | "authorGender" | "recipientGender" | "coverPhotoId">;
 type ModelQuestion = Pick<BookQuestion, "id" | "chapter" | "prompt" | "hint" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey">;
 type ModelPhoto = Pick<Photo, "id" | "width" | "height" | "caption" | "layout" | "questionId" | "inline">;
+type ModelLetter = Pick<BookLetter, "id" | "authorName" | "relation" | "text">;
 
 /**
- * Что получает редактор от страницы: заголовки глав и вопросов в роде автора и адресата, эпиграфы глав (по ключу)
- * и фото книги без фото обложки — внутри книги его нет.
+ * Что получает редактор от страницы: заголовки глав и вопросов в роде автора и адресата, эпиграфы глав (по ключу),
+ * фото книги без фото обложки — внутри книги его нет — и письма близких (одобренные): они идут в книгу последней главой.
  */
-export function editorModel(book: ModelBook, rows: ModelQuestion[], photos: ModelPhoto[]) {
+export function editorModel(book: ModelBook, rows: ModelQuestion[], photos: ModelPhoto[], letters: ModelLetter[] = []) {
   const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
   const questions: EditorQuestion[] = rows.map((r) => ({
@@ -107,7 +113,8 @@ export function editorModel(book: ModelBook, rows: ModelQuestion[], photos: Mode
   const own: EditorPhoto[] = photos
     .filter((p) => p.id !== book.coverPhotoId)
     .map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId, inline: p.inline }));
-  return { questions, epigraphs, photos: own };
+  const bookLetters: LetterLike[] = letters.map((l) => ({ id: l.id, authorName: l.authorName, relation: l.relation, text: l.text }));
+  return { questions, epigraphs, photos: own, letters: bookLetters };
 }
 
 /** Заголовок вопроса в книге: свой текст автора, иначе заголовок вопроса; null — заголовок скрыт. */

@@ -15,12 +15,13 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const { q } = await searchParams;
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
-  const [rows, photos, proofreadAi] = await Promise.all([
+  const [rows, photos, letters, proofreadAi] = await Promise.all([
     container().authoring.queries.questions(book.id),
     container().authoring.queries.photos(book.id),
+    container().authoring.queries.approvedLetters(book.id),
     book.status === "draft" ? container().assistant.proofreader.configured() : false,
   ]);
-  const model = editorModel(book, rows, photos);
+  const model = editorModel(book, rows, photos, letters);
   return (
     <QuestionsEditor
       epigraphs={model.epigraphs}
@@ -34,11 +35,15 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         title: book.title,
         language: book.language,
         names: [book.authorName, book.recipientName].filter(Boolean),
+        theme: book.theme,
+        authorGender: book.authorGender,
+        recipientGender: book.recipientGender,
       }}
       proofreadAi={proofreadAi}
       initialQuestions={model.questions}
       initialIndex={Math.max(0, (Number(q) || 1) - 1)}
       initialPhotos={model.photos}
+      letters={model.letters}
       editable={book.status === "draft"}
     />
   );

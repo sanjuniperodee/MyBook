@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorModel, type EditorBook } from "@/lib/book/editor-model";
+import { editorModel, type EditorBook, type EditorPhoto } from "@/lib/book/editor-model";
 import { editorEstimate } from "@/lib/book/editor-estimate";
 import { printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
@@ -8,15 +8,15 @@ import { fixtureVariants, type FixtureBook } from "../fixtures/books";
 import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
 /**
- * Характеристика оценки объёма в редакторе (editorEstimate, ею считает QuestionsEditor): содержимое она собирает
- * сама, а не через buildBookContent, и с ним расходится (B3). Снимок — по всем книгам набора и вариантам; таблица
- * расхождений с estimatePages(buildBookContent) и с полосами PDF — «так сейчас».
+ * Характеристика оценки объёма в редакторе (editorEstimate, ею считает QuestionsEditor). Она собирает ту же книгу,
+ * что PDF (buildBookContent), и считает той же estimatePages — число в редакторе равно оценке кабинета (B3).
+ * Снимок — по всем книгам набора и вариантам; таблица с полосами PDF — «так сейчас» (B14).
  */
 
 /** Вход редактора из бандла — как его готовит страница books/[id]/questions. */
 function editorInput({ bundle }: FixtureBook) {
   const { book } = bundle;
-  const { questions, photos } = editorModel(book, bundle.questions, bundle.photos);
+  const { questions, photos, letters } = editorModel(book, bundle.questions, bundle.photos, bundle.letters);
   const editorBook: EditorBook = {
     id: book.id,
     format: book.format,
@@ -27,8 +27,11 @@ function editorInput({ bundle }: FixtureBook) {
     title: book.title,
     language: book.language,
     names: [book.authorName, book.recipientName].filter(Boolean),
+    theme: book.theme,
+    authorGender: book.authorGender,
+    recipientGender: book.recipientGender,
   };
-  return { questions, photos, book: editorBook };
+  return { questions, photos, letters, book: editorBook };
 }
 
 const variants = new Set(fixtureVariants().map((v) => v.key));
@@ -38,7 +41,7 @@ const books = characterizationBooks().map((fb) => {
   // Группа для таблицы расхождений: у книг группы числа одинаковые. Варианты — по имени.
   const opener = getInteriorDesign(book.interior).opener.photo ? " · фото на начальной полосе" : "";
   const group = variants.has(fb.key) ? fb.key : `${book.format === "a5" ? "A5" : "квадрат"} ${book.language}${opener}`;
-  return { key: fb.key, group, editor: editorEstimate(input.questions, input.photos, input.book), estimate: estimatePages(contentOf(fb)) };
+  return { key: fb.key, group, editor: editorEstimate(input.book, input.questions, input.photos, input.letters), estimate: estimatePages(contentOf(fb)) };
 });
 type Row = (typeof books)[number];
 
@@ -57,34 +60,42 @@ describe("оценка объёма в редакторе (QuestionsEditor)", ()
     expect(Object.fromEntries(books.map((b) => [b.key, `${b.editor.raw} → печать ${b.editor.printed}`]))).toMatchSnapshot();
   });
 
-  it("расходится с estimatePages(buildBookContent) — так сейчас (B3)", () => {
-    // −2 у книг с письмами: главы «Письма близких» (начальная полоса и полоса текста) редактор не видит.
-    // Ещё −1 в квадрате: ответ только из фото (q7) редактор пропускает вместе с его фото.
-    // В A5 с фото на начальной полосе расходится и печатный объём: редактор обещает 24, печать — 28.
-    const line = (r: Row) => `редактор ${r.editor.raw} → ${r.editor.printed} · оценка ${r.estimate} → ${printablePageCount(r.estimate)}`;
-    expect(byGroup(books, line)).toEqual({
-      "A5 ru": "редактор 26 → 28 · оценка 28 → 28",
-      "A5 kk": "редактор 26 → 28 · оценка 28 → 28",
-      "A5 ru · фото на начальной полосе": "редактор 23 → 24 · оценка 25 → 28",
-      "A5 kk · фото на начальной полосе": "редактор 23 → 24 · оценка 25 → 28",
-      "квадрат ru": "редактор 28 → 28 · оценка 31 → 32",
-      "квадрат ru · фото на начальной полосе": "редактор 25 → 28 · оценка 28 → 28",
-      "квадрат kk": "редактор 29 → 32 · оценка 32 → 32",
-      "квадрат kk · фото на начальной полосе": "редактор 29 → 32 · оценка 32 → 32",
-      thin: "редактор 9 → 24 · оценка 11 → 24",
-      bare: "редактор 27 → 28 · оценка 28 → 28",
-      gender: "редактор 26 → 28 · оценка 28 → 28",
-      bigphoto: "редактор 26 → 28 · оценка 28 → 28",
-    });
+  it("равна estimatePages(buildBookContent) у каждой книги набора: те же полосы и тот же печатный объём (B3)", () => {
+    const mismatches = books.filter((b) => b.editor.raw !== b.estimate || b.editor.printed !== printablePageCount(b.estimate)).map((b) => b.key);
+    expect(mismatches).toEqual([]);
   });
 
-  it("и с полосами PDF там, где они известны (render.test) — так сейчас (B3)", () => {
+  it("с полосами PDF там, где они известны (render.test) — так сейчас (B14: в квадрате на полосу больше)", () => {
     const line = (r: Row) => `редактор ${r.editor.raw} · оценка ${r.estimate} · PDF ${pdfContentPages[r.key]}`;
     expect(byGroup(books.filter((b) => b.key in pdfContentPages), line)).toEqual({
-      "A5 ru": "редактор 26 · оценка 28 · PDF 28",
-      "A5 ru · фото на начальной полосе": "редактор 23 · оценка 25 · PDF 25",
-      "квадрат ru": "редактор 28 · оценка 31 · PDF 30",
-      "квадрат kk": "редактор 29 · оценка 32 · PDF 31",
+      "A5 ru": "редактор 28 · оценка 28 · PDF 28",
+      "A5 ru · фото на начальной полосе": "редактор 25 · оценка 25 · PDF 25",
+      "квадрат ru": "редактор 31 · оценка 31 · PDF 30",
+      "квадрат kk": "редактор 32 · оценка 32 · PDF 31",
     });
+  });
+});
+
+describe("что редактор берёт в счёт (B3)", () => {
+  // Тонкая книга: два коротких ответа, из фото — только обложка; письма близких есть.
+  const thin = editorInput(fixtureVariants().find((v) => v.key === "thin")!);
+  const count = (photos: EditorPhoto[] = thin.photos, letters = thin.letters) => editorEstimate(thin.book, thin.questions, photos, letters).raw;
+  const base = count([], []);
+
+  it("вопрос без текста, но с фото печатается — значит считается", () => {
+    // В главе «Как всё начиналось» нет ни одного ответа: снимок в пустом ответе открывает её — начальная полоса и полоса текста.
+    const empty = thin.questions.find((q) => q.chapter === "meet")!;
+    const photo: EditorPhoto = { id: "photo-in-empty-answer", width: 4000, height: 3000, caption: "", layout: "full", questionId: empty.id, inline: null };
+    expect(count([photo], [])).toBe(base + 2);
+  });
+
+  it("письма близких — последняя глава книги: начальная полоса и полоса текста", () => {
+    expect(thin.letters.length).toBeGreaterThan(0);
+    expect(count([], thin.letters)).toBe(base + 2);
+  });
+
+  it("пока в книге нечего печатать, счётчик показывает 0", () => {
+    const blank = thin.questions.map((q) => ({ ...q, answer: "" }));
+    expect(editorEstimate(thin.book, blank, [], [])).toEqual({ raw: 0, printed: 0 });
   });
 });
