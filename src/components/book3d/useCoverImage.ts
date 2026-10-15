@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import type { CoverTemplate } from "@/lib/book/covers";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
+import { Lru } from "@/lib/lru";
 
-const cache = new Map<string, Promise<string>>();
+/**
+ * Снимки обложек как data-URL (до ~0,5 МБ каждый): без предела при листании шаблонов в браузере копились все.
+ * 24 — с запасом на снимок текущей обложки, снимки-примеры коллажа и несколько недавно открытых шаблонов.
+ */
+const cache = new Lru<string, Promise<string>>(24);
 
 function load(url: string) {
   let p = cache.get(url);

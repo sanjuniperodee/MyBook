@@ -191,13 +191,7 @@ export class BookScene {
 
     // Колёсико мыши меняет масштаб только вместе с Ctrl/⌘ (так же работает щипок на трекпаде), иначе страница
     // перестала бы прокручиваться над моделью. Обработчик стоит раньше OrbitControls и глушит обычное колесо.
-    canvas.addEventListener(
-      "wheel",
-      (e) => {
-        if (!e.ctrlKey && !e.metaKey) e.stopImmediatePropagation();
-      },
-      { capture: true },
-    );
+    canvas.addEventListener("wheel", this.handleWheel, { capture: true });
     canvas.addEventListener("pointerdown", this.handleDown);
     canvas.addEventListener("pointerup", this.handleUp);
 
@@ -425,6 +419,7 @@ export class BookScene {
     canvas.removeEventListener("webglcontextrestored", this.handleContextRestored);
     canvas.removeEventListener("pointerdown", this.handleDown);
     canvas.removeEventListener("pointerup", this.handleUp);
+    canvas.removeEventListener("wheel", this.handleWheel, { capture: true });
     this.controls.dispose();
     for (const t of this.textures.values()) t.dispose();
     this.textures.clear();
@@ -557,6 +552,10 @@ export class BookScene {
   private readonly handleContextRestored = () => {
     this.onContextRestored?.();
     this.requestRender();
+  };
+
+  private readonly handleWheel = (e: WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) e.stopImmediatePropagation();
   };
 
   private readonly handleDown = (e: PointerEvent) => {

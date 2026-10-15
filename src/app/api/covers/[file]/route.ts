@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { cropSvg, getCoverTemplate, isKnownCover, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
 import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, type BookFormat } from "@/lib/book/formats";
 import { coverPhotoDataUrl } from "@/modules/production";
+import { Lru } from "@/lib/lru";
 
 /**
  * Фон обложки (без текста) отдельным файлом: браузер кэширует его навсегда — версия в адресе
@@ -18,7 +19,13 @@ const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.(svg|jpg|webp
 /** Толщина книги для фона задней крышки в редакторе: от неё зависит только стык узора с корешком. */
 const PREVIEW_PAGES = 120;
 type Entry = { type: string; raw: string | Buffer; br?: Buffer; gzip?: Buffer };
-const cache = new Map<string, Entry>();
+/**
+ * Готовые фоны в памяти процесса. Вариантов много (шаблон × формат × миниатюра × сторона), а запись — до
+ * нескольких сотен КБ (SVG со сжатыми копиями или WebP): без предела кэш рос до всех вариантов (~1000 × ~0,3 МБ).
+ * 200 записей — рабочий набор: каталог миниатюр в одном формате и крупные превью ходовых обложек, до ~60 МБ;
+ * вытесненный фон собирается заново за 50–300 мс, а браузер и так кэширует его навсегда по версии в адресе.
+ */
+const cache = new Lru<string, Entry>(200);
 
 /** Ширина растра снимка-обложки: миниатюра в выборе и крупное превью. */
 const PHOTO_PX = { lite: 420, full: 1000 };
@@ -67,7 +74,7 @@ async function art(file: string): Promise<Entry | null> {
     entry = { type: "image/svg+xml; charset=utf-8", raw, br: brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }), gzip: gzipSync(raw, { level: 9 }) };
   }
   // Старые версии шаблона из CRM больше не запросят — не держим их в памяти.
-  for (const k of cache.keys()) if (k.startsWith(`${file}@`)) cache.delete(k);
+  for (const k of [...cache.keys()]) if (k.startsWith(`${file}@`)) cache.delete(k);
   cache.set(key, entry);
   return entry;
 }
