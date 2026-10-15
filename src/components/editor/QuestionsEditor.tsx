@@ -41,7 +41,7 @@ import { cssFont } from "@/lib/book/fonts";
 import { editorEstimate } from "@/lib/book/editor-estimate";
 import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type ChapterGroup, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { countWords, estimateAnswerPages } from "@/lib/book/layout";
+import { countWords, estimateAnswerPages, type LetterLike } from "@/lib/book/layout";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 
@@ -53,6 +53,7 @@ export function QuestionsEditor({
   initialQuestions,
   initialIndex,
   initialPhotos,
+  letters,
   editable,
   proofreadAi = false,
 }: {
@@ -62,6 +63,8 @@ export function QuestionsEditor({
   initialQuestions: EditorQuestion[];
   initialIndex: number;
   initialPhotos: EditorPhoto[];
+  /** Одобренные письма близких: идут в книгу последней главой и входят в оценку объёма. */
+  letters: LetterLike[];
   editable: boolean;
   /** AI-корректор подключён в «Интеграциях» — показываем кнопку «Проверить грамотность». */
   proofreadAi?: boolean;
@@ -201,7 +204,7 @@ export function QuestionsEditor({
 
   const groups = useMemo(() => groupByChapter(questions), [questions]);
 
-  const pages = useMemo(() => editorEstimate(questions, photos, book), [questions, photos, book]);
+  const pages = useMemo(() => editorEstimate(book, questions, photos, letters), [book, questions, photos, letters]);
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
   // Вехи: маленький праздник, когда книга растёт (не срабатывает при открытии редактора).

@@ -99,7 +99,7 @@ export function printableText(text: string) {
     .trim();
 }
 
-export function toPhotoItem(p: Photo): PhotoItem {
+export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline">): PhotoItem {
   return {
     id: p.id,
     caption: printableText(p.caption),
