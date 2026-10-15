@@ -8,25 +8,26 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  Check,
   ChevronDown,
   Eye,
   EyeOff,
   ImagePlus,
   Lightbulb,
-  LoaderCircle,
   ListTree,
   Maximize2,
   Mic,
   MicOff,
   Minimize2,
   Plus,
-  Search,
   Trash2,
-  X,
 } from "lucide-react";
 import { PagePreview } from "./preview/PagePreview";
 import { PhotoInspector } from "./PhotoInspector";
+import { AddQuestion } from "./questions/AddQuestion";
+import { ChapterNav } from "./questions/ChapterNav";
+import { Drawer } from "./questions/Drawer";
+import { MobileBar } from "./questions/MobileBar";
+import { PhotoPicker } from "./questions/PhotoPicker";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
 import { normalizeStyle } from "@/lib/book/inline-photo";
@@ -34,16 +35,14 @@ import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useDictation } from "@/hooks/useDictation";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { apiFetch } from "@/lib/client-api";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { editorEstimate } from "@/lib/book/editor-estimate";
-import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type ChapterGroup, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
+import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { estimateAnswerPages, textMetrics } from "@/lib/book/estimate";
 import { countWords, type LetterLike } from "@/lib/book/layout";
-import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 
 type Patch = Partial<Pick<EditorQuestion, "answer" | "displayText" | "hideHeading">>;
@@ -688,246 +687,5 @@ export function QuestionsEditor({
         </Drawer>
       ) : null}
     </div>
-  );
-}
-
-/** Нижняя панель действий на телефоне: всегда под рукой и над экранной клавиатурой. */
-function MobileBar({ children }: { children: React.ReactNode }) {
-  const inset = useKeyboardInset();
-  return (
-    <div className="fixed inset-x-0 z-30 border-t border-line/80 bg-paper/95 backdrop-blur-xl lg:hidden" style={{ bottom: inset }}>
-      <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">{children}</div>
-    </div>
-  );
-}
-
-function ChapterNav({ groups, current, onPick }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
-  const t = useMessages().editor;
-  const currentKey = groups.find((g) => g.items.some((x) => x.i === current))?.key;
-  const [open, setOpen] = useState<string | undefined>(currentKey);
-  const [search, setSearch] = useState("");
-  const [onlyEmpty, setOnlyEmpty] = useState(false);
-  const list = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // раскрываем главу текущего вопроса при переходе
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOpen(currentKey);
-  }, [currentKey]);
-
-  useEffect(() => {
-    list.current?.querySelector("[data-current=true]")?.scrollIntoView({ block: "nearest" });
-  }, [current, open]);
-
-  const s = search.trim().toLowerCase();
-  const filtering = !!s || onlyEmpty;
-
-  return (
-    <div ref={list}>
-      <div className="relative">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-        <input className="input h-10 pl-9 text-sm" placeholder={t.search} value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
-      <label className="mt-3 flex items-center gap-2 px-1 text-xs text-muted">
-        <input type="checkbox" className="accent-wine" checked={onlyEmpty} onChange={(e) => setOnlyEmpty(e.target.checked)} />
-        {t.onlyEmpty}
-      </label>
-      <ol className="mt-4 space-y-1">
-        {groups.map((g, gi) => {
-          const answered = g.items.filter((x) => x.q.answer.trim()).length;
-          const items = g.items.filter(
-            ({ q }) => (!onlyEmpty || !q.answer.trim()) && (!s || q.prompt.toLowerCase().includes(s) || q.answer.toLowerCase().includes(s)),
-          );
-          if (filtering && !items.length) return null;
-          const expanded = filtering || open === g.key;
-          return (
-            <li key={`${g.key}-${gi}`}>
-              <button
-                onClick={() => setOpen(expanded && !filtering ? undefined : g.key)}
-                className={cn("flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-ink/5", g.key === currentKey && "font-medium")}
-              >
-                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full text-[11px]", answered === g.items.length ? "bg-wine text-white" : answered ? "bg-rose text-wine" : "bg-cream text-muted")}>
-                  {answered === g.items.length ? <Check className="size-3" /> : gi + 1}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{g.title}</span>
-                <span className="text-[11px] text-muted tabular-nums">
-                  {answered}/{g.items.length}
-                </span>
-              </button>
-              {expanded ? (
-                <ol className="mt-0.5 mb-2 ml-5 border-l border-line pl-2">
-                  {items.map(({ q, i }) => (
-                    <li key={q.id}>
-                      <button
-                        data-current={i === current}
-                        onClick={() => onPick(i)}
-                        className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition", i === current ? "bg-wine/8 text-wine" : "text-ink-soft hover:bg-ink/5")}
-                      >
-                        <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", q.answer.trim() ? "bg-emerald-500" : "bg-line")} />
-                        <span className="line-clamp-2">{q.prompt}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function Drawer({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title?: string }) {
-  const t = useMessages().editor;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative flex h-full w-full max-w-sm flex-col bg-paper shadow-2xl">
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="text-lg font-semibold">{title ?? t.drawerTitle}</h2>
-          <button className="btn btn-ghost btn-sm size-9 px-0" onClick={onClose} aria-label={t.close}>
-            <X className="size-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function AddQuestion({ onAdd, onCancel }: { onAdd: (prompt: string) => Promise<void>; onCancel: () => void }) {
-  const t = useMessages().editor.add;
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setErr(null);
-        try {
-          await onAdd(value.trim());
-        } catch (e) {
-          setErr((e as Error).message);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <label className="label">{t.label}</label>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <input autoFocus className="input" value={value} onChange={(e) => setValue(e.target.value)} maxLength={200} minLength={3} required placeholder={t.placeholder} />
-        <button className="btn btn-primary shrink-0" disabled={busy}>
-          {t.submit}
-        </button>
-        <button type="button" className="btn btn-ghost shrink-0" onClick={onCancel}>
-          {t.cancel}
-        </button>
-      </div>
-      {err ? <p className="mt-2 text-sm text-red-700">{err}</p> : null}
-    </form>
-  );
-}
-
-function PhotoPicker({
-  bookId,
-  photos,
-  questionId,
-  questionLabel,
-  onAttach,
-  onDetach,
-  onUploaded,
-  onClose,
-  otherLabel,
-}: {
-  bookId: string;
-  photos: EditorPhoto[];
-  questionId: string;
-  questionLabel: string;
-  onAttach: (id: string) => void;
-  onDetach: (id: string) => void;
-  onUploaded: (list: EditorPhoto[]) => void;
-  onClose: () => void;
-  otherLabel: (questionId: string) => string;
-}) {
-  const t = useMessages().editor.picker;
-  const input = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const upload = async (files: File[]) => {
-    if (!files.length) return;
-    setUploading(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      files.slice(0, 6).forEach((f) => form.append("files", f));
-      const res = await apiFetch<{ photos: EditorPhoto[]; errors: string[] }>(`/api/books/${bookId}/photos`, { method: "POST", body: form });
-      // Загруженные фото сразу вставляем в текущий ответ
-      for (const p of res.photos) await apiFetch(`/api/books/${bookId}/photos/${p.id}`, { method: "PATCH", json: { questionId } });
-      onUploaded(res.photos.map((p) => ({ ...p, questionId })));
-      if (res.errors.length) setError(res.errors.join(", "));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setUploading(false);
-      if (input.current) input.current.value = "";
-    }
-  };
-
-  return (
-    <Drawer onClose={onClose} title={t.title}>
-      <p className="text-sm text-muted">
-        {t.intro} «<span className="text-ink">{questionLabel}</span>».
-      </p>
-      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
-      <button className="btn btn-primary mt-4 w-full" onClick={() => input.current?.click()} disabled={uploading}>
-        {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />} {uploading ? t.uploading : t.upload}
-      </button>
-      {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
-      {photos.length ? (
-        <>
-          <div className="mt-6 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">{t.bookPhotos}</div>
-          <div className="grid grid-cols-2 gap-2">
-            {photos.map((p) => {
-              const here = p.questionId === questionId;
-              const elsewhere = !!p.questionId && !here;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => (here ? onDetach(p.id) : onAttach(p.id))}
-                  className={cn("group relative overflow-hidden rounded-xl text-left ring-offset-2 ring-offset-paper", here ? "ring-2 ring-wine" : "ring-1 ring-line hover:ring-ink/30")}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photoUrl(p.id)} alt={p.caption} className="aspect-square w-full object-cover" />
-                  {here ? (
-                    <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-wine text-white">
-                      <Check className="size-3.5" />
-                    </span>
-                  ) : null}
-                  {elsewhere ? (
-                    <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-2 py-1 text-[11px] text-white" title={otherLabel(p.questionId!)}>
-                      {t.inAnswer(otherLabel(p.questionId!))}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-xs text-muted">{t.hint}</p>
-        </>
-      ) : null}
-    </Drawer>
   );
 }
