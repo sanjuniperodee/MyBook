@@ -193,7 +193,18 @@ const orderView = {
 function texts(node: unknown): string[] {
   if (typeof node === "string" || typeof node === "number") return [String(node)];
   if (Array.isArray(node)) return node.flatMap(texts);
-  if (node && typeof node === "object" && "props" in node) return texts((node as { props: { children?: unknown } }).props.children);
+  if (node && typeof node === "object" && "props" in node) {
+    const el = node as { type: unknown; props: { children?: unknown } };
+    // Секции страницы — синхронные серверные компоненты без хуков: раскрываем их; клиентские (с хуками) пропускаем.
+    if (typeof el.type === "function") {
+      try {
+        return texts((el.type as (p: unknown) => unknown)(el.props));
+      } catch {
+        return [];
+      }
+    }
+    return texts(el.props.children);
+  }
   return [];
 }
 
