@@ -5,25 +5,32 @@ import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
 import { fromEnv, getSettings, saveSettings } from "@/modules/workspace";
 import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
-import { BAD_FORM, textForm } from "@/server/input";
+import { z } from "zod";
+import { BAD_FORM, formText, textForm } from "@/server/input";
 import type { SettingsState } from "../state";
-import { secretValue, unlessEnv } from "../form-kit";
+import { apiUrl, modelName, parseForm, secretValue, unlessEnv } from "../form-kit";
 
 // ─── AI-помощник ───────────────────────────────────────────────────────────
+
+/** Форма AI-помощника. Провайдер проверяется отдельно: из переменной окружения он не меняется. */
+const aiForm = z.object({
+  provider: z.string().default("anthropic"),
+  aiBaseUrl: formText.transform((v) => v.trim().replace(/\/+$/, "")).pipe(apiUrl),
+  aiModel: modelName,
+  knowledge: formText.transform((v) => v.trim()),
+});
 
 export async function saveAiAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
   if (!textForm(form).success) return { error: BAD_FORM };
   const provider = fromEnv("ai.provider") ? null : String(form.get("provider") ?? "anthropic");
   if (provider !== null && !isAiProvider(provider)) return { error: "Выберите провайдера" };
+  const parsed = parseForm(aiForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const { aiBaseUrl: baseUrl, aiModel: model, knowledge } = parsed.data;
   const p: AiProvider = provider ?? ((await getSettings(["ai.provider"]))["ai.provider"] as AiProvider);
   const keys = providerSettingKeys[isAiProvider(p) ? p : "anthropic"];
-  const baseUrl = String(form.get("aiBaseUrl") ?? "").trim().replace(/\/+$/, "");
-  if (baseUrl && !/^https?:\/\/[^\s]+$/.test(baseUrl)) return { error: "Адрес API должен начинаться с https://" };
-  const model = String(form.get("aiModel") ?? "").trim();
-  if (model && !/^[\w.:/@-]{1,100}$/.test(model)) return { error: "Название модели — латиница, цифры и символы . : / - _" };
   if (p === "custom" && (!(baseUrl || fromEnv(keys.baseUrl)) || !model)) return { error: "Для своего сервера укажите адрес API и модель" };
-  const knowledge = String(form.get("knowledge") ?? "").trim();
   if (knowledge.length > 6000) return { error: "База знаний — не больше 6000 символов" };
   await saveSettings(
     {
@@ -55,13 +62,17 @@ export async function testAiAction(): Promise<{ ok: boolean; message: string }> 
 
 // ─── проверка текста в редакторе (AI-корректор) ────────────────────────────
 
+/** Форма AI-корректора: провайдер ("" — как у помощника) и модель. */
+const proofreadForm = z.object({
+  provider: formText.refine((v) => !v || isAiProvider(v), "Выберите провайдера"),
+  model: modelName,
+});
+
 export async function saveProofreadAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
-  if (!textForm(form).success) return { error: BAD_FORM };
-  const provider = String(form.get("provider") ?? "");
-  if (provider && !isAiProvider(provider)) return { error: "Выберите провайдера" };
-  const model = String(form.get("model") ?? "").trim();
-  if (model && !/^[\w.:/@-]{1,100}$/.test(model)) return { error: "Название модели — латиница, цифры и символы . : / - _" };
+  const parsed = parseForm(proofreadForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const { provider, model } = parsed.data;
   // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.proofreadProvider()).provider;
   await saveSettings(

@@ -5,16 +5,22 @@ import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, saveSettings } from "@/modules/workspace";
 import { WazzupError } from "@/modules/messaging";
-import { BAD_FORM, textForm } from "@/server/input";
+import { z } from "zod";
+import { formText } from "@/server/input";
 import type { SettingsState } from "../state";
-import { secretValue, unlessEnv } from "../form-kit";
+import { apiUrl, parseForm, secretValue, unlessEnv } from "../form-kit";
+
+/** Форма Wazzup: ключ (secretValue), адрес API и канал для первых сообщений. */
+const wazzupForm = z.object({
+  baseUrl: formText.transform((v) => v.trim()).pipe(apiUrl),
+  channelId: formText.transform((v) => v.trim().slice(0, 100)),
+});
 
 export async function saveWazzupAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
-  if (!textForm(form).success) return { error: BAD_FORM };
-  const baseUrl = String(form.get("baseUrl") ?? "").trim();
-  if (baseUrl && !/^https?:\/\/[^\s]+$/.test(baseUrl)) return { error: "Адрес API должен начинаться с https://" };
-  const channelId = String(form.get("channelId") ?? "").trim().slice(0, 100);
+  const parsed = parseForm(wazzupForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const { baseUrl, channelId } = parsed.data;
   await saveSettings({ ...secretValue(form, "apiKey", "wazzup.apiKey"), ...unlessEnv("wazzup.baseUrl", baseUrl), ...unlessEnv("wazzup.channelId", channelId) }, staff.user.id);
   await ensureToken("wazzup.webhookToken");
   await audit(staff, "settings.update", "settings", "wazzup", { channelId, baseUrl: baseUrl || null });
