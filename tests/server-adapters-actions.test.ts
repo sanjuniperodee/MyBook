@@ -71,6 +71,10 @@ describe("admin/actions.ts: ошибки заказов и промокодов"
     expect(await thrown(updateOrderAction({}, form({ orderId: ID, status: "paid" })))).toBeInstanceOf(ForbiddenError);
     signIn(anna);
     expect(await updateOrderAction({}, form({ orderId: "42", status: "paid" }))).toEqual({ error: "Заказ не найден" });
+    // поля нет вовсе (форма без скрытого orderId или статуса) — тоже по-русски, а не «Invalid input: expected string…»
+    expect(await updateOrderAction({}, form({ status: "paid" }))).toEqual({ error: "Заказ не найден" });
+    expect(await updateOrderAction({}, form({ orderId: ID }))).toEqual({ error: "Выберите статус заказа" });
+    expect(await updateOrderAction({}, form({}))).toEqual({ error: "Заказ не найден" });
     expect(await updateOrderAction({}, form({ orderId: ID, status: "возвращён" }))).toEqual({ error: "Выберите статус заказа" });
     expect(await updateOrderAction({}, form({ orderId: ID, status: "paid", note: "я".repeat(1001) }))).toEqual({ error: "Заметка — до 1000 символов" });
   });

@@ -61,7 +61,7 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
   const staff = await assertStaff("orders.edit");
   const parsed = z
     .object({
-      orderId: z.string().uuid("Заказ не найден"),
+      orderId: z.string("Заказ не найден").uuid("Заказ не найден"),
       status: z.enum(orderStatuses, "Выберите статус заказа"),
       trackingNumber: z.string().trim().max(100, "Номер отслеживания — до 100 символов").optional(),
       note: z.string().trim().max(1000, "Заметка — до 1000 символов").optional(),
