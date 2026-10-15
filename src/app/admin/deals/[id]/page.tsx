@@ -1,9 +1,7 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
-import { channelLabel as acquisitionChannel, describeAttribution, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
@@ -12,21 +10,18 @@ import { channelLabel } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
-import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
-import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
+import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
+import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ContactActions } from "@/components/admin/ContactActions";
-import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
-import { DealAssignee, DealDelete, DealFields, DuplicateRow, LinkClient, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
+import { DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
+import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly } from "./sections";
 import { pageId } from "@/server/input";
 
 export const metadata = { title: "Сделка" };
-
-const dur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("deals.view");
@@ -40,10 +35,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
     container().access.queries.allStaff(),
     container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
   ]);
-  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const conv = convs[0] ?? null;
-  const pipelineId = allStages.find((s) => s.id === deal.stageId)?.pipelineId;
-  const stages = allStages.filter((s) => s.pipelineId === pipelineId);
   const [paymentRows, receiptRows] = await Promise.all([container().sales.payments.list(deal.id), container().sales.receipts.list(deal.id)]);
   const [duplicates, suggestedClientId, dealFields] = await Promise.all([
     container().sales.queries.duplicates(deal),
@@ -61,24 +53,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
   const canEdit = can(staff, "deals.edit");
   const contact = contactView(staff, { phone: deal.contactPhone ? formatPhone(deal.contactPhone) : client?.phone, email: deal.contactEmail ?? client?.email });
-  const stage = stages.find((s) => s.id === deal.stageId);
-  const now = new Date();
-  const tasks: TaskItem[] = taskRows.map((t) => ({
-    id: t.id,
-    kind: t.kind,
-    title: t.title,
-    dueLabel: t.dueAt ? `до ${formatDate(t.dueAt, true)}` : null,
-    overdue: !!t.dueAt && t.dueAt < now,
-    done: !!t.doneAt,
-    assignee: t.assigneeId ? (names.get(t.assigneeId) ?? null) : null,
-  }));
-  const notes: NoteItem[] = noteRows.map((n) => ({
-    id: n.id,
-    kind: n.kind,
-    text: n.text,
-    author: n.authorId ? (names.get(n.authorId) ?? "—") : "система",
-    dateLabel: formatDate(n.createdAt, true),
-  }));
+  const screen = dealScreen({ deal, stages: allStages, staff: admins, tasks: taskRows, notes: noteRows, payments: paymentRows, receipts: receiptRows, calls: callRows, now: new Date() });
+  const { pipelineId, stages, stage, tasks, notes } = screen;
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === deal.assigneeId);
 
   return (
@@ -103,21 +79,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
       {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit} /> : null}
-      {duplicates.length ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="duplicates">
-          <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие сделки</h2>
-          <div className="mt-2 divide-y divide-amber-200/70">
-            {duplicates.map(({ deal: d, stage: st }) => (
-              <DuplicateRow
-                key={d.id}
-                targetId={deal.id}
-                other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }}
-                canMerge={can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, d.assigneeId)}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {duplicates.length ? <Duplicates dealId={deal.id} duplicates={duplicates} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
@@ -153,73 +115,20 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             plan={await container().sales.agreedPlan.get(deal.id)}
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
-            payments={paymentRows.map((p) => ({
-              id: p.id,
-              amount: p.amount,
-              kind: p.kind,
-              dateLabel: formatDate(p.paidAt),
-              author: p.createdById ? (names.get(p.createdById) ?? "—") : "система",
-              note: p.note,
-              receipts: receiptRows.filter((r) => r.paymentId === p.id).map((r) => ({ id: r.id, fileName: r.fileName, isPdf: r.mime === "application/pdf" })),
-            }))}
+            payments={screen.payments}
           />
-          {bookRows.length ? (
-            <section className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-books">
-              <div className="flex items-baseline justify-between">
-                <h2 className="font-semibold">Книга клиента</h2>
-                {clientSeen ? <span className="text-xs text-muted">заходил {formatDate(clientSeen, true)}</span> : null}
-              </div>
-              {bookRows.map((b) => (
-                <div key={b.id}>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <Link href={`/books/${b.id}/preview`} className="truncate font-medium hover:text-wine">
-                      {b.title || (b.recipientName ? `Для: ${b.recipientName}` : "Без названия")}
-                    </Link>
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px]", b.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{b.status === "draft" ? "пишется" : "заказана"}</span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
-                    <div className="h-full rounded-full bg-wine" style={{ width: `${b.total ? Math.round((b.answered / b.total) * 100) : 0}%` }} />
-                  </div>
-                  <div className="mt-1 text-xs text-muted tabular-nums">
-                    {b.answered} из {b.total} ответов · {b.photos} фото · изм. {formatDate(b.updatedAt)}
-                  </div>
-                </div>
-              ))}
-            </section>
-          ) : null}
-          <section className="space-y-2 rounded-2xl border border-line bg-white p-5 text-sm">
-            <h2 className="mb-1 font-semibold">Связи</h2>
-            <div className="flex items-baseline justify-between gap-2" data-testid="deal-channel">
-              <span className="text-muted">Канал</span>
-              <span className="text-right">
-                <span className="font-medium">{acquisitionChannel(toAttribution(deal.utm), deal.source)}</span>
-                {describeAttribution(toAttribution(deal.utm)) || deal.utm?.link ? (
-                  <span className="block text-xs text-muted">{[describeAttribution(toAttribution(deal.utm)), deal.utm?.link ? `ссылка ${deal.utm.link}` : ""].filter(Boolean).join(" · ")}</span>
-                ) : null}
-              </span>
-            </div>
-            {client && can(staff, "clients.view") ? (
-              <Link href={`/admin/clients/${client.id}`} className="flex items-center gap-2 hover:text-wine">
-                <UserRound className="size-4 text-muted" /> {client.name || contactView(staff, { email: client.email }).email}
-                <ExternalLink className="ml-auto size-3.5 text-muted" />
-              </Link>
-            ) : suggested && canEdit && can(staff, "clients.view") ? (
-              <LinkClient dealId={deal.id} client={{ id: suggested.id, label: suggested.name || contactView(staff, { email: suggested.email }).email }} />
-            ) : (
-              <p className="text-muted">Клиент ещё не зарегистрирован на сайте — свяжем автоматически по телефону, когда он оформит заказ.</p>
-            )}
-            {order && can(staff, "orders.view") ? (
-              <Link href={`/admin/orders/${order.id}`} className="flex items-center gap-2 hover:text-wine">
-                <Package className="size-4 text-muted" /> Заказ №{order.number} · {formatPrice(order.amount)}
-                <span className={cn("ml-auto rounded-full px-2 py-0.5 text-[11px]", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
-              </Link>
-            ) : null}
-            {convs.map((c) => (
-              <Link key={c.id} href={`/admin/chats?c=${c.id}`} className="flex items-center gap-2 text-muted hover:text-wine">
-                💬 {channelLabel(c.channel)} {c.unread ? <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] text-white">{c.unread}</span> : null}
-              </Link>
-            ))}
-          </section>
+          {bookRows.length ? <DealBooks books={bookRows} seen={clientSeen} /> : null}
+          <DealLinks
+            dealId={deal.id}
+            channel={screen.channel}
+            client={client}
+            suggested={suggested}
+            order={order}
+            convs={convs}
+            canEdit={canEdit}
+            can={(p) => can(staff, p)}
+            emailOf={(email) => contactView(staff, { email }).email}
+          />
         </aside>
 
         <div className="min-w-0 space-y-5">
@@ -241,28 +150,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             </section>
           ) : null}
 
-          {callRows.length ? (
-            <section className="rounded-2xl border border-line bg-white p-5">
-              <h2 className="mb-3 font-semibold">Звонки</h2>
-              <ul className="divide-y divide-line text-sm">
-                {callRows.map((c) => {
-                  const Icon = c.direction === "out" ? PhoneOutgoing : c.status === "missed" ? PhoneMissed : PhoneIncoming;
-                  return (
-                    <li key={c.id} className="flex flex-wrap items-center gap-3 py-2.5">
-                      <Icon className={cn("size-4", c.status === "missed" ? "text-red-600" : "text-muted")} />
-                      <span className="w-32 text-muted">{formatDate(c.startedAt, true)}</span>
-                      <span className="flex-1">
-                        {c.direction === "out" ? "Исходящий" : c.status === "missed" ? "Пропущенный" : "Входящий"}
-                        {c.durationSec ? ` · ${dur(c.durationSec)}` : ""}
-                        {c.staffId ? <span className="text-muted"> · {names.get(c.staffId)}</span> : null}
-                      </span>
-                      {c.hasRecording && can(staff, "calls.recordings") ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="h-8 w-56" /> : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null}
+          {callRows.length ? <DealCalls calls={screen.calls} canListen={can(staff, "calls.recordings")} /> : null}
 
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-4 font-semibold">История</h2>
@@ -271,21 +159,5 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
     </div>
-  );
-}
-
-function NotesTimelineReadonly({ notes }: { notes: NoteItem[] }) {
-  return (
-    <ol className="space-y-3 text-sm">
-      {notes.map((n) => (
-        <li key={n.id}>
-          <div className="text-xs text-muted">
-            {n.author} · {n.dateLabel}
-          </div>
-          <p className="whitespace-pre-line">{n.text}</p>
-        </li>
-      ))}
-      {notes.length === 0 ? <p className="text-muted">Записей нет.</p> : null}
-    </ol>
   );
 }
