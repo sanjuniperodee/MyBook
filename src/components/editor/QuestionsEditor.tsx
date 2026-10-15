@@ -25,7 +25,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { PagePreview } from "./PagePreview";
+import { PagePreview } from "./preview/PagePreview";
 import { PhotoInspector } from "./PhotoInspector";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";

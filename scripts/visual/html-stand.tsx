@@ -5,7 +5,7 @@
 import { createRoot } from "react-dom/client";
 import { FaceView, usePagedBook, type FlipbookData } from "@/components/book3d/pages";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
-import { PagePreview } from "@/components/editor/PagePreview";
+import { PagePreview } from "@/components/editor/preview/PagePreview";
 import { InteriorSpread } from "@/components/interior/InteriorSpread";
 import { I18nProvider } from "@/i18n/client";
 import { getFormat } from "@/lib/book/formats";
