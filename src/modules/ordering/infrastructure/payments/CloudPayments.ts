@@ -50,7 +50,8 @@ export class CloudPaymentsWebhook {
       case "check":
         return order.status === "pending_payment" ? 0 : 13;
       case "pay":
-        await this.orders.confirmPayment({ orderId: order.id, paymentId: body.TransactionId ?? null }, actor);
+        // Ответ 0 в любом случае — деньги уже списаны; второй платёж или оплату отменённого заказа видит сотрудник (B13).
+        await this.orders.acceptProviderPayment({ orderId: order.id, paymentId: body.TransactionId ?? null, provider: "CloudPayments", operationId: body.TransactionId ?? "—", amount }, actor);
         return 0;
       case "fail":
         await this.orders.recordPaymentFailure(order.id, body.Reason ?? body.ReasonCode ?? "", actor);

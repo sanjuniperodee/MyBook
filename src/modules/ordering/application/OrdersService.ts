@@ -144,6 +144,23 @@ export class OrdersService {
     return this.mutate(cmd.orderId, (order, now) => order.markPaid(cmd.paymentId, actor.label, now));
   }
 
+  /**
+   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: заказ ждёт оплаты — подтверждаем; тот же платёж
+   * повторно — ничего; другой платёж по оплаченному или отменённому заказу — заказ не трогаем, сотруднику заметка
+   * «нужен возврат» (B13).
+   */
+  async acceptProviderPayment(cmd: { orderId: string; paymentId: string | null; provider: string; operationId: string; amount: number }, actor: Actor): Promise<"paid" | "duplicate" | "refundNeeded" | null> {
+    const order = await this.orders.findById(cmd.orderId);
+    if (!order) return null;
+    if (order.status === "pending_payment") {
+      await this.confirmPayment({ orderId: order.id, paymentId: cmd.paymentId }, actor);
+      return "paid";
+    }
+    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
+    await this.addNote(order.id, `${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor);
+    return "refundNeeded";
+  }
+
   async changeStatus(cmd: { orderId: string; to: OrderStatus; note?: string }, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, async (order, now) => {
       const r = order.changeStatus(cmd.to, actor.label, cmd.note ?? "", now);

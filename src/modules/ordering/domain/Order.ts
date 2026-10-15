@@ -198,6 +198,11 @@ export class Order extends AggregateRoot<OrderProps> {
   // ─── команды ─────────────────────────────────────────────────────────────
 
   /** Подтверждение оплаты. Повторное уведомление платёжной системы — без последствий (false). */
+  /** Платёж, которым заказ оплачен (id операции платёжной системы). */
+  get paymentId() {
+    return this.props.paymentId;
+  }
+
   markPaid(paymentId: string | null, actor: string, now: Date): boolean {
     if (this.props.status !== "pending_payment") return false;
     this.props.status = "paid";

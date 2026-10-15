@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { CloudPaymentsWebhook } from "@/modules/ordering/infrastructure/payments/CloudPayments";
 import { MemGifts, setup } from "./doubles/ordering";
+import { formatPrice } from "@/config/site";
 
 // Адаптер уведомлений CloudPayments поверх настоящих OrdersService и GiftsService с хранилищами в памяти.
 function cloudSetup(secret: string | undefined = "cp-secret") {
@@ -27,7 +28,7 @@ describe("CloudPayments: уведомления о заказе", () => {
     expect(count(t.uow.types(), "ordering.order_paid")).toBe(1);
   });
 
-  it("так сейчас: второй платёж по оплаченному заказу (другой TransactionId) принят молча — без заметки «нужен возврат», как у Kaspi (B13)", async () => {
+  it("второй платёж по оплаченному заказу (другой TransactionId): заказ не меняется, заметка «нужен возврат», как у Kaspi (B13)", async () => {
     const t = cloudSetup();
     const order = await t.place();
     const first = payment(String(order.number), order.amount);
@@ -38,18 +39,21 @@ describe("CloudPayments: уведомления о заказе", () => {
     const history = [...t.orders.history];
     expect(await t.webhook.handle("pay", second)).toBe(0);
     expect(t.orders.rows.get(order.id)).toMatchObject({ status: "paid", paymentId: "3001" });
-    expect(t.orders.history).toEqual(history);
+    expect(t.orders.history.slice(history.length)).toEqual([{ orderId: order.id, status: null, note: `CloudPayments: повторная оплата ${formatPrice(order.amount)} (операция 3002), заказ уже «paid» — нужен возврат` }]);
     expect(count(t.uow.types(), "ordering.order_paid")).toBe(1);
+    // тот же платёж повторно — без заметки
+    await t.webhook.handle("pay", first);
+    expect(t.orders.history).toHaveLength(history.length + 1);
   });
 
-  it("так сейчас: pay по отменённому заказу — тоже 0, заказ отменён, в журнале ни слова (B13)", async () => {
+  it("pay по отменённому заказу — 0, заказ остаётся отменённым, заметка «нужен возврат» (B13)", async () => {
     const t = cloudSetup();
     const order = await t.place();
     await t.svc.cancelByCustomer(order.id, "user-1");
     const history = [...t.orders.history];
     expect(await t.webhook.handle("pay", payment(String(order.number), order.amount))).toBe(0);
     expect(t.orders.rows.get(order.id)!.status).toBe("cancelled");
-    expect(t.orders.history).toEqual(history);
+    expect(t.orders.history.slice(history.length)).toEqual([{ orderId: order.id, status: null, note: `CloudPayments: повторная оплата ${formatPrice(order.amount)} (операция 3001), заказ уже «cancelled» — нужен возврат` }]);
     expect(count(t.uow.types(), "ordering.order_paid")).toBe(0);
   });
 

@@ -1,5 +1,4 @@
 import { systemActor, type Clock, type Logger, type UnitOfWork } from "@/shared/application";
-import { formatPrice } from "@/config/site";
 import {
   kaspiOutcome,
   kaspiPhone,
@@ -199,14 +198,8 @@ export class KaspiPaymentsService {
       else this.logger.warn("оплата Kaspi пришла по уже закрытому сертификату — нужен возврат", { giftId: target.id, externalId: invoice.externalId });
       return;
     }
-    const order = await this.orders.findById(target.id);
-    if (!order) return;
-    if (order.status === "pending_payment") {
-      await this.ordersService.confirmPayment({ orderId: order.id, paymentId }, actor);
-      return;
-    }
     // Клиент оплатил второй счёт или отменённый заказ: деньги пришли, заказ не трогаем — сотрудник делает возврат.
-    await this.ordersService.addNote(order.id, `Kaspi: повторная оплата ${formatPrice(invoice.amount)} (операция ${invoice.externalId}), заказ уже «${order.status}» — нужен возврат`, actor);
+    await this.ordersService.acceptProviderPayment({ orderId: target.id, paymentId, provider: "Kaspi", operationId: invoice.externalId, amount: invoice.amount }, actor);
   }
 
   private async close(invoice: PaymentInvoice) {
