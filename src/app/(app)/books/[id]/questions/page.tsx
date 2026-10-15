@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
-import { applyGender } from "@/lib/content/gender";
-import { chapterTitle, getTheme } from "@/lib/content/themes";
-import { QuestionsEditor, type EditorQuestion } from "@/components/editor/QuestionsEditor";
+import { editorModel } from "@/lib/book/editor-model";
+import { QuestionsEditor } from "@/components/editor/QuestionsEditor";
 import { getMessages } from "@/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,23 +20,10 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
     container().authoring.queries.photos(book.id),
     book.status === "draft" ? container().assistant.proofreader.configured() : false,
   ]);
-  const theme = getTheme(book.theme, book.language);
-  const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
-  const questions: EditorQuestion[] = rows.map((r) => ({
-    id: r.id,
-    chapter: r.chapter,
-    chapterTitle: g(chapterTitle(theme, r.chapter, book.language)),
-    prompt: g(r.prompt),
-    hint: r.hint ? g(r.hint) : null,
-    defaultTitle: g(r.title),
-    displayText: r.displayText,
-    hideHeading: r.hideHeading,
-    answer: r.answer,
-    isCustom: r.questionKey === "custom",
-  }));
+  const model = editorModel(book, rows, photos);
   return (
     <QuestionsEditor
-      epigraphs={Object.fromEntries(theme.chapters.flatMap((c) => (c.epigraph ? [[c.key, c.epigraph]] : [])))}
+      epigraphs={model.epigraphs}
       book={{
         id: book.id,
         format: book.format,
@@ -50,11 +36,9 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         names: [book.authorName, book.recipientName].filter(Boolean),
       }}
       proofreadAi={proofreadAi}
-      initialQuestions={questions}
+      initialQuestions={model.questions}
       initialIndex={Math.max(0, (Number(q) || 1) - 1)}
-      initialPhotos={photos
-        .filter((p) => p.id !== book.coverPhotoId)
-        .map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId, inline: p.inline }))}
+      initialPhotos={model.photos}
       editable={book.status === "draft"}
     />
   );

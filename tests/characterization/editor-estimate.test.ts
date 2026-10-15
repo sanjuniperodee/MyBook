@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EditorBook, EditorPhoto, EditorQuestion } from "@/components/editor/QuestionsEditor";
-import { applyGender } from "@/lib/content/gender";
-import { chapterTitle, getTheme } from "@/lib/content/themes";
+import { editorModel, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getFormat, printablePageCount, type BookFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { estimatePages, type BookContent, type ContentChapter } from "@/lib/book/layout";
@@ -14,26 +12,10 @@ import { characterizationBooks, contentOf, pdfContentPages } from "./books";
  * расхождений с estimatePages(buildBookContent) и с полосами PDF — «так сейчас».
  */
 
-/** Вход редактора из бандла — копия questions/page.tsx@8ae30f9: заголовки в роде автора и адресата, фото без обложки. */
+/** Вход редактора из бандла — как его готовит страница books/[id]/questions. */
 function editorInput({ bundle }: FixtureBook) {
   const { book } = bundle;
-  const theme = getTheme(book.theme, book.language);
-  const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
-  const questions: EditorQuestion[] = bundle.questions.map((r) => ({
-    id: r.id,
-    chapter: r.chapter,
-    chapterTitle: g(chapterTitle(theme, r.chapter, book.language)),
-    prompt: g(r.prompt),
-    hint: r.hint ? g(r.hint) : null,
-    defaultTitle: g(r.title),
-    displayText: r.displayText,
-    hideHeading: r.hideHeading,
-    answer: r.answer,
-    isCustom: r.questionKey === "custom",
-  }));
-  const photos: EditorPhoto[] = bundle.photos
-    .filter((p) => p.id !== book.coverPhotoId)
-    .map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId, inline: p.inline }));
+  const { questions, photos } = editorModel(book, bundle.questions, bundle.photos);
   const editorBook: EditorBook = {
     id: book.id,
     format: book.format,

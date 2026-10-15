@@ -4,6 +4,7 @@ import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import { PHOTO_COLORS, type InteriorDesign } from "@/lib/book/interiors";
@@ -20,15 +21,6 @@ import { pxUnits } from "@/components/interior/units";
 
 const END = Number.POSITIVE_INFINITY;
 
-export interface PreviewPhoto {
-  id: string;
-  url: string;
-  width: number;
-  height: number;
-  caption: string;
-  inline?: InlinePhotoStyle | null;
-}
-
 type Drag =
   | { kind: "resize"; id: string; startX: number; startWidth: number; factor: number; width: number }
   | { kind: "move"; id: string; startX: number; startY: number; x: number; y: number; active: boolean; target: number | null };
@@ -38,21 +30,6 @@ function anchorLabel(t: Messages["editor"]["preview"], anchor: number | null, pa
   if (anchor === null || anchor >= paragraphs - 1) return t.anchorEnd;
   if (anchor < 0) return t.anchorBefore;
   return t.anchorAfter(anchor + 1);
-}
-
-export interface PreviewEntry {
-  id: string;
-  heading: string | null;
-  answer: string;
-  photos: PreviewPhoto[];
-}
-
-export interface PreviewChapter {
-  key: string;
-  number: number;
-  title: string;
-  epigraph?: string;
-  entries: PreviewEntry[];
 }
 
 /** Страница, содержимое которой строится только рядом с видимой областью прокрутки. */
