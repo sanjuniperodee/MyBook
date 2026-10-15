@@ -1,6 +1,6 @@
 import { designBack, type BackContent } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
-import type { PhotoRef } from "@/lib/book/cover-kit";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { coverArtUrl } from "@/lib/urls";
 import { site } from "@/config/site";

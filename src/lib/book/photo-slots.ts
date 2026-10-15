@@ -1,6 +1,6 @@
 import type { BackDesign } from "./cover-back";
 import { renderCoverSvg, type CoverTemplate } from "./covers";
-import type { SlotInfo } from "./cover-kit";
+import type { SlotInfo } from "./covers/svg-kit";
 import { coverFrontGeometry, type BookFormat } from "./formats";
 
 /** Место под фото в долях (0…1) от своей стороны обложки; rotate — поворот карточки вокруг центра, градусы. */

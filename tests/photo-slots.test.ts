@@ -3,7 +3,7 @@ import { designBack } from "@/lib/book/cover-back";
 import { coverPhotoSlots, getCoverTemplate, pickerCovers } from "@/lib/book/covers";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { backSlotBoxes, frontSlotBoxes } from "@/lib/book/photo-slots";
-import { photoImage } from "@/lib/book/cover-kit";
+import { photoImage } from "@/lib/book/covers/svg-kit";
 
 const a5 = getFormat("a5");
 

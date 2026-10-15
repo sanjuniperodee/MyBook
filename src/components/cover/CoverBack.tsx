@@ -1,5 +1,5 @@
 import type { BackDesign } from "@/lib/book/cover-back";
-import { photoHref, type PhotoRef } from "@/lib/book/cover-kit";
+import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { cssFrame } from "@/lib/book/photo-frame";
 import { cssFont } from "@/lib/book/fonts";
 import { hexAlpha } from "@/lib/color";

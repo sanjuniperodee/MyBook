@@ -3,8 +3,8 @@
  * Правила для скорости растрирования в 300 dpi (librsvg): без per-element opacity (только fill/stroke-opacity),
  * без feTurbulence в самой графике (фактура накладывается отдельно), разумное число элементов.
  */
-import type { CoverGeometry, Rect } from "./formats";
-import { framedImageRect, isDefaultFrame, type PhotoFrame } from "./photo-frame";
+import type { CoverGeometry, Rect } from "../formats";
+import { framedImageRect, isDefaultFrame, type PhotoFrame } from "../photo-frame";
 
 
 export function rng(seed: number) {

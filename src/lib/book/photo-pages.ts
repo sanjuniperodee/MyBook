@@ -8,7 +8,7 @@ import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
 import { PHOTO_COLORS, type InteriorDesign } from "./interiors";
 import { photoCaptionFace, photoCaptionSize, type InteriorSizes } from "./typesetting";
 import type { Shape } from "./interior-art";
-import { n } from "./cover-kit";
+import { n } from "./covers/svg-kit";
 import { interiorMetrics, pageSide, textArea } from "./page-geometry";
 
 /**

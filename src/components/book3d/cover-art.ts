@@ -1,5 +1,5 @@
 import { cropSvg, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
-import type { PhotoRef } from "@/lib/book/cover-kit";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 
 export { cropSvg };
 import { coverSpreadGeometry, type BookFormat } from "@/lib/book/formats";

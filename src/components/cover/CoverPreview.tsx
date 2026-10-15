@@ -1,4 +1,4 @@
-import type { PhotoRef } from "@/lib/book/cover-kit";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import { getCoverTemplate, renderCoverSvg, type CoverTemplate, type CoverTextStyle } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";

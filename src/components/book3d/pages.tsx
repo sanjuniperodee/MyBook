@@ -1,7 +1,7 @@
 "use client";
 
 import type { BackContent } from "@/lib/book/cover-back";
-import type { PhotoRef } from "@/lib/book/cover-kit";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Locale } from "@/i18n/config";

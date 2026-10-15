@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 
 /**
@@ -8,7 +8,12 @@ import type { NextConfig } from "next";
  */
 function coverArtVersion() {
   try {
-    const sources = ["covers", "covers-collection", "covers-photo", "photo-cover", "cover-kit", "motifs", "formats"].map((f) => readFileSync(`src/lib/book/${f}.ts`, "utf8"));
+    // Каталог src/lib/book/covers (кроме обложек с фото клиента — как было до разделения по файлам) и его опоры.
+    const covers = readdirSync("src/lib/book/covers", { recursive: true, encoding: "utf8" })
+      .filter((f) => f.endsWith(".ts") && !f.startsWith("client-photo"))
+      .sort()
+      .map((f) => `covers/${f}`);
+    const sources = [...covers, "photo-cover.ts", "motifs.ts", "formats.ts"].map((f) => readFileSync(`src/lib/book/${f}`, "utf8"));
     return createHash("sha1").update(sources.join("\n")).digest("hex").slice(0, 10);
   } catch {
     return "build";

@@ -9,7 +9,7 @@ import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-mode
 import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/class-names";
 import { FaceView, usePagedBook, type FlipbookData } from "./pages";
-import { photoHref, type PhotoRef } from "@/lib/book/cover-kit";
+import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls, type ViewId } from "./ViewerControls";

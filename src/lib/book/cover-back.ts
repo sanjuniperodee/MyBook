@@ -4,7 +4,7 @@
  * поэтому то, что клиент видит на экране, совпадает с напечатанным.
  */
 import { coverNamesLine, type CoverTemplate } from "./covers";
-import { photoHref, photoImage, type PhotoRef } from "./cover-kit";
+import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
 import type { FontKey } from "./fonts";
 import { PT_TO_MM, type Rect } from "./formats";
 

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Locale } from "@/i18n/config";
 import { backArtSvg, backContent, backLayouts, backPhotoIds, designBack } from "@/lib/book/cover-back";
-import type { PhotoSpec } from "@/lib/book/cover-kit";
+import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { setCustomCovers, type CustomCoverData } from "@/lib/book/cover-registry";
 import { allCoverTemplates, coverPhotoIds, getCoverTemplate, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
 import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, print, type FormatId } from "@/lib/book/formats";
@@ -12,7 +12,7 @@ import type { BookBundle } from "@/modules/production/infrastructure/pdf/render"
 import { fixtureBook } from "../fixtures/books";
 
 /**
- * Характеристика рисунков обложек — без PDF и растра: sha256 SVG каждого шаблона (covers.ts, семьи covers-*.ts
+ * Характеристика рисунков обложек — без PDF и растра: sha256 SVG каждого шаблона (семьи covers/*: classic, collection, photo, client-photo
  * и шаблон из CRM через cover-registry) в каждом формате, без фото и с фото набора, на книгах ru и kk; плюс шесть
  * вариантов оборота (cover-back). SVG строится так же, как его строят сайт (renderCoverSvg: /api/covers,
  * CoverPreview) и PDF (coverBackground: развёртка 300 dpi без фактуры, оборот — backArtSvg). Вместо data-URL

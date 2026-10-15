@@ -6,7 +6,7 @@
  * Единицы: глифы и виньетки — в пунктах (стоят в строке текста), рамки и рисунки — в миллиметрах
  * от левого верхнего угла обрезного формата; отрицательные координаты и выход за формат — вылеты.
  */
-import { n, rng } from "./cover-kit";
+import { n, rng } from "./covers/svg-kit";
 import type { FrameKind, GlyphId, InteriorPalette, OpenerArt } from "./interiors";
 import { DIAMOND, HEART, RAM, SPARKLE } from "./motifs";
 

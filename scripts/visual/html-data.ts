@@ -4,7 +4,7 @@ import { site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { backContent, backPhotoIds, type BackContent } from "@/lib/book/cover-back";
-import type { PhotoSpec } from "@/lib/book/cover-kit";
+import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { editorModel, groupByChapter, previewChapters, type PreviewChapter } from "@/lib/book/editor-model";
 import { printablePageCount } from "@/lib/book/formats";

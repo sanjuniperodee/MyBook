@@ -27,7 +27,7 @@ import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
 import { bakeFrame } from "./frame";
 import { frameKey, parseFrames } from "@/lib/book/photo-frame";
-import type { PhotoSpec } from "@/lib/book/cover-kit";
+import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
