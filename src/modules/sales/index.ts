@@ -10,10 +10,10 @@ import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineReposito
 
 export { currentMonth, shiftMonth, type PlanProgress, sourceFromChannel, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent } from "./domain";
 export type { DealView, NewDeal } from "./application";
-export { ReceiptError, type ReceiptRow } from "./infrastructure/receipts";
+export type { ReceiptRow } from "./infrastructure/receipts";
 export type { DealAgreement } from "./infrastructure/agreements";
-export { PaymentError, type PaymentRow } from "./infrastructure/payments";
-export { MAX_PAYMENT, RECEIPT_MAX_BYTES } from "./domain";
+export type { PaymentRow } from "./infrastructure/payments";
+export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "./domain";
 
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {

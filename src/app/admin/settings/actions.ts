@@ -45,7 +45,7 @@ export async function testWazzupAction(): Promise<{ ok: boolean; message: string
       channels: channels.map((c) => ({ id: c.channelId, label: `${c.transport} · ${c.plainId || c.name || c.channelId}`, state: c.state })),
     };
   } catch (err) {
-    return { ok: false, message: err instanceof WazzupError ? err.message : "Не удалось связаться с Wazzup" };
+    return { ok: false, message: WazzupError.is(err) ? err.message : "Не удалось связаться с Wazzup" };
   }
 }
 
@@ -56,7 +56,7 @@ export async function registerWazzupWebhookAction(): Promise<{ ok: boolean; mess
     await audit(staff, "settings.update", "settings", "wazzup.webhook", {});
     return { ok: true, message: `Вебхук подключён: ${uri.replace(/token=[^&]+/, "token=••••")}` };
   } catch (err) {
-    return { ok: false, message: err instanceof WazzupError ? err.message : "Не удалось подключить вебхук" };
+    return { ok: false, message: WazzupError.is(err) ? err.message : "Не удалось подключить вебхук" };
   }
 }
 

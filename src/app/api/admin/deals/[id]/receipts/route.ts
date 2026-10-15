@@ -40,7 +40,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     revalidatePath(`/admin/deals/${deal.id}`);
     return NextResponse.json({ receipt: { id: row.id, fileName: row.fileName, amount: row.amount, mime: row.mime, size: row.size, createdAt: row.createdAt } });
   } catch (err) {
-    if (err instanceof ReceiptError) return bad(receiptProblemText[err.code]);
+    if (ReceiptError.is(err)) return bad(receiptProblemText[err.code]);
     throw err;
   }
 });

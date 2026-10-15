@@ -1,8 +1,14 @@
 import "server-only";
 import { env } from "@/config/env";
 import type { SettingsReader } from "@/shared/application";
+import { contextError } from "@/shared/domain";
 
-export class WazzupError extends Error {}
+/** Ошибка Wazzup с понятным сотруднику текстом (message). Проверка — WazzupError.is(): классы в разных слоях бандла Next.js разные. */
+export class WazzupError extends contextError<"wazzup">("wazzup", "WazzupError") {
+  constructor(message: string) {
+    super("wazzup", message);
+  }
+}
 
 interface WazzupChannel {
   channelId: string;

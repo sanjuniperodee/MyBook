@@ -21,7 +21,7 @@ export const channelTransport = (wazzup: WazzupClient, email: Pick<EmailChannel,
     try {
       return { ok: true, externalId: await wazzup.send({ channelId: conv.channelId, chatType: conv.channel, chatId: conv.chatId, text, crmMessageId: messageId }) };
     } catch (err) {
-      if (err instanceof WazzupError) return { ok: false, error: err.message };
+      if (WazzupError.is(err)) return { ok: false, error: err.message };
       console.error("[chats] send", err);
       return { ok: false, error: "Не удалось отправить" };
     }

@@ -6,6 +6,7 @@ import type { User } from "@/shared/infrastructure/db/schema";
 import type { BookRow, BookViewer } from "@/modules/authoring";
 import { DomainError } from "@/shared/domain";
 import { viewerOf } from "@/server/books";
+import { domainStatus } from "@/server/errors";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
 import { can, getStaff, type Staff } from "@/server/access";
@@ -39,15 +40,6 @@ function translate(t: ApiMessages, key: string, params: unknown[] = []): string 
   if (!isApiKey(t, key)) return key;
   const v = t[key] as string | ((...a: unknown[]) => string);
   return typeof v === "function" ? v(...params) : v;
-}
-
-/** HTTP-статус для кода ошибки домена. */
-function domainStatus(code: string) {
-  if (code === "bookLocked" || code === "bookHasOrders" || code === "letterPrinted" || code === "reviewLocked") return 409;
-  if (code === "reviewNotAllowed") return 403;
-  if (code === "kaspiUnavailable" || code === "kaspiNotConnected") return 503;
-  if (/NotFound$/.test(code) || code === "letterClosed" || code === "letterInvalid") return 404;
-  return 400;
 }
 
 function fail(t: ApiMessages, status: number, code: string, params?: unknown[]) {

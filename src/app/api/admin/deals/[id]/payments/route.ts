@@ -59,8 +59,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     revalidatePath("/admin/analytics");
     return NextResponse.json({ payment: { id: payment.id, amount: payment.amount, kind: payment.kind, paidAt: payment.paidAt } });
   } catch (err) {
-    if (err instanceof PaymentError) return bad(err.code === "amount" ? "Проверьте сумму" : err.code === "refundTooBig" ? "Нельзя вернуть больше, чем принято" : "Дата не может быть в будущем");
-    if (err instanceof ReceiptError) return bad("Не удалось сохранить чек");
+    if (PaymentError.is(err)) return bad(err.code === "amount" ? "Проверьте сумму" : err.code === "refundTooBig" ? "Нельзя вернуть больше, чем принято" : "Дата не может быть в будущем");
+    if (ReceiptError.is(err)) return bad("Не удалось сохранить чек");
     throw err;
   }
 });

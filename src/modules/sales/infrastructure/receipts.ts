@@ -4,15 +4,9 @@ import { asc, eq } from "drizzle-orm";
 import { crmReceipts } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
-import { receiptProblem, safeReceiptName, sniffReceipt, type ReceiptProblem } from "../domain";
+import { ReceiptError, receiptProblem, safeReceiptName, sniffReceipt } from "../domain";
 
 export type ReceiptRow = typeof crmReceipts.$inferSelect;
-
-export class ReceiptError extends Error {
-  constructor(public readonly code: ReceiptProblem) {
-    super(code);
-  }
-}
 
 /** Чеки об оплате по сделкам: метаданные в базе, файлы в хранилище (receipts/<сделка>/<id>.<тип>). */
 export class DealReceipts {

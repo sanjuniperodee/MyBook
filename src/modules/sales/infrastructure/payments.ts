@@ -2,15 +2,9 @@ import "server-only";
 import { asc, eq, sql } from "drizzle-orm";
 import { crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { MAX_PAYMENT } from "../domain";
+import { MAX_PAYMENT, PaymentError } from "../domain";
 
 export type PaymentRow = typeof crmPayments.$inferSelect;
-
-export class PaymentError extends Error {
-  constructor(public readonly code: "amount" | "date" | "refundTooBig") {
-    super(code);
-  }
-}
 
 /**
  * Платежи по сделкам, оформленным вручную. Деньги из этой таблицы вместе с оплаченными заказами образуют вьюху

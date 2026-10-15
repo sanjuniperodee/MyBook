@@ -200,7 +200,7 @@ describe("messaging: настройки, уведомления, живое об
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify([{ channelId: "ch1", transport: "whatsapp", plainId: "77001112233", state: "active" }])));
     expect(await wazzup.configured()).toBe(false);
     const err = await wazzup.listChannels().catch((e) => e);
-    expect([err instanceof WazzupError, err.message]).toEqual([true, "Wazzup не подключён: укажите API-ключ в разделе «Интеграции»"]);
+    expect([WazzupError.is(err), err.message]).toEqual([true, "Wazzup не подключён: укажите API-ключ в разделе «Интеграции»"]);
     expect(fetch).not.toHaveBeenCalled();
     settings.values.set("wazzup.apiKey", "wz-key");
     settings.values.set("wazzup.baseUrl", "https://wz.example/");
