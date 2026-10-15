@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { env } from "@/config/env";
 import { formatPrice, getPlan, getVisiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
@@ -41,7 +42,6 @@ export interface NewClientState {
   done?: NewClientDone;
 }
 
-const uuid = z.string().uuid();
 const money = z.coerce.number().int("Сумма — целое число").min(0, "Сумма не может быть отрицательной").max(MAX_PAYMENT);
 
 const schema = z.object({

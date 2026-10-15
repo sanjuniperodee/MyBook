@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
@@ -77,7 +78,7 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
 
 export async function saveAdminNoteAction(_: AdminState, form: FormData): Promise<AdminState> {
   await assertStaff("orders.edit");
-  const orderId = z.string().uuid().parse(form.get("orderId"));
+  const orderId = uuid.parse(form.get("orderId"));
   await container().ordering.orders.saveAdminNote(orderId, String(form.get("adminNote") ?? ""));
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Заметка сохранена" };
@@ -85,14 +86,14 @@ export async function saveAdminNoteAction(_: AdminState, form: FormData): Promis
 
 export async function generateFilesAction(orderId: string) {
   const staff = await assertStaff("orders.files");
-  await container().ordering.orders.regeneratePrintFiles(z.string().uuid().parse(orderId), staffActor(staff));
+  await container().ordering.orders.regeneratePrintFiles(uuid.parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
 /** Временно открыть книгу для правок клиентом (например, по просьбе исправить опечатку). */
 export async function toggleBookLockAction(orderId: string) {
   const staff = await assertStaff("orders.edit");
-  await container().ordering.orders.toggleBookEditing(z.string().uuid().parse(orderId), staffActor(staff));
+  await container().ordering.orders.toggleBookEditing(uuid.parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
@@ -120,7 +121,7 @@ export async function createPromoAction(_: AdminState, form: FormData): Promise<
 
 export async function togglePromoAction(id: string) {
   const staff = await assertStaff("promo.manage");
-  const promo = await container().ordering.promos.toggle(z.string().uuid().parse(id));
+  const promo = await container().ordering.promos.toggle(uuid.parse(id));
   await audit(staff, promo.active ? "promo.enable" : "promo.disable", "promo", promo.code);
   revalidatePath("/admin/promo");
 }
@@ -130,7 +131,7 @@ export async function togglePromoAction(id: string) {
 /** Перемещение карточки на канбан-доске. */
 export async function moveOrderAction(orderId: string, status: string) {
   const staff = await assertStaff("orders.edit");
-  await container().ordering.orders.changeStatus({ orderId: z.string().uuid().parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff));
+  await container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff));
   revalidatePath("/admin/board");
   revalidatePath("/admin");
 }
@@ -138,7 +139,7 @@ export async function moveOrderAction(orderId: string, status: string) {
 export async function bulkStatusAction(orderIds: string[], status: string) {
   const staff = await assertStaff("orders.edit");
   const s = z.enum(orderStatuses).parse(status);
-  const ids = z.array(z.string().uuid()).max(200).parse(orderIds);
+  const ids = z.array(uuid).max(200).parse(orderIds);
   for (const id of ids) await container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff));
   await audit(staff, "order.bulk_status", "order", null, { count: ids.length, status: s });
   revalidatePath("/admin/orders");
@@ -148,8 +149,8 @@ export async function bulkStatusAction(orderIds: string[], status: string) {
 
 export async function assignOrderAction(orderId: string, assigneeId: string | null) {
   const staff = await assertStaff("orders.edit");
-  const id = z.string().uuid().parse(orderId);
-  const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? z.string().uuid().parse(assigneeId) : null, staffActor(staff)));
+  const id = uuid.parse(orderId);
+  const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? uuid.parse(assigneeId) : null, staffActor(staff)));
   if (failed) throw new Error(failed.error);
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/board");
@@ -159,7 +160,7 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
   const staff = await assertStaff("orders.edit");
   const parsed = z
     .object({
-      orderId: z.string().uuid(),
+      orderId: uuid,
       contactName: z.string().trim().min(1, "Укажите имя").max(100),
       contactPhone: z.string().trim().min(5, "Укажите телефон").max(30),
       contactEmail: z.string().trim().toLowerCase().email("Проверьте e-mail"),
@@ -207,10 +208,10 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     .object({
       title: z.string().trim().min(2, "Опишите задачу").max(300),
       dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).optional(),
-      clientId: z.string().uuid().optional(),
-      orderId: z.string().uuid().optional(),
-      dealId: z.string().uuid().optional(),
-      assigneeId: z.string().uuid().optional(),
+      clientId: uuid.optional(),
+      orderId: uuid.optional(),
+      dealId: uuid.optional(),
+      assigneeId: uuid.optional(),
       kind: z.enum(["task", "call", "message", "meeting"]).default("task"),
     })
     .safeParse({
@@ -231,13 +232,13 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
 
 export async function toggleTaskAction(taskId: string) {
   const staff = await assertStaff();
-  const t = await clientsCommand(() => container().clients.tasks.toggle(crmActor(staff), z.string().uuid().parse(taskId)));
+  const t = await clientsCommand(() => container().clients.tasks.toggle(crmActor(staff), uuid.parse(taskId)));
   revalidateCrm(t.clientId, t.orderId, t.dealId);
 }
 
 export async function deleteTaskAction(taskId: string) {
   const staff = await assertStaff();
-  const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), z.string().uuid().parse(taskId)));
+  const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId)));
   if (t) revalidateCrm(t.clientId, t.orderId, t.dealId);
 }
 
@@ -247,9 +248,9 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   const staff = await assertStaff(form.get("dealId") ? "deals.edit" : "clients.edit");
   const parsed = z
     .object({
-      clientId: dealOnly ? z.undefined() : z.string().uuid(),
-      orderId: z.string().uuid().optional(),
-      dealId: z.string().uuid().optional(),
+      clientId: dealOnly ? z.undefined() : uuid,
+      orderId: uuid.optional(),
+      dealId: uuid.optional(),
       kind: z.enum(["note", "call", "message", "email"]).default("note"),
       text: z.string().trim().min(1, "Пустая заметка").max(5000),
     })
@@ -264,7 +265,7 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
 
 export async function deleteNoteAction(noteId: string) {
   const staff = await assertStaff();
-  const note = await container().clients.notes.find(z.string().uuid().parse(noteId));
+  const note = await container().clients.notes.find(uuid.parse(noteId));
   if (!note) return;
   if (!can(staff, "clients.edit") && !(note.dealId && can(staff, "deals.edit"))) throw new ForbiddenError();
   if (note.clientId) await guardClient(staff, note.clientId);
@@ -279,7 +280,7 @@ export async function deleteNoteAction(noteId: string) {
 
 export async function updateClientTagsAction(clientId: string, tags: string[]) {
   const staff = await assertStaff("clients.edit");
-  const id = z.string().uuid().parse(clientId);
+  const id = uuid.parse(clientId);
   await guardClient(staff, id);
   const clean = await container().clients.clients.setTags(id, z.array(z.string().trim().toLowerCase().min(1).max(30)).max(20).parse(tags));
   await audit(staff, "client.tags", "client", clientId, { tags: clean });
@@ -296,8 +297,8 @@ const reminderRefusal: Record<Exclude<ReminderResult, { ok: true }>["reason"], s
 export async function remindClientAction(clientId: string): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("clients.edit");
   const admin = staff.user;
-  await guardClient(staff, z.string().uuid().parse(clientId));
-  const res = await container().notifications.reminders.send(z.string().uuid().parse(clientId), admin.id);
+  await guardClient(staff, uuid.parse(clientId));
+  const res = await container().notifications.reminders.send(uuid.parse(clientId), admin.id);
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/books");
   return res.ok ? { ok: true, message: "Напоминание отправлено" } : { ok: false, message: reminderRefusal[res.reason] };
@@ -308,7 +309,7 @@ export async function remindManyAction(clientIds: string[]): Promise<{ sent: num
   const admin = staff.user;
   let sent = 0;
   let skipped = 0;
-  for (const id of z.array(z.string().uuid()).max(300).parse(clientIds)) {
+  for (const id of z.array(uuid).max(300).parse(clientIds)) {
     await guardClient(staff, id);
     const res = await container().notifications.reminders.send(id, admin.id);
     if (res.ok) sent++;

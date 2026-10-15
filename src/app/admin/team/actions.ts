@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
@@ -58,32 +59,32 @@ export async function createStaffAction(_: TeamState, form: FormData): Promise<T
 
 export async function setStaffRoleAction(userId: string, roleId: string) {
   const staff = await assertStaff("team.manage");
-  await team().changeRole(staff.context, z.string().uuid().parse(userId), z.string().uuid().parse(roleId));
+  await team().changeRole(staff.context, uuid.parse(userId), uuid.parse(roleId));
   revalidateTeam();
 }
 
 export async function setStaffExtensionAction(userId: string, extension: string) {
   const staff = await assertStaff("team.manage");
-  await team().setExtension(staff.context, z.string().uuid().parse(userId), extensionSchema.parse(extension));
+  await team().setExtension(staff.context, uuid.parse(userId), extensionSchema.parse(extension));
   revalidateTeam();
 }
 
 export async function setStaffDisabledAction(userId: string, disabled: boolean) {
   const staff = await assertStaff("team.manage");
-  await team().setDisabled(staff.context, z.string().uuid().parse(userId), disabled);
+  await team().setDisabled(staff.context, uuid.parse(userId), disabled);
   revalidateTeam();
 }
 
 /** Забрать доступ к CRM: аккаунт становится обычным клиентским. */
 export async function revokeStaffAction(userId: string) {
   const staff = await assertStaff("team.manage");
-  await team().revoke(staff.context, z.string().uuid().parse(userId));
+  await team().revoke(staff.context, uuid.parse(userId));
   revalidateTeam();
 }
 
 export async function resetStaffPasswordAction(userId: string): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("team.manage");
-  const r = await run(() => team().resetPassword(staff.context, z.string().uuid().parse(userId)));
+  const r = await run(() => team().resetPassword(staff.context, uuid.parse(userId)));
   return r.ok ? { ok: true, message: r.value } : { ok: false, message: r.error };
 }
 
@@ -93,7 +94,7 @@ export async function saveRoleAction(_: TeamState, form: FormData): Promise<Team
   const staff = await assertStaff("team.manage");
   const parsed = z
     .object({
-      id: z.string().uuid().optional().or(z.literal("")),
+      id: uuid.optional().or(z.literal("")),
       name: z.string().trim().min(2, "Название роли — хотя бы 2 символа").max(60),
       scope: z.enum(["all", "own"]),
     })
@@ -107,14 +108,14 @@ export async function saveRoleAction(_: TeamState, form: FormData): Promise<Team
 
 export async function deleteRoleAction(roleId: string) {
   const staff = await assertStaff("team.manage");
-  await container().access.roles.delete(staff.context, z.string().uuid().parse(roleId));
+  await container().access.roles.delete(staff.context, uuid.parse(roleId));
   revalidateTeam();
 }
 
 /** План продаж сотрудника на месяц. */
 export async function savePlanAction(userId: string, month: string, amount: number, deals: number) {
   const staff = await assertStaff("team.manage");
-  const id = z.string().uuid().parse(userId);
+  const id = uuid.parse(userId);
   const m = z.string().regex(/^\d{4}-\d{2}$/).parse(month);
   const a = z.number().int().min(0).max(1_000_000_000).parse(amount);
   const d = z.number().int().min(0).max(100_000).parse(deals);

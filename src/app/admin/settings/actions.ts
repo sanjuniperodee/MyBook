@@ -3,6 +3,7 @@
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
 import { ensureToken, fromEnv, getSettings, saveSettings, smtpConfig, smtpFromEnvironment, type SettingKey } from "@/modules/workspace";
 import { randomToken } from "@/shared/crypto";
@@ -328,7 +329,7 @@ export async function sendTestMailAction(): Promise<{ ok: boolean; message: stri
 // ─── шаблоны ответов ───────────────────────────────────────────────────────
 
 const templateSchema = z.object({
-  id: z.union([z.literal(""), z.string().uuid()]).default(""),
+  id: z.union([z.literal(""), uuid]).default(""),
   title: z.string().trim().min(1, "Название шаблона").max(60),
   text: z.string().trim().min(1, "Текст шаблона").max(2000),
 });
@@ -346,7 +347,7 @@ export async function saveTemplateAction(_: SettingsState, form: FormData): Prom
 
 export async function deleteTemplateAction(id: string) {
   await assertStaff("settings.manage");
-  await container().workspace.templates.delete(z.string().uuid().parse(id));
+  await container().workspace.templates.delete(uuid.parse(id));
   revalidatePath("/admin/settings");
 }
 

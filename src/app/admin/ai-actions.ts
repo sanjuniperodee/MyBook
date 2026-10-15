@@ -3,13 +3,13 @@
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
 import { listFields } from "@/modules/workspace";
 import { rateLimit } from "@/server/rateLimit";
 
-const uuid = z.string().uuid();
 
 type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
 

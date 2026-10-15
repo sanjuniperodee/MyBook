@@ -4,6 +4,7 @@ import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
@@ -15,7 +16,6 @@ type Target = ContactTarget;
 
 type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
 
-const uuid = z.string().uuid();
 
 /** Ответственный за клиента. «Только свои» может лишь взять неразобранного клиента себе. */
 export async function setClientManagerAction(clientId: string, managerId: string | null): Promise<ActionResult> {

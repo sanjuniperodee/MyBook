@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import QRCode from "qrcode";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertStaffShell, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { container } from "@/server/container";
 import { staffActionError } from "@/server/errors";
@@ -81,7 +82,7 @@ export async function disableTwoFactorAction(input: string): Promise<Result> {
 export async function resetStaffTwoFactorAction(userId: string): Promise<Result> {
   const staff = await assertStaff("team.manage");
   try {
-    await container().access.team.resetTwoFactor(staff.context, z.string().uuid().parse(userId));
+    await container().access.team.resetTwoFactor(staff.context, uuid.parse(userId));
     revalidatePath("/admin/security");
     return { ok: true };
   } catch (err) {

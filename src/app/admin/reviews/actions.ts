@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
 import { container } from "@/server/container";
 
-const input = z.object({ id: z.string().uuid(), action: z.enum(["publish", "hide", "feature", "unfeature"]) });
+const input = z.object({ id: uuid, action: z.enum(["publish", "hide", "feature", "unfeature"]) });
 
 /** Проверка отзыва: показать на сайте, скрыть, закрепить первым на главной. */
 export async function moderateReviewAction(id: string, action: string) {

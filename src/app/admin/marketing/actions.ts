@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
@@ -46,7 +47,7 @@ export async function createLinkAction(_: LinkState, form: FormData): Promise<Li
 
 export async function archiveLinkAction(id: string, archived: boolean) {
   const staff = await assertStaff("promo.manage");
-  await container().marketing.service.archiveLink(z.string().uuid().parse(id), archived);
+  await container().marketing.service.archiveLink(uuid.parse(id), archived);
   await audit(staff, archived ? "link.archive" : "link.restore", "link", id);
   revalidatePath("/admin/marketing");
 }

@@ -4,6 +4,7 @@ import { container } from "@/server/container";
 import { sourceFromChannel } from "@/modules/sales";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { channelLabel } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
@@ -12,7 +13,6 @@ import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone, isPhoneLike, normalizePhone } from "@/shared/domain/phone";
 import { notify } from "@/modules/workspace";
 
-const uuid = z.string().uuid();
 
 async function loadConv(staff: Staff, id: string) {
   const conv = await container().messaging.queries.conversation(uuid.parse(id));

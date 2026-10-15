@@ -3,6 +3,7 @@
 import { queueEvent } from "@/server/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { requireUser } from "@/server/auth";
 import { getDeliveryOptions, getPlan, getPlans, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
@@ -18,7 +19,7 @@ type CheckoutErrors = Awaited<ReturnType<typeof getMessages>>["checkout"]["error
 const schema = (e: CheckoutErrors) =>
   z
     .object({
-      bookId: z.string().uuid(),
+      bookId: uuid,
       plan: z.enum(getPlans().map((p) => p.id) as [string, ...string[]]),
       quantity: z.coerce.number().int().min(1).max(20).default(1),
       delivery: z.string().optional(),
@@ -42,7 +43,7 @@ const schema = (e: CheckoutErrors) =>
         .or(z.literal("")),
       surprise: z.literal("on").optional(),
       agreementMode: z.enum(["agreed", "advance"]).optional(),
-      upgradeFrom: z.string().uuid().optional().or(z.literal("")),
+      upgradeFrom: uuid.optional().or(z.literal("")),
       consent: z.literal("on", { message: e.consent }),
     })
     .superRefine((d, ctx) => {

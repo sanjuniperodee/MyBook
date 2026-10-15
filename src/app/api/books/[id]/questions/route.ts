@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 
 const schema = z.object({
-  afterId: z.string().uuid(),
+  afterId: uuid,
   prompt: z.string().trim().min(3, "questionEmpty").max(200),
 });
 

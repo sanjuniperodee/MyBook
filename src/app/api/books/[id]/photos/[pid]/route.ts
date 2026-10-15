@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 
@@ -9,7 +10,7 @@ const schema = z
   .object({
     caption: z.string().trim().max(200),
     layout: z.enum(["full", "bleed", "half", "grid"]),
-    questionId: z.string().uuid().nullable(),
+    questionId: uuid.nullable(),
     inline: z
       .object({
         width: z.number().min(25).max(100),

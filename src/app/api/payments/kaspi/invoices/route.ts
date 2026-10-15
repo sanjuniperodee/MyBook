@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { api, apiUser, checkOrigin, HttpError } from "@/server/api";
 import { rateLimit, trustedClientIp } from "@/server/rateLimit";
 import { container } from "@/server/container";
@@ -8,7 +9,7 @@ import { invoiceView } from "../view";
 const method = z.enum(["invoice", "qr"]);
 const phone = z.string().trim().max(32).optional();
 const schema = z.discriminatedUnion("target", [
-  z.object({ target: z.literal("order"), orderId: z.string().uuid(), method, phone }),
+  z.object({ target: z.literal("order"), orderId: uuid, method, phone }),
   z.object({ target: z.literal("gift"), token: z.string().regex(/^[A-Za-z0-9_-]{20,40}$/), method, phone }),
 ]);
 

@@ -5,6 +5,7 @@ import { listFields, readFieldValues } from "@/modules/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
@@ -18,7 +19,6 @@ export interface DealFormState {
   ok?: string;
 }
 
-const uuid = z.string().uuid();
 
 async function loadDeal(staff: Staff, id: string) {
   const deal = await container().sales.deals.findById(uuid.parse(id));

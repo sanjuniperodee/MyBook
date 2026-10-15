@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { automationTriggers } from "@/modules/automation/domain/meta";
 import { dealSources } from "@/shared/domain/dealSources";
 
-const uuid = z.string().uuid();
 const optUuid = z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null);
 
 const actionSchema = z.discriminatedUnion("type", [
