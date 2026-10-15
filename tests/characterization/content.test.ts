@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { buildBookContent, LETTERS_CHAPTER, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { LETTERS_CHAPTER, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { fixtureBook, fixtureVariants } from "../fixtures/books";
 import { characterizationBooks, contentOf, fixtureNames, YEAR } from "./books";
 

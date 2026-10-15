@@ -61,7 +61,7 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 3D-книги.
 
 Данные готовятся так же, как на страницах сайта (`scripts/visual/html-data.ts`): развороты — `bookSpreadSample`;
-превью — `editorModel` и `previewChapters` из `lib/book/editor-model`, те же, что у `books/[id]/questions/page.tsx`
+превью — `editorModel` из `lib/book/editor-data` и `previewChapters` из `lib/book/editor-model`, те же, что у `books/[id]/questions/page.tsx`
 и `QuestionsEditor`; 3D-книга — `FlipbookData`, как в `books/[id]/preview/page.tsx`; оборот — `backContent` и
 `backPhotoRefs`, как в редакторе обложки. Сборка `FlipbookData` в `src` не экспортирована, поэтому в стенде — её
 копия одной функцией (`flipbookData`); перевести на экспорт из `src` в D1. До тех пор правка этого кода в `src`

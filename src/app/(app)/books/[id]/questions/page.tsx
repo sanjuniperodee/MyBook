@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
-import { editorModel } from "@/lib/book/editor-model";
+import { editorModel } from "@/lib/book/editor-data";
 import { QuestionsEditor } from "@/components/editor/QuestionsEditor";
 import { getMessages } from "@/i18n/server";
 

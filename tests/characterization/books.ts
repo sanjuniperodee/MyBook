@@ -1,4 +1,5 @@
-import { buildBookContent, toPhotoItem } from "@/lib/book/layout";
+import { toPhotoItem } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { fixtureBooks, fixtureVariants, type FixtureBook } from "../fixtures/books";
 
 /** Книги для характеристических снимков вёрстки: вся матрица набора (92 книги) и варианты вне неё. */

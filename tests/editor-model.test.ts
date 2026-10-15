@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { editorHeading, editorModel, editorPhotoUrl, groupByChapter, previewChapters, type EditorQuestion } from "@/lib/book/editor-model";
+import { editorModel } from "@/lib/book/editor-data";
+import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type EditorQuestion } from "@/lib/book/editor-model";
 import { fixtureBook, fixtureVariants } from "./fixtures/books";
 
 /** Модель редактора вопросов: то, что страница books/[id]/questions отдаёт QuestionsEditor, и главы превью. */

@@ -12,7 +12,8 @@ import { formats, getFormat, mm, print, printablePageCount, type BookFormat } fr
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import { interiorDesigns } from "@/lib/book/interiors";
 import { estimatePages } from "@/lib/book/estimate";
-import { buildBookContent, effectiveDpi, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
+import { effectiveDpi, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { interiorMetrics } from "@/lib/book/page-geometry";
 import { fixtureBook, fixtureBooks, fixtureSample, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, useFixtureStorage, variantPhotoNames } from "./fixtures/photos";

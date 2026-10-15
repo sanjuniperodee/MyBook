@@ -18,7 +18,8 @@ import {
   spineWidthMm,
   type CoverGeometry,
 } from "@/lib/book/formats";
-import { buildBookContent, photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { emptyFlow } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";

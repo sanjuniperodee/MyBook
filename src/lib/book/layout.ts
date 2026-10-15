@@ -2,9 +2,7 @@
  * Сборка содержимого книги и помощники фотостраниц. Модуль общий для сервера и браузера.
  */
 import type { Locale } from "@/i18n/config";
-import { messagesFor } from "@/i18n/messages";
 import { applyGender } from "../content/gender";
-import { getTheme } from "../content/themes";
 import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { MAX_INLINE_HEIGHT_SHARE } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
@@ -60,8 +58,8 @@ export interface BookContent {
   year: number;
 }
 
-type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer">;
-type BookLike = Pick<
+export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer">;
+export type BookLike = Pick<
   Book,
   | "theme"
   | "language"
@@ -121,15 +119,27 @@ export interface LetterLike {
 
 export const LETTERS_CHAPTER = "__letters";
 
-export function buildBookContent(
+/**
+ * Тексты книги, которых нет в ответах: названия и эпиграфы глав темы, «Разное» для главы вне темы, глава писем
+ * и название книги по умолчанию. На сервере их даёт bookTexts (book-content.ts: тема и словарь языка книги),
+ * редактору в браузере — его собственные данные: словари и каталог тем туда не грузятся.
+ */
+export interface BookTexts {
+  chapter(key: string): { title: string; epigraph?: string } | undefined;
+  misc: string;
+  letters: { title: string; epigraph?: string };
+  defaultTitle: string;
+}
+
+/** Содержимое книги для вёрстки — то, что печатается: главы с ответами и фото, галерея, письма. */
+export function assembleBookContent(
   book: BookLike,
   questions: QuestionLike[],
   photos: PhotoItem[],
+  texts: BookTexts,
   year = new Date().getFullYear(),
   letters: LetterLike[] = [],
 ): BookContent {
-  const theme = getTheme(book.theme, book.language);
-  const t = messagesFor(book.language).book;
   const sorted = [...questions].sort((a, b) => a.position - b.position);
   const chapterOrder: string[] = [];
   const byChapter = new Map<string, ContentItem[]>();
@@ -155,11 +165,11 @@ export function buildBookContent(
   }
 
   const chapters: ContentChapter[] = chapterOrder.map((key, i) => {
-    const def = theme.chapters.find((c) => c.key === key);
+    const def = texts.chapter(key);
     return {
       key,
       number: i + 1,
-      title: applyGender(def?.title ?? t.misc, book.authorGender, book.recipientGender),
+      title: applyGender(def?.title ?? texts.misc, book.authorGender, book.recipientGender),
       epigraph: def?.epigraph,
       items: byChapter.get(key)!,
       photos: [],
@@ -189,8 +199,8 @@ export function buildBookContent(
     chapters.push({
       key: LETTERS_CHAPTER,
       number: chapters.length + 1,
-      title: t.letters.title,
-      epigraph: t.letters.epigraph,
+      title: texts.letters.title,
+      epigraph: texts.letters.epigraph,
       items: letterItems.map((l) => ({ id: l.id, heading: printableText(l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim()), answer: printableText(l.text.trim()) })),
       photos: [],
     });
@@ -200,7 +210,7 @@ export function buildBookContent(
     language: book.language,
     format: getFormat(book.format),
     interior,
-    title: printableText(book.title.trim()) || theme.titleSuggestions[0],
+    title: printableText(book.title.trim()) || texts.defaultTitle,
     subtitle: printableText(book.subtitle.trim()),
     authorName: book.authorName.trim(),
     recipientName: book.recipientName.trim(),

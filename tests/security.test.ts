@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { safeNextPath } from "@/modules/identity/domain/redirects";
-import { buildBookContent, LETTERS_CHAPTER } from "@/lib/book/layout";
+import { LETTERS_CHAPTER } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 
 describe("safeNextPath", () => {
   it("пропускает только внутренние пути", () => {

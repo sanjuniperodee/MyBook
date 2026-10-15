@@ -5,7 +5,7 @@ import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { estimateChapterPages, textMetrics } from "@/lib/book/estimate";
-import { buildBookContent } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 

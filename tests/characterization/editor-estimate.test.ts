@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { editorModel, type EditorBook, type EditorPhoto } from "@/lib/book/editor-model";
+import { editorModel } from "@/lib/book/editor-data";
+import { type EditorBook, type EditorPhoto } from "@/lib/book/editor-model";
 import { editorEstimate } from "@/lib/book/editor-estimate";
 import { printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
@@ -9,7 +10,7 @@ import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
 /**
  * Характеристика оценки объёма в редакторе (editorEstimate, ею считает QuestionsEditor). Она собирает ту же книгу,
- * что PDF (buildBookContent), и считает той же estimatePages — число в редакторе равно оценке кабинета (B3).
+ * что PDF (assembleBookContent, как buildBookContent), и считает той же estimatePages — число в редакторе равно оценке кабинета (B3).
  * Снимок — по всем книгам набора и вариантам; с полосами PDF оценка совпадает (B14).
  */
 
