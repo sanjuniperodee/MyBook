@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { estimatePages } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/estimate";
 import { fixtureBook, fixtureBooks } from "../fixtures/books";
 import { useFixtureStorage } from "../fixtures/photos";
 import { contentOf, pdfContentPages } from "./books";

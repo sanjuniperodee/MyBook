@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { coverSpreadGeometry, coverSpreadZones, formats, print, printablePageCount, spineWidthMm } from "@/lib/book/formats";
-import { buildBookContent, effectiveDpi, estimatePages, photoPages } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/estimate";
+import { buildBookContent, effectiveDpi, photoPages } from "@/lib/book/layout";
 import { calculatePrice, normalizePromoCode } from "@/modules/ordering/domain/Pricing";
 import { coverTemplates, renderCoverSvg } from "@/lib/book/covers";
 import { coverFrontGeometry } from "@/lib/book/formats";

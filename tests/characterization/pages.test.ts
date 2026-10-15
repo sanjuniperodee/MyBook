@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { planFaces, type Face, type FacePlanInput } from "@/lib/book/flipbook";
 import { printablePageCount } from "@/lib/book/formats";
-import { estimateChapterPages, estimatePages, photoPages, textMetrics, type BookContent } from "@/lib/book/layout";
+import { estimateChapterPages, estimatePages, textMetrics } from "@/lib/book/estimate";
+import { photoPages, type BookContent } from "@/lib/book/layout";
 import { characterizationBooks, contentOf } from "./books";
 
 /** Характеристика объёма книги: оценка страниц (редактор, статистика, 3D) и раскладка полос листаемой 3D-книги. */

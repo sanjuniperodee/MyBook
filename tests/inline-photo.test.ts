@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cropRect, framedBox, inlineBox, layoutInline, normalizeStyle, objectPosition } from "@/lib/book/inline-photo";
-import { estimateAnswerPages } from "@/lib/book/layout";
+import { estimateAnswerPages } from "@/lib/book/estimate";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 

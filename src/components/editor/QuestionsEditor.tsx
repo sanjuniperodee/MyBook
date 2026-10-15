@@ -41,7 +41,8 @@ import { cssFont } from "@/lib/book/fonts";
 import { editorEstimate } from "@/lib/book/editor-estimate";
 import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type ChapterGroup, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { countWords, estimateAnswerPages, type LetterLike } from "@/lib/book/layout";
+import { estimateAnswerPages } from "@/lib/book/estimate";
+import { countWords, type LetterLike } from "@/lib/book/layout";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 
