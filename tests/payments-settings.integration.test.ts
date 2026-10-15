@@ -43,6 +43,19 @@ run("F4: платежи, настройки, выборки (PostgreSQL)", () =>
     await pool.end();
   });
 
+  it("B6: одновременные первые платежи — ровно одна «предоплата»", async () => {
+    const pay = () => payments.add({ dealId: ids.a, clientId: null, amount: 1000, createdById: ids.mgr });
+    const rows = await Promise.all([pay(), pay(), pay(), pay()]);
+    expect(rows.map((r) => r.kind).sort()).toEqual(["payment", "payment", "payment", "prepayment"]);
+  });
+
+  it("B6: одновременные возвраты не превышают принятое", async () => {
+    await payments.add({ dealId: ids.b, clientId: null, amount: 5000, createdById: ids.mgr });
+    const refund = () => payments.refund({ dealId: ids.b, clientId: null, amount: 3000, note: "отказ", createdById: ids.mgr }).then(() => "ok", (e: Error & { code?: string }) => e.code ?? e.message);
+    expect((await Promise.all([refund(), refund()])).sort()).toEqual(["ok", "refundTooBig"]);
+    expect(await payments.paidTotal(ids.b)).toBe(2000);
+  });
+
   it("B7: ошибка при сохранении — ни удаления, ни записи (одна транзакция)", async () => {
     await saveSettings({ "crm.slaMinutes": "15" }, ids.mgr);
     // Несуществующий сотрудник — нарушение внешнего ключа на вставке после удаления.

@@ -1,10 +1,13 @@
 import "server-only";
 import { asc, eq, sql } from "drizzle-orm";
 import { crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
-import { executor } from "@/shared/infrastructure/database";
+import { executor, inTransaction } from "@/shared/infrastructure/database";
 import { MAX_PAYMENT, PaymentError } from "../domain";
 
 export type PaymentRow = typeof crmPayments.$inferSelect;
+
+/** Блокировка строки сделки до конца транзакции: платежи по одной сделке пишутся по очереди. */
+const lockDeal = (dealId: string) => executor().execute(sql`select 1 from crm_deals where id = ${dealId} for update`);
 
 /**
  * Платежи по сделкам, оформленным вручную. Деньги из этой таблицы вместе с оплаченными заказами образуют вьюху
@@ -17,12 +20,16 @@ export class DealPayments {
     const paidAt = input.paidAt ?? new Date();
     // Деньги из будущего в выручку не попадают: платёж принят не позже, чем «сейчас» (запас на часовые пояса).
     if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 36 * 3600_000) throw new PaymentError("date");
-    const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
-    const [row] = await executor()
-      .insert(crmPayments)
-      .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById })
-      .returning();
-    return row;
+    // Первый платёж по сделке — «предоплата»: считаем под блокировкой сделки, иначе два одновременных платежа оба станут ею (B6).
+    return inTransaction(async () => {
+      await lockDeal(input.dealId);
+      const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
+      const [row] = await executor()
+        .insert(crmPayments)
+        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById })
+        .returning();
+      return row;
+    });
   }
 
   /** Возврат денег клиенту: записывается платежом типа refund (в выручке — со знаком минус) и не может превышать принятое. */
@@ -31,9 +38,13 @@ export class DealPayments {
     if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
     const paidAt = input.paidAt ?? new Date();
     if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 36 * 3600_000) throw new PaymentError("date");
-    if (amount > (await this.paidTotal(input.dealId))) throw new PaymentError("refundTooBig");
-    const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById }).returning();
-    return row;
+    // Сверка с принятым — под блокировкой сделки: два одновременных возврата не превысят принятое (B6).
+    return inTransaction(async () => {
+      await lockDeal(input.dealId);
+      if (amount > (await this.paidTotal(input.dealId))) throw new PaymentError("refundTooBig");
+      const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById }).returning();
+      return row;
+    });
   }
 
   list(dealId: string) {
