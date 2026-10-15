@@ -8,6 +8,19 @@ function harness() {
   const log: string[] = [];
   const paid: IntakePayment[] = [];
   const files: string[] = [];
+  /** Транзакция: ошибка внутри — платежи возвращаются к состоянию до неё. */
+  const uow = {
+    run: async <T>(work: () => Promise<T>) => {
+      const before = paid.length;
+      try {
+        return await work();
+      } catch (err) {
+        paid.splice(before);
+        log.push("rollback");
+        throw err;
+      }
+    },
+  };
   const payments: PaymentStore = {
     add: async (p) => {
       const row = { id: `pay-${paid.length + 1}`, amount: p.amount, kind: paid.length ? "payment" : "prepayment", note: p.note ?? "", paidAt: p.paidAt ?? new Date() };
@@ -22,10 +35,6 @@ function harness() {
       return row;
     },
     paidTotal: async () => paid.reduce((s, p) => s + (p.kind === "refund" ? -p.amount : p.amount), 0),
-    remove: async (id) => {
-      paid.splice(paid.findIndex((p) => p.id === id), 1);
-      log.push(`remove ${id}`);
-    },
     find: async (id) => (paid.some((p) => p.id === id) ? { dealId: "deal-1" } : null),
   };
   const receipts: ReceiptStore<string> & { failRecord?: boolean } = {
@@ -48,7 +57,7 @@ function harness() {
     note: async (_a, n) => void log.push(`note ${n.text}`),
     audit: async (a) => void log.push(`audit ${a.action} ${JSON.stringify(a.details)}`),
     mailClient: async (m) => void log.push(`mail ${m.kind} ${m.amount} left ${m.left}`),
-  });
+  }, uow);
   return { log, paid, files, payments, receipts, service };
 }
 
@@ -86,7 +95,7 @@ describe("PaymentIntakeService.acceptWithReceipt (E2)", () => {
     await expect(service.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor })).rejects.toThrow("база недоступна");
     expect(paid).toEqual([]);
     expect(files).toEqual([]);
-    expect(log).toEqual(["stage чек.pdf", "payment prepayment 10000", "remove pay-1", "discard чек.pdf"]);
+    expect(log).toEqual(["stage чек.pdf", "payment prepayment 10000", "rollback", "discard чек.pdf"]);
   });
 
   it("B4: платёж не записался (сумма, дата) — файл чека убирается", async () => {
@@ -94,15 +103,16 @@ describe("PaymentIntakeService.acceptWithReceipt (E2)", () => {
     payments.add = async () => Promise.reject(new PaymentError("amount"));
     await expect(service.acceptWithReceipt({ deal, kind: "payment", amount: 0, paidAt: new Date(), note: "", receipt, actor })).rejects.toThrow(PaymentError);
     expect(files).toEqual([]);
-    expect(log).toEqual(["stage чек.pdf", "discard чек.pdf"]);
+    expect(log).toEqual(["stage чек.pdf", "rollback", "discard чек.pdf"]);
   });
 
   it("B4: файл чека негоден — денег не трогаем", async () => {
     const { paid } = harness();
     const bad = new PaymentIntakeService(
-      { add: async () => (paid.push({ id: "x", amount: 1, kind: "payment", note: "", paidAt: new Date() }), paid[0]), refund: async () => paid[0], paidTotal: async () => 0, remove: async () => {}, find: async () => null },
+      { add: async () => (paid.push({ id: "x", amount: 1, kind: "payment", note: "", paidAt: new Date() }), paid[0]), refund: async () => paid[0], paidTotal: async () => 0, find: async () => null },
       { stage: async () => Promise.reject(new ReceiptError("type")), record: async () => ({ id: "r", fileName: "f", amount: 0, mime: "", size: 0, createdAt: new Date() }), discard: async () => {} },
       { note: async () => {}, audit: async () => {}, mailClient: async () => {} },
+      { run: (work) => work() },
     );
     await expect(bad.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor })).rejects.toThrow(ReceiptError);
     expect(paid).toEqual([]);

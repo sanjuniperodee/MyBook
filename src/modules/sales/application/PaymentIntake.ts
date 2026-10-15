@@ -1,12 +1,11 @@
 import { formatPrice } from "@/config/site";
+import type { UnitOfWork } from "@/shared/application";
 
 /** Хранилище платежей по сделке (infrastructure/payments.ts). */
 export interface PaymentStore {
   add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string }): Promise<IntakePayment>;
   refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string }): Promise<IntakePayment>;
   paidTotal(dealId: string): Promise<number>;
-  /** Удалить платёж — откат, если чек к нему записать не удалось. */
-  remove(id: string): Promise<void>;
   find(id: string): Promise<{ dealId: string } | null>;
 }
 
@@ -74,27 +73,25 @@ export class PaymentIntakeService<S = unknown> {
     /** S — черновик чека (файл в хранилище без записи); его вид знает только хранилище. */
     private readonly receipts: ReceiptStore<S>,
     private readonly effects: PaymentEffects,
+    private readonly uow: Pick<UnitOfWork, "run">,
   ) {}
 
   async acceptWithReceipt(input: AcceptInput): Promise<{ payment: IntakePayment; receipt: IntakeReceipt }> {
     const { deal, actor } = input;
     const refund = input.kind === "refund";
     const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId };
-    // Платёж без чека невозможен (B4): файл чека — до денег; не записался платёж — файл убираем,
-    // не записался чек — откатываем платёж. Транзакция не нужна: каждый шаг отменяем сами.
+    // Платёж без чека невозможен (B4): файл чека — до денег; платёж и запись о чеке — одной транзакцией;
+    // не записалось одно из двух — транзакция откатывается, файл убираем.
     const staged = await this.receipts.stage({ dealId: deal.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName });
     let payment: IntakePayment;
-    try {
-      payment = refund ? await this.payments.refund(money) : await this.payments.add(money);
-    } catch (err) {
-      await this.receipts.discard(staged);
-      throw err;
-    }
     let receipt: IntakeReceipt;
     try {
-      receipt = await this.receipts.record(staged, { clientId: deal.clientId, paymentId: payment.id, amount: payment.amount, uploadedById: actor.userId });
+      ({ payment, receipt } = await this.uow.run(async () => {
+        const payment = refund ? await this.payments.refund(money) : await this.payments.add(money);
+        const receipt = await this.receipts.record(staged, { clientId: deal.clientId, paymentId: payment.id, amount: payment.amount, uploadedById: actor.userId });
+        return { payment, receipt };
+      }));
     } catch (err) {
-      await this.payments.remove(payment.id);
       await this.receipts.discard(staged);
       throw err;
     }

@@ -44,7 +44,7 @@ beforeEach(() => {
     discard: async () => {},
   };
   // Сценарий приёма — настоящий PaymentIntakeService поверх тех же фейков: правки payments и receipts в тестах видны ему.
-  const intake = new PaymentIntakeService(payments as never, receipts as never, { note: async () => {}, audit: async () => {}, mailClient: async () => {} });
+  const intake = new PaymentIntakeService(payments as never, receipts as never, { note: async () => {}, audit: async () => {}, mailClient: async () => {} }, { run: (work) => work() });
   fake.sales = { deals: { findById: async () => deal }, payments, receipts, intake };
   fake.clients = { notes: { add: async () => {} } };
 });

@@ -38,7 +38,7 @@ export class SalesModule {
 
   /** Настройки CRM и график работы (распределение заявок по кругу) — порты рабочего пространства. */
   constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects }) {
-    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects);
+    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects, deps.uow);
     const repo = new DrizzleDealRepository();
     const funnels = new DrizzleFunnelRepository();
     const settings = crmSalesSettings(deps.settings);
