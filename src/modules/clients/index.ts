@@ -17,7 +17,7 @@ export class ClientsModule {
 
   /** Уведомления о задачах и упоминаниях — порт рабочего пространства; аккаунты и продажи — порты для онбординга. */
   constructor(deps: { clock: Clock; notifier: StaffNotifier; accounts: OnboardingAccounts; sales: OnboardingSales }) {
-    this.tasks = new TasksService(drizzleTasks, drizzleLinks, deps.notifier, deps.clock);
+    this.tasks = new TasksService(drizzleTasks, drizzleLinks, deps.notifier, deps.clock, drizzleStaff);
     this.notes = new NotesService(drizzleNotes, drizzleStaff, deps.notifier);
     this.onboarding = new ClientOnboardingService(deps.accounts, deps.sales, this.clients, this.notes, this.tasks);
   }

@@ -57,5 +57,5 @@ export interface StaffDirectory {
 }
 
 export interface StaffNotifier {
-  notify(userIds: string[], n: { kind: "task" | "mention"; title: string; body: string; link: string }): Promise<void>;
+  notify(userIds: string[], n: { kind: "task" | "mention"; title: string; body: string; link: string | null }): Promise<void>;
 }

@@ -91,13 +91,15 @@ describe("TasksService: задачи менеджеров", () => {
     expect(t.notifier.sent).toEqual([]);
   });
 
-  it("исполнитель не сверяется со справочником сотрудников (в отличие от ответственного клиента)", async () => {
+  it("исполнитель сверяется со справочником сотрудников, как ответственный клиента: отключённому — «Сотрудник не найден» (B12)", async () => {
     const t = setup();
-    // так сейчас: отключённому сотруднику задача ставится, и ему уходит уведомление
-    await t.tasks.create(head, { title: "Старое", kind: "task", assigneeId: "x1" });
-    expect(t.mem.tasks.last().assigneeId).toBe("x1");
-    expect(t.notifier.sent.map((s) => s.userIds)).toEqual([["x1"]]);
-    expect(t.staff.checked).toEqual([]);
+    await expect(t.tasks.create(head, { title: "Старое", kind: "task", assigneeId: "x1" })).rejects.toMatchObject({ code: "staffNotFound" });
+    expect(t.mem.tasks.rows.size).toBe(0);
+    expect(t.notifier.sent).toEqual([]);
+    expect(t.staff.checked).toEqual(["x1"]);
+    // себе — без проверки по справочнику
+    await t.tasks.create(head, { title: "Себе", kind: "task" });
+    expect(t.staff.checked).toEqual(["x1"]);
   });
 
   it("отметка «сделано»: время из часов, повторно — снимается; возвращается задача до переключения", async () => {
@@ -155,13 +157,13 @@ describe("NotesService: заметки и @упоминания", () => {
     expect(t.notifier.sent).toEqual([{ userIds: ["m2", "h1"], n: { kind: "mention", title: "Айгерим упомянул(а) вас · заметка о клиенте", body: text, link: "/admin/clients/client-1" } }]);
   });
 
-  it("сделка — «заметка в сделке» со ссылкой на сделку; заказ — ссылка на заказ, но «заметка о клиенте»", async () => {
+  it("сделка — «заметка в сделке» со ссылкой на сделку; заказ — «заметка к заказу» со ссылкой на заказ (B12)", async () => {
     const t = setup();
     await t.notes.add(head, { kind: "note", text: "@Айгерим глянь", clientId: "client-2", dealId: "deal-1", orderId: "order-1" });
     await t.notes.add(head, { kind: "note", text: "@Айгерим глянь", clientId: "client-1", orderId: "order-1" });
     expect(t.notifier.sent.map((s) => [s.n.title, s.n.link])).toEqual([
       ["Марат упомянул(а) вас · заметка в сделке", "/admin/deals/deal-1"],
-      ["Марат упомянул(а) вас · заметка о клиенте", "/admin/orders/order-1"],
+      ["Марат упомянул(а) вас · заметка к заказу", "/admin/orders/order-1"],
     ]);
   });
 
@@ -181,11 +183,10 @@ describe("NotesService: заметки и @упоминания", () => {
     expect(t.mem.notes.rows.size).toBe(3);
   });
 
-  it("без привязки ссылка ведёт на /admin/clients/undefined", async () => {
+  it("без привязки — уведомление без ссылки, а не /admin/clients/undefined (B12)", async () => {
     const t = setup();
-    // баг: сервис не требует клиента, заказа или сделки; вызывающий код сейчас всегда передаёт клиента или сделку
     await t.notes.add(manager, { kind: "note", text: "@Марат" });
-    expect(t.notifier.sent[0].n.link).toBe("/admin/clients/undefined");
+    expect(t.notifier.sent[0].n.link).toBeNull();
   });
 
   it("удаление: обычную — можно, системную — forbidden, нет заметки — null", async () => {

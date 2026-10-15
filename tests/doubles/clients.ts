@@ -145,7 +145,7 @@ export function setup() {
     notifier,
     c,
     clients: new ClientsService(mem.clients, staff),
-    tasks: new TasksService(mem.tasks, links, notifier, c),
+    tasks: new TasksService(mem.tasks, links, notifier, c, staff),
     notes: new NotesService(mem.notes, staff, notifier),
   };
 }
