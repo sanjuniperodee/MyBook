@@ -98,4 +98,12 @@ describe("что редактор берёт в счёт (B3)", () => {
     const blank = thin.questions.map((q) => ({ ...q, answer: "" }));
     expect(editorEstimate(thin.book, blank, [], [])).toEqual({ raw: 0, printed: 0 });
   });
+
+  it("книга только из фото без вопроса печатается галереей — счётчик не 0 и равен оценке кабинета", () => {
+    const blank = thin.questions.map((q) => ({ ...q, answer: "" }));
+    const photo: EditorPhoto = { id: "gallery-only", width: 4000, height: 3000, caption: "", layout: "full", questionId: null, inline: null };
+    const { raw, printed } = editorEstimate(thin.book, blank, [photo], []);
+    expect(raw).toBeGreaterThan(0);
+    expect(printed).toBe(printablePageCount(raw));
+  });
 });

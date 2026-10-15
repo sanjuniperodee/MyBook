@@ -18,7 +18,7 @@ export function editorEstimate(book: EditorBook, questions: EditorQuestion[], ph
     undefined,
     letters,
   );
-  // Пока в книге нечего печатать, счётчик показывает 0, а не пустые титул и оборот.
-  const raw = content.chapters.length ? estimatePages(content) : 0;
+  // Пока в книге нечего печатать, счётчик показывает 0, а не пустые титул и оборот. Фото без вопроса печатаются галереей.
+  const raw = content.chapters.length || content.galleryPhotos.length ? estimatePages(content) : 0;
   return { raw, printed: raw ? printablePageCount(raw) : 0 };
 }
