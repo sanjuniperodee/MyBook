@@ -19,6 +19,7 @@ export const admin = {
   receiptTooBig: (mb: number) => `Файл больше ${mb} МБ`,
   receiptType: "Нужен файл JPG, PNG, WEBP или PDF",
   twoFactorAlreadyOn: "2FA уже включена",
+  staffEmailExists: "Этот e-mail уже зарегистрирован",
   invalidTransition: "Такой переход статуса невозможен",
   staffNotFound: "Ответственным может быть только сотрудник CRM",
   promoExists: "Такой промокод уже есть",

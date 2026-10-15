@@ -92,7 +92,7 @@ describe("admin/team/actions.ts: run и действия без ответа в 
     expect(await create(failing(new AccessError("ownerOnly", "Назначить руководителя может только руководитель")))).toEqual({ error: "Назначить руководителя может только руководитель" });
     // B11: у IdentityError нет message — руководитель видел код («email»), теперь текст словаря
     expect(await create(failing(new IdentityError("email")))).toEqual({ error: "Проверьте адрес почты" });
-    expect(await create(failing(new IdentityError("exists")))).toEqual({ error: "Этот e-mail уже зарегистрирован. Войдите в аккаунт." });
+    expect(await create(failing(new IdentityError("exists")))).toEqual({ error: "Этот e-mail уже зарегистрирован" });
     expect(await thrown(create(failing(new Error("db down"))))).toMatchObject({ message: "db down" });
     expect(await create(async () => "", "не почта")).toEqual({ error: "Проверьте адрес почты" });
   });

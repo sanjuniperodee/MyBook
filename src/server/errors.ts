@@ -58,9 +58,13 @@ export function domainStatus(code: string): number {
 
 type ErrorKind = { is(err: unknown): boolean };
 
-/** Каждый код IdentityError — ключ auth.errors (в зависимости от языка запроса); 2FA сотрудника — словарь admin. */
-function identityText(m: Messages, err: DomainError): string {
+/**
+ * Каждый код IdentityError — ключ auth.errors (в зависимости от языка запроса); 2FA сотрудника — словарь admin.
+ * Руководителю при добавлении сотрудника «Войдите в аккаунт» не подходит — для него свой текст кода exists.
+ */
+function identityText(m: Messages, err: DomainError, staff: boolean): string {
   const texts: Record<IdentityErrorCode, string> = { ...m.auth.errors, twoFactorAlreadyOn: admin.twoFactorAlreadyOn };
+  if (staff) texts.exists = admin.staffEmailExists;
   return has(texts, err.code) ? texts[err.code as IdentityErrorCode] : m.auth.errors.credentials;
 }
 
@@ -105,8 +109,8 @@ const messageText = (err: DomainError) => (err.message === err.code ? null : err
  * Текст ошибки домена для пользователя. Identity и ordering — из словарей по коду; у остальных контекстов
  * (access, sales, clients…) message — готовый текст для сотрудника.
  */
-function domainText(m: Messages, err: DomainError): string | null {
-  if (err.context === "identity") return identityText(m, err);
+function domainText(m: Messages, err: DomainError, staff = false): string | null {
+  if (err.context === "identity") return identityText(m, err, staff);
   if (err.context === "ordering") return orderingText(m, err);
   return messageText(err);
 }
@@ -129,5 +133,5 @@ export async function actionError(err: unknown, ...only: ErrorKind[]): Promise<s
  * берёт cookie сайта — сотрудник, открывавший казахскую версию, получил бы казахские тексты.
  */
 export function staffActionError(err: unknown, ...only: ErrorKind[]): string | null {
-  return expected(err, only) ? domainText(messagesFor("ru"), err) : null;
+  return expected(err, only) ? domainText(messagesFor("ru"), err, true) : null;
 }

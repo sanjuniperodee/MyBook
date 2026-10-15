@@ -120,5 +120,7 @@ describe("staffActionError(): действия сотрудника CRM — вс
     expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBeNull();
     expect(staffActionError(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель"), AccessError)).toBe("Должен остаться хотя бы один руководитель");
     expect(staffActionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
+    // руководителю при добавлении сотрудника не предлагаем «Войдите в аккаунт» — клиентский текст кода exists
+    expect(staffActionError(new IdentityError("exists"), IdentityError)).toBe("Этот e-mail уже зарегистрирован");
   });
 });
