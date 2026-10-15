@@ -14,10 +14,12 @@ vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavig
 vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 
-// Характеристические тесты (фаза 3, S6): локальные переводчики ошибок домена в server actions.
-// E4 заменит их общим actionError(err) — тексты должны остаться прежними.
+// Характеристические тесты (фаза 3, S6): переводчики ошибок домена в server actions. E4 заменил их общим actionError(err);
+// тексты остались прежними, кроме исправленного B11 (маркеры «B11»): сотрудник видит текст, а не машинный код.
 
 const ID = "0d0d0d0d-0000-4000-8000-000000000001";
+/** Единственный текст кода twoFactorCode: словарь auth.errors, он же — на входе по коду из приложения. */
+const AUTH_2FA_CODE = "Неверный код. Проверьте время на телефоне и попробуйте ещё раз.";
 
 const form = (fields: Record<string, string>) => {
   const f = new FormData();
@@ -37,30 +39,33 @@ beforeEach(() => {
   resetContainer();
 });
 
-describe("admin/actions.ts: orderingStaffMessage", () => {
+describe("admin/actions.ts: ошибки заказов и промокодов", () => {
   const update = (err?: unknown) => {
     fake.ordering = { orders: { update: err ? failing(err) : async () => {} } };
     return updateOrderAction({}, form({ orderId: ID, status: "paid" }));
   };
 
-  it("четыре кода — свой текст, остальные — message ошибки, а без него сам код; прочие ошибки пробрасываются", async () => {
+  it("четыре кода — свои тексты, остальные — текст по коду из словаря; прочие ошибки пробрасываются", async () => {
     signIn(anna);
     expect(await update()).toEqual({ ok: "Сохранено" });
     expect(await update(new OrderingError("orderNotFound"))).toEqual({ error: "Заказ не найден" });
     expect(await update(new OrderingError("invalidTransition", "pending_payment → delivered"))).toEqual({ error: "Такой переход статуса невозможен" });
     expect(await update(new OrderingError("staffNotFound"))).toEqual({ error: "Ответственным может быть только сотрудник CRM" });
     expect(await update(new OrderingError("promoExists"))).toEqual({ error: "Такой промокод уже есть" });
-    expect(await update(new OrderingError("notPayable", "Заказ уже оплачен"))).toEqual({ error: "Заказ уже оплачен" });
-    // так сейчас: у ошибки без message сотрудник видит машинный код
-    expect(await update(new OrderingError("notPayable"))).toEqual({ error: "notPayable" });
+    // B11: код без message раньше показывался сотруднику как есть («notPayable»), теперь — текст словаря
+    expect(await update(new OrderingError("notPayable", "Заказ уже оплачен"))).toEqual({ error: "Этот заказ уже не ждёт оплаты — обновите страницу" });
+    expect(await update(new OrderingError("notPayable"))).toEqual({ error: "Этот заказ уже не ждёт оплаты — обновите страницу" });
+    expect(await update(new OrderingError("notFound"))).toEqual({ error: "Такого промокода нет" });
     expect(await thrown(update(new AccessError("forbidden", "нет")))).toMatchObject({ code: "forbidden" });
   });
 
-  it("не сотрудник — ForbiddenError; ошибка разбора формы — первое сообщение zod как есть", async () => {
+  it("не сотрудник — ForbiddenError; B11: ошибка разбора формы — первое сообщение по-русски, а не английский текст zod", async () => {
     signIn(client);
     expect(await thrown(updateOrderAction({}, form({ orderId: ID, status: "paid" })))).toBeInstanceOf(ForbiddenError);
     signIn(anna);
-    expect(await updateOrderAction({}, form({ orderId: "42", status: "paid" }))).toEqual({ error: "Invalid UUID" });
+    expect(await updateOrderAction({}, form({ orderId: "42", status: "paid" }))).toEqual({ error: "Заказ не найден" });
+    expect(await updateOrderAction({}, form({ orderId: ID, status: "возвращён" }))).toEqual({ error: "Выберите статус заказа" });
+    expect(await updateOrderAction({}, form({ orderId: ID, status: "paid", note: "я".repeat(1001) }))).toEqual({ error: "Заметка — до 1000 символов" });
   });
 });
 
@@ -71,21 +76,21 @@ describe("admin/team/actions.ts: run и orThrow", () => {
     return createStaffAction({}, form({ email, roleId: ID }));
   };
 
-  it("createStaffAction: AccessError и IdentityError — их message в error, прочее пробрасывается", async () => {
+  it("createStaffAction: AccessError — его message, IdentityError — текст по коду, прочее пробрасывается", async () => {
     expect(await create(async () => "Сотрудник добавлен")).toEqual({ ok: "Сотрудник добавлен" });
     expect(await create(failing(new AccessError("ownerOnly", "Назначить руководителя может только руководитель")))).toEqual({ error: "Назначить руководителя может только руководитель" });
-    // так сейчас: у IdentityError нет текста — руководитель видит код
-    expect(await create(failing(new IdentityError("email")))).toEqual({ error: "email" });
+    // B11: у IdentityError нет message — руководитель видел код («email»), теперь текст словаря
+    expect(await create(failing(new IdentityError("email")))).toEqual({ error: "Проверьте адрес почты" });
+    expect(await create(failing(new IdentityError("exists")))).toEqual({ error: "Этот e-mail уже зарегистрирован. Войдите в аккаунт." });
     expect(await thrown(create(failing(new Error("db down"))))).toMatchObject({ message: "db down" });
     expect(await create(async () => "", "не почта")).toEqual({ error: "Проверьте адрес почты" });
   });
 
-  it("orThrow: текст AccessError уходит простым Error, ZodError — как есть", async () => {
+  it("B11: действия без ответа в форме пробрасывают AccessError как есть (раньше — простым Error без кода), ZodError — как есть", async () => {
     fake.access.team = { changeRole: failing(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель")) };
     const err = await thrown(setStaffRoleAction(ID, ID));
-    expect(err).toBeInstanceOf(Error);
-    expect(AccessError.is(err)).toBe(false);
-    expect(err).toMatchObject({ message: "Должен остаться хотя бы один руководитель" });
+    expect(AccessError.is(err)).toBe(true);
+    expect(err).toMatchObject({ code: "lastOwner", message: "Должен остаться хотя бы один руководитель" });
     expect(await thrown(setStaffRoleAction("42", ID))).toMatchObject({ name: "ZodError" });
   });
 });
@@ -93,24 +98,26 @@ describe("admin/team/actions.ts: run и orThrow", () => {
 describe("admin/security/actions.ts: fail", () => {
   const accounts = (methods: Record<string, () => Promise<unknown>>) => (fake.identity.accounts = methods);
 
-  it("коды 2FA — свои тексты, AccessError — message, прочие IdentityError пробрасываются", async () => {
+  it("IdentityError — текст по коду, AccessError — message, прочие ошибки пробрасываются; B11: IdentityError любого кода ловится", async () => {
     signIn(anna);
     accounts({ regenerateBackupCodes: failing(new IdentityError("twoFactorCode")) });
-    expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: "Неверный код. Проверьте, что время на телефоне точное, и введите свежий код." });
+    expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: AUTH_2FA_CODE });
     accounts({ regenerateBackupCodes: failing(new AccessError("forbidden", "Нельзя")) });
     expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: "Нельзя" });
     accounts({ regenerateBackupCodes: failing(new IdentityError("credentials")) });
-    expect(await thrown(newBackupCodesAction("123456"))).toMatchObject({ code: "credentials" });
+    expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: "Неверный логин или пароль" });
+    accounts({ regenerateBackupCodes: failing(new Error("db down")) });
+    expect(await thrown(newBackupCodesAction("123456"))).toMatchObject({ message: "db down" });
     fake.rateLimiter = { hit: async () => false };
     expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: "Слишком много попыток — подождите 10 минут" });
   });
 
-  it("шаги включения 2FA пускают без 2FA при обязательной; тот же код twoFactorCode — другим текстом", async () => {
+  it("шаги включения 2FA пускают без 2FA при обязательной; B11: код twoFactorCode — тот же один текст, что везде", async () => {
     security.require2fa = true;
     signIn(anna);
     accounts({ beginTwoFactor: failing(new IdentityError("twoFactorAlreadyOn")), confirmTwoFactor: failing(new IdentityError("twoFactorCode")) });
     expect(await startTwoFactorAction()).toEqual({ ok: false, message: "2FA уже включена" });
-    expect(await confirmTwoFactorAction("123456")).toEqual({ ok: false, message: "Код не подошёл. Проверьте, что время на телефоне точное, и введите свежий код." });
+    expect(await confirmTwoFactorAction("123456")).toEqual({ ok: false, message: AUTH_2FA_CODE });
     expect(await thrown(newBackupCodesAction("123456"))).toBeInstanceOf(ForbiddenError);
   });
 });
@@ -124,7 +131,7 @@ describe("(auth)/actions.ts: identityText — ошибки входа на яз�
   it("код домена → текст словаря auth.errors на ru и kk; код не из таблицы → «неверный логин или пароль»", async () => {
     expect(await login(new IdentityError("credentials"))).toEqual({ error: "Неверный логин или пароль" });
     expect(await login(new IdentityError("twoFactorExpired"))).toEqual({ error: "Время на ввод кода истекло. Войдите заново." });
-    expect(await login(new IdentityError("tooMany"))).toEqual({ error: "Неверный логин или пароль" });
+    expect(await login(new IdentityError("nope" as never))).toEqual({ error: "Неверный логин или пароль" });
     request.headers.set("x-mb-locale", "kk");
     expect(await login(new IdentityError("credentials"))).toEqual({ error: "Логин немесе құпиясөз қате" });
     expect(await login(new IdentityError("credentials"), { email: "", password: "" })).toEqual({ error: "E-mail немесе телефон мен құпиясөзді енгізіңіз" });

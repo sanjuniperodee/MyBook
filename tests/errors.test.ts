@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessError } from "@/modules/access/domain";
-import { IdentityError } from "@/modules/identity/domain";
+import { IdentityError, type IdentityErrorCode } from "@/modules/identity/domain";
 import { PaymentError, ReceiptError } from "@/modules/sales";
 import { SalesError } from "@/modules/sales/domain";
 import { WazzupError } from "@/modules/messaging";
-import { OrderingError } from "@/modules/ordering/domain";
+import { OrderingError, type OrderingErrorCode } from "@/modules/ordering/domain";
 import { actionError } from "@/server/errors";
 import { request, resetRequest } from "./doubles/web";
 
@@ -49,7 +49,7 @@ describe("actionError(): ошибка домена в server action → текс
 
   it("IdentityError: текст auth.errors на языке запроса; код без текста — «неверный логин или пароль»", async () => {
     expect(await actionError(new IdentityError("exists"), IdentityError)).toBe("Этот e-mail уже зарегистрирован. Войдите в аккаунт.");
-    expect(await actionError(new IdentityError("tooMany"), IdentityError)).toBe("Неверный логин или пароль");
+    expect(await actionError(new IdentityError("nope" as never), IdentityError)).toBe("Неверный логин или пароль");
     request.cookies.set("mb_locale", "kk");
     expect(await actionError(new IdentityError("credentials"), IdentityError)).toBe("Логин немесе құпиясөз қате");
   });
@@ -69,8 +69,37 @@ describe("actionError(): ошибка домена в server action → текс
     expect(await actionError(new OrderingError("promoExists"), OrderingError)).toBe("Такой промокод уже есть");
   });
 
-  it("остальные ошибки домена: message — готовый текст для сотрудника", async () => {
+  it("остальные ошибки домена: message — готовый текст для сотрудника; без message (только код) текста нет — null, код не показываем", async () => {
     expect(await actionError(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель"), AccessError)).toBe("Должен остаться хотя бы один руководитель");
     expect(await actionError(new SalesError("stageHasDeals", "На этапе 3 сделок — сначала перенесите их"))).toBe("На этапе 3 сделок — сначала перенесите их");
+    expect(await actionError(new SalesError("dealNotFound"), SalesError)).toBeNull();
+  });
+
+  it("B11: у каждого кода IdentityError и OrderingError есть текст на обоих языках — машинный код сотруднику не показывается", async () => {
+    // satisfies Record<…> делает списки исчерпывающими: новый код без строки здесь не скомпилируется
+    const identity = { email: 1, password: 1, exists: 1, phone: 1, credentials: 1, resetExpired: 1, twoFactorCode: 1, twoFactorExpired: 1, twoFactorAlreadyOn: 1 } satisfies Record<IdentityErrorCode, 1>;
+    const ordering = {
+      bookNotFound: 1, alreadyOrdered: 1, upgradeUnavailable: 1, notReady: 1, promoGone: 1, empty: 1, notFound: 1, expired: 1, used: 1, ownCode: 1, firstOrderOnly: 1, orderNotFound: 1,
+      invalidTransition: 1, promoExists: 1, giftNotFound: 1, giftPastDate: 1, giftNeedEmail: 1, staffNotFound: 1, notPayable: 1, phoneInvalid: 1, invoiceNotFound: 1, kaspiNotConnected: 1, kaspiUnavailable: 1,
+    } satisfies Record<OrderingErrorCode, 1>;
+    for (const locale of ["ru", "kk"]) {
+      request.cookies.set("mb_locale", locale);
+      for (const code of Object.keys(identity) as IdentityErrorCode[]) {
+        const text = await actionError(new IdentityError(code));
+        expect([code, text?.length ? text : null]).toEqual([code, expect.any(String)]);
+        expect(text).not.toBe(code);
+      }
+      for (const code of Object.keys(ordering) as OrderingErrorCode[]) {
+        const text = await actionError(new OrderingError(code, "сообщение домена"));
+        expect([code, text?.length ? text : null]).toEqual([code, expect.any(String)]);
+        expect(text).not.toBe(code);
+      }
+    }
+  });
+
+  it("B11: 2FA сотрудника и платёжные коды — словари admin и api", async () => {
+    expect(await actionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
+    expect(await actionError(new OrderingError("notPayable"), OrderingError)).toBe("Этот заказ уже не ждёт оплаты — обновите страницу");
+    expect(await actionError(new OrderingError("kaspiNotConnected"), OrderingError)).toContain("Kaspi");
   });
 });

@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import { assertStaff, assertStaffShell, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { container } from "@/server/container";
+import { actionError } from "@/server/errors";
 import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
@@ -14,13 +15,11 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 const code = z.string().max(12);
 const identity = () => container().identity.accounts;
 
-function fail(err: unknown): { ok: false; message: string } {
-  if (IdentityError.is(err)) {
-    if (err.code === "twoFactorCode") return { ok: false, message: "Неверный код. Проверьте, что время на телефоне точное, и введите свежий код." };
-    if (err.code === "twoFactorAlreadyOn") return { ok: false, message: "2FA уже включена" };
-  }
-  if (AccessError.is(err)) return { ok: false, message: err.message };
-  throw err;
+/** Ошибка аккаунта или правил доступа — текстом в ответ формы, остальное пробрасываем. */
+async function fail(err: unknown): Promise<{ ok: false; message: string }> {
+  const message = await actionError(err, IdentityError, AccessError);
+  if (message === null) throw err;
+  return { ok: false, message };
 }
 
 async function limited(staff: Staff, key: string) {
@@ -48,7 +47,6 @@ export async function confirmTwoFactorAction(input: string): Promise<Result<{ co
     revalidatePath("/admin/security");
     return { ok: true, codes };
   } catch (err) {
-    if (IdentityError.is(err) && err.code === "twoFactorCode") return { ok: false, message: "Код не подошёл. Проверьте, что время на телефоне точное, и введите свежий код." };
     return fail(err);
   }
 }
@@ -102,8 +100,9 @@ export async function saveSecurityAction(_: { ok?: string; error?: string }, for
       editorHasTwoFactor: !!staff.user.totpEnabledAt,
     });
   } catch (err) {
-    if (AccessError.is(err)) return { error: err.message };
-    throw err;
+    const error = await actionError(err, AccessError);
+    if (error === null) throw err;
+    return { error };
   }
   revalidatePath("/admin/security");
   return { ok: "Сохранено" };

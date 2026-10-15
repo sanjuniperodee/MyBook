@@ -2,6 +2,8 @@ import "server-only";
 import { admin } from "@/i18n/admin";
 import type { Messages } from "@/i18n/messages";
 import { getMessages } from "@/i18n/server";
+import type { IdentityErrorCode } from "@/modules/identity";
+import type { OrderingErrorCode } from "@/modules/ordering";
 import { DomainError } from "@/shared/domain";
 
 /**
@@ -54,56 +56,54 @@ export function domainStatus(code: string): number {
 
 type ErrorKind = { is(err: unknown): boolean };
 
-/** Коды IdentityError, у которых есть текст в auth.errors; остальные показываем как «неверный логин или пароль». */
-function identityText(e: Messages["auth"]["errors"], code: string): string {
-  const texts: Partial<Record<string, string>> = {
-    email: e.email,
-    phone: e.phone,
-    password: e.password,
-    exists: e.exists,
-    credentials: e.credentials,
-    resetExpired: e.resetExpired,
-    twoFactorCode: e.twoFactorCode,
-    twoFactorExpired: e.twoFactorExpired,
-  };
-  return texts[code] ?? e.credentials;
+/** Каждый код IdentityError — ключ auth.errors (в зависимости от языка запроса); 2FA сотрудника — словарь admin. */
+function identityText(m: Messages, err: DomainError): string {
+  const texts: Record<IdentityErrorCode, string> = { ...m.auth.errors, twoFactorAlreadyOn: admin.twoFactorAlreadyOn };
+  return has(texts, err.code) ? texts[err.code as IdentityErrorCode] : m.auth.errors.credentials;
 }
 
 /**
  * Код OrderingError совпадает с ключом словаря (docs/architecture.md): оформление — checkout.promo и checkout.errors,
- * действия сотрудника над заказом — api и admin. notReady несёт готовый текст: что мешает заказать книгу.
+ * платёж и подарок — api и gift, действия сотрудника над заказом — admin. notReady несёт готовый текст: что мешает заказать книгу.
  */
 function orderingText(m: Messages, err: DomainError): string {
   const { promo, errors } = m.checkout;
-  switch (err.code) {
-    case "empty":
-    case "notFound":
-    case "expired":
-    case "used":
-    case "ownCode":
-    case "firstOrderOnly":
-      return promo[err.code];
-    case "bookNotFound":
-    case "alreadyOrdered":
-    case "promoGone":
-    case "upgradeUnavailable":
-      return errors[err.code];
-    case "orderNotFound":
-      return m.api.orderNotFound;
-    case "invalidTransition":
-    case "staffNotFound":
-    case "promoExists":
-      return admin[err.code];
-    default:
-      return err.message;
-  }
+  const texts: Record<OrderingErrorCode, string> = {
+    bookNotFound: errors.bookNotFound,
+    alreadyOrdered: errors.alreadyOrdered,
+    upgradeUnavailable: errors.upgradeUnavailable,
+    notReady: err.message,
+    promoGone: errors.promoGone,
+    empty: promo.empty,
+    notFound: promo.notFound,
+    expired: promo.expired,
+    used: promo.used,
+    ownCode: promo.ownCode,
+    firstOrderOnly: promo.firstOrderOnly,
+    orderNotFound: m.api.orderNotFound,
+    invalidTransition: admin.invalidTransition,
+    promoExists: admin.promoExists,
+    staffNotFound: admin.staffNotFound,
+    giftNotFound: m.api.notFound,
+    giftPastDate: m.gift.form.errors.pastDate,
+    giftNeedEmail: m.gift.form.errors.needEmail,
+    notPayable: m.api.notPayable,
+    phoneInvalid: m.api.phoneInvalid,
+    invoiceNotFound: m.api.invoiceNotFound,
+    kaspiNotConnected: m.api.kaspiNotConnected,
+    kaspiUnavailable: m.api.kaspiUnavailable,
+  };
+  return has(texts, err.code) ? texts[err.code as OrderingErrorCode] : err.message;
 }
 
-/** Текст ошибки домена для пользователя: по контексту ошибки; у остальных message — готовый текст для сотрудника. */
-export function domainText(m: Messages, err: DomainError): string {
-  if (err.context === "identity") return identityText(m.auth.errors, err.code);
+/**
+ * Текст ошибки домена для пользователя. Identity и ordering — из словарей по коду; у остальных контекстов
+ * (access, sales, clients…) message — готовый текст для сотрудника. Машинный код вместо текста не показываем: null.
+ */
+export function domainText(m: Messages, err: DomainError): string | null {
+  if (err.context === "identity") return identityText(m, err);
   if (err.context === "ordering") return orderingText(m, err);
-  return err.message;
+  return err.message === err.code ? null : err.message;
 }
 
 /**

@@ -61,10 +61,10 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
   const staff = await assertStaff("orders.edit");
   const parsed = z
     .object({
-      orderId: z.string().uuid(),
-      status: z.enum(orderStatuses),
-      trackingNumber: z.string().trim().max(100).optional(),
-      note: z.string().trim().max(1000).optional(),
+      orderId: z.string().uuid("Заказ не найден"),
+      status: z.enum(orderStatuses, "Выберите статус заказа"),
+      trackingNumber: z.string().trim().max(100, "Номер отслеживания — до 100 символов").optional(),
+      note: z.string().trim().max(1000, "Заметка — до 1000 символов").optional(),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
