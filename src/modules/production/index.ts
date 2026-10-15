@@ -8,6 +8,7 @@ export {
   type PrintSpec,
   type RenderQueue,
 } from "./application/PrintFilesService";
+export { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "./infrastructure/adapters";
 export { coverPhotoDataUrl, coverPhotoResized, isCoverPhotoKey } from "./infrastructure/coverPhotos";
 
 /** PDF подарочного сертификата. Рендерер тяжёлый, поэтому загружается только при первом вызове. */

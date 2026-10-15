@@ -6,7 +6,6 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { buildBookContent, estimateChapterPages, textMetrics } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
-import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { photoUrl } from "@/lib/urls";
 
 /** Сколько текста первой главы показывать на развороте: страница всё равно обрезается по полосе набора. */
@@ -14,7 +13,8 @@ const SAMPLE_CHARS = 1800;
 
 /**
  * Содержимое для разворотов в выбранном оформлении — на настоящем тексте книги, а пока ответов
- * нет, на примере на языке книги. Общее для вкладок «Страницы» и «Обложка».
+ * нет, на примере на языке книги. Общее для вкладок «Страницы» и «Обложка». Форму результата
+ * (SpreadSample) объявляет компонент разворота, поэтому её сверяет тип его свойства sample.
  */
 export function bookSpreadSample(
   book: Parameters<typeof buildBookContent>[0],
@@ -22,7 +22,7 @@ export function bookSpreadSample(
   dedicationPlaceholder: string,
   /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
   photos: { id: string; width: number; height: number; caption: string }[] = [],
-): SpreadSample {
+) {
   const format = getFormat(book.format);
   const content = buildBookContent(book, questions, []);
   const theme = getTheme(book.theme, book.language);
@@ -30,7 +30,7 @@ export function bookSpreadSample(
   const first = content.chapters[0];
   const firstThemeChapter = theme.chapters[0];
 
-  const entries: SpreadSample["entries"] = [];
+  const entries: { heading: string | null; paragraphs: string[] }[] = [];
   if (first) {
     let budget = SAMPLE_CHARS;
     for (const it of first.items) {
