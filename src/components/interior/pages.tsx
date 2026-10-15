@@ -8,6 +8,7 @@
  * folio (колонцифра и колонтитул), surface (страница и полоса набора), kit (дизайн, формат, единицы).
  */
 import type { CSSProperties } from "react";
+import { site } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { openerArtShapes } from "@/lib/book/interior-art";
@@ -159,6 +160,22 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
         </Placed>
         <div className="text-center" style={labelCss(kit, P.muted, S.year)}>
           {year}
+        </div>
+      </TextArea>
+    </PageSurface>
+  );
+}
+
+/** Оборот титула: копирайт и выходные данные внизу полосы — как в PDF (pdf/interior/colophon.tsx). */
+export function ColophonPage({ kit, year, author, className, style }: PageProps & { year: number; author: string }) {
+  const { design, sizes: S, u } = kit;
+  const t = messagesFor(kit.language).book;
+  return (
+    <PageSurface kit={kit} className={className} style={style}>
+      <TextArea kit={kit} className="flex flex-col">
+        <div className="flex-1" />
+        <div style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.colophon), lineHeight: FRONT.colophon.lineHeight, color: design.palette.muted, whiteSpace: "pre-line" }}>
+          {`${t.copyright(year, author)}\n${t.colophon(site.name)}`}
         </div>
       </TextArea>
     </PageSurface>

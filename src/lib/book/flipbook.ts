@@ -1,14 +1,16 @@
 /**
  * Раскладка листаемой 3D-книги: какие полосы идут в каком порядке и как они складываются в листы.
  * Порядок повторяет PDF для типографии (modules/production/.../pdf/interior/index.tsx): титул, оборот
- * титула, посвящение, оглавление, главы (начальная полоса — всегда справа, после текста — фотостраницы),
- * галерея, финал.
+ * титула (колофон), посвящение, оглавление, главы подряд (начальная полоса, текст, фотостраницы), галерея,
+ * финал. Пустых полос между главами нет — как в PDF: номера страниц в оглавлении совпадают.
  * Чистые функции без React — поэтому проверяются юнит-тестами.
  */
 
 export type Face =
   | { kind: "blank" }
   | { kind: "title" }
+  /** Оборот титула: копирайт и выходные данные. */
+  | { kind: "colophon" }
   | { kind: "dedication" }
   | { kind: "toc" }
   | { kind: "opener"; chapter: number }
@@ -37,24 +39,18 @@ export interface FacePlan {
   chapterStarts: number[];
 }
 
-/** Нечётные полосы (1, 3, …) — правые; индекс в `faces` у них чётный. */
-const isRecto = (index: number) => index % 2 === 0;
-
 export function planFaces({ hasDedication, hasToc, textPages, photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
-  const faces: Face[] = [{ kind: "title" }, { kind: "blank" }];
+  const faces: Face[] = [{ kind: "title" }, { kind: "colophon" }];
   if (hasDedication) faces.push({ kind: "dedication" });
   if (hasToc && textPages.length) faces.push({ kind: "toc" });
   const chapterStarts: number[] = [];
   textPages.forEach((count, chapter) => {
-    // Глава открывается на правой полосе: при необходимости оставляем левую пустой.
-    if (!isRecto(faces.length)) faces.push({ kind: "blank" });
     chapterStarts.push(faces.length + 1);
     faces.push({ kind: "opener", chapter });
     for (let part = 0; part < count; part++) faces.push({ kind: "text", chapter, part });
     for (let page = 0; page < (photoPages[chapter] ?? 0); page++) faces.push({ kind: "photos", chapter, page });
   });
   if (galleryPages) {
-    if (!isRecto(faces.length)) faces.push({ kind: "blank" });
     faces.push({ kind: "galleryOpener" });
     for (let page = 0; page < galleryPages; page++) faces.push({ kind: "photos", chapter: -1, page });
   }

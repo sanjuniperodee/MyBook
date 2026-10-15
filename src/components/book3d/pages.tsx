@@ -8,7 +8,7 @@ import type { Locale } from "@/i18n/config";
 import type { CoverPreviewProps } from "@/components/cover/CoverPreview";
 import type { SampleEntry } from "@/components/interior/entry";
 import { pageKit, type PageKit } from "@/components/interior/kit";
-import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "@/components/interior/pages";
+import { ColophonPage, DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "@/components/interior/pages";
 import { cqwUnits } from "@/components/interior/units";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
@@ -66,6 +66,8 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       return <div className={cn(faceBox, "bg-white")} />;
     case "title":
       return <TitlePage kit={kit} title={data.title} subtitle={data.subtitle} author={data.author} year={data.year} className={faceBox} />;
+    case "colophon":
+      return <ColophonPage kit={kit} year={data.year} author={data.author} className={faceBox} />;
     case "dedication":
       return <DedicationPage kit={kit} text={data.dedication} className={faceBox} />;
     case "toc":

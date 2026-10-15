@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { estimatePages } from "@/lib/book/estimate";
+import { planFaces } from "@/lib/book/flipbook";
+import { photoPages } from "@/lib/book/layout";
 import { useFixtureStorage } from "../fixtures/photos";
 import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
@@ -17,6 +19,8 @@ interface Pages {
   pageCount: number;
   /** Предупреждения react-pdf «can't wrap between pages» (узел выше полосы); прочие предупреждения не считаются. */
   wraps: number;
+  /** Первые полосы глав в PDF (номера оглавления). */
+  chapterPages: Record<string, number>;
 }
 
 const pages = new Map<string, Pages>();
@@ -27,9 +31,9 @@ beforeAll(async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   for (const fb of books) {
     warn.mockClear();
-    const { contentPages, pageCount } = await renderInterior(fb.bundle, "preview");
+    const { contentPages, pageCount, chapterPages } = await renderInterior(fb.bundle, "preview");
     const wraps = warn.mock.calls.filter(([message]) => String(message).includes("can't wrap between pages")).length;
-    pages.set(fb.key, { estimate: estimatePages(contentOf(fb)), contentPages, pageCount, wraps });
+    pages.set(fb.key, { estimate: estimatePages(contentOf(fb)), contentPages, pageCount, wraps, chapterPages });
   }
   warn.mockRestore();
 }, 600_000);
@@ -51,6 +55,27 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
 
   it("оценка совпадает с PDF у каждой книги набора — в A5 и в квадрате (B14)", () => {
     const mismatches = [...pages].filter(([, p]) => p.estimate !== p.contentPages).map(([key, p]) => `${key}: ${p.estimate} вместо ${p.contentPages}`);
+    expect(mismatches).toEqual([]);
+  });
+
+  it("3D-книга раскладывает полосы как PDF: те же номера глав в оглавлении, галерея и финал на тех же полосах (B2)", () => {
+    const mismatches: string[] = [];
+    for (const fb of books) {
+      const c = contentOf(fb);
+      const pdf = pages.get(fb.key)!;
+      const starts = c.chapters.map((ch) => pdf.chapterPages[ch.key]);
+      const photos = c.chapters.map((ch) => photoPages(ch.photos).length);
+      const gallery = photoPages(c.galleryPhotos).length;
+      const after = (i: number) => (i + 1 < starts.length ? starts[i + 1] : (pdf.chapterPages.__gallery ?? pdf.contentPages));
+      // Полосы текста главы — по PDF: всё между её начальной полосой и следующей главой, кроме фотостраниц.
+      const textPages = starts.map((start, i) => after(i) - start - 1 - photos[i]);
+      const plan = planFaces({ hasDedication: !!c.dedication, hasToc: c.showToc, textPages, photoPages: photos, galleryPages: gallery });
+      const end = plan.faces.findIndex((f) => f.kind === "end") + 1;
+      const galleryStart = plan.faces.findIndex((f) => f.kind === "galleryOpener") + 1 || undefined;
+      const got = JSON.stringify({ chapters: plan.chapterStarts, gallery: galleryStart, end });
+      const want = JSON.stringify({ chapters: starts, gallery: pdf.chapterPages.__gallery, end: pdf.contentPages });
+      if (got !== want) mismatches.push(`${fb.key}: 3D ${got} · PDF ${want}`);
+    }
     expect(mismatches).toEqual([]);
   });
 });

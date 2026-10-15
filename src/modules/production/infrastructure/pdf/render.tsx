@@ -151,6 +151,8 @@ export interface InteriorResult {
   pdf: Buffer;
   pageCount: number;
   contentPages: number;
+  /** Первая полоса каждой главы (по ключу главы; галерея — "__gallery") — те же номера, что в оглавлении. */
+  chapterPages: Record<string, number>;
 }
 
 /** Сколько раз собираем блок, доводя вёрстку (обычно хватает 2–4). */
@@ -209,7 +211,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
   doc.setAuthor(content.authorName);
   doc.setProducer("MyBooks");
   const pdf = Buffer.from(await doc.save());
-  return { pdf, pageCount, contentPages };
+  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {} };
 }
 
 /** Фото для рисунка обложки: data-URL, ужатый до разумного размера (librsvg держит его в памяти целиком). */
