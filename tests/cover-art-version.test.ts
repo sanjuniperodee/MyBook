@@ -1,25 +1,18 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { coverArtSources } from "../next.config";
+import { importGraph, type ImportEdge } from "../scripts/refactor/import-graph.mjs";
 
-/** Файлы, которые рисунок обложек импортирует во время выполнения (import type не считается), от covers/index.ts. */
+/** Файлы, которые рисунок обложек импортирует во время выполнения (без import type), от covers/index.ts — по графу src. */
 function runtimeClosure(entry: string) {
+  const next = new Map<string, string[]>();
+  for (const e of importGraph(".").edges as ImportEdge[]) if (!e.typeOnly) next.set(e.from, [...(next.get(e.from) ?? []), e.to]);
   const seen = new Set<string>();
   const queue = [entry];
-  const resolve = (from: string, spec: string) => {
-    if (!spec.startsWith(".")) return null;
-    const p = path.normalize(path.join(path.dirname(from), spec));
-    return [`${p}.ts`, `${p}.tsx`, `${p}/index.ts`].find(existsSync) ?? null;
-  };
   while (queue.length) {
     const f = queue.pop()!;
     if (seen.has(f)) continue;
     seen.add(f);
-    for (const m of readFileSync(f, "utf8").matchAll(/^import\s+(type\s+)?[^;]*?from\s+"([^"]+)";/gms)) {
-      const r = m[1] ? null : resolve(f, m[2]);
-      if (r) queue.push(r);
-    }
+    queue.push(...(next.get(f) ?? []));
   }
   return seen;
 }

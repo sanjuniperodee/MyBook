@@ -4,15 +4,15 @@ import type { NextConfig } from "next";
 
 /**
  * Файлы, от которых зависит рисунок обложек: весь каталог src/lib/book/covers и то, что он импортирует
- * (геометрия формата, рамка фото, шаблон на снимке, мотивы, реестр шаблонов из CRM). Полноту списка
- * сверяет tests/cover-art-version.test.ts по графу импортов.
+ * (геометрия формата, рамка фото, шаблон на снимке, мотивы, реестр шаблонов из CRM), и маршрут, который
+ * растрирует и обрезает фоны (/api/covers). Полноту списка сверяет tests/cover-art-version.test.ts по графу импортов.
  */
 export function coverArtSources() {
   const covers = readdirSync("src/lib/book/covers", { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(".ts"))
     .sort()
     .map((f) => `src/lib/book/covers/${f}`);
-  return [...covers, ...["cover-registry", "formats", "motifs", "photo-cover", "photo-frame"].map((f) => `src/lib/book/${f}.ts`)];
+  return [...covers, ...["cover-registry", "formats", "motifs", "photo-cover", "photo-frame"].map((f) => `src/lib/book/${f}.ts`), "src/app/api/covers/[file]/route.ts"];
 }
 
 /**
