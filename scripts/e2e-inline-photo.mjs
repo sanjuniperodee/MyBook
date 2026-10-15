@@ -70,7 +70,13 @@ await page.waitForTimeout(1600);
 const fb = await page.evaluate(() => {
   const box = [...document.querySelectorAll("aside")].find((a) => a.textContent.includes("Так будет в книге")).querySelector(".overflow-y-auto");
   const inAside = (r) => r.width > 0 && r.left >= box.getBoundingClientRect().left - 12 && r.right <= box.getBoundingClientRect().right + 12;
-  const fig = [...box.querySelectorAll("figure[data-photo]")].find((n) => inAside(n.getBoundingClientRect()));
+  // Поток главы нарисован на каждой полосе и обрезан ею: берём копию фото, которая видна внутри своей полосы.
+  const insidePage = (n) => {
+    const r = n.getBoundingClientRect();
+    const clip = n.closest(".overflow-clip")?.getBoundingClientRect();
+    return !!clip && r.left >= clip.left - 1 && r.right <= clip.right + 1 && r.top + r.height / 2 >= clip.top && r.top + r.height / 2 <= clip.bottom;
+  };
+  const fig = [...box.querySelectorAll("figure[data-photo]")].find((n) => inAside(n.getBoundingClientRect()) && insidePage(n));
   if (!fig) return null;
   box.scrollTop += fig.getBoundingClientRect().top - box.getBoundingClientRect().top - 260;
   const r = fig.getBoundingClientRect();
