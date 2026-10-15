@@ -66,6 +66,28 @@ function applyAgreement(price: PriceBreakdown, agreement: Agreement, extraCopies
   return { ...price, discountAmount: price.discountAmount + extraDiscount, prepaidAmount: prepaid, amount: total - prepaid };
 }
 
+/**
+ * Условия оформления — одни для формы и для сервера: тариф (по договорённости он фиксирован) и договорённость для расчёта.
+ * Дозаказ печатной версии к электронной: её оплата засчитывается как аванс, договорённость менеджера не применяется.
+ * «Аванс» (advance): цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
+ */
+export function checkoutTerms(input: { plan: PlanId; agreement: Agreement | null; mode?: "agreed" | "advance"; upgradeCredit?: number | null }): { plan: PlanId; agreement: Agreement | null; lockedPlan: PlanId | null } {
+  if (input.upgradeCredit != null) return { plan: input.plan, agreement: { agreedTotal: Number.POSITIVE_INFINITY, prepaid: input.upgradeCredit }, lockedPlan: null };
+  const found = input.agreement;
+  if (!found) return { plan: input.plan, agreement: null, lockedPlan: null };
+  const agreed = input.mode !== "advance";
+  const lockedPlan = agreed && found.plan && getPlan(found.plan) ? found.plan : null;
+  return { plan: lockedPlan ?? input.plan, agreement: { agreedTotal: agreed ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid }, lockedPlan };
+}
+
+/** Расчёт для формы оформления: итог как на сервере и отдельно скидка промокода и скидка по договорённости. */
+export function quoteCheckout(input: { plan: PlanId; quantity: number; delivery: DeliveryId | null; discount: Discount | null; addons: readonly string[]; agreement: Agreement | null; mode?: "agreed" | "advance"; upgradeCredit?: number | null }) {
+  const terms = checkoutTerms(input);
+  const plain = calculatePrice(terms.plan, input.quantity, input.delivery, input.discount, input.addons);
+  const price = terms.agreement ? calculatePrice(terms.plan, input.quantity, input.delivery, input.discount, input.addons, terms.agreement) : plain;
+  return { ...terms, price, promoDiscount: plain.discountAmount, agreedDiscount: price.discountAmount - plain.discountAmount };
+}
+
 export function normalizePromoCode(code: string) {
   return code.trim().toUpperCase().replace(/\s+/g, "");
 }

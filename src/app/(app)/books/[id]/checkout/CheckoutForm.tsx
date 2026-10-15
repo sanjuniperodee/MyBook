@@ -12,7 +12,7 @@ import { availableAddons, getDeliveryOptions, formatPrice, getPlan, getPlans, si
 import { cn } from "@/lib/class-names";
 import { nowMs } from "@/lib/dates";
 import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
-import { calculatePrice } from "@/modules/ordering/domain/Pricing";
+import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
 
 export function CheckoutForm({
   bookId,
@@ -47,35 +47,29 @@ export function CheckoutForm({
 
   // Договорённость: продолжить по ней или оформить заказ «с нуля» по обычной цене (внесённое засчитается как аванс).
   const [mode, setMode] = useState<"agreed" | "advance">("agreed");
-  // По договорённости тариф зафиксирован; «с нуля» — любой.
-  const lockedPlan = agreement?.plan && mode === "agreed" ? agreement.plan : null;
-  const planId = lockedPlan ?? chosenPlan;
   const [qty, setQty] = useState(1);
   const [delivery, setDelivery] = useState<DeliveryId>("courier");
   const [now] = useState(() => new Date(nowMs()));
   useEffect(() => track("begin_checkout"), []);
   const today = toIsoDay(now);
   const [desiredDate, setDesiredDate] = useState(defaults.desiredDate && defaults.desiredDate >= today ? defaults.desiredDate : "");
-  const plan = getPlans().find((p) => p.id === planId)!;
   const [promo, setPromo] = useState<PromoPreview | null>(initialPromo);
   const [promoInput, setPromoInput] = useState(initialPromo?.code ?? "");
   const [promoError, setPromoError] = useState<string | null>(null);
   const [checkingPromo, startPromo] = useTransition();
   const discount = promo?.ok && promo.kind && promo.value ? { kind: promo.kind, value: promo.value } : null;
   const [addonIds, setAddonIds] = useState<AddonId[]>([]);
+  // Тариф (по договорённости — зафиксирован) и итог — той же функцией, что на сервере (quoteCheckout).
+  const quote = quoteCheckout({ plan: chosenPlan, quantity: qty, delivery, discount, addons: addonIds, agreement, mode, upgradeCredit: upgrade?.credit });
+  const { itemsAmount: items, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = quote.price;
+  const discountAmount = quote.promoDiscount;
+  const agreedDiscount = quote.agreedDiscount;
+  const prepaidApplied = quote.price.prepaidAmount ?? 0;
+  const { plan: planId, lockedPlan } = quote;
+  const plan = getPlans().find((p) => p.id === planId)!;
   const offered = availableAddons(planId);
   // Какие тарифы предлагаем: зафиксированный договорённостью; при дозаказе печатной версии — только печатные; иначе все, что продаются.
   const shownPlans = lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : upgrade ? getVisiblePlans().filter((x) => x.printed) : getVisiblePlans();
-  const plain = calculatePrice(planId, qty, delivery, discount, addonIds);
-  const priced = upgrade
-    ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: Number.POSITIVE_INFINITY, prepaid: upgrade.credit })
-    : agreement
-      ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: mode === "agreed" ? agreement.agreedTotal : Number.POSITIVE_INFINITY, prepaid: agreement.prepaid })
-      : plain;
-  const { itemsAmount: items, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = priced;
-  const discountAmount = plain.discountAmount;
-  const agreedDiscount = priced.discountAmount - plain.discountAmount;
-  const prepaidApplied = priced.prepaidAmount ?? 0;
   const express = planId === "premium" || appliedAddons.includes("express");
   const toggleAddon = (id: AddonId) => setAddonIds((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
   // Успеваем ли к дате с выбранным тарифом и доставкой.

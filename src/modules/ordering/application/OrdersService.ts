@@ -5,7 +5,7 @@ import { staffLabel } from "@/shared/domain/staff";
 import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
-import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
+import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 
 export interface PlaceOrderCommand {
@@ -95,14 +95,10 @@ export class OrdersService {
     if (cmd.promoCode && !promo) throw new OrderingError("notFound");
     promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
-    // Дозаказ печатной версии к электронной: оплата электронной засчитывается как аванс; договорённость менеджера не применяется.
+    // Дозаказ печатной версии к электронной — договорённость менеджера не ищем; тариф и цену определяет checkoutTerms (как форма).
     const found = upgrade ? null : await this.agreements.agreementFor(cmd.userId);
-    // «Аванс»: цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
-    const agreedMode = !!found && cmd.agreementMode !== "advance";
-    const agreedPlan = found?.plan && getPlan(found.plan) ? (found.plan as PlanId) : null;
     // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
-    const plan = agreedMode && agreedPlan ? agreedPlan : cmd.plan;
-    const agreement = upgrade ? { agreedTotal: Number.POSITIVE_INFINITY, prepaid: upgrade.credit } : found && { agreedTotal: agreedMode ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid };
+    const { plan, agreement } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
     const identity = await this.orders.nextIdentity();
     const order = Order.place(
       {
