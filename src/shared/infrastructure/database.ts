@@ -25,4 +25,14 @@ export function executor(): Executor {
   return txStorage.getStore()?.tx ?? rootDb;
 }
 
+/**
+ * Выполнить в транзакции: внутри уже открытой (Unit of Work) — в ней же, иначе — в своей. Для репозиториев,
+ * которым нужна блокировка строк (SELECT … FOR UPDATE) до конца записи, даже если их вызвали вне Unit of Work.
+ * События агрегатов здесь не собираются — для них есть DrizzleUnitOfWork.
+ */
+export function inTransaction<T>(work: () => Promise<T>): Promise<T> {
+  if (txStorage.getStore()) return work();
+  return rootDb.transaction((tx) => txStorage.run({ tx, events: [], aggregates: new Set() }, work));
+}
+
 export { rootDb };

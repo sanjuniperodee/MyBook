@@ -1,6 +1,7 @@
 import "server-only";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
+import { executor, inTransaction, type Executor } from "@/shared/infrastructure/database";
 import { crmSettings } from "@/shared/infrastructure/db/schema";
 import { decryptSecret, encryptSecret, randomToken } from "@/shared/crypto";
 import type { SettingsStore } from "@/shared/application";
@@ -179,18 +180,23 @@ export async function getSettings<K extends SettingKey>(keys: K[]): Promise<Reco
 /** Задано ли значение переменной окружения (тогда поле в админке только для чтения). */
 export const fromEnv = (key: SettingKey) => !!(defs[key].env && process.env[defs[key].env!]);
 
+/**
+ * Сохранить настройки: пустое значение — удалить ключ, остальные — upsert. Всё одной транзакцией и одним запросом
+ * на вставку (B7): при ошибке не остаётся половины настроек. Внутри внешней транзакции — в ней же.
+ */
 export async function saveSettings(values: Partial<Record<SettingKey, string>>, actorId: string | null) {
   const entries = Object.entries(values) as [SettingKey, string][];
   const toDelete = entries.filter(([, v]) => v === "").map(([k]) => k);
-  if (toDelete.length) await db.delete(crmSettings).where(inArray(crmSettings.key, toDelete));
-  for (const [key, v] of entries) {
-    if (v === "") continue;
-    const value = defs[key].secret ? encryptSecret(v) : v;
-    await db
-      .insert(crmSettings)
-      .values({ key, value, updatedById: actorId })
-      .onConflictDoUpdate({ target: crmSettings.key, set: { value, updatedById: actorId, updatedAt: new Date() } });
-  }
+  const rows = entries.filter(([, v]) => v !== "").map(([key, v]) => ({ key, value: defs[key].secret ? encryptSecret(v) : v, updatedById: actorId }));
+  const write = async (tx: Executor) => {
+    if (toDelete.length) await tx.delete(crmSettings).where(inArray(crmSettings.key, toDelete));
+    if (rows.length)
+      await tx
+        .insert(crmSettings)
+        .values(rows)
+        .onConflictDoUpdate({ target: crmSettings.key, set: { value: sql`excluded.value`, updatedById: sql`excluded.updated_by_id`, updatedAt: new Date() } });
+  };
+  await inTransaction(() => write(executor()));
   invalidateSettings();
 }
 
