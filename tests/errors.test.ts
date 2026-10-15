@@ -5,7 +5,7 @@ import { PaymentError, ReceiptError } from "@/modules/sales";
 import { SalesError } from "@/modules/sales/domain";
 import { WazzupError } from "@/modules/messaging";
 import { OrderingError, type OrderingErrorCode } from "@/modules/ordering/domain";
-import { actionError } from "@/server/errors";
+import { actionError, staffActionError } from "@/server/errors";
 import { request, resetRequest } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -101,5 +101,24 @@ describe("actionError(): ошибка домена в server action → текс
     expect(await actionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
     expect(await actionError(new OrderingError("notPayable"), OrderingError)).toBe("Этот заказ уже не ждёт оплаты — обновите страницу");
     expect(await actionError(new OrderingError("kaspiNotConnected"), OrderingError)).toContain("Kaspi");
+  });
+});
+
+describe("staffActionError(): действия сотрудника CRM — всегда по-русски, cookie языка сайта не влияет", () => {
+  it("cookie mb_locale=kk без заголовка x-mb-locale (в /admin proxy его не ставит): тексты русские, у покупателя — казахские", async () => {
+    request.cookies.set("mb_locale", "kk");
+    expect(staffActionError(new OrderingError("orderNotFound"), OrderingError)).toBe("Заказ не найден");
+    expect(staffActionError(new OrderingError("alreadyOrdered"), OrderingError)).toBe("По этой книге уже оформлен заказ");
+    expect(staffActionError(new IdentityError("email"), IdentityError)).toBe("Проверьте адрес почты");
+    expect(staffActionError(new IdentityError("twoFactorCode"), IdentityError)).toBe("Неверный код. Проверьте время на телефоне и попробуйте ещё раз.");
+    expect(await actionError(new OrderingError("orderNotFound"), OrderingError)).toBe("Тапсырыс табылмады");
+  });
+
+  it("выбор ошибок и сообщение домена — как у actionError: чужая ошибка и не доменная — null, message — готовый текст", () => {
+    expect(staffActionError(new Error("db down"))).toBeNull();
+    expect(staffActionError(new OrderingError("notFound"), IdentityError)).toBeNull();
+    expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBeNull();
+    expect(staffActionError(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель"), AccessError)).toBe("Должен остаться хотя бы один руководитель");
+    expect(staffActionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
   });
 });

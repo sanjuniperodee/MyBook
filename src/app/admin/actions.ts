@@ -8,7 +8,7 @@ import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
-import { actionError } from "@/server/errors";
+import { staffActionError } from "@/server/errors";
 import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
 
 export interface AdminState {
@@ -51,7 +51,7 @@ async function orderCommand(run: () => Promise<unknown>): Promise<AdminState | n
     await run();
     return null;
   } catch (err) {
-    const error = await actionError(err, OrderingError);
+    const error = staffActionError(err, OrderingError);
     if (error === null) throw err;
     return { error };
   }

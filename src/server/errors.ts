@@ -1,6 +1,7 @@
 import "server-only";
 import { admin } from "@/i18n/admin";
 import type { Messages } from "@/i18n/messages";
+import { messagesFor } from "@/i18n/messages";
 import { getMessages } from "@/i18n/server";
 import type { IdentityErrorCode } from "@/modules/identity";
 import type { OrderingErrorCode } from "@/modules/ordering";
@@ -8,7 +9,8 @@ import { DomainError } from "@/shared/domain";
 
 /**
  * Единые ошибки веб-слоя: реестр «код домена → статус HTTP» и тексты по ключам словарей.
- * Ответ роутов собирает api() (api.ts), ошибки server actions — actionError(); сюда ходят за статусом и текстом.
+ * Ответ роутов собирает api() (api.ts), ошибки server actions — actionError() (покупатель, на его языке) и
+ * staffActionError() (сотрудник CRM, всегда по-русски); сюда ходят за статусом и текстом.
  */
 
 export type ApiMessages = Messages["api"];
@@ -109,11 +111,23 @@ function domainText(m: Messages, err: DomainError): string | null {
   return messageText(err);
 }
 
+/** Ошибка домена, которую действие ждёт (`only` пуст — любая); остальное оно пробросит. */
+function expected(err: unknown, only: ErrorKind[]): err is DomainError {
+  return DomainError.isDomainError(err) && (only.length === 0 || only.some((kind) => kind.is(err)));
+}
+
 /**
- * Ошибка домена в server action → текст для формы на языке запроса; null — это не та ошибка, её нужно пробросить.
- * `only` — какие ошибки ждёт действие (IdentityError, AccessError…): остальные доменные ошибки не трогаем.
+ * Ошибка домена в server action покупателя → текст для формы на языке запроса; null — это не та ошибка, её нужно пробросить.
+ * `only` — какие ошибки ждёт действие (IdentityError, OrderingError…): остальные доменные ошибки не трогаем.
  */
 export async function actionError(err: unknown, ...only: ErrorKind[]): Promise<string | null> {
-  if (!DomainError.isDomainError(err) || (only.length > 0 && !only.some((kind) => kind.is(err)))) return null;
-  return domainText(await getMessages(), err);
+  return expected(err, only) ? domainText(await getMessages(), err) : null;
+}
+
+/**
+ * То же для server action сотрудника CRM: админка всегда по-русски, а proxy в /admin язык не ставит и getLocale()
+ * берёт cookie сайта — сотрудник, открывавший казахскую версию, получил бы казахские тексты.
+ */
+export function staffActionError(err: unknown, ...only: ErrorKind[]): string | null {
+  return expected(err, only) ? domainText(messagesFor("ru"), err) : null;
 }

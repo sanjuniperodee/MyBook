@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import { assertStaff, assertStaffShell, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { container } from "@/server/container";
-import { actionError } from "@/server/errors";
+import { staffActionError } from "@/server/errors";
 import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
@@ -17,7 +17,7 @@ const identity = () => container().identity.accounts;
 
 /** Ошибка аккаунта или правил доступа — текстом в ответ формы, остальное пробрасываем. */
 async function fail(err: unknown): Promise<{ ok: false; message: string }> {
-  const message = await actionError(err, IdentityError, AccessError);
+  const message = staffActionError(err, IdentityError, AccessError);
   if (message === null) throw err;
   return { ok: false, message };
 }
@@ -100,7 +100,7 @@ export async function saveSecurityAction(_: { ok?: string; error?: string }, for
       editorHasTwoFactor: !!staff.user.totpEnabledAt,
     });
   } catch (err) {
-    const error = await actionError(err, AccessError);
+    const error = staffActionError(err, AccessError);
     if (error === null) throw err;
     return { error };
   }

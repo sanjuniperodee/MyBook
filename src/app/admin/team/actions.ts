@@ -6,7 +6,7 @@ import { assertStaff, audit } from "@/server/access";
 import { AccessError } from "@/modules/access";
 import { IdentityError } from "@/modules/identity";
 import { container } from "@/server/container";
-import { actionError } from "@/server/errors";
+import { staffActionError } from "@/server/errors";
 
 export interface TeamState {
   error?: string;
@@ -30,7 +30,7 @@ async function run<T>(fn: () => Promise<T>): Promise<{ ok: true; value: T } | { 
   try {
     return { ok: true, value: await fn() };
   } catch (err) {
-    const error = await actionError(err, AccessError, IdentityError);
+    const error = staffActionError(err, AccessError, IdentityError);
     if (error === null) throw err;
     return { ok: false, error };
   }

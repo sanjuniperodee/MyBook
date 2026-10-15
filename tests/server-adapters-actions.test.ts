@@ -59,6 +59,13 @@ describe("admin/actions.ts: ошибки заказов и промокодов"
     expect(await thrown(update(new AccessError("forbidden", "нет")))).toMatchObject({ code: "forbidden" });
   });
 
+  it("язык сайта в cookie (kk) на тексты CRM не влияет: в /admin proxy заголовок x-mb-locale не ставит, сотрудник читает по-русски", async () => {
+    signIn(anna);
+    request.cookies.set("mb_locale", "kk");
+    expect(await update(new OrderingError("orderNotFound"))).toEqual({ error: "Заказ не найден" });
+    expect(await update(new OrderingError("notFound"))).toEqual({ error: "Такого промокода нет" });
+  });
+
   it("не сотрудник — ForbiddenError; B11: ошибка разбора формы — первое сообщение по-русски, а не английский текст zod", async () => {
     signIn(client);
     expect(await thrown(updateOrderAction({}, form({ orderId: ID, status: "paid" })))).toBeInstanceOf(ForbiddenError);
@@ -86,6 +93,11 @@ describe("admin/team/actions.ts: run и действия без ответа в 
     expect(await create(async () => "", "не почта")).toEqual({ error: "Проверьте адрес почты" });
   });
 
+  it("язык сайта в cookie (kk) на тексты руководителю не влияет", async () => {
+    request.cookies.set("mb_locale", "kk");
+    expect(await create(failing(new IdentityError("email")))).toEqual({ error: "Проверьте адрес почты" });
+  });
+
   it("B11: действия без ответа в форме пробрасывают AccessError как есть (раньше — простым Error без кода), ZodError — как есть", async () => {
     fake.access.team = { changeRole: failing(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель")) };
     const err = await thrown(setStaffRoleAction(ID, ID));
@@ -110,6 +122,13 @@ describe("admin/security/actions.ts: fail", () => {
     expect(await thrown(newBackupCodesAction("123456"))).toMatchObject({ message: "db down" });
     fake.rateLimiter = { hit: async () => false };
     expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: "Слишком много попыток — подождите 10 минут" });
+  });
+
+  it("язык сайта в cookie (kk) на тексты «Безопасности» не влияет: twoFactorCode — тот же русский текст", async () => {
+    signIn(anna);
+    request.cookies.set("mb_locale", "kk");
+    accounts({ regenerateBackupCodes: failing(new IdentityError("twoFactorCode")) });
+    expect(await newBackupCodesAction("123456")).toEqual({ ok: false, message: AUTH_2FA_CODE });
   });
 
   it("шаги включения 2FA пускают без 2FA при обязательной; B11: код twoFactorCode — тот же один текст, что везде", async () => {
