@@ -111,8 +111,8 @@ export interface PromoPreview {
 export async function checkPromoAction(code: string): Promise<PromoPreview> {
   const user = await requireUser();
   const t = (await getMessages()).checkout;
-  const { clientIp, rateLimit } = await import("@/server/rateLimit");
-  if (!await rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
+  const { trustedClientIp, rateLimit } = await import("@/server/rateLimit");
+  if (!await rateLimit(`promo:${await trustedClientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
   const input = z.string().max(100).safeParse(code);
   if (!input.success) return { ok: false, error: t.promo.notFound };
   const check = await container().ordering.promos.check(input.data, user.id);

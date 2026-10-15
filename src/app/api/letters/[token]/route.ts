@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, HttpError } from "@/server/api";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { container } from "@/server/container";
 
 /** Публичная отправка письма по ссылке-приглашению. Письмо ждёт одобрения владельца книги. */
@@ -15,7 +15,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ token: strin
       website: z.string().max(0).optional(), // ловушка для ботов
     })
     .parse(await req.json());
-  if (!(await rateLimit(`letter:${await clientIp()}`, 5, 3600_000))) throw new HttpError(429, "letterRate");
+  if (!(await rateLimit(`letter:${await trustedClientIp()}`, 5, 3600_000))) throw new HttpError(429, "letterRate");
   await container().authoring.letters.submit(token, body);
   return NextResponse.json({ ok: true });
 });

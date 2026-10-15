@@ -8,7 +8,7 @@ import { IdentityError } from "@/modules/identity/domain";
 import { assertStaff, assertStaffShell, ForbiddenError, requireStaff, requireStaffShell } from "@/server/access";
 import { api, apiBook, apiViewer } from "@/server/api";
 import { getAccessibleBook, viewerOf } from "@/server/books";
-import { clientIp, trustedClientIp } from "@/server/rateLimit";
+import { trustedClientIp } from "@/server/rateLimit";
 import { PATCH as patchQuestion } from "@/app/api/books/[id]/questions/[qid]/route";
 import { GET as getPhoto } from "@/app/api/photos/[id]/route";
 import { loginAction } from "@/app/(auth)/actions";
@@ -252,12 +252,14 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
   });
 });
 
-describe("IP для лимитов частоты: clientIp() (src/server/rateLimit.ts)", () => {
-  it("V2: так сейчас — первый адрес X-Forwarded-For подставляет сам клиент: сменил заголовок — новый ключ лимита входа по IP (закроет G)", async () => {
+describe("IP для лимитов частоты: trustedClientIp() (src/server/rateLimit.ts)", () => {
+  it("адрес — от своего прокси (X-Real-IP или последний в X-Forwarded-For): подменённый первый адрес не сбрасывает лимит входа по IP (V2, решение 2)", async () => {
     // Прокси пишет настоящий адрес в X-Real-IP и дописывает его в конец X-Forwarded-For.
     resetRequest({ "x-real-ip": "10.0.0.1", "x-forwarded-for": "1.1.1.1, 10.0.0.1" });
-    expect(await clientIp()).toBe("1.1.1.1");
     expect(await trustedClientIp()).toBe("10.0.0.1");
+    resetRequest({ "x-forwarded-for": "1.1.1.1, 10.0.0.2" });
+    expect(await trustedClientIp()).toBe("10.0.0.2");
+    resetRequest({ "x-real-ip": "10.0.0.1", "x-forwarded-for": "1.1.1.1, 10.0.0.1" });
 
     const keys: string[] = [];
     fake.rateLimiter = {
@@ -278,7 +280,7 @@ describe("IP для лимитов частоты: clientIp() (src/server/rateLi
       request.headers.set("x-forwarded-for", `${first}, 10.0.0.1`);
       expect(await loginAction({}, form)).toEqual({ error: "Неверный логин или пароль" });
     }
-    // Лимит по логину держится, лимит по IP каждый раз начинается заново.
-    expect(keys).toEqual(["login:1.1.1.1", "login:a@b.kz", "login:2.2.2.2", "login:a@b.kz"]);
+    // Ключ лимита по IP один и тот же, сколько ни меняй первый адрес.
+    expect(keys).toEqual(["login:10.0.0.1", "login:a@b.kz", "login:10.0.0.1", "login:a@b.kz"]);
   });
 });

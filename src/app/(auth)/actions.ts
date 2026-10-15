@@ -4,7 +4,7 @@ import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { readSource, queueEvent } from "@/server/track";
 import { z } from "zod";
 import { formObject, formText } from "@/server/input";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { isThemeId } from "@/lib/content/themes";
 import { IdentityError } from "@/modules/identity";
 import { container } from "@/server/container";
@@ -38,7 +38,7 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  if (!await rateLimit(`register:${await clientIp()}`, 10, 3600_000)) return { error: e.tooMany };
+  if (!await rateLimit(`register:${await trustedClientIp()}`, 10, 3600_000)) return { error: e.tooMany };
   try {
     const { token, expiresAt } = await container().identity.auth.register({ ...parsed.data, locale, source: await readSource() });
     await startSession(token, expiresAt);
@@ -61,7 +61,7 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   const login = input.data.email.trim().slice(0, 200);
   const password = input.data.password;
   if (!login || !password) return { error: e.credentialsMissing };
-  if (!await rateLimit(`login:${await clientIp()}`, 30, 900_000) || !await rateLimit(`login:${login.toLowerCase()}`, 10, 900_000)) return { error: e.tooManyLogin };
+  if (!await rateLimit(`login:${await trustedClientIp()}`, 30, 900_000) || !await rateLimit(`login:${login.toLowerCase()}`, 10, 900_000)) return { error: e.tooManyLogin };
   const next = safeNextPath(form.get("next"));
   try {
     const result = await container().identity.auth.login({ login, password, locale });
@@ -84,7 +84,7 @@ export async function twoFactorAction(_: FormState, form: FormData): Promise<For
   const e = m.auth.errors;
   const userId = await readTwoFactorTicket();
   if (!userId) return { error: e.twoFactorExpired };
-  if (!await rateLimit(`2fa:${userId}`, 8, 900_000) || !await rateLimit(`2fa-ip:${await clientIp()}`, 30, 900_000)) return { error: e.tooManyLogin };
+  if (!await rateLimit(`2fa:${userId}`, 8, 900_000) || !await rateLimit(`2fa-ip:${await trustedClientIp()}`, 30, 900_000)) return { error: e.tooManyLogin };
   const code = formText.safeParse(form.get("code") ?? undefined);
   if (!code.success) return { error: e.twoFactorCode };
   try {
@@ -108,7 +108,7 @@ export async function forgotAction(_: FormState, form: FormData): Promise<FormSt
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const email = emailSchema(m.auth.errors).safeParse(form.get("email"));
   if (!email.success) return { error: m.auth.errors.email };
-  if (!await rateLimit(`forgot:${await clientIp()}`, 5, 3600_000)) return { error: m.auth.errors.tooManyForgot };
+  if (!await rateLimit(`forgot:${await trustedClientIp()}`, 5, 3600_000)) return { error: m.auth.errors.tooManyForgot };
   await container().identity.auth.requestPasswordReset(email.data, locale);
   return { ok: true, message: m.auth.forgot.sent };
 }

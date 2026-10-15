@@ -5,7 +5,7 @@ import { lredirect } from "@/i18n/server";
 import { getCurrentUser } from "@/server/auth";
 import { isSecureCookie } from "@/config/env";
 import { container } from "@/server/container";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { GIFT_COOKIE } from "@/modules/ordering";
 import { registrationOpen } from "@/config/site";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { formText } from "@/server/input";
 
 /** Запоминает код сертификата — он подставится при оформлении заказа — и ведёт к созданию книги. */
 export async function activateGiftAction(form: FormData) {
-  if (!await rateLimit(`redeem:${await clientIp()}`, 30, 600_000)) return lredirect("/redeem?error=limit");
+  if (!await rateLimit(`redeem:${await trustedClientIp()}`, 30, 600_000)) return lredirect("/redeem?error=limit");
   const code = formText.pipe(z.string().max(100)).safeParse(form.get("code") ?? undefined);
   if (!code.success) return lredirect("/redeem");
   const check = await container().ordering.promos.check(code.data);

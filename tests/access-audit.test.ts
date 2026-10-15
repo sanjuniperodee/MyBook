@@ -34,10 +34,10 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("журнал действий: адрес запроса (RequestOrigin)", () => {
-  it("в запросе пишет адрес клиента вместе с записью", async () => {
+  it("в запросе пишет адрес клиента вместе с записью — от своего прокси, не подставленный клиентом первый (V2)", async () => {
     req.headers = new Headers({ "x-forwarded-for": "1.1.1.1, 10.0.0.1" });
     await drizzleAuditLog(requestOrigin).record(entry);
-    expect(db.rows).toEqual([{ actorId: "u1", action: "role.update", entity: "role", entityId: "r1", details: { name: "Менеджер" }, ip: "1.1.1.1" }]);
+    expect(db.rows).toEqual([{ actorId: "u1", action: "role.update", entity: "role", entityId: "r1", details: { name: "Менеджер" }, ip: "10.0.0.1" }]);
   });
 
   it("вне запроса адреса нет (null), но запись делается и исключения нет", async () => {

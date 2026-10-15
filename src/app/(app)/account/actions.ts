@@ -6,7 +6,7 @@ import { formObject, formText } from "@/server/input";
 import { requireUser, sessionToken } from "@/server/auth";
 import { container } from "@/server/container";
 import { IdentityError } from "@/modules/identity";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { getMessages } from "@/i18n/server";
 
 export interface AccountState {
@@ -32,7 +32,7 @@ export async function updateProfileAction(_: AccountState, form: FormData): Prom
 export async function changePasswordAction(_: AccountState, form: FormData): Promise<AccountState> {
   const user = await requireUser();
   const t = (await getMessages()).orders.account;
-  if (!await rateLimit(`pwd:${user.id}:${await clientIp()}`, 10, 900_000)) return { error: t.errors.tooMany };
+  if (!await rateLimit(`pwd:${user.id}:${await trustedClientIp()}`, 10, 900_000)) return { error: t.errors.tooMany };
   const input = z.object({ current: formText, next: formText }).safeParse(formObject(form));
   if (!input.success) return { error: t.errors.wrong };
   try {

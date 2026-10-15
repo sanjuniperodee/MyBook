@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, checkOrigin, HttpError } from "@/server/api";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { reviewAccess } from "@/server/reviews";
 import { container } from "@/server/container";
 import { CITY_MAX, NAME_MAX, RATING_MAX, TEXT_MAX, type PhotoChange } from "@/modules/feedback";
@@ -21,7 +21,7 @@ const schema = z.object({
 export const POST = api(async (req, { params }: { params: Promise<{ orderId: string }> }) => {
   const { orderId } = idParams(await params, "orderId");
   checkOrigin(req);
-  if (!(await rateLimit(`review:${await clientIp()}`, 20, 3600_000))) throw new HttpError(429, "reviewRate");
+  if (!(await rateLimit(`review:${await trustedClientIp()}`, 20, 3600_000))) throw new HttpError(429, "reviewRate");
   // Фото до 15 МБ плюс поля формы; больше — отказ до того, как тело прочитано в память.
   if (Number(req.headers.get("content-length") ?? 0) > BODY_MAX) throw new HttpError(413, "reviewPhotoInvalid");
   const form = await req.formData();

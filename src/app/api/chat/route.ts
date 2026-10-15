@@ -4,7 +4,7 @@ import { z } from "zod";
 import { api, checkOrigin, HttpError } from "@/server/api";
 import { getCurrentUser } from "@/server/auth";
 import { isSecureCookie } from "@/config/env";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { randomToken } from "@/shared/crypto";
 import { VISITOR_COOKIE } from "@/modules/messaging";
 import { container } from "@/server/container";
@@ -32,7 +32,7 @@ export const POST = api(async (req) => {
   const body = schema.parse(await req.json());
   const jar = await cookies();
   let token = jar.get(VISITOR_COOKIE)?.value;
-  if (!await rateLimit(`site-chat:${await clientIp()}`, 30, 600_000) || (token && !await rateLimit(`site-chat:${token}`, 20, 300_000))) throw new HttpError(429, "widgetRate");
+  if (!await rateLimit(`site-chat:${await trustedClientIp()}`, 30, 600_000) || (token && !await rateLimit(`site-chat:${token}`, 20, 300_000))) throw new HttpError(429, "widgetRate");
   if (!token || !/^[\w-]{20,64}$/.test(token)) {
     token = randomToken();
     jar.set(VISITOR_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, path: "/", maxAge: 60 * 60 * 24 * 180 });
