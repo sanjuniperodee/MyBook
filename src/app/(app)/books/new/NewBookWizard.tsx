@@ -5,7 +5,8 @@ import { ArrowLeft, Check } from "lucide-react";
 import { createBookAction, type CreateState } from "../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
-import { CoverPreview } from "@/components/cover/CoverPreview";
+import { CoverFace } from "@/components/cover/CoverFace";
+import type { CoverMeta } from "@/lib/book/covers/meta";
 import { OccasionPicker } from "@/components/OccasionPicker";
 import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
@@ -24,7 +25,8 @@ export interface WizardTheme {
   defaultRecipientGender: Gender;
   /** Варианты названия на каждом из языков книги. */
   titleSuggestions: Record<Locale, string[]>;
-  defaultCover: string;
+  /** Обложка темы по умолчанию — метаданные шаблона (coverMeta). */
+  defaultCover: CoverMeta;
 }
 
 function GenderToggle({ name, value, onChange, labels }: { name: string; value: Gender; onChange: (g: Gender) => void; labels: [string, string] }) {
@@ -80,7 +82,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
           {themes.map((th) => (
             <button key={th.id} type="button" onClick={() => selectTheme(th)} className="card group flex items-center gap-5 p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lift">
               <div className="w-24 shrink-0">
-                <CoverPreview template={th.defaultCover} title={th.titleSuggestions[language][0]} lite className="rounded-[3px] shadow-book" />
+                <CoverFace template={th.defaultCover} title={th.titleSuggestions[language][0]} lite className="rounded-[3px] shadow-book" />
               </div>
               <div>
                 <div className="text-xl font-semibold">{th.name}</div>
@@ -180,7 +182,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
       </form>
       <div className="hidden lg:block">
         <div className="sticky top-28">
-          <CoverPreview template={theme.defaultCover} title={title} names={names} titlePlaceholder={t.bookTitle} className="rounded-[3px] shadow-book" />
+          <CoverFace template={theme.defaultCover} title={title} names={names} titlePlaceholder={t.bookTitle} className="rounded-[3px] shadow-book" />
           <p className="mt-4 text-center text-sm text-muted">{t.coverNote}</p>
         </div>
       </div>
