@@ -17,8 +17,8 @@ function footnote(r: Recipient) {
 const bookLink = (c: DraftCandidate) => appLink(`/books/${c.book.bookId}/questions?q=${(c.book.firstEmpty ?? 0) + 1}`, c.recipient.locale);
 const previewLink = (c: DraftCandidate) => appLink(`/books/${c.book.bookId}/preview`, c.recipient.locale);
 
-/** Письма клиенту — на его языке; заметки в ленту CRM — по-русски. Ссылку на отзыв и скидку за него даёт Feedback. */
-export const emailTemplates = (reviews: ReviewLinks): EmailTemplates => ({
+/** Письма клиенту — на его языке; заметки в ленту CRM — по-русски. */
+const baseTemplates: Omit<EmailTemplates, "review"> = {
   draft(email: DraftEmail, c: DraftCandidate) {
     const r = c.recipient;
     const m = msg(r);
@@ -92,23 +92,6 @@ export const emailTemplates = (reviews: ReviewLinks): EmailTemplates => ({
     };
   },
 
-  review(o: OrderReminder) {
-    const r = o.recipient;
-    const t = msg(r).mail.lifecycle.review;
-    return {
-      to: o.contactEmail,
-      subject: t.subject,
-      html: emailLayout({
-        locale: r.locale,
-        title: t.title,
-        paragraphs: [hello(r), t.text, t.thanks(reviews.thankYouPercent), t.gift(appLink("/gift", r.locale))],
-        button: { label: t.button, url: reviews.url(o.orderId, r.locale) },
-        footnote: footnote(r),
-      }),
-      note: `Автописьмо: просьба об отзыве по заказу №${o.number}`,
-    };
-  },
-
   reminder(r, book) {
     const m = msg(r).mail;
     const title = escapeHtml(book.title);
@@ -125,4 +108,24 @@ export const emailTemplates = (reviews: ReviewLinks): EmailTemplates => ({
       note: `Отправлено напоминание дописать книгу «${book.title}» (${book.answered}/${book.total})`,
     };
   },
-});
+};
+
+/** Просьба об отзыве: ссылку на форму и скидку за отзыв даёт Feedback. */
+const reviewMail = (reviews: ReviewLinks) => (o: OrderReminder) => {
+  const r = o.recipient;
+  const t = msg(r).mail.lifecycle.review;
+  return {
+    to: o.contactEmail,
+    subject: t.subject,
+    html: emailLayout({
+      locale: r.locale,
+      title: t.title,
+      paragraphs: [hello(r), t.text, t.thanks(reviews.thankYouPercent), t.gift(appLink("/gift", r.locale))],
+      button: { label: t.button, url: reviews.url(o.orderId, r.locale) },
+      footnote: footnote(r),
+    }),
+    note: `Автописьмо: просьба об отзыве по заказу №${o.number}`,
+  };
+};
+
+export const emailTemplates = (reviews: ReviewLinks): EmailTemplates => ({ ...baseTemplates, review: reviewMail(reviews) });
