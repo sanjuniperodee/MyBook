@@ -40,6 +40,15 @@ export function textArea(format: BookFormat) {
   };
 }
 
+/**
+ * Сколько полос занял текст, разложенный CSS-колонками шириной в полосу набора (так верстают превью редактора
+ * и листаемая книга): каждая колонка — полоса. scrollWidth — ширина всех колонок, gap — промежуток между ними,
+ * в тех же единицах. Округление гасит доли пикселя; полоса — хотя бы одна.
+ */
+export function columnPages(scrollWidth: number, columnWidth: number, gap: number) {
+  return Math.max(1, Math.round((scrollWidth + gap) / (columnWidth + gap)));
+}
+
 /** Обрезной формат с вылетами и отступ рамки парадных полос — для графики из interior-art. */
 export function pageBox(format: BookFormat, bleed: number): PageBox {
   const m = interiorMetrics[format.id];

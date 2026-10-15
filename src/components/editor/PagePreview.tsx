@@ -8,7 +8,7 @@ import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/edit
 import { cssFont } from "@/lib/book/fonts";
 import { PT_TO_MM, type BookFormat } from "@/lib/book/formats";
 import { PHOTO_COLORS, type InteriorDesign } from "@/lib/book/interiors";
-import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
+import { columnPages, interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { AnswerBlockView } from "@/components/interior/answer-block";
@@ -125,7 +125,7 @@ export function PagePreview({
       let changed = false;
       const next = { ...prev };
       for (const [key, el] of measureRefs.current) {
-        const n = Math.max(1, Math.round((el.scrollWidth + gap) / (textW + gap)));
+        const n = columnPages(el.scrollWidth, textW, gap);
         if (next[key] !== n) {
           next[key] = n;
           changed = true;

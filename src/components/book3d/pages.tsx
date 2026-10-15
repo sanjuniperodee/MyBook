@@ -12,7 +12,7 @@ import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, To
 import { cqwUnits } from "@/components/interior/units";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { pageSide } from "@/lib/book/page-geometry";
+import { columnPages, pageSide } from "@/lib/book/page-geometry";
 import { planFaces, planSheets, type Face, type Sheet } from "@/lib/book/flipbook";
 import { cn } from "@/lib/class-names";
 
@@ -113,7 +113,7 @@ export function usePagedBook(data: FlipbookData): PagedBook {
     const el = root.current;
     if (!el) return;
     const gapPx = (2 * pageSide(format) * MEASURE_WIDTH) / format.widthMm;
-    const next = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"), (flow) => Math.max(1, Math.round((flow.scrollWidth + gapPx) / (flow.clientWidth + gapPx))));
+    const next = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"), (flow) => columnPages(flow.scrollWidth, flow.clientWidth, gapPx));
     setTextPages((prev) => (prev && prev.length === next.length && prev.every((n, i) => n === next[i]) ? prev : next));
   }, [format]);
   const measured = useMemo(() => data.chapters.filter((c) => c.entries.length), [data.chapters]);
