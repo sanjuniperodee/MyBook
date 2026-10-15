@@ -61,11 +61,11 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 3D-книги.
 
 Данные готовятся так же, как на страницах сайта (`scripts/visual/html-data.ts`): развороты — `bookSpreadSample`;
-превью — главы, как их строят `books/[id]/questions/page.tsx` и `QuestionsEditor`; 3D-книга — `FlipbookData`, как
-в `books/[id]/preview/page.tsx`; оборот — `backContent` и `backPhotoRefs`, как в редакторе обложки. Маппинг глав
-превью и сборка `FlipbookData` в `src` не экспортированы, поэтому в стенде — их копии, каждая одной функцией
-(`editorPreview`, `flipbookData`); перевести на экспорт из `src` в первом коммите C7/D1. До тех пор правка этого
-кода в `src` без правки копии даёт у `html:preview` и `html:flipbook` ложное «0 отличий».
+превью — `editorModel` и `previewChapters` из `lib/book/editor-model`, те же, что у `books/[id]/questions/page.tsx`
+и `QuestionsEditor`; 3D-книга — `FlipbookData`, как в `books/[id]/preview/page.tsx`; оборот — `backContent` и
+`backPhotoRefs`, как в редакторе обложки. Сборка `FlipbookData` в `src` не экспортирована, поэтому в стенде — её
+копия одной функцией (`flipbookData`); перевести на экспорт из `src` в D1. До тех пор правка этого кода в `src`
+без правки копии даёт у `html:flipbook` ложное «0 отличий».
 
 Стенд собирается из `src`: JS — esbuild (вход `scripts/visual/html-stand.tsx`, пути `@/` из tsconfig, `next/link` и
 `next/navigation` — заглушка, `process.env.COVER_ART_VERSION` подставляется при сборке, как в `next.config.ts`),
@@ -190,6 +190,6 @@ WOFF2-подмножеств). Сравнивать можно только сн
   зовут копии в `html-data.ts`), коммиты до переноса сверяются с `--ref-tools` (инструменты в них уже должны быть) —
   при условии, что набор книг между ними не менялся. Если инструменты `ref` старше сводки PDF и видов `flipbook`,
   `back`, сводка не сверяется (строка в итоге), а ключи новых видов и вариантов — отличие «нет в эталоне».
-- Копии из `src` в `html-data.ts` (`editorPreview`, `flipbookData`) не следят за оригиналом — см. «Что снимается».
+- Копия из `src` в `html-data.ts` (`flipbookData`) не следит за оригиналом — см. «Что снимается».
 - В vitest долгих прогонов нет: `tests/visual-compare.test.ts` проверяет сверку и сводку PDF. Весь набор в
   `tests/pdf-critical.test.ts` — `npm run test:pdf-all`.

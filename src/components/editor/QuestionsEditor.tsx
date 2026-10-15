@@ -2,7 +2,7 @@
 
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import { Link, useLocale, useMessages } from "@/i18n/client";
-import { localeMeta, locales, type Locale } from "@/i18n/config";
+import { localeMeta, locales } from "@/i18n/config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -25,13 +25,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { PagePreview, type PreviewChapter, type PreviewPhoto } from "./PagePreview";
+import { PagePreview } from "./PagePreview";
 import { PhotoInspector } from "./PhotoInspector";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
 import { normalizeStyle } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { photoUrl } from "@/lib/urls";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useDictation } from "@/hooks/useDictation";
@@ -39,67 +38,13 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { apiFetch } from "@/lib/client-api";
 import { getFormat, printablePageCount } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
+import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type ChapterGroup, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { countWords, estimateAnswerPages, estimatePages, type BookContent, type ContentChapter } from "@/lib/book/layout";
+import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 
-export interface EditorQuestion {
-  id: string;
-  chapter: string;
-  chapterTitle: string;
-  prompt: string;
-  hint: string | null;
-  defaultTitle: string;
-  displayText: string | null;
-  hideHeading: boolean;
-  answer: string;
-  isCustom: boolean;
-}
-
 type Patch = Partial<Pick<EditorQuestion, "answer" | "displayText" | "hideHeading">>;
-
-export interface EditorPhoto {
-  id: string;
-  width: number;
-  height: number;
-  caption: string;
-  layout: "full" | "bleed" | "half" | "grid";
-  questionId: string | null;
-  inline?: InlinePhotoStyle | null;
-  /** Счётчик поворотов — сбрасывает кэш картинки в браузере. */
-  rev?: number;
-}
-
-export interface EditorBook {
-  id: string;
-  format: string;
-  /** Оформление страниц — id из lib/book/interiors. */
-  interior: string;
-  dedication: string;
-  showToc: boolean;
-  photoPlacement: "chapters" | "end";
-  title: string;
-  /** Язык книги: вопросы, заголовки и превью — на нём; интерфейс редактора — на языке сайта. */
-  language: Locale;
-  /** Имена автора и адресата — проверка орфографии их не отмечает. */
-  names?: string[];
-}
-
-interface ChapterGroup {
-  key: string;
-  title: string;
-  items: { q: EditorQuestion; i: number }[];
-}
-
-function groupByChapter(questions: EditorQuestion[]): ChapterGroup[] {
-  const groups: ChapterGroup[] = [];
-  questions.forEach((q, i) => {
-    let g = groups[groups.length - 1];
-    if (!g || g.key !== q.chapter) groups.push((g = { key: q.chapter, title: q.chapterTitle, items: [] }));
-    g.items.push({ q, i });
-  });
-  return groups;
-}
 
 export function QuestionsEditor({
   book,
@@ -253,7 +198,6 @@ export function QuestionsEditor({
     return () => window.removeEventListener("keydown", onKey);
   }, [goTo, index]);
 
-  const heading = (x: EditorQuestion) => (x.hideHeading ? null : (x.displayText ?? x.defaultTitle));
   const groups = useMemo(() => groupByChapter(questions), [questions]);
 
   const pages = useMemo(() => {
@@ -307,8 +251,7 @@ export function QuestionsEditor({
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
-  const imgUrl = (p: EditorPhoto) => photoUrl(p.id) + (p.rev ? `&v=${p.rev}` : "");
-  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(heading(q), q.answer, format, typography, qPhotos) : 0;
+  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(editorHeading(q), q.answer, format, typography, qPhotos) : 0;
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
 
   const inlineTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -334,28 +277,17 @@ export function QuestionsEditor({
       toastError(e);
     }
   };
-  const toPreviewPhoto = (p: EditorPhoto): PreviewPhoto => ({ id: p.id, url: imgUrl(p), width: p.width, height: p.height, caption: p.caption, inline: p.inline });
-  // Вся книга: главы только с заполненными ответами (как в PDF) плюс текущий вопрос, даже пустой.
-  const previewChapters: PreviewChapter[] = [];
-  for (const g of groups) {
-    const entries = g.items
-      .map(({ q: x }) => ({ x, ph: photos.filter((p) => p.questionId === x.id) }))
-      .filter(({ x, ph }) => x.id === q.id || x.answer.trim() || ph.length)
-      .map(({ x, ph }) => ({ id: x.id, heading: heading(x), answer: x.answer, photos: ph.map(toPreviewPhoto) }));
-    if (entries.length) previewChapters.push({ key: g.key, number: previewChapters.length + 1, title: g.title, epigraph: epigraphs[g.key], entries });
-  }
   const previewProps = {
     language: book.language,
     format,
     design,
     bookTitle: book.title,
-    chapters: previewChapters,
+    chapters: previewChapters(groups, photos, epigraphs, q.id),
     currentId: q.id,
     selectedId: selectedPhoto?.id ?? null,
     onSelect: setSelectedPhotoId,
     onChange: editable ? updateInline : undefined,
   };
-
 
   const patchPhoto = async (id: string, patch: Partial<Pick<EditorPhoto, "questionId" | "caption">>) => {
     const prev = photos;
@@ -615,7 +547,7 @@ export function QuestionsEditor({
                         data-testid="inline-photo-thumb"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imgUrl(p)} alt="" className="size-full object-cover" />
+                        <img src={editorPhotoUrl(p)} alt="" className="size-full object-cover" />
                         <span className="absolute inset-x-0 bottom-0 bg-ink/60 py-0.5 text-center text-[10px] text-white tabular-nums">{st.width}%</span>
                       </button>
                     );
@@ -624,7 +556,7 @@ export function QuestionsEditor({
                 </div>
                 {selectedPhoto ? (
                   <PhotoInspector
-                    photo={{ ...selectedPhoto, url: imgUrl(selectedPhoto) }}
+                    photo={{ ...selectedPhoto, url: editorPhotoUrl(selectedPhoto) }}
                     answer={q.answer}
                     editable={editable}
                     onChange={(patch) => updateInline(selectedPhoto.id, patch)}
