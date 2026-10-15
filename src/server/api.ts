@@ -6,28 +6,23 @@ import type { User } from "@/shared/infrastructure/db/schema";
 import type { BookRow, BookViewer } from "@/modules/authoring";
 import { DomainError } from "@/shared/domain";
 import { viewerOf } from "@/server/books";
-import { domainStatus } from "@/server/errors";
+import { domainStatus, errorText, isApiKey, isErrorKey, type ApiMessages, type ErrorKey, type ErrorParams } from "@/server/errors";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
 import { can, ForbiddenError, getStaff, type Staff } from "@/server/access";
 import type { Permission } from "@/shared/domain/permissions";
 import { getMessages } from "@/i18n/server";
-import type { Messages } from "@/i18n/messages";
-
-type ApiMessages = Messages["api"];
-type ApiErrorKey = keyof ApiMessages;
-type Params<K extends ApiErrorKey> = ApiMessages[K] extends (...a: infer A) => string ? A : [];
 
 const HTTP_ERROR = Symbol.for("mybook.http-error");
 
-/** Ошибка с HTTP-статусом. message — ключ словаря api, текст подставляется на языке пользователя. */
-export class HttpError<K extends ApiErrorKey = ApiErrorKey> extends Error {
+/** Ошибка с HTTP-статусом. message — ключ словаря api (текст на языке пользователя) или admin (для CRM, по-русски). */
+export class HttpError<K extends ErrorKey = ErrorKey> extends Error {
   readonly [HTTP_ERROR] = true;
   public params: unknown[];
   constructor(
     public status: number,
     public code: K,
-    ...params: Params<K>
+    ...params: ErrorParams<K>
   ) {
     super(code);
     this.params = params;
@@ -38,19 +33,8 @@ export class HttpError<K extends ApiErrorKey = ApiErrorKey> extends Error {
   }
 }
 
-function isApiKey(t: ApiMessages, key: string): key is ApiErrorKey {
-  return Object.prototype.hasOwnProperty.call(t, key);
-}
-
-/** Текст ошибки по ключу; незнакомая строка возвращается как есть. */
-function translate(t: ApiMessages, key: string, params: unknown[] = []): string {
-  if (!isApiKey(t, key)) return key;
-  const v = t[key] as string | ((...a: unknown[]) => string);
-  return typeof v === "function" ? v(...params) : v;
-}
-
 function fail(t: ApiMessages, status: number, code: string, params?: unknown[]) {
-  return NextResponse.json({ error: translate(t, code, params), code: isApiKey(t, code) ? code : undefined }, { status });
+  return NextResponse.json({ error: errorText(t, code, params), code: isErrorKey(t, code) ? code : undefined }, { status });
 }
 
 type Handler<C> = (req: Request, ctx: C) => Promise<Response>;

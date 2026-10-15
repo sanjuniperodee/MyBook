@@ -90,10 +90,12 @@ describe("POST /api/admin/deals/[id]/payments: отказы", () => {
     logged.mockRestore();
   });
 
-  it("язык не влияет: админка отвечает по-русски, даже если в cookie выбран казахский", async () => {
+  it("ответ — { error, code }: код ключа словаря admin; язык не влияет — по-русски, даже если в cookie выбран казахский", async () => {
     request.cookies.set("mb_locale", "kk");
     deal = null;
-    expect(await accept()).toMatchObject({ status: 404, body: { error: "Сделка не найдена" } });
+    expect(await accept()).toEqual({ status: 404, body: { error: "Сделка не найдена", code: "dealNotFound" } });
+    deal = { id: DEAL, clientId: "c1", assigneeId: null, orderId: null, number: 7, amount: 100_000 };
+    expect(await accept({ file: new File([new Uint8Array(RECEIPT_MAX_BYTES + 1)], "большой.jpg") })).toEqual({ status: 400, body: { error: "Файл больше 12 МБ", code: "receiptTooBig" } });
   });
 });
 

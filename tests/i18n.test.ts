@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { admin } from "@/i18n/admin";
 import { messagesFor } from "@/i18n/messages";
 import { alternates } from "@/i18n/seo";
 import { localizePath, splitLocale } from "@/i18n/config";
@@ -36,6 +37,11 @@ describe("словари", () => {
   it("нет пустых строк", () => {
     expect(emptyStrings(ru)).toEqual([]);
     expect(emptyStrings(kk)).toEqual([]);
+    expect(emptyStrings(admin)).toEqual([]);
+  });
+
+  it("тексты ошибок для CRM (admin, только русский) не пересекаются по ключам с api: HttpError однозначен", () => {
+    expect(Object.keys(admin).filter((key) => key in ru.api)).toEqual([]);
   });
 
   it("функции словаря возвращают строки на обоих языках", () => {

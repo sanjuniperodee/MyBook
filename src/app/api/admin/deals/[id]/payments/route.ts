@@ -6,13 +6,11 @@ import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { PaymentError, ReceiptError } from "@/modules/sales";
 import { RECEIPT_MAX_BYTES, receiptProblem } from "@/modules/sales/domain";
-import { receiptProblemText } from "@/modules/sales/ui/receipt";
+import { paymentProblemError, receiptProblemError } from "@/server/payment-errors";
 import { mailPaymentToClient } from "@/server/client-mail";
 import { fromZonedTime } from "@/shared/domain/time";
 
 export const maxDuration = 60;
-
-const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
 /**
  * Принять платёж (или оформить возврат: kind=refund, причина в note) по сделке: multipart — amount (₸), paidAt (YYYY-MM-DD, по умолчанию сегодня), note и file — чек
@@ -23,25 +21,25 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { id } = await params;
   const c = container();
   const deal = await c.sales.deals.findById(id);
-  if (!deal) return bad("Сделка не найдена", 404);
+  if (!deal) throw new HttpError(404, "dealNotFound");
   if (!canSeeAssigned(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
   // По сделке оформлен заказ — дальше деньги идут через заказ (его оплату подтверждают в заказе), иначе их посчитают дважды.
-  if (deal.orderId) return bad("По сделке уже оформлен заказ: оплату принимайте в карточке заказа", 409);
+  if (deal.orderId) throw new HttpError(409, "dealHasOrder");
 
   const form = await req.formData();
   const refund = form.get("kind") === "refund";
   const note = String(form.get("note") ?? "");
-  if (refund && note.trim().length < 3) return bad("Укажите причину возврата");
+  if (refund && note.trim().length < 3) throw new HttpError(400, "refundNoReason");
   const file = form.get("file");
-  if (!(file instanceof File) || !file.size) return bad("Приложите чек: платёж без чека не принимается");
+  if (!(file instanceof File) || !file.size) throw new HttpError(400, "receiptRequired");
   // Размер — до чтения в память: большой файл не копируем ради отказа.
-  if (file.size > RECEIPT_MAX_BYTES) return bad(receiptProblemText.tooBig);
+  if (file.size > RECEIPT_MAX_BYTES) throw receiptProblemError("tooBig");
   const bytes = Buffer.from(await file.arrayBuffer());
   const problem = receiptProblem(bytes);
-  if (problem) return bad(receiptProblemText[problem]);
+  if (problem) throw receiptProblemError(problem);
   const amount = Number(form.get("amount") ?? 0);
   const day = String(form.get("paidAt") ?? "");
-  if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) return bad("Проверьте дату платежа");
+  if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new HttpError(400, "paymentDateInvalid");
   // Дата платежа — день по времени магазина (storeTimeZone); полдень, чтобы платёж не «съезжал» на соседние сутки.
   const paidAt = day ? fromZonedTime(`${day}T12:00:00`) : new Date();
 
@@ -59,8 +57,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     revalidatePath("/admin/analytics");
     return NextResponse.json({ payment: { id: payment.id, amount: payment.amount, kind: payment.kind, paidAt: payment.paidAt } });
   } catch (err) {
-    if (PaymentError.is(err)) return bad(err.code === "amount" ? "Проверьте сумму" : err.code === "refundTooBig" ? "Нельзя вернуть больше, чем принято" : "Дата не может быть в будущем");
-    if (ReceiptError.is(err)) return bad("Не удалось сохранить чек");
+    if (PaymentError.is(err)) throw paymentProblemError(err.code);
+    if (ReceiptError.is(err)) throw new HttpError(400, "receiptNotSaved");
     throw err;
   }
 });
