@@ -27,7 +27,7 @@ import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/pr
 import { registerSubscriptions } from "./subscriptions";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
 import { referralPromos } from "./promo-ports";
-import { clientIp } from "./rateLimit";
+import { requestOrigin } from "./rateLimit";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -186,8 +186,7 @@ export class Container {
     return (this.#access ??= new AccessModule({
       settings: this.workspace.settings,
       login: { isPhoneEmail },
-      // Журнал действий пишет адрес запроса; вне запроса (планировщик, скрипт) адреса нет.
-      origin: { ip: () => clientIp().catch(() => null) },
+      origin: requestOrigin,
       accounts: {
         create: (input) => this.identity.accounts.provision(input),
         setPassword: (userId, password) => this.identity.accounts.setPassword(userId, password),

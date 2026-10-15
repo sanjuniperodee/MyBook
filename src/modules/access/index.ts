@@ -6,7 +6,7 @@ import { randomPasswords, settingsSecurityStore, type AccessSettingKey } from ".
 import { DrizzleAccessQueries, DrizzleRoleRepository, DrizzleStaffRepository, drizzleAuditLog, drizzleShifts } from "./infrastructure/persistence";
 
 export * from "./domain";
-export type { StaffAccount } from "./application";
+export type { RequestOrigin, StaffAccount } from "./application";
 
 /** Публичный фасад контекста Access: сотрудники, роли и права, правила безопасности, журнал. */
 export class AccessModule {
