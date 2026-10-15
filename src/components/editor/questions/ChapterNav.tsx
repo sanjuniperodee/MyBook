@@ -7,9 +7,9 @@ import type { ChapterGroup } from "@/lib/book/editor-model";
 import { cn } from "@/lib/class-names";
 
 /** Оглавление вопросов по главам: поиск, «только без ответа», текущая глава раскрыта. */
-function ChapterNavView({ groups, current, onPick }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
+function ChapterNavView({ groups, current, onPick }: { groups: ChapterGroup[]; current: string; onPick: (id: string) => void }) {
   const t = useMessages().editor;
-  const currentKey = groups.find((g) => g.items.some((x) => x.i === current))?.key;
+  const currentKey = groups.find((g) => g.items.some((x) => x.q.id === current))?.key;
   const [open, setOpen] = useState<string | undefined>(currentKey);
   const [search, setSearch] = useState("");
   const [onlyEmpty, setOnlyEmpty] = useState(false);
@@ -62,12 +62,12 @@ function ChapterNavView({ groups, current, onPick }: { groups: ChapterGroup[]; c
               </button>
               {expanded ? (
                 <ol className="mt-0.5 mb-2 ml-5 border-l border-line pl-2">
-                  {items.map(({ q, i }) => (
+                  {items.map(({ q }) => (
                     <li key={q.id}>
                       <button
-                        data-current={i === current}
-                        onClick={() => onPick(i)}
-                        className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition", i === current ? "bg-wine/8 text-wine" : "text-ink-soft hover:bg-ink/5")}
+                        data-current={q.id === current}
+                        onClick={() => onPick(q.id)}
+                        className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition", q.id === current ? "bg-wine/8 text-wine" : "text-ink-soft hover:bg-ink/5")}
                       >
                         <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", q.answer.trim() ? "bg-emerald-500" : "bg-line")} />
                         <span className="line-clamp-2">{q.prompt}</span>
@@ -88,9 +88,10 @@ const ChapterNavList = memo(ChapterNavView);
 
 /**
  * Оглавление получает главы отложенно (useDeferredValue): отметки «есть ответ» догоняют ввод, а сам список
- * перерисовывается, только когда меняются главы или текущий вопрос.
+ * перерисовывается, только когда меняются главы или текущий вопрос. Текущий вопрос и переход — по id, а не по
+ * месту в списке: пока отложенные главы догоняют добавленный или удалённый вопрос, места сдвинуты.
  */
-export function ChapterNav({ groups, ...rest }: { groups: ChapterGroup[]; current: number; onPick: (i: number) => void }) {
+export function ChapterNav({ groups, ...rest }: { groups: ChapterGroup[]; current: string; onPick: (id: string) => void }) {
   const deferred = useDeferredValue(groups);
   return <ChapterNavList groups={deferred} {...rest} />;
 }

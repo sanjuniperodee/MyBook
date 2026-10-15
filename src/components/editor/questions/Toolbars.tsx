@@ -1,17 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BookOpen, Eye, ImagePlus, ListTree, Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
+import { Eye, ImagePlus, ListTree, Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/class-names";
 
-/** Над карточкой вопроса: оглавление, глава, объём книги, превью на узком экране, режим фокуса. */
+/** Над карточкой вопроса: оглавление, глава, объём книги (pages — PagesBadge), превью на узком экране, режим фокуса. */
 export function EditorTopBar({
   chapterNumber,
   chapterTitle,
   language,
-  printedPages,
+  pages,
   focus,
   onChapters,
   onTogglePreview,
@@ -20,7 +20,7 @@ export function EditorTopBar({
   chapterNumber: number;
   chapterTitle: string;
   language: Locale;
-  printedPages: number;
+  pages: ReactNode;
   focus: boolean;
   onChapters: () => void;
   onTogglePreview: () => void;
@@ -35,9 +35,7 @@ export function EditorTopBar({
       <div className="min-w-0 flex-1 truncate text-sm text-muted">
         <span className="text-ink">{t.chapter(chapterNumber)}</span> · <span lang={language}>{chapterTitle}</span>
       </div>
-      <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose/70 px-3 py-1.5 text-xs font-medium text-wine" title={t.pagesEstimate}>
-        <BookOpen className="size-3.5" /> {t.pagesShort(printedPages || 0)}
-      </span>
+      {pages}
       {!focus ? (
         <button className="btn btn-ghost btn-sm size-9 px-0 xl:hidden" onClick={onTogglePreview} title={t.showPage}>
           <Eye className="size-4" />

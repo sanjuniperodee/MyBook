@@ -16,7 +16,8 @@ import { PhotoStrip } from "./questions/PhotoStrip";
 import { ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { AnswerToolbar, EditorTopBar } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
-import { answerPagesOf, useBookPages } from "./questions/usePageEstimate";
+import { answerPagesOf } from "./questions/usePageEstimate";
+import { PagesBadge } from "./questions/PagesBadge";
 import { PreviewPane } from "./questions/PreviewPane";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
@@ -151,7 +152,14 @@ export function QuestionsEditor({
   useLayoutEffect(() => {
     goToRef.current = goTo;
   });
-  const pick = useCallback((i: number) => goToRef.current(i), []);
+  const questionsRef = useRef(questions);
+  useLayoutEffect(() => {
+    questionsRef.current = questions;
+  });
+  const pick = useCallback((id: string) => {
+    const i = questionsRef.current.findIndex((x) => x.id === id);
+    if (i >= 0) goToRef.current(i);
+  }, []);
 
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
@@ -169,7 +177,6 @@ export function QuestionsEditor({
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
-  const pages = useBookPages(book, questions, photos, letters);
   const answerPages = answerPagesOf(q, qPhotos, format, design);
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
 
@@ -206,7 +213,7 @@ export function QuestionsEditor({
   const dictateControl = (className: string, compact: boolean) =>
     editable && dictation.supported ? <DictationControl dictation={dictation} lang={lang} onLang={setLang} onToggle={toggleDictation} compact={compact} className={className} /> : null;
 
-  const sidebar = <ChapterNav groups={groups} current={index} onPick={pick} />;
+  const sidebar = <ChapterNav groups={groups} current={q.id} onPick={pick} />;
 
   return (
     <div className={cn("mx-auto px-4 pt-4 pb-28 sm:px-6 sm:py-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
@@ -224,7 +231,7 @@ export function QuestionsEditor({
             chapterNumber={chapterNumber}
             chapterTitle={q.chapterTitle}
             language={book.language}
-            printedPages={pages.printed}
+            pages={<PagesBadge book={book} questions={questions} photos={photos} letters={letters} />}
             focus={focus}
             onChapters={() => setDrawer(true)}
             onTogglePreview={() => setShowPreview((v) => !v)}
@@ -416,7 +423,7 @@ export function QuestionsEditor({
 
       {drawer ? (
         <Drawer onClose={() => setDrawer(false)}>
-          <ChapterNav groups={groups} current={index} onPick={pick} />
+          <ChapterNav groups={groups} current={q.id} onPick={pick} />
         </Drawer>
       ) : null}
     </div>
