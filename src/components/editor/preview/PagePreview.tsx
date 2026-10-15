@@ -81,16 +81,15 @@ export function PagePreview({
   const ptPx = (v: number) => v * PT_TO_MM * px;
 
   type Item = { p: PreviewPhoto; style: InlinePhotoStyle };
-  const curParas = splitParagraphs(chapters.flatMap((c) => c.entries).find((e) => e.id === currentId)?.answer ?? "").length;
-  /** Место в тексте у фото текущего ответа — заполняется раскладкой ниже. */
-  const anchors = new Map<string, number | null>();
+  const currentEntry = chapters.flatMap((c) => c.entries).find((e) => e.id === currentId);
+  const curParas = splitParagraphs(currentEntry?.answer ?? "").length;
   const drag = usePhotoDrag({
     currentId,
     paragraphs: curParas,
     textW,
     selectedId,
     interactive,
-    anchorOf: (id) => anchors.get(id) ?? null,
+    anchorOf: (id) => normalizeStyle(currentEntry?.photos.find((p) => p.id === id)?.inline).anchor,
     onSelect,
     onChange,
   });
@@ -104,7 +103,6 @@ export function PagePreview({
       const items = e.photos.map((p) => {
         const style = normalizeStyle(p.inline);
         if (resizing?.id === p.id) style.width = resizing.width;
-        if (e.id === currentId) anchors.set(p.id, style.anchor);
         return { p, style };
       });
       const blocks = answerBlocks(paragraphs);

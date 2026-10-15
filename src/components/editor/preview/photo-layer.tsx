@@ -72,7 +72,8 @@ export function previewPhotoLayer({
 }) {
   return ({ p, style }: RowItem<PreviewPhoto>, box: RowPhotoBox): RowPhotoLayer => {
     const img = { alt: isMeasure ? "" : p.caption, onLoad: isMeasure ? measure : undefined };
-    if (!live) return { img };
+    // Фото в превью не выделяются вместе с текстом — и у других ответов.
+    if (!live) return { img, figure: { style: { userSelect: "none" } } };
     const selected = selectedId === p.id;
     const moving = drag.moving?.id === p.id;
     return {
