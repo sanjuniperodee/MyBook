@@ -33,15 +33,18 @@ export class DraftQueue {
 }
 
 /**
- * Отправить накопленные правки по одной (PATCH на вопрос). На первой ошибке отправка прерывается,
- * упавшая правка возвращается в очередь, ошибка уходит наверх (автосохранение повторит попытку).
+ * Отправить накопленные правки по одной (PATCH на вопрос). На первой ошибке отправка прерывается:
+ * упавшая правка и все неотправленные после неё возвращаются в очередь, ошибка уходит наверх
+ * (автосохранение повторит попытку).
  */
 export async function sendDraft(queue: DraftQueue, send: (id: string, patch: Patch) => Promise<unknown>) {
-  for (const [id, patch] of queue.take()) {
+  const batch = queue.take();
+  for (let i = 0; i < batch.length; i++) {
+    const [id, patch] = batch[i];
     try {
       await send(id, patch);
     } catch (e) {
-      queue.restore(id, patch);
+      for (const [rid, rpatch] of batch.slice(i)) queue.restore(rid, rpatch);
       throw e;
     }
   }

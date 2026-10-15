@@ -37,12 +37,16 @@ describe("редактор: очередь несохранённых право
     expect(q.take()).toEqual([["a", { answer: "новый", displayText: "Заголовок" }]]);
   });
 
-  it("баг: правки других вопросов из той же пачки после упавшей теряются", async () => {
+  it("правки других вопросов из той же пачки после упавшей тоже возвращаются в очередь, отправленные — нет", async () => {
     const q = new DraftQueue();
     q.set("a", { answer: "1" });
     q.set("b", { answer: "2" });
-    await expect(sendDraft(q, async (id) => (id === "a" ? Promise.reject(new Error("сеть")) : undefined))).rejects.toThrow();
-    expect(q.take()).toEqual([["a", { answer: "1" }]]);
+    q.set("c", { answer: "3" });
+    await expect(sendDraft(q, async (id) => (id === "b" ? Promise.reject(new Error("сеть")) : undefined))).rejects.toThrow();
+    expect(q.take()).toEqual([
+      ["b", { answer: "2" }],
+      ["c", { answer: "3" }],
+    ]);
   });
 });
 
