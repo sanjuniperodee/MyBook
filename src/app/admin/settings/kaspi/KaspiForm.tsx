@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
-import { toast } from "@/components/ui/overlays";
+import { LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
+import { CopyField } from "../ui";
 import { cn } from "@/lib/class-names";
 import { confirmKaspiCodeAction, disconnectKaspiAction, kaspiStatusAction, requestKaspiCodeAction, saveKaspiApiUrlAction, setKaspiEnabledAction } from "./actions";
 
@@ -22,20 +22,6 @@ interface KaspiFormProps extends KaspiStatusView {
   webhookUrl: string;
   /** Секрет для webhooks.json сервиса; null — задан переменной окружения KASPI_WEBHOOK_SECRET. */
   webhookSecret: string | null;
-}
-
-function Copyable({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="mb-1 text-xs text-muted">{label}</div>
-      <div className="flex gap-2">
-        <input readOnly value={value} className="input h-9 min-w-0 flex-1 font-mono text-xs" onFocus={(e) => e.target.select()} />
-        <button type="button" className="btn btn-outline btn-sm h-9" onClick={() => navigator.clipboard.writeText(value).then(() => toast("Скопировано"))} aria-label="Скопировать">
-          <Copy className="size-4" />
-        </button>
-      </div>
-    </div>
-  );
 }
 
 const badge = (s: KaspiStatusView) =>
@@ -163,8 +149,8 @@ export function KaspiForm(props: KaspiFormProps) {
           <p className="text-xs text-muted">
             Оплата подтверждается и без вебхука: сайт сам сверяет счёт с Kaspi каждые несколько секунд. Вебхук лишь ускоряет подтверждение. В docker compose он уже настроен; иначе укажите в webhooks.json сервиса адрес ниже, events — payment.success, payment.failed, payment.expired, payment.lost. С секретом уведомление применяется сразу, без секрета — сайт перепроверяет его в Kaspi.
           </p>
-          <Copyable label="Адрес" value={props.webhookUrl} />
-          {props.webhookSecret ? <Copyable label="Секрет подписи" value={props.webhookSecret} /> : <p className="text-xs text-muted">Секрет задан переменной окружения KASPI_WEBHOOK_SECRET.</p>}
+          <CopyField label="Адрес" value={props.webhookUrl} />
+          {props.webhookSecret ? <CopyField label="Секрет подписи" value={props.webhookSecret} /> : <p className="text-xs text-muted">Секрет задан переменной окружения KASPI_WEBHOOK_SECRET.</p>}
         </div>
       </details>
 

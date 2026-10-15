@@ -34,7 +34,11 @@ vi.mock("@/server/container", () => ({
 }));
 
 const actions = {
-  ...(await import("@/app/admin/settings/actions")),
+  ...(await import("@/app/admin/settings/wazzup/actions")),
+  ...(await import("@/app/admin/settings/telephony/actions")),
+  ...(await import("@/app/admin/settings/crm/actions")),
+  ...(await import("@/app/admin/settings/mail/actions")),
+  ...(await import("@/app/admin/settings/ai/actions")),
 };
 
 const form = (fields: Record<string, string | string[] | File>) => {
