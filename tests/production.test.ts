@@ -95,22 +95,22 @@ describe("PrintFilesService: файлы для типографии", () => {
     expect(t.renderer.calls).toEqual(["package:b1:7", "reading:b1"]);
   });
 
-  it("прогрев после оплаты: пакет и читательская версия; повторно — null без рендера", async () => {
+  it("прогрев после оплаты: пакет и читательская версия; повторно — «из кэша» без рендера", async () => {
     const t = setup();
-    expect(await t.printFiles.warmUp(job)).toMatchObject({ pageCount: 65 });
+    expect(await t.printFiles.warmUp(job)).toMatchObject({ status: "rendered", spec: { pageCount: 65 } });
     expect(t.files.keys()).toEqual([...printKeys, "orders/o1/reading.pdf"].sort());
-    expect(await t.printFiles.warmUp(job)).toBeNull();
+    expect(await t.printFiles.warmUp(job)).toEqual({ status: "cached", spec: null });
     expect(t.renderer.calls).toEqual(["package:b1:7", "reading:b1"]);
     expect(t.logger.errors).toEqual([]);
   });
 
-  it("прогрев не бросает: ошибка в лог, результат null — даже если пакет уже готов", async () => {
+  it("прогрев не бросает: ошибка в лог, «сбой» отличается от «из кэша»; собранный пакет не теряется (B12)", async () => {
     const t = setup();
-    expect(await t.printFiles.warmUp({ ...job, bookId: "gone" })).toBeNull();
+    expect(await t.printFiles.warmUp({ ...job, bookId: "gone" })).toEqual({ status: "failed", spec: null });
     expect(t.logger.errors).toEqual([{ message: "warm-up failed for order 7", error: new Error("book gone not found") }]);
-    // пакет отрендерен, упала читательская версия — параметры печати теряются
+    // пакет отрендерен, упала читательская версия — параметры печати остаются
     t.renderer.crash.add("reading");
-    expect(await t.printFiles.warmUp(job)).toBeNull();
+    expect(await t.printFiles.warmUp(job)).toMatchObject({ status: "failed", spec: { pageCount: 65 } });
     expect(t.files.keys()).toEqual(printKeys);
     expect(t.logger.errors[1]).toEqual({ message: "warm-up failed for order 7", error: new Error("reading crashed") });
   });

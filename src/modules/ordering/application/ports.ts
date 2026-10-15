@@ -34,8 +34,8 @@ export interface PrintJob {
 /** Файлы для типографии (контекст Production). */
 export interface PrintFiles {
   prepare(job: PrintJob, opts?: { force?: boolean }): Promise<OrderPrintSpec | null>;
-  /** После оплаты: готовит файлы заранее; сбой не бросается, а пишется в лог (тогда null). */
-  warmUp(job: PrintJob): Promise<OrderPrintSpec | null>;
+  /** После оплаты: готовит файлы заранее; сбой не бросается, а пишется в лог. spec — параметры собранного сейчас пакета для печати. */
+  warmUp(job: PrintJob): Promise<{ status: "rendered" | "cached" | "failed"; spec: OrderPrintSpec | null }>;
 }
 
 /** Что напечатано на подарочном сертификате. */

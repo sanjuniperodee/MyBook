@@ -88,7 +88,7 @@ export class OrderingModule {
       async (e) => {
         // Файлы для типографии готовим в фоне, чтобы не задерживать ответ платёжной системе.
         runInBackground(async () => {
-          const spec = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
+          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
           if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
         }, this.deps.logger);
       },

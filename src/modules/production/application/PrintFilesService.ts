@@ -96,15 +96,20 @@ export class PrintFilesService {
     return this.files.get(key);
   }
 
-  /** После оплаты: готовим всё заранее, чтобы клиент и типография скачивали мгновенно. */
-  async warmUp(job: PrintJob): Promise<PrintSpec | null> {
+  /**
+   * После оплаты: готовим всё заранее, чтобы клиент и типография скачивали мгновенно. Не бросает: сбой — в лог.
+   * status: rendered — пакет для печати собран сейчас (spec — его параметры), cached — уже был готов, failed — сбой;
+   * при сбое читательской версии собранный пакет и его параметры не теряются (B12).
+   */
+  async warmUp(job: PrintJob): Promise<{ status: "rendered" | "cached" | "failed"; spec: PrintSpec | null }> {
+    let spec: PrintSpec | null = null;
     try {
-      const spec = await this.prepare(job);
+      spec = await this.prepare(job);
       await this.getFile(job, "reading");
-      return spec;
+      return spec ? { status: "rendered", spec } : { status: "cached", spec: null };
     } catch (err) {
       this.logger.error(`warm-up failed for order ${job.number}`, err);
-      return null;
+      return { status: "failed", spec };
     }
   }
 }
