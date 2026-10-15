@@ -49,7 +49,7 @@ export const books = pgTable(
     /** Кадры фото на обложке: масштаб и положение по местам («cover:0», «back:1») — см. lib/book/photo-frame. */
     photoFrames: jsonb("photo_frames").$type<Record<string, { zoom: number; x: number; y: number }>>().notNull().default({}),
     dedication: text("dedication").notNull().default(""),
-    /** Оформление страниц — id из src/lib/book/interiors.ts. */
+    /** Оформление страниц — id из src/lib/book/interiors. */
     interior: text("interior").notNull().default("classic"),
     format: text("format").notNull().default("a5"),
     photoPlacement: text("photo_placement", { enum: ["chapters", "end"] }).notNull().default("chapters"),
