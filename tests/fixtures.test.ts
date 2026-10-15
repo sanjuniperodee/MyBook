@@ -11,7 +11,8 @@ import { coverPhotoIds, coverPhotoSlots, getCoverTemplate } from "@/lib/book/cov
 import { formats, getFormat, mm, print, printablePageCount, type BookFormat } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import { interiorDesigns } from "@/lib/book/interiors";
-import { buildBookContent, effectiveDpi, estimatePages, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/estimate";
+import { buildBookContent, effectiveDpi, LETTERS_CHAPTER, photoAreaMm, toPhotoItem } from "@/lib/book/layout";
 import { interiorMetrics } from "@/lib/book/page-geometry";
 import { fixtureBook, fixtureBooks, fixtureSample, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { photoFiles, photoKey, photoNames, photoSpecs, prepareFixturePhotos, renderPhoto, useFixtureStorage, variantPhotoNames } from "./fixtures/photos";

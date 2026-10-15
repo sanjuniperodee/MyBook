@@ -3,7 +3,7 @@ import { editorModel, type EditorBook, type EditorPhoto } from "@/lib/book/edito
 import { editorEstimate } from "@/lib/book/editor-estimate";
 import { printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { estimatePages } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/estimate";
 import { fixtureVariants, type FixtureBook } from "../fixtures/books";
 import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 

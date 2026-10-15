@@ -1,5 +1,6 @@
 import { printablePageCount } from "@/lib/book/formats";
-import { buildBookContent, estimatePages, toPhotoItem } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/estimate";
+import { buildBookContent, toPhotoItem } from "@/lib/book/layout";
 
 export interface BookStats {
   answered: number;

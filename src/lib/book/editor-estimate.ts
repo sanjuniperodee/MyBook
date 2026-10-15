@@ -5,7 +5,8 @@
  */
 import type { EditorBook, EditorPhoto, EditorQuestion } from "./editor-model";
 import { printablePageCount } from "./formats";
-import { buildBookContent, estimatePages, toPhotoItem, type LetterLike } from "./layout";
+import { estimatePages } from "./estimate";
+import { buildBookContent, toPhotoItem, type LetterLike } from "./layout";
 
 export function editorEstimate(book: EditorBook, questions: EditorQuestion[], photos: EditorPhoto[], letters: LetterLike[]) {
   const content = buildBookContent(
