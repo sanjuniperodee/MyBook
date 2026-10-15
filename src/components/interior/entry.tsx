@@ -1,4 +1,4 @@
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, PT_TO_MM } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
@@ -83,17 +83,33 @@ export function Divider({ kit, style }: { kit: PageKit; style?: CSSProperties })
   );
 }
 
-type RowItem = { p: EntryPhoto; style: InlinePhotoStyle };
+export type RowItem<P extends EntryPhoto = EntryPhoto> = { p: P; style: InlinePhotoStyle };
+
+/** Рамка фото в ряду, мм — framedBox по полосе набора формата. */
+export type RowPhotoBox = ReturnType<typeof framedBox>;
+
+/**
+ * Слой поверх фото в ряду — для превью редактора: атрибуты и обработчики фигуры, стиль рамки (выделение),
+ * подпись img и элементы поверх (ручка размера). Вёрстка фото от слоя не меняется.
+ */
+export interface RowPhotoLayer {
+  figure?: HTMLAttributes<HTMLElement> & { [data: `data-${string}`]: string | undefined };
+  frame?: CSSProperties;
+  img?: Pick<ImgHTMLAttributes<HTMLImageElement>, "alt" | "onLoad">;
+  overlay?: ReactNode;
+}
 
 /** Фото в ряду: рамка или поляроид со своей подписью, размеры — как в PDF (inline-photo.ts). */
-function RowPhoto({ kit, item: { p, style }, rowSize }: { kit: PageKit; item: RowItem; rowSize: number }) {
+function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
   const { design, sizes: S, u } = kit;
+  const { p, style } = item;
   const { w: textW, h: textH } = textArea(kit.format);
   const b = framedBox(p, style, textW, textH, rowSize);
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
+  const extra = layer?.(item, b);
   return (
-    <figure style={{ width: u.mm(b.outerW), margin: 0, flex: "none" }}>
+    <figure {...extra?.figure} style={{ width: u.mm(b.outerW), margin: 0, flex: "none", ...extra?.figure?.style }}>
       <div
         style={{
           position: "relative",
@@ -106,12 +122,14 @@ function RowPhoto({ kit, item: { p, style }, rowSize }: { kit: PageKit; item: Ro
           boxShadow: polaroid ? "0 1px 3px rgba(0,0,0,.12)" : undefined,
           overflow: "hidden",
           boxSizing: "border-box",
+          ...extra?.frame,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы */}
         <img
-          src={p.url}
           alt=""
+          {...extra?.img}
+          src={p.url}
           draggable={false}
           style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
         />
@@ -137,16 +155,26 @@ function RowPhoto({ kit, item: { p, style }, rowSize }: { kit: PageKit; item: Ro
         ) : null}
       </div>
       {!polaroid && p.caption ? <figcaption style={{ ...italicBody(kit, S.caption), color: design.palette.muted, textAlign: "center", marginTop: u.pt(INLINE_ROW.captionGap), lineHeight: HTML_LINE_HEIGHT.caption }}>{p.caption}</figcaption> : null}
+      {extra?.overlay}
     </figure>
   );
 }
 
-/** Ряд фото внутри ответа — те же размеры, рамки и подписи, что в PDF (inline-photo.ts). */
-function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
+/**
+ * Ряд фото внутри ответа — те же размеры, рамки и подписи, что в PDF (inline-photo.ts). layer — интерактивный
+ * слой превью редактора над каждым фото; атрибуты ряда (data-*) ложатся на его обёртку.
+ */
+export function InlineRow<P extends EntryPhoto>({
+  kit,
+  row,
+  layer,
+  ...rest
+}: { kit: PageKit; row: RowItem<P>[]; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer } & HTMLAttributes<HTMLDivElement>) {
   const { sizes: S, u } = kit;
   const align = row[0].style.align;
   return (
     <div
+      {...rest}
       style={{
         display: "flex",
         justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
@@ -155,10 +183,11 @@ function InlineRow({ kit, row }: { kit: PageKit; row: RowItem[] }) {
         marginTop: u.pt(S.body * INLINE_ROW.before),
         marginBottom: u.pt(S.body * INLINE_ROW.after),
         breakInside: "avoid",
+        ...rest.style,
       }}
     >
       {row.map((item) => (
-        <RowPhoto key={item.p.id} kit={kit} item={item} rowSize={row.length} />
+        <RowPhoto key={item.p.id} kit={kit} item={item} rowSize={row.length} layer={layer} />
       ))}
     </div>
   );

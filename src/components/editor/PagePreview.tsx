@@ -7,12 +7,12 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { PT_TO_MM, type BookFormat } from "@/lib/book/formats";
-import { PHOTO_COLORS, type InteriorDesign } from "@/lib/book/interiors";
+import type { InteriorDesign } from "@/lib/book/interiors";
 import { columnPages, interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
-import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, splitParagraphs } from "@/lib/book/inline-photo";
+import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { AnswerBlockView } from "@/components/interior/answer-block";
-import { Divider, QuestionHeading } from "@/components/interior/entry";
+import { Divider, InlineRow, QuestionHeading, type RowPhotoBox, type RowPhotoLayer } from "@/components/interior/entry";
 import { Folio, RunningHead } from "@/components/interior/folio";
 import { pageKit } from "@/components/interior/kit";
 import { OpenerPage } from "@/components/interior/pages";
@@ -278,134 +278,57 @@ export function PagePreview({
     const live = d.live && interactive;
     // Место вставки в тексте — номер абзаца, после которого встаёт ряд (последний абзац блока).
     const anchor = key === END || key < 0 ? key : d.blocks[key].to;
-    return (d.layout.get(key) ?? []).map((row, r) => {
-      const align = row[0].style.align;
-      return (
-        <div
-          key={`${anchor}-${r}`}
-          data-entry={entry.id}
-          data-row-anchor={anchor === END ? "end" : anchor}
-          style={{
-            display: "flex",
-            justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
-            alignItems: "flex-start",
-            gap: textW * ROW_GAP,
-            breakInside: "avoid",
-            margin: `${bodyPx * 0.5}px 0 ${bodyPx}px`,
-          }}
-        >
-          {row.map(({ p, style }) => {
-            const box = framedBox(p, style, textW, textH, row.length);
-            const selected = live && selectedId === p.id;
-            const polaroid = style.frame === "polaroid";
-            return (
-              <figure
-                key={p.id}
-                data-photo={live ? p.id : undefined}
-                onPointerDown={live ? (e) => startMove(e, p.id) : undefined}
-                onPointerMove={live ? onPointerMove : undefined}
-                onPointerUp={live ? (e) => onPointerUp(e, p.id) : undefined}
-                onPointerCancel={live ? () => setDrag(null) : undefined}
-                style={{
-                  position: "relative",
-                  width: box.outerW,
-                  margin: 0,
-                  cursor: live ? (moving?.id === p.id ? "grabbing" : "grab") : undefined,
-                  touchAction: selected ? "none" : undefined,
-                  opacity: moving?.id === p.id ? 0.35 : 1,
-                  userSelect: "none",
-                }}
-              >
-                <div
-                  style={{
-                    width: box.outerW,
-                    height: box.outerH,
-                    padding: polaroid ? `${box.pad}px ${box.pad}px ${box.padBottom}px` : 0,
-                    boxSizing: "border-box",
-                    background: polaroid ? PHOTO_COLORS.card : undefined,
-                    border: polaroid ? `1px solid ${PHOTO_COLORS.polaroidEdge}` : style.frame === "line" ? `${Math.max(1, 0.35 * px)}px solid ${P.ink}` : undefined,
-                    boxShadow: polaroid ? "0 1px 2px rgba(0,0,0,.08)" : undefined,
-                    borderRadius: box.radius,
-                    overflow: "hidden",
-                    position: "relative",
-                    outline: selected ? "2px solid var(--color-wine, #8b2c3c)" : undefined,
-                    outlineOffset: 2,
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.url}
-                    alt={isMeasure ? "" : p.caption}
-                    draggable={false}
-                    onLoad={isMeasure ? measure : undefined}
-                    style={{ width: box.imgW, height: box.imgH, objectFit: "cover", objectPosition: objectPosition(p, style), display: "block", borderRadius: box.radius }}
-                  />
-                  {polaroid && p.caption ? (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: box.pad,
-                        right: box.pad,
-                        bottom: 0,
-                        height: box.padBottom,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: cssFont("caveat"),
-                        fontSize: polaroidFontSize(box, p.caption, bodyPx),
-                        color: PHOTO_COLORS.polaroidInk,
-                        overflow: "hidden",
-                        whiteSpace: "nowrap",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {p.caption}
-                    </div>
-                  ) : null}
-                </div>
-                {!polaroid && p.caption ? (
-                  <figcaption style={{ fontFamily: cssFont(design.type.body), fontStyle: "italic", fontSize: ptPx(S.caption), lineHeight: 1.3, color: P.muted, marginTop: bodyPx * 0.5, textAlign: "center" }}>
-                    {p.caption}
-                  </figcaption>
-                ) : null}
-                {selected ? (
-                  <>
-                    <span
-                      role="slider"
-                      aria-label={t.resizeAria}
-                      aria-valuemin={25}
-                      aria-valuemax={100}
-                      aria-valuenow={style.width}
-                      tabIndex={0}
-                      onPointerDown={(e) => startResize(e, p.id, style)}
-                      onPointerMove={onPointerMove}
-                      onPointerUp={(e) => onPointerUp(e, p.id)}
-                      onKeyDown={(e) => {
-                        const step = e.shiftKey ? 10 : 5;
-                        if (e.key === "ArrowRight" || e.key === "ArrowUp") onChange?.(p.id, { width: Math.min(100, style.width + step) });
-                        else if (e.key === "ArrowLeft" || e.key === "ArrowDown") onChange?.(p.id, { width: Math.max(25, style.width - step) });
-                        else return;
-                        e.preventDefault();
-                      }}
-                      className="absolute z-10 flex size-5 items-center justify-center rounded-full border-2 border-white bg-wine shadow-md"
-                      style={{
-                        top: box.outerH - 10,
-                        [style.align === "right" ? "left" : "right"]: -10,
-                        cursor: style.align === "right" ? "nesw-resize" : "nwse-resize",
-                        touchAction: "none",
-                      }}
-                    />
-                    {drag?.kind === "resize" && drag.id === p.id ? (
-                      <span className="absolute top-2 left-2 z-10 rounded-md bg-ink/80 px-1.5 py-0.5 text-[11px] font-medium text-white">{style.width}%</span>
-                    ) : null}
-                  </>
-                ) : null}
-              </figure>
-            );
-          })}
-        </div>
-      );
-    });
+    // Ряд и фото рисует вёрстка книги (InlineRow — как в PDF и на разворотах), превью добавляет поверх только интерактивность.
+    const layer = ({ p, style }: Item, box: RowPhotoBox): RowPhotoLayer => {
+      const img = { alt: isMeasure ? "" : p.caption, onLoad: isMeasure ? measure : undefined };
+      if (!live) return { img };
+      const selected = selectedId === p.id;
+      return {
+        img,
+        figure: {
+          "data-photo": p.id,
+          onPointerDown: (e) => startMove(e, p.id),
+          onPointerMove,
+          onPointerUp: (e) => onPointerUp(e, p.id),
+          onPointerCancel: () => setDrag(null),
+          style: { position: "relative", cursor: moving?.id === p.id ? "grabbing" : "grab", touchAction: selected ? "none" : undefined, opacity: moving?.id === p.id ? 0.35 : 1, userSelect: "none" },
+        },
+        frame: selected ? { outline: "2px solid var(--color-wine, #8b2c3c)", outlineOffset: 2 } : undefined,
+        overlay: selected ? (
+          <>
+            <span
+              role="slider"
+              aria-label={t.resizeAria}
+              aria-valuemin={25}
+              aria-valuemax={100}
+              aria-valuenow={style.width}
+              tabIndex={0}
+              onPointerDown={(e) => startResize(e, p.id, style)}
+              onPointerMove={onPointerMove}
+              onPointerUp={(e) => onPointerUp(e, p.id)}
+              onKeyDown={(e) => {
+                const step = e.shiftKey ? 10 : 5;
+                if (e.key === "ArrowRight" || e.key === "ArrowUp") onChange?.(p.id, { width: Math.min(100, style.width + step) });
+                else if (e.key === "ArrowLeft" || e.key === "ArrowDown") onChange?.(p.id, { width: Math.max(25, style.width - step) });
+                else return;
+                e.preventDefault();
+              }}
+              className="absolute z-10 flex size-5 items-center justify-center rounded-full border-2 border-white bg-wine shadow-md"
+              style={{
+                top: `calc(${kit.u.mm(box.outerH)} - 10px)`,
+                [style.align === "right" ? "left" : "right"]: -10,
+                cursor: style.align === "right" ? "nesw-resize" : "nwse-resize",
+                touchAction: "none",
+              }}
+            />
+            {drag?.kind === "resize" && drag.id === p.id ? (
+              <span className="absolute top-2 left-2 z-10 rounded-md bg-ink/80 px-1.5 py-0.5 text-[11px] font-medium text-white">{style.width}%</span>
+            ) : null}
+          </>
+        ) : null,
+      };
+    };
+    return (d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />);
   };
 
   const renderEntry = (entry: PreviewEntry, first: boolean, isMeasure: boolean) => {
