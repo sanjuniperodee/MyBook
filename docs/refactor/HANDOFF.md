@@ -23,7 +23,9 @@ git fetch origin && git checkout claude/funny-tesla-gsqj79
 npm ci
 brew install poppler            # pdftoppm/pdftotext — нужны tests/pdf-critical.test.ts и визуальной сверке
 npx playwright install chromium # для снимков HTML
-export CHROMIUM_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+# HTML-снимки — только headless shell: полный Chrome for Testing на Mac рисует нестабильно
+# (self-сверка HEAD с HEAD даёт десятки ложных отличий), headless shell — 0 из 189 ключей три прогона подряд.
+export CHROMIUM_PATH="$(ls -d ~/Library/Caches/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-mac-*/chrome-headless-shell | tail -1)"
 npx tsc --noEmit && npx eslint . && npx vitest run
 ```
 
