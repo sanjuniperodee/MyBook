@@ -2,13 +2,14 @@ import "server-only";
 import type { Style } from "@react-pdf/stylesheet";
 import { messagesFor, type Messages } from "@/i18n/messages";
 import { mm, type BookFormat } from "@/lib/book/formats";
+import { emptyFlow, type FlowDecisions } from "@/lib/book/flow-decisions";
 import type { BookContent } from "@/lib/book/layout";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import type { PageBox } from "@/lib/book/interior-art";
 import { PAPER, type InteriorDesign, type TextFace } from "@/lib/book/interiors";
 import { interiorSizes, trackingPt, type InteriorSizes } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
-import { emptyFlow, FLOW_MARK, type FlowDecisions } from "@/modules/production/infrastructure/pdf/flow";
+import { FLOW_MARK } from "@/modules/production/infrastructure/pdf/flow";
 
 export interface PreparedImage {
   data: Buffer;
@@ -23,7 +24,7 @@ export interface InteriorOptions {
   tocPages?: Record<string, number>;
   onChapterPage?: (key: string, page: number) => void;
   images: Map<string, PreparedImage>;
-  /** Решения доводки вёрстки из прошлого прохода (см. flow.ts). */
+  /** Решения доводки вёрстки из прошлого прохода (см. lib/book/flow-decisions.ts). */
   flow?: FlowDecisions;
   /** Готовая раскладка — для следующего прохода доводки. */
   onLayout?: (layout: unknown) => void;

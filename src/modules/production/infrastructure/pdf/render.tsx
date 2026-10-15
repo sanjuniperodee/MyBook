@@ -19,6 +19,7 @@ import {
   type CoverGeometry,
 } from "@/lib/book/formats";
 import { buildBookContent, photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { emptyFlow } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";
 import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
@@ -31,7 +32,7 @@ import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } fr
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
-import { emptyFlow, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
+import { refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 
 export type RenderMode = "print" | "preview" | "reading";
 
@@ -166,7 +167,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
   const images = await prepareImages(content, mode, bleed);
 
   // Доводка вёрстки: собираем блок с заглушками вместо фото, читаем раскладку, принимаем решения
-  // (разрывы перед заголовками, размер фото под свободное место — см. flow.ts) и повторяем, пока есть что поправить.
+  // (разрывы перед заголовками, размер фото под свободное место — см. lib/book/flow-decisions.ts) и повторяем, пока есть что поправить.
   // Заодно узнаём номера страниц глав для оглавления.
   const stub = await placeholder();
   const draftImages = new Map([...images].map(([id, img]) => [id, { ...img, data: stub }]));
