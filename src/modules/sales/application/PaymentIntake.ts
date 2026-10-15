@@ -5,11 +5,15 @@ export interface PaymentStore {
   add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string }): Promise<IntakePayment>;
   refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string }): Promise<IntakePayment>;
   paidTotal(dealId: string): Promise<number>;
+  /** Удалить платёж — откат, если чек к нему записать не удалось. */
+  remove(id: string): Promise<void>;
 }
 
-/** Хранилище чеков (infrastructure/receipts.ts): файл и запись о нём. */
-export interface ReceiptStore {
-  add(input: { dealId: string; clientId: string | null; paymentId?: string | null; bytes: Buffer; fileName: string; amount: number; uploadedById: string }): Promise<IntakeReceipt>;
+/** Хранилище чеков (infrastructure/receipts.ts): сначала файл (stage), затем запись о нём (record); discard убирает файл. */
+export interface ReceiptStore<S = unknown> {
+  stage(input: { dealId: string; bytes: Buffer; fileName: string }): Promise<S>;
+  record(staged: S, input: { clientId: string | null; paymentId: string; amount: number; uploadedById: string }): Promise<IntakeReceipt>;
+  discard(staged: S): Promise<void>;
 }
 
 export interface IntakePayment {
@@ -59,10 +63,11 @@ export interface AcceptInput {
  * Принять деньги по сделке, оформленной вручную: платёж (или возврат) с чеком, заметка с суммой и чеком,
  * журнал, письмо клиенту. Платёж без чека не принимается. Деньги сразу попадают в обзор, аналитику и планы.
  */
-export class PaymentIntakeService {
+export class PaymentIntakeService<S = unknown> {
   constructor(
     private readonly payments: PaymentStore,
-    private readonly receipts: ReceiptStore,
+    /** S — черновик чека (файл в хранилище без записи); его вид знает только хранилище. */
+    private readonly receipts: ReceiptStore<S>,
     private readonly effects: PaymentEffects,
   ) {}
 
@@ -70,8 +75,24 @@ export class PaymentIntakeService {
     const { deal, actor } = input;
     const refund = input.kind === "refund";
     const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId };
-    const payment = refund ? await this.payments.refund(money) : await this.payments.add(money);
-    const receipt = await this.receipts.add({ dealId: deal.id, clientId: deal.clientId, paymentId: payment.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName, amount: payment.amount, uploadedById: actor.userId });
+    // Платёж без чека невозможен (B4): файл чека — до денег; не записался платёж — файл убираем,
+    // не записался чек — откатываем платёж. Транзакция не нужна: каждый шаг отменяем сами.
+    const staged = await this.receipts.stage({ dealId: deal.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName });
+    let payment: IntakePayment;
+    try {
+      payment = refund ? await this.payments.refund(money) : await this.payments.add(money);
+    } catch (err) {
+      await this.receipts.discard(staged);
+      throw err;
+    }
+    let receipt: IntakeReceipt;
+    try {
+      receipt = await this.receipts.record(staged, { clientId: deal.clientId, paymentId: payment.id, amount: payment.amount, uploadedById: actor.userId });
+    } catch (err) {
+      await this.payments.remove(payment.id);
+      await this.receipts.discard(staged);
+      throw err;
+    }
     await this.effects.note(actor, {
       text: refund
         ? `Возврат ${formatPrice(payment.amount)} клиенту: ${payment.note}. Чек: ${receipt.fileName}`
