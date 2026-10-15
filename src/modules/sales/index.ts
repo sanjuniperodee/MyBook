@@ -1,5 +1,5 @@
 import type { Clock, Logger, SettingsReader, UnitOfWork, WorkSchedule } from "@/shared/application";
-import { DealsService, PipelinesService, SiteFunnelService } from "./application";
+import { DealsService, PaymentIntakeService, PipelinesService, SiteFunnelService, type PaymentEffects } from "./application";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
@@ -27,6 +27,8 @@ export class SalesModule {
   readonly receipts = new DealReceipts();
   /** Принятые деньги по сделкам, оформленным вручную (предоплата, доплаты) — источник выручки наряду с заказами. */
   readonly payments = new DealPayments();
+  /** Принять платёж или возврат с чеком: деньги, чек, заметка, журнал, письмо клиенту. */
+  readonly intake: PaymentIntakeService;
   /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */
   readonly agreementFor = agreementForClient;
   /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
@@ -35,7 +37,8 @@ export class SalesModule {
   readonly setClientAttribution = setClientDealsAttribution;
 
   /** Настройки CRM и график работы (распределение заявок по кругу) — порты рабочего пространства. */
-  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule }) {
+  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects }) {
+    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects);
     const repo = new DrizzleDealRepository();
     const funnels = new DrizzleFunnelRepository();
     const settings = crmSalesSettings(deps.settings);

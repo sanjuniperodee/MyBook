@@ -177,7 +177,19 @@ export class Container {
   }
 
   get sales(): SalesModule {
-    return (this.#sales ??= new SalesModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("sales"), settings: this.workspace.settings, schedule: this.workspace.schedule }));
+    return (this.#sales ??= new SalesModule({
+      uow: this.uow,
+      clock: this.clock,
+      logger: consoleLogger("sales"),
+      settings: this.workspace.settings,
+      schedule: this.workspace.schedule,
+      // Принятые деньги: заметка в карточке клиента, журнал сотрудников и письмо клиенту — через порты.
+      paymentEffects: {
+        note: async (actor, input) => void (await this.clients.notes.add(actor, { kind: "note", text: input.text, dealId: input.dealId, clientId: input.clientId ?? undefined })),
+        audit: (input) => this.access.audit.record(input),
+        mailClient: async (input) => (await import("./client-mail")).mailPaymentToClient(this, input),
+      },
+    }));
   }
 
   get notifications(): NotificationsModule {

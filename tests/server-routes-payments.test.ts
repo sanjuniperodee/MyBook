@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PaymentError, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
 import { POST as acceptPayment } from "@/app/api/admin/deals/[id]/payments/route";
 import { POST as attachReceipt } from "@/app/api/admin/deals/[id]/receipts/route";
+import { PaymentIntakeService } from "@/modules/sales/application";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -34,9 +35,11 @@ beforeEach(() => {
   resetContainer();
   signIn(owner);
   deal = { id: DEAL, clientId: "c1", assigneeId: null, orderId: null, number: 7, amount: 100_000 };
-  payments = { add: async () => ({ id: "p1", amount: 5000, kind: "payment", paidAt: new Date(), note: "" }), find: async () => ({ id: "p1", dealId: DEAL }) };
+  payments = { add: async () => ({ id: "p1", amount: 5000, kind: "payment", paidAt: new Date(), note: "" }), find: async () => ({ id: "p1", dealId: DEAL }), paidTotal: async () => 5000 };
   receipts = { add: async () => ({ id: "r1", fileName: "чек.pdf", amount: 5000, mime: "application/pdf", size: 8, createdAt: new Date() }) };
-  fake.sales = { deals: { findById: async () => deal }, payments, receipts };
+  // Сценарий приёма — настоящий PaymentIntakeService поверх тех же фейков: правки payments и receipts в тестах видны ему.
+  const intake = new PaymentIntakeService(payments as never, receipts as never, { note: async () => {}, audit: async () => {}, mailClient: async () => {} });
+  fake.sales = { deals: { findById: async () => deal }, payments, receipts, intake };
   fake.clients = { notes: { add: async () => {} } };
 });
 
