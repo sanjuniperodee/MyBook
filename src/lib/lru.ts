@@ -24,6 +24,11 @@ export class Lru<K, V> {
     return this;
   }
 
+  /** Значение без освежения записи. */
+  peek(key: K): V | undefined {
+    return this.map.get(key);
+  }
+
   has(key: K) {
     return this.map.has(key);
   }

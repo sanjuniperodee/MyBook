@@ -36,4 +36,12 @@ describe("Lru", () => {
   it("предел меньше 1 — ошибка", () => {
     expect(() => new Lru(0)).toThrow();
   });
+
+  it("peek читает без освежения", () => {
+    const c = new Lru<string, number>(2);
+    c.set("a", 1).set("b", 2);
+    expect(c.peek("a")).toBe(1);
+    c.set("c", 3);
+    expect(c.has("a")).toBe(false);
+  });
 });

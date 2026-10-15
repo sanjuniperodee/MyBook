@@ -26,7 +26,9 @@ function load(url: string) {
             reader.readAsDataURL(blob);
           }),
       );
-    p.catch(() => cache.delete(url));
+    const pending = p;
+    // Ошибку забываем, только если в кэше всё ещё этот запрос: после вытеснения там может лежать новый.
+    p.catch(() => cache.peek(url) === pending && cache.delete(url));
     cache.set(url, p);
   }
   return p;

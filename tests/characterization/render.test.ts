@@ -58,6 +58,8 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
     expect(mismatches).toEqual([]);
   });
 
+  // Число полос текста главы здесь берётся из PDF: тест проверяет порядок полос planFaces (оборот титула, главы
+  // подряд, фотостраницы, галерея), а не HTML-замер колонок в браузере (columnPages в usePagedBook).
   it("3D-книга раскладывает полосы как PDF: те же номера глав в оглавлении, галерея и финал на тех же полосах (B2)", () => {
     const mismatches: string[] = [];
     for (const fb of books) {
