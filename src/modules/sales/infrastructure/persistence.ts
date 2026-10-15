@@ -5,7 +5,8 @@ import { phoneKey } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage, type StageMilestone } from "../domain";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 

@@ -6,7 +6,7 @@ import { staffNotifier } from "./infrastructure/notify";
 import { liveFeed } from "./infrastructure/realtime";
 import { workSchedule } from "./infrastructure/schedule";
 
-export { WorkspaceError, customFieldTypes, type CustomFieldType } from "./domain";
+export { WorkspaceError } from "./domain";
 export { getSetting, getSettings, saveSettings, deleteSetting, ensureToken, fromEnv, maskSecret, type SettingKey } from "./infrastructure/settings";
 export { listFields, readFieldValues } from "./infrastructure/fields";
 export { notify } from "./infrastructure/notify";

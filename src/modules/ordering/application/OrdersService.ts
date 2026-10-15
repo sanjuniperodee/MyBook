@@ -1,10 +1,11 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import { NotFoundError } from "@/shared/domain";
+import type { OrderStatus } from "@/shared/domain/orders";
 import { staffLabel } from "@/shared/domain/staff";
 import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
-import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type OrderStatus, type PromoCodeRepository } from "../domain";
+import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 
 export interface PlaceOrderCommand {

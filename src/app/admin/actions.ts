@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
-import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
+import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";

@@ -1,4 +1,4 @@
-import type { StageMilestone } from "../domain";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
 
 /** Клиенты сайта глазами продаж (антикоррупционный слой над учётными записями и заказами). */
 export interface ClientDirectory {

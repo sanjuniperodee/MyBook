@@ -2,7 +2,7 @@ import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { Download, Kanban } from "lucide-react";
 import { container } from "@/server/container";
-import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
+import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { requireStaff } from "@/server/access";
 import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";

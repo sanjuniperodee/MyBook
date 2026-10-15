@@ -1,8 +1,7 @@
 import { contextError } from "@/shared/domain";
+import type { CustomFieldType } from "@/shared/domain/customFields";
 import { normalizeSlug } from "@/shared/domain/slug";
 
-export const customFieldTypes = ["text", "number", "date", "select", "checkbox"] as const;
-export type CustomFieldType = (typeof customFieldTypes)[number];
 export type FieldEntity = "deal" | "client";
 
 /** message — текст для сотрудника. */

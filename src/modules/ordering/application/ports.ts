@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
-import type { KaspiMethod, KaspiPaymentView, OrderPrintSpec } from "../domain";
+import type { OrderPrintSpec } from "@/shared/domain/orders";
+import type { KaspiMethod, KaspiPaymentView } from "../domain";
 
 /** Что заказу нужно знать о книге (контекст Authoring). */
 export interface BookGateway {

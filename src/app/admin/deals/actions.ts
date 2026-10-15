@@ -9,7 +9,7 @@ import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError
 import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
-import { stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
+import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
 
@@ -164,7 +164,7 @@ const stageSchema = z.object({
   id: z.union([z.literal(""), uuid]).default(""),
   name: z.string().trim().min(1, "Название этапа").max(40),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#9a8f86"),
-  milestone: z.union([z.enum(Object.keys(stageMilestones) as [StageMilestone, ...StageMilestone[]]), z.literal("")]).default(""),
+  milestone: z.union([z.enum(STAGE_MILESTONES), z.literal("")]).default(""),
   pipelineId: z.union([z.literal(""), uuid]).default(""),
 });
 

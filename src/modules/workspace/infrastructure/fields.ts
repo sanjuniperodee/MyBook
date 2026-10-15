@@ -1,7 +1,8 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
-import { crmFields, type CrmField, type CustomValues } from "@/shared/infrastructure/db/schema";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
+import { crmFields, type CrmField } from "@/shared/infrastructure/db/schema";
 import type { CustomFieldsReader } from "@/shared/application";
 
 export async function listFields(entity: "deal" | "client"): Promise<CrmField[]> {
@@ -9,8 +10,8 @@ export async function listFields(entity: "deal" | "client"): Promise<CrmField[]>
 }
 
 /** Значения своих полей из формы (поля с именем cf_<key>). Неизвестные ключи и мусор отбрасываются. */
-export function readFieldValues(fields: CrmField[], form: FormData, current: CustomValues = {}): CustomValues {
-  const out: CustomValues = { ...current };
+export function readFieldValues(fields: CrmField[], form: FormData, current: CustomFieldValues = {}): CustomFieldValues {
+  const out: CustomFieldValues = { ...current };
   for (const f of fields) {
     const name = `cf_${f.key}`;
     if (f.type === "checkbox") {

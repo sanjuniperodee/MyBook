@@ -1,7 +1,7 @@
 import type { CustomFieldsReader, LiveEvent, LiveFeed, SettingsStore, StaffNotification, StaffNotifier, WorkSchedule } from "@/shared/application";
-import type { CustomFieldDef, CustomFieldEntity } from "@/shared/domain/customFields";
+import type { CustomFieldDef, CustomFieldEntity, CustomFieldType } from "@/shared/domain/customFields";
 import type { FieldRepository } from "@/modules/workspace/application";
-import type { CustomFieldType, FieldEntity } from "@/modules/workspace/domain";
+import type { FieldEntity } from "@/modules/workspace/domain";
 
 // ─── тестовые двойники ─────────────────────────────────────────────────────
 

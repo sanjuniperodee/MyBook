@@ -1,10 +1,9 @@
 import { AggregateRoot } from "@/shared/domain";
+import type { GiftStatus } from "@/shared/domain/orders";
 import type { PlanId } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { OrderingError } from "./errors";
 import { OrderingEvents } from "./events";
-
-export type GiftStatus = "pending_payment" | "paid" | "cancelled";
 
 export interface GiftCardProps {
   number: number;

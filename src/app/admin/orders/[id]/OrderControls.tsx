@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
-import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
+import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
 
 /** У электронной версии нет печати и доставки: только «ждёт оплаты → выполнен» и отмена. */
 const digitalStatuses: readonly OrderStatus[] = ["pending_payment", "paid", "cancelled"];

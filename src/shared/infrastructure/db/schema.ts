@@ -15,11 +15,9 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
-// Относительные пути: схему читает и drizzle-kit, который не знает алиас «@/».
-import { ORDER_STATUSES, type OrderStatus } from "@/modules/ordering/domain/OrderStatus";
-import type { OrderPrintSpec } from "@/modules/ordering/domain/Order";
-import type { GiftStatus } from "@/modules/ordering/domain/GiftCard";
-import type { ReviewPhoto, ReviewStatus } from "@/modules/feedback/domain/Review";
+import { customFieldTypes, type CustomFieldValues } from "@/shared/domain/customFields";
+import type { GiftStatus, OrderPrintSpec, OrderStatus } from "@/shared/domain/orders";
+import type { ReviewPhoto, ReviewStatus } from "@/shared/domain/reviews";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -60,7 +58,7 @@ export const users = pgTable(
     /** Дополнительные телефоны клиента (второй номер, WhatsApp на другой SIM) — для поиска по звонкам и чатам. */
     extraPhones: text("extra_phones").array().notNull().default(sql`'{}'::text[]`),
     /** Значения своих полей клиента (crm_fields, entity = client). */
-    customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
+    customFields: jsonb("custom_fields").$type<CustomFieldValues>().notNull().default({}),
     /** Сотрудник отключён: не может войти в CRM, не получает лиды. */
     staffDisabled: boolean("staff_disabled").notNull().default(false),
     /** Двухфакторный вход (TOTP): секрет зашифрован; включён, когда задано totpEnabledAt. */
@@ -224,10 +222,6 @@ export const bookLetters = pgTable(
   (t) => [index("book_letters_book_idx").on(t.bookId)],
 );
 
-/** Статусы заказа — язык домена (src/modules/ordering), схема лишь хранит их. */
-export const orderStatuses = ORDER_STATUSES;
-export type { OrderStatus, OrderPrintSpec };
-
 export const orders = pgTable(
   "orders",
   {
@@ -323,8 +317,6 @@ export const emailLog = pgTable(
   },
   (t) => [uniqueIndex("email_log_user_key_idx").on(t.userId, t.key)],
 );
-
-export type { GiftStatus };
 
 /** Подарочный сертификат. После оплаты для него создаётся одноразовый промокод на сумму сертификата. */
 export const giftCards = pgTable(
@@ -557,7 +549,7 @@ export const crmStages = pgTable("crm_stages", {
   ...timestamps,
 });
 
-import type { StageMilestone } from "@/modules/sales/domain/meta";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import type { DealSource } from "@/shared/domain/dealSources";
 
 /** Сделка (лид): обращение, которое ведём до заказа. */
@@ -585,7 +577,7 @@ export const crmDeals = pgTable(
     /** Откуда пришёл клиент: UTM-метки, реферер, короткая ссылка (из профиля на сайте или кода в первом сообщении). */
     utm: jsonb("utm").$type<Record<string, string>>(),
     /** Значения своих полей (crm_fields, entity = deal): { key: значение }. */
-    customFields: jsonb("custom_fields").$type<CustomValues>().notNull().default({}),
+    customFields: jsonb("custom_fields").$type<CustomFieldValues>().notNull().default({}),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     /** Тариф, о котором договорились с клиентом (договорная цена относится к нему): при заказе по договорённости тариф фиксирован. */
     agreedPlan: text("agreed_plan"),
@@ -850,9 +842,6 @@ export const crmStageHistory = pgTable(
   },
   (t) => [index("crm_stage_hist_deal_idx").on(t.dealId, t.createdAt), index("crm_stage_hist_to_idx").on(t.toStageId, t.createdAt)],
 );
-
-export type CustomValues = Record<string, string | number | boolean | null>;
-export const customFieldTypes = ["text", "number", "date", "select", "checkbox"] as const;
 
 /** Свои поля сделки или клиента (как в amoCRM): повод, дата события, для кого… */
 export const crmFields = pgTable(

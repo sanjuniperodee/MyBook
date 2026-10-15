@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/modules/sales/domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toastError } from "@/components/ui/overlays";
@@ -87,7 +87,7 @@ export function DealFields({
   values = {},
 }: {
   fields?: FieldDef[];
-  values?: CustomValues;
+  values?: CustomFieldValues;
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;

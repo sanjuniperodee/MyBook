@@ -1,5 +1,5 @@
 import { domainEvent, type DomainEvent } from "@/shared/domain";
-import type { OrderStatus } from "./OrderStatus";
+import type { OrderStatus } from "@/shared/domain/orders";
 
 /** Минимальный «публичный» снимок заказа для подписчиков других контекстов. */
 export interface OrderRef {

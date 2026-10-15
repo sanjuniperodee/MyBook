@@ -1,6 +1,10 @@
 /** Свои поля сделки и клиента (как в amoCRM): настраиваются в рабочем пространстве CRM, читаются многими модулями. */
 export type CustomFieldEntity = "deal" | "client";
 
+/** Типы своих полей: колонка crm_fields.type хранит один из них. */
+export const customFieldTypes = ["text", "number", "date", "select", "checkbox"] as const;
+export type CustomFieldType = (typeof customFieldTypes)[number];
+
 /** Своё поле: повод, дата события, для кого… */
 export interface CustomFieldDef {
   /** Ключ в customFields; не меняется после создания. */

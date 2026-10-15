@@ -1,6 +1,6 @@
 "use client";
 
-import type { CustomValues } from "@/modules/sales/domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 
 export interface FieldDef {
   key: string;
@@ -10,7 +10,7 @@ export interface FieldDef {
 }
 
 /** Поля ввода для своих полей: имена cf_<key>, читаются на сервере readFieldValues(). */
-export function CustomFieldInputs({ fields, values, disabled }: { fields: FieldDef[]; values: CustomValues; disabled?: boolean }) {
+export function CustomFieldInputs({ fields, values, disabled }: { fields: FieldDef[]; values: CustomFieldValues; disabled?: boolean }) {
   if (!fields.length) return null;
   return (
     <div className="grid grid-cols-2 gap-3" data-testid="custom-fields">

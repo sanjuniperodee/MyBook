@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/modules/sales/domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
 import { setClientChannelAction, setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
@@ -158,7 +158,7 @@ export function ExtraPhones({ clientId, value }: { clientId: string; value: stri
   );
 }
 
-export function ClientFields({ clientId, fields, values, disabled }: { clientId: string; fields: FieldDef[]; values: CustomValues; disabled: boolean }) {
+export function ClientFields({ clientId, fields, values, disabled }: { clientId: string; fields: FieldDef[]; values: CustomFieldValues; disabled: boolean }) {
   const [state, action] = useActionState(setClientFieldsAction, {});
   return (
     <form action={action} className="space-y-3">

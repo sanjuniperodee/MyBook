@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EventBus } from "@/shared/application";
-import { isPaid, Order, ORDER_STATUSES, OrderingError, PromoCode } from "@/modules/ordering/domain";
+import { isPaid, Order, OrderingError, PromoCode } from "@/modules/ordering/domain";
+import { ORDER_STATUSES } from "@/shared/domain/orders";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { PromoService } from "@/modules/ordering/application/PromoService";
 import { addPromo, admin, clock, FakeUow, MemGifts, MemOrders, MemPromos, setup } from "./doubles/ordering";

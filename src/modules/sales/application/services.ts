@@ -1,5 +1,7 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
-import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type CustomValues, type DealRepository, type FunnelRepository, type NoteKind, type StageMilestone } from "../domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type DealRepository, type FunnelRepository, type NoteKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "./ports";
 
@@ -18,7 +20,7 @@ export interface NewDeal {
   /** Заявка с нового контакта: попадёт в «Неразобранное» (если оно включено в настройках). */
   unsorted?: boolean;
   pipelineId?: string;
-  customFields?: CustomValues;
+  customFields?: CustomFieldValues;
   /** Откуда пришёл (UTM-метки, реферер, код ссылки). Для клиента с сайта берётся из его профиля, если не передано. */
   utm?: object | null;
 }
@@ -128,7 +130,7 @@ export class DealsService {
     return this.deals.addNote(deal, text, authorId, kind);
   }
 
-  async fillEmptyFields(dealId: string, values: CustomValues) {
+  async fillEmptyFields(dealId: string, values: CustomFieldValues) {
     const deal = await this.deals.findById(dealId);
     if (deal?.fillEmptyFields(values)) await this.deals.save(deal);
   }
@@ -257,7 +259,7 @@ export class SiteFunnelService {
     private readonly paid: (dealId: string) => Promise<number> = async () => 0,
   ) {}
 
-  async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomValues } = {}): Promise<{ id: string } | null> {
+  async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomFieldValues } = {}): Promise<{ id: string } | null> {
     try {
       const funnel = await this.funnels.load();
       let deal = await this.deals.findOpen({ clientId });
@@ -313,7 +315,7 @@ export class SiteFunnelService {
   }
 
   /** Книга начата: сделка идёт по воронке, повод, дата и адресат попадают в её поля. */
-  async bookStarted(userId: string, book: { title: string; recipientName: string }, fields: CustomValues) {
+  async bookStarted(userId: string, book: { title: string; recipientName: string }, fields: CustomFieldValues) {
     const deal = await this.advance(userId, "book_started", { title: `Книга${book.recipientName ? ` для: ${book.recipientName}` : book.title ? ` «${book.title}»` : ""}`, customFields: fields });
     if (deal) await this.service.fillEmptyFields(deal.id, fields);
   }

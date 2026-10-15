@@ -3,7 +3,8 @@ import { getPlan, type DeliveryId, type PlanId } from "@/config/site";
 import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
-import { isPaid, type OrderStatus } from "./OrderStatus";
+import { isPaid } from "./OrderStatus";
+import type { OrderPrintSpec, OrderStatus } from "@/shared/domain/orders";
 import type { PromoCode } from "./PromoCode";
 
 export interface OrderContact {
@@ -17,15 +18,6 @@ export interface OrderDelivery {
   city: string | null;
   address: string | null;
   postalCode: string | null;
-}
-
-export interface OrderPrintSpec {
-  format: string;
-  pageCount: number;
-  spineMm: number;
-  coverWidthMm: number;
-  coverHeightMm: number;
-  generatedAt: string;
 }
 
 /** Запись журнала заказа (видна в CRM). */

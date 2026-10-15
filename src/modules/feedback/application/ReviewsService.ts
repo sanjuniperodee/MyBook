@@ -1,5 +1,6 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
-import { canReview, FeedbackError, Review, THANK_YOU, type ReviewInput, type ReviewPhoto, type ReviewRepository } from "../domain";
+import type { ReviewPhoto } from "@/shared/domain/reviews";
+import { canReview, FeedbackError, Review, THANK_YOU, type ReviewInput, type ReviewRepository } from "../domain";
 import type { OrderLookup, PromoCodeGenerator, ReviewPhotoStore, StaffAlerts, ThankYouPromos } from "./ports";
 
 export type ModerationAction = "publish" | "hide" | "feature" | "unfeature";

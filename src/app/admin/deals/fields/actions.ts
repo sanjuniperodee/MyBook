@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
-import { customFieldTypes, WorkspaceError } from "@/modules/workspace";
+import { WorkspaceError } from "@/modules/workspace";
+import { customFieldTypes } from "@/shared/domain/customFields";
 import { assertStaff, audit } from "@/server/access";
 
 export type FieldState = { ok?: string; error?: string };

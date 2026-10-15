@@ -3,7 +3,8 @@
 import { useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
 import { toastError } from "@/components/ui/overlays";
-import type { ModerationAction, ReviewStatus } from "@/modules/feedback";
+import type { ModerationAction } from "@/modules/feedback";
+import type { ReviewStatus } from "@/shared/domain/reviews";
 import { moderateReviewAction } from "./actions";
 
 export function ReviewActions({ id, status, featured, publishable }: { id: string; status: ReviewStatus; featured: boolean; publishable: boolean }) {

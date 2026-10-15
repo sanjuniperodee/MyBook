@@ -20,7 +20,8 @@ import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { isPaid, type OrderStatus } from "@/modules/ordering/domain";
+import { isPaid } from "@/modules/ordering/domain";
+import type { OrderStatus } from "@/shared/domain/orders";
 import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { PaymentBlock } from "./PaymentBlock";
 

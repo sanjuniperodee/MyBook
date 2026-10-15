@@ -1,11 +1,11 @@
 import { AggregateRoot } from "@/shared/domain";
 import { dealSourceLabels, type DealSource } from "@/shared/domain/dealSources";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { formatPrice } from "@/config/site";
 import { normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { SalesEvents } from "./events";
 import type { Stage } from "./Funnel";
 
-export type CustomValues = Record<string, string | number | boolean | null>;
 export type NoteKind = "note" | "call" | "message" | "system";
 
 export interface DealProps {
@@ -24,7 +24,7 @@ export interface DealProps {
   orderId: string | null;
   lostReason: string | null;
   unsorted: boolean;
-  customFields: CustomValues;
+  customFields: CustomFieldValues;
   utm: Record<string, string> | null;
   tags: string[];
   stageChangedAt: Date;
@@ -167,7 +167,7 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** Правка карточки (без этапа и ответственного — для них отдельные команды с историей). Смена бюджета — в ленту. */
-  edit(patch: { title: string; contactName: string; amount: number; source: DealSource; tags: string[]; customFields: CustomValues; contacts?: { phone: string | null; email: string | null; extraPhones: string[] } }, actorId: string | null) {
+  edit(patch: { title: string; contactName: string; amount: number; source: DealSource; tags: string[]; customFields: CustomFieldValues; contacts?: { phone: string | null; email: string | null; extraPhones: string[] } }, actorId: string | null) {
     const before = this.props.amount;
     this.props = {
       ...this.props,
@@ -203,7 +203,7 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** Заполнить пустые свои поля (не перетирая то, что менеджер уже ввёл). */
-  fillEmptyFields(values: CustomValues): boolean {
+  fillEmptyFields(values: CustomFieldValues): boolean {
     let changed = false;
     const next = { ...this.props.customFields };
     for (const [k, v] of Object.entries(values)) {

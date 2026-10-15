@@ -7,7 +7,7 @@ import { toAttribution } from "@/shared/domain/channels";
 import type { SettingsReader, WorkSchedule } from "@/shared/application";
 import { executor } from "@/shared/infrastructure/database";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
-import type { StageMilestone } from "../domain";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { inExtra, phoneDigits } from "./persistence";
 
 export const drizzleClients: ClientDirectory = {
