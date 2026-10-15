@@ -7,9 +7,9 @@ import type { FileStore, IdGenerator, ImageProcessor, ThemeCatalog } from "@/mod
 // Двойники для тестов Authoring: книга, вопросы, фото, письма и файлы в памяти.
 
 export const now = new Date("2026-10-01T10:00:00Z");
-export const owner = { userId: "u1", isStaff: false };
-export const stranger = { userId: "u2", isStaff: false };
-export const staff = { userId: "admin", isStaff: true };
+export const owner = { userId: "u1", isStaff: false, staffEdits: false };
+export const stranger = { userId: "u2", isStaff: false, staffEdits: false };
+export const staff = { userId: "admin", isStaff: true, staffEdits: true };
 
 export const theme = (lang: "ru" | "kk"): ThemeOnLanguage => ({
   id: "love",

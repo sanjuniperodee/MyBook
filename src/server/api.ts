@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { getCurrentUser } from "@/server/auth";
 import type { User } from "@/shared/infrastructure/db/schema";
-import type { BookRow, BookViewer } from "@/modules/authoring";
+import { isBookEditableBy, type BookRow, type BookViewer } from "@/modules/authoring";
 import { DomainError } from "@/shared/domain";
 import { viewerOf } from "@/server/books";
 import { domainStatus, errorText, isApiKey, isErrorKey, type ApiMessages, type ErrorKey, type ErrorParams } from "@/server/errors";
@@ -92,9 +92,10 @@ export async function apiUser(req: Request): Promise<User> {
 
 export async function apiBook(req: Request, bookId: string, opts: { editable?: boolean } = {}): Promise<{ user: User; book: BookRow; viewer: BookViewer }> {
   const user = await apiUser(req);
-  const viewer = viewerOf(user);
+  const viewer = await viewerOf(user);
   const book = await container().authoring.queries.visibleBook(bookId, viewer);
-  if (!book) throw new HttpError(404, "bookNotFound");
+  // Для правки: книгу, которую сотруднику менять нельзя (нет clients.edit), — как будто её нет.
+  if (!book || (opts.editable && !isBookEditableBy(book.userId, viewer))) throw new HttpError(404, "bookNotFound");
   if (opts.editable && book.status !== "draft") throw new HttpError(409, "bookLocked");
   return { user, book, viewer };
 }
@@ -102,7 +103,7 @@ export async function apiBook(req: Request, bookId: string, opts: { editable?: b
 /** Пользователь API как читатель книг (владелец или сотрудник). */
 export async function apiViewer(req: Request): Promise<{ user: User; viewer: BookViewer }> {
   const user = await apiUser(req);
-  return { user, viewer: viewerOf(user) };
+  return { user, viewer: await viewerOf(user) };
 }
 
 /** Сотрудник CRM с нужными правами (для API). */

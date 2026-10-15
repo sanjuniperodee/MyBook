@@ -6,13 +6,13 @@ import { AuthoringError, Book, type BookViewer } from "@/modules/authoring/domai
 import { allPermissions } from "@/shared/domain/permissions";
 import { IdentityError } from "@/modules/identity/domain";
 import { assertStaff, assertStaffShell, ForbiddenError, requireStaff, requireStaffShell } from "@/server/access";
-import { api, apiBook, apiStaff, apiViewer } from "@/server/api";
+import { api, apiBook, apiViewer } from "@/server/api";
 import { getAccessibleBook, viewerOf } from "@/server/books";
 import { clientIp, trustedClientIp } from "@/server/rateLimit";
 import { PATCH as patchQuestion } from "@/app/api/books/[id]/questions/[qid]/route";
 import { GET as getPhoto } from "@/app/api/photos/[id]/route";
 import { loginAction } from "@/app/(auth)/actions";
-import { anna, client, fake, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, withTwoFactor } from "./doubles/web";
+import { anna, client, egor, fake, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, vera, withTwoFactor } from "./doubles/web";
 
 /** База с одной книгой клиента u1 и одним её фото: запросы DrizzleAuthoringQueries настоящие, условия where не разбираются. */
 const db = vi.hoisted(() => ({ book: undefined as BookRow | undefined, photo: undefined as { photo: PhotoRow; ownerId: string } | undefined }));
@@ -158,76 +158,97 @@ describe("requireStaffShell и assertStaffShell: каркас админки и 
 describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, photoFor", () => {
   const bookOf = (opts?: { editable?: boolean }) => respond(async (r) => (await apiBook(r, BOOK, opts)).book.id);
 
-  it("V1: так сейчас — viewerOf: сотрудник — любой с ролью admin, не отключённый, без учёта прав и правил безопасности (закроет E6)", () => {
-    expect(viewerOf(client)).toEqual({ userId: "u1", isStaff: false });
-    expect(viewerOf(anna)).toEqual({ userId: "anna", isStaff: true });
-    expect(viewerOf(person("old", { role: "admin", staffDisabled: true }))).toEqual({ userId: "old", isStaff: false });
+  it("viewerOf: книги клиентов открыты сотруднику с clients.view (менять — с clients.edit), вошедшему из разрешённой сети и с 2FA (V1, решение 1)", async () => {
+    const viewer = async (u: User) => (signIn(u), await viewerOf(u));
+    expect(await viewer(client)).toEqual({ userId: "u1", isStaff: false, staffEdits: false });
+    expect(await viewer(anna)).toEqual({ userId: "anna", isStaff: false, staffEdits: false });
+    expect(await viewer(vera)).toEqual({ userId: "vera", isStaff: true, staffEdits: false });
+    expect(await viewer(egor)).toEqual({ userId: "egor", isStaff: true, staffEdits: true });
+    expect(await viewer(owner)).toEqual({ userId: "boss", isStaff: true, staffEdits: true });
+    expect(await viewer(person("old", { role: "admin", staffDisabled: true }))).toEqual({ userId: "old", isStaff: false, staffEdits: false });
+    // Правила «Безопасности»: обязательная 2FA не настроена, вход не из офиса — как клиент.
+    security.require2fa = true;
+    expect(await viewer(egor)).toEqual({ userId: "egor", isStaff: false, staffEdits: false });
+    expect(await viewer({ ...egor, ...withTwoFactor })).toEqual({ userId: "egor", isStaff: true, staffEdits: true });
+    security.allowlist = OFFICE;
+    request.headers.set("x-real-ip", "8.8.8.8");
+    expect(await viewer({ ...egor, ...withTwoFactor })).toEqual({ userId: "egor", isStaff: false, staffEdits: false });
   });
 
   it("владелец видит свою книгу и фото; чужой клиент и отключённый сотрудник — 404", async () => {
     signIn(client);
     expect(await bookOf()).toEqual({ status: 200, body: BOOK });
     expect(await getAccessibleBook(BOOK, client)).toBe(db.book);
-    expect(await queries.photoFor(PHOTO, viewerOf(client))).toBe(db.photo!.photo);
+    expect(await queries.photoFor(PHOTO, await viewerOf(client))).toBe(db.photo!.photo);
     for (const u of [person("u2"), person("old", { role: "admin", staffDisabled: true })]) {
       signIn(u);
       expect(await bookOf()).toEqual({ status: 404, body: { error: "Книга не найдена", code: "bookNotFound" } });
       await expect(getAccessibleBook(BOOK, u)).rejects.toBeInstanceOf(NotFound);
-      expect(await queries.photoFor(PHOTO, viewerOf(u))).toBeNull();
+      expect(await queries.photoFor(PHOTO, await viewerOf(u))).toBeNull();
     }
   });
 
   it("мусор вместо id — 404 без запроса к базе; правка не черновика — 409 bookLocked", async () => {
     signIn(client);
     expect((await respond(async (r) => (await apiBook(r, "1 or 1=1")).book.id)).status).toBe(404);
-    expect(await queries.photoFor("../etc/passwd", viewerOf(client))).toBeNull();
+    expect(await queries.photoFor("../etc/passwd", await viewerOf(client))).toBeNull();
     expect((await bookOf({ editable: true })).status).toBe(200);
     db.book = { ...db.book!, status: "ordered" };
     expect(await bookOf()).toEqual({ status: 200, body: BOOK });
     expect(await bookOf({ editable: true })).toEqual({ status: 409, body: { error: "Книга уже передана в печать и не может быть изменена", code: "bookLocked" } });
   });
 
-  it("V1: так сейчас — сотрудник без clients.view и не из разрешённой сети читает и меняет книги клиентов (закроет E6)", async () => {
-    security.allowlist = OFFICE;
-    security.require2fa = true;
-    request.headers.set("x-real-ip", "8.8.8.8");
-    signIn(anna);
-
-    // В CRM такого сотрудника не пускают…
-    expect(await outcome(() => requireStaff("clients.view"))).toBe("redirect:/admin-denied");
-    expect(await outcome(() => assertStaff("clients.view"))).toBe("forbidden:Недостаточно прав для этого действия");
-    expect((await respond(async (r) => (await apiStaff(r, "clients.view")).user.id)).status).toBe(403);
-
-    // …а книги клиента ему открыты: viewerOf не смотрит ни на права, ни на IP и 2FA
-    const viewer = viewerOf(anna);
-    expect(viewer).toEqual({ userId: "anna", isStaff: true });
-    expect(await respond(async (r) => (await apiViewer(r)).viewer)).toEqual({ status: 200, body: viewer });
-    expect(await bookOf({ editable: true })).toEqual({ status: 200, body: BOOK });
-    expect(await getAccessibleBook(BOOK, anna)).toBe(db.book);
-
-    // GET /api/photos/<id> отдаёт файл фото клиента
+  it("сотрудник без clients.view или не из разрешённой сети — 404 на книге, фото и API, как чужой клиент (V1 закрыт)", async () => {
     fake.authoring.photoFile = async (key: string) => Buffer.from(key);
+    const photo = () => getPhoto(new Request(`http://localhost/api/photos/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) });
+    const blocked = async (u: User) => {
+      signIn(u);
+      expect(await respond(async (r) => (await apiViewer(r)).viewer)).toEqual({ status: 200, body: { userId: u.id, isStaff: false, staffEdits: false } });
+      expect(await bookOf()).toEqual({ status: 404, body: { error: "Книга не найдена", code: "bookNotFound" } });
+      await expect(getAccessibleBook(BOOK, u)).rejects.toBeInstanceOf(NotFound);
+      expect((await photo()).status).toBe(404);
+    };
+    // Менеджер без «Видеть клиентов и их книги»
+    await blocked(anna);
+    // С правом, но не из разрешённой сети / без обязательной 2FA
+    security.allowlist = OFFICE;
+    request.headers.set("x-real-ip", "8.8.8.8");
+    await blocked(vera);
+    request.headers.set("x-real-ip", "10.1.2.5");
+    security.require2fa = true;
+    await blocked(vera);
+  });
+
+  it("clients.view — читает книгу и фото клиента, но не меняет (404); clients.edit — меняет", async () => {
+    fake.authoring.photoFile = async (key: string) => Buffer.from(key);
+    signIn(vera);
+    expect(await bookOf()).toEqual({ status: 200, body: BOOK });
+    expect(await bookOf({ editable: true })).toEqual({ status: 404, body: { error: "Книга не найдена", code: "bookNotFound" } });
+    expect(await getAccessibleBook(BOOK, vera)).toBe(db.book);
     const photo = await getPhoto(new Request(`http://localhost/api/photos/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) });
     expect(photo.status).toBe(200);
     expect(await photo.text()).toBe("thumb.jpg");
+    signIn(egor);
+    expect(await bookOf({ editable: true })).toEqual({ status: 200, body: BOOK });
 
-    // PATCH /api/books/<id>/questions/<qid> доходит до сервиса, и правило домена Book.isVisibleTo его пропускает
+    // PATCH /api/books/<id>/questions/<qid>: правило домена Book.isEditableBy пускает владельца и сотрудника с clients.edit
     const theme = { id: "love", titleSuggestions: ["Т"], defaultCover: "linen", defaultInterior: "classic", questions: [] };
     const book = Book.start(BOOK, { userId: "u1", language: "ru", authorName: "Алия", authorGender: "f", recipientName: "Марат", recipientGender: "m" }, theme, new Date()).book;
-    const edits: unknown[] = [];
+    const edits: string[] = [];
     fake.authoring.questions = {
-      edit: async (_id: string, v: BookViewer, _qid: string, patch: unknown) => {
-        if (!book.isVisibleTo(v)) throw new AuthoringError("bookNotFound");
-        edits.push(patch);
+      edit: async (_id: string, v: BookViewer, _qid: string, patch: { answer: string }) => {
+        if (!book.isEditableBy(v)) throw new AuthoringError("bookNotFound");
+        edits.push(`${v.userId}: ${patch.answer}`);
       },
     };
     const patch = (who: User) => {
       signIn(who);
-      return patchQuestion(new Request(`http://localhost/api/books/${BOOK}/questions/${QUESTION}`, { method: "PATCH", body: JSON.stringify({ answer: "чужой текст" }) }), { params: Promise.resolve({ id: BOOK, qid: QUESTION }) });
+      return patchQuestion(new Request(`http://localhost/api/books/${BOOK}/questions/${QUESTION}`, { method: "PATCH", body: JSON.stringify({ answer: "текст" }) }), { params: Promise.resolve({ id: BOOK, qid: QUESTION }) });
     };
-    expect((await patch(person("u2"))).status).toBe(404);
-    expect((await patch(anna)).status).toBe(200);
-    expect(edits).toEqual([{ answer: "чужой текст" }]);
+    const statuses: Record<string, number> = {};
+    for (const who of [client, person("u2"), anna, vera, egor, owner]) statuses[who.id] = (await patch(who)).status;
+    expect(statuses).toEqual({ u1: 200, u2: 404, anna: 404, vera: 404, egor: 200, boss: 200 });
+    expect(edits).toEqual(["u1: текст", "egor: текст", "boss: текст"]);
   });
 });
 

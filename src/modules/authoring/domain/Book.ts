@@ -52,11 +52,17 @@ export interface BookProps {
 /** Кто смотрит книгу: владелец или сотрудник CRM. */
 export interface BookViewer {
   userId: string;
+  /** Сотрудник, которому открыты книги клиентов (право clients.view, пройдены IP-allowlist и 2FA). */
   isStaff: boolean;
+  /** …и который может их менять (ещё и clients.edit). */
+  staffEdits: boolean;
 }
 
 /** Книгу видят её владелец и сотрудник. Одно правило для агрегата (Book.isVisibleTo) и read-моделей. */
 export const isBookVisibleTo = (ownerId: string, viewer: BookViewer) => viewer.isStaff || viewer.userId === ownerId;
+
+/** Менять книгу могут владелец и сотрудник с правом на правку. */
+export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer.isStaff && viewer.staffEdits) || viewer.userId === ownerId;
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
@@ -174,6 +180,10 @@ export class Book extends AggregateRoot<BookProps> {
 
   isVisibleTo(viewer: BookViewer) {
     return isBookVisibleTo(this.props.userId, viewer);
+  }
+
+  isEditableBy(viewer: BookViewer) {
+    return isBookEditableBy(this.props.userId, viewer);
   }
 
   assertEditable() {

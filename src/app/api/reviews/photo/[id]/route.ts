@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { getCurrentUser, isStaff } from "@/server/auth";
+import { getCurrentUser } from "@/server/auth";
+import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { uuid } from "@/server/input";
 
-/** Фото отзыва: опубликованного — всем (кэшируется), остальных — только автору и сотрудникам. */
+/** Фото отзыва: опубликованного — всем (кэшируется), остальных — только автору и сотруднику с правом на отзывы. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuid.safeParse(id).success) notFound();
@@ -12,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!photo) notFound();
   if (!photo.published) {
     const user = await getCurrentUser();
-    if (!user || (user.id !== photo.userId && !isStaff(user))) notFound();
+    if (!user || (user.id !== photo.userId && !can(await getStaff(), "reviews.manage"))) notFound();
   }
   const data = await feedback.photoFile(photo.key);
   return new Response(new Uint8Array(data), {

@@ -60,12 +60,19 @@ describe("Доступ к чужой книге", () => {
     expect(t.state()).toBe(before);
   });
 
-  it("V1: так сейчас — книгу клиента правит владелец и любой сотрудник, без прав CRM (закроет E6)", async () => {
+  it("книгу клиента правят владелец и сотрудник с clients.edit; с одним clients.view — только смотрит (V1 закрыт)", async () => {
     const t = await bookSetup();
     await t.books.updateSettings("b1", owner, { title: "Своё" }, t.photoRepo);
     expect(t.book.title).toBe("Своё");
     await t.books.updateSettings("b1", staff, { title: "Правка сотрудника" }, t.photoRepo);
     expect(t.book.title).toBe("Правка сотрудника");
+    const reader = { userId: "vera", isStaff: true, staffEdits: false };
+    const before = t.state();
+    expect(await errorCode(t.books.updateSettings("b1", reader, { title: "Не выйдет" }, t.photoRepo))).toBe("bookNotFound");
+    expect(await errorCode(t.questions.edit("b1", reader, "q1", { answer: "Не выйдет" }))).toBe("bookNotFound");
+    expect(await errorCode(t.photos.delete("b1", reader, "p1"))).toBe("bookNotFound");
+    expect(await errorCode(t.letters.delete("b1", reader, "l1"))).toBe("bookNotFound");
+    expect(t.state()).toBe(before);
   });
 });
 
@@ -218,15 +225,49 @@ describe("Страница заказа клиента /orders/[id]", () => {
     expect(await openOrder()).toContain("Айжан, +77010000000");
   });
 
-  it("V1: так сейчас — чужой заказ с контактами клиента видит любой сотрудник: без прав CRM, не из разрешённой сети, без обязательной 2FA (закроет E6)", async () => {
+  it("чужой заказ с контактами клиента — только сотруднику с orders.view, из разрешённой сети и с обязательной 2FA (V1 закрыт)", async () => {
+    // Менеджер без «Видеть заказы» и сотрудник с правом, но не по правилам «Безопасности» — 404, как чужой клиент.
+    signIn(pavel);
+    expect(await openOrder()).toBe("404");
     security.allowlist = OFFICE;
     security.require2fa = true;
     request.headers.set("x-real-ip", "8.8.8.8");
-    signIn(anna);
-    // В CRM такого сотрудника не пускают даже к заказам…
+    signIn({ ...olga, ...withTwoFactor });
     await expect(requireStaff("orders.view")).rejects.toMatchObject({ url: "/admin-denied" });
-    // …а страница проверяет только роль admin (isStaff): телефон, почта и адрес клиента — на странице.
+    expect(await openOrder()).toBe("404");
+    request.headers.set("x-real-ip", "10.1.2.5");
+    signIn(olga);
+    expect(await openOrder()).toBe("404");
+    // По правилам и с правом — видит заказ клиента.
+    signIn({ ...olga, ...withTwoFactor });
     const page = await openOrder();
     for (const shown of ["Айжан, +77010000000", "aizhan@b.kz", "Алматы, Абая, 1"]) expect(page).toContain(shown);
+  });
+});
+
+describe("Фото неопубликованного отзыва /api/reviews/photo/[id]", () => {
+  const PHOTO = "0f000000-0000-4000-8000-0000000000a1";
+  beforeEach(() => {
+    resetRequest({ "x-real-ip": "10.1.2.5" });
+    resetContainer();
+    fake.feedback = { queries: { photo: async (id: string) => (id === PHOTO ? { key: "reviews/p.jpg", userId: client.id, published: false } : null) }, photoFile: async () => Buffer.from("jpg") };
+  });
+  const open = async () => {
+    const { GET } = await import("@/app/api/reviews/photo/[id]/route");
+    try {
+      return (await GET(new Request(`http://localhost/api/reviews/photo/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) })).status;
+    } catch (err) {
+      if (err instanceof NotFound) return 404;
+      throw err;
+    }
+  };
+
+  it("автор и сотрудник с правом на отзывы видят, чужой клиент и сотрудник без права — 404 (V1)", async () => {
+    const statuses: Record<string, number> = {};
+    for (const who of [client, person("u2"), anna, boss]) {
+      signIn(who);
+      statuses[who.id] = await open();
+    }
+    expect(statuses).toEqual({ u1: 200, u2: 404, anna: 404, boss: 200 });
   });
 });

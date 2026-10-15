@@ -51,7 +51,10 @@ const manager = Role.restore("r-manager", { name: "Менеджер", scope: "ow
 /** Роли с одним правом из «Заказы и производство»: видеть заказы и скачивать файлы для типографии. */
 const orderViewer = Role.restore("r-orders", { name: "Заказы", scope: "all", permissions: ["orders.view"], key: null });
 const printer = Role.restore("r-print", { name: "Типография", scope: "all", permissions: ["orders.files"], key: null });
-const allRoles = [manager, orderViewer, printer];
+/** Клиенты и их книги: только смотреть (clients.view) и ещё менять (clients.edit). */
+const clientViewer = Role.restore("r-clients", { name: "Клиенты", scope: "all", permissions: ["clients.view"], key: null });
+const clientEditor = Role.restore("r-clients-edit", { name: "Редактор книг", scope: "all", permissions: ["clients.view", "clients.edit"], key: null });
+const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor];
 
 const roles: RoleRepository = {
   nextId: () => "r-new",
@@ -78,6 +81,10 @@ export const anna = person("anna", { role: "admin", crmRoleId: manager.id });
 export const olga = person("olga", { role: "admin", crmRoleId: orderViewer.id });
 /** Скачивает файлы для типографии (orders.files), заказы в CRM не видит. */
 export const pavel = person("pavel", { role: "admin", crmRoleId: printer.id });
+/** Видит клиентов и их книги (clients.view), менять не может. */
+export const vera = person("vera", { role: "admin", crmRoleId: clientViewer.id });
+/** Видит и меняет книги клиентов (clients.view + clients.edit). */
+export const egor = person("egor", { role: "admin", crmRoleId: clientEditor.id });
 export const withTwoFactor = { totpEnabledAt: new Date(), totpSecret: "secret" };
 
 const sessions = new Map<string, User>();

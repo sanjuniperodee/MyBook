@@ -3,10 +3,10 @@ import type { Locale } from "@/i18n/config";
 import { AuthoringError, Book, Letter, MAX_LETTERS, MAX_PHOTOS, MAX_QUESTIONS, Photo, type BookRepository, type BookSettings, type BookViewer, type Gender, type LetterRepository, type LetterStatus, type PhotoProps, type PhotoRepository, type QuestionRepository } from "../domain";
 import type { FileStore, IdGenerator, ImageProcessor, OrdersLookup, ThemeCatalog } from "./ports";
 
-/** Загрузка книги с проверкой доступа: чужая книга — как будто её нет. */
+/** Загрузка книги с проверкой доступа: чужая книга (для правки — и книга, которую сотруднику менять нельзя) — как будто её нет. */
 async function loadBook(books: BookRepository, bookId: string, viewer: BookViewer, opts: { editable?: boolean } = {}) {
   const book = await books.findById(bookId);
-  if (!book || !book.isVisibleTo(viewer)) throw new AuthoringError("bookNotFound");
+  if (!book || !(opts.editable ? book.isEditableBy(viewer) : book.isVisibleTo(viewer))) throw new AuthoringError("bookNotFound");
   if (opts.editable) book.assertEditable();
   return book;
 }

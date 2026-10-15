@@ -5,7 +5,8 @@ import { Confetti } from "@/components/motion/Confetti";
 import { CelebrateArt } from "@/components/illustrations";
 import { notFound } from "next/navigation";
 import { Check, Download, Gift, Star } from "lucide-react";
-import { isStaff, requireUser } from "@/server/auth";
+import { requireUser } from "@/server/auth";
+import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { formatPrice, getPlan, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -35,7 +36,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const user = await requireUser(`/orders/${id}`);
   pageId(id);
   const order = await container().ordering.queries.orderDetails(id);
-  if (!order || (order.userId !== user.id && !isStaff(user))) notFound();
+  // Чужой заказ — только сотруднику с правом «Видеть заказы», вошедшему по правилам «Безопасности» (V1).
+  if (!order || (order.userId !== user.id && !can(await getStaff(), "orders.view"))) notFound();
   const own = order.userId === user.id;
   const [locale, m, review] = await Promise.all([getLocale(), getMessages(), own ? container().feedback.queries.byOrder(order.id) : null]);
   const t = m.orders.order;
