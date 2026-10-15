@@ -81,7 +81,8 @@ function blockHeight(b: AnswerBlock, m: TextMetrics): number {
  */
 function headingHeight(heading: string | null, first: boolean, m: TextMetrics): number {
   const { sizes: S, design, scale } = m;
-  if (heading === null) {
+  // Пустой заголовок (из одних эмодзи, письмо без подписи) PDF не печатает и ставит разделитель — как без заголовка.
+  if (!heading) {
     if (first) return 0;
     // «* * *» — строка основного кегля с естественным интерлиньяжем; глиф или линейка — рисунок со своими отбивками.
     const divider =
