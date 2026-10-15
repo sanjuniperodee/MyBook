@@ -12,6 +12,8 @@ const LocaleContext = createContext<Locale>("ru");
 
 // Словарь каждого языка — свой чанк: браузер грузит только язык страницы. При первой отрисовке на сервере
 // next/dynamic отмечает нужный чанк, и браузер загружает его вместе с остальными, без лишнего запроса после.
+// Язык меняется только полной навигацией (LanguageSwitch → location.assign): смена Dictionary при клиентском
+// переходе перемонтировала бы всё дерево. Если чанк не загрузится, ошибку покажет app/global-error.tsx.
 const dictionaries: Record<Locale, React.ComponentType<{ children: React.ReactNode }>> = {
   ru: dynamic(() => import("./dictionary/ru")),
   kk: dynamic(() => import("./dictionary/kk")),
