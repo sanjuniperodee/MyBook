@@ -161,9 +161,11 @@ describe("Доступ к файлам чужого заказа", () => {
     expect(built).toEqual([{ kind: "block", force: true }]);
   });
 
-  it("без входа — 401, неизвестный вид файла — 404", async () => {
+  it("без входа — 401, неизвестный вид файла — 404 (и для имён свойств объекта вроде toString)", async () => {
     order("paid", "digital");
     expect(await download("archive")).toMatchObject({ status: 404, body: "notFound" });
+    expect(await download("toString")).toMatchObject({ status: 404, body: "notFound" });
+    expect(await download("constructor")).toMatchObject({ status: 404, body: "notFound" });
     resetRequest();
     expect(await download("reading")).toMatchObject({ status: 401, body: "unauthorized" });
   });

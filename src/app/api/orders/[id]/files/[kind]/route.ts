@@ -18,7 +18,7 @@ const kinds: Record<OrderFileKind, { type: string; name: (n: number) => string }
 
 export const GET = api(async (req, { params }: { params: Promise<{ id: string; kind: string }> }) => {
   const { id, kind } = idParams(await params, "id");
-  if (!(kind in kinds)) throw new HttpError(404, "notFound");
+  if (!Object.hasOwn(kinds, kind)) throw new HttpError(404, "notFound");
   const user = await apiUser(req);
   const c = container();
   const order = await c.ordering.queries.orderDetails(id);
