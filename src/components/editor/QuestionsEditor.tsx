@@ -28,24 +28,20 @@ import { ChapterNav } from "./questions/ChapterNav";
 import { Drawer } from "./questions/Drawer";
 import { MobileBar } from "./questions/MobileBar";
 import { PhotoPicker } from "./questions/PhotoPicker";
+import { useInlinePhotos } from "./questions/useInlinePhotos";
+import { usePageEstimate } from "./questions/usePageEstimate";
+import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
 import { normalizeStyle } from "@/lib/book/inline-photo";
-import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { SaveIndicator } from "@/components/SaveIndicator";
-import { useAutosave } from "@/hooks/useAutosave";
 import { useDictation } from "@/hooks/useDictation";
-import { apiFetch } from "@/lib/client-api";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
-import { editorEstimate } from "@/lib/book/editor-estimate";
-import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
+import { editorPhotoUrl, groupByChapter, previewChapters, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { estimateAnswerPages, textMetrics } from "@/lib/book/estimate";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import { cn } from "@/lib/class-names";
-
-type Patch = Partial<Pick<EditorQuestion, "answer" | "displayText" | "hideHeading">>;
 
 export function QuestionsEditor({
   book,
@@ -69,9 +65,10 @@ export function QuestionsEditor({
   /** AI-корректор подключён в «Интеграциях» — показываем кнопку «Проверить грамотность». */
   proofreadAi?: boolean;
 }) {
-  const [questions, setQuestions] = useState(initialQuestions);
-  const [photos, setPhotos] = useState(initialPhotos);
-  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+  const draft = useQuestionsDraft({ bookId: book.id, editable, initialQuestions });
+  const { questions, status, error, flush, patchQuestion, appendText } = draft;
+  const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos });
+  const { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, editCaption } = inlinePhotos;
   const [picker, setPicker] = useState(false);
   const [index, setIndex] = useState(Math.min(Math.max(initialIndex, 0), initialQuestions.length - 1));
   const [drawer, setDrawer] = useState(false);
@@ -84,7 +81,6 @@ export function QuestionsEditor({
   const [lang, setLang] = useState<string>(localeMeta[book.language].speech);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const proof = useRef<ProofHandle>(null);
-  const dirty = useRef(new Map<string, Patch>());
   const ui = useLocale();
 
   const format = getFormat(book.format);
@@ -107,48 +103,6 @@ export function QuestionsEditor({
       } catch {}
       return !v;
     });
-
-  const { status, error, schedule, flush } = useAutosave<null>(async () => {
-    const batch = [...dirty.current.entries()];
-    dirty.current.clear();
-    for (const [id, patch] of batch) {
-      try {
-        await apiFetch(`/api/books/${book.id}/questions/${id}`, { method: "PATCH", json: patch });
-      } catch (e) {
-        dirty.current.set(id, { ...patch, ...dirty.current.get(id) });
-        throw e;
-      }
-    }
-  }, 800);
-
-  const patchQuestion = useCallback(
-    (id: string, patch: Patch) => {
-      if (!editable) return;
-      setQuestions((qs) => qs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-      dirty.current.set(id, { ...dirty.current.get(id), ...patch });
-      schedule(null);
-    },
-    [editable, schedule],
-  );
-
-  /** Дописывает текст к актуальному значению ответа (без устаревших замыканий). */
-  const appendText = useCallback(
-    (id: string, text: string) => {
-      if (!editable || !text) return;
-      setQuestions((qs) =>
-        qs.map((x) => {
-          if (x.id !== id) return x;
-          const sep = !x.answer || /\s$/.test(x.answer) ? "" : " ";
-          const chunk = x.answer.trim() ? text : text.charAt(0).toUpperCase() + text.slice(1);
-          const answer = x.answer + sep + chunk;
-          dirty.current.set(id, { ...dirty.current.get(id), answer });
-          return { ...x, answer };
-        }),
-      );
-      schedule(null);
-    },
-    [editable, schedule],
-  );
 
   const dictationTarget = useRef<string | null>(null);
   const dictation = useDictation((text) => {
@@ -204,7 +158,6 @@ export function QuestionsEditor({
 
   const groups = useMemo(() => groupByChapter(questions), [questions]);
 
-  const pages = useMemo(() => editorEstimate(book, questions, photos, letters), [book, questions, photos, letters]);
 
   const answeredCount = questions.filter((x) => x.answer.trim()).length;
   // Вехи: маленький праздник, когда книга растёт (не срабатывает при открытии редактора).
@@ -221,32 +174,9 @@ export function QuestionsEditor({
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
-  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(editorHeading(q), q.answer, qPhotos, textMetrics(format, design)) : 0;
+  const { pages, answerPages } = usePageEstimate({ book, format, design, questions, photos, letters, current: q });
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
 
-  const inlineTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const updateInline = (id: string, patch: Partial<InlinePhotoStyle>) => {
-    if (!editable) return;
-    const cur = photos.find((p) => p.id === id);
-    if (!cur) return;
-    const inline = normalizeStyle({ ...normalizeStyle(cur.inline), ...patch });
-    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, inline } : p)));
-    clearTimeout(inlineTimers.current.get(id));
-    inlineTimers.current.set(
-      id,
-      setTimeout(() => {
-        apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: { inline } }).catch((e) => toastError(e));
-      }, 350),
-    );
-  };
-  const rotatePhoto = async (id: string) => {
-    try {
-      const res = await apiFetch<{ photo: EditorPhoto }>(`/api/books/${book.id}/photos/${id}/rotate`, { method: "POST" });
-      setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, width: res.photo.width, height: res.photo.height, inline: res.photo.inline, rev: (p.rev ?? 0) + 1 } : p)));
-    } catch (e) {
-      toastError(e);
-    }
-  };
   const previewProps = {
     language: book.language,
     format,
@@ -259,54 +189,18 @@ export function QuestionsEditor({
     onChange: editable ? updateInline : undefined,
   };
 
-  const patchPhoto = async (id: string, patch: Partial<Pick<EditorPhoto, "questionId" | "caption">>) => {
-    const prev = photos;
-    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    try {
-      await apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: patch });
-    } catch (e) {
-      setPhotos(prev);
-      toastError(e);
-    }
-  };
-  const captionTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const editCaption = (id: string, caption: string) => {
-    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, caption } : p)));
-    clearTimeout(captionTimers.current.get(id));
-    captionTimers.current.set(
-      id,
-      setTimeout(() => void apiFetch(`/api/books/${book.id}/photos/${id}`, { method: "PATCH", json: { caption } }).catch(() => {}), 700),
-    );
-  };
   const prev = questions[index - 1];
   const next = questions[index + 1];
 
   const addQuestion = async (prompt: string) => {
-    const res = await apiFetch<{ question: { id: string } }>(`/api/books/${book.id}/questions`, { method: "POST", json: { afterId: q.id, prompt } });
-    const created: EditorQuestion = {
-      id: res.question.id,
-      chapter: q.chapter,
-      chapterTitle: q.chapterTitle,
-      prompt,
-      hint: null,
-      defaultTitle: prompt,
-      displayText: null,
-      hideHeading: false,
-      answer: "",
-      isCustom: true,
-    };
-    setQuestions((qs) => [...qs.slice(0, index + 1), created, ...qs.slice(index + 1)]);
-    setIndex(index + 1);
+    setIndex(await draft.addQuestion(q, prompt));
     setAdding(false);
     setTimeout(() => textarea.current?.focus(), 50);
   };
 
   const removeQuestion = async () => {
     if (!q.isCustom || !(await confirmDialog({ title: t.deleteTitle, text: t.deleteText, confirmLabel: t.delete, danger: true }))) return;
-    await flush();
-    await apiFetch(`/api/books/${book.id}/questions/${q.id}`, { method: "DELETE" });
-    dirty.current.delete(q.id);
-    setQuestions((qs) => qs.filter((x) => x.id !== q.id));
+    await draft.removeQuestion(q.id);
     setIndex((i) => Math.max(0, i - 1));
   };
 
@@ -672,10 +566,7 @@ export function QuestionsEditor({
             void patchPhoto(id, { questionId: q.id });
           }}
           onDetach={(id) => patchPhoto(id, { questionId: null })}
-          onUploaded={(list) => {
-            setPhotos((ps) => [...ps, ...list]);
-            if (list[0]?.questionId) setSelectedPhotoId(list[0].id);
-          }}
+          onUploaded={inlinePhotos.addUploaded}
           onClose={() => setPicker(false)}
           otherLabel={(qid) => questions.find((x) => x.id === qid)?.prompt ?? t.otherAnswer}
         />
