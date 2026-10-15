@@ -10,7 +10,7 @@ import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 /**
  * Характеристика оценки объёма в редакторе (editorEstimate, ею считает QuestionsEditor). Она собирает ту же книгу,
  * что PDF (buildBookContent), и считает той же estimatePages — число в редакторе равно оценке кабинета (B3).
- * Снимок — по всем книгам набора и вариантам; таблица с полосами PDF — «так сейчас» (B14).
+ * Снимок — по всем книгам набора и вариантам; с полосами PDF оценка совпадает (B14).
  */
 
 /** Вход редактора из бандла — как его готовит страница books/[id]/questions. */
@@ -65,13 +65,13 @@ describe("оценка объёма в редакторе (QuestionsEditor)", ()
     expect(mismatches).toEqual([]);
   });
 
-  it("с полосами PDF там, где они известны (render.test) — так сейчас (B14: в квадрате на полосу больше)", () => {
+  it("совпадает с полосами PDF там, где они известны (render.test), и в квадрате тоже (B14)", () => {
     const line = (r: Row) => `редактор ${r.editor.raw} · оценка ${r.estimate} · PDF ${pdfContentPages[r.key]}`;
     expect(byGroup(books.filter((b) => b.key in pdfContentPages), line)).toEqual({
       "A5 ru": "редактор 28 · оценка 28 · PDF 28",
       "A5 ru · фото на начальной полосе": "редактор 25 · оценка 25 · PDF 25",
-      "квадрат ru": "редактор 31 · оценка 31 · PDF 30",
-      "квадрат kk": "редактор 32 · оценка 32 · PDF 31",
+      "квадрат ru": "редактор 30 · оценка 30 · PDF 30",
+      "квадрат kk": "редактор 31 · оценка 31 · PDF 31",
     });
   });
 });

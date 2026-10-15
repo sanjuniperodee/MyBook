@@ -49,12 +49,12 @@ export function bookSpreadSample(
   }
 
   // Оглавление: главы книги с примерными номерами страниц (пока ответов нет — главы темы).
-  const metrics = textMetrics(format, getInteriorDesign(book.interior).type);
+  const metrics = textMetrics(format, getInteriorDesign(book.interior));
   let page = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
   const toc = content.chapters.length
     ? content.chapters.slice(0, 10).map((c) => {
         const entry = { number: c.number, title: c.title, page };
-        page += estimateChapterPages(c, metrics, format);
+        page += estimateChapterPages(c, metrics);
         return entry;
       })
     : theme.chapters.slice(0, 10).map((c, i) => ({ number: i + 1, title: applyGender(c.title, book.authorGender, book.recipientGender), page: page + i * 6 }));

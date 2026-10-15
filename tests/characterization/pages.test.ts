@@ -15,13 +15,13 @@ const byBook = <T>(fn: (c: BookContent) => T) => Object.fromEntries(books.map((b
  * из оценки: в браузере их меряют по вёрстке, а здесь её нет.
  */
 function faceInput(c: BookContent): FacePlanInput {
-  const m = textMetrics(c.format, c.interior.type);
+  const m = textMetrics(c.format, c.interior);
   const photos = c.chapters.map((ch) => photoPages(ch.photos).length);
   return {
     hasDedication: !!c.dedication,
     hasToc: c.showToc,
     // estimateChapterPages = начальная полоса + полосы текста + фотостраницы.
-    textPages: c.chapters.map((ch, i) => (ch.items.length ? estimateChapterPages(ch, m, c.format) - 1 - photos[i] : 0)),
+    textPages: c.chapters.map((ch, i) => (ch.items.length ? estimateChapterPages(ch, m) - 1 - photos[i] : 0)),
     photoPages: photos,
     galleryPages: photoPages(c.galleryPhotos).length,
   };
@@ -38,9 +38,9 @@ describe("объём книги", () => {
   it("estimatePages: оценка, по главам и после добивки до печатного объёма", () => {
     expect(
       byBook((c) => {
-        const m = textMetrics(c.format, c.interior.type);
+        const m = textMetrics(c.format, c.interior);
         const pages = estimatePages(c);
-        return `${pages} (главы ${c.chapters.map((ch) => estimateChapterPages(ch, m, c.format)).join(", ")}) → печать ${printablePageCount(pages)}`;
+        return `${pages} (главы ${c.chapters.map((ch) => estimateChapterPages(ch, m)).join(", ")}) → печать ${printablePageCount(pages)}`;
       }),
     ).toMatchSnapshot();
   });

@@ -1,16 +1,15 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { estimatePages } from "@/lib/book/estimate";
-import { fixtureBook, fixtureBooks } from "../fixtures/books";
 import { useFixtureStorage } from "../fixtures/photos";
-import { contentOf, pdfContentPages } from "./books";
+import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
 /**
- * Характеристика фактического объёма: renderInterior по книге на оформление и квадратный формат с фото по главам
- * и в конце книги — рядом с оценкой estimatePages. Расхождения фиксируются как есть (B3 в аудите).
+ * Характеристика фактического объёма: renderInterior по всем книгам набора (матрица и варианты) рядом с оценкой
+ * estimatePages. Оценка обязана совпасть с PDF у каждой книги (B3, B14).
  * Режим preview: раскладка не зависит от пикселей фото, в print полос столько же, а сборка на треть дольше.
  */
 
-const books = [...fixtureBooks({ formats: ["a5"], languages: ["ru"] }), fixtureBook("classic", "square", "ru"), fixtureBook("classic", "square", "kk")];
+const books = characterizationBooks();
 
 interface Pages {
   estimate: number;
@@ -42,7 +41,7 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
   });
 
   it("полос в PDF — как в таблице pdfContentPages: по ней другие снимки сверяют оценки без рендера", () => {
-    expect(Object.fromEntries([...pages].map(([key, p]) => [key, p.contentPages]))).toEqual(pdfContentPages);
+    expect(Object.fromEntries(Object.keys(pdfContentPages).map((key) => [key, pages.get(key)?.contentPages]))).toEqual(pdfContentPages);
   });
 
   it("react-pdf переносит все узлы: фото под обрез в квадрате больше не «выше полосы» (B9)", () => {
@@ -50,8 +49,8 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
     expect(wraps).toEqual({});
   });
 
-  it("оценка совпадает с PDF в A5, а в квадрате на полосу больше — так сейчас", () => {
+  it("оценка совпадает с PDF у каждой книги набора — в A5 и в квадрате (B14)", () => {
     const mismatches = [...pages].filter(([, p]) => p.estimate !== p.contentPages).map(([key, p]) => `${key}: ${p.estimate} вместо ${p.contentPages}`);
-    expect(mismatches).toEqual(["classic-square-ru: 31 вместо 30", "classic-square-kk: 32 вместо 31"]);
+    expect(mismatches).toEqual([]);
   });
 });

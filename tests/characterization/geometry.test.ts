@@ -26,11 +26,11 @@ describe("геометрия полосы", () => {
     ).toMatchSnapshot();
   });
 
-  it("textMetrics: знаков в строке, строк на полосе и знаков в строке заголовка — основа estimatePages", () => {
+  it("textMetrics: строка основного текста, кегли и полоса набора, pt — основа estimatePages", () => {
     expect(
       byFormatAndDesign((f, d) => {
-        const m = textMetrics(f, d.type);
-        return `${m.charsPerLine} зн. · ${m.linesPerPage} строк · заголовок ${m.headingCharsPerLine} зн.`;
+        const m = textMetrics(f, d);
+        return `строка ${m.line.toFixed(2)} · кегль ${m.sizes.body.toFixed(2)} / заголовок ${m.sizes.heading.toFixed(2)} · полоса ${m.width.toFixed(1)}×${m.height.toFixed(1)}`;
       }),
     ).toMatchSnapshot();
   });

@@ -41,7 +41,7 @@ import { cssFont } from "@/lib/book/fonts";
 import { editorEstimate } from "@/lib/book/editor-estimate";
 import { editorHeading, editorPhotoUrl, groupByChapter, previewChapters, type ChapterGroup, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { estimateAnswerPages } from "@/lib/book/estimate";
+import { estimateAnswerPages, textMetrics } from "@/lib/book/estimate";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
@@ -222,7 +222,7 @@ export function QuestionsEditor({
   const chapterNumber = groups.indexOf(group) + 1;
   const words = countWords(q.answer);
   const qPhotos = photos.filter((p) => p.questionId === q.id);
-  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(editorHeading(q), q.answer, format, typography, qPhotos) : 0;
+  const answerPages = q.answer.trim() || qPhotos.length ? estimateAnswerPages(editorHeading(q), q.answer, qPhotos, textMetrics(format, design)) : 0;
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
 
   const inlineTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
