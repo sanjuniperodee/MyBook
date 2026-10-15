@@ -2,43 +2,30 @@
 
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import { Link, useLocale, useMessages } from "@/i18n/client";
-import { localeMeta, locales } from "@/i18n/config";
+import { localeMeta } from "@/i18n/config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  ImagePlus,
-  Lightbulb,
-  ListTree,
-  Maximize2,
-  Mic,
-  MicOff,
-  Minimize2,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ImagePlus, Lightbulb } from "lucide-react";
 import { PagePreview } from "./preview/PagePreview";
-import { PhotoInspector } from "./PhotoInspector";
 import { AddQuestion } from "./questions/AddQuestion";
 import { ChapterNav } from "./questions/ChapterNav";
 import { Drawer } from "./questions/Drawer";
 import { MobileBar } from "./questions/MobileBar";
 import { PhotoPicker } from "./questions/PhotoPicker";
+import { DictationControl, DictationStatus } from "./questions/DictationControl";
+import { HeadingField } from "./questions/HeadingField";
+import { PhotoStrip } from "./questions/PhotoStrip";
+import { ProgressCard, QuestionPager } from "./questions/QuestionPager";
+import { AnswerToolbar, EditorTopBar } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
 import { usePageEstimate } from "./questions/usePageEstimate";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
-import { normalizeStyle } from "@/lib/book/inline-photo";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
-import { editorPhotoUrl, groupByChapter, previewChapters, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
+import { groupByChapter, previewChapters, type EditorBook, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import { cn } from "@/lib/class-names";
@@ -204,37 +191,9 @@ export function QuestionsEditor({
     setIndex((i) => Math.max(0, i - 1));
   };
 
-  /** Диктовка: кнопка + язык. На компьютере — в панели под ответом, на телефоне — в нижней панели (compact). */
+  /** Диктовка: на компьютере — в панели под ответом, на телефоне — в нижней панели (compact). */
   const dictateControl = (className: string, compact: boolean) =>
-    editable && dictation.supported ? (
-      <div className={cn("flex items-center rounded-full border border-line bg-white", className)}>
-        <button
-          className={cn("flex h-11 items-center gap-1.5 rounded-full text-sm sm:h-9", compact ? "px-3" : "px-3.5", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
-          onClick={toggleDictation}
-          title={dictation.listening ? t.stop : t.dictateTitle}
-          aria-label={dictation.listening ? t.stop : t.dictateTitle}
-        >
-          {dictation.listening ? <MicOff className="size-5 sm:size-4" /> : <Mic className="size-5 sm:size-4" />}
-          {compact ? (dictation.listening ? t.stop : null) : dictation.listening ? t.stop : t.dictate}
-        </button>
-        <select
-          value={lang}
-          onChange={(e) => {
-            const l = e.target.value;
-            setLang(l);
-            if (dictation.listening) dictation.start(l);
-          }}
-          className="h-11 rounded-full bg-transparent pr-1.5 pl-0.5 text-xs text-muted outline-none sm:h-9 sm:pr-2 sm:pl-1"
-          aria-label={t.dictationLang}
-        >
-          {locales.map((l) => (
-            <option key={l} value={localeMeta[l].speech}>
-              {localeMeta[l].short}
-            </option>
-          ))}
-        </select>
-      </div>
-    ) : null;
+    editable && dictation.supported ? <DictationControl dictation={dictation} lang={lang} onLang={setLang} onToggle={toggleDictation} compact={compact} className={className} /> : null;
 
   const sidebar = <ChapterNav groups={groups} current={index} onPick={goTo} />;
 
@@ -250,25 +209,16 @@ export function QuestionsEditor({
 
         {/* Лист */}
         <section className="min-w-0">
-          <div className="mb-3 flex items-center gap-2 sm:mb-4">
-            <button className={cn("btn btn-outline btn-sm shrink-0", !focus && "lg:hidden")} onClick={() => setDrawer(true)}>
-              <ListTree className="size-4" /> {t.chapters}
-            </button>
-            <div className="min-w-0 flex-1 truncate text-sm text-muted">
-              <span className="text-ink">{t.chapter(chapterNumber)}</span> · <span lang={book.language}>{q.chapterTitle}</span>
-            </div>
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose/70 px-3 py-1.5 text-xs font-medium text-wine" title={t.pagesEstimate}>
-              <BookOpen className="size-3.5" /> {t.pagesShort(pages.printed || 0)}
-            </span>
-            {!focus ? (
-              <button className="btn btn-ghost btn-sm size-9 px-0 xl:hidden" onClick={() => setShowPreview((v) => !v)} title={t.showPage}>
-                <Eye className="size-4" />
-              </button>
-            ) : null}
-            <button className="btn btn-ghost btn-sm size-9 px-0 max-lg:hidden" onClick={toggleFocus} title={focus ? t.focusOff : t.focusOn}>
-              {focus ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-            </button>
-          </div>
+          <EditorTopBar
+            chapterNumber={chapterNumber}
+            chapterTitle={q.chapterTitle}
+            language={book.language}
+            printedPages={pages.printed}
+            focus={focus}
+            onChapters={() => setDrawer(true)}
+            onTogglePreview={() => setShowPreview((v) => !v)}
+            onToggleFocus={toggleFocus}
+          />
 
           <article className="relative overflow-hidden rounded-[28px] border border-line/70 bg-white shadow-soft">
             {/* Прогресс по главе — тонкая линия сверху */}
@@ -306,36 +256,7 @@ export function QuestionsEditor({
                 </ul>
               ) : null}
 
-              {/* Заголовок, как он будет в книге */}
-              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-dashed border-line px-4 py-3 sm:mt-8">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] tracking-wider text-muted uppercase">{t.headingInBook}</div>
-                  <input
-                    value={q.hideHeading ? "" : (q.displayText ?? q.defaultTitle)}
-                    placeholder={q.hideHeading ? t.headingHidden : q.defaultTitle}
-                    lang={book.language}
-                    onChange={(e) => patchQuestion(q.id, { displayText: e.target.value })}
-                    onBlur={() => q.displayText !== null && !q.displayText.trim() && patchQuestion(q.id, { displayText: null })}
-                    disabled={!editable || q.hideHeading}
-                    maxLength={200}
-                    className="fs-keep mt-0.5 w-full bg-transparent text-lg outline-none disabled:text-muted"
-                    style={{ fontFamily: cssFont(typography.heading), fontStyle: typography.headingItalic ? "italic" : "normal" }}
-                  />
-                </div>
-                {q.displayText !== null && q.displayText !== q.defaultTitle && !q.hideHeading ? (
-                  <button className="mt-3.5 shrink-0 py-1 text-xs text-wine hover:underline" onClick={() => patchQuestion(q.id, { displayText: null })}>
-                    {t.headingReset}
-                  </button>
-                ) : null}
-                <button
-                  className="-mt-1 shrink-0 rounded-lg p-3 text-muted hover:bg-cream hover:text-ink sm:mt-1.5 sm:p-1.5"
-                  onClick={() => patchQuestion(q.id, { hideHeading: !q.hideHeading })}
-                  disabled={!editable}
-                  title={q.hideHeading ? t.headingShow : t.headingHide}
-                >
-                  {q.hideHeading ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
+              <HeadingField question={q} language={book.language} typography={typography} editable={editable} onPatch={(patch) => patchQuestion(q.id, patch)} />
 
               <ProofTextarea
                 ref={textarea}
@@ -377,87 +298,36 @@ export function QuestionsEditor({
                   }}
                 />
               ) : null}
-              {dictation.listening ? (
-                <div className="mt-2 rounded-2xl bg-rose/50 px-4 py-3">
-                  <div className="flex items-center gap-2 text-xs font-medium text-wine">
-                    <span className="relative flex size-2.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-wine opacity-60" />
-                      <span className="relative inline-flex size-2.5 rounded-full bg-wine" />
-                    </span>
-                    {t.listening}
-                  </div>
-                  {dictation.interim ? <p className="mt-1.5 text-lg text-ink-soft italic">{dictation.interim}…</p> : null}
-                  {dictation.silent ? <p className="mt-1.5 text-xs text-muted">{t.silent}</p> : null}
-                </div>
-              ) : null}
+              {dictation.listening ? <DictationStatus dictation={dictation} /> : null}
             </div>
 
             {qPhotos.length ? (
-              <div className="space-y-3 px-4 pb-5 sm:px-10 sm:pb-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  {qPhotos.map((p) => {
-                    const st = normalizeStyle(p.inline);
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setSelectedPhotoId(selectedPhotoId === p.id ? null : p.id)}
-                        className={cn(
-                          "group relative size-16 overflow-hidden rounded-xl border-2 transition",
-                          selectedPhotoId === p.id ? "border-wine shadow-md" : "border-transparent ring-1 ring-line hover:ring-ink/30",
-                        )}
-                        aria-pressed={selectedPhotoId === p.id}
-                        aria-label={t.photoAria(p.caption)}
-                        data-testid="inline-photo-thumb"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={editorPhotoUrl(p)} alt="" className="size-full object-cover" />
-                        <span className="absolute inset-x-0 bottom-0 bg-ink/60 py-0.5 text-center text-[10px] text-white tabular-nums">{st.width}%</span>
-                      </button>
-                    );
-                  })}
-                  <span className="text-xs text-muted">{selectedPhoto ? "" : t.photoHint}</span>
-                </div>
-                {selectedPhoto ? (
-                  <PhotoInspector
-                    photo={{ ...selectedPhoto, url: editorPhotoUrl(selectedPhoto) }}
-                    answer={q.answer}
-                    editable={editable}
-                    onChange={(patch) => updateInline(selectedPhoto.id, patch)}
-                    onCaption={(c) => editCaption(selectedPhoto.id, c)}
-                    onRotate={() => rotatePhoto(selectedPhoto.id)}
-                    onRemove={() => {
-                      setSelectedPhotoId(null);
-                      void patchPhoto(selectedPhoto.id, { questionId: null });
-                    }}
-                    onClose={() => setSelectedPhotoId(null)}
-                  />
-                ) : null}
-              </div>
+              <PhotoStrip
+                photos={qPhotos}
+                selected={selectedPhoto}
+                answer={q.answer}
+                editable={editable}
+                onSelect={setSelectedPhotoId}
+                onChange={updateInline}
+                onCaption={editCaption}
+                onRotate={rotatePhoto}
+                onRemove={(id) => {
+                  setSelectedPhotoId(null);
+                  void patchPhoto(id, { questionId: null });
+                }}
+              />
             ) : null}
 
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/60 px-3 py-2 sm:px-8 sm:py-3">
-              {dictateControl("max-lg:hidden", false)}
-              {editable ? (
-                <button className="btn btn-ghost btn-sm text-muted max-lg:hidden" onClick={() => setPicker(true)}>
-                  <ImagePlus className="size-4" /> {t.photoInAnswer}
-                </button>
-              ) : null}
-              {editable ? (
-                <button className="btn btn-ghost btn-sm text-muted" onClick={() => setAdding((v) => !v)}>
-                  <Plus className="size-4" /> {t.ownQuestion}
-                </button>
-              ) : null}
-              {editable && q.isCustom ? (
-                <button className="btn btn-ghost btn-sm text-red-700" onClick={removeQuestion}>
-                  <Trash2 className="size-4" /> {t.delete}
-                </button>
-              ) : null}
-              <span className="ml-auto text-xs text-muted tabular-nums">
-                {t.words(words)}
-                {answerPages > 0 ? t.answerPages((Math.round(Math.max(answerPages, 0.1) * 10) / 10).toLocaleString("ru-RU")) : ""}
-              </span>
-            </div>
+            <AnswerToolbar
+              dictation={dictateControl("max-lg:hidden", false)}
+              editable={editable}
+              custom={q.isCustom}
+              words={words}
+              answerPages={answerPages}
+              onPhoto={() => setPicker(true)}
+              onAdd={() => setAdding((v) => !v)}
+              onRemove={removeQuestion}
+            />
             {dictation.error ? <p className="px-4 pb-3 text-sm text-red-700 sm:px-10">{dictation.error}</p> : null}
             {adding ? (
               <div className="border-t border-line/60 p-4 sm:px-8">
@@ -467,38 +337,7 @@ export function QuestionsEditor({
           </article>
 
           {/* Переход между вопросами */}
-          <div className="mt-5 grid grid-cols-2 gap-3 max-lg:hidden">
-            <button
-              onClick={() => goTo(index - 1)}
-              disabled={!prev}
-              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-white/60 p-4 text-left transition hover:border-ink/30 disabled:opacity-40"
-              title="Ctrl + Shift + Enter"
-            >
-              <ArrowLeft className="size-5 shrink-0 text-muted transition group-hover:-translate-x-0.5" />
-              <span className="min-w-0">
-                <span className="block text-xs text-muted">{t.prev}</span>
-                <span className="block truncate text-sm">{prev?.prompt ?? "—"}</span>
-              </span>
-            </button>
-            {next ? (
-              <button
-                onClick={() => goTo(index + 1)}
-                className="group flex min-w-0 items-center justify-end gap-3 rounded-2xl bg-ink p-4 text-right text-white transition hover:bg-ink-soft"
-                title="Ctrl + Enter"
-              >
-                <span className="min-w-0">
-                  <span className="block text-xs text-white/60">{q.answer.trim() ? t.next : t.skip}</span>
-                  <span className="block truncate text-sm">{next.prompt}</span>
-                </span>
-                <ArrowRight className="size-5 shrink-0 transition group-hover:translate-x-0.5" />
-              </button>
-            ) : (
-              <Link href={`/books/${book.id}/preview`} onClick={() => void flush()} className="flex items-center justify-end gap-3 rounded-2xl bg-wine p-4 text-white">
-                <span className="text-sm font-medium">{t.toPreview}</span>
-                <ArrowRight className="size-5" />
-              </Link>
-            )}
-          </div>
+          <QuestionPager bookId={book.id} prev={prev} next={next} answered={!!q.answer.trim()} onGo={(step) => goTo(index + step)} onFinish={() => void flush()} />
 
           {showPreview && !focus ? (
             <div className="mt-6 xl:hidden">
@@ -513,15 +352,7 @@ export function QuestionsEditor({
             <div className="sticky top-20 space-y-4">
               <div className="text-xs font-medium tracking-wider text-muted uppercase">{t.inBook}</div>
               <PagePreview {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
-              <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
-                <div className="mb-1 text-sm font-medium text-ink">
-                  {t.answeredOf(answeredCount, questions.length)}
-                </div>
-                {t.notAll}
-                <div className="mt-3 border-t border-line pt-3">
-                  <kbd className="rounded border border-line bg-white px-1">Ctrl</kbd> + <kbd className="rounded border border-line bg-white px-1">Enter</kbd> {t.nextShortcut}
-                </div>
-              </div>
+              <ProgressCard answered={answeredCount} total={questions.length} />
             </div>
           </aside>
         ) : null}
