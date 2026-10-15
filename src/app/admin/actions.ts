@@ -8,6 +8,7 @@ import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
+import { actionError } from "@/server/errors";
 import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
 
 export interface AdminState {
@@ -50,23 +51,9 @@ async function orderCommand(run: () => Promise<unknown>): Promise<AdminState | n
     await run();
     return null;
   } catch (err) {
-    if (OrderingError.is(err)) return { error: orderingStaffMessage(err) };
-    throw err;
-  }
-}
-
-function orderingStaffMessage(err: OrderingError) {
-  switch (err.code) {
-    case "orderNotFound":
-      return "Заказ не найден";
-    case "invalidTransition":
-      return "Такой переход статуса невозможен";
-    case "staffNotFound":
-      return "Ответственным может быть только сотрудник CRM";
-    case "promoExists":
-      return "Такой промокод уже есть";
-    default:
-      return err.message;
+    const error = await actionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
   }
 }
 

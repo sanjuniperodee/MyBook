@@ -7,6 +7,7 @@ import { requireUser } from "@/server/auth";
 import { getDeliveryOptions, getPlan, getPlans, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
+import { actionError } from "@/server/errors";
 import { ensureCatalog } from "@/server/catalog";
 
 export interface CheckoutState {
@@ -88,19 +89,12 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       upgradeFromOrderId: d.upgradeFrom || undefined,
     });
   } catch (err) {
-    if (OrderingError.is(err)) return { error: orderingErrorText(err, m.checkout) };
-    throw err;
+    const error = await actionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
   }
   await queueEvent("order_created", order.amount);
   return lredirect(`/orders/${order.id}`);
-}
-
-/** Код ошибки домена → текст на языке клиента. */
-function orderingErrorText(err: OrderingError, t: Awaited<ReturnType<typeof getMessages>>["checkout"]) {
-  if (err.code === "notReady") return err.message;
-  if (err.code === "empty" || err.code === "notFound" || err.code === "expired" || err.code === "used" || err.code === "ownCode" || err.code === "firstOrderOnly") return t.promo[err.code];
-  if (err.code === "bookNotFound" || err.code === "alreadyOrdered" || err.code === "promoGone" || err.code === "upgradeUnavailable") return t.errors[err.code];
-  return t.errors.bookNotFound;
 }
 
 export interface PromoPreview {

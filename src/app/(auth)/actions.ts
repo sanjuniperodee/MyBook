@@ -7,6 +7,7 @@ import { clientIp, rateLimit } from "@/server/rateLimit";
 import { isThemeId } from "@/lib/content/themes";
 import { IdentityError } from "@/modules/identity";
 import { container } from "@/server/container";
+import { actionError } from "@/server/errors";
 import { ensureCatalog } from "@/server/catalog";
 import { registrationOpen } from "@/config/site";
 import { clearTwoFactorTicket, destroySession, issueTwoFactorTicket, readTwoFactorTicket, safeNextPath, startSession } from "@/server/auth";
@@ -20,21 +21,6 @@ export interface FormState {
 type AuthErrors = Awaited<ReturnType<typeof getMessages>>["auth"]["errors"];
 const emailSchema = (e: AuthErrors) => z.string().trim().toLowerCase().email(e.email).max(200);
 const passwordSchema = (e: AuthErrors) => z.string().min(8, e.password).max(200);
-
-/** Код ошибки домена → текст словаря auth.errors. */
-function identityText(err: IdentityError, e: AuthErrors): string {
-  const map: Partial<Record<IdentityError["code"], string>> = {
-    email: e.email,
-    phone: e.phone,
-    password: e.password,
-    exists: e.exists,
-    credentials: e.credentials,
-    resetExpired: e.resetExpired,
-    twoFactorCode: e.twoFactorCode,
-    twoFactorExpired: e.twoFactorExpired,
-  };
-  return map[err.code] ?? e.credentials;
-}
 
 export async function registerAction(_: FormState, form: FormData): Promise<FormState> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
@@ -56,8 +42,9 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
     const { token, expiresAt } = await container().identity.auth.register({ ...parsed.data, locale, source: await readSource() });
     await startSession(token, expiresAt);
   } catch (err) {
-    if (IdentityError.is(err)) return { error: identityText(err, e) };
-    throw err;
+    const error = await actionError(err, IdentityError);
+    if (error === null) throw err;
+    return { error };
   }
   await queueEvent("sign_up");
   const theme = String(form.get("theme") ?? "");
@@ -82,8 +69,9 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
     }
     await startSession(result.token, result.expiresAt);
   } catch (err) {
-    if (IdentityError.is(err)) return { error: identityText(err, e) };
-    throw err;
+    const error = await actionError(err, IdentityError);
+    if (error === null) throw err;
+    return { error };
   }
   return lredirect(next);
 }
@@ -99,8 +87,9 @@ export async function twoFactorAction(_: FormState, form: FormData): Promise<For
     await clearTwoFactorTicket();
     await startSession(token, expiresAt);
   } catch (err) {
-    if (IdentityError.is(err)) return { error: identityText(err, e) };
-    throw err;
+    const error = await actionError(err, IdentityError);
+    if (error === null) throw err;
+    return { error };
   }
   return lredirect(safeNextPath(form.get("next")));
 }
@@ -132,8 +121,9 @@ export async function resetAction(_: FormState, form: FormData): Promise<FormSta
     }
     await startSession(result.token, result.expiresAt);
   } catch (err) {
-    if (IdentityError.is(err)) return { error: identityText(err, m.auth.errors) };
-    throw err;
+    const error = await actionError(err, IdentityError);
+    if (error === null) throw err;
+    return { error };
   }
   return lredirect("/books");
 }

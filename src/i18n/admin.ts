@@ -18,4 +18,7 @@ export const admin = {
   receiptEmpty: "Файл пустой",
   receiptTooBig: (mb: number) => `Файл больше ${mb} МБ`,
   receiptType: "Нужен файл JPG, PNG, WEBP или PDF",
+  invalidTransition: "Такой переход статуса невозможен",
+  staffNotFound: "Ответственным может быть только сотрудник CRM",
+  promoExists: "Такой промокод уже есть",
 };
