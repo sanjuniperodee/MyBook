@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useMessages } from "@/i18n/client";
 import { designBack } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -13,9 +13,10 @@ import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls, type ViewId } from "./ViewerControls";
+import { useBookKeys, useFullscreen } from "./hooks";
 import { RasterHost, type RasterJob } from "./webgl/RasterHost";
 import { CoverBackFace, CoverFrontFace, CoverSpineFace } from "./webgl/cover-faces";
-import { BookScene, type FaceKey } from "./webgl/scene";
+import { BookScene, type FaceKey } from "./webgl/BookScene";
 
 /** Ракурсы осмотра: азимут и полярный угол камеры в радианах. */
 const VIEW_ANGLES: Record<ViewId, { azimuth: number; polar: number }> = {
@@ -312,46 +313,31 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     scene.current?.setAutoRotate(false);
     setAuto(false);
   };
+  const keys = useBookKeys({
+    turn: (step) => goTo(target.current + step),
+    edge: (to) => goTo(to === "first" ? 0 : countRef.current - 1),
+    orbit: (dir) => orbitBy(0.17 * dir),
+    // ↑ — выше над книгой: полярный угол меньше.
+    tilt: (dir) => {
+      const s = scene.current;
+      if (s) s.setView({ polar: s.getView().polar - 0.15 * dir }, 280);
+    },
+    zoom: (dir) => scene.current?.zoomBy(dir > 0 ? 1.25 : 1 / 1.25),
+    reset: () => {
+      const s = scene.current;
+      if (!s) return;
+      s.setView({ ...INITIAL, distance: s.baseDistance }, 700);
+      setActive("front");
+    },
+    before: stopAuto,
+  });
+  // Пока сцена не создана, клавиши не перехватываем.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const s = scene.current;
-    if (!s) return;
-    const orbit = e.shiftKey;
-    const actions: Record<string, () => void> = {
-      ArrowRight: () => (orbit ? orbitBy(0.17) : goTo(target.current + 1)),
-      ArrowLeft: () => (orbit ? orbitBy(-0.17) : goTo(target.current - 1)),
-      ArrowUp: () => s.setView({ polar: s.getView().polar - 0.15 }, 280),
-      ArrowDown: () => s.setView({ polar: s.getView().polar + 0.15 }, 280),
-      PageDown: () => goTo(target.current + 1),
-      PageUp: () => goTo(target.current - 1),
-      Home: () => goTo(0),
-      End: () => goTo(countRef.current - 1),
-      "+": () => s.zoomBy(1.25),
-      "=": () => s.zoomBy(1.25),
-      "-": () => s.zoomBy(1 / 1.25),
-      "0": () => {
-        s.setView({ ...INITIAL, distance: s.baseDistance }, 700);
-        setActive("front");
-      },
-    };
-    const run = actions[e.key];
-    if (!run) return;
-    e.preventDefault();
-    stopAuto();
-    run();
+    if (scene.current) keys(e);
   };
 
   // ── Полный экран ──
-  const canFull = useSyncExternalStore(
-    () => () => {},
-    () => document.fullscreenEnabled,
-    () => false,
-  );
-  const [full, setFull] = useState(false);
-  useEffect(() => {
-    const sync = () => setFull(document.fullscreenElement === wrapper.current);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
+  const { canFull, full, toggleFull } = useFullscreen(wrapper);
 
   const spread = count ? visibleSpread(slot, count) : { left: null, right: null };
   const label = !count ? f.loading : slot === 0 ? f.cover : slot === count - 1 ? f.backCover : f.pages(spread.left, spread.right);
@@ -437,10 +423,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
           if (s) s.setView({ ...INITIAL, distance: s.baseDistance }, 750);
           setActive("front");
         }}
-        onFull={() => {
-          if (document.fullscreenElement) void document.exitFullscreen();
-          else void wrapper.current?.requestFullscreen();
-        }}
+        onFull={toggleFull}
       />
     </div>
   );
