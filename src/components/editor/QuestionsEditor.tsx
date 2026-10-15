@@ -318,8 +318,8 @@ export function QuestionsEditor({
         <button
           className={cn("flex h-11 items-center gap-1.5 rounded-full text-sm sm:h-9", compact ? "px-3" : "px-3.5", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
           onClick={toggleDictation}
-          title={t.dictateTitle}
-          aria-label={t.dictateTitle}
+          title={dictation.listening ? t.stop : t.dictateTitle}
+          aria-label={dictation.listening ? t.stop : t.dictateTitle}
         >
           {dictation.listening ? <MicOff className="size-5 sm:size-4" /> : <Mic className="size-5 sm:size-4" />}
           {compact ? (dictation.listening ? t.stop : null) : dictation.listening ? t.stop : t.dictate}
