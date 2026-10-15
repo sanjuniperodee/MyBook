@@ -69,8 +69,18 @@ export function checkOrigin(req: Request) {
   const origin = req.headers.get("origin");
   if (!origin) return;
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  const allowed = new Set([new URL(env.appUrl).host, host]);
-  if (!allowed.has(new URL(origin).host)) throw new HttpError(403, "forbidden");
+  const allowed = new Set([new URL(env.appUrl).host]);
+  if (host) allowed.add(host);
+  if (!allowed.has(originHost(origin))) throw new HttpError(403, "forbidden");
+}
+
+/** Хост из заголовка Origin; у «null» (песочные iframe, часть приватных режимов) и мусора — пустая строка, её нет среди разрешённых. */
+function originHost(origin: string): string {
+  try {
+    return new URL(origin).host;
+  } catch {
+    return "";
+  }
 }
 
 export async function apiUser(req: Request): Promise<User> {

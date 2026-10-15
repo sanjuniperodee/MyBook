@@ -166,9 +166,13 @@ describe("checkOrigin: защита от CSRF", () => {
     }
   });
 
-  it("баг B5: Origin: null бросает TypeError, и api() отвечает 500 вместо 403", async () => {
-    expect(origin("POST", { origin: "null" })).toThrow(TypeError);
-    expect(await respond(apiUser, post({ origin: "null" }))).toEqual({ status: 500, body: { error: "Внутренняя ошибка сервера", code: "server" } });
+  it("B5: Origin: null (песочные iframe, часть приватных режимов) и мусор вместо адреса → 403 forbidden, а не 500", async () => {
+    for (const value of ["null", "not an origin", "://"]) {
+      expect(origin("POST", { origin: value })).toThrow(expect.objectContaining({ status: 403, code: "forbidden" }));
+    }
+    expect(await respond(apiUser, post({ origin: "null" }))).toEqual({ status: 403, body: { error: "Запрос отклонён", code: "forbidden" } });
+    // без Host запроса «пустой» хост Origin не совпадает ни с чем
+    expect(origin("POST", { origin: "null", host: "" })).toThrow(expect.objectContaining({ status: 403 }));
   });
 });
 
