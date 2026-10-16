@@ -58,7 +58,9 @@
 **Режимы книги** (бриф: `workflows/mybook-book-modes-*.js`, основа 883e522): этапы — критика спецификации →
 основа (`modes/foundation`) и банк автобиографии (`modes/bank-ru` → `modes/bank-kk` → `modes/bank-kk-review`)
 → слияние и проверка основы (`modes/core`) → пять зон (`modes/wizard`, `modes/editor`, `modes/print`, `modes/crm`,
-`modes/site`). На 00:47 шла только критика спецификации — скорее всего, ничего из этого не готово.
+`modes/site`). КРИТИКА СПЕЦИФИКАЦИИ ГОТОВА: `docs/handoff/modes-spec-critique.md` — 30 поправок по зонам
+(foundation 10, editor 7, print 4, crm 4, content 2, site 2, wizard 1); при перезапуске этап Critique пропустить и
+подставить поправки из файла. Основа (`modes/foundation`) и русский банк (`modes/bank-ru`) на ~01:00 только начались.
 
 **Бот-автоответчик** (бриф: `workflows/mybook-bot-autoresponder-*.js`, основа 8362b40): аудит (код + диалоги на
 проде, только чтение) → реализация (`bot/autoresponder`) → независимая проверка (`bot/autoresponder-verified`).
