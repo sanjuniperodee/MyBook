@@ -10,7 +10,8 @@ export type Usage = { input: number; output: number };
 export interface LanguageModel {
   /** Какая модель сейчас отвечает — для подписей в интерфейсе. */
   describe(): Promise<{ provider: AiProvider; label: string; model: string }>;
-  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown> }): Promise<{ text: string; usage: Usage }>;
+  /** timeoutMs — для быстрых запросов (бот в чате): без повторов, по истечении — ошибка. По умолчанию 90 секунд. */
+  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown>; timeoutMs?: number }): Promise<{ text: string; usage: Usage }>;
   configured(): Promise<boolean>;
 }
 

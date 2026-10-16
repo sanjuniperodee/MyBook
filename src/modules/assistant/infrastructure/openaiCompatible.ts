@@ -45,7 +45,9 @@ function body(c: AiConnection, req: Request, structured: boolean) {
   };
 }
 
-async function post(c: AiConnection, payload: unknown): Promise<ChatResponse> {
+async function post(c: AiConnection, payload: unknown, timeoutMs?: number): Promise<ChatResponse> {
+  // Короткий таймаут (бот в чате) — одна попытка: повторы вышли бы за отведённое время.
+  const retries = timeoutMs ? 0 : 2;
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await fetch(`${c.baseUrl}/chat/completions`, {
@@ -57,18 +59,18 @@ async function post(c: AiConnection, payload: unknown): Promise<ChatResponse> {
           ...(c.provider === "openrouter" ? { "HTTP-Referer": env.appUrl, "X-Title": site.name } : {}),
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(90_000),
+        signal: AbortSignal.timeout(timeoutMs ?? 90_000),
       });
       const json = (await res.json().catch(() => ({}))) as ChatResponse;
       if (res.ok) return json;
-      if (attempt < 2 && RETRY_STATUSES.has(res.status)) {
+      if (attempt < retries && RETRY_STATUSES.has(res.status)) {
         await sleep(1000 * 3 ** attempt);
         continue;
       }
       throw new HttpError(res.status, json.error?.message ?? res.statusText);
     } catch (err) {
       if (err instanceof HttpError) throw err;
-      if (attempt < 2) {
+      if (attempt < retries) {
         await sleep(1000 * 3 ** attempt);
         continue;
       }
@@ -108,10 +110,10 @@ export async function askOpenAiCompatible(c: AiConnection, req: Request) {
   let res: ChatResponse;
   try {
     try {
-      res = await post(c, body(c, req, true));
+      res = await post(c, body(c, req, true), req.timeoutMs);
     } catch (err) {
       if (!(req.schema && err instanceof HttpError && err.status === 400)) throw err;
-      res = await post(c, body(c, req, false));
+      res = await post(c, body(c, req, false), req.timeoutMs);
     }
   } catch (err) {
     throw toAssistantError(c, err);

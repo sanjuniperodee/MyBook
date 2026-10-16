@@ -4,7 +4,7 @@ import { modelOf } from "./infrastructure/models";
 import { aiConnections, type AssistantSettingKey } from "./infrastructure/connection";
 import { crmAssistantData } from "./infrastructure/data";
 
-export { AssistantError, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary } from "./domain";
+export { AssistantError, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
 export { providerSettingKeys } from "./infrastructure/connection";
 
 /** Публичный фасад контекста «AI-помощник» (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). */

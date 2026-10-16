@@ -174,6 +174,68 @@ export function normalizeExtracted(fields: AiField[], raw: unknown): Record<stri
   return out;
 }
 
+// ─── бот-квалификатор: понять ответ клиента ─────────────────────────────────
+
+export const BOT_AI_INTENTS = ["price", "delivery", "timing", "how", "payment", "examples", "language"] as const;
+export const BOT_AI_HANDOFFS = ["call", "manager", "paid", "pay", "complaint"] as const;
+export type BotAiIntent = (typeof BOT_AI_INTENTS)[number];
+export type BotAiHandoff = (typeof BOT_AI_HANDOFFS)[number];
+
+export interface BotUnderstanding {
+  fields: Record<string, string>;
+  intents: BotAiIntent[];
+  handoff: BotAiHandoff | null;
+  lang: "ru" | "kk" | null;
+}
+
+/**
+ * Промпт для бота-квалификатора: модель только понимает сообщение (поля, вопросы клиента, просьбу позвать человека,
+ * язык). Отвечает клиенту бот — шаблонами из настроек; цены, сроки и скидки модель не называет.
+ */
+export function botUnderstandPrompt(fields: AiField[], today: string, asking: string | null): string {
+  const list = extractableFields(fields)
+    .map((f) => `- ${f.key}: «${f.label}»${f.type === "date" ? " — дата ГГГГ-ММ-ДД" : f.type === "number" ? " — число" : f.type === "select" ? ` — одно из: ${f.options.join(" | ")}` : ""}`)
+    .join("\n");
+  const current = fields.find((f) => f.key === asking);
+  return [
+    "Ты разбираешь сообщения клиента в WhatsApp для бота магазина персональных книг-подарков MyBooks (Казахстан). Клиенты пишут по-русски или по-казахски, бывает с ошибками и без казахских букв («туган кунге»).",
+    `Сегодня ${today}. Дату без года понимай как ближайшую будущую.`,
+    current ? `Бот только что спросил «${current.label}» (${current.key}) — сообщение, скорее всего, ответ на этот вопрос.` : "",
+    `Поля:\n${list}`,
+    "fields — значения только тех полей, о которых клиент прямо сказал; для полей-списков — ровно один вариант из перечисленных; иначе пустая строка. Ничего не додумывай.",
+    "intents — о чём клиент спрашивает: price (цена, скидка), delivery (доставка, город), timing (сроки, успеете ли), how (как это работает, с чего начать), payment (оплата, рассрочка, Kaspi), examples (примеры, отзывы), language (язык книги).",
+    "handoff — просит ли человека: call (позвонить), manager (менеджер, живой человек), paid (уже оплатил), pay (хочет оплатить, просит реквизиты), complaint (жалоба, возврат); иначе пустая строка.",
+    "lang — ru или kk: на каком языке пишет клиент. Ответ клиенту не пиши.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function botUnderstandSchema(fields: AiField[]) {
+  return {
+    type: "object",
+    properties: {
+      fields: extractSchema(fields),
+      intents: { type: "array", items: { type: "string", enum: [...BOT_AI_INTENTS] } },
+      handoff: { type: "string", enum: [...BOT_AI_HANDOFFS, ""] },
+      lang: { type: "string", enum: ["ru", "kk"] },
+    },
+    required: ["fields", "intents", "handoff", "lang"],
+    additionalProperties: false,
+  };
+}
+
+/** Ответ модели → то, что бот может использовать: поля по правилам формы, известные намерения, язык. */
+export function parseBotUnderstanding(fields: AiField[], raw: unknown): BotUnderstanding | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const values = Object.fromEntries(Object.entries(normalizeExtracted(fields, r.fields)).map(([k, v]) => [k, String(v)]));
+  const intents = Array.isArray(r.intents) ? BOT_AI_INTENTS.filter((i) => (r.intents as unknown[]).includes(i)) : [];
+  const handoff = BOT_AI_HANDOFFS.find((h) => h === r.handoff) ?? null;
+  const lang = r.lang === "kk" || r.lang === "ru" ? r.lang : null;
+  return { fields: values, intents, handoff, lang };
+}
+
 /** Ответ модели без обрамляющих кавычек и подписи «— Менеджер». */
 export function cleanReply(text: string): string {
   let t = text.trim();

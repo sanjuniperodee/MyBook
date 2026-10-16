@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { timestamps } from "./columns";
 import { users } from "./identity";
 import { crmDeals } from "./sales";
@@ -47,11 +48,22 @@ export const crmConversations = pgTable(
     awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
     /** Бот-квалификатор: номер текущего вопроса; null — не запускался, -1 — закончил или его остановил менеджер. */
     botStep: integer("bot_step"),
+    /**
+     * Состояние бота (BotState в modules/messaging/domain/botEngine.ts): язык, что уже известно, о чём спрашивает, итог.
+     * Пишется compare-and-set по полю version.
+     */
+    botState: jsonb("bot_state").$type<Record<string, unknown>>(),
+    /** Когда бот должен сделать следующий ход: пауза после сообщения клиента, ожидание менеджера, проверка «клиент замолчал». */
+    botDueAt: timestamp("bot_due_at", { withTimezone: true }),
     /** Служебные данные канала: для чата с сайта — страница и контакты посетителя, для почты — тема письма. */
     meta: jsonb("meta").$type<ConversationMeta>().notNull().default({}),
     ...timestamps,
   },
-  (t) => [uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId), index("crm_conv_last_idx").on(t.lastMessageAt)],
+  (t) => [
+    uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId),
+    index("crm_conv_last_idx").on(t.lastMessageAt),
+    index("crm_conv_bot_due_idx").on(t.botDueAt).where(sql`${t.botDueAt} is not null`),
+  ],
 );
 
 export type CrmConversation = typeof crmConversations.$inferSelect;
@@ -71,6 +83,8 @@ export const crmMessages = pgTable(
     externalId: text("external_id").unique(),
     /** Внутренняя заметка сотрудника в диалоге — клиенту не отправляется. */
     internal: boolean("internal").notNull().default(false),
+    /** Исходящее без сотрудника: bot — бот-квалификатор, rule — правило автоматизации (в чате — «бот» / «автоматически»). */
+    source: text("source", { enum: ["bot", "rule"] }),
     status: text("status", { enum: ["pending", "sent", "delivered", "read", "error", "received"] }).notNull().default("pending"),
     error: text("error"),
     /** Письма: тема и Message-ID для цепочки ответов. */
@@ -78,6 +92,29 @@ export const crmMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+);
+
+/**
+ * Журнал бота-квалификатора: старт и пропуск (с причиной), ответы, нераспознанное, частые вопросы, голосовые, передача
+ * человеку, итог. Из него — метрики в настройках бота (воронка по вопросам, причины пропуска, языки).
+ */
+export const crmBotEvents = pgTable(
+  "crm_bot_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => crmConversations.id, { onDelete: "cascade" }),
+    dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
+    /** started | skipped | answer | unrecognized | faq | media | handoff | finished | stopped_by_manager | abandoned | declined */
+    kind: text("kind").notNull(),
+    field: text("field"),
+    intent: text("intent"),
+    lang: text("lang"),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_bot_events_at_idx").on(t.createdAt), index("crm_bot_events_conv_idx").on(t.conversationId)],
 );
 
 /** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */

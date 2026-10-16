@@ -253,6 +253,13 @@
       "when": 1792181204404,
       "tag": "0035_book_modes",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792185389133,
+      "tag": "0036_bot_autoresponder",
+      "breakpoints": true
     }
   ]
 }

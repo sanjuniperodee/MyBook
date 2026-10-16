@@ -1,9 +1,9 @@
 import "server-only";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { crmBlocklist, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
+import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import type { Blocklist, ConversationRepository, MessageMediaStore, MessageRepository } from "../application";
-import type { Conversation, InboundMessage } from "../domain";
+import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource } from "../application";
+import { readBotState, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 const toConversation = (r: Row): Conversation => ({
@@ -159,6 +159,16 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
   }
 
   async claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string) {
+    // Копия сообщения бота или правила (шлюз мог дать ей другой ID) — не ответ человека, бота не останавливает.
+    const [own] = await executor()
+      .select({ id: crmMessages.id })
+      .from(crmMessages)
+      .where(and(eq(crmMessages.conversationId, conversationId), eq(crmMessages.direction, "out"), eq(crmMessages.internal, false), inArray(crmMessages.source, ["bot", "rule"]), eq(crmMessages.text, text), gte(crmMessages.createdAt, since)))
+      .limit(1);
+    if (own) {
+      await executor().update(crmMessages).set({ externalId }).where(and(eq(crmMessages.id, own.id), isNull(crmMessages.externalId)));
+      return true;
+    }
     const [pending] = await executor()
       .select({ id: crmMessages.id })
       .from(crmMessages)
@@ -187,10 +197,10 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     return rows.length > 0;
   }
 
-  async insertOutgoing(conversationId: string, text: string, authorId: string | null, internal = false) {
+  async insertOutgoing(conversationId: string, text: string, authorId: string | null, internal = false, source?: MessageSource) {
     const [m] = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "out", authorId, text, internal, status: internal ? "sent" : "pending" })
+      .values({ conversationId, direction: "out", authorId, text, internal, source: source ?? null, status: internal ? "sent" : "pending" })
       .returning();
     return m;
   }
@@ -232,6 +242,141 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
       .limit(1);
     return r ?? null;
   }
+}
+
+/** Бот не остановлен человеком: bot_step null (ещё не начал) или номер вопроса. */
+const botAlive = () => or(isNull(crmConversations.botStep), gte(crmConversations.botStep, 0));
+
+/** Состояние бота в диалоге: compare-and-set по version, остановка человеком — одним UPDATE. */
+export class DrizzleBotStore implements BotStore {
+  async load(conversationId: string): Promise<BotRecord | null> {
+    const [r] = await executor()
+      .select({ botStep: crmConversations.botStep, botState: crmConversations.botState, botDueAt: crmConversations.botDueAt })
+      .from(crmConversations)
+      .where(eq(crmConversations.id, conversationId))
+      .limit(1);
+    return r ? { botStep: r.botStep, state: readBotState(r.botState), dueAt: r.botDueAt } : null;
+  }
+
+  async save(conversationId: string, expectedVersion: number | null, next: { botStep: number | null; state: BotState; dueAt: Date | null }, opts: { restart?: boolean } = {}) {
+    const version = expectedVersion === null ? isNull(crmConversations.botState) : sql`coalesce((${crmConversations.botState}->>'version')::int, 0) = ${expectedVersion}`;
+    const rows = await executor()
+      .update(crmConversations)
+      .set({ botStep: next.botStep, botState: next.state as unknown as Record<string, unknown>, botDueAt: next.dueAt })
+      .where(and(eq(crmConversations.id, conversationId), version, opts.restart ? undefined : botAlive()))
+      .returning({ id: crmConversations.id });
+    return rows.length > 0;
+  }
+
+  async setDue(conversationId: string, dueAt: Date | null) {
+    await executor()
+      .update(crmConversations)
+      .set({ botDueAt: dueAt })
+      .where(and(eq(crmConversations.id, conversationId), botAlive(), sql`${crmConversations.botState} is not null and ${crmConversations.botState}->>'phase' <> 'done'`));
+  }
+
+  async stop(conversationId: string, reason: string) {
+    // Состояние «в работе» закрывается как «остановлен человеком»; законченное — не трогаем. bot_step = -1 в любом случае:
+    // бот не начнёт и там, где ещё не начинал (менеджер написал первым).
+    const rows = await executor()
+      .update(crmConversations)
+      .set({
+        botStep: -1,
+        botDueAt: null,
+        botState: sql`case when ${crmConversations.botState} is not null and ${crmConversations.botState}->>'phase' <> 'done'
+          then ${crmConversations.botState} || jsonb_build_object('phase', 'done', 'outcome', 'stopped_by_manager', 'reason', ${reason}::text, 'asking', null,
+            'version', coalesce((${crmConversations.botState}->>'version')::int, 0) + 1)
+          else ${crmConversations.botState} end`,
+      })
+      .where(and(eq(crmConversations.id, conversationId), botAlive()))
+      .returning({ outcome: sql<string | null>`${crmConversations.botState}->>'outcome'`, reason: sql<string | null>`${crmConversations.botState}->>'reason'` });
+    return rows.some((r) => r.outcome === "stopped_by_manager" && r.reason === reason);
+  }
+
+  async due(now: Date, limit: number) {
+    const rows = await executor()
+      .select({ id: crmConversations.id })
+      .from(crmConversations)
+      .where(and(lt(crmConversations.botDueAt, now), botAlive()))
+      .orderBy(asc(crmConversations.botDueAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  async incoming(conversationId: string, since: Date) {
+    const rows = await executor()
+      .select({ id: crmMessages.id, text: crmMessages.text, type: crmMessages.type, at: crmMessages.createdAt })
+      .from(crmMessages)
+      .where(and(eq(crmMessages.conversationId, conversationId), eq(crmMessages.direction, "in"), gte(crmMessages.createdAt, since)))
+      .orderBy(asc(crmMessages.createdAt))
+      .limit(100);
+    return rows;
+  }
+
+  async log(conversationId: string, dealId: string | null, lang: string | null, events: BotEvent[]) {
+    if (!events.length) return;
+    await executor()
+      .insert(crmBotEvents)
+      .values(events.map((e) => ({ conversationId, dealId, kind: e.kind, field: e.field ?? null, intent: e.intent ?? null, lang, reason: e.reason?.slice(0, 200) ?? null })));
+  }
+}
+
+/** Метрики бота за период (настройки бота). */
+export interface BotMetrics {
+  started: number;
+  skipped: Record<string, number>;
+  outcomes: Record<string, number>;
+  /** Сколько диалогов дошли до ответа на каждый вопрос и где ответ не распознан. */
+  answered: Record<string, number>;
+  unrecognized: Record<string, number>;
+  intents: Record<string, number>;
+  langs: Record<string, number>;
+  /** Медиана минут от итога бота до первого ответа человека. */
+  replyMinutes: number | null;
+  /** Сделки после бота, где есть договорённость или оплата. */
+  converted: number;
+}
+
+const tally = (rows: { key: string | null; n: number }[]) => Object.fromEntries(rows.filter((r) => r.key).map((r) => [r.key!, Number(r.n)]));
+
+export async function botMetrics(days = 30): Promise<BotMetrics> {
+  const since = sql`now() - make_interval(days => ${days})`;
+  const by = (kind: string, column: "reason" | "field" | "intent" | "lang", distinct = false) =>
+    executor().execute<{ key: string | null; n: number }>(
+      sql`select ${sql.raw(column)} as key, count(${sql.raw(distinct ? "distinct conversation_id" : "*")})::int as n from crm_bot_events where kind = ${kind} and created_at >= ${since} group by 1`,
+    );
+  const [skipped, answered, unrecognized, faq, handoff, langs, outcomes, reply, converted] = await Promise.all([
+    by("skipped", "reason"),
+    by("answer", "field", true),
+    by("unrecognized", "field", true),
+    by("faq", "intent"),
+    by("handoff", "reason"),
+    by("started", "reason"),
+    executor().execute<{ key: string; n: number }>(
+      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined') and created_at >= ${since} group by 1`,
+    ),
+    executor().execute<{ m: number | null }>(sql`
+      select percentile_cont(0.5) within group (order by extract(epoch from (r.first_at - e.at)) / 60) as m
+      from (select conversation_id, max(created_at) as at from crm_bot_events where kind in ('finished', 'handoff', 'abandoned') and created_at >= ${since} group by 1) e
+      cross join lateral (select min(m.created_at) as first_at from crm_messages m where m.conversation_id = e.conversation_id and m.direction = 'out' and m.internal = false and m.source is null and m.created_at > e.at) r
+      where r.first_at is not null`),
+    executor().execute<{ n: number }>(sql`
+      select count(distinct e.deal_id)::int as n from crm_bot_events e join crm_deals d on d.id = e.deal_id
+      where e.kind = 'started' and e.created_at >= ${since}
+        and (d.agreed_plan is not null or d.order_id is not null or exists (select 1 from crm_payments p where p.deal_id = d.id))`),
+  ]);
+  const o = tally(outcomes.rows);
+  return {
+    started: o.started ?? 0,
+    skipped: tally(skipped.rows),
+    outcomes: o,
+    answered: tally(answered.rows),
+    unrecognized: tally(unrecognized.rows),
+    intents: { ...tally(faq.rows), ...Object.fromEntries(Object.entries(tally(handoff.rows)).map(([k, v]) => [`handoff:${k}`, v])) },
+    langs: tally(langs.rows),
+    replyMinutes: reply.rows[0]?.m == null ? null : Math.round(Number(reply.rows[0].m)),
+    converted: Number(converted.rows[0]?.n ?? 0),
+  };
 }
 
 export const drizzleBlocklist: Blocklist = {
@@ -304,13 +449,9 @@ export class DrizzleMessagingQueries {
     return rows.map((r) => ({ id: r.id, mine: r.direction === "in", text: r.text, at: r.at.toISOString() }));
   }
 
-  /** Сколько диалогов бот ведёт и закончил за 30 дней (для настроек). */
-  async botStats() {
-    const [row] = await executor()
-      .select({ active: sql<number>`count(*) filter (where ${crmConversations.botStep} >= 0)::int`, done: sql<number>`count(*) filter (where ${crmConversations.botStep} = -1)::int` })
-      .from(crmConversations)
-      .where(gte(crmConversations.createdAt, sql`now() - interval '30 days'`));
-    return row;
+  /** Метрики бота за 30 дней (настройки бота): по журналу событий, а не по bot_step. */
+  botMetrics(days = 30) {
+    return botMetrics(days);
   }
 
   /** Номера в спаме (настройки). */

@@ -48,9 +48,9 @@ export const settingDefs = {
   "crm.maxDiscount": { default: "15" },
   /** Номер WhatsApp для рекламных ссылок «написать в WhatsApp» (по умолчанию — из контактов сайта). */
   "crm.whatsappNumber": {},
-  /** Бот-квалификатор в WhatsApp: off | always | off_hours. */
+  /** Бот-автоответчик: off | fallback (если менеджер не ответил за N минут) | off_hours | always (docs/features/bot-autoresponder.md). */
   "bot.mode": { default: "off" },
-  /** Вопросы бота: JSON { greeting, questions: [{ text, field }], finish }. */
+  /** Настройки бота: JSON BotConfig (каналы, вопросы и тексты ru/kk, частые вопросы, акция); старый { greeting, questions: [{ text, field }], finish } тоже читается. */
   "bot.config": {},
   /** Ключи Web Push (создаются автоматически). */
   "push.vapidPublic": {},

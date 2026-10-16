@@ -15,7 +15,7 @@ import { ChatPanel } from "@/components/admin/ChatPanel";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { invoiceViews } from "@/app/admin/invoices/view";
 import { cn } from "@/lib/class-names";
-import { ChatSideControls } from "./ChatControls";
+import { BotBanner, ChatSideControls } from "./ChatControls";
 
 export const metadata = { title: "Чаты" };
 
@@ -66,7 +66,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
 
   if (conv) {
     const chat = container().messaging.view;
-    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows] = await Promise.all([
+    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot] = await Promise.all([
       chat.messages(conv.id),
       chat.templates(),
       chat.vars(conv, staffLabel(staff.user)),
@@ -76,6 +76,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       mentionableStaff(),
       container().assistant.service.configured(),
       conv.dealId && can(staff, "deals.view") ? container().ordering.invoices.listFor(conv.dealId) : Promise.resolve([]),
+      container().messaging.botStatus(conv.id),
     ]);
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     // Ничей диалог менеджер только читает: ответит тот, кому его отдаст круг (или назначит руководитель).
@@ -108,6 +109,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           </div>
         </div>
         {!mine ? <p className="border-b border-line bg-amber-50 px-4 py-2 text-xs text-amber-800">Заявку распределяет круг — ответит менеджер, которому она достанется. Назначить вручную может руководитель.</p> : null}
+        <BotBanner conversationId={conv.id} status={bot} canControl={canReply} hasDeal={!!conv.dealId} />
         <ChatPanel
           key={conv.id}
           className="flex-1"
@@ -163,6 +165,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           hasDeal={!!conv.dealId}
           canSend={canReply}
           canCreateDeal={can(staff, "deals.edit") && mine}
+          canStartBot={!bot.label && bot.canStart}
         />
       </aside>
     );

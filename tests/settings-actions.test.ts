@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultBotConfig, parseBotConfig, type BotConfig } from "@/modules/messaging/domain/botConfig";
 
 /**
  * Действия раздела «Интеграции» (app/admin/settings): что сохраняется, что пишется в журнал и какие тексты ошибок
@@ -30,7 +31,13 @@ vi.mock("@/server/container", () => ({
   container: () => ({
     assistant: { proofreadProvider: async () => ({ provider: "openrouter" }) },
     workspace: { templates: { add: async (t: unknown) => void w.saved.push({ template: JSON.stringify(t) }), update: async (id: string, t: unknown) => void w.saved.push({ [id]: JSON.stringify(t) }) } },
+    messaging: { previewBot: async (input: { turns: unknown[] }) => ({ skipped: null, transcript: [], fields: [], intents: [], lang: "ru", done: false, summary: null, turns: input.turns.length }) },
   }),
+}));
+vi.mock("@/server/bot-site", () => ({
+  botSiteInfo: {
+    catalog: async () => ({ plans: [{ id: "digital", price: 9900 }, { id: "hardcover", price: 30000 }], delivery: [{ id: "courier", price: 3500 }], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
+  },
 }));
 
 const actions = {
@@ -171,9 +178,35 @@ describe("Шаблоны ответов и бот", () => {
     expect(await actions.saveTemplateAction({}, form({ id: "1", title: "Т", text: "x" }))).toEqual({ error: expect.any(String) });
   });
 
-  it("бот: режим и вопросы; включённый без вопросов — ошибка", async () => {
-    expect(await actions.saveBotAction({ mode: "always", greeting: "Привет", finish: "Спасибо", questions: [{ text: "Повод?", field: "occasion" }] })).toEqual({ ok: "Сохранено" });
-    expect(w.saved).toEqual([{ "bot.mode": "always", "bot.config": JSON.stringify({ greeting: "Привет", finish: "Спасибо", questions: [{ text: "Повод?", field: "occasion" }] }) }]);
-    expect(await actions.saveBotAction({ mode: "off_hours", greeting: "", finish: "", questions: [] })).toEqual({ error: "Добавьте хотя бы один вопрос" });
+  it("бот: режим, каналы, вопросы на двух языках; новый формат читается обратно без потерь", async () => {
+    const config = { ...defaultBotConfig, channels: ["whatsapp", "site"] as BotConfig["channels"], questions: [{ field: "occasion", text: { ru: "Повод?", kk: "Қандай мереке?" } }] };
+    expect(await actions.saveBotAction({ mode: "fallback", ...config })).toEqual({ ok: "Сохранено" });
+    expect(w.saved).toHaveLength(1);
+    expect(w.saved[0]["bot.mode"]).toBe("fallback");
+    expect(parseBotConfig(w.saved[0]["bot.config"])).toEqual(config);
+    expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false }]]);
+  });
+
+  it("бот: включённый без вопросов или каналов, неизвестный режим — ошибка", async () => {
+    expect(await actions.saveBotAction({ mode: "off_hours", ...defaultBotConfig, questions: [] })).toEqual({ error: "Добавьте хотя бы один вопрос" });
+    expect(await actions.saveBotAction({ mode: "always", ...defaultBotConfig, channels: [] })).toEqual({ error: "Выберите хотя бы один канал" });
+    expect(await actions.saveBotAction({ mode: "sometimes" as "always", ...defaultBotConfig })).toEqual({ error: expect.any(String) });
+    expect(await actions.saveBotAction({ mode: "always", ...defaultBotConfig, waitMinutes: 0 })).toEqual({ error: "Ожидание менеджера — от 1 минуты" });
+    expect(w.saved).toEqual([]);
+  });
+
+  it("бот: цена не из тарифов или номер в тексте — не сохраняется; переменные и строка акции — можно", async () => {
+    const withPrice = (text: string) => ({ ...defaultBotConfig, faq: { ...defaultBotConfig.faq, price: { on: true, text: { ru: text, kk: "" } } } });
+    expect(await actions.saveBotAction({ mode: "always", ...withPrice("Книга 40 000 ₸, сегодня 20 000") })).toEqual({
+      error: "В ответе «Цена» (RU) число «40 000 ₸» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, или напишите акцию в строке «Акция»",
+    });
+    expect(await actions.saveBotAction({ mode: "always", ...withPrice("Звоните +7 701 555 44 33") })).toEqual({ error: "В ответе «Цена» (RU) номер телефона — бот такое не отправляет" });
+    expect(await actions.saveBotAction({ mode: "always", ...withPrice("Печатная — {цена.печатная} (это 30 000 ₸). {акция}"), promo: { ru: "Сегодня скидка 25%", kk: "" } })).toEqual({ ok: "Сохранено" });
+  });
+
+  it("тест-режим: проверяет вход и отдаёт результат прогона", async () => {
+    expect(await actions.previewBotAction({ config: defaultBotConfig, turns: [], workTime: true, client: "new", name: "" })).toEqual({ error: "Напишите сообщение клиента" });
+    expect(await actions.previewBotAction({ config: defaultBotConfig, turns: [[{ text: "Здравствуйте", type: "text" }]], workTime: false, client: "order", name: "Айгерим" })).toMatchObject({ result: { turns: 1 } });
+    expect(w.saved).toEqual([]);
   });
 });
