@@ -6,8 +6,8 @@
  */
 import { fillTemplate } from "@/shared/domain/templates";
 import { humanDate, whenText, type DealField } from "./bot";
-import { botText, faqFor, mentionsMonth, optionLabel, parseDateAnswer, matchOption, questionFor, questionText, type BotConfig, type BotTextKey } from "./botConfig";
-import { catalogVars, fillBotVars, type BotCatalog } from "./botFaq";
+import { botText, faqFor, mentionsMonth, promoFor, optionLabel, parseDateAnswer, matchOption, questionFor, questionText, type BotConfig, type BotTextKey } from "./botConfig";
+import { catalogVars, fillBotVars, fillFaqLines, type BotCatalog } from "./botFaq";
 import { detectLang, faqIntents, handoffIntent, isAck, isDecline, isDontKnow, langRequest, looksLikeContinuation, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
@@ -34,6 +34,8 @@ export interface BotState {
   seen: string[];
   /** Заявка заведена этим обращением (а не найдена открытая). */
   fresh: boolean;
+  /** Перед первым ответом бот ждёт человека (fallback в рабочее время), а не только паузу: уведомления идут как обычно. */
+  waitHuman: boolean;
   lang: BotLang;
   /** Снимок вопросов на старте: правка настроек не подвешивает идущие диалоги. */
   questions: string[];
@@ -70,6 +72,7 @@ export function newBotState(since: Date, fresh: boolean): BotState {
     since: since.toISOString(),
     seen: [],
     fresh,
+    waitHuman: false,
     lang: "ru",
     questions: [],
     asking: null,
@@ -127,7 +130,7 @@ export interface BotEnv {
   /** Когда начнётся рабочее время (вне его — «менеджер ответит завтра с 09:00»). */
   nextWorkStart: Date | null;
   catalog: BotCatalog;
-  site: { url: string; registrationOpen: boolean; themes: string[]; landings: string[] };
+  site: { url: string; registrationOpen: boolean; themes: string[]; landings: string[]; themeLandings?: Record<string, string> };
   client: { known: boolean; locale: BotLang | null };
   /** Имя для обращения (safeName). */
   name: string;
@@ -289,15 +292,17 @@ function shown(ctx: Ctx, key: string, value: string | number, r?: Recipient) {
   return String(value);
 }
 
-function render(ctx: Ctx, template: string, extra: Record<string, string> = {}) {
+function render(ctx: Ctx, template: string, extra: Record<string, string> = {}, faq?: FaqIntent) {
   const { env, s } = ctx;
   const vars: Record<string, string> = {
     ...catalogVars(env.catalog, s.lang),
-    акция: env.config.promo[s.lang].trim(),
+    акция: promoFor(env.config, s.lang),
     когда: env.nextWorkStart ? whenText(env.nextWorkStart, env.now, s.lang, env.tz) : "",
     ...extra,
   };
-  return fillTemplate(fillBotVars(template, vars), { name: env.name, link: extra.ссылка ?? env.site.url });
+  // Ответ на частый вопрос: строки с пустой переменной (скрытый тариф, нет акции) выпадают; к цене — акция.
+  const filled = faq ? fillFaqLines(template, vars, { appendPromo: faq === "price" }) : fillBotVars(template, vars);
+  return fillTemplate(filled, { name: env.name, link: extra.ссылка ?? env.site.url });
 }
 
 const text = (ctx: Ctx, key: BotTextKey, extra?: Record<string, string>) => render(ctx, botText(ctx.env.config, ctx.s.lang, key), extra);
@@ -348,7 +353,7 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
     const a = env.config.faq[intent];
     if (!a?.on) continue;
     if (!s.faq.includes(intent)) {
-      parts.push(render(ctx, faqFor(env.config, intent, s.lang), s.links.length ? { ссылка: s.links[0] } : {}));
+      parts.push(render(ctx, faqFor(env.config, intent, s.lang), s.links.length ? { ссылка: s.links[0] } : {}, intent));
       s.faq.push(intent);
       events.push({ kind: "faq", intent });
     } else if (!s.repeated.includes(intent)) {

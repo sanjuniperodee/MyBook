@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerValue, botSummary, contactChanges, contactPhone, defaultBotConfig, preview, redactSecrets, shouldApplyStatus, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage } from "@/modules/messaging/domain";
+import { answerValue, contactChanges, contactPhone, defaultBotConfig, preview, redactSecrets, shouldApplyStatus, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage } from "@/modules/messaging/domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS, MessagingService, QualifierBot, type BotCrm, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
 
 const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
@@ -297,7 +297,9 @@ describe("бот в инбоксе", () => {
     await t.advance(BOT_PAUSE_MS + 1);
     expect(t.sent).toHaveLength(1);
     expect(t.sent[0]).toContain("Здравствуйте, Айгерим!");
-    expect(t.sent[0]).toContain("Стоимость зависит от формата");
+    // Цена — «от» по тарифам (в тарифах теста только печатная), без выдуманных сумм.
+    expect(t.sent[0]).toMatch(/Печатная в твёрдой обложке — от 30\s000 ₸\./u);
+    expect(t.sent[0]).not.toContain("Электронная книга");
     expect(t.sent[0]).toContain("Для кого книга?");
     await t.service.ingest(inbound({ text: "для мамы" }));
     await t.advance(BOT_PAUSE_MS + 1);
@@ -392,6 +394,69 @@ describe("бот в инбоксе", () => {
     const other = new QualifierBot(t.deps);
     await Promise.all([t.bot.process(t.conv().id), other.process(t.conv().id)]);
     expect(t.sent).toHaveLength(1);
+  });
+
+  it("гонка: клиент написал, пока бот делал ход, — следующий ход через обычную паузу, а не через 30 минут", async () => {
+    const t = setup({ bot: "always" });
+    await t.service.ingest(inbound());
+    await t.advance(BOT_PAUSE_MS + 1);
+    await t.service.ingest(inbound({ text: "для мамы" }));
+    const save = t.deps.store.save;
+    let once = true;
+    t.deps.store.save = async (...a) => {
+      // Сообщение клиента пришло посреди хода: ход уже прочитал входящие, но ещё не записал состояние
+      // (запись сдвинет срок на «клиент замолчал» поверх паузы, которую поставило новое сообщение).
+      if (once && a[2].state.phase === "active" && a[2].state.filled.recipient) {
+        once = false;
+        await t.service.ingest(inbound({ text: "на день рождения" }));
+      }
+      return save(...a);
+    };
+    await t.advance(BOT_PAUSE_MS + 1);
+    expect(t.sent).toHaveLength(2);
+    expect(t.conv().botDueAt!.getTime() - (start.getTime() + 2 * (BOT_PAUSE_MS + 1))).toBeLessThanOrEqual(BOT_PAUSE_MS);
+    await t.advance(BOT_PAUSE_MS + 1);
+    expect(t.deals[0].fields).toEqual({ recipient: "Маме", occasion: "День рождения" });
+    expect(t.sent.at(-1)).toBe("Спасибо! Передала ваши ответы менеджеру — он скоро напишет 🙌");
+  });
+
+  it("гонка: менеджер ответил с телефона, пока бот готовил ход, — ответ бота не уходит", async () => {
+    const t = setup({ bot: "always" });
+    await t.service.ingest(inbound());
+    await t.advance(BOT_PAUSE_MS + 1);
+    await t.service.ingest(inbound({ text: "для мамы" }));
+    const setField = t.deps.sales.setField;
+    t.deps.sales.setField = async (...a) => {
+      await t.service.ingest(inbound({ isEcho: true, externalId: "phone-mid", text: "Сейчас подскажу по цене" }));
+      return setField(...a);
+    };
+    await t.advance(BOT_PAUSE_MS + 1);
+    expect(t.sent).toHaveLength(1);
+    expect(t.conv()).toMatchObject({ botStep: -1, botState: expect.objectContaining({ outcome: "stopped_by_manager", reason: "phone" }) });
+    await t.service.ingest(inbound({ text: "на день рождения" }));
+    await t.advance(BOT_ABANDON_MS + 1);
+    expect(t.sent).toHaveLength(1);
+  });
+
+  it("серия сообщений в паузе перед первым ответом — одно уведомление менеджеру, а не на каждое", async () => {
+    const t = setup({ bot: "always" });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await t.service.ingest(inbound({ text: "Хочу узнать стоимость" }));
+    await t.service.ingest(inbound({ text: "для мамы" }));
+    expect(t.notified.map((n) => n.title)).toEqual(["Айгерим · WhatsApp"]);
+    // В режиме «если менеджер не ответил» бот ждёт человека — уведомления идут на каждое сообщение.
+    const f = setup({ bot: "fallback" });
+    await f.service.ingest(inbound({ text: "Здравствуйте" }));
+    await f.service.ingest(inbound({ text: "Хочу узнать стоимость" }));
+    expect(f.notified).toHaveLength(2);
+    // Бот так и не ответил (переписка была до CRM) — о сообщениях, пришедших в паузе, одно уведомление.
+    const p = setup({ bot: "always", priorChat: true });
+    await p.service.ingest(inbound({ text: "Здравствуйте" }));
+    await p.service.ingest(inbound({ text: "я по поводу книги" }));
+    await p.service.ingest(inbound({ text: "мы с вами говорили" }));
+    await p.advance(BOT_PAUSE_MS + 1);
+    expect(p.sent).toEqual([]);
+    expect(p.notified).toHaveLength(2);
   });
 
   it("fallback: в рабочее время бот ждёт менеджера; ответил — бот молчит, не ответил за N минут — бот начинает", async () => {

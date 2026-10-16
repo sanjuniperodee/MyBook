@@ -121,7 +121,7 @@ export interface BotSettings {
   /** Цены, доставка и сроки из «Цен и тарифов» — для ответов на частые вопросы. */
   catalog(): Promise<BotCatalog>;
   /** Адрес сайта, открыта ли регистрация, какие темы книг и посадочные страницы есть. */
-  site(): Promise<{ url: string; registrationOpen: boolean; themes: string[]; landings: string[] }>;
+  site(): Promise<{ url: string; registrationOpen: boolean; themes: string[]; landings: string[]; themeLandings?: Record<string, string> }>;
   timeZone(): string;
 }
 

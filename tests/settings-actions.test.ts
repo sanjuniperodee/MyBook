@@ -198,10 +198,19 @@ describe("Шаблоны ответов и бот", () => {
   it("бот: цена не из тарифов или номер в тексте — не сохраняется; переменные и строка акции — можно", async () => {
     const withPrice = (text: string) => ({ ...defaultBotConfig, faq: { ...defaultBotConfig.faq, price: { on: true, text: { ru: text, kk: "" } } } });
     expect(await actions.saveBotAction({ mode: "always", ...withPrice("Книга 40 000 ₸, сегодня 20 000") })).toEqual({
-      error: "В ответе «Цена» (RU) число «40 000 ₸» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, или напишите акцию в строке «Акция»",
+      error: "В ответе «Цена» (RU) число «40 000 ₸» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, а скидку напишите процентом в строке «Акция»",
     });
     expect(await actions.saveBotAction({ mode: "always", ...withPrice("Звоните +7 701 555 44 33") })).toEqual({ error: "В ответе «Цена» (RU) номер телефона — бот такое не отправляет" });
     expect(await actions.saveBotAction({ mode: "always", ...withPrice("Печатная — {цена.печатная} (это 30 000 ₸). {акция}"), promo: { ru: "Сегодня скидка 25%", kk: "" } })).toEqual({ ok: "Сохранено" });
+  });
+
+  it("бот: в строке акции — проценты и слова; точная цена со скидкой (сумма в тенге) не сохраняется", async () => {
+    expect(await actions.saveBotAction({ mode: "always", ...defaultBotConfig, promo: { ru: "Сегодня 20 000 вместо 40 000", kk: "" } })).toEqual({
+      error: "В строке акции (RU) сумма «20 000» — бот называет только цены «от» из «Цен и тарифов»; скидку напишите процентом или словами",
+    });
+    expect(await actions.saveBotAction({ mode: "always", ...defaultBotConfig, promo: { ru: "Скидка 25% до конца дня", kk: "Бүгін 29к теңге" } })).toEqual({ error: expect.stringContaining("В строке акции (KK) сумма «29к»") });
+    expect(w.saved).toEqual([]);
+    expect(await actions.saveBotAction({ mode: "always", ...defaultBotConfig, promo: { ru: "Скидка 25% до 31.12.2026", kk: "31.12.2026 дейін 25% жеңілдік" } })).toEqual({ ok: "Сохранено" });
   });
 
   it("тест-режим: проверяет вход и отдаёт результат прогона", async () => {

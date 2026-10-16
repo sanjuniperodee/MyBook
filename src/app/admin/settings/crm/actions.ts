@@ -9,7 +9,7 @@ import { saveSettings } from "@/modules/workspace";
 import { isValidTime } from "@/shared/domain/schedule";
 import { findSensitive, sensitiveLabels, type BotPreviewResult } from "@/modules/messaging";
 import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
-import { pricesOutsideCatalog } from "@/modules/messaging/domain/botFaq";
+import { pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
 import { FAQ_INTENTS, type FaqIntent } from "@/modules/messaging/domain/botNlu";
 import { BOT_MODES } from "@/modules/messaging/domain/bot";
 import { botSiteInfo } from "@/server/bot-site";
@@ -107,11 +107,14 @@ async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise
     const found = findSensitive(text);
     if (found.length) return `В ${where} ${sensitiveLabels[found[0].kind]} — бот такое не отправляет`;
     const prices = pricesOutsideCatalog(text, catalog);
-    if (prices.length) return `В ${where} число «${prices[0]}» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, или напишите акцию в строке «Акция»`;
+    if (prices.length) return `В ${where} число «${prices[0]}» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, а скидку напишите процентом в строке «Акция»`;
   }
   for (const l of BOT_LANGS) {
     const found = findSensitive(config.promo[l]);
     if (found.length) return `В строке акции ${sensitiveLabels[found[0].kind]} — бот такое не отправляет`;
+    // Точную цену со скидкой называет менеджер: в акции — проценты и слова, суммы — только «от» из тарифов.
+    const amounts = promoAmounts(config.promo[l]);
+    if (amounts.length) return `В строке акции (${l.toUpperCase()}) сумма «${amounts[0]}» — бот называет только цены «от» из «Цен и тарифов»; скидку напишите процентом или словами`;
   }
   return null;
 }

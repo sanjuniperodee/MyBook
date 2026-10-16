@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, type BotConfig } from "@/modules/messaging/domain/botConfig";
 import { detectLang, faqIntents, handoffIntent, isDontKnow, langRequest, looksLikeContinuation } from "@/modules/messaging/domain/botNlu";
 import { bookLink, findRecipient } from "@/modules/messaging/domain/botThemes";
-import { catalogVars, pricesOutsideCatalog, type BotCatalog } from "@/modules/messaging/domain/botFaq";
+import { catalogVars, fillFaqLines, pricesOutsideCatalog, promoAmounts, type BotCatalog } from "@/modules/messaging/domain/botFaq";
 import { botSummary, botTurn, newBotState, startBlocker, type BotEnv, type BotInput, type BotState } from "@/modules/messaging/domain/botEngine";
 import { humanDate, safeName, whenText, type DealField } from "@/modules/messaging/domain/bot";
 
@@ -167,7 +167,14 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(bookLink(mom, site, "kk", false)?.url).toBe("https://mybook.kz/kk/kniga/kniga-mame");
     expect(bookLink(mom, { ...site, registrationOpen: true }, "ru", false)).toEqual({ url: "https://mybook.kz/register?theme=mom", kind: "start" });
     expect(bookLink(mom, site, "ru", true)?.url).toBe("https://mybook.kz/books/new?theme=mom");
-    expect(bookLink(findRecipient("себе", { themes: site.themes })!, site, "ru", false)).toBeNull();
+    // Автобиография и своя книга: своей посадочной нет — первая страница этого вида, иначе каталог примеров /kniga.
+    expect(bookLink(findRecipient("себе", { themes: site.themes })!, site, "ru", false)).toEqual({ url: "https://mybook.kz/kniga", kind: "example" });
+    expect(bookLink(findRecipient("себе", { themes: site.themes })!, { ...site, themeLandings: { autobiography: "avtobiografiya" } }, "kk", false)?.url).toBe("https://mybook.kz/kk/kniga/avtobiografiya");
+    expect(bookLink(findRecipient("своя книга с нуля", { themes: site.themes })!, { ...site, registrationOpen: true }, "ru", false)?.url).toBe("https://mybook.kz/register?theme=blank");
+    // «Бабушке» — тема «маме», своей страницы нет: страница этой темы.
+    expect(bookLink(findRecipient("бабушке", { themes: site.themes })!, { ...site, themeLandings: { mom: "kniga-mame" } }, "ru", false)?.url).toBe("https://mybook.kz/kniga/kniga-mame");
+    // Тема, которой сайт не знает, — без ссылки.
+    expect(bookLink(findRecipient("себе", { themes: ["love", "mom"] })!, site, "ru", false)).toBeNull();
   });
 });
 
@@ -184,6 +191,18 @@ describe("бот: цены только из тарифов", () => {
     expect(pricesOutsideCatalog("Книга 40 000 ₸, сегодня 20 000", catalog)).toEqual(["40 000 ₸", "20 000"]);
     expect(pricesOutsideCatalog("Скидка 25%", catalog)).toEqual(["25%"]);
     expect(pricesOutsideCatalog("Печатная — {цена.печатная}, это 30 000 ₸; печать 5–7 дней, к 8 марта", catalog)).toEqual([]);
+  });
+
+  it("акция — проценты и слова; суммы в тенге (точная цена со скидкой) — ошибка", () => {
+    expect(promoAmounts("Сегодня скидка 25% до конца дня, до 31.12.2026")).toEqual([]);
+    expect(promoAmounts("Сегодня 20 000 вместо 40 000")).toEqual(["20 000", "40 000"]);
+    expect(promoAmounts("Всего 500 ₸ за упаковку")).toEqual(["500 ₸"]);
+    expect(promoAmounts("Бүгін 29к теңге")).toEqual(["29к"]);
+  });
+
+  it("строки ответа с пустой переменной выпадают, пустые строки не множатся", () => {
+    expect(fillFaqLines("А — {x}.\nБ — {y}.\n{акция}\nКонец", { x: "1 ₸", y: "", акция: "" })).toBe("А — 1 ₸.\nКонец");
+    expect(fillFaqLines("Цена — {x}.", { x: "1 ₸", акция: "Акция!" }, { appendPromo: true })).toBe("Цена — 1 ₸.\nАкция!");
   });
 });
 
@@ -242,15 +261,44 @@ function talk(turns: (string | BotInput)[][], e: BotEnv = env()) {
 }
 
 describe("бот: сценарии", () => {
-  it("«Хочу узнать стоимость» (45% первых сообщений): приветствие, ответ о цене без выдуманных цифр и первый вопрос", () => {
+  it("«Хочу узнать стоимость» (45% первых сообщений): приветствие, цены «от» из тарифов и первый вопрос", () => {
     const { replies, state } = talk([["Здравствуйте! Хочу узнать стоимость."]]);
     expect(replies[0]).toContain("Здравствуйте, Айгерим!");
-    expect(replies[0]).toContain("Стоимость зависит от формата книги");
+    expect(replies[0]).toMatch(/Электронная книга — от 9\s900 ₸\./u);
+    expect(replies[0]).toMatch(/Печатная в твёрдой обложке — от 30\s000 ₸\./u);
+    expect(replies[0]).toContain("Точную сумму с учётом акции и доставки менеджер назовёт");
     expect(replies[0]).toContain("Для кого будет книга?");
     expect(replies[0]).toContain("5 — о себе или о близком с его слов (автобиография)");
     expect(replies[0]).toContain("6 — своя книга с нуля");
-    expect(replies[0]).not.toMatch(/\d{2}\s?\d{3}/);
+    // Только цены из тарифов: ни скидочных сумм, ни скрытого премиума.
+    const amounts = [...replies[0]!.matchAll(/(\d[\d\s]*\d)\s₸/gu)].map((m) => Number(m[1].replace(/\D/g, "")));
+    expect(amounts).toEqual([9900, 30000]);
     expect(state).toMatchObject({ phase: "active", asking: "recipient", faq: ["price"], lang: "ru" });
+  });
+
+  it("цена: акция из настроек — строкой к ответу, по-казахски — казахская (пустая — русская); без акции строки нет", () => {
+    const promo = { ...defaultBotConfig, promo: { ru: "Сегодня до конца дня скидка 25%.", kk: "Бүгін күн соңына дейін 25% жеңілдік." } };
+    const ru = talk([["Сколько стоит?"]], env({ config: promo })).replies[0]!;
+    expect(ru).toMatch(/от 30\s000 ₸\.\nСегодня до конца дня скидка 25%\.\nТочную сумму/u);
+    const kk = talk([["Сәлеметсіз бе, бағасы қанша?"]], env({ config: promo })).replies[0]!;
+    expect(kk).toContain("Бүгін күн соңына дейін 25% жеңілдік.");
+    expect(kk).toMatch(/Қатты мұқабалы кітаптың бастапқы бағасы — 30\s000 ₸/u);
+    expect(kk).not.toContain("Сегодня");
+    const kkFallback = talk([["Сәлеметсіз бе, бағасы қанша?"]], env({ config: { ...promo, promo: { ru: "Скидка 25% до пятницы.", kk: "" } } })).replies[0]!;
+    expect(kkFallback).toContain("Скидка 25% до пятницы.");
+    // Свой шаблон владельца без {акция} — акция всё равно добавляется к ответу о цене.
+    const own = { ...promo, faq: { ...promo.faq, price: { on: true, text: { ru: "Книга — от {цена.печатная}.", kk: "" } } } };
+    expect(talk([["Сколько стоит?"]], env({ config: own })).replies[0]).toMatch(/Книга — от 30\s000 ₸\.\nСегодня до конца дня скидка 25%\./u);
+    const none = talk([["Сколько стоит?"]]).replies[0]!;
+    expect(none).toMatch(/от 30\s000 ₸\.\nТочную сумму/u);
+  });
+
+  it("цена: скрытый или снятый тариф не называется — строка выпадает целиком", () => {
+    const noDigital = { ...catalog, plans: catalog.plans.filter((p) => p.id !== "digital") };
+    const r = talk([["Сколько стоит?"]], env({ catalog: noDigital })).replies[0]!;
+    expect(r).not.toContain("Электронная книга");
+    expect(r).toMatch(/Печатная в твёрдой обложке — от 30\s000 ₸\./u);
+    expect(r).not.toMatch(/от\s*\./u);
   });
 
   it("всё в одном сообщении: заполняет три поля, подтверждает, спрашивает только формат и даёт пример книги", () => {

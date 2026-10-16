@@ -194,7 +194,8 @@ describe("messaging: настройки, уведомления, живое об
     };
     const settings = new MemSettings<"bot.mode" | "bot.config" | "crm.workHours">({ "crm.workHours": '{"days":[1,2,3,4,5],"from":"10:00","to":"18:00"}' });
     const bot = crmBotSettings({ settings, schedule, fields: new MemFieldsReader({ deal: dealFields }), site });
-    expect(await bot.mode()).toBe("off");
+    // Режим не задан — по умолчанию «всегда» (решение владельца 17.10).
+    expect(await bot.mode()).toBe("always");
     expect((await bot.config()).questions.length).toBeGreaterThan(0);
     expect(await bot.isWorkTime(new Date("2026-10-14T03:00:00Z"))).toBe(false);
     expect(await bot.dealFields()).toEqual(dealFields);

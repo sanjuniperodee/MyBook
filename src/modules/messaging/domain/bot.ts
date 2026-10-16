@@ -11,6 +11,8 @@ export type { BotConfig } from "@/modules/messaging/domain/botConfig";
 export type BotMode = "off" | "always" | "off_hours" | "fallback";
 export const BOT_MODES: readonly BotMode[] = ["off", "fallback", "off_hours", "always"];
 export const isBotMode = (v: string): v is BotMode => (BOT_MODES as readonly string[]).includes(v);
+/** Режим, пока владелец его не выбрал: «всегда сразу» (решение владельца 17.10); остальные — выбор в админке. */
+export const DEFAULT_BOT_MODE: BotMode = "always";
 /** bot_step: null — бот не работал, N — задаёт вопрос N, -1 — закончил, передал человеку или его остановили. */
 export const BOT_DONE = -1;
 

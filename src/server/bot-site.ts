@@ -7,8 +7,8 @@ import type { BotSiteInfo } from "@/modules/messaging";
 import { ensureCatalog } from "./catalog";
 
 /**
- * Темы, которые бот может предложить в «для кого». autobiography и blank (docs/features/book-modes.md) появятся в
- * списке сами, когда сайт начнёт их понимать (isThemeId), — до этого бот их не предлагает.
+ * Виды книг, которые бот предлагает в «для кого» (lib/content/kinds.ts): подарки по темам, «Автобиография»
+ * (autobiography) и «Вручную — своя книга» (blank). Тема, которой сайт не знает (isThemeId), не предлагается.
  */
 const BOT_THEMES = ["love", "mom", "dad", "friend", "autobiography", "blank"];
 
@@ -25,6 +25,10 @@ export const botSiteInfo: BotSiteInfo = {
   },
   async site() {
     await ensureCatalog();
-    return { url: env.appUrl, registrationOpen: registrationOpen(), themes: BOT_THEMES.filter((t) => isThemeId(t)), landings: landings.map((l) => l.slug) };
+    // Первая посадочная страница каждого вида книги: туда бот ведёт, когда страницы под получателя нет (автобиография,
+    // своя книга, «бабушке»); у вида без своей страницы — каталог примеров /kniga.
+    const themeLandings: Record<string, string> = {};
+    for (const l of landings) themeLandings[l.theme] ??= l.slug;
+    return { url: env.appUrl, registrationOpen: registrationOpen(), themes: BOT_THEMES.filter((t) => isThemeId(t)), landings: landings.map((l) => l.slug), themeLandings };
   },
 };

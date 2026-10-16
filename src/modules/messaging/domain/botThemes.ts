@@ -158,15 +158,24 @@ export function findRecipient(text: string, opts: { themes: readonly string[]; m
 export const themeLabel = (theme: string, lang: BotLang) => MENU.find((m) => m.theme === theme)?.label[lang] ?? theme;
 
 /**
- * Ссылка для клиента: регистрация открыта — сразу начать книгу этой темы; закрыта — посадочная страница-пример (если она
- * есть); клиент уже с аккаунтом — новая книга в кабинете. Только адрес своего сайта.
+ * Ссылка для клиента: регистрация открыта — сразу начать книгу этой темы; закрыта (решение владельца 17.10) — посадочная
+ * страница-пример: по получателю («мужу» → /kniga/podarok-muzhu), иначе первая страница этого вида книги
+ * (themeLandings: тема → slug), иначе каталог примеров /kniga; клиент уже с аккаунтом — новая книга в кабинете.
+ * Доступ в кабинет при закрытой регистрации выдаёт менеджер или оплаченный счёт из чата. Только адрес своего сайта.
  */
-export function bookLink(r: Recipient, site: { url: string; registrationOpen: boolean; landings: readonly string[] }, lang: BotLang, knownClient: boolean): { url: string; kind: "start" | "example" } | null {
+export function bookLink(
+  r: Recipient,
+  site: { url: string; registrationOpen: boolean; landings: readonly string[]; themeLandings?: Readonly<Record<string, string>> },
+  lang: BotLang,
+  knownClient: boolean,
+): { url: string; kind: "start" | "example" } | null {
   const base = site.url.replace(/\/+$/, "");
   if (!/^https?:\/\//.test(base)) return null;
   const prefix = lang === "kk" ? "/kk" : "";
   if (r.theme && knownClient) return { url: `${base}${prefix}/books/new?theme=${r.theme}`, kind: "start" };
   if (r.theme && site.registrationOpen) return { url: `${base}${prefix}/register?theme=${r.theme}`, kind: "start" };
-  if (r.slug && site.landings.includes(r.slug)) return { url: `${base}${prefix}/kniga/${r.slug}`, kind: "example" };
+  const slug = r.slug && site.landings.includes(r.slug) ? r.slug : r.theme ? site.themeLandings?.[r.theme] : undefined;
+  if (slug) return { url: `${base}${prefix}/kniga/${slug}`, kind: "example" };
+  if (r.theme) return { url: `${base}${prefix}/kniga`, kind: "example" };
   return null;
 }

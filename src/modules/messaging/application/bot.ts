@@ -3,6 +3,8 @@ import { phoneTail } from "@/shared/domain/phone";
 import {
   BOT_DONE,
   abandonBot,
+  channelLabel,
+  preview,
   botChannelOf,
   botSummary,
   botTurn,
@@ -79,9 +81,11 @@ export class QualifierBot {
       return { quiet: true };
     }
     if (state?.phase === "waiting") {
-      // Пауза сдвигается с каждым сообщением; срок ожидания менеджера (fallback) — нет.
+      // Пауза сдвигается с каждым сообщением; срок ожидания менеджера (fallback) — нет. Пока бот ждёт только паузу,
+      // о первом сообщении менеджер уже знает — серия «Здравствуйте / хочу узнать цену» не даёт уведомления на каждое;
+      // пока бот ждёт ответа человека (fallback), уведомления идут как обычно.
       await this.later(conv.id, new Date(Math.max(rec?.dueAt?.getTime() ?? 0, now.getTime() + BOT_PAUSE_MS)));
-      return { quiet: false };
+      return { quiet: !state.waitHuman };
     }
     if (state) return { quiet: false };
     // Диалог, начатый прежней версией бота (без состояния), не продолжаем: вопросы могли уйти поверх человека.
@@ -106,7 +110,8 @@ export class QualifierBot {
       await this.skip(conv, fresh, null, reason);
       return { quiet: false };
     }
-    const due = new Date(now.getTime() + (mode === "fallback" && workTime ? config.waitMinutes * 60_000 : BOT_PAUSE_MS));
+    fresh.waitHuman = mode === "fallback" && workTime;
+    const due = new Date(now.getTime() + (fresh.waitHuman ? config.waitMinutes * 60_000 : BOT_PAUSE_MS));
     if (await this.d.store.save(conv.id, null, { botStep: null, state: fresh, dueAt: due })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
     return { quiet: false };
   }
@@ -191,6 +196,15 @@ export class QualifierBot {
       const reason = await this.gate(conv, state, inputs, mode, now);
       if (reason) {
         await this.skip(conv, state, state.version, reason);
+        // Пока бот ждал паузу, о сообщениях после первого менеджер не узнавал — раз бот молчит, одно уведомление о них.
+        const later = state.waitHuman ? [] : inputs.slice(1);
+        if (later.length)
+          await this.d.notifier.notify(conv.assigneeId, "chats.view", {
+            kind: "message",
+            title: `${conv.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
+            body: preview(later.map((i) => i.text).join(" · ")),
+            link: `/admin/chats?c=${conv.id}`,
+          });
         return false;
       }
     }
@@ -222,6 +236,12 @@ export class QualifierBot {
     });
     if (!saved) return true;
     await this.apply(conv, state, turn, fields);
+    if (!turn.done) {
+      // Клиент написал, пока бот думал (ход уже прочитал входящие и сдвинул срок на «клиент замолчал»), — новое
+      // сообщение не ждёт 30 минут: следующий ход после обычной паузы.
+      const unseen = (await this.d.store.incoming(conversationId, new Date(turn.state.since))).filter((i) => !turn.state.seen.includes(i.id));
+      if (unseen.length) await this.later(conversationId, new Date(Math.max(now.getTime(), ...unseen.map((i) => new Date(i.at).getTime())) + BOT_PAUSE_MS));
+    }
     return false;
   }
 

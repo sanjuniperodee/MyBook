@@ -7,7 +7,7 @@ import { executor } from "@/shared/infrastructure/database";
 import { nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { storeTimeZone } from "@/shared/domain/time";
 import type { BotSettings, BotTimers, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier, Tasks } from "../application";
-import { GOWA_CHANNEL, isBotMode, type BotCatalog } from "../domain";
+import { DEFAULT_BOT_MODE, GOWA_CHANNEL, isBotMode, type BotCatalog } from "../domain";
 import type { EmailChannel } from "./email";
 import { GowaError, type GowaClient } from "./gowa";
 import { WazzupError, type WazzupClient } from "./wazzup";
@@ -79,7 +79,7 @@ export const realtimeUpdates = (live: LiveFeed): LiveUpdates => ({
 /** Что бот берёт с сайта: цены и сроки (действующий каталог), адрес, регистрация, темы книг, посадочные страницы. */
 export interface BotSiteInfo {
   catalog(): Promise<BotCatalog>;
-  site(): Promise<{ url: string; registrationOpen: boolean; themes: string[]; landings: string[] }>;
+  site(): Promise<{ url: string; registrationOpen: boolean; themes: string[]; landings: string[]; themeLandings?: Record<string, string> }>;
 }
 
 /**
@@ -89,6 +89,8 @@ export interface BotSiteInfo {
 export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config" | "crm.workHours">; schedule: WorkSchedule; fields: CustomFieldsReader; site: BotSiteInfo }): BotSettings => ({
   mode: async () => {
     const v = await deps.settings.get("bot.mode");
+    // Не задан — режим по умолчанию («всегда»); испорчен — выключен, чтобы бот не писал клиентам по ошибке.
+    if (!v) return DEFAULT_BOT_MODE;
     return isBotMode(v) ? v : "off";
   },
   config: async () => parseBotConfig(await deps.settings.get("bot.config")),

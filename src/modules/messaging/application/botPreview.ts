@@ -43,7 +43,7 @@ export interface BotPreviewResult {
  */
 export function botPreview(
   input: BotPreviewInput,
-  ctx: { fields: DealField[]; catalog: BotCatalog; site: { url: string; registrationOpen: boolean; themes: string[]; landings: string[] }; now: Date; nextWorkStart: Date | null; tz: string },
+  ctx: { fields: DealField[]; catalog: BotCatalog; site: { url: string; registrationOpen: boolean; themes: string[]; landings: string[]; themeLandings?: Record<string, string> }; now: Date; nextWorkStart: Date | null; tz: string },
 ): BotPreviewResult {
   let state = newBotState(ctx.now, true);
   const transcript: BotPreviewResult["transcript"] = [];
