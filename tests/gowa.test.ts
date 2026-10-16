@@ -205,7 +205,7 @@ describe("GOWA: чаты и сообщения для загрузки исто�
         return new Response(JSON.stringify(body), { status: 200 });
       },
     );
-    expect(await client.chats(100, 100)).toEqual({ chats: [{ jid: "77011234567@s.whatsapp.net", lastMessageAt: "2026-10-16T04:00:00Z" }], total: 1 });
+    expect(await client.chats(100, 100)).toEqual({ chats: [{ jid: "77011234567@s.whatsapp.net", lastMessageAt: "2026-10-16T04:00:00Z", updatedAt: "" }], total: 1 });
     expect(await client.chatMessages("77011234567@s.whatsapp.net", 0, 200)).toEqual({ messages: [], total: 0 });
     expect(calls).toEqual([
       { url: "http://gowa:3000/chats?limit=100&offset=100", device: "mybooks" },

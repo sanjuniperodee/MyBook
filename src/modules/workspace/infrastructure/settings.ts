@@ -133,6 +133,8 @@ export const settingDefs = {
   "gowa.callbackUrl": { envDefault: "GOWA_CALLBACK_URL" },
   /** Секрет подписи вебхука: сайт сам передаёт его шлюзу при подключении устройства. */
   "gowa.webhookSecret": { secret: true },
+  /** Когда история чатов шлюза последний раз загружалась в CRM (ISO): следующий проход берёт только обновившиеся чаты. */
+  "gowa.historySyncedAt": {},
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;
