@@ -18,7 +18,7 @@ import { ContactActions } from "@/components/admin/ContactActions";
 import { formatDate } from "@/lib/dates";
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
-import { DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
+import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly } from "./sections";
 import { pageId } from "@/server/input";
 
@@ -131,6 +131,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             can={(p) => can(staff, p)}
             emailOf={(email) => contactView(staff, { email }).email}
           />
+          {!deal.clientId && !suggested && deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId) ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
         </aside>
 
         <div className="min-w-0 space-y-5">

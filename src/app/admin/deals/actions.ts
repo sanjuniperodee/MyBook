@@ -14,6 +14,11 @@ import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
 import { MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
+import { env } from "@/config/env";
+import { generateAccessPassword } from "@/lib/access-password";
+import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
+import { IdentityError } from "@/modules/identity/domain";
+import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
 
 export interface DealFormState {
   error?: string;
@@ -375,4 +380,49 @@ export async function deleteViewAction(id: string) {
   if (view.userId !== staff.user.id && !can(staff, "settings.manage")) throw new ForbiddenError();
   await container().sales.savedViews.delete(view.id);
   revalidatePath("/admin/deals");
+}
+
+// ─── клиент из сделки ──────────────────────────────────────────────────────
+
+const fromDealSchema = z.object({
+  name: z.string().trim().min(1, "Укажите имя клиента").max(100),
+  email: z.union([z.literal(""), z.string().trim().email("Проверьте адрес почты").max(200)]).default(""),
+  locale: z.enum(["ru", "kk"]).default("ru"),
+  channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент (канал продаж)"),
+});
+
+export type ClientFromDealState = { error?: string; existingId?: string; done?: { clientId: string; login: string; loginText: string; password: string; message: string } };
+
+/**
+ * Завести аккаунт клиента прямо из сделки: телефон — из сделки (сервер берёт его сам, менеджер мог его и не видеть),
+ * ответственный — ответственный сделки. Сделка и её переписка привязываются к клиенту. Пароль показывается один раз.
+ */
+export async function createClientFromDealAction(dealId: string, _: ClientFromDealState, form: FormData): Promise<ClientFromDealState> {
+  const staff = await assertStaff("clients.create", "deals.edit");
+  const deal = await loadDeal(staff, dealId);
+  if (deal.clientId) return { error: "Сделка уже привязана к клиенту", existingId: deal.clientId };
+  const phone = normalizePhone(deal.contactPhone);
+  if (phone.length < 10) return { error: "В сделке нет номера телефона клиента — добавьте его в контакт сделки" };
+  const parsed = fromDealSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  const password = generateAccessPassword();
+  let account: { clientId: string; login: string };
+  try {
+    account = await container().clients.onboarding.onboardFromDeal(
+      { dealId: deal.id, name: d.name, phone, email: d.email, locale: d.locale, password, channel: d.channel as ManualChannel, assigneeId: deal.assigneeId ?? staff.user.id },
+      { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
+    );
+  } catch (err) {
+    if (IdentityError.is(err)) {
+      if (err.code === "exists") return { error: "Клиент с таким телефоном или почтой уже есть — привяжите сделку к нему", existingId: (err as unknown as { existingId?: string }).existingId };
+      if (err.code === "phone") return { error: "Проверьте номер телефона в сделке" };
+      if (err.code === "email") return { error: "Проверьте адрес почты" };
+    }
+    throw err;
+  }
+  await audit(staff, "client.create", "client", account.clientId, { deal: deal.number, channel: d.channel, fromDeal: true });
+  revalidateDeal(deal.id, account.clientId);
+  const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
+  return { done: { clientId: account.clientId, login: account.login, loginText: displayLogin(account.login), password, message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale }) } };
 }

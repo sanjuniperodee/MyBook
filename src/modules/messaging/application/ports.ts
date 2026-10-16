@@ -26,6 +26,7 @@ export interface ConversationRepository {
   advanceBot(id: string, from: number | null, to: number): Promise<boolean>;
   latestWhatsapp(chatId: string): Promise<Conversation | null>;
   /** Диалоги сделки: назначить ответственного (заявку приняли). */
+  linkClientByDeal(dealId: string, clientId: string): Promise<void>;
   assignByDeal(dealId: string, userId: string): Promise<void>;
   /** Идентификаторы собеседников в диалогах сделки. */
   chatIdsByDeal(dealId: string): Promise<string[]>;

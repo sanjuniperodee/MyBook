@@ -168,6 +168,11 @@ export class Container {
         setAgreedPlan: async (dealId, plan) => void (await this.sales.agreedPlan.set(dealId, plan)),
         tagDeal: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
         addPayment: (input) => this.sales.payments.add(input),
+        // Клиент заведён из сделки: сделка и её переписка привязываются к аккаунту.
+        linkClient: async (dealId, clientId) => {
+          await this.sales.deals.linkClient(dealId, clientId);
+          await this.messaging.chats.linkDealClient(dealId, clientId);
+        },
       },
     }));
   }

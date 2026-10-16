@@ -105,6 +105,10 @@ export class DrizzleConversationRepository implements ConversationRepository {
     return rows.length > 0;
   }
 
+  async linkClientByDeal(dealId: string, clientId: string) {
+    await executor().update(crmConversations).set({ clientId }).where(and(eq(crmConversations.dealId, dealId), isNull(crmConversations.clientId)));
+  }
+
   async assignByDeal(dealId: string, userId: string) {
     await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.dealId, dealId));
   }

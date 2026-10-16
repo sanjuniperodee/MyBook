@@ -28,6 +28,21 @@ export interface OnboardingSales {
   setAgreedPlan(dealId: string, plan: string): Promise<void>;
   tagDeal(dealId: string, tag: string): Promise<void>;
   addPayment(input: { dealId: string; clientId: string; amount: number; createdById: string }): Promise<{ id: string }>;
+  /** Привязать сделку (и её переписку) к аккаунту клиента. */
+  linkClient(dealId: string, clientId: string): Promise<void>;
+}
+
+/** Клиент из сделки: контакт уже есть в сделке, договорённость и деньги — тоже. */
+export interface DealOnboardingInput {
+  dealId: string;
+  name: string;
+  phone: string;
+  email: string;
+  locale: "ru" | "kk";
+  password: string;
+  channel: ManualChannel;
+  /** Ответственный клиента — ответственный сделки. */
+  assigneeId: string;
 }
 
 /** Что менеджер ввёл в форму «Новый клиент» (уже проверено схемой формы). */
@@ -125,6 +140,23 @@ export class ClientOnboardingService {
       tasks++;
     }
     return { clientId: account.id, login: account.login, deal, paymentId, tasks };
+  }
+
+  /**
+   * Клиент прямо из сделки (заявка из WhatsApp, звонок): аккаунт по телефону сделки, профиль с ответственным сделки
+   * и каналом, сделка и её чаты привязываются к клиенту — договорённость, предоплата и переписка остаются в ней.
+   */
+  async onboardFromDeal(input: DealOnboardingInput, actor: Actor): Promise<{ clientId: string; login: string }> {
+    const account = await this.accounts.provisionClient({ name: input.name, phone: input.phone, email: input.email || null, password: input.password, locale: input.locale });
+    const profile = await this.clients.find(account.id);
+    if (profile) {
+      await this.clients.setManager(profile, input.assigneeId);
+      await this.clients.setTags(account.id, ["вручную"]);
+    }
+    await this.clients.setSource(account.id, manualAttribution(input.channel) as Record<string, string>);
+    await this.sales.linkClient(input.dealId, account.id);
+    await this.notes.add(actor, { kind: "note", text: `Заведён аккаунт клиента на сайте: ${input.name}, язык — ${input.locale === "kk" ? "казахский" : "русский"}${input.email ? `, ${input.email}` : ", вход по телефону"}.`, clientId: account.id, dealId: input.dealId });
+    return { clientId: account.id, login: account.login };
   }
 
   /** Сделка «вручную» с суммой договорённости, тарифом и метками; этап по умолчанию — «Взяли в работу». */

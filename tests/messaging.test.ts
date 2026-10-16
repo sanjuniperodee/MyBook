@@ -41,6 +41,7 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Reco
   const notes: string[] = [];
   let seq = 0;
   const conversations: ConversationRepository = {
+    linkClientByDeal: async () => {},
     findById: async (id) => convs.get(id) ?? null,
     findByChat: async (ch, chId, chat) => [...convs.values()].find((c) => c.channel === ch && c.channelId === chId && c.chatId === chat) ?? null,
     create: async (i) => {

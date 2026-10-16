@@ -6,7 +6,9 @@ import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { revealContactAction } from "@/app/admin/crm-actions";
-import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, declineRejectionAction, updateDealAction, type DealFormState } from "../actions";
+import { AccessCard } from "@/app/admin/clients/new/NewClientForm";
+import { channels, manualChannels } from "@/shared/domain/channels";
+import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, declineRejectionAction, updateDealAction, createClientFromDealAction, type ClientFromDealState, type DealFormState } from "../actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, Inbox, Merge, UserRound } from "lucide-react";
@@ -344,5 +346,74 @@ function RevealContact({ dealId, masked, canReveal }: { dealId: string; masked: 
       </div>
       <div>{c.email || "—"}</div>
     </>
+  );
+}
+
+/**
+ * Клиента ещё нет на сайте — завести аккаунт прямо из сделки: телефон берётся из сделки на сервере,
+ * менеджер выбирает имя, язык кабинета и канал. Пароль показывается один раз — его нужно отправить клиенту.
+ */
+export function CreateClientFromDeal({ dealId, name }: { dealId: string; name: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState<ClientFromDealState, FormData>(createClientFromDealAction.bind(null, dealId), {});
+  if (state.done) return <AccessCard login={state.done.loginText} password={state.done.password} message={state.done.message} title="Клиент заведён — отправьте ему доступ" />;
+  if (!open)
+    return (
+      <button type="button" className="btn btn-outline btn-sm w-full" onClick={() => setOpen(true)}>
+        <UserRound className="size-4" /> Создать клиента на сайте
+      </button>
+    );
+  return (
+    <form action={action} className="space-y-3 rounded-2xl border border-line bg-white p-4">
+      <div className="text-sm font-semibold">Новый клиент из сделки</div>
+      <p className="text-xs text-muted">Логин — телефон из сделки. Сделка и переписка привяжутся к клиенту.</p>
+      <Field label="Имя">
+        <input name="name" defaultValue={name} required maxLength={100} className="input h-9 text-sm" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Язык кабинета">
+          <select name="locale" defaultValue="ru" className="input h-9 text-sm">
+            <option value="ru">русский</option>
+            <option value="kk">қазақша</option>
+          </select>
+        </Field>
+        <Field label="Откуда пришёл">
+          <select name="channel" defaultValue="" required className="input h-9 text-sm">
+            <option value="" disabled>
+              выберите
+            </option>
+            {manualChannels.map((k) => (
+              <option key={k} value={k}>
+                {channels[k]}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <Field label="E-mail (необязательно)">
+        <input name="email" type="email" maxLength={200} className="input h-9 text-sm" />
+      </Field>
+      {state.error ? (
+        <p className="text-sm text-red-700">
+          {state.error}
+          {state.existingId ? (
+            <>
+              {" "}
+              <a href={`/admin/clients/${state.existingId}`} className="underline">
+                Открыть клиента
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <button className="btn btn-sm" disabled={pending}>
+          Создать
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
+          Отмена
+        </button>
+      </div>
+    </form>
   );
 }

@@ -283,6 +283,11 @@ export class MessagingService {
   }
 
   /** Заявку приняли — её диалоги переходят к ответственному. */
+  /** Клиента завели из сделки: её диалоги без клиента привязываются к нему (карточка клиента видит переписку). */
+  linkDealClient(dealId: string, clientId: string) {
+    return this.conversations.linkClientByDeal(dealId, clientId);
+  }
+
   assignDealConversations(dealId: string, userId: string) {
     return this.conversations.assignByDeal(dealId, userId);
   }
