@@ -37,6 +37,8 @@ export const settingDefs = {
   "crm.workHours": { default: '{"days":[1,2,3,4,5,6,7],"from":"09:00","to":"21:00"}' },
   /** С какого действия клиента на сайте заводить сделку: off | registered | book_started | book_half | book_ready. */
   "crm.autoDealFrom": { default: "book_started" },
+  /** Через сколько минут не взятая заявка переходит следующему менеджеру по кругу; 0 — не передавать. */
+  "crm.reassignMinutes": { default: "15" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */

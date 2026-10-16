@@ -2,7 +2,7 @@ import "server-only";
 import type { OrderCancelled, OrderPaid, OrderPlaced, PaymentClaimed } from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
-import type { DealCreated, DealStageChanged } from "@/modules/sales";
+import type { DealAssigned, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
@@ -79,6 +79,14 @@ export function registerSubscriptions(c: Container) {
       if (deal?.assigneeId && deal.assigneeId !== e.payload.createdById) await (await notify()).notify([deal.assigneeId], { kind: "deal", title: `Новая сделка №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
     },
     "crm.notify.deal_created",
+  );
+  // Чат идёт за сделкой: новый ответственный получает её переписку, прежний перестаёт её видеть и вести.
+  c.bus.subscribe<DealAssigned>(
+    "sales.deal_assigned",
+    async (e) => {
+      if (e.payload.assigneeId) await c.messaging.chats.assignDealConversations(e.payload.dealId, e.payload.assigneeId);
+    },
+    "crm.chats.follow_deal",
   );
   c.bus.subscribe<DealStageChanged>(
     "sales.deal_stage_changed",

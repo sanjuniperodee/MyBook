@@ -1,7 +1,6 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
-import { crmRoles, orders, users } from "@/shared/infrastructure/db/schema";
-import { usersId } from "@/shared/infrastructure/db/refs";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { orders, users } from "@/shared/infrastructure/db/schema";
 import { phoneKey, normalizePhone } from "@/shared/domain/phone";
 import { toAttribution } from "@/shared/domain/channels";
 import type { SettingsReader, WorkSchedule } from "@/shared/application";
@@ -34,28 +33,51 @@ export const drizzleClients: ClientDirectory = {
 };
 
 /** Настройки CRM, которые читают продажи: «Неразобранное» и с какого действия клиента заводить сделку. */
-export type SalesSettingKey = "crm.unsorted" | "crm.autoDealFrom";
+export type SalesSettingKey = "crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes";
+
+/** По умолчанию не взятая заявка уходит следующему через 15 минут. */
+export const DEFAULT_REASSIGN_MINUTES = 15;
 
 export const crmSalesSettings = (settings: SettingsReader<SalesSettingKey>): SalesSettings => ({
   unsortedEnabled: async () => (await settings.get("crm.unsorted")) !== "off",
   autoDealFrom: async () => (await settings.get("crm.autoDealFrom")) as StageMilestone | "off",
+  async reassignMinutes() {
+    const raw = await settings.get("crm.reassignMinutes");
+    const n = raw === null || raw === undefined || raw === "" ? DEFAULT_REASSIGN_MINUTES : Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.min(Math.floor(n), 24 * 60) : DEFAULT_REASSIGN_MINUTES;
+  },
 });
 
-const lastDealAt = sql`(select max(d.created_at) from crm_deals d where d.assignee_id = ${usersId}) asc nulls first`;
+/** Номер advisory-блокировки раздачи заявок (до конца транзакции). */
+const ROUTING_LOCK = 7_310_453;
 
 /**
- * Следующий менеджер по кругу: активный сотрудник на смене с правом deals.edit (не руководитель),
- * которому дольше всех не доставалась новая сделка. Вне рабочего времени — никому: утром возьмёт первый на смене.
+ * Круг на SQL. Кто в круге: активный сотрудник на смене с правом deals.edit, роль не «Руководитель» (своя роль без ключа —
+ * тоже в круге). Очередь: меньше назначений за сегодня (день — в поясе магазина), при равенстве — кому дольше не назначали.
  */
-export const roundRobinRouter = (schedule: WorkSchedule): StaffRouter => ({
-  async nextRoundRobin() {
-    if (!(await schedule.isWorkTime(new Date()))) return null;
-    const base = and(eq(users.role, "admin"), eq(users.staffDisabled, false), eq(users.onShift, true), sql`'deals.edit' = any(${crmRoles.permissions})`);
-    const [row] = await executor().select({ id: users.id }).from(users).innerJoin(crmRoles, eq(crmRoles.id, users.crmRoleId)).where(and(base, ne(crmRoles.key, "owner"))).orderBy(lastDealAt, asc(users.createdAt)).limit(1);
-    if (row) return row.id;
-    // Роль без ключа (своя) тоже подходит: ne(key,'owner') отсекает null, поэтому проверяем её отдельно.
-    const [custom] = await executor().select({ id: users.id }).from(users).innerJoin(crmRoles, eq(crmRoles.id, users.crmRoleId)).where(and(base, isNull(crmRoles.key))).orderBy(lastDealAt).limit(1);
-    return custom?.id ?? null;
+export const roundRobinRouter = (schedule: WorkSchedule, timeZone: () => string): StaffRouter => ({
+  isWorkTime: () => schedule.isWorkTime(new Date()),
+  async lock() {
+    await executor().execute(sql`select pg_advisory_xact_lock(${ROUTING_LOCK})`);
+  },
+  async next(exclude) {
+    const tz = timeZone();
+    const today = sql`(date_trunc('day', now() at time zone ${tz}) at time zone ${tz})`;
+    const { rows } = await executor().execute<{ id: string }>(sql`
+      select u.id from users u join crm_roles r on r.id = u.crm_role_id
+      where u.role = 'admin' and not u.staff_disabled and u.on_shift
+        and 'deals.edit' = any(r.permissions) and r.key is distinct from 'owner'
+        and not (u.id = any(${`{${exclude.join(",")}}`}::uuid[]))
+      order by
+        (select count(*) from crm_deals d where d.assignee_id = u.id and d.assigned_at >= ${today}) asc,
+        (select max(d.assigned_at) from crm_deals d where d.assignee_id = u.id) asc nulls first,
+        u.created_at asc
+      limit 1`);
+    return rows[0]?.id ?? null;
+  },
+  async isActive(userId) {
+    const [u] = await executor().select({ id: users.id }).from(users).where(and(eq(users.id, userId), eq(users.role, "admin"), eq(users.staffDisabled, false))).limit(1);
+    return !!u;
   },
 });
 

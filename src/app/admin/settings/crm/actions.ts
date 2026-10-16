@@ -14,6 +14,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
   const parsed = z
     .object({
       slaMinutes: z.coerce.number().int().min(1, "Норматив ответа — от 1 минуты").max(1440),
+      reassignMinutes: z.coerce.number().int().min(0, "Передача дальше — 0 (выключено) или больше").max(1440).default(15),
       from: z.string().refine(isValidTime, "Время начала в формате ЧЧ:ММ"),
       to: z.string().refine(isValidTime, "Время окончания в формате ЧЧ:ММ"),
       autoDealFrom: z.enum(["off", "registered", "book_started", "book_half", "book_ready"]),
@@ -27,6 +28,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
   await saveSettings(
     {
       "crm.slaMinutes": String(d.slaMinutes),
+      "crm.reassignMinutes": String(d.reassignMinutes),
       "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to }),
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",

@@ -59,6 +59,10 @@ export const crmDeals = pgTable(
     contactEmail: text("contact_email"),
     source: text("source").$type<DealSource>().notNull().default("manual"),
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    /** Когда назначен нынешний ответственный: очередь круга (кому меньше за сегодня) и «нет ответа N минут». */
+    assignedAt: timestamp("assigned_at", { withTimezone: true }),
+    /** Кому круг уже отдавал эту заявку: при «нет ответа» она идёт следующему, а не по второму разу тем же. */
+    routeTried: uuid("route_tried").array().notNull().default(sql`'{}'::uuid[]`),
     orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
     lostReason: text("lost_reason"),
     /** «Неразобранное»: заявка с нового номера ждёт, пока менеджер её примет или отклонит. */
@@ -78,7 +82,7 @@ export const crmDeals = pgTable(
     closedAt: timestamp("closed_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId)],
+  (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId), index("crm_deals_assigned_idx").on(t.assignedAt)],
 );
 
 /**

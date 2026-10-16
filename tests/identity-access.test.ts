@@ -398,6 +398,8 @@ describe("Access: роли и команда", () => {
     expect(anna.can("deals.view")).toBe(true);
     expect(anna.can("orders.view")).toBe(false);
     expect(anna.canSee("anna") && anna.canSee(null) && !anna.canSee("boss")).toBe(true);
+    // Неразобранные «только свои» видят, но себе не берут: работать можно только со своими.
+    expect([anna.canWork("anna"), anna.canWork(null), anna.canWork("boss")]).toEqual([true, false, false]);
     expect(anna.contacts({ phone: "+77011234567", email: "aliya@mail.kz" })).toEqual({ phone: "+7 701 ••• •• 67", email: "al•••@mail.kz", masked: true });
     const legacy = (await resolver.resolve({ id: "old", role: "admin", staffDisabled: false, crmRoleId: null, twoFactorEnabled: false }))!;
     expect(legacy.isOwner && legacy.can("team.manage")).toBe(true);

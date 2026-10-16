@@ -322,15 +322,16 @@ export class SiteChatService {
   }
 
   /**
-   * «Перезвоните мне»: сделка (открытая по телефону или новая), задача «позвонить» через 15 минут
-   * на ответственного и уведомление — чтобы заявка не потерялась.
+   * «Перезвоните мне»: сделка (открытая по телефону или новая — её ответственного выбирает круг), задача «позвонить»
+   * через 15 минут на ответственного сделки и уведомление — чтобы заявка не потерялась.
    */
   async requestCallback(input: { name: string; phone: string; comment?: string; page?: string; userId?: string | null }) {
     const phone = normalizePhone(input.phone);
     const clientId = input.userId ?? (await this.sales.findClientByPhone(phone));
     const who = input.name || formatPhone(phone);
     const deal = (await this.sales.findOpenDeal({ clientId, phone })) ?? (await this.sales.createDeal({ title: `Перезвонить: ${who}`, channel: "site", source: "site", clientId, contactName: input.name, contactPhone: phone, contactEmail: null, unsorted: true, utm: null }));
-    const assigneeId = deal.assigneeId ?? (await this.sales.nextRoundRobin());
+    // Ответственного новой сделке ставит круг при создании; вне рабочего времени — утром, а задачу видят все.
+    const assigneeId = deal.assigneeId;
     const note = [`📞 Заявка на обратный звонок с сайта: ${input.name || "без имени"}, ${formatPhone(phone)}`, input.comment ? `Комментарий: ${input.comment}` : "", input.page ? `Страница: ${input.page}` : ""].filter(Boolean).join("\n");
     await this.sales.note(deal, note);
     await this.tasks.create({ title: `Перезвонить ${who} — заявка с сайта`, kind: "call", dueAt: new Date(this.clock.now().getTime() + 15 * 60_000), dealId: deal.id, clientId: deal.clientId, assigneeId });

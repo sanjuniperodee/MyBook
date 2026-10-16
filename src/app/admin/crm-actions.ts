@@ -2,10 +2,11 @@
 
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
+import { runInBackground } from "@/shared/infrastructure/background";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
+import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
@@ -89,7 +90,7 @@ export async function callAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("calls.make");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertVisible(staff, c.assigneeId);
+  assertWorkable(staff, c.assigneeId);
   try {
     await container().telephony.phone.clickToCall(staff.user.sipExtension, normalizePhone(c.phone));
   } catch (err) {
@@ -104,7 +105,7 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertVisible(staff, c.assigneeId);
+  assertWorkable(staff, c.assigneeId);
   // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
   const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
@@ -118,7 +119,7 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
-  assertVisible(staff, c.assigneeId);
+  assertWorkable(staff, c.assigneeId);
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
   const r = await container().messaging.email.sendToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
@@ -156,6 +157,8 @@ export async function setShiftAction(rawOnShift: boolean) {
   const onShift = z.boolean().parse(rawOnShift);
   await container().access.shifts.set(staff.user.id, onShift);
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
+  // Вышел на смену — ждущие заявки (ночные, «никого не было») раздаются сразу, не дожидаясь прохода планировщика.
+  if (onShift) runInBackground(() => container().sales.routing.run());
 }
 
 /** Свои поля клиента (раздел «Свои поля» → поля клиента). */

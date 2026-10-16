@@ -91,11 +91,11 @@ describe("Телефония", () => {
 });
 
 describe("Отдел продаж", () => {
-  it("сохраняет график, норматив, автосделки, скидку и виджет; ошибки — первым сообщением схемы", async () => {
-    const ok = { slaMinutes: "15", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["5", "1", "1", "9"], unsorted: "on", widgetChat: "on" };
+  it("сохраняет график, норматив, передачу не взятой заявки, автосделки, скидку и виджет; ошибки — первым сообщением схемы", async () => {
+    const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["5", "1", "1", "9"], unsorted: "on", widgetChat: "on" };
     expect(await actions.saveCrmSettingsAction({}, form(ok))).toEqual({ ok: "Сохранено" });
     expect(w.saved).toEqual([
-      { "crm.slaMinutes": "15", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.maxDiscount": "10", "widget.enabled": "off", "widget.chat": "on" },
+      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.maxDiscount": "10", "widget.enabled": "off", "widget.chat": "on" },
     ]);
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, slaMinutes: "0" }))).toEqual({ error: "Норматив ответа — от 1 минуты" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, from: "9" }))).toEqual({ error: "Время начала в формате ЧЧ:ММ" });

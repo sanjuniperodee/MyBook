@@ -2,7 +2,7 @@ import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
@@ -146,7 +146,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   Открыть в чатах
                 </Link>
               </div>
-              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} ai={ai && can(staff, "chats.send")} timeZone={storeTimeZone()} />
+              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send") && canWork(staff, deal.assigneeId)} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") && canWork(staff, deal.assigneeId) ? offers : null} mentionables={mentionables} ai={ai && can(staff, "chats.send") && canWork(staff, deal.assigneeId)} timeZone={storeTimeZone()} />
             </section>
           ) : null}
 

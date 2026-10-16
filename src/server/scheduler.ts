@@ -43,6 +43,9 @@ async function crmTick() {
     if (!locked) return;
     const fired = await container().automation.engine.runScheduled();
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
+    // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
+    const routed = await container().sales.routing.run();
+    if (routed) console.log(`[scheduler] crm leads routed=${routed}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
     const mails = await container().messaging.email.pollImap();
     if (mails) console.log(`[scheduler] crm emails=${mails}`);

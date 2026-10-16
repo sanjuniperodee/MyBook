@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks, crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -27,6 +27,8 @@ function toDomain(r: Row): Deal {
     extraPhones: r.extraPhones,
     amount: r.amount,
     assigneeId: r.assigneeId,
+    assignedAt: r.assignedAt,
+    routeTried: r.routeTried,
     createdById: r.createdById,
     orderId: r.orderId,
     lostReason: r.lostReason,
@@ -91,6 +93,8 @@ export class DrizzleDealRepository implements DealRepository {
       extraPhones: s.extraPhones,
       amount: s.amount,
       assigneeId: s.assigneeId,
+      assignedAt: s.assignedAt,
+      routeTried: s.routeTried,
       orderId: s.orderId,
       lostReason: s.lostReason,
       unsorted: s.unsorted,
@@ -113,6 +117,28 @@ export class DrizzleDealRepository implements DealRepository {
       .insert(crmDeals)
       .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, ...this.columns(deal) });
     await this.writeJournal(deal);
+  }
+
+  async waitingForRoute(limit: number) {
+    const rows = await executor()
+      .select({ id: crmDeals.id })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "open"), isNull(crmDeals.assigneeId)))
+      .orderBy(asc(crmDeals.createdAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  async notTakenSince(before: Date, limit: number) {
+    const rows = await executor()
+      .select({ id: crmDeals.id })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNotNull(crmDeals.assigneeId), lt(crmDeals.assignedAt, before)))
+      .orderBy(asc(crmDeals.assignedAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
   }
 
   async save(deal: Deal) {

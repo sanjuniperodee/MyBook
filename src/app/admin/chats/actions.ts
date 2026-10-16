@@ -5,7 +5,7 @@ import { sourceFromChannel } from "@/modules/sales";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
+import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, ForbiddenError, type Staff } from "@/server/access";
 import { channelLabel } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
 import { notifyMentions } from "@/modules/workspace";
@@ -21,9 +21,16 @@ async function loadConv(staff: Staff, id: string) {
   return conv;
 }
 
+/** Диалог, который сотрудник ведёт сам: свой или любой у роли «все записи». Ничей менеджер себе не берёт — его раздаёт круг. */
+async function loadOwnConv(staff: Staff, id: string) {
+  const conv = await loadConv(staff, id);
+  assertWorkable(staff, conv.assigneeId);
+  return conv;
+}
+
 export async function sendMessageAction(conversationId: string, text: string) {
   const staff = await assertStaff("chats.view", "chats.send");
-  const conv = await loadConv(staff, conversationId);
+  const conv = await loadOwnConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
   const msg = await container().messaging.chats.send(conv.id, body, staff.user.id);
   revalidatePath("/admin/chats");
@@ -33,12 +40,13 @@ export async function sendMessageAction(conversationId: string, text: string) {
 export async function markReadAction(conversationId: string) {
   const staff = await assertStaff("chats.view");
   const conv = await loadConv(staff, conversationId);
-  if (conv.unread) await container().messaging.chats.markRead(conv.id);
+  // Ничей диалог менеджер только смотрит: «прочитано» за ответственного не ставит.
+  if (conv.unread && canWork(staff, conv.assigneeId)) await container().messaging.chats.markRead(conv.id);
 }
 
 export async function assignConversationAction(conversationId: string, userId: string | null) {
   const staff = await assertStaff("chats.view", "chats.send");
-  const conv = await loadConv(staff, conversationId);
+  const conv = await loadOwnConv(staff, conversationId);
   const next = userId ? uuid.parse(userId) : null;
   if (!canAssignOthers(staff) && next !== staff.user.id) throw new ForbiddenError();
   if (next) {
@@ -53,14 +61,14 @@ export async function assignConversationAction(conversationId: string, userId: s
 /** Закрыть диалог (вопрос решён) — он уйдёт из «Открытых» и вернётся сам при новом сообщении клиента. */
 export async function setConversationStatusAction(conversationId: string, status: "open" | "closed") {
   const staff = await assertStaff("chats.view", "chats.send");
-  const conv = await loadConv(staff, conversationId);
+  const conv = await loadOwnConv(staff, conversationId);
   await container().messaging.chats.setStatus(conv.id, z.enum(["open", "closed"]).parse(status));
   revalidatePath("/admin/chats");
 }
 
 export async function createDealFromChatAction(conversationId: string) {
   const staff = await assertStaff("chats.view", "deals.edit");
-  const conv = await loadConv(staff, conversationId);
+  const conv = await loadOwnConv(staff, conversationId);
   if (conv.dealId) return { id: conv.dealId };
   const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
   const deal = await container().sales.deals.create({
@@ -97,7 +105,7 @@ const offerSchema = z.discriminatedUnion("kind", [
 /** Ссылка на оплату / на книгу / персональная скидка — одной кнопкой из чата. */
 export async function sendOfferAction(conversationId: string, request: OfferRequest): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("chats.view", "chats.send");
-  const conv = await loadConv(staff, conversationId);
+  const conv = await loadOwnConv(staff, conversationId);
   const req = offerSchema.parse(request);
   if (req.kind === "discount" && !can(staff, "promo.give")) throw new ForbiddenError();
   let offer: { text: string; promo?: string };

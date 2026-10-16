@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
+import { assertStaff, assertWorkable, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
@@ -20,10 +20,11 @@ export interface DealFormState {
 }
 
 
+/** Сделка, с которой сотрудник может работать: своя или любая у роли «все записи» (неразобранные себе не берут). */
 async function loadDeal(staff: Staff, id: string) {
   const deal = await container().sales.deals.findById(uuid.parse(id));
   if (!deal) throw new Error("Сделка не найдена");
-  assertVisible(staff, deal.assigneeId);
+  assertWorkable(staff, deal.assigneeId);
   return deal;
 }
 
@@ -120,7 +121,7 @@ export async function moveDealAction(dealId: string, stageId: string, lostReason
   if (!stage) throw new Error("Этап не найден");
   if (stage.kind === "lost" && !lostReason?.trim()) throw new Error("Укажите причину отказа");
   await container().sales.deals.move(deal.id, stage.id, staff.user.id, lostReason?.trim().slice(0, 200));
-  // Сделку взял в работу тот, кто её двигает, если она была ничья.
+  // Ничью сделку двигает только руководитель — она становится его (менеджеры ничьи себе не берут).
   if (!deal.assigneeId) await container().sales.deals.assign(deal.id, staff.user.id);
   revalidateDeal(deal.id, deal.clientId);
 }
@@ -308,7 +309,7 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
   const deals = new Map((await container().sales.deals.findByIds(list)).map((d) => [d.id, d]));
   for (const id of list) {
     const deal = deals.get(id);
-    if (!deal || (staff.scope !== "all" && deal.assigneeId && deal.assigneeId !== staff.user.id)) {
+    if (!deal || (staff.scope !== "all" && deal.assigneeId !== staff.user.id)) {
       skipped++;
       continue;
     }

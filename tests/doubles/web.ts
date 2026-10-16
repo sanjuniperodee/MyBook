@@ -56,7 +56,9 @@ const clientViewer = Role.restore("r-clients", { name: "Клиенты", scope: 
 const clientEditor = Role.restore("r-clients-edit", { name: "Редактор книг", scope: "all", permissions: ["clients.view", "clients.edit"], key: null });
 /** Переписка: только свои диалоги (scope own). */
 const chatAgent = Role.restore("r-chats", { name: "Чаты", scope: "own", permissions: ["chats.view"], key: null });
-const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent];
+/** Менеджер продаж: свои сделки и чаты, пишет клиентам (scope own). */
+const salesAgent = Role.restore("r-sales", { name: "Менеджер продаж", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send"], key: "manager" });
+const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent];
 
 const roles: RoleRepository = {
   nextId: () => "r-new",
@@ -89,6 +91,8 @@ export const vera = person("vera", { role: "admin", crmRoleId: clientViewer.id }
 export const egor = person("egor", { role: "admin", crmRoleId: clientEditor.id });
 /** Видит переписку (chats.view), но только свои диалоги. */
 export const dina = person("dina", { role: "admin", crmRoleId: chatAgent.id });
+/** Менеджер продаж «только свои»: ведёт свои сделки и чаты, неразобранные себе не берёт. */
+export const lena = person("lena", { role: "admin", crmRoleId: salesAgent.id });
 export const withTwoFactor = { totpEnabledAt: new Date(), totpSecret: "secret" };
 
 const sessions = new Map<string, User>();

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import type { UnitOfWork } from "@/shared/application";
 import { Deal, Funnel, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
-import { DealsService, SiteFunnelService, type ClientDirectory } from "@/modules/sales/application";
+import { DealsService, LeadRoutingService, SiteFunnelService, type ClientDirectory } from "@/modules/sales/application";
 
 const now = new Date("2026-10-01T10:00:00Z");
 const stages: Stage[] = [
@@ -106,6 +106,20 @@ class MemDeals implements DealRepository {
   money = new Set<string>();
   hasMoney = async (id: string) => this.money.has(id);
   addNote = async () => {};
+  waitingForRoute = async () => [...this.rows.values()].filter((r) => !r.assigneeId && funnel.stage(r.stageId)?.kind === "open").map((r) => r.id);
+  notTakenSince = async (before: Date) => [...this.rows.values()].filter((r) => r.unsorted && r.assigneeId && r.assignedAt && r.assignedAt < before).map((r) => r.id);
+}
+
+/** Круг в памяти: очередь менеджеров по порядку, кто на смене и рабочее ли время — переключаются в тесте. */
+class MemRouter {
+  workTime = true;
+  queue: string[] = [];
+  active = new Set<string>(["m1"]);
+  locks = 0;
+  isWorkTime = async () => this.workTime;
+  lock = async () => void this.locks++;
+  next = async (exclude: readonly string[]) => this.queue.find((m) => !exclude.includes(m)) ?? null;
+  isActive = async (id: string) => this.active.has(id);
 }
 
 class FakeUow implements UnitOfWork {
@@ -131,12 +145,86 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
     profile: async (id) => (id === "c1" ? { name: "Айгерим", email: "a@test.kz", phone: "77011234567", managerId: "m1", utm: { source: "instagram" } } : null),
     adoptManager: async () => {},
   };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom };
-  const service = new DealsService(deals, funnels, clients, settings, { nextRoundRobin: async () => null }, uow, { now: () => now });
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15 };
+  const router = new MemRouter();
+  const clock = { at: now, now: () => clock.at };
+  const service = new DealsService(deals, funnels, clients, settings, router, uow, clock);
   const books = { progress: async () => ({ answered: 26, total: 40 }) };
-  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, { info: () => {}, warn: () => {}, error: () => {} }, paid);
-  return { deals, uow, service, site };
+  const logger = { info: () => {}, warn: () => {}, error: () => {} };
+  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, paid);
+  const sent: { to: string; title: string }[] = [];
+  const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
+  const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
+  return { deals, uow, service, site, router, routing, clock, sent };
 }
+
+describe("Круг: распределение заявок", () => {
+  const lead = { title: "WhatsApp", source: "whatsapp" as const, contactPhone: "77001112233", unsorted: true };
+
+  it("новая заявка сразу — первому в очереди, под блокировкой; в сделке помнится, кому досталась", async () => {
+    const { service, router } = setup();
+    router.queue = ["m2", "m3"];
+    const d = await service.create(lead);
+    expect(d).toMatchObject({ assigneeId: "m2", unsorted: true, assignedAt: now, routeTried: ["m2"] });
+    expect(router.locks).toBe(1);
+  });
+
+  it("постоянный клиент — к своему менеджеру, если тот работает; отключён — по кругу", async () => {
+    const { service, router } = setup();
+    router.queue = ["m2"];
+    expect((await service.create({ title: "Сайт", source: "site", clientId: "c1" })).assigneeId).toBe("m1");
+    router.active.clear();
+    const d = await service.create({ title: "Сайт", source: "site", clientId: "c1" });
+    expect(d).toMatchObject({ assigneeId: "m2", routeTried: ["m2"] });
+  });
+
+  it("ночью — без ответственного; утром проход раздаёт и уведомляет", async () => {
+    const { service, routing, router, sent } = setup();
+    router.queue = ["m2"];
+    router.workTime = false;
+    const d = await service.create(lead);
+    expect(d.assigneeId).toBeNull();
+    expect(await routing.run()).toBe(0);
+    router.workTime = true;
+    expect(await routing.run()).toBe(1);
+    expect((await service.findById(d.id))?.assigneeId).toBe("m2");
+    expect(sent).toEqual([{ to: "m2", title: `Новая заявка №${d.number}` }]);
+  });
+
+  it("не взял за 15 минут — следующему, прежнему — уведомление; принятая заявка не уходит", async () => {
+    const { service, routing, router, clock, sent } = setup();
+    router.queue = ["m2", "m3"];
+    const a = await service.create(lead);
+    const b = await service.create({ ...lead, contactPhone: "77001112244" });
+    await service.acceptUnsorted(b.id, "m3");
+    clock.at = new Date(now.getTime() + 14 * 60_000);
+    expect(await routing.run()).toBe(0);
+    clock.at = new Date(now.getTime() + 16 * 60_000);
+    expect(await routing.run()).toBe(1);
+    expect(await service.findById(a.id)).toMatchObject({ assigneeId: "m3", routeTried: ["m2", "m3"], assignedAt: clock.at });
+    expect((await service.findById(b.id))?.assigneeId).toBe("m2");
+    expect(sent.map((s) => s.to)).toEqual(["m3", "m2"]);
+  });
+
+  it("обошла всех — остаётся у последнего, руководителям напоминание, отсчёт заново", async () => {
+    const { service, routing, router, clock, sent } = setup();
+    router.queue = ["m2"];
+    const d = await service.create(lead);
+    clock.at = new Date(now.getTime() + 16 * 60_000);
+    expect(await routing.run()).toBe(0);
+    expect(await service.findById(d.id)).toMatchObject({ assigneeId: "m2", assignedAt: clock.at });
+    expect(sent).toEqual([{ to: "owners", title: `Заявку №${d.number} никто не взял` }]);
+  });
+
+  it("смена ответственного — событие с прежним (по нему чаты переходят новому)", async () => {
+    const { service, uow, router } = setup();
+    router.queue = ["m2"];
+    const d = await service.create(lead);
+    uow.events = [];
+    await service.assign(d.id, "m3");
+    expect(uow.events.map((e) => [e.type, (e.payload as { fromAssigneeId?: string }).fromAssigneeId])).toEqual([["sales.deal_assigned", "m2"]]);
+  });
+});
 
 describe("DealsService", () => {
   it("сделку с принятыми деньгами удалить нельзя — платежи и чеки пропали бы каскадом", async () => {

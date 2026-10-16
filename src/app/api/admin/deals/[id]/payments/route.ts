@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
-import { can, canSeeAssigned } from "@/server/access";
+import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { PaymentError, ReceiptError } from "@/modules/sales";
 import { RECEIPT_MAX_BYTES, receiptProblem } from "@/modules/sales/domain";
@@ -26,7 +26,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const c = container();
   const deal = await c.sales.deals.findById(id);
   if (!deal) throw new HttpError(404, "dealNotFound");
-  if (!canSeeAssigned(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
+  if (!canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
   // По сделке оформлен заказ — дальше деньги идут через заказ (его оплату подтверждают в заказе), иначе их посчитают дважды.
   if (deal.orderId) throw new HttpError(409, "dealHasOrder");
 

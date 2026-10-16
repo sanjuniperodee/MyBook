@@ -50,6 +50,10 @@ export class DealsService {
     return ((await this.deals.findById(deal.id)) ?? deal).snapshot();
   }
 
+  /**
+   * Новая сделка. Без ответственного: постоянный клиент — к своему менеджеру (если тот работает), иначе — по кругу
+   * (в рабочее время, под блокировкой круга: одновременные заявки расходятся). Никого нет — раздаст планировщик.
+   */
   async create(input: NewDeal): Promise<DealView> {
     const funnel = await this.funnels.load();
     const stage = input.stageId ? funnel.stage(input.stageId) : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
@@ -59,32 +63,42 @@ export class DealsService {
     const profile = clientId ? await this.clients.profile(clientId) : null;
     const unsorted = !!input.unsorted && !clientId && (await this.settings.unsortedEnabled());
     const { id, number } = await this.deals.nextIdentity();
-    const deal = Deal.open(
-      id,
-      number,
-      {
-        title: input.title,
-        stageId: stage.id,
-        source: input.source,
-        clientId,
-        contactName: input.contactName ?? "",
-        contactPhone: input.contactPhone ?? null,
-        contactEmail: input.contactEmail ?? null,
-        amount: input.amount ?? 0,
-        // Ответственный клиента становится ответственным за сделку.
-        assigneeId: input.assigneeId ?? profile?.managerId ?? null,
-        createdById: input.createdById ?? null,
-        orderId: input.orderId ?? null,
-        unsorted,
-        customFields: input.customFields ?? {},
-        utm: (input.utm as Record<string, string> | null | undefined) ?? profile?.utm ?? null,
-      },
-      stage,
-      this.clock.now(),
-    );
-    await this.uow.run(async () => {
+    const deal = await this.uow.run(async () => {
+      let assigneeId = input.assigneeId ?? null;
+      let routed = false;
+      if (!assigneeId && profile?.managerId && (await this.router.isActive(profile.managerId))) assigneeId = profile.managerId;
+      if (!assigneeId && (await this.router.isWorkTime())) {
+        await this.router.lock();
+        assigneeId = await this.router.next([]);
+        routed = !!assigneeId;
+      }
+      const deal = Deal.open(
+        id,
+        number,
+        {
+          title: input.title,
+          stageId: stage.id,
+          source: input.source,
+          clientId,
+          contactName: input.contactName ?? "",
+          contactPhone: input.contactPhone ?? null,
+          contactEmail: input.contactEmail ?? null,
+          amount: input.amount ?? 0,
+          assigneeId,
+          routed,
+          createdById: input.createdById ?? null,
+          orderId: input.orderId ?? null,
+          unsorted,
+          customFields: input.customFields ?? {},
+          utm: (input.utm as Record<string, string> | null | undefined) ?? profile?.utm ?? null,
+        },
+        stage,
+        this.clock.now(),
+      );
+      if (routed) deal.note("Ответственный назначен по кругу", null);
       await this.deals.add(deal);
       this.uow.track(deal);
+      return deal;
     });
     return this.fresh(deal);
   }
@@ -104,7 +118,7 @@ export class DealsService {
 
   async assign(dealId: string, assigneeId: string | null) {
     const deal = await this.load(dealId);
-    deal.assign(assigneeId);
+    deal.assign(assigneeId, this.clock.now());
     await this.uow.run(async () => {
       await this.deals.save(deal);
       if (deal.clientId && assigneeId) await this.clients.adoptManager(deal.clientId, assigneeId);
@@ -226,10 +240,6 @@ export class DealsService {
 
   findClientByPhone(phone: string | null | undefined) {
     return this.clients.findByPhone(phone);
-  }
-
-  nextRoundRobin() {
-    return this.router.nextRoundRobin();
   }
 
   async defaultPipelineId() {

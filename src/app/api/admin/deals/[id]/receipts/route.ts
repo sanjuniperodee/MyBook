@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
-import { can, canSeeAssigned } from "@/server/access";
+import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { MAX_PAYMENT, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
 import { receiptProblemError } from "@/server/payment-errors";
@@ -19,7 +19,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { id } = idParams(await params, "id");
   const deal = await container().sales.deals.findById(id);
   if (!deal) throw new HttpError(404, "dealNotFound");
-  if (!canSeeAssigned(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
+  if (!canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
 
   const form = await req.formData();
   const file = form.get("file");

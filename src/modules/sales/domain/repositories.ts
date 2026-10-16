@@ -18,6 +18,10 @@ export interface DealRepository {
   /** По сделке приняты деньги (платежи или чеки) — её нельзя удалить, иначе они пропадут каскадом. */
   hasMoney(dealId: string): Promise<boolean>;
   addNote(deal: { id: string; clientId: string | null }, text: string, authorId: string | null, kind: "note" | "call" | "message" | "system"): Promise<void>;
+  /** Открытые сделки без ответственного — круг раздаст их (старые первыми). */
+  waitingForRoute(limit: number): Promise<string[]>;
+  /** Неразобранные заявки с ответственным, назначенным раньше before, — их не взяли вовремя. */
+  notTakenSince(before: Date, limit: number): Promise<string[]>;
 }
 
 export interface FunnelRepository {

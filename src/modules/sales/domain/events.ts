@@ -10,7 +10,8 @@ export interface DealRef {
 
 export type DealCreated = DomainEvent<"sales.deal_created", DealRef & { title: string; source: DealSource; stageId: string; createdById: string | null }>;
 export type DealStageChanged = DomainEvent<"sales.deal_stage_changed", DealRef & { fromStageId: string; stageId: string; source: DealSource; at: string }>;
-export type DealAssigned = DomainEvent<"sales.deal_assigned", DealRef & { title: string }>;
+/** Сменился ответственный: fromAssigneeId — прежний (его чаты сделки переходят новому). */
+export type DealAssigned = DomainEvent<"sales.deal_assigned", DealRef & { fromAssigneeId: string | null; title: string }>;
 export type SalesEvent = DealCreated | DealStageChanged | DealAssigned;
 
 export const SalesEvents = {

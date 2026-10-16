@@ -71,7 +71,7 @@ export class Container {
       fields: this.workspace.fieldsReader,
       sendMessage: async (conversationId, text) => void (await this.messaging.chats.send(conversationId, text, null)),
       sales: {
-        nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
+        nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),
         move: async (dealId, stageId) => void (await this.sales.deals.move(dealId, stageId, null)),
         findOpenDealId: async (clientId) => (await this.sales.deals.findOpen({ clientId }))?.id ?? null,
@@ -104,7 +104,7 @@ export class Container {
         note: (deal, text) => this.sales.deals.note(deal, text, null),
         setField: (dealId, key, value) => this.sales.deals.setField(dealId, key, value),
         deal: (dealId) => this.sales.deals.findById(dealId),
-        nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
+        nextRoundRobin: () => this.sales.routing.next(),
       },
     }));
   }
@@ -188,6 +188,10 @@ export class Container {
         note: async (actor, input) => void (await this.clients.notes.add(actor, { kind: "note", text: input.text, dealId: input.dealId, clientId: input.clientId ?? undefined })),
         audit: (input) => this.access.audit.record(input),
         mailClient: async (input) => (await import("./client-mail")).mailPaymentToClient(this, input),
+      },
+      notifier: {
+        notify: (userIds, n) => this.workspace.notifier.notify(userIds, n),
+        owners: (n) => this.workspace.notifier.notifyAllWith("team.manage", n),
       },
     }));
   }

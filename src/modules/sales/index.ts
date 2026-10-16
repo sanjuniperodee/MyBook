@@ -1,5 +1,6 @@
 import type { Clock, Logger, SettingsReader, UnitOfWork, WorkSchedule } from "@/shared/application";
-import { DealsService, PaymentIntakeService, PipelinesService, SiteFunnelService, type PaymentEffects } from "./application";
+import { DealsService, LeadRoutingService, PaymentIntakeService, PipelinesService, SiteFunnelService, type PaymentEffects, type RoutingNotifier } from "./application";
+import { storeTimeZone } from "@/shared/domain/time";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
@@ -18,6 +19,8 @@ export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "./do
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {
   readonly deals: DealsService;
+  /** Круг: раздача ночных заявок и передача не взятых вовремя (проход планировщика раз в минуту). */
+  readonly routing: LeadRoutingService;
   readonly funnel: SiteFunnelService;
   readonly queries = new DrizzleSalesQueries();
   readonly pipelines: PipelinesService;
@@ -37,12 +40,14 @@ export class SalesModule {
   readonly setClientAttribution = setClientDealsAttribution;
 
   /** Настройки CRM и график работы (распределение заявок по кругу) — порты рабочего пространства. */
-  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects }) {
+  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects; notifier: RoutingNotifier }) {
     this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects, deps.uow);
     const repo = new DrizzleDealRepository();
     const funnels = new DrizzleFunnelRepository();
     const settings = crmSalesSettings(deps.settings);
-    this.deals = new DealsService(repo, funnels, drizzleClients, settings, roundRobinRouter(deps.schedule), deps.uow, deps.clock);
+    const router = roundRobinRouter(deps.schedule, storeTimeZone);
+    this.deals = new DealsService(repo, funnels, drizzleClients, settings, router, deps.uow, deps.clock);
+    this.routing = new LeadRoutingService(repo, router, settings, deps.notifier, deps.uow, deps.clock, deps.logger);
     this.pipelines = new PipelinesService(new DrizzlePipelineRepository(), () => this.deals.defaultPipelineId());
     this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, settings, sqlBookProgress, this.deals, deps.logger, (dealId) => this.payments.paidTotal(dealId));
   }

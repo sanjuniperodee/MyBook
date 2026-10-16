@@ -30,6 +30,11 @@ export class StaffContext {
     return this.scope === "all" || !assigneeId || assigneeId === this.userId;
   }
 
+  /** Менять запись: ответственный или роль «все записи». Неразобранные «только свои» видят, но себе не берут. */
+  canWork(assigneeId: string | null | undefined) {
+    return this.scope === "all" || (!!assigneeId && assigneeId === this.userId);
+  }
+
   get canAssignOthers() {
     return this.scope === "all";
   }

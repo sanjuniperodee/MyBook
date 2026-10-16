@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
-import { audit, can, canSeeAssigned } from "@/server/access";
+import { audit, can, canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { idParams } from "@/server/input";
@@ -14,7 +14,7 @@ export const DELETE = api(async (req, { params }: { params: Promise<{ id: string
   const payment = await c.sales.payments.find(id);
   if (!payment) throw new HttpError(404, "notFound");
   const deal = await c.sales.deals.findById(payment.dealId);
-  if (!deal || !canSeeAssigned(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
+  if (!deal || !canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
   // Деньги уже учтены в заказе по договорённости (предоплата вычтена из «к оплате») — удалять платёж нельзя.
   if (deal.orderId) return NextResponse.json({ error: "По сделке оформлен заказ: платёж учтён в нём и не удаляется" }, { status: 409 });
   await c.sales.payments.remove(payment.id);

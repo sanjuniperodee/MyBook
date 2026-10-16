@@ -62,16 +62,26 @@ describe("access: правила безопасности в настройка�
 
 describe("sales: настройки и график", () => {
   it("«Неразобранное» включено, пока не off; с какого действия заводить сделку — как в настройке", async () => {
-    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom">({ "crm.autoDealFrom": "book_half" });
+    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes">({ "crm.autoDealFrom": "book_half" });
     const s = crmSalesSettings(settings);
     expect([await s.unsortedEnabled(), await s.autoDealFrom()]).toEqual([true, "book_half"]);
     settings.values.set("crm.unsorted", "off");
     expect(await s.unsortedEnabled()).toBe(false);
   });
 
-  it("вне рабочего времени заявку по кругу не получает никто (база не нужна)", async () => {
+  it("передача не взятой заявки: по умолчанию 15 минут, 0 — выключено, мусор — по умолчанию", async () => {
+    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes">();
+    const s = crmSalesSettings(settings);
+    expect(await s.reassignMinutes()).toBe(15);
+    settings.values.set("crm.reassignMinutes", "0");
+    expect(await s.reassignMinutes()).toBe(0);
+    settings.values.set("crm.reassignMinutes", "abc");
+    expect(await s.reassignMinutes()).toBe(15);
+  });
+
+  it("рабочее время круга — из графика (база не нужна)", async () => {
     const schedule = new FixedSchedule(false);
-    expect(await roundRobinRouter(schedule).nextRoundRobin()).toBeNull();
+    expect(await roundRobinRouter(schedule, () => "Asia/Almaty").isWorkTime()).toBe(false);
     expect(schedule.asked).toHaveLength(1);
   });
 });

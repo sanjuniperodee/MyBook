@@ -20,6 +20,10 @@ export interface DealProps {
   extraPhones: string[];
   amount: number;
   assigneeId: string | null;
+  /** Когда назначен нынешний ответственный. */
+  assignedAt: Date | null;
+  /** Кому круг уже отдавал заявку. */
+  routeTried: string[];
   createdById: string | null;
   orderId: string | null;
   lostReason: string | null;
@@ -56,9 +60,13 @@ export class Deal extends AggregateRoot<DealProps> {
     return new Deal(id, props);
   }
 
-  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "lostReason" | "tags" | "extraPhones"> & { extraPhones?: string[] }, stage: Stage, now: Date) {
+  /** routed — ответственного выбрал круг (он попадает в routeTried). */
+  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "lostReason" | "tags" | "extraPhones" | "assignedAt" | "routeTried"> & { extraPhones?: string[]; routed?: boolean }, stage: Stage, now: Date) {
+    const { routed, ...props } = input;
     const deal = new Deal(id, {
-      ...input,
+      ...props,
+      assignedAt: input.assigneeId ? now : null,
+      routeTried: routed && input.assigneeId ? [input.assigneeId] : [],
       number,
       title: input.title.slice(0, 200),
       contactName: input.contactName.slice(0, 120),
@@ -130,10 +138,30 @@ export class Deal extends AggregateRoot<DealProps> {
     return true;
   }
 
-  assign(assigneeId: string | null) {
+  get assignedAt() {
+    return this.props.assignedAt;
+  }
+  get routeTried(): readonly string[] {
+    return this.props.routeTried;
+  }
+
+  assign(assigneeId: string | null, now: Date) {
     if (assigneeId === this.props.assigneeId) return;
+    const from = this.props.assigneeId;
     this.props.assigneeId = assigneeId;
-    if (assigneeId) this.record(SalesEvents.dealAssigned({ ...this.ref(), title: this.props.title }));
+    this.props.assignedAt = assigneeId ? now : null;
+    if (assigneeId) this.record(SalesEvents.dealAssigned({ ...this.ref(), fromAssigneeId: from, title: this.props.title }));
+  }
+
+  /** Заявку некому передать: отсчёт «нет ответа» — заново, от сейчас. */
+  restartRouteTimer(now: Date) {
+    if (this.props.assigneeId) this.props.assignedAt = now;
+  }
+
+  /** Круг отдал заявку менеджеру: он ответственный, а второй раз по «нет ответа» она ему не придёт. */
+  route(assigneeId: string, now: Date) {
+    this.assign(assigneeId, now);
+    if (!this.props.routeTried.includes(assigneeId)) this.props.routeTried = [...this.props.routeTried, assigneeId];
   }
 
   /** Связать с заказом клиента (и обновить сумму). */
