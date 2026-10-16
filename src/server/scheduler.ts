@@ -19,6 +19,9 @@ async function tick() {
     const emails = await container().notifications.lifecycle.run();
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
     await container().outbox.purge();
+    // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.
+    const history = await container().messaging.syncGowaHistory().catch((err) => (console.error("[scheduler] whatsapp history", err), 0));
+    if (history) console.log(`[scheduler] whatsapp history imported=${history}`);
   } catch (err) {
     console.error("[scheduler] tick failed", err);
   } finally {

@@ -125,10 +125,10 @@ export class GowaClient {
   }
 
   /** Личные и групповые чаты номера магазина из хранилища шлюза (jid и время последнего сообщения), постранично. */
-  async chats(offset: number, limit: number): Promise<{ chats: { jid: string; lastMessageAt: string }[]; total: number }> {
-    const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${limit}&offset=${offset}`);
+  async chats(offset: number, limit: number): Promise<{ chats: { jid: string; lastMessageAt: string; updatedAt: string }[]; total: number }> {
+    const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string; updated_at?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${limit}&offset=${offset}`);
     const data = res.results?.data ?? [];
-    return { chats: data.flatMap((c) => (c.jid ? [{ jid: c.jid, lastMessageAt: c.last_message_time ?? "" }] : [])), total: res.results?.pagination?.total ?? 0 };
+    return { chats: data.flatMap((c) => (c.jid ? [{ jid: c.jid, lastMessageAt: c.last_message_time ?? "", updatedAt: c.updated_at ?? "" }] : [])), total: res.results?.pagination?.total ?? 0 };
   }
 
   /** Сообщения чата из хранилища шлюза (сырые записи — разбирает parseGowaHistory), постранично. */

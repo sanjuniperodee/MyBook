@@ -17,7 +17,7 @@ export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from ".
 export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -91,7 +91,7 @@ export class MessagingModule {
    * История переписки из шлюза GOWA (WhatsApp передаёт её при привязке номера): по всем личным чатам — в диалоги
    * со знакомыми номерами (клиент, открытая сделка или уже есть диалог). Незнакомые номера и спам пропускаются.
    */
-  async importGowaHistory(): Promise<{ chats: number; withClients: number; imported: number }> {
+  async importGowaHistory(opts: { since?: Date } = {}): Promise<{ chats: number; withClients: number; imported: number }> {
     const PAGE = 200;
     let offset = 0;
     let chats = 0;
@@ -99,7 +99,9 @@ export class MessagingModule {
     let imported = 0;
     for (;;) {
       const page = await this.gowa.chats(offset, 100);
-      for (const { jid } of page.chats) {
+      for (const { jid, updatedAt } of page.chats) {
+        // Повторный проход — только чаты, в которые с прошлого раза что-то пришло (новое или догруженная WhatsApp история).
+        if (opts.since && updatedAt && new Date(updatedAt) < opts.since) continue;
         const all = [];
         for (let o = 0; ; o += PAGE) {
           const part = await this.gowa.chatMessages(jid, o, PAGE);
@@ -117,6 +119,22 @@ export class MessagingModule {
       if (!page.chats.length || offset >= page.total) break;
     }
     return { chats, withClients, imported };
+  }
+
+  /**
+   * Фоновая загрузка истории из шлюза (планировщик): только если WhatsApp идёт через свой шлюз и номер привязан;
+   * берёт чаты, обновившиеся с прошлого прохода, — так в CRM попадает и история, которую WhatsApp догружает позже.
+   */
+  async syncGowaHistory(): Promise<number> {
+    if ((await this.deps.whatsappSettings.provider()) !== "gowa") return 0;
+    const status = await this.gowa.status();
+    if (!status.loggedIn) return 0;
+    const started = new Date();
+    const last = (await this.deps.settings.getMany(["gowa.historySyncedAt"]))["gowa.historySyncedAt"];
+    const since = last && !Number.isNaN(Date.parse(last)) ? new Date(Date.parse(last) - 5 * 60_000) : undefined;
+    const r = await this.importGowaHistory({ since });
+    await this.deps.settings.save({ "gowa.historySyncedAt": started.toISOString() }, null);
+    return r.imported;
   }
 
   /** Подпись вебхука GOWA. */

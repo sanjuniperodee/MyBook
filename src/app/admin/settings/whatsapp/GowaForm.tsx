@@ -45,7 +45,10 @@ export function GowaForm(props: GowaFormProps) {
       setStatus(s);
       if (s.loggedIn) {
         setQr(null);
-        setMessage({ ok: true, text: "Номер привязан — переписка WhatsApp идёт в CRM" });
+        setMessage({ ok: true, text: "Номер привязан — переписка WhatsApp идёт в CRM. Загружаем историю с клиентами…" });
+        // История приходит в шлюз в первые минуты после привязки: сразу берём что есть, остальное догрузит планировщик.
+        const h = await gowaImportHistoryAction();
+        setMessage({ ok: true, text: h.ok ? `Номер привязан. История с клиентами: ${h.imported} сообщений в ${h.withClients} диалогах; то, что WhatsApp догрузит позже, подтянется само` : "Номер привязан — переписка WhatsApp идёт в CRM" });
         return;
       }
       if (Date.now() > qr.until) {
