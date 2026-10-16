@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
+import { answeredSql, readySql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { REFUND_WINDOW_DAYS, type FinanceDealRow, type FinanceOrderRow, type MoneyRow, type ReviewRow, type UnrecordedRow } from "../ui/finance-screen";
 
 type Row = Record<string, unknown>;
@@ -100,7 +101,7 @@ export async function financeDeals(): Promise<FinanceDealRow[]> {
     select d.id, d.number, coalesce(nullif(d.contact_name, ''), nullif(u.name, ''), d.title) as client, d.assignee_id as manager_id,
       d.amount as agreed, d.agreed_plan as plan, d.source, s.kind as stage_kind, s.milestone, d.client_id is not null as has_client,
       nullif(d.custom_fields->>'event_date', '') as event_date, pay.paid, pay.n as payments,
-      bk.answered, bk.total,
+      bk.theme, bk.answered, bk.total, bk.words,
       inv.number as invoice_number, inv.amount as invoice_amount, inv.expires_at as invoice_expires_at, inv.claimed_at as invoice_claimed_at,
       o.id as order_id, o.number as order_number, o.prepaid_amount as order_prepaid
     from crm_deals d
@@ -112,10 +113,11 @@ export async function financeDeals(): Promise<FinanceDealRow[]> {
       from crm_payments p where p.deal_id = d.id
     ) pay
     left join lateral (
-      select count(q.id) filter (where length(trim(q.answer)) > 0)::int as answered, count(q.id)::int as total
-      from books b left join book_questions q on q.book_id = b.id
+      -- Самая продвинутая книга клиента: прогресс — по правилам вида книги (lib/content/kinds, shared/infrastructure/db/bookProgress).
+      select b.theme, ${answeredSql(sql`b.id`)} as answered, ${totalSql(sql`b.id`)} as total, ${wordsSql(sql`b.id`)} as words
+      from books b
       where b.user_id = d.client_id
-      group by b.id order by 1 desc, 2 desc limit 1
+      order by ${readySql({ theme: sql`b.theme`, answered: answeredSql(sql`b.id`), total: totalSql(sql`b.id`), words: wordsSql(sql`b.id`) })} desc, 2 desc, 4 desc limit 1
     ) bk on true
     left join deal_invoices inv on inv.deal_id = d.id and inv.status = 'pending_payment'
     where (d.order_id is null and (pay.n > 0 or inv.id is not null or (s.kind = 'open' and d.amount > 0 and (d.source = 'manual' or d.agreed_plan is not null))))
@@ -134,7 +136,7 @@ export async function financeDeals(): Promise<FinanceDealRow[]> {
     milestone: str(x.milestone),
     hasClient: !!x.has_client,
     eventDate: typeof x.event_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.event_date) ? x.event_date : null,
-    book: x.total === null || x.total === undefined ? null : { answered: num(x.answered), total: num(x.total) },
+    book: x.total === null || x.total === undefined ? null : { theme: String(x.theme ?? ""), answered: num(x.answered), total: num(x.total), words: num(x.words) },
     invoice: x.invoice_number === null ? null : { number: num(x.invoice_number), amount: num(x.invoice_amount), expiresAt: date(x.invoice_expires_at)!, claimedAt: date(x.invoice_claimed_at) },
     order: x.order_id === null ? null : { id: String(x.order_id), number: num(x.order_number), prepaid: num(x.order_prepaid) },
   }));

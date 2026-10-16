@@ -1,7 +1,8 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
-import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
+import { bookKind, progressOf } from "@/lib/content/kinds";
+import { Deal, Funnel, SalesError, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
 import { heldMoney, noDealInvoices, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type SalesSettings, type StaffRouter } from "./ports";
 
@@ -409,17 +410,21 @@ export class SiteFunnelService {
     }
   }
 
-  /** Прогресс книги → вехи «половина» и «почти готова». */
+  /**
+   * Прогресс книги → вехи «половина» и «почти готова» — по progressOf (у своей книги — по словам). Он монотонен:
+   * готовая книга — и на половине, поэтому у длинных банков (любимому: 172 вопроса) «половина» не пропадает.
+   */
   async bookProgressed(bookId: string, userId: string) {
     const seen = this.#reached.get(bookId) ?? new Set<StageMilestone>();
     if (seen.has("book_ready")) return;
     const p = await this.books.progress(bookId);
     if (!p) return;
-    if (!seen.has("book_half") && p.total && p.answered * 2 >= p.total) {
+    const progress = progressOf(bookKind(p.theme), p);
+    if (!seen.has("book_half") && progress.half) {
       seen.add("book_half");
       await this.advance(userId, "book_half");
     }
-    if (p.answered >= BOOK_READY_ANSWERS) {
+    if (progress.ready) {
       seen.add("book_ready");
       await this.advance(userId, "book_ready");
     }

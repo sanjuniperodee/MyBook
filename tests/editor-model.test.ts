@@ -6,7 +6,7 @@ import { fixtureBook, fixtureVariants } from "./fixtures/books";
 /** Модель редактора вопросов: то, что страница books/[id]/questions отдаёт QuestionsEditor, и главы превью. */
 
 const classic = fixtureBook("classic", "a5", "ru").bundle;
-const model = editorModel(classic.book, classic.questions, classic.photos);
+const model = editorModel(classic.book, classic.questions, classic.chapters, classic.photos);
 const groups = groupByChapter(model.questions);
 
 describe("editorModel", () => {
@@ -28,7 +28,7 @@ describe("editorModel", () => {
 
   it("заголовки главы и вопроса — в роде автора и адресата", () => {
     const gender = fixtureVariants().find((v) => v.key === "gender")!.bundle;
-    const m = editorModel(gender.book, gender.questions, gender.photos);
+    const m = editorModel(gender.book, gender.questions, gender.chapters, gender.photos);
     expect(m.questions.some((q) => /[{}[\]|]/.test(q.chapterTitle + q.prompt + q.defaultTitle))).toBe(false);
   });
 

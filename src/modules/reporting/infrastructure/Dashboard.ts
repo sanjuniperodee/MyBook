@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { crmTasks, orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
+import { progressCols, textStepSql } from "@/shared/infrastructure/db/bookProgress";
 import { storeTimeZone } from "@/shared/domain/time";
 import { iso, localDay } from "./time";
 
@@ -38,7 +39,7 @@ export async function dashboard(period: number, staffId: string) {
         count(*) filter (where exists (select 1 from books b where b.user_id = u.id))::int as with_book,
         count(*) filter (where exists (
           select 1 from books b where b.user_id = u.id
-          and (select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0) >= 10))::int as engaged,
+          and ${textStepSql({ theme: sql`b.theme`, ...progressCols(sql`b.id`) })}))::int as engaged,
         count(*) filter (where exists (select 1 from orders o where o.user_id = u.id) or exists (select 1 from revenue_events e where e.client_id = u.id))::int as ordered,
         count(*) filter (where exists (select 1 from revenue_events e where e.client_id = u.id))::int as paid
       from users u where u.created_at >= ${start} and u.role = 'user'`),

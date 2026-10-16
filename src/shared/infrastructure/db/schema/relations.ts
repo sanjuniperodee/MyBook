@@ -1,6 +1,6 @@
 /** Связи для реляционных запросов db.query (with: …): в SQL и миграциях не участвуют. */
 import { relations } from "drizzle-orm";
-import { bookLetters, bookQuestions, books, photos } from "./authoring";
+import { bookChapters, bookLetters, bookQuestions, books, photos } from "./authoring";
 import { users } from "./identity";
 import { crmConversations, crmMessages } from "./messaging";
 import { giftCards, orderEvents, orders, promoCodes } from "./ordering";
@@ -41,6 +41,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const booksRelations = relations(books, ({ one, many }) => ({
   user: one(users, { fields: [books.userId], references: [users.id] }),
   questions: many(bookQuestions),
+  chapters: many(bookChapters),
   photos: many(photos),
   letters: many(bookLetters),
   orders: many(orders),
@@ -48,6 +49,10 @@ export const booksRelations = relations(books, ({ one, many }) => ({
 
 export const bookQuestionsRelations = relations(bookQuestions, ({ one }) => ({
   book: one(books, { fields: [bookQuestions.bookId], references: [books.id] }),
+}));
+
+export const bookChaptersRelations = relations(bookChapters, ({ one }) => ({
+  book: one(books, { fields: [bookChapters.bookId], references: [books.id] }),
 }));
 
 export const bookLettersRelations = relations(bookLetters, ({ one }) => ({

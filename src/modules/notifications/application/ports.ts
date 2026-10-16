@@ -27,8 +27,11 @@ export interface OrderReminder {
 export interface LatestDraft {
   bookId: string;
   title: string;
+  /** Тема книги: вид книги для текста напоминания (своя книга — разделы и слова). */
+  theme: string;
   answered: number;
   total: number;
+  words: number;
   firstEmpty: number | null;
 }
 

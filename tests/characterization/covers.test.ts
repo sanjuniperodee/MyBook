@@ -104,7 +104,7 @@ function backLine({ book, photos }: BookBundle) {
   const frames = parseFrames(book.photoFrames);
   const bleed = new Set(design.blocks.flatMap((b) => (b.kind === "photo" && b.frame === "bleed" ? [b.slot] : [])));
   const hrefs = list.map((p, i) => (bleed.has(i) ? { href: p.storageKey, width: p.width, height: p.height, frame: frames[frameKey("back", i)] } : undefined));
-  const art = renderCoverSvg(template, g, { uid: "c", photos: coverPhotos(template, { book, photos, questions: [] }), imageHref: imageHref(template) }, { pxPerMm: PX_PER_MM, noTexture: true, plainBack: design.plainArt });
+  const art = renderCoverSvg(template, g, { uid: "c", photos: coverPhotos(template, { book, photos, questions: [], chapters: [] }), imageHref: imageHref(template) }, { pxPerMm: PX_PER_MM, noTexture: true, plainBack: design.plainArt });
   const svg = art.replace(/<\/svg>$/, `${backArtSvg(design, g.back!, hrefs, "cb")}</svg>`);
   return `${design.layout} · раскладка ${sha(JSON.stringify(design))} · развёртка ${sha(svg)}`;
 }

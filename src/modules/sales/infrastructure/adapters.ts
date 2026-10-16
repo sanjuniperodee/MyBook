@@ -5,6 +5,7 @@ import { phoneKey, normalizePhone } from "@/shared/domain/phone";
 import { toAttribution } from "@/shared/domain/channels";
 import type { SettingsReader, WorkSchedule } from "@/shared/application";
 import { executor } from "@/shared/infrastructure/database";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { inExtra, phoneDigits } from "./persistence";
@@ -81,11 +82,12 @@ export const roundRobinRouter = (schedule: WorkSchedule, timeZone: () => string)
   },
 });
 
+/** Прогресс книги: те же счётчики, что у фильтров CRM и хаба (bookProgress.ts — слова и ответы как в countWords). */
 export const sqlBookProgress: BookProgress = {
   async progress(bookId) {
-    const { rows } = await executor().execute<{ answered: number; total: number }>(sql`
-      select count(*) filter (where length(trim(answer)) > 0)::int as answered, count(*)::int as total
-      from book_questions where book_id = ${bookId}`);
+    const { rows } = await executor().execute<{ theme: string; answered: number; total: number; words: number }>(sql`
+      select b.theme, ${answeredSql(bookId)} as answered, ${totalSql(bookId)} as total, ${wordsSql(bookId)} as words
+      from books b where b.id = ${bookId}`);
     return rows[0] ?? null;
   },
 };

@@ -3,6 +3,7 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { editorModel } from "@/lib/book/editor-data";
+import { bookKind } from "@/lib/content/kinds";
 import { QuestionsEditor } from "@/components/editor/QuestionsEditor";
 import { getMessages } from "@/i18n/server";
 
@@ -15,13 +16,14 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const { q } = await searchParams;
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
-  const [rows, photos, letters, proofreadAi] = await Promise.all([
+  const [rows, chapters, photos, letters, proofreadAi] = await Promise.all([
     container().authoring.queries.questions(book.id),
+    container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
     container().authoring.queries.approvedLetters(book.id),
     book.status === "draft" ? container().assistant.proofreader.configured() : false,
   ]);
-  const model = editorModel(book, rows, photos, letters);
+  const model = editorModel(book, rows, chapters, photos, letters);
   return (
     <QuestionsEditor
       epigraphs={model.epigraphs}
@@ -34,8 +36,10 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         photoPlacement: book.photoPlacement,
         title: book.title,
         language: book.language,
-        names: [book.authorName, book.recipientName].filter(Boolean),
+        // Имена на книге (и «кто записал» у автобиографии) проверка орфографии не отмечает.
+        names: [book.authorName, book.recipientName, book.recordedBy].filter(Boolean),
         theme: book.theme,
+        kind: bookKind(book.theme),
         authorGender: book.authorGender,
         recipientGender: book.recipientGender,
       }}

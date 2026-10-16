@@ -1,6 +1,7 @@
 import "server-only";
 import { formatPrice } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
+import { bookKind, progressOf } from "@/lib/content/kinds";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import type { DraftEmail } from "../domain";
 import type { DraftCandidate, EmailTemplates, OrderReminder, Recipient, ReviewLinks } from "../application";
@@ -31,7 +32,8 @@ const baseTemplates: Omit<EmailTemplates, "review"> = {
         const by = email.orderBy;
         // «до 14 февраля» / «14 ақпанға дейін» — предлог и падеж берёт на себя словарь.
         const until = m.common.until(by);
-        const ready = c.book.answered >= 10;
+        // «Уже есть что напечатать» — тот же порог, что шаг «Текст» на хабе (progressOf).
+        const ready = progressOf(bookKind(c.book.theme), { answered: c.book.answered, total: 0, words: c.book.words }).textStepDone;
         const ru = messagesFor("ru").common;
         return {
           to: r.email,

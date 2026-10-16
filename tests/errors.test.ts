@@ -5,6 +5,9 @@ import { PaymentError, ReceiptError } from "@/modules/sales";
 import { SalesError } from "@/modules/sales/domain";
 import { WazzupError } from "@/modules/messaging";
 import { OrderingError, type OrderingErrorCode } from "@/modules/ordering/domain";
+import type { AuthoringErrorCode } from "@/modules/authoring/domain";
+import { messagesFor } from "@/i18n/messages";
+import { domainStatus } from "@/server/errors";
 import { actionError, staffActionError } from "@/server/errors";
 import { request, resetRequest } from "./doubles/web";
 
@@ -101,6 +104,27 @@ describe("actionError(): ошибка домена в server action → текс
     expect(await actionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
     expect(await actionError(new OrderingError("notPayable"), OrderingError)).toBe("Этот заказ уже не ждёт оплаты — обновите страницу");
     expect(await actionError(new OrderingError("kaspiNotConnected"), OrderingError)).toContain("Kaspi");
+  });
+});
+
+describe("ошибки Authoring: у каждого кода — текст api на обоих языках и статус", () => {
+  // satisfies Record<…> делает список исчерпывающим: новый код без строки здесь не скомпилируется.
+  const codes = {
+    bookNotFound: 1, bookLocked: 1, bookHasOrders: 1, questionNotFound: 1, questionsLimit: 1, onlyOwnQuestions: 1, photoNotFound: 1, photosPick: 1, photosLimit: 1, photosOutdated: 1,
+    unknownCover: 1, unknownInterior: 1, unknownBackLayout: 1, unknownFormat: 1, unknownOccasion: 1, unknownLanguage: 1, letterNotFound: 1, letterInvalid: 1, letterClosed: 1, letterPrinted: 1, letterLimit: 1,
+    unknownTheme: 1, outlineNotAllowed: 1, outlineOutdated: 1, chaptersLimit: 1, chapterNotFound: 1,
+  } satisfies Record<AuthoringErrorCode, 1>;
+
+  it("текст есть на ru и kk (роуты отдают его по коду домена)", () => {
+    for (const locale of ["ru", "kk"] as const) {
+      const api = messagesFor(locale).api as Record<string, unknown>;
+      for (const code of Object.keys(codes)) expect([locale, code, typeof api[code]]).not.toEqual([locale, code, "undefined"]);
+    }
+    expect(messagesFor("ru").api.chaptersLimit(50)).toBe("В книге может быть до 50 глав");
+  });
+
+  it("оглавление своей книги: не та книга и устаревший вид — 409, нет главы — 404, лимит и тема — 400", () => {
+    expect(["outlineNotAllowed", "outlineOutdated", "chapterNotFound", "chaptersLimit", "unknownTheme"].map(domainStatus)).toEqual([409, 409, 404, 400, 400]);
   });
 });
 

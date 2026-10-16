@@ -26,12 +26,15 @@ export const books = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    theme: text("theme").notNull(), // love | mom | dad | friend
+    /** Тема и вид книги (lib/content/kinds): love | mom | dad | friend — подарки, autobiography, blank — своя книга. */
+    theme: text("theme").notNull(),
     status: text("status", { enum: ["draft", "ordered"] }).notNull().default("draft"),
     title: text("title").notNull().default(""),
     subtitle: text("subtitle").notNull().default(""),
     authorName: text("author_name").notNull().default(""),
     authorGender: text("author_gender").$type<Gender>().notNull().default("f"),
+    /** Автобиография: кто записал со слов рассказчика («внучка Аружан») — печатается на обороте титула. */
+    recordedBy: text("recorded_by").notNull().default(""),
     recipientName: text("recipient_name").notNull().default(""),
     recipientGender: text("recipient_gender").$type<Gender>().notNull().default("m"),
     hideRecipientOnCover: boolean("hide_recipient_on_cover").notNull().default(false),
@@ -96,6 +99,29 @@ export const bookQuestions = pgTable(
 );
 
 export type BookQuestion = typeof bookQuestions.$inferSelect;
+
+/**
+ * Главы своей книги (тема blank): название, эпиграф и порядок. У книг с банком вопросов строк здесь нет — названия
+ * глав берутся из темы. Не jsonb в books: BookRepository.save пишет снимок книги целиком и затёр бы переименование.
+ * key — uuid (без «:», не «__letters»/«__gallery»): на него ссылается book_questions.chapter.
+ */
+export const bookChapters = pgTable(
+  "book_chapters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    position: integer("position").notNull(),
+    title: text("title").notNull().default(""),
+    epigraph: text("epigraph").notNull().default(""),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("book_chapters_book_key_idx").on(t.bookId, t.key), index("book_chapters_book_idx").on(t.bookId, t.position)],
+);
+
+export type BookChapter = typeof bookChapters.$inferSelect;
 
 export const photos = pgTable(
   "photos",

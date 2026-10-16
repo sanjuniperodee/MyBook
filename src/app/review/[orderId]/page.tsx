@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine, getCoverTemplate } from "@/lib/book/covers";
+import { getCoverTemplate } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { container } from "@/server/container";
 import { reviewAccess } from "@/server/reviews";
 import { FeedbackError, THANK_YOU } from "@/modules/feedback";
@@ -47,7 +48,7 @@ export default async function ReviewPage({ params, searchParams }: { params: Pro
               template={template}
               format={book.format}
               title={book.title}
-              names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
+              names={coverNames(book)}
               lite
               className="rounded-[3px] shadow-book"
             />

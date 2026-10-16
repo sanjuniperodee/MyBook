@@ -33,7 +33,8 @@ describe("схема БД", () => {
     if (!rel) throw new Error("реляционная конфигурация не собралась");
     const keys = (r: object) => Object.keys(r).sort();
     expect(keys(rel.orders.relations)).toEqual(["assignee", "book", "events", "user"]);
-    expect(keys(rel.books.relations)).toEqual(["letters", "orders", "photos", "questions", "user"]);
+    expect(keys(rel.books.relations)).toEqual(["chapters", "letters", "orders", "photos", "questions", "user"]);
+    expect(keys(rel.bookChapters.relations)).toEqual(["book"]);
     expect(keys(rel.giftCards.relations)).toEqual(["promo"]);
     expect(keys(rel.crmDeals.relations)).toEqual(["assignee", "client", "order", "stage"]);
     expect(keys(rel.crmConversations.relations)).toEqual(["assignee", "client", "deal", "messages"]);

@@ -3,7 +3,8 @@
  */
 import type { Locale } from "@/i18n/config";
 import { applyGender } from "../content/gender";
-import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
+import { bookKind, type BookKind } from "../content/kinds";
+import type { Book, BookChapter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { MAX_INLINE_HEIGHT_SHARE } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
@@ -43,6 +44,8 @@ export interface ContentChapter {
 export interface BookContent {
   /** Язык книги: на нём печатаются служебные надписи (оглавление, «Глава N») и расставляются переносы. */
   language: Locale;
+  /** Вид книги (lib/content/kinds): от него зависят подписи служебных полос. */
+  kind: BookKind;
   format: BookFormat;
   /** Оформление страниц: шрифты, цвета, виньетки, начальные полосы глав. */
   interior: InteriorDesign;
@@ -50,15 +53,19 @@ export interface BookContent {
   subtitle: string;
   authorName: string;
   recipientName: string;
+  /** Автобиография: кто записал со слов рассказчика — строка на обороте титула; у остальных книг пусто. */
+  recordedBy: string;
   dedication: string;
   showToc: boolean;
   chapters: ContentChapter[];
   /** Фото, вынесенные в отдельный раздел в конце книги. */
   galleryPhotos: PhotoItem[];
+  /** Название раздела фото в конце книги (начальная полоса и строка оглавления) — по виду книги. */
+  galleryTitle: string;
   year: number;
 }
 
-export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer">;
+export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey">;
 export type BookLike = Pick<
   Book,
   | "theme"
@@ -67,6 +74,7 @@ export type BookLike = Pick<
   | "subtitle"
   | "authorName"
   | "authorGender"
+  | "recordedBy"
   | "recipientName"
   | "recipientGender"
   | "dedication"
@@ -77,8 +85,26 @@ export type BookLike = Pick<
   | "coverPhotoId"
 >;
 
-export function questionHeading(q: Pick<BookQuestion, "title" | "displayText">, book: Pick<Book, "authorGender" | "recipientGender">) {
-  return q.displayText ?? applyGender(q.title, book.authorGender, book.recipientGender);
+/** Глава своей книги (book_chapters) для сборки: порядок — порядок списка. У книг с банком список пуст. */
+export type ChapterLike = Pick<BookChapter, "key" | "title" | "epigraph">;
+
+/** Ключ собственного вопроса и раздела своей книги — текст автора: род в нём не подставляется. */
+export const CUSTOM_KEY = "custom";
+
+type GenderOf = Pick<Book, "authorGender" | "recipientGender">;
+
+/**
+ * Тексты вопроса для показа и печати: вопрос, подсказка, заголовок в книге. Шаблоны рода раскрываются только в текстах
+ * банка: свой вопрос и раздел своей книги (questionKey = custom) — текст автора, «[Аня|Анна]» в нём остаётся как есть.
+ * Заголовок — переписанный автором (displayText), иначе заголовок вопроса.
+ */
+export function questionTexts(q: Pick<BookQuestion, "questionKey" | "prompt" | "hint" | "title" | "displayText">, book: GenderOf) {
+  const g = q.questionKey === CUSTOM_KEY ? (s: string) => s : (s: string) => applyGender(s, book.authorGender, book.recipientGender);
+  return { prompt: g(q.prompt), hint: q.hint ? g(q.hint) : null, title: g(q.title), heading: q.displayText ?? g(q.title) };
+}
+
+export function questionHeading(q: Pick<BookQuestion, "title" | "displayText" | "questionKey">, book: GenderOf) {
+  return q.displayText ?? (q.questionKey === CUSTOM_KEY ? q.title : applyGender(q.title, book.authorGender, book.recipientGender));
 }
 
 /** Эмодзи (кроме ©, ®, ™), их модификаторы, склейки и флаги: в книжных шрифтах их нет — в печати они превращаются в мусор. */
@@ -120,15 +146,22 @@ export interface LetterLike {
 export const LETTERS_CHAPTER = "__letters";
 
 /**
- * Тексты книги, которых нет в ответах: названия и эпиграфы глав темы, «Разное» для главы вне темы, глава писем
- * и название книги по умолчанию. На сервере их даёт bookTexts (book-content.ts: тема и словарь языка книги),
- * редактору в браузере — его собственные данные: словари и каталог тем туда не грузятся.
+ * Тексты книги, которых нет в ответах: названия и эпиграфы глав (своей книги — из book_chapters, остальных — из темы),
+ * «Разное» для главы вне темы, глава писем, название книги и раздела фото по умолчанию. На сервере их даёт bookTexts
+ * (book-content.ts: главы книги, тема и словарь языка книги), редактору в браузере — его собственные данные:
+ * словари и каталог тем туда не грузятся.
  */
 export interface BookTexts {
-  chapter(key: string): { title: string; epigraph?: string } | undefined;
+  /** own — глава автора (book_chapters): название не склоняется, печатается через printableText, пустое — untitledChapter. */
+  chapter(key: string): { title: string; epigraph?: string; own?: boolean } | undefined;
+  /** Порядок глав своей книги (ключи по позициям); главы вне списка — в конце. Без него — по первому вопросу главы. */
+  chapterOrder?: readonly string[];
   misc: string;
+  /** Название главы автора, оставленной без названия. */
+  untitledChapter: string;
   letters: { title: string; epigraph?: string };
   defaultTitle: string;
+  galleryTitle: string;
 }
 
 /** Содержимое книги для вёрстки — то, что печатается: главы с ответами и фото, галерея, письма. */
@@ -164,16 +197,15 @@ export function assembleBookContent(
     });
   }
 
-  const chapters: ContentChapter[] = chapterOrder.map((key, i) => {
+  // Своя книга — главы в порядке оглавления автора (пустые не печатаются), главы вне него — в конце.
+  const order = texts.chapterOrder;
+  const keys = order ? [...order.filter((k) => byChapter.has(k)), ...chapterOrder.filter((k) => !order.includes(k))] : chapterOrder;
+  const chapters: ContentChapter[] = keys.map((key, i) => {
     const def = texts.chapter(key);
-    return {
-      key,
-      number: i + 1,
-      title: applyGender(def?.title ?? texts.misc, book.authorGender, book.recipientGender),
-      epigraph: def?.epigraph,
-      items: byChapter.get(key)!,
-      photos: [],
-    };
+    // Название главы автора — его текст: без подстановки рода, без эмодзи, пустое — «Без названия».
+    const title = def?.own ? printableText(def.title.trim()) || texts.untitledChapter : applyGender(def?.title ?? texts.misc, book.authorGender, book.recipientGender);
+    const epigraph = def?.own ? printableText(def.epigraph?.trim() ?? "") || undefined : def?.epigraph;
+    return { key, number: i + 1, title, epigraph, items: byChapter.get(key)!, photos: [] };
   });
 
   // Фото обложки не дублируем внутри книги.
@@ -206,18 +238,22 @@ export function assembleBookContent(
     });
   }
 
+  const kind = bookKind(book.theme);
   return {
     language: book.language,
+    kind,
     format: getFormat(book.format),
     interior,
     title: printableText(book.title.trim()) || texts.defaultTitle,
     subtitle: printableText(book.subtitle.trim()),
     authorName: book.authorName.trim(),
     recipientName: book.recipientName.trim(),
+    recordedBy: kind === "autobiography" ? printableText(book.recordedBy.trim()) : "",
     dedication: printableText(book.dedication.trim()),
     showToc: book.showToc,
     chapters,
     galleryPhotos,
+    galleryTitle: texts.galleryTitle,
     year,
   };
 }

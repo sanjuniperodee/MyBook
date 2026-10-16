@@ -17,9 +17,10 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/books/${id}/cover`);
   const book = await getAccessibleBook(id, user);
-  const [photos, questions, locale, m] = await Promise.all([
+  const [photos, questions, chapters, locale, m] = await Promise.all([
     container().authoring.queries.photos(book.id),
     container().authoring.queries.questions(book.id),
+    container().authoring.queries.chapters(book.id),
     getLocale(),
     getMessages(),
   ]);
@@ -31,8 +32,8 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
         bookId={book.id}
         format={book.format}
         editable={book.status === "draft"}
-        recipientLabel={theme.recipientLabel}
-        sample={bookSpreadSample(book, questions, m.books.pages.dedicationEmpty, photos)}
+        recipientLabel={theme.recipientLabel ?? ""}
+        sample={bookSpreadSample(book, questions, chapters, m.books.pages.dedicationEmpty, photos)}
         photos={photos.map((p) => ({ id: p.id, width: p.width, height: p.height }))}
         theme={book.theme}
         year={book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : new Date().getFullYear()}

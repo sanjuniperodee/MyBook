@@ -10,7 +10,7 @@ export function characterizationBooks(): FixtureBook[] {
 /** Год в книгах снимков: buildBookContent по умолчанию берёт текущий. */
 export const YEAR = 2026;
 
-export const contentOf = ({ bundle }: FixtureBook) => buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), YEAR, bundle.letters);
+export const contentOf = ({ bundle }: FixtureBook) => buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), bundle.chapters, YEAR, bundle.letters);
 
 /** Короткие имена вместо UUID: вопрос — q<позиция>, письмо — letter<номер>, фото — имя снимка набора (p3, cover). */
 export function fixtureNames({ bundle }: FixtureBook): Map<string, string> {

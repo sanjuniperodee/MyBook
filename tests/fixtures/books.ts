@@ -135,6 +135,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     subtitle: t.subtitle,
     authorName: t.authorName,
     authorGender: "f",
+    recordedBy: "",
     recipientName: t.recipientName,
     recipientGender: "m",
     hideRecipientOnCover: false,
@@ -214,7 +215,7 @@ function letterRows(key: string, book: Book): BookLetter[] {
 function buildBook(key: string, design: InteriorId, format: FormatId, language: Locale): FixtureBook {
   const book = bookRow(key, design, format, language);
   const questions = questionRows(key, book);
-  return { key, bundle: { book, questions, photos: photoRows(key, book, questions), letters: letterRows(key, book) } };
+  return { key, bundle: { book, questions, chapters: [], photos: photoRows(key, book, questions), letters: letterRows(key, book) } };
 }
 
 export function fixtureBook(design: InteriorId, format: FormatId, language: Locale): FixtureBook {
@@ -256,6 +257,31 @@ const withBook = (b: BookBundle, patch: Partial<Book>): BookBundle => ({ ...b, b
 const THIN_ANSWERS = [1, 11];
 /** Главы набора → главы темы «Другу» (intro и meet в ней есть). */
 const FRIEND_CHAPTERS: Record<string, string> = { travel: "adventures", dreams: "future" };
+/** Главы набора → главы банка автобиографии (ключи §1.3 спецификации). */
+const AUTOBIOGRAPHY_CHAPTERS: Record<string, string> = { intro: "intro", meet: "childhood", travel: "youth", dreams: "wisdom" };
+/** Своя книга: оглавление автора по порядку (name — глава набора; «empty» — глава без разделов). */
+const BLANK_CHAPTERS: { name: string; title: string; epigraph: string }[] = [
+  { name: "intro", title: "С чего всё началось 🌿", epigraph: "Всё, что помню, записываю, пока помню." },
+  { name: "meet", title: "Встреча", epigraph: "Случайностей не бывает — бывают встречи." },
+  { name: "empty", title: "Пока пустая глава", epigraph: "" },
+  { name: "travel", title: "", epigraph: "" },
+  { name: "dreams", title: "Что дальше", epigraph: "Лучшее — впереди." },
+];
+/** Заголовки разделов своей книги по номеру вопроса набора: пустой — раздел без заголовка (в печати — разделитель). */
+const BLANK_TITLES = [
+  "Почему я решила написать эту книгу",
+  "В трёх словах",
+  "Мы [Аня|Анна] — так нас звали во дворе",
+  "",
+  "",
+  "Как мы познакомились",
+  "Первое путешествие",
+  "Снимок, который я храню",
+  "Горы, чай из термоса 🏔",
+  "О чём я мечтаю",
+  "Без ответа",
+  "Напоследок",
+];
 
 const VARIANTS: Record<string, Variant> = {
   // Два коротких ответа, из фото — только обложка: оценка меньше print.minPages, печать добивает до минимума.
@@ -293,9 +319,30 @@ const VARIANTS: Record<string, Variant> = {
       photos: b.photos.map((p) => (p.storageKey === photoKey("p1") ? { ...p, storageKey: photoKey("big"), thumbKey: thumbKey("big"), width: photoSpecs.big[0], height: photoSpecs.big[1] } : p)),
     }),
   },
+  // Автобиография: получателя нет, «кто записал» на обороте титула, фото — в разделе в конце книги («Из семейного альбома»).
+  autobiography: {
+    base: ["vintage", "a5", "ru"],
+    patch: (b) => ({
+      ...withBook(b, { theme: "autobiography", recipientName: "", recordedBy: "внучка Аружан", title: "История моей жизни", subtitle: "", photoPlacement: "end" }),
+      questions: b.questions.map((q) => ({ ...q, chapter: AUTOBIOGRAPHY_CHAPTERS[q.chapter], questionKey: `autobiography.${AUTOBIOGRAPHY_CHAPTERS[q.chapter]}.${q.position + 1}` })),
+    }),
+  },
+  // Своя книга: главы автора с эпиграфами, эмодзи в названии, пустая глава и глава без названия; разделы — свой текст
+  // («[Аня|Анна]» не склоняется), два раздела без заголовка; название книги пустое — печатается название по умолчанию.
+  blank: {
+    base: ["classic", "a5", "ru"],
+    patch: (b) => {
+      const key = (name: string) => fixtureId(`blank:chapter:${name}`);
+      return {
+        ...withBook(b, { theme: "blank", title: "", subtitle: "", recipientName: "" }),
+        chapters: BLANK_CHAPTERS.map((c, position) => ({ id: fixtureId(`blank:chapter-row:${c.name}`), bookId: b.book.id, key: key(c.name), position, title: c.title, epigraph: c.epigraph, createdAt: CREATED, updatedAt: UPDATED })),
+        questions: b.questions.map((q) => ({ ...q, chapter: key(q.chapter), questionKey: "custom", prompt: "", title: BLANK_TITLES[q.position], displayText: null, hideHeading: false })),
+      };
+    },
+  },
 };
 
-/** Крайние случаи вне матрицы: thin, bare, gender, bigphoto. Каждый вызов строит новые объекты. */
+/** Крайние случаи вне матрицы: thin, bare, gender, bigphoto, autobiography, blank. Каждый вызов строит новые объекты. */
 export function fixtureVariants(): FixtureBook[] {
   return Object.entries(VARIANTS).map(([key, v]) => ({ key, bundle: v.patch(buildBook(key, ...v.base).bundle) }));
 }

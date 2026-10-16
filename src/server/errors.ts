@@ -51,6 +51,9 @@ const STATUS_BY_CODE = new Map<string, number>([
   ["kaspiSessionShared", 409],
   ["letterClosed", 404],
   ["letterInvalid", 404],
+  // Оглавление своей книги: операция не для этой книги и устаревший вид у клиента — конфликт состояния.
+  ["outlineNotAllowed", 409],
+  ["outlineOutdated", 409],
 ]);
 
 export function domainStatus(code: string): number {

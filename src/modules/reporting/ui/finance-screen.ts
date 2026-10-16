@@ -1,4 +1,5 @@
 import { formatPrice } from "@/config/site";
+import { bookKind, progressOf } from "@/lib/content/kinds";
 import { fromZonedTime, zonedDay } from "@/shared/domain/time";
 import { staffLabel } from "@/shared/domain/staff";
 
@@ -51,7 +52,7 @@ export interface FinanceDealRow {
   hasClient: boolean;
   eventDate: string | null;
   /** Самая продвинутая книга клиента; null — книги нет (или клиент не заведён). */
-  book: { answered: number; total: number } | null;
+  book: { theme: string; answered: number; total: number; words: number } | null;
   /** Открытый счёт из чата. */
   invoice: { number: number; amount: number; expiresAt: Date; claimedAt: Date | null } | null;
   /** Заказ сделки и сколько он учёл предоплатой. */
@@ -239,14 +240,17 @@ const SOURCES = [
 export type BookGroup = "ready" | "progress" | "none";
 export const BOOK_GROUP_LABELS: Record<BookGroup, string> = { ready: "Книга готова или заказ оформлен", progress: "Книга в работе", none: "Книга не начата" };
 
-/** «Книга почти готова» — столько ответов (совпадает с вехой продаж book_ready, BOOK_READY_ANSWERS). */
-export const FINANCE_BOOK_READY = 25;
-
-function bookOf(d: FinanceDealRow, ready: number): { group: BookGroup; label: string } {
-  const answered = d.book?.answered ?? 0;
-  const total = d.book?.total ?? 0;
-  if (answered >= ready || d.milestone === "book_ready") return { group: "ready", label: d.book ? `готова · ${answered} отв.` : "готова (по этапу)" };
-  if (d.book || d.milestone === "book_started" || d.milestone === "book_half") return { group: "progress", label: d.book ? `пишется · ${answered} из ${total} отв.` : "пишется (по этапу)" };
+/**
+ * Готовность книги — по правилам её вида (lib/content/kinds, progressOf): у книг с вопросами — ответы, у своей книги
+ * («вручную») — слова. Те же пороги, что у вехи продаж book_ready и готовности к заказу.
+ */
+function bookOf(d: FinanceDealRow): { group: BookGroup; label: string } {
+  const b = d.book;
+  const kind = b ? bookKind(b.theme) : null;
+  const p = b && kind ? progressOf(kind, { answered: b.answered, total: b.total, words: b.words }) : null;
+  const done = (x: NonNullable<typeof b>) => (kind === "blank" ? `${x.words.toLocaleString("ru-RU")} слов` : `${x.answered} отв.`);
+  if (p?.ready || d.milestone === "book_ready") return { group: "ready", label: b ? `готова · ${done(b)}` : "готова (по этапу)" };
+  if (b || d.milestone === "book_started" || d.milestone === "book_half") return { group: "progress", label: b ? `пишется · ${kind === "blank" ? done(b) : `${b.answered} из ${b.total} отв.`}` : "пишется (по этапу)" };
   return { group: "none", label: d.hasClient ? "не начата" : "не начата · клиент не заведён" };
 }
 
@@ -278,11 +282,9 @@ export function financeScreen(input: {
   visible?: (managerId: string | null) => boolean;
   tz: string;
   now: Date;
-  readyAnswers?: number;
 }) {
   const { period, tz } = input;
   const visible = input.visible ?? (() => true);
-  const ready = input.readyAnswers ?? FINANCE_BOOK_READY;
   const names = new Map(input.staff.map((s) => [s.id, staffLabel(s)]));
   const who = (id: string | null) => (id ? (names.get(id) ?? "—") : "—");
   const shortDate = (d: Date, withTime = false) =>
@@ -398,7 +400,7 @@ export function financeScreen(input: {
     const live = d.stageKind === "open" || (d.stageKind === "won" && d.payments > 0);
     const left = d.agreed - d.paid;
     if (!agreement || !live || left <= 0) continue;
-    const book = bookOf(d, ready);
+    const book = bookOf(d);
     if (d.invoice) invoices = { count: invoices.count + 1, sum: invoices.sum + d.invoice.amount };
     expected.push({
       key: `d:${d.id}`,

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FINANCE_BOOK_READY, financePeriod, financeScreen, type FinanceDealRow, type FinanceOrderRow, type MoneyRow, type ReviewRow } from "@/modules/reporting/ui/finance-screen";
-import { BOOK_READY_ANSWERS } from "@/modules/sales/domain/meta";
+import { financePeriod, financeScreen, type FinanceDealRow, type FinanceOrderRow, type MoneyRow, type ReviewRow } from "@/modules/reporting/ui/finance-screen";
 
 /** Модель экрана «Финансы»: период по времени магазина, нетто и разбивки, ожидаемые доплаты, переплаты, «Проверить». */
 const TZ = "Asia/Almaty"; // UTC+5
@@ -184,8 +183,8 @@ describe("financeScreen: пришло", () => {
 
 describe("financeScreen: ожидается, переплаты, «Проверить»", () => {
   const deals = [
-    deal({ id: "ready", number: 1, agreed: 20000, paid: 5000, book: { answered: 30, total: 40 }, invoice: { number: 12, amount: 15000, expiresAt: new Date("2026-10-23T10:00:00Z"), claimedAt: now }, eventDate: "2026-10-10" }),
-    deal({ id: "writing", number: 2, agreed: 15000, paid: 7500, book: { answered: 10, total: 40 }, managerId: "m2" }),
+    deal({ id: "ready", number: 1, agreed: 20000, paid: 5000, book: { theme: "love", answered: 30, total: 40, words: 3000 }, invoice: { number: 12, amount: 15000, expiresAt: new Date("2026-10-23T10:00:00Z"), claimedAt: now }, eventDate: "2026-10-10" }),
+    deal({ id: "writing", number: 2, agreed: 15000, paid: 7500, book: { theme: "love", answered: 10, total: 40, words: 800 }, managerId: "m2" }),
     deal({ id: "stage", number: 3, agreed: 9000, paid: 0, plan: "print", source: "whatsapp", milestone: "book_half", hasClient: false }),
     deal({ id: "none", number: 4, agreed: 12000, paid: 0, hasClient: false }),
     deal({ id: "wonPaid", number: 5, agreed: 9000, paid: 4000, stageKind: "won" }),
@@ -264,7 +263,9 @@ describe("financeScreen: ожидается, переплаты, «Провер�
     expect(screen({ review, visible: (id) => id === "m2" }).review.map((r) => r.id)).toEqual(["j1"]);
   });
 
-  it("«книга готова» — та же граница, что у вехи продаж book_ready", () => {
-    expect(FINANCE_BOOK_READY).toBe(BOOK_READY_ANSWERS);
+  it("«книга готова» — по правилам вида книги: своя книга («вручную») — по словам, а не по ответам", () => {
+    const blank = (words: number) => deal({ id: `b${words}`, number: 30, agreed: 20000, paid: 10000, book: { theme: "blank", answered: 2, total: 3, words } });
+    const groups = screen({ deals: [blank(3200), blank(900)] }).expected.rows.map((r) => [r.ref, r.group, r.bookLabel]);
+    expect(groups.map(([, g, l]) => [g, String(l).replace(/\s/g, " ")])).toEqual([["ready", "готова · 3 200 слов"], ["progress", "пишется · 900 слов"]]);
   });
 });
