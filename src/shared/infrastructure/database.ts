@@ -28,7 +28,8 @@ export function executor(): Executor {
 /**
  * Выполнить в транзакции: внутри уже открытой (Unit of Work) — в ней же, иначе — в своей. Для репозиториев,
  * которым нужна блокировка строк (SELECT … FOR UPDATE) до конца записи, даже если их вызвали вне Unit of Work.
- * События агрегатов здесь не собираются — для них есть DrizzleUnitOfWork.
+ * События агрегатов здесь не собираются: внутри inTransaction не вызывайте uow.run/track — их события не попадут
+ * в outbox (DrizzleUnitOfWork примет этот контекст за внешнюю транзакцию). Только простые запросы репозитория.
  */
 export function inTransaction<T>(work: () => Promise<T>): Promise<T> {
   if (txStorage.getStore()) return work();

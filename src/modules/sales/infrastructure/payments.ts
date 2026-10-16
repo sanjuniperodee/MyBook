@@ -7,7 +7,7 @@ import { MAX_PAYMENT, PaymentError } from "../domain";
 export type PaymentRow = typeof crmPayments.$inferSelect;
 
 /** Блокировка строки сделки до конца транзакции: платежи по одной сделке пишутся по очереди. */
-const lockDeal = (dealId: string) => executor().execute(sql`select 1 from crm_deals where id = ${dealId} for update`);
+const lockDeal = (dealId: string) => executor().execute(sql`select 1 from crm_deals where id = ${dealId} for no key update`);
 
 /**
  * Платежи по сделкам, оформленным вручную. Деньги из этой таблицы вместе с оплаченными заказами образуют вьюху
