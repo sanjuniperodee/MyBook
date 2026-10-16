@@ -172,6 +172,39 @@ export class MessagingService {
     await this.rules.messageIncoming({ subject: `${conv.id}:${m.at.toISOString().slice(0, 10)}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
   }
 
+  /**
+   * История переписки одного собеседника, загруженная из шлюза после привязки номера (сообщения по времени).
+   * Только со знакомыми: уже есть диалог, клиент с этим номером или открытая сделка — с незнакомых номеров заявки
+   * задним числом не заводим. Без уведомлений, бота, правил, «непрочитано» и «ждёт ответа»; повтор — без дублей.
+   */
+  async importHistory(chat: InboundMessage[], extra: IngestExtra = {}): Promise<{ imported: number; skipped: "unknown" | "blocked" | null }> {
+    if (!chat.length) return { imported: 0, skipped: null };
+    const sample = chat.find((m) => !m.isEcho) ?? chat[0];
+    const phone = contactPhone({ chatId: sample.chatId, meta: extra.meta ?? {} });
+    if (await this.blocklist.isBlocked(sample.chatId, phone)) return { imported: 0, skipped: "blocked" };
+    const known =
+      (await this.conversations.findByChat(sample.chatType, sample.channelId, sample.chatId)) ??
+      (extra.anyWhatsappChannel && sample.chatType === "whatsapp" ? await this.conversations.latestWhatsapp(sample.chatId) : null);
+    const clientId = extra.clientId ?? (phone ? await this.sales.findClientByPhone(phone) : null);
+    const deal = known?.dealId ? null : await this.sales.findOpenDeal({ clientId: known?.clientId ?? clientId, phone });
+    if (!known && !clientId && !deal) return { imported: 0, skipped: "unknown" };
+    let { conv } = await this.upsert(sample, { ...extra, clientId: clientId ?? undefined });
+    if (!conv.dealId && deal) conv = await this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId ?? deal.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
+    let imported = 0;
+    let last: InboundMessage | null = null;
+    for (const m of chat) {
+      const ok = m.isEcho ? !(await this.messages.existsExternal(m.externalId)) && (await this.messages.insertEcho(conv.id, m)) : await this.messages.insertIncoming(conv.id, m, null);
+      if (!ok) continue;
+      imported++;
+      if (!last || m.at > last.at) last = m;
+    }
+    if (last) {
+      await this.conversations.recordHistory(conv.id, preview(last.text), last.at);
+      this.live.chatChanged(conv.id);
+    }
+    return { imported, skipped: null };
+  }
+
   async applyStatus(s: DeliveryStatus) {
     const msg = await this.messages.byExternalId(s.externalId);
     if (!msg || !shouldApplyStatus(msg.status, s.status)) return;

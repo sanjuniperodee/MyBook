@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { LoaderCircle, QrCode, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import type { GowaStatus } from "@/modules/messaging";
-import { gowaLogoutAction, gowaPairCodeAction, gowaQrAction, gowaStatusAction, saveWhatsappSettingsAction } from "./actions";
+import { gowaImportHistoryAction, gowaLogoutAction, gowaPairCodeAction, gowaQrAction, gowaStatusAction, saveWhatsappSettingsAction } from "./actions";
 
 interface GowaFormProps {
   provider: "wazzup" | "gowa";
@@ -82,6 +82,12 @@ export function GowaForm(props: GowaFormProps) {
       else setMessage({ ok: false, text: r.error });
     });
 
+  const importHistory = () =>
+    start(async () => {
+      const r = await gowaImportHistoryAction();
+      setMessage(r.ok ? { ok: true, text: `История загружена: ${r.imported} сообщений в ${r.withClients} диалогах с клиентами (чатов в WhatsApp — ${r.chats}, незнакомые номера пропущены)` } : { ok: false, text: r.error });
+    });
+
   const logout = () =>
     start(async () => {
       const r = await gowaLogoutAction();
@@ -139,6 +145,9 @@ export function GowaForm(props: GowaFormProps) {
         {status.loggedIn ? (
           <div className="flex flex-wrap items-center gap-3 text-sm">
             Привязан {status.phone ? <b>+{status.phone}</b> : null}
+            <button className="btn btn-outline btn-sm" disabled={pending} onClick={importHistory} title="Переписка с клиентами и сделками из WhatsApp — задним числом, без уведомлений и новых заявок">
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Загрузить историю переписки
+            </button>
             <button className="text-muted underline underline-offset-4 hover:text-red-700" disabled={pending} onClick={logout}>
               Отвязать
             </button>

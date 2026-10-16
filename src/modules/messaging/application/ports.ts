@@ -15,6 +15,8 @@ export interface ConversationRepository {
   recordIncoming(id: string, text: string, at: Date): Promise<void>;
   /** Менеджер ответил с телефона — клиент больше не ждёт. */
   recordEcho(id: string, text: string, at: Date): Promise<void>;
+  /** История задним числом: последнее сообщение — только если оно новее записанного; без «непрочитано» и «ждёт ответа». */
+  recordHistory(id: string, text: string, at: Date): Promise<void>;
   /** Исходящее из CRM. Ответ человека снимает «ждёт ответа» и останавливает бота; первый ответивший становится ответственным. */
   recordOutgoing(id: string, text: string, at: Date, authorId: string | null): Promise<void>;
   /** Спам: сообщение сохранено, диалог закрыт. */

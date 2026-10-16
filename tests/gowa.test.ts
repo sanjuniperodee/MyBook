@@ -175,3 +175,41 @@ describe("GOWA: транспорт исходящих", () => {
     expect(await transport.send(conv({}), "m1", "Привет")).toEqual({ ok: false, error: "WhatsApp: not logged in" });
   });
 });
+
+describe("GOWA: история из хранилища чатов", () => {
+  it("сообщение истории → входящее или эхо, вложение — подписью без файла; группы и пустые — нет", async () => {
+    const { parseGowaHistory } = await import("@/modules/messaging/domain/gowa");
+    const base = { id: "A1", chat_jid: "77011234567@s.whatsapp.net", sender_jid: "77011234567@s.whatsapp.net", sender_display_name: "Айгерим", content: "Здравствуйте", timestamp: "2026-10-10T08:00:00Z", is_from_me: false, media_type: "", url: "" };
+    expect(parseGowaHistory(base)).toMatchObject({ externalId: "A1", channelId: "gowa", chatType: "whatsapp", chatId: "77011234567", isEcho: false, type: "text", text: "Здравствуйте", contactName: "Айгерим", mediaUrl: null });
+    expect(parseGowaHistory({ ...base, is_from_me: true })).toMatchObject({ isEcho: true, contactName: "" });
+    const photo = parseGowaHistory({ ...base, content: "", media_type: "image" });
+    expect(photo).toMatchObject({ type: "image", mediaUrl: null });
+    expect(photo!.text).not.toBe("");
+    expect(parseGowaHistory({ ...base, chat_jid: "120363@g.us" })).toBeNull();
+    expect(parseGowaHistory({ ...base, content: "  " })).toBeNull();
+    expect(parseGowaHistory({ ...base, timestamp: "вчера" })).toBeNull();
+  });
+});
+
+describe("GOWA: чаты и сообщения для загрузки истории", () => {
+  it("постранично, с устройством магазина в заголовке; пустой ответ — пусто", async () => {
+    const { GowaClient } = await import("@/modules/messaging/infrastructure/gowa");
+    const calls: { url: string; device: string | null }[] = [];
+    const client = new GowaClient(
+      async () => ({ baseUrl: "http://gowa:3000/", basicAuth: "u:p" }),
+      async (url, init) => {
+        calls.push({ url: String(url), device: new Headers(init?.headers).get("X-Device-Id") });
+        const body = String(url).includes("/chats?")
+          ? { results: { data: [{ jid: "77011234567@s.whatsapp.net", last_message_time: "2026-10-16T04:00:00Z" }, { name: "без jid" }], pagination: { total: 1 } } }
+          : { results: { data: null, pagination: { total: 0 } } };
+        return new Response(JSON.stringify(body), { status: 200 });
+      },
+    );
+    expect(await client.chats(100, 100)).toEqual({ chats: [{ jid: "77011234567@s.whatsapp.net", lastMessageAt: "2026-10-16T04:00:00Z" }], total: 1 });
+    expect(await client.chatMessages("77011234567@s.whatsapp.net", 0, 200)).toEqual({ messages: [], total: 0 });
+    expect(calls).toEqual([
+      { url: "http://gowa:3000/chats?limit=100&offset=100", device: "mybooks" },
+      { url: "http://gowa:3000/chat/77011234567%40s.whatsapp.net/messages?limit=200&offset=0", device: "mybooks" },
+    ]);
+  });
+});
