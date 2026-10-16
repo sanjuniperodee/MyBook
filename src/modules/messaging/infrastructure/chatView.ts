@@ -1,12 +1,12 @@
 import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
-import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
+import { crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
 import { staffLabel } from "@/shared/domain/staff";
 import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
-import { GOWA_CHANNEL } from "../domain/gowa";
+import { GOWA_CHANNEL, gowaDownloadable, gowaMediaPath } from "../domain/gowa";
 import type { MailTransport } from "./email";
 import type { GowaClient } from "./gowa";
 import type { WazzupClient } from "./wazzup";
@@ -24,10 +24,15 @@ export interface ChatMessage {
   at: string;
   /** Внутренняя заметка сотрудника — клиент её не видит. */
   internal?: boolean;
+  /**
+   * Файл вложения лежит в шлюзе GOWA (или шлюз скачает его по запросу) — открывается по id сообщения,
+   * через /api/admin/chats/messages/<id>/media, с проверкой, что сотрудник видит диалог.
+   */
+  gateway?: boolean;
 }
 
-/** Последние сообщения диалога в виде, готовом для ChatPanel. */
-async function loadChatMessages(conversationId: string, limit: number): Promise<ChatMessage[]> {
+/** Последние сообщения диалога в виде, готовом для ChatPanel. gateway — вложение открывается через шлюз GOWA. */
+async function loadChatMessages(conversationId: string, limit: number, gateway: (m: typeof crmMessages.$inferSelect) => boolean): Promise<ChatMessage[]> {
   const rows = await db
     .select({ m: crmMessages, author: { name: users.name, email: users.email } })
     .from(crmMessages)
@@ -46,6 +51,7 @@ async function loadChatMessages(conversationId: string, limit: number): Promise<
     author: m.internal ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
     at: m.createdAt.toISOString(),
     internal: m.internal,
+    ...(gateway(m) ? { gateway: true } : {}),
   }));
 }
 
@@ -63,8 +69,10 @@ export class ChatView {
     },
   ) {}
 
-  messages(conversationId: string, limit = 150) {
-    return loadChatMessages(conversationId, limit);
+  async messages(conversationId: string, limit = 150) {
+    const [conv] = await db.select({ channel: crmConversations.channel, channelId: crmConversations.channelId, chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.id, conversationId)).limit(1);
+    const viaGowa = conv?.channel === "whatsapp" && (await this.deps.whatsappProvider()) === "gowa";
+    return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || gowaDownloadable(conv, viaGowa, m)));
   }
 
   templates() {

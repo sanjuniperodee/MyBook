@@ -4,7 +4,7 @@ import type { CustomFieldsReader, LiveFeed, SettingsReader, StaffNotifier as Sta
 import { crmTasks } from "@/shared/infrastructure/db/schema";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";
-import type { BotSettings, ChannelTransport, LiveUpdates, StaffNotifier, Tasks } from "../application";
+import type { BotSettings, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier, Tasks } from "../application";
 import { GOWA_CHANNEL, type BotMode } from "../domain";
 import type { EmailChannel } from "./email";
 import { GowaError, type GowaClient } from "./gowa";
@@ -46,6 +46,20 @@ export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"waz
     },
   };
 }
+
+/** Файлы вложений из шлюза GOWA. Файла в шлюзе нет (удалён, не скачан) — null, а не ошибка. */
+export const gowaMediaGateway = (gowa: GowaClient): MediaGateway => ({
+  download: (externalId, chatId) => gowa.download(externalId, chatId),
+  async file(path) {
+    try {
+      const res = await gowa.media(path);
+      return res.body ? { body: res.body, contentType: res.headers.get("content-type"), size: res.headers.get("content-length") } : null;
+    } catch (err) {
+      if (GowaError.is(err) && err.code === "NOT_FOUND") return null;
+      throw err;
+    }
+  },
+});
 
 /** Права, по которым переписка ищет, кого уведомить. */
 export type MessagingPermission = "chats.view" | "deals.view";

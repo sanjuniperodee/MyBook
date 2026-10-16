@@ -1,8 +1,8 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
-import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type MessagingPermission } from "./infrastructure/adapters";
+import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
@@ -14,7 +14,7 @@ export { channelLabel, type Conversation, type InboundMessage } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
-export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
+export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
 type MessagingSettingKey = "bot.mode" | "bot.config" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | EmailSettingKey;
@@ -56,6 +56,8 @@ export class MessagingModule {
   readonly email: EmailChannel;
   /** Данные экрана чата. */
   readonly view: ChatView;
+  /** Вложения WhatsApp по id сообщения: голосовые, фото, файлы (в том числе из истории — шлюз скачивает их по запросу). */
+  readonly media: ChatMediaService;
 
   constructor(
     private readonly deps: { clock: Clock; sales: SalesGateway; rules: IncomingRules; links: LinkAttribution; whatsapp: () => Promise<string>; whatsappSettings: WhatsappSettings } & WorkspacePorts,
@@ -70,7 +72,9 @@ export class MessagingModule {
     this.email = new EmailChannel({ ...deps, chats: { ingest: (message, extra) => this.chats.ingest(message, extra) } });
     this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup, gowa: this.gowa, whatsappProvider: deps.whatsappSettings.provider, smtp: deps.smtp });
     const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup, this.email));
-    this.chats = new MessagingService(conversations, new DrizzleMessageRepository(), drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"));
+    const messages = new DrizzleMessageRepository();
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"));
+    this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa");
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
   }
 

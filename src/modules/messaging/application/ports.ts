@@ -114,3 +114,34 @@ export interface BotSettings {
 export interface Tasks {
   create(task: { title: string; kind: "call"; dueAt: Date; dealId: string; clientId: string | null; assigneeId: string | null }): Promise<void>;
 }
+
+/** Вложение сообщения — то, что нужно, чтобы открыть его файл в CRM. */
+export interface MessageMedia {
+  id: string;
+  conversationId: string;
+  type: string;
+  /** Где лежит файл: ссылка нашего прокси на файл шлюза или адрес Wazzup; null — файла ещё нет. */
+  mediaUrl: string | null;
+  externalId: string | null;
+}
+
+/** Вложения сообщений (репозиторий сообщений). */
+export interface MessageMediaStore {
+  media(id: string): Promise<MessageMedia | null>;
+  /** Шлюз скачал файл — запомнить ссылку на него (заменяет прежнюю, если шлюз её файл удалил): второй раз файл не качается. */
+  saveMediaUrl(id: string, mediaUrl: string): Promise<void>;
+}
+
+/** Файл вложения, который отдаётся сотруднику. */
+export interface MediaFile {
+  body: ReadableStream<Uint8Array>;
+  contentType: string | null;
+  size: string | null;
+}
+
+/** Файлы своего шлюза WhatsApp (GOWA). Ошибки шлюза — исключением с понятным сотруднику текстом. */
+export interface MediaGateway {
+  /** Скачать в шлюз вложение сообщения; путь к файлу (statics/media/…). */
+  download(externalId: string, chatId: string): Promise<string>;
+  file(path: string): Promise<MediaFile | null>;
+}

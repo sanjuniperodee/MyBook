@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { gowaJid, isGowaMediaPath } from "../domain/gowa";
+import { GOWA_MESSAGE_ID, gowaDownloadPhone, gowaJid, isGowaMediaPath } from "../domain/gowa";
 
 const GOWA_ERROR = Symbol.for("mybook.gowa-error");
 
@@ -127,6 +127,20 @@ export class GowaClient {
     return this.raw(`/${path}`);
   }
 
+  /**
+   * Скачать в шлюз вложение сообщения, которое пришло без файла (история, вебхук без автоскачивания): шлюз берёт его
+   * у WhatsApp по id сообщения и чату. Возвращает путь к файлу (statics/media/<номер>/<дата>/<файл>) — его отдаёт media().
+   */
+  async download(messageId: string, chatId: string): Promise<string> {
+    const phone = gowaDownloadPhone(chatId);
+    if (!GOWA_MESSAGE_ID.test(messageId) || !phone) throw new GowaError("Неверный id сообщения или номер");
+    const res = await this.json<{ results?: { file_path?: unknown } }>("GET", `/message/${encodeURIComponent(messageId)}/download?phone=${encodeURIComponent(phone)}`, undefined, 60_000);
+    const path = typeof res.results?.file_path === "string" ? res.results.file_path.replace(/^\.?\//, "") : "";
+    // Путь приходит от шлюза, но в прокси и в базу попадает только путь внутри каталога вложений.
+    if (!isGowaMediaPath(path)) throw new GowaError("Шлюз вернул неверный путь к файлу");
+    return path;
+  }
+
   /** Личные и групповые чаты номера магазина из хранилища шлюза (jid и время последнего сообщения), постранично. */
   async chats(offset: number, limit: number): Promise<{ chats: { jid: string; lastMessageAt: string; updatedAt: string }[]; total: number }> {
     const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string; updated_at?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${Math.min(limit, GOWA_PAGE_LIMIT)}&offset=${offset}`);
@@ -155,11 +169,11 @@ export class GowaClient {
     } catch {
       throw new GowaError("Шлюз WhatsApp (GOWA) недоступен", "UNREACHABLE");
     }
-    if (!res.ok) throw new GowaError(res.status === 401 ? "Шлюз WhatsApp не принял логин и пароль" : `Шлюз WhatsApp: HTTP ${res.status}`);
+    if (!res.ok) throw new GowaError(res.status === 401 ? "Шлюз WhatsApp не принял логин и пароль" : `Шлюз WhatsApp: HTTP ${res.status}`, res.status === 404 ? "NOT_FOUND" : null);
     return res;
   }
 
-  private async json<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  private async json<T>(method: Method, path: string, body?: unknown, timeoutMs = 15_000): Promise<T> {
     const { baseUrl } = await this.config();
     let res: Response;
     try {
@@ -167,7 +181,7 @@ export class GowaClient {
         method,
         headers: { ...(await this.headers()), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch {
       throw new GowaError("Шлюз WhatsApp (GOWA) недоступен", "UNREACHABLE");

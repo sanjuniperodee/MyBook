@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { crmBlocklist, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import type { Blocklist, ConversationRepository, MessageRepository } from "../application";
+import type { Blocklist, ConversationRepository, MessageMediaStore, MessageRepository } from "../application";
 import type { Conversation, InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
@@ -139,7 +139,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
   }
 }
 
-export class DrizzleMessageRepository implements MessageRepository {
+export class DrizzleMessageRepository implements MessageRepository, MessageMediaStore {
   async insertIncoming(conversationId: string, m: InboundMessage, subject: string | null) {
     const rows = await executor()
       .insert(crmMessages)
@@ -205,6 +205,19 @@ export class DrizzleMessageRepository implements MessageRepository {
       await tx.delete(crmMessages).where(and(eq(crmMessages.externalId, externalId), sql`${crmMessages.id} <> ${id}`));
       await tx.update(crmMessages).set({ externalId, status: sent }).where(eq(crmMessages.id, id));
     });
+  }
+
+  async media(id: string) {
+    const [r] = await executor()
+      .select({ id: crmMessages.id, conversationId: crmMessages.conversationId, type: crmMessages.type, mediaUrl: crmMessages.mediaUrl, externalId: crmMessages.externalId })
+      .from(crmMessages)
+      .where(eq(crmMessages.id, id))
+      .limit(1);
+    return r ?? null;
+  }
+
+  async saveMediaUrl(id: string, mediaUrl: string) {
+    await executor().update(crmMessages).set({ mediaUrl }).where(eq(crmMessages.id, id));
   }
 
   async byExternalId(externalId: string) {

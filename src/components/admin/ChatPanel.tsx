@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, SendHorizontal, Sparkles, Wallet } from "lucide-react";
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
@@ -41,22 +41,53 @@ function StatusIcon({ status }: { status: string }) {
   return null;
 }
 
-function Media({ m }: { m: ChatMessage }) {
-  if (!m.mediaUrl) return null;
-  if (m.type === "image")
-    return (
-      <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={m.mediaUrl} alt="" className="mb-1 max-h-64 rounded-lg object-cover" loading="lazy" />
-      </a>
-    );
-  if (m.type === "audio") return <audio controls src={m.mediaUrl} className="mb-1 h-9 max-w-full" preload="none" />;
-  if (m.type === "video") return <video controls src={m.mediaUrl} className="mb-1 max-h-64 rounded-lg" preload="none" />;
+/** Адрес вложения: файл шлюза WhatsApp — по id сообщения через наш сервер (он проверяет доступ к диалогу), иначе ссылка канала. */
+const mediaSrc = (m: ChatMessage) => (m.gateway ? `/api/admin/chats/messages/${m.id}/media` : m.mediaUrl);
+
+let opus: boolean | null = null;
+/** Голосовые WhatsApp — Ogg Opus; часть браузеров (Safari до 18.4) его не играет. На сервере считаем, что играет. */
+const canPlayOpus = () => (opus ??= document.createElement("audio").canPlayType('audio/ogg; codecs="opus"') !== "");
+const noSubscribe = () => () => {};
+
+/** Голосовое: плеер и «скачать»; если браузер файл не играет — подсказка вместо пустого плеера. */
+function Voice({ src, gateway }: { src: string; gateway: boolean }) {
+  const playsOpus = useSyncExternalStore(noSubscribe, canPlayOpus, () => true);
+  const [failed, setFailed] = useState(false);
+  const hint = failed ? "Не удалось воспроизвести — скачайте файл." : gateway && !playsOpus ? "Браузер не воспроизводит голосовые WhatsApp (ogg/opus) — скачайте файл." : null;
   return (
-    <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="mb-1 flex items-center gap-1.5 underline">
+    <div className="mb-1">
+      {hint ? <p className="text-xs opacity-80">{hint}</p> : <audio controls src={src} className="h-9 max-w-full" preload="none" onError={() => setFailed(true)} />}
+      <a href={src} download className="text-[11px] underline opacity-80">
+        скачать
+      </a>
+    </div>
+  );
+}
+
+function FileLink({ src }: { src: string }) {
+  return (
+    <a href={src} target="_blank" rel="noopener noreferrer" className="mb-1 flex items-center gap-1.5 underline">
       <FileText className="size-4" /> Открыть файл
     </a>
   );
+}
+
+function Media({ m }: { m: ChatMessage }) {
+  const [broken, setBroken] = useState(false);
+  const src = mediaSrc(m);
+  if (!src) return null;
+  if (m.type === "audio") return <Voice src={src} gateway={!!m.gateway} />;
+  // Картинка или видео не открылись (шлюз не смог скачать файл) — остаётся ссылка: по ней видно, что случилось.
+  if (broken) return <FileLink src={src} />;
+  if (m.type === "image")
+    return (
+      <a href={src} target="_blank" rel="noopener noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className="mb-1 max-h-64 rounded-lg object-cover" loading="lazy" onError={() => setBroken(true)} />
+      </a>
+    );
+  if (m.type === "video") return <video controls src={src} className="mb-1 max-h-64 rounded-lg" preload="none" onError={() => setBroken(true)} />;
+  return <FileLink src={src} />;
 }
 
 /**

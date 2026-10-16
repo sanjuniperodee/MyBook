@@ -45,6 +45,52 @@ export function isGowaMediaPath(path: string): boolean {
 /** Как CRM открывает файл, скачанный шлюзом: шлюз доступен только из внутренней сети, файлы отдаёт наш прокси. */
 export const gowaMediaUrl = (path: string) => `/api/admin/whatsapp/media?path=${encodeURIComponent(path)}`;
 
+/** Обратно: путь к файлу шлюза из сохранённой в сообщении ссылки прокси; чужая ссылка (Wazzup) или мусор — null. */
+export function gowaMediaPath(mediaUrl: string | null): string | null {
+  if (!mediaUrl?.startsWith("/api/admin/whatsapp/media?")) return null;
+  const path = new URLSearchParams(mediaUrl.slice(mediaUrl.indexOf("?") + 1)).get("path");
+  return path && isGowaMediaPath(path) ? path : null;
+}
+
+/** id сообщения WhatsApp в шлюзе (3EB0C127D7BACC83D6A1…): только он попадает в адрес запроса к шлюзу. */
+export const GOWA_MESSAGE_ID = /^[A-Za-z0-9]{6,64}$/;
+
+/** Виды сообщений, файл которых шлюз может скачать по id сообщения. */
+const DOWNLOADABLE = new Set(["image", "video", "audio", "document"]);
+
+/**
+ * Кого указать шлюзу при скачивании вложения (?phone=): номер цифрами для обычного чата, скрытый номер (LID) — целиком.
+ * Чужие идентификаторы (группы, почта, мусор) — null.
+ */
+export function gowaDownloadPhone(chatId: string): string | null {
+  if (/^\d{5,20}$/.test(chatId)) return chatId;
+  if (/^\d{5,25}@lid$/.test(chatId)) return chatId;
+  return null;
+}
+
+/**
+ * Файла у вложения нет (история из хранилища шлюза или вебхук без автоскачивания), но шлюз может его скачать:
+ * WhatsApp-диалог шлюза (или любой WhatsApp, когда он идёт через шлюз), вид — фото, видео, голосовое или файл.
+ */
+export function gowaDownloadable(
+  conv: { channel: string; channelId: string; chatId: string },
+  viaGowa: boolean,
+  m: { type: string; mediaUrl: string | null; externalId: string | null },
+): boolean {
+  if (m.mediaUrl || !DOWNLOADABLE.has(m.type) || !m.externalId || !GOWA_MESSAGE_ID.test(m.externalId)) return false;
+  return conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || viaGowa) && gowaDownloadPhone(conv.chatId) !== null;
+}
+
+/**
+ * Content-Type файла для браузера: голосовые WhatsApp (Ogg Opus) шлюз отдаёт как application/ogg — тег <audio>
+ * в части браузеров такой файл не играет, поэтому для голосовых — audio/ogg.
+ */
+export function gowaMediaType(type: string, upstream: string | null): string {
+  const mime = (upstream ?? "").split(";")[0].trim().toLowerCase();
+  if (type === "audio" && (!mime || mime === "application/ogg" || mime === "application/octet-stream")) return "audio/ogg";
+  return upstream || "application/octet-stream";
+}
+
 /** Вложение сообщения: тип в словаре CRM и путь к скачанному шлюзом файлу (statics/media/…). */
 function attachment(p: Record<string, unknown>): { type: string; path: string | null } | null {
   const kinds: [string, string][] = [
