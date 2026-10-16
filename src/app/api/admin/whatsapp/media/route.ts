@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { container } from "@/server/container";
+import { isGowaMediaPath } from "@/modules/messaging/domain/gowa";
 
-const path = z.string().regex(/^statics\/media\/[\w.\-]+$/);
+/** statics/media/<файл> или вложенный statics/media/<номер>/<дата>/<файл> — проверка по сегментам, без «..». */
+const path = z.string().refine(isGowaMediaPath);
 
 /** Вложение из WhatsApp (фото, голосовое, файл), скачанное шлюзом GOWA, — только сотрудникам с доступом к переписке. */
 export const GET = api(async (req) => {

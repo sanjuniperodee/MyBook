@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { gowaJid } from "../domain/gowa";
+import { gowaJid, isGowaMediaPath } from "../domain/gowa";
 
 const GOWA_ERROR = Symbol.for("mybook.gowa-error");
 
@@ -123,7 +123,7 @@ export class GowaClient {
 
   /** Файл вложения, скачанный шлюзом (statics/media/…), — для прокси в CRM. */
   async media(path: string): Promise<Response> {
-    if (!/^statics\/media\/[\w.\-]+$/.test(path)) throw new GowaError("Неверный путь к файлу");
+    if (!isGowaMediaPath(path)) throw new GowaError("Неверный путь к файлу");
     return this.raw(`/${path}`);
   }
 

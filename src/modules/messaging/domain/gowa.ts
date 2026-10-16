@@ -28,6 +28,23 @@ export function gowaJid(chatId: string): string {
   return chatId.includes("@") ? chatId : `${chatId.replace(/\D/g, "")}@s.whatsapp.net`;
 }
 
+/** Сегмент пути к файлу шлюза: имя без «/», не «.» и не «..», не начинается с точки. */
+const MEDIA_SEGMENT = /^[\w-][\w.-]*$/;
+
+/**
+ * Путь к файлу вложения в каталоге шлюза: statics/media/<файл> или вложенный statics/media/<номер>/<дата>/<файл>
+ * (так GOWA кладёт файлы, скачанные по запросу). Проверяется по сегментам — выйти из каталога вложений нельзя.
+ */
+export function isGowaMediaPath(path: string): boolean {
+  if (path.length > 300) return false;
+  const parts = path.split("/");
+  if (parts.length < 3 || parts.length > 8 || parts[0] !== "statics" || parts[1] !== "media") return false;
+  return parts.slice(2).every((s) => s !== "." && s !== ".." && MEDIA_SEGMENT.test(s));
+}
+
+/** Как CRM открывает файл, скачанный шлюзом: шлюз доступен только из внутренней сети, файлы отдаёт наш прокси. */
+export const gowaMediaUrl = (path: string) => `/api/admin/whatsapp/media?path=${encodeURIComponent(path)}`;
+
 /** Вложение сообщения: тип в словаре CRM и путь к скачанному шлюзом файлу (statics/media/…). */
 function attachment(p: Record<string, unknown>): { type: string; path: string | null } | null {
   const kinds: [string, string][] = [
@@ -42,7 +59,7 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
     if (!(key in p)) continue;
     const v = p[key];
     const path = typeof v === "string" ? v : str(record(v).path);
-    return { type, path: path && /^statics\/media\/[\w.\-]+$/.test(path) ? path : null };
+    return { type, path: path && isGowaMediaPath(path) ? path : null };
   }
   if ("contact" in p || "contacts_array" in p) return { type: "vcard", path: null };
   if ("location" in p || "live_location" in p) return { type: "geo", path: null };
