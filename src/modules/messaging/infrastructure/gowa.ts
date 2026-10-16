@@ -49,6 +49,9 @@ export interface GowaStatus {
  * адресуются заголовком X-Device-Id: так сайт сам настраивает шлюз, без переменных окружения на его стороне.
  */
 export const GOWA_DEVICE = "mybooks";
+/** Больше записей за запрос шлюз не отдаёт («limit: must be no greater than 100»). */
+export const GOWA_PAGE_LIMIT = 100;
+
 /** События, которые нужны CRM: сообщения и отметки о доставке. */
 const WEBHOOK_EVENTS = "message,message.ack";
 
@@ -126,14 +129,14 @@ export class GowaClient {
 
   /** Личные и групповые чаты номера магазина из хранилища шлюза (jid и время последнего сообщения), постранично. */
   async chats(offset: number, limit: number): Promise<{ chats: { jid: string; lastMessageAt: string; updatedAt: string }[]; total: number }> {
-    const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string; updated_at?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${limit}&offset=${offset}`);
+    const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string; updated_at?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${Math.min(limit, GOWA_PAGE_LIMIT)}&offset=${offset}`);
     const data = res.results?.data ?? [];
     return { chats: data.flatMap((c) => (c.jid ? [{ jid: c.jid, lastMessageAt: c.last_message_time ?? "", updatedAt: c.updated_at ?? "" }] : [])), total: res.results?.pagination?.total ?? 0 };
   }
 
   /** Сообщения чата из хранилища шлюза (сырые записи — разбирает parseGowaHistory), постранично. */
   async chatMessages(jid: string, offset: number, limit: number): Promise<{ messages: unknown[]; total: number }> {
-    const res = await this.json<{ results?: { data?: unknown[] | null; pagination?: { total?: number } } }>("GET", `/chat/${encodeURIComponent(jid)}/messages?limit=${limit}&offset=${offset}`);
+    const res = await this.json<{ results?: { data?: unknown[] | null; pagination?: { total?: number } } }>("GET", `/chat/${encodeURIComponent(jid)}/messages?limit=${Math.min(limit, GOWA_PAGE_LIMIT)}&offset=${offset}`);
     return { messages: res.results?.data ?? [], total: res.results?.pagination?.total ?? 0 };
   }
 

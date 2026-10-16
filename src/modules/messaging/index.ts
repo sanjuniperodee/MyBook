@@ -5,7 +5,7 @@ import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, ty
 import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
-import { GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
+import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
 import { parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
@@ -92,13 +92,13 @@ export class MessagingModule {
    * со знакомыми номерами (клиент, открытая сделка или уже есть диалог). Незнакомые номера и спам пропускаются.
    */
   async importGowaHistory(opts: { since?: Date } = {}): Promise<{ chats: number; withClients: number; imported: number }> {
-    const PAGE = 200;
+    const PAGE = GOWA_PAGE_LIMIT;
     let offset = 0;
     let chats = 0;
     let withClients = 0;
     let imported = 0;
     for (;;) {
-      const page = await this.gowa.chats(offset, 100);
+      const page = await this.gowa.chats(offset, PAGE);
       for (const { jid, updatedAt } of page.chats) {
         // Повторный проход — только чаты, в которые с прошлого раза что-то пришло (новое или догруженная WhatsApp история).
         if (opts.since && updatedAt && new Date(updatedAt) < opts.since) continue;
@@ -115,7 +115,7 @@ export class MessagingModule {
         if (r.skipped === null) withClients++;
         imported += r.imported;
       }
-      offset += 100;
+      offset += PAGE;
       if (!page.chats.length || offset >= page.total) break;
     }
     return { chats, withClients, imported };
