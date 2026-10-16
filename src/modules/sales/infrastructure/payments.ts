@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { executor, inTransaction } from "@/shared/infrastructure/database";
 import { MAX_PAYMENT, PaymentError } from "../domain";
@@ -80,6 +80,20 @@ export class DealPayments {
   async paidTotal(dealId: string) {
     const [r] = await executor().select({ s: sql<number>`coalesce(sum(case when ${crmPayments.kind} = 'refund' then -${crmPayments.amount} else ${crmPayments.amount} end), 0)::int` }).from(crmPayments).where(eq(crmPayments.dealId, dealId));
     return r.s;
+  }
+
+  /**
+   * Руководитель сверил ручной платёж с поступлением на счёт («Финансы» → «Проверить»). Одним условным обновлением:
+   * онлайн-платёж (его подтвердила платёжная система) и уже проверенный не трогаются — тогда null.
+   */
+  async review(id: string, reviewerId: string, at = new Date()): Promise<PaymentRow | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [row] = await executor()
+      .update(crmPayments)
+      .set({ reviewedById: reviewerId, reviewedAt: at })
+      .where(and(eq(crmPayments.id, id), eq(crmPayments.method, "manual"), isNull(crmPayments.reviewedAt)))
+      .returning();
+    return row ?? null;
   }
 
   /** Удалить ошибочный платёж. Чеки остаются у сделки (платёж у них обнуляется). */
