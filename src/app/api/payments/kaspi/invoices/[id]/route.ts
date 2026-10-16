@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
-import { api, apiUser, checkOrigin } from "@/server/api";
+import { api, apiUser, checkOrigin, HttpError } from "@/server/api";
 import { container } from "@/server/container";
-import type { InvoiceOwner } from "@/modules/ordering";
+import { isPayToken, type InvoiceOwner } from "@/modules/ordering";
 import { invoiceView } from "../../view";
 import { idParams } from "@/server/input";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Сертификат оплачивают по секретной ссылке (можно без аккаунта), заказ — только владелец. */
+/**
+ * Сертификат и счёт из чата оплачивают по секретной ссылке (без аккаунта), заказ — только владелец. По ссылке ?pay=
+ * не требуем входа и не отвечаем 401: иначе apiFetch уведёт плательщика на страницу входа.
+ */
 async function ownerOf(req: Request): Promise<InvoiceOwner> {
-  const giftToken = new URL(req.url).searchParams.get("token");
+  const params = new URL(req.url).searchParams;
+  const pay = params.get("pay");
+  if (pay !== null) {
+    if (!isPayToken(pay)) throw new HttpError(404, "invoiceNotFound");
+    return { dealInvoiceToken: pay };
+  }
+  const giftToken = params.get("token");
   return giftToken ? { giftToken } : { userId: (await apiUser(req)).id };
 }
 

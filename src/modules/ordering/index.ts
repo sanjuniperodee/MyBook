@@ -73,10 +73,12 @@ export class OrderingModule {
     this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
-    this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);
+    // Счета из чата для платёжных систем: P<n> в CloudPayments и цель deal_invoice в Kaspi.
+    const dealInvoices = { repo: new DrizzleDealInvoiceRepository(), service: this.invoices, sales: deps.invoiceSales, clock: deps.clock };
+    this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts, undefined, dealInvoices);
     const kaspiPos = new KaspiPosClient(deps.kaspiConfig);
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
-    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger);
+    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices);
     this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);
     this.subscribe(deps.bus);
@@ -124,6 +126,11 @@ export class OrderingModule {
   /** Подпись вебхука kaspi-pos-automation. */
   async verifyKaspiWebhook(rawBody: string, signature: string | null) {
     return verifyKaspiSignature(rawBody, signature, await this.deps.kaspiConfig.webhookSecret());
+  }
+
+  /** Получатель платежа в Kaspi (организация кассира) — для страницы оплаты и сообщения со счётом; без запроса к Kaspi. */
+  async kaspiRecipient(): Promise<string | null> {
+    return (await this.deps.kaspiConfig.config()).session?.orgName.trim() || null;
   }
 
   /** Отложенная отправка сертификатов получателям (планировщик). */

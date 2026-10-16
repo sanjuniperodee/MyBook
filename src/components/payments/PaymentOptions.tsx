@@ -6,7 +6,7 @@ import { useLocale } from "@/i18n/client";
 import { useState, useTransition, type ReactNode, type TransitionStartFunction } from "react";
 import { CreditCard, LoaderCircle } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
-import { KaspiPay, type KaspiTarget } from "@/components/payments/KaspiPay";
+import { KaspiPay, type KaspiHints, type KaspiTarget } from "@/components/payments/KaspiPay";
 import type { KaspiInvoiceView } from "@/modules/ordering/ui/kaspi";
 
 declare global {
@@ -32,8 +32,8 @@ interface PaymentTexts {
 }
 
 /**
- * Оплата заказа или сертификата: Kaspi Pay (если подключён), карта через CloudPayments или перевод по реквизитам
- * с кнопкой «Я оплатил(а)». footer — что-то под блоком в той же транзакции (отмена заказа).
+ * Оплата заказа, сертификата или счёта из чата: Kaspi Pay (если подключён), карта через CloudPayments или перевод по
+ * реквизитам с кнопкой «Я оплатил(а)». footer — что-то под блоком в той же транзакции (отмена заказа).
  */
 export function PaymentOptions(props: {
   t: PaymentTexts;
@@ -41,9 +41,12 @@ export function PaymentOptions(props: {
   amount: number;
   amountLabel: string;
   currency: string;
-  email: string;
+  /** Почта плательщика для чека CloudPayments; null — не передаём (счёт из чата: контакты клиента странице не нужны). */
+  email: string | null;
   /** Номер счёта в CloudPayments и данные для уведомления. */
   invoiceId: string;
+  /** AccountId в CloudPayments; по умолчанию — почта. */
+  accountId?: string;
   data?: Record<string, unknown>;
   online: { publicId: string } | null;
   /** Перевод по реквизитам компании; null — реквизиты не заданы в «Интеграциях» (перевод не показываем). */
@@ -54,7 +57,9 @@ export function PaymentOptions(props: {
   claimedText: string | null;
   onClaim: () => Promise<void>;
   kaspiTarget: KaspiTarget;
-  kaspi: { initial: KaspiInvoiceView | null; defaultPhone: string } | null;
+  kaspi: { initial: KaspiInvoiceView | null; defaultPhone: string; hints?: KaspiHints } | null;
+  /** Перевод по реквизитам показывать всегда, а не только когда Kaspi недоступен (счёт из чата: менеджер обещал перевод). */
+  manualAlways?: boolean;
   footer?: (ctx: { pending: boolean; start: TransitionStartFunction }) => ReactNode;
 }) {
   const { t } = props;
@@ -75,8 +80,8 @@ export function PaymentOptions(props: {
         amount: props.amount,
         currency: props.currency,
         invoiceId: props.invoiceId,
-        accountId: props.email,
-        email: props.email,
+        accountId: props.accountId ?? props.email ?? undefined,
+        ...(props.email ? { email: props.email } : {}),
         skin: "mini",
         ...(props.data ? { data: props.data } : {}),
       },
@@ -120,7 +125,7 @@ export function PaymentOptions(props: {
         {t.toPay} <b className="text-ink">{props.amountLabel}</b>
       </p>
       {error ? <Alert className="mt-4">{error}</Alert> : null}
-      {props.kaspi ? <KaspiPay target={props.kaspiTarget} amountLabel={props.amountLabel} defaultPhone={props.kaspi.defaultPhone} initial={props.kaspi.initial} fallback={manualTransfer} /> : null}
+      {props.kaspi ? <KaspiPay target={props.kaspiTarget} amountLabel={props.amountLabel} defaultPhone={props.kaspi.defaultPhone} initial={props.kaspi.initial} hints={props.kaspi.hints} fallback={props.manualAlways ? null : manualTransfer} /> : null}
       {props.kaspi && !props.online ? null : props.online ? (
         <>
           <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" onReady={() => setReady(true)} />
@@ -132,6 +137,8 @@ export function PaymentOptions(props: {
       ) : (
         manualTransfer
       )}
+      {/* Перевод в дополнение к Kaspi или карте: выше его не показали. */}
+      {props.manualAlways && props.manual && (props.kaspi || props.online) ? <div className="mt-6 border-t border-line pt-1">{manualTransfer}</div> : null}
       {props.footer?.({ pending, start })}
     </section>
   );

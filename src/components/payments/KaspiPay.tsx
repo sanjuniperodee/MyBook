@@ -9,12 +9,42 @@ import { formatPhone } from "@/shared/domain/phone";
 import { Alert } from "@/components/ui/Alert";
 import type { KaspiInvoiceView as InvoiceView } from "@/modules/ordering/ui/kaspi";
 
-export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string };
+export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string } | { kind: "deal_invoice"; token: string };
+
+/** Подсказки блока для оплаты по ссылке: получатель и комментарий, номер по умолчанию (с маской) — тексты уже на языке страницы. */
+export interface KaspiHints {
+  /** «Получатель — ИП …, комментарий — MyBooks P12». */
+  note?: string | null;
+  /** «Оставьте поле пустым — счёт придёт на номер +7 701 ••• •• 67». */
+  phoneHint?: string | null;
+  phonePlaceholder?: string | null;
+  /** Текст после оплаты вместо «Подтверждаем заказ…». */
+  paid?: string | null;
+}
 
 /** Как часто спрашиваем о счёте, пока клиент платит в приложении Kaspi. */
 const POLL_MS = 3_000;
 
-const invoiceUrl = (target: KaspiTarget, id: string) => `/api/payments/kaspi/invoices/${id}${target.kind === "gift" ? `?token=${encodeURIComponent(target.token)}` : ""}`;
+/** Сертификат — ?token=, счёт из чата — ?pay= (без входа: плательщика не уводит на страницу входа). */
+function invoiceUrl(target: KaspiTarget, id: string) {
+  const query = target.kind === "gift" ? `?token=${encodeURIComponent(target.token)}` : target.kind === "deal_invoice" ? `?pay=${encodeURIComponent(target.token)}` : "";
+  return `/api/payments/kaspi/invoices/${id}${query}`;
+}
+
+function requestBody(target: KaspiTarget, method: "invoice" | "qr", phone: string) {
+  switch (target.kind) {
+    case "order":
+      return { target: "order", orderId: target.orderId, method, phone };
+    case "gift":
+      return { target: "gift", token: target.token, method, phone };
+    case "deal_invoice":
+      // Пустое поле — номер из счёта (его знает только сервер).
+      return { target: "deal_invoice", token: target.token, method, phone: phone.trim() || undefined };
+  }
+}
+
+/** Номер в счёте: свой — красиво, чужой (счёт из чата) уже с маской «+7 701 ••• •• 67». */
+const shownPhone = (phone: string | null) => (phone?.includes("•") ? phone : formatPhone(phone) || phone || "");
 
 function timeLeft(expiresAt: string | null, now: number) {
   if (!expiresAt) return null;
@@ -27,7 +57,7 @@ function timeLeft(expiresAt: string | null, now: number) {
  * статус; после оплаты заказ подтверждается сам (вебхук или сверка), без менеджера. Если Kaspi недоступен —
  * показываем запасной способ (перевод по номеру и «Я оплатил(а)»).
  */
-export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback }: { target: KaspiTarget; amountLabel: string; defaultPhone: string; initial: InvoiceView | null; fallback: ReactNode }) {
+export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback, hints }: { target: KaspiTarget; amountLabel: string; defaultPhone: string; initial: InvoiceView | null; fallback: ReactNode; hints?: KaspiHints }) {
   const t = useMessages().common.kaspiPay;
   const router = useRouter();
   const [invoice, setInvoice] = useState<InvoiceView | null>(initial);
@@ -57,8 +87,7 @@ export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback 
     setBusy(true);
     setError(null);
     try {
-      const body = target.kind === "order" ? { target: "order", orderId: target.orderId, method, phone } : { target: "gift", token: target.token, method, phone };
-      const res = await apiFetch<{ invoice: InvoiceView }>("/api/payments/kaspi/invoices", { method: "POST", json: body });
+      const res = await apiFetch<{ invoice: InvoiceView }>("/api/payments/kaspi/invoices", { method: "POST", json: requestBody(target, method, phone) });
       setInvoice(res.invoice);
     } catch (e) {
       const code = e instanceof ApiError ? e.code : undefined;
@@ -79,13 +108,14 @@ export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback 
   return (
     <div className="mt-5 space-y-4">
       <div className="font-medium">{t.title}</div>
+      {hints?.note ? <p className="text-sm text-muted">{hints.note}</p> : null}
       {error ? <Alert>{error.text}</Alert> : null}
 
-      {invoice?.status === "paid" ? <Alert kind="success">{t.paid}</Alert> : null}
+      {invoice?.status === "paid" ? <Alert kind="success">{hints?.paid || t.paid}</Alert> : null}
 
       {pending && invoice.method === "invoice" ? (
         <div className="space-y-3 rounded-2xl bg-cream p-4 text-[15px]">
-          <p className="font-medium">{t.sent(amountLabel, formatPhone(invoice.phone) || invoice.phone || "")}</p>
+          <p className="font-medium">{t.sent(amountLabel, shownPhone(invoice.phone))}</p>
           <p className="text-ink-soft">{t.sentSteps}</p>
         </div>
       ) : null}
@@ -117,8 +147,9 @@ export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback 
         <div className="space-y-3">
           <label className="block">
             <span className="text-sm text-muted">{t.phoneLabel}</span>
-            <input className="input mt-1 h-12 w-full sm:max-w-xs" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 7XX XXX XX XX" />
+            <input className="input mt-1 h-12 w-full sm:max-w-xs" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={hints?.phonePlaceholder || "+7 7XX XXX XX XX"} />
           </label>
+          {hints?.phoneHint ? <p className="text-xs text-muted">{hints.phoneHint}</p> : null}
           <p className="text-xs text-muted">{t.invoiceNote}</p>
           <div className="flex flex-wrap gap-3">
             <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => issue("invoice")}>
@@ -137,7 +168,8 @@ export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback 
         </button>
       ) : null}
 
-      {error?.unavailable ? (
+      {/* Запасной способ — если он есть (у счёта из чата перевод и так показан ниже). */}
+      {error?.unavailable && fallback ? (
         <div className="border-t border-line pt-4">
           <p className="mb-2 text-sm text-muted">{t.otherWay}</p>
           {fallback}

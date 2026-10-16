@@ -7,6 +7,7 @@ export * from "./kaspi";
 export * from "./Order";
 export * from "./OrderStatus";
 export * from "./PaymentInvoice";
+export * from "./payLink";
 export * from "./Pricing";
 export * from "./PromoCode";
 export type * from "./repositories";
