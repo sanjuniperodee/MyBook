@@ -6,8 +6,6 @@ import { bankThemes, countQuestions, getTheme, getThemes, giftThemes, themeChapt
 /** Темы с банком вопросов на обоих языках: своя книга (blank) банка не имеет и из проверок банка исключена. */
 const allThemes = [...bankThemes("ru"), ...bankThemes("kk")];
 const bankIds = themeIds.filter(hasQuestionBank);
-/** ВРЕМЕННО: банк автобиографии пишется в соседней ветке, здесь — заглушка по вопросу в главе; «> 40» вернётся с ним. */
-const draftBanks = new Set(["autobiography"]);
 
 describe("applyGender", () => {
   it("подставляет род автора и адресата независимо", () => {
@@ -34,7 +32,7 @@ describe("банк вопросов", () => {
   });
   it("в каждой теме достаточно вопросов и уникальные ключи глав", () => {
     for (const theme of allThemes) {
-      if (!draftBanks.has(theme.id)) expect(countQuestions(theme), theme.id).toBeGreaterThan(40);
+      expect(countQuestions(theme), theme.id).toBeGreaterThan(40);
       const keys = theme.chapters.map((c) => c.key);
       expect(new Set(keys).size).toBe(keys.length);
     }
