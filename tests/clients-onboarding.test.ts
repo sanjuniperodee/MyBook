@@ -107,3 +107,40 @@ describe("ClientOnboardingService.onboardFromDeal: клиент прямо из 
     expect(t.mem.clients.rows.get("new-client")?.managerId).toBe("m1");
   });
 });
+
+describe("ClientOnboardingService.onboardFromPayment: клиента заводит оплата счёта из чата", () => {
+  it("аккаунт по телефону (вход по телефону), ответственный сделки, канал из счёта; сделку здесь не трогаем", async () => {
+    const { t, log, service } = harness();
+    const r = await service.onboardFromPayment({ name: "Айжан", phone: "77011234567", locale: "kk", channel: "instagram", password: "random-unknown-1", assigneeId: "m1" });
+    expect(r).toEqual({ clientId: "new-client", login: "77011234567" });
+    expect(log).toEqual(["accounts.provisionClient Айжан 77011234567 —"]);
+    expect(t.mem.clients.rows.get("new-client")).toMatchObject({ managerId: "m1", source: { source: "instagram", medium: "manual" } });
+    expect(t.mem.clients.tags.get("new-client")).toEqual(["вручную"]);
+  });
+
+  it("ответственный отключён или его нет — аккаунт всё равно заводится; канал не из списка — без метки", async () => {
+    const { t, service } = harness();
+    await service.onboardFromPayment({ name: "Айжан", phone: "77011234567", locale: "ru", channel: "", password: "random-unknown-1", assigneeId: "x1" });
+    expect(t.mem.clients.rows.get("new-client")).toMatchObject({ managerId: null, source: null });
+  });
+});
+
+describe("служебные заметки и задачи CRM пишутся один раз", () => {
+  it("addSystemOnce: одна запись с таким текстом по сделке, без автора", async () => {
+    const t = setup();
+    expect(await t.notes.addSystemOnce({ text: "Оплачен счёт P1", dealId: "deal-1" })).toBe(true);
+    expect(await t.notes.addSystemOnce({ text: "Оплачен счёт P1", dealId: "deal-1" })).toBe(false);
+    expect(await t.notes.addSystemOnce({ text: "Оплачен счёт P1", dealId: "deal-2" })).toBe(true);
+    expect([...t.mem.notes.rows.values()].map((n) => [n.kind, n.authorId, n.dealId])).toEqual([["system", null, "deal-1"], ["system", null, "deal-2"]]);
+  });
+
+  it("createOnce: одна открытая задача с таким заголовком по сделке; закрытая не мешает новой", async () => {
+    const t = setup();
+    const actor = { userId: "m1", name: "CRM", seesAll: true, allTasks: true };
+    expect(await t.tasks.createOnce(actor, { title: "Получить остаток", kind: "task", dealId: "deal-1", assigneeId: "m1" })).toBe(true);
+    expect(await t.tasks.createOnce(actor, { title: "Получить остаток", kind: "task", dealId: "deal-1", assigneeId: "m1" })).toBe(false);
+    await t.mem.tasks.setDone(t.mem.tasks.last().id, new Date());
+    expect(await t.tasks.createOnce(actor, { title: "Получить остаток", kind: "task", dealId: "deal-1", assigneeId: "m1" })).toBe(true);
+    expect(t.mem.tasks.rows.size).toBe(2);
+  });
+});

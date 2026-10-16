@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { dealInvoices } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { DealInvoice, type AccessStatus, type DealInvoiceMethod, type DealInvoiceRepository } from "../../domain";
@@ -102,6 +102,10 @@ export class DrizzleDealInvoiceRepository implements DealInvoiceRepository {
 
   async accessDue(limit: number) {
     return (await executor().select().from(dealInvoices).where(and(eq(dealInvoices.status, "paid"), inArray(dealInvoices.accessStatus, ["due"]))).orderBy(asc(dealInvoices.paidAt)).limit(limit)).map(toDomain);
+  }
+
+  async accessSentSince(since: Date, limit: number) {
+    return (await executor().select().from(dealInvoices).where(and(eq(dealInvoices.status, "paid"), eq(dealInvoices.accessStatus, "sent"), gte(dealInvoices.updatedAt, since))).orderBy(desc(dealInvoices.updatedAt)).limit(limit)).map(toDomain);
   }
 
   async add(invoice: DealInvoice) {

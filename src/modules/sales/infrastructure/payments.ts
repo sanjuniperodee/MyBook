@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { executor, inTransaction } from "@/shared/infrastructure/database";
 import { MAX_PAYMENT, PaymentError } from "../domain";
@@ -80,6 +80,17 @@ export class DealPayments {
   async paidTotal(dealId: string) {
     const [r] = await executor().select({ s: sql<number>`coalesce(sum(case when ${crmPayments.kind} = 'refund' then -${crmPayments.amount} else ${crmPayments.amount} end), 0)::int` }).from(crmPayments).where(eq(crmPayments.dealId, dealId));
     return r.s;
+  }
+
+  /**
+   * Сделку привязали к клиенту (клиент завёлся или нашёлся оплатой счёта): её платежи и чеки без клиента — к нему
+   * (а при смене клиента сделки — и записанные на прежнего). Выручка (revenue_events) считает каждый платёж один раз
+   * по его строке, поэтому LTV клиента растёт без задвоения.
+   */
+  async assignClient(dealId: string, clientId: string, fromClientId: string | null = null) {
+    const owner = (t: typeof crmPayments | typeof crmReceipts) => (fromClientId ? or(isNull(t.clientId), eq(t.clientId, fromClientId)) : isNull(t.clientId));
+    await executor().update(crmPayments).set({ clientId }).where(and(eq(crmPayments.dealId, dealId), owner(crmPayments)));
+    await executor().update(crmReceipts).set({ clientId }).where(and(eq(crmReceipts.dealId, dealId), owner(crmReceipts)));
   }
 
   /** Удалить ошибочный платёж. Чеки остаются у сделки (платёж у них обнуляется). */

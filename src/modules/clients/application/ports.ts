@@ -25,6 +25,8 @@ export interface ClientRepository {
 export interface TaskRepository {
   find(id: string): Promise<Task | null>;
   add(t: { title: string; kind: TaskKind; dueAt: Date | null; clientId: string | null; orderId: string | null; dealId: string | null; assigneeId: string; createdById: string }): Promise<void>;
+  /** Есть ли открытая задача с таким заголовком по сделке (служебные задачи CRM не дублируются при повторе). */
+  existsOpen(t: { dealId: string; title: string }): Promise<boolean>;
   setDone(id: string, doneAt: Date | null): Promise<void>;
   delete(id: string): Promise<void>;
 }
@@ -40,7 +42,10 @@ export interface Note {
 
 export interface NoteRepository {
   find(id: string): Promise<Note | null>;
-  add(n: Omit<Note, "id"> & { authorId: string }): Promise<void>;
+  /** authorId null — запись CRM (оплата, доступ), а не сотрудника. */
+  add(n: Omit<Note, "id"> & { authorId: string | null }): Promise<void>;
+  /** Есть ли у сделки заметка с таким текстом (служебные заметки CRM пишутся один раз). */
+  exists(n: { dealId: string; text: string }): Promise<boolean>;
   delete(id: string): Promise<void>;
 }
 
@@ -58,4 +63,11 @@ export interface StaffDirectory {
 
 export interface StaffNotifier {
   notify(userIds: string[], n: { kind: "task" | "mention"; title: string; body: string; link: string | null }): Promise<void>;
+}
+
+/** Чем пользовался клиент на сайте: заходил ли, книги, заказы (новый ли это аккаунт). */
+export interface AccountUsage {
+  lastSeenAt: Date | null;
+  books: number;
+  orders: number;
 }

@@ -1,5 +1,6 @@
 import { formatPrice } from "@/config/site";
-import { channels, manualAttribution, type ManualChannel } from "@/shared/domain/channels";
+import { channels, isManualChannel, manualAttribution, type ManualChannel } from "@/shared/domain/channels";
+import { ClientsError } from "../domain/errors";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import type { Actor, ClientsService, NotesService, TasksService } from "./services";
 
@@ -156,6 +157,30 @@ export class ClientOnboardingService {
     await this.clients.setSource(account.id, manualAttribution(input.channel) as Record<string, string>);
     await this.sales.linkClient(input.dealId, account.id);
     await this.notes.add(actor, { kind: "note", text: `Заведён аккаунт клиента на сайте: ${input.name}, язык — ${input.locale === "kk" ? "казахский" : "русский"}${input.email ? `, ${input.email}` : ", вход по телефону"}.`, clientId: account.id, dealId: input.dealId });
+    return { clientId: account.id, login: account.login };
+  }
+
+  /**
+   * Клиента завела оплата счёта из чата (никого с номером чата нет, у сделки клиента нет): аккаунт по телефону (вход по
+   * телефону, без события регистрации), имя и язык — из счёта, канал — из счёта, ответственный — ответственный сделки.
+   * Пароль никто не знает: клиент задаёт его сам по ссылке доступа. Сделку и переписку привязывает вызывающий (общий
+   * шаг для найденного и заведённого аккаунта). Ошибки аккаунта — IdentityError (exists с existingId, phone).
+   */
+  async onboardFromPayment(input: { name: string; phone: string; locale: "ru" | "kk"; channel: string; password: string; assigneeId: string | null }): Promise<{ clientId: string; login: string }> {
+    const account = await this.accounts.provisionClient({ name: input.name, phone: input.phone, email: null, password: input.password, locale: input.locale });
+    const profile = await this.clients.find(account.id);
+    if (profile) {
+      // Отключённый сотрудник ответственным не ставится — клиент остаётся без ответственного, аккаунт уже заведён.
+      if (input.assigneeId) {
+        try {
+          await this.clients.setManager(profile, input.assigneeId);
+        } catch (err) {
+          if (!ClientsError.is(err)) throw err;
+        }
+      }
+      await this.clients.setTags(account.id, ["вручную"]);
+    }
+    if (isManualChannel(input.channel)) await this.clients.setSource(account.id, manualAttribution(input.channel) as Record<string, string>);
     return { clientId: account.id, login: account.login };
   }
 

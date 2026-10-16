@@ -270,6 +270,23 @@ export class DrizzleMessagingQueries {
     return c ?? null;
   }
 
+  /** Статус доставки сообщения (pending | sent | delivered | read | error); null — сообщения нет. */
+  async messageStatus(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [m] = await executor().select({ status: crmMessages.status }).from(crmMessages).where(eq(crmMessages.id, id)).limit(1);
+    return m?.status ?? null;
+  }
+
+  /** Есть ли в диалоге внутренняя заметка с таким текстом (служебные заметки CRM пишутся один раз). */
+  async hasInternalNote(conversationId: string, text: string) {
+    const [m] = await executor()
+      .select({ id: crmMessages.id })
+      .from(crmMessages)
+      .where(and(eq(crmMessages.conversationId, conversationId), eq(crmMessages.internal, true), eq(crmMessages.text, text)))
+      .limit(1);
+    return !!m;
+  }
+
   /** Переписка для виджета: без внутренних заметок; автор — только «я / менеджер», без имён сотрудников. */
   async siteMessages(chatId: string, after?: Date) {
     const [conv] = await executor()

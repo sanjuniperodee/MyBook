@@ -3,8 +3,8 @@ import { AggregateRoot, domainEvent, type DomainEvent } from "@/shared/domain";
 export type DealInvoiceStatus = "pending_payment" | "paid" | "cancelled" | "expired";
 export type DealInvoicePurpose = "prepayment" | "remainder" | "full" | "custom";
 export type DealInvoiceMethod = "manual" | "kaspi" | "cloudpayments";
-/** Доступ в кабинет после оплаты: ждёт выдачи, отправлен, не ушёл, нужен менеджер (чей аккаунт — неясно), не нужен. */
-export type AccessStatus = "none" | "due" | "sent" | "failed" | "needs_manager" | "skipped";
+/** Доступ в кабинет после оплаты: ждёт выдачи, отправлен, доставлен, не ушёл, нужен менеджер (чей аккаунт — неясно), не нужен. */
+export type AccessStatus = "none" | "due" | "sent" | "delivered" | "failed" | "needs_manager" | "skipped";
 
 /** Сколько действует счёт. */
 export const DEAL_INVOICE_TTL_MS = 7 * 86_400_000;
@@ -150,5 +150,34 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
     this.props.accessStatus = status;
     if (userId !== undefined) this.props.accessUserId = userId;
     if (messageId !== undefined) this.props.accessMessageId = messageId;
+    // Новая просьба выдать доступ (менеджер, повтор) освобождает захват: проход возьмёт её заново.
+    if (status === "due") this.props.accessAttemptedAt = null;
+  }
+
+  /** Доступ в кабинет по счёту: статус, кому выдан, сообщение в чате, когда проход взял выдачу. */
+  get access() {
+    const p = this.props;
+    return { status: p.accessStatus, userId: p.accessUserId, messageId: p.accessMessageId, attemptedAt: p.accessAttemptedAt };
+  }
+
+  /**
+   * Проход планировщика берёт выдачу доступа: только оплаченный счёт с доступом «ждёт выдачи», которого никто не взял
+   * за последние leaseMs (упавший проход отпускает счёт по таймауту). false — занят или выдавать нечего.
+   */
+  claimAccess(now: Date, leaseMs: number): boolean {
+    if (this.props.status !== "paid" || this.props.accessStatus !== "due") return false;
+    const taken = this.props.accessAttemptedAt;
+    if (taken && now.getTime() - taken.getTime() < leaseMs) return false;
+    this.props.accessAttemptedAt = now;
+    return true;
+  }
+
+  /** Итог выдачи — только тем проходом, который её взял (менеджер мог попросить выдать заново, пока шла отправка). */
+  finishAccess(claimedAt: Date, status: Exclude<AccessStatus, "none" | "due">, userId: string | null, messageId: string | null): boolean {
+    if (this.props.accessStatus !== "due" || this.props.accessAttemptedAt?.getTime() !== claimedAt.getTime()) return false;
+    this.props.accessStatus = status;
+    this.props.accessUserId = userId;
+    this.props.accessMessageId = messageId;
+    return true;
   }
 }

@@ -24,6 +24,7 @@ import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
+import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
@@ -58,6 +59,7 @@ export class Container {
   #clients?: ClientsModule;
   #feedback?: FeedbackModule;
   #referrals?: ReferralsModule;
+  #invoiceAccess?: InvoiceAccess;
   /** Отчёты — только чтение. */
   readonly reporting = new ReportingModule();
   readonly workspace = new WorkspaceModule();
@@ -91,7 +93,13 @@ export class Container {
       fields: this.workspace.fieldsReader,
       smtpConfig,
       smtp: this.smtp,
-      rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
+      rules: {
+        messageIncoming: async (ctx) => {
+          await this.automation.engine.run("message.incoming", ctx);
+          // Клиент написал в чат счёта, по которому доступ не ушёл, — отправить ещё раз (один раз); сбой не ломает приём.
+          await this.invoiceAccess.onIncoming(ctx).catch((err) => console.error("[invoice-access] incoming", err));
+        },
+      },
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),
       whatsappSettings,
@@ -280,6 +288,14 @@ export class Container {
         },
       },
     }));
+  }
+
+  /**
+   * После оплаты счёта из чата: клиент находится или заводится по номеру чата, сделка, переписка и деньги привязываются,
+   * доступ в кабинет уходит в тот же чат (проход планировщика), заметки и уведомления — подписчики событий счёта.
+   */
+  get invoiceAccess(): InvoiceAccess {
+    return (this.#invoiceAccess ??= createInvoiceAccess(this));
   }
 
   /** Состояние инфраструктуры для /api/health: Redis (null — не настроен) и очередь событий outbox. */

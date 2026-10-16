@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Clock, UnitOfWork } from "@/shared/application";
 import { normalizePhone } from "@/shared/domain/phone";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
-import { User, isPhoneEmail, parseLoginId, phoneEmail, totp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
+import { User, isPhoneEmail, parseLoginId, phoneEmail, totp, type LinkPurpose, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
 import { AuthService } from "@/modules/identity/application/AuthService";
 import { AccountService } from "@/modules/identity/application/AccountService";
 import { Role, SecurityPolicy, StaffContext, StaffMember, type RoleRepository, type StaffRepository } from "@/modules/access/domain";
@@ -71,16 +71,26 @@ class MemSessions implements SessionRepository {
 }
 
 class MemResets implements PasswordResetRepository {
-  rows = new Map<string, { userId: string; exp: Date; used: boolean }>();
-  async create(h: string, userId: string, exp: Date) {
-    this.rows.set(h, { userId, exp, used: false });
+  rows = new Map<string, { userId: string; exp: Date; used: boolean; purpose: LinkPurpose }>();
+  async create(h: string, userId: string, exp: Date, purpose: LinkPurpose = "reset") {
+    this.rows.set(h, { userId, exp, used: false, purpose });
   }
   async findValid(h: string, now: Date) {
     const r = this.rows.get(h);
-    return r && !r.used && r.exp > now ? { id: h, userId: r.userId } : null;
+    return r && !r.used && r.exp > now ? { id: h, userId: r.userId, purpose: r.purpose } : null;
   }
   async markUsed(id: string) {
-    this.rows.get(id)!.used = true;
+    const r = this.rows.get(id)!;
+    if (r.used) return false;
+    r.used = true;
+    return true;
+  }
+  async peek(h: string, now: Date) {
+    const r = this.rows.get(h);
+    return r ? { purpose: r.purpose, valid: !r.used && r.exp > now } : null;
+  }
+  async revokeUnused(userId: string, purpose: LinkPurpose) {
+    for (const r of this.rows.values()) if (r.userId === userId && r.purpose === purpose) r.used = true;
   }
 }
 
@@ -345,6 +355,77 @@ function access() {
   const ctx = (userId: string, isOwner: boolean) => new StaffContext(userId, "", isOwner ? "owner" : "manager", isOwner ? "all" : "own", new Set(isOwner ? allPermissions : ["team.manage"] as const), isOwner, { isPhoneEmail });
   return { roles, staff, team, audit, ctx };
 }
+
+describe("Identity: ссылка доступа в кабинет после оплаты (purpose=access)", () => {
+  const phoneClient = async (accounts: AccountService) => (await accounts.provisionClient({ name: "Айгерим", phone: "87011234567", email: null, password: "Unknown123", locale: "ru" })).id;
+
+  it("выдаётся клиенту на ≤ 72 ч с назначением access; прежние неиспользованные ссылки доступа гаснут, сброс по почте — нет", async () => {
+    const { auth, accounts, resets, clock } = identity();
+    const id = await phoneClient(accounts);
+    await auth.requestPasswordReset(`77011234567@phone.invalid`, "ru"); // письмо-заглушка не уходит, но строка сброса есть
+    const first = await auth.issueAccessLink(id);
+    expect(first.login).toBe("77011234567");
+    expect(first.expiresAt.getTime() - clock.now().getTime()).toBe(72 * 3600_000);
+    expect(await auth.linkInfo(first.token)).toEqual({ purpose: "access", valid: true });
+    const second = await auth.issueAccessLink(id, 3600_000);
+    expect(await auth.linkInfo(first.token)).toEqual({ purpose: "access", valid: false });
+    expect(await auth.linkInfo(second.token)).toEqual({ purpose: "access", valid: true });
+    expect([...resets.rows.values()].filter((r) => r.purpose === "reset" && !r.used)).toHaveLength(1);
+    await expect(auth.issueAccessLink(id, 73 * 3600_000)).rejects.toBeInstanceOf(RangeError);
+  });
+
+  it("не выдаётся сотруднику и адресу из ADMIN_EMAILS", async () => {
+    const { auth, accounts, users } = identity(["owner@b.kz"]);
+    const owner = await accounts.provisionClient({ name: "Владелец", phone: "87770000001", email: "owner@b.kz", password: "Unknown123", locale: "ru" });
+    await expect(auth.issueAccessLink(owner.id)).rejects.toMatchObject({ code: "credentials" });
+    const staffId = await accounts.provision({ email: "m@b.kz", name: "Менеджер", password: "secret123" });
+    const staff = (await users.findById(staffId))!;
+    staff.promoteToAdmin();
+    await users.save(staff);
+    await expect(auth.issueAccessLink(staffId)).rejects.toMatchObject({ code: "credentials" });
+  });
+
+  it("GET (предпросмотр WhatsApp) ссылку не тратит; пароль задаётся один раз, сессии закрываются, вход по телефону", async () => {
+    const { auth, accounts, sessions } = identity();
+    const id = await phoneClient(accounts);
+    const old = await auth.login({ login: "87011234567", password: "Unknown123", locale: "ru" });
+    const { token } = await auth.issueAccessLink(id);
+    for (let i = 0; i < 3; i++) expect(await auth.linkInfo(token)).toEqual({ purpose: "access", valid: true });
+    const r = await auth.redeemAccessLink(token, "MyNewPass1");
+    expect(r.user.id).toBe(id);
+    expect(await sessions.findUserId(`#${r.token}`, new Date())).toBe(id);
+    expect(await sessions.findUserId(`#${(old as { token: string }).token}`, new Date())).toBeNull();
+    expect(await auth.linkInfo(token)).toEqual({ purpose: "access", valid: false });
+    await expect(auth.redeemAccessLink(token, "Another123")).rejects.toMatchObject({ code: "resetExpired" });
+    expect((await auth.login({ login: "+7 701 123 45 67", password: "MyNewPass1", locale: "ru" })).kind).toBe("session");
+  });
+
+  it("ссылка доступа не даёт прав администратора и не гасится путём сброса по почте (и наоборот)", async () => {
+    const { auth, accounts, users, resets, mails } = identity(["boss@b.kz"]);
+    const made = await accounts.provisionClient({ name: "Б", phone: "87770000002", email: "boss@b.kz", password: "Unknown123", locale: "ru" });
+    // Ссылку доступа на адрес из ADMIN_EMAILS не выдать; даже если она есть в базе — права администратора она не даёт.
+    await resets.create("#access-token", made.id, new Date(Date.UTC(2027, 0, 1)), "access");
+    await expect(auth.resetPassword("access-token", "newsecret1")).rejects.toMatchObject({ code: "resetExpired" });
+    await auth.redeemAccessLink("access-token", "newsecret1");
+    expect((await users.findById(made.id))!.role).toBe("user");
+    // ссылка сброса по почте через путь доступа не проходит
+    await auth.requestPasswordReset("boss@b.kz", "ru");
+    await expect(auth.redeemAccessLink(mails[0].token, "newsecret2")).rejects.toMatchObject({ code: "resetExpired" });
+    await auth.resetPassword(mails[0].token, "newsecret2");
+    expect((await users.findById(made.id))!.role).toBe("admin");
+  });
+
+  it("клиенты по телефону — только role=user", async () => {
+    const { accounts, users } = identity();
+    const id = await phoneClient(accounts);
+    expect((await accounts.clientsByPhone("+7 (701) 123-45-67")).map((u) => u.id)).toEqual([id]);
+    const u = (await users.findById(id))!;
+    u.promoteToAdmin();
+    await users.save(u);
+    expect(await accounts.clientsByPhone("87011234567")).toEqual([]);
+    expect(await accounts.clientsByPhone("123")).toEqual([]);
+  });
+});
 
 describe("Access: роли и команда", () => {
   it("руководитель всегда со всеми правами; свою роль нельзя лишить team.manage", () => {

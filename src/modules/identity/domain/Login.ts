@@ -9,6 +9,11 @@ export const phoneEmail = (phone: string) => `${normalizePhone(phone)}@${PHONE_E
 /** Адрес-заглушка (не настоящая почта клиента): ему нельзя слать письма и не стоит показывать как контакт. */
 export const isPhoneEmail = (email: string | null | undefined) => !!email && email.trim().toLowerCase().endsWith(`@${PHONE_EMAIL_DOMAIN}`);
 
+/** Логин клиента для входа: телефон (цифры), если почта — заглушка, иначе адрес почты. */
+export function clientLogin(u: { email: string; phone: string | null }): string {
+  return isPhoneEmail(u.email) ? normalizePhone(u.phone || u.email.split("@")[0]) : u.email;
+}
+
 export type LoginId = { kind: "email"; value: string } | { kind: "phone"; value: string };
 
 /** Что ввели в поле «логин»: адрес почты или номер телефона (8 775…, +7 775…, 775… — всё приводится к 7775…). */

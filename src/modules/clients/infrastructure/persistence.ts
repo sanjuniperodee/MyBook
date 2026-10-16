@@ -1,9 +1,10 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
-import { crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { books, crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
-import type { ClientRepository, CrmLinks, NoteRepository, StaffDirectory, TaskRepository } from "../application";
+import { usersId } from "@/shared/infrastructure/db/refs";
+import type { AccountUsage, ClientRepository, CrmLinks, NoteRepository, StaffDirectory, TaskRepository } from "../application";
 
 export const drizzleClients: ClientRepository = {
   async find(id) {
@@ -24,6 +25,10 @@ export const drizzleTasks: TaskRepository = {
     return t ?? null;
   },
   add: async (t) => void (await executor().insert(crmTasks).values(t)),
+  async existsOpen({ dealId, title }) {
+    const [t] = await executor().select({ id: crmTasks.id }).from(crmTasks).where(and(eq(crmTasks.dealId, dealId), eq(crmTasks.title, title), isNull(crmTasks.doneAt))).limit(1);
+    return !!t;
+  },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
   delete: async (id) => void (await executor().delete(crmTasks).where(eq(crmTasks.id, id))),
 };
@@ -34,8 +39,46 @@ export const drizzleNotes: NoteRepository = {
     return n ?? null;
   },
   add: async (n) => void (await executor().insert(crmNotes).values(n)),
+  async exists({ dealId, text }) {
+    const [n] = await executor().select({ id: crmNotes.id }).from(crmNotes).where(and(eq(crmNotes.dealId, dealId), eq(crmNotes.text, text))).limit(1);
+    return !!n;
+  },
   delete: async (id) => void (await executor().delete(crmNotes).where(eq(crmNotes.id, id))),
 };
+
+/**
+ * Read-модель: клиенты, у которых номер есть, но не основным телефоном — в дополнительных телефонах или в контакте
+ * заказа. Такое совпадение не подтверждает, чей аккаунт: по нему никого не привязывают и не заводят второй аккаунт —
+ * решает менеджер. Номер сравнивается по цифрам (8… и 7… — один номер).
+ */
+export async function accountsByOtherPhones(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 10) return [];
+  const kz = digits.length === 11 && (digits.startsWith("7") || digits.startsWith("8")) ? digits.slice(1) : null;
+  const variants = kz ? [`7${kz}`, `8${kz}`] : [digits];
+  const list = sql.join(
+    variants.map((v) => sql`${v}`),
+    sql`, `,
+  );
+  const extra = sql`exists (select 1 from unnest("users"."extra_phones") p where regexp_replace(p, '\\D', '', 'g') in (${list}))`;
+  const ordered = sql`exists (select 1 from orders o where o.user_id = ${usersId} and regexp_replace(coalesce(o.contact_phone, ''), '\\D', '', 'g') in (${list}))`;
+  return executor()
+    .select({ id: users.id, role: users.role, email: users.email, name: users.name, phone: users.phone })
+    .from(users)
+    .where(sql`${users.role} = 'user' and (${extra} or ${ordered})`)
+    .limit(5);
+}
+
+/** Read-модель: пользовался ли клиент аккаунтом — заходил на сайт, начинал книги, оформлял заказы. */
+export async function accountUsage(userId: string): Promise<AccountUsage> {
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return { lastSeenAt: null, books: 0, orders: 0 };
+  const [[u], [b], [o]] = await Promise.all([
+    executor().select({ lastSeenAt: users.lastSeenAt }).from(users).where(eq(users.id, userId)).limit(1),
+    executor().select({ n: sql<number>`count(*)::int` }).from(books).where(eq(books.userId, userId)),
+    executor().select({ n: sql<number>`count(*)::int` }).from(orders).where(eq(orders.userId, userId)),
+  ]);
+  return { lastSeenAt: u?.lastSeenAt ?? null, books: b?.n ?? 0, orders: o?.n ?? 0 };
+}
 
 export const drizzleLinks: CrmLinks = {
   async clientOfOrder(orderId) {

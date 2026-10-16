@@ -225,6 +225,31 @@ export class DealInvoicesService {
     return this.invoices.accessDue(BATCH);
   }
 
+  /** Проход выдачи доступа берёт счёт (захват с таймаутом leaseMs); null — занят другим проходом или выдавать нечего. */
+  async claimAccess(invoiceId: string, leaseMs: number): Promise<DealInvoice | null> {
+    return this.uow.run(async () => {
+      const invoice = await this.invoices.lockById(invoiceId);
+      if (!invoice?.claimAccess(this.clock.now(), leaseMs)) return null;
+      await this.invoices.save(invoice);
+      return invoice;
+    });
+  }
+
+  /** Итог выдачи доступа; false — захват уже не наш (менеджер попросил выдать заново), итог не записан. */
+  async finishAccess(invoiceId: string, claimedAt: Date, status: Parameters<DealInvoice["finishAccess"]>[1], userId: string | null, messageId: string | null): Promise<boolean> {
+    return this.uow.run(async () => {
+      const invoice = await this.invoices.lockById(invoiceId);
+      if (!invoice?.finishAccess(claimedAt, status, userId, messageId)) return false;
+      await this.invoices.save(invoice);
+      return true;
+    });
+  }
+
+  /** Отправленные после since доступы — проверить доставку. */
+  async accessSent(since: Date): Promise<DealInvoice[]> {
+    return (await this.invoices.accessSentSince?.(since, BATCH)) ?? [];
+  }
+
   async setAccess(invoiceId: string, status: Parameters<DealInvoice["setAccess"]>[0], userId?: string | null) {
     await this.uow.run(async () => {
       const invoice = await this.invoices.lockById(invoiceId);

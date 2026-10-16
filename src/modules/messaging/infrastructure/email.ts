@@ -7,6 +7,7 @@ import { escapeHtml, type SmtpConfigSource, type SmtpMailer } from "@/shared/inf
 import { site } from "@/config/site";
 import type { LiveFeed, SettingsStore } from "@/shared/application";
 import { htmlToText, parseAddress, replySubject, stripQuoted, type InboundEmail } from "@/modules/messaging/domain/email";
+import { preview, redactSecrets } from "@/modules/messaging/domain/conversation";
 import { staffLabel } from "@/shared/domain/staff";
 import type { MessagingService } from "../application";
 
@@ -108,11 +109,13 @@ export class EmailChannel {
     if (!addr) throw new Error("Некорректный e-mail");
     const conv = await emailConversation(addr.email, { dealId: input.dealId, clientId: input.clientId, contactName: input.contactName, assigneeId: input.authorId });
     const subject = input.subject.trim().slice(0, 200) || replySubject(conv.meta.subject);
-    const [msg] = await db.insert(crmMessages).values({ conversationId: conv.id, direction: "out", authorId: input.authorId, text: input.text, subject, status: "pending" }).returning();
+    // Письмо уходит целиком, а в CRM (переписка, превью, заметка) — без секретов (ссылки «задайте пароль»).
+    const stored = redactSecrets(input.text);
+    const [msg] = await db.insert(crmMessages).values({ conversationId: conv.id, direction: "out", authorId: input.authorId, text: stored, subject, status: "pending" }).returning();
     const now = new Date();
     await db
       .update(crmConversations)
-      .set({ lastMessageAt: now, lastMessageText: input.text.replace(/\s+/g, " ").slice(0, 160), meta: { ...conv.meta, subject }, unread: 0, awaitingSince: null, updatedAt: now, assigneeId: conv.assigneeId ?? input.authorId })
+      .set({ lastMessageAt: now, lastMessageText: preview(stored), meta: { ...conv.meta, subject }, unread: 0, awaitingSince: null, updatedAt: now, assigneeId: conv.assigneeId ?? input.authorId })
       .where(eq(crmConversations.id, conv.id));
     let result: { ok: true } | { ok: false; error: string };
     try {
@@ -125,7 +128,7 @@ export class EmailChannel {
       result = { ok: false, error };
     }
     if (result.ok && (input.dealId || input.clientId)) {
-      await db.insert(crmNotes).values({ dealId: input.dealId ?? null, clientId: input.clientId ?? null, authorId: input.authorId, kind: "email", text: `✉️ Письмо «${subject}» на ${addr.email}:\n${input.text.slice(0, 1000)}` });
+      await db.insert(crmNotes).values({ dealId: input.dealId ?? null, clientId: input.clientId ?? null, authorId: input.authorId, kind: "email", text: `✉️ Письмо «${subject}» на ${addr.email}:\n${stored.slice(0, 1000)}` });
     }
     void this.deps.live.publish({ type: "chat", conversationId: conv.id });
     return { ...result, conversationId: conv.id };
