@@ -76,6 +76,26 @@ describe("contentFingerprint", () => {
     });
   });
 
+  it("виды книг: название и эпиграф главы своей книги, порядок её глав, «кто записал» у автобиографии", () => {
+    const variant = (key: string) => characterizationBooks().find((fb) => fb.key === key)!.bundle;
+    const blank = variant("blank");
+    const auto = variant("autobiography");
+    const changes: Record<string, [BookBundle, BookBundle]> = {
+      "название главы своей книги": [blank, { ...blank, chapters: blank.chapters.map((c, i) => (i === 0 ? { ...c, title: "Другое название" } : c)) }],
+      "эпиграф главы своей книги": [blank, { ...blank, chapters: blank.chapters.map((c, i) => (i === 1 ? { ...c, epigraph: "Другой эпиграф" } : c)) }],
+      "порядок глав своей книги": [blank, { ...blank, chapters: [blank.chapters[1], blank.chapters[0], ...blank.chapters.slice(2)].map((c, position) => ({ ...c, position })) }],
+      "название пустой главы (в книгу не попадает)": [blank, { ...blank, chapters: blank.chapters.map((c) => (c.title === "Пока пустая глава" ? { ...c, title: "Всё ещё пустая" } : c)) }],
+      "кто записал (автобиография)": [auto, { ...auto, book: { ...auto.book, recordedBy: "сын Ерлан" } }],
+    };
+    expect(Object.fromEntries(Object.entries(changes).map(([name, [a, b]]) => [name, contentFingerprint(a) !== contentFingerprint(b)]))).toEqual({
+      "название главы своей книги": true,
+      "эпиграф главы своей книги": true,
+      "порядок глав своей книги": true,
+      "название пустой главы (в книгу не попадает)": false,
+      "кто записал (автобиография)": true,
+    });
+  });
+
   it("меняется с наступлением нового года: год печати входит в содержимое", () => {
     const before = contentFingerprint(bundle());
     vi.setSystemTime(new Date("2027-01-02T12:00:00Z"));
