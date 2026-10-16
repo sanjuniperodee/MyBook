@@ -45,14 +45,15 @@
 закоммиченное — в ветках; незакоммиченное — в их worktree (`git -C <worktree> status`). Проверь каждую ветку:
 `git log --oneline 8362b40..<ветка>` и `git -C <worktree> status --short`.
 
-**Счета и финансы** (бриф: `workflows/mybook-invoices-finance-*.js`, основа 8362b40):
+**Счета и финансы** (бриф: `workflows/mybook-invoices-finance-*.js`, основа 8362b40) — ВСЕ ПЯТЬ ЗОН ГОТОВЫ к 00:54.
+Полные отчёты исполнителей (что сделано, проверки, отступления от спецификации, что осталось): `docs/handoff/invoices-reports.md` — прочитай до слияния.
 | Зона | Ветка | Состояние на 00:47 |
 |---|---|---|
 | A — Kaspi, CloudPayments, страница /pay | `inv/a-rails-pay` (= `inv-done/a-rails-pay`) | ГОТОВО, 14e4b67 |
-| B — клиент и доступ в кабинет после оплаты | `inv/b-access`, worktree `wf_6d4d0d1a-a45-2` | в работе, не закоммичено |
+| B — клиент и доступ в кабинет после оплаты | `inv/b-access` (= `inv-done/b-access`) | ГОТОВО, d66ad90 |
 | C — интерфейс CRM для счетов | `inv/c-crm-ui` (= `inv-done/c-crm-ui`) | ГОТОВО, 010604a |
 | D — счета в жизни сделки и заказа | `inv/d-lifecycle` (= `inv-done/d-lifecycle`) | ГОТОВО, c0339c5 |
-| E — страница «Финансы» | `inv/e-finance`, worktree `wf_6d4d0d1a-a45-5` | в работе, не закоммичено |
+| E — страница «Финансы» | `inv/e-finance` (= `inv-done/e-finance`) | ГОТОВО, 498b92d |
 
 **Режимы книги** (бриф: `workflows/mybook-book-modes-*.js`, основа 883e522): этапы — критика спецификации →
 основа (`modes/foundation`) и банк автобиографии (`modes/bank-ru` → `modes/bank-kk` → `modes/bank-kk-review`)
@@ -68,9 +69,9 @@
 ## 5. План для следующего агента
 
 1. **Собрать урожай.** Для каждой ветки из §4: что закоммичено, что лежит незакоммиченным в worktree. Незаконченное
-   (B, E и всё по режимам и боту) — доделать: либо продолжить в том же worktree по брифу, либо запустить заново
+   (режимы книги и бот; счета готовы все пять) — доделать: либо продолжить в том же worktree по брифу, либо запустить заново
    соответствующую часть брифа (Workflow с `isolation: 'worktree'`), базой взяв актуальный коммит рабочей ветки.
-2. **Счета.** Влить в рабочую ветку A, C, D, затем B и E (`git merge --no-ff`), разрешить конфликты
+2. **Счета.** Влить в рабочую ветку A, C, D, B, E (`git merge --no-ff`), разрешить конфликты
    (`src/server/container.ts`, `src/server/subscriptions.ts`, `src/server/scheduler.ts`, `DealInvoicesService.ts`,
    `tests/i18n.test.ts` — объединять обе стороны). Пробное слияние (00:52): каждая из A, C, D с рабочей веткой —
    без конфликтов; A и C между собой конфликтуют только в `src/app/admin/invoices/actions.ts` (A добавил kaspiPush в
