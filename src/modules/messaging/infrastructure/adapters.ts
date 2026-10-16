@@ -62,10 +62,11 @@ export const gowaMediaGateway = (gowa: GowaClient): MediaGateway => ({
 });
 
 /** Права, по которым переписка ищет, кого уведомить. */
-export type MessagingPermission = "chats.view" | "deals.view";
+export type MessagingPermission = "chats.view" | "deals.view" | "team.manage";
 
 export const crmNotifier = (notifier: StaffNotifierPort<MessagingPermission>): StaffNotifier => ({
   notify: (assigneeId, permission, n) => notifier.notifyOwnerOr(assigneeId, permission, n),
+  managers: (n) => notifier.notifyAllWith("team.manage", n),
 });
 
 export const realtimeUpdates = (live: LiveFeed): LiveUpdates => ({

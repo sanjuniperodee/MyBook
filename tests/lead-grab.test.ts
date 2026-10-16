@@ -28,7 +28,7 @@ describe("Заявки раздаёт круг: менеджер не берёт
     sent = 0;
     read = 0;
     assigned = [];
-    const conv = () => ({ id: CONV, assigneeId, unread: 2, contactName: "Айгерим", chatId: "77011234567", lastMessageText: "" });
+    const conv = () => ({ id: CONV, assigneeId, unread: 2, contactName: "Айгерим", chatId: "77011234567", lastMessageText: "", dealId: null, meta: {} });
     const deal = () => ({ id: DEAL, number: 5, title: "Заявка", assigneeId, clientId: null, unsorted: true });
     fake.messaging = {
       queries: { conversation: async () => conv() },
@@ -49,6 +49,7 @@ describe("Заявки раздаёт круг: менеджер не берёт
         note: async () => {},
       },
     };
+    fake.marketing = { service: { shopWhatsapp: async () => "77000000000" } };
     fake.access = { ...fake.access, queries: { activeStaff: async (id: string) => ({ id, name: id, email: `${id}@b.kz` }) } };
   });
 
@@ -77,6 +78,15 @@ describe("Заявки раздаёт круг: менеджер не берёт
     signIn(owner);
     expect(await rejectDealAction(DEAL, true)).toMatchObject({ requested: false });
     expect(calls).toEqual(["request:spam", "block", "reject"]);
+  });
+
+  it("чужой номер в сообщении не уходит без причины; с причиной — уходит", async () => {
+    signIn(lena);
+    assigneeId = "lena";
+    expect(await sendMessageAction(CONV, "пишите мне +7 707 555 12 34")).toMatchObject({ blocked: expect.stringContaining("номер телефона") });
+    expect(sent).toBe(0);
+    await sendMessageAction(CONV, "пишите мне +7 707 555 12 34", "номер курьера");
+    expect(sent).toBe(1);
   });
 
   it("своя заявка — работает; руководитель — с любой", async () => {

@@ -198,8 +198,20 @@ export function ChatPanel({
           router.refresh();
           return;
         }
-        const res = await sendMessageAction(conversationId, body);
-        setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: res.id, status: res.status, error: res.error } : m)));
+        let res = await sendMessageAction(conversationId, body);
+        if ("blocked" in res) {
+          // Номер, карта или реквизиты: не отправляем, пока менеджер не объяснит зачем (руководитель увидит причину).
+          const reason = window.prompt(`${res.blocked}\n\nЕсли отправить всё же нужно, напишите причину — руководитель её увидит:`);
+          if (!reason?.trim()) {
+            setLocal((l) => l.filter((m) => m.id !== tempId));
+            setText(body);
+            return;
+          }
+          res = await sendMessageAction(conversationId, body, reason);
+          if ("blocked" in res) throw new Error(res.blocked);
+        }
+        const sent = res;
+        setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: sent.id, status: sent.status, error: sent.error } : m)));
         router.refresh();
       } catch (err) {
         setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, status: "error", error: (err as Error).message } : m)));

@@ -12,7 +12,9 @@ import {
   contactEmail,
   contactPhone,
   contactTitle,
+  findSensitive,
   preview,
+  sensitiveLabels,
   shouldApplyStatus,
   type Conversation,
   type ConversationMeta,
@@ -101,6 +103,8 @@ export class MessagingService {
     private readonly bot: QualifierBot,
     private readonly clock: Clock,
     private readonly logger: Logger,
+    /** Номер магазина: его в сообщениях с телефона компании писать можно. */
+    private readonly shopPhone: () => Promise<string> = async () => "",
   ) {}
 
   /** Диалог по собеседнику; новый сразу связываем с клиентом по телефону. */
@@ -149,6 +153,15 @@ export class MessagingService {
       if (await this.messages.claimPendingEcho(base.id, m.text, new Date(this.clock.now().getTime() - 120_000), m.externalId)) return;
       if (!(await this.messages.insertEcho(base.id, m))) return;
       await this.conversations.recordEcho(base.id, preview(m.text), m.at);
+      // С телефона компании (мимо CRM) ушли чужой номер, карта или реквизиты — запретить нельзя, руководитель узнаёт сразу.
+      const found = findSensitive(m.text, [m.chatId, base.meta.phone, await this.shopPhone()]);
+      if (found.length)
+        await this.notifier.managers?.({
+          kind: "system",
+          title: `С телефона компании ушли ${[...new Set(found.map((f) => sensitiveLabels[f.kind]))].join(", ")}`,
+          body: `${base.contactName || phoneTail(m.chatId) || "клиенту"}: ${found.map((f) => f.value).join(", ")}`,
+          link: `/admin/chats?c=${base.id}`,
+        });
       return;
     }
     if (!(await this.messages.insertIncoming(base.id, m, extra.subject ?? null))) return; // повторная доставка вебхука

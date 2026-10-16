@@ -6,9 +6,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, ForbiddenError, type Staff } from "@/server/access";
-import { channelLabel } from "@/modules/messaging";
+import { channelLabel, findSensitive, sensitiveLabels } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
-import { notifyMentions } from "@/modules/workspace";
+import { notifyMentions, staffNotifier } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone, isPhoneLike, normalizePhone } from "@/shared/domain/phone";
 import { notify } from "@/modules/workspace";
@@ -28,11 +28,32 @@ async function loadOwnConv(staff: Staff, id: string) {
   return conv;
 }
 
-export async function sendMessageAction(conversationId: string, text: string) {
+/**
+ * Сообщение клиенту. Чужой номер, карта, IBAN или ссылка на перевод Kaspi — не уходит: менеджеру объясняем, что оплата
+ * только через счёт из CRM. Если это действительно нужно (например, номер курьера), override — причина: сообщение уходит,
+ * руководителям — уведомление, в журнал — chat.sensitive.
+ */
+export async function sendMessageAction(conversationId: string, text: string, override?: string): Promise<{ id: string; status: string; error: string | null } | { blocked: string }> {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
+  const deal = conv.dealId ? await container().sales.deals.findById(conv.dealId) : null;
+  const findings = findSensitive(body, [conv.chatId, conv.meta.phone, deal?.contactPhone, ...(deal?.extraPhones ?? []), await container().marketing.service.shopWhatsapp()]);
+  const reason = override?.trim().slice(0, 200) ?? "";
+  if (findings.length && !reason) {
+    const what = [...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ");
+    return { blocked: `В сообщении ${what}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
+  }
   const msg = await container().messaging.chats.send(conv.id, body, staff.user.id);
+  if (findings.length) {
+    await audit(staff, "chat.sensitive", "conversation", conv.id, { findings, reason, deal: deal?.number ?? null });
+    await staffNotifier.notifyAllWith("team.manage", {
+      kind: "system",
+      title: `В чат ушли ${[...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ")}`,
+      body: `${staffLabel(staff.user)} → ${conv.contactName || "клиент"}: ${findings.map((f) => f.value).join(", ")}. Причина: ${reason}`,
+      link: `/admin/chats?c=${conv.id}`,
+    });
+  }
   revalidatePath("/admin/chats");
   return { id: msg.id, status: msg.status, error: "error" in msg ? (msg.error ?? null) : null };
 }
