@@ -13,7 +13,7 @@ import { plans as kkPlans } from "@/i18n/messages/kk/plans";
 export type InvoicePurpose = "prepayment" | "remainder" | "full" | "custom";
 export type InvoiceStatus = "pending_payment" | "paid" | "cancelled" | "expired";
 export type InvoiceMethod = "manual" | "kaspi" | "cloudpayments";
-export type InvoiceAccess = "none" | "due" | "sent" | "failed" | "needs_manager" | "skipped";
+export type InvoiceAccess = "none" | "due" | "sent" | "delivered" | "failed" | "needs_manager" | "skipped";
 
 /** Счёт для блока «Счета» (сделка, чат): даты — готовыми подписями по времени магазина. */
 export interface InvoiceView {
@@ -59,6 +59,7 @@ export const accessLabels: Record<InvoiceAccess, string | null> = {
   none: null,
   due: "Доступ в кабинет отправляется",
   sent: "Доступ в кабинет отправлен клиенту",
+  delivered: "Доступ в кабинет доставлен клиенту",
   failed: "Доступ не ушёл — отправьте ещё раз",
   needs_manager: "Доступ не отправлен: неясно, чей это аккаунт — выберите клиента",
   skipped: "Доступ уже выдавали по этой сделке — повторно не отправляли",

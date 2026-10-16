@@ -1,10 +1,14 @@
 import type { Clock, OneTimeStepStore, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
-import { Email, IdentityError, User, hashBackupCode, isBackupCodeShape, parseLoginId, verifyTotp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
+import { Email, IdentityError, User, clientLogin, hashBackupCode, isBackupCodeShape, parseLoginId, verifyTotp, type LinkPurpose, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 import type { AdminEmailsPolicy, PasswordHasher, PasswordResetMailer, SecretCipher, TokenService } from "./ports";
 
 const SESSION_TTL_DAYS = 30;
 const RESET_TTL_MS = 3600_000;
+/** Ссылка доступа в кабинет после оплаты живёт не дольше трёх суток. */
+export const ACCESS_LINK_MAX_MS = 72 * 3600_000;
+/** Токен ссылки — base64url (выдаём 32 байта = 43 символа); мусор в базу не идёт. */
+const isLinkToken = (token: string) => /^[A-Za-z0-9_-]{1,200}$/.test(token);
 
 /** Итог входа: сессия создана — или нужен код второго фактора. */
 export type LoginResult = { kind: "session"; token: string; expiresAt: Date; user: User } | { kind: "second_factor"; userId: string };
@@ -103,34 +107,79 @@ export class AuthService {
     const user = await this.users.findByEmail(rawEmail.trim().toLowerCase());
     if (!user) return;
     const token = this.tokens.newToken();
-    await this.resets.create(this.tokens.hash(token), user.id, new Date(this.clock.now().getTime() + RESET_TTL_MS));
+    await this.resets.create(this.tokens.hash(token), user.id, new Date(this.clock.now().getTime() + RESET_TTL_MS), "reset");
     await this.resetMailer.send({ email: user.email, name: user.name, token, locale });
   }
 
   /**
    * Новый пароль по ссылке из письма: все сессии закрываются. Переход по ссылке подтверждает
    * владение адресом — только здесь адреса из ADMIN_EMAILS получают права администратора.
+   * Ссылка доступа из WhatsApp (purpose=access) сюда не подходит: у неё свой путь без прав администратора.
    */
   async resetPassword(token: string, password: string): Promise<LoginResult> {
+    const user = await this.redeem(token, password, "reset");
+    // Смена пароля по письму не обходит второй фактор сотрудника.
+    if (user.needsSecondFactor) return { kind: "second_factor", userId: user.id };
+    return { kind: "session", user, ...(await this.openSession(user.id)) };
+  }
+
+  /**
+   * Ссылка доступа в кабинет после оплаты по счёту из чата: клиент сам задаёт пароль и входит. Выдаётся только клиенту
+   * (не сотруднику и не адресу из ADMIN_EMAILS) на срок не больше 72 часов; прежние неиспользованные ссылки доступа
+   * гаснут — действует одна, последняя. Возвращает токен (уходит клиенту в чат) и логин для сообщения.
+   */
+  async issueAccessLink(userId: string, ttlMs: number = ACCESS_LINK_MAX_MS): Promise<{ token: string; expiresAt: Date; login: string }> {
+    if (!Number.isFinite(ttlMs) || ttlMs <= 0 || ttlMs > ACCESS_LINK_MAX_MS) throw new RangeError("access link ttl must be within 72 hours");
+    const user = await this.users.findById(userId);
+    if (!user || user.role !== "user" || this.adminEmails.isAdminEmail(user.email)) throw new IdentityError("credentials");
+    const token = this.tokens.newToken();
+    const now = this.clock.now();
+    const expiresAt = new Date(now.getTime() + ttlMs);
+    await this.uow.run(async () => {
+      await this.resets.revokeUnused(user.id, "access", now);
+      await this.resets.create(this.tokens.hash(token), user.id, expiresAt, "access");
+    });
+    return { token, expiresAt, login: clientLogin(user) };
+  }
+
+  /**
+   * Пароль по ссылке доступа (POST формы /reset/<token>): отдельный путь без выдачи прав администратора — их даёт
+   * только сброс по почте. Ссылка одноразовая, прежние сессии закрываются.
+   */
+  async redeemAccessLink(token: string, password: string): Promise<{ token: string; expiresAt: Date; user: User }> {
+    const user = await this.redeem(token, password, "access");
+    return { user, ...(await this.openSession(user.id)) };
+  }
+
+  /**
+   * Что за ссылка, без погашения: страница /reset/<token> показывает «Задайте пароль» для доступа после оплаты и
+   * понятный текст для устаревшей. GET (и предпросмотр ссылки в WhatsApp) ссылку не тратит.
+   */
+  async linkInfo(token: string): Promise<{ purpose: LinkPurpose; valid: boolean } | null> {
+    if (!isLinkToken(token)) return null;
+    return this.resets.peek(this.tokens.hash(token), this.clock.now());
+  }
+
+  private async redeem(token: string, password: string, purpose: LinkPurpose): Promise<User> {
     User.assertPasswordPolicy(password);
+    if (!isLinkToken(token)) throw new IdentityError("resetExpired");
     const now = this.clock.now();
     const reset = await this.resets.findValid(this.tokens.hash(token), now);
-    if (!reset) throw new IdentityError("resetExpired");
+    if (!reset || reset.purpose !== purpose) throw new IdentityError("resetExpired");
     const hash = await this.hasher.hash(password);
-    const user = await this.uow.run(async () => {
+    return this.uow.run(async () => {
       const u = await this.users.findById(reset.userId);
-      if (!u) throw new IdentityError("resetExpired");
+      // Доступ после оплаты — только клиенту: аккаунт, ставший сотрудником, по такой ссылке не входит.
+      if (!u || (purpose === "access" && u.role !== "user")) throw new IdentityError("resetExpired");
+      // Одна ссылка — один новый пароль: два одновременных отправления формы не пройдут оба.
+      if (!(await this.resets.markUsed(reset.id, now))) throw new IdentityError("resetExpired");
       u.changePassword(hash, true);
-      if (u.role !== "admin" && this.adminEmails.isAdminEmail(u.email)) u.promoteToAdmin();
+      if (purpose === "reset" && u.role !== "admin" && this.adminEmails.isAdminEmail(u.email)) u.promoteToAdmin();
       await this.users.save(u);
-      await this.resets.markUsed(reset.id, now);
       await this.sessions.revokeAll(u.id);
       this.uow.track(u);
       return u;
     });
-    // Смена пароля по письму не обходит второй фактор сотрудника.
-    if (user.needsSecondFactor) return { kind: "second_factor", userId: user.id };
-    return { kind: "session", user, ...(await this.openSession(user.id)) };
   }
 
   private async openSession(userId: string) {

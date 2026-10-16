@@ -30,7 +30,7 @@ async function tick() {
   }
 }
 
-/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут». */
+/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут», круг заявок, почта, доступ по оплаченным счетам. */
 const CRM_INTERVAL_MS = 60_000;
 const CRM_LOCK_ID = 7_310_452;
 
@@ -49,6 +49,15 @@ async function crmTick() {
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
     const mails = await container().messaging.email.pollImap();
     if (mails) console.log(`[scheduler] crm emails=${mails}`);
+    // Счета из чата: доступ в кабинет после оплаты (клиент, привязка, сообщение в чат; доставка) и истечение срока.
+    const access = await container()
+      .invoiceAccess.run()
+      .catch((err) => (console.error("[scheduler] invoice access", err), { processed: 0, failed: 0 }));
+    if (access.processed || access.failed) console.log(`[scheduler] invoice access processed=${access.processed} failed=${access.failed}`);
+    const expired = await container()
+      .invoiceAccess.expire()
+      .catch((err) => (console.error("[scheduler] invoice expiry", err), 0));
+    if (expired) console.log(`[scheduler] invoices expired=${expired}`);
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
   } finally {

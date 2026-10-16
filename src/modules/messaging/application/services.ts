@@ -14,6 +14,7 @@ import {
   contactTitle,
   findSensitive,
   preview,
+  redactSecrets,
   sensitiveLabels,
   shouldApplyStatus,
   type Conversation,
@@ -22,6 +23,12 @@ import {
   type InboundMessage,
 } from "../domain";
 import type { Blocklist, BotSettings, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
+
+/** Сообщение канала без секретов в тексте (redactSecrets): так оно и хранится в CRM. */
+const withoutSecrets = (m: InboundMessage): InboundMessage => {
+  const text = redactSecrets(m.text);
+  return text === m.text ? m : { ...m, text };
+};
 
 /** Дополнительно для каналов без Wazzup: клиент с сайта (вошёл в аккаунт) и служебные данные канала. */
 export interface IngestExtra {
@@ -145,7 +152,10 @@ export class MessagingService {
     return this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId ?? deal.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
   }
 
-  async ingest(m: InboundMessage, extra: IngestExtra = {}) {
+  async ingest(raw: InboundMessage, extra: IngestExtra = {}) {
+    // Входящее, эхо и захват эха — по тексту без секретов: ссылка доступа не ложится в CRM открытым текстом,
+    // а эхо нашего сообщения сравнивается с уже замаскированной записью.
+    const m = withoutSecrets(raw);
     const { conv: base, created } = await this.upsert(m, extra);
     if (m.isEcho) {
       // Эхо нашего же сообщения из CRM: внешний ID уже записан при отправке (или запишется) — не дублируем.
@@ -190,8 +200,9 @@ export class MessagingService {
    * Только со знакомыми: уже есть диалог, клиент с этим номером или открытая сделка — с незнакомых номеров заявки
    * задним числом не заводим. Без уведомлений, бота, правил, «непрочитано» и «ждёт ответа»; повтор — без дублей.
    */
-  async importHistory(chat: InboundMessage[], extra: IngestExtra = {}): Promise<{ imported: number; skipped: "unknown" | "blocked" | null }> {
-    if (!chat.length) return { imported: 0, skipped: null };
+  async importHistory(history: InboundMessage[], extra: IngestExtra = {}): Promise<{ imported: number; skipped: "unknown" | "blocked" | null }> {
+    if (!history.length) return { imported: 0, skipped: null };
+    const chat = history.map(withoutSecrets);
     const sample = chat.find((m) => !m.isEcho) ?? chat[0];
     const phone = contactPhone({ chatId: sample.chatId, meta: extra.meta ?? {} });
     if (await this.blocklist.isBlocked(sample.chatId, phone)) return { imported: 0, skipped: "blocked" };
@@ -231,7 +242,8 @@ export class MessagingService {
     if (!conv) throw new Error("Диалог не найден");
     const body = text.trim().slice(0, 4000);
     if (!body) throw new Error("Пустое сообщение");
-    const msg = await this.messages.insertOutgoing(conversationId, body, authorId);
+    // Клиенту уходит текст целиком, в CRM — с маской секретов (ссылка «задайте пароль»).
+    const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId);
     await this.conversations.recordOutgoing(conversationId, preview(body), this.clock.now(), authorId);
     if (authorId && conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId);
     this.live.chatChanged(conversationId);
@@ -246,11 +258,21 @@ export class MessagingService {
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
-  /** Внутренняя заметка: видна только сотрудникам, клиенту не уходит и не сбрасывает «ждёт ответа». */
-  async addInternalNote(conversationId: string, text: string, authorId: string) {
-    const body = text.trim().slice(0, 4000);
+  /** Внутренняя заметка: видна только сотрудникам, клиенту не уходит и не сбрасывает «ждёт ответа». authorId null — от CRM. */
+  async addInternalNote(conversationId: string, text: string, authorId: string | null) {
+    const body = redactSecrets(text.trim().slice(0, 4000));
     if (!body) throw new Error("Пустая заметка");
     return this.messages.insertOutgoing(conversationId, body, authorId, true);
+  }
+
+  /**
+   * Диалог счёта — к клиенту, если он ещё ни к кому не привязан (клиент завёлся или нашёлся оплатой): карточка
+   * клиента видит переписку. Чужой клиент не перезаписывается.
+   */
+  async linkClient(conversationId: string, clientId: string) {
+    const conv = await this.conversations.findById(conversationId);
+    if (!conv || conv.clientId) return;
+    await this.conversations.updateContact(conv.id, { contactName: conv.contactName, avatarUrl: conv.avatarUrl, meta: conv.meta, clientId });
   }
 
   markRead(conversationId: string) {

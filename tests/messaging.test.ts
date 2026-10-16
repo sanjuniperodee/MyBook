@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerValue, botSummary, contactChanges, contactPhone, shouldApplyStatus, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
+import { answerValue, botSummary, contactChanges, contactPhone, preview, redactSecrets, shouldApplyStatus, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
 import { MessagingService, QualifierBot, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
 
 const now = new Date("2026-10-01T06:00:00Z");
@@ -33,9 +33,9 @@ describe("домен переписки", () => {
 
 // ─── инбокс ────────────────────────────────────────────────────────────────
 
-function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Record<string, string>; openDeal?: { id: string; assigneeId: string | null } } = {}) {
+function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Record<string, string>; openDeal?: { id: string; assigneeId: string | null }; noExternalId?: boolean } = {}) {
   const convs = new Map<string, Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date }>();
-  const msgs: { id: string; conv: string; dir: "in" | "out"; text: string; externalId: string | null; status: string }[] = [];
+  const msgs: { id: string; conv: string; dir: "in" | "out"; text: string; externalId: string | null; status: string; internal?: boolean }[] = [];
   const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown> }[] = [];
   const sent: string[] = [];
   const notes: string[] = [];
@@ -51,17 +51,21 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Reco
     },
     updateContact: async (id, p) => Object.assign(convs.get(id)!, p),
     linkDeal: async (id, l) => Object.assign(convs.get(id)!, l),
-    recordIncoming: async (id, _t, at) => {
+    recordIncoming: async (id, text, at) => {
       const c = convs.get(id)!;
       c.unread++;
       c.awaiting ??= at;
+      c.lastText = text;
     },
-    recordEcho: async (id) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null }),
+    recordEcho: async (id, text) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null, lastText: text }),
     recordHistory: async (id, text, at) => {
       const c = convs.get(id)!;
       if (!c.lastAt || c.lastAt < at) Object.assign(c, { lastText: text, lastAt: at });
     },
-    recordOutgoing: async (id, _t, _at, author) => void (author && Object.assign(convs.get(id)!, { unread: 0, awaiting: null, botStep: -1 })),
+    recordOutgoing: async (id, text, _at, author) => {
+      Object.assign(convs.get(id)!, { lastText: text });
+      if (author) Object.assign(convs.get(id)!, { unread: 0, awaiting: null, botStep: -1 });
+    },
     closeAsSpam: async (id) => void Object.assign(convs.get(id)!, { closed: true }),
     markRead: async (id) => void Object.assign(convs.get(id)!, { unread: 0 }),
     advanceBot: async (id, from, to) => {
@@ -86,8 +90,8 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Reco
       return !!p;
     },
     insertEcho: async (conv, m) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, externalId: m.externalId, status: "sent" }),
-    insertOutgoing: async (conv, text, authorId) => {
-      const m = { id: `m${++seq}`, conv, dir: "out" as const, text, externalId: null, status: "pending" };
+    insertOutgoing: async (conv, text, authorId, internal) => {
+      const m = { id: `m${++seq}`, conv, dir: "out" as const, text, externalId: null, status: "pending", internal };
       msgs.push(m);
       return { id: m.id, conversationId: conv, text, authorId, createdAt: now };
     },
@@ -131,7 +135,7 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Reco
     conversations,
     messages,
     { isBlocked: async () => !!opts.blocked, add: async () => {}, remove: async () => {} },
-    { send: async (_c, _id, text) => (sent.push(text), { ok: true, externalId: `wz-${sent.length}` }) },
+    { send: async (_c, _id, text) => (sent.push(text), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }) },
     sales,
     { fromText: async () => null },
     notifier,
@@ -250,5 +254,50 @@ describe("история переписки из шлюза после прив�
   it("номер в спаме — пропуск", async () => {
     const t = setup({ blocked: true, clients: { "77011234567": "client-1" } });
     expect(await t.service.importHistory(chat)).toEqual({ imported: 0, skipped: "blocked" });
+  });
+});
+
+describe("секреты в переписке: ссылка доступа в CRM — только с маской", () => {
+  const token = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcd";
+  const link = `https://mybook.kz/reset/${token}`;
+  const text = `Задайте пароль и войдите: ${link}\nЛогин: +7 701 123 45 67`;
+  const masked = "Задайте пароль и войдите: https://mybook.kz/reset/••••\nЛогин: +7 701 123 45 67";
+
+  it("redactSecrets: /reset/<токен> и /kk/reset/<токен> — с маской, остальное как есть; превью — тоже", () => {
+    expect(redactSecrets(text)).toBe(masked);
+    expect(redactSecrets("https://mybook.kz/kk/reset/abcdefgh12345678 и ещё https://mybook.kz/reset/zzzzzzzzzzzz")).toBe("https://mybook.kz/kk/reset/•••• и ещё https://mybook.kz/reset/••••");
+    expect(redactSecrets("https://mybook.kz/pay/abcdefgh12345678 /reset/ /reset/short")).toBe("https://mybook.kz/pay/abcdefgh12345678 /reset/ /reset/short");
+    expect(preview(text)).not.toContain(token);
+  });
+
+  it("исходящее: клиенту — целиком, в CRM и превью — с маской; эхо узнаётся по маске и не дублируется", async () => {
+    const t = setup({ noExternalId: true });
+    await t.service.ingest(inbound());
+    const [c] = [...t.convs.values()];
+    const msg = await t.service.send(c.id, text, null);
+    expect(t.sent).toEqual([text]);
+    expect(msg.text).toBe(masked);
+    expect(t.msgs.filter((m) => m.dir === "out").map((m) => m.text)).toEqual([masked]);
+    expect(c.lastText).not.toContain(token);
+    // эхо со шлюза приходит с полным текстом — захватывается та же запись
+    await t.service.ingest(inbound({ externalId: "gw-echo", isEcho: true, text }));
+    expect(t.msgs.filter((m) => m.dir === "out")).toEqual([expect.objectContaining({ text: masked, externalId: "gw-echo" })]);
+    // эхо, отправленное с телефона мимо CRM, — тоже с маской
+    await t.service.ingest(inbound({ externalId: "gw-phone", isEcho: true, text: `ещё раз: ${link}` }));
+    expect(t.msgs.at(-1)!.text).toBe("ещё раз: https://mybook.kz/reset/••••");
+    expect(c.lastText).not.toContain(token);
+  });
+
+  it("входящее (клиент переслал ссылку), история из шлюза и внутренняя заметка — с маской", async () => {
+    const t = setup({ clients: { "77011234567": "client-1" } });
+    await t.service.ingest(inbound({ externalId: "in-1", text: `вот ссылка ${link} не открывается` }));
+    const [c] = [...t.convs.values()];
+    expect(t.msgs.at(-1)!.text).toBe("вот ссылка https://mybook.kz/reset/•••• не открывается");
+    expect(c.lastText).not.toContain(token);
+    await t.service.importHistory([inbound({ externalId: "h-1", text: link }), inbound({ externalId: "h-2", isEcho: true, text: `пароль: ${link}` })], { anyWhatsappChannel: true });
+    expect(t.msgs.slice(-2).map((m) => m.text)).toEqual(["https://mybook.kz/reset/••••", "пароль: https://mybook.kz/reset/••••"]);
+    const note = await t.service.addInternalNote(c.id, `клиенту ушла ${link}`, null);
+    expect(note.text).toBe("клиенту ушла https://mybook.kz/reset/••••");
+    expect(t.msgs.every((m) => !m.text.includes(token))).toBe(true);
   });
 });

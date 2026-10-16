@@ -109,6 +109,8 @@ export interface DealInvoiceRepository {
   overdue(now: Date, limit: number): Promise<DealInvoice[]>;
   /** Оплаченные, по которым доступ в кабинет ещё не выдан. */
   accessDue(limit: number): Promise<DealInvoice[]>;
+  /** Доступ отправлен после since: проход проверяет доставку сообщения (ошибка — «не ушёл», доставлено — «доставлен»). */
+  accessSentSince?(since: Date, limit: number): Promise<DealInvoice[]>;
   add(invoice: DealInvoice): Promise<void>;
   save(invoice: DealInvoice): Promise<void>;
 }

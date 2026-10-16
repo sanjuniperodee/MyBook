@@ -1,5 +1,5 @@
 import "server-only";
-import { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, type OrderCancelled, type OrderOverpaid, type OrderPaid, type OrderPlaced, type PaymentClaimed, type PostpayDue } from "@/modules/ordering";
+import { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, type DealInvoiceClaimed, type DealInvoiceExtraMoney, type DealInvoicePaid, type OrderCancelled, type OrderOverpaid, type OrderPaid, type OrderPlaced, type PaymentClaimed, type PostpayDue } from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
@@ -59,6 +59,16 @@ export function registerSubscriptions(c: Container) {
     "crm.task.prepaid_excess",
   );
   c.bus.subscribe<PaymentClaimed>("ordering.payment_claimed", (e) => tellManager(e.payload.orderId, () => `Проверьте оплату заказа №${e.payload.number}`, (t) => `${t} · клиент сообщил, что оплатил`), "crm.notify.payment_claimed");
+
+  // ─── счёт из чата → CRM: заметки и уведомления (каждый подписчик идемпотентен: outbox повторяет только упавших) ──
+  // Клиент, привязка и доступ в кабинет — надёжный шаг планировщика по состоянию счёта (access_status='due' ставит
+  // оплата); здесь только быстрый путь: не ждать минутного прохода — клиент получает доступ сразу после оплаты.
+  const access = () => c.invoiceAccess;
+  c.bus.subscribe<DealInvoicePaid>("ordering.deal_invoice_paid", (e) => access().paidNote(e.payload), "crm.invoice.paid_note");
+  c.bus.subscribe<DealInvoicePaid>("ordering.deal_invoice_paid", (e) => access().paidNotify(e.payload), "crm.invoice.paid_notify");
+  c.bus.subscribe<DealInvoicePaid>("ordering.deal_invoice_paid", (e) => runInBackground(() => access().process(e.payload.invoiceId)), "crm.invoice.access_now");
+  c.bus.subscribe<DealInvoiceExtraMoney>("ordering.deal_invoice_extra_money", (e) => access().extraMoney(e.payload), "crm.invoice.extra_money");
+  c.bus.subscribe<DealInvoiceClaimed>("ordering.deal_invoice_claimed", (e) => access().claimed(e.payload), "crm.invoice.claimed");
 
   // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──
   c.bus.subscribe<OrderPaid>(

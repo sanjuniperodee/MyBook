@@ -58,6 +58,9 @@ class MemTasks implements TaskRepository {
     const id = `task-${++this.seq}`;
     this.rows.set(id, { id, doneAt: null, ...t });
   }
+  async existsOpen({ dealId, title }: { dealId: string; title: string }) {
+    return [...this.rows.values()].some((t) => t.dealId === dealId && t.title === title && !t.doneAt);
+  }
   async setDone(id: string, doneAt: Date | null) {
     const t = this.rows.get(id);
     if (t) this.rows.set(id, { ...t, doneAt });
@@ -75,7 +78,7 @@ class MemTasks implements TaskRepository {
 }
 
 class MemNotes implements NoteRepository {
-  rows = new Map<string, Note & { authorId: string }>();
+  rows = new Map<string, Note & { authorId: string | null }>();
   private seq = 0;
   async find(id: string) {
     const n = this.rows.get(id);
@@ -84,6 +87,9 @@ class MemNotes implements NoteRepository {
   async add(n: Parameters<NoteRepository["add"]>[0]) {
     const id = `note-${++this.seq}`;
     this.rows.set(id, { id, ...n });
+  }
+  async exists({ dealId, text }: { dealId: string; text: string }) {
+    return [...this.rows.values()].some((n) => n.dealId === dealId && n.text === text);
   }
   async delete(id: string) {
     this.rows.delete(id);
