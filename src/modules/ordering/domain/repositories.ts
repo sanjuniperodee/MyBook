@@ -61,6 +61,8 @@ export interface PaymentInvoiceRepository {
   latestFor(target: PaymentTarget): Promise<PaymentInvoice | null>;
   /** Счета, которые стоит сверить с Kaspi: ждущие и закрытые нами по сроку, созданные не раньше since. */
   toReconcile(since: Date, limit: number): Promise<PaymentInvoice[]>;
+  /** Попытки оплаты счетов из чата для долгой сверки: ждущие, истёкшие и отменённые, созданные не раньше since. */
+  dealInvoiceAttempts(since: Date, limit: number): Promise<PaymentInvoice[]>;
   add(invoice: PaymentInvoice): Promise<void>;
   save(invoice: PaymentInvoice): Promise<void>;
 }
