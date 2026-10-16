@@ -9,7 +9,7 @@ import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, For
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
-import { normalizePhone } from "@/shared/domain/phone";
+import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
@@ -170,4 +170,17 @@ export async function setClientFieldsAction(_: { ok?: string; error?: string }, 
   await container().clients.clients.setCustomFields(client, readFieldValues(await listFields("client"), form, client.customFields));
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: "Сохранено" };
+}
+
+/**
+ * Открыть номер и почту своего клиента (роль без «видеть контакты полностью»): каждое открытие — в журнале,
+ * руководитель видит, кто, чей и когда открывал.
+ */
+export async function revealContactAction(target: Target): Promise<{ ok: true; phone: string; email: string } | { ok: false; message: string }> {
+  const staff = await assertStaff("clients.reveal");
+  const c = await resolveContact(target);
+  if (!c) return { ok: false, message: "Контакт не найден" };
+  assertWorkable(staff, c.assigneeId);
+  await audit(staff, "client.contact_reveal", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { name: c.name ?? "" });
+  return { ok: true, phone: c.phone ? formatPhone(c.phone) : "", email: c.email ?? "" };
 }

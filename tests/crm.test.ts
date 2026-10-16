@@ -42,8 +42,12 @@ describe("права и системные роли", () => {
       expect(name).toBe(role.name);
       expect(scope).toBe(role.scope);
       const list = perms.split(",").map((p) => p.trim().replace(/'/g, ""));
-      // Права, добавленные следующими миграциями.
-      for (const m of later.matchAll(/array_append\("permissions", '([\w.]+)'\) WHERE "key" IN \(([^)]*)\)/g)) if (m[2].includes(`'${key}'`)) list.push(m[1]);
+      // Права, добавленные и снятые следующими миграциями (по порядку файлов).
+      for (const m of later.matchAll(/array_(append|remove)\("permissions", '([\w.]+)'\) WHERE "key" IN \(([^)]*)\)/g)) {
+        if (!m[3].includes(`'${key}'`)) continue;
+        if (m[1] === "append") list.push(m[2]);
+        else list.splice(list.indexOf(m[2]) >>> 0, list.includes(m[2]) ? 1 : 0);
+      }
       expect(list.every(isPermission)).toBe(true);
       expect([...list].sort()).toEqual([...role.permissions].sort());
     }

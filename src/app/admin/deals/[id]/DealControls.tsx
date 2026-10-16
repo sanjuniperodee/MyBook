@@ -5,6 +5,7 @@ import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
+import { revealContactAction } from "@/app/admin/crm-actions";
 import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, declineRejectionAction, updateDealAction, type DealFormState } from "../actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -82,10 +83,13 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
 export function DealFields({
   deal,
   masked,
+  canReveal = false,
   disabled,
   fields = [],
   values = {},
 }: {
+  /** Кнопка «Показать номер» (право clients.reveal): открытие пишется в журнал. */
+  canReveal?: boolean;
   fields?: FieldDef[];
   values?: CustomFieldValues;
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
@@ -118,8 +122,7 @@ export function DealFields({
       </Field>
       {masked ? (
         <div className="space-y-1 text-sm text-ink-soft" title="Контакты скрыты настройками вашей роли" data-testid="masked-contacts">
-          <div className="tabular-nums">{masked.phone || "—"}</div>
-          <div>{masked.email || "—"}</div>
+          <RevealContact dealId={deal.id} masked={masked} canReveal={canReveal} />
           {/* Скрытые поля не отправляем: сервер сохранит прежние значения. */}
         </div>
       ) : (
@@ -310,5 +313,36 @@ export function PipelineSwitch({ dealId, value, pipelines, disabled }: { dealId:
         ))}
       </select>
     </label>
+  );
+}
+
+/** Скрытый контакт; «Показать» открывает его (на сервере — проверка, что сделка своя, и запись в журнал). */
+function RevealContact({ dealId, masked, canReveal }: { dealId: string; masked: { phone: string; email: string }; canReveal: boolean }) {
+  const [shown, setShown] = useState<{ phone: string; email: string } | null>(null);
+  const [pending, start] = useTransition();
+  const c = shown ?? masked;
+  return (
+    <>
+      <div className="flex items-center gap-2 tabular-nums">
+        {c.phone || "—"}
+        {canReveal && !shown && masked.phone ? (
+          <button
+            type="button"
+            className="text-xs text-wine underline"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const r = await revealContactAction({ dealId });
+                if (r.ok) setShown({ phone: r.phone, email: r.email });
+                else toastError(new Error(r.message));
+              })
+            }
+          >
+            показать (в журнал)
+          </button>
+        ) : null}
+      </div>
+      <div>{c.email || "—"}</div>
+    </>
   );
 }

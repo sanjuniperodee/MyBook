@@ -1,5 +1,5 @@
 import type { Clock, Logger } from "@/shared/application";
-import { formatPhone, normalizePhone } from "@/shared/domain/phone";
+import { normalizePhone, phoneTail } from "@/shared/domain/phone";
 import {
   BOT_DONE,
   answerValue,
@@ -129,10 +129,10 @@ export class MessagingService {
     const deal =
       existing ??
       (await this.sales.createDeal({
-        title: `Заявка из ${channelLabel(conv.channel)}${contactName ? `: ${contactName}` : phone ? `: ${formatPhone(phone)}` : ""}`,
+        title: `Заявка из ${channelLabel(conv.channel)}${contactName ? `: ${contactName}` : phone ? `: ${phoneTail(phone)}` : ""}`,
         channel: conv.channel,
         clientId: conv.clientId,
-        contactName: contactTitle(conv, contactName, formatPhone),
+        contactName: contactTitle(conv, contactName, phoneTail),
         contactPhone: phone,
         contactEmail: contactEmail(conv),
         unsorted: true,
@@ -162,7 +162,7 @@ export class MessagingService {
     await this.conversations.recordIncoming(conv.id, preview(m.text), m.at);
     await this.notifier.notify(conv.assigneeId, "chats.view", {
       kind: "message",
-      title: `${conv.contactName || m.contactName || formatPhone(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
+      title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
       body: preview(m.text),
       link: `/admin/chats?c=${conv.id}`,
     });
@@ -328,11 +328,11 @@ export class SiteChatService {
   async requestCallback(input: { name: string; phone: string; comment?: string; page?: string; userId?: string | null }) {
     const phone = normalizePhone(input.phone);
     const clientId = input.userId ?? (await this.sales.findClientByPhone(phone));
-    const who = input.name || formatPhone(phone);
+    const who = input.name || phoneTail(phone);
     const deal = (await this.sales.findOpenDeal({ clientId, phone })) ?? (await this.sales.createDeal({ title: `Перезвонить: ${who}`, channel: "site", source: "site", clientId, contactName: input.name, contactPhone: phone, contactEmail: null, unsorted: true, utm: null }));
     // Ответственного новой сделке ставит круг при создании; вне рабочего времени — утром, а задачу видят все.
     const assigneeId = deal.assigneeId;
-    const note = [`📞 Заявка на обратный звонок с сайта: ${input.name || "без имени"}, ${formatPhone(phone)}`, input.comment ? `Комментарий: ${input.comment}` : "", input.page ? `Страница: ${input.page}` : ""].filter(Boolean).join("\n");
+    const note = [`📞 Заявка на обратный звонок с сайта: ${input.name || "без имени"}, ${phoneTail(phone)} (номер — в контакте сделки)`, input.comment ? `Комментарий: ${input.comment}` : "", input.page ? `Страница: ${input.page}` : ""].filter(Boolean).join("\n");
     await this.sales.note(deal, note);
     await this.tasks.create({ title: `Перезвонить ${who} — заявка с сайта`, kind: "call", dueAt: new Date(this.clock.now().getTime() + 15 * 60_000), dealId: deal.id, clientId: deal.clientId, assigneeId });
     await this.notifier.notify(assigneeId, "deals.view", { kind: "task", title: `Перезвонить: ${who}`, body: input.comment?.slice(0, 160) || "Заявка на обратный звонок с сайта", link: `/admin/deals/${deal.id}` });

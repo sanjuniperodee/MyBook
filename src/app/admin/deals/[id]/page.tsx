@@ -100,6 +100,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 tags: deal.tags,
               }}
               masked={contact.masked ? { phone: contact.phone, email: contact.email } : null}
+              canReveal={can(staff, "clients.reveal") && canWork(staff, deal.assigneeId)}
               fields={dealFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))}
               values={deal.customFields}
               disabled={!canEdit}
