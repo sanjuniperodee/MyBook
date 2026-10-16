@@ -107,6 +107,7 @@ export class OrdersService {
       {
         ...identity,
         agreement,
+        agreementDealId: found?.dealId ?? null,
         credit: upgrade ? { orderNumber: upgrade.number, amount: upgrade.credit } : null,
         userId: cmd.userId,
         bookId: cmd.bookId,

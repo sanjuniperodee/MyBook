@@ -17,7 +17,7 @@ export function registerSubscriptions(c: Container) {
   const notify = () => import("@/modules/workspace");
 
   // ─── заказы → воронка продаж и правила CRM ───────────────────────────────
-  c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload, amount: e.payload.amount + (e.payload.prepaid ?? 0) }).then(() => undefined), "crm.deal.order_created");
+  c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload, amount: e.payload.amount + (e.payload.prepaid ?? 0), dealId: e.payload.agreementDealId ?? null }).then(() => undefined), "crm.deal.order_created");
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", async (e) => rules().run("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId }), "crm.automation.order_created");
   c.bus.subscribe<OrderPaid>(
     "ordering.order_paid",

@@ -292,10 +292,12 @@ export class SiteFunnelService {
     private readonly paid: (dealId: string) => Promise<number> = async () => 0,
   ) {}
 
-  async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomFieldValues } = {}): Promise<{ id: string } | null> {
+  async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomFieldValues; dealId?: string | null } = {}): Promise<{ id: string } | null> {
     try {
       const funnel = await this.funnels.load();
-      let deal = await this.deals.findOpen({ clientId });
+      // Заказ по договорённости — к её сделке (даже если её вручную перевели в «успех» до заказа), иначе — открытая сделка клиента.
+      const agreed = opts.dealId ? await this.deals.findById(opts.dealId) : null;
+      let deal = agreed && agreed.clientId === clientId && !agreed.orderId ? agreed : await this.deals.findOpen({ clientId });
       // Этап-цель ищем в воронке сделки; новая сделка с сайта — в основной воронке.
       const pipelineId = deal ? (funnel.stage(deal.stageId)?.pipelineId ?? null) : funnel.defaultPipelineId;
       const target = funnel.milestoneStage(milestone, pipelineId);
@@ -353,8 +355,8 @@ export class SiteFunnelService {
     if (deal) await this.service.fillEmptyFields(deal.id, fields);
   }
 
-  orderCreated(order: { id: string; userId: string; number: number; amount: number }) {
-    return this.advance(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount });
+  orderCreated(order: { id: string; userId: string; number: number; amount: number; dealId?: string | null }) {
+    return this.advance(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount, dealId: order.dealId });
   }
 
   /** Оплата: сумма сделки — по заказу, сделка — на этап «оплачен». Возвращает сделку заказа. */

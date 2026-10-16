@@ -18,7 +18,8 @@ export interface OrderRef {
   promoCode: string | null;
 }
 
-export type OrderPlaced = DomainEvent<"ordering.order_placed", OrderRef & { estimatedPages: number; quantity: number }>;
+/** agreementDealId — сделка, договорённость которой применилась (цена, предоплата): заказ привязывается к ней. */
+export type OrderPlaced = DomainEvent<"ordering.order_placed", OrderRef & { estimatedPages: number; quantity: number; agreementDealId?: string | null }>;
 /** settled — заказ на постоплате: деньги пришли после печати (файлы уже готовы, выручка — с даты оплаты). */
 export type OrderPaid = DomainEvent<"ordering.order_paid", OrderRef & { paymentId: string | null; actor: string; settled?: boolean }>;
 /** По заказу получено больше, чем к оплате (или деньги по отменённому): нужен возврат или зачёт. */
