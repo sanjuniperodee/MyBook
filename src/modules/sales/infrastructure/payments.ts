@@ -93,6 +93,20 @@ export class DealPayments {
     await executor().update(crmReceipts).set({ clientId }).where(and(eq(crmReceipts.dealId, dealId), owner(crmReceipts)));
   }
 
+  /**
+   * Руководитель сверил ручной платёж с поступлением на счёт («Финансы» → «Проверить»). Одним условным обновлением:
+   * онлайн-платёж (его подтвердила платёжная система) и уже проверенный не трогаются — тогда null.
+   */
+  async review(id: string, reviewerId: string, at = new Date()): Promise<PaymentRow | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [row] = await executor()
+      .update(crmPayments)
+      .set({ reviewedById: reviewerId, reviewedAt: at })
+      .where(and(eq(crmPayments.id, id), eq(crmPayments.method, "manual"), isNull(crmPayments.reviewedAt)))
+      .returning();
+    return row ?? null;
+  }
+
   /** Удалить ошибочный платёж. Чеки остаются у сделки (платёж у них обнуляется). */
   async remove(id: string) {
     await executor().update(crmReceipts).set({ paymentId: null }).where(eq(crmReceipts.paymentId, id));

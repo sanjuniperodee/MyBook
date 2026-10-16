@@ -14,6 +14,7 @@ import { salesAnalytics } from "./infrastructure/SalesAnalytics";
 import { crmCounters } from "./infrastructure/Counters";
 import { getLive } from "./infrastructure/Live";
 import { queryClients, segmentCounts } from "./infrastructure/Clients";
+import { financeReport } from "./infrastructure/Finance";
 
 /**
  * Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц
@@ -54,4 +55,6 @@ export class ReportingModule {
   readonly live = getLive;
   readonly clients = queryClients;
   readonly segmentCounts = segmentCounts;
+  /** «Финансы»: деньги за период, ожидаемые доплаты, переплаты и ручные подтверждения без проверки. */
+  readonly finance = financeReport;
 }
