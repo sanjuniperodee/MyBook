@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { books, crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
@@ -28,6 +28,14 @@ export const drizzleTasks: TaskRepository = {
   async existsOpen({ dealId, title }) {
     const [t] = await executor().select({ id: crmTasks.id }).from(crmTasks).where(and(eq(crmTasks.dealId, dealId), eq(crmTasks.title, title), isNull(crmTasks.doneAt))).limit(1);
     return !!t;
+  },
+  async closeOpenByPrefix({ dealId, prefix, keepTitle, at }) {
+    const rows = await executor()
+      .update(crmTasks)
+      .set({ doneAt: at })
+      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), sql`starts_with(${crmTasks.title}, ${prefix})`, keepTitle ? ne(crmTasks.title, keepTitle) : undefined))
+      .returning({ id: crmTasks.id });
+    return rows.length;
   },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
   delete: async (id) => void (await executor().delete(crmTasks).where(eq(crmTasks.id, id))),

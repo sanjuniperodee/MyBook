@@ -52,10 +52,12 @@ export interface DealInvoiceRef {
 /** Счёт оплачен (первый раз): деньги записаны в сделку; дальше — клиент, доступ, заметка, уведомление. */
 export type DealInvoicePaid = DomainEvent<"ordering.deal_invoice_paid", DealInvoiceRef & { method: DealInvoiceMethod; ref: string | null; conversationId: string | null; phone: string | null; clientName: string; locale: "ru" | "kk"; channel: string; issuedById: string | null }>;
 /** Деньги пришли по закрытому счёту (повторная оплата, после заказа, по отменённому) — нужен возврат или зачёт. */
-export type DealInvoiceExtraMoney = DomainEvent<"ordering.deal_invoice_extra_money", DealInvoiceRef & { method: DealInvoiceMethod; ref: string; paid: number; recorded: boolean; reason: "overpaid" | "closed" | "order" }>;
+export type DealInvoiceExtraMoney = DomainEvent<"ordering.deal_invoice_extra_money", DealInvoiceRef & { method: DealInvoiceMethod; ref: string; paid: number; recorded: boolean; reason: "overpaid" | "closed" | "order" | "mismatch" }>;
 /** Клиент сообщил, что оплатил переводом. */
 export type DealInvoiceClaimed = DomainEvent<"ordering.deal_invoice_claimed", DealInvoiceRef>;
-export type DealInvoiceEvent = DealInvoicePaid | DealInvoiceExtraMoney | DealInvoiceClaimed;
+/** Счёт закрыт без оплаты (отменён, истёк): ждущую попытку Kaspi по нему — отменить (сначала сверив с Kaspi). */
+export type DealInvoiceClosed = DomainEvent<"ordering.deal_invoice_closed", DealInvoiceRef & { reason: string }>;
+export type DealInvoiceEvent = DealInvoicePaid | DealInvoiceExtraMoney | DealInvoiceClaimed | DealInvoiceClosed;
 
 /**
  * Счёт из чата: менеджер просит клиента оплатить часть договорённости (предоплата, остаток) по ссылке. Один открытый
@@ -136,6 +138,7 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
     if (this.props.status !== "pending_payment") return false;
     this.props.status = "cancelled";
     this.props.closedReason = reason.slice(0, 200);
+    this.record(domainEvent("ordering.deal_invoice_closed", { ...this.ref(), reason: this.props.closedReason }) satisfies DealInvoiceClosed);
     return true;
   }
 
@@ -143,6 +146,7 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
     if (this.props.status !== "pending_payment" || this.props.expiresAt > now) return false;
     this.props.status = "expired";
     this.props.closedReason = "срок счёта истёк";
+    this.record(domainEvent("ordering.deal_invoice_closed", { ...this.ref(), reason: this.props.closedReason }) satisfies DealInvoiceClosed);
     return true;
   }
 

@@ -86,7 +86,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
                 {/* Про WhatsApp — только когда доступ действительно ушёл; иначе честно: пришлёт менеджер. */}
-                <p className="text-[15px]">{s.accessStatus === "sent" ? t.paidAccess : t.paidManager}</p>
+                <p className="text-[15px]">{s.accessStatus === "sent" || s.accessStatus === "delivered" ? t.paidAccess : s.accessStatus === "skipped" ? t.paidAlready : t.paidManager}</p>
               </div>
               <Link href={user ? "/books" : "/login"} className="btn btn-primary">
                 {t.login}

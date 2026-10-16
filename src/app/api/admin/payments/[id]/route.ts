@@ -20,6 +20,8 @@ export const DELETE = api(async (req, { params }: { params: Promise<{ id: string
   const deal = await c.sales.deals.findById(payment.dealId);
   if (!deal || !canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
   if (payment.method !== "manual") return NextResponse.json({ error: "Онлайн-платёж не удаляется — оформите возврат" }, { status: 409 });
+  // Платёж закрыл счёт из чата (клиент, доступ и заметки уже выданы по нему) — удалением это не откатить, только возвратом.
+  if (payment.invoiceId) return NextResponse.json({ error: "Платёж по счёту из чата не удаляется — оформите возврат" }, { status: 409 });
   // Деньги уже учтены в заказе по договорённости (предоплата вычтена из «к оплате») — удалять платёж нельзя.
   if (deal.orderId) return NextResponse.json({ error: "По сделке оформлен заказ: платёж учтён в нём и не удаляется" }, { status: 409 });
   await c.sales.payments.remove(payment.id);

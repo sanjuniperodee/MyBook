@@ -123,6 +123,8 @@ export interface InvoiceAccessPorts {
     noteOnce(input: { dealId: string; clientId: string | null; text: string }): Promise<boolean>;
     /** Задача ответственному, одна открытая с таким заголовком по сделке; true — поставлена сейчас. */
     taskOnce(input: { dealId: string; clientId: string | null; title: string; assigneeId: string }): Promise<boolean>;
+    /** Закрыть устаревшие служебные задачи сделки по началу заголовка (кроме keepTitle). */
+    closeTasks(input: { dealId: string; prefix: string; keepTitle: string | null }): Promise<number>;
     notify(userIds: string[], n: StaffNotification): Promise<void>;
     /** Всем, кто ведёт сделки (deals.edit), — когда ответственного нет. */
     notifyEditors(n: StaffNotification): Promise<void>;
@@ -347,7 +349,10 @@ export class InvoiceAccess {
       `Клиент на сайте: ${account.name || "без имени"}, ${login}, язык кабинета — ${s.locale === "kk" ? "казахский" : "русский"}.`,
     ].join("\n");
     await this.p.crm.noteOnce({ dealId: deal.id, clientId: account.id, text: terms });
-    if (left > 0) await this.alert(s, { ...deal, clientId: account.id }, `Получить остаток ${formatPrice(left)} по договорённости (сделка №${deal.number}, оплачен счёт ${label(s.number)})`, { note: false, fresh: false });
+    const remainderTitle = left > 0 ? `${REMAINDER_TASK}${formatPrice(left)} по договорённости (сделка №${deal.number}, оплачен счёт ${label(s.number)})` : null;
+    // Прежние «получить остаток» устарели: остаток оплачен или стал меньше — закрываем, ставим одну актуальную.
+    await this.p.crm.closeTasks({ dealId: deal.id, prefix: REMAINDER_TASK, keepTitle: remainderTitle });
+    if (remainderTitle) await this.alert(s, { ...deal, clientId: account.id }, remainderTitle, { note: false, fresh: false });
     // Письмо «оплата получена» — только онлайн-оплата, только на настоящую почту и только при первой выдаче.
     if (isOnline(s.paidMethod) && !s.accessMessageId && !isPhoneEmail(account.email)) await this.p.mail.paymentReceived({ clientId: account.id, dealNumber: deal.number, amount: s.amount, left });
   }
@@ -451,7 +456,9 @@ export class InvoiceAccess {
     const deal = await this.p.deals.find(e.dealId);
     const how = `${methodLabel(e.method)}, операция ${e.ref}`;
     const title =
-      e.reason === "overpaid"
+      e.reason === "mismatch"
+        ? `Оплата ${formatPrice(e.paid)} по счёту ${label(e.number)} не совпала с суммой счёта ${formatPrice(e.amount)} (${how}) — не засчитана, разберитесь: возврат или доплата`
+        : e.reason === "overpaid"
         ? `Повторная оплата по счёту ${label(e.number)}: ${formatPrice(e.paid)} (${how}) — нужен возврат`
         : `Оплата ${formatPrice(e.paid)} пришла по закрытому счёту ${label(e.number)} (${how}) — нужен возврат или зачёт в заказ`;
     const invoice = await this.p.invoices.byId(e.invoiceId);
@@ -471,6 +478,9 @@ export class InvoiceAccess {
 }
 
 // ─── сборка из контейнера ───────────────────────────────────────────────────
+
+/** Начало заголовка задачи «получить остаток» — по нему прежние такие задачи закрываются. */
+const REMAINDER_TASK = "Получить остаток ";
 
 const localePrefix = (locale: Locale) => (locale === "kk" ? "/kk" : "");
 
@@ -517,6 +527,7 @@ export function createInvoiceAccess(c: Container): InvoiceAccess {
     },
     crm: {
       noteOnce: (input) => c.clients.notes.addSystemOnce(input),
+      closeTasks: (input) => c.clients.tasks.closeOpenByPrefix(input),
       taskOnce: (input) => c.clients.tasks.createOnce(system(input.assigneeId), { title: input.title, kind: "task", dealId: input.dealId, clientId: input.clientId ?? undefined, assigneeId: input.assigneeId }),
       notify: (userIds, n) => c.workspace.notifier.notify(userIds, n),
       notifyEditors: (n) => c.workspace.notifier.notifyAllWith("deals.edit", n),

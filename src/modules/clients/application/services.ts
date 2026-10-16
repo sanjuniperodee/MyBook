@@ -90,6 +90,11 @@ export class TasksService {
     return true;
   }
 
+  /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */
+  closeOpenByPrefix(input: { dealId: string; prefix: string; keepTitle?: string | null }) {
+    return this.tasks.closeOpenByPrefix({ ...input, at: new Date() });
+  }
+
   private async load(actor: Actor, taskId: string) {
     const t = await this.tasks.find(taskId);
     if (t && !canManageTask({ userId: actor.userId, allTasks: actor.allTasks }, t)) throw new ClientsError("forbidden");

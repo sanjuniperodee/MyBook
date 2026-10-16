@@ -188,6 +188,11 @@ function world(): World {
         w.tasks.push({ dealId: t.dealId, title: plain(t.title), assigneeId: t.assigneeId, done: false });
         return true;
       },
+      closeTasks: async ({ dealId, prefix, keepTitle }) => {
+        let n = 0;
+        for (const t of w.tasks) if (t.dealId === dealId && !t.done && t.title.startsWith(prefix) && t.title !== (keepTitle && plain(keepTitle))) (t.done = true), n++;
+        return n;
+      },
       notify: async (to, n) => void w.notified.push({ to, title: plain(n.title) }),
       notifyEditors: async (n) => void w.notified.push({ to: "editors", title: plain(n.title) }),
     },

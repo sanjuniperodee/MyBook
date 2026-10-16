@@ -61,6 +61,11 @@ class MemTasks implements TaskRepository {
   async existsOpen({ dealId, title }: { dealId: string; title: string }) {
     return [...this.rows.values()].some((t) => t.dealId === dealId && t.title === title && !t.doneAt);
   }
+  async closeOpenByPrefix({ dealId, prefix, keepTitle, at }: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }) {
+    let n = 0;
+    for (const [id, t] of this.rows) if (t.dealId === dealId && !t.doneAt && t.title.startsWith(prefix) && t.title !== keepTitle) (this.rows.set(id, { ...t, doneAt: at }), n++);
+    return n;
+  }
   async setDone(id: string, doneAt: Date | null) {
     const t = this.rows.get(id);
     if (t) this.rows.set(id, { ...t, doneAt });

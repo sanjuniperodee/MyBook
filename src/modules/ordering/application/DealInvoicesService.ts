@@ -88,7 +88,10 @@ export class DealInvoicesService {
       if (!Number.isInteger(input.amount) || input.amount <= 0 || input.amount > left) throw new OrderingError("paymentRule", `Сумма счёта — от 1 до ${left.toLocaleString("ru-RU")} ₸ (остаток по договорённости)`);
       // Один открытый счёт на сделку: прежний закрываем (в транзакции, под блокировкой сделки).
       const prev = await this.invoices.openFor(deal.id);
-      if (prev?.cancel(`выставлен новый счёт`)) await this.invoices.save(prev);
+      if (prev?.cancel(`выставлен новый счёт`)) {
+        await this.invoices.save(prev);
+        this.uow.track(prev);
+      }
       await this.sales.setAgreement(deal.id, { plan: input.plan, agreedTotal: input.agreedTotal, actorId: input.actor.userId });
       const { id, number } = await this.invoices.nextIdentity();
       const invoice = DealInvoice.issue(
@@ -134,6 +137,7 @@ export class DealInvoicesService {
       const invoice = await this.invoices.lockById(invoiceId);
       if (!invoice || !invoice.cancel(reason)) return null;
       await this.invoices.save(invoice);
+      this.uow.track(invoice);
       return invoice;
     });
   }
@@ -168,7 +172,12 @@ export class DealInvoicesService {
       const invoice = await this.invoices.lockById(input.invoiceId);
       if (!invoice) return "unknown" as const;
       if (invoice.paidRef === input.ref) return "duplicate" as const;
-      if (!invoice.matchesAmount(input.amount)) return "mismatch" as const;
+      if (!invoice.matchesAmount(input.amount)) {
+        // Сумма не та — деньги не засчитываем, но и не молчим: ответственному задача разобраться (возврат или доплата).
+        invoice.extraMoney(input.method, input.ref, input.amount, false, "mismatch");
+        this.uow.track(invoice);
+        return "mismatch" as const;
+      }
       const now = this.clock.now();
       const deal = await this.sales.deal(invoice.dealId);
       const note = `Счёт ${invoice.label}: ${input.method === "kaspi" ? "Kaspi" : "карта"}, операция ${input.ref}`;
@@ -178,14 +187,20 @@ export class DealInvoicesService {
         this.uow.track(invoice);
         return "extra" as const;
       }
+      // Второй открытый счёт сделки блокируем до денег: порядок блокировок везде «счета → сделка» (иначе встречная блокировка
+      // с ручным подтверждением того счёта).
+      const found = await this.invoices.openFor(deal.id);
+      const open = found && found.id !== invoice.id ? await this.invoices.lockById(found.id) : null;
       const payment = await this.sales.acceptOnline({ dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: now, method: input.method, externalRef: input.ref, invoiceId: invoice.id, note });
       if (!payment) return "duplicate" as const;
       const first = invoice.status === "pending_payment" || invoice.status === "expired" || invoice.status === "cancelled" ? invoice.markPaid(input.method, input.ref, now) : false;
       // Оплачен закрытый (отменённый, истёкший) счёт — деньги записаны и счёт оплачен; уже оплаченный повторно — «переплата».
       if (!first) invoice.extraMoney(input.method, input.ref, input.amount, true, "overpaid");
       // Оплатили прежний счёт, а открыт уже новый — новый закрываем, чтобы клиент не заплатил дважды.
-      const open = await this.invoices.openFor(deal.id);
-      if (open && open.id !== invoice.id && open.cancel(`оплачен счёт ${invoice.label}`)) await this.invoices.save(open);
+      if (open?.cancel(`оплачен счёт ${invoice.label}`)) {
+        await this.invoices.save(open);
+        this.uow.track(open);
+      }
       await this.invoices.save(invoice);
       this.uow.track(invoice);
       return first ? ("paid" as const) : ("extra" as const);
@@ -200,7 +215,14 @@ export class DealInvoicesService {
     const invoice = await this.invoices.lockById(input.invoiceId);
     if (!invoice || invoice.dealId !== input.dealId) throw new OrderingError("paymentRule", "Счёт не найден");
     if (invoice.status === "paid") throw new OrderingError("paymentRule", "Счёт уже оплачен");
+    // Перевод по прежнему (истёкшему, отменённому) счёту, а открыт уже новый — новый закрываем, как и при онлайн-оплате.
+    const found = invoice.status !== "pending_payment" ? await this.invoices.openFor(invoice.dealId) : null;
+    const open = found && found.id !== invoice.id ? await this.invoices.lockById(found.id) : null;
     invoice.markPaid("manual", input.paymentId ? `manual:${input.paymentId}` : null, this.clock.now());
+    if (open?.cancel(`оплачен счёт ${invoice.label}`)) {
+      await this.invoices.save(open);
+      this.uow.track(open);
+    }
     await this.invoices.save(invoice);
     this.uow.track(invoice);
     return invoice;
@@ -214,6 +236,7 @@ export class DealInvoicesService {
         const invoice = await this.invoices.lockById(due.id);
         if (!invoice?.expire(this.clock.now())) return null;
         await this.invoices.save(invoice);
+        this.uow.track(invoice);
         return invoice;
       });
       if (expired) done.push(expired);

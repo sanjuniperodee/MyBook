@@ -319,3 +319,32 @@ describe("CloudPayments: счёт из чата P<n>", () => {
     expect(await new CloudPaymentsWebhook(t.ordersSvc, {} as never, () => "s").handle("check", body("P12", 15000))).toBe(10);
   });
 });
+
+describe("Стыки зон: счёт из чата", () => {
+  it("сумма оплаты не совпала со счётом — денег нет, но событие «разобраться» (задача менеджеру), а не тишина", async () => {
+    const t = dealSetup();
+    const invoice = await t.issue();
+    expect(await t.invoices.confirmOnline({ invoiceId: invoice.id, method: "cloudpayments", ref: "TX-1", amount: 999 })).toBe("mismatch");
+    const extra = t.uow.published.filter((e) => e.type === "ordering.deal_invoice_extra_money");
+    expect(extra.map((e) => (e.payload as { reason: string; recorded: boolean })).map((p) => [p.reason, p.recorded])).toEqual([["mismatch", false]]);
+    expect((await t.dealInvoice(invoice.id)).status).toBe("pending_payment");
+  });
+
+  it("закрытие счёта без оплаты (отмена, новый счёт) — событие для отмены попытки Kaspi", async () => {
+    const t = dealSetup();
+    const first = await t.issue(10000);
+    await t.issue(12000);
+    expect(t.count("ordering.deal_invoice_closed")).toBe(1);
+    expect((await t.dealInvoice(first.id)).status).toBe("cancelled");
+  });
+
+  it("перевод по прежнему (истёкшему) счёту, а открыт новый — новый закрывается, как при онлайн-оплате", async () => {
+    const t = dealSetup();
+    const old = await t.issue(10000);
+    t.c.set("2026-10-20T10:00:00Z");
+    await t.invoices.expireOverdue();
+    const fresh = await t.issue(10000);
+    await t.uow.run(() => t.invoices.markPaidManually({ invoiceId: old.id, dealId: "deal-1", paymentId: "pay-1" }));
+    expect([(await t.dealInvoice(old.id)).status, (await t.dealInvoice(fresh.id)).status]).toEqual(["paid", "cancelled"]);
+  });
+});

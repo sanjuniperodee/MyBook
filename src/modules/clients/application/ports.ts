@@ -27,6 +27,8 @@ export interface TaskRepository {
   add(t: { title: string; kind: TaskKind; dueAt: Date | null; clientId: string | null; orderId: string | null; dealId: string | null; assigneeId: string; createdById: string }): Promise<void>;
   /** Есть ли открытая задача с таким заголовком по сделке (служебные задачи CRM не дублируются при повторе). */
   existsOpen(t: { dealId: string; title: string }): Promise<boolean>;
+  /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
+  closeOpenByPrefix(t: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }): Promise<number>;
   setDone(id: string, doneAt: Date | null): Promise<void>;
   delete(id: string): Promise<void>;
 }
