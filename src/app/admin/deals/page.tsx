@@ -177,7 +177,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {view === "board" ? (
-        <DealsBoard stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} initial={cards} canEdit={can(staff, "deals.edit")} />
+        <DealsBoard stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} initial={cards} canEdit={can(staff, "deals.edit")} canDecide={can(staff, "deals.delete")} meId={staff.user.id} />
       ) : (
         <DealsTable
           rows={rows.map(({ deal, paid }) => {

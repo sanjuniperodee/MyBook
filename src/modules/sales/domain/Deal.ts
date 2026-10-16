@@ -51,6 +51,10 @@ export interface StageChange {
 
 const blank = (v: unknown) => v === null || v === undefined || v === "";
 
+/** Менеджер предложил отклонить заявку или отметить спамом — тег до решения руководителя (видно на доске и в фильтрах). */
+export const REJECTION_TAGS = { spam: "запрос: спам", reject: "запрос: отклонить" } as const;
+export type RejectionKind = keyof typeof REJECTION_TAGS;
+
 /** Сделка (лид): обращение, которое ведём по воронке до заказа. */
 export class Deal extends AggregateRoot<DealProps> {
   #notes: DealNote[] = [];
@@ -186,6 +190,8 @@ export class Deal extends AggregateRoot<DealProps> {
   accept(authorId: string): boolean {
     if (!this.props.unsorted) return false;
     this.props.unsorted = false;
+    // Взял в работу (ответил клиенту) — предложение отклонить снимается.
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
     this.props.assigneeId ??= authorId;
     return true;
   }
@@ -212,6 +218,27 @@ export class Deal extends AggregateRoot<DealProps> {
 
   addTag(tag: string) {
     this.props.tags = [...new Set([...this.props.tags, tag])].slice(0, 12);
+  }
+
+  /** Что предложил менеджер: спам, отклонить или ничего. */
+  get rejectionRequest(): RejectionKind | null {
+    if (this.props.tags.includes(REJECTION_TAGS.spam)) return "spam";
+    if (this.props.tags.includes(REJECTION_TAGS.reject)) return "reject";
+    return null;
+  }
+
+  /** Менеджер не удаляет заявку сам: предлагает, руководитель подтверждает. Пока ждёт — круг её не передаёт. */
+  requestRejection(kind: RejectionKind, actorId: string, reason: string) {
+    this.props.tags = [...new Set([...this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject), REJECTION_TAGS[kind]])].slice(0, 12);
+    this.note(`${kind === "spam" ? "Предложено отметить спамом" : "Предложено отклонить заявку"} — ждёт решения руководителя${reason ? `. Причина: ${reason}` : ""}`, actorId);
+  }
+
+  /** Руководитель оставил заявку в работе. */
+  declineRejection(actorId: string) {
+    if (!this.rejectionRequest) return false;
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
+    this.note("Руководитель оставил заявку в работе", actorId);
+    return true;
   }
 
   linkClient(clientId: string | null) {

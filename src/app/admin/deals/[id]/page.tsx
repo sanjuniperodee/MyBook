@@ -13,6 +13,7 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
+import { REJECTION_TAGS } from "@/modules/sales/domain";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatDate } from "@/lib/dates";
 import { DealAi } from "./DealAi";
@@ -78,7 +79,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </h1>
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
-      {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit} /> : null}
+      {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
       {duplicates.length ? <Duplicates dealId={deal.id} duplicates={duplicates} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />

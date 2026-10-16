@@ -1,7 +1,7 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
-import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type DealRepository, type FunnelRepository, type NoteKind } from "../domain";
+import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "./ports";
 
@@ -192,6 +192,20 @@ export class DealsService {
     const deal = await this.load(dealId);
     if (!deal.isUnsorted) throw new SalesError("notUnsorted", "Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
     await this.deals.delete(deal.id);
+    return deal.snapshot();
+  }
+
+  async requestRejection(dealId: string, kind: RejectionKind, actorId: string, reason: string) {
+    const deal = await this.load(dealId);
+    if (!deal.isUnsorted) throw new SalesError("notUnsorted", "Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
+    deal.requestRejection(kind, actorId, reason);
+    await this.deals.save(deal);
+    return deal.snapshot();
+  }
+
+  async declineRejection(dealId: string, actorId: string) {
+    const deal = await this.load(dealId);
+    if (deal.declineRejection(actorId)) await this.deals.save(deal);
     return deal.snapshot();
   }
 

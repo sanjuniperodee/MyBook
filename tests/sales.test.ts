@@ -216,6 +216,20 @@ describe("Круг: распределение заявок", () => {
     expect(sent).toEqual([{ to: "owners", title: `Заявку №${d.number} никто не взял` }]);
   });
 
+  it("менеджер предлагает спам — сделка остаётся с отметкой и круг её не передаёт; ответил клиенту или руководитель оставил — отметка снимается", async () => {
+    const { service, router } = setup();
+    router.queue = ["m2"];
+    const d = await service.create(lead);
+    await service.requestRejection(d.id, "spam", "m2", "реклама");
+    expect((await service.findById(d.id))?.tags).toEqual(["запрос: спам"]);
+    await service.declineRejection(d.id, "boss");
+    expect((await service.findById(d.id))?.tags).toEqual([]);
+    await service.requestRejection(d.id, "reject", "m2", "");
+    await service.acceptUnsorted(d.id, "m2");
+    expect(await service.findById(d.id)).toMatchObject({ tags: [], unsorted: false });
+    await expect(service.requestRejection(d.id, "spam", "m2", "")).rejects.toMatchObject({ code: "notUnsorted" });
+  });
+
   it("смена ответственного — событие с прежним (по нему чаты переходят новому)", async () => {
     const { service, uow, router } = setup();
     router.queue = ["m2"];

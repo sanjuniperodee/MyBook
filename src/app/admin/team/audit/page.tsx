@@ -50,6 +50,20 @@ const actions: Record<string, string> = {
   "review.hide": "Скрыл отзыв",
   "review.feature": "Закрепил отзыв на главной",
   "review.unfeature": "Открепил отзыв",
+  "deal.assign": "Передал сделку",
+  "chat.assign": "Передал чат",
+  "chat.close": "Закрыл чат",
+  "chat.reopen": "Открыл чат снова",
+  "deal.spam_request": "Предложил отметить заявку спамом",
+  "deal.reject_request": "Предложил отклонить заявку",
+  "deal.request_declined": "Отказал в отклонении заявки",
+  "client.contact_reveal": "Открыл номер клиента",
+  "chat.sensitive": "Отправил номер или реквизиты в чат",
+  "chat.sensitive_echo": "С телефона компании ушли номер или реквизиты",
+  "deal.plan": "Сменил тариф договорённости",
+  "payment.add": "Принял оплату с чеком",
+  "receipt.add": "Приложил чек",
+  "email.send": "Отправил письмо клиенту",
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {

@@ -6,10 +6,10 @@ vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavig
 vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
-vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, listFields: async () => [], readFieldValues: () => ({}) }));
+vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
 
 const { sendMessageAction, assignConversationAction, markReadAction } = await import("@/app/admin/chats/actions");
-const { acceptDealAction, assignDealAction, moveDealAction } = await import("@/app/admin/deals/actions");
+const { acceptDealAction, assignDealAction, moveDealAction, rejectDealAction } = await import("@/app/admin/deals/actions");
 
 const CONV = "0d0d0d0d-0000-4000-8000-0000000000c1";
 const DEAL = "0d0d0d0d-0000-4000-8000-0000000000d1";
@@ -61,6 +61,22 @@ describe("Заявки раздаёт круг: менеджер не берёт
     await expect(moveDealAction(DEAL, "0d0d0d0d-0000-4000-8000-0000000000e1")).rejects.toThrow("Заявку распределяет круг");
     await markReadAction(CONV);
     expect([sent, read, assigned]).toEqual([0, 0, []]);
+  });
+
+  it("спам: менеджер только предлагает (сделка не удаляется, номер не блокируется), руководитель — сразу", async () => {
+    const calls: string[] = [];
+    Object.assign(fake.sales.deals as object, {
+      requestRejection: async (_id: string, kind: string) => void calls.push(`request:${kind}`),
+      reject: async () => void calls.push("reject"),
+    });
+    Object.assign(fake.messaging.chats as object, { blockDealContacts: async () => void calls.push("block") });
+    signIn(lena);
+    assigneeId = "lena";
+    expect(await rejectDealAction(DEAL, true, "реклама")).toMatchObject({ requested: true });
+    expect(calls).toEqual(["request:spam"]);
+    signIn(owner);
+    expect(await rejectDealAction(DEAL, true)).toMatchObject({ requested: false });
+    expect(calls).toEqual(["request:spam", "block", "reject"]);
   });
 
   it("своя заявка — работает; руководитель — с любой", async () => {

@@ -6,7 +6,7 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
+import { Deal, Funnel, REJECTION_TAGS, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 
@@ -135,7 +135,7 @@ export class DrizzleDealRepository implements DealRepository {
       .select({ id: crmDeals.id })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNotNull(crmDeals.assigneeId), lt(crmDeals.assignedAt, before)))
+      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNotNull(crmDeals.assigneeId), lt(crmDeals.assignedAt, before), sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`))
       .orderBy(asc(crmDeals.assignedAt))
       .limit(limit);
     return rows.map((r) => r.id);

@@ -2,7 +2,6 @@
 
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
-import { runInBackground } from "@/shared/infrastructure/background";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
@@ -158,7 +157,7 @@ export async function setShiftAction(rawOnShift: boolean) {
   await container().access.shifts.set(staff.user.id, onShift);
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
   // Вышел на смену — ждущие заявки (ночные, «никого не было») раздаются сразу, не дожидаясь прохода планировщика.
-  if (onShift) runInBackground(() => container().sales.routing.run());
+  if (onShift) void container().sales.routing.run().catch((err) => console.error("[routing] shift on", err));
 }
 
 /** Свои поля клиента (раздел «Свои поля» → поля клиента). */

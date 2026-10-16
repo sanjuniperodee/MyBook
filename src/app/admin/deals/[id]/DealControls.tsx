@@ -5,7 +5,7 @@ import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
-import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, updateDealAction, type DealFormState } from "../actions";
+import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, declineRejectionAction, updateDealAction, type DealFormState } from "../actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, Inbox, Merge, UserRound } from "lucide-react";
@@ -206,26 +206,53 @@ function useRun() {
   return { pending, run, router };
 }
 
-export function UnsortedBanner({ dealId, canEdit }: { dealId: string; canEdit: boolean }) {
+/**
+ * Неразобранная заявка. Руководитель (canDecide) отклоняет и отмечает спамом сразу; менеджер только предлагает —
+ * заявка остаётся у него с отметкой, руководитель подтверждает или оставляет в работе.
+ */
+export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId: string; canEdit: boolean; canDecide: boolean; request: "spam" | "reject" | null }) {
   const { pending, run, router } = useRun();
+  const reject = async (spam: boolean) => {
+    if (canDecide) {
+      if (await ask(spam ? "Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений." : "Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) run(() => rejectDealAction(dealId, spam), () => router.push("/admin/deals"));
+      return;
+    }
+    const reason = window.prompt(spam ? "Почему это спам? Руководитель увидит причину." : "Почему отклонить? Руководитель увидит причину.");
+    if (reason === null) return;
+    run(async () => toast((await rejectDealAction(dealId, spam, reason)).message));
+  };
   return (
     <section className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-dashed border-wine/30 bg-rose/30 p-4" data-testid="unsorted-banner">
       <Inbox className="size-5 text-wine" />
       <div className="min-w-0 flex-1">
         <div className="font-semibold">Неразобранная заявка</div>
-        <div className="text-sm text-muted">Новый номер. Примите в работу или отклоните; ответ клиенту в чате тоже принимает заявку.</div>
+        <div className="text-sm text-muted">
+          {request
+            ? `Менеджер предлагает ${request === "spam" ? "отметить спамом" : "отклонить"} — ${canDecide ? "подтвердите или оставьте в работе." : "ждёт решения руководителя."}`
+            : "Новый номер. Примите в работу или отклоните; ответ клиенту в чате тоже принимает заявку."}
+        </div>
       </div>
       {canEdit ? (
         <div className="flex gap-2">
-          <button className="btn btn-sm" disabled={pending} onClick={() => run(() => acceptDealAction(dealId))}>
-            Принять
-          </button>
-          <button className="btn btn-outline btn-sm" disabled={pending} onClick={async () => (await ask("Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) && run(() => rejectDealAction(dealId, false), () => router.push("/admin/deals"))}>
-            Отклонить
-          </button>
-          <button className="btn btn-ghost btn-sm text-red-700" disabled={pending} onClick={async () => (await ask("Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений.", true)) && run(() => rejectDealAction(dealId, true), () => router.push("/admin/deals"))}>
-            <Ban className="size-4" /> Спам
-          </button>
+          {request && canDecide ? (
+            <button className="btn btn-sm" disabled={pending} onClick={() => run(() => declineRejectionAction(dealId))}>
+              Оставить в работе
+            </button>
+          ) : (
+            <button className="btn btn-sm" disabled={pending} onClick={() => run(() => acceptDealAction(dealId))}>
+              Принять
+            </button>
+          )}
+          {request === "spam" && !canDecide ? null : (
+            <button className="btn btn-outline btn-sm" disabled={pending || (!!request && !canDecide)} onClick={() => reject(request === "spam")}>
+              {request && canDecide ? "Подтвердить" : "Отклонить"}
+            </button>
+          )}
+          {request ? null : (
+            <button className="btn btn-ghost btn-sm text-red-700" disabled={pending} onClick={() => reject(true)}>
+              <Ban className="size-4" /> Спам
+            </button>
+          )}
         </div>
       ) : null}
     </section>

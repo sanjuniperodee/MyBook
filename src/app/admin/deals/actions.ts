@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertWorkable, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
-import { notify } from "@/modules/workspace";
+import { notify, staffNotifier } from "@/modules/workspace";
+import { staffLabel } from "@/shared/domain/staff";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
@@ -138,6 +139,7 @@ export async function assignDealAction(dealId: string, assigneeId: string | null
     if (next !== staff.user.id) await notify([next], { kind: "deal", title: `Вам передали сделку №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
   }
   await container().sales.deals.assign(deal.id, next);
+  if (next !== deal.assigneeId) await audit(staff, "deal.assign", "deal", deal.id, { number: deal.number, from: deal.assigneeId, to: next });
   revalidateDeal(deal.id, deal.clientId);
   return { ok: true as const };
 }
@@ -214,15 +216,37 @@ export async function acceptDealAction(dealId: string) {
   revalidateDeal(deal.id, deal.clientId);
 }
 
-/** Отклонить заявку: сделка удаляется, переписка и звонки остаются. spam — номер больше не создаёт заявок. */
-export async function rejectDealAction(dealId: string, spam: boolean) {
+/**
+ * Отклонить заявку (spam — номер больше не создаёт заявок). Руководитель (право удалять сделки) — сразу: сделка удаляется,
+ * переписка и звонки остаются. Менеджер только предлагает: сделка остаётся с отметкой, руководителям — уведомление.
+ */
+export async function rejectDealAction(dealId: string, spam: boolean, reason = ""): Promise<{ requested: boolean; message: string }> {
   const staff = await assertStaff("deals.edit");
   const deal = await loadDeal(staff, dealId);
   if (!deal.unsorted) throw new Error("Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
+  const why = z.string().trim().max(200).parse(reason);
+  if (!can(staff, "deals.delete")) {
+    await container().sales.deals.requestRejection(deal.id, spam ? "spam" : "reject", staff.user.id, why);
+    await audit(staff, spam ? "deal.spam_request" : "deal.reject_request", "deal", deal.id, { number: deal.number, title: deal.title, reason: why });
+    await staffNotifier.notifyAllWith("deals.delete", { kind: "deal", title: `${spam ? "Спам?" : "Отклонить?"} Заявка №${deal.number}`, body: `${staffLabel(staff.user)} предлагает ${spam ? "отметить спамом" : "отклонить"}: ${deal.title}${why ? ` — ${why}` : ""}`, link: `/admin/deals/${deal.id}` });
+    revalidateDeal(deal.id, deal.clientId);
+    return { requested: true, message: "Отправлено руководителю — заявка останется у вас, пока он не решит" };
+  }
   if (spam) await container().messaging.chats.blockDealContacts(deal.id, deal.contactPhone, staff.user.id);
   await container().sales.deals.reject(deal.id);
-  await audit(staff, spam ? "deal.spam" : "deal.reject", "deal", deal.id, { number: deal.number, title: deal.title, phone: deal.contactPhone });
+  await audit(staff, spam ? "deal.spam" : "deal.reject", "deal", deal.id, { number: deal.number, title: deal.title, phone: deal.contactPhone, reason: why });
   revalidateDeal(undefined, deal.clientId);
+  return { requested: false, message: spam ? "Номер в спаме, заявка удалена" : "Заявка отклонена" };
+}
+
+/** Руководитель не согласился отклонять: заявка остаётся в работе у менеджера. */
+export async function declineRejectionAction(dealId: string) {
+  const staff = await assertStaff("deals.edit", "deals.delete");
+  const deal = await loadDeal(staff, dealId);
+  await container().sales.deals.declineRejection(deal.id, staff.user.id);
+  await audit(staff, "deal.request_declined", "deal", deal.id, { number: deal.number });
+  if (deal.assigneeId) await notify([deal.assigneeId], { kind: "deal", title: `Заявка №${deal.number} остаётся в работе`, body: "Руководитель не стал её отклонять — ответьте клиенту", link: `/admin/deals/${deal.id}` });
+  revalidateDeal(deal.id, deal.clientId);
 }
 
 /** Слить дубль source в target. */

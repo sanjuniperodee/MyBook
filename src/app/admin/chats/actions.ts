@@ -55,6 +55,7 @@ export async function assignConversationAction(conversationId: string, userId: s
       await notify([next], { kind: "message", title: `Вам передали чат: ${conv.contactName || formatPhone(conv.chatId) || conv.chatId}`, body: conv.lastMessageText, link: `/admin/chats?c=${conv.id}` });
   }
   await container().messaging.chats.assign(conv.id, next);
+  if (next !== conv.assigneeId) await audit(staff, "chat.assign", "conversation", conv.id, { from: conv.assigneeId, to: next });
   revalidatePath("/admin/chats");
 }
 
@@ -62,7 +63,9 @@ export async function assignConversationAction(conversationId: string, userId: s
 export async function setConversationStatusAction(conversationId: string, status: "open" | "closed") {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
-  await container().messaging.chats.setStatus(conv.id, z.enum(["open", "closed"]).parse(status));
+  const next = z.enum(["open", "closed"]).parse(status);
+  await container().messaging.chats.setStatus(conv.id, next);
+  await audit(staff, next === "closed" ? "chat.close" : "chat.reopen", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
   revalidatePath("/admin/chats");
 }
 
