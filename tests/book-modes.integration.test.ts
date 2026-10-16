@@ -16,6 +16,8 @@ import { groupByChapter } from "@/lib/book/editor-model";
 import { sqlBookProgress } from "@/modules/sales/infrastructure/adapters";
 import { bookList } from "@/modules/reporting/infrastructure/Books";
 import { dashboard } from "@/modules/reporting/infrastructure/Dashboard";
+import { clientCard } from "@/modules/reporting/infrastructure/ClientCard";
+import { dealCard } from "@/modules/reporting/infrastructure/DealCard";
 import { DrizzleLifecycleSource } from "@/modules/notifications/infrastructure/persistence";
 
 /**
@@ -182,6 +184,99 @@ run("своя книга и прогресс (PostgreSQL)", () => {
     expect(editorOrder).toEqual(content.chapters.map((ch) => ch.key));
   });
 
+  it("автосохранение во время перестановки и удаления: без взаимной блокировки (deadlock) — строка книги берётся первой", async () => {
+    const book = await newBook("blank");
+    const [first] = await queries.chapters(book.id);
+    const { key: second } = await outline.addChapter(book.id, viewer, { title: "Вторая" });
+    for (let i = 0; i < 6; i++) await outline.addSection(book.id, viewer, { chapterKey: i % 2 ? first.key : second, title: `Раздел ${i}`, prompt: "" });
+    const failures: unknown[] = [];
+    for (let round = 0; round < 6; round++) {
+      const now = (await outline.outline(book.id, viewer)).sections;
+      const results = await Promise.allSettled([
+        ...now.map((s) => sections.edit(book.id, viewer, s.id, { answer: `Текст ${round} ${s.id.slice(0, 4)}` })),
+        outline.reorderSections(book.id, viewer, [...now].reverse().map((s) => ({ id: s.id, chapter: s.chapter }))),
+        outline.renameChapter(book.id, viewer, first.key, { epigraph: `Эпиграф ${round}` }),
+        outline.reorderChapters(book.id, viewer, round % 2 ? [first.key, second] : [second, first.key]),
+      ]);
+      failures.push(...results.flatMap((r) => (r.status === "rejected" ? [r.reason] : [])));
+    }
+    expect(failures).toEqual([]);
+    await expectInvariant(book.id);
+  });
+
+  it("удаление раздела и его главы одновременно, вставка рядом: одна операция удаляет, другая видит «нет такого», позиции подряд", async () => {
+    const book = await newBook("blank");
+    const [a] = await queries.chapters(book.id);
+    const { key: b } = await outline.addChapter(book.id, viewer, { title: "Вторая" });
+    const target = (await queries.questions(book.id)).find((r) => r.chapter === a.key)!;
+    const results = await Promise.allSettled([
+      sections.deleteCustom(book.id, viewer, target.id),
+      outline.deleteChapter(book.id, viewer, a.key),
+      outline.addSection(book.id, viewer, { chapterKey: a.key, afterId: target.id, title: "Рядом", prompt: "" }),
+      outline.addSection(book.id, viewer, { chapterKey: b, title: "Во второй", prompt: "" }),
+    ]);
+    const codes = results.map((r) => (r.status === "fulfilled" ? "ok" : AuthoringError.is(r.reason) ? r.reason.code : String(r.reason)));
+    // Глава удаляется в любом порядке; удаление раздела успевает до неё или видит, что раздела уже нет.
+    expect(codes[1]).toBe("ok");
+    expect(["ok", "questionNotFound"]).toContain(codes[0]);
+    expect(["ok", "chapterNotFound", "questionNotFound"]).toContain(codes[2]);
+    expect(codes[3]).toBe("ok");
+    expect((await queries.chapters(book.id)).map((c) => c.key)).toEqual([b]);
+    expect((await queries.questions(book.id)).every((r) => r.chapter === b)).toBe(true);
+    await expectInvariant(book.id);
+  });
+
+  it("лимит разделов под блокировкой: при 599 разделах из «+ Раздел», «+ Раздел» и «+ Глава» параллельно проходит ровно одна", async () => {
+    const book = await newBook("blank");
+    const [a] = await queries.chapters(book.id);
+    await q(sql`
+      insert into book_questions (book_id, position, chapter, question_key, prompt, title)
+      select ${book.id}, g, ${a.key}, 'custom', '', 'Раздел ' || g from generate_series(1, ${MAX_QUESTIONS - 2}) g`);
+    expect(await questions.count(book.id)).toBe(MAX_QUESTIONS - 1);
+    const race = await Promise.allSettled([
+      outline.addSection(book.id, viewer, { chapterKey: a.key, title: "1", prompt: "" }),
+      outline.addSection(book.id, viewer, { chapterKey: a.key, title: "2", prompt: "" }),
+      outline.addChapter(book.id, viewer, { title: "Глава" }),
+    ]);
+    expect(race.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    for (const r of race) if (r.status === "rejected") expect(AuthoringError.is(r.reason) && r.reason.code).toBe("questionsLimit");
+    expect(await questions.count(book.id)).toBe(MAX_QUESTIONS);
+    await expectInvariant(book.id);
+  });
+
+  it("заказ посреди операций оглавления: заказ ждёт блокировку, после заказа оглавление и тексты не меняются (bookLocked)", async () => {
+    const book = await newBook("blank");
+    const [a] = await queries.chapters(book.id);
+    const results = await Promise.allSettled([
+      outline.addSection(book.id, viewer, { chapterKey: a.key, title: "До заказа?", prompt: "" }),
+      uow.run(() => books.lockForOrder(book.id)),
+      outline.addChapter(book.id, viewer, { title: "До заказа?" }),
+    ]);
+    expect(results[1]).toEqual({ status: "fulfilled", value: true });
+    for (const r of [results[0], results[2]]) if (r.status === "rejected") expect(AuthoringError.is(r.reason) && r.reason.code).toBe("bookLocked");
+    await expect(outline.addSection(book.id, viewer, { chapterKey: a.key, title: "После", prompt: "" })).rejects.toMatchObject({ code: "bookLocked" });
+    await expect(sections.edit(book.id, viewer, (await queries.questions(book.id))[0].id, { answer: "После заказа" })).rejects.toMatchObject({ code: "bookLocked" });
+    await expectInvariant(book.id);
+  });
+
+  it("смена языка автобиографии: вопросы банка и название по умолчанию переводятся, ответы, свои вопросы и «кто записал» остаются", async () => {
+    const book = await newBook("autobiography", { recordedBy: "внучка Аружан" });
+    expect(book.title).toBe(contentThemes.get("autobiography", "ru").titleSuggestions[0]);
+    const [first, second] = await queries.questions(book.id);
+    await sections.edit(book.id, viewer, first.id, { answer: "Я родилась в Шымкенте." });
+    const own = await sections.addCustom(book.id, viewer, second.id, "Как мы [Аня|Анна] ездили на море?");
+    await service.updateSettings(book.id, viewer, { language: "kk" }, photos);
+    const kk = contentThemes.get("autobiography", "kk");
+    const row = (await queries.book(book.id))!;
+    expect([row.language, row.title, row.recordedBy, row.recipientName]).toEqual(["kk", kk.titleSuggestions[0], "внучка Аружан", ""]);
+    const after = await queries.questions(book.id);
+    const tpl = new Map(kk.questions.map((t) => [t.key, t]));
+    for (const r of after) if (r.questionKey !== "custom") expect([r.prompt, r.title]).toEqual([tpl.get(r.questionKey!)!.prompt, tpl.get(r.questionKey!)!.title]);
+    expect(after.find((r) => r.id === first.id)?.answer).toBe("Я родилась в Шымкенте.");
+    expect(after.find((r) => r.id === own)).toMatchObject({ questionKey: "custom", prompt: "Как мы [Аня|Анна] ездили на море?" });
+    expect(after.map((r) => r.position)).toEqual(after.map((_, i) => i));
+  });
+
   it("SQL-прогресс (фильтры CRM, дашборд, воронка, письма) = progressOf и countWords: подарок, автобиография, своя книга", async () => {
     const tricky = ["  раз два\nтри  ", "\n\n", " ", "слово\t\tслово", "emoji 😀 тест", "a b　c", ""];
     const gift = await newBook("love", { recipientName: "Марат" });
@@ -221,5 +316,10 @@ run("своя книга и прогресс (PostgreSQL)", () => {
     const drafts = (await new DrizzleLifecycleSource().draftCandidates(new Date(Date.now() + 60_000))).filter((d) => d.recipient.id === viewer.userId);
     expect(drafts.find((d) => d.book.bookId === blank.id)?.book).toMatchObject({ theme: "blank", answered: 1, words: 1500 });
     await dashboard(7, viewer.userId);
+    // Карточка клиента в CRM считает ответы тем же фрагментом (пробелы и переводы строк — не ответ).
+    const card = await clientCard(viewer.userId, { deals: false });
+    expect(card.bookRows.find((r) => r.book.id === gift.id)).toMatchObject({ answered: 28, total: giftRows.length });
+    const deal = await dealCard({ id: crypto.randomUUID(), clientId: viewer.userId, orderId: null }, { calls: false, chats: false });
+    expect(deal.bookRows.find((r) => r.id === blank.id)).toMatchObject({ answered: 1, total: 1 });
   });
 });

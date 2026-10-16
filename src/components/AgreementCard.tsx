@@ -5,22 +5,31 @@ import { formatDate } from "@/lib/dates";
 import { getLocale, getMessages } from "@/i18n/server";
 import type { DealAgreement } from "@/modules/sales";
 import { getPlan } from "@/config/site";
+import { bookKind, progressOf } from "@/lib/content/kinds";
 
-/** С какого числа ответов книга считается готовой к заказу (подсказка клиенту, не запрет). */
-const READY_ANSWERS = 10;
-
-interface CardBook {
+/** Книга клиента для карточки: тема (вид книги) и прогресс — как для progressOf. */
+export interface CardBook {
   id: string;
   status: string;
+  theme: string;
   answered: number;
+  total: number;
+  words: number;
 }
 
-/** Куда вести клиента дальше: черновик с наибольшим числом ответов, а если книги нет — на создание. */
+/**
+ * Куда вести клиента дальше: черновик, где написано больше всего, а если книги нет — на создание. Книга готова
+ * к заказу (подсказка клиенту, не запрет) — по тому же порогу, что шаг «Текст» на хабе (progressOf): у книг
+ * с вопросами — по ответам, у своей книги — по словам.
+ */
 function agreementStep(books: CardBook[]) {
-  const drafts = books.filter((b) => b.status === "draft").sort((a, b) => b.answered - a.answered);
+  const drafts = books
+    .filter((b) => b.status === "draft")
+    .map((b) => ({ ...b, done: progressOf(bookKind(b.theme), b).textStepDone }))
+    .sort((a, b) => Number(b.done) - Number(a.done) || b.answered - a.answered || b.words - a.words);
   const best = drafts[0];
   if (!best) return { kind: "start" as const };
-  return best.answered >= READY_ANSWERS ? { kind: "order" as const, bookId: best.id, answered: best.answered } : { kind: "write" as const, bookId: best.id, answered: best.answered };
+  return best.done ? { kind: "order" as const, bookId: best.id, answered: best.answered } : { kind: "write" as const, bookId: best.id, answered: best.answered };
 }
 
 /**

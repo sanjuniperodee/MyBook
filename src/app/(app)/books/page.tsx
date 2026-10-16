@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function BooksPage() {
   const user = await requireUser("/books");
   const [rows, locale, m, agreement] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
-  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, answered: r.answered }))} /> : null;
+  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /> : null;
   const t = m.books.list;
   const now = new Date(nowMs());
   if (rows.length === 0) {
