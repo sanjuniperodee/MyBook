@@ -219,7 +219,18 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
   const { pending, run, router } = useRun();
   const reject = async (spam: boolean) => {
     if (canDecide) {
-      if (await ask(spam ? "Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений." : "Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) run(() => rejectDealAction(dealId, spam), () => router.push("/admin/deals"));
+      // Заявку с деньгами или счётом клиента сервер не удаляет, а закрывает «отказом» — тогда остаёмся на ней.
+      if (await ask(spam ? "Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений." : "Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) {
+        let deleted = false;
+        run(
+          async () => {
+            const r = await rejectDealAction(dealId, spam);
+            toast(r.message);
+            deleted = r.deleted !== false;
+          },
+          () => (deleted ? router.push("/admin/deals") : router.refresh()),
+        );
+      }
       return;
     }
     const reason = window.prompt(spam ? "Почему это спам? Руководитель увидит причину." : "Почему отклонить? Руководитель увидит причину.");

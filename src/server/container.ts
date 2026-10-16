@@ -199,6 +199,12 @@ export class Container {
         notify: (userIds, n) => this.workspace.notifier.notify(userIds, n),
         owners: (n) => this.workspace.notifier.notifyAllWith("team.manage", n),
       },
+      // Счета из чата живут в заказах: слияние сделок переносит их, удаление сделки их учитывает — в транзакции продаж.
+      invoices: {
+        moveAll: (input) => this.ordering.invoiceLifecycle.moveAll(input),
+        holdForDelete: (dealId) => this.ordering.invoiceLifecycle.holdForDelete(dealId),
+        purgeClosed: (dealId) => this.ordering.invoiceLifecycle.purgeClosed(dealId),
+      },
     }));
   }
 
@@ -260,7 +266,7 @@ export class Container {
         unlock: (bookId) => this.authoring.ordering.unlock(bookId),
         toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
       },
-      agreements: { agreementFor: (userId) => this.sales.agreementFor(userId) },
+      agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,
       // Счёт из чата читает сделку и пишет её деньги через порт продаж.
       invoiceSales: {

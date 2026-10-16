@@ -2,7 +2,7 @@ import "server-only";
 import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -11,6 +11,7 @@ import { DrizzleOrderingQueries } from "./infrastructure/persistence/DrizzleOrde
 import { DrizzlePaymentInvoiceRepository } from "./infrastructure/persistence/DrizzlePaymentInvoiceRepository";
 import { DrizzleOrderPaymentRepository } from "./infrastructure/persistence/DrizzleOrderPaymentRepository";
 import { DrizzleDealInvoiceRepository } from "./infrastructure/persistence/DrizzleDealInvoiceRepository";
+import { DrizzleDealInvoiceLifecycleStore } from "./infrastructure/persistence/DrizzleDealInvoiceLifecycleStore";
 import { storageReceiptFiles } from "./infrastructure/gateways/receiptFiles";
 import { DrizzlePeopleGateway } from "./infrastructure/gateways/DrizzlePeopleGateway";
 import { envPaymentSettings, randomCodes } from "./infrastructure/gateways/system";
@@ -23,6 +24,7 @@ export type { InvoiceOwner, KaspiConfigStore, KaspiSession, PlaceOrderCommand, P
 export type { OrderDetailsView, GiftView } from "./infrastructure/persistence/DrizzleOrderingQueries";
 export { isOnlinePayment } from "./infrastructure/payments/CloudPayments";
 export { redeemUrl } from "./infrastructure/notifications/OrderingMailer";
+export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote } from "./application/DealInvoiceLifecycle";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */
 export const GIFT_COOKIE = "mb_gift";
@@ -52,6 +54,8 @@ export class OrderingModule {
   readonly orders: OrdersService;
   /** Счета из чата по сделкам: выпуск, оплата по ссылке, подтверждение, истечение. */
   readonly invoices: DealInvoicesService;
+  /** Счета из чата в жизни сделки и заказа: слияние и удаление сделки (порт продаж), закрытие заказом. */
+  readonly invoiceLifecycle: DealInvoiceLifecycle;
   /** Журнал денег по заказу: перевод с чеком, онлайн-оплаты, постоплата. */
   readonly payments: OrderPaymentsService;
   readonly promos: PromoService;
@@ -70,7 +74,8 @@ export class OrderingModule {
     const giftRepo = new DrizzleGiftCardRepository();
     this.invoices = new DealInvoicesService(new DrizzleDealInvoiceRepository(), deps.invoiceSales, deps.uow, deps.clock);
     this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock);
-    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments);
+    this.invoiceLifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), deps.uow);
+    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments, this.invoiceLifecycle);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import type { UnitOfWork } from "@/shared/application";
 import { Deal, Funnel, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
-import { DealsService, LeadRoutingService, SiteFunnelService, type ClientDirectory } from "@/modules/sales/application";
+import { DealsService, LeadRoutingService, SiteFunnelService, type ClientDirectory, type DealInvoicesPort, type DealMoney } from "@/modules/sales/application";
 
 const now = new Date("2026-10-01T10:00:00Z");
 const stages: Stage[] = [
@@ -99,13 +99,21 @@ class MemDeals implements DealRepository {
     const r = [...this.rows.values()].find((d) => d.clientId === o.clientId && funnel.stage(d.stageId)?.kind === "open");
     return r ? this.load(r.id) : null;
   };
-  add = async (d: Deal) => void this.rows.set(d.id, d.snapshot());
-  save = async (d: Deal) => void this.rows.set(d.id, d.snapshot());
+  /** Лента сделок (записи агрегата и заметки сервисов) — по порядку. */
+  notes: string[] = [];
+  private keep = (d: Deal) => {
+    this.rows.set(d.id, d.snapshot());
+    this.notes.push(...d.pullJournal().notes.map((n) => n.text));
+  };
+  add = async (d: Deal) => this.keep(d);
+  save = async (d: Deal) => this.keep(d);
   mergeInto = async (_t: Deal, s: Deal) => void this.rows.delete(s.id);
+  locked: string[][] = [];
+  lock = async (ids: string[]) => void this.locked.push(ids);
   delete = async (id: string) => void this.rows.delete(id);
   money = new Set<string>();
   hasMoney = async (id: string) => this.money.has(id);
-  addNote = async () => {};
+  addNote = async (_d: { id: string }, text: string) => void this.notes.push(text);
   waitingForRoute = async () => [...this.rows.values()].filter((r) => !r.assigneeId && funnel.stage(r.stageId)?.kind === "open").map((r) => r.id);
   notTakenSince = async (before: Date) => [...this.rows.values()].filter((r) => r.unsorted && r.assigneeId && r.assignedAt && r.assignedAt < before).map((r) => r.id);
 }
@@ -136,7 +144,18 @@ class FakeUow implements UnitOfWork {
   }
 }
 
-function setup(autoFrom: "off" | "registered" | "book_started" = "book_started", paid: (dealId: string) => Promise<number> = async () => 0) {
+/** Счета из чата в памяти (порт заказов): что держит сделку и какие вызовы были — по порядку. */
+class MemInvoices implements DealInvoicesPort {
+  calls: string[] = [];
+  /** Счёт, из-за которого сделку не удалить (по сделке). */
+  holds = new Map<string, { label: string; reason: "open" | "paid" | "kaspi" }>();
+  moved = { moved: [] as string[], cancelled: [] as string[] };
+  moveAll = async (i: { from: string; to: string; closeOpen: boolean }) => (this.calls.push(`move:${i.from}>${i.to}:${i.closeOpen}`), this.moved);
+  holdForDelete = async (dealId: string) => (this.calls.push(`hold:${dealId}`), this.holds.get(dealId) ?? null);
+  purgeClosed = async (dealId: string) => void this.calls.push(`purge:${dealId}`);
+}
+
+function setup(autoFrom: "off" | "registered" | "book_started" = "book_started", money: (dealId: string) => Promise<DealMoney> = async () => ({ paid: 0, agreement: false })) {
   const deals = new MemDeals();
   const uow = new FakeUow();
   const funnels: FunnelRepository = { load: async () => funnel };
@@ -148,14 +167,15 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15 };
   const router = new MemRouter();
   const clock = { at: now, now: () => clock.at };
-  const service = new DealsService(deals, funnels, clients, settings, router, uow, clock);
+  const invoices = new MemInvoices();
+  const service = new DealsService(deals, funnels, clients, settings, router, uow, clock, invoices);
   const books = { progress: async () => ({ answered: 26, total: 40 }) };
   const logger = { info: () => {}, warn: () => {}, error: () => {} };
-  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, paid);
+  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, money);
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices };
 }
 
 describe("Круг: распределение заявок", () => {
@@ -315,7 +335,7 @@ describe("SiteFunnelService", () => {
   });
 
   it("отмена заказа по договорённости с предоплатой — сделка возвращается в работу, заказ отвязан, договорённость цела", async () => {
-    const { site, service, deals } = setup("book_started", async () => 10000);
+    const { site, service, deals } = setup("book_started", async () => ({ paid: 10000, agreement: true }));
     const manual = await service.create({ title: "Клиент менеджера", source: "manual", clientId: "c1", amount: 20000 });
     await site.orderCreated({ id: "o1", userId: "c1", number: 5, amount: 10000 });
     expect(deals.rows.get(manual.id)).toMatchObject({ stageId: "order", orderId: "o1" });
@@ -330,10 +350,141 @@ describe("SiteFunnelService", () => {
   });
 
   it("отмена заказа по ручной сделке без принятых денег — по-прежнему «Отказ»", async () => {
-    const { site, service, deals } = setup("book_started", async () => 0);
+    const { site, service, deals } = setup("book_started", async () => ({ paid: 0, agreement: true }));
     const manual = await service.create({ title: "Клиент менеджера", source: "manual", clientId: "c1", amount: 20000 });
     await site.orderCreated({ id: "o1", userId: "c1", number: 5, amount: 20000 });
     await site.orderCancelled("o1", 5);
     expect(deals.rows.get(manual.id)).toMatchObject({ stageId: "lost", lostReason: "Заказ отменён" });
+  });
+});
+
+describe("Жизнь сделки: деньги и счета из чата не теряются", () => {
+  const lead = { title: "WhatsApp", source: "whatsapp" as const, contactPhone: "77001112233", unsorted: true };
+
+  it("удаление: счёт ждёт оплаты или оплачен — нельзя (понятный текст), ничего не удалено", async () => {
+    const { service, invoices } = setup();
+    const d = await service.create({ title: "Книга", source: "whatsapp", clientId: "c1" });
+    invoices.holds.set(d.id, { label: "P12", reason: "open" });
+    await expect(service.delete(d.id)).rejects.toMatchObject({ code: "dealHasInvoice", message: "У сделки есть счёт P12 — отмените его или объедините сделки" });
+    invoices.holds.set(d.id, { label: "P12", reason: "paid" });
+    await expect(service.delete(d.id)).rejects.toMatchObject({ code: "dealHasInvoice", message: expect.stringContaining("оплаченный счёт P12") });
+    invoices.holds.set(d.id, { label: "P12", reason: "kaspi" });
+    await expect(service.delete(d.id)).rejects.toMatchObject({ code: "dealHasInvoice", message: expect.stringContaining("оплата Kaspi") });
+    expect(await service.findById(d.id)).not.toBeNull();
+    expect(invoices.calls.filter((c) => c.startsWith("purge"))).toEqual([]);
+  });
+
+  it("удаление: счета блокируются первыми, затем сделка; отменённые и истёкшие счета удаляются вместе с ней; с деньгами — нельзя", async () => {
+    const { service, invoices, deals } = setup();
+    const d = await service.create({ title: "Книга", source: "whatsapp", clientId: "c1" });
+    const paid = await service.create({ title: "С деньгами", source: "manual", clientId: "c1" });
+    deals.money.add(paid.id);
+    await expect(service.delete(paid.id)).rejects.toMatchObject({ code: "dealHasPayments" });
+    await service.delete(d.id);
+    expect(invoices.calls).toEqual([`hold:${paid.id}`, `hold:${d.id}`, `purge:${d.id}`]);
+    expect(deals.locked).toEqual([[paid.id], [d.id]]);
+    expect(await service.findById(d.id)).toBeNull();
+    expect(await service.findById(paid.id)).not.toBeNull();
+  });
+
+  it("слияние: счета переносятся до удаления дубля — сперва счета, потом блокировка обеих сделок; в ленте — номера счетов", async () => {
+    const { service, invoices, deals } = setup();
+    const target = await service.create({ title: "Основная", source: "whatsapp", clientId: "c1" });
+    const dup = await service.create({ title: "Дубль", source: "manual", clientId: "c1" });
+    invoices.moved = { moved: ["P3", "P5"], cancelled: ["P5"] };
+    await service.merge(target.id, dup.id, "m1");
+    expect(invoices.calls).toEqual([`move:${dup.id}>${target.id}:false`]);
+    expect(deals.locked).toEqual([[target.id, dup.id]]);
+    expect(deals.notes).toContain(`Счета из чата: из сделки №${dup.number} перенесены P3, P5; отменены открытые P5 (сделки объединены)`);
+    expect(await service.findById(dup.id)).toBeNull();
+  });
+
+  it("слияние в закрытую сделку или в сделку с заказом — открытые счета отменяются (платить по ним уже нельзя)", async () => {
+    const { service, invoices } = setup();
+    const won = await service.create({ title: "Успех", source: "manual", clientId: "c1" });
+    await service.move(won.id, "won", "m1");
+    const a = await service.create({ title: "Дубль 1", source: "whatsapp", clientId: "c1" });
+    await service.merge(won.id, a.id, "m1");
+    const withOrder = await service.create({ title: "С заказом", source: "site", clientId: "c1", orderId: "o1" });
+    const b = await service.create({ title: "Дубль 2", source: "whatsapp", clientId: "c1" });
+    await service.merge(withOrder.id, b.id, "m1");
+    // заказ приходит из дубля — тоже
+    const open = await service.create({ title: "Открытая", source: "whatsapp", clientId: "c1" });
+    const c = await service.create({ title: "Дубль с заказом", source: "site", clientId: "c1", orderId: "o2" });
+    await service.merge(open.id, c.id, "m1");
+    expect(invoices.calls).toEqual([`move:${a.id}>${won.id}:true`, `move:${b.id}>${withOrder.id}:true`, `move:${c.id}>${open.id}:true`]);
+  });
+
+  it("перевод в «успех» или «отказ» — событие «сделка закрыта» с причиной (по нему отменяются счета); возврат в работу — нет", async () => {
+    const { service, uow } = setup();
+    const d = await service.create({ title: "Книга", source: "whatsapp", clientId: "c1" });
+    uow.events = [];
+    await service.move(d.id, "lost", "m1", "Дорого");
+    await service.move(d.id, "book", "m1");
+    await service.move(d.id, "won", "m1");
+    expect(uow.events.filter((e) => e.type === "sales.deal_closed").map((e) => e.payload)).toEqual([
+      { dealId: d.id, number: d.number, clientId: "c1", assigneeId: "m1", outcome: "lost", reason: "Дорого" },
+      { dealId: d.id, number: d.number, clientId: "c1", assigneeId: "m1", outcome: "won", reason: null },
+    ]);
+  });
+
+  it("отклонение руководителем: без денег и счетов — удаляется; со счётом или деньгами — закрывается «отказом» с причиной, отметка снимается", async () => {
+    const { service, invoices, uow, deals } = setup();
+    const a = await service.create(lead);
+    expect(await service.reject(a.id, { kind: "spam", actorId: "boss" })).toMatchObject({ deleted: true, kept: null });
+    expect(await service.findById(a.id)).toBeNull();
+
+    const b = await service.create({ ...lead, contactPhone: "77001112244" });
+    await service.requestRejection(b.id, "spam", "m2", "реклама");
+    invoices.holds.set(b.id, { label: "P7", reason: "open" });
+    uow.events = [];
+    expect(await service.reject(b.id, { kind: "spam", reason: "реклама", actorId: "boss" })).toMatchObject({ deleted: false, kept: "счёт P7 ждёт оплаты (отменяется)" });
+    expect(await service.findById(b.id)).toMatchObject({ stageId: "lost", lostReason: "Спам: реклама", tags: [], unsorted: false });
+    expect(uow.events.find((e) => e.type === "sales.deal_closed")?.payload).toMatchObject({ dealId: b.id, outcome: "lost", reason: "Спам: реклама" });
+    expect(deals.notes).toContain("Заявка не удалена (счёт P7 ждёт оплаты (отменяется)) — закрыта «отказом»");
+
+    const c = await service.create({ ...lead, contactPhone: "77001112255" });
+    deals.money.add(c.id);
+    expect(await service.reject(c.id, { kind: "reject" })).toMatchObject({ deleted: false, kept: "по ней приняты деньги" });
+    expect(await service.findById(c.id)).toMatchObject({ stageId: "lost", lostReason: "Заявка отклонена" });
+  });
+});
+
+describe("SiteFunnelService: сделка держит деньги клиента", () => {
+  it("заказ не переписывает сумму сделки с предоплатой (цену договорённости) — после отмены договорённость та же", async () => {
+    const { site, service, deals } = setup("book_started", async () => ({ paid: 10000, agreement: true }));
+    const d = await service.create({ title: "Счёт из чата", source: "whatsapp", clientId: "c1", amount: 20000 });
+    // итог заказа 22 000 = книга по договорённости 20 000 + доставка 2 000; к оплате 12 000, предоплата 10 000
+    await site.orderCreated({ id: "o1", userId: "c1", number: 5, amount: 22000, dealId: d.id });
+    expect(deals.rows.get(d.id)).toMatchObject({ orderId: "o1", amount: 20000 });
+    await site.orderPaid({ id: "o1", userId: "c1", amount: 22000 });
+    expect(deals.rows.get(d.id)).toMatchObject({ stageId: "won", amount: 20000 });
+    await site.orderCancelled("o1", 5);
+    expect(deals.rows.get(d.id)).toMatchObject({ stageId: "ready", orderId: null, amount: 20000, closedAt: null });
+    expect(deals.notes.at(-1)).toMatch(/Предоплата 10\s000 ₸ осталась у нас/);
+  });
+
+  it("сделка без денег — сумма по заказу, как раньше", async () => {
+    const { site, service, deals } = setup();
+    const d = await service.create({ title: "Сайт", source: "site", clientId: "c1", amount: 0 });
+    await site.orderCreated({ id: "o1", userId: "c1", number: 5, amount: 22000 });
+    expect(deals.rows.get(d.id)).toMatchObject({ orderId: "o1", amount: 22000 });
+  });
+
+  it("заказ, уже привязанный к сделке договорённости в транзакции оформления, остаётся при ней — без дубля", async () => {
+    const { site, service, deals } = setup();
+    const d = await service.create({ title: "Договорённость", source: "manual", clientId: "c1", amount: 20000, orderId: "o7" });
+    await site.orderCreated({ id: "o7", userId: "c1", number: 7, amount: 20000, dealId: d.id });
+    expect(deals.rows.size).toBe(1);
+    expect(deals.rows.get(d.id)).toMatchObject({ orderId: "o7", stageId: "order" });
+  });
+
+  it("отмена заказа: деньги есть, а договорённости нет (тариф не указан) — сделка в «отказ», менеджеру — что новый заказ их не учтёт", async () => {
+    const { site, service, deals } = setup("book_started", async () => ({ paid: 5000, agreement: false }));
+    const d = await service.create({ title: "Сайт", source: "site", clientId: "c1" });
+    await site.orderCreated({ id: "o1", userId: "c1", number: 3, amount: 9900 });
+    await site.orderCancelled("o1", 3);
+    expect(deals.rows.get(d.id)).toMatchObject({ stageId: "lost", lostReason: "Заказ отменён" });
+    expect(deals.notes.at(-1)).toContain("договорённость не оформлена (не указан тариф)");
   });
 });

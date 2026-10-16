@@ -149,13 +149,17 @@ export async function assignDealAction(dealId: string, assigneeId: string | null
   return { ok: true as const };
 }
 
+/** Сделку не удалить: по ней приняты деньги или есть счёт из чата, по которому заплатили или ещё могут заплатить. */
+const holdsMoney = (err: unknown): err is Error => SalesError.is(err) && (err.code === "dealHasPayments" || err.code === "dealHasInvoice");
+
 export async function deleteDealAction(dealId: string): Promise<{ error: string } | void> {
   const staff = await assertStaff("deals.delete");
   const deal = await loadDeal(staff, dealId);
   try {
     await container().sales.deals.delete(deal.id);
   } catch (err) {
-    if (SalesError.is(err) && err.code === "dealHasPayments") return { error: err.message };
+    // Деньги или счёт клиента (ждёт оплаты, оплачен) — сделку не удаляем: понятный текст вместо 500 (409).
+    if (holdsMoney(err)) return { error: err.message };
     throw err;
   }
   await audit(staff, "deal.delete", "deal", deal.id, { number: deal.number, title: deal.title, amount: deal.amount });
@@ -225,7 +229,7 @@ export async function acceptDealAction(dealId: string) {
  * Отклонить заявку (spam — номер больше не создаёт заявок). Руководитель (право удалять сделки) — сразу: сделка удаляется,
  * переписка и звонки остаются. Менеджер только предлагает: сделка остаётся с отметкой, руководителям — уведомление.
  */
-export async function rejectDealAction(dealId: string, spam: boolean, reason = ""): Promise<{ requested: boolean; message: string }> {
+export async function rejectDealAction(dealId: string, spam: boolean, reason = ""): Promise<{ requested: boolean; message: string; deleted?: boolean }> {
   const staff = await assertStaff("deals.edit");
   const deal = await loadDeal(staff, dealId);
   if (!deal.unsorted) throw new Error("Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
@@ -238,10 +242,13 @@ export async function rejectDealAction(dealId: string, spam: boolean, reason = "
     return { requested: true, message: "Отправлено руководителю — заявка останется у вас, пока он не решит" };
   }
   if (spam) await container().messaging.chats.blockDealContacts(deal.id, deal.contactPhone, staff.user.id);
-  await container().sales.deals.reject(deal.id);
-  await audit(staff, spam ? "deal.spam" : "deal.reject", "deal", deal.id, { number: deal.number, title: deal.title, phone: deal.contactPhone, reason: why });
-  revalidateDeal(undefined, deal.clientId);
-  return { requested: false, message: spam ? "Номер в спаме, заявка удалена" : "Заявка отклонена" };
+  // Те же правила, что у удаления: деньги или счёт клиента — заявка не удаляется, а закрывается «отказом» (открытый счёт отменится).
+  const result = await container().sales.deals.reject(deal.id, { kind: spam ? "spam" : "reject", reason: why, actorId: staff.user.id });
+  const kept = result?.deleted === false ? result.kept : null;
+  await audit(staff, spam ? "deal.spam" : "deal.reject", "deal", deal.id, { number: deal.number, title: deal.title, phone: deal.contactPhone, reason: why, ...(kept ? { kept } : {}) });
+  revalidateDeal(kept ? deal.id : undefined, deal.clientId);
+  if (kept) return { requested: false, deleted: false, message: `${spam ? "Номер в спаме. " : ""}Заявка не удалена (${kept}) — закрыта «отказом»` };
+  return { requested: false, deleted: true, message: spam ? "Номер в спаме, заявка удалена" : "Заявка отклонена" };
 }
 
 /** Руководитель не согласился отклонять: заявка остаётся в работе у менеджера. */
@@ -349,8 +356,8 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
       try {
         await container().sales.deals.delete(deal.id);
       } catch (err) {
-        // Сделку с деньгами не удаляем — она в «пропущено».
-        if (!(SalesError.is(err) && err.code === "dealHasPayments")) throw err;
+        // Сделку с деньгами или со счётом, который ждёт оплаты или оплачен, не удаляем — она в «пропущено».
+        if (!holdsMoney(err)) throw err;
         skipped++;
         continue;
       }
