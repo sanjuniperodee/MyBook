@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { gowaDownloadable, gowaDownloadPhone, gowaMediaPath, gowaMediaType, gowaMediaUrl, isGowaMediaPath, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
-import { ChatMediaService, type MediaFile, type MediaGateway, type MessageMedia } from "@/modules/messaging/application";
+import { ChatMediaService, MEDIA_RETRY_MS, type MediaFile, type MediaGateway, type MessageMedia } from "@/modules/messaging/application";
 import { GowaClient } from "@/modules/messaging/infrastructure/gowa";
 import { gowaMediaGateway } from "@/modules/messaging/infrastructure/adapters";
 import { GET as mediaRoute } from "@/app/api/admin/chats/messages/[id]/media/route";
-import { GET as proxyRoute } from "@/app/api/admin/whatsapp/media/route";
-import { GowaError } from "@/modules/messaging";
+import { GowaError, MediaUnavailableError } from "@/modules/messaging";
 import { client, dina, fake, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -56,7 +55,7 @@ describe("Вложения WhatsApp: путь к файлу шлюза", () => {
   });
 
   it("вебхук принимает вложенный путь, отбрасывает выход из каталога", () => {
-    const hook = (payload: Record<string, unknown>) => parseGowaWebhook({ event: "message", payload: { id: "3EB0A1", chat_id: "77011234567@s.whatsapp.net", timestamp: "2026-10-13T10:30:00Z", ...payload } }, gowaMediaUrl).messages[0];
+    const hook = (payload: Record<string, unknown>) => parseGowaWebhook({ event: "message", payload: { id: "3EB0A1", chat_id: "77011234567@s.whatsapp.net", timestamp: "2026-10-13T10:30:00Z", ...payload } }).messages[0];
     expect(hook({ audio: { path: VOICE } })).toMatchObject({ type: "audio", mediaUrl: gowaMediaUrl(VOICE) });
     expect(hook({ audio: "statics/media/77011234567/../../../storages/whatsapp.db" })).toMatchObject({ type: "audio", mediaUrl: null });
   });
@@ -134,6 +133,37 @@ describe("GowaClient: скачивание вложения по id сообще
   });
 });
 
+describe("GowaClient: файл вложения", () => {
+  const config = async () => ({ baseUrl: "http://gowa:3000", basicAuth: "" });
+
+  it("Range браузера уходит шлюзу, часть файла — 206 с Content-Range", async () => {
+    const asked: (string | null)[] = [];
+    const gateway = gowaMediaGateway(
+      new GowaClient(config, async (_url, init) => {
+        const range = new Headers(init?.headers).get("range");
+        asked.push(range);
+        return range ? new Response("Og", { status: 206, headers: { "Content-Range": "bytes 0-1/4", "Content-Length": "2" } }) : new Response("OggS");
+      }),
+    );
+    expect(await gateway.file(VOICE, "bytes=0-1")).toMatchObject({ range: "bytes 0-1/4", size: "2" });
+    expect(await gateway.file(VOICE)).toMatchObject({ range: null });
+    expect(asked).toEqual(["bytes=0-1", null]);
+  });
+
+  it("таймаут — только на ожидание ответа: медленное тело файла не обрывается", async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      const client = new GowaClient(config, async (_url, init) => ((signal = init?.signal ?? undefined), new Response("OggS")));
+      await client.media(VOICE);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(signal?.aborted).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("ChatMediaService: файл открывается по id сообщения", () => {
   function setup(message: MessageMedia, c: Conversation = conv(), opts: { viaGowa?: boolean; files?: Record<string, string> } = {}) {
     const files = opts.files ?? {};
@@ -196,11 +226,42 @@ describe("ChatMediaService: файл открывается по id сообще
   });
 });
 
+describe("ChatMediaService: шлюз не смог скачать файл", () => {
+  it("повторно шлюз не спрашиваем MEDIA_RETRY_MS, потом пробуем снова", async () => {
+    let now = 1_000_000;
+    let downloads = 0;
+    const message = voice();
+    const service = new ChatMediaService(
+      { findById: async () => conv() },
+      { media: async () => message, saveMediaUrl: async () => {} },
+      {
+        download: async () => {
+          downloads++;
+          throw new GowaError("WhatsApp: media not found");
+        },
+        file: async () => null,
+      },
+      async () => false,
+      () => now,
+    );
+    const att = (await service.find("m1"))!;
+    await expect(service.open(att)).rejects.toThrow("WhatsApp: media not found");
+    const again = await service.open(att).catch((e: unknown) => e);
+    expect(MediaUnavailableError.is(again)).toBe(true);
+    expect(downloads).toBe(1);
+    now += MEDIA_RETRY_MS;
+    await expect(service.open(att)).rejects.toThrow("WhatsApp: media not found");
+    expect(downloads).toBe(2);
+  });
+});
+
 describe("GET /api/admin/chats/messages/[id]/media", () => {
   const MSG = "0d0d0d0d-0000-4000-8000-0000000000aa";
   const ctx = (id = MSG) => ({ params: Promise.resolve({ id }) });
-  const get = (id?: string) => mediaRoute(new Request(`http://localhost/api/admin/chats/messages/${id ?? MSG}/media`), ctx(id));
+  const get = (id?: string, headers?: Record<string, string>) => mediaRoute(new Request(`http://localhost/api/admin/chats/messages/${id ?? MSG}/media`, { headers }), ctx(id));
   let assigneeId: string | null;
+  let dealId: string | null;
+  let ranges: (string | null | undefined)[];
   let open: () => Promise<MediaFile | null>;
   let opened: number;
 
@@ -209,14 +270,37 @@ describe("GET /api/admin/chats/messages/[id]/media", () => {
     resetContainer();
     signIn(owner);
     assigneeId = null;
+    dealId = null;
+    ranges = [];
     opened = 0;
     open = async () => ({ body: body("OggS"), contentType: "audio/ogg", size: "4" });
     fake.messaging = {
       media: {
-        find: async (id: string) => (id === MSG ? { message: voice({ id: MSG }), conversation: conv({ assigneeId }) } : null),
-        open: async () => (opened++, open()),
+        find: async (id: string) => (id === MSG ? { message: voice({ id: MSG }), conversation: conv({ assigneeId, dealId }) } : null),
+        open: async (_att: unknown, range?: string | null) => (opened++, ranges.push(range), open()),
       },
     };
+    fake.sales = { deals: { findById: async (id: string) => (id === "deal-dina" ? { id, assigneeId: "dina" } : id === "deal-boss" ? { id, assigneeId: "boss" } : null) } };
+  });
+
+  it("чужой диалог, но привязан к своей сделке (её страница показывает переписку) — 200; к чужой — 403", async () => {
+    signIn(dina);
+    assigneeId = "boss";
+    dealId = "deal-dina";
+    expect((await get()).status).toBe(200);
+    dealId = "deal-boss";
+    expect((await get()).status).toBe(403);
+  });
+
+  it("Range: один диапазон уходит дальше, ответ 206 с Content-Range; мусор — весь файл", async () => {
+    open = async () => ({ body: body("Og"), contentType: "audio/ogg", size: "2", range: "bytes 0-1/4" });
+    const res = await get(undefined, { Range: "bytes=0-1" });
+    expect(res.status).toBe(206);
+    expect(res.headers.get("content-range")).toBe("bytes 0-1/4");
+    expect(res.headers.get("accept-ranges")).toBe("bytes");
+    await get(undefined, { Range: "bytes=0-1,5-9" });
+    await get(undefined, { Range: "bytes=-" });
+    expect(ranges).toEqual(["bytes=0-1", null, null]);
   });
 
   it("отдаёт файл с audio/ogg, nosniff и песочницей", async () => {
@@ -251,20 +335,9 @@ describe("GET /api/admin/chats/messages/[id]/media", () => {
     const res = await get();
     expect(res.status).toBe(502);
     expect(await res.text()).toBe("Шлюз WhatsApp (GOWA) недоступен");
-  });
-});
-
-describe("GET /api/admin/whatsapp/media: прокси файла шлюза", () => {
-  beforeEach(() => {
-    resetRequest();
-    resetContainer();
-    signIn(owner);
-    fake.messaging = { gowa: { media: async () => new Response("OggS", { headers: { "Content-Type": "application/ogg" } }) } };
-  });
-  const get = (path: string) => proxyRoute(new Request(`http://localhost/api/admin/whatsapp/media?path=${encodeURIComponent(path)}`), {});
-
-  it("вложенный путь — отдаётся; выход из каталога — 404", async () => {
-    expect((await get(VOICE)).status).toBe(200);
-    expect((await get("statics/media/77011234567/../../storages/whatsapp.db")).status).toBe(404);
+    open = async () => {
+      throw new MediaUnavailableError();
+    };
+    expect((await get()).status).toBe(502);
   });
 });

@@ -10,7 +10,7 @@ import type { AiMessage } from "../domain";
 
 /** Переписка глазами модели: вложение без подписи — «[тип]». */
 const transcriptOf = async (conversations: ConversationReader, conversationId: string, limit: number): Promise<AiMessage[]> =>
-  (await conversations.messages(conversationId, limit)).map((m) => ({ direction: m.direction, text: m.text || (m.mediaUrl ? `[${m.type}]` : ""), internal: m.internal, author: m.author, at: m.at }));
+  (await conversations.messages(conversationId, limit)).map((m) => ({ direction: m.direction, text: m.text || (m.mediaUrl || m.gateway ? `[${m.type}]` : ""), internal: m.internal, author: m.author, at: m.at }));
 
 /** Данные CRM для помощника; база знаний и свои поля сделки — из рабочего пространства, переписка — из Messaging. */
 export const crmAssistantData = (settings: SettingsReader<"ai.knowledge">, fields: CustomFieldsReader, conversations: ConversationReader): AssistantData => ({

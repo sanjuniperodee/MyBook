@@ -40,19 +40,23 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
     .where(eq(crmMessages.conversationId, conversationId))
     .orderBy(desc(crmMessages.createdAt))
     .limit(limit);
-  return rows.reverse().map(({ m, author }) => ({
-    id: m.id,
-    direction: m.direction,
-    type: m.type,
-    text: m.text,
-    mediaUrl: m.mediaUrl,
-    status: m.status,
-    error: m.error,
-    author: m.internal ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
-    at: m.createdAt.toISOString(),
-    internal: m.internal,
-    ...(gateway(m) ? { gateway: true } : {}),
-  }));
+  return rows.reverse().map(({ m, author }) => {
+    const viaGateway = gateway(m);
+    return {
+      id: m.id,
+      direction: m.direction,
+      type: m.type,
+      text: m.text,
+      // Путь файла шлюза (в нём номер клиента) в браузер не уходит: такое вложение открывается по id сообщения.
+      mediaUrl: viaGateway ? null : m.mediaUrl,
+      status: m.status,
+      error: m.error,
+      author: m.internal ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
+      at: m.createdAt.toISOString(),
+      internal: m.internal,
+      ...(viaGateway ? { gateway: true } : {}),
+    };
+  });
 }
 
 /** Экран чата (ChatPanel): сообщения, шаблоны ответов, их переменные и почему отправка сейчас не сработает. */

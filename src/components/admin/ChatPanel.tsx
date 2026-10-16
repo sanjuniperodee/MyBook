@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, SendHorizontal, Sparkles, Wallet } from "lucide-react";
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
@@ -44,21 +44,18 @@ function StatusIcon({ status }: { status: string }) {
 /** Адрес вложения: файл шлюза WhatsApp — по id сообщения через наш сервер (он проверяет доступ к диалогу), иначе ссылка канала. */
 const mediaSrc = (m: ChatMessage) => (m.gateway ? `/api/admin/chats/messages/${m.id}/media` : m.mediaUrl);
 
-let opus: boolean | null = null;
-/** Голосовые WhatsApp — Ogg Opus; часть браузеров (Safari до 18.4) его не играет. На сервере считаем, что играет. */
-const canPlayOpus = () => (opus ??= document.createElement("audio").canPlayType('audio/ogg; codecs="opus"') !== "");
-const noSubscribe = () => () => {};
-
-/** Голосовое: плеер и «скачать»; если браузер файл не играет — подсказка вместо пустого плеера. */
+/**
+ * Голосовое или аудиофайл: плеер; если браузер файл не сыграл (голосовые WhatsApp — Ogg Opus, Safari до 18.4 его
+ * не играет) — подсказка вместо пустого плеера. Файл шлюза (наш адрес) можно скачать; ссылка канала — другой сайт,
+ * атрибут download там не работает, поэтому она открывается в новой вкладке, чтобы не уйти со страницы чата.
+ */
 function Voice({ src, gateway }: { src: string; gateway: boolean }) {
-  const playsOpus = useSyncExternalStore(noSubscribe, canPlayOpus, () => true);
   const [failed, setFailed] = useState(false);
-  const hint = failed ? "Не удалось воспроизвести — скачайте файл." : gateway && !playsOpus ? "Браузер не воспроизводит голосовые WhatsApp (ogg/opus) — скачайте файл." : null;
   return (
     <div className="mb-1">
-      {hint ? <p className="text-xs opacity-80">{hint}</p> : <audio controls src={src} className="h-9 max-w-full" preload="none" onError={() => setFailed(true)} />}
-      <a href={src} download className="text-[11px] underline opacity-80">
-        скачать
+      {failed ? <p className="text-xs opacity-80">Браузер не смог воспроизвести запись — скачайте файл.</p> : <audio controls src={src} className="h-9 max-w-full" preload="none" onError={() => setFailed(true)} />}
+      <a href={src} {...(gateway ? { download: true } : { target: "_blank", rel: "noopener noreferrer" })} className="text-[11px] underline opacity-80">
+        {gateway ? "скачать" : "открыть файл"}
       </a>
     </div>
   );

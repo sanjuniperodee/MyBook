@@ -137,11 +137,14 @@ export interface MediaFile {
   body: ReadableStream<Uint8Array>;
   contentType: string | null;
   size: string | null;
+  /** Отдана часть файла по Range (206): Content-Range шлюза, например «bytes 0-1023/148201». */
+  range?: string | null;
 }
 
 /** Файлы своего шлюза WhatsApp (GOWA). Ошибки шлюза — исключением с понятным сотруднику текстом. */
 export interface MediaGateway {
   /** Скачать в шлюз вложение сообщения; путь к файлу (statics/media/…). */
   download(externalId: string, chatId: string): Promise<string>;
-  file(path: string): Promise<MediaFile | null>;
+  /** range — заголовок Range браузера как есть; шлюз отдаёт часть файла (206) или весь файл. */
+  file(path: string, range?: string | null): Promise<MediaFile | null>;
 }

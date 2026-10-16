@@ -42,7 +42,10 @@ export function isGowaMediaPath(path: string): boolean {
   return parts.slice(2).every((s) => s !== "." && s !== ".." && MEDIA_SEGMENT.test(s));
 }
 
-/** Как CRM открывает файл, скачанный шлюзом: шлюз доступен только из внутренней сети, файлы отдаёт наш прокси. */
+/**
+ * Как в сообщении запоминается файл, скачанный шлюзом. Это только формат хранения (так записаны и старые сообщения):
+ * в браузер путь не уходит, файл открывается по id сообщения — /api/admin/chats/messages/<id>/media.
+ */
 export const gowaMediaUrl = (path: string) => `/api/admin/whatsapp/media?path=${encodeURIComponent(path)}`;
 
 /** Обратно: путь к файлу шлюза из сохранённой в сообщении ссылки прокси; чужая ссылка (Wazzup) или мусор — null. */
@@ -115,11 +118,8 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
 /** Получатель статуса — сам аккаунт магазина (он прочитал входящее): такие отметки к нашим сообщениям не относятся. */
 const ownJid = (deviceId: string) => deviceId.split("@")[0].split(":")[0];
 
-/**
- * Вебхук GOWA → входящие (и отправленные с телефона — эхо) и статусы доставки в формате инбокса.
- * mediaUrl — как CRM откроет вложение (шлюз доступен только из внутренней сети, файлы отдаёт наш прокси).
- */
-export function parseGowaWebhook(body: unknown, mediaUrl: (path: string) => string): { messages: InboundMessage[]; statuses: DeliveryStatus[] } {
+/** Вебхук GOWA → входящие (и отправленные с телефона — эхо) и статусы доставки в формате инбокса. */
+export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; statuses: DeliveryStatus[] } {
   const b = record(body);
   const event = str(b.event);
   const p = record(b.payload);
@@ -145,7 +145,7 @@ export function parseGowaWebhook(body: unknown, mediaUrl: (path: string) => stri
           isEcho,
           type,
           text: text || mediaCaption(type),
-          mediaUrl: media?.path ? mediaUrl(media.path) : null,
+          mediaUrl: media?.path ? gowaMediaUrl(media.path) : null,
           contactName: isEcho ? "" : str(p.from_name),
           avatarUrl: null,
           status: null,
@@ -168,7 +168,7 @@ const HISTORY_MEDIA: Record<string, string> = { image: "image", sticker: "image"
 
 /**
  * Сообщение из хранилища чатов GOWA (GET /chat/{jid}/messages) — история, которую WhatsApp передал шлюзу при привязке
- * номера. Вложения истории шлюз не скачивает: в CRM — подпись вида «📷 Фото» без файла. Пустые и служебные — null.
+ * номера. Файлов вложений в истории нет: CRM просит шлюз скачать файл, когда его впервые открывают. Пустые и служебные — null.
  */
 export function parseGowaHistory(raw: unknown): InboundMessage | null {
   const p = record(raw);

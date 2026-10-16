@@ -1,19 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-import { gowaChatId, gowaJid, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { gowaChatId, gowaJid, gowaMediaUrl, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
 import { GOWA_DEVICE, GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
 import { channelTransport, whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
 import { WazzupClient } from "@/modules/messaging/infrastructure/wazzup";
 import { MemSettings } from "./doubles/workspace";
 
-const media = (path: string) => `/media?path=${path}`;
 const device = "77001112233@s.whatsapp.net";
 const message = (payload: Record<string, unknown>) => ({ event: "message", device_id: device, payload: { id: "3EB0A1", chat_id: "77011234567@s.whatsapp.net", from: "77011234567@s.whatsapp.net", from_name: "Айгерим", timestamp: "2026-10-13T10:30:00Z", is_from_me: false, ...payload } });
 
 describe("GOWA: протокол вебхуков", () => {
   it("входящий текст → сообщение инбокса в формате WhatsApp", () => {
-    const { messages, statuses } = parseGowaWebhook(message({ body: "Здравствуйте! Хочу книгу маме" }), media);
+    const { messages, statuses } = parseGowaWebhook(message({ body: "Здравствуйте! Хочу книгу маме" }));
     expect(statuses).toEqual([]);
     expect(messages).toEqual([
       { externalId: "3EB0A1", channelId: "gowa", chatType: "whatsapp", chatId: "77011234567", at: new Date("2026-10-13T10:30:00Z"), isEcho: false, type: "text", text: "Здравствуйте! Хочу книгу маме", mediaUrl: null, contactName: "Айгерим", avatarUrl: null, status: null },
@@ -21,33 +20,33 @@ describe("GOWA: протокол вебхуков", () => {
   });
 
   it("ответ с телефона магазина — эхо, без переименования контакта", () => {
-    const [m] = parseGowaWebhook(message({ body: "Добрый день!", is_from_me: true, from: device, from_name: "MyBooks" }), media).messages;
+    const [m] = parseGowaWebhook(message({ body: "Добрый день!", is_from_me: true, from: device, from_name: "MyBooks" })).messages;
     expect(m).toMatchObject({ isEcho: true, contactName: "", chatId: "77011234567" });
   });
 
   it("вложения: путь от шлюза → ссылка нашего прокси, подпись — в тексте", () => {
-    expect(parseGowaWebhook(message({ image: "statics/media/1-a.jpeg" }), media).messages[0]).toMatchObject({ type: "image", text: "📷 Фото", mediaUrl: "/media?path=statics/media/1-a.jpeg" });
-    expect(parseGowaWebhook(message({ body: "Вот фото", image: { path: "statics/media/2-b.jpeg", caption: "Вот фото" } }), media).messages[0]).toMatchObject({ type: "image", text: "Вот фото", mediaUrl: "/media?path=statics/media/2-b.jpeg" });
-    expect(parseGowaWebhook(message({ audio: "statics/media/3.ogg" }), media).messages[0]).toMatchObject({ type: "audio", text: "🎤 Голосовое сообщение" });
-    expect(parseGowaWebhook(message({ document: { path: "statics/media/report.pdf", caption: "Отчёт" }, body: "Отчёт" }), media).messages[0]).toMatchObject({ type: "document" });
+    expect(parseGowaWebhook(message({ image: "statics/media/1-a.jpeg" })).messages[0]).toMatchObject({ type: "image", text: "📷 Фото", mediaUrl: gowaMediaUrl("statics/media/1-a.jpeg") });
+    expect(parseGowaWebhook(message({ body: "Вот фото", image: { path: "statics/media/2-b.jpeg", caption: "Вот фото" } })).messages[0]).toMatchObject({ type: "image", text: "Вот фото", mediaUrl: gowaMediaUrl("statics/media/2-b.jpeg") });
+    expect(parseGowaWebhook(message({ audio: "statics/media/3.ogg" })).messages[0]).toMatchObject({ type: "audio", text: "🎤 Голосовое сообщение" });
+    expect(parseGowaWebhook(message({ document: { path: "statics/media/report.pdf", caption: "Отчёт" }, body: "Отчёт" })).messages[0]).toMatchObject({ type: "document" });
     // Без автоскачивания шлюз отдаёт зашифрованную ссылку WhatsApp — она бесполезна, вложение без файла.
-    expect(parseGowaWebhook(message({ image: { url: "https://mmg.whatsapp.net/x" } }), media).messages[0]).toMatchObject({ type: "image", mediaUrl: null });
+    expect(parseGowaWebhook(message({ image: { url: "https://mmg.whatsapp.net/x" } })).messages[0]).toMatchObject({ type: "image", mediaUrl: null });
     // Путь с выходом из каталога не принимаем.
-    expect(parseGowaWebhook(message({ image: "statics/media/../../etc/passwd" }), media).messages[0].mediaUrl).toBeNull();
-    expect(parseGowaWebhook(message({ location: { degreesLatitude: 43.2, degreesLongitude: 76.9 } }), media).messages[0]).toMatchObject({ type: "geo", text: "📍 Геопозиция" });
+    expect(parseGowaWebhook(message({ image: "statics/media/../../etc/passwd" })).messages[0].mediaUrl).toBeNull();
+    expect(parseGowaWebhook(message({ location: { degreesLatitude: 43.2, degreesLongitude: 76.9 } })).messages[0]).toMatchObject({ type: "geo", text: "📍 Геопозиция" });
   });
 
   it("группы, рассылки, опросы и пустые служебные сообщения не попадают в CRM", () => {
-    expect(parseGowaWebhook(message({ chat_id: "120363402106@g.us", body: "Всем привет" }), media).messages).toEqual([]);
-    expect(parseGowaWebhook(message({ chat_id: "status@broadcast", body: "статус" }), media).messages).toEqual([]);
-    expect(parseGowaWebhook(message({ body: "Poll: Lunch?", poll: { type: "creation" } }), media).messages).toEqual([]);
-    expect(parseGowaWebhook(message({}), media).messages).toEqual([]);
-    expect(parseGowaWebhook({ event: "message.reaction", payload: { id: "r", chat_id: "1@s.whatsapp.net", reaction: "👍" } }, media)).toEqual({ messages: [], statuses: [] });
-    expect(parseGowaWebhook("мусор", media)).toEqual({ messages: [], statuses: [] });
+    expect(parseGowaWebhook(message({ chat_id: "120363402106@g.us", body: "Всем привет" })).messages).toEqual([]);
+    expect(parseGowaWebhook(message({ chat_id: "status@broadcast", body: "статус" })).messages).toEqual([]);
+    expect(parseGowaWebhook(message({ body: "Poll: Lunch?", poll: { type: "creation" } })).messages).toEqual([]);
+    expect(parseGowaWebhook(message({})).messages).toEqual([]);
+    expect(parseGowaWebhook({ event: "message.reaction", payload: { id: "r", chat_id: "1@s.whatsapp.net", reaction: "👍" } })).toEqual({ messages: [], statuses: [] });
+    expect(parseGowaWebhook("мусор")).toEqual({ messages: [], statuses: [] });
   });
 
   it("скрытый номер (LID) хранится целиком — на него можно ответить", () => {
-    expect(parseGowaWebhook(message({ chat_id: "251556368777322@lid", body: "Привет" }), media).messages[0].chatId).toBe("251556368777322@lid");
+    expect(parseGowaWebhook(message({ chat_id: "251556368777322@lid", body: "Привет" })).messages[0].chatId).toBe("251556368777322@lid");
     expect(gowaChatId("77011234567:12@s.whatsapp.net")).toBe("77011234567");
     expect(gowaJid("77011234567")).toBe("77011234567@s.whatsapp.net");
     expect(gowaJid("+7 701 123-45-67")).toBe("77011234567@s.whatsapp.net");
@@ -56,13 +55,13 @@ describe("GOWA: протокол вебхуков", () => {
 
   it("статусы доставки: доставлено и прочитано клиентом; свои отметки о прочтении — мимо", () => {
     const ack = (from: string, receipt: string) => ({ event: "message.ack", device_id: device, payload: { ids: ["m1", "m2"], chat_id: "77011234567@s.whatsapp.net", from, receipt_type: receipt } });
-    expect(parseGowaWebhook(ack("77011234567@s.whatsapp.net", "delivered"), media).statuses).toEqual([
+    expect(parseGowaWebhook(ack("77011234567@s.whatsapp.net", "delivered")).statuses).toEqual([
       { externalId: "m1", status: "delivered", error: null },
       { externalId: "m2", status: "delivered", error: null },
     ]);
-    expect(parseGowaWebhook(ack("77011234567@s.whatsapp.net", "read"), media).statuses.map((s) => s.status)).toEqual(["read", "read"]);
-    expect(parseGowaWebhook(ack(device, "read"), media).statuses).toEqual([]);
-    expect(parseGowaWebhook(ack("77011234567@s.whatsapp.net", "played"), media).statuses).toEqual([]);
+    expect(parseGowaWebhook(ack("77011234567@s.whatsapp.net", "read")).statuses.map((s) => s.status)).toEqual(["read", "read"]);
+    expect(parseGowaWebhook(ack(device, "read")).statuses).toEqual([]);
+    expect(parseGowaWebhook(ack("77011234567@s.whatsapp.net", "played")).statuses).toEqual([]);
   });
 
   it("подпись вебхука: X-Hub-Signature-256 = sha256=<hex HMAC>", () => {

@@ -50,10 +50,10 @@ export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"waz
 /** Файлы вложений из шлюза GOWA. Файла в шлюзе нет (удалён, не скачан) — null, а не ошибка. */
 export const gowaMediaGateway = (gowa: GowaClient): MediaGateway => ({
   download: (externalId, chatId) => gowa.download(externalId, chatId),
-  async file(path) {
+  async file(path, range) {
     try {
-      const res = await gowa.media(path);
-      return res.body ? { body: res.body, contentType: res.headers.get("content-type"), size: res.headers.get("content-length") } : null;
+      const res = await gowa.media(path, range);
+      return res.body ? { body: res.body, contentType: res.headers.get("content-type"), size: res.headers.get("content-length"), range: res.status === 206 ? res.headers.get("content-range") : null } : null;
     } catch (err) {
       if (GowaError.is(err) && err.code === "NOT_FOUND") return null;
       throw err;

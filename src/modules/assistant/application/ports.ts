@@ -20,6 +20,8 @@ export interface ConversationMessage {
   type: string;
   text: string;
   mediaUrl: string | null;
+  /** Вложение лежит в шлюзе WhatsApp (mediaUrl тогда пустой). */
+  gateway?: boolean;
   /** Внутренняя заметка сотрудника — клиент её не видел. */
   internal?: boolean;
   author: string | null;

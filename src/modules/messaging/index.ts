@@ -13,6 +13,7 @@ import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagi
 export { channelLabel, type Conversation, type InboundMessage } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
+export { MediaUnavailableError } from "./application/media";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
 

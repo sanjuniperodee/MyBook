@@ -121,10 +121,10 @@ export class GowaClient {
     await this.json("POST", `/devices/${GOWA_DEVICE}/logout`);
   }
 
-  /** Файл вложения, скачанный шлюзом (statics/media/…), — для прокси в CRM. */
-  async media(path: string): Promise<Response> {
+  /** Файл вложения, скачанный шлюзом (statics/media/…), — для CRM; range — заголовок Range браузера (перемотка, Safari). */
+  async media(path: string, range?: string | null): Promise<Response> {
     if (!isGowaMediaPath(path)) throw new GowaError("Неверный путь к файлу");
-    return this.raw(`/${path}`);
+    return this.raw(`/${path}`, range ? { Range: range } : undefined);
   }
 
   /**
@@ -161,13 +161,21 @@ export class GowaClient {
     return { "X-Device-Id": GOWA_DEVICE, ...(basicAuth ? { Authorization: `Basic ${Buffer.from(basicAuth).toString("base64")}` } : {}) };
   }
 
-  private async raw(path: string): Promise<Response> {
+  /**
+   * Файл со шлюза потоком. Таймаут — только на ожидание ответа: тело (большое видео, медленный интернет менеджера)
+   * передаётся сколько нужно, иначе оборвалось бы на середине.
+   */
+  private async raw(path: string, extra?: Record<string, string>): Promise<Response> {
     const { baseUrl } = await this.config();
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 20_000);
     let res: Response;
     try {
-      res = await this.fetchImpl(`${baseUrl.replace(/\/+$/, "")}${path}`, { headers: await this.headers(), signal: AbortSignal.timeout(20_000) });
+      res = await this.fetchImpl(`${baseUrl.replace(/\/+$/, "")}${path}`, { headers: { ...(await this.headers()), ...extra }, signal: abort.signal });
     } catch {
       throw new GowaError("Шлюз WhatsApp (GOWA) недоступен", "UNREACHABLE");
+    } finally {
+      clearTimeout(timer);
     }
     if (!res.ok) throw new GowaError(res.status === 401 ? "Шлюз WhatsApp не принял логин и пароль" : `Шлюз WhatsApp: HTTP ${res.status}`, res.status === 404 ? "NOT_FOUND" : null);
     return res;
