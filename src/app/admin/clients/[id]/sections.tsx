@@ -13,7 +13,7 @@ import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/or
 import type { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { formatPhone } from "@/shared/domain/phone";
 import { ContactActions } from "@/components/admin/ContactActions";
-import { ClientChannel, ClientManager, ExtraPhones } from "./ClientControls";
+import { ClientChannel, ClientLocale, ClientManager, ExtraPhones } from "./ClientControls";
 
 type Screen = ReturnType<typeof clientScreen>;
 
@@ -26,7 +26,7 @@ export function ClientProfile({
   can,
   managerOptions,
 }: {
-  client: { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean };
+  client: { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: "ru" | "kk" };
   screen: Screen;
   contact: { masked: boolean; phone?: string | null; email?: string | null };
   canEdit: boolean;
@@ -115,6 +115,12 @@ export function ClientProfile({
             </dd>
           </div>
         ) : null}
+        <div className="flex items-center justify-between gap-3">
+          <dt>Язык кабинета и писем</dt>
+          <dd className="text-ink" data-testid="client-locale">
+            {canEdit ? <ClientLocale clientId={client.id} value={client.locale} /> : client.locale === "kk" ? "казахский" : "русский"}
+          </dd>
+        </div>
         <div className="flex justify-between">
           <dt>Автописьма</dt>
           <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{client.emailOptOut ? "отписан" : "получает"}</dd>

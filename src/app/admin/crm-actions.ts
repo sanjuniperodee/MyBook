@@ -61,6 +61,24 @@ export async function setClientChannelAction(clientId: string, channel: string):
   return { ok: true, message: `Канал: ${channels[channel]}` };
 }
 
+/**
+ * Язык кабинета и писем клиента — если при заведении выбрали не тот. Ссылка входа и сообщение с доступом
+ * («Доступ в кабинет») после смены — на новом языке; на сайте клиент может переключить язык и сам.
+ */
+export async function setClientLocaleAction(clientId: string, locale: string): Promise<ActionResult> {
+  const staff = await assertStaff("clients.edit");
+  const next = z.enum(["ru", "kk"]).safeParse(locale);
+  if (!next.success) return { ok: false, message: "Выберите язык" };
+  const c = container();
+  const client = await c.clients.clients.find(uuid.parse(clientId));
+  if (!client) return { ok: false, message: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  await c.identity.accounts.setLocale(client.id, next.data);
+  await audit(staff, "client.locale", "client", client.id, { to: next.data });
+  revalidatePath(`/admin/clients/${client.id}`);
+  return { ok: true, message: next.data === "kk" ? "Язык: казахский" : "Язык: русский" };
+}
+
 /** Номер для звонка/чата берём на сервере: сотрудник без права видеть контакты всё равно может связаться. */
 function resolveContact(target: Target) {
   const id = (v?: string) => (v ? uuid.parse(v) : undefined);
