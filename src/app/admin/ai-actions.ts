@@ -1,6 +1,7 @@
 "use server";
 
 import { container } from "@/server/container";
+import { ClientsError } from "@/modules/clients";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
@@ -93,17 +94,23 @@ export async function aiNextStepTaskAction(dealId: string) {
   const due = new Date(Date.now() + s.dueDays * 86_400_000);
   // Задача ответственному за сделку (или тому, кто попросил резюме), срок — до вечера.
   const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
-  await container().clients.tasks.create(
-    { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: true, allTasks: false },
-    {
-      title: s.nextStep.slice(0, 300),
-      kind: /позвон|звон|перезвон/i.test(s.nextStep) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep) ? "message" : "task",
+  const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: true, allTasks: false };
+  const task = (assigneeId: string) =>
+    container().clients.tasks.create(actor, {
+      title: s.nextStep!.slice(0, 300),
+      kind: /позвон|звон|перезвон/i.test(s.nextStep!) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep!) ? "message" : "task",
       dueAt: iso,
       dealId: deal.id,
       clientId: deal.clientId ?? undefined,
-      assigneeId: deal.assigneeId ?? staff.user.id,
-    },
-  );
+      assigneeId,
+    });
+  try {
+    await task(deal.assigneeId ?? staff.user.id);
+  } catch (err) {
+    // Ответственный сделки отключён — задача тому, кто попросил резюме (B12).
+    if (!(ClientsError.is(err) && err.code === "staffNotFound")) throw err;
+    await task(staff.user.id);
+  }
   revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const };
 }

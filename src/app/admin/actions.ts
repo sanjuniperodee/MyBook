@@ -225,7 +225,14 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const { clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d));
+  let clientId: string | null;
+  try {
+    ({ clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d)));
+  } catch (err) {
+    // Исполнитель отключён или не сотрудник — текстом в форме, как другие ошибки (B12).
+    if (ClientsError.is(err) && err.code === "staffNotFound") return { error: err.message };
+    throw err;
+  }
   revalidateCrm(clientId, d.orderId, d.dealId);
   return { ok: "Задача добавлена" };
 }
