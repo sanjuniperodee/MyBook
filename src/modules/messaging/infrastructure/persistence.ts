@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { crmBlocklist, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, ConversationRepository, MessageRepository } from "../application";
@@ -66,6 +66,13 @@ export class DrizzleConversationRepository implements ConversationRepository {
 
   async recordEcho(id: string, text: string, at: Date) {
     await executor().update(crmConversations).set({ lastMessageAt: at, lastMessageText: text, awaitingSince: null, unread: 0, updatedAt: new Date() }).where(eq(crmConversations.id, id));
+  }
+
+  async recordHistory(id: string, text: string, at: Date) {
+    await executor()
+      .update(crmConversations)
+      .set({ lastMessageAt: at, lastMessageText: text, updatedAt: new Date() })
+      .where(and(eq(crmConversations.id, id), or(isNull(crmConversations.lastMessageAt), lt(crmConversations.lastMessageAt, at))));
   }
 
   async recordOutgoing(id: string, text: string, at: Date, authorId: string | null) {

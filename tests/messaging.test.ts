@@ -33,8 +33,8 @@ describe("домен переписки", () => {
 
 // ─── инбокс ────────────────────────────────────────────────────────────────
 
-function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
-  const convs = new Map<string, Conversation & { unread: number; awaiting: Date | null; closed?: boolean }>();
+function setup(opts: { blocked?: boolean; bot?: "off" | "always"; clients?: Record<string, string>; openDeal?: { id: string; assigneeId: string | null } } = {}) {
+  const convs = new Map<string, Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date }>();
   const msgs: { id: string; conv: string; dir: "in" | "out"; text: string; externalId: string | null; status: string }[] = [];
   const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown> }[] = [];
   const sent: string[] = [];
@@ -56,6 +56,10 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
       c.awaiting ??= at;
     },
     recordEcho: async (id) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null }),
+    recordHistory: async (id, text, at) => {
+      const c = convs.get(id)!;
+      if (!c.lastAt || c.lastAt < at) Object.assign(c, { lastText: text, lastAt: at });
+    },
     recordOutgoing: async (id, _t, _at, author) => void (author && Object.assign(convs.get(id)!, { unread: 0, awaiting: null, botStep: -1 })),
     closeAsSpam: async (id) => void Object.assign(convs.get(id)!, { closed: true }),
     markRead: async (id) => void Object.assign(convs.get(id)!, { unread: 0 }),
@@ -94,8 +98,8 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
     },
   };
   const sales: SalesGateway = {
-    findClientByPhone: async () => null,
-    findOpenDeal: async () => null,
+    findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,
+    findOpenDeal: async () => (opts.openDeal ? { ...opts.openDeal, clientId: null, utm: null } : null),
     createDeal: async (i) => {
       const d = { id: `d${++seq}`, title: i.title, unsorted: i.unsorted, fields: {} };
       deals.push(d);
@@ -112,7 +116,8 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
     nextRoundRobin: async () => null,
   };
   const quiet = { info: () => {}, warn: () => {}, error: () => {} };
-  const notifier = { notify: async () => {} };
+  const notified: string[] = [];
+  const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string }) => void notified.push(n.title) };
   const clock = { now: () => now };
   const bot = new QualifierBot(
     conversations,
@@ -135,7 +140,7 @@ function setup(opts: { blocked?: boolean; bot?: "off" | "always" } = {}) {
     clock,
     quiet,
   );
-  return { service, convs, msgs, deals, sent, notes };
+  return { service, convs, msgs, deals, sent, notes, notified };
 }
 
 const inbound = (p: Partial<InboundMessage> = {}): InboundMessage => ({ externalId: "e1", channelId: "ch", chatType: "whatsapp", chatId: "77011234567", at: now, isEcho: false, type: "text", text: "Здравствуйте", mediaUrl: null, contactName: "Айгерим", avatarUrl: null, status: null, ...p });
@@ -189,5 +194,60 @@ describe("MessagingService", () => {
     expect(deals[0].fields).toEqual({ recipient: "для мамы" });
     expect(sent.at(-1)).toBe("Спасибо!");
     expect(notes[0]).toContain("Для кого: для мамы");
+  });
+});
+
+describe("история переписки из шлюза после привязки номера", () => {
+  const msg = (id: string, minutes: number, text: string, isEcho = false): InboundMessage => ({
+    externalId: id,
+    channelId: "gowa",
+    chatType: "whatsapp",
+    chatId: "77011234567",
+    at: new Date(now.getTime() - (1000 - minutes) * 60_000),
+    isEcho,
+    type: "text",
+    text,
+    mediaUrl: null,
+    contactName: isEcho ? "" : "Айгерим",
+    avatarUrl: null,
+    status: null,
+  });
+  const chat = [msg("h1", 1, "Здравствуйте, хочу книгу маме"), msg("h2", 2, "Добрый день! Расскажу", true), msg("h3", 3, "Спасибо")];
+
+  it("клиент с этим номером: диалог с ним, все сообщения задним числом — без заявки, уведомлений, «непрочитано» и «ждёт ответа»", async () => {
+    const t = setup({ clients: { "77011234567": "client-1" } });
+    expect(await t.service.importHistory(chat, { anyWhatsappChannel: true })).toEqual({ imported: 3, skipped: null });
+    const [conv] = [...t.convs.values()];
+    expect(conv).toMatchObject({ clientId: "client-1", contactName: "Айгерим", unread: 0, awaiting: null, lastText: "Спасибо" });
+    expect(t.msgs.map((m) => [m.dir, m.text])).toEqual([["in", "Здравствуйте, хочу книгу маме"], ["out", "Добрый день! Расскажу"], ["in", "Спасибо"]]);
+    expect(t.deals).toEqual([]);
+    expect(t.notified).toEqual([]);
+    // повторный импорт — без дублей
+    expect(await t.service.importHistory(chat, { anyWhatsappChannel: true })).toEqual({ imported: 0, skipped: null });
+    expect(t.msgs).toHaveLength(3);
+  });
+
+  it("незнакомый номер — пропуск, ничего не создаётся; открытая сделка с этим номером — диалог привязывается к ней", async () => {
+    const t = setup();
+    expect(await t.service.importHistory(chat, { anyWhatsappChannel: true })).toEqual({ imported: 0, skipped: "unknown" });
+    expect(t.convs.size).toBe(0);
+    const d = setup({ openDeal: { id: "deal-7", assigneeId: "m1" } });
+    await d.service.importHistory(chat, { anyWhatsappChannel: true });
+    expect([...d.convs.values()][0]).toMatchObject({ dealId: "deal-7", assigneeId: "m1" });
+  });
+
+  it("уже есть диалог — история дописывается, последнее сообщение не откатывается на более старое", async () => {
+    const t = setup();
+    await t.service.ingest(msg("new", 999, "Новое сообщение"), { anyWhatsappChannel: true });
+    const conv = [...t.convs.values()][0];
+    Object.assign(conv, { lastText: "Новое сообщение", lastAt: msg("new", 999, "").at });
+    expect(await t.service.importHistory(chat, { anyWhatsappChannel: true })).toMatchObject({ imported: 3 });
+    expect(conv.lastText).toBe("Новое сообщение");
+    expect(t.msgs).toHaveLength(4);
+  });
+
+  it("номер в спаме — пропуск", async () => {
+    const t = setup({ blocked: true, clients: { "77011234567": "client-1" } });
+    expect(await t.service.importHistory(chat)).toEqual({ imported: 0, skipped: "blocked" });
   });
 });

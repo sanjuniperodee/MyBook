@@ -99,3 +99,37 @@ export function parseGowaWebhook(body: unknown, mediaUrl: (path: string) => stri
   }
   return { messages: [], statuses: [] };
 }
+
+/** Вид вложения из хранилища чатов GOWA (media_type) в словаре CRM. */
+const HISTORY_MEDIA: Record<string, string> = { image: "image", sticker: "image", video: "video", ptv: "video", audio: "audio", ptt: "audio", document: "document", contact: "vcard", location: "geo" };
+
+/**
+ * Сообщение из хранилища чатов GOWA (GET /chat/{jid}/messages) — история, которую WhatsApp передал шлюзу при привязке
+ * номера. Вложения истории шлюз не скачивает: в CRM — подпись вида «📷 Фото» без файла. Пустые и служебные — null.
+ */
+export function parseGowaHistory(raw: unknown): InboundMessage | null {
+  const p = record(raw);
+  const externalId = str(p.id);
+  const chatJid = str(p.chat_jid);
+  if (!externalId || !PERSONAL.test(chatJid)) return null;
+  const type = HISTORY_MEDIA[str(p.media_type)] ?? (str(p.media_type) ? "document" : "text");
+  const text = str(p.content).trim();
+  if (!text && type === "text") return null;
+  const at = new Date(str(p.timestamp));
+  if (Number.isNaN(at.getTime())) return null;
+  const isEcho = p.is_from_me === true;
+  return {
+    externalId,
+    channelId: GOWA_CHANNEL,
+    chatType: "whatsapp",
+    chatId: gowaChatId(chatJid),
+    at,
+    isEcho,
+    type,
+    text: text || mediaCaption(type),
+    mediaUrl: null,
+    contactName: isEcho ? "" : str(p.sender_display_name),
+    avatarUrl: null,
+    status: null,
+  };
+}

@@ -124,6 +124,19 @@ export class GowaClient {
     return this.raw(`/${path}`);
   }
 
+  /** Личные и групповые чаты номера магазина из хранилища шлюза (jid и время последнего сообщения), постранично. */
+  async chats(offset: number, limit: number): Promise<{ chats: { jid: string; lastMessageAt: string }[]; total: number }> {
+    const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${limit}&offset=${offset}`);
+    const data = res.results?.data ?? [];
+    return { chats: data.flatMap((c) => (c.jid ? [{ jid: c.jid, lastMessageAt: c.last_message_time ?? "" }] : [])), total: res.results?.pagination?.total ?? 0 };
+  }
+
+  /** Сообщения чата из хранилища шлюза (сырые записи — разбирает parseGowaHistory), постранично. */
+  async chatMessages(jid: string, offset: number, limit: number): Promise<{ messages: unknown[]; total: number }> {
+    const res = await this.json<{ results?: { data?: unknown[] | null; pagination?: { total?: number } } }>("GET", `/chat/${encodeURIComponent(jid)}/messages?limit=${limit}&offset=${offset}`);
+    return { messages: res.results?.data ?? [], total: res.results?.pagination?.total ?? 0 };
+  }
+
   // ─── внутреннее ──────────────────────────────────────────────────────────
 
   private async headers(): Promise<Record<string, string>> {

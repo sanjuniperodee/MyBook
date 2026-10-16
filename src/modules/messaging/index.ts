@@ -6,6 +6,7 @@ import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtim
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
+import { parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 
@@ -84,6 +85,38 @@ export class MessagingModule {
    */
   async connectGowa() {
     await this.gowa.connect(await this.deps.whatsappSettings.gowaWebhook());
+  }
+
+  /**
+   * История переписки из шлюза GOWA (WhatsApp передаёт её при привязке номера): по всем личным чатам — в диалоги
+   * со знакомыми номерами (клиент, открытая сделка или уже есть диалог). Незнакомые номера и спам пропускаются.
+   */
+  async importGowaHistory(): Promise<{ chats: number; withClients: number; imported: number }> {
+    const PAGE = 200;
+    let offset = 0;
+    let chats = 0;
+    let withClients = 0;
+    let imported = 0;
+    for (;;) {
+      const page = await this.gowa.chats(offset, 100);
+      for (const { jid } of page.chats) {
+        const all = [];
+        for (let o = 0; ; o += PAGE) {
+          const part = await this.gowa.chatMessages(jid, o, PAGE);
+          all.push(...part.messages);
+          if (!part.messages.length || o + PAGE >= part.total) break;
+        }
+        const messages = all.flatMap((raw) => parseGowaHistory(raw) ?? []).sort((a, b) => a.at.getTime() - b.at.getTime());
+        if (!messages.length) continue;
+        chats++;
+        const r = await this.chats.importHistory(messages, { anyWhatsappChannel: true });
+        if (r.skipped === null) withClients++;
+        imported += r.imported;
+      }
+      offset += 100;
+      if (!page.chats.length || offset >= page.total) break;
+    }
+    return { chats, withClients, imported };
   }
 
   /** Подпись вебхука GOWA. */

@@ -97,3 +97,16 @@ export async function gowaLogoutAction(): Promise<Result> {
   revalidatePath("/admin/settings");
   return { ok: true };
 }
+
+/** Загрузить из шлюза историю переписки с клиентами (WhatsApp передал её при привязке номера). Повтор — без дублей. */
+export async function gowaImportHistoryAction(): Promise<Result<{ chats: number; withClients: number; imported: number }>> {
+  const staff = await assertStaff("settings.manage");
+  try {
+    const r = await container().messaging.importGowaHistory();
+    await audit(staff, "settings.update", "settings", "whatsapp", { gowa: "import_history", ...r });
+    revalidatePath("/admin/chats");
+    return { ok: true, ...r };
+  } catch (err) {
+    return gowaError(err);
+  }
+}
