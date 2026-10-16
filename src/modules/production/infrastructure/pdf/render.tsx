@@ -3,9 +3,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { PDFDocument, rgb } from "pdf-lib";
 import sharp from "sharp";
-import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
+import type { Book, BookChapter, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
-import { coverNamesLine, coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoDataUrl } from "../coverPhotos";
 import {
   coverFrontGeometry,
@@ -41,6 +42,8 @@ export type RenderMode = "print" | "preview" | "reading";
 export interface BookBundle {
   book: Book;
   questions: BookQuestion[];
+  /** Главы своей книги по порядку (у книг с банком — пусто): без них своя книга напечаталась бы «без названия». */
+  chapters: BookChapter[];
   photos: Photo[];
   letters?: BookLetter[];
 }
@@ -112,11 +115,14 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
 }
 
 export function contentFor(bundle: BookBundle): BookContent {
-  return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), undefined, bundle.letters ?? []);
+  return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), bundle.chapters, undefined, bundle.letters ?? []);
 }
 
-/** Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается. */
-const LAYOUT_VERSION = 4;
+/**
+ * Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается.
+ * 5 — виды книг: главы своей книги из book_chapters, подписи галереи и «записано со слов» по виду, свой текст не склоняется.
+ */
+const LAYOUT_VERSION = 5;
 
 /** Отпечаток содержимого: меняется вместе с текстом, фото и их раскладкой — ключ кэша предпросмотра. */
 export function contentFingerprint(bundle: BookBundle): string {
@@ -303,11 +309,11 @@ async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "fu
 }
 
 export function coverText(book: Book) {
-  const content = buildBookContent(book, [], []);
+  const content = buildBookContent(book, [], [], []);
   return {
     title: content.title,
     subtitle: book.subtitle.trim(),
-    names: coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover),
+    names: coverNames(book),
   };
 }
 

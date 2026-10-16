@@ -33,7 +33,7 @@ export interface StaffRouter {
   isActive(userId: string): Promise<boolean>;
 }
 
-/** Прогресс книги клиента (контекст Authoring). */
+/** Прогресс книги клиента (контекст Authoring): тема (вид книги), ответы, всего вопросов и слова — для progressOf. */
 export interface BookProgress {
-  progress(bookId: string): Promise<{ answered: number; total: number } | null>;
+  progress(bookId: string): Promise<{ theme: string; answered: number; total: number; words: number } | null>;
 }

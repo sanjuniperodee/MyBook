@@ -46,6 +46,7 @@ const book: Book = {
   subtitle: "",
   authorName: "Алия",
   authorGender: "f",
+  recordedBy: "",
   recipientName: "Марғұлан",
   recipientGender: "m",
   hideRecipientOnCover: false,
@@ -96,8 +97,8 @@ describe("кадр фото при печати", () => {
 
   it("обложка с кадрами печатается, и рисунок отличается от обложки без кадров", async () => {
     const { renderCover } = await import("@/modules/production/infrastructure/pdf/render");
-    const plain = await renderCover({ book, questions, photos }, 120, "preview", true);
-    const framed = await renderCover({ book: { ...book, photoFrames: { "cover:0": { zoom: 3, x: 0, y: 0.2 }, "cover:1": { zoom: 2, x: 1, y: 0.5 }, "back:0": { zoom: 2.5, x: 0.1, y: 0.5 } } }, questions, photos }, 120, "preview", true);
+    const plain = await renderCover({ book, questions, chapters: [], photos }, 120, "preview", true);
+    const framed = await renderCover({ book: { ...book, photoFrames: { "cover:0": { zoom: 3, x: 0, y: 0.2 }, "cover:1": { zoom: 2, x: 1, y: 0.5 }, "back:0": { zoom: 2.5, x: 0.1, y: 0.5 } } }, questions, chapters: [], photos }, 120, "preview", true);
     expect(plain.pdf.length).toBeGreaterThan(5000);
     expect(framed.pdf.length).toBeGreaterThan(5000);
     expect(Buffer.compare(plain.pdf, framed.pdf)).not.toBe(0);

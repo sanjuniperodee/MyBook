@@ -22,6 +22,9 @@ function describeContent(c: BookContent, names: Map<string, string>, fullText = 
     `«${c.title}» / «${c.subtitle}» · ${c.authorName} → ${c.recipientName}`,
     `посвящение: «${c.dedication}»`,
   ];
+  // Подписи по виду книги — только у автобиографии и своей книги: снимки книг-подарков от новых полей не меняются
+  // (у подарков они проверяются отдельно — «подписи книги-подарка»).
+  if (c.kind !== "gift") lines.push(`вид: ${c.kind} · галерея «${c.galleryTitle}» · записано со слов: «${c.recordedBy}»`);
   for (const ch of c.chapters) {
     lines.push(`${ch.number}. ${ch.key} «${ch.title}»${ch.epigraph ? ` · эпиграф «${ch.epigraph}»` : ""}`);
     for (const it of ch.items) {
@@ -42,9 +45,9 @@ describe("buildBookContent: структура книги", () => {
     // Новое поле в BookContent — повод дописать describeContent, иначе снимок его не увидит.
     const { book, questions, photos, letters } = fixtureBook("photobook", "a5", "ru").bundle;
     const input = photos.map(toPhotoItem);
-    const c = buildBookContent(book, questions, input, YEAR, letters);
+    const c = buildBookContent(book, questions, input, [], YEAR, letters);
     const items = c.chapters.flatMap((ch) => ch.items);
-    expect(keysOf([c])).toEqual(["authorName", "chapters", "dedication", "format", "galleryPhotos", "interior", "language", "recipientName", "showToc", "subtitle", "title", "year"]);
+    expect(keysOf([c])).toEqual(["authorName", "chapters", "dedication", "format", "galleryPhotos", "galleryTitle", "interior", "kind", "language", "recipientName", "recordedBy", "showToc", "subtitle", "title", "year"]);
     expect(keysOf(c.chapters)).toEqual(["epigraph", "items", "key", "number", "openerPhoto", "photos", "title"]);
     expect(keysOf(items)).toEqual(["answer", "heading", "id", "photos"]);
     // Фото в содержимом — те же объекты, что на входе (toPhotoItem), поэтому в снимке их достаточно назвать.
@@ -53,6 +56,13 @@ describe("buildBookContent: структура книги", () => {
     expect(new Set(placed).size).toBe(input.length - 1);
     expect(placed).toHaveLength(input.length - 1);
     expect(placed.every((p) => input.includes(p))).toBe(true);
+  });
+
+  it("подписи книги-подарка: вид gift, галерея — «Наши моменты» на языке книги, строки «записано со слов» нет", () => {
+    for (const fb of characterizationBooks().filter((b) => b.bundle.book.theme !== "autobiography" && b.bundle.book.theme !== "blank")) {
+      const c = contentOf(fb);
+      expect([fb.key, c.kind, c.galleryTitle, c.recordedBy]).toEqual([fb.key, "gift", c.language === "kk" ? "Біздің сәттеріміз" : "Наши моменты", ""]);
+    }
   });
 
   it("статус письма не проверяется: неодобренное письмо в бандле печатается — отбор только в queries.approvedLetters", () => {

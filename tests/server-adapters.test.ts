@@ -80,6 +80,9 @@ describe("api(): перевод ошибок в HTTP", () => {
       kaspiNotConnected: 503,
       letterClosed: 404,
       letterInvalid: 404,
+      // Оглавление своей книги: не та книга и устаревший вид у клиента — конфликт состояния.
+      outlineNotAllowed: 409,
+      outlineOutdated: 409,
       // …NotFound и «notFound» (регистр не важен, B10) → 404
       notFound: 404,
       bookNotFound: 404,
@@ -89,6 +92,7 @@ describe("api(): перевод ошибок в HTTP", () => {
       orderNotFound: 404,
       reviewNotFound: 404,
       invoiceNotFound: 404,
+      chapterNotFound: 404,
     };
     const statuses: Record<string, number> = {};
     for (const code of Object.keys(ru)) statuses[code] = (await failWith(new DomainError(code))).status;

@@ -4,7 +4,8 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { backContent, backPhotoIds } from "@/lib/book/cover-back";
-import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { photoUrl } from "@/lib/urls";
 import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
 import { PreviewTabs } from "./PreviewTabs";
@@ -13,7 +14,6 @@ import { container } from "@/server/container";
 import { estimatePages } from "@/lib/book/estimate";
 import { photoPages, toPhotoItem, type PhotoItem } from "@/lib/book/layout";
 import { buildBookContent } from "@/lib/book/book-content";
-import { messagesFor } from "@/i18n/messages";
 import { printablePageCount } from "@/lib/book/formats";
 import { site } from "@/config/site";
 import { splitParagraphs } from "@/lib/book/inline-photo";
@@ -32,13 +32,14 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   // Листаемая книга строится из тех же данных, что и PDF: ответы, фото в ответах, фотостраницы глав, галерея, письма.
   const bundle = await container().authoring.queries.bundle(book.id);
   const allPhotos = bundle?.photos ?? [];
-  const content = buildBookContent(book, questions, allPhotos.map(toPhotoItem), undefined, bundle?.letters ?? []);
+  const content = buildBookContent(book, questions, allPhotos.map(toPhotoItem), bundle?.chapters ?? [], undefined, bundle?.letters ?? []);
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
-  const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
+  const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
   const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout });
   const flipbook: FlipbookData = {
-    cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photos },
+    // Название — как в PDF (с названием по умолчанию, если поле пустое), а не сырое поле книги.
+    cover: { template: book.coverTemplate, format: book.format, title: content.title, subtitle: book.subtitle, names, photos },
     language: content.language,
     formatId: content.format.id,
     interiorId: content.interior.id,
@@ -66,7 +67,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
       }),
       photoPages: photoPages(c.photos).map((group) => group.map(pagePhoto)),
     })),
-    gallery: content.galleryPhotos.length ? { title: messagesFor(content.language).book.gallery, pages: photoPages(content.galleryPhotos).map((group) => group.map(pagePhoto)) } : undefined,
+    gallery: content.galleryPhotos.length ? { title: content.galleryTitle, pages: photoPages(content.galleryPhotos).map((group) => group.map(pagePhoto)) } : undefined,
   };
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">

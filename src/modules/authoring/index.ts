@@ -1,21 +1,23 @@
 import "server-only";
 import type { Clock, EventBus, Mailer, UnitOfWork } from "@/shared/application";
-import { BookOrderingService, BooksService, LettersService, PhotosService, QuestionsService, type OrdersLookup } from "./application";
+import { BookOrderingService, BookOutlineService, BooksService, LettersService, PhotosService, QuestionsService, type OrdersLookup } from "./application";
 import { checkReadiness } from "./domain";
 import type { LetterSubmitted } from "./domain";
 import { contentThemes, randomIds, sharpImages, storageFiles } from "./infrastructure/adapters";
 import { notifyOwnerAboutLetter } from "./infrastructure/LetterMailer";
-import { DrizzleBookRepository, DrizzleLetterRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
+import { DrizzleBookRepository, DrizzleChapterRepository, DrizzleLetterRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
 import { photoViewFile } from "./infrastructure/photoView";
 import { DrizzleAuthoringQueries } from "./infrastructure/queries";
 
 export * from "./domain";
-export type { BookBundle, BookRow, LetterRow, PhotoRow, QuestionRow } from "./infrastructure/queries";
+export type { BookBundle, BookRow, ChapterRow, LetterRow, PhotoRow, QuestionRow } from "./infrastructure/queries";
 
-/** Публичный фасад контекста Authoring: книги, вопросы, фото, письма близких. */
+/** Публичный фасад контекста Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. */
 export class AuthoringModule {
   readonly books: BooksService;
   readonly questions: QuestionsService;
+  /** Главы и разделы своей книги (тема blank). */
+  readonly outline: BookOutlineService;
   readonly photos: PhotosService;
   readonly letters: LettersService;
   readonly ordering: BookOrderingService;
@@ -35,8 +37,10 @@ export class AuthoringModule {
   constructor(deps: { uow: UnitOfWork; clock: Clock; bus: EventBus; orders: OrdersLookup; mailer: Mailer }) {
     const books = new DrizzleBookRepository();
     const questions = new DrizzleQuestionRepository();
-    this.books = new BooksService(books, questions, contentThemes, deps.orders, storageFiles, randomIds, deps.uow, deps.clock);
-    this.questions = new QuestionsService(books, questions, deps.uow);
+    const chapters = new DrizzleChapterRepository();
+    this.books = new BooksService(books, questions, contentThemes, deps.orders, storageFiles, randomIds, deps.uow, deps.clock, chapters);
+    this.questions = new QuestionsService(books, questions, deps.uow, this.photoRepository, chapters);
+    this.outline = new BookOutlineService(books, questions, chapters, this.photoRepository, randomIds, deps.uow);
     this.photos = new PhotosService(books, this.photoRepository, questions, sharpImages, storageFiles, randomIds);
     this.letters = new LettersService(books, new DrizzleLetterRepository(), randomIds, deps.uow);
     this.ordering = new BookOrderingService(books, async (bookId, locale) => {

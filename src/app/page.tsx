@@ -28,7 +28,7 @@ import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
-import { countQuestions, getThemes } from "@/lib/content/themes";
+import { countQuestions, giftThemes } from "@/lib/content/themes";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
@@ -57,7 +57,7 @@ export default async function HomePage() {
   const guestClosed = !user && !registrationOpen();
   const cta = user ? "/books/new" : guestClosed ? "/login" : "/register";
   const ctaLabel = (label: string) => (guestClosed ? m.common.nav.login : label);
-  const themes = getThemes(locale);
+  const themes = giftThemes(locale);
   const loveCount = countQuestions(themes[0]);
   const faq = t.faq.items(productionDays);
   // Пример для витрины оформлений — та же история, что в листаемой книге-примере.

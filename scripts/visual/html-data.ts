@@ -5,7 +5,8 @@ import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { backContent, backPhotoIds, type BackContent } from "@/lib/book/cover-back";
 import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
-import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { editorModel } from "@/lib/book/editor-data";
 import { groupByChapter, previewChapters, type PreviewChapter } from "@/lib/book/editor-model";
 import { printablePageCount } from "@/lib/book/formats";
@@ -60,11 +61,11 @@ export type StandView = ViewBase &
   ({ kind: SpreadKind; sample: SpreadSample } | { kind: "preview"; preview: PreviewData } | { kind: "flipbook"; flipbook: FlipbookData } | { kind: "back"; back: BackData });
 
 /** Превью редактора: вопросы и главы — тем же кодом, что страница books/[id]/questions и QuestionsEditor (lib/book/editor-model). */
-function editorPreview({ book, questions, photos }: FixtureBook["bundle"]): PreviewData {
-  const model = editorModel(book, questions, photos);
+function editorPreview({ book, questions, chapters: ownChapters, photos }: FixtureBook["bundle"]): PreviewData {
+  const model = editorModel(book, questions, ownChapters, photos);
   // Текущий вопрос — первый: в превью попадает даже пустым, остальные — с ответом или фото.
   const currentId = model.questions[0].id;
-  const chapters = previewChapters(groupByChapter(model.questions), model.photos, model.epigraphs, currentId);
+  const chapters = previewChapters(groupByChapter(model.questions, book.theme === "blank" ? model.chapters : undefined), model.photos, model.epigraphs, currentId);
   return { language: book.language, bookTitle: book.title, chapters, currentId };
 }
 
@@ -72,10 +73,10 @@ function editorPreview({ book, questions, photos }: FixtureBook["bundle"]): Prev
  * Листаемая книга. Копия, перевести на экспорт из src в первом коммите C7/D1: FlipbookData собирается прямо
  * в books/[id]/preview/page.tsx — из тех же данных, что PDF: ответы, фото в ответах, фотостраницы, галерея, письма.
  */
-function flipbookData({ book, questions, photos: allPhotos, letters }: FixtureBook["bundle"]): FlipbookData {
-  const content = buildBookContent(book, questions, allPhotos.map(toPhotoItem), undefined, letters ?? []);
+function flipbookData({ book, questions, chapters: ownChapters, photos: allPhotos, letters }: FixtureBook["bundle"]): FlipbookData {
+  const content = buildBookContent(book, questions, allPhotos.map(toPhotoItem), ownChapters, undefined, letters ?? []);
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
-  const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
+  const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
   const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout });
   return {
@@ -118,9 +119,9 @@ function backData({ book, photos }: FixtureBook["bundle"]): BackData {
 }
 
 export function standViews(fixture: FixtureBook): StandView[] {
-  const { book, questions, photos } = fixture.bundle;
+  const { book, questions, chapters, photos } = fixture.bundle;
   const base = { locale: book.language, format: book.format, interior: book.interior };
-  const sample = bookSpreadSample(book, questions, messagesFor(book.language).books.pages.dedicationEmpty, photos);
+  const sample = bookSpreadSample(book, questions, chapters, messagesFor(book.language).books.pages.dedicationEmpty, photos);
   const view = (kind: string) => ({ ...base, key: `html:${kind}:${fixture.key}`, width: PAGE_WIDTH });
   return [
     ...spreadKinds.map((kind) => ({ ...view(kind), width: SPREAD_WIDTH, kind, sample })),

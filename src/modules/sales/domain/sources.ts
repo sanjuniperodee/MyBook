@@ -1,6 +1,5 @@
 import type { DealSource } from "@/shared/domain/dealSources";
 
-export { BOOK_READY_ANSWERS } from "@/modules/sales/domain/meta";
 
 /** Канал мессенджера (chatType Wazzup, сайт, почта) → источник сделки. */
 export function sourceFromChannel(channel: string): DealSource {

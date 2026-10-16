@@ -76,9 +76,11 @@ describe("раскладка задней стороны", () => {
   });
 
   it("содержимое берётся из книги: год повода, иначе текущий", () => {
-    const book = { backLayout: "nope", backText: "Привет", authorName: " Алия ", recipientName: "Марғұлан", hideRecipientOnCover: false, occasionDate: "2027-02-14" };
+    const book = { theme: "love", backLayout: "nope", backText: "Привет", authorName: " Алия ", recipientName: "Марғұлан", hideRecipientOnCover: false, occasionDate: "2027-02-14" };
     expect(backContent(book, [], new Date("2026-10-01"))).toMatchObject({ layout: "quote", signature: "Алия", names: "Алия & Марғұлан", year: 2027 });
     expect(backContent({ ...book, occasionDate: null }, [], new Date("2026-10-01")).year).toBe(2026);
+    // Автобиография: на обороте только рассказчик — «детям и внукам» не становится вторым именем.
+    expect(backContent({ ...book, theme: "autobiography" }, [], new Date("2026-10-01")).names).toBe("Алия");
   });
 
   it("фото во всю: снимок на всю крышку, затемнение и светлый текст внизу", () => {

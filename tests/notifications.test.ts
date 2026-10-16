@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Mailer } from "@/shared/application";
-import { ALMOST_READY_ANSWERS, canRemind, draftEmails, isSendingHour, type DraftProgress } from "@/modules/notifications/domain";
+import { BANK_READY, BLANK_READY_WORDS } from "@/lib/content/kinds";
+import { canRemind, draftEmails, isSendingHour, type DraftProgress } from "@/modules/notifications/domain";
 import { emailTemplates } from "@/modules/notifications/infrastructure/templates";
 import { BookRemindersService, LifecycleService, SubscriptionsService, type DraftCandidate, type EmailTemplates, type LifecycleSource, type OrderReminder, type Recipient, type RecipientRepository } from "@/modules/notifications/application";
 import { storeTimeZoneIs } from "./doubles/time";
@@ -17,7 +18,9 @@ const book = (p: Partial<DraftProgress> = {}): DraftProgress => ({
   occasion: null,
   occasionDate: null,
   updatedAt: new Date(now.getTime() - 10 * DAY),
+  theme: "love",
   answered: 0,
+  words: 0,
   firstEmpty: 0,
   hasOrder: false,
   remindedAt: null,
@@ -33,7 +36,10 @@ describe("правила автописем", () => {
   it("не начали — советы; бросили — напоминание; почти готово — зовём к заказу", () => {
     expect(draftEmails(book(), now).map((e) => e.kind)).toEqual(["start"]);
     expect(draftEmails(book({ answered: 5 }), now).map((e) => e.kind)).toEqual(["nudge"]);
-    expect(draftEmails(book({ answered: ALMOST_READY_ANSWERS }), now).map((e) => e.kind)).toEqual(["almost"]);
+    expect(draftEmails(book({ answered: BANK_READY }), now).map((e) => e.kind)).toEqual(["almost"]);
+    // Своя книга — по словам: 30 разделов, но 900 слов — ещё не «почти готова»; 3000 слов в 3 разделах — готова.
+    expect(draftEmails(book({ theme: "blank", answered: 30, words: 900 }), now).map((e) => e.kind)).toEqual(["nudge"]);
+    expect(draftEmails(book({ theme: "blank", answered: 3, words: BLANK_READY_WORDS }), now).map((e) => e.kind)).toEqual(["almost"]);
   });
 
   it("напоминание дописать — не чаще раза в 3 дня и не раньше 5 дней тишины", () => {
@@ -78,7 +84,7 @@ function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; deli
     draftCandidates: async () => data.drafts ?? [],
     unpaidOrders: async () => data.unpaid ?? [],
     reviewDue: async () => data.delivered ?? [],
-    latestDraft: async (userId) => (userId === "u1" ? { bookId: "b1", title: "Книга", answered: 3, total: 50, firstEmpty: 3 } : null),
+    latestDraft: async (userId) => (userId === "u1" ? { bookId: "b1", title: "Книга", theme: "love", answered: 3, total: 50, words: 40, firstEmpty: 3 } : null),
   };
   const recipients: RecipientRepository = {
     find: async (id) => people.get(id) ?? null,

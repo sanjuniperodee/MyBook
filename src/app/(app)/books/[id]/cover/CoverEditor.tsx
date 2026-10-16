@@ -16,7 +16,8 @@ import { SaveIndicator } from "@/components/SaveIndicator";
 import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { coverLabel, coverMoods, coverNamesLine, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
+import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
@@ -146,7 +147,7 @@ export function CoverEditor({
   const template = getCoverTemplate(state.coverTemplate);
   const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
-  const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
+  const names = coverNames({ theme, ...state });
   const coverIds = [state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots);
   const coverPhotos = coverPhotoRefs(coverIds, photos, state, "view");
   const [side, setSide] = useState<"front" | "back">("front");

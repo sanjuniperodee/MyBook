@@ -6,9 +6,14 @@ import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
+import { bookKind, progressOf } from "@/lib/content/kinds";
+import { messagesFor } from "@/i18n/messages";
+import { questionTexts } from "@/lib/book/layout";
+import { sectionLabel } from "@/lib/book/editor-model";
 import { Book3D } from "@/components/cover/Book3D";
 import { Morph } from "@/components/motion/PageTransition";
-import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { photoUrl } from "@/lib/urls";
 import { coverPhotoRefs } from "@/lib/book/photo-refs";
 import { getFormat, print } from "@/lib/book/formats";
@@ -31,9 +36,10 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}`);
   const book = await getAccessibleBook(id, user);
-  const [stats, questions, photos, [order], letterRows] = await Promise.all([
+  const [stats, questions, ownChapters, photos, [order], letterRows] = await Promise.all([
     container().authoring.queries.stats(book),
     container().authoring.queries.questions(book.id),
+    container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
     container().ordering.queries.lastOrderOfBook(book.id).then((o) => (o ? [o] : [])),
     container().authoring.queries.letters(book.id),
@@ -50,6 +56,10 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   // Главы и вопросы — на языке книги (это её содержимое), подписи вокруг — на языке интерфейса.
   const theme = getTheme(book.theme, book.language);
   const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
+  const kind = bookKind(book.theme);
+  // Главы своей книги — названия автора (без подстановки рода), остальных — из темы.
+  const ownTitles = new Map(ownChapters.map((ch) => [ch.key, ch.title.trim()]));
+  const titleOf = (key: string) => (kind === "blank" ? ownTitles.get(key) || messagesFor(book.language).book.untitledChapter : g(chapterTitle(theme, key, book.language)));
   const editable = book.status === "draft";
   const percent = stats.total ? Math.round((stats.answered / stats.total) * 100) : 0;
   const base = `/books/${book.id}`;
@@ -59,7 +69,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   questions.forEach((q, i) => {
     let ch = chapters[chapters.length - 1];
     if (!ch || ch.key !== q.chapter) {
-      ch = { key: q.chapter, title: g(chapterTitle(theme, q.chapter, book.language)), total: 0, answered: 0, firstOpen: -1, first: i };
+      ch = { key: q.chapter, title: titleOf(q.chapter), total: 0, answered: 0, firstOpen: -1, first: i };
       chapters.push(ch);
     }
     ch.total++;
@@ -69,9 +79,12 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const nextIndex = questions.findIndex((q) => !q.answer.trim());
   const next = nextIndex >= 0 ? questions[nextIndex] : null;
   const nextChapter = next ? chapters.find((c) => c.key === next.chapter) : null;
+  // Свой вопрос и раздел своей книги — как их написал автор; пустая подсказка раздела — его заголовок.
+  const nextTexts = next ? questionTexts(next, book) : null;
+  const nextLabel = next && nextTexts ? sectionLabel({ prompt: nextTexts.prompt, defaultTitle: nextTexts.title, displayText: next.displayText, hideHeading: next.hideHeading }, kind, m.books.untitledSection) : "";
 
   const steps = [
-    { icon: PenLine, title: t.steps.text, value: c.count.answers(stats.answered), done: stats.answered >= 10, href: `${base}/questions` },
+    { icon: PenLine, title: t.steps.text, value: c.count.answers(stats.answered), done: progressOf(kind, stats).textStepDone, href: `${base}/questions` },
     { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
     { icon: BookOpenText, title: t.steps.pages, value: interiorName(book.interior, locale), done: true, href: `${base}/pages` },
     { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
@@ -105,7 +118,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             format={book.format}
             title={book.title}
             subtitle={book.subtitle}
-            names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
+            names={coverNames(book)}
             photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
             rotate={18}
             thickness={Math.min(14, 4 + stats.printedPages / 20)}
@@ -150,7 +163,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
                 <div className="text-xs text-white/50">
                   {stats.answered ? t.nextQuestion : t.firstQuestion} · {nextChapter?.title}
                 </div>
-                <div className="mt-1.5 line-clamp-2 font-serif text-xl leading-snug sm:text-2xl">{g(next.prompt)}</div>
+                <div className="mt-1.5 line-clamp-2 font-serif text-xl leading-snug sm:text-2xl">{nextLabel}</div>
               </div>
               <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink transition group-hover:translate-x-1">
                 <ArrowRight className="size-5" />

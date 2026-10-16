@@ -33,6 +33,7 @@ const book: Book = {
   subtitle: "",
   authorName: "Алия",
   authorGender: "f",
+  recordedBy: "",
   recipientName: "Марғұлан",
   recipientGender: "m",
   hideRecipientOnCover: false,
@@ -76,7 +77,7 @@ describe("PDF с фотографиями", () => {
     const { renderInterior, contentFor } = await import("@/modules/production/infrastructure/pdf/render");
     const { estimatePages } = await import("@/lib/book/estimate");
     const { getInteriorDesign } = await import("@/lib/book/interiors");
-    const bundle = { book: { ...book, interior }, questions, photos };
+    const bundle = { book: { ...book, interior }, questions, chapters: [], photos };
     const content = contentFor(bundle);
     const opener = !!getInteriorDesign(interior).opener.photo;
     expect(content.chapters.every((c) => !!c.openerPhoto)).toBe(opener);
@@ -87,13 +88,13 @@ describe("PDF с фотографиями", () => {
   it("обложка-мозаика из четырёх фото и оборот с полароидами — одна страница развёртки", async () => {
     const { renderCover } = await import("@/modules/production/infrastructure/pdf/render");
     const ids = photos.map((p) => p.id);
-    const res = await renderCover({ book: { ...book, coverPhotoId: ids[0], coverPhotoExtra: ids.slice(1, 4), backPhotoId: ids[4], backPhotoExtra: ids.slice(5) }, questions, photos }, 64, "preview");
+    const res = await renderCover({ book: { ...book, coverPhotoId: ids[0], coverPhotoExtra: ids.slice(1, 4), backPhotoId: ids[4], backPhotoExtra: ids.slice(5) }, questions, chapters: [], photos }, 64, "preview");
     expect((await PDFDocument.load(res.pdf)).getPageCount()).toBe(1);
   });
 
   it("оборот «Фото во всю» не переносит ничего на вторую страницу", async () => {
     const { renderCover } = await import("@/modules/production/infrastructure/pdf/render");
-    const res = await renderCover({ book: { ...book, coverTemplate: "arch", coverPhotoId: photos[0].id, backLayout: "fullPhoto", backPhotoId: photos[1].id }, questions, photos }, 64, "preview");
+    const res = await renderCover({ book: { ...book, coverTemplate: "arch", coverPhotoId: photos[0].id, backLayout: "fullPhoto", backPhotoId: photos[1].id }, questions, chapters: [], photos }, 64, "preview");
     expect((await PDFDocument.load(res.pdf)).getPageCount()).toBe(1);
   });
 });

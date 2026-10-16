@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthoringError, Letter, Photo } from "@/modules/authoring/domain";
-import { BooksService, LettersService, PhotosService, QuestionsService } from "@/modules/authoring/application/services";
-import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noQuestions, now, owner, staff, startBook, stranger, themes } from "./doubles/authoring";
+import { BookOutlineService, BooksService, LettersService, PhotosService, QuestionsService } from "@/modules/authoring/application/services";
+import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noChapters, noQuestions, now, owner, staff, startBook, stranger, themes } from "./doubles/authoring";
 import { requireStaff } from "@/server/access";
 import { anna, client, fake, NotFound, olga, owner as boss, pavel, person, Redirect, request, resetContainer, resetRequest, security, signIn, withTwoFactor } from "./doubles/web";
 
@@ -21,8 +21,9 @@ async function bookSetup() {
   return {
     book,
     state: () => JSON.stringify([book.snapshot(), photos.rows.map((p) => p.snapshot()), letters.rows.map((l) => l.snapshot()), [...files.data.keys()]]),
-    books: new BooksService(books, noQuestions, themes, { bookHasOrders: async () => false }, files, ids, uow, { now: () => now }),
-    questions: new QuestionsService(books, noQuestions, uow),
+    books: new BooksService(books, noQuestions, themes, { bookHasOrders: async () => false }, files, ids, uow, { now: () => now }, noChapters),
+    questions: new QuestionsService(books, noQuestions, uow, photos, noChapters),
+    outline: new BookOutlineService(books, noQuestions, noChapters, photos, ids, uow),
     photos: new PhotosService(books, photos, noQuestions, images, files, ids),
     photoRepo: photos,
     letters: new LettersService(books, letters, ids, uow),
@@ -46,6 +47,13 @@ describe("Доступ к чужой книге", () => {
       answer: () => t.questions.edit("b1", stranger, "q1", { answer: "Чужой ответ" }),
       addQuestion: () => t.questions.addCustom("b1", stranger, "q1", "Свой вопрос"),
       deleteQuestion: () => t.questions.deleteCustom("b1", stranger, "q1"),
+      addChapter: () => t.outline.addChapter("b1", stranger, { title: "Чужая глава" }),
+      renameChapter: () => t.outline.renameChapter("b1", stranger, "k1", { title: "Чужое" }),
+      reorderChapters: () => t.outline.reorderChapters("b1", stranger, ["k1"]),
+      deleteChapter: () => t.outline.deleteChapter("b1", stranger, "k1"),
+      addSection: () => t.outline.addSection("b1", stranger, { chapterKey: "k1", title: "", prompt: "" }),
+      reorderSections: () => t.outline.reorderSections("b1", stranger, []),
+      outlineView: () => t.outline.outline("b1", stranger),
       upload: () => t.photos.upload("b1", stranger, [file]),
       photo: () => t.photos.update("b1", stranger, "p1", { caption: "Чужая подпись" }),
       deletePhoto: () => t.photos.delete("b1", stranger, "p1"),
@@ -70,6 +78,9 @@ describe("Доступ к чужой книге", () => {
     const before = t.state();
     expect(await errorCode(t.books.updateSettings("b1", reader, { title: "Не выйдет" }, t.photoRepo))).toBe("bookNotFound");
     expect(await errorCode(t.questions.edit("b1", reader, "q1", { answer: "Не выйдет" }))).toBe("bookNotFound");
+    expect(await errorCode(t.outline.addChapter("b1", reader, { title: "Не выйдет" }))).toBe("bookNotFound");
+    expect(await errorCode(t.outline.deleteChapter("b1", reader, "k1"))).toBe("bookNotFound");
+    expect(await errorCode(t.questions.deleteCustom("b1", reader, "q1"))).toBe("bookNotFound");
     expect(await errorCode(t.photos.delete("b1", reader, "p1"))).toBe("bookNotFound");
     expect(await errorCode(t.letters.delete("b1", reader, "l1"))).toBe("bookNotFound");
     expect(t.state()).toBe(before);

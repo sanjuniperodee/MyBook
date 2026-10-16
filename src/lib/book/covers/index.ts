@@ -117,10 +117,3 @@ export function cropSvg(svg: string, r: Rect, spread: { w: number; h: number }) 
     .replace(/(<filter [^>]*?)width="100%" height="100%"/g, `$1width="${spread.w}" height="${spread.h}"`);
 }
 
-export function coverNamesLine(author: string, recipient: string, hideRecipient: boolean) {
-  const a = author.trim();
-  const r = recipient.trim();
-  if (hideRecipient || !r) return a;
-  if (!a) return r;
-  return `${a} & ${r}`;
-}

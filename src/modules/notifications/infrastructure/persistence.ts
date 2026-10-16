@@ -2,11 +2,12 @@ import "server-only";
 import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, reviews, users } from "@/shared/infrastructure/db/schema";
 import { booksId, ordersId } from "@/shared/infrastructure/db/refs";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientTimeline, EmailJournal, LifecycleSource, Recipient, RecipientRepository } from "../application";
 
 const recipientCols = { id: users.id, email: users.email, name: users.name, locale: users.locale, remindedAt: users.remindedAt };
-const answered = sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`;
+const answered = answeredSql(booksId);
 const firstEmpty = sql<number | null>`(select min(q.position) from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) = 0)`;
 
 export class DrizzleLifecycleSource implements LifecycleSource {
@@ -19,7 +20,9 @@ export class DrizzleLifecycleSource implements LifecycleSource {
         occasion: books.occasion,
         occasionDate: books.occasionDate,
         updatedAt: books.updatedAt,
+        theme: books.theme,
         answered,
+        words: wordsSql(booksId),
         firstEmpty,
         // Есть заказ — любой, кроме отменённого, в том числе ещё не оплаченный: напоминать дописать уже не нужно.
         hasOrder: sql<boolean>`exists(select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
@@ -63,7 +66,7 @@ export class DrizzleLifecycleSource implements LifecycleSource {
 
   async latestDraft(userId: string) {
     const [book] = await executor()
-      .select({ bookId: books.id, title: books.title, answered, total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`, firstEmpty })
+      .select({ bookId: books.id, title: books.title, theme: books.theme, answered, total: totalSql(booksId), words: wordsSql(booksId), firstEmpty })
       .from(books)
       .where(and(eq(books.userId, userId), eq(books.status, "draft")))
       .orderBy(desc(books.updatedAt))

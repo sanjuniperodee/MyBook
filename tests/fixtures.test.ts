@@ -24,7 +24,7 @@ const dir = mkdtempSync(path.join(tmpdir(), "mybook-fixtures-test-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 const sha256 = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
-const content = ({ bundle }: FixtureBook) => buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), 2026, bundle.letters);
+const content = ({ bundle }: FixtureBook) => buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), bundle.chapters, 2026, bundle.letters);
 
 describe("набор книг для визуальных и характеристических проверок", () => {
   it("каждое оформление × формат × язык — одна книга, ключи уникальны и совпадают с книгой", () => {

@@ -149,7 +149,7 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const router = new MemRouter();
   const clock = { at: now, now: () => clock.at };
   const service = new DealsService(deals, funnels, clients, settings, router, uow, clock);
-  const books = { progress: async () => ({ answered: 26, total: 40 }) };
+  const books = { progress: async () => ({ theme: "love", answered: 26, total: 40, words: 900 }) };
   const logger = { info: () => {}, warn: () => {}, error: () => {} };
   const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, paid);
   const sent: { to: string; title: string }[] = [];

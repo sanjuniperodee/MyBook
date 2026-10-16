@@ -135,6 +135,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     subtitle: t.subtitle,
     authorName: t.authorName,
     authorGender: "f",
+    recordedBy: "",
     recipientName: t.recipientName,
     recipientGender: "m",
     hideRecipientOnCover: false,
@@ -214,7 +215,7 @@ function letterRows(key: string, book: Book): BookLetter[] {
 function buildBook(key: string, design: InteriorId, format: FormatId, language: Locale): FixtureBook {
   const book = bookRow(key, design, format, language);
   const questions = questionRows(key, book);
-  return { key, bundle: { book, questions, photos: photoRows(key, book, questions), letters: letterRows(key, book) } };
+  return { key, bundle: { book, questions, chapters: [], photos: photoRows(key, book, questions), letters: letterRows(key, book) } };
 }
 
 export function fixtureBook(design: InteriorId, format: FormatId, language: Locale): FixtureBook {

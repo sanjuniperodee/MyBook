@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { editorModel } from "@/lib/book/editor-data";
 import { type EditorBook, type EditorPhoto } from "@/lib/book/editor-model";
 import { editorEstimate } from "@/lib/book/editor-estimate";
+import { bookKind } from "@/lib/content/kinds";
 import { printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { estimatePages } from "@/lib/book/estimate";
@@ -17,7 +18,7 @@ import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 /** Вход редактора из бандла — как его готовит страница books/[id]/questions. */
 function editorInput({ bundle }: FixtureBook) {
   const { book } = bundle;
-  const { questions, photos, letters } = editorModel(book, bundle.questions, bundle.photos, bundle.letters);
+  const { questions, photos, letters, chapters } = editorModel(book, bundle.questions, bundle.chapters, bundle.photos, bundle.letters);
   const editorBook: EditorBook = {
     id: book.id,
     format: book.format,
@@ -29,10 +30,11 @@ function editorInput({ bundle }: FixtureBook) {
     language: book.language,
     names: [book.authorName, book.recipientName].filter(Boolean),
     theme: book.theme,
+    kind: bookKind(book.theme),
     authorGender: book.authorGender,
     recipientGender: book.recipientGender,
   };
-  return { questions, photos, letters, book: editorBook };
+  return { questions, photos, letters, chapters, book: editorBook };
 }
 
 const variants = new Set(fixtureVariants().map((v) => v.key));
@@ -42,7 +44,7 @@ const books = characterizationBooks().map((fb) => {
   // Группа для таблицы расхождений: у книг группы числа одинаковые. Варианты — по имени.
   const opener = getInteriorDesign(book.interior).opener.photo ? " · фото на начальной полосе" : "";
   const group = variants.has(fb.key) ? fb.key : `${book.format === "a5" ? "A5" : "квадрат"} ${book.language}${opener}`;
-  return { key: fb.key, group, editor: editorEstimate(input.book, input.questions, input.photos, input.letters), estimate: estimatePages(contentOf(fb)) };
+  return { key: fb.key, group, editor: editorEstimate(input.book, input.questions, input.photos, input.letters, input.chapters), estimate: estimatePages(contentOf(fb)) };
 });
 type Row = (typeof books)[number];
 

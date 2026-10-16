@@ -11,7 +11,7 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { articles } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
-import { getThemes } from "@/lib/content/themes";
+import { giftThemes } from "@/lib/content/themes";
 import { absoluteUrl, breadcrumbLd, socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function IdeasPage() {
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
   const t = m.landing.ideas;
-  const themes = getThemes(locale);
+  const themes = giftThemes(locale);
   const jsonLd = [
     breadcrumbLd(
       [
