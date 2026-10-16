@@ -158,7 +158,14 @@ export class DrizzleDealRepository implements DealRepository {
     // Деньги и чеки переходят вместе со сделкой: удаление слитой сделки иначе удаляет их каскадом.
     await db.update(crmPayments).set({ dealId: target.id }).where(eq(crmPayments.dealId, source.id));
     await db.update(crmReceipts).set({ dealId: target.id }).where(eq(crmReceipts.dealId, source.id));
+    // С деньгами переходит и договорённость (тариф): иначе предоплата слитой сделки не вычтется при заказе.
+    await db.execute(sql`update crm_deals t set agreed_plan = s.agreed_plan from crm_deals s where t.id = ${target.id} and s.id = ${source.id} and t.agreed_plan is null and t.order_id is null`);
     await db.delete(crmDeals).where(eq(crmDeals.id, source.id));
+  }
+
+  async lock(dealIds: string[]) {
+    const ids = [...new Set(dealIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).sort();
+    if (ids.length) await executor().execute(sql`select id from crm_deals where id in (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)}) order by id for update`);
   }
 
   async hasMoney(dealId: string) {

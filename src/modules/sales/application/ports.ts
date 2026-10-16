@@ -37,3 +37,42 @@ export interface StaffRouter {
 export interface BookProgress {
   progress(bookId: string): Promise<{ answered: number; total: number } | null>;
 }
+
+/**
+ * Счета из чата по сделке (контекст «Заказы»): деньги, которые клиент платит по ссылке, не теряются в жизни сделки.
+ * Вызывается внутри транзакции продаж и первым делом: порядок блокировок — счета → сделки.
+ */
+export interface DealInvoicesPort {
+  /**
+   * Слияние: счета from переходят в to. Открыт у обеих — открытый счёт from отменяется («сделки объединены»);
+   * closeOpen (целевая закрыта или по ней заказ) — отменяются все открытые. Номера перенесённых и отменённых счетов.
+   */
+  moveAll(input: { from: string; to: string; closeOpen: boolean }): Promise<{ moved: string[]; cancelled: string[] }>;
+  /**
+   * Перед удалением сделки: блокирует её счета до конца транзакции и называет тот, из-за которого удалять нельзя, —
+   * ждёт оплаты, оплачен или по нему ещё может прийти оплата Kaspi. null — мешающих нет.
+   */
+  holdForDelete(dealId: string): Promise<{ label: string; reason: "open" | "paid" | "kaspi" } | null>;
+  /** Удалить отменённые и истёкшие счета сделки (вместе со сделкой: иначе её не удалить). */
+  purgeClosed(dealId: string): Promise<void>;
+}
+
+/** Без контекста «Заказы» (тесты): счетов нет. */
+export const noDealInvoices: DealInvoicesPort = {
+  moveAll: async () => ({ moved: [], cancelled: [] }),
+  holdForDelete: async () => null,
+  purgeClosed: async () => {},
+};
+
+/** Деньги клиента по сделке: принято (платежи минус возвраты) и действует ли по ней договорённость. */
+export interface DealMoney {
+  paid: number;
+  /** Договорённость: сделка «вручную» или с тарифом договорённости и платежами — одно правило (infrastructure/agreements.ts). */
+  agreement: boolean;
+}
+
+/**
+ * «Сделка держит деньги клиента» (chat-invoices 1.3): договорённость, по которой принята предоплата. Сколько держит — 0, если нет.
+ * Такая сделка возвращается в работу при отмене заказа, а её сумма остаётся ценой договорённости (заказ её не переписывает).
+ */
+export const heldMoney = (m: DealMoney) => (m.agreement ? Math.max(0, m.paid) : 0);

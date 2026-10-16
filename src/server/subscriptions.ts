@@ -1,8 +1,8 @@
 import "server-only";
-import type { OrderCancelled, OrderOverpaid, OrderPaid, OrderPlaced, PaymentClaimed, PostpayDue } from "@/modules/ordering";
+import { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, type OrderCancelled, type OrderOverpaid, type OrderPaid, type OrderPlaced, type PaymentClaimed, type PostpayDue } from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
-import type { DealAssigned, DealCreated, DealStageChanged } from "@/modules/sales";
+import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
@@ -50,6 +50,14 @@ export function registerSubscriptions(c: Container) {
   };
   c.bus.subscribe<OrderOverpaid>("ordering.order_overpaid", (e) => orderTask(e.payload.orderId, `Переплата ${e.payload.overpaid.toLocaleString("ru-RU")} ₸ по заказу №${e.payload.number} — оформите возврат или зачёт`), "crm.task.order_overpaid");
   c.bus.subscribe<PostpayDue>("ordering.postpay_due", (e) => orderTask(e.payload.orderId, `Получить постоплату ${e.payload.outstanding.toLocaleString("ru-RU")} ₸ по заказу №${e.payload.number}`), "crm.task.postpay_due");
+  // Внесено по договорённости больше итога заказа — вернуть разницу (после привязки заказа к сделке: подписчики — по порядку).
+  c.bus.subscribe<OrderPlaced>(
+    "ordering.order_placed",
+    async (e) => {
+      if (e.payload.prepaidExcess && e.payload.prepaidExcess > 0) await orderTask(e.payload.orderId, `Переплата ${e.payload.prepaidExcess.toLocaleString("ru-RU")} ₸ по договорённости (заказ №${e.payload.number}) — оформите возврат`);
+    },
+    "crm.task.prepaid_excess",
+  );
   c.bus.subscribe<PaymentClaimed>("ordering.payment_claimed", (e) => tellManager(e.payload.orderId, () => `Проверьте оплату заказа №${e.payload.number}`, (t) => `${t} · клиент сообщил, что оплатил`), "crm.notify.payment_claimed");
 
   // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──
@@ -97,6 +105,20 @@ export function registerSubscriptions(c: Container) {
       if (e.payload.assigneeId) await c.messaging.chats.assignDealConversations(e.payload.dealId, e.payload.assigneeId);
     },
     "crm.chats.follow_deal",
+  );
+  // Сделка закрыта (успех, отказ, отклонена) — её открытый счёт из чата отменяется: платить по закрытой сделке нельзя.
+  // Счёт Kaspi на номер по нему закроет сверка платежей.
+  c.bus.subscribe<DealClosed>(
+    "sales.deal_closed",
+    async (e) => {
+      const p = e.payload;
+      // Повтор из outbox мог прийти, когда сделку уже вернули в работу и выставили новый счёт — его не трогаем.
+      const deal = await c.sales.deals.findById(p.dealId);
+      if (!deal || (await c.sales.deals.stage(deal.stageId))?.kind === "open") return;
+      const cancelled = await c.ordering.invoices.cancelOpenFor(p.dealId, p.outcome === "won" ? DEAL_INVOICE_CLOSE_REASONS.dealWon : DEAL_INVOICE_CLOSE_REASONS.dealLost(p.reason));
+      if (cancelled) await c.sales.deals.note({ id: p.dealId, clientId: p.clientId }, dealInvoiceCancelledNote(cancelled), null);
+    },
+    "ordering.invoices.cancel_on_deal_closed",
   );
   c.bus.subscribe<DealStageChanged>(
     "sales.deal_stage_changed",

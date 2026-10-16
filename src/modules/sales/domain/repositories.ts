@@ -12,8 +12,13 @@ export interface DealRepository {
   add(deal: Deal): Promise<void>;
   /** Сохраняет поля, ленту и историю этапов. */
   save(deal: Deal): Promise<void>;
-  /** Перенести переписку, звонки, задачи и ленту из source в target и удалить source. */
+  /** Перенести переписку, звонки, задачи, ленту, деньги, чеки и тариф договорённости из source в target и удалить source. */
   mergeInto(target: Deal, source: Deal): Promise<void>;
+  /**
+   * Блокирует сделки до конца транзакции (по порядку id): удаление и слияние не разойдутся с одновременным платежом —
+   * он либо уже виден, либо ждёт и не попадёт в удалённую сделку. Счета блокируются раньше (порядок: счета → сделки).
+   */
+  lock(dealIds: string[]): Promise<void>;
   delete(dealId: string): Promise<void>;
   /** По сделке приняты деньги (платежи или чеки) — её нельзя удалить, иначе они пропадут каскадом. */
   hasMoney(dealId: string): Promise<boolean>;

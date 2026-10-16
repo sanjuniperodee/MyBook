@@ -139,6 +139,8 @@ export class Deal extends AggregateRoot<DealProps> {
     this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId });
     this.note(`Сделка №${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
     this.record(SalesEvents.dealStageChanged({ ...this.ref(), fromStageId: from, stageId: stage.id, source: this.props.source, at: now.toISOString() }));
+    // Закрыта (успех или отказ) — платить по ней больше нельзя: её открытые счета отменит подписчик заказов.
+    if (stage.kind !== "open") this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));
     return true;
   }
 
@@ -231,6 +233,16 @@ export class Deal extends AggregateRoot<DealProps> {
   requestRejection(kind: RejectionKind, actorId: string, reason: string) {
     this.props.tags = [...new Set([...this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject), REJECTION_TAGS[kind]])].slice(0, 12);
     this.note(`${kind === "spam" ? "Предложено отметить спамом" : "Предложено отклонить заявку"} — ждёт решения руководителя${reason ? `. Причина: ${reason}` : ""}`, actorId);
+  }
+
+  /**
+   * Руководитель подтвердил отклонение (спам), а удалить заявку нельзя — по ней деньги или счёт клиента (why): она закрывается
+   * «отказом» с причиной, отметка-предложение снимается. Событие «сделка закрыта» отменит её открытые счета.
+   */
+  closeRejected(lost: Stage, kind: RejectionKind, reason: string, why: string, actorId: string | null, now: Date) {
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
+    this.moveTo(lost, actorId, now, `${kind === "spam" ? "Спам" : "Заявка отклонена"}${reason ? `: ${reason}` : ""}`);
+    this.note(`Заявка не удалена (${why}) — закрыта «отказом»`, actorId);
   }
 
   /** Руководитель оставил заявку в работе. */

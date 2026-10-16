@@ -159,8 +159,16 @@ export class Order extends AggregateRoot<OrderProps> {
           : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
     const credited = input.credit && input.credit.amount > 0 ? `, засчитана оплата электронной версии (заказ №${input.credit.orderNumber}): ${input.formatMoney(input.credit.amount)}` : input.credit ? `, печатная версия к электронной (заказ №${input.credit.orderNumber})` : "";
     order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}`, "customer", now);
-    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity, agreementDealId: input.agreement ? (input.agreementDealId ?? null) : null }));
+    // Внесено по договорённости больше итога (зачёт — не больше итога): разницу нужно вернуть клиенту.
+    const prepaidExcess = input.agreement && !input.credit ? Math.max(0, Math.round(input.agreement.prepaid) - (price.prepaidAmount ?? 0)) : 0;
+    if (prepaidExcess > 0) order.notePrepaidExcess(prepaidExcess, now);
+    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity, agreementDealId: input.agreement ? (input.agreementDealId ?? null) : null, prepaidExcess }));
     return order;
+  }
+
+  /** Переплата по договорённости при оформлении — в журнал заказа (задачу ответственному ставит подписчик события). */
+  private notePrepaidExcess(excess: number, now: Date) {
+    this.log(null, `Переплата ${formatPrice(excess)} по договорённости — нужен возврат`, "customer", now);
   }
 
   // ─── чтение ──────────────────────────────────────────────────────────────
