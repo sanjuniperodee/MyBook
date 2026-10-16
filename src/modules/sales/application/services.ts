@@ -163,6 +163,16 @@ export class DealsService {
     await this.deals.delete(dealId);
   }
 
+  /** Договорённость по счёту из чата: цена книги — в сумму сделки (с записью в ленте, если изменилась). */
+  async setAgreedTotal(dealId: string, total: number, actorId: string | null) {
+    const deal = await this.load(dealId);
+    const before = deal.snapshot().amount;
+    if (before === total) return;
+    deal.setAmount(total);
+    deal.note(`Договорённость: цена книги ${before.toLocaleString("ru-RU")} → ${total.toLocaleString("ru-RU")} ₸ (счёт из чата)`, actorId);
+    await this.deals.save(deal);
+  }
+
   async linkClient(dealId: string, clientId: string | null) {
     const deal = await this.load(dealId);
     deal.linkClient(clientId);
@@ -378,7 +388,8 @@ export class SiteFunnelService {
     const funnel = await this.funnels.load();
     for (const d of await this.deals.findByOrder(orderId)) {
       const pipelineId = funnel.stage(d.stageId)?.pipelineId ?? null;
-      const held = d.source === "manual" ? await this.paid(d.id) : 0;
+      // Деньги клиента у нас — по любой сделке с платежами (ручная договорённость или оплата по счёту из чата).
+      const held = await this.paid(d.id);
       const reopen = held > 0 ? (["book_ready", "book_half", "book_started"] as const).map((m) => funnel.milestoneStage(m, pipelineId)).find(Boolean) ?? funnel.firstOfKind("open", pipelineId) : null;
       if (reopen) {
         d.detachOrder();

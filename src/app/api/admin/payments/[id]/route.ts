@@ -6,15 +6,20 @@ import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
 import { idParams } from "@/server/input";
 
-/** Удалить ошибочный платёж: деньги пропадают из выручки, в сделке остаётся запись о том, кто и что удалил. */
+/**
+ * Удалить ошибочный платёж: деньги пропадают из выручки, в сделке остаётся запись о том, кто и что удалил.
+ * Только руководитель (право удалять сделки): иначе менеджер мог бы принять деньги и «убрать» их. Онлайн-платёж
+ * (Kaspi, карта) не удаляется — его подтвердила платёжная система; ошибку исправляет возврат.
+ */
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const staff = await apiStaff(req, "deals.edit");
+  const staff = await apiStaff(req, "deals.edit", "deals.delete");
   const { id } = idParams(await params, "id");
   const c = container();
   const payment = await c.sales.payments.find(id);
   if (!payment) throw new HttpError(404, "notFound");
   const deal = await c.sales.deals.findById(payment.dealId);
   if (!deal || !canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
+  if (payment.method !== "manual") return NextResponse.json({ error: "Онлайн-платёж не удаляется — оформите возврат" }, { status: 409 });
   // Деньги уже учтены в заказе по договорённости (предоплата вычтена из «к оплате») — удалять платёж нельзя.
   if (deal.orderId) return NextResponse.json({ error: "По сделке оформлен заказ: платёж учтён в нём и не удаляется" }, { status: 409 });
   await c.sales.payments.remove(payment.id);

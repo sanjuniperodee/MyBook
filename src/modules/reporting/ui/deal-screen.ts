@@ -18,7 +18,12 @@ interface Payment {
   paidAt: Date;
   createdById: string | null;
   note: string;
+  /** manual — принял сотрудник с чеком; kaspi, cloudpayments — онлайн (чек — операция платёжной системы). */
+  method?: string;
+  externalRef?: string | null;
 }
+
+const onlineLabels: Record<string, string> = { kaspi: "Kaspi", cloudpayments: "Карта" };
 
 interface Receipt {
   id: string;
@@ -74,6 +79,7 @@ export function dealScreen<S extends Stage, P extends Payment>(input: {
       dateLabel: formatDate(p.paidAt),
       author: p.createdById ? (names.get(p.createdById) ?? "—") : "система",
       note: p.note,
+      online: p.method && p.method !== "manual" ? `${onlineLabels[p.method] ?? p.method}${p.externalRef ? ` · операция ${p.externalRef}` : ""}` : null,
       receipts: input.receipts.filter((r) => r.paymentId === p.id).map((r) => ({ id: r.id, fileName: r.fileName, isPdf: r.mime === "application/pdf" })),
     })),
     calls: input.calls.map((c) => ({

@@ -193,6 +193,7 @@ export class Container {
         note: async (actor, input) => void (await this.clients.notes.add(actor, { kind: "note", text: input.text, dealId: input.dealId, clientId: input.clientId ?? undefined })),
         audit: (input) => this.access.audit.record(input),
         mailClient: async (input) => (await import("./client-mail")).mailPaymentToClient(this, input),
+        markInvoicePaid: async (input) => void (await this.ordering.invoices.markPaidManually(input)),
       },
       notifier: {
         notify: (userIds, n) => this.workspace.notifier.notify(userIds, n),
@@ -261,6 +262,23 @@ export class Container {
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId) },
       kaspiConfig,
+      // Счёт из чата читает сделку и пишет её деньги через порт продаж.
+      invoiceSales: {
+        deal: async (dealId) => {
+          const d = await this.sales.deals.findById(dealId);
+          if (!d) return null;
+          const stage = await this.sales.deals.stage(d.stageId);
+          return { id: d.id, number: d.number, title: d.title, clientId: d.clientId, assigneeId: d.assigneeId, amount: d.amount, paid: await this.sales.payments.paidTotal(d.id), orderId: d.orderId, closed: !!stage && stage.kind !== "open" };
+        },
+        setAgreement: async (dealId, { plan, agreedTotal, actorId }) => {
+          await this.sales.agreedPlan.set(dealId, plan);
+          await this.sales.deals.setAgreedTotal(dealId, agreedTotal, actorId);
+        },
+        acceptOnline: async (input) => {
+          const row = await this.sales.payments.addOnline(input);
+          return row ? { paymentId: row.id } : null;
+        },
+      },
     }));
   }
 

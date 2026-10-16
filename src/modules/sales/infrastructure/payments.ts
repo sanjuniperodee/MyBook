@@ -14,7 +14,7 @@ const lockDeal = (dealId: string) => executor().execute(sql`select 1 from crm_de
  * revenue_events — по ней считаются обзор, аналитика, планы, LTV клиентов и каналы.
  */
 export class DealPayments {
-  async add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string }): Promise<PaymentRow> {
+  async add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null }): Promise<PaymentRow> {
     const amount = Math.round(input.amount);
     if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
     const paidAt = input.paidAt ?? new Date();
@@ -26,9 +26,28 @@ export class DealPayments {
       const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
       const [row] = await executor()
         .insert(crmPayments)
-        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById })
+        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById, invoiceId: input.invoiceId ?? null })
         .returning();
       return row;
+    });
+  }
+
+  /**
+   * Онлайн-платёж по счёту из чата (Kaspi, CloudPayments): без чека — подтверждает платёжная система, и без сотрудника.
+   * Идемпотентно по операции: та же операция повторно — null (деньги уже записаны).
+   */
+  async addOnline(input: { dealId: string; clientId: string | null; amount: number; paidAt: Date; method: "kaspi" | "cloudpayments"; externalRef: string; invoiceId: string; note: string }): Promise<PaymentRow | null> {
+    const amount = Math.round(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
+    return inTransaction(async () => {
+      await lockDeal(input.dealId);
+      const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
+      const [row] = await executor()
+        .insert(crmPayments)
+        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt: input.paidAt, note: input.note.slice(0, 300), method: input.method, externalRef: input.externalRef, invoiceId: input.invoiceId, createdById: null })
+        .onConflictDoNothing()
+        .returning();
+      return row ?? null;
     });
   }
 

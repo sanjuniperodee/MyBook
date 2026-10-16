@@ -258,6 +258,18 @@ export class DrizzleMessagingQueries {
     return c ?? null;
   }
 
+  /** Последний диалог WhatsApp сделки — туда уходят счёт и доступ, его номер — подтверждённый телефон клиента. */
+  async whatsappForDeal(dealId: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(dealId)) return null;
+    const [c] = await executor()
+      .select()
+      .from(crmConversations)
+      .where(and(eq(crmConversations.dealId, dealId), eq(crmConversations.channel, "whatsapp")))
+      .orderBy(desc(crmConversations.lastMessageAt))
+      .limit(1);
+    return c ?? null;
+  }
+
   /** Переписка для виджета: без внутренних заметок; автор — только «я / менеджер», без имён сотрудников. */
   async siteMessages(chatId: string, after?: Date) {
     const [conv] = await executor()

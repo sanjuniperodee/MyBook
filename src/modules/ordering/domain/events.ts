@@ -1,5 +1,6 @@
 import { domainEvent, type DomainEvent } from "@/shared/domain";
 import type { OrderStatus } from "@/shared/domain/orders";
+import type { DealInvoiceEvent } from "./DealInvoice";
 
 /** Минимальный «публичный» снимок заказа для подписчиков других контекстов. */
 export interface OrderRef {
@@ -33,7 +34,7 @@ export type GiftCardPurchased = DomainEvent<"ordering.gift_purchased", { giftId:
 export type GiftCardPaid = DomainEvent<"ordering.gift_paid", { giftId: string; actor: string }>;
 export type GiftPaymentClaimed = DomainEvent<"ordering.gift_payment_claimed", { giftId: string }>;
 
-export type OrderingEvent = OrderPlaced | OrderPaid | OrderOverpaid | PostpayDue | OrderStatusChanged | OrderCancelled | PaymentClaimed | GiftCardPurchased | GiftCardPaid | GiftPaymentClaimed;
+export type OrderingEvent = DealInvoiceEvent | OrderPlaced | OrderPaid | OrderOverpaid | PostpayDue | OrderStatusChanged | OrderCancelled | PaymentClaimed | GiftCardPurchased | GiftCardPaid | GiftPaymentClaimed;
 
 export const OrderingEvents = {
   orderPlaced: (p: OrderPlaced["payload"]): OrderPlaced => domainEvent("ordering.order_placed", p),

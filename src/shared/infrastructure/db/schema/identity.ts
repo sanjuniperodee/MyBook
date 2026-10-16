@@ -85,5 +85,7 @@ export const passwordResets = pgTable("password_resets", {
     .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
+  /** reset — сброс по почте; access — доступ в кабинет после оплаты по счёту из чата (без прав администратора). */
+  purpose: text("purpose", { enum: ["reset", "access"] }).notNull().default("reset"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

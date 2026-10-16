@@ -1,8 +1,8 @@
 import { AggregateRoot } from "@/shared/domain";
 import type { KaspiMethod, KaspiOutcome } from "./kaspi";
 
-/** Что оплачивается: заказ книги или подарочный сертификат. */
-export type PaymentTarget = { kind: "order"; id: string } | { kind: "gift"; id: string };
+/** Что оплачивается: заказ книги, подарочный сертификат или счёт из чата по сделке. */
+export type PaymentTarget = { kind: "order"; id: string } | { kind: "gift"; id: string } | { kind: "deal_invoice"; id: string };
 
 export type PaymentInvoiceStatus = "pending" | "paid" | "failed" | "cancelled" | "expired";
 

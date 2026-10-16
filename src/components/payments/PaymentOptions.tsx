@@ -46,7 +46,10 @@ export function PaymentOptions(props: {
   invoiceId: string;
   data?: Record<string, unknown>;
   online: { publicId: string } | null;
-  manual: { title: string; steps: string[] };
+  /** Перевод по реквизитам компании; null — реквизиты не заданы в «Интеграциях» (перевод не показываем). */
+  manual: { title: string; steps: string[] } | null;
+  /** Текст, если способов оплаты нет (ни Kaspi, ни карты, ни реквизитов). */
+  unavailable?: string;
   /** Покупатель уже сообщил об оплате переводом — текст благодарности; null — ещё нет. */
   claimedText: string | null;
   onClaim: () => Promise<void>;
@@ -85,7 +88,7 @@ export function PaymentOptions(props: {
     );
   };
 
-  const manualTransfer = (
+  const manualTransfer = props.manual ? (
     <div className="mt-5">
       <div className="font-medium">{props.manual.title}</div>
       <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[15px] text-ink-soft">
@@ -106,7 +109,9 @@ export function PaymentOptions(props: {
         </button>
       )}
     </div>
-  );
+  ) : !props.kaspi && !props.online ? (
+    <p className="mt-5 text-[15px] text-ink-soft">{props.unavailable}</p>
+  ) : null;
 
   return (
     <section className="card p-6 sm:p-8">

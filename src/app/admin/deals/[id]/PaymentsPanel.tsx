@@ -15,6 +15,8 @@ interface PaymentItem {
   author: string;
   note: string;
   receipts: { id: string; fileName: string; isPdf: boolean }[];
+  /** Онлайн-платёж (Kaspi, карта): вместо чека — операция; удалить нельзя. */
+  online?: string | null;
 }
 
 async function send(url: string, body: FormData) {
@@ -75,7 +77,7 @@ export interface OrderMoneyView {
   rows: { id: string; amount: number; method: string; dateLabel: string; receipt: boolean }[];
 }
 
-export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order, orderMoney = null }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; order: { id: string; number: number } | null; orderMoney?: OrderMoneyView | null }) {
+export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDelete = false, order, orderMoney = null }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; canDelete?: boolean; order: { id: string; number: number } | null; orderMoney?: OrderMoneyView | null }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
   const [amount, setAmount] = useState("");
@@ -92,7 +94,7 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order, 
   const [refundAmount, setRefundAmount] = useState("");
   const [refundNote, setRefundNote] = useState("");
   const refundFile = useRef<HTMLInputElement>(null);
-  const noReceipt = payments.filter((p) => !p.receipts.length && p.kind !== "refund");
+  const noReceipt = payments.filter((p) => !p.receipts.length && p.kind !== "refund" && !p.online);
   const refresh = () => router.refresh();
   const [planValue, setPlanValue] = useState(plan ?? "");
   const [planMsg, setPlanMsg] = useState<string | null>(null);
@@ -247,7 +249,8 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order, 
                 <span className="ml-auto truncate text-xs text-muted">
                   {p.dateLabel} · {p.author}
                 </span>
-                {canEdit && !locked ? (
+                {p.online ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-800">{p.online}</span> : null}
+                {canDelete && !locked && !p.online ? (
                   <button
                     type="button"
                     className="text-muted hover:text-red-700"

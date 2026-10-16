@@ -1,6 +1,7 @@
 import { requireStaff } from "@/server/access";
 import { ensureToken, fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
 import { KaspiForm } from "./kaspi/KaspiForm";
+import { TransferForm } from "./transfer/TransferForm";
 import { GowaForm } from "./whatsapp/GowaForm";
 import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
@@ -69,6 +70,7 @@ export default async function SettingsPage() {
     container().ordering.kaspiSetup.status(),
     (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl"]), status: await container().messaging.gowa.status() }))(),
   ]);
+  const transfer = await getSettings(["pay.transferPhone", "pay.transferName"]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -82,6 +84,8 @@ export default async function SettingsPage() {
         webhookUrl={hook("/api/payments/kaspi/webhook")}
         webhookSecret={fromEnv("kaspi.webhookSecret") ? null : await ensureToken("kaspi.webhookSecret")}
       />
+
+      <TransferForm phone={transfer["pay.transferPhone"]} name={transfer["pay.transferName"]} fromEnv={fromEnv("pay.transferPhone")} />
 
       <GowaForm
         provider={gowa.provider}

@@ -184,7 +184,7 @@ export const paymentInvoices = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     provider: text("provider").$type<"kaspi">().notNull(),
-    targetKind: text("target_kind").$type<"order" | "gift">().notNull(),
+    targetKind: text("target_kind").$type<"order" | "gift" | "deal_invoice">().notNull(),
     targetId: uuid("target_id").notNull(),
     method: text("method").$type<"invoice" | "qr">().notNull(),
     /** Номер операции у провайдера (Kaspi: id счёта или QR-операции). */

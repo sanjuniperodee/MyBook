@@ -1,3 +1,4 @@
+import type { DealInvoice } from "./DealInvoice";
 import type { GiftCard } from "./GiftCard";
 import type { Order } from "./Order";
 import type { PaymentInvoice, PaymentTarget } from "./PaymentInvoice";
@@ -88,4 +89,24 @@ export interface OrderPaymentRepository {
   find(id: string): Promise<OrderPaymentRecord | null>;
   /** Руководитель сверил ручную оплату с поступлением на счёт. */
   review(id: string, reviewerId: string, at: Date): Promise<void>;
+}
+
+export interface DealInvoiceRepository {
+  nextIdentity(): Promise<{ id: string; number: number }>;
+  findById(id: string): Promise<DealInvoice | null>;
+  findByToken(token: string): Promise<DealInvoice | null>;
+  findByNumber(number: number): Promise<DealInvoice | null>;
+  findByIssueKey(key: string): Promise<DealInvoice | null>;
+  /** Блокирует счёт до конца транзакции (вебхук, сверка и сотрудник подтверждают одновременно). */
+  lockById(id: string): Promise<DealInvoice | null>;
+  /** Выпуск — по одному на сделку: блокировка сделки до конца транзакции. */
+  lockDeal(dealId: string): Promise<void>;
+  openFor(dealId: string): Promise<DealInvoice | null>;
+  listFor(dealId: string): Promise<DealInvoice[]>;
+  /** Ждущие оплаты с истёкшим сроком. */
+  overdue(now: Date, limit: number): Promise<DealInvoice[]>;
+  /** Оплаченные, по которым доступ в кабинет ещё не выдан. */
+  accessDue(limit: number): Promise<DealInvoice[]>;
+  add(invoice: DealInvoice): Promise<void>;
+  save(invoice: DealInvoice): Promise<void>;
 }

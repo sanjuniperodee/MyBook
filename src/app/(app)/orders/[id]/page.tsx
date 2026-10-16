@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/server/auth";
 import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
+import { manualPaymentProps } from "@/server/requisites";
 import { formatPrice, getPlan } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { env } from "@/config/env";
@@ -80,7 +81,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               currency={order.currency}
               email={order.contactEmail}
               online={isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null}
-              manual={m.common.manualPayment}
+              manual={await manualPaymentProps(m)}
+                unavailable={m.common.manualPayment.unavailable}
               claimed={!!order.paymentClaimedAt}
               kaspi={kaspi}
             />

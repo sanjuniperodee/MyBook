@@ -4,6 +4,7 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { PaymentError, ReceiptError } from "@/modules/sales";
+import { OrderingError } from "@/modules/ordering";
 import { RECEIPT_MAX_BYTES, receiptProblem } from "@/modules/sales/domain";
 import { paymentProblemError, receiptProblemError } from "@/server/payment-errors";
 import { fromZonedTime } from "@/shared/domain/time";
@@ -13,7 +14,7 @@ import { formText, idParams } from "@/server/input";
 export const maxDuration = 60;
 
 /** Поля формы платежа, кроме файла чека: тексты; вид — платёж или возврат. Подмена (файл вместо текста) → 400. */
-const paymentForm = z.object({ kind: z.enum(["payment", "refund", ""]).default(""), note: formText, amount: formText, paidAt: formText });
+const paymentForm = z.object({ kind: z.enum(["payment", "refund", ""]).default(""), note: formText, amount: formText, paidAt: formText, invoiceId: formText });
 
 /**
  * Принять платёж (или оформить возврат: kind=refund, причина в note) по сделке: multipart — amount (₸), paidAt (YYYY-MM-DD, по умолчанию сегодня), note и file — чек
@@ -31,7 +32,11 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (deal.orderId) throw new HttpError(409, "dealHasOrder");
 
   const form = await req.formData();
-  const fields = paymentForm.parse({ kind: form.get("kind") ?? undefined, note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined });
+  const fields = paymentForm.parse({ kind: form.get("kind") ?? undefined, note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined, invoiceId: form.get("invoiceId") ?? undefined });
+  // «Оплата пришла» по счёту из чата: счёт этой сделки, ждёт оплаты; сумма — ровно сумма счёта.
+  const invoice = fields.invoiceId ? await c.ordering.invoices.byId(fields.invoiceId) : null;
+  if (fields.invoiceId && (!invoice || invoice.dealId !== deal.id)) throw new HttpError(404, "notFound");
+  if (invoice && invoice.status === "paid") return NextResponse.json({ error: `Счёт ${invoice.label} уже оплачен` }, { status: 409 });
   const refund = fields.kind === "refund";
   const note = fields.note;
   if (refund && note.trim().length < 3) throw new HttpError(400, "refundNoReason");
@@ -56,6 +61,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       paidAt,
       note,
       receipt: { bytes, fileName: file.name },
+      invoice: invoice ? { id: invoice.id, amount: invoice.amount } : null,
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
     revalidatePath(`/admin/deals/${deal.id}`);
@@ -63,6 +69,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     revalidatePath("/admin/analytics");
     return NextResponse.json({ payment: { id: payment.id, amount: payment.amount, kind: payment.kind, paidAt: payment.paidAt } });
   } catch (err) {
+    if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });
     if (PaymentError.is(err)) throw paymentProblemError(err.code);
     if (ReceiptError.is(err)) throw new HttpError(400, "receiptNotSaved");
     throw err;

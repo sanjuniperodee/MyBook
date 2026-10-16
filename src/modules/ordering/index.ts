@@ -2,7 +2,7 @@ import "server-only";
 import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -10,6 +10,7 @@ import { DrizzlePromoCodeRepository } from "./infrastructure/persistence/Drizzle
 import { DrizzleOrderingQueries } from "./infrastructure/persistence/DrizzleOrderingQueries";
 import { DrizzlePaymentInvoiceRepository } from "./infrastructure/persistence/DrizzlePaymentInvoiceRepository";
 import { DrizzleOrderPaymentRepository } from "./infrastructure/persistence/DrizzleOrderPaymentRepository";
+import { DrizzleDealInvoiceRepository } from "./infrastructure/persistence/DrizzleDealInvoiceRepository";
 import { storageReceiptFiles } from "./infrastructure/gateways/receiptFiles";
 import { DrizzlePeopleGateway } from "./infrastructure/gateways/DrizzlePeopleGateway";
 import { envPaymentSettings, randomCodes } from "./infrastructure/gateways/system";
@@ -42,11 +43,15 @@ export interface OrderingDeps {
   mailer: Mailer;
   /** Настройки Kaspi Pay («Интеграции»): сессия кассира, включена ли оплата, секрет вебхуков. */
   kaspiConfig: KaspiConfigStore;
+  /** Сделки и их деньги (контекст «Продажи») — для счетов из чата. */
+  invoiceSales: InvoiceSales;
 }
 
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
 export class OrderingModule {
   readonly orders: OrdersService;
+  /** Счета из чата по сделкам: выпуск, оплата по ссылке, подтверждение, истечение. */
+  readonly invoices: DealInvoicesService;
   /** Журнал денег по заказу: перевод с чеком, онлайн-оплаты, постоплата. */
   readonly payments: OrderPaymentsService;
   readonly promos: PromoService;
@@ -63,6 +68,7 @@ export class OrderingModule {
     const orderRepo = new DrizzleOrderRepository();
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
+    this.invoices = new DealInvoicesService(new DrizzleDealInvoiceRepository(), deps.invoiceSales, deps.uow, deps.clock);
     this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock);
     this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);

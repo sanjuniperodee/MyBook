@@ -124,6 +124,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
             payments={screen.payments}
+            canDelete={can(staff, "deals.delete")}
             orderMoney={orderMoneyView}
           />
           {bookRows.length ? <DealBooks books={bookRows} seen={clientSeen} /> : null}
