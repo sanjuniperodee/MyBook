@@ -8,7 +8,9 @@ import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, can, type Staff } from "@/server/access";
 import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
-import { OrderingError, type DealInvoice } from "@/modules/ordering";
+import { OrderingError, isOnlinePayment, type DealInvoice } from "@/modules/ordering";
+import { maskPhone } from "@/modules/access";
+import { transferRequisites } from "@/server/requisites";
 import { sourceFromChannel } from "@/modules/sales";
 import { channelLabel } from "@/modules/messaging";
 import { isManualChannel } from "@/shared/domain/channels";
@@ -32,7 +34,78 @@ const schema = z.object({
   purpose: z.enum(["prepayment", "remainder", "full", "custom"]),
   /** Ключ формы (uuid из браузера): двойное нажатие не выпускает второй счёт и не шлёт сообщение дважды. */
   issueKey: z.union([uuid, z.literal("")]).default(""),
+  /** Выставить и счёт Kaspi на номер WhatsApp-чата клиента (номер подставляет сервер). */
+  kaspiPush: z.coerce.boolean().default(false),
 });
+
+/** Способы оплаты, которые увидит клиент; пусто — выставлять счёт нельзя. */
+async function availableMethods() {
+  const c = container();
+  const [kaspi, transfer] = await Promise.all([c.ordering.kaspi.available().catch(() => false), transferRequisites()]);
+  return { kaspi, card: isOnlinePayment(), transfer: !!transfer };
+}
+
+/** Мобильный Казахстана: 77XXXXXXXXX — на него можно выставить счёт Kaspi. */
+const isKzMobile = (digits: string | null) => !!digits && /^77\d{9}$/.test(digits);
+
+/** Что нужно форме счёта: договорённость из сделки, остаток, открытый счёт, способы оплаты, счёт Kaspi на номер. */
+export interface InvoiceFormInfo {
+  dealId: string | null;
+  dealNumber: number | null;
+  plan: string | null;
+  /** Цена книги по договорённости (сумма сделки); 0 — ещё не договорились. */
+  agreedTotal: number;
+  paid: number;
+  hasOrder: boolean;
+  open: { id: string; label: string; amount: number } | null;
+  clientName: string;
+  locale: "ru" | "kk";
+  channel: string;
+  methods: { kaspi: boolean; card: boolean; transfer: boolean };
+  /** Счёт Kaspi на номер чата возможен: Kaspi подключён и номер — казахстанский мобильный; номер — с маской. */
+  kaspiPhoneMasked: string | null;
+  /** null — без лимита (руководитель); иначе скидка от прайса тарифа не больше N %. */
+  maxDiscountPercent: number | null;
+}
+
+export async function invoiceFormInfoAction(raw: { dealId?: string; conversationId?: string }): Promise<{ ok: true; info: InvoiceFormInfo } | { ok: false; message: string }> {
+  const staff = await assertStaff("chats.send", "deals.edit");
+  const input = z.object({ dealId: z.union([uuid, z.literal("")]).default(""), conversationId: z.union([uuid, z.literal("")]).default("") }).safeParse(raw);
+  if (!input.success) return { ok: false, message: "Неверный запрос" };
+  const c = container();
+  const conv0 = input.data.conversationId ? await conversationOf(staff, input.data.conversationId) : null;
+  const dealId = input.data.dealId || conv0?.dealId || "";
+  const deal = dealId ? await c.sales.deals.findById(dealId) : null;
+  if (dealId && !deal) return { ok: false, message: "Сделка не найдена" };
+  if (deal) assertWorkable(staff, deal.assigneeId);
+  const conv = conv0 ?? (deal ? await c.messaging.queries.whatsappForDeal(deal.id) : null);
+  const phone = conv?.channel === "whatsapp" && isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
+  const [methods, plan, paid, open, maxDiscount] = await Promise.all([
+    availableMethods(),
+    deal ? c.sales.agreedPlan.get(deal.id) : Promise.resolve(null),
+    deal ? c.sales.payments.paidTotal(deal.id) : Promise.resolve(0),
+    deal ? c.ordering.invoices.listFor(deal.id).then((l) => l.find((i) => i.isPayable(new Date())) ?? null) : Promise.resolve(null),
+    getSetting("crm.maxDiscount"),
+  ]);
+  return {
+    ok: true,
+    info: {
+      dealId: deal?.id ?? null,
+      dealNumber: deal?.number ?? null,
+      plan: plan ?? null,
+      agreedTotal: deal?.amount ?? 0,
+      paid,
+      hasOrder: !!deal?.orderId,
+      open: open ? { id: open.id, label: open.label, amount: open.amount } : null,
+      clientName: deal?.contactName || conv?.contactName || "",
+      locale: "ru",
+      channel: conv && isManualChannel(sourceFromChannel(conv.channel)) ? sourceFromChannel(conv.channel) : "",
+      methods,
+      kaspiPhoneMasked: methods.kaspi && isKzMobile(phone) ? maskPhone(phone) : null,
+      maxDiscountPercent: can(staff, "deals.delete") ? null : Number(maxDiscount) || 0,
+    },
+  };
+}
 
 const payLink = (invoice: DealInvoice) => `${env.appUrl}${invoice.snapshot().locale === "kk" ? "/kk" : ""}/pay/${invoice.token}`;
 
@@ -63,6 +136,8 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const d = parsed.data;
   if (d.amount > d.agreedTotal) return { ok: false, message: "Сумма счёта больше цены книги" };
+  const methods = await availableMethods();
+  if (!methods.kaspi && !methods.card && !methods.transfer) return { ok: false, message: "Нет способа оплаты: подключите Kaspi или укажите реквизиты перевода в «Интеграциях»" };
   const c = container();
   let conv = d.conversationId ? await conversationOf(staff, d.conversationId) : null;
   let dealId = d.dealId || conv?.dealId || "";
