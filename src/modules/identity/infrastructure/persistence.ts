@@ -43,12 +43,13 @@ export class DrizzleUserRepository implements UserRepository {
 
   async findClientsByPhone(phone: string) {
     const digits = phone.replace(/\D/g, "");
-    // В базе номера лежат в разном виде (+7 775…, 8775…): сравниваем цифры, 8… считаем за 7….
-    const variants = [digits, digits.length === 11 && digits.startsWith("7") ? `8${digits.slice(1)}` : digits];
+    // В базе номера лежат в разном виде (+7 775…, 8775…): сравниваем цифры, 8… и 7… — один и тот же номер.
+    const kz = digits.length === 11 && (digits.startsWith("7") || digits.startsWith("8")) ? digits.slice(1) : null;
+    const variants = kz ? [`7${kz}`, `8${kz}`] : [digits];
     const rows = await executor()
       .select()
       .from(users)
-      .where(sql`${users.role} = 'user' and regexp_replace(coalesce(${users.phone}, ''), '\D', '', 'g') in (${sql.join(variants.map((v) => sql`${v}`), sql`, `)})`)
+      .where(sql`${users.role} = 'user' and regexp_replace(coalesce(${users.phone}, ''), '\\D', '', 'g') in (${sql.join(variants.map((v) => sql`${v}`), sql`, `)})`)
       .limit(5);
     return rows.map(toDomain);
   }
