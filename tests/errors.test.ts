@@ -80,7 +80,7 @@ describe("actionError(): ошибка домена в server action → текс
     const identity = { email: 1, password: 1, exists: 1, phone: 1, credentials: 1, resetExpired: 1, twoFactorCode: 1, twoFactorExpired: 1, twoFactorAlreadyOn: 1 } satisfies Record<IdentityErrorCode, 1>;
     const ordering = {
       bookNotFound: 1, alreadyOrdered: 1, upgradeUnavailable: 1, notReady: 1, promoGone: 1, empty: 1, notFound: 1, expired: 1, used: 1, ownCode: 1, firstOrderOnly: 1, orderNotFound: 1,
-      invalidTransition: 1, promoExists: 1, giftNotFound: 1, giftPastDate: 1, giftNeedEmail: 1, staffNotFound: 1, notPayable: 1, phoneInvalid: 1, invoiceNotFound: 1, kaspiNotConnected: 1, kaspiUnavailable: 1,
+      invalidTransition: 1, promoExists: 1, giftNotFound: 1, giftPastDate: 1, giftNeedEmail: 1, staffNotFound: 1, notPayable: 1, phoneInvalid: 1, invoiceNotFound: 1, kaspiNotConnected: 1, kaspiUnavailable: 1, kaspiSessionShared: 1,
     } satisfies Record<OrderingErrorCode, 1>;
     for (const locale of ["ru", "kk"]) {
       request.cookies.set("mb_locale", locale);

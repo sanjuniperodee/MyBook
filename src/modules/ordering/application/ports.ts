@@ -90,7 +90,11 @@ export interface KaspiSession {
 
 /** Где лежат настройки Kaspi (контекст «Рабочее пространство», «Интеграции»). */
 export interface KaspiConfigStore {
-  config(): Promise<{ enabled: boolean; apiUrl: string; session: KaspiSession | null }>;
+  /**
+   * shared — сессия кассира общая с другим проектом на том же kaspi-pos и задана на сервере (KASPI_TOKEN_SN и др.):
+   * вход по SMS здесь запрещён — он вытеснил бы сессию у другого проекта (Kaspi держит одну сессию на кассира).
+   */
+  config(): Promise<{ enabled: boolean; apiUrl: string; session: KaspiSession | null; shared: boolean }>;
   saveSession(session: KaspiSession | null, actorId: string | null): Promise<void>;
   setEnabled(enabled: boolean, actorId: string | null): Promise<void>;
   /** Адрес сервиса kaspi-pos-automation, указанный в «Интеграциях». */

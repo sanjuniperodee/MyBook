@@ -13,6 +13,7 @@ function kaspiError(err: unknown): { ok: false; error: string } {
   if (OrderingError.is(err)) {
     if (err.code === "phoneInvalid") return { ok: false, error: "Укажите номер кассира Kaspi Pay: +7 7XX XXX XX XX" };
     if (err.code === "kaspiNotConnected") return { ok: false, error: "Сначала подключите кассира Kaspi" };
+    if (err.code === "kaspiSessionShared") return { ok: false, error: "Сессия кассира общая с другим проектом и задана на сервере — вход по SMS вытеснил бы её там" };
     if (err.code === "kaspiUnavailable") return { ok: false, error: `Kaspi: ${err.message}` };
   }
   throw err;

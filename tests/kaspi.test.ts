@@ -312,11 +312,11 @@ describe("Kaspi: оплата сертификата", () => {
 
 const session: KaspiSession = { tokenSn: "TSN", vtokenSecret: "VSEC", profileId: 12345, organizationId: 6789, orgName: "ИП MyBooks", phone: "77010000000" };
 
-function memConfig(initial: KaspiSession | null = session): KaspiConfigStore & { state: { enabled: boolean; session: KaspiSession | null; apiUrl: string } } {
+function memConfig(initial: KaspiSession | null = session, shared = false): KaspiConfigStore & { state: { enabled: boolean; session: KaspiSession | null; apiUrl: string } } {
   const state = { enabled: false, session: initial, apiUrl: "http://kaspi-pos:3000/" };
   return {
     state,
-    config: async () => ({ enabled: state.enabled, apiUrl: state.apiUrl, session: state.session }),
+    config: async () => ({ enabled: state.enabled, apiUrl: state.apiUrl, session: state.session, shared }),
     saveSession: async (s) => void (state.session = s),
     setEnabled: async (v) => void (state.enabled = v),
     saveApiUrl: async (url) => void (state.apiUrl = url),
@@ -395,6 +395,23 @@ describe("Kaspi: клиент kaspi-pos", () => {
     paths.length = 0;
     expect(await setup.status()).toMatchObject({ reachable: false, connected: true, active: false });
     expect(paths).toEqual(["http://127.0.0.1:3010/health"]);
+  });
+
+  it("общая сессия кассира с другим проектом: вход по SMS запрещён (не вытеснить её там), «отключить» только выключает оплату", async () => {
+    const store = memConfig(session, true);
+    const paths: string[] = [];
+    const client = new KaspiPosClient(store, async (url) => {
+      paths.push(new URL(String(url)).pathname);
+      return json(new URL(String(url)).pathname === "/health" ? { status: "ok" } : { active: true });
+    });
+    const setup = new KaspiSetupService(client, store);
+    await expect(setup.requestCode("+7 701 000 00 00")).rejects.toMatchObject({ code: "kaspiSessionShared" });
+    await expect(setup.confirmCode("p1", "1234", "staff-1")).rejects.toMatchObject({ code: "kaspiSessionShared" });
+    expect(paths).toEqual([]);
+    await setup.setEnabled(true, "staff-1");
+    expect(await setup.status()).toMatchObject({ enabled: true, connected: true, active: true, shared: true });
+    await setup.disconnect("staff-1");
+    expect(store.state).toMatchObject({ enabled: false, session });
   });
 
   it("Kaspi просит пароль — вход не завершён", async () => {

@@ -11,6 +11,8 @@ interface KaspiStatusView {
   /** Сервис kaspi-pos отвечает по указанному адресу. */
   reachable: boolean;
   connected: boolean;
+  /** Сессия кассира общая с другим проектом и задана на сервере: вход по SMS здесь вытеснил бы её там. */
+  shared: boolean;
   /** Kaspi принимает сессию кассира прямо сейчас. */
   active: boolean;
   orgName: string;
@@ -86,7 +88,13 @@ export function KaspiForm(props: KaspiFormProps) {
             Кассир: <b>{status.orgName || "организация Kaspi Pay"}</b>
             {status.phone ? <span className="text-muted"> · {status.phone}</span> : null}
           </div>
-          {status.reachable && !status.active ? <p className="text-sm text-amber-800">Kaspi не принимает сессию кассира (вход с другого устройства или истёк срок). Подключите кассира заново — до этого клиентам показывается перевод по номеру.</p> : null}
+          {status.reachable && !status.active ? (
+            <p className="text-sm text-amber-800">
+              {status.shared
+                ? "Kaspi не принимает общую сессию кассира. Войдите заново в том проекте, где её получали, и обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID на сервере — до этого клиентам показывается перевод по номеру."
+                : "Kaspi не принимает сессию кассира (вход с другого устройства или истёк срок). Подключите кассира заново — до этого клиентам показывается перевод по номеру."}
+            </p>
+          ) : null}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="accent-wine" checked={status.enabled} disabled={pending} onChange={(e) => run(() => setKaspiEnabledAction(e.target.checked))} />
             Принимать оплату через Kaspi
@@ -94,6 +102,11 @@ export function KaspiForm(props: KaspiFormProps) {
         </div>
       ) : null}
 
+      {status.shared ? (
+        <p className="mt-4 border-t border-line pt-4 text-xs text-muted" data-testid="kaspi-shared">
+          Сессия кассира общая с другим проектом на этом сервере и задана переменными окружения (KASPI_TOKEN_SN и др.). Вход по SMS здесь отключён: Kaspi держит одну сессию на кассира, и новый вход вытеснил бы её у другого проекта.
+        </p>
+      ) : (
       <div className="mt-4 space-y-3 border-t border-line pt-4">
         <div className="text-sm font-medium">{status.connected ? "Подключить кассира заново" : "Подключить кассира"}</div>
         {processId ? (
@@ -142,6 +155,7 @@ export function KaspiForm(props: KaspiFormProps) {
         )}
         {message ? <p className={cn("text-xs", message.ok ? "text-emerald-700" : "text-red-700")}>{message.text}</p> : null}
       </div>
+      )}
 
       <details className="mt-4 border-t border-line pt-4">
         <summary className="cursor-pointer text-sm font-medium">Вебхук kaspi-pos — необязательно</summary>

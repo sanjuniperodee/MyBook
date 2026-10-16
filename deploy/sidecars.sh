@@ -32,6 +32,15 @@ command -v pm2 >/dev/null || { echo "Нужен PM2 (npm i -g pm2)"; exit 1; }
 mkdir -p "$DIR"
 started=()
 
+# Один кассир Kaspi — одна сессия: второй kaspi-pos с входом по SMS вытеснил бы кассира у другого проекта на сервере.
+# Если общий kaspi-pos уже работает (PM2 «kaspi-pos», как у my-test.kz) или сессия задана в .env (KASPI_TOKEN_SN) — свой не ставим.
+if has kaspi && { pm2 describe kaspi-pos >/dev/null 2>&1 || grep -q '^KASPI_TOKEN_SN=.' "$ROOT/.env" 2>/dev/null; }; then
+  echo "→ kaspi-pos: на сервере уже есть общий kaspi-pos или общая сессия кассира — второй не ставлю."
+  echo "  KASPI_API_URL — на общий сервис, KASPI_TOKEN_SN / KASPI_VTOKEN_SECRET / KASPI_PROFILE_ID — как у другого проекта,"
+  echo "  а в его webhooks.json — запись с адресом этого сайта (см. .env.example)."
+  targets=("${targets[@]/kaspi}")
+fi
+
 if has kaspi; then
   echo "→ kaspi-pos-automation ($KASPI_POS_REF)"
   K="$DIR/kaspi-pos"

@@ -27,6 +27,7 @@ export type OrderingErrorCode =
   | "phoneInvalid"
   | "invoiceNotFound"
   | "kaspiNotConnected"
+  | "kaspiSessionShared"
   | "kaspiUnavailable";
 
 export const OrderingError = contextError<OrderingErrorCode>("ordering", "OrderingError");

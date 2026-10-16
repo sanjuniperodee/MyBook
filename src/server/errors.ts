@@ -48,6 +48,7 @@ const STATUS_BY_CODE = new Map<string, number>([
   ["reviewNotAllowed", 403],
   ["kaspiUnavailable", 503],
   ["kaspiNotConnected", 503],
+  ["kaspiSessionShared", 409],
   ["letterClosed", 404],
   ["letterInvalid", 404],
 ]);
@@ -97,6 +98,8 @@ function orderingText(m: Messages, err: DomainError): string | null {
     phoneInvalid: m.api.phoneInvalid,
     invoiceNotFound: m.api.invoiceNotFound,
     kaspiNotConnected: m.api.kaspiNotConnected,
+    // Только из «Интеграций» (там свой текст); клиенту не попадает.
+    kaspiSessionShared: m.api.kaspiNotConnected,
     kaspiUnavailable: m.api.kaspiUnavailable,
   };
   return has(texts, err.code) ? texts[err.code as OrderingErrorCode] : messageText(err);

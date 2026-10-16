@@ -8,8 +8,9 @@ export class KaspiSetupService {
     private readonly store: KaspiConfigStore,
   ) {}
 
-  /** Отправить SMS-код на номер кассира. */
+  /** Отправить SMS-код на номер кассира. При общей сессии — нельзя: вход вытеснил бы кассира у другого проекта. */
   async requestCode(phone: string) {
+    if ((await this.store.config()).shared) throw new OrderingError("kaspiSessionShared");
     const normalized = kaspiPhone(phone);
     if (!normalized) throw new OrderingError("phoneInvalid");
     return this.auth.start(normalized);
@@ -17,6 +18,7 @@ export class KaspiSetupService {
 
   /** Код из SMS → сессия кассира сохраняется, оплата через Kaspi включается. */
   async confirmCode(processId: string, otp: string, actorId: string) {
+    if ((await this.store.config()).shared) throw new OrderingError("kaspiSessionShared");
     const session = await this.auth.verify(processId, otp.trim());
     await this.store.saveSession(session, actorId);
     await this.store.setEnabled(true, actorId);
@@ -35,16 +37,18 @@ export class KaspiSetupService {
     return this.auth.reachable();
   }
 
+  /** Забыть сессию кассира (у Kaspi она не закрывается). Общую сессию с сервера не забыть — только выключить оплату. */
   async disconnect(actorId: string) {
     await this.store.setEnabled(false, actorId);
+    if ((await this.store.config()).shared) return;
     await this.store.saveSession(null, actorId);
   }
 
   /** Для карточки в «Интеграциях»: отвечает ли сервис, подключён ли кассир и жива ли его сессия. */
   async status() {
-    const { enabled, apiUrl, session } = await this.store.config();
+    const { enabled, apiUrl, session, shared } = await this.store.config();
     const reachable = await this.auth.reachable();
     const active = reachable && session ? await this.auth.sessionActive().catch(() => false) : false;
-    return { enabled, apiUrl, reachable, connected: !!session, active, orgName: session?.orgName ?? "", phone: session?.phone ?? "" };
+    return { enabled, apiUrl, reachable, connected: !!session, active, shared, orgName: session?.orgName ?? "", phone: session?.phone ?? "" };
   }
 }
