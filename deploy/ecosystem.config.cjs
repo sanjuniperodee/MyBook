@@ -1,10 +1,36 @@
 // PM2-конфиг MyBooks. Запускается из корня репозитория на сервере: pm2 start deploy/ecosystem.config.cjs
 // Запускается релиз из ../mybook-releases/current → releases/<время>-<sha> (его создаёт deploy/deploy.sh), а не папка сборки.
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- PM2 читает CommonJS-конфиг
+// Рядом — сервисы Kaspi Pay и WhatsApp, если они установлены (bash deploy/sidecars.sh); деплой сайта их не перезапускает.
+/* eslint-disable @typescript-eslint/no-require-imports -- PM2 читает CommonJS-конфиг */
+const fs = require("node:fs");
 const path = require("node:path");
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 const root = path.resolve(__dirname, "..");
 const releasesDir = process.env.MYBOOK_RELEASES_DIR || path.join(path.dirname(root), "mybook-releases");
+const sidecarsDir = process.env.MYBOOK_SIDECARS_DIR || path.join(path.dirname(root), "mybook-sidecars");
+
+/** Сервисы рядом с сайтом: каждый — только если установлен. Порты и секреты — в .env в папке сервиса. */
+const sidecars = [
+  fs.existsSync(path.join(sidecarsDir, "kaspi-pos", "server.js")) && {
+    name: "mybook-kaspi-pos",
+    cwd: path.join(sidecarsDir, "kaspi-pos"),
+    script: "server.js",
+    node_args: "--require ./localhost.cjs",
+    env: { NODE_ENV: "production", TZ: "Asia/Almaty" },
+    max_memory_restart: "300M",
+    time: true,
+  },
+  fs.existsSync(path.join(sidecarsDir, "gowa", "whatsapp")) && {
+    name: "mybook-gowa",
+    cwd: path.join(sidecarsDir, "gowa"),
+    script: "./whatsapp",
+    args: "rest",
+    interpreter: "none",
+    max_memory_restart: "500M",
+    time: true,
+  },
+].filter(Boolean);
 
 module.exports = {
   apps: [
@@ -28,5 +54,6 @@ module.exports = {
       kill_timeout: 3000,
       time: true,
     },
+    ...sidecars,
   ],
 };

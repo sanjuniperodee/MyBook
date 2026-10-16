@@ -2,8 +2,8 @@ import "server-only";
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
 import { crmCalls, crmDeals, crmNotifications, users } from "@/shared/infrastructure/db/schema";
-import { crmCounters, type CrmCounters } from "@/modules/reporting/infrastructure/Counters";
-import type { StaffContext } from "@/modules/access";
+import { crmCounters, type CrmCounters } from "./Counters";
+import type { StaffView } from "./Staff";
 import { formatPhone } from "@/shared/domain/phone";
 
 export interface LiveNotification {
@@ -35,7 +35,7 @@ export interface LiveState {
 }
 
 /** Состояние для опроса раз в несколько секунд: бейджи, колокольчик, входящий звонок. */
-export async function getLive(staff: StaffContext): Promise<LiveState> {
+export async function getLive(staff: StaffView): Promise<LiveState> {
   const me = staff.userId;
   const db = executor();
   const [counters, [{ n: unread }], list, ringingRows] = await Promise.all([

@@ -9,7 +9,7 @@ import type { OneTimeStepStore, RateLimiter } from "../application/RateLimiter";
  */
 let client: Redis | null | undefined;
 
-export function redisClient(): Redis | null {
+function redisClient(): Redis | null {
   if (client !== undefined) return client;
   const url = process.env.REDIS_URL;
   if (!url) return (client = null);

@@ -7,7 +7,7 @@ import { AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
 import type { LiveState } from "@/modules/reporting";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const POLL_MS = 8_000;
 /** При живом SSE-соединении опрос нужен только как страховка. */

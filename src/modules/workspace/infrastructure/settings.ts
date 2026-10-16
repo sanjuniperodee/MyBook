@@ -1,14 +1,18 @@
 import "server-only";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
+import { executor, inTransaction, type Executor } from "@/shared/infrastructure/database";
 import { crmSettings } from "@/shared/infrastructure/db/schema";
 import { decryptSecret, encryptSecret, randomToken } from "@/shared/crypto";
+import type { SettingsStore } from "@/shared/application";
 
 interface Def {
   /** Хранится зашифрованным и никогда не отдаётся в браузер целиком. */
   secret?: boolean;
   /** Переменная окружения, которая переопределяет значение из админки. */
   env?: string;
+  /** Переменная окружения со значением по умолчанию: админка может его изменить (адреса сервисов в docker compose). */
+  envDefault?: string;
   default?: string;
 }
 
@@ -110,6 +114,25 @@ export const settingDefs = {
   "catalog.overrides": {},
   /** Регистрация новых клиентов на сайте: on | off (выключена — страница регистрации закрыта, ссылки скрыты). */
   "site.registration": { default: "on" },
+  /**
+   * Оплата через Kaspi Pay (kaspi-pos-automation): адрес сервиса, включена ли оплата, сессия кассира (JSON после входа
+   * по SMS-коду) и секрет подписи вебхуков — необязательный: без подписи уведомление лишь повод сверить счёт с Kaspi.
+   */
+  "kaspi.apiUrl": { envDefault: "KASPI_API_URL", default: "http://127.0.0.1:3010" },
+  "kaspi.enabled": { default: "off" },
+  "kaspi.session": { secret: true },
+  "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
+  /**
+   * WhatsApp: через Wazzup (по умолчанию) или свой шлюз GOWA (go-whatsapp-web-multidevice, номер привязывается по QR).
+   * Для GOWA — адрес шлюза и логин:пароль его API (APP_BASIC_AUTH); вебхук устройства магазина сайт настраивает в шлюзе сам.
+   */
+  "whatsapp.provider": { envDefault: "WHATSAPP_PROVIDER", default: "wazzup" },
+  "gowa.baseUrl": { envDefault: "GOWA_API_URL", default: "http://127.0.0.1:3020" },
+  "gowa.basicAuth": { secret: true, envDefault: "GOWA_BASIC_AUTH" },
+  /** Куда шлюз отправляет входящие (вебхук устройства магазина); пусто — адрес сайта + /api/integrations/gowa. */
+  "gowa.callbackUrl": { envDefault: "GOWA_CALLBACK_URL" },
+  /** Секрет подписи вебхука: сайт сам передаёт его шлюзу при подключении устройства. */
+  "gowa.webhookSecret": { secret: true },
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;
@@ -137,7 +160,7 @@ async function load() {
   return values;
 }
 
-export function invalidateSettings() {
+function invalidateSettings() {
   store.__mybookSettings = null;
 }
 
@@ -145,7 +168,7 @@ export async function getSetting(key: SettingKey): Promise<string> {
   const def = defs[key];
   const fromEnv = def.env ? process.env[def.env] : undefined;
   if (fromEnv) return fromEnv;
-  return (await load()).get(key) ?? def.default ?? "";
+  return (await load()).get(key) ?? (def.envDefault ? process.env[def.envDefault] : undefined) ?? def.default ?? "";
 }
 
 export async function getSettings<K extends SettingKey>(keys: K[]): Promise<Record<K, string>> {
@@ -157,23 +180,28 @@ export async function getSettings<K extends SettingKey>(keys: K[]): Promise<Reco
 /** Задано ли значение переменной окружения (тогда поле в админке только для чтения). */
 export const fromEnv = (key: SettingKey) => !!(defs[key].env && process.env[defs[key].env!]);
 
+/**
+ * Сохранить настройки: пустое значение — удалить ключ, остальные — upsert. Всё одной транзакцией и одним запросом
+ * на вставку (B7): при ошибке не остаётся половины настроек. Внутри внешней транзакции — в ней же.
+ */
 export async function saveSettings(values: Partial<Record<SettingKey, string>>, actorId: string | null) {
   const entries = Object.entries(values) as [SettingKey, string][];
   const toDelete = entries.filter(([, v]) => v === "").map(([k]) => k);
-  if (toDelete.length) await db.delete(crmSettings).where(inArray(crmSettings.key, toDelete));
-  for (const [key, v] of entries) {
-    if (v === "") continue;
-    const value = defs[key].secret ? encryptSecret(v) : v;
-    await db
-      .insert(crmSettings)
-      .values({ key, value, updatedById: actorId })
-      .onConflictDoUpdate({ target: crmSettings.key, set: { value, updatedById: actorId, updatedAt: new Date() } });
-  }
+  const rows = entries.filter(([, v]) => v !== "").map(([key, v]) => ({ key, value: defs[key].secret ? encryptSecret(v) : v, updatedById: actorId }));
+  const write = async (tx: Executor) => {
+    if (toDelete.length) await tx.delete(crmSettings).where(inArray(crmSettings.key, toDelete));
+    if (rows.length)
+      await tx
+        .insert(crmSettings)
+        .values(rows)
+        .onConflictDoUpdate({ target: crmSettings.key, set: { value: sql`excluded.value`, updatedById: sql`excluded.updated_by_id`, updatedAt: new Date() } });
+  };
+  await inTransaction(() => write(executor()));
   invalidateSettings();
 }
 
 /** Токен вебхука: создаётся при первом обращении, чтобы адрес для провайдера был сразу готов. */
-export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken"): Promise<string> {
+export async function ensureToken(key: "wazzup.webhookToken" | "pbx.token" | "email.webhookToken" | "kaspi.webhookSecret" | "gowa.webhookSecret"): Promise<string> {
   const existing = await getSetting(key);
   if (existing) return existing;
   const token = randomToken();
@@ -185,6 +213,9 @@ export async function deleteSetting(key: SettingKey) {
   await db.delete(crmSettings).where(eq(crmSettings.key, key));
   invalidateSettings();
 }
+
+/** Порт настроек для других модулей (src/shared/application): каждый объявляет только свои ключи. */
+export const settingsStore: SettingsStore<SettingKey> = { get: getSetting, getMany: getSettings, save: saveSettings };
 
 /** «••••1a2b» — для показа сохранённого секрета. */
 export const maskSecret = (v: string) => (v ? `••••${v.slice(-4)}` : "");

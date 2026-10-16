@@ -1,0 +1,66 @@
+файлов: 669, строк: 65824, файлов > 300 строк: 43
+функций: 5769, > 60 строк: 139, сложность > 15: 68, вложенность > 4: 16
+
+строки  сложн. влож.  — самые длинные
+  686   56   2  src/components/editor/QuestionsEditor.tsx:104 QuestionsEditor
+  563   20   3  src/modules/production/infrastructure/pdf/interior.tsx:60 InteriorDocument
+  549   10   3  src/components/book3d/BookViewer3D.tsx:148 BookViewer3D
+  477   11   2  src/components/editor/PagePreview.tsx:82 PagePreview
+  455   67   6  src/app/(app)/books/[id]/checkout/CheckoutForm.tsx:16 CheckoutForm
+  388   11   2  src/app/page.tsx:53 HomePage
+  377   20   3  src/components/book3d/BookViewerGL.tsx:71 BookViewerGL
+  324    9   1  src/app/(app)/books/[id]/cover/CoverEditor.tsx:46 CoverEditor
+  292   48   3  src/app/admin/clients/[id]/page.tsx:27 ClientPage
+  272   26   3  src/components/admin/ChatPanel.tsx:76 ChatPanel
+  244   53   2  src/app/admin/deals/[id]/page.tsx:28 DealPage
+  234    9   2  src/app/(app)/books/[id]/photos/PhotosManager.tsx:29 PhotosManager
+  230   20   2  src/app/(app)/books/[id]/page.tsx:29 BookHubPage
+  227   19   4  src/app/admin/deals/[id]/PaymentsPanel.tsx:71 PaymentsPanel
+  222   15   1  src/app/admin/analytics/page.tsx:21 AnalyticsPage
+  210   40   2  src/app/(app)/orders/[id]/page.tsx:29 OrderPage
+  209    7   1  src/components/editor/PhotoInspector.tsx:129 PhotoInspector
+  197    8   1  src/app/admin/page.tsx:18 AdminDashboard
+  197   22   4  src/components/SiteWidget.tsx:41 SiteWidget
+  194    2   1  src/app/(app)/books/[id]/pages/PagesEditor.tsx:32 PagesEditor
+  192   13   3  src/app/kniga/[slug]/page.tsx:46 LandingPage
+  191   36   2  src/app/admin/orders/[id]/page.tsx:20 AdminOrderPage
+  190   19   2  src/app/admin/deals/page.tsx:17 DealsPage
+  188    6   2  src/components/book3d/webgl/scene.ts:113 constructor
+  186   18   2  src/app/admin/marketing/page.tsx:23 MarketingPage
+  184   13   3  src/app/(app)/books/[id]/letters/LettersManager.tsx:25 LettersManager
+  175   17   5  src/app/admin/automations/AutomationEditor.tsx:92 Editor
+  174   21   4  src/app/admin/clients/new/NewClientForm.tsx:140 NewClientForm
+  172   23   2  src/app/review/[orderId]/ReviewForm.tsx:28 ReviewForm
+  169   30   3  src/app/admin/chats/page.tsx:31 ChatsPage
+
+строки  сложн. влож.  — самые разветвлённые
+  455   67   6  src/app/(app)/books/[id]/checkout/CheckoutForm.tsx:16 CheckoutForm
+  686   56   2  src/components/editor/QuestionsEditor.tsx:104 QuestionsEditor
+  244   53   2  src/app/admin/deals/[id]/page.tsx:28 DealPage
+   72   51   3  src/modules/automation/application/AutomationEngine.ts:69 perform
+  292   48   3  src/app/admin/clients/[id]/page.tsx:27 ClientPage
+   98   47   5  src/modules/production/infrastructure/pdf/flow.ts:96 refineFlow
+   90   45   3  src/app/admin/clients/new/actions.ts:73 createClientAction
+   47   41   3  src/modules/marketing/domain/channels.ts:70 channelOf
+  210   40   2  src/app/(app)/orders/[id]/page.tsx:29 OrderPage
+   78   37   3  src/lib/proofread/rules.ts:63 findAll
+  191   36   2  src/app/admin/orders/[id]/page.tsx:20 AdminOrderPage
+   66   35   3  src/lib/book/answer-blocks.ts:68 answerBlocks
+  169   30   3  src/app/admin/chats/page.tsx:31 ChatsPage
+   60   30   2  src/modules/ordering/application/OrdersService.ts:83 place
+  109   28   2  src/components/editor/PagePreview.tsx:315 <callback row.map>
+   46   27   2  src/app/admin/calls/page.tsx:71 <callback rows.map>
+   44   27   4  src/app/api/admin/deals/[id]/payments/route.ts:19 <callback api>
+   38   27   2  src/modules/messaging/domain/wazzup.ts:54 parseWazzupWebhook
+  272   26   3  src/components/admin/ChatPanel.tsx:76 ChatPanel
+   56   25   4  src/modules/messaging/infrastructure/email.ts:158 pollImap
+   28   23   1  src/app/admin/settings/actions.ts:172 saveAiAction
+  172   23   2  src/app/review/[orderId]/ReviewForm.tsx:28 ReviewForm
+   88   23   8  src/lib/book/photo-pages.ts:140 <callback places.forEach>
+   20   23   1  src/modules/messaging/domain/email.ts:74 parseInboundWebhook
+   32   22   4  src/app/api/admin/deals/[id]/receipts/route.ts:14 <callback api>
+  197   22   4  src/components/SiteWidget.tsx:41 SiteWidget
+   19   22   1  src/modules/automation/infrastructure/persistence.ts:32 load
+   72   22   4  src/modules/production/infrastructure/pdf/interior.tsx:257 opener
+   38   22   2  src/modules/sales/application/services.ts:50 create
+  110   21   1  src/app/(app)/books/[id]/checkout/page.tsx:26 CheckoutPage

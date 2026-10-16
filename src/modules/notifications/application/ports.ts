@@ -68,6 +68,14 @@ export interface ComposedEmail {
   note: string;
 }
 
+/** Форма отзыва и благодарность за него (контекст Feedback) — для письма с просьбой об отзыве. */
+export interface ReviewLinks {
+  /** Подписанная ссылка на форму отзыва по заказу. */
+  url(orderId: string, locale: Locale): string;
+  /** Скидка в благодарность за отзыв, %. */
+  thankYouPercent: number;
+}
+
 /** Шаблоны писем: текст на языке клиента, ссылки, отписка. */
 export interface EmailTemplates {
   draft(email: DraftEmail, c: DraftCandidate): ComposedEmail;

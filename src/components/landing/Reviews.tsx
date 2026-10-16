@@ -1,9 +1,9 @@
 import { Star } from "lucide-react";
 import type { Messages } from "@/i18n/messages";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Отзыв на витрине: только то, что автор разрешил показать. */
-export interface ShowcaseReview {
+interface ShowcaseReview {
   id: string;
   rating: number;
   text: string;

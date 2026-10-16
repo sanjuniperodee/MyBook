@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { currentMonth, shiftMonth } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
 import { PlanRow } from "./PlanRow";
@@ -52,7 +52,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                   key={s.id}
                   month={month}
                   userId={s.id}
-                  name={adminLabel(s)}
+                  name={staffLabel(s)}
                   planAmount={p?.planAmount ?? 0}
                   planDeals={p?.planDeals ?? 0}
                   fact={`${formatPrice(p?.factAmount ?? 0)} · ${p?.factDeals ?? 0} сд.`}

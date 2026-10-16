@@ -1,23 +1,42 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, type ComponentProps } from "react";
 import { localizePath, splitLocale, type Locale } from "./config";
-import { messagesFor } from "./messages";
+import { MessagesContext } from "./context";
+import type { ClientMessages } from "./messages";
 
 const LocaleContext = createContext<Locale>("ru");
 
+// Словарь каждого языка — свой чанк: браузер грузит только язык страницы. При первой отрисовке на сервере
+// next/dynamic отмечает нужный чанк, и браузер загружает его вместе с остальными, без лишнего запроса после.
+// Язык меняется только полной навигацией (LanguageSwitch → location.assign): смена Dictionary при клиентском
+// переходе перемонтировала бы всё дерево. Если чанк не загрузится, ошибку покажет app/global-error.tsx.
+const dictionaries: Record<Locale, React.ComponentType<{ children: React.ReactNode }>> = {
+  ru: dynamic(() => import("./dictionary/ru")),
+  kk: dynamic(() => import("./dictionary/kk")),
+};
+
 export function I18nProvider({ locale, children }: { locale: Locale; children: React.ReactNode }) {
-  return <LocaleContext.Provider value={locale}>{children}</LocaleContext.Provider>;
+  const Dictionary = dictionaries[locale];
+  return (
+    <LocaleContext.Provider value={locale}>
+      <Dictionary>{children}</Dictionary>
+    </LocaleContext.Provider>
+  );
 }
 
 export function useLocale() {
   return useContext(LocaleContext);
 }
 
-export function useMessages() {
-  return messagesFor(useContext(LocaleContext));
+/** Словарь языка страницы (без серверных пространств — см. ClientMessages). */
+export function useMessages(): ClientMessages {
+  const messages = useContext(MessagesContext);
+  if (!messages) throw new Error("useMessages: нет I18nProvider");
+  return messages;
 }
 
 /** Функция, превращающая «/books» в адрес на текущем языке. */

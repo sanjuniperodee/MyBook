@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { useMessages } from "@/i18n/client";
 import { CoverText } from "@/components/cover/CoverPreview";
 import { designBack } from "@/lib/book/cover-back";
@@ -30,11 +30,12 @@ import {
   type Orientation,
 } from "@/lib/book/book-model";
 import { clampPos, RENDER_WINDOW, visibleSpread, type Sheet } from "@/lib/book/flipbook";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls } from "./ViewerControls";
 import { FaceView, usePagedBook, type FaceContext, type FlipbookData } from "./pages";
+import { useBookKeys, useFullscreen } from "./hooks";
 
 /** Длина в миллиметрах модели → CSS: --u — пикселей на миллиметр, зависит от размера кадра и масштаба. */
 const L = (mm: number) => `calc(${Math.round(mm * 1000) / 1000} * var(--u))`;
@@ -481,30 +482,16 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
       p.last = { t: e.timeStamp, x: rest.x, y: rest.y };
     }
   };
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const v = view.current;
-    const step = 10;
-    const orbitKey = e.shiftKey;
-    const actions: Record<string, () => void> = {
-      ArrowRight: () => (orbitKey ? animateTo({ ry: v.ry + step }) : goTo(target.current + 1)),
-      ArrowLeft: () => (orbitKey ? animateTo({ ry: v.ry - step }) : goTo(target.current - 1)),
-      ArrowUp: () => animateTo({ rx: clamp(v.rx + step, -TILT_LIMIT, TILT_LIMIT) }),
-      ArrowDown: () => animateTo({ rx: clamp(v.rx - step, -TILT_LIMIT, TILT_LIMIT) }),
-      PageDown: () => goTo(target.current + 1),
-      PageUp: () => goTo(target.current - 1),
-      Home: () => goTo(0),
-      End: () => goTo(cfg.current.count - 1),
-      "+": () => animateTo({ zoom: v.zoom * ZOOM.step }, active),
-      "=": () => animateTo({ zoom: v.zoom * ZOOM.step }, active),
-      "-": () => animateTo({ zoom: v.zoom / ZOOM.step }, active),
-      "0": () => animateTo({ ...INITIAL_VIEW, zoom: 1 }),
-    };
-    const run = actions[e.key];
-    if (!run) return;
-    e.preventDefault();
-    stopAuto();
-    run();
-  };
+  const step = 10;
+  const onKeyDown = useBookKeys({
+    turn: (dir) => goTo(target.current + dir),
+    edge: (to) => goTo(to === "first" ? 0 : cfg.current.count - 1),
+    orbit: (dir) => animateTo({ ry: view.current.ry + step * dir }),
+    tilt: (dir) => animateTo({ rx: clamp(view.current.rx + step * dir, -TILT_LIMIT, TILT_LIMIT) }),
+    zoom: (dir) => animateTo({ zoom: dir > 0 ? view.current.zoom * ZOOM.step : view.current.zoom / ZOOM.step }, active),
+    reset: () => animateTo({ ...INITIAL_VIEW, zoom: 1 }),
+    before: stopAuto,
+  });
 
   // Колёсико меняет масштаб только вместе с Ctrl/⌘, иначе страница перестала бы прокручиваться над моделью.
   useEffect(() => {
@@ -521,21 +508,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   }, [apply]);
 
   // ── Полный экран ──
-  const canFull = useSyncExternalStore(
-    () => () => {},
-    () => document.fullscreenEnabled,
-    () => false,
-  );
-  const [full, setFull] = useState(false);
-  useEffect(() => {
-    const sync = () => setFull(document.fullscreenElement === wrapper.current);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-  const toggleFull = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void wrapper.current?.requestFullscreen();
-  };
+  const { canFull, full, toggleFull } = useFullscreen(wrapper);
 
   // ── Грани обложки ──
   const { w: W, h: H, d: D } = dims;

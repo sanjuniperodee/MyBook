@@ -1,8 +1,10 @@
-/** Жизненный цикл заказа. Единственный источник списка статусов (схема БД берёт его отсюда). */
-export const ORDER_STATUSES = ["pending_payment", "paid", "in_production", "shipped", "delivered", "cancelled"] as const;
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
+import type { OrderStatus } from "@/shared/domain/orders";
 
-export const isOrderStatus = (v: string): v is OrderStatus => (ORDER_STATUSES as readonly string[]).includes(v);
+/** Статусы оплаченного заказа: оплачен, в печати, отправлен или доставлен. */
+export const PAID_ORDER_STATUSES = ["paid", "in_production", "shipped", "delivered"] as const satisfies readonly OrderStatus[];
 
-/** Статусы, в которых заказ «живой»: книга заблокирована для правок. */
-export const ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = ["pending_payment", "paid", "in_production", "shipped", "delivered"];
+/**
+ * Заказ оплачен — по статусу: не ждёт оплаты и не отменён. От этого зависят файлы книги для покупателя, отзыв
+ * и шаг «Заказ» в кабинете. Выручка считается иначе — по paid_at (см. paidAndNotCancelled в SQL модулей).
+ */
+export const isPaid = (status: OrderStatus) => (PAID_ORDER_STATUSES as readonly OrderStatus[]).includes(status);

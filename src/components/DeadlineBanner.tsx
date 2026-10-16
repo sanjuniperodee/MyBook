@@ -2,7 +2,8 @@ import { CalendarHeart, Clock, Zap } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { getMessages } from "@/i18n/server";
 import { deadlineFor, getOccasion, parseDay } from "@/lib/occasions";
-import { cn, nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { nowMs } from "@/lib/dates";
 
 /** Сколько ответов считаем «полноценной книгой» для расчёта темпа. */
 const GOOD_BOOK_ANSWERS = 30;

@@ -1,5 +1,5 @@
 import { getCoverTemplate } from "@/lib/book/covers";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { CoverPreview, type CoverPreviewProps } from "./CoverPreview";
 
 /** Обложка, собранная в объёмную книгу с корешком и обрезом страниц (чистый CSS 3D). */

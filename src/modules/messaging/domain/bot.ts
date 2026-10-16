@@ -1,7 +1,7 @@
-import { fillTemplate } from "@/modules/automation/domain/meta";
+import { fillTemplate } from "@/shared/domain/templates";
 import { matchOption, parseDateAnswer, questionText, type BotConfig } from "@/modules/messaging/domain/botConfig";
 
-export { defaultBotConfig, parseBotConfig, type BotConfig, type BotQuestion } from "@/modules/messaging/domain/botConfig";
+export type { BotConfig } from "@/modules/messaging/domain/botConfig";
 
 export type BotMode = "off" | "always" | "off_hours";
 export const BOT_DONE = -1;
@@ -32,7 +32,7 @@ export function botQuestion(config: BotConfig, step: number, fields: DealField[]
   return questionText(q, f?.type === "select" ? f.options : null);
 }
 
-export const firstName = (contactName: string) => contactName.split(" ")[0] ?? "";
+const firstName = (contactName: string) => contactName.split(" ")[0] ?? "";
 export const botGreeting = (config: BotConfig, contactName: string) => fillTemplate(config.greeting, { name: firstName(contactName) });
 export const botFinish = (config: BotConfig, contactName: string) => fillTemplate(config.finish, { name: firstName(contactName) });
 

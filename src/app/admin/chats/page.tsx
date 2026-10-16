@@ -2,16 +2,17 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { channelLabel } from "@/modules/messaging";
-import { channelLabel as acquisitionChannel, toAttribution } from "@/modules/marketing/domain/channels";
-import { chatVars, listTemplates, loadChatMessages, sendBlocker } from "@/modules/messaging";
+import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/domain/channels";
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
+import { storeTimeZone } from "@/shared/domain/time";
 import { getSetting } from "@/modules/workspace";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { ChatSideControls } from "./ChatControls";
 
 export const metadata = { title: "Чаты" };
@@ -25,7 +26,7 @@ function waitMinutes(d: Date | null) {
 const shortTime = (d: Date | null) => {
   if (!d) return "";
   const today = new Date();
-  return d.toDateString() === today.toDateString() ? d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: process.env.TZ || "Asia/Almaty" }) : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return d.toDateString() === today.toDateString() ? d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: storeTimeZone() }) : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 };
 
 export default async function ChatsPage({ searchParams }: { searchParams: Promise<{ c?: string; f?: string; q?: string }> }) {
@@ -42,7 +43,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     selectedId ? container().messaging.queries.conversation(selectedId) : null,
   ]);
   const sla = Number(slaRaw) || 15;
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const conv = selected && canSeeAssigned(staff, selected.assigneeId) ? selected : null;
   const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) =>
     c.contactName ||
@@ -62,11 +63,12 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   let side: React.ReactNode = null;
 
   if (conv) {
+    const chat = container().messaging.view;
     const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai] = await Promise.all([
-      loadChatMessages(conv.id),
-      listTemplates(),
-      chatVars(conv, adminLabel(staff.user)),
-      sendBlocker(conv),
+      chat.messages(conv.id),
+      chat.templates(),
+      chat.vars(conv, staffLabel(staff.user)),
+      chat.sendBlocker(conv),
       container().reporting.conversationContext(conv),
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),
@@ -102,6 +104,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           offers={can(staff, "chats.send") ? offers : null}
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
           ai={ai && can(staff, "chats.send")}
+          timeZone={storeTimeZone()}
         />
       </div>
     );

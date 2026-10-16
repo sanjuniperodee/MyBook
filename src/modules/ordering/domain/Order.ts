@@ -3,7 +3,8 @@ import { getPlan, type DeliveryId, type PlanId } from "@/config/site";
 import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
-import type { OrderStatus } from "./OrderStatus";
+import { isPaid } from "./OrderStatus";
+import type { OrderPrintSpec, OrderStatus } from "@/shared/domain/orders";
 import type { PromoCode } from "./PromoCode";
 
 export interface OrderContact {
@@ -17,15 +18,6 @@ export interface OrderDelivery {
   city: string | null;
   address: string | null;
   postalCode: string | null;
-}
-
-export interface OrderPrintSpec {
-  format: string;
-  pageCount: number;
-  spineMm: number;
-  coverWidthMm: number;
-  coverHeightMm: number;
-  generatedAt: string;
 }
 
 /** Запись журнала заказа (видна в CRM). */
@@ -205,6 +197,11 @@ export class Order extends AggregateRoot<OrderProps> {
 
   // ─── команды ─────────────────────────────────────────────────────────────
 
+  /** Платёж, которым заказ оплачен (id операции платёжной системы). */
+  get paymentId() {
+    return this.props.paymentId;
+  }
+
   /** Подтверждение оплаты. Повторное уведомление платёжной системы — без последствий (false). */
   markPaid(paymentId: string | null, actor: string, now: Date): boolean {
     if (this.props.status !== "pending_payment") return false;
@@ -248,7 +245,7 @@ export class Order extends AggregateRoot<OrderProps> {
     this.props.status = "cancelled";
     const releasePromo = from === "pending_payment" && !!this.props.promoCode;
     this.log("cancelled", note, actor, now);
-    this.record(OrderingEvents.orderCancelled({ ...this.ref(), wasPaid: from !== "pending_payment", releasedPromo: releasePromo, actor }));
+    this.record(OrderingEvents.orderCancelled({ ...this.ref(), wasPaid: isPaid(from), releasedPromo: releasePromo, actor }));
     return { releasePromo };
   }
 

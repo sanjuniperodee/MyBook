@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { admin } from "@/i18n/admin";
 import { messagesFor } from "@/i18n/messages";
 import { alternates } from "@/i18n/seo";
 import { localizePath, splitLocale } from "@/i18n/config";
@@ -36,6 +37,11 @@ describe("словари", () => {
   it("нет пустых строк", () => {
     expect(emptyStrings(ru)).toEqual([]);
     expect(emptyStrings(kk)).toEqual([]);
+    expect(emptyStrings(admin)).toEqual([]);
+  });
+
+  it("тексты ошибок для CRM (admin, только русский) не пересекаются по ключам с api: HttpError однозначен", () => {
+    expect(Object.keys(admin).filter((key) => key in ru.api)).toEqual([]);
   });
 
   it("функции словаря возвращают строки на обоих языках", () => {
@@ -102,15 +108,23 @@ describe("нет русских строк вне словарей", () => {
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
+    "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
-    "shared/infrastructure/db/schema.ts",
+    "shared/domain/channels.ts", // подписи каналов привлечения для CRM — на русском
+    "shared/domain/slug.ts", // таблица транслитерации кода ссылки
+    "shared/domain/dealSources.ts", // подписи источников сделки для CRM — на русском
+    "shared/domain/templates.ts", // переменные шаблонов CRM: {имя}, {заказ}…
+    "shared/domain/staff.ts", // подпись сотрудника в CRM: имя учётки по умолчанию «Администратор»
+    "shared/domain/permissions.ts", // названия прав сотрудников для редактора ролей в CRM — на русском
+    "shared/domain/segments.ts", // названия сегментов клиентов для CRM — на русском
+    "shared/domain/customFields.ts", // переменные своих полей для шаблонов CRM: флажок — «да»/«нет»
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
     "lib/proofread/rules.ts", // слова и сокращения для правил проверки текста
     "lib/proofread/spelling.ts", // алфавит для отбора слов на проверку словарём
     "modules/referrals/domain/translit.ts", // таблица транслитерации имени в код-приглашение
   ]);
   // Строки для команды, а не для клиента.
-  const internalLine = /legalName:|Заказ создан|по договорённости с менеджером|учтена как аванс|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Клиент оформил заказ|засчитана оплата электронной|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml|note: `Спасибо за отзыв к заказу|note: `Приглашения от|note: `Награда за друга|title: `Отзыв \$\{r\.rating\}/;
+  const internalLine = /legalName:|Заказ создан|по договорённости с менеджером|учтена как аванс|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Клиент оформил заказ|засчитана оплата электронной|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml|note: `Спасибо за отзыв к заказу|note: `Приглашения от|note: `Награда за друга|title: `Отзыв \$\{r\.rating\}|this\.logger\.(warn|error)\(|new OrderingError\("kaspi(Unavailable|NotConnected)", /;
 
   const files: string[] = [];
   const walk = (dir: string) => {

@@ -17,8 +17,3 @@ export async function invitedBy() {
     return null;
   }
 }
-
-/** Код-приглашение из cookie — для оформления заказа. */
-export async function inviteCodeFromCookie() {
-  return (await cookies()).get(INVITE_COOKIE)?.value ?? null;
-}

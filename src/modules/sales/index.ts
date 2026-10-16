@@ -1,6 +1,6 @@
-import type { Clock, Logger, UnitOfWork } from "@/shared/application";
-import { DealsService, PipelinesService, SiteFunnelService } from "./application";
-import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress } from "./infrastructure/adapters";
+import type { Clock, Logger, SettingsReader, UnitOfWork, WorkSchedule } from "@/shared/application";
+import { DealsService, PaymentIntakeService, PipelinesService, SiteFunnelService, type PaymentEffects } from "./application";
+import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
 import { dealAgreedPlan, setDealAgreedPlan } from "./infrastructure/agreedPlan";
@@ -8,12 +8,12 @@ import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
 
-export { currentMonth, shiftMonth, type PlanProgress, dealSourceLabels, dealSources, sourceFromChannel, SalesError, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type DealSource, type StageMilestone } from "./domain";
+export { currentMonth, shiftMonth, type PlanProgress, sourceFromChannel, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent } from "./domain";
 export type { DealView, NewDeal } from "./application";
-export { ReceiptError, type ReceiptRow } from "./infrastructure/receipts";
+export type { ReceiptRow } from "./infrastructure/receipts";
 export type { DealAgreement } from "./infrastructure/agreements";
-export { MAX_PAYMENT, PaymentError, type PaymentRow } from "./infrastructure/payments";
-export { RECEIPT_MAX_BYTES } from "./domain";
+export type { PaymentRow } from "./infrastructure/payments";
+export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "./domain";
 
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {
@@ -27,6 +27,8 @@ export class SalesModule {
   readonly receipts = new DealReceipts();
   /** Принятые деньги по сделкам, оформленным вручную (предоплата, доплаты) — источник выручки наряду с заказами. */
   readonly payments = new DealPayments();
+  /** Принять платёж или возврат с чеком: деньги, чек, заметка, журнал, письмо клиенту. */
+  readonly intake: PaymentIntakeService;
   /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */
   readonly agreementFor = agreementForClient;
   /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
@@ -34,11 +36,14 @@ export class SalesModule {
   /** Перенести вручную выбранный канал клиента на его сделки (у которых нет настоящих UTM-меток). */
   readonly setClientAttribution = setClientDealsAttribution;
 
-  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger }) {
+  /** Настройки CRM и график работы (распределение заявок по кругу) — порты рабочего пространства. */
+  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects }) {
+    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects, deps.uow);
     const repo = new DrizzleDealRepository();
     const funnels = new DrizzleFunnelRepository();
-    this.deals = new DealsService(repo, funnels, drizzleClients, crmSalesSettings, roundRobinRouter, deps.uow, deps.clock);
+    const settings = crmSalesSettings(deps.settings);
+    this.deals = new DealsService(repo, funnels, drizzleClients, settings, roundRobinRouter(deps.schedule), deps.uow, deps.clock);
     this.pipelines = new PipelinesService(new DrizzlePipelineRepository(), () => this.deals.defaultPipelineId());
-    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, crmSalesSettings, sqlBookProgress, this.deals, deps.logger, (dealId) => this.payments.paidTotal(dealId));
+    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, settings, sqlBookProgress, this.deals, deps.logger, (dealId) => this.payments.paidTotal(dealId));
   }
 }

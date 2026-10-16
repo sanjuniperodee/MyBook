@@ -1,5 +1,5 @@
 import { addonName, coverName, deliveryName, formatName, interiorName, planName } from "@/i18n/labels";
-import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, describeAttribution, toAttribution } from "@/shared/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,24 +9,36 @@ import { formatPrice, getPlan } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
+import { formatPhone } from "@/shared/domain/phone";
+import { pageId } from "@/server/input";
+
+/** Статусы счетов Kaspi в карточке заказа. */
+const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("orders.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }] = await Promise.all([container().authoring.queries.stats(book), container().access.queries.allStaff(), container().reporting.orderCrm(order)]);
+  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices] = await Promise.all([
+    container().authoring.queries.stats(book),
+    container().access.queries.allStaff(),
+    container().reporting.orderCrm(order),
+    container().ordering.queries.paymentInvoices("order", order.id),
+  ]);
   const adminOptions = staffOptions(admins);
-  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = new Date();
   const tasks: TaskItem[] = taskRows.map((t) => ({
     id: t.id,
@@ -188,6 +200,23 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>
               {order.paidAt ? <div className="flex justify-between text-xs text-muted"><dt>Оплачен</dt><dd>{formatDate(order.paidAt, true)}</dd></div> : null}
             </dl>
+            {kaspiInvoices.length ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="mb-1.5 text-xs text-muted">Счета Kaspi</div>
+                <ul className="space-y-1 text-xs">
+                  {kaspiInvoices.map((i) => (
+                    <li key={i.id} className="flex justify-between gap-2">
+                      <span>
+                        {i.method === "qr" ? "QR" : `счёт на ${formatPhone(i.phone) || i.phone}`} · №{i.externalId}
+                      </span>
+                      <span className={i.status === "paid" ? "text-emerald-700" : "text-muted"} title={i.providerStatus ?? undefined}>
+                        {invoiceStatusLabels[i.status]} {formatDate(i.paidAt ?? i.createdAt, true)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </Card>
           {canEdit ? (
             <>

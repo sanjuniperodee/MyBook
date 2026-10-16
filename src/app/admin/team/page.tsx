@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { StaffForm, StaffRow } from "./TeamControls";
 
 export const metadata = { title: "Команда" };

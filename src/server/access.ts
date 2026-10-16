@@ -2,7 +2,8 @@ import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { trustedClientIp } from "@/server/rateLimit";
-import type { Permission, RoleScope, StaffContext, StaffGate } from "@/modules/access";
+import type { StaffContext, StaffGate } from "@/modules/access";
+import type { Permission, RoleScope } from "@/shared/domain/permissions";
 import { getCurrentUser, type User } from "./auth";
 import { container } from "./container";
 
@@ -22,11 +23,16 @@ export interface Staff {
   context: StaffContext;
 }
 
-export type { StaffGate };
+/** Метка общая для слоёв бандла Next.js: ForbiddenError.is() узнаёт ошибку, даже если класс загружен дважды. */
+const FORBIDDEN_ERROR = Symbol.for("mybook.forbidden-error");
 
 export class ForbiddenError extends Error {
+  readonly [FORBIDDEN_ERROR] = true;
   constructor(message = "Недостаточно прав для этого действия") {
     super(message);
+  }
+  static is(err: unknown): err is ForbiddenError {
+    return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[FORBIDDEN_ERROR] === true;
   }
 }
 
@@ -42,7 +48,7 @@ const loadStaff = cache(async (): Promise<Staff | null> => {
 });
 
 /** Что мешает сотруднику работать в CRM: вход не из разрешённой сети или не настроена обязательная 2FA. */
-export const staffGate = cache(async (): Promise<StaffGate> => {
+const staffGate = cache(async (): Promise<StaffGate> => {
   const staff = await loadStaff();
   if (!staff) return null;
   return container().access.resolver.gate(account(staff.user), await trustedClientIp());
@@ -119,5 +125,3 @@ export function contactView(staff: Staff, v: { phone?: string | null; email?: st
 export async function audit(staff: Staff | null, action: string, entity: string, entityId?: string | null, details?: Record<string, unknown>) {
   await container().access.audit.record({ actorId: staff?.user.id ?? null, action, entity, entityId, details });
 }
-
-export const actorLabel = (staff: Staff) => `admin:${staff.user.email}`;

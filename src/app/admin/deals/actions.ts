@@ -5,18 +5,20 @@ import { listFields, readFieldValues } from "@/modules/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { notify } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
-import { dealSources, stageMilestones, type StageMilestone } from "@/modules/sales/domain/meta";
+import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
+import { dealSources } from "@/shared/domain/dealSources";
+import { MAX_PAYMENT } from "@/modules/sales/domain";
 
 export interface DealFormState {
   error?: string;
   ok?: string;
 }
 
-const uuid = z.string().uuid();
 
 async function loadDeal(staff: Staff, id: string) {
   const deal = await container().sales.deals.findById(uuid.parse(id));
@@ -36,7 +38,7 @@ const dealSchema = z.object({
   contactName: z.string().trim().max(120).default(""),
   contactPhone: z.string().trim().max(40).default(""),
   contactEmail: z.union([z.literal(""), z.string().trim().email("Некорректный e-mail").max(200)]).default(""),
-  amount: z.coerce.number().int().min(0).max(100_000_000).default(0),
+  amount: z.coerce.number().int().min(0).max(MAX_PAYMENT).default(0),
   source: z.enum(dealSources).default("manual"),
   stageId: z.union([z.literal(""), uuid]).default(""),
   assigneeId: z.union([z.literal(""), uuid]).default(""),
@@ -162,7 +164,7 @@ const stageSchema = z.object({
   id: z.union([z.literal(""), uuid]).default(""),
   name: z.string().trim().min(1, "Название этапа").max(40),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#9a8f86"),
-  milestone: z.union([z.enum(Object.keys(stageMilestones) as [StageMilestone, ...StageMilestone[]]), z.literal("")]).default(""),
+  milestone: z.union([z.enum(STAGE_MILESTONES), z.literal("")]).default(""),
   pipelineId: z.union([z.literal(""), uuid]).default(""),
 });
 
@@ -298,8 +300,9 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
   }
   let done = 0;
   let skipped = 0;
+  const deals = new Map((await container().sales.deals.findByIds(list)).map((d) => [d.id, d]));
   for (const id of list) {
-    const deal = await container().sales.deals.findById(id);
+    const deal = deals.get(id);
     if (!deal || (staff.scope !== "all" && deal.assigneeId && deal.assigneeId !== staff.user.id)) {
       skipped++;
       continue;

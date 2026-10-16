@@ -9,9 +9,9 @@ export class DrizzlePeopleGateway implements PeopleGateway {
     await executor().update(users).set({ phone }).where(and(eq(users.id, userId), isNull(users.phone)));
   }
 
-  async staffLabel(userId: string) {
+  async activeStaff(userId: string) {
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return null;
     const [u] = await executor().select({ name: users.name, email: users.email, role: users.role, disabled: users.staffDisabled }).from(users).where(eq(users.id, userId)).limit(1);
-    return u && u.role === "admin" && !u.disabled ? u.name || u.email : null;
+    return u && u.role === "admin" && !u.disabled ? { name: u.name, email: u.email } : null;
   }
 }

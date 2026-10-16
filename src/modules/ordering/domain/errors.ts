@@ -22,7 +22,13 @@ export type OrderingErrorCode =
   | "giftNotFound"
   | "giftPastDate"
   | "giftNeedEmail"
-  | "staffNotFound";
+  | "staffNotFound"
+  | "notPayable"
+  | "phoneInvalid"
+  | "invoiceNotFound"
+  | "kaspiNotConnected"
+  | "kaspiSessionShared"
+  | "kaspiUnavailable";
 
 export const OrderingError = contextError<OrderingErrorCode>("ordering", "OrderingError");
 export type OrderingError = InstanceType<typeof OrderingError>;

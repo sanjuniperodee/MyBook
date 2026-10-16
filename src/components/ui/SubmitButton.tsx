@@ -2,7 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { LoaderCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export function SubmitButton({ children, className, pendingText }: { children: React.ReactNode; className?: string; pendingText?: string }) {
   const { pending } = useFormStatus();

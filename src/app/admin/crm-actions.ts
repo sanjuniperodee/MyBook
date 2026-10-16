@@ -1,20 +1,21 @@
 "use server";
 
+import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
 import { normalizePhone } from "@/shared/domain/phone";
-import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
 
-export type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
+type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
 
-const uuid = z.string().uuid();
 
 /** Ответственный за клиента. «Только свои» может лишь взять неразобранного клиента себе. */
 export async function setClientManagerAction(clientId: string, managerId: string | null): Promise<ActionResult> {
@@ -86,7 +87,8 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
   assertVisible(staff, c.assigneeId);
-  const channelId = await getSetting("wazzup.channelId");
+  // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
+  const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
   const conv = await container().messaging.chats.conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
   if (c.dealId && !conv.dealId) await container().messaging.chats.attachDeal(conv.id, c.dealId);
@@ -100,8 +102,7 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
   assertVisible(staff, c.assigneeId);
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
-  const { sendEmailToContact } = await import("@/modules/messaging");
-  const r = await sendEmailToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
+  const r = await container().messaging.email.sendToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
   if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
   if (c.clientId) revalidatePath(`/admin/clients/${c.clientId}`);
@@ -132,9 +133,10 @@ export async function setClientPhonesAction(clientId: string, raw: string): Prom
 }
 
 /** «На смене» — получать новые заявки по кругу. */
-export async function setShiftAction(onShift: boolean) {
+export async function setShiftAction(rawOnShift: boolean) {
   const staff = await assertStaff();
-  await container().access.shifts.set(staff.user.id, !!onShift);
+  const onShift = z.boolean().parse(rawOnShift);
+  await container().access.shifts.set(staff.user.id, onShift);
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
 }
 

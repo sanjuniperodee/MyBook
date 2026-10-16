@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff } from "@/server/access";
 import { container } from "@/server/container";
 
-const uuid = z.string().uuid();
 
 export async function markGiftPaidAction(id: string) {
   const staff = await assertStaff("gifts.manage");

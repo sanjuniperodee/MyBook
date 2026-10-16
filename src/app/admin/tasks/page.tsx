@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Задачи" };
 
@@ -15,7 +17,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const showDone = sp.done === "1";
   const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: admin.id, seesAll: staff.scope === "all" }, { who, done: showDone }), container().access.queries.allStaff()]);
   const adminOptions = staffOptions(admins);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today.getTime() + 86_400_000);

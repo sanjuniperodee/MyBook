@@ -2,14 +2,8 @@ import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmNotifications, crmRoles, users } from "@/shared/infrastructure/db/schema";
-import type { Permission } from "@/modules/access/domain/permissions";
-
-export interface NotificationInput {
-  kind: "message" | "call" | "task" | "deal" | "sla" | "system" | "mention";
-  title: string;
-  body?: string;
-  link?: string | null;
-}
+import type { StaffNotification, StaffNotifier } from "@/shared/application";
+import type { Permission } from "@/shared/domain/permissions";
 
 /** Активные сотрудники с правом perm (руководители — всегда). */
 export async function staffWith(perm: Permission): Promise<string[]> {
@@ -21,7 +15,7 @@ export async function staffWith(perm: Permission): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-export async function notify(userIds: (string | null | undefined)[], n: NotificationInput) {
+export async function notify(userIds: (string | null | undefined)[], n: StaffNotification) {
   const ids = [...new Set(userIds.filter((x): x is string => !!x))];
   if (!ids.length) return;
   await db.insert(crmNotifications).values(ids.map((userId) => ({ userId, kind: n.kind, title: n.title.slice(0, 200), body: (n.body ?? "").slice(0, 500), link: n.link ?? null })));
@@ -33,6 +27,13 @@ export async function notify(userIds: (string | null | undefined)[], n: Notifica
 }
 
 /** Ответственному, а если его нет — всем, у кого есть право (неразобранное видят все). */
-export async function notifyOwnerOr(assigneeId: string | null | undefined, perm: Permission, n: NotificationInput) {
+export async function notifyOwnerOr(assigneeId: string | null | undefined, perm: Permission, n: StaffNotification) {
   await notify(assigneeId ? [assigneeId] : await staffWith(perm), n);
 }
+
+/** Порт уведомлений для других модулей (src/shared/application). */
+export const staffNotifier: StaffNotifier<Permission> = {
+  notify,
+  notifyOwnerOr,
+  notifyAllWith: async (perm, n) => notify(await staffWith(perm), n),
+};

@@ -3,6 +3,8 @@ import { requireUser } from "@/server/auth";
 import { countQuestions, getTheme, getThemes, isThemeId } from "@/lib/content/themes";
 import { getLocale, getMessages } from "@/i18n/server";
 import { locales } from "@/i18n/config";
+import { getCoverTemplate } from "@/lib/book/covers";
+import { coverMeta } from "@/lib/book/covers/meta";
 import { NewBookWizard, type WizardTheme } from "./NewBookWizard";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,7 +26,8 @@ export default async function NewBookPage({ searchParams }: { searchParams: Prom
     recipientGender: t.recipientGender,
     defaultRecipientGender: t.defaultRecipientGender,
     titleSuggestions: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).titleSuggestions])) as WizardTheme["titleSuggestions"],
-    defaultCover: t.defaultCover,
+    // Обложка темы — метаданные шаблона: мастер рисует её без каталога обложек в браузере.
+    defaultCover: coverMeta(getCoverTemplate(t.defaultCover)),
   }));
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">

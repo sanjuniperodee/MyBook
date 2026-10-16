@@ -1,5 +1,5 @@
 import { photoUrl } from "@/lib/urls";
-import type { PhotoSpec } from "./cover-kit";
+import type { PhotoSpec } from "./covers/svg-kit";
 import { frameKey, parseFrames } from "./photo-frame";
 
 type PhotoDims = { id: string; width: number; height: number };

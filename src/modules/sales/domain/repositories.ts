@@ -4,6 +4,8 @@ import type { Funnel } from "./Funnel";
 export interface DealRepository {
   nextIdentity(): Promise<{ id: string; number: number }>;
   findById(id: string): Promise<Deal | null>;
+  /** Несколько сделок одним запросом (массовые действия); ненайденных в ответе нет. */
+  findByIds(ids: string[]): Promise<Deal[]>;
   findByOrder(orderId: string): Promise<Deal[]>;
   /** Открытая сделка клиента или номера — чтобы не плодить дубли. */
   findOpen(opts: { clientId?: string | null; phone?: string | null }): Promise<Deal | null>;

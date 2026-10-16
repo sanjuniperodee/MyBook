@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { RECEIPT_MAX_BYTES, safeReceiptName, sniffReceipt } from "@/modules/sales/domain";
+import { RECEIPT_MAX_BYTES, receiptProblem, safeReceiptName, sniffReceipt } from "@/modules/sales/domain";
+import { admin } from "@/i18n/admin";
 
 const bytes = (...b: number[]) => Uint8Array.from([...b, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
@@ -27,5 +28,16 @@ describe("чек об оплате", () => {
     expect(safeReceiptName("", "pdf")).toBe("чек.pdf");
     expect(safeReceiptName("x".repeat(300), "jpg")).toHaveLength(120);
     expect(RECEIPT_MAX_BYTES).toBe(12 * 1024 * 1024);
+  });
+
+  it("одно правило для файла чека: пустой, больше предела, не тот тип — и текст для менеджера", () => {
+    expect(receiptProblem(new Uint8Array())).toBe("empty");
+    const big = new Uint8Array(RECEIPT_MAX_BYTES + 1);
+    big.set([0xff, 0xd8, 0xff]);
+    expect(receiptProblem(big)).toBe("tooBig");
+    expect(receiptProblem(new TextEncoder().encode("<html></html>"))).toBe("type");
+    expect(receiptProblem(bytes(0x25, 0x50, 0x44, 0x46, 0x2d))).toBeNull();
+    // текст для менеджера: словарь admin, предел — из той же константы
+    expect([admin.receiptEmpty, admin.receiptTooBig(RECEIPT_MAX_BYTES / 1024 / 1024), admin.receiptType]).toEqual(["Файл пустой", "Файл больше 12 МБ", "Нужен файл JPG, PNG, WEBP или PDF"]);
   });
 });

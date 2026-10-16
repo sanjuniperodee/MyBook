@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { LoaderCircle, Mail, MessageCircle, PhoneOutgoing } from "lucide-react";
 import { toast, toastError } from "@/components/ui/overlays";
 import { callAction, openChatAction, sendEmailAction } from "@/app/admin/crm-actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 type Target = { clientId?: string; dealId?: string; orderId?: string; callId?: string };
 

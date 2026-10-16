@@ -7,8 +7,8 @@ import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, use
 import { CalendarClock, CircleDollarSign, Gift } from "lucide-react";
 import { moveOrderAction } from "../actions";
 import { orderStatusLabels } from "@/modules/ordering/ui/status";
-import type { OrderStatus } from "@/modules/ordering/domain";
-import { cn } from "@/lib/utils";
+import type { OrderStatus } from "@/shared/domain/orders";
+import { cn } from "@/lib/class-names";
 
 export interface BoardCard {
   id: string;

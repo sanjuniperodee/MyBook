@@ -2,9 +2,10 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone } from "@/shared/domain/phone";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { CallRowActions } from "./CallActions";
 
 export const metadata = { title: "Звонки" };
@@ -24,7 +25,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     container().access.queries.allStaff(),
     container().telephony.phone.currentProvider(),
   ]);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const chip = (k: Filter) => cn("rounded-full px-3 py-1.5 text-sm", f === k ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream");
 
   return (

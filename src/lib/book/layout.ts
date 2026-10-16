@@ -1,55 +1,13 @@
 /**
- * Сборка содержимого книги и оценка объёма. Модуль общий для сервера и браузера.
+ * Сборка содержимого книги и помощники фотостраниц. Модуль общий для сервера и браузера.
  */
 import type { Locale } from "@/i18n/config";
-import { messagesFor } from "@/i18n/messages";
 import { applyGender } from "../content/gender";
-import { getTheme } from "../content/themes";
 import type { Book, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
-import { framedBox, layoutInline, MAX_INLINE_HEIGHT_SHARE, normalizeStyle, splitParagraphs } from "./inline-photo";
-import { formats, getFormat, type BookFormat, type FormatId } from "./formats";
-import type { Typography } from "./fonts";
+import { MAX_INLINE_HEIGHT_SHARE } from "./inline-photo";
+import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
-import type { PageBox } from "./interior-art";
-
-export interface InteriorMetrics {
-  /** Поля от линии реза, мм. */
-  marginTop: number;
-  marginBottom: number;
-  marginInner: number;
-  marginOuter: number;
-  /** Масштаб кегля относительно A5. */
-  scale: number;
-}
-
-export const interiorMetrics: Record<FormatId, InteriorMetrics> = {
-  a5: { marginTop: 17, marginBottom: 21, marginInner: 18, marginOuter: 16, scale: 1 },
-  square: { marginTop: 22, marginBottom: 24, marginInner: 24, marginOuter: 22, scale: 1.12 },
-};
-
-export function textArea(format: BookFormat) {
-  const m = interiorMetrics[format.id];
-  return {
-    w: format.widthMm - m.marginInner - m.marginOuter,
-    h: format.heightMm - m.marginTop - m.marginBottom,
-  };
-}
-
-/** Обрезной формат с вылетами и отступ рамки парадных полос — для графики из interior-art. */
-export function pageBox(format: BookFormat, bleed: number): PageBox {
-  const m = interiorMetrics[format.id];
-  return { w: format.widthMm, h: format.heightMm, bleed, inset: Math.min(m.marginTop, m.marginOuter) * 0.55 };
-}
-
-/**
- * Начальная полоса главы: где начинается блок с номером и названием (мм от верхнего обреза)
- * и во сколько раз полоса набора больше, чем у A5, — по этому масштабу рисуются картинки.
- */
-export function openerFlow(format: BookFormat, design: InteriorDesign) {
-  const m = interiorMetrics[format.id];
-  const h = textArea(format).h;
-  return { top: m.marginTop + design.opener.top * h, k: h / textArea(formats.a5).h };
-}
+import { textArea } from "./page-geometry";
 
 export interface ContentItem {
   id: string;
@@ -100,8 +58,8 @@ export interface BookContent {
   year: number;
 }
 
-type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer">;
-type BookLike = Pick<
+export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer">;
+export type BookLike = Pick<
   Book,
   | "theme"
   | "language"
@@ -138,7 +96,7 @@ export function printableText(text: string) {
     .trim();
 }
 
-export function toPhotoItem(p: Photo): PhotoItem {
+export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline">): PhotoItem {
   return {
     id: p.id,
     caption: printableText(p.caption),
@@ -161,15 +119,27 @@ export interface LetterLike {
 
 export const LETTERS_CHAPTER = "__letters";
 
-export function buildBookContent(
+/**
+ * Тексты книги, которых нет в ответах: названия и эпиграфы глав темы, «Разное» для главы вне темы, глава писем
+ * и название книги по умолчанию. На сервере их даёт bookTexts (book-content.ts: тема и словарь языка книги),
+ * редактору в браузере — его собственные данные: словари и каталог тем туда не грузятся.
+ */
+export interface BookTexts {
+  chapter(key: string): { title: string; epigraph?: string } | undefined;
+  misc: string;
+  letters: { title: string; epigraph?: string };
+  defaultTitle: string;
+}
+
+/** Содержимое книги для вёрстки — то, что печатается: главы с ответами и фото, галерея, письма. */
+export function assembleBookContent(
   book: BookLike,
   questions: QuestionLike[],
   photos: PhotoItem[],
+  texts: BookTexts,
   year = new Date().getFullYear(),
   letters: LetterLike[] = [],
 ): BookContent {
-  const theme = getTheme(book.theme, book.language);
-  const t = messagesFor(book.language).book;
   const sorted = [...questions].sort((a, b) => a.position - b.position);
   const chapterOrder: string[] = [];
   const byChapter = new Map<string, ContentItem[]>();
@@ -195,11 +165,11 @@ export function buildBookContent(
   }
 
   const chapters: ContentChapter[] = chapterOrder.map((key, i) => {
-    const def = theme.chapters.find((c) => c.key === key);
+    const def = texts.chapter(key);
     return {
       key,
       number: i + 1,
-      title: applyGender(def?.title ?? t.misc, book.authorGender, book.recipientGender),
+      title: applyGender(def?.title ?? texts.misc, book.authorGender, book.recipientGender),
       epigraph: def?.epigraph,
       items: byChapter.get(key)!,
       photos: [],
@@ -229,8 +199,8 @@ export function buildBookContent(
     chapters.push({
       key: LETTERS_CHAPTER,
       number: chapters.length + 1,
-      title: t.letters.title,
-      epigraph: t.letters.epigraph,
+      title: texts.letters.title,
+      epigraph: texts.letters.epigraph,
       items: letterItems.map((l) => ({ id: l.id, heading: printableText(l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim()), answer: printableText(l.text.trim()) })),
       photos: [],
     });
@@ -240,7 +210,7 @@ export function buildBookContent(
     language: book.language,
     format: getFormat(book.format),
     interior,
-    title: printableText(book.title.trim()) || theme.titleSuggestions[0],
+    title: printableText(book.title.trim()) || texts.defaultTitle,
     subtitle: printableText(book.subtitle.trim()),
     authorName: book.authorName.trim(),
     recipientName: book.recipientName.trim(),
@@ -279,89 +249,6 @@ export function photoPages<T extends Pick<PhotoItem, "layout">>(photos: T[]): T[
   return pages;
 }
 
-// ─── оценка объёма ─────────────────────────────────────────────────────────
-
-const PT_PER_MM = 72 / 25.4;
-const AVG_CHAR_EM = 0.5;
-
-export interface TextMetrics {
-  charsPerLine: number;
-  linesPerPage: number;
-  headingCharsPerLine: number;
-}
-
-export function textMetrics(format: BookFormat, typo: Typography): TextMetrics {
-  const area = textArea(format);
-  const scale = interiorMetrics[format.id].scale;
-  const bodyPt = typo.bodySize * scale;
-  const headingPt = bodyPt * 1.55;
-  const widthPt = area.w * PT_PER_MM;
-  return {
-    charsPerLine: Math.floor(widthPt / (bodyPt * AVG_CHAR_EM)),
-    linesPerPage: Math.floor((area.h * PT_PER_MM - 18) / (bodyPt * typo.lineHeight)),
-    headingCharsPerLine: Math.floor(widthPt / (headingPt * AVG_CHAR_EM)),
-  };
-}
-
-/** Сколько строк основного текста займёт ответ. */
-export function answerLines(text: string, m: TextMetrics): number {
-  const paragraphs = text.split(/\n+/).filter((p) => p.trim());
-  return paragraphs.reduce((sum, p) => sum + Math.max(1, Math.ceil(p.trim().length / m.charsPerLine)) + 0.4, 0);
-}
-
-/** Строки, которые занимает заголовок вопроса (в строках основного текста). */
-export function headingLines(heading: string | null, m: TextMetrics): number {
-  if (!heading) return 1.5;
-  return Math.ceil(heading.length / m.headingCharsPerLine) * 1.6 + 2.2;
-}
-
-/** Высота фото внутри ответа в долях страницы (с учётом размера, кадра, рядов и рамки). */
-export function inlinePhotosPages(photos: Pick<PhotoItem, "width" | "height" | "inline">[] | undefined, answer: string, format: BookFormat) {
-  if (!photos?.length) return 0;
-  const area = textArea(format);
-  const items = photos.map((p) => ({ p, style: normalizeStyle(p.inline) }));
-  const paragraphs = splitParagraphs(answer).length;
-  let total = 0;
-  for (const rows of layoutInline(items, paragraphs).values())
-    for (const row of rows) {
-      const hs = row.map(({ p, style }) => framedBox(p, style, area.w, area.h, row.length).outerH);
-      total += Math.max(...hs) + area.h * 0.05;
-    }
-  return total / area.h;
-}
-
-export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics, format?: BookFormat): number {
-  let lines = 0;
-  for (const it of ch.items)
-    lines += headingLines(it.heading, m) + answerLines(it.answer, m) + (format ? inlinePhotosPages(it.photos, it.answer, format) : (it.photos?.length ?? 0) * 0.5) * m.linesPerPage;
-  const textPages = ch.items.length ? Math.max(1, Math.ceil(lines / m.linesPerPage)) : 0;
-  return 1 /* титул главы */ + textPages + photoPages(ch.photos).length;
-}
-
-/** Оценка количества страниц в готовой книге (до добивки до кратности). */
-export function estimatePages(content: BookContent): number {
-  const m = textMetrics(content.format, content.interior.type);
-  let pages = 2; // титульный лист + оборот
-  if (content.dedication) pages += 1;
-  if (content.showToc && content.chapters.length > 0) pages += Math.ceil(content.chapters.length / 18);
-  for (const ch of content.chapters) pages += estimateChapterPages(ch, m, content.format);
-  if (content.galleryPhotos.length) pages += 1 + photoPages(content.galleryPhotos).length;
-  pages += 1; // финальная страница
-  return pages;
-}
-
-/** Оценка для одного ответа: сколько страниц он займёт (для индикатора в редакторе). */
-export function estimateAnswerPages(
-  heading: string | null,
-  answer: string,
-  format: BookFormat,
-  typo: Typography,
-  photos: Pick<PhotoItem, "width" | "height" | "inline">[] = [],
-) {
-  const m = textMetrics(format, typo);
-  return (headingLines(heading, m) + answerLines(answer, m)) / m.linesPerPage + inlinePhotosPages(photos, answer, format);
-}
-
 export function countWords(text: string) {
   const t = text.trim();
   return t ? t.split(/\s+/).length : 0;
@@ -382,12 +269,4 @@ export function photoAreaMm(format: BookFormat, layout: PhotoItem["layout"] | "i
   if (layout === "grid") return { w: area.w / 2 - 3, h: area.h / 2 - 8 };
   if (layout === "inline") return { w: area.w, h: area.h * MAX_INLINE_HEIGHT_SHARE };
   return { w: area.w, h: area.h - 14 };
-}
-
-export function pluralRu(n: number, one: string, few: string, many: string) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
 }

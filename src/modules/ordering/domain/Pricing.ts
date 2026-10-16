@@ -30,7 +30,7 @@ export interface Discount {
 }
 
 /** Скидка применяется к стоимости книг, но не к доставке. */
-export function discountFor(itemsAmount: number, discount: Discount | null | undefined): number {
+function discountFor(itemsAmount: number, discount: Discount | null | undefined): number {
   if (!discount || discount.value <= 0) return 0;
   const raw = discount.kind === "percent" ? Math.round((itemsAmount * Math.min(discount.value, 100)) / 100) : discount.value;
   return Math.min(Math.max(0, raw), itemsAmount);
@@ -57,13 +57,35 @@ export function calculatePrice(planId: PlanId, quantity: number, delivery: Deliv
  * не может), дополнительные экземпляры (extraCopiesAmount) — по прайсу сверху. Доставка и допы считаются сверху всегда.
  * Внесённая предоплата вычитается из «к оплате» (но не больше итога). Промокод со скидкой, выгоднее договорённости, остаётся в силе.
  */
-export function applyAgreement(price: PriceBreakdown, agreement: Agreement, extraCopiesAmount = 0): PriceBreakdown {
+function applyAgreement(price: PriceBreakdown, agreement: Agreement, extraCopiesAmount = 0): PriceBreakdown {
   const books = price.itemsAmount - price.discountAmount;
   const extraDiscount = Math.max(0, books - (agreement.agreedTotal + extraCopiesAmount));
   const extras = price.deliveryAmount + price.addonsAmount;
   const total = books - extraDiscount + extras;
   const prepaid = Math.min(Math.max(0, Math.round(agreement.prepaid)), total);
   return { ...price, discountAmount: price.discountAmount + extraDiscount, prepaidAmount: prepaid, amount: total - prepaid };
+}
+
+/**
+ * Условия оформления — одни для формы и для сервера: тариф (по договорённости он фиксирован) и договорённость для расчёта.
+ * Дозаказ печатной версии к электронной: её оплата засчитывается как аванс, договорённость менеджера не применяется.
+ * «Аванс» (advance): цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
+ */
+export function checkoutTerms(input: { plan: PlanId; agreement: Agreement | null; mode?: "agreed" | "advance"; upgradeCredit?: number | null }): { plan: PlanId; agreement: Agreement | null; lockedPlan: PlanId | null } {
+  if (input.upgradeCredit != null) return { plan: input.plan, agreement: { agreedTotal: Number.POSITIVE_INFINITY, prepaid: input.upgradeCredit }, lockedPlan: null };
+  const found = input.agreement;
+  if (!found) return { plan: input.plan, agreement: null, lockedPlan: null };
+  const agreed = input.mode !== "advance";
+  const lockedPlan = agreed && found.plan && getPlan(found.plan) ? found.plan : null;
+  return { plan: lockedPlan ?? input.plan, agreement: { agreedTotal: agreed ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid }, lockedPlan };
+}
+
+/** Расчёт для формы оформления: итог как на сервере и отдельно скидка промокода и скидка по договорённости. */
+export function quoteCheckout(input: { plan: PlanId; quantity: number; delivery: DeliveryId | null; discount: Discount | null; addons: readonly string[]; agreement: Agreement | null; mode?: "agreed" | "advance"; upgradeCredit?: number | null }) {
+  const terms = checkoutTerms(input);
+  const plain = calculatePrice(terms.plan, input.quantity, input.delivery, input.discount, input.addons);
+  const price = terms.agreement ? calculatePrice(terms.plan, input.quantity, input.delivery, input.discount, input.addons, terms.agreement) : plain;
+  return { ...terms, price, promoDiscount: plain.discountAmount, agreedDiscount: price.discountAmount - plain.discountAmount };
 }
 
 export function normalizePromoCode(code: string) {

@@ -4,9 +4,9 @@ import { applyGender } from "@/lib/content/gender";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { buildBookContent, estimateChapterPages, textMetrics } from "@/lib/book/layout";
+import { estimateChapterPages, textMetrics } from "@/lib/book/estimate";
+import { buildBookContent } from "@/lib/book/book-content";
 import { splitParagraphs } from "@/lib/book/inline-photo";
-import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { photoUrl } from "@/lib/urls";
 
 /** Сколько текста первой главы показывать на развороте: страница всё равно обрезается по полосе набора. */
@@ -14,7 +14,8 @@ const SAMPLE_CHARS = 1800;
 
 /**
  * Содержимое для разворотов в выбранном оформлении — на настоящем тексте книги, а пока ответов
- * нет, на примере на языке книги. Общее для вкладок «Страницы» и «Обложка».
+ * нет, на примере на языке книги. Общее для вкладок «Страницы» и «Обложка». Форму результата
+ * (SpreadSample) объявляет компонент разворота, поэтому её сверяет тип его свойства sample.
  */
 export function bookSpreadSample(
   book: Parameters<typeof buildBookContent>[0],
@@ -22,7 +23,7 @@ export function bookSpreadSample(
   dedicationPlaceholder: string,
   /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
   photos: { id: string; width: number; height: number; caption: string }[] = [],
-): SpreadSample {
+) {
   const format = getFormat(book.format);
   const content = buildBookContent(book, questions, []);
   const theme = getTheme(book.theme, book.language);
@@ -30,7 +31,7 @@ export function bookSpreadSample(
   const first = content.chapters[0];
   const firstThemeChapter = theme.chapters[0];
 
-  const entries: SpreadSample["entries"] = [];
+  const entries: { heading: string | null; paragraphs: string[] }[] = [];
   if (first) {
     let budget = SAMPLE_CHARS;
     for (const it of first.items) {
@@ -48,12 +49,12 @@ export function bookSpreadSample(
   }
 
   // Оглавление: главы книги с примерными номерами страниц (пока ответов нет — главы темы).
-  const metrics = textMetrics(format, getInteriorDesign(book.interior).type);
+  const metrics = textMetrics(format, getInteriorDesign(book.interior));
   let page = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
   const toc = content.chapters.length
     ? content.chapters.slice(0, 10).map((c) => {
         const entry = { number: c.number, title: c.title, page };
-        page += estimateChapterPages(c, metrics, format);
+        page += estimateChapterPages(c, metrics);
         return entry;
       })
     : theme.chapters.slice(0, 10).map((c, i) => ({ number: i + 1, title: applyGender(c.title, book.authorGender, book.recipientGender), page: page + i * 6 }));

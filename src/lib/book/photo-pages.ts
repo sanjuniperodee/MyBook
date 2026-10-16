@@ -4,12 +4,12 @@
  * поэтому снимки в превью и в печати лежат одинаково. Единицы — мм от левого верхнего угла
  * обрезного формата; рамки — фигуры interior-art (under — под снимком, over — поверх).
  */
-import type { BookFormat, Rect } from "./formats";
-import type { InteriorDesign, InteriorSizes } from "./interiors";
+import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
+import { PHOTO_COLORS, type InteriorDesign } from "./interiors";
+import { photoCaptionFace, photoCaptionSize, type InteriorSizes } from "./typesetting";
 import type { Shape } from "./interior-art";
-import { n } from "./cover-kit";
-
-const PT = 25.4 / 72;
+import { n } from "./covers/svg-kit";
+import { interiorMetrics, pageSide, textArea } from "./page-geometry";
 
 /**
  * Оформление снимка: без рамки, тонкая линия, двойная рамка, полароид, уголки старого альбома, скотч,
@@ -44,9 +44,9 @@ export interface PhotoPagePlan {
 }
 
 /** Полоса набора фотостраницы — та же, что у текста (поля симметричны, как в PDF). */
-export function photoArea(format: BookFormat, margins: { marginTop: number; marginBottom: number; marginInner: number; marginOuter: number }): Rect {
-  const side = (margins.marginInner + margins.marginOuter) / 2;
-  return { x: side, y: margins.marginTop, w: format.widthMm - side * 2, h: format.heightMm - margins.marginTop - margins.marginBottom };
+export function photoArea(format: BookFormat): Rect {
+  const { w, h } = textArea(format);
+  return { x: pageSide(format), y: interiorMetrics[format.id].marginTop, w, h };
 }
 
 /** Места под снимки на странице. «Сетка» — до четырёх фото, «половинки» — по два одно над другим. */
@@ -109,14 +109,9 @@ function frameRoom(frame: PhotoFrame) {
 /** Доли ширины карточки полароида: поле сверху и по бокам, нижнее поле. */
 const POLA = { pad: 0.05, bottom: 0.17 };
 
-/** Кегль подписи на фотостранице, pt. */
-export function photoCaptionSize(design: InteriorDesign, S: InteriorSizes) {
-  return design.photos.caption === "hand" ? S.caption * 1.5 : design.photos.caption === "label" ? S.caption * 0.8 : S.caption;
-}
-
 /** Сколько строк займёт подпись: оценка по средней ширине знака (подписи короткие, с запасом). */
 function captionLines(text: string, sizePt: number, widthMm: number, hand: boolean) {
-  const perLine = Math.max(8, Math.floor(widthMm / (sizePt * PT * (hand ? 0.42 : 0.52))));
+  const perLine = Math.max(8, Math.floor(widthMm / (sizePt * PT_TO_MM * (hand ? 0.42 : 0.52))));
   return Math.min(3, Math.ceil(text.length / perLine));
 }
 
@@ -125,11 +120,11 @@ const grow = (r: Rect, d: number): Rect => ({ x: r.x - d, y: r.y - d, w: r.w + d
 
 /** Раскладка фотостраницы: места, кадр, подписи и рамки в цветах оформления. */
 export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDesign, S: InteriorSizes): PhotoPagePlan {
-  const { frame, caption: face, tape = "#E8D9B5" } = design.photos;
+  const { frame, caption: face, tape = PHOTO_COLORS.tape } = design.photos;
   const P = design.palette;
   const grid = group[0]?.layout === "grid" && group.length > 1;
   const size = photoCaptionSize(design, S);
-  const lineH = size * PT * (face === "hand" ? 1.15 : 1.3);
+  const lineH = size * PT_TO_MM * photoCaptionFace(design).lineHeight;
   const cells: PhotoCell[] = [];
   const under: Shape[] = [];
   const over: Shape[] = [];
@@ -156,11 +151,11 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
       const ch = pad + ih + bottom;
       const card = { x: cell.x + (cell.w - cw) / 2, y: cell.y + (cell.h - ch) / 2, w: cw, h: ch };
       img = { x: card.x + pad, y: card.y + pad, w: iw, h: ih };
-      under.push({ kind: "rect", x: card.x + 0.5, y: card.y + 0.7, w: card.w, h: card.h, fill: "#000000", opacity: 0.05 });
-      under.push({ kind: "rect", ...card, fill: "#FFFFFF", stroke: "#DDD6CE", width: 0.18 });
+      under.push({ kind: "rect", x: card.x + 0.5, y: card.y + 0.7, w: card.w, h: card.h, fill: PHOTO_COLORS.shadow, opacity: 0.05 });
+      under.push({ kind: "rect", ...card, fill: PHOTO_COLORS.card, stroke: PHOTO_COLORS.polaroidEdge, width: 0.18 });
       if (text) {
-        const s = Math.min(size, (bottom * 0.5) / PT);
-        caption = { text, size: s, inside: true, box: { x: img.x, y: img.y + ih + (bottom - s * PT * 1.2) / 2, w: iw, h: s * PT * 1.2 } };
+        const s = Math.min(size, (bottom * 0.5) / PT_TO_MM);
+        caption = { text, size: s, inside: true, box: { x: img.x, y: img.y + ih + (bottom - s * PT_TO_MM * 1.2) / 2, w: iw, h: s * PT_TO_MM * 1.2 } };
       }
     } else {
       const room = frameRoom(frame);
@@ -183,11 +178,11 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
         // Паспарту: белое поле вокруг снимка, мягкая тень под ним и тонкая кромка выреза.
         const m = grow(img, 5);
         under.push(
-          { kind: "rect", x: m.x + 0.3, y: m.y + 1.2, w: m.w, h: m.h, fill: "#000000", opacity: 0.045 },
-          { kind: "rect", x: m.x + 0.15, y: m.y + 0.5, w: m.w, h: m.h, fill: "#000000", opacity: 0.07 },
-          { kind: "rect", ...m, fill: "#FFFFFF", stroke: "#E2DACE", width: 0.15 },
+          { kind: "rect", x: m.x + 0.3, y: m.y + 1.2, w: m.w, h: m.h, fill: PHOTO_COLORS.shadow, opacity: 0.045 },
+          { kind: "rect", x: m.x + 0.15, y: m.y + 0.5, w: m.w, h: m.h, fill: PHOTO_COLORS.shadow, opacity: 0.07 },
+          { kind: "rect", ...m, fill: PHOTO_COLORS.card, stroke: PHOTO_COLORS.matEdge, width: 0.15 },
         );
-        over.push({ kind: "rect", ...img, stroke: "#000000", width: 0.15, opacity: 0.14 });
+        over.push({ kind: "rect", ...img, stroke: PHOTO_COLORS.shadow, width: 0.15, opacity: 0.14 });
       } else if (frame === "shadow") {
         // Снимок приподнят над страницей: ступенчатая тень вниз — без размытия, одинаково в PDF и в браузере.
         for (const [d, dy, o] of [
@@ -195,7 +190,7 @@ export function photoPagePlan(group: PhotoLike[], area: Rect, design: InteriorDe
           [0.7, 1.0, 0.05],
           [0.3, 0.5, 0.07],
         ] as const)
-          under.push({ kind: "rect", ...grow({ ...img, y: img.y + dy }, d), fill: "#000000", opacity: o });
+          under.push({ kind: "rect", ...grow({ ...img, y: img.y + dy }, d), fill: PHOTO_COLORS.shadow, opacity: o });
       } else if (frame === "hairline") over.push({ kind: "rect", ...grow(img, 1.8), stroke: P.ornament, width: 0.22 });
       else if (frame === "double") over.push({ kind: "rect", ...grow(img, 1.6), stroke: P.ornament, width: 0.4 }, { kind: "rect", ...grow(img, 3), stroke: P.ornament, width: 0.15 });
       else if (frame === "corners") {
@@ -249,12 +244,13 @@ export interface OpenerPhotoPlan {
 export const OPENER_POLAROID_RATIO = 1.15;
 
 /** Где на начальной полосе лежит снимок главы и с какой высоты пойдёт название. */
-export function openerPhotoPlan(format: BookFormat, design: InteriorDesign, margins: { marginTop: number; marginBottom: number }): OpenerPhotoPlan | null {
+export function openerPhotoPlan(format: BookFormat, design: InteriorDesign): OpenerPhotoPlan | null {
   const kind = design.opener.photo;
   if (!kind) return null;
   const W = format.widthMm;
   const H = format.heightMm;
-  const areaH = H - margins.marginTop - margins.marginBottom;
+  const margins = interiorMetrics[format.id];
+  const areaH = textArea(format).h;
   const textTop = (bottom: number) => Math.min(0.75, (bottom + 13 - margins.marginTop) / areaH);
   if (kind === "bleed") {
     const h = H * 0.52;
@@ -263,7 +259,7 @@ export function openerPhotoPlan(format: BookFormat, design: InteriorDesign, marg
   const P = design.opener.fill ?? design.palette;
   if (kind === "full") {
     // Снимок на всю полосу, название — светлым по затемнению снизу.
-    return { img: { x: -3, y: -3, w: W + 6, h: H + 6 }, card: null, shade: { from: 0.34, color: "#0B0907", opacity: 0.82 }, under: [], over: [], textTop: 0.6 };
+    return { img: { x: -3, y: -3, w: W + 6, h: H + 6 }, card: null, shade: { from: 0.34, color: PHOTO_COLORS.shade, opacity: 0.82 }, under: [], over: [], textTop: 0.6 };
   }
   if (kind === "arch") {
     const w = Math.min(W * 0.52, H * 0.34);
@@ -315,11 +311,11 @@ export function openerPhotoPlan(format: BookFormat, design: InteriorDesign, marg
       img,
       card: null,
       under: [
-        { kind: "rect", x: m.x + 0.4, y: m.y + 1.6, w: m.w, h: m.h, fill: "#000000", opacity: 0.05 },
-        { kind: "rect", x: m.x + 0.2, y: m.y + 0.7, w: m.w, h: m.h, fill: "#000000", opacity: 0.08 },
-        { kind: "rect", ...m, fill: "#FFFFFF" },
+        { kind: "rect", x: m.x + 0.4, y: m.y + 1.6, w: m.w, h: m.h, fill: PHOTO_COLORS.shadow, opacity: 0.05 },
+        { kind: "rect", x: m.x + 0.2, y: m.y + 0.7, w: m.w, h: m.h, fill: PHOTO_COLORS.shadow, opacity: 0.08 },
+        { kind: "rect", ...m, fill: PHOTO_COLORS.card },
       ],
-      over: [{ kind: "rect", ...img, stroke: "#000000", width: 0.15, opacity: 0.16 }],
+      over: [{ kind: "rect", ...img, stroke: PHOTO_COLORS.shadow, width: 0.15, opacity: 0.16 }],
       textTop: textTop(m.y + m.h),
     };
   }
@@ -337,9 +333,9 @@ export function openerPhotoPlan(format: BookFormat, design: InteriorDesign, marg
   return {
     img: { x: card.x + pad, y: card.y + pad, w: iw, h: ih },
     card,
-    under: [{ kind: "path", d: rectPath({ x: card.x + 0.6, y: card.y + 1, w: cw, h: ch }), fill: "#000000", opacity: 0.09, transform: `rotate(${card.rotate} ${n(cx)} ${n(cy)})` }],
+    under: [{ kind: "path", d: rectPath({ x: card.x + 0.6, y: card.y + 1, w: cw, h: ch }), fill: PHOTO_COLORS.shadow, opacity: 0.09, transform: `rotate(${card.rotate} ${n(cx)} ${n(cy)})` }],
     // Скотч по центру верхнего края — там, где край окажется после поворота карточки.
-    over: [{ kind: "path", d: rectPath({ x: -tw / 2, y: -th / 2, w: tw, h: th }), fill: design.photos.tape ?? "#E8D9B5", opacity: 0.8, transform: `translate(${n(cx + (ch / 2) * Math.sin(a))},${n(cy - (ch / 2) * Math.cos(a))}) rotate(3)` }],
+    over: [{ kind: "path", d: rectPath({ x: -tw / 2, y: -th / 2, w: tw, h: th }), fill: design.photos.tape ?? PHOTO_COLORS.tape, opacity: 0.8, transform: `translate(${n(cx + (ch / 2) * Math.sin(a))},${n(cy - (ch / 2) * Math.cos(a))}) rotate(3)` }],
     textTop: textTop(card.y + ch),
   };
 }

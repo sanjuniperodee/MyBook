@@ -2,25 +2,24 @@ import "server-only";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { crmTasks, orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { iso, localDay, SHOP_TZ } from "./time";
-
-// Константа, не пользовательский ввод — можно вставлять в SQL как литерал (нужно для GROUP BY).
-const tzSql = sql.raw(`'${SHOP_TZ}'`);
+import { storeTimeZone } from "@/shared/domain/time";
+import { iso, localDay } from "./time";
 
 /** Обзор магазина за период: выручка по дням, сравнение с прошлым периодом, воронка когорты, дедлайны, задачи, внимание. */
 export async function dashboard(period: number, staffId: string) {
   const db = executor();
   const admin = { id: staffId };
-  // Границы периода в часовом поясе магазина
+  // Границы периода в часовом поясе магазина (пояс — параметром запроса)
+  const tz = storeTimeZone();
   const startLocal = localDay(-(period - 1));
   const prevStartLocal = localDay(-(2 * period - 1));
-  const start = sql`(${iso(startLocal)}::date at time zone ${tzSql})`;
-  const prevStart = sql`(${iso(prevStartLocal)}::date at time zone ${tzSql})`;
+  const start = sql`(${iso(startLocal)}::date at time zone ${tz})`;
+  const prevStart = sql`(${iso(prevStartLocal)}::date at time zone ${tz})`;
 
   const [dailyRes, curRes, prevRes, [newUsers], funnelRows, byPlanRes, deadlines, dealDeadlines, tasks, attention, events] = await Promise.all([
     // Выручка — единый журнал revenue_events: оплаченные заказы, платежи по ручным сделкам, успешные сделки без заказа.
     db.execute<{ d: string; sum: number; n: number }>(sql`
-      select to_char((e.at at time zone ${tzSql})::date, 'YYYY-MM-DD') as d, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n
+      select to_char((e.at at time zone ${tz})::date, 'YYYY-MM-DD') as d, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n
       from revenue_events e where e.at >= ${start} group by 1`),
     db.execute<{ sum: number; n: number }>(sql`
       select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${start}`),

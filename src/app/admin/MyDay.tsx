@@ -6,7 +6,8 @@ import { can, contactView, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 
 const minutesAgo = (d: Date) => Math.max(0, Math.round((Date.now() - d.getTime()) / 60_000));
 const waitLabel = (m: number) => (m < 60 ? `${m} мин` : m < 1440 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${Math.floor(m / 1440)} дн`);

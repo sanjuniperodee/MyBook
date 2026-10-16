@@ -3,10 +3,12 @@
 import { queueEvent } from "@/server/track";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { requireUser } from "@/server/auth";
 import { getDeliveryOptions, getPlan, getPlans, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
+import { actionError } from "@/server/errors";
 import { ensureCatalog } from "@/server/catalog";
 
 export interface CheckoutState {
@@ -17,7 +19,7 @@ type CheckoutErrors = Awaited<ReturnType<typeof getMessages>>["checkout"]["error
 const schema = (e: CheckoutErrors) =>
   z
     .object({
-      bookId: z.string().uuid(),
+      bookId: uuid,
       plan: z.enum(getPlans().map((p) => p.id) as [string, ...string[]]),
       quantity: z.coerce.number().int().min(1).max(20).default(1),
       delivery: z.string().optional(),
@@ -41,7 +43,7 @@ const schema = (e: CheckoutErrors) =>
         .or(z.literal("")),
       surprise: z.literal("on").optional(),
       agreementMode: z.enum(["agreed", "advance"]).optional(),
-      upgradeFrom: z.string().uuid().optional().or(z.literal("")),
+      upgradeFrom: uuid.optional().or(z.literal("")),
       consent: z.literal("on", { message: e.consent }),
     })
     .superRefine((d, ctx) => {
@@ -88,19 +90,12 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       upgradeFromOrderId: d.upgradeFrom || undefined,
     });
   } catch (err) {
-    if (OrderingError.is(err)) return { error: orderingErrorText(err, m.checkout) };
-    throw err;
+    const error = await actionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
   }
   await queueEvent("order_created", order.amount);
   return lredirect(`/orders/${order.id}`);
-}
-
-/** Код ошибки домена → текст на языке клиента. */
-function orderingErrorText(err: OrderingError, t: Awaited<ReturnType<typeof getMessages>>["checkout"]) {
-  if (err.code === "notReady") return err.message;
-  if (err.code === "empty" || err.code === "notFound" || err.code === "expired" || err.code === "used" || err.code === "ownCode" || err.code === "firstOrderOnly") return t.promo[err.code];
-  if (err.code === "bookNotFound" || err.code === "alreadyOrdered" || err.code === "promoGone" || err.code === "upgradeUnavailable") return t.errors[err.code];
-  return t.errors.bookNotFound;
 }
 
 export interface PromoPreview {
@@ -116,9 +111,11 @@ export interface PromoPreview {
 export async function checkPromoAction(code: string): Promise<PromoPreview> {
   const user = await requireUser();
   const t = (await getMessages()).checkout;
-  const { clientIp, rateLimit } = await import("@/server/rateLimit");
-  if (!await rateLimit(`promo:${await clientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
-  const check = await container().ordering.promos.check(code, user.id);
+  const { trustedClientIp, rateLimit } = await import("@/server/rateLimit");
+  if (!await rateLimit(`promo:${await trustedClientIp()}`, 20, 600_000)) return { ok: false, error: t.errors.tooMany };
+  const input = z.string().max(100).safeParse(code);
+  if (!input.success) return { ok: false, error: t.promo.notFound };
+  const check = await container().ordering.promos.check(input.data, user.id);
   if (!check.ok) return { ok: false, error: t.promo[check.error] };
   const { code: c, kind, value, label } = check.promo;
   return { ok: true, code: c, kind, value, label };

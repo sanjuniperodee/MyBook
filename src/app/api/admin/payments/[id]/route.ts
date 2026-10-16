@@ -4,11 +4,12 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { audit, can, canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
+import { idParams } from "@/server/input";
 
 /** Удалить ошибочный платёж: деньги пропадают из выручки, в сделке остаётся запись о том, кто и что удалил. */
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "deals.edit");
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const c = container();
   const payment = await c.sales.payments.find(id);
   if (!payment) throw new HttpError(404, "notFound");

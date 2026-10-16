@@ -2,7 +2,7 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export const metadata = { title: "Этапы воронки" };
 

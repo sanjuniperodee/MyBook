@@ -3,6 +3,7 @@
  * Без обращений к сети и базе — покрывается юнит-тестами.
  */
 import { getAddons, getDeliveryOptions, getVisiblePlans } from "@/config/site";
+import { storeTimeZone } from "@/shared/domain/time";
 
 export interface AiMessage {
   direction: "in" | "out";
@@ -32,9 +33,9 @@ export interface AiSummary {
 
 export const temperatureLabels: Record<AiTemperature, string> = { hot: "горячий", warm: "тёплый", cold: "холодный" };
 
-const TZ = "Asia/Almaty";
+/** Время сообщения — по часовому поясу магазина. */
 const stamp = (d: Date | string) =>
-  new Intl.DateTimeFormat("ru-RU", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(d));
+  new Intl.DateTimeFormat("ru-RU", { timeZone: storeTimeZone(), day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(d));
 
 /**
  * Переписка в виде текста для модели: последние сообщения, пока укладываемся в лимит символов.

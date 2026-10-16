@@ -8,6 +8,9 @@ import { Order, type OrderRepository } from "../../domain";
 
 type Row = typeof orders.$inferSelect;
 
+/** Оплата прошла (paid_at) и заказ не отменён. Не isPaid(): заказ, переведённый в печать без оплаты, сюда не входит. */
+const paidAndNotCancelled = and(isNotNull(orders.paidAt), ne(orders.status, "cancelled"));
+
 function toDomain(r: Row): Order {
   return Order.restore(r.id, {
     number: r.number,
@@ -113,7 +116,7 @@ export class DrizzleOrderRepository implements OrderRepository {
     const rows = await executor()
       .select({ id: orders.id })
       .from(orders)
-      .where(and(eq(orders.userId, userId), isNotNull(orders.paidAt), ne(orders.status, "cancelled")))
+      .where(and(eq(orders.userId, userId), paidAndNotCancelled))
       .limit(1);
     return rows.length > 0;
   }

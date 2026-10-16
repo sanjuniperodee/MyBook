@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Link } from "@/i18n/client";
 import { site } from "@/config/site";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Знак логотипа: буква M с пером над раскрытой книгой на бордовом фоне. Готовые лёгкие WebP отдаются как есть: оптимизатор next/image после каждого деплоя начинал с пустого кэша. */
 export function LogoMark({ className }: { className?: string }) {
@@ -9,7 +9,7 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 /** Основной логотип целиком (знак + надпись MYBOOKS), для крупных мест. */
-export function LogoFull({ className }: { className?: string }) {
+function LogoFull({ className }: { className?: string }) {
   return <Image src="/logo.webp" alt={site.name} width={438} height={312} unoptimized className={cn("h-24 w-auto rounded-xl", className)} />;
 }
 

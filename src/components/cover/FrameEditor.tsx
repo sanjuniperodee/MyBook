@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { DEFAULT_FRAME, isDefaultFrame, MAX_ZOOM, panFrame, zoomFrame, type PhotoFrame } from "@/lib/book/photo-frame";
 import type { SlotBox } from "@/lib/book/photo-slots";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface FrameSlot extends SlotBox {
   /** Ключ кадра в книге: «cover:0», «back:1». */

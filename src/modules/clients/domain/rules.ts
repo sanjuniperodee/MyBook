@@ -1,5 +1,4 @@
 import { normalizePhone } from "@/shared/domain/phone";
-import { findMentions } from "@/modules/workspace/domain/mentions";
 
 export type TaskKind = "task" | "call" | "message" | "meeting";
 export type NoteKind = "note" | "call" | "message" | "email" | "system";
@@ -39,5 +38,3 @@ export function extraPhones(raw: string, mainPhone: string | null) {
 }
 
 export const normalizeTags = (tags: string[]) => [...new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 20);
-
-export { findMentions };

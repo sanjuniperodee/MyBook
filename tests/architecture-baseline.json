@@ -1,0 +1,6 @@
+{
+  "$comment": "Храповик tests/architecture.test.ts дошёл до нуля (B6): все три категории пусты, любое нарушение границ роняет тест. Строки сюда не добавляются: уберите импорт (порт, shared/domain, фасад).",
+  "crossModule": [],
+  "moduleOutward": [],
+  "sharedToModules": []
+}

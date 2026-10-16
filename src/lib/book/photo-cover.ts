@@ -10,7 +10,7 @@
 import type { CoverGeometry, Rect } from "./formats";
 import { formats, print } from "./formats";
 import type { ArtContext, CoverMood, CoverTemplate, CoverTextStyle } from "./covers";
-import { n } from "./cover-kit";
+import { n } from "./covers/svg-kit";
 import type { FontKey } from "./fonts";
 
 export interface CoverPhoto {

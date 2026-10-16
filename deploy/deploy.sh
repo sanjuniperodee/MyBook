@@ -48,7 +48,7 @@ cp -a public assets drizzle "$REL/"
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся (для fork-режима это тот же перезапуск, 1–2 с).
 pm2_apply() {
   pm2 delete mybook >/dev/null 2>&1 || true
-  pm2 start deploy/ecosystem.config.cjs
+  pm2 start deploy/ecosystem.config.cjs --only mybook
   pm2 save
 }
 

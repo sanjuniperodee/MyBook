@@ -4,15 +4,15 @@ import { container } from "@/server/container";
 import { sourceFromChannel } from "@/modules/sales";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
 import { channelLabel } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
 import { notifyMentions } from "@/modules/workspace";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone, isPhoneLike, normalizePhone } from "@/shared/domain/phone";
 import { notify } from "@/modules/workspace";
 
-const uuid = z.string().uuid();
 
 async function loadConv(staff: Staff, id: string) {
   const conv = await container().messaging.queries.conversation(uuid.parse(id));
@@ -83,7 +83,7 @@ export async function sendInternalNoteAction(conversationId: string, text: strin
   const conv = await loadConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустая заметка").max(4000).parse(text);
   const msg = await container().messaging.chats.addInternalNote(conv.id, body, staff.user.id);
-  await notifyMentions(body, staff.user.id, adminLabel(staff.user), `/admin/chats?c=${conv.id}`, `чат с ${conv.contactName || "клиентом"}`);
+  await notifyMentions(body, staff.user.id, staffLabel(staff.user), `/admin/chats?c=${conv.id}`, `чат с ${conv.contactName || "клиентом"}`);
   revalidatePath("/admin/chats");
   return { id: msg.id };
 }
@@ -102,7 +102,7 @@ export async function sendOfferAction(conversationId: string, request: OfferRequ
   if (req.kind === "discount" && !can(staff, "promo.give")) throw new ForbiddenError();
   let offer: { text: string; promo?: string };
   try {
-    offer = await container().marketing.service.buildOffer(conv.clientId, req, adminLabel(staff.user));
+    offer = await container().marketing.service.buildOffer(conv.clientId, req, staffLabel(staff.user));
   } catch (err) {
     return { ok: false, message: (err as Error).message };
   }

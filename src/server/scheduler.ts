@@ -1,4 +1,5 @@
 import "server-only";
+import type { PoolClient } from "pg";
 import { pool } from "@/shared/infrastructure/db";
 import { container } from "@/server/container";
 
@@ -6,7 +7,7 @@ const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
 const LOCK_ID = 7_310_451;
 
-export async function tick() {
+async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
   let locked = false;
@@ -30,7 +31,7 @@ export async function tick() {
 const CRM_INTERVAL_MS = 60_000;
 const CRM_LOCK_ID = 7_310_452;
 
-export async function crmTick() {
+async function crmTick() {
   const client = await pool.connect();
   let locked = false;
   try {
@@ -40,8 +41,7 @@ export async function crmTick() {
     const fired = await container().automation.engine.runScheduled();
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
-    const { pollImap } = await import("@/modules/messaging");
-    const mails = await pollImap();
+    const mails = await container().messaging.email.pollImap();
     if (mails) console.log(`[scheduler] crm emails=${mails}`);
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
@@ -55,7 +55,7 @@ export async function crmTick() {
 const OUTBOX_INTERVAL_MS = 15_000;
 let outboxBusy = false;
 
-export async function outboxTick() {
+async function outboxTick() {
   if (outboxBusy) return 0;
   outboxBusy = true;
   try {
@@ -70,6 +70,41 @@ export async function outboxTick() {
   }
 }
 
+/**
+ * Сверка счетов Kaspi Pay: горячий проход по счетам последних 20 минут (клиент платит прямо сейчас — заказ
+ * подтверждается за секунды, даже если вебхук не дошёл) и редкий — по хвосту за трое суток (поздние подтверждения).
+ */
+const PAYMENTS_FAST_MS = 5_000;
+const PAYMENTS_FAST_WINDOW_MS = 20 * 60_000;
+const PAYMENTS_SLOW_MS = 3 * 60_000;
+const PAYMENTS_SLOW_WINDOW_MS = 72 * 3600_000;
+const PAYMENTS_LOCK_ID = 7_310_453;
+let paymentsBusy = false;
+
+async function paymentsTick(windowMs: number) {
+  if (paymentsBusy) return;
+  paymentsBusy = true;
+  let client: PoolClient | null = null;
+  let locked = false;
+  try {
+    // Kaspi не подключён — соединение с базой не занимаем.
+    if (!(await container().ordering.kaspi.available())) return;
+    const conn = await pool.connect();
+    client = conn;
+    const { rows } = await conn.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [PAYMENTS_LOCK_ID]);
+    locked = !!rows[0]?.locked;
+    if (!locked) return;
+    const { paid } = await container().ordering.kaspi.reconcile(windowMs);
+    if (paid) console.log(`[scheduler] kaspi payments confirmed=${paid}`);
+  } catch (err) {
+    console.error("[scheduler] payments tick failed", err);
+  } finally {
+    if (locked) await client?.query("select pg_advisory_unlock($1)", [PAYMENTS_LOCK_ID]).catch(() => {});
+    client?.release();
+    paymentsBusy = false;
+  }
+}
+
 let started = false;
 
 /** Фоновые задачи: отложенные сертификаты и автоматические письма. Отключается SCHEDULER=off. */
@@ -80,4 +115,6 @@ export function startScheduler() {
   setInterval(() => void tick(), INTERVAL_MS).unref?.();
   setInterval(() => void crmTick(), CRM_INTERVAL_MS).unref?.();
   setInterval(() => void outboxTick(), OUTBOX_INTERVAL_MS).unref?.();
+  setInterval(() => void paymentsTick(PAYMENTS_FAST_WINDOW_MS), PAYMENTS_FAST_MS).unref?.();
+  setInterval(() => void paymentsTick(PAYMENTS_SLOW_WINDOW_MS), PAYMENTS_SLOW_MS).unref?.();
 }

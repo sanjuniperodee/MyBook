@@ -4,9 +4,10 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, LoaderCircle, Paperclip, Trash2, TriangleAlert } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
+import { planLabels } from "@/modules/ordering/ui/labels";
 import { setDealAgreedPlanAction } from "../actions";
 
-export interface PaymentItem {
+interface PaymentItem {
   id: string;
   amount: number;
   kind: "prepayment" | "payment" | "refund";
@@ -66,8 +67,6 @@ function AttachReceipt({ dealId, payment, onDone }: { dealId: string; payment: P
  * Оплата по сделке: что обещано, сколько принято, платежи с чеками. Каждый принятый платёж сразу попадает в выручку
  * (обзор, аналитика, планы менеджеров, карточка клиента). Платёж без чека не принимается — а если чек пропал, виден алерт.
  */
-const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
-
 export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; order: { id: string; number: number } | null }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);

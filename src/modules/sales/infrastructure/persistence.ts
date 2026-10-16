@@ -2,9 +2,11 @@ import "server-only";
 import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
+import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage, type StageMilestone } from "../domain";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 
@@ -47,6 +49,11 @@ export class DrizzleDealRepository implements DealRepository {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [r] = await executor().select().from(crmDeals).where(eq(crmDeals.id, id)).limit(1);
     return r ? toDomain(r) : null;
+  }
+
+  async findByIds(ids: string[]) {
+    const list = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    return list.length ? (await executor().select().from(crmDeals).where(inArray(crmDeals.id, list))).map(toDomain) : [];
   }
 
   async findByOrder(orderId: string) {
@@ -185,8 +192,9 @@ export class DrizzleSalesQueries {
       .limit(10);
   }
 
-  /** План и факт за месяц (по Алматы) по сотрудникам. */
+  /** План и факт за месяц (по часовому поясу магазина) по сотрудникам. */
   async planProgress(month: string, userIds?: string[]): Promise<Map<string, PlanProgress>> {
+    const tz = storeTimeZone();
     const [plans, facts] = await Promise.all([
       executor()
         .select()
@@ -198,7 +206,7 @@ export class DrizzleSalesQueries {
           select d.assignee_id as user_id, d.amount, 1 as deals
           from crm_deals d join crm_stages s on s.id = d.stage_id
           where s.kind = 'won' and d.assignee_id is not null
-            and to_char(d.closed_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
+            and to_char(d.closed_at at time zone ${tz}, 'YYYY-MM') = ${month}
             and not exists (select 1 from crm_payments p where p.deal_id = d.id)
           union all
           -- деньги по сделкам с платежами (предоплата, доплаты, возвраты и оплата заказа по договорённости) — по дате получения;
@@ -207,7 +215,7 @@ export class DrizzleSalesQueries {
             case when e.kind = 'payment' and e.ref_id = (select p2.id from crm_payments p2 where p2.deal_id = e.deal_id and p2.kind <> 'refund' order by p2.paid_at, p2.created_at limit 1) then 1 else 0 end
           from revenue_events e
           where e.manager_id is not null and e.deal_id in (select deal_id from crm_payments)
-            and to_char(e.at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
+            and to_char(e.at at time zone ${tz}, 'YYYY-MM') = ${month}
         ) x group by user_id`),
     ]);
     const out = new Map<string, PlanProgress>();

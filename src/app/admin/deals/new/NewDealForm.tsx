@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createDealAction, type DealFormState } from "../actions";
-import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
+import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 

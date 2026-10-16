@@ -2,8 +2,10 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { coverPhotoIds, coverPhotoSlots, coverTemplates, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
 import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, type Rect } from "@/lib/book/formats";
-import { interiorDesigns, interiorSizes } from "@/lib/book/interiors";
-import { interiorMetrics, photoPages, type PhotoItem } from "@/lib/book/layout";
+import { interiorDesigns } from "@/lib/book/interiors";
+import { interiorSizes } from "@/lib/book/typesetting";
+import { photoPages, type PhotoItem } from "@/lib/book/layout";
+import { interiorMetrics } from "@/lib/book/page-geometry";
 import { openerPhotoPlan, photoArea, photoCells, photoPagePlan } from "@/lib/book/photo-pages";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
 
@@ -76,7 +78,7 @@ describe("фотостраницы", () => {
   it.each(interiorDesigns.flatMap((d) => Object.values(formats).map((f) => [d.id, f.id] as const)))("%s, %s: снимки, рамки и подписи — на странице, снимок целиком в пропорциях", (id, formatId) => {
     const design = interiorDesigns.find((d) => d.id === id)!;
     const format = formats[formatId];
-    const area = photoArea(format, interiorMetrics[format.id]);
+    const area = photoArea(format);
     const S = interiorSizes(design, interiorMetrics[format.id].scale);
     const page = { x: 0, y: 0, w: format.widthMm, h: format.heightMm };
     for (const group of [[photo("a", "full", 1200, 1600, "Наше первое лето, Алматы")], [photo("a", "half"), photo("b", "half", 1000, 1000, "Подпись")], ["a", "b", "c"].map((x) => photo(x, "grid", 1500, 1000, "Тот самый день"))]) {
@@ -97,27 +99,26 @@ describe("фотостраницы", () => {
       const design = interiorDesigns.find((d) => d.id === id)!;
       for (const format of Object.values(formats)) {
         const m = interiorMetrics[format.id];
-        const plan = openerPhotoPlan(format, design, m)!;
+        const plan = openerPhotoPlan(format, design)!;
         const textY = m.marginTop + plan.textTop * (format.heightMm - m.marginTop - m.marginBottom);
         expect(textY).toBeGreaterThan(plan.img.y + plan.img.h);
         expect(plan.textTop).toBeLessThan(0.75);
       }
     }
-    expect(openerPhotoPlan(formats.a5, interiorDesigns.find((d) => d.id === "classic")!, interiorMetrics.a5)).toBeNull();
+    expect(openerPhotoPlan(formats.a5, interiorDesigns.find((d) => d.id === "classic")!)).toBeNull();
   });
 
   it("арка и круг — снимок по центру внутри страницы, во всю полосу — под обрез с затемнением под светлый текст", () => {
     const byId = (id: string) => interiorDesigns.find((d) => d.id === id)!;
     for (const format of Object.values(formats)) {
-      const m = interiorMetrics[format.id];
       const page = { x: 0, y: 0, w: format.widthMm, h: format.heightMm };
       for (const [id, mask] of [["arches", "arch"], ["luna", "circle"]] as const) {
-        const plan = openerPhotoPlan(format, byId(id), m)!;
+        const plan = openerPhotoPlan(format, byId(id))!;
         expect(plan.mask).toBe(mask);
         expect(inside(page, plan.img)).toBe(true);
         expect(plan.img.x + plan.img.w / 2).toBeCloseTo(format.widthMm / 2, 6);
       }
-      const full = openerPhotoPlan(format, byId("cinema"), m)!;
+      const full = openerPhotoPlan(format, byId("cinema"))!;
       expect(full.img).toEqual({ x: -3, y: -3, w: format.widthMm + 6, h: format.heightMm + 6 });
       expect(full.shade?.opacity).toBeGreaterThan(0.5);
       expect(byId("cinema").opener.fill?.ink).toBe("#FFFFFF");

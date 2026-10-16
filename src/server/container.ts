@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
 import { SmtpMailer } from "@/shared/infrastructure/mail";
 import { OrderingModule } from "@/modules/ordering";
-import { IdentityModule } from "@/modules/identity";
+import { IdentityModule, isPhoneEmail } from "@/modules/identity";
 import { AccessModule } from "@/modules/access";
 import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
@@ -18,14 +18,15 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, notify, smtpConfig, staffWith } from "@/modules/workspace";
-import { FeedbackModule } from "@/modules/feedback";
-import { ReferralsModule, type InvitePromo } from "@/modules/referrals";
-import type { PromoCode } from "@/modules/ordering";
+import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
+import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
+import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
-import { BookPreviewService, PrintFilesService, type BookRenderer } from "@/modules/production";
-import { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "@/modules/production/infrastructure/adapters";
+import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
+import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { referralPromos } from "./promo-ports";
+import { requestOrigin } from "./rateLimit";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -65,6 +66,9 @@ export class Container {
   get automation(): AutomationModule {
     return (this.#automation ??= new AutomationModule({
       clock: this.clock,
+      notifier: this.workspace.notifier,
+      schedule: this.workspace.schedule,
+      fields: this.workspace.fieldsReader,
       sendMessage: async (conversationId, text) => void (await this.messaging.chats.send(conversationId, text, null)),
       sales: {
         nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
@@ -80,9 +84,17 @@ export class Container {
   get messaging(): MessagingModule {
     return (this.#messaging ??= new MessagingModule({
       clock: this.clock,
+      settings: this.workspace.settings,
+      notifier: this.workspace.notifier,
+      live: this.workspace.live,
+      schedule: this.workspace.schedule,
+      fields: this.workspace.fieldsReader,
+      smtpConfig,
+      smtp: this.smtp,
       rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),
+      whatsappSettings,
       sales: {
         findClientByPhone: (phone) => this.sales.deals.findClientByPhone(phone),
         findOpenDeal: (opts) => this.sales.deals.findOpen(opts),
@@ -101,6 +113,9 @@ export class Container {
   get telephony(): TelephonyModule {
     return (this.#telephony ??= new TelephonyModule({
       clock: this.clock,
+      settings: this.workspace.settings,
+      notifier: this.workspace.notifier,
+      live: this.workspace.live,
       isBlocked: (phone) => this.messaging.chats.isBlocked(phone),
       missedRules: (ctx) => this.automation.engine.run("call.missed", ctx),
       sales: {
@@ -114,35 +129,12 @@ export class Container {
 
   /** Персональные промокоды выпускает контекст заказов. */
   get marketing(): MarketingModule {
-    return (this.#marketing ??= new MarketingModule({ clock: this.clock, promos: { issuePersonal: (input) => this.ordering.promos.issuePersonal(input) } }));
+    return (this.#marketing ??= new MarketingModule({ clock: this.clock, settings: this.workspace.settings, promos: { issuePersonal: (input) => this.ordering.promos.issuePersonal(input) } }));
   }
 
   /** Приглашения: коды для друзей и награды — промокоды контекста заказов. */
   get referrals(): ReferralsModule {
-    const promos = this.ordering.promos;
-    const now = () => this.clock.now();
-    const view = (p: PromoCode): InvitePromo => ({ code: p.code, ownerId: p.ownerId, percent: p.kind === "percent" ? p.value : 0, usable: p.rejection(now()) === null });
-    return (this.#referrals ??= new ReferralsModule({
-      mailer: this.mailer,
-      clock: this.clock,
-      logger: consoleLogger("referrals"),
-      promos: {
-        ownedBy: async (userId) => {
-          const p = await promos.referralOf(userId);
-          return p ? view(p) : null;
-        },
-        createInvite: async (input) => (await promos.issueReferral(input))?.code ?? null,
-        lookup: async (code) => {
-          const p = await promos.findByCode(code);
-          return p ? view(p) : null;
-        },
-        issueReward: async (input) => (await promos.issuePersonal(input))?.code ?? null,
-        status: async (codes) => {
-          const found = await Promise.all(codes.map((c) => promos.findByCode(c)));
-          return new Map(found.flatMap((p) => (p ? [[p.code, { used: p.rejection(now()) === "used", expiresAt: p.expiresAt }] as const] : [])));
-        },
-      },
-    }));
+    return (this.#referrals ??= new ReferralsModule({ mailer: this.mailer, clock: this.clock, logger: consoleLogger("referrals"), promos: referralPromos(this.ordering.promos, () => this.clock.now()) }));
   }
 
   /** Отзывы: благодарность — промокод контекста заказов, низкая оценка — уведомление тем, кто разбирает отзывы. */
@@ -153,8 +145,8 @@ export class Container {
       logger: consoleLogger("feedback"),
       promos: { issue: async (input) => (await this.ordering.promos.issuePersonal(input))?.code ?? null },
       alerts: {
-        lowRating: async (r) =>
-          notify(await staffWith("reviews.manage"), {
+        lowRating: (r) =>
+          this.workspace.notifier.notifyAllWith("reviews.manage", {
             kind: "system",
             title: `Отзыв ${r.rating}★ к заказу №${r.orderNumber} — свяжитесь с клиентом`,
             body: r.text ? `${r.authorName}: ${r.text}` : r.authorName,
@@ -165,19 +157,43 @@ export class Container {
   }
 
   get clients(): ClientsModule {
-    return (this.#clients ??= new ClientsModule({ clock: this.clock }));
+    return (this.#clients ??= new ClientsModule({
+      clock: this.clock,
+      notifier: this.workspace.notifier,
+      // Онбординг клиента ходит в identity и sales через порты — модули друг друга не знают.
+      accounts: { provisionClient: (input) => this.identity.accounts.provisionClient(input) },
+      sales: {
+        stages: () => this.sales.queries.listStages(),
+        createDeal: (input) => this.sales.deals.create(input),
+        setAgreedPlan: async (dealId, plan) => void (await this.sales.agreedPlan.set(dealId, plan)),
+        tagDeal: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
+        addPayment: (input) => this.sales.payments.add(input),
+      },
+    }));
   }
 
   get assistant(): AssistantModule {
-    return (this.#assistant ??= new AssistantModule({ clock: this.clock }));
+    return (this.#assistant ??= new AssistantModule({ clock: this.clock, settings: this.workspace.settings, fields: this.workspace.fieldsReader, conversations: { messages: (conversationId, limit) => this.messaging.view.messages(conversationId, limit) } }));
   }
 
   get sales(): SalesModule {
-    return (this.#sales ??= new SalesModule({ uow: this.uow, clock: this.clock, logger: consoleLogger("sales") }));
+    return (this.#sales ??= new SalesModule({
+      uow: this.uow,
+      clock: this.clock,
+      logger: consoleLogger("sales"),
+      settings: this.workspace.settings,
+      schedule: this.workspace.schedule,
+      // Принятые деньги: заметка в карточке клиента, журнал сотрудников и письмо клиенту — через порты.
+      paymentEffects: {
+        note: async (actor, input) => void (await this.clients.notes.add(actor, { kind: "note", text: input.text, dealId: input.dealId, clientId: input.clientId ?? undefined })),
+        audit: (input) => this.access.audit.record(input),
+        mailClient: async (input) => (await import("./client-mail")).mailPaymentToClient(this, input),
+      },
+    }));
   }
 
   get notifications(): NotificationsModule {
-    return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock }));
+    return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock, reviews: { url: reviewUrl, thankYouPercent: THANK_YOU.percent } }));
   }
 
   get authoring(): AuthoringModule {
@@ -191,6 +207,9 @@ export class Container {
   /** Access пользуется учётными записями Identity через узкий порт — модули не импортируют друг друга. */
   get access(): AccessModule {
     return (this.#access ??= new AccessModule({
+      settings: this.workspace.settings,
+      login: { isPhoneEmail },
+      origin: requestOrigin,
       accounts: {
         create: (input) => this.identity.accounts.provision(input),
         setPassword: (userId, password) => this.identity.accounts.setPassword(userId, password),
@@ -223,6 +242,7 @@ export class Container {
       clock: this.clock,
       logger: consoleLogger("ordering"),
       printFiles: this.printFiles,
+      giftPdf: { render: renderGiftPdf },
       mailer: this.mailer,
       books: {
         checkoutInfo: (bookId, userId, locale) => this.authoring.ordering.checkoutInfo(bookId, userId, locale),
@@ -231,6 +251,7 @@ export class Container {
         toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId) },
+      kaspiConfig,
     }));
   }
 

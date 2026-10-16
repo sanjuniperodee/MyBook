@@ -1,0 +1,203 @@
+import { describe, expect, it } from "vitest";
+import { ClientsError } from "@/modules/clients/domain";
+import { head, lead, manager, setup } from "./doubles/clients";
+
+describe("ClientsService: профиль клиента", () => {
+  it("ответственный — только действующий сотрудник; снять можно без проверки", async () => {
+    const t = setup();
+    const client = (await t.clients.find("client-1"))!;
+    await t.clients.setManager(client, "m1");
+    expect(t.mem.clients.rows.get("client-1")?.managerId).toBe("m1");
+    // отключённый и неизвестный — «Сотрудник не найден», ответственный прежний
+    for (const id of ["x1", "nobody"]) await expect(t.clients.setManager(client, id)).rejects.toMatchObject({ code: "staffNotFound", message: "Сотрудник не найден" });
+    const err = await t.clients.setManager(client, "x1").catch((e: unknown) => e);
+    expect(ClientsError.is(err)).toBe(true);
+    expect(t.mem.clients.rows.get("client-1")?.managerId).toBe("m1");
+    await t.clients.setManager(client, null);
+    expect(t.mem.clients.rows.get("client-1")?.managerId).toBeNull();
+    expect(t.staff.checked).toEqual(["m1", "x1", "nobody", "x1"]);
+    expect(await t.clients.find("nobody")).toBeNull();
+  });
+
+  it("доп. телефоны: нормализованы, без основного номера, мусора и повторов, не больше пяти", async () => {
+    const t = setup();
+    const client = (await t.clients.find("client-1"))!;
+    const raw = "8 701 111 22 33; +7 (701) 000-00-00\n7011112233, 123, 87022223344,87033334455,87044445566,87055556677,87066667788";
+    const phones = ["77011112233", "77022223344", "77033334455", "77044445566", "77055556677"];
+    expect(await t.clients.setExtraPhones(client, raw)).toEqual(phones);
+    expect(t.mem.clients.extraPhones.get("client-1")).toEqual(phones);
+    // пустая строка очищает список
+    expect(await t.clients.setExtraPhones(client, "")).toEqual([]);
+    expect(t.mem.clients.extraPhones.get("client-1")).toEqual([]);
+  });
+
+  it("теги: обрезаны, в нижнем регистре, без пустых и повторов, не больше 20", async () => {
+    const t = setup();
+    expect(await t.clients.setTags("client-1", [" VIP ", "vip", "Свадьба", "", "  "])).toEqual(["vip", "свадьба"]);
+    expect(t.mem.clients.tags.get("client-1")).toEqual(["vip", "свадьба"]);
+    const many = Array.from({ length: 25 }, (_, i) => `t${i}`);
+    expect(await t.clients.setTags("client-1", many)).toEqual(many.slice(0, 20));
+  });
+
+  it("свои поля и источник пишутся как есть; источник можно снять", async () => {
+    const t = setup();
+    const client = (await t.clients.find("client-1"))!;
+    await t.clients.setCustomFields(client, { city: "Алматы", kids: 2, vip: true, note: null });
+    await t.clients.setSource("client-1", { source: "instagram", medium: "manual" });
+    expect(t.mem.clients.rows.get("client-1")).toMatchObject({ customFields: { city: "Алматы", kids: 2, vip: true, note: null }, source: { source: "instagram", medium: "manual" } });
+    await t.clients.setSource("client-1", null);
+    expect(t.mem.clients.rows.get("client-1")?.source).toBeNull();
+  });
+});
+
+describe("TasksService: задачи менеджеров", () => {
+  it("своя задача: клиент — из явного id, заказа или сделки; уведомлений нет", async () => {
+    const t = setup();
+    expect(await t.tasks.create(manager, { title: "Перезвонить", kind: "call", orderId: "order-1" })).toEqual({ clientId: "client-1" });
+    expect(t.mem.tasks.last()).toMatchObject({ title: "Перезвонить", kind: "call", clientId: "client-1", orderId: "order-1", dealId: null, assigneeId: "m1", createdById: "m1", doneAt: null, dueAt: null });
+    expect(await t.tasks.create(manager, { title: "Встреча", kind: "meeting", dealId: "deal-1" })).toEqual({ clientId: "client-2" });
+    // явный клиент важнее заказа; неизвестный заказ — дальше смотрим сделку; без привязок — null
+    expect(await t.tasks.create(manager, { title: "a", kind: "task", clientId: "client-9", orderId: "order-1" })).toEqual({ clientId: "client-9" });
+    expect(await t.tasks.create(manager, { title: "b", kind: "task", orderId: "order-x", dealId: "deal-1" })).toEqual({ clientId: "client-2" });
+    expect(await t.tasks.create(manager, { title: "c", kind: "task", assigneeId: "m1" })).toEqual({ clientId: null });
+    expect(t.notifier.sent).toEqual([]);
+  });
+
+  it("срок без времени — 18:00 по часовому поясу процесса, со временем — как есть", async () => {
+    const t = setup();
+    await t.tasks.create(manager, { title: "До вечера", kind: "task", dueAt: "2026-10-20" });
+    expect(t.mem.tasks.last().dueAt).toEqual(new Date(2026, 9, 20, 18));
+    await t.tasks.create(manager, { title: "Утром", kind: "task", dueAt: "2026-10-20T09:30" });
+    expect(t.mem.tasks.last().dueAt).toEqual(new Date(2026, 9, 20, 9, 30));
+  });
+
+  it("задача коллеге: уведомление со ссылкой на сделку, заказ или список задач", async () => {
+    const t = setup();
+    await t.tasks.create(head, { title: "Позвонить", kind: "call", dealId: "deal-1", orderId: "order-1", assigneeId: "m1" });
+    await t.tasks.create(lead, { title: "Счёт", kind: "task", orderId: "order-1", assigneeId: "m1" });
+    await t.tasks.create(head, { title: "Написать", kind: "message", clientId: "client-1", assigneeId: "m2" });
+    expect(t.notifier.sent).toEqual([
+      { userIds: ["m1"], n: { kind: "task", title: "Новая задача: Позвонить", body: "Поставил(а) Марат", link: "/admin/deals/deal-1" } },
+      { userIds: ["m1"], n: { kind: "task", title: "Новая задача: Счёт", body: "Поставил(а) Айгерим Сапарова", link: "/admin/orders/order-1" } },
+      { userIds: ["m2"], n: { kind: "task", title: "Новая задача: Написать", body: "Поставил(а) Марат", link: "/admin/tasks" } },
+    ]);
+    expect(t.mem.tasks.last()).toMatchObject({ assigneeId: "m2", createdById: "h1" });
+  });
+
+  it("«только свои» не ставит задачи другим: forbidden, ничего не записано", async () => {
+    const t = setup();
+    await expect(t.tasks.create(manager, { title: "Тебе", kind: "task", assigneeId: "m2" })).rejects.toMatchObject({ code: "forbidden", context: "clients" });
+    expect(t.mem.tasks.rows.size).toBe(0);
+    expect(t.notifier.sent).toEqual([]);
+  });
+
+  it("исполнитель сверяется со справочником сотрудников, как ответственный клиента: отключённому — «Сотрудник не найден» (B12)", async () => {
+    const t = setup();
+    await expect(t.tasks.create(head, { title: "Старое", kind: "task", assigneeId: "x1" })).rejects.toMatchObject({ code: "staffNotFound" });
+    expect(t.mem.tasks.rows.size).toBe(0);
+    expect(t.notifier.sent).toEqual([]);
+    expect(t.staff.checked).toEqual(["x1"]);
+    // себе — без проверки по справочнику
+    await t.tasks.create(head, { title: "Себе", kind: "task" });
+    expect(t.staff.checked).toEqual(["x1"]);
+  });
+
+  it("отметка «сделано»: время из часов, повторно — снимается; возвращается задача до переключения", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "t1", assigneeId: "m1" });
+    expect(await t.tasks.toggle(manager, "t1")).toMatchObject({ id: "t1", doneAt: null });
+    expect(t.mem.tasks.rows.get("t1")?.doneAt).toEqual(new Date("2026-10-01T10:00:00Z"));
+    t.c.set("2026-10-02T08:00:00Z");
+    expect((await t.tasks.toggle(manager, "t1")).doneAt).toEqual(new Date("2026-10-01T10:00:00Z"));
+    expect(t.mem.tasks.rows.get("t1")?.doneAt).toBeNull();
+  });
+
+  it("чужую задачу закрывают только с правом «все задачи»; свою, ничью и поставленную мной — можно", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "foreign", assigneeId: "h1", createdById: "h1" });
+    t.mem.tasks.seed({ id: "mine", assigneeId: "h1", createdById: "m1" });
+    t.mem.tasks.seed({ id: "nobody's" });
+    for (const actor of [manager, lead]) await expect(t.tasks.toggle(actor, "foreign")).rejects.toMatchObject({ code: "forbidden" });
+    expect(t.mem.tasks.rows.get("foreign")?.doneAt).toBeNull();
+    await t.tasks.toggle(head, "foreign");
+    await t.tasks.toggle(manager, "mine");
+    await t.tasks.toggle(manager, "nobody's");
+    expect([...t.mem.tasks.rows.values()].every((x) => x.doneAt)).toBe(true);
+  });
+
+  it("нет задачи: переключение — taskNotFound, удаление — null без ошибки", async () => {
+    const t = setup();
+    await expect(t.tasks.toggle(head, "missing")).rejects.toMatchObject({ code: "taskNotFound", message: "Задача не найдена" });
+    expect(await t.tasks.delete(head, "missing")).toBeNull();
+  });
+
+  it("удаление: свою — можно и возвращает её, чужую без права — forbidden и задача остаётся", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "own", assigneeId: "m1", clientId: "client-1" });
+    t.mem.tasks.seed({ id: "foreign", assigneeId: "h1" });
+    expect(await t.tasks.delete(manager, "own")).toMatchObject({ id: "own", clientId: "client-1" });
+    await expect(t.tasks.delete(manager, "foreign")).rejects.toMatchObject({ code: "forbidden" });
+    expect([...t.mem.tasks.rows.keys()]).toEqual(["foreign"]);
+  });
+});
+
+describe("NotesService: заметки и @упоминания", () => {
+  it("заметка без «@» сохраняется, список сотрудников не запрашивается", async () => {
+    const t = setup();
+    await t.notes.add(manager, { kind: "call", text: "Договорились на пятницу", clientId: "client-1" });
+    expect([...t.mem.notes.rows.values()]).toEqual([{ id: "note-1", kind: "call", text: "Договорились на пятницу", clientId: "client-1", orderId: null, dealId: null, authorId: "m1" }]);
+    expect(t.staff.lookups).toBe(0);
+    expect(t.notifier.sent).toEqual([]);
+  });
+
+  it("упомянутые получают уведомление; длинное имя не засчитывается как короткое; автор себя не уведомляет", async () => {
+    const t = setup();
+    const text = "@Айгерим Сапарова и @марат, проверьте адрес. Пишет @Айгерим";
+    await t.notes.add(manager, { kind: "note", text, clientId: "client-1" });
+    expect(t.notifier.sent).toEqual([{ userIds: ["m2", "h1"], n: { kind: "mention", title: "Айгерим упомянул(а) вас · заметка о клиенте", body: text, link: "/admin/clients/client-1" } }]);
+  });
+
+  it("сделка — «заметка в сделке» со ссылкой на сделку; заказ — «заметка к заказу» со ссылкой на заказ (B12)", async () => {
+    const t = setup();
+    await t.notes.add(head, { kind: "note", text: "@Айгерим глянь", clientId: "client-2", dealId: "deal-1", orderId: "order-1" });
+    await t.notes.add(head, { kind: "note", text: "@Айгерим глянь", clientId: "client-1", orderId: "order-1" });
+    expect(t.notifier.sent.map((s) => [s.n.title, s.n.link])).toEqual([
+      ["Марат упомянул(а) вас · заметка в сделке", "/admin/deals/deal-1"],
+      ["Марат упомянул(а) вас · заметка к заказу", "/admin/orders/order-1"],
+    ]);
+  });
+
+  it("в уведомление идут первые 300 символов, в заметку — весь текст", async () => {
+    const t = setup();
+    const text = `@Марат ${"а".repeat(400)}`;
+    await t.notes.add(manager, { kind: "note", text, clientId: "client-1" });
+    expect(t.notifier.sent[0].n.body).toBe(text.slice(0, 300));
+    expect(t.mem.notes.rows.get("note-1")?.text).toBe(text);
+  });
+
+  it("без уведомлений: «@» в e-mail, упоминание только себя, отключённый сотрудник", async () => {
+    const t = setup();
+    for (const text of ["Пишите на a@b.kz", "Напоминаю себе: @Айгерим", "Спросить у @Бывший"]) await t.notes.add(manager, { kind: "note", text, clientId: "client-1" });
+    expect(t.staff.lookups).toBe(3);
+    expect(t.notifier.sent).toEqual([]);
+    expect(t.mem.notes.rows.size).toBe(3);
+  });
+
+  it("без привязки — уведомление без ссылки, а не /admin/clients/undefined (B12)", async () => {
+    const t = setup();
+    await t.notes.add(manager, { kind: "note", text: "@Марат" });
+    expect(t.notifier.sent[0].n.link).toBeNull();
+  });
+
+  it("удаление: обычную — можно, системную — forbidden, нет заметки — null", async () => {
+    const t = setup();
+    await t.notes.add(manager, { kind: "email", text: "Отправили макет", clientId: "client-1" });
+    t.mem.notes.rows.set("sys", { id: "sys", kind: "system", text: "Этап: Оплачен", clientId: "client-1", orderId: null, dealId: "deal-1", authorId: "h1" });
+    expect(await t.notes.find("sys")).toEqual({ id: "sys", kind: "system", text: "Этап: Оплачен", clientId: "client-1", orderId: null, dealId: "deal-1" });
+    expect(await t.notes.delete("note-1")).toMatchObject({ id: "note-1", kind: "email" });
+    await expect(t.notes.delete("sys")).rejects.toMatchObject({ code: "forbidden", context: "clients" });
+    expect(await t.notes.delete("missing")).toBeNull();
+    expect(await t.notes.find("note-1")).toBeNull();
+    expect([...t.mem.notes.rows.keys()]).toEqual(["sys"]);
+  });
+});

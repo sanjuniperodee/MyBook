@@ -1,0 +1,89 @@
+/** Переписка: диалоги, сообщения и чёрный список номеров (модуль messaging). */
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { timestamps } from "./columns";
+import { users } from "./identity";
+import { crmDeals } from "./sales";
+
+/** Диалог в мессенджере (WhatsApp, Instagram, Telegram через Wazzup). */
+export interface ConversationMeta {
+  /** Чат с сайта: страница, с которой написали, и контакты, которые оставил посетитель. */
+  page?: string;
+  phone?: string;
+  email?: string;
+  /** Почта: тема последнего письма и Message-ID для In-Reply-To. */
+  subject?: string;
+  lastMessageId?: string;
+}
+
+export const crmConversations = pgTable(
+  "crm_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channel: text("channel").notNull(),
+    /** Канал провайдера (номер WhatsApp, аккаунт Instagram). */
+    channelId: text("channel_id").notNull().default(""),
+    /** Идентификатор собеседника у провайдера: телефон для WhatsApp, логин/ID для остальных. */
+    chatId: text("chat_id").notNull(),
+    contactName: text("contact_name").notNull().default(""),
+    avatarUrl: text("avatar_url"),
+    clientId: uuid("client_id").references(() => users.id, { onDelete: "set null" }),
+    dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
+    unread: integer("unread").notNull().default(0),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    lastMessageText: text("last_message_text").notNull().default(""),
+    /** Последнее входящее, ещё без ответа — для SLA «ответить за N минут». */
+    awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
+    /** Бот-квалификатор: номер текущего вопроса; null — не запускался, -1 — закончил или его остановил менеджер. */
+    botStep: integer("bot_step"),
+    /** Служебные данные канала: для чата с сайта — страница и контакты посетителя, для почты — тема письма. */
+    meta: jsonb("meta").$type<ConversationMeta>().notNull().default({}),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId), index("crm_conv_last_idx").on(t.lastMessageAt)],
+);
+
+export type CrmConversation = typeof crmConversations.$inferSelect;
+
+export const crmMessages = pgTable(
+  "crm_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => crmConversations.id, { onDelete: "cascade" }),
+    direction: text("direction", { enum: ["in", "out"] }).notNull(),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").notNull().default("text"),
+    text: text("text").notNull().default(""),
+    mediaUrl: text("media_url"),
+    externalId: text("external_id").unique(),
+    /** Внутренняя заметка сотрудника в диалоге — клиенту не отправляется. */
+    internal: boolean("internal").notNull().default(false),
+    status: text("status", { enum: ["pending", "sent", "delivered", "read", "error", "received"] }).notNull().default("pending"),
+    error: text("error"),
+    /** Письма: тема и Message-ID для цепочки ответов. */
+    subject: text("subject"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+);
+
+/** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */
+export const crmBlocklist = pgTable("crm_blocklist", {
+  value: text("value").primaryKey(),
+  reason: text("reason").notNull().default("spam"),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -1,6 +1,7 @@
 import type { Clock } from "@/shared/application";
+import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
-import { canManageTask, extraPhones, findMentions, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
+import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
 import type { ClientProfile, ClientRepository, CrmLinks, NoteRepository, StaffDirectory, StaffNotifier, TaskRepository } from "./ports";
 
 /** Кто действует и что ему разрешено (из контекста Access). */
@@ -59,6 +60,7 @@ export class TasksService {
     private readonly links: CrmLinks,
     private readonly notifier: StaffNotifier,
     private readonly clock: Clock,
+    private readonly staff: StaffDirectory,
   ) {}
 
   async create(actor: Actor, input: { title: string; kind: TaskKind; dueAt?: string; clientId?: string; orderId?: string; dealId?: string; assigneeId?: string }) {
@@ -68,6 +70,8 @@ export class TasksService {
     const assigneeId = input.assigneeId ?? actor.userId;
     // «Только свои» ставит задачи себе; назначать другим — роли с видимостью «все».
     if (assigneeId !== actor.userId && !actor.seesAll) throw new ClientsError("forbidden");
+    // Исполнитель — действующий сотрудник, как у ответственного клиента (setManager); отключённому задачу не ставим (B12).
+    if (assigneeId !== actor.userId && !(await this.staff.isActiveStaff(assigneeId))) throw new ClientsError("staffNotFound", "Сотрудник не найден");
     await this.tasks.add({ title: input.title, kind: input.kind, dueAt: taskDue(input.dueAt), clientId, orderId: input.orderId ?? null, dealId: input.dealId ?? null, assigneeId, createdById: actor.userId });
     if (assigneeId !== actor.userId) {
       const link = input.dealId ? `/admin/deals/${input.dealId}` : input.orderId ? `/admin/orders/${input.orderId}` : "/admin/tasks";
@@ -107,9 +111,10 @@ export class NotesService {
   async add(actor: Actor, input: { kind: "note" | "call" | "message" | "email"; text: string; clientId?: string; orderId?: string; dealId?: string }) {
     await this.notes.add({ kind: input.kind, text: input.text, clientId: input.clientId ?? null, orderId: input.orderId ?? null, dealId: input.dealId ?? null, authorId: actor.userId });
     if (!input.text.includes("@")) return;
-    const link = input.dealId ? `/admin/deals/${input.dealId}` : input.orderId ? `/admin/orders/${input.orderId}` : `/admin/clients/${input.clientId}`;
+    // Ссылка — на то, к чему заметка; без привязки — без ссылки, а не /admin/clients/undefined (B12).
+    const link = input.dealId ? `/admin/deals/${input.dealId}` : input.orderId ? `/admin/orders/${input.orderId}` : input.clientId ? `/admin/clients/${input.clientId}` : null;
     const ids = findMentions(input.text, await this.staff.mentionable()).filter((id) => id !== actor.userId);
-    const where = input.dealId ? "заметка в сделке" : "заметка о клиенте";
+    const where = input.dealId ? "заметка в сделке" : input.orderId ? "заметка к заказу" : "заметка о клиенте";
     if (ids.length) await this.notifier.notify(ids, { kind: "mention", title: `${actor.name} упомянул(а) вас · ${where}`, body: input.text.slice(0, 300), link });
   }
 

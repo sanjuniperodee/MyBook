@@ -1,17 +1,30 @@
 "use client";
 
-import { Link, useMessages } from "@/i18n/client";
+import { useMessages } from "@/i18n/client";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { track } from "@/lib/analytics-client";
-import { Check, LoaderCircle, Minus, Plus, Tag, X } from "lucide-react";
 import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPreview } from "./actions";
-import { SubmitButton } from "@/components/ui/SubmitButton";
-import { TrustList } from "@/components/TrustList";
-import { Alert } from "@/components/ui/Alert";
-import { availableAddons, getDeliveryOptions, formatPrice, getPlan, getPlans, site, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
-import { cn, nowMs } from "@/lib/utils";
-import { orderByDate, startOfDay, toIsoDay } from "@/lib/occasions";
-import { calculatePrice } from "@/modules/ordering/domain/Pricing";
+import { availableAddons, getPlan, getPlans, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { nowMs } from "@/lib/dates";
+import { toIsoDay } from "@/lib/occasions";
+import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
+import { AgreementChoice, ContactsSection, DeliverySection, GiftSection, MobileBar, PlanSection, Summary, UpgradeNote, type AgreementMode, type PromoField } from "./form/sections";
+
+/** Промокод или сертификат: ввод, проверка на сервере (checkPromoAction), применённый и ошибка. */
+function usePromo(initial: PromoPreview | null, failed: string): PromoField {
+  const [value, setValue] = useState<PromoPreview | null>(initial);
+  const [input, setInput] = useState(initial?.code ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [checking, start] = useTransition();
+  const apply = () =>
+    start(async () => {
+      setError(null);
+      const res = await checkPromoAction(input);
+      if (res.ok) setValue(res);
+      else setError(res.error ?? failed);
+    });
+  return { value, input, setInput, apply, remove: () => setValue(null), checking, error };
+}
 
 export function CheckoutForm({
   bookId,
@@ -39,63 +52,33 @@ export function CheckoutForm({
   blocked: boolean;
 }) {
   const [state, action] = useActionState<CheckoutState, FormData>(createOrderAction, {});
-  const m = useMessages();
-  const t = m.checkout;
-  const c = m.common;
+  const t = useMessages().checkout;
   const [chosenPlan, setPlanId] = useState<PlanId>(agreement?.plan ?? (upgrade && !getPlan(initialPlan ?? "digital")?.printed ? "hardcover" : initialPlan) ?? "hardcover");
 
   // Договорённость: продолжить по ней или оформить заказ «с нуля» по обычной цене (внесённое засчитается как аванс).
-  const [mode, setMode] = useState<"agreed" | "advance">("agreed");
-  // По договорённости тариф зафиксирован; «с нуля» — любой.
-  const lockedPlan = agreement?.plan && mode === "agreed" ? agreement.plan : null;
-  const planId = lockedPlan ?? chosenPlan;
+  const [mode, setMode] = useState<AgreementMode>("agreed");
   const [qty, setQty] = useState(1);
   const [delivery, setDelivery] = useState<DeliveryId>("courier");
   const [now] = useState(() => new Date(nowMs()));
   useEffect(() => track("begin_checkout"), []);
   const today = toIsoDay(now);
   const [desiredDate, setDesiredDate] = useState(defaults.desiredDate && defaults.desiredDate >= today ? defaults.desiredDate : "");
-  const plan = getPlans().find((p) => p.id === planId)!;
-  const [promo, setPromo] = useState<PromoPreview | null>(initialPromo);
-  const [promoInput, setPromoInput] = useState(initialPromo?.code ?? "");
-  const [promoError, setPromoError] = useState<string | null>(null);
-  const [checkingPromo, startPromo] = useTransition();
+  const promoField = usePromo(initialPromo, t.promoFailed);
+  const promo = promoField.value;
   const discount = promo?.ok && promo.kind && promo.value ? { kind: promo.kind, value: promo.value } : null;
   const [addonIds, setAddonIds] = useState<AddonId[]>([]);
+  // Тариф (по договорённости — зафиксирован) и итог — той же функцией, что на сервере (quoteCheckout).
+  const quote = quoteCheckout({ plan: chosenPlan, quantity: qty, delivery, discount, addons: addonIds, agreement, mode, upgradeCredit: upgrade?.credit });
+  const { itemsAmount: items, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = quote.price;
+  const discountAmount = quote.promoDiscount;
+  const agreedDiscount = quote.agreedDiscount;
+  const prepaidApplied = quote.price.prepaidAmount ?? 0;
+  const { plan: planId, lockedPlan } = quote;
+  const plan = getPlans().find((p) => p.id === planId)!;
   const offered = availableAddons(planId);
   // Какие тарифы предлагаем: зафиксированный договорённостью; при дозаказе печатной версии — только печатные; иначе все, что продаются.
   const shownPlans = lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : upgrade ? getVisiblePlans().filter((x) => x.printed) : getVisiblePlans();
-  const plain = calculatePrice(planId, qty, delivery, discount, addonIds);
-  const priced = upgrade
-    ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: Number.POSITIVE_INFINITY, prepaid: upgrade.credit })
-    : agreement
-      ? calculatePrice(planId, qty, delivery, discount, addonIds, { agreedTotal: mode === "agreed" ? agreement.agreedTotal : Number.POSITIVE_INFINITY, prepaid: agreement.prepaid })
-      : plain;
-  const { itemsAmount: items, deliveryAmount: deliveryPrice, addons: appliedAddons, amount: total } = priced;
-  const discountAmount = plain.discountAmount;
-  const agreedDiscount = priced.discountAmount - plain.discountAmount;
-  const prepaidApplied = priced.prepaidAmount ?? 0;
-  const express = planId === "premium" || appliedAddons.includes("express");
   const toggleAddon = (id: AddonId) => setAddonIds((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
-  // Успеваем ли к дате с выбранным тарифом и доставкой.
-  const fit = desiredDate
-    ? (() => {
-        const by = orderByDate(desiredDate, express ? "premium" : planId, delivery);
-        const byPremium = orderByDate(desiredDate, "premium", delivery);
-        return {
-          ok: by >= startOfDay(now),
-          premiumOk: byPremium >= startOfDay(now),
-          by,
-        };
-      })()
-    : null;
-  const applyPromo = () =>
-    startPromo(async () => {
-      setPromoError(null);
-      const res = await checkPromoAction(promoInput);
-      if (res.ok) setPromo(res);
-      else setPromoError(res.error ?? t.promoFailed);
-    });
 
   return (
     <form action={action} className="grid gap-10 pb-24 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
@@ -108,363 +91,28 @@ export function CheckoutForm({
       {upgrade ? <input type="hidden" name="upgradeFrom" value={upgrade.orderId} /> : null}
 
       <div className="space-y-10">
-        {upgrade ? (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="upgrade">
-            <h2 className="text-lg font-semibold text-emerald-950">{t.upgrade.title}</h2>
-            <p className="mt-1 text-sm text-emerald-900">{t.upgrade.text(upgrade.number, upgrade.credit > 0 ? formatPrice(upgrade.credit) : "0")}</p>
-          </section>
-        ) : null}
-        {agreement ? (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="agreement">
-            <input type="hidden" name="agreementMode" value={mode} />
-            <h2 className="text-lg font-semibold text-emerald-950">{t.agreement.title}</h2>
-            <p className="mt-1 text-sm text-emerald-900">{t.agreement.summary(agreement.dealNumber, formatPrice(agreement.agreedTotal), formatPrice(agreement.prepaid))}</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2" role="radiogroup">
-              {(["agreed", "advance"] as const).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={mode === id}
-                  onClick={() => setMode(id)}
-                  className={cn("rounded-xl border bg-white p-4 text-left transition", mode === id ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
-                >
-                  <div className="text-sm font-semibold">{id === "agreed" ? t.agreement.continueTitle : t.agreement.newTitle}</div>
-                  <div className="mt-1 text-xs leading-snug text-muted">{id === "agreed" ? t.agreement.continueHint : t.agreement.newHint(formatPrice(agreement.prepaid))}</div>
-                </button>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-emerald-900">
-              {t.agreement.refund}{" "}
-              <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="font-medium underline">
-                {t.agreement.refundLink}
-              </a>
-            </p>
-          </section>
-        ) : null}
-        <section>
-          <h2 className="text-xl font-semibold">1. {t.step.plan}</h2>
-          {lockedPlan ? <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900" data-testid="plan-locked">{t.agreement.planLocked(c.plans[lockedPlan].name)}</p> : null}
-          <div className={`mt-4 grid gap-3 ${shownPlans.length === 1 ? "sm:grid-cols-1" : shownPlans.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
-            {shownPlans.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                disabled={!!lockedPlan}
-                onClick={() => setPlanId(p.id)}
-                className={cn("relative rounded-2xl border bg-white p-5 text-left transition", planId === p.id ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
-              >
-                {planId === p.id ? (
-                  <span className="absolute top-3 right-3 flex size-6 items-center justify-center rounded-full bg-wine text-white">
-                    <Check className="size-3.5" />
-                  </span>
-                ) : null}
-                <div className="font-semibold">{c.plans[p.id].name}</div>
-                <div className="mt-1 font-serif text-2xl">{formatPrice(p.price)}</div>
-                <ul className="mt-3 space-y-1 text-xs text-muted">
-                  {c.plans[p.id].features.slice(0, 3).map((f) => (
-                    <li key={f}>· {f}</li>
-                  ))}
-                </ul>
-              </button>
-            ))}
-          </div>
-          {plan.printed ? (
-            <div className="mt-5 flex items-center gap-4">
-              <span className="text-sm text-ink-soft">{t.copies}</span>
-              <div className="flex items-center rounded-full border border-line bg-white">
-                <button
-                  type="button"
-                  className="flex size-10 items-center justify-center disabled:opacity-40"
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  disabled={qty <= 1}
-                  aria-label={t.fewer}
-                >
-                  <Minus className="size-4" />
-                </button>
-                <span className="w-8 text-center font-medium tabular-nums">{qty}</span>
-                <button
-                  type="button"
-                  className="flex size-10 items-center justify-center disabled:opacity-40"
-                  onClick={() => setQty((q) => Math.min(20, q + 1))}
-                  disabled={qty >= 20}
-                  aria-label={t.more}
-                >
-                  <Plus className="size-4" />
-                </button>
-              </div>
-              {plan.extraCopyPrice ? <span className="text-sm text-muted">{t.nextCopy(formatPrice(plan.extraCopyPrice))}</span> : null}
-            </div>
-          ) : null}
-          {offered.length ? (
-            <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-              {offered.map((a) => {
-                const on = appliedAddons.includes(a.id);
-                return (
-                  <label
-                    key={a.id}
-                    className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border bg-white p-4 transition", on ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
-                  >
-                    <input type="checkbox" className="mt-0.5 size-4 accent-wine" checked={on} onChange={() => toggleAddon(a.id)} />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex justify-between gap-2 font-medium">
-                        {c.addons[a.id].name} <span className="shrink-0 font-normal text-ink-soft">+{formatPrice(a.price)}</span>
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-snug text-muted">{c.addons[a.id].description}</span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          ) : null}
-        </section>
-
+        {upgrade ? <UpgradeNote upgrade={upgrade} /> : null}
+        {agreement ? <AgreementChoice agreement={agreement} mode={mode} onMode={setMode} /> : null}
+        <PlanSection plans={shownPlans} planId={planId} lockedPlan={lockedPlan} onPlan={setPlanId} qty={qty} onQty={setQty} offered={offered} applied={appliedAddons} onToggleAddon={toggleAddon} />
+        {plan.printed ? <DeliverySection delivery={delivery} onDelivery={setDelivery} /> : null}
         {plan.printed ? (
-          <section>
-            <h2 className="text-xl font-semibold">2. {t.step.delivery}</h2>
-            <div className="mt-4 grid gap-3">
-              {getDeliveryOptions().map((d) => (
-                <label
-                  key={d.id}
-                  className={cn("flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 transition", delivery === d.id ? "border-wine ring-4 ring-wine/10" : "border-line")}
-                >
-                  <input type="radio" name="_delivery" className="size-4 accent-wine" checked={delivery === d.id} onChange={() => setDelivery(d.id)} />
-                  <div className="flex-1">
-                    <div className="font-medium">{c.delivery[d.id].name}</div>
-                    <div className="text-sm text-muted">{c.delivery[d.id].description}</div>
-                  </div>
-                  <div className="text-sm font-medium">{d.price ? formatPrice(d.price) : c.free}</div>
-                </label>
-              ))}
-            </div>
-            {delivery !== "pickup" ? (
-              <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_2fr]">
-                <div>
-                  <label className="label" htmlFor="city">
-                    {t.city}
-                  </label>
-                  <input className="input" id="city" name="city" required maxLength={100} autoComplete="address-level2" />
-                </div>
-                <div>
-                  <label className="label" htmlFor="address">
-                    {t.address}
-                  </label>
-                  <input className="input" id="address" name="address" required maxLength={300} placeholder={t.addressPlaceholder} autoComplete="street-address" />
-                </div>
-                <div>
-                  <label className="label" htmlFor="postalCode">
-                    {t.postalCode}
-                  </label>
-                  <input className="input" id="postalCode" name="postalCode" maxLength={20} autoComplete="postal-code" />
-                </div>
-              </div>
-            ) : null}
-          </section>
+          <GiftSection now={now} today={today} desiredDate={desiredDate} onDesiredDate={setDesiredDate} occasionLabel={defaults.occasionLabel} planId={planId} delivery={delivery} offered={offered} applied={appliedAddons} onToggleAddon={toggleAddon} onPlan={setPlanId} />
         ) : null}
-
-        {plan.printed ? (
-          <section>
-            <h2 className="text-xl font-semibold">3. {t.step.gift}</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_220px]">
-              <div>
-                <label className="label" htmlFor="giftNote">
-                  {t.giftNote}
-                </label>
-                <textarea className="input" id="giftNote" name="giftNote" rows={3} maxLength={500} placeholder={t.giftNotePlaceholder} />
-                <p className="mt-1.5 text-xs text-muted">{t.giftNoteHint}</p>
-              </div>
-              <div>
-                <label className="label" htmlFor="desiredDate">
-                  {t.desiredDate}
-                </label>
-                <input className="input" id="desiredDate" name="desiredDate" type="date" min={today} value={desiredDate} onChange={(e) => setDesiredDate(e.target.value)} />
-                {fit ? (
-                  fit.ok ? (
-                    <p className="mt-1.5 text-xs text-emerald-700" data-testid="date-fit">
-                      <Check className="mr-0.5 inline size-3" /> {t.fitOk}
-                      {defaults.occasionLabel ? t.fitOccasion(defaults.occasionLabel) : ""}
-                    </p>
-                  ) : fit.premiumOk && !express ? (
-                    <p className="mt-1.5 text-xs text-amber-700" data-testid="date-fit">
-                      {t.fitSlow}{" "}
-                      {offered.some((a) => a.id === "express") ? (
-                        <button type="button" className="font-medium underline" onClick={() => toggleAddon("express")}>
-                          {t.addExpress}
-                        </button>
-                      ) : getVisiblePlans().some((p) => p.id === "premium") ? (
-                        <button type="button" className="font-medium underline" onClick={() => setPlanId("premium")}>
-                          {t.choosePremium}
-                        </button>
-                      ) : null}{" "}
-                      {t.fitFaster}
-                    </p>
-                  ) : (
-                    <p className="mt-1.5 text-xs text-amber-700" data-testid="date-fit">
-                      {delivery === "post" ? t.fitPost : t.fitNo}
-                    </p>
-                  )
-                ) : (
-                  <p className="mt-1.5 text-xs text-muted">{t.fitHint}</p>
-                )}
-              </div>
-            </div>
-            <label className="mt-4 flex items-start gap-2.5 text-sm text-ink-soft">
-              <input type="checkbox" name="surprise" className="mt-0.5 size-4 accent-wine" />
-              <span>{t.surprise}</span>
-            </label>
-          </section>
-        ) : null}
-
-        <section>
-          <h2 className="text-xl font-semibold">{plan.printed ? "4" : "2"}. {t.step.contacts}</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="label" htmlFor="contactName">
-                {plan.printed ? t.recipientName : t.yourName}
-              </label>
-              <input className="input" id="contactName" name="contactName" defaultValue={defaults.name} required maxLength={100} autoComplete="name" />
-            </div>
-            <div>
-              <label className="label" htmlFor="contactPhone">
-                {t.phone}
-              </label>
-              <input className="input" id="contactPhone" name="contactPhone" type="tel" defaultValue={defaults.phone} placeholder="+7 7__ ___ __ __" required autoComplete="tel" />
-            </div>
-            <div>
-              <label className="label" htmlFor="contactEmail">
-                {t.email}
-              </label>
-              <input className="input" id="contactEmail" name="contactEmail" type="email" defaultValue={defaults.email} required autoComplete="email" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="label" htmlFor="comment">
-                {t.comment}
-              </label>
-              <textarea className="input" id="comment" name="comment" rows={2} maxLength={1000} placeholder={t.commentPlaceholder} />
-            </div>
-          </div>
-        </section>
+        <ContactsSection printed={!!plan.printed} defaults={defaults} />
       </div>
 
-      <aside>
-        <div className="card sticky top-24 p-6">
-          <h2 className="text-lg font-semibold">{t.total}</h2>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted">
-                {c.plans[plan.id].name}
-                {plan.printed && qty > 1 ? ` × ${qty}` : ""}
-              </dt>
-              <dd>{formatPrice(items)}</dd>
-            </div>
-            {discountAmount ? (
-              <div className="flex justify-between text-emerald-700">
-                <dt>
-                  {promo?.code?.startsWith("GIFT-") ? t.certificate : t.promoCode} {promo?.code} ({promo?.label})
-                </dt>
-                <dd>−{formatPrice(discountAmount)}</dd>
-              </div>
-            ) : null}
-            {agreedDiscount > 0 ? (
-              <div className="flex justify-between text-emerald-700">
-                <dt>{t.agreement.agreedLine}</dt>
-                <dd>−{formatPrice(agreedDiscount)}</dd>
-              </div>
-            ) : null}
-            {prepaidApplied > 0 ? (
-              <div className="flex justify-between text-emerald-700" data-testid="prepaid-line">
-                <dt>{upgrade ? t.upgrade.creditLine(upgrade.number) : t.agreement.prepaidLine}</dt>
-                <dd>−{formatPrice(prepaidApplied)}</dd>
-              </div>
-            ) : null}
-            {appliedAddons.map((id) => {
-              const a = offered.find((x) => x.id === id)!;
-              return (
-                <div key={id} className="flex justify-between">
-                  <dt className="text-muted">{c.addons[a.id].name}</dt>
-                  <dd>{formatPrice(a.price)}</dd>
-                </div>
-              );
-            })}
-            {plan.printed ? (
-              <div className="flex justify-between">
-                <dt className="text-muted">{t.delivery}</dt>
-                <dd>{deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
-              </div>
-            ) : null}
-          </dl>
-          <div className="mt-4">
-            {promo?.ok ? (
-              <>
-                <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  <span className="flex items-center gap-1.5">
-                    <Tag className="size-4" /> {t.promoApplied(promo.code ?? "")}
-                  </span>
-                  <button type="button" onClick={() => setPromo(null)} aria-label={t.promoRemove} className="p-1">
-                    <X className="size-4" />
-                  </button>
-                </div>
-                {promo.kind === "fixed" && promo.value && promo.value > items ? (
-                  <p className="mt-2 text-xs leading-snug text-amber-800">
-                    {t.promoOver(formatPrice(promo.value - items))}
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  className="input h-10 text-sm uppercase placeholder:normal-case"
-                  placeholder={t.promoPlaceholder}
-                  value={promoInput}
-                  maxLength={40}
-                  onChange={(e) => setPromoInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (promoInput.trim()) applyPromo();
-                    }
-                  }}
-                />
-                <button type="button" className="btn btn-outline btn-sm h-10 shrink-0" onClick={applyPromo} disabled={!promoInput.trim() || checkingPromo}>
-                  {checkingPromo ? <LoaderCircle className="size-4 animate-spin" /> : t.apply}
-                </button>
-              </div>
-            )}
-            {promoError ? <p className="mt-1.5 text-xs text-red-700">{promoError}</p> : null}
-          </div>
-          <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
-            <span className="font-medium">{t.toPay}</span>
-            <span className="font-serif text-3xl font-medium">{formatPrice(total)}</span>
-          </div>
-          {state.error ? <Alert className="mt-4">{state.error}</Alert> : null}
-          <label className="mt-5 flex items-start gap-2.5 text-xs text-muted">
-            <input type="checkbox" name="consent" required className="mt-0.5 size-4 accent-wine" />
-            <span>
-              {t.consent.start}{" "}
-              <Link href="/offer" target="_blank" className="text-wine underline">
-                {t.consent.offer}
-              </Link>
-              {t.consent.end}
-            </span>
-          </label>
-          <SubmitButton className="btn-lg mt-5 w-full" pendingText={t.pending}>
-            {t.submit}
-          </SubmitButton>
-          {blocked ? <p className="mt-3 text-center text-xs text-red-700">{t.blocked}</p> : null}
-          <TrustList compact className="mt-6 border-t border-line pt-5 text-ink-soft" />
-        </div>
-      </aside>
+      <Summary
+        plan={plan}
+        qty={qty}
+        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total }}
+        promo={promoField}
+        upgrade={upgrade}
+        offered={offered}
+        error={state.error}
+        blocked={blocked}
+      />
 
-      {/* На телефоне итог уезжает вниз — держим сумму и кнопку под рукой */}
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs text-muted">{t.toPay}</div>
-          <div className="font-serif text-2xl leading-none tabular-nums">{formatPrice(total)}</div>
-        </div>
-        <SubmitButton className="h-11" pendingText={t.pending}>
-          {t.submitShort}
-        </SubmitButton>
-      </div>
+      <MobileBar total={total} />
     </form>
   );
 }

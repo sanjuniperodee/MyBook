@@ -137,5 +137,3 @@ export function chapterTitle(theme: ThemeDef, key: string, lang: Locale = "ru"):
 export function themeChaptersByLocale(id: ThemeId): Record<Locale, ChapterDef[]> {
   return { ru: text.ru[id].chapters, kk: text.kk[id].chapters };
 }
-
-export const CUSTOM_CHAPTER = "custom";

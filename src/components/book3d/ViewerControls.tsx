@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, RotateCcw } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export const VIEW_IDS = ["front", "spine", "back", "edge", "top", "bottom"] as const;
 export type ViewId = (typeof VIEW_IDS)[number];

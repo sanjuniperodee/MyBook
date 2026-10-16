@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, ilike, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmNotes, crmTasks, orders, orderStatuses } from "@/shared/infrastructure/db/schema";
+import { ORDER_STATUSES } from "@/shared/domain/orders";
+import { crmNotes, crmTasks, orders } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { getPlans } from "@/config/site";
 
@@ -16,7 +17,7 @@ export interface OrderFilters {
 /** Условия выборки заказов — общие для таблицы и CSV-выгрузки. */
 function orderWhere(f: OrderFilters, adminId: string): SQL | undefined {
   const w: SQL[] = [];
-  if (f.status && (orderStatuses as readonly string[]).includes(f.status)) w.push(eq(orders.status, f.status as never));
+  if (f.status && (ORDER_STATUSES as readonly string[]).includes(f.status)) w.push(eq(orders.status, f.status as never));
   if (f.plan && getPlans().some((p) => p.id === f.plan)) w.push(eq(orders.plan, f.plan));
   if (f.assignee === "me") w.push(eq(orders.assigneeId, adminId));
   else if (f.assignee === "none") w.push(isNull(orders.assigneeId));

@@ -1,16 +1,16 @@
 import { deadlineFor, getOccasion } from "@/lib/occasions";
+import { zonedParts } from "@/shared/domain/time";
 
 export const DAY = 86_400_000;
 /** Порог «книга почти готова» — ответов. */
 export const ALMOST_READY_ANSWERS = 25;
 /** Ручное напоминание из CRM — не чаще раза в столько дней. */
 export const REMINDER_COOLDOWN_DAYS = 3;
-const TZ = "Asia/Almaty";
 
-/** Автописьма уходят только днём по Алматы: с 10 до 20. */
+/** Автописьма уходят только днём по времени магазина (storeTimeZone): с 10 до 20. */
 export function isSendingHour(now: Date) {
-  const h = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: TZ }).format(now));
-  return h >= 10 && h < 20;
+  const { minutes } = zonedParts(now);
+  return minutes >= 10 * 60 && minutes < 20 * 60;
 }
 
 /** Ручное напоминание можно отправить, если прошлое было достаточно давно. */

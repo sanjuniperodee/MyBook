@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { orders, reviews, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { PUBLIC_TEXT_MIN, ratingSummary, Review, type ReviewRepository, type ReviewStatus } from "../domain";
+import type { ReviewStatus } from "@/shared/domain/reviews";
+import { PUBLIC_TEXT_MIN, ratingSummary, Review, type ReviewRepository } from "../domain";
 
 type Row = typeof reviews.$inferSelect;
 

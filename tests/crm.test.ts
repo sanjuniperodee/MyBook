@@ -1,15 +1,20 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, systemRoles } from "@/modules/access/domain/permissions";
+import { maskEmail, maskPhone, systemRoles } from "@/modules/access/domain/permissions";
+import { allPermissions, isPermission, permissionGroups } from "@/shared/domain/permissions";
 import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
-import { automationActions, automationTriggers, fillTemplate, isTrigger } from "@/modules/automation/domain/meta";
-import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/modules/workspace/domain/schedule";
-import { findMentions } from "@/modules/workspace/infrastructure/mentions";
+import { automationActions, automationTriggers, isTrigger } from "@/modules/automation/domain/meta";
+import { fillTemplate } from "@/shared/domain/templates";
+import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
+import { storeTimeZoneIs } from "./doubles/time";
+import { findMentions } from "@/shared/domain/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
-import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/modules/marketing/domain/channels";
+import { buildSiteUrl, linkCodeFromText } from "@/modules/marketing/domain/links";
+import { channelOf, toAttribution } from "@/shared/domain/channels";
+import { normalizeSlug } from "@/shared/domain/slug";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, questionText } from "@/modules/messaging/domain/botConfig";
 import { decryptSecret, encryptSecret, safeEqual } from "@/shared/crypto";
 import { matches } from "@/modules/automation/domain";
@@ -187,7 +192,8 @@ describe("шифрование секретов", () => {
 
 describe("рабочее время", () => {
   const hours = parseWorkHours('{"days":[1,2,3,4,5],"from":"09:00","to":"18:00"}');
-  // Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  // Магазин в Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  storeTimeZoneIs("Asia/Almaty");
   const at = (iso: string) => new Date(iso);
 
   it("разбирает настройку и подставляет значения по умолчанию", () => {

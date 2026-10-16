@@ -3,7 +3,7 @@
 import { Link, useLocalePathname, useMessages } from "@/i18n/client";
 import { useEffect, useRef, useState, ViewTransition } from "react";
 import { BookOpen, BookOpenText, Camera, Eye, LayoutGrid, Mail, Palette, PenLine, SlidersHorizontal } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const tabs = [
   { href: "", key: "overview", icon: LayoutGrid },

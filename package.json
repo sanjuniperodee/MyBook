@@ -16,7 +16,9 @@
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.mjs",
     "sample-book": "tsx --import ./scripts/preload.mjs scripts/sample-book.ts",
     "scheduler:once": "tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/scheduler-once.ts",
-    "test:integration": "INTEGRATION=1 vitest run tests/outbox.integration.test.ts tests/redis.integration.test.ts"
+    "test:integration": "INTEGRATION=1 vitest run tests/outbox.integration.test.ts tests/redis.integration.test.ts tests/kaspi.integration.test.ts",
+    "test:pdf-all": "PDF_CRITICAL=all vitest run tests/pdf-critical.test.ts",
+    "visual:check": "bash scripts/visual/check.sh"
   },
   "engines": {
     "node": ">=20.9"

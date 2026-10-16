@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
-import { canReview, FeedbackError, ratingSummary, Review, THANK_YOU, type ReviewInput, type ReviewPhoto, type ReviewRepository } from "@/modules/feedback/domain";
+import { canReview, FeedbackError, ratingSummary, Review, THANK_YOU, type ReviewInput, type ReviewRepository } from "@/modules/feedback/domain";
+import type { ReviewPhoto } from "@/shared/domain/reviews";
 import { ReviewsService, type ReviewOrderContext } from "@/modules/feedback/application";
 import { getThemes } from "@/lib/content/themes";
 import { interiorsForCover, isInteriorId } from "@/lib/book/interiors";

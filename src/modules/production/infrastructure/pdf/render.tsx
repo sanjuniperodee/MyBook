@@ -6,7 +6,7 @@ import sharp from "sharp";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverNamesLine, coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
-import { coverPhotoDataUrl } from "@/server/cover-photos";
+import { coverPhotoDataUrl } from "../coverPhotos";
 import {
   coverFrontGeometry,
   coverSpreadGeometry,
@@ -18,19 +18,22 @@ import {
   spineWidthMm,
   type CoverGeometry,
 } from "@/lib/book/formats";
-import { buildBookContent, interiorMetrics, photoAreaMm, photoPages, textArea, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
-import { interiorSizes } from "@/lib/book/interiors";
+import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
+import { emptyFlow } from "@/lib/book/flow-decisions";
+import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
+import { interiorSizes } from "@/lib/book/typesetting";
 import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
 import { bakeFrame } from "./frame";
 import { frameKey, parseFrames } from "@/lib/book/photo-frame";
-import type { PhotoSpec } from "@/lib/book/cover-kit";
+import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
-import { emptyFlow, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
+import { refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 
 export type RenderMode = "print" | "preview" | "reading";
 
@@ -58,9 +61,9 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
   const pxPerMm = dpi / 25.4;
   const result = new Map<string, PreparedImage>();
   const openerIds = new Set(content.chapters.flatMap((c) => (c.openerPhoto ? [c.openerPhoto.id] : [])));
-  const openerShot = openerPhotoPlan(content.format, content.interior, interiorMetrics[content.format.id]);
+  const openerShot = openerPhotoPlan(content.format, content.interior);
   // Места на фотостраницах — по той же раскладке, что и в вёрстке: снимок готовим ровно под своё место.
-  const area = photoArea(content.format, interiorMetrics[content.format.id]);
+  const area = photoArea(content.format);
   const sizes = interiorSizes(content.interior, interiorMetrics[content.format.id].scale);
   const cells = new Map<string, PhotoCell>();
   for (const list of [...content.chapters.map((c) => c.photos), content.galleryPhotos])
@@ -113,7 +116,7 @@ export function contentFor(bundle: BookBundle): BookContent {
 }
 
 /** Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается. */
-const LAYOUT_VERSION = 3;
+const LAYOUT_VERSION = 4;
 
 /** Отпечаток содержимого: меняется вместе с текстом, фото и их раскладкой — ключ кэша предпросмотра. */
 export function contentFingerprint(bundle: BookBundle): string {
@@ -148,6 +151,8 @@ export interface InteriorResult {
   pdf: Buffer;
   pageCount: number;
   contentPages: number;
+  /** Первая полоса каждой главы (по ключу главы; галерея — "__gallery") — те же номера, что в оглавлении. */
+  chapterPages: Record<string, number>;
 }
 
 /** Сколько раз собираем блок, доводя вёрстку (обычно хватает 2–4). */
@@ -165,7 +170,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
   const images = await prepareImages(content, mode, bleed);
 
   // Доводка вёрстки: собираем блок с заглушками вместо фото, читаем раскладку, принимаем решения
-  // (разрывы перед заголовками, размер фото под свободное место — см. flow.ts) и повторяем, пока есть что поправить.
+  // (разрывы перед заголовками, размер фото под свободное место — см. lib/book/flow-decisions.ts) и повторяем, пока есть что поправить.
   // Заодно узнаём номера страниц глав для оглавления.
   const stub = await placeholder();
   const draftImages = new Map([...images].map(([id, img]) => [id, { ...img, data: stub }]));
@@ -206,7 +211,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
   doc.setAuthor(content.authorName);
   doc.setProducer("MyBooks");
   const pdf = Buffer.from(await doc.save());
-  return { pdf, pageCount, contentPages };
+  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {} };
 }
 
 /** Фото для рисунка обложки: data-URL, ужатый до разумного размера (librsvg держит его в памяти целиком). */

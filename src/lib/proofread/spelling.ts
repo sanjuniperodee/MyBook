@@ -8,7 +8,7 @@
  */
 import type { Issue } from "./types";
 
-export interface WordAt {
+interface WordAt {
   word: string;
   start: number;
   end: number;

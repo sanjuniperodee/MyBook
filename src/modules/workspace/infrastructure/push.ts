@@ -20,7 +20,7 @@ export async function vapidKeys() {
   return { publicKey, privateKey };
 }
 
-export interface PushPayload {
+interface PushPayload {
   title: string;
   body?: string;
   link?: string | null;

@@ -1,0 +1,425 @@
+{
+ "totalStaticChunksRaw": 2914815,
+ "routes": [
+  {
+   "route": "/books/[id]/cover",
+   "chunks": 18,
+   "raw": 792352,
+   "gz": 243036
+  },
+  {
+   "route": "/books/[id]/questions",
+   "chunks": 18,
+   "raw": 751646,
+   "gz": 236809
+  },
+  {
+   "route": "/admin/deals/[id]",
+   "chunks": 14,
+   "raw": 704236,
+   "gz": 217988
+  },
+  {
+   "route": "/books/[id]/pages",
+   "chunks": 18,
+   "raw": 678377,
+   "gz": 212450
+  },
+  {
+   "route": "/",
+   "chunks": 14,
+   "raw": 683752,
+   "gz": 212224
+  },
+  {
+   "route": "/books/[id]/photos",
+   "chunks": 17,
+   "raw": 660640,
+   "gz": 206875
+  },
+  {
+   "route": "/admin/deals",
+   "chunks": 14,
+   "raw": 651962,
+   "gz": 203395
+  },
+  {
+   "route": "/admin/settings",
+   "chunks": 14,
+   "raw": 657621,
+   "gz": 201122
+  },
+  {
+   "route": "/admin/board",
+   "chunks": 14,
+   "raw": 637554,
+   "gz": 199537
+  },
+  {
+   "route": "/admin/clients/[id]",
+   "chunks": 13,
+   "raw": 632020,
+   "gz": 195602
+  },
+  {
+   "route": "/admin/orders/[id]",
+   "chunks": 13,
+   "raw": 616283,
+   "gz": 191303
+  },
+  {
+   "route": "/admin/chats",
+   "chunks": 13,
+   "raw": 612852,
+   "gz": 191071
+  },
+  {
+   "route": "/admin/clients/new",
+   "chunks": 13,
+   "raw": 608650,
+   "gz": 189222
+  },
+  {
+   "route": "/admin/automations",
+   "chunks": 13,
+   "raw": 606948,
+   "gz": 188569
+  },
+  {
+   "route": "/admin/tasks",
+   "chunks": 13,
+   "raw": 603370,
+   "gz": 187944
+  },
+  {
+   "route": "/books/[id]/checkout",
+   "chunks": 16,
+   "raw": 603322,
+   "gz": 187697
+  },
+  {
+   "route": "/admin/security",
+   "chunks": 13,
+   "raw": 602986,
+   "gz": 187689
+  },
+  {
+   "route": "/admin/marketing",
+   "chunks": 13,
+   "raw": 603154,
+   "gz": 187448
+  },
+  {
+   "route": "/admin/team/roles",
+   "chunks": 14,
+   "raw": 600142,
+   "gz": 187331
+  },
+  {
+   "route": "/admin/team",
+   "chunks": 14,
+   "raw": 600854,
+   "gz": 187252
+  },
+  {
+   "route": "/admin/deals/stages",
+   "chunks": 13,
+   "raw": 600038,
+   "gz": 186710
+  },
+  {
+   "route": "/admin/pricing",
+   "chunks": 13,
+   "raw": 598120,
+   "gz": 186255
+  },
+  {
+   "route": "/admin/orders",
+   "chunks": 13,
+   "raw": 597490,
+   "gz": 185911
+  },
+  {
+   "route": "/books/[id]/letters",
+   "chunks": 16,
+   "raw": 592904,
+   "gz": 185375
+  },
+  {
+   "route": "/admin/deals/new",
+   "chunks": 13,
+   "raw": 596118,
+   "gz": 185310
+  },
+  {
+   "route": "/admin/deals/fields",
+   "chunks": 13,
+   "raw": 595207,
+   "gz": 185284
+  },
+  {
+   "route": "/admin/site",
+   "chunks": 13,
+   "raw": 595268,
+   "gz": 185280
+  },
+  {
+   "route": "/admin/team/plans",
+   "chunks": 14,
+   "raw": 594753,
+   "gz": 185201
+  },
+  {
+   "route": "/admin/promo",
+   "chunks": 13,
+   "raw": 595649,
+   "gz": 185173
+  },
+  {
+   "route": "/books/[id]/settings",
+   "chunks": 16,
+   "raw": 590748,
+   "gz": 185068
+  },
+  {
+   "route": "/admin/calls",
+   "chunks": 13,
+   "raw": 593670,
+   "gz": 184623
+  },
+  {
+   "route": "/admin/gifts",
+   "chunks": 13,
+   "raw": 593473,
+   "gz": 184548
+  },
+  {
+   "route": "/admin/reviews",
+   "chunks": 13,
+   "raw": 593245,
+   "gz": 184464
+  },
+  {
+   "route": "/admin/books",
+   "chunks": 13,
+   "raw": 593073,
+   "gz": 184437
+  },
+  {
+   "route": "/admin/team/audit",
+   "chunks": 13,
+   "raw": 592711,
+   "gz": 184201
+  },
+  {
+   "route": "/books/new",
+   "chunks": 15,
+   "raw": 590180,
+   "gz": 183861
+  },
+  {
+   "route": "/admin/analytics",
+   "chunks": 12,
+   "raw": 591897,
+   "gz": 183651
+  },
+  {
+   "route": "/admin/clients",
+   "chunks": 12,
+   "raw": 591897,
+   "gz": 183651
+  },
+  {
+   "route": "/admin/deals/duplicates",
+   "chunks": 12,
+   "raw": 591897,
+   "gz": 183651
+  },
+  {
+   "route": "/admin",
+   "chunks": 12,
+   "raw": 591897,
+   "gz": 183651
+  },
+  {
+   "route": "/admin/search",
+   "chunks": 12,
+   "raw": 591897,
+   "gz": 183651
+  },
+  {
+   "route": "/admin/users",
+   "chunks": 12,
+   "raw": 591897,
+   "gz": 183651
+  },
+  {
+   "route": "/gift",
+   "chunks": 13,
+   "raw": 590714,
+   "gz": 183138
+  },
+  {
+   "route": "/gift/[token]",
+   "chunks": 13,
+   "raw": 588491,
+   "gz": 182959
+  },
+  {
+   "route": "/orders/[id]",
+   "chunks": 14,
+   "raw": 581798,
+   "gz": 181407
+  },
+  {
+   "route": "/books/[id]",
+   "chunks": 16,
+   "raw": 579766,
+   "gz": 181099
+  },
+  {
+   "route": "/books/[id]/preview",
+   "chunks": 16,
+   "raw": 573456,
+   "gz": 178064
+  },
+  {
+   "route": "/review/[orderId]",
+   "chunks": 12,
+   "raw": 571436,
+   "gz": 177323
+  },
+  {
+   "route": "/letters/[token]",
+   "chunks": 12,
+   "raw": 570720,
+   "gz": 176929
+  },
+  {
+   "route": "/blog/[slug]",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/blog",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/kniga/[slug]",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/kniga",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/offer",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/privacy",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/redeem",
+   "chunks": 12,
+   "raw": 567010,
+   "gz": 174521
+  },
+  {
+   "route": "/invite",
+   "chunks": 13,
+   "raw": 563463,
+   "gz": 174064
+  },
+  {
+   "route": "/account",
+   "chunks": 13,
+   "raw": 563240,
+   "gz": 173654
+  },
+  {
+   "route": "/books",
+   "chunks": 13,
+   "raw": 560670,
+   "gz": 172835
+  },
+  {
+   "route": "/orders",
+   "chunks": 13,
+   "raw": 560283,
+   "gz": 172727
+  },
+  {
+   "route": "/register",
+   "chunks": 13,
+   "raw": 557099,
+   "gz": 171849
+  },
+  {
+   "route": "/login",
+   "chunks": 13,
+   "raw": 556491,
+   "gz": 171742
+  },
+  {
+   "route": "/forgot",
+   "chunks": 13,
+   "raw": 556355,
+   "gz": 171702
+  },
+  {
+   "route": "/reset/[token]",
+   "chunks": 13,
+   "raw": 556245,
+   "gz": 171687
+  },
+  {
+   "route": "/login/2fa",
+   "chunks": 13,
+   "raw": 556140,
+   "gz": 171670
+  },
+  {
+   "route": "/print/orders/[id]",
+   "chunks": 12,
+   "raw": 537349,
+   "gz": 164286
+  },
+  {
+   "route": "/_not-found",
+   "chunks": 11,
+   "raw": 537030,
+   "gz": 164009
+  },
+  {
+   "route": "/admin-denied",
+   "chunks": 11,
+   "raw": 537030,
+   "gz": 164009
+  },
+  {
+   "route": "/unsubscribe",
+   "chunks": 11,
+   "raw": 537030,
+   "gz": 164009
+  },
+  {
+   "route": "/_global-error",
+   "chunks": 7,
+   "raw": 482661,
+   "gz": 143962
+  }
+ ]
+}

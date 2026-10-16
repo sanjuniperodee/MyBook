@@ -12,10 +12,10 @@ import { Alert } from "@/components/ui/Alert";
 import { photoUrl } from "@/lib/urls";
 import { getFormat } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { PhotosArt } from "@/components/illustrations";
 
-export interface ManagedPhoto {
+interface ManagedPhoto {
   id: string;
   caption: string;
   layout: "full" | "bleed" | "half" | "grid";

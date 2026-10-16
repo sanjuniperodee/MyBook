@@ -67,9 +67,9 @@ export const drizzleStaff: StaffDirectory = {
     const [u] = await executor().select({ id: users.id }).from(users).where(and(eq(users.sipExtension, extension), eq(users.role, "admin"), eq(users.staffDisabled, false))).limit(1);
     return u?.id ?? null;
   },
-  async displayName(userId) {
+  async byId(userId) {
     const [u] = await executor().select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
-    return u ? u.name || u.email.split("@")[0] : null;
+    return u ?? null;
   },
 };
 

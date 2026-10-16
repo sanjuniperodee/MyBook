@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { registrationOpen } from "@/config/site";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveRegistration } from "@/server/catalog";
+import { BAD_FORM, textForm } from "@/server/input";
 
 export interface SiteState {
   error?: string;
@@ -17,6 +18,7 @@ export interface SiteState {
  */
 export async function setRegistrationAction(_: SiteState, form: FormData): Promise<SiteState> {
   const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   await ensureCatalog();
   const open = form.get("registration") === "on";
   const before = registrationOpen();

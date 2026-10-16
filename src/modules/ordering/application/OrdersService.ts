@@ -1,9 +1,11 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import { NotFoundError } from "@/shared/domain";
+import type { OrderStatus } from "@/shared/domain/orders";
+import { staffLabel } from "@/shared/domain/staff";
 import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
-import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type OrderStatus, type PromoCodeRepository } from "../domain";
+import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 
 export interface PlaceOrderCommand {
@@ -56,7 +58,7 @@ export class OrdersService {
     private readonly promos: PromoCodeRepository,
     private readonly books: BookGateway,
     private readonly people: PeopleGateway,
-    private readonly printFiles: PrintFiles,
+    private readonly printFiles: Pick<PrintFiles, "prepare">,
     private readonly payments: PaymentSettings,
     private readonly agreements: AgreementGateway,
     private readonly uow: UnitOfWork,
@@ -93,14 +95,10 @@ export class OrdersService {
     if (cmd.promoCode && !promo) throw new OrderingError("notFound");
     promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
-    // Дозаказ печатной версии к электронной: оплата электронной засчитывается как аванс; договорённость менеджера не применяется.
+    // Дозаказ печатной версии к электронной — договорённость менеджера не ищем; тариф и цену определяет checkoutTerms (как форма).
     const found = upgrade ? null : await this.agreements.agreementFor(cmd.userId);
-    // «Аванс»: цену по договорённости не применяем (потолок бесконечен), но уже внесённые деньги вычитаем из «к оплате».
-    const agreedMode = !!found && cmd.agreementMode !== "advance";
-    const agreedPlan = found?.plan && getPlan(found.plan) ? (found.plan as PlanId) : null;
     // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
-    const plan = agreedMode && agreedPlan ? agreedPlan : cmd.plan;
-    const agreement = upgrade ? { agreedTotal: Number.POSITIVE_INFINITY, prepaid: upgrade.credit } : found && { agreedTotal: agreedMode ? found.agreedTotal : Number.POSITIVE_INFINITY, prepaid: found.prepaid };
+    const { plan, agreement } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
     const identity = await this.orders.nextIdentity();
     const order = Order.place(
       {
@@ -144,6 +142,23 @@ export class OrdersService {
   /** Оплата подтверждена (платёжная система или сотрудник). Повтор безопасен. */
   async confirmPayment(cmd: { orderId: string; paymentId: string | null }, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, (order, now) => order.markPaid(cmd.paymentId, actor.label, now));
+  }
+
+  /**
+   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: заказ ждёт оплаты — подтверждаем; тот же платёж
+   * повторно — ничего; другой платёж по оплаченному или отменённому заказу — заказ не трогаем, сотруднику заметка
+   * «нужен возврат» (B13).
+   */
+  async acceptProviderPayment(cmd: { orderId: string; paymentId: string | null; provider: string; operationId: string; amount: number }, actor: Actor): Promise<"paid" | "duplicate" | "refundNeeded" | null> {
+    const order = await this.orders.findById(cmd.orderId);
+    if (!order) return null;
+    if (order.status === "pending_payment") {
+      await this.confirmPayment({ orderId: order.id, paymentId: cmd.paymentId }, actor);
+      return "paid";
+    }
+    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
+    await this.addNote(order.id, `${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor);
+    return "refundNeeded";
   }
 
   async changeStatus(cmd: { orderId: string; to: OrderStatus; note?: string }, actor: Actor): Promise<Order> {
@@ -197,9 +212,9 @@ export class OrdersService {
   }
 
   async assign(orderId: string, assigneeId: string | null, actor: Actor) {
-    const label = assigneeId ? await this.people.staffLabel(assigneeId) : null;
-    if (assigneeId && !label) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
-    return this.mutate(orderId, (order, now) => order.assign(assigneeId, label ?? "", actor.label, now));
+    const staff = assigneeId ? await this.people.activeStaff(assigneeId) : null;
+    if (assigneeId && !staff) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
+    return this.mutate(orderId, (order, now) => order.assign(assigneeId, staff ? staffLabel(staff) : "", actor.label, now));
   }
 
   async updateDetails(cmd: { orderId: string; contact: OrderContact; delivery: OrderDelivery; desiredDate: string | null; giftNote: string | null }, actor: Actor) {

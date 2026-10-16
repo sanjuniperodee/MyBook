@@ -1,9 +1,9 @@
 import "server-only";
 import { and, eq, gt, gte, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import type { StaffContext } from "@/modules/access";
 import { crmCalls, crmConversations, crmDeals, crmTasks, orders, reviews } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
+import type { StaffView } from "./Staff";
 
 export interface CrmCounters {
   attention: number;
@@ -16,7 +16,7 @@ export interface CrmCounters {
 }
 
 /** Счётчики для бейджей в меню CRM — с учётом прав и видимости сотрудника. */
-export async function crmCounters(staff: StaffContext): Promise<CrmCounters> {
+export async function crmCounters(staff: Pick<StaffView, "userId" | "scope" | "can">): Promise<CrmCounters> {
   const db = executor();
   const me = staff.userId;
   const mine = (col: AnyPgColumn) => (staff.scope === "all" ? undefined : or(isNull(col), eq(col, me)));

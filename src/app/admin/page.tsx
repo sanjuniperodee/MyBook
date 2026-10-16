@@ -1,5 +1,6 @@
 import { container } from "@/server/container";
-import { iso, localDay, SHOP_TZ } from "@/modules/reporting/time";
+import { iso, localDay } from "@/modules/reporting/time";
+import { storeTimeZone } from "@/shared/domain/time";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
@@ -8,7 +9,8 @@ import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/statu
 import { can, requireStaff } from "@/server/access";
 import { MyDay } from "./MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Обзор" };
 
@@ -68,7 +70,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         <section className="rounded-2xl border border-line bg-white p-5">
           <div className="mb-5 flex items-baseline justify-between">
             <h2 className="font-semibold">Выручка по дням</h2>
-            <span className="text-xs text-muted">по дате оплаты, {SHOP_TZ}: заказы и платежи менеджеров</span>
+            <span className="text-xs text-muted">по дате оплаты, {storeTimeZone()}: заказы и платежи менеджеров</span>
           </div>
           <RevenueColumns data={series} />
         </section>

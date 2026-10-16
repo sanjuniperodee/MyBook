@@ -1,5 +1,6 @@
 import type { Clock } from "@/shared/application";
 import { formatPhone } from "@/shared/domain/phone";
+import { staffLabel } from "@/shared/domain/staff";
 import { Call, TelephonyError, type CallEvent } from "../domain";
 import type { CallRepository, CallSideEffects, CallTimeline, SalesGateway, StaffDirectory, TelephonyProvider } from "./ports";
 
@@ -56,8 +57,7 @@ export class CallsService {
       call.linkDeal(deal.id, deal.clientId);
       await this.calls.save(call);
     }
-    const staffName = call.staffId ? await this.staff.displayName(call.staffId) : null;
-    if (call.clientId) await this.timeline.record({ clientId: call.clientId, dealId: call.dealId, authorId: call.staffId, text: call.summary(staffName) });
+    if (call.clientId) await this.timeline.record({ clientId: call.clientId, dealId: call.dealId, authorId: call.staffId, text: call.summary(await this.staffNameOf(call.staffId)) });
     if (call.status === "answered" && call.clientPhone) await this.calls.markMissedHandled(call.clientPhone, this.clock.now());
     if (call.isMissed) {
       const owner = call.dealId ? await this.sales.dealOwner(call.dealId) : null;
@@ -69,6 +69,12 @@ export class CallsService {
       await this.effects.missedRules({ subject: call.id, callId: call.id, dealId: call.dealId, clientId: call.clientId });
     }
     return call;
+  }
+
+  /** Подпись сотрудника в заметке о звонке — та же, что везде в CRM (staffLabel). */
+  private async staffNameOf(staffId: string | null) {
+    const staff = staffId ? await this.staff.byId(staffId) : null;
+    return staff ? staffLabel(staff) : null;
   }
 }
 

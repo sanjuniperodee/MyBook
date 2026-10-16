@@ -3,7 +3,7 @@ import { ReferralService, type ReferralPromos } from "./application";
 import { randomSuffix, referralMail } from "./infrastructure/adapters";
 import { DrizzleRewardLedger, drizzleReferralPeople } from "./infrastructure/persistence";
 
-export { REFERRAL, inviteCode, latinName } from "./domain";
+export { REFERRAL } from "./domain";
 export type { PaidOrder, ReferralPromos, InvitePromo } from "./application";
 export { inviteUrl } from "./infrastructure/adapters";
 

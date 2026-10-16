@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast, toastError } from "@/components/ui/overlays";
 import { savePlanAction } from "../actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export function PlanRow({ month, userId, name, planAmount, planDeals, fact, percent }: { month: string; userId: string; name: string; planAmount: number; planDeals: number; fact: string; percent: number | null }) {
   const [amount, setAmount] = useState(String(planAmount || ""));

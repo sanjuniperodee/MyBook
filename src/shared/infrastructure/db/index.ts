@@ -18,5 +18,3 @@ if (process.env.NODE_ENV !== "production") {
   globalForDb.__mybookPool = pool;
   globalForDb.__mybookDb = db;
 }
-
-export { schema };

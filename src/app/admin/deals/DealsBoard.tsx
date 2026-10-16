@@ -9,7 +9,7 @@ import { toastError } from "@/components/ui/overlays";
 import { acceptDealAction, moveDealAction, rejectDealAction } from "./actions";
 import { ask } from "@/components/ui/overlays";
 import { lostReasons } from "@/modules/sales/domain/meta";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface DealCard {
   id: string;

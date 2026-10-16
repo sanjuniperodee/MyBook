@@ -17,7 +17,7 @@ echo "→ Откат: $CUR → $TARGET"
 ln -sfn "$BASE/releases/$TARGET" current
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся
 pm2 delete mybook >/dev/null 2>&1 || true
-pm2 start "$ROOT/deploy/ecosystem.config.cjs"
+pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
 pm2 save
 
 for i in $(seq 1 30); do

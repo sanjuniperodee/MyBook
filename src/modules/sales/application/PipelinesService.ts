@@ -1,4 +1,5 @@
-import { SalesError, type StageMilestone } from "../domain";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { SalesError } from "../domain";
 
 /** Хранилище воронок и этапов (настройки CRM). */
 export interface PipelineRepository {

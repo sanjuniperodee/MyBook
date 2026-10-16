@@ -1,49 +1,32 @@
 /**
- * Доводка вёрстки текста глав по готовой раскладке — как это делает верстальщик после первой сборки.
+ * Доводка вёрстки текста глав по готовой раскладке: чтение раскладки react-pdf.
  *
- * react-pdf не умеет «плавающих» фото и надёжно не держит заголовок вместе с текстом. Поэтому блок
- * собирается в несколько проходов: после каждого читаем раскладку (координаты помеченных блоков на
- * полосах) и принимаем решения для следующего прохода:
- *  - заголовок (или лид) остался внизу полосы, а текст ушёл дальше → ответ начинается с новой полосы;
- *  - фото не поместилось и перескочило на следующую полосу, оставив пустоту → фото уменьшается
- *    ровно до свободного места (если это не делает его слишком мелким);
- *  - фото оказалось на полосе одно → встаёт по центру по вертикали, как фотостраница;
- *  - концовка главы перескочила одна на новую полосу → её не ставим.
- *
- * Решения копятся (не отменяются) и в пределах куска главы между принудительными разрывами
- * принимаются по одному за проход: каждое сдвигает всё, что ниже, и дальше смотрим уже на новую раскладку.
+ * Блок собирается в несколько проходов (см. `renderInterior`): после каждого читаем раскладку — координаты
+ * помеченных блоков на полосах — и передаём её в `lib/book/flow-decisions.ts`, где принимаются решения
+ * для следующего прохода. Здесь только обход узлов react-pdf, пометки и координаты; правил вёрстки тут нет.
  */
+import {
+  applyDecision,
+  FLOW_KINDS,
+  type FlowBlock,
+  type FlowDecisions,
+  type FlowKind,
+  type FlowLayout,
+  type FlowPage,
+  type FlowPiece,
+  nextDecisions,
+} from "@/lib/book/flow-decisions";
 
-/** Пометка блока в раскладке: `h:` заголовок/разделитель, `k:` лид, `b:` блок текста, `r:` ряд фото, `t:` концовка. */
+/** Пометка блока в раскладке: `<вид>:<ответ>[:…]`, у концовки главы — `t:<глава>`; виды — `FlowKind`. */
 export const FLOW_MARK = "flowMark";
-
-export interface FlowDecisions {
-  /** Ответы, которые начинаются с новой полосы. */
-  breakBefore: Set<string>;
-  /** Ряды фото, уменьшенные под свободное место: ключ ряда → масштаб (0…1). */
-  rowScale: Map<string, number>;
-  /** Ряды фото, одни на полосе: ключ ряда → отступ сверху, pt (по центру полосы набора). */
-  rowOffset: Map<string, number>;
-  /** Главы без концовки. */
-  noTail: Set<string>;
-}
-
-export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScale: new Map(), rowOffset: new Map(), noTail: new Set() });
-
-export const flowSize = (f: FlowDecisions) => f.breakBefore.size + f.rowScale.size + f.rowOffset.size + f.noTail.size;
-
-/** Фото не уменьшаем сильнее — и не мельче этой доли высоты полосы набора. */
-export const MIN_ROW_SCALE = 0.45;
-const MIN_ROW_SHARE = 0.3;
-/** Пустота меньше этой доли полосы — не повод что-то менять. */
-const MIN_GAP_SHARE = 0.12;
-const EPS = 1.5;
 
 interface Box {
   top: number;
   height: number;
   marginTop?: number;
   marginBottom?: number;
+  paddingTop?: number;
+  paddingBottom?: number;
 }
 interface LayoutNode {
   box?: Box;
@@ -53,141 +36,70 @@ interface LayoutNode {
 
 interface Placed {
   mark: string;
-  page: number;
-  top: number;
-  bottom: number;
-  marginTop: number;
-  marginBottom: number;
+  kind: FlowKind;
+  /** Ответ, к которому относится пометка (у концовки — глава). */
+  item: string;
+  piece: FlowPiece;
 }
 
-interface PageInfo {
-  contentTop: number;
-  contentBottom: number;
+/** Разбор пометки узла; чужие пометки (не из нашего набора видов) и узлы без неё — не блоки доводки. */
+function parseMark(value: unknown): { mark: string; kind: FlowKind; item: string } | undefined {
+  if (typeof value !== "string") return undefined;
+  const [kind, item] = value.split(":");
+  return item !== undefined && (FLOW_KINDS as readonly string[]).includes(kind) ? { mark: value, kind: kind as FlowKind, item } : undefined;
 }
-
-/** Все помеченные блоки по порядку: для блока, разбитого на несколько полос, — каждый кусок. */
-function collect(layout: LayoutNode) {
-  const placed: Placed[] = [];
-  const pages: PageInfo[] = [];
-  (layout.children ?? []).forEach((page, pageIndex) => {
-    const box = page.box as (Box & { paddingTop?: number; paddingBottom?: number }) | undefined;
-    pages.push({ contentTop: box?.paddingTop ?? 0, contentBottom: (box?.height ?? 0) - (box?.paddingBottom ?? 0) });
-    const walk = (node: LayoutNode, offset: number) => {
-      const top = offset + (node.box?.top ?? 0);
-      const mark = node.props?.[FLOW_MARK];
-      // Пустой кусок (react-pdf оставляет абзац нулевой высоты внизу полосы, а текст переносит) — не в счёт.
-      if (typeof mark === "string" && node.box && node.box.height >= 1)
-        placed.push({ mark, page: pageIndex, top, bottom: top + node.box.height, marginTop: node.box.marginTop ?? 0, marginBottom: node.box.marginBottom ?? 0 });
-      for (const c of node.children ?? []) walk(c, top);
-    };
-    for (const c of page.children ?? []) walk(c, 0);
-  });
-  return { placed, pages };
-}
-
-const kind = (mark: string) => mark.slice(0, mark.indexOf(":"));
-/** Ответ, к которому относится пометка (у концовки — глава). */
-const itemOf = (mark: string) => mark.split(":")[1];
 
 /**
- * Решения для следующего прохода. Возвращает true, если что-то добавилось.
- * rowHeights — высота самих фото в ряду (без подписи), pt: чтобы посчитать масштаб.
+ * Кусок блока в счёт, если он не пустой: react-pdf оставляет абзац нулевой высоты внизу полосы, а текст переносит.
+ * У заголовка и разделителя кусков меньше строки не бывает, а линейка-разделитель тоньше пункта — их считаем при
+ * любой ненулевой высоте.
  */
-export function refineFlow(
-  layout: unknown,
-  flow: FlowDecisions,
-  rowHeights: Map<string, number>,
-  chapterOf: Map<string, string>,
-  /** Сколько текста (pt) должно стоять под заголовком на той же полосе — около трёх строк. */
-  minLead = 0,
-): boolean {
-  const { placed, pages } = collect(layout as LayoutNode);
-  // Куски одного блока на разных полосах: первый (где начался) и последний (где закончился).
-  const order: string[] = [];
-  const first = new Map<string, Placed>();
-  const last = new Map<string, Placed>();
-  for (const p of placed) {
-    if (!first.has(p.mark)) {
-      first.set(p.mark, p);
-      order.push(p.mark);
+const counts = (kind: FlowKind, height: number) => height >= 1 || (kind === "h" && height > 0);
+
+/** Помеченные блоки (куски) полосы по порядку обхода; координаты — от верха полосы. */
+function placedOn(page: LayoutNode, pageIndex: number): Placed[] {
+  const placed: Placed[] = [];
+  const walk = (node: LayoutNode, offset: number) => {
+    const top = offset + (node.box?.top ?? 0);
+    const parts = parseMark(node.props?.[FLOW_MARK]);
+    if (parts && node.box && counts(parts.kind, node.box.height)) {
+      const { height, marginTop = 0, marginBottom = 0 } = node.box;
+      placed.push({ ...parts, piece: { page: pageIndex, top, bottom: top + height, marginTop, marginBottom } });
     }
-    last.set(p.mark, p);
-  }
-  /** Глава пометки: у концовки в пометке сама глава, у остальных — ответ. */
-  const chapterOfMark = (m: string) => (kind(m) === "t" ? itemOf(m) : (chapterOf.get(itemOf(m)) ?? ""));
-  const touched = new Set<string>(); // куски глав (глава + разрыв), где в этом проходе уже есть решение
-  const segmentOf = new Map<string, string>();
-  let segment = "";
-  let chapter = "";
-  for (const m of order) {
-    const it = itemOf(m);
-    const ch = chapterOfMark(m);
-    if (ch !== chapter || (kind(m) === "h" && flow.breakBefore.has(it))) segment = `${ch}/${it}`;
-    chapter = ch;
-    segmentOf.set(m, segment);
-  }
-  let changed = false;
-  const decide = (mark: string, apply: () => void) => {
-    const seg = segmentOf.get(mark)!;
-    if (touched.has(seg)) return;
-    touched.add(seg);
-    apply();
-    changed = true;
+    for (const c of node.children ?? []) walk(c, top);
   };
+  for (const c of page.children ?? []) walk(c, 0);
+  return placed;
+}
 
-  for (let i = 0; i < order.length; i++) {
-    const mark = order[i];
-    const k = kind(mark);
-    const start = first.get(mark)!;
-    const end = last.get(mark)!;
-    const prev = i > 0 && chapterOfMark(order[i - 1]) === chapterOfMark(mark) ? last.get(order[i - 1]) : undefined;
-    const sameChapterNext = i + 1 < order.length && chapterOfMark(order[i + 1]) === chapterOfMark(mark) ? first.get(order[i + 1]) : undefined;
-    const page = pages[start.page];
-    const textH = page.contentBottom - page.contentTop;
+/** Полоса набора: от верхнего поля до нижнего. */
+const pageInfo = (page: LayoutNode): FlowPage => ({ contentTop: page.box?.paddingTop ?? 0, contentBottom: (page.box?.height ?? 0) - (page.box?.paddingBottom ?? 0) });
 
-    // Заголовок или лид — последний на полосе, а продолжение ответа уже на следующей (или под ним всего пара строк).
-    const nextMark = order[i + 1];
-    const nextEnd = nextMark ? last.get(nextMark) : undefined;
-    const thinLead = !!sameChapterNext && kind(nextMark) === "b" && sameChapterNext.page === end.page && nextEnd!.page > end.page && sameChapterNext.bottom - sameChapterNext.top < minLead;
-    if ((k === "h" || k === "k") && sameChapterNext && itemOf(nextMark) === itemOf(mark) && (sameChapterNext.page > end.page || thinLead)) {
-      const it = itemOf(mark);
-      // Ответ и так начинается с полосы — разрывом ничего не исправить.
-      if (!flow.breakBefore.has(it) && start.top > page.contentTop + EPS) decide(mark, () => flow.breakBefore.add(it));
-      continue;
+/**
+ * Раскладка для решений: полосы и блоки по порядку. Блок, разбитый на несколько полос, — один, с первым
+ * и последним куском. chapterOf — глава каждого ответа (у концовки глава в пометке).
+ */
+export function readLayout(layout: unknown, chapterOf: ReadonlyMap<string, string>): FlowLayout {
+  const pages: FlowPage[] = [];
+  const blocks = new Map<string, FlowBlock>(); // порядок вставки = порядок первого появления
+  ((layout as LayoutNode).children ?? []).forEach((node, pageIndex) => {
+    pages.push(pageInfo(node));
+    for (const { mark, kind, item, piece } of placedOn(node, pageIndex)) {
+      const block = blocks.get(mark);
+      if (block) block.last = piece;
+      else blocks.set(mark, { mark, kind, item, chapter: kind === "t" ? item : (chapterOf.get(item) ?? ""), first: piece, last: piece });
     }
+  });
+  return { pages, blocks: [...blocks.values()] };
+}
 
-    if (k === "r") {
-      const atTop = start.top - start.marginTop <= page.contentTop + EPS;
-      // Фото перескочило на новую полосу и оставило пустоту на предыдущей.
-      if (atTop && prev && prev.page === start.page - 1 && !flow.rowScale.has(mark)) {
-        const before = pages[prev.page];
-        const gap = before.contentBottom - prev.bottom - prev.marginBottom;
-        const photoH = rowHeights.get(mark) ?? 0;
-        const rowH = start.bottom - start.top;
-        if (gap > textH * MIN_GAP_SHARE && photoH > 0) {
-          // Место под ряд: пустота минус поля ряда (react-pdf учитывает и нижнее); подпись под фото не уменьшается.
-          const room = gap - start.marginTop - start.marginBottom - (rowH - photoH) - EPS * 2;
-          const scale = room / photoH;
-          if (scale >= MIN_ROW_SCALE && photoH * scale >= textH * MIN_ROW_SHARE) {
-            decide(mark, () => flow.rowScale.set(mark, Math.min(1, scale)));
-            continue;
-          }
-        }
-      }
-      // Фото одно на полосе (до и после — другие полосы): ставим по центру полосы набора.
-      const alone = atTop && (!prev || prev.page < start.page) && (!sameChapterNext || sameChapterNext.page > end.page);
-      if (alone && start.page === end.page && !flow.rowOffset.has(mark)) {
-        const offset = (page.contentBottom - page.contentTop - (end.bottom - start.top)) / 2;
-        if (offset > textH * 0.04) decide(mark, () => flow.rowOffset.set(mark, Math.round(offset)));
-      }
-      continue;
-    }
-
-    // Концовка главы одна на новой полосе.
-    if (k === "t" && prev && prev.page < start.page) {
-      const ch = itemOf(mark);
-      if (!flow.noTail.has(ch)) decide(mark, () => flow.noTail.add(ch));
-    }
-  }
-  return changed;
+/**
+ * Решения для следующего прохода по раскладке react-pdf; добавляются в `flow`. Возвращает true, если что-то добавилось.
+ * rowHeights — высота самих фото в ряду (без подписи), pt: чтобы посчитать масштаб.
+ * minLead — сколько текста (pt) должно стоять под заголовком на той же полосе: около трёх строк.
+ */
+export function refineFlow(layout: unknown, flow: FlowDecisions, rowHeights: ReadonlyMap<string, number>, chapterOf: ReadonlyMap<string, string>, minLead = 0): boolean {
+  const decisions = nextDecisions(readLayout(layout, chapterOf), flow, rowHeights, minLead);
+  for (const decision of decisions) applyDecision(flow, decision);
+  return decisions.length > 0;
 }

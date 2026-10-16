@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { fileExists, getFile, putFile } from "@/shared/infrastructure/storage";
 
 /** Длинная сторона копии для просмотра: 3D-книге хватает с запасом (текстура обложки — 1536 px), оригинал — до 3600 px и 3 МБ. */
-export const VIEW_SIDE = 1400;
+const VIEW_SIDE = 1400;
 
 const inflight = new Map<string, Promise<Buffer>>();
 

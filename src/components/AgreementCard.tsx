@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/client";
 import { ArrowRight, Check, Circle } from "lucide-react";
 import { formatPrice, site } from "@/config/site";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { getLocale, getMessages } from "@/i18n/server";
 import type { DealAgreement } from "@/modules/sales";
 import { getPlan } from "@/config/site";
@@ -9,14 +9,14 @@ import { getPlan } from "@/config/site";
 /** С какого числа ответов книга считается готовой к заказу (подсказка клиенту, не запрет). */
 const READY_ANSWERS = 10;
 
-export interface CardBook {
+interface CardBook {
   id: string;
   status: string;
   answered: number;
 }
 
 /** Куда вести клиента дальше: черновик с наибольшим числом ответов, а если книги нет — на создание. */
-export function agreementStep(books: CardBook[]) {
+function agreementStep(books: CardBook[]) {
   const drafts = books.filter((b) => b.status === "draft").sort((a, b) => b.answered - a.answered);
   const best = drafts[0];
   if (!best) return { kind: "start" as const };

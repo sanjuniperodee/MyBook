@@ -7,40 +7,30 @@ import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
 import type { ChatOffers } from "@/modules/marketing";
-import { fillTemplate } from "@/modules/automation/domain/meta";
+import type { ChatMessage } from "@/modules/messaging";
+import { fillTemplate } from "@/shared/domain/templates";
 import { toast, toastError } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
-
-export interface ChatMessage {
-  id: string;
-  direction: "in" | "out";
-  type: string;
-  text: string;
-  mediaUrl: string | null;
-  status: string;
-  error: string | null;
-  author: string | null;
-  at: string;
-  /** Внутренняя заметка сотрудника — клиент её не видит. */
-  internal?: boolean;
-}
+import { cn } from "@/lib/class-names";
 
 const REFRESH_MS = 15_000;
 
-/** Время — в часовом поясе магазина, как и во всей CRM (браузер менеджера может быть настроен иначе). */
-const TZ = "Asia/Almaty";
-const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+/**
+ * Время — в часовом поясе магазина, как и во всей CRM (браузер менеджера может быть настроен иначе).
+ * Пояс приходит от сервера (storeTimeZone): в браузере TZ процесса нет. День — та же формула, что zonedDay
+ * из shared/domain/time, но без импорта: модуль не попадает в клиентские чанки чатов.
+ */
+const dayKey = (d: Date, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
 
-function dayLabel(iso: string) {
+function dayLabel(iso: string, tz: string) {
   const d = new Date(iso);
   const today = new Date();
-  const key = dayKey(d);
-  if (key === dayKey(today)) return "Сегодня";
-  if (key === dayKey(new Date(today.getTime() - 86_400_000))) return "Вчера";
-  return new Intl.DateTimeFormat("ru-RU", { timeZone: TZ, day: "numeric", month: "long", year: key.slice(0, 4) === dayKey(today).slice(0, 4) ? undefined : "numeric" }).format(d);
+  const key = dayKey(d, tz);
+  if (key === dayKey(today, tz)) return "Сегодня";
+  if (key === dayKey(new Date(today.getTime() - 86_400_000), tz)) return "Вчера";
+  return new Intl.DateTimeFormat("ru-RU", { timeZone: tz, day: "numeric", month: "long", year: key.slice(0, 4) === dayKey(today, tz).slice(0, 4) ? undefined : "numeric" }).format(d);
 }
 
-const time = (iso: string) => new Intl.DateTimeFormat("ru-RU", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+const time = (iso: string, tz: string) => new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 function StatusIcon({ status }: { status: string }) {
   if (status === "pending") return <Clock className="size-3" />;
@@ -84,6 +74,7 @@ export function ChatPanel({
   mentionables = [],
   offers = null,
   ai = false,
+  timeZone,
 }: {
   conversationId: string;
   messages: ChatMessage[];
@@ -96,6 +87,8 @@ export function ChatPanel({
   offers?: ChatOffers | null;
   /** Подключён AI-помощник: кнопка «Подсказать ответ». */
   ai?: boolean;
+  /** Часовой пояс магазина — storeTimeZone() на сервере. */
+  timeZone: string;
 }) {
   const router = useRouter();
   const [text, setText] = useState("");
@@ -193,7 +186,7 @@ export function ChatPanel({
       <div ref={scroller} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto bg-[#f4efe7] px-3 py-4 sm:px-5" data-testid="chat-messages">
         {all.length === 0 ? <p className="py-10 text-center text-sm text-muted">Сообщений пока нет — напишите первым.</p> : null}
         {all.map((m) => {
-          const day = dayLabel(m.at);
+          const day = dayLabel(m.at, timeZone);
           const sep = day !== lastDay;
           lastDay = day;
           return (
@@ -206,7 +199,7 @@ export function ChatPanel({
               {m.internal ? (
                 <div className="mx-auto my-1 max-w-[88%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950" data-internal="1">
                   <div className="mb-0.5 flex items-center gap-1.5 text-[11px] text-amber-800">
-                    <Lock className="size-3" /> Заметка · {m.author} · {time(m.at)}
+                    <Lock className="size-3" /> Заметка · {m.author} · {time(m.at, timeZone)}
                   </div>
                   <p className="break-words whitespace-pre-wrap">{m.text}</p>
                 </div>
@@ -224,7 +217,7 @@ export function ChatPanel({
                   {m.text ? <p className="break-words whitespace-pre-wrap">{m.text}</p> : null}
                   <div className={cn("mt-1 flex items-center justify-end gap-1 text-[10px]", m.direction === "out" ? "text-white/70" : "text-muted")}>
                     {m.direction === "out" && m.author ? <span className="mr-1 truncate">{m.author}</span> : null}
-                    {time(m.at)}
+                    {time(m.at, timeZone)}
                     {m.direction === "out" ? <StatusIcon status={m.status} /> : null}
                   </div>
                   {m.status === "error" && m.error ? <div className="mt-1 text-[11px] text-red-100">{m.error}</div> : null}

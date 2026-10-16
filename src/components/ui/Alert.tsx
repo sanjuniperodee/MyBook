@@ -1,5 +1,5 @@
 import { CircleCheck, TriangleAlert } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export function Alert({ kind = "error", children, className }: { kind?: "error" | "success" | "info"; children: React.ReactNode; className?: string }) {
   return (

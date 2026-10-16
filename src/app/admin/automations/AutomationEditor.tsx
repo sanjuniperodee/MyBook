@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
-import { automationActions, automationHours, automationTriggers, templateVars, type AutomationActionType } from "@/modules/automation/domain/meta";
-import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
+import { automationActions, automationHours, automationTriggers, type AutomationActionType } from "@/modules/automation/domain/meta";
+import { templateVars } from "@/shared/domain/templates";
+import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { deleteAutomationAction, saveAutomationAction, toggleAutomationAction } from "./actions";
 
 interface Rule {

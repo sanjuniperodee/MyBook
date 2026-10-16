@@ -1,32 +1,25 @@
-import { planName } from "@/i18n/labels";
 import { listFields } from "@/modules/workspace";
-import { channelLabel, describeAttribution, isManualChannel, MANUAL_MEDIUM, toAttribution } from "@/modules/marketing/domain/channels";
-import { nowMs } from "@/lib/utils";
+import { nowMs } from "@/lib/dates";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Mail, MessageCircle, Phone } from "lucide-react";
 import { container } from "@/server/container";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
 import { canRemind } from "@/modules/notifications";
-import { getTheme } from "@/lib/content/themes";
-import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
-import { NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { cn, formatDate } from "@/lib/utils";
-import { ClientChannel, ClientFields, ClientManager, ExtraPhones, RemindButton, TagEditor } from "./ClientControls";
+import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
+import { clientScreen } from "@/modules/reporting/ui/client-screen";
+import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
+import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile } from "./sections";
 import { ClientAccess } from "./ClientAccess";
 import { displayLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
-import { formatPhone } from "@/shared/domain/phone";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
-import { ContactActions } from "@/components/admin/ContactActions";
-import { dealSourceLabels } from "@/modules/sales";
+import { pageId } from "@/server/input";
 
 export const metadata = { title: "Клиент" };
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("clients.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const client = await container().reporting.clientById(id);
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
@@ -37,44 +30,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   ]);
 
   const adminOptions = staffOptions(admins);
-  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
-  const orderNumber = new Map(orderRows.map((o) => [o.id, o.number]));
-  // Покупки клиента — из единого журнала выручки: оплаченные заказы и платежи менеджера по его сделкам.
-  const ltv = money.total;
-  const now = new Date();
-  const tasks: TaskItem[] = taskRows.map((t) => ({
-    id: t.id,
-    title: t.title,
-    dueLabel: t.dueAt ? `до ${formatDate(t.dueAt)}` : null,
-    overdue: !!t.dueAt && t.dueAt < now,
-    done: !!t.doneAt,
-    assignee: t.assigneeId ? (adminName.get(t.assigneeId) ?? null) : null,
-    context: t.orderId && orderNumber.has(t.orderId) ? { label: `заказ №${orderNumber.get(t.orderId)}`, href: `/admin/orders/${t.orderId}` } : null,
-  }));
-  const notes: NoteItem[] = noteRows.map((n) => ({
-    id: n.id,
-    kind: n.kind,
-    text: n.text,
-    author: n.authorId ? (adminName.get(n.authorId) ?? "—") : "система",
-    dateLabel: formatDate(n.createdAt, true),
-    orderLabel: n.orderId && orderNumber.has(n.orderId) ? `заказ №${orderNumber.get(n.orderId)}` : null,
-  }));
-  const rawPhone = client.phone ?? orderRows[0]?.contactPhone ?? "";
-  const phoneDigits = rawPhone.replace(/\D/g, "");
-  const contact = contactView(staff, { phone: rawPhone, email: client.email });
+  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders: orderRows, books: bookRows, money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
+  const { tasks, notes } = screen;
+  const contact = contactView(staff, { phone: screen.rawPhone, email: client.email });
   const canEdit = can(staff, "clients.edit");
-  // Канал: выбранный менеджером — по ключу; пришёл по меткам (реклама, ссылка) — «auto»; не определён — пусто.
-  const src = client.source;
-  const channelValue = !src || !Object.keys(src).length ? "" : src.medium === MANUAL_MEDIUM && isManualChannel(src.source) ? src.source : "auto";
   // «Только свои» может взять неразобранного клиента себе, но не отдать другому.
   const managerOptions = canAssignOthers(staff) ? adminOptions : adminOptions.filter((a) => a.id === staff.user.id || a.id === client.managerId);
-  const hasDraft = bookRows.some((b) => b.book.status === "draft");
-  const cooldown = !canRemind(client.remindedAt, new Date(nowMs()));
-  const remindHint = !hasDraft
-    ? "Нет незавершённых книг"
-    : client.remindedAt
-      ? `Последнее напоминание: ${formatDate(client.remindedAt, true)}`
-      : "Письмо со ссылкой на следующий вопрос";
 
   return (
     <div className="space-y-6">
@@ -84,97 +45,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Профиль */}
         <aside className="space-y-4">
-          <section className="rounded-2xl border border-line bg-white p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex size-12 items-center justify-center rounded-full bg-ink text-lg font-semibold text-white uppercase">{(client.name || client.email).slice(0, 1)}</div>
-              <div className="min-w-0">
-                <h1 className="truncate text-lg font-semibold">{client.name || client.email.split("@")[0]}</h1>
-                <div className="text-xs text-muted">{client.role === "admin" ? "Администратор" : "Клиент"} с {formatDate(client.createdAt)}</div>
-              </div>
-            </div>
-            <div className="mt-4 space-y-1.5 text-sm">
-              {contact.masked ? (
-                <>
-                  <div className="flex items-center gap-2 text-ink-soft" title="Контакты скрыты настройками вашей роли">
-                    <Mail className="size-4 text-muted" /> {contact.email}
-                  </div>
-                  {phoneDigits ? (
-                    <div className="flex items-center gap-2 text-ink-soft tabular-nums">
-                      <Phone className="size-4 text-muted" /> {contact.phone}
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <a href={`mailto:${client.email}`} className="flex items-center gap-2 hover:text-wine">
-                    <Mail className="size-4 text-muted" /> {client.email}
-                  </a>
-                  {phoneDigits ? (
-                    <>
-                      <a href={`tel:+${phoneDigits}`} className="flex items-center gap-2 hover:text-wine">
-                        <Phone className="size-4 text-muted" /> {rawPhone}
-                      </a>
-                      {!can(staff, "chats.send") ? (
-                        <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-emerald-700 hover:underline">
-                          <MessageCircle className="size-4" /> Написать в WhatsApp
-                        </a>
-                      ) : null}
-                    </>
-                  ) : null}
-                </>
-              )}
-            </div>
-            <ContactActions className="mt-3" target={{ clientId: client.id }} canCall={!!phoneDigits && can(staff, "calls.make")} canChat={!!phoneDigits && can(staff, "chats.send")} canEmail={can(staff, "chats.send")} />
-            {!contact.masked && canEdit ? (
-              <div className="mt-4">
-                <div className="mb-1 text-xs text-muted">Доп. телефоны (через запятую)</div>
-                <ExtraPhones clientId={client.id} value={client.extraPhones.map((p) => formatPhone(p)).join(", ")} />
-              </div>
-            ) : null}
-            <div className="mt-4">
-              <div className="mb-1 text-xs text-muted">Ответственный</div>
-              <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} />
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-2 text-center">
-              <div className="col-span-2">
-                <Stat label="сумма покупок (LTV)" value={formatPrice(ltv)} />
-              </div>
-              <Stat label="заказов" value={String(orderRows.filter((o) => o.status !== "cancelled").length)} />
-              <Stat label="книг" value={String(bookRows.length)} />
-            </div>
-            <dl className="mt-4 space-y-1 text-xs text-muted">
-              <div className="flex justify-between">
-                <dt>Последний визит</dt>
-                <dd className="text-ink">{client.lastSeenAt ? formatDate(client.lastSeenAt, true) : "—"}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt>Канал</dt>
-                <dd className="min-w-0 flex-1 text-right font-medium text-ink" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
-                  {canEdit ? (
-                    <ClientChannel clientId={client.id} value={channelValue} auto={channelValue === "auto" ? channelLabel(toAttribution(client.source)) : undefined} />
-                  ) : (
-                    <span className="truncate">{channelLabel(toAttribution(client.source))}</span>
-                  )}
-                </dd>
-              </div>
-              {describeAttribution(toAttribution(client.source)) || client.source?.link ? (
-                <div className="flex justify-between gap-3">
-                  <dt>Метки</dt>
-                  <dd className="truncate text-right text-ink">
-                    {[describeAttribution(toAttribution(client.source)), client.source?.link ? `ссылка ${client.source.link}` : ""].filter(Boolean).join(" · ")}
-                  </dd>
-                </div>
-              ) : null}
-              <div className="flex justify-between">
-                <dt>Автописьма</dt>
-                <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{client.emailOptOut ? "отписан" : "получает"}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt>Средний чек</dt>
-                <dd className="text-ink">{money.sales ? formatPrice(Math.round(ltv / money.sales)) : "—"}</dd>
-              </div>
-            </dl>
-          </section>
+          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} />
           {clientFields.length ? (
             <section className="rounded-2xl border border-line bg-white p-5">
               <h2 className="mb-3 text-sm font-semibold">Поля клиента</h2>
@@ -199,108 +70,17 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           ) : null}
           {canEdit ? (
             <section className="space-y-3 rounded-2xl border border-line bg-white p-5">
-              <RemindButton clientId={client.id} disabled={!hasDraft || !!cooldown} hint={remindHint} />
+              <RemindButton clientId={client.id} disabled={screen.remind.disabled} hint={screen.remind.hint} />
             </section>
           ) : null}
         </aside>
 
         <div className="space-y-6">
-          {can(staff, "deals.view") ? (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                <h2 className="font-semibold">Сделки</h2>
-                {can(staff, "deals.edit") ? (
-                  <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-outline btn-sm">
-                    Новая сделка
-                  </Link>
-                ) : null}
-              </div>
-              {dealRows.length === 0 ? <p className="px-5 py-6 text-sm text-muted">Сделок нет.</p> : null}
-              <div className="divide-y divide-line">
-                {dealRows.map(({ deal, stage }) => (
-                  <Link key={deal.id} href={`/admin/deals/${deal.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-                    <span className="w-14 font-medium">№{deal.number}</span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {deal.title} <span className="text-muted">· {dealSourceLabels[deal.source]} · {formatDate(deal.createdAt)}</span>
-                    </span>
-                    <span className="rounded-full px-2.5 py-1 text-xs text-white" style={{ background: stage.color }}>
-                      {stage.name}
-                    </span>
-                    <span className="w-24 text-right tabular-nums">{deal.amount ? formatPrice(deal.amount) : "—"}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
-          {paymentRows.length ? (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white" data-testid="client-payments">
-              <h2 className="border-b border-line px-5 py-3.5 font-semibold">Платежи менеджеру</h2>
-              <div className="divide-y divide-line">
-                {paymentRows.map((p) => (
-                  <Link key={p.id} href={`/admin/deals/${p.deal_id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-                    <span className={cn("w-24 font-medium tabular-nums", p.kind === "refund" && "text-red-700")}>{p.kind === "refund" ? "−" : ""}{formatPrice(p.amount)}</span>
-                    <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
-                    <span className="min-w-0 flex-1 truncate text-muted">
-                      сделка №{p.number} · {p.title}
-                    </span>
-                    <span className="text-xs text-muted">{formatDate(p.paid_at)}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
-          <section className="rounded-2xl border border-line bg-white p-5">
-            <h2 className="mb-4 font-semibold">Книги</h2>
-            {bookRows.length === 0 ? <p className="text-sm text-muted">Книг пока нет.</p> : null}
-            <div className="space-y-3">
-              {bookRows.map(({ book, answered, total, photos: ph, letters }) => (
-                <div key={book.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-line p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{book.title}</div>
-                    <div className="text-xs text-muted">
-                      {getTheme(book.theme).name} · {book.authorName} → {book.recipientName} · изм. {formatDate(book.updatedAt)}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 w-40 overflow-hidden rounded-full bg-cream">
-                        <div className="h-full rounded-full bg-wine" style={{ width: `${total ? (answered / total) * 100 : 0}%` }} />
-                      </div>
-                      <span className="text-xs text-muted tabular-nums">
-                        {answered}/{total} ответов · {ph} фото{letters ? ` · ${letters} писем` : ""}
-                      </span>
-                    </div>
-                  </div>
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs", book.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{book.status === "draft" ? "Пишется" : "Заказана"}</span>
-                  <div className="flex gap-2">
-                    <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm">
-                      Макет
-                    </Link>
-                    <a href={`/api/books/${book.id}/export`} className="btn btn-ghost btn-sm">
-                      Текст
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          {can(staff, "deals.view") ? <ClientDeals clientId={client.id} deals={dealRows} can={(p) => can(staff, p)} /> : null}
+          {paymentRows.length ? <ClientPayments payments={paymentRows} /> : null}
+          <ClientBooks books={bookRows} />
 
-          <section className="overflow-hidden rounded-2xl border border-line bg-white">
-            <h2 className="border-b border-line px-5 py-4 font-semibold">Заказы</h2>
-            {orderRows.length === 0 ? <p className="px-5 py-6 text-sm text-muted">Заказов нет.</p> : null}
-            <div className="max-h-[420px] divide-y divide-line overflow-y-auto">
-              {orderRows.map((o) => (
-                <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-                  <span className="w-14 font-medium">№{o.number}</span>
-                  <span className="min-w-0 flex-1 truncate text-muted">
-                    {formatDate(o.createdAt)} · {planName(o.plan)}
-                    {o.quantity > 1 ? ` × ${o.quantity}` : ""}
-                    {o.promoCode ? ` · ${o.promoCode}` : ""}
-                  </span>
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan))}</span>
-                  <span className="w-24 text-right tabular-nums">{formatPrice(o.amount)}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
+          <ClientOrders orders={orderRows} />
 
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-2 font-semibold">Задачи</h2>
@@ -313,15 +93,6 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           </section>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-cream/60 px-2 py-2.5">
-      <div className="truncate text-sm font-semibold">{value}</div>
-      <div className="text-[11px] text-muted">{label}</div>
     </div>
   );
 }

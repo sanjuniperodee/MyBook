@@ -74,7 +74,7 @@ const questions: BookQuestion[] = Array.from({ length: 3 }, (_, i) => ({
 describe("PDF с фотографиями", () => {
   it.each(["photobook", "memories", "album", "vintage", "classic", "gallery", "arches", "cinema", "luna"])("оформление %s: фото в начале глав, сетка и подписи — ровно расчётное число полос", async (interior) => {
     const { renderInterior, contentFor } = await import("@/modules/production/infrastructure/pdf/render");
-    const { estimatePages } = await import("@/lib/book/layout");
+    const { estimatePages } = await import("@/lib/book/estimate");
     const { getInteriorDesign } = await import("@/lib/book/interiors");
     const bundle = { book: { ...book, interior }, questions, photos };
     const content = contentFor(bundle);

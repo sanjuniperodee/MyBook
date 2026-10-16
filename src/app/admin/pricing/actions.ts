@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { factoryCatalog, getCatalogOverrides, MAX_PRICE, type CatalogOverrides } from "@/config/site";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
+import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
+import { BAD_FORM, textForm } from "@/server/input";
 
 export interface PricingState {
   error?: string;
@@ -18,16 +20,13 @@ function money(form: FormData, name: string, label: string, min = 0): number {
   return n;
 }
 
-const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
-const addonLabels: Record<string, string> = { express: "Экспресс-печать", giftwrap: "Подарочная упаковка" };
-const deliveryLabels: Record<string, string> = { courier: "Курьер по городу", post: "Доставка по Казахстану", pickup: "Самовывоз" };
-
 /**
  * Цены и видимость тарифов. Действуют сразу на витрине, в оформлении, сертификатах и в ответах помощника;
  * уже оформленные заказы хранят свою сумму и не меняются, а договорённая менеджером цена книги в сделке остаётся как указана.
  */
 export async function savePricingAction(_: PricingState, form: FormData): Promise<PricingState> {
   const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
   const next: CatalogOverrides = { plans: {}, addons: {}, delivery: {} };
   try {
     for (const p of factoryCatalog.plans) {

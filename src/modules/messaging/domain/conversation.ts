@@ -28,7 +28,7 @@ export interface Conversation {
   meta: ConversationMeta;
 }
 
-export const channelLabels: Record<string, string> = {
+const channelLabels: Record<string, string> = {
   whatsapp: "WhatsApp",
   wapi: "WhatsApp API",
   instagram: "Instagram",

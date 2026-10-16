@@ -5,6 +5,7 @@ import { rateLimit } from "@/server/rateLimit";
 import { container } from "@/server/container";
 import { AssistantError } from "@/modules/assistant";
 import { isLocale } from "@/i18n/config";
+import { idParams } from "@/server/input";
 
 export const maxDuration = 120;
 
@@ -15,7 +16,7 @@ const schema = z.object({ text: z.string().min(1).max(20_000), ui: z.string().op
  * Лимиты на пользователя: у бесплатных моделей общий дневной лимит запросов.
  */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { user, book } = await apiBook(req, id);
   const { text, ui } = schema.parse(await req.json());
   const proofreader = container().assistant.proofreader;

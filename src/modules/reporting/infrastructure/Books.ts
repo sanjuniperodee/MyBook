@@ -4,7 +4,7 @@ import { bookQuestions, books, orders, photos, users } from "@/shared/infrastruc
 import { booksId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
 
-export type BookFilter = "all" | "writing" | "stalled" | "ready" | "ordered";
+type BookFilter = "all" | "writing" | "stalled" | "ready" | "ordered";
 
 /** Книги клиентов для CRM: пишут, забросили (дольше staleDays), почти готовы, заказаны; поиск и тема. */
 export function bookList(f: BookFilter, opts: { q?: string; theme?: string; staleDays: number; now: number }) {
@@ -28,6 +28,7 @@ export function bookList(f: BookFilter, opts: { q?: string; theme?: string; stal
       answered,
       total,
       photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
+      // Есть заказ — любой, кроме отменённого, в том числе ещё не оплаченный.
       hasOrder: sql<boolean>`exists (select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
     })
     .from(books)

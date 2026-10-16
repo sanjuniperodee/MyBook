@@ -1,16 +1,26 @@
 import { requireStaff } from "@/server/access";
-import { fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
+import { ensureToken, fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
+import { KaspiForm } from "./kaspi/KaspiForm";
+import { GowaForm } from "./whatsapp/GowaForm";
 import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { env } from "@/config/env";
-import { templateVars } from "@/modules/automation/domain/meta";
-import { AiForm, Blocklist, EmailForm, ProofreadForm, SmtpForm, CrmSettingsForm, TelephonyForm, TemplateEditor, WazzupForm } from "./SettingsForms";
-import { parseWorkHours } from "@/modules/workspace/domain/schedule";
-import { BotForm } from "./BotForm";
+import { templateVars } from "@/shared/domain/templates";
+import { WazzupForm } from "./wazzup/WazzupForm";
+import { EmailForm } from "./mail/EmailForm";
+import { SmtpForm } from "./mail/SmtpForm";
+import { AiForm } from "./ai/AiForm";
+import { ProofreadForm } from "./ai/ProofreadForm";
+import { TelephonyForm } from "./telephony/TelephonyForm";
+import { CrmSettingsForm } from "./crm/CrmSettingsForm";
+import { Blocklist } from "./crm/Blocklist";
+import { TemplateEditor } from "./crm/TemplateEditor";
+import { parseWorkHours } from "@/shared/domain/schedule";
+import { BotForm } from "./crm/BotForm";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { listFields } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Интеграции" };
 
@@ -55,6 +65,10 @@ export default async function SettingsPage() {
   const smtpSaved = smtpCfg
     ? { host: smtpCfg.host, port: String(smtpCfg.port), secure: String(smtpCfg.secure), user: smtpCfg.user, password: maskSecret(smtpCfg.password), from: smtpCfg.from, replyTo: smtpCfg.replyTo }
     : { host: smtpDb["mail.smtpHost"], port: smtpDb["mail.smtpPort"], secure: smtpDb["mail.smtpSecure"], user: smtpDb["mail.smtpUser"], password: maskSecret(smtpDb["mail.smtpPassword"]), from: smtpDb["mail.from"], replyTo: smtpDb["mail.replyTo"] };
+  const [kaspi, gowa] = await Promise.all([
+    container().ordering.kaspiSetup.status(),
+    (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl"]), status: await container().messaging.gowa.status() }))(),
+  ]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -62,6 +76,21 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold">Интеграции и настройки</h1>
         <p className="mt-1 text-sm text-muted">Ключи хранятся в базе в зашифрованном виде и не показываются целиком. Значения из переменных окружения сервера имеют приоритет и здесь только для чтения.</p>
       </div>
+
+      <KaspiForm
+        {...kaspi}
+        webhookUrl={hook("/api/payments/kaspi/webhook")}
+        webhookSecret={fromEnv("kaspi.webhookSecret") ? null : await ensureToken("kaspi.webhookSecret")}
+      />
+
+      <GowaForm
+        provider={gowa.provider}
+        baseUrl={gowa.settings["gowa.baseUrl"]}
+        authSaved={maskSecret(gowa.settings["gowa.basicAuth"])}
+        status={gowa.status}
+        callbackUrl={gowa.settings["gowa.callbackUrl"]}
+        callbackDefault={hook("/api/integrations/gowa")}
+      />
 
       <WazzupForm
         saved={{ apiKey: maskSecret(apiKey), baseUrl, channelId }}

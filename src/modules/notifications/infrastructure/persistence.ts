@@ -21,6 +21,7 @@ export class DrizzleLifecycleSource implements LifecycleSource {
         updatedAt: books.updatedAt,
         answered,
         firstEmpty,
+        // Есть заказ — любой, кроме отменённого, в том числе ещё не оплаченный: напоминать дописать уже не нужно.
         hasOrder: sql<boolean>`exists(select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
       })
       .from(books)

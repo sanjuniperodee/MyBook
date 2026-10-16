@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import type { CoverTemplate } from "@/lib/book/covers";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
+import { Lru } from "@/lib/lru";
 
-const cache = new Map<string, Promise<string>>();
+/**
+ * Снимки обложек как data-URL (до ~0,5 МБ каждый): без предела при листании шаблонов в браузере копились все.
+ * 24 — с запасом на снимок текущей обложки, снимки-примеры коллажа и несколько недавно открытых шаблонов.
+ */
+const cache = new Lru<string, Promise<string>>(24);
 
 function load(url: string) {
   let p = cache.get(url);
@@ -21,7 +26,9 @@ function load(url: string) {
             reader.readAsDataURL(blob);
           }),
       );
-    p.catch(() => cache.delete(url));
+    const pending = p;
+    // Ошибку забываем, только если в кэше всё ещё этот запрос: после вытеснения там может лежать новый.
+    p.catch(() => cache.peek(url) === pending && cache.delete(url));
     cache.set(url, p);
   }
   return p;

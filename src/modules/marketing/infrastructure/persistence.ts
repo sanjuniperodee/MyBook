@@ -2,22 +2,24 @@ import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { books, crmLinkClicks, crmLinks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
+import { zonedDay } from "@/shared/domain/time";
 import type { ClientContext, LinkRepository, ReportSource } from "../application";
 
-const almatyDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: process.env.TZ || "Asia/Almaty" }).format(d);
+/** Заказ клиента (алиас o) оплачен по paid_at и не отменён — выручка канала; не isPaid() из ordering (тот — по статусу). */
+const paidAndNotCancelled = sql`o.paid_at is not null and o.status <> 'cancelled'`;
 
 /** Выборки для отчёта по каналам: когорта клиентов, заявки, переходы по ссылкам. */
 export const sqlReportSource: ReportSource = {
   async rows(since) {
     const from = since ? sql`${since.toISOString()}::timestamptz` : sql`'-infinity'::timestamptz`;
-    const fromDay = since ? almatyDay(since) : "0000-00-00";
+    const fromDay = since ? zonedDay(since) : "0000-00-00";
     const db = executor();
     const [clients, deals, clicks] = await Promise.all([
       db.execute<{ source: unknown; started: boolean; paid: boolean; revenue: number }>(sql`
         select u.source,
           exists (select 1 from books b where b.user_id = u.id) as started,
-          exists (select 1 from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled') as paid,
-          coalesce((select sum(o.amount) from orders o where o.user_id = u.id and o.paid_at is not null and o.status <> 'cancelled'), 0)::int as revenue
+          exists (select 1 from orders o where o.user_id = u.id and ${paidAndNotCancelled}) as paid,
+          coalesce((select sum(o.amount) from orders o where o.user_id = u.id and ${paidAndNotCancelled}), 0)::int as revenue
         from users u where u.role = 'user' and u.created_at >= ${from}`),
       db.execute<{ utm: unknown; source: string; client_id: string | null; won: boolean; amount: number; has_order: boolean; paid: number }>(sql`
         select d.utm, d.source, d.client_id, s.kind = 'won' as won, d.amount, d.order_id is not null as has_order,
@@ -48,7 +50,7 @@ export const drizzleLinks: LinkRepository = {
     await executor().update(crmLinks).set({ clicks: sql`${crmLinks.clicks} + 1` }).where(eq(crmLinks.id, linkId));
     await executor()
       .insert(crmLinkClicks)
-      .values({ linkId, day: almatyDay(at), clicks: 1 })
+      .values({ linkId, day: zonedDay(at), clicks: 1 })
       .onConflictDoUpdate({ target: [crmLinkClicks.linkId, crmLinkClicks.day], set: { clicks: sql`${crmLinkClicks.clicks} + 1` } });
   },
 };

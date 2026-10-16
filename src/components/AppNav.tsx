@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, ChevronDown, Gift, LayoutDashboard, LogOut, Package, UserRound } from "lucide-react";
 import { logoutAction } from "@/app/(auth)/actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Link, useLocalePathname, useMessages } from "@/i18n/client";
 

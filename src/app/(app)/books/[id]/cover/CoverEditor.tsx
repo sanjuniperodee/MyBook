@@ -20,9 +20,9 @@ import { coverLabel, coverMoods, coverNamesLine, coverPhotoSlots, getCoverTempla
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
-export interface CoverState {
+interface CoverState {
   coverTemplate: string;
   title: string;
   subtitle: string;

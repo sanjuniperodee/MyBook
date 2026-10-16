@@ -1,6 +1,6 @@
 import { api, apiStaff } from "@/server/api";
 import { audit } from "@/server/access";
-import { clientSegments, type ClientSegment } from "@/modules/clients/domain/segments";
+import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
 import { toCsv } from "@/lib/csv";
 import { container } from "@/server/container";
 

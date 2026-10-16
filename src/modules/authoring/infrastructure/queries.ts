@@ -3,7 +3,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
 import { rootDb } from "@/shared/infrastructure/database";
-import { computeStats, type BookViewer } from "../domain";
+import { computeStats, isBookVisibleTo, type BookViewer } from "../domain";
 
 export type BookRow = typeof books.$inferSelect;
 export type QuestionRow = typeof bookQuestions.$inferSelect;
@@ -23,10 +23,10 @@ export class DrizzleAuthoringQueries {
     return (await rootDb.query.books.findFirst({ where: eq(books.id, bookId) })) ?? null;
   }
 
-  /** Книга, видимая пользователю: своя или любая для сотрудника. */
+  /** Книга, видимая пользователю (isBookVisibleTo): своя или любая для сотрудника. */
   async visibleBook(bookId: string, viewer: BookViewer): Promise<BookRow | null> {
     const b = await this.book(bookId);
-    return b && (viewer.isStaff || b.userId === viewer.userId) ? b : null;
+    return b && isBookVisibleTo(b.userId, viewer) ? b : null;
   }
 
   bookByInviteToken(token: string) {
@@ -79,6 +79,6 @@ export class DrizzleAuthoringQueries {
   async photoFor(photoId: string, viewer: BookViewer) {
     if (!/^[0-9a-f-]{36}$/i.test(photoId)) return null;
     const [row] = await rootDb.select({ photo: photos, ownerId: books.userId }).from(photos).innerJoin(books, eq(photos.bookId, books.id)).where(eq(photos.id, photoId));
-    return row && (viewer.isStaff || row.ownerId === viewer.userId) ? row.photo : null;
+    return row && isBookVisibleTo(row.ownerId, viewer) ? row.photo : null;
   }
 }

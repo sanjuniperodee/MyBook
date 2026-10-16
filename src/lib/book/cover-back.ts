@@ -4,9 +4,9 @@
  * поэтому то, что клиент видит на экране, совпадает с напечатанным.
  */
 import { coverNamesLine, type CoverTemplate } from "./covers";
-import { photoHref, photoImage, type PhotoRef } from "./cover-kit";
+import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
 import type { FontKey } from "./fonts";
-import type { Rect } from "./formats";
+import { PT_TO_MM, type Rect } from "./formats";
 
 export type BackLayout = "quote" | "letter" | "photo" | "fullPhoto" | "polaroids" | "minimal";
 export const backLayouts: BackLayout[] = ["quote", "letter", "photo", "fullPhoto", "polaroids", "minimal"];
@@ -124,8 +124,6 @@ export function fitSize(text: string, w: number, h: number, font: FontKey, min: 
   return min;
 }
 
-const PT = 25.4 / 72;
-
 /** Область текста и цвета: на повторённой композиции лица — как надписи лица, иначе — цвета задней стороны. */
 function frame(template: CoverTemplate, W: number, H: number) {
   const a: Rect = template.back.mirror ? template.textArea : (template.back.area ?? { x: 0.14, y: 0.26, w: 0.72, h: 0.44 });
@@ -189,8 +187,8 @@ export function designBack(template: CoverTemplate, W: number, H: number, conten
   /** Имена и год — когда текста нет. */
   const namesItems = (maxShare: number) => {
     const items: { h: number; gap?: number; place: (y: number) => void }[] = [ornamentItem()];
-    if (names) items.push(textItem(names, { size: fitSize(names, area.w, area.h * maxShare, font, 10 * PT, 22 * PT, 1.25), lh: 1.25, align: "center", italic: true, color: main, gap: 3.5 }));
-    if (content.year) items.push(textItem(String(content.year), { size: 7 * PT, lh: 1.2, align: "center", italic: false, color: soft, gap: 2.5, tracking: 0.3, weight: 500 }));
+    if (names) items.push(textItem(names, { size: fitSize(names, area.w, area.h * maxShare, font, 10 * PT_TO_MM, 22 * PT_TO_MM, 1.25), lh: 1.25, align: "center", italic: true, color: main, gap: 3.5 }));
+    if (content.year) items.push(textItem(String(content.year), { size: 7 * PT_TO_MM, lh: 1.2, align: "center", italic: false, color: soft, gap: 2.5, tracking: 0.3, weight: 500 }));
     return items;
   };
   /** Цитата с подписью, кегль — по месту. */
@@ -201,23 +199,23 @@ export function designBack(template: CoverTemplate, W: number, H: number, conten
     return [
       ...(withOrnament ? [ornamentItem()] : []),
       textItem(text, { size, lh: 1.45, align: "center", italic: true, color: main, gap: withOrnament ? 3 : 0 }),
-      ...(sig ? [textItem(sig, { size: Math.max(8 * PT, size * 0.82), lh: 1.3, align: "center", italic: true, color: soft, gap: 3.5 })] : []),
+      ...(sig ? [textItem(sig, { size: Math.max(8 * PT_TO_MM, size * 0.82), lh: 1.3, align: "center", italic: true, color: soft, gap: 3.5 })] : []),
     ];
   };
   let brandColor = template.back.mirror ? soft : template.back.color;
 
   if (layout === "quote") {
-    stack(quoteItems(8 * PT, 16 * PT, true));
+    stack(quoteItems(8 * PT_TO_MM, 16 * PT_TO_MM, true));
   } else if (layout === "letter") {
     const sig = signature ? `— ${signature}` : "";
-    const size = fitSize(text, area.w, area.h - (sig ? 9 : 0), font, 7.5 * PT, 13 * PT, 1.5);
+    const size = fitSize(text, area.w, area.h - (sig ? 9 : 0), font, 7.5 * PT_TO_MM, 13 * PT_TO_MM, 1.5);
     stack([
       textItem(text, { size, lh: 1.5, align: "left", italic: false, color: main }),
       ...(sig ? [textItem(sig, { size: size * 1.05, lh: 1.3, align: "right", italic: true, color: soft, gap: 3.5 })] : []),
     ]);
   } else if (layout === "photo") {
     const caption = text;
-    const capSize = caption ? fitSize(caption, area.w, Math.min(area.h * 0.3, 16), font, 7.5 * PT, 11.5 * PT, 1.4) : 0;
+    const capSize = caption ? fitSize(caption, area.w, Math.min(area.h * 0.3, 16), font, 7.5 * PT_TO_MM, 11.5 * PT_TO_MM, 1.4) : 0;
     const capH = caption ? countLines(caption, capSize, area.w, font) * capSize * 1.4 : 0;
     const mat = Math.max(1.6, W * 0.012);
     const maxH = area.h - capH - (caption ? 4 : 0) - mat * 2;
@@ -242,7 +240,7 @@ export function designBack(template: CoverTemplate, W: number, H: number, conten
     soft = "#F1EBE4";
     accent = "#FFFFFF";
     brandColor = "#FFFFFF";
-    stack(text ? quoteItems(9 * PT, 16 * PT, false) : namesItems(0.45));
+    stack(text ? quoteItems(9 * PT_TO_MM, 16 * PT_TO_MM, false) : namesItems(0.45));
   } else if (layout === "polaroids") {
     // Две-три карточки внахлёст, под ними — подпись. Цвета — как на чистом фоне оборота.
     main = soft = accent = brandColor = template.back.color;
@@ -268,12 +266,12 @@ export function designBack(template: CoverTemplate, W: number, H: number, conten
     );
     const top = Math.max(...spots.map(([, fy]) => fy * H + ch / 2)) + 7;
     area = { x: W * 0.14, y: top, w: W * 0.72, h: Math.max(10, H - 24 - top) };
-    stack(text ? quoteItems(9 * PT, 18 * PT, false) : namesItems(0.5));
+    stack(text ? quoteItems(9 * PT_TO_MM, 18 * PT_TO_MM, false) : namesItems(0.5));
   } else {
     stack(namesItems(0.4));
   }
 
-  return { layout, plainArt: layout === "polaroids", blocks, brand: { y: H - 16, size: 6.5 * PT, color: brandColor } };
+  return { layout, plainArt: layout === "polaroids", blocks, brand: { y: H - 16, size: 6.5 * PT_TO_MM, color: brandColor } };
 }
 
 /**

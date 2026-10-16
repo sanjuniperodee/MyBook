@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import type { ReviewPhoto } from "../domain";
+import type { ReviewPhoto } from "@/shared/domain/reviews";
 
 /** Заказ глазами отзывов (контекст Ordering + книга из Authoring). */
 export interface ReviewOrderContext {

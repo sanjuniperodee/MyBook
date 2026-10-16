@@ -14,6 +14,15 @@ export function sniffReceipt(bytes: Uint8Array): ReceiptType | null {
   return null;
 }
 
+export type ReceiptProblem = "empty" | "tooBig" | "type";
+
+/** Почему файл не годится в чек: пустой, больше RECEIPT_MAX_BYTES или по содержимому не JPG, PNG, WEBP и не PDF. */
+export function receiptProblem(bytes: Uint8Array): ReceiptProblem | null {
+  if (!bytes.length) return "empty";
+  if (bytes.length > RECEIPT_MAX_BYTES) return "tooBig";
+  return sniffReceipt(bytes) ? null : "type";
+}
+
 /** Имя файла для показа: без путей и управляющих символов, не длиннее 120 знаков. */
 export function safeReceiptName(raw: string, ext: string) {
   const base = raw.split(/[\\/]/).pop() ?? "";

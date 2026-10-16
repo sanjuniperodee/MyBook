@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { channelLabel, channels, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
 import { Download, UserPlus } from "lucide-react";
-import { clientSegments, type ClientSegment } from "@/modules/clients/domain/segments";
+import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
 import type { ClientSort } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { can, contactView, requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { container } from "@/server/container";
 
 export const metadata = { title: "Клиенты" };
@@ -35,7 +36,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     container().reporting.segmentCounts(scopeManagerId),
     container().access.queries.allStaff(),
   ]);
-  const managerName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const managerName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
     return `/admin/clients?${p}`;

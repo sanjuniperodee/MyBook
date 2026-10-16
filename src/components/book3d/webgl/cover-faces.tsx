@@ -4,7 +4,7 @@ import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { CoverSpineText } from "@/components/cover/CoverSpine";
 import type { BackDesign } from "@/lib/book/cover-back";
 import type { CoverTemplate } from "@/lib/book/covers";
-import type { PhotoRef } from "@/lib/book/cover-kit";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import type { CoverArt } from "../cover-art";
 
 /**

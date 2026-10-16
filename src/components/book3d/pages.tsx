@@ -1,18 +1,20 @@
 "use client";
 
 import type { BackContent } from "@/lib/book/cover-back";
-import type { PhotoRef } from "@/lib/book/cover-kit";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import type { CoverPreviewProps } from "@/components/cover/CoverPreview";
-import { DedicationPage, EndPage, OpenerPage, pageKit, PhotoPage, TextPage, TitlePage, TocPage, type PageKit, type PagePhoto, type SampleEntry } from "@/components/interior/BookPage";
+import type { SampleEntry } from "@/components/interior/entry";
+import { pageKit, type PageKit } from "@/components/interior/kit";
+import { ColophonPage, DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "@/components/interior/pages";
 import { cqwUnits } from "@/components/interior/units";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { interiorMetrics } from "@/lib/book/layout";
+import { columnPages, pageSide } from "@/lib/book/page-geometry";
 import { planFaces, planSheets, type Face, type Sheet } from "@/lib/book/flipbook";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export interface FlipbookChapter {
   number: number;
@@ -64,6 +66,8 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       return <div className={cn(faceBox, "bg-white")} />;
     case "title":
       return <TitlePage kit={kit} title={data.title} subtitle={data.subtitle} author={data.author} year={data.year} className={faceBox} />;
+    case "colophon":
+      return <ColophonPage kit={kit} year={data.year} author={data.author} className={faceBox} />;
     case "dedication":
       return <DedicationPage kit={kit} text={data.dedication} className={faceBox} />;
     case "toc":
@@ -110,10 +114,8 @@ export function usePagedBook(data: FlipbookData): PagedBook {
   const measureNow = useCallback(() => {
     const el = root.current;
     if (!el) return;
-    const m = interiorMetrics[format.id];
-    const side = (m.marginInner + m.marginOuter) / 2;
-    const gapPx = (2 * side * MEASURE_WIDTH) / format.widthMm;
-    const next = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"), (flow) => Math.max(1, Math.round((flow.scrollWidth + gapPx) / (flow.clientWidth + gapPx))));
+    const gapPx = (2 * pageSide(format) * MEASURE_WIDTH) / format.widthMm;
+    const next = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"), (flow) => columnPages(flow.scrollWidth, flow.clientWidth, gapPx));
     setTextPages((prev) => (prev && prev.length === next.length && prev.every((n, i) => n === next[i]) ? prev : next));
   }, [format]);
   const measured = useMemo(() => data.chapters.filter((c) => c.entries.length), [data.chapters]);

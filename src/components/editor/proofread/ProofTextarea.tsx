@@ -5,7 +5,8 @@ import { ArrowRight, BookPlus, Check, CheckCircle2, EyeOff, LoaderCircle, Sparkl
 import { useMessages } from "@/i18n/client";
 import type { Issue, IssueKind } from "@/lib/proofread/types";
 import { issueKinds } from "@/lib/proofread/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { hexAlpha } from "@/lib/color";
 import type { AiState } from "./useProofread";
 
 /** Цвет замечания: красный — ошибка в слове, синий — запятые и грамматика, янтарный — оформление, фиолетовый — стиль. */
@@ -18,10 +19,6 @@ export const kindColor: Record<IssueKind, string> = {
 };
 
 const issueId = (i: Issue) => `${i.start}:${i.key}`;
-
-function hexAlpha(hex: string, a: number) {
-  return `rgba(${[1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)).join(",")},${a})`;
-}
 
 function markStyle(i: Issue, active: boolean): CSSProperties {
   const color = kindColor[i.kind];

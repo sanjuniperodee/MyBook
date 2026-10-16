@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { idParams, uuid } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
@@ -15,12 +16,12 @@ const patchSchema = z
     recipientGender: z.enum(["m", "f"]),
     hideRecipientOnCover: z.boolean(),
     coverTemplate: z.string().max(40),
-    coverPhotoId: z.string().uuid().nullable(),
-    coverPhotoExtra: z.array(z.string().uuid()).max(MAX_EXTRA_PHOTOS),
+    coverPhotoId: uuid.nullable(),
+    coverPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),
     backText: z.string().trim().max(400),
     backLayout: z.string().max(20),
-    backPhotoId: z.string().uuid().nullable(),
-    backPhotoExtra: z.array(z.string().uuid()).max(MAX_EXTRA_PHOTOS),
+    backPhotoId: uuid.nullable(),
+    backPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),
     // Кадры фото на обложке: форму и числа проверяет домен (parseFrames), здесь — только размер.
     photoFrames: z.record(z.string().max(12), z.object({ zoom: z.number(), x: z.number(), y: z.number() })).refine((o) => Object.keys(o).length <= 12),
     dedication: z.string().trim().max(600),
@@ -37,7 +38,7 @@ const patchSchema = z
 
 /** Настройки книги из редактора. Каталоги обложек, оформлений и поводов проверяет домен. */
 export const PATCH = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req);
   const { language, ...rest } = patchSchema.parse(await req.json());
   const authoring = container().authoring;
@@ -46,7 +47,7 @@ export const PATCH = api(async (req, { params }: { params: Promise<{ id: string 
 });
 
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req);
   await container().authoring.books.delete(id, viewer);
   return NextResponse.json({ ok: true });

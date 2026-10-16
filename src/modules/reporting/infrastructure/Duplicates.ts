@@ -2,7 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
 
-export type DuplicateGroup = { key: string; kind: "phone" | "email"; deals: { id: string; number: number; title: string; stage: string; color: string; created: string; assignee: string | null }[] };
+type DuplicateGroup = { key: string; kind: "phone" | "email"; deals: { id: string; number: number; title: string; stage: string; color: string; created: string; assignee: string | null }[] };
 
 /** Группы сделок одного человека (по телефону, включая доп. номера, или e-mail). */
 export async function duplicateGroups() {

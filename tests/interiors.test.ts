@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { messagesFor } from "@/i18n/messages";
 import { allCoverTemplates, coverTemplates } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
-import { openerFlow, pageBox } from "@/lib/book/layout";
+import { openerFlow, pageBox } from "@/lib/book/page-geometry";
 import { dividerDrawing, frameShapes, openerArtShapes, vignetteDrawing, type Shape } from "@/lib/book/interior-art";
 import {
   chapterMark,
@@ -14,8 +14,8 @@ import {
   interiorsForCover,
   isInteriorId,
   romanNumeral,
-  splitLeadIn,
 } from "@/lib/book/interiors";
+import { splitLeadIn } from "@/lib/book/typesetting";
 
 /** Минимальный сериализатор фигур в SVG — проверяем, что графика валидна и растрируется. */
 function toSvg(shapes: Shape[], w: number, h: number) {

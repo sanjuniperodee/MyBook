@@ -3,15 +3,16 @@ import { notFound } from "next/navigation";
 import { requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { PrintButton } from "./PrintButton";
+import { pageId } from "@/server/input";
 
 export const metadata = { title: "Упаковочный лист", robots: { index: false } };
 
 /** Упаковочный лист / накладная для курьера. Печатается на A4 (две одинаковые половины — одна в коробку, одна курьеру). */
 export default async function PackingSlip({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff("orders.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
   if (!order) notFound();
 

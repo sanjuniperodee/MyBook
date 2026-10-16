@@ -20,11 +20,6 @@ export async function getMessages() {
   return messagesFor(await getLocale());
 }
 
-/** Путь на языке текущего запроса. */
-export async function lpath(path: string) {
-  return localizePath(path, await getLocale());
-}
-
 /** redirect() с сохранением языка. */
 export async function lredirect(path: string): Promise<never> {
   redirect(localizePath(path, await getLocale()));

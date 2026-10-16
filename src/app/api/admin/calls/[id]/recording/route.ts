@@ -2,6 +2,7 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { audit, canSeeAssigned } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 /**
  * Запись разговора через наш сервер: ссылка провайдера не попадает в браузер,
@@ -9,7 +10,7 @@ import { container } from "@/server/container";
  */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "calls.view", "calls.recordings");
-  const { id } = await params;
+  const { id } = idParams(await params, "id");
   const call = await container().telephony.queries.byId(id);
   if (!call || !canSeeAssigned(staff, call.staffId)) throw new HttpError(404, "notFound");
   let url: string | null;

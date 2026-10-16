@@ -3,7 +3,7 @@ import type { Locale } from "@/i18n/config";
 import { Email, IdentityError, User, hashBackupCode, isBackupCodeShape, parseLoginId, verifyTotp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 import type { AdminEmailsPolicy, PasswordHasher, PasswordResetMailer, SecretCipher, TokenService } from "./ports";
 
-export const SESSION_TTL_DAYS = 30;
+const SESSION_TTL_DAYS = 30;
 const RESET_TTL_MS = 3600_000;
 
 /** Итог входа: сессия создана — или нужен код второго фактора. */

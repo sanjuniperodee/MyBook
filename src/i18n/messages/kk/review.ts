@@ -2,6 +2,8 @@ import type { review as ru } from "../ru/review";
 import { kkCount } from "../../plural";
 
 export const review: typeof ru = {
+  /** Фото не прочиталось или больше 15 МБ — и в форме, и в ответе API (api.reviewPhotoInvalid). */
+  photoInvalid: "Фотоны оқу мүмкін болмады — 15 МБ-қа дейінгі JPG немесе PNG жүктеңіз",
   meta: "Кітап туралы пікір",
   order: (n: number) => `№${n} тапсырыс`,
   title: "Кітап ұнады ма?",

@@ -7,8 +7,9 @@ import { createClientAction, type NewClientDone, type NewClientState } from "./a
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice } from "@/config/site";
-import { channels, manualChannels } from "@/modules/marketing/domain/channels";
+import { channels, manualChannels } from "@/shared/domain/channels";
 import { getVisiblePlans } from "@/config/site";
+import { planLabels } from "@/modules/ordering/ui/labels";
 
 function CopyButton({ text, label = "Копировать" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -61,8 +62,6 @@ export function AccessCard({ login, password, message, title = "Доступ к�
     </div>
   );
 }
-
-const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
 
 type Upload = "none" | "uploading" | "ok" | "error";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/modules/sales/domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { ask, toastError } from "@/components/ui/overlays";
@@ -12,8 +12,8 @@ import { Ban, Inbox, Merge, UserRound } from "lucide-react";
 import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
-import { cn } from "@/lib/utils";
+import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
+import { cn } from "@/lib/class-names";
 
 interface Stage {
   id: string;
@@ -87,7 +87,7 @@ export function DealFields({
   values = {},
 }: {
   fields?: FieldDef[];
-  values?: CustomValues;
+  values?: CustomFieldValues;
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;

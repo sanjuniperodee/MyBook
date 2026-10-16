@@ -1,15 +1,16 @@
 "use server";
 
 import { container } from "@/server/container";
+import { ClientsError } from "@/modules/clients";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { AssistantError, normalizeExtracted, type AiSummary } from "@/modules/assistant";
 import { listFields } from "@/modules/workspace";
 import { rateLimit } from "@/server/rateLimit";
 
-const uuid = z.string().uuid();
 
 type Result<T> = ({ ok: true } & T) | { ok: false; message: string };
 
@@ -38,7 +39,7 @@ export async function aiSuggestReplyAction(conversationId: string): Promise<Resu
   if (!conv) return { ok: false, message: "Диалог не найден" };
   assertVisible(staff, conv.assigneeId);
   return guard(staff.user.id, async () => {
-    const r = await container().assistant.service.suggestReply(conv.id, adminLabel(staff.user));
+    const r = await container().assistant.service.suggestReply(conv.id, staffLabel(staff.user));
     await audit(staff, "ai.reply", "conversation", conv.id, r.usage);
     return { text: r.text };
   });
@@ -93,17 +94,23 @@ export async function aiNextStepTaskAction(dealId: string) {
   const due = new Date(Date.now() + s.dueDays * 86_400_000);
   // Задача ответственному за сделку (или тому, кто попросил резюме), срок — до вечера.
   const iso = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
-  await container().clients.tasks.create(
-    { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: true, allTasks: false },
-    {
-      title: s.nextStep.slice(0, 300),
-      kind: /позвон|звон|перезвон/i.test(s.nextStep) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep) ? "message" : "task",
+  const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: true, allTasks: false };
+  const task = (assigneeId: string) =>
+    container().clients.tasks.create(actor, {
+      title: s.nextStep!.slice(0, 300),
+      kind: /позвон|звон|перезвон/i.test(s.nextStep!) ? "call" : /напис|отправ|сообщ/i.test(s.nextStep!) ? "message" : "task",
       dueAt: iso,
       dealId: deal.id,
       clientId: deal.clientId ?? undefined,
-      assigneeId: deal.assigneeId ?? staff.user.id,
-    },
-  );
+      assigneeId,
+    });
+  try {
+    await task(deal.assigneeId ?? staff.user.id);
+  } catch (err) {
+    // Ответственный сделки отключён — задача тому, кто попросил резюме (B12).
+    if (!(ClientsError.is(err) && err.code === "staffNotFound")) throw err;
+    await task(staff.user.id);
+  }
   revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const };
 }

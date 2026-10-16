@@ -2,20 +2,20 @@
 
 import { useActionState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
-import { formatPrice } from "@/config/site";
+import { formatPrice, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { toast } from "@/components/ui/overlays";
 import { resetPricingAction, savePricingAction, type PricingState } from "./actions";
 
-const planLabels: Record<string, string> = { digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" };
-const addonLabels: Record<string, string> = { express: "Экспресс-печать (приоритетное производство)", giftwrap: "Подарочная упаковка" };
-const deliveryLabels: Record<string, string> = { courier: "Курьер по городу", post: "Доставка по Казахстану", pickup: "Самовывоз" };
+/** Пояснение к допу в подписи поля цены. */
+const addonNotes: Partial<Record<AddonId, string>> = { express: " (приоритетное производство)" };
 
 interface Props {
-  plans: { id: string; printed: boolean; price: number; extraCopyPrice: number; visible: boolean }[];
-  addons: { id: string; price: number }[];
-  delivery: { id: string; price: number }[];
+  plans: { id: PlanId; printed: boolean; price: number; extraCopyPrice: number; visible: boolean }[];
+  addons: { id: AddonId; price: number }[];
+  delivery: { id: DeliveryId; price: number }[];
   factory: { plans: Record<string, { price: number; extraCopyPrice: number; visible: boolean }>; addons: Record<string, number>; delivery: Record<string, number> };
   changed: boolean;
 }
@@ -69,7 +69,7 @@ export function PricingForm({ plans, addons, delivery, factory, changed }: Props
       <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2">
         <h2 className="text-sm font-semibold sm:col-span-2">Допы к печатному заказу</h2>
         {addons.map((a) => (
-          <Price key={a.id} name={`addon_${a.id}_price`} label={addonLabels[a.id]} value={a.price} factory={factory.addons[a.id]} />
+          <Price key={a.id} name={`addon_${a.id}_price`} label={addonLabels[a.id] + (addonNotes[a.id] ?? "")} value={a.price} factory={factory.addons[a.id]} />
         ))}
       </section>
 
