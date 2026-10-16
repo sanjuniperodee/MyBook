@@ -2,7 +2,7 @@
 
 Основа плана — [аудит](audit.md). Шаги идут от наибольшей пользы при наименьшем риске к более рискованным. После каждого шага прогоняются `tsc`, `eslint`, `vitest`; если шаг касается вёрстки — визуальная сверка (фаза 3); каждые 3–4 шага — `next build` и `scripts/refactor/bundles.mjs --compare`. Один шаг — один или несколько атомарных коммитов, и после каждого всё зелёное.
 
-**Статус: согласовано 13.10 («делай идеально, ограничений нет») — выполняется.** Фичи, о которых вы попросили 13.10, сделаны отдельно от рефакторинга (раздел «Фичи»).
+**Статус: согласовано 13.10 («делай идеально, ограничений нет») — выполнено 16.10, итоги — [report.md](report.md).** Фичи, о которых вы попросили 13.10, сделаны отдельно от рефакторинга (раздел «Фичи»).
 
 Обозначения риска: **Н** — механический шаг, ловится типами и тестами; **С** — затрагивает вид или поведение, нужна визуальная сверка или характеристические тесты; **В** — меняет то, что видит клиент или сотрудник, только после вашего «да».
 
@@ -67,43 +67,43 @@
 | C3 ✅ | Разбить PDF-документ | `pdf/interior/` по полосам: `TitlePage`, `Colophon`, `Dedication`, `Toc`, `Opener`, `PhotoPage`, `ChapterBody` (`TextBlock`, `InlineRows`, `Heading`, `Divider`), `Folio`, `RunningHead` | `modules/production/infrastructure/pdf/interior/*` | S3: 0 отличий, страниц столько же |
 | C4 ✅ | Разбить `BookPage` | `components/interior/{graphics,typography,folio,pages,entry}.tsx`; `Sheet` → `PageSurface` (конфликт имени с листом 3D) | `components/interior/*` | S4 |
 | C5 ✅ | Решения вёрстки — чистая функция | `refineFlow`: разбор раскладки react-pdf остаётся в адаптере, решения (разрыв перед заголовком, масштаб ряда, концовка) уходят в `lib/book/flow-decisions.ts` с юнит-тестами | `pdf/flow.ts`, `lib/book/flow-decisions.ts` | `pdf-flow.test.ts`, S3 |
-| C6 | Превью в редакторе на общих компонентах | Ряд фото и ответ — компоненты `BookPage` с интерактивным слоем поверх; разбивка колонок — общий хелпер для `PagePreview` и `book3d/pages.tsx`. **Вариант зависит от ответа на вопрос 3** | `PagePreview.tsx` → `editor/preview/*` | S4; при варианте (а) отличия согласованы |
-| C7 | Сборка содержимого книги — одна | Первым коммитом без изменения поведения: экспорт маппинга глав из `src` и перевод на него стенда HTML (`scripts/visual/html-data.ts`). Затем оценка в редакторе строится той же функцией, что `buildBookContent`; копия старой оценки в `tests/characterization/editor-estimate.test.ts` удаляется, а расхождения B3/B14 исправляются отдельным коммитом | `lib/book/layout.ts`, `QuestionsEditor` | S5 |
-| C8 | `LAYOUT_VERSION` | Если вывод PDF не изменился, версия не трогается; если изменился (только по согласованию) — увеличивается | `pdf/render.tsx` | S3 |
+| C6 ✅ | Превью в редакторе на общих компонентах | Ряд фото и ответ — компоненты `BookPage` с интерактивным слоем поверх; разбивка колонок — общий хелпер для `PagePreview` и `book3d/pages.tsx`. **Вариант зависит от ответа на вопрос 3** | `PagePreview.tsx` → `editor/preview/*` | S4; при варианте (а) отличия согласованы |
+| C7 ✅ | Сборка содержимого книги — одна | Первым коммитом без изменения поведения: экспорт маппинга глав из `src` и перевод на него стенда HTML (`scripts/visual/html-data.ts`). Затем оценка в редакторе строится той же функцией, что `buildBookContent`; копия старой оценки в `tests/characterization/editor-estimate.test.ts` удаляется, а расхождения B3/B14 исправляются отдельным коммитом | `lib/book/layout.ts`, `QuestionsEditor` | S5 |
+| C8 ✅ | `LAYOUT_VERSION` | Если вывод PDF не изменился, версия не трогается; если изменился (только по согласованию) — увеличивается | `pdf/render.tsx` | S3 |
 
 ### D. Большие файлы — по смыслу (Н–С)
 
 | # | Шаг | Цель | Проверка |
 |---|---|---|---|
-| D1 | `QuestionsEditor` (1031) | Хуки `useQuestionsDraft` (состояние, автосохранение, черновик), `usePageEstimate`, `useInlinePhotos`; компоненты `QuestionNav`, `AnswerPanel`, `PhotoStrip`, `PreviewPane`, `Toolbar` | tsc, e2e `scripts/e2e-dictation.mjs`, `e2e-inline-photo.mjs` |
-| D2 | `covers-client-photo` (1087), `covers-collection`, `covers-photo` | `lib/book/covers/<семья>/<шаблон>.ts` + общий `svg-kit.ts`; порядок и реестр — в индексе. **Список файлов для `COVER_ART_VERSION` в `next.config.ts` заменяется на все файлы `lib/book/covers/**`.** Это и исправление B1: версия один раз изменится | `covers.test.ts` (SVG каждого шаблона байт-в-байт до и после), S3 для обложек |
-| D3 | `interiors.ts` (835), `interior-art.ts` (662) | `interiors/{types,legacy,collection/*,typesetting}.ts`; `interior-art/{glyphs,frames,opener-art,geometry}.ts` | `interiors.test.ts`, S3, S4 |
-| D4 | `scene.ts` (794), `BookViewer3D` (697), `BookViewerGL` (448) | `webgl/{materials,textures,geometry,BookScene}.ts`; общие хуки `useFullscreen`, `useBookKeys` (сейчас 15 строк копии) | `flipbook`/`page-curl` тесты, ручная проверка 3D |
-| D5 | `SettingsForms` (714), `settings/actions.ts` (372) | По форме на интеграцию + общие `SecretField`, `EnvLockedField`; zod-схемы рядом с действиями | tsc, `scripts/shot-admin.mjs` до и после |
-| D6 | `CheckoutForm` (471, сложность 67) | Расчёт суммы — из `ordering/ui` (как на сервере), секции: тариф, доставка, адрес, промокод, итог | `ordering.test.ts`, e2e `e2e-order.mjs` |
-| D7 | Страницы админки со сложностью > 40 (`deals/[id]`, `clients/[id]`, `orders/[id]`, клиентский `orders/[id]`) | Модель экрана строится в `reporting` (одна функция — один экран), страница раскладывает секции | tsc, `shot-admin.mjs` |
-| D8 | Каталоги-данные (`landings`, `articles`, `love`, словари `books`) | По странице или статье на файл — только если это не мешает поиску текстов. Иначе оставить с обоснованием | tsc |
+| D1 ✅ | `QuestionsEditor` (1031) | Хуки `useQuestionsDraft` (состояние, автосохранение, черновик), `usePageEstimate`, `useInlinePhotos`; компоненты `QuestionNav`, `AnswerPanel`, `PhotoStrip`, `PreviewPane`, `Toolbar` | tsc, e2e `scripts/e2e-dictation.mjs`, `e2e-inline-photo.mjs` |
+| D2 ✅ | `covers-client-photo` (1087), `covers-collection`, `covers-photo` | `lib/book/covers/<семья>/<шаблон>.ts` + общий `svg-kit.ts`; порядок и реестр — в индексе. **Список файлов для `COVER_ART_VERSION` в `next.config.ts` заменяется на все файлы `lib/book/covers/**`.** Это и исправление B1: версия один раз изменится | `covers.test.ts` (SVG каждого шаблона байт-в-байт до и после), S3 для обложек |
+| D3 ✅ | `interiors.ts` (835), `interior-art.ts` (662) | `interiors/{types,legacy,collection/*,typesetting}.ts`; `interior-art/{glyphs,frames,opener-art,geometry}.ts` | `interiors.test.ts`, S3, S4 |
+| D4 ✅ | `scene.ts` (794), `BookViewer3D` (697), `BookViewerGL` (448) | `webgl/{materials,textures,geometry,BookScene}.ts`; общие хуки `useFullscreen`, `useBookKeys` (сейчас 15 строк копии) | `flipbook`/`page-curl` тесты, ручная проверка 3D |
+| D5 ✅ | `SettingsForms` (714), `settings/actions.ts` (372) | По форме на интеграцию + общие `SecretField`, `EnvLockedField`; zod-схемы рядом с действиями | tsc, `scripts/shot-admin.mjs` до и после |
+| D6 ✅ | `CheckoutForm` (471, сложность 67) | Расчёт суммы — из `ordering/ui` (как на сервере), секции: тариф, доставка, адрес, промокод, итог | `ordering.test.ts`, e2e `e2e-order.mjs` |
+| D7 ✅ | Страницы админки со сложностью > 40 (`deals/[id]`, `clients/[id]`, `orders/[id]`, клиентский `orders/[id]`) | Модель экрана строится в `reporting` (одна функция — один экран), страница раскладывает секции | tsc, `shot-admin.mjs` |
+| D8 ✅ | Каталоги-данные (`landings`, `articles`, `love`, словари `books`) | По странице или статье на файл — только если это не мешает поиску текстов. Иначе оставить с обоснованием | tsc |
 
 ### E. Тонкий `app/` и единые ошибки (С)
 
 | # | Шаг | Цель | Проверка |
 |---|---|---|---|
-| E1 | «Завести клиента» → сервис | `ClientOnboardingService` в `clients/application` с портами к `identity`, `sales`, `clients`; действие только разбирает форму и возвращает ответ. Тексты заметок и задач те же | характеристический тест на фейках: какие команды и в каком порядке |
-| E2 | «Принять платёж с чеком» → сервис | `sales.payments.acceptWithReceipt` (платёж, чек, заметка, письмо, аудит). Роут — разбор multipart. Транзакция — только если B4 согласован | тест сервиса |
-| E3 | Доступ к файлам заказа → домен | `canDownloadFile(order, plan, kind, staff)` в `ordering`; роут — разбор и ответ | `ordering.test.ts` |
+| E1 ✅ | «Завести клиента» → сервис | `ClientOnboardingService` в `clients/application` с портами к `identity`, `sales`, `clients`; действие только разбирает форму и возвращает ответ. Тексты заметок и задач те же | характеристический тест на фейках: какие команды и в каком порядке |
+| E2 ✅ | «Принять платёж с чеком» → сервис | `sales.payments.acceptWithReceipt` (платёж, чек, заметка, письмо, аудит). Роут — разбор multipart. Транзакция — только если B4 согласован | тест сервиса |
+| E3 ✅ | Доступ к файлам заказа → домен | `canDownloadFile(order, plan, kind, staff)` в `ordering`; роут — разбор и ответ | `ordering.test.ts` |
 | E4 ✅ | Единые ошибки | Реестр «код домена → статус» в одном месте (`server/errors.ts`). `api()` понимает `ForbiddenError` (500 → 403, решение E4). Помощники для server actions вместо трёх локальных переводчиков: `actionError(err, ...ожидаемые)` (покупатель, на языке запроса) и `staffActionError(err, ...ожидаемые)` (сотрудник CRM, всегда по-русски: cookie языка сайта на тексты админки не влияет); `bad()` двух роутов платежей заменён `HttpError` и словарём `admin` (`src/i18n/admin.ts`, только русский: сотрудники CRM). `XError.is()` вместо `instanceof`: `PaymentError`, `ReceiptError`, `WazzupError` — на `contextError`, `HttpError`/`ForbiddenError` — с меткой. Исправления отдельными коммитами: B5 (`Origin: null` → 403), B10 (`notFound` → 404 без учёта регистра, `DomainError.params` в текстах), B11 (тексты вместо кодов, `orThrow` без потери `AccessError`, форма заказа по-русски, один текст `twoFactorCode`). Не тронуты: местные `err.message`-обработчики контекстов с готовым текстом для сотрудника (clients, telephony, assistant, workspace, `kaspiError`, `gowaError`) | S6, `tests/errors.test.ts`, `tests/server-routes-payments.test.ts` |
-| E5 | zod для всех входов | Схемы для аргументов-id и `FormData` в действиях админки и роутах платежей; тексты ошибок те же | `actions.mjs`: без zod — 0 |
-| E6 | Права (решение 1) | `viewerOf` от `getStaff()` + `clients.view`/`clients.edit`; тест «сотрудник без права → 404». Страница заказа клиента и файлы заказа — тоже через права CRM | все тесты `V1:` (`server-adapters-access`, `foreign-access`) переворачиваются |
+| E5 ✅ | zod для всех входов | Схемы для аргументов-id и `FormData` в действиях админки и роутах платежей; тексты ошибок те же | `actions.mjs`: без zod — 0 |
+| E6 ✅ | Права (решение 1) | `viewerOf` от `getStaff()` + `clients.view`/`clients.edit`; тест «сотрудник без права → 404». Страница заказа клиента и файлы заказа — тоже через права CRM | все тесты `V1:` (`server-adapters-access`, `foreign-access`) переворачиваются |
 
 ### F. Производительность и надёжность (С)
 
 | # | Шаг | Цель | Проверка |
 |---|---|---|---|
-| F1 | Редактор не перерисовывает книгу на каждый символ | Главы превью — `memo`-компоненты с ключом по содержимому главы; оценка страниц и превью через `useDeferredValue`; `liveKey` по главам вместо `JSON.stringify` всей книги; замер — только у изменённой главы | React Profiler на стенде S4: число коммитов и время на символ до и после, зафиксировать в отчёте |
-| F2 | Словари в клиенте | Серверные пространства (`mail`, `legal`) убрать из клиентского словаря; клиент получает словарь текущего языка без второго | `bundles.mjs --compare`: −20…−30 KiB gz на каждой странице |
-| F3 | Каталог обложек лениво | Шаблоны обложек грузятся динамически там, где показывается выбор | `bundles.mjs` |
-| F4 | N+1 | `findByIds` в массовых операциях со сделками; `findByCodes` для приглашений; `saveSettings` одним запросом в транзакции (B7, если согласовано) | тесты, счётчик запросов в интеграционном тесте |
-| F5 | Утечки | `track()` для геометрии корешка, снятие `wheel`; LRU-предел у `useCoverImage` и кэша `/api/covers` | ручная проверка памяти в Chromium: листание шаблонов, открыть и закрыть 3D ×20 |
+| F1 ✅ | Редактор не перерисовывает книгу на каждый символ | Главы превью — `memo`-компоненты с ключом по содержимому главы; оценка страниц и превью через `useDeferredValue`; `liveKey` по главам вместо `JSON.stringify` всей книги; замер — только у изменённой главы | React Profiler на стенде S4: число коммитов и время на символ до и после, зафиксировать в отчёте |
+| F2 ✅ | Словари в клиенте | Серверные пространства (`mail`, `legal`) убрать из клиентского словаря; клиент получает словарь текущего языка без второго | `bundles.mjs --compare`: −20…−30 KiB gz на каждой странице |
+| F3 ✅ | Каталог обложек лениво | Шаблоны обложек грузятся динамически там, где показывается выбор | `bundles.mjs` |
+| F4 ✅ | N+1 | `findByIds` в массовых операциях со сделками; `findByCodes` для приглашений; `saveSettings` одним запросом в транзакции (B7, если согласовано) | тесты, счётчик запросов в интеграционном тесте |
+| F5 ✅ | Утечки | `track()` для геометрии корешка, снятие `wheel`; LRU-предел у `useCoverImage` и кэша `/api/covers` | ручная проверка памяти в Chromium: листание шаблонов, открыть и закрыть 3D ×20 |
 
 ### G. Исправления после рефакторинга (каждое — отдельный коммит)
 
@@ -111,7 +111,7 @@ V1, V2 — решения 1–2 (тесты с маркерами `V1:` и `V2:`
 
 B8 (книга не собирается из-за разделителя на границе полосы) и B9 (водяной знак превью в квадрате) ✅ исправлены сразу после фазы 3, `LAYOUT_VERSION` 3 → 4 (кэш превью пересобирается: в квадрате на фото под обрез появился водяной знак). Растр печати 92 книг набора не изменился.
 
-## Фаза 5. Отчёт
+## Фаза 5. Отчёт — ✅ [report.md](report.md)
 
 `docs/refactor/report.md`:
 - что сделано;
