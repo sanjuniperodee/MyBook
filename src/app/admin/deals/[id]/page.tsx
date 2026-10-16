@@ -37,7 +37,13 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
     container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
   ]);
   const conv = convs[0] ?? null;
-  const [paymentRows, receiptRows] = await Promise.all([container().sales.payments.list(deal.id), container().sales.receipts.list(deal.id)]);
+  const [paymentRows, receiptRows, orderMoney] = await Promise.all([
+    container().sales.payments.list(deal.id),
+    container().sales.receipts.list(deal.id),
+    deal.orderId ? container().ordering.payments.summary(deal.orderId) : null,
+  ]);
+  const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
+  const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.map((r) => ({ id: r.id, amount: r.amount, method: methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
   const [duplicates, suggestedClientId, dealFields] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
@@ -118,6 +124,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
             payments={screen.payments}
+            orderMoney={orderMoneyView}
           />
           {bookRows.length ? <DealBooks books={bookRows} seen={clientSeen} /> : null}
           <DealLinks

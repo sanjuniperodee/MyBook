@@ -36,6 +36,8 @@ function toDomain(r: Row): Order {
     printSpec: r.printSpec,
     assigneeId: r.assigneeId,
     paidAt: r.paidAt,
+    postpay: r.postpay,
+    receivedAmount: r.receivedAmount,
     createdAt: r.createdAt,
   });
 }
@@ -76,6 +78,8 @@ function toRow(order: Order) {
     printSpec: s.printSpec,
     assigneeId: s.assigneeId,
     paidAt: s.paidAt,
+    postpay: s.postpay,
+    receivedAmount: s.receivedAmount,
   };
 }
 
@@ -88,6 +92,12 @@ export class DrizzleOrderRepository implements OrderRepository {
   async findById(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [row] = await executor().select().from(orders).where(eq(orders.id, id)).limit(1);
+    return row ? toDomain(row) : null;
+  }
+
+  async lockById(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [row] = await executor().select().from(orders).where(eq(orders.id, id)).for("update").limit(1);
     return row ? toDomain(row) : null;
   }
 

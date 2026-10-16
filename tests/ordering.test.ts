@@ -191,6 +191,8 @@ function setupSnapshot() {
     currency: "KZT",
     status: "pending_payment" as const,
     paymentProvider: "manual",
+    postpay: false,
+    receivedAmount: 0,
     paymentId: null,
     paymentClaimedAt: null,
     contact: { name: "", phone: "", email: "" },

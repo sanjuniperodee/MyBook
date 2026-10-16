@@ -2,13 +2,15 @@ import "server-only";
 import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { GiftsService, KaspiPaymentsService, KaspiSetupService, OrdersService, PromoService, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
 import { DrizzlePromoCodeRepository } from "./infrastructure/persistence/DrizzlePromoCodeRepository";
 import { DrizzleOrderingQueries } from "./infrastructure/persistence/DrizzleOrderingQueries";
 import { DrizzlePaymentInvoiceRepository } from "./infrastructure/persistence/DrizzlePaymentInvoiceRepository";
+import { DrizzleOrderPaymentRepository } from "./infrastructure/persistence/DrizzleOrderPaymentRepository";
+import { storageReceiptFiles } from "./infrastructure/gateways/receiptFiles";
 import { DrizzlePeopleGateway } from "./infrastructure/gateways/DrizzlePeopleGateway";
 import { envPaymentSettings, randomCodes } from "./infrastructure/gateways/system";
 import { OrderingMailer } from "./infrastructure/notifications/OrderingMailer";
@@ -45,6 +47,8 @@ export interface OrderingDeps {
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
 export class OrderingModule {
   readonly orders: OrdersService;
+  /** Журнал денег по заказу: перевод с чеком, онлайн-оплаты, постоплата. */
+  readonly payments: OrderPaymentsService;
   readonly promos: PromoService;
   readonly gifts: GiftsService;
   readonly queries = new DrizzleOrderingQueries();
@@ -59,7 +63,8 @@ export class OrderingModule {
     const orderRepo = new DrizzleOrderRepository();
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
-    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock);
+    this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock);
+    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);
@@ -86,6 +91,8 @@ export class OrderingModule {
     on(
       "ordering.order_paid",
       async (e) => {
+        // Постоплата получена после печати — файлы уже готовы.
+        if (e.payload.settled) return;
         // Файлы для типографии готовим в фоне, чтобы не задерживать ответ платёжной системе.
         runInBackground(async () => {
           const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
@@ -93,6 +100,18 @@ export class OrderingModule {
         }, this.deps.logger);
       },
       "ordering.print.warm_up",
+    );
+    // В печать с постоплатой — файлы для типографии нужны так же, как после оплаты.
+    on(
+      "ordering.order_status_changed",
+      async (e) => {
+        if (e.payload.from !== "pending_payment" || e.payload.to !== "in_production") return;
+        runInBackground(async () => {
+          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
+          if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
+        }, this.deps.logger);
+      },
+      "ordering.print.warm_up_postpay",
     );
   }
 

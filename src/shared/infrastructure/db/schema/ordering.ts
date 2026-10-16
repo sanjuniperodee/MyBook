@@ -66,12 +66,51 @@ export const orders = pgTable(
     /** Менеджер, ответственный за заказ. */
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** Постоплата: заказ отправлен в печать без оплаты; в выручку попадёт, когда оплата покроет «к оплате». */
+    postpay: boolean("postpay").notNull().default(false),
+    /** Сколько денег получено по заказу (сумма order_payments) — учёт денег, не выручка. */
+    receivedAmount: integer("received_amount").notNull().default(0),
     ...timestamps,
   },
   (t) => [
     uniqueIndex("orders_number_idx").on(t.number),
     index("orders_user_idx").on(t.userId),
     index("orders_status_idx").on(t.status),
+  ],
+);
+
+/**
+ * Журнал денег по заказу: перевод с чеком (менеджер), онлайн-оплата (Kaspi, CloudPayments — по операции), постоплата.
+ * Это учёт денег, а не выручка: выручка заказа считается один раз — по orders.paid_at (revenue_events).
+ */
+export const orderPayments = pgTable(
+  "order_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "restrict" }),
+    amount: integer("amount").notNull(),
+    /** manual — перевод с чеком; kaspi, cloudpayments — онлайн, подтверждено платёжной системой. */
+    method: text("method", { enum: ["manual", "kaspi", "cloudpayments"] }).notNull(),
+    /** Операция платёжной системы (повтор той же операции — не новая оплата). */
+    externalRef: text("external_ref"),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
+    note: text("note").notNull().default(""),
+    receiptStorageKey: text("receipt_storage_key"),
+    receiptFileName: text("receipt_file_name"),
+    receiptMime: text("receipt_mime"),
+    receiptSize: integer("receipt_size"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    /** Ручную оплату проверил руководитель (чек совпал с поступлением на счёт). */
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("order_payments_order_idx").on(t.orderId),
+    index("order_payments_paid_idx").on(t.paidAt),
+    uniqueIndex("order_payments_external_idx").on(t.method, t.externalRef).where(sql`${t.externalRef} is not null`),
   ],
 );
 

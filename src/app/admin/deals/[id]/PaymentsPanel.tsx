@@ -67,15 +67,26 @@ function AttachReceipt({ dealId, payment, onDone }: { dealId: string; payment: P
  * Оплата по сделке: что обещано, сколько принято, платежи с чеками. Каждый принятый платёж сразу попадает в выручку
  * (обзор, аналитика, планы менеджеров, карточка клиента). Платёж без чека не принимается — а если чек пропал, виден алерт.
  */
-export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; order: { id: string; number: number } | null }) {
+/** Деньги по заказу сделки (журнал заказа): к оплате по заказу, сколько получено, записи — только чтение. */
+export interface OrderMoneyView {
+  due: number;
+  received: number;
+  postpay: boolean;
+  rows: { id: string; amount: number; method: string; dateLabel: string; receipt: boolean }[];
+}
+
+export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order, orderMoney = null }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; order: { id: string; number: number } | null; orderMoney?: OrderMoneyView | null }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Получено = платежи минус возвраты клиенту.
-  const paid = payments.reduce((s, p) => s + (p.kind === "refund" ? -p.amount : p.amount), 0);
+  // Получено = платежи сделки минус возвраты клиенту, плюс деньги по её заказу (остаток, постоплата).
+  const dealPaid = payments.reduce((s, p) => s + (p.kind === "refund" ? -p.amount : p.amount), 0);
+  const paid = dealPaid + (orderMoney?.received ?? 0);
+  // С заказом итог — внесённое по сделке + «к оплате» заказа (доставка и допы — в нём); без заказа — договорённость.
+  const target = orderMoney ? dealPaid + orderMoney.due : agreed;
   const locked = !!order; // по сделке оформлен заказ: дальше деньги идут через него
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
@@ -138,16 +149,16 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order }
       <h2 className="text-sm font-semibold">Оплата и чеки</h2>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-cream/70 p-2">
-          <div className="text-[11px] text-muted">Книга по договорённости</div>
-          <div className="font-medium tabular-nums">{formatPrice(agreed)}</div>
+          <div className="text-[11px] text-muted">{orderMoney ? `Всего по заказу №${order?.number}` : "Книга по договорённости"}</div>
+          <div className="font-medium tabular-nums">{formatPrice(target)}</div>
         </div>
         <div className="rounded-xl bg-emerald-50 p-2">
           <div className="text-[11px] text-emerald-800">Получено</div>
           <div className="font-medium text-emerald-900 tabular-nums">{formatPrice(paid)}</div>
         </div>
         <div className="rounded-xl bg-cream/70 p-2">
-          <div className="text-[11px] text-muted">Остаток за книгу</div>
-          <div className="font-medium tabular-nums">{formatPrice(Math.max(0, agreed - paid))}</div>
+          <div className="text-[11px] text-muted">{orderMoney?.postpay ? "Постоплата: ждём" : "Остаток"}</div>
+          <div className="font-medium tabular-nums">{formatPrice(Math.max(0, target - paid))}</div>
         </div>
       </div>
       <div data-testid="agreed-plan">
@@ -189,10 +200,33 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, order }
           <a href={`/admin/orders/${order.id}`} className="font-medium underline">
             заказ №{order.number}
           </a>
-          : внесённая предоплата вычтена из его «к оплате». Дальнейшую оплату принимайте в заказе.
+          : внесённая предоплата вычтена из его «к оплате». Остаток и постоплату принимайте в заказе — кнопкой ниже.
+          {orderMoney?.rows.length ? (
+            <span className="mt-2 block space-y-0.5">
+              {orderMoney.rows.map((r) => (
+                <span key={r.id} className="block">
+                  {r.method} · {formatPrice(r.amount)} · {r.dateLabel}
+                  {r.receipt ? (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <a href={`/api/admin/order-payments/${r.id}/receipt`} target="_blank" rel="noopener noreferrer" className="underline">
+                        чек
+                      </a>
+                    </>
+                  ) : null}
+                </span>
+              ))}
+            </span>
+          ) : null}
+          {canEdit && orderMoney && orderMoney.received < orderMoney.due ? (
+            <a href={`/admin/orders/${order.id}#money`} className="btn btn-sm mt-2 inline-flex">
+              Принять оплату по заказу №{order.number}
+            </a>
+          ) : null}
         </p>
       ) : null}
-      {paid > agreed && agreed > 0 && !locked ? <p className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900">Получено больше, чем договорились: проверьте сумму сделки или платежи.</p> : null}
+      {dealPaid > agreed && agreed > 0 && !locked ? <p className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900">Получено больше, чем договорились: проверьте сумму сделки или платежи.</p> : null}
       {noReceipt.length ? (
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-900" role="alert">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />

@@ -64,6 +64,10 @@ const actions: Record<string, string> = {
   "payment.add": "Принял оплату с чеком",
   "receipt.add": "Приложил чек",
   "email.send": "Отправил письмо клиенту",
+  "order.payment": "Принял оплату по заказу",
+  "order.postpay": "Отправил заказ в печать с постоплатой",
+  "order.payment_review": "Проверил оплату по заказу",
+  "receipt.view": "Открыл чек",
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {

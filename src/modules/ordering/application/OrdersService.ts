@@ -7,6 +7,7 @@ import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
+import type { OrderPaymentsService } from "./OrderPaymentsService";
 
 export interface PlaceOrderCommand {
   userId: string;
@@ -63,6 +64,8 @@ export class OrdersService {
     private readonly agreements: AgreementGateway,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    /** Журнал денег заказа: онлайн-оплаты записываются туда (по операции) — он и подтверждает заказ. */
+    private readonly money?: Pick<OrderPaymentsService, "recordOnline">,
   ) {}
 
   /** Договорённая цена и предоплата клиента по ручной сделке (для страницы оформления и расчёта заказа). */
@@ -145,18 +148,25 @@ export class OrdersService {
   }
 
   /**
-   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: заказ ждёт оплаты — подтверждаем; тот же платёж
-   * повторно — ничего; другой платёж по оплаченному или отменённому заказу — заказ не трогаем, сотруднику заметка
-   * «нужен возврат» (B13).
+   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: деньги записываются в журнал заказа по операции.
+   * Заказ ждёт оплаты — оплачен; та же операция повторно — ничего; другой платёж по оплаченному или отменённому
+   * заказу — заказ не трогаем, «переплата»: сотруднику заметка и задача «нужен возврат» (B13).
    */
   async acceptProviderPayment(cmd: { orderId: string; paymentId: string | null; provider: string; operationId: string; amount: number }, actor: Actor): Promise<"paid" | "duplicate" | "refundNeeded" | null> {
     const order = await this.orders.findById(cmd.orderId);
     if (!order) return null;
+    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
+    if (this.money) {
+      const method = cmd.provider.toLowerCase() === "kaspi" ? "kaspi" : "cloudpayments";
+      const r = await this.money.recordOnline({ orderId: order.id, amount: cmd.amount, method, externalRef: cmd.operationId, paymentId: cmd.paymentId, paidAt: this.clock.now() }, actor);
+      if (r.status === "notFound") return null;
+      if (r.status === "duplicate") return "duplicate";
+      return r.overpaid > 0 ? "refundNeeded" : "paid";
+    }
     if (order.status === "pending_payment") {
       await this.confirmPayment({ orderId: order.id, paymentId: cmd.paymentId }, actor);
       return "paid";
     }
-    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
     await this.addNote(order.id, `${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor);
     return "refundNeeded";
   }

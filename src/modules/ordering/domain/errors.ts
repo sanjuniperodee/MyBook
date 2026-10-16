@@ -28,7 +28,10 @@ export type OrderingErrorCode =
   | "invoiceNotFound"
   | "kaspiNotConnected"
   | "kaspiSessionShared"
-  | "kaspiUnavailable";
+  | "kaspiUnavailable"
+  | "invalidAmount"
+  | "receiptInvalid"
+  | "paymentRule";
 
 export const OrderingError = contextError<OrderingErrorCode>("ordering", "OrderingError");
 export type OrderingError = InstanceType<typeof OrderingError>;

@@ -122,9 +122,12 @@ describe("нет русских строк вне словарей", () => {
     "lib/proofread/rules.ts", // слова и сокращения для правил проверки текста
     "lib/proofread/spelling.ts", // алфавит для отбора слов на проверку словарём
     "modules/referrals/domain/translit.ts", // таблица транслитерации имени в код-приглашение
+    "modules/ordering/application/OrderPaymentsService.ts", // приём денег по заказу — только сотрудник CRM
+    "modules/ordering/infrastructure/persistence/DrizzleOrderPaymentRepository.ts", // журнал оплат заказа для CRM
+    "shared/domain/receipt.ts", // имя файла чека по умолчанию — в CRM
   ]);
   // Строки для команды, а не для клиента.
-  const internalLine = /legalName:|Заказ создан|по договорённости с менеджером|учтена как аванс|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Клиент оформил заказ|засчитана оплата электронной|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml|note: `Спасибо за отзыв к заказу|note: `Приглашения от|note: `Награда за друга|title: `Отзыв \$\{r\.rating\}|this\.logger\.(warn|error)\(|new OrderingError\("kaspi(Unavailable|NotConnected)", /;
+  const internalLine = /legalName:|Заказ создан|по договорённости с менеджером|учтена как аванс|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Клиент оформил заказ|засчитана оплата электронной|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml|note: `Спасибо за отзыв к заказу|note: `Приглашения от|note: `Награда за друга|title: `Отзыв \$\{r\.rating\}|this\.logger\.(warn|error)\(|new OrderingError\("kaspi(Unavailable|NotConnected)", |ORDER_MONEY_LABELS|new OrderingError\("paymentRule", |orderTask\(e\.payload/;
 
   const files: string[] = [];
   const walk = (dir: string) => {

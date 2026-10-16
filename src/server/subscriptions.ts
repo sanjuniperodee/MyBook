@@ -1,5 +1,5 @@
 import "server-only";
-import type { OrderCancelled, OrderPaid, OrderPlaced, PaymentClaimed } from "@/modules/ordering";
+import type { OrderCancelled, OrderOverpaid, OrderPaid, OrderPlaced, PaymentClaimed, PostpayDue } from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealCreated, DealStageChanged } from "@/modules/sales";
@@ -40,6 +40,16 @@ export function registerSubscriptions(c: Container) {
     (e) => tellManager(e.payload.orderId, (n) => `Клиент оформил заказ №${e.payload.number} (сделка №${n})`, (t) => `${t}${e.payload.prepaid ? ` · предоплата ${e.payload.prepaid.toLocaleString("ru-RU")} ₸ учтена` : ""}`),
     "crm.notify.order_placed",
   );
+  // Деньги по заказу требуют решения: переплата (возврат или зачёт) и постоплата после доставки — задача ответственному сделки.
+  const orderTask = async (orderId: string, title: string) => {
+    for (const d of await c.sales.deals.byOrder(orderId)) {
+      const actor = { userId: d.assigneeId ?? "", name: "CRM", seesAll: true, allTasks: true };
+      if (d.assigneeId) await c.clients.tasks.create(actor, { title, kind: "task", orderId, dealId: d.id, assigneeId: d.assigneeId });
+      await (await notify()).staffNotifier.notifyOwnerOr(d.assigneeId, "orders.view", { kind: "task", title, body: d.title, link: `/admin/deals/${d.id}` });
+    }
+  };
+  c.bus.subscribe<OrderOverpaid>("ordering.order_overpaid", (e) => orderTask(e.payload.orderId, `Переплата ${e.payload.overpaid.toLocaleString("ru-RU")} ₸ по заказу №${e.payload.number} — оформите возврат или зачёт`), "crm.task.order_overpaid");
+  c.bus.subscribe<PostpayDue>("ordering.postpay_due", (e) => orderTask(e.payload.orderId, `Получить постоплату ${e.payload.outstanding.toLocaleString("ru-RU")} ₸ по заказу №${e.payload.number}`), "crm.task.postpay_due");
   c.bus.subscribe<PaymentClaimed>("ordering.payment_claimed", (e) => tellManager(e.payload.orderId, () => `Проверьте оплату заказа №${e.payload.number}`, (t) => `${t} · клиент сообщил, что оплатил`), "crm.notify.payment_claimed");
 
   // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──

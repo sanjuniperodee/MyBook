@@ -8,6 +8,8 @@ export interface OrderRepository {
   /** Идентичность нового заказа: uuid и номер из последовательности. */
   nextIdentity(): Promise<{ id: string; number: number }>;
   findById(id: string): Promise<Order | null>;
+  /** Блокирует заказ до конца транзакции: две оплаты (вебхук и сотрудник) не посчитают «получено» неверно. */
+  lockById(id: string): Promise<Order | null>;
   findByNumber(number: number): Promise<Order | null>;
   /** Заказ клиента (чужой — как будто не существует). */
   findOwned(id: string, userId: string): Promise<Order | null>;
@@ -60,4 +62,30 @@ export interface PaymentInvoiceRepository {
   toReconcile(since: Date, limit: number): Promise<PaymentInvoice[]>;
   add(invoice: PaymentInvoice): Promise<void>;
   save(invoice: PaymentInvoice): Promise<void>;
+}
+
+/** Запись журнала денег по заказу. */
+export interface OrderPaymentRecord {
+  id: string;
+  orderId: string;
+  amount: number;
+  method: "manual" | "kaspi" | "cloudpayments";
+  externalRef: string | null;
+  paidAt: Date;
+  note: string;
+  receipt: { storageKey: string; fileName: string; mime: string; size: number } | null;
+  createdById: string | null;
+  reviewedById: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface OrderPaymentRepository {
+  nextId(): string;
+  /** false — эта операция платёжной системы уже записана (повтор вебхука): денег второй раз нет. */
+  add(p: Omit<OrderPaymentRecord, "reviewedById" | "reviewedAt" | "createdAt">): Promise<boolean>;
+  list(orderId: string): Promise<OrderPaymentRecord[]>;
+  find(id: string): Promise<OrderPaymentRecord | null>;
+  /** Руководитель сверил ручную оплату с поступлением на счёт. */
+  review(id: string, reviewerId: string, at: Date): Promise<void>;
 }
