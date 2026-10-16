@@ -190,7 +190,11 @@ function world(): World {
       },
       closeTasks: async ({ dealId, prefix, keepTitle }) => {
         let n = 0;
-        for (const t of w.tasks) if (t.dealId === dealId && !t.done && t.title.startsWith(prefix) && t.title !== (keepTitle && plain(keepTitle))) (t.done = true), n++;
+        for (const t of w.tasks) {
+          if (t.dealId !== dealId || t.done || !t.title.startsWith(prefix) || t.title === (keepTitle && plain(keepTitle))) continue;
+          t.done = true;
+          n++;
+        }
         return n;
       },
       notify: async (to, n) => void w.notified.push({ to, title: plain(n.title) }),
