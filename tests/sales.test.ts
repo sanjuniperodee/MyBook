@@ -103,6 +103,8 @@ class MemDeals implements DealRepository {
   save = async (d: Deal) => void this.rows.set(d.id, d.snapshot());
   mergeInto = async (_t: Deal, s: Deal) => void this.rows.delete(s.id);
   delete = async (id: string) => void this.rows.delete(id);
+  money = new Set<string>();
+  hasMoney = async (id: string) => this.money.has(id);
   addNote = async () => {};
 }
 
@@ -137,6 +139,17 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
 }
 
 describe("DealsService", () => {
+  it("сделку с принятыми деньгами удалить нельзя — платежи и чеки пропали бы каскадом", async () => {
+    const { service, deals } = setup();
+    const d = await service.create({ title: "Книга", source: "manual", clientId: "c1" });
+    deals.money.add(d.id);
+    await expect(service.delete(d.id)).rejects.toMatchObject({ code: "dealHasPayments" });
+    expect(await service.findById(d.id)).not.toBeNull();
+    deals.money.delete(d.id);
+    await service.delete(d.id);
+    expect(await service.findById(d.id)).toBeNull();
+  });
+
   it("findByIds — одним запросом к хранилищу, в порядке запроса, без ненайденных (F4)", async () => {
     const { service, deals } = setup();
     const a = await service.create({ title: "А", source: "site", clientId: "c1" });

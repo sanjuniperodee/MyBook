@@ -12,7 +12,7 @@ import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
-import { MAX_PAYMENT } from "@/modules/sales/domain";
+import { MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
 
 export interface DealFormState {
   error?: string;
@@ -141,10 +141,15 @@ export async function assignDealAction(dealId: string, assigneeId: string | null
   return { ok: true as const };
 }
 
-export async function deleteDealAction(dealId: string) {
+export async function deleteDealAction(dealId: string): Promise<{ error: string } | void> {
   const staff = await assertStaff("deals.delete");
   const deal = await loadDeal(staff, dealId);
-  await container().sales.deals.delete(deal.id);
+  try {
+    await container().sales.deals.delete(deal.id);
+  } catch (err) {
+    if (SalesError.is(err) && err.code === "dealHasPayments") return { error: err.message };
+    throw err;
+  }
   await audit(staff, "deal.delete", "deal", deal.id, { number: deal.number, title: deal.title, amount: deal.amount });
   revalidateDeal(undefined, deal.clientId);
   redirect("/admin/deals");
@@ -310,7 +315,16 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
     if (req.op === "stage") await container().sales.deals.move(deal.id, req.stageId, staff.user.id, req.reason);
     else if (req.op === "assign") await container().sales.deals.assign(deal.id, req.userId);
     else if (req.op === "tag") await container().sales.deals.addTag(deal.id, req.tag);
-    else await container().sales.deals.delete(deal.id);
+    else {
+      try {
+        await container().sales.deals.delete(deal.id);
+      } catch (err) {
+        // Сделку с деньгами не удаляем — она в «пропущено».
+        if (!(SalesError.is(err) && err.code === "dealHasPayments")) throw err;
+        skipped++;
+        continue;
+      }
+    }
     done++;
   }
   if (req.op === "delete" || req.op === "assign") await audit(staff, `deal.bulk_${req.op}`, "deal", null, { count: done, ...(req.op === "assign" ? { to: req.userId } : {}) });

@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/shared/infrastructure/db/schema";
+import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks, crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
@@ -129,7 +129,17 @@ export class DrizzleDealRepository implements DealRepository {
     await db.update(crmCalls).set({ dealId: target.id }).where(eq(crmCalls.dealId, source.id));
     await db.update(crmTasks).set({ dealId: target.id }).where(eq(crmTasks.dealId, source.id));
     await db.update(crmNotes).set({ dealId: target.id }).where(eq(crmNotes.dealId, source.id));
+    // Деньги и чеки переходят вместе со сделкой: удаление слитой сделки иначе удаляет их каскадом.
+    await db.update(crmPayments).set({ dealId: target.id }).where(eq(crmPayments.dealId, source.id));
+    await db.update(crmReceipts).set({ dealId: target.id }).where(eq(crmReceipts.dealId, source.id));
     await db.delete(crmDeals).where(eq(crmDeals.id, source.id));
+  }
+
+  async hasMoney(dealId: string) {
+    const { rows } = await executor().execute<{ yes: boolean }>(
+      sql`select exists(select 1 from ${crmPayments} where ${crmPayments.dealId} = ${dealId}) or exists(select 1 from ${crmReceipts} where ${crmReceipts.dealId} = ${dealId}) as yes`,
+    );
+    return !!rows[0]?.yes;
   }
 
   async delete(dealId: string) {

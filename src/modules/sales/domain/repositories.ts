@@ -15,6 +15,8 @@ export interface DealRepository {
   /** Перенести переписку, звонки, задачи и ленту из source в target и удалить source. */
   mergeInto(target: Deal, source: Deal): Promise<void>;
   delete(dealId: string): Promise<void>;
+  /** По сделке приняты деньги (платежи или чеки) — её нельзя удалить, иначе они пропадут каскадом. */
+  hasMoney(dealId: string): Promise<boolean>;
   addNote(deal: { id: string; clientId: string | null }, text: string, authorId: string | null, kind: "note" | "call" | "message" | "system"): Promise<void>;
 }
 

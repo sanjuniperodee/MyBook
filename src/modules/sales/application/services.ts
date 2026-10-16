@@ -142,7 +142,10 @@ export class DealsService {
     await this.deals.save(deal);
   }
 
+  /** Удалить сделку. С принятыми деньгами нельзя: платежи и чеки удалились бы вместе с ней. */
   async delete(dealId: string) {
+    if (await this.deals.hasMoney(dealId))
+      throw new SalesError("dealHasPayments", "По сделке приняты деньги — её нельзя удалить. Переведите её в «Проиграна» или слейте с другой сделкой: платежи и чеки перейдут туда.");
     await this.deals.delete(dealId);
   }
 

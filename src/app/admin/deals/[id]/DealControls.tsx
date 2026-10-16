@@ -4,7 +4,7 @@ import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomField
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
-import { ask, toastError } from "@/components/ui/overlays";
+import { ask, toast, toastError } from "@/components/ui/overlays";
 import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, updateDealAction, type DealFormState } from "../actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -175,7 +175,8 @@ export function DealDelete({ id, number }: { id: string; number: number }) {
         (await ask(`Удалить сделку №${number}? Задачи и история по ней тоже удалятся.`, true)) &&
         start(async () => {
           try {
-            await deleteDealAction(id);
+            const r = await deleteDealAction(id);
+            if (r?.error) toast(r.error, "error");
           } catch (e) {
             if ((e as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw e;
             toastError(e);
