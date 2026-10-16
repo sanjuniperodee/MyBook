@@ -41,8 +41,9 @@ export async function dealCard(deal: { id: string; clientId: string | null; orde
   return { noteRows, taskRows, callRows, convs, client: client ?? null, order: order ?? null, bookRows };
 }
 
-/** Клиент, которого предлагаем привязать к сделке (нашёлся по телефону). */
+/** Клиент коротко: кого предлагаем привязать к сделке (нашёлся по телефону), язык кабинета и роль — для счёта из чата. */
 export async function clientBrief(id: string) {
-  const [u] = await executor().select({ id: users.id, name: users.name, email: users.email }).from(users).where(eq(users.id, id)).limit(1);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, phone: users.phone, locale: users.locale, role: users.role, managerId: users.managerId }).from(users).where(eq(users.id, id)).limit(1);
   return u ?? null;
 }

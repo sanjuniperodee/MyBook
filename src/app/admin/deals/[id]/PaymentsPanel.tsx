@@ -2,9 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, LoaderCircle, Paperclip, Trash2, TriangleAlert } from "lucide-react";
+import { FileText, LoaderCircle, Paperclip, ReceiptText, Trash2, TriangleAlert } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { planLabels } from "@/modules/ordering/ui/labels";
+import { InvoiceDialog } from "@/components/admin/invoices/InvoiceDialog";
+import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
+import { choiceNeeded, guardIds, newIssueKey, overpaidPayments, type InvoicePerms, type InvoiceView, type MoneyGuard } from "@/components/admin/invoices/model";
 import { setDealAgreedPlanAction } from "../actions";
 
 interface PaymentItem {
@@ -17,12 +20,24 @@ interface PaymentItem {
   receipts: { id: string; fileName: string; isPdf: boolean }[];
   /** Онлайн-платёж (Kaspi, карта): вместо чека — операция; удалить нельзя. */
   online?: string | null;
+  /** Счёт из чата, которым оплачено (P12). */
+  invoice?: string | null;
+}
+
+/** Ошибка сохранения с кодом ответа: invoiceChoice — пока форма была открыта, появился счёт или онлайн-оплата. */
+class SaveError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | undefined,
+  ) {
+    super(message);
+  }
 }
 
 async function send(url: string, body: FormData) {
   const res = await fetch(url, { method: "POST", body });
-  const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Не удалось сохранить");
+  const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+  if (!res.ok) throw new SaveError(data.error ?? "Не удалось сохранить", data.code);
 }
 
 /** Привязать чек к платежу, у которого его нет. */
@@ -31,7 +46,7 @@ function AttachReceipt({ dealId, payment, onDone }: { dealId: string; payment: P
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="mt-1.5 space-y-1">
+    <div className="mt-1.5 space-y-1" data-testid="attach-receipt">
       <div className="flex gap-2">
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="input h-9 min-w-0 flex-1 py-1 text-xs" />
         <button
@@ -77,10 +92,50 @@ export interface OrderMoneyView {
   rows: { id: string; amount: number; method: string; dateLabel: string; receipt: boolean }[];
 }
 
-export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDelete = false, order, orderMoney = null }: { dealId: string; payments: PaymentItem[]; agreed: number; plan: string | null; canEdit: boolean; canDelete?: boolean; order: { id: string; number: number } | null; orderMoney?: OrderMoneyView | null }) {
+const noInvoicePerms: InvoicePerms = { edit: false, send: false, access: false, pay: false };
+
+export function PaymentsPanel({
+  dealId,
+  payments,
+  agreed,
+  plan,
+  canEdit,
+  canDelete = false,
+  order,
+  orderMoney = null,
+  invoices = [],
+  invoicePerms = noInvoicePerms,
+  guard = null,
+  payInvoiceId = null,
+  canIssue = false,
+}: {
+  dealId: string;
+  payments: PaymentItem[];
+  agreed: number;
+  plan: string | null;
+  canEdit: boolean;
+  canDelete?: boolean;
+  order: { id: string; number: number } | null;
+  orderMoney?: OrderMoneyView | null;
+  /** Счета из чата по сделке (новые сверху). */
+  invoices?: InvoiceView[];
+  invoicePerms?: InvoicePerms;
+  /** Открытый счёт и онлайн-оплаты за 72 ч: приём платежа требует явного выбора «по счёту» или «другая оплата». */
+  guard?: MoneyGuard | null;
+  /** «Оплата пришла» из чата (?pay=): форма приёма открывается с этим счётом. */
+  payInvoiceId?: string | null;
+  /** Можно выставить счёт (chats.send + deals.edit, ведёт сделку). */
+  canIssue?: boolean;
+}) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
-  const [amount, setAmount] = useState("");
+  const form = useRef<HTMLDivElement>(null);
+  // Счёт, по которому можно принять перевод: ждёт оплаты или истёк (клиент мог заплатить в последний день).
+  const payable = (id: string | null | undefined) => invoices.find((i) => i.id === id && (i.status === "pending_payment" || i.status === "expired")) ?? null;
+  // Выбор в форме: "" — ещё не выбрали, "other" — другая оплата, иначе id счёта.
+  const [choice, setChoice] = useState(() => payable(payInvoiceId)?.id ?? "");
+  const [invoiceKey, setInvoiceKey] = useState<string | null>(null);
+  const [amount, setAmount] = useState(() => String(payable(payInvoiceId)?.amount ?? ""));
   const [day, setDay] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +150,21 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
   const [refundNote, setRefundNote] = useState("");
   const refundFile = useRef<HTMLInputElement>(null);
   const noReceipt = payments.filter((p) => !p.receipts.length && p.kind !== "refund" && !p.online);
+  const overpaid = overpaidPayments(payments, agreed);
   const refresh = () => router.refresh();
+  const byInvoice = choice && choice !== "other" ? payable(choice) : null;
+  // Варианты «по счёту»: открытый счёт и выбранный кнопкой «Оплата пришла» (может быть истёкшим).
+  const invoiceChoices = [...new Map([payable(guard?.invoice?.id), payable(payInvoiceId), byInvoice].filter((i): i is InvoiceView => !!i).map((i) => [i.id, i])).values()];
+  const mustChoose = choiceNeeded(guard) || invoiceChoices.length > 0;
+
+  /** «Оплата пришла» в блоке счетов: форма приёма с этим счётом и его суммой. */
+  function payByInvoice(v: InvoiceView) {
+    setChoice(v.id);
+    setAmount(String(v.amount));
+    setError(null);
+    form.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    file.current?.focus();
+  }
   const [planValue, setPlanValue] = useState(plan ?? "");
   const [planMsg, setPlanMsg] = useState<string | null>(null);
   const planOptions = getPlans().filter((p) => !p.hidden || p.id === plan);
@@ -103,20 +172,26 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
   async function add() {
     const f = file.current?.files?.[0];
     if (!f) return setError("Приложите чек: платёж без чека не принимается");
+    if (mustChoose && !choice) return setError("Отметьте: оплата по счёту или другая оплата");
     setBusy(true);
     setError(null);
     try {
       const body = new FormData();
       body.set("file", f);
-      body.set("amount", amount);
+      body.set("amount", byInvoice ? String(byInvoice.amount) : amount);
       if (day) body.set("paidAt", day);
+      // По счёту — счёт закрывается этой оплатой; «другая» — сервер сверит, что менеджер видел открытый счёт и онлайн-оплаты.
+      if (byInvoice) body.set("invoiceId", byInvoice.id);
+      else if (choice === "other") body.set("seen", guardIds(guard).join(","));
       await send(`/api/admin/deals/${dealId}/payments`, body);
       if (file.current) file.current.value = "";
       setAmount("");
       setDay("");
+      setChoice("");
       refresh();
     } catch (e) {
       setError((e as Error).message);
+      if (e instanceof SaveError && e.code === "invoiceChoice") refresh();
     } finally {
       setBusy(false);
     }
@@ -147,8 +222,16 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
   }
 
   return (
-    <section className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-payments">
-      <h2 className="text-sm font-semibold">Оплата и чеки</h2>
+    <section id="deal-payments" className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-payments">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">Оплата и чеки</h2>
+        {canIssue && !locked ? (
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setInvoiceKey(newIssueKey())} data-testid="issue-invoice">
+            <ReceiptText className="size-4" /> Счёт
+          </button>
+        ) : null}
+      </div>
+      {invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={dealId} onClose={() => setInvoiceKey(null)} /> : null}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-cream/70 p-2">
           <div className="text-[11px] text-muted">{orderMoney ? `Всего по заказу №${order?.number}` : "Книга по договорённости"}</div>
@@ -228,6 +311,7 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
           ) : null}
         </p>
       ) : null}
+      <InvoicesBlock dealId={dealId} invoices={invoices} perms={invoicePerms} onPaid={canEdit && !locked ? payByInvoice : undefined} />
       {dealPaid > agreed && agreed > 0 && !locked ? <p className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-900">Получено больше, чем договорились: проверьте сумму сделки или платежи.</p> : null}
       {noReceipt.length ? (
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-900" role="alert">
@@ -249,7 +333,12 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
                 <span className="ml-auto truncate text-xs text-muted">
                   {p.dateLabel} · {p.author}
                 </span>
-                {p.online ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-800">{p.online}</span> : null}
+                {p.invoice && !p.online ? <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">по счёту {p.invoice}</span> : null}
+                {overpaid.has(p.id) ? (
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-800" title="После этого платежа оплачено больше договорённости">
+                    переплата
+                  </span>
+                ) : null}
                 {canDelete && !locked && !p.online ? (
                   <button
                     type="button"
@@ -268,7 +357,13 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
                 ) : null}
               </div>
               {p.note ? <p className="mt-1 text-xs text-muted">{p.note}</p> : null}
-              {p.receipts.length ? (
+              {p.online ? (
+                // Онлайн-платёж подтвердила платёжная система: вместо чека — операция и счёт.
+                <p className="mt-1 text-xs text-emerald-800" data-testid="payment-online">
+                  {p.online}
+                  {p.invoice ? ` · счёт ${p.invoice}` : ""}
+                </p>
+              ) : p.receipts.length ? (
                 <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
                   {p.receipts.map((r) => (
                     <li key={r.id} className="flex items-center gap-1 text-xs">
@@ -290,15 +385,51 @@ export function PaymentsPanel({ dealId, payments, agreed, plan, canEdit, canDele
       )}
 
       {canEdit && !locked ? (
-        <div className="space-y-2 border-t border-line pt-3">
+        <div ref={form} className="space-y-2 border-t border-line pt-3">
           <div className="text-xs font-medium text-ink-soft">Принять платёж</div>
+          {mustChoose ? (
+            <fieldset className="space-y-1.5 rounded-xl bg-amber-50/70 p-2.5 text-xs" data-testid="payment-choice">
+              <legend className="sr-only">По счёту или другая оплата</legend>
+              {guard?.recentOnline.length ? <p className="text-amber-900">Недавно уже пришла онлайн-оплата: {guard.recentOnline.map((r) => r.text).join("; ")}. Не записывайте её второй раз.</p> : null}
+              {invoiceChoices.map((v) => (
+                <label key={v.id} className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="payment-choice"
+                    checked={choice === v.id}
+                    onChange={() => {
+                      setChoice(v.id);
+                      setAmount(String(v.amount));
+                    }}
+                  />
+                  По счёту {v.label} — {formatPrice(v.amount)}
+                  {v.status === "expired" ? " (истёк)" : ""}
+                </label>
+              ))}
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="radio" name="payment-choice" checked={choice === "other"} onChange={() => setChoice("other")} />
+                Это другая оплата{invoiceChoices.length ? " (не по счёту, в том числе часть суммы)" : ""}
+              </label>
+            </fieldset>
+          ) : null}
           <div className="grid grid-cols-2 gap-2">
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min={1} step={500} placeholder="Сумма, ₸" className="input h-10" aria-label="Сумма платежа" />
+            <input
+              value={byInvoice ? String(byInvoice.amount) : amount}
+              onChange={(e) => setAmount(e.target.value)}
+              readOnly={!!byInvoice}
+              title={byInvoice ? `Сумма счёта ${byInvoice.label}; частичную оплату примите как «другую»` : undefined}
+              type="number"
+              min={1}
+              step={500}
+              placeholder="Сумма, ₸"
+              className="input h-10"
+              aria-label="Сумма платежа"
+            />
             <input value={day} onChange={(e) => setDay(e.target.value)} type="date" className="input h-10" aria-label="Дата платежа" />
           </div>
           <input ref={file} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="input h-10 w-full py-1.5 text-xs" aria-label="Чек" />
-          <button type="button" className="btn btn-primary btn-sm w-full" disabled={busy || !amount} onClick={() => void add()}>
-            {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Paperclip className="size-4" />} Принять платёж с чеком
+          <button type="button" className="btn btn-primary btn-sm w-full" disabled={busy || !(byInvoice || amount) || (mustChoose && !choice)} onClick={() => void add()}>
+            {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Paperclip className="size-4" />} {byInvoice ? `Принять оплату по счёту ${byInvoice.label} с чеком` : "Принять платёж с чеком"}
           </button>
           <p className="text-xs text-muted">Платёж сразу попадает в выручку: обзор, аналитику, план менеджера и карточку клиента.</p>
           {error ? <p className="text-xs text-red-700">{error}</p> : null}
