@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, SendHorizontal, Sparkles, Wallet } from "lucide-react";
+import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, ReceiptText, SendHorizontal, Sparkles, Wallet } from "lucide-react";
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
+import { InvoiceDialog } from "./invoices/InvoiceDialog";
+import { newIssueKey } from "./invoices/model";
 import type { ChatOffers } from "@/modules/marketing";
 import type { ChatMessage } from "@/modules/messaging";
 import { fillTemplate } from "@/shared/domain/templates";
@@ -102,6 +104,7 @@ export function ChatPanel({
   mentionables = [],
   offers = null,
   ai = false,
+  invoice = null,
   timeZone,
 }: {
   conversationId: string;
@@ -115,6 +118,8 @@ export function ChatPanel({
   offers?: ChatOffers | null;
   /** Подключён AI-помощник: кнопка «Подсказать ответ». */
   ai?: boolean;
+  /** Можно выставить счёт (chats.send + deals.edit, сотрудник ведёт диалог и сделку): кнопка «Счёт». Сделки нет — заведётся при выпуске. */
+  invoice?: { dealId: string | null } | null;
   /** Часовой пояс магазина — storeTimeZone() на сервере. */
   timeZone: string;
 }) {
@@ -125,6 +130,8 @@ export function ChatPanel({
   const [showOffers, setShowOffers] = useState(false);
   const [discount, setDiscount] = useState({ percent: 10, hours: 48 });
   const [mode, setMode] = useState<"client" | "note">(canSend ? "client" : "note");
+  // Ключ формы счёта — новый на каждое открытие диалога: повторное нажатие «Выставить» не выпустит второй счёт.
+  const [invoiceKey, setInvoiceKey] = useState<string | null>(null);
   const [sending, start] = useTransition();
   const [thinking, think] = useTransition();
   const scroller = useRef<HTMLDivElement>(null);
@@ -268,6 +275,7 @@ export function ChatPanel({
           );
         })}
       </div>
+      {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
       <div className={cn("relative border-t bg-white p-3", mode === "note" ? "border-amber-200 bg-amber-50/60" : "border-line")}>
         {showTemplates && templates.length && mode === "client" ? (
           <div className="absolute right-3 bottom-full left-3 mb-2 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
@@ -344,6 +352,11 @@ export function ChatPanel({
               {offers ? (
                 <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setShowOffers((v) => !v), setShowTemplates(false))} title="Оплата и скидка" aria-label="Оплата и скидка">
                   <Wallet className="size-5" />
+                </button>
+              ) : null}
+              {invoice ? (
+                <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setInvoiceKey(newIssueKey()), setShowOffers(false), setShowTemplates(false))} title="Счёт на оплату: ссылка клиенту в чат" aria-label="Счёт">
+                  <ReceiptText className="size-5" />
                 </button>
               ) : null}
               {ai ? (
