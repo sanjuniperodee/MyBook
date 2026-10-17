@@ -108,7 +108,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
-      {agreement ? <div className="mb-8"><AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, answered: stats.answered }]} /></div> : null}
+      {agreement ? <div className="mb-8"><AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, theme: book.theme, answered: stats.answered, total: stats.total, words: stats.words }]} /></div> : null}
       {/* Книга */}
       <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:gap-16">
         <div className="mx-auto w-full max-w-[260px] lg:max-w-[300px]">

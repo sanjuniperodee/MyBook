@@ -45,7 +45,9 @@ export class DrizzleBookRepository implements BookRepository {
   async findById(id: string, opts: { lock?: boolean } = {}) {
     if (!isUuid(id)) return null;
     const q = executor().select().from(books).where(eq(books.id, id)).limit(1);
-    const [r] = opts.lock ? await q.for("update") : await q;
+    // «no key update»: правки книги идут по очереди (и с заказом — lockForOrder), но вставки со ссылкой на книгу
+    // (фото, письма, заказ) не ждут, пока закончится автосохранение или перестановка глав.
+    const [r] = opts.lock ? await q.for("no key update") : await q;
     return r ? bookToDomain(r) : null;
   }
   async findByInviteToken(token: string) {

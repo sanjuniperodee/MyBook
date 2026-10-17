@@ -1,7 +1,8 @@
 import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
-import { bookLetters, bookQuestions, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
+import { bookLetters, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
+import { answeredSql, totalSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 
 export async function clientById(id: string) {
@@ -17,8 +18,8 @@ export async function clientCard(id: string, sections: { deals: boolean }) {
     db
       .select({
         book: books,
-        answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
-        total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+        answered: answeredSql(booksId),
+        total: totalSql(booksId),
         photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
         letters: sql<number>`(select count(*)::int from ${bookLetters} l where l.book_id = ${booksId})`,
       })

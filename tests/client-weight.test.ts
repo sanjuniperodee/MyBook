@@ -46,6 +46,18 @@ describe("вес клиентских модулей: виды книг", () => 
   });
 });
 
+describe("вес клиентских модулей: банки вопросов", () => {
+  /** Банки вопросов всех тем (ru и kk) и каталог тем — сотни строк текста, браузеру они не нужны. */
+  const bank = (f: string) => /^src\/lib\/content\/(themes|love|parent|friend|autobiography|kk\/)/.test(f);
+
+  it.each(["src/components/editor/QuestionsEditor.tsx", "src/components/editor/preview/PagePreview.tsx", "src/app/(app)/books/new/NewBookWizard.tsx"])("%s не тянет банки вопросов (вид книги — только из kinds.ts)", (entry) => {
+    const seen = [...reach(entry)];
+    expect(seen.filter(bank)).toEqual([]);
+    // Сам граф живой: если клиентский модуль перестанет импортировать kinds.ts, проверка выше не значит ничего.
+    if (entry === "src/components/editor/QuestionsEditor.tsx") expect(seen).toContain("src/lib/content/kinds.ts");
+  });
+});
+
 describe("вес клиентских модулей: обложки (F3)", () => {
   it("мастер новой книги рисует обложки тем по метаданным — каталог шаблонов с рисунками в браузер не идёт", () => {
     const catalog = [...reach("src/app/(app)/books/new/NewBookWizard.tsx")].filter((f) => f === "src/lib/book/covers/index.ts" || f.startsWith("src/lib/book/covers/client-photo/"));

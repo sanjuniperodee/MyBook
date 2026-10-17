@@ -310,6 +310,15 @@ describe("BookOutlineService: разделы своей книги", () => {
     expect(gift.store.questions[0].displayText).toBe("Свой заголовок");
   });
 
+  it("автосохранение берёт строку книги под блокировку первой — как операции оглавления (без взаимной блокировки с перестановкой)", async () => {
+    const { questions, store, books } = outlineSetup();
+    store.seed("b1", [{ key: "a", sections: [""] }]);
+    await questions.edit("b1", owner, "s1", { answer: "Текст" });
+    expect(books.locks).toBe(1);
+    await rejectsWith(questions.edit("b1", viewOnlyStaff, "s1", { answer: "Чужое" }), "bookNotFound");
+    expect(store.questions[0].answer).toBe("Текст");
+  });
+
   it("свой вопрос прежней формой (после вопроса) в своей книге — outlineNotAllowed; в книге с банком — после него и с перенумерацией", async () => {
     const blank = outlineSetup();
     blank.store.seed("b1", [{ key: "a", sections: [""] }]);

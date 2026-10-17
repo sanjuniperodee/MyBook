@@ -100,6 +100,12 @@ describe("виды книг", () => {
     expect(themeChaptersByLocale("autobiography").ru.map((c) => c.key)).toEqual(["intro", "roots", "childhood", "school", "youth", "work", "love", "children", "home", "times", "trials", "joys", "wisdom", "letter"]);
   });
 
+  it("автобиография: не меньше 60 вопросов на обоих языках; подсказка первого вопроса объясняет запись со слов близкого", () => {
+    for (const lang of ["ru", "kk"] as const) expect(countQuestions(getTheme("autobiography", lang)), lang).toBeGreaterThanOrEqual(60);
+    expect(getTheme("autobiography", "ru").chapters[0].questions[0][2]).toContain("пишите его словами, от первого лица");
+    expect(getTheme("autobiography", "kk").chapters[0].questions[0][2]).toBeTruthy();
+  });
+
   it("варианты названий ru и kk одной длины — смена языка сопоставляет их по индексу", () => {
     for (const id of themeIds) expect(getTheme(id, "kk").titleSuggestions.length, id).toBe(getTheme(id, "ru").titleSuggestions.length);
   });

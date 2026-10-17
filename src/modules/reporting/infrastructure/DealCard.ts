@@ -1,7 +1,8 @@
 import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
-import { bookQuestions, books, crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
+import { books, crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
+import { answeredSql, totalSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 
 export async function dealById(id: string) {
@@ -28,8 +29,8 @@ export async function dealCard(deal: { id: string; clientId: string | null; orde
             recipientName: books.recipientName,
             status: books.status,
             updatedAt: books.updatedAt,
-            answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
-            total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+            answered: answeredSql(booksId),
+            total: totalSql(booksId),
             photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
           })
           .from(books)

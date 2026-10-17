@@ -167,7 +167,10 @@ export class QuestionsService {
    */
   async edit(bookId: string, viewer: BookViewer, questionId: string, patch: QuestionPatch) {
     return this.uow.run(async () => {
-      const book = await loadBook(this.books, bookId, viewer, { editable: true });
+      // Строка книги — первой, как у операций оглавления: иначе автосохранение держит строку вопроса и ждёт книгу
+      // (touch), а перестановка держит книгу и ждёт этот вопрос (перенумерация) — взаимная блокировка (deadlock).
+      // Заодно заказ, оформленный посреди сохранения, не пропустит правку в уже заказанную книгу.
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
       const q = await this.questions.findInBook(book.id, questionId);
       if (!q) throw new AuthoringError("questionNotFound");
       const outline = hasOutline(book.theme);
