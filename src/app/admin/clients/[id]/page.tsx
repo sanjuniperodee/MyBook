@@ -10,7 +10,7 @@ import { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
 import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile } from "./sections";
 import { ClientAccess } from "./ClientAccess";
-import { displayLogin } from "@/app/admin/clients/new/access-message";
+import { staffLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
 import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { pageId } from "@/server/input";
@@ -65,7 +65,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           {can(staff, "clients.create") && client.role === "user" ? (
             <section className="rounded-2xl border border-line bg-white p-5">
               <h2 className="mb-3 text-sm font-semibold">Доступ в кабинет</h2>
-              <ClientAccess clientId={client.id} loginText={displayLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email)} />
+              <ClientAccess clientId={client.id} loginText={staffLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email, can(staff, "clients.contacts"))} />
             </section>
           ) : null}
           {canEdit ? (

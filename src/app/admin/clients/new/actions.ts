@@ -6,7 +6,7 @@ import { uuid } from "@/server/input";
 import { env } from "@/config/env";
 import { getPlan, getVisiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
-import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
+import { accessMessage, staffLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
 import type { DealPart, OnboardingResult } from "@/modules/clients";
 import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
@@ -27,7 +27,6 @@ export interface NewClientDone {
   parts: DealPart[];
   /** Сколько книг оплачено/заказано сразу. */
   count: number;
-  login: string;
   loginText: string;
   password: string;
   loginUrl: string;
@@ -135,11 +134,10 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
       paymentId,
       parts,
       count: withDeal ? d.count : 0,
-      login: account.login,
-      loginText: displayLogin(account.login),
+      loginText: staffLogin(account.login, can(staff, "clients.contacts")),
       password,
       loginUrl,
-      message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale }),
+      message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale, hideLogin: !can(staff, "clients.contacts") }),
       agreed: d.agreed,
       prepaid: d.prepaid,
       remainder: Math.max(0, d.agreed * d.count - d.prepaid),
@@ -149,7 +147,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
 }
 
 /** Выдать клиенту новый пароль (потерял, не получил): прежние входы завершаются. Пароль показывается один раз. */
-export async function issueClientAccessAction(clientId: string): Promise<{ error?: string; login?: string; loginText?: string; password?: string; message?: string }> {
+export async function issueClientAccessAction(clientId: string): Promise<{ error?: string; loginText?: string; password?: string; message?: string }> {
   const staff = await assertStaff("clients.create");
   const id = uuid.safeParse(clientId);
   if (!id.success) return { error: "Клиент не найден" };
@@ -162,7 +160,8 @@ export async function issueClientAccessAction(clientId: string): Promise<{ error
     const r = await container().identity.accounts.issueClientPassword(id.data, password);
     await audit(staff, "client.access", "client", id.data);
     const loginUrl = `${env.appUrl}${r.locale === "kk" ? "/kk" : ""}/login`;
-    return { login: r.login, loginText: displayLogin(r.login), password, message: accessMessage({ name: r.name, login: r.login, password, loginUrl, locale: r.locale }) };
+    const full = can(staff, "clients.contacts");
+    return { loginText: staffLogin(r.login, full), password, message: accessMessage({ name: r.name, login: r.login, password, loginUrl, locale: r.locale, hideLogin: !full }) };
   } catch (err) {
     if (IdentityError.is(err)) return { error: "Для этого аккаунта пароль выдать нельзя" };
     throw err;

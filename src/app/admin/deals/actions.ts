@@ -16,7 +16,7 @@ import { dealSources } from "@/shared/domain/dealSources";
 import { MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
 import { env } from "@/config/env";
 import { generateAccessPassword } from "@/lib/access-password";
-import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
+import { accessMessage, staffLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
 import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
 
@@ -398,7 +398,7 @@ const fromDealSchema = z.object({
   channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент (канал продаж)"),
 });
 
-export type ClientFromDealState = { error?: string; existingId?: string; done?: { clientId: string; login: string; loginText: string; password: string; message: string } };
+export type ClientFromDealState = { error?: string; existingId?: string; done?: { clientId: string; loginText: string; password: string; message: string } };
 
 /**
  * Завести аккаунт клиента прямо из сделки: телефон — из сделки (сервер берёт его сам, менеджер мог его и не видеть),
@@ -431,5 +431,5 @@ export async function createClientFromDealAction(dealId: string, _: ClientFromDe
   await audit(staff, "client.create", "client", account.clientId, { deal: deal.number, channel: d.channel, fromDeal: true });
   revalidateDeal(deal.id, account.clientId);
   const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
-  return { done: { clientId: account.clientId, login: account.login, loginText: displayLogin(account.login), password, message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale }) } };
+  return { done: { clientId: account.clientId, loginText: staffLogin(account.login, can(staff, "clients.contacts")), password, message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale, hideLogin: !can(staff, "clients.contacts") }) } };
 }
