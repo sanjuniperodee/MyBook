@@ -59,3 +59,30 @@ function setupSnapshot() {
   };
 }
 
+
+import { safeContactName } from "@/modules/messaging/domain";
+import { findSensitive } from "@/modules/messaging/domain/sensitive";
+
+describe("имя контакта с номером", () => {
+  it.each([
+    ["+7 701 234 56 78", "…5678"],
+    ["77012345678", "…5678"],
+    ["Мама 8 (701) 234-56-78", "Мама …5678"],
+    ["Айгерим", "Айгерим"],
+    ["Азамат 2024", "Азамат 2024"],
+  ])("«%s» → «%s»", (name, out) => {
+    expect(safeContactName(name)).toBe(out);
+  });
+});
+
+describe("«левак»: номера не только казахстанские", () => {
+  it.each(["пишите +7 916 123 45 67", "8 495 123-45-67", "8-800-555-35-35", "+90 532 123 45 67", "٧٧٠١٢٣٤٥٦٧٨", "9161234567"])("«%s» — номер", (t) => {
+    expect(findSensitive(t).some((f) => f.kind === "phone")).toBe(true);
+  });
+  it.each(["оплата 10 000 20 000", "итого 1 200 000", "заказ №1234567890", "77 01 2025"])("«%s» — не номер", (t) => {
+    expect(findSensitive(t).some((f) => f.kind === "phone")).toBe(false);
+  });
+  it("номер клиента и магазина разрешён в любом виде", () => {
+    expect(findSensitive("мой номер +7 916 123 45 67", ["89161234567"])).toEqual([]);
+  });
+});

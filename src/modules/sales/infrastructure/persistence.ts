@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, gt, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks, crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -124,7 +124,8 @@ export class DrizzleDealRepository implements DealRepository {
       .select({ id: crmDeals.id })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-      .where(and(eq(crmStages.kind, "open"), isNull(crmDeals.assigneeId)))
+      // Только свежие неразобранные заявки: давние сделки без ответственного и заявки, ждущие решения руководителя («спам/отклонить»), круг не трогает.
+      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNull(crmDeals.assigneeId), gt(crmDeals.createdAt, sql`now() - interval '7 days'`), sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`))
       .orderBy(asc(crmDeals.createdAt))
       .limit(limit);
     return rows.map((r) => r.id);

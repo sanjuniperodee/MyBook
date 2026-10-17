@@ -6,6 +6,7 @@ import {
   contactEmail,
   contactPhone,
   contactTitle,
+  safeContactName,
   findSensitive,
   isClosingReply,
   preview,
@@ -102,7 +103,8 @@ export class MessagingService {
   async ingest(raw: InboundMessage, extra: IngestExtra = {}) {
     // Входящее, эхо и захват эха — по тексту без секретов: ссылка доступа не ложится в CRM открытым текстом,
     // а эхо нашего сообщения сравнивается с уже замаскированной записью.
-    const m = withoutSecrets(raw);
+    const clean = withoutSecrets(raw);
+    const m = { ...clean, contactName: safeContactName(clean.contactName) };
     const { conv: base, created } = await this.upsert(m, extra);
     if (m.isEcho) {
       // Эхо нашего же сообщения из CRM: внешний ID уже записан при отправке (или запишется) — не дублируем.

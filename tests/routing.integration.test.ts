@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@/shared/infrastructure/db";
 import { rootDb, txStorage } from "@/shared/infrastructure/database";
+import { DrizzleDealRepository } from "@/modules/sales/infrastructure/persistence";
 import { roundRobinRouter } from "@/modules/sales/infrastructure/adapters";
 
 /**
@@ -62,5 +63,22 @@ run("sales: круг (PostgreSQL)", () => {
 
   it("isActive: отключённый сотрудник — нет", async () => {
     expect([await router.isActive(ids.a), await router.isActive(ids.gone)]).toEqual([true, false]);
+  });
+
+  it("waitingForRoute: только свежие неразобранные без ответственного, без «спам/отклонить»", async () => {
+    const [stage] = await q<{ id: string }>(sql`select id from crm_stages where kind = 'open' order by position limit 1`);
+    const mk = async (key: string, o: { unsorted?: boolean; ago?: string; tags?: string } = {}) =>
+      (await q<{ id: string }>(sql`insert into crm_deals (title, stage_id, contact_name, unsorted, created_at, tags) values (${tag + key}, ${stage.id}, 'К', ${o.unsorted ?? true}, now() - ${o.ago ?? "1 hour"}::interval, ${`{${o.tags ?? ""}}`}::text[]) returning id`))[0].id;
+    const fresh = await mk("fresh");
+    const old = await mk("old", { ago: "30 days" });
+    const sorted = await mk("sorted", { unsorted: false });
+    const spam = await mk("spam", { tags: "\"запрос: спам\"" });
+    try {
+      const got = await new DrizzleDealRepository().waitingForRoute(100000);
+      expect(got).toContain(fresh);
+      for (const id of [old, sorted, spam]) expect(got).not.toContain(id);
+    } finally {
+      await q(sql`delete from crm_deals where title like ${tag + "%"} and assignee_id is null`);
+    }
   });
 });
