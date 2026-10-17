@@ -43,6 +43,9 @@ async function crmTick() {
     if (!locked) return;
     const fired = await container().automation.engine.runScheduled();
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
+    // Напоминания о задачах: ответственному — в CRM со звуком и в WhatsApp.
+    const reminded = await container().clients.tasks.remindDue().catch((err) => (console.error("[scheduler] task reminders", err), 0));
+    if (reminded) console.log(`[scheduler] task reminders=${reminded}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await container().sales.routing.run();
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);

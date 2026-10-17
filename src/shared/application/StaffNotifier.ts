@@ -1,6 +1,6 @@
 /** Уведомление сотруднику CRM: колокольчик, открытые вкладки и push на устройства. */
 export interface StaffNotification {
-  kind: "message" | "call" | "task" | "deal" | "sla" | "system" | "mention";
+  kind: "message" | "call" | "task" | "reminder" | "deal" | "sla" | "system" | "mention";
   title: string;
   body?: string;
   link?: string | null;

@@ -2,7 +2,22 @@ import type { Clock } from "@/shared/application";
 import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
 import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
-import type { ClientProfile, ClientRepository, CrmLinks, NoteRepository, StaffDirectory, StaffNotifier, TaskRepository } from "./ports";
+import { zonedParts } from "@/shared/domain/time";
+import type { ClientProfile, ClientRepository, CrmLinks, NoteRepository, StaffDirectory, StaffMessenger, StaffNotifier, TaskRepository } from "./ports";
+
+/** Напоминание о задаче со сроком по умолчанию — за час. */
+export const DEFAULT_REMIND_MIN = 60;
+/** Напоминание, опоздавшее больше чем на столько минут (сервер лежал), уже не шлём: срок прошёл. */
+const REMIND_STALE_MIN = 60;
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** «через 15 мин», «через 1 ч», «через 1 дн». */
+function leadLabel(min: number) {
+  if (min < 60) return `${Math.max(1, min)} мин`;
+  if (min < 24 * 60) return `${Math.round(min / 60)} ч`;
+  return `${Math.round(min / 1440)} дн`;
+}
 
 /** Кто действует и что ему разрешено (из контекста Access). */
 export interface Actor {
@@ -61,9 +76,11 @@ export class TasksService {
     private readonly notifier: StaffNotifier,
     private readonly clock: Clock,
     private readonly staff: StaffDirectory,
+    private readonly messenger: StaffMessenger | null = null,
   ) {}
 
-  async create(actor: Actor, input: { title: string; kind: TaskKind; dueAt?: string; clientId?: string; orderId?: string; dealId?: string; assigneeId?: string }) {
+  /** remindBeforeMin: undefined — по умолчанию (за час, если есть срок), null — не напоминать. */
+  async create(actor: Actor, input: { title: string; kind: TaskKind; dueAt?: string; remindBeforeMin?: number | null; clientId?: string; orderId?: string; dealId?: string; assigneeId?: string }) {
     let clientId = input.clientId ?? null;
     if (!clientId && input.orderId) clientId = await this.links.clientOfOrder(input.orderId);
     if (!clientId && input.dealId) clientId = await this.links.clientOfDeal(input.dealId);
@@ -72,12 +89,33 @@ export class TasksService {
     if (assigneeId !== actor.userId && !actor.seesAll) throw new ClientsError("forbidden");
     // Исполнитель — действующий сотрудник, как у ответственного клиента (setManager); отключённому задачу не ставим (B12).
     if (assigneeId !== actor.userId && !(await this.staff.isActiveStaff(assigneeId))) throw new ClientsError("staffNotFound", "Сотрудник не найден");
-    await this.tasks.add({ title: input.title, kind: input.kind, dueAt: taskDue(input.dueAt), clientId, orderId: input.orderId ?? null, dealId: input.dealId ?? null, assigneeId, createdById: actor.userId });
+    const dueAt = taskDue(input.dueAt);
+    const remindBeforeMin = dueAt ? (input.remindBeforeMin === undefined ? DEFAULT_REMIND_MIN : input.remindBeforeMin) : null;
+    await this.tasks.add({ title: input.title, kind: input.kind, dueAt, remindBeforeMin, clientId, orderId: input.orderId ?? null, dealId: input.dealId ?? null, assigneeId, createdById: actor.userId });
     if (assigneeId !== actor.userId) {
       const link = input.dealId ? `/admin/deals/${input.dealId}` : input.orderId ? `/admin/orders/${input.orderId}` : "/admin/tasks";
       await this.notifier.notify([assigneeId], { kind: "task", title: `Новая задача: ${input.title}`, body: `Поставил(а) ${actor.name}`, link });
     }
     return { clientId };
+  }
+
+  /**
+   * Напоминания, время которых пришло: ответственному — уведомление в CRM (со звуком, kind «reminder») и сообщение в его
+   * WhatsApp. Каждое уходит один раз (задачу забирает claimDueReminders). Сбой WhatsApp не отменяет уведомление в CRM.
+   */
+  async remindDue(): Promise<number> {
+    const now = this.clock.now();
+    const due = await this.tasks.claimDueReminders(now, REMIND_STALE_MIN);
+    for (const t of due) {
+      const link = t.dealId ? `/admin/deals/${t.dealId}` : t.orderId ? `/admin/orders/${t.orderId}` : "/admin/tasks";
+      const left = Math.max(0, Math.round((t.dueAt.getTime() - now.getTime()) / 60_000));
+      const p = zonedParts(t.dueAt);
+      const when = `${pad(p.d)}.${pad(p.m)} ${pad(Math.floor(p.minutes / 60))}:${pad(p.minutes % 60)}`;
+      const title = left < 1 ? `Срок задачи наступил: ${t.title}` : `Через ${leadLabel(left)} срок задачи: ${t.title}`;
+      await this.notifier.notify([t.assigneeId], { kind: "reminder", title, body: `Срок: ${when}`, link }).catch(() => {});
+      await this.messenger?.send(t.assigneeId, `⏰ ${title}\nСрок: ${when}\n${link}`).catch(() => false);
+    }
+    return due.length;
   }
 
   /**

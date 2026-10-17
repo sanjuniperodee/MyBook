@@ -238,6 +238,7 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     .object({
       title: z.string().trim().min(2, "Опишите задачу").max(300),
       dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).optional(),
+      remindBeforeMin: z.union([z.literal("none").transform(() => null), z.coerce.number().int().min(0).max(10_080)]).optional(),
       clientId: uuid.optional(),
       orderId: uuid.optional(),
       dealId: uuid.optional(),
@@ -246,7 +247,9 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     })
     .safeParse({
       title: form.get("title"),
-      dueAt: opt(form.get("dueAt")),
+      // Дата и необязательное время («17:30»): без времени срок — до конца рабочего дня.
+      dueAt: opt(form.get("dueAt")) && opt(form.get("dueTime")) ? `${opt(form.get("dueAt"))}T${opt(form.get("dueTime"))}` : opt(form.get("dueAt")),
+      remindBeforeMin: opt(form.get("remindBeforeMin")),
       clientId: opt(form.get("clientId")),
       orderId: opt(form.get("orderId")),
       dealId: opt(form.get("dealId")),

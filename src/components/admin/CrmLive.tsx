@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, X } from "lucide-react";
+import { AlarmClock, AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
 import type { LiveState } from "@/modules/reporting";
@@ -12,6 +12,31 @@ import { cn } from "@/lib/class-names";
 const POLL_MS = 8_000;
 /** При живом SSE-соединении опрос нужен только как страховка. */
 const POLL_MS_LIVE = 45_000;
+/** Звук напоминания: три коротких сигнала через WebAudio (файла нет). Браузер разрешает звук после первого клика по CRM. */
+function chime() {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    void ctx.resume();
+    [0, 0.3, 0.6].forEach((at, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = i === 2 ? 1320 : 880;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+      gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + at);
+      osc.stop(ctx.currentTime + at + 0.28);
+    });
+    window.setTimeout(() => void ctx.close(), 1500);
+  } catch {
+    // звук недоступен — остаётся всплывающее уведомление
+  }
+}
+
 const LiveContext = createContext<{ live: LiveState; refresh: () => void } | null>(null);
 
 export function useLive() {
@@ -34,8 +59,9 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
       const next = await apiFetch<LiveState>("/api/admin/live", { cache: "no-store" });
       const fresh = next.notifications.filter((n) => !n.read && !seen.current.has(n.id));
       for (const n of next.notifications) seen.current.add(n.id);
+      if (fresh.some((n) => n.kind === "reminder")) chime();
       if (fresh.length) {
-        const n = fresh[0];
+        const n = fresh.find((x) => x.kind === "reminder") ?? fresh[0];
         if (document.visibilityState === "visible") toast(fresh.length > 1 ? `${n.title} и ещё ${fresh.length - 1}` : n.title, "info");
         else if ("Notification" in window && Notification.permission === "granted") {
           const note = new Notification(n.title, { body: n.body, tag: n.id });
@@ -100,7 +126,7 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
   return <LiveContext.Provider value={{ live, refresh }}>{children}</LiveContext.Provider>;
 }
 
-const kindIcon = { message: MessageCircle, call: Phone, task: ListTodo, deal: Handshake, sla: TriangleAlert, system: Bell, mention: AtSign } as const;
+const kindIcon = { message: MessageCircle, call: Phone, task: ListTodo, reminder: AlarmClock, deal: Handshake, sla: TriangleAlert, system: Bell, mention: AtSign } as const;
 
 function ago(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -164,7 +190,7 @@ export function NotificationBell() {
                     if (n.link) router.push(n.link);
                   }}
                 >
-                  <Icon className={cn("mt-0.5 size-4 shrink-0", n.kind === "sla" || n.kind === "call" ? "text-red-600" : "text-wine")} />
+                  <Icon className={cn("mt-0.5 size-4 shrink-0", n.kind === "sla" || n.kind === "call" || n.kind === "reminder" ? "text-red-600" : "text-wine")} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{n.title}</span>
                     {n.body ? <span className="line-clamp-2 text-xs text-muted">{n.body}</span> : null}

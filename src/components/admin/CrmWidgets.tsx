@@ -88,7 +88,7 @@ export function TaskList({
         ))}
       </ul>
       {showForm ? (
-        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_150px_150px_auto]">
+        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_140px_100px_150px_150px_auto]">
           {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
           {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
           {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
@@ -101,6 +101,15 @@ export function TaskList({
           </select>
           <input name="title" required maxLength={300} placeholder="Новая задача: перезвонить, уточнить адрес…" className="input h-10 text-sm" />
           <input name="dueAt" type="date" className="input h-10 text-sm" title="Срок" />
+          <input name="dueTime" type="time" className="input h-10 text-sm" title="Время (без времени — до 18:00)" />
+          <select name="remindBeforeMin" className="input h-10 text-sm" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
+            <option value="none">Не напоминать</option>
+            <option value="0">В срок</option>
+            <option value="15">За 15 мин</option>
+            <option value="60">За 1 час</option>
+            <option value="180">За 3 часа</option>
+            <option value="1440">За день</option>
+          </select>
           <select name="assigneeId" className="input h-10 text-sm" defaultValue="">
             <option value="">Мне</option>
             {admins.map((a) => (
@@ -110,7 +119,7 @@ export function TaskList({
             ))}
           </select>
           <SubmitButton className="btn-sm h-10">Добавить</SubmitButton>
-          {state.error ? <p className="text-xs text-red-700 sm:col-span-5">{state.error}</p> : null}
+          {state.error ? <p className="text-xs text-red-700 sm:col-span-7">{state.error}</p> : null}
         </form>
       ) : null}
     </div>

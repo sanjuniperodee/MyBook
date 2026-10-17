@@ -201,3 +201,25 @@ describe("NotesService: заметки и @упоминания", () => {
     expect([...t.mem.notes.rows.keys()]).toEqual(["sys"]);
   });
 });
+
+describe("TasksService: напоминание о сроке задачи", () => {
+  it("по умолчанию за час; приходит один раз, раньше времени молчит, готовой задаче не шлётся", async () => {
+    const t = setup();
+    await t.tasks.create(manager, { title: "Перезвонить", kind: "call", dueAt: "2030-01-10T15:00" });
+    expect(t.mem.tasks.last()).toMatchObject({ remindBeforeMin: 60 });
+    expect(await t.tasks.remindDue()).toBe(0); // срок далеко
+    const row = t.mem.tasks.last();
+    t.mem.tasks.rows.set(row.id, { ...row, dueAt: new Date(t.c.now().getTime() + 50 * 60_000) });
+    expect(await t.tasks.remindDue()).toBe(1);
+    expect(t.notifier.sent.at(-1)).toMatchObject({ userIds: ["m1"], n: { kind: "reminder" } });
+    expect(await t.tasks.remindDue()).toBe(0); // один раз
+  });
+
+  it("null — не напоминать; задача без срока напоминания не получает", async () => {
+    const t = setup();
+    await t.tasks.create(manager, { title: "Без напоминания", kind: "task", dueAt: "2030-01-10", remindBeforeMin: null });
+    expect(t.mem.tasks.last().remindBeforeMin).toBeNull();
+    await t.tasks.create(manager, { title: "Без срока", kind: "task" });
+    expect(t.mem.tasks.last().remindBeforeMin).toBeNull();
+  });
+});

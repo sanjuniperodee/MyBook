@@ -48,7 +48,7 @@ class MemClients implements ClientRepository {
 }
 
 class MemTasks implements TaskRepository {
-  rows = new Map<string, Task>();
+  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null }>();
   private seq = 0;
   async find(id: string) {
     const t = this.rows.get(id);
@@ -57,6 +57,16 @@ class MemTasks implements TaskRepository {
   async add(t: Parameters<TaskRepository["add"]>[0]) {
     const id = `task-${++this.seq}`;
     this.rows.set(id, { id, doneAt: null, ...t });
+  }
+  async claimDueReminders(now: Date, staleMin: number) {
+    const out: Awaited<ReturnType<TaskRepository["claimDueReminders"]>> = [];
+    for (const [id, t] of this.rows) {
+      if (t.doneAt || t.remindedAt || !t.dueAt || !t.assigneeId || t.remindBeforeMin == null) continue;
+      if (t.dueAt.getTime() - t.remindBeforeMin * 60_000 > now.getTime() || t.dueAt.getTime() <= now.getTime() - staleMin * 60_000) continue;
+      this.rows.set(id, { ...t, remindedAt: now });
+      out.push({ id, title: t.title, kind: t.kind, dueAt: t.dueAt, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
+    }
+    return out;
   }
   async existsOpen({ dealId, title }: { dealId: string; title: string }) {
     return [...this.rows.values()].some((t) => t.dealId === dealId && t.title === title && !t.doneAt);

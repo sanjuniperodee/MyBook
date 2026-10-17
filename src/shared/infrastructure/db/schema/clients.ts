@@ -1,5 +1,5 @@
 /** CRM-профиль клиента: заметки и задачи менеджеров (модуль clients). */
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 import { orders } from "./ordering";
 import { crmDeals } from "./sales";
@@ -38,6 +38,10 @@ export const crmTasks = pgTable(
     /** Результат выполнения (как в amoCRM: «дозвонился, договорились…»). */
     result: text("result"),
     doneAt: timestamp("done_at", { withTimezone: true }),
+    /** За сколько минут до срока напомнить ответственному (CRM со звуком и WhatsApp); null — не напоминать. */
+    remindBeforeMin: integer("remind_before_min"),
+    /** Когда напоминание ушло: одно на задачу. */
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("crm_tasks_due_idx").on(t.doneAt, t.dueAt)],

@@ -137,6 +137,28 @@ export class MessagingModule {
       }));
   }
 
+  /**
+   * Личное сообщение на номер в WhatsApp — не диалог с клиентом, в CRM не записывается (напоминания сотруднику).
+   * Через GOWA или, при Wazzup, через первый активный канал WhatsApp. false — не отправилось.
+   */
+  async sendToPhone(phone: string, text: string): Promise<boolean> {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return false;
+    try {
+      if ((await this.deps.whatsappSettings.provider()) === "gowa") {
+        await this.gowa.sendText(digits, text);
+        return true;
+      }
+      const channel = (await this.wazzup.listChannels()).find((c) => c.transport === "whatsapp" && c.state === "active");
+      if (!channel) return false;
+      await this.wazzup.send({ channelId: channel.channelId, chatType: "whatsapp", chatId: digits, text, crmMessageId: crypto.randomUUID() });
+      return true;
+    } catch (err) {
+      console.error("[messaging] sendToPhone", err);
+      return false;
+    }
+  }
+
   /** Через что сейчас работает WhatsApp. */
   whatsappProvider() {
     return this.deps.whatsappSettings.provider();

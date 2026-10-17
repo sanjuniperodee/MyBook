@@ -4,6 +4,7 @@ import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared
 import { rootDb } from "@/shared/infrastructure/database";
 import { deleteFile, putFile } from "@/shared/infrastructure/storage";
 import { sql } from "drizzle-orm";
+import { env } from "@/config/env";
 import { createRateLimiter, createStepStore, redisHealthy } from "@/shared/infrastructure/redis";
 import { SmtpMailer } from "@/shared/infrastructure/mail";
 import { OrderingModule } from "@/modules/ordering";
@@ -207,6 +208,13 @@ export class Container {
     return (this.#clients ??= new ClientsModule({
       clock: this.clock,
       notifier: this.workspace.notifier,
+      // Напоминания о задачах — личным сообщением сотруднику на его номер (users.phone), ссылка на задачу — абсолютная.
+      messenger: {
+        send: async (userId, text) => {
+          const phone = (await this.identity.accounts.account(userId))?.phone;
+          return phone ? this.messaging.sendToPhone(phone, text.replace(/\n(\/admin\S*)$/, `\n${env.appUrl}$1`)) : false;
+        },
+      },
       // Онбординг клиента ходит в identity и sales через порты — модули друг друга не знают.
       accounts: { provisionClient: (input) => this.identity.accounts.provisionClient(input) },
       sales: {

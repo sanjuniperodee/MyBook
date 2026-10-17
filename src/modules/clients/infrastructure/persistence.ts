@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { books, crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
@@ -36,6 +36,24 @@ export const drizzleTasks: TaskRepository = {
       .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), sql`starts_with(${crmTasks.title}, ${prefix})`, keepTitle ? ne(crmTasks.title, keepTitle) : undefined))
       .returning({ id: crmTasks.id });
     return rows.length;
+  },
+  async claimDueReminders(now, staleMin) {
+    const rows = await executor()
+      .update(crmTasks)
+      .set({ remindedAt: now })
+      .where(
+        and(
+          isNull(crmTasks.doneAt),
+          isNull(crmTasks.remindedAt),
+          isNotNull(crmTasks.dueAt),
+          isNotNull(crmTasks.assigneeId),
+          isNotNull(crmTasks.remindBeforeMin),
+          sql`${crmTasks.dueAt} - ${crmTasks.remindBeforeMin} * interval '1 minute' <= ${now}`,
+          sql`${crmTasks.dueAt} > ${now}::timestamptz - ${staleMin} * interval '1 minute'`,
+        ),
+      )
+      .returning({ id: crmTasks.id, title: crmTasks.title, kind: crmTasks.kind, dueAt: crmTasks.dueAt, assigneeId: crmTasks.assigneeId, dealId: crmTasks.dealId, orderId: crmTasks.orderId });
+    return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date, assigneeId: r.assigneeId as string }));
   },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
   delete: async (id) => void (await executor().delete(crmTasks).where(eq(crmTasks.id, id))),

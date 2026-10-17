@@ -18,14 +18,15 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: admin.id, seesAll: staff.scope === "all" }, { who, done: showDone }), container().access.queries.allStaff()]);
   const adminOptions = staffOptions(admins);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  const today = new Date();
+  const now = new Date();
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today.getTime() + 86_400_000);
   const toItem = (r: (typeof rows)[number]): TaskItem => ({
     id: r.task.id,
     title: r.task.title,
-    dueLabel: r.task.dueAt ? `до ${formatDate(r.task.dueAt)}` : null,
-    overdue: !!r.task.dueAt && r.task.dueAt < today,
+    dueLabel: r.task.dueAt ? `до ${formatDate(r.task.dueAt, true)}` : null,
+    overdue: !!r.task.dueAt && r.task.dueAt < now,
     done: !!r.task.doneAt,
     assignee: r.task.assigneeId ? (names.get(r.task.assigneeId) ?? null) : null,
     context: r.task.orderId
@@ -37,8 +38,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const groups = showDone
     ? [{ title: "Выполненные", items: rows }]
     : [
-        { title: "Просрочено", items: rows.filter((r) => r.task.dueAt && r.task.dueAt < today) },
-        { title: "Сегодня", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= today && r.task.dueAt < tomorrow) },
+        { title: "Просрочено", items: rows.filter((r) => r.task.dueAt && r.task.dueAt < now) },
+        { title: "Сегодня", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= now && r.task.dueAt < tomorrow) },
         { title: "Позже", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= tomorrow) },
         { title: "Без срока", items: rows.filter((r) => !r.task.dueAt) },
       ];
