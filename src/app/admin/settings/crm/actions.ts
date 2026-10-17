@@ -12,6 +12,7 @@ import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, defaultBotConfig, type BotTexts
 import { pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
 import { FAQ_INTENTS, type FaqIntent } from "@/modules/messaging/domain/botNlu";
 import { BOT_MODES } from "@/modules/messaging/domain/bot";
+import { LESSON_MAX, MAX_LESSONS, lessonProblems } from "@/modules/messaging/domain/botCoach";
 import { botSiteInfo } from "@/server/bot-site";
 import type { SettingsState } from "../state";
 
@@ -108,6 +109,7 @@ const botConfigSchema = z.object({
     managerName: z.string().trim().min(1, "Имя менеджера — не пустое").max(40, "Имя менеджера — до 40 знаков"),
     facts: z.string().trim().max(2000, "Факты для продажника — до 2000 знаков"),
     productionDays: z.number().int().min(1, "Срок изготовления — от 1 дня").max(30, "Срок изготовления — до 30 дней"),
+    selfImprove: z.boolean(),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });
@@ -186,4 +188,47 @@ export async function previewBotAction(input: z.input<typeof previewSchema>): Pr
   const parsed = previewSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   return { result: await container().messaging.previewBot(parsed.data) };
+}
+
+// ─── работа над ошибками AI-продажника ──────────────────────────────────────
+
+/** Разобрать беседы бота сейчас (не дожидаясь ночи): уроки обновятся, запуск попадёт в журнал. */
+export async function runBotCoachAction(): Promise<{ ok?: string; error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const run = await container().messaging.coach.run({ force: true });
+  revalidatePath("/admin/settings");
+  if (!run) return { error: "Разбор не запустился: нужен AI-продажник (Бот → Продажи → движок AI) и подключённая модель." };
+  await audit(staff, "settings.update", "settings", "bot.coach", { reviewed: run.reviewed, added: run.added.length, removed: run.removed.length });
+  if (run.error) return { error: `Разбор не удался: ${run.error}` };
+  return { ok: run.reviewed ? `Разобрано бесед: ${run.reviewed}. Новых уроков: ${run.added.length}, убрано: ${run.removed.length}.` : "Бесед бота за сутки не было — разбирать нечего." };
+}
+
+export async function deleteBotLessonAction(lessonId: string): Promise<void> {
+  const staff = await assertStaff("settings.manage");
+  const id = z.string().min(1).max(40).parse(lessonId);
+  const { lessons } = await container().messaging.lessons();
+  const removed = lessons.find((l) => l.id === id);
+  if (!removed) return;
+  await container().messaging.saveLessons(
+    lessons.filter((l) => l.id !== id),
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "bot.lessons", { removed: removed.text });
+  revalidatePath("/admin/settings");
+}
+
+/** Свой урок владельца: та же проверка, что у уроков разбора (без сумм, ссылок, номеров и правил безопасности). */
+export async function addBotLessonAction(text: string): Promise<{ error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = z.string().max(500).safeParse(text);
+  if (!parsed.success) return { error: "Урок — до 220 знаков" };
+  const clean = parsed.data.replace(/\s+/g, " ").trim();
+  const problems = lessonProblems(clean);
+  if (problems.length) return { error: `Так нельзя: ${problems.join(", ")}. Урок — правило тона и подхода, до ${LESSON_MAX} знаков.` };
+  const { lessons } = await container().messaging.lessons();
+  if (lessons.length >= MAX_LESSONS) return { error: `Уроков уже ${MAX_LESSONS} — удалите лишний.` };
+  await container().messaging.saveLessons([...lessons, { id: crypto.randomUUID().slice(0, 8), text: clean, why: "добавил владелец", at: new Date().toISOString(), source: "owner" }], staff.user.id);
+  await audit(staff, "settings.update", "settings", "bot.lessons", { added: clean });
+  revalidatePath("/admin/settings");
+  return {};
 }

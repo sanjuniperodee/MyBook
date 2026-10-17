@@ -318,7 +318,7 @@ export class AiSeller {
    */
   private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision } | { error: string }> {
     const { conv, base, config, fields, fresh, purpose } = a;
-    const knowledge = await this.d.settings.knowledge().catch(() => "");
+    const [knowledge, lessons] = await Promise.all([this.d.settings.knowledge().catch(() => ""), this.d.settings.lessons?.().catch(() => []) ?? []]);
     const schemaFields = fields.filter((f) => base.questions.includes(f.key));
     const schema = sellerSchema(schemaFields);
     const ai = readSellerAi(base.ai);
@@ -339,7 +339,7 @@ export class AiSeller {
     const user = sellerUserPrompt(transcript, purpose, fresh.length > 0);
 
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const system = sellerSystemPrompt({ env, state: base, questions: base.questions, knowledge, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry, paid, followUps: ai.followUps });
+      const system = sellerSystemPrompt({ env, state: base, questions: base.questions, knowledge, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry, paid, followUps: ai.followUps, lessons });
       let raw: string;
       try {
         raw = await this.d.seller!.complete({ system, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });

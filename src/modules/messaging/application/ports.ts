@@ -1,4 +1,4 @@
-import type { BotCatalog, BotConfig, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage } from "../domain";
+import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage } from "../domain";
 
 /**
  * Диалоги. Счётчики (непрочитанные, «ждёт ответа», шаг бота) меняются параллельными вебхуками,
@@ -128,6 +128,20 @@ export interface BotSettings {
   knowledge(): Promise<string>;
   /** Название компании для приветствия и инструкции AI-продажника. */
   brand(): string;
+  /** Уроки работы над ошибками (разбор бесед раз в сутки и правки владельца) — блок в инструкции продажника. */
+  lessons?(): Promise<BotLesson[]>;
+}
+
+/** Беседы бота для ежедневного разбора ошибок. */
+export interface BotCoachSource {
+  /** Беседы, где бот писал клиенту начиная с since (новые сверху, не больше limit): итог, флаги журнала, переписка. */
+  recent(since: Date, limit: number): Promise<CoachConversation[]>;
+}
+
+/** Где хранятся уроки и журнал разборов. */
+export interface BotLessonStore {
+  load(): Promise<{ lessons: BotLesson[]; log: CoachRun[] }>;
+  save(lessons: BotLesson[], log: CoachRun[]): Promise<void>;
 }
 
 /** Состояние бота в диалоге. Запись — compare-and-set: параллельные вебхуки и ответ менеджера не теряются. */

@@ -87,6 +87,10 @@ class MemTasks implements TaskRepository {
   async delete(id: string) {
     this.rows.delete(id);
   }
+  async update(id: string, patch: Parameters<TaskRepository["update"]>[1]) {
+    const t = this.rows.get(id);
+    if (t) this.rows.set(id, { ...t, ...patch, ...("dueAt" in patch || "remindBeforeMin" in patch ? { remindedAt: null } : {}) });
+  }
   /** Готовая задача: по умолчанию ничья и открытая. */
   seed(p: Partial<Task> & { id: string }) {
     this.rows.set(p.id, { title: "Задача", kind: "task", dueAt: null, doneAt: null, clientId: null, orderId: null, dealId: null, assigneeId: null, createdById: null, ...p });

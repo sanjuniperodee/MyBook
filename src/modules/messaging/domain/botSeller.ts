@@ -10,6 +10,7 @@ import { faqFor, promoFor, type BotSell } from "./botConfig";
 import { botSellText, deadlinePlan, isRecipientField, type BotEnv, type BotEvent, type BotInput, type BotState } from "./botEngine";
 import { FAQ_INTENTS, faqIntents, handoffIntent, hasOrderIntent, isClosingReply, isDecline, isHedged, objectionKind, type BotLang } from "./botNlu";
 import { findSensitive } from "./sensitive";
+import { lessonsBlock, type BotLesson } from "./botCoach";
 import { humanDate, type DealField } from "./bot";
 
 // ─── состояние AI-беседы ────────────────────────────────────────────────────
@@ -612,6 +613,8 @@ export interface SellerPromptInput {
   paid: boolean;
   /** Сколько напоминаний уже отправлено (тон и содержание следующего). */
   followUps: number;
+  /** Уроки работы над ошибками (разбор бесед и правки владельца). */
+  lessons?: BotLesson[];
 }
 
 /** Системная инструкция продажника: роль, факты, путь продажи менеджера, стиль и чего нельзя. */
@@ -691,6 +694,7 @@ export function sellerSystemPrompt(i: SellerPromptInput): string {
     "",
     "## Примеры (суть и длина; не копируй дословно)",
     ...styleExamples(env),
+    i.lessons?.length ? `\n${lessonsBlock(i.lessons)}` : "",
     "",
     "## Жёсткие запреты",
     "- Не называй никаких сумм и процентов, которых нет в фактах. Не складывай и не считай сам.",

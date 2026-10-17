@@ -9,3 +9,4 @@ export { FAQ_INTENTS, faqIntents, handoffIntent, isClosingReply, type BotLang, t
 export { themeLabel } from "./botThemes";
 export { mediaCaption } from "./wazzup";
 export * from "./botSeller";
+export * from "./botCoach";

@@ -51,6 +51,34 @@ describe("ClientsService: профиль клиента", () => {
 });
 
 describe("TasksService: задачи менеджеров", () => {
+  it("правка задачи: заголовок, срок и напоминание (новое напоминание придёт), результат", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "t1", assigneeId: "m1", dueAt: new Date("2026-10-20T13:00:00Z") });
+    t.mem.tasks.rows.set("t1", { ...t.mem.tasks.rows.get("t1")!, remindBeforeMin: 60, remindedAt: new Date() });
+    await t.tasks.update(manager, "t1", { title: "Перезвонить вечером", kind: "call", dueAt: "2026-10-21T19:00", result: "  договорились  " });
+    expect(t.mem.tasks.rows.get("t1")).toMatchObject({ title: "Перезвонить вечером", kind: "call", remindBeforeMin: 60, remindedAt: null, result: "договорились" });
+    expect(t.mem.tasks.rows.get("t1")!.dueAt).toEqual(new Date("2026-10-21T19:00"));
+    // Срок убрали — напоминать не о чем; срок появился у задачи без срока — напоминание по умолчанию.
+    await t.tasks.update(manager, "t1", { dueAt: null });
+    expect(t.mem.tasks.rows.get("t1")).toMatchObject({ dueAt: null, remindBeforeMin: null });
+    await t.tasks.update(manager, "t1", { dueAt: "2026-10-22" });
+    expect(t.mem.tasks.rows.get("t1")).toMatchObject({ remindBeforeMin: 60 });
+  });
+
+  it("смена ответственного: «все» передают кому угодно и новый получает уведомление; «только свои» — нет; бывшему — нельзя", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "t1", assigneeId: "m1", createdById: "m1" });
+    await expect(t.tasks.update(manager, "t1", { assigneeId: "m2" })).rejects.toMatchObject({ code: "forbidden" });
+    await t.tasks.update(head, "t1", { assigneeId: "m2" });
+    expect(t.mem.tasks.rows.get("t1")?.assigneeId).toBe("m2");
+    expect(t.notifier.sent.at(-1)).toMatchObject({ userIds: ["m2"], n: { kind: "task" } });
+    expect(t.notifier.sent.at(-1)?.n.title).toContain("Вам передали задачу");
+    await expect(t.tasks.update(head, "t1", { assigneeId: "x1" })).rejects.toMatchObject({ code: "staffNotFound" });
+    // Чужую задачу (не моя, не я ставил) без права «все задачи» не правят.
+    t.mem.tasks.seed({ id: "t2", assigneeId: "m2", createdById: "h1" });
+    await expect(t.tasks.update(manager, "t2", { title: "моё" })).rejects.toMatchObject({ code: "forbidden" });
+  });
+
   it("своя задача: клиент — из явного id, заказа или сделки; уведомлений нет", async () => {
     const t = setup();
     expect(await t.tasks.create(manager, { title: "Перезвонить", kind: "call", orderId: "order-1" })).toEqual({ clientId: "client-1" });

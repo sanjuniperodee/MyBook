@@ -147,6 +147,8 @@ export interface BotSell {
   facts: string;
   /** Сколько календарных дней книга готовится после того, как клиент её дописал (для «успеем к дате»). */
   productionDays: number;
+  /** Работа над ошибками: раз в сутки модель разбирает беседы бота и обновляет уроки в его инструкции. */
+  selfImprove: boolean;
 }
 
 /** Факты владельца по умолчанию (решение 18.10 и переписки менеджера): сроки, доставка, как пишется книга, оплата. */
@@ -312,7 +314,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5 },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -420,6 +422,7 @@ function parseSell(raw: unknown): BotSell {
     managerName: name(r.managerName, d.managerName),
     facts: typeof r.facts === "string" ? r.facts.slice(0, 2000) : d.facts,
     productionDays: int(r.productionDays, 1, 30, d.productionDays),
+    selfImprove: typeof r.selfImprove === "boolean" ? r.selfImprove : d.selfImprove,
   };
 }
 

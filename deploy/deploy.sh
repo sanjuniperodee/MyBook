@@ -29,12 +29,41 @@ git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 SHA="$(git rev-parse --short HEAD)"
 
-echo "→ Зависимости"
-# nice: сборка отдаёт процессор работающему сайту (на 2 ядрах она иначе заметно замедляет ответы)
-PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 nice -n 15 npm ci --no-audit --no-fund
+# Итог деплоя — в группу WhatsApp от номера, подключённого к своему шлюзу (GOWA). Сбой уведомления деплой не ломает.
+notify() { node --env-file="$ROOT/.env" "$ROOT/deploy/notify.mjs" "$@" 2>&1 | sed "s/^/  /" || true; }
+DEPLOY_OK=0
+SMOKE_PID=""
+on_exit() {
+  [ -n "$SMOKE_PID" ] && { kill "$SMOKE_PID" 2>/dev/null || true; wait "$SMOKE_PID" 2>/dev/null || true; }
+  [ "$DEPLOY_OK" = 1 ] || notify fail "$SHA"
+}
+trap on_exit EXIT
 
-echo "→ Сборка"
-NEXT_TELEMETRY_DISABLED=1 nice -n 15 npm run build
+# Сборка идёт на том же сервере, что и сайт (2 ядра, 4 ГБ): без ограничений она забирает оба ядра и память, и сайт
+# отвечает медленно. Поэтому сборке — одно ядро и мягкий потолок памяти (cgroup через systemd-run), низший приоритет
+# процессора и диска. Нет systemd-run для пользователя — только приоритеты.
+BUILD_CPU="${MYBOOK_BUILD_CPU:-100%}"
+BUILD_MEM="${MYBOOK_BUILD_MEM:-1800M}"
+limited() {
+  if systemd-run --user --scope -q -p CPUQuota=50% true >/dev/null 2>&1; then
+    systemd-run --user --scope -q -p CPUQuota="$BUILD_CPU" -p MemoryHigh="$BUILD_MEM" nice -n 19 ionice -c 3 "$@"
+  else
+    nice -n 19 ionice -c 3 "$@"
+  fi
+}
+
+# npm ci переустанавливает node_modules целиком (сотни мегабайт с диска) — только если зависимости поменялись.
+LOCK_HASH="$(sha256sum package-lock.json | cut -d' ' -f1)"
+if [ -d node_modules ] && [ "$(cat node_modules/.deploy-lock-hash 2>/dev/null)" = "$LOCK_HASH" ]; then
+  echo "→ Зависимости не менялись — npm ci пропущен"
+else
+  echo "→ Зависимости"
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 limited npm ci --no-audit --no-fund
+  echo "$LOCK_HASH" > node_modules/.deploy-lock-hash
+fi
+
+echo "→ Сборка (одно ядро, низкий приоритет — сайт продолжает отвечать быстро)"
+NEXT_TELEMETRY_DISABLED=1 limited npm run build
 
 echo "→ Релиз $SHA"
 REL="$RELEASES/$(date +%Y%m%d-%H%M%S)-$SHA"
@@ -80,12 +109,12 @@ if ! check_app "$SMOKE_PORT" 40; then
   tail -n 40 "$REL/smoke.log" || true
   kill "$SMOKE_PID" 2>/dev/null || true
   wait "$SMOKE_PID" 2>/dev/null || true
+  SMOKE_PID=""
   rm -rf "$REL"
   exit 1
 fi
-kill "$SMOKE_PID" 2>/dev/null || true
-wait "$SMOKE_PID" 2>/dev/null || true
-rm -f "$REL/smoke.log"
+# Проверенная копия на $SMOKE_PORT остаётся работать, пока PM2 перезапускает основную: в nginx она — запасной сервер
+# (backup в upstream mybook_app), и запросы в эти секунды идут к ней, а не в 502.
 
 echo "→ Переключение на $(basename "$REL")"
 PREV="$(readlink -f "$CURRENT" 2>/dev/null || true)"
@@ -103,6 +132,11 @@ if ! check_app "$PORT" 30; then
   exit 1
 fi
 echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"
+# Основная версия отвечает — запасная больше не нужна.
+kill "$SMOKE_PID" 2>/dev/null || true
+wait "$SMOKE_PID" 2>/dev/null || true
+SMOKE_PID=""
+rm -f "$REL/smoke.log"
 
 # Прогрев: обложки рисуются на сервере при первом запросе (на снимках — до 1–3 с), а кэш живёт в памяти процесса и после
 # каждого деплоя пуст. Прогреваем обложки, видимые на входных страницах, пока посетители не пришли (ошибки прогрева деплой не ломают).
@@ -120,3 +154,8 @@ warm_covers && echo "  обложки прогреты" || true
 ls -1dt "$RELEASES"/*/ 2>/dev/null | sed 's:/$::' | tail -n +"$((KEEP + 1))" | while read -r old; do
   [ "$old" = "$(readlink -f "$CURRENT")" ] || [ "$old" = "$PREV" ] || { rm -rf "$old" && echo "  удалён старый релиз $(basename "$old")"; }
 done
+
+DEPLOY_OK=1
+# Что вошло в релиз: коммиты от предыдущего релиза до этого.
+PREV_SHA="$(basename "${PREV:-}" | sed -n 's/^[0-9]*-[0-9]*-//p')"
+notify ok "$SHA" "$PREV_SHA" "$(basename "$REL")"

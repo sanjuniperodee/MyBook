@@ -52,6 +52,10 @@ export const settingDefs = {
   "bot.mode": { default: "always" },
   /** Настройки бота: JSON BotConfig (каналы, вопросы и тексты ru/kk, частые вопросы, акция); старый { greeting, questions: [{ text, field }], finish } тоже читается. */
   "bot.config": {},
+  /** Уроки AI-продажника (работа над ошибками): JSON [{ id, text, why, at, source }] — пишет ночной разбор и владелец. */
+  "bot.lessons": {},
+  /** Журнал ночных разборов бесед AI-продажника (последние 14). */
+  "bot.coach": {},
   /** Ключи Web Push (создаются автоматически). */
   "push.vapidPublic": {},
   "push.vapidPrivate": { secret: true },

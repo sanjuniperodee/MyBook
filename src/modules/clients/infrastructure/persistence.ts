@@ -56,6 +56,13 @@ export const drizzleTasks: TaskRepository = {
     return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date, assigneeId: r.assigneeId as string }));
   },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
+  async update(id, patch) {
+    const rearm = "dueAt" in patch || "remindBeforeMin" in patch;
+    await executor()
+      .update(crmTasks)
+      .set({ ...patch, ...(rearm ? { remindedAt: null } : {}) })
+      .where(eq(crmTasks.id, id));
+  },
   delete: async (id) => void (await executor().delete(crmTasks).where(eq(crmTasks.id, id))),
 };
 

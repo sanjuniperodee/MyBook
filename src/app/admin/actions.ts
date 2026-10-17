@@ -276,6 +276,36 @@ export async function toggleTaskAction(taskId: string) {
   revalidateCrm(t.clientId, t.orderId, t.dealId);
 }
 
+/**
+ * Правка задачи со страницы «Задачи» (поле за полем): заголовок, тип, срок («ГГГГ-ММ-ДД» или с временем; "" — без срока),
+ * напоминание, ответственный, результат. Ошибка — текстом для строки задачи.
+ */
+export async function updateTaskAction(taskId: string, raw: { title?: string; kind?: string; dueAt?: string | null; remindBeforeMin?: string | null; assigneeId?: string; result?: string }): Promise<{ error?: string }> {
+  const staff = await assertStaff();
+  const parsed = z
+    .object({
+      title: z.string().trim().min(2, "Опишите задачу").max(300).optional(),
+      kind: z.enum(["task", "call", "message", "meeting"]).optional(),
+      dueAt: z
+        .union([z.literal("").transform(() => null), z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, "Неверный срок")])
+        .nullable()
+        .optional(),
+      remindBeforeMin: z.union([z.literal("none").transform(() => null), z.coerce.number().int().min(0).max(10_080)]).nullable().optional(),
+      assigneeId: uuid.optional(),
+      result: z.string().max(1000).optional(),
+    })
+    .safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  try {
+    const t = await container().clients.tasks.update(crmActor(staff), uuid.parse(taskId), parsed.data);
+    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    return {};
+  } catch (err) {
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? "Нет прав менять эту задачу" : err.message };
+    throw err;
+  }
+}
+
 export async function deleteTaskAction(taskId: string) {
   const staff = await assertStaff();
   const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId)));

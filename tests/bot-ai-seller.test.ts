@@ -719,3 +719,16 @@ describe("AI-продажник, волна 2: возврат клиента, з
     expect(t.sent).toEqual(["Хорошо 😊"]);
   });
 });
+
+describe("AI-продажник: уроки работы над ошибками в инструкции", () => {
+  it("уроки из настроек попадают в инструкцию отдельным блоком перед жёсткими запретами", async () => {
+    const { model, calls } = fakeModel([ans()]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    Object.assign(t.deps.settings, { lessons: async () => [{ id: "l1", text: "Задавай один вопрос за сообщение", why: "", at: "", source: "auto" }] });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await run(t);
+    const p = calls[0].system;
+    expect(p).toContain("- Задавай один вопрос за сообщение");
+    expect(p.indexOf("Работа над ошибками")).toBeLessThan(p.indexOf("## Жёсткие запреты"));
+  });
+});

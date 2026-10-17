@@ -22,6 +22,9 @@ async function tick() {
     // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.
     const history = await container().messaging.syncGowaHistory().catch((err) => (console.error("[scheduler] whatsapp history", err), 0));
     if (history) console.log(`[scheduler] whatsapp history imported=${history}`);
+    // Работа над ошибками AI-продажника: раз в сутки ночью разбор бесед за день → уроки в его инструкции.
+    const coach = await container().messaging.coach.run().catch((err) => (console.error("[scheduler] bot coach", err), null));
+    if (coach) console.log(`[scheduler] bot coach reviewed=${coach.reviewed} added=${coach.added.length} removed=${coach.removed.length}${coach.error ? ` error=${coach.error}` : ""}`);
   } catch (err) {
     console.error("[scheduler] tick failed", err);
   } finally {

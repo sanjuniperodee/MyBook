@@ -1,13 +1,15 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { BotCoach, ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
 import { GOWA_CHANNEL, gowaJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
+import { drizzleCoachSource } from "./infrastructure/botCoach";
+import { parseCoachLog, parseLessons, type BotLesson, type CoachRun } from "./domain";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
 import type { Conversation, HistoryMessage } from "./domain";
@@ -23,7 +25,7 @@ export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -66,6 +68,8 @@ export class MessagingModule {
   readonly media: ChatMediaService;
   /** Бот-квалификатор: ходы, фоновый проход, остановка и запуск из чата. */
   readonly bot: QualifierBot;
+  /** Работа над ошибками AI-продажника: ночной разбор бесед → уроки в его инструкции. */
+  readonly coach: BotCoach;
   private readonly botStore = new DrizzleBotStore();
   private readonly botSettings;
 
@@ -112,6 +116,15 @@ export class MessagingModule {
       history: (conversationId, limit) => this.botHistory(conversationId, limit),
       media: (messageId) => this.media.bytes(messageId).catch(() => null),
     });
+    this.coach = new BotCoach({
+      settings: this.botSettings,
+      seller: deps.sellerModel ?? null,
+      source: drizzleCoachSource,
+      store: { load: () => this.lessons(), save: (lessons, log) => deps.settings.save({ "bot.lessons": JSON.stringify(lessons), "bot.coach": JSON.stringify(log) }, null) },
+      clock: deps.clock,
+      logger: consoleLogger("bot-coach"),
+      newId: () => crypto.randomUUID().slice(0, 8),
+    });
     const bot = this.bot;
     this.gowa = new GowaClient(deps.whatsappSettings.gowa);
     this.wazzup = new WazzupClient(deps.settings);
@@ -123,6 +136,17 @@ export class MessagingModule {
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa");
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
+  }
+
+  /** Уроки работы над ошибками и журнал разборов (для настроек и разбора). */
+  async lessons(): Promise<{ lessons: BotLesson[]; log: CoachRun[] }> {
+    const v = await this.deps.settings.getMany(["bot.lessons", "bot.coach"]);
+    return { lessons: parseLessons(v["bot.lessons"]), log: parseCoachLog(v["bot.coach"]) };
+  }
+
+  /** Владелец правит уроки в настройках: удалить, добавить свой (проверка — как у уроков разбора). */
+  async saveLessons(lessons: BotLesson[], actorId: string) {
+    await this.deps.settings.save({ "bot.lessons": JSON.stringify(lessons) }, actorId);
   }
 
   /** Переписка для AI-продажника: клиент, бот и менеджеры; внутренние заметки сотрудников модель не видит. */

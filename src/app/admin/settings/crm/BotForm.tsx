@@ -84,6 +84,7 @@ export function BotForm({
   aiModel,
   seller,
   stats,
+  coach,
   initialTab = "mode",
 }: {
   mode: string;
@@ -100,6 +101,8 @@ export function BotForm({
   /** Модель AI-продажника («Интеграции» → AI); null — не подключена: продажник работает по шаблонам. */
   seller: string | null;
   stats: React.ReactNode;
+  /** Работа над ошибками AI-продажника (уроки и журнал разборов). */
+  coach?: React.ReactNode;
   /** Раздел, который открыт сразу (из адреса ?section=…). */
   initialTab?: BotFormTab;
 }) {
@@ -485,6 +488,13 @@ export function BotForm({
                   <textarea value={cfg.sell.facts} onChange={(e) => setSell({ facts: e.target.value })} rows={6} maxLength={2000} className={area} aria-label="Факты для продажника" />
                 </label>
                 <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.selfImprove} onChange={(e) => setSell({ selfImprove: e.target.checked })} aria-label="Учиться на своих ошибках" />
+                  <span>
+                    Учиться на своих ошибках
+                    <span className="block text-xs text-muted">Каждую ночь бот разбирает свои беседы за день и сам пишет себе уроки — список и журнал ниже, в «Работе над ошибками».</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
                   <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.hidePrices} onChange={(e) => setSell({ hidePrices: e.target.checked })} aria-label="Бот не называет цены" />
                   <span>
                     Бот не называет цены — их озвучивает только менеджер
@@ -513,6 +523,7 @@ export function BotForm({
             </details>
             </>
           ) : null}
+          {cfg.sell.on && cfg.sell.engine === "ai" ? coach : null}
         </div>
       ) : null}
 

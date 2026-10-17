@@ -151,6 +151,42 @@ export class TasksService {
     if (t) await this.tasks.delete(t.id);
     return t;
   }
+
+  /**
+   * Правка задачи со страницы «Задачи»: заголовок, тип, срок, напоминание, ответственный, результат. Передать задачу
+   * другому — как поставить: роли с видимостью «все»; новому ответственному — уведомление. dueAt: null — без срока.
+   */
+  async update(
+    actor: Actor,
+    taskId: string,
+    patch: { title?: string; kind?: TaskKind; dueAt?: string | null; remindBeforeMin?: number | null; assigneeId?: string; result?: string | null },
+  ) {
+    const t = await this.load(actor, taskId);
+    if (!t) throw new ClientsError("taskNotFound", "Задача не найдена");
+    const next: Parameters<TaskRepository["update"]>[1] = {};
+    if (patch.title !== undefined) next.title = patch.title;
+    if (patch.kind !== undefined) next.kind = patch.kind;
+    if (patch.result !== undefined) next.result = patch.result?.trim() || null;
+    if (patch.dueAt !== undefined) {
+      next.dueAt = taskDue(patch.dueAt ?? undefined);
+      // Срок появился — напоминание по умолчанию (за час), если его не задали явно; срок убрали — напоминать не о чем.
+      if (patch.remindBeforeMin === undefined) next.remindBeforeMin = next.dueAt ? (t.dueAt ? undefined : DEFAULT_REMIND_MIN) : null;
+      if (next.remindBeforeMin === undefined) delete next.remindBeforeMin;
+    }
+    if (patch.remindBeforeMin !== undefined) next.remindBeforeMin = patch.remindBeforeMin;
+    if (patch.assigneeId !== undefined && patch.assigneeId !== t.assigneeId) {
+      if (patch.assigneeId !== actor.userId && !actor.seesAll) throw new ClientsError("forbidden");
+      if (!(await this.staff.isActiveStaff(patch.assigneeId))) throw new ClientsError("staffNotFound", "Сотрудник не найден");
+      next.assigneeId = patch.assigneeId;
+    }
+    if (!Object.keys(next).length) return t;
+    await this.tasks.update(t.id, next);
+    if (next.assigneeId && next.assigneeId !== actor.userId) {
+      const link = t.dealId ? `/admin/deals/${t.dealId}` : t.orderId ? `/admin/orders/${t.orderId}` : "/admin/tasks";
+      await this.notifier.notify([next.assigneeId], { kind: "task", title: `Вам передали задачу: ${next.title ?? t.title}`, body: `Передал(а) ${actor.name}`, link });
+    }
+    return t;
+  }
 }
 
 /** Заметки менеджеров в карточке клиента, заказа и сделки; @упоминания уведомляют коллег. */

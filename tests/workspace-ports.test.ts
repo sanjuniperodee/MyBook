@@ -192,7 +192,7 @@ describe("messaging: настройки, уведомления, живое об
       catalog: async () => ({ plans: [{ id: "hardcover", price: 30000 }], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
       site: async () => ({ url: "https://mybook.kz", registrationOpen: false, themes: ["love"], landings: [] }),
     };
-    const settings = new MemSettings<"bot.mode" | "bot.config" | "crm.workHours" | "ai.knowledge">({ "crm.workHours": '{"days":[1,2,3,4,5],"from":"10:00","to":"18:00"}' });
+    const settings = new MemSettings<"bot.mode" | "bot.config" | "crm.workHours" | "ai.knowledge" | "bot.lessons">({ "crm.workHours": '{"days":[1,2,3,4,5],"from":"10:00","to":"18:00"}' });
     const bot = crmBotSettings({ settings, schedule, fields: new MemFieldsReader({ deal: dealFields }), site });
     // Режим не задан — по умолчанию «всегда» (решение владельца 17.10).
     expect(await bot.mode()).toBe("always");
