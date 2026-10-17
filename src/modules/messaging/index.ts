@@ -1,7 +1,7 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
@@ -10,20 +10,20 @@ import { GOWA_CHANNEL, gowaJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import type { Conversation } from "./domain";
+import type { Conversation, HistoryMessage } from "./domain";
 
 export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
-export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices } from "./application";
+export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
 export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -83,6 +83,8 @@ export class MessagingModule {
       brain?: BotBrain | null;
       /** Счёт от имени бота (Ordering) — режим «Продаёт» со счётом. */
       botInvoices?: BotInvoices | null;
+      /** Модель AI-продажника (Assistant): без неё режим «Продаёт» работает по шаблонам. */
+      sellerModel?: BotSellerModel | null;
     } & WorkspacePorts,
   ) {
     const conversations = new DrizzleConversationRepository();
@@ -106,6 +108,8 @@ export class MessagingModule {
       shopPhone: deps.whatsapp,
       brain: deps.brain ?? null,
       invoices: deps.botInvoices ?? null,
+      seller: deps.sellerModel ?? null,
+      history: (conversationId, limit) => this.botHistory(conversationId, limit),
     });
     const bot = this.bot;
     this.gowa = new GowaClient(deps.whatsappSettings.gowa);
@@ -118,6 +122,19 @@ export class MessagingModule {
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa");
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
+  }
+
+  /** Переписка для AI-продажника: клиент, бот и менеджеры; внутренние заметки сотрудников модель не видит. */
+  private async botHistory(conversationId: string, limit: number): Promise<HistoryMessage[]> {
+    const all = await this.view.messages(conversationId, limit);
+    return all
+      .filter((m) => !m.internal)
+      .map((m) => ({
+        from: m.direction === "in" ? ("client" as const) : m.author === "бот" ? ("bot" as const) : ("manager" as const),
+        text: m.text || (m.mediaUrl || m.gateway ? `[${m.type === "audio" ? "голосовое сообщение" : m.type === "image" ? "фото" : m.type === "document" ? "файл" : m.type === "video" ? "видео" : m.type}]` : ""),
+        at: m.at,
+        author: m.direction === "out" && m.author && m.author !== "бот" ? m.author : null,
+      }));
   }
 
   /** Через что сейчас работает WhatsApp. */
@@ -160,7 +177,9 @@ export class MessagingModule {
     ]);
     // «Нерабочее время» в тесте — как ночью: менеджер ответит со следующей смены.
     const nextStart = input.workTime ? nowWork : tomorrowStart;
-    return botPreview(input, { fields, catalog, site, now, nextWorkStart: nextStart, tz: this.botSettings.timeZone() });
+    const ctx = { fields, catalog, site, now, nextWorkStart: nextStart, tz: this.botSettings.timeZone() };
+    // Продажник на AI — настоящий диалог с моделью; иначе (или без модели) — шаблонный ход.
+    return (await this.bot.previewAi(input, ctx)) ?? { ...botPreview(input, ctx), engine: "template" as const };
   }
 
   /** Метрики бота для настроек. */

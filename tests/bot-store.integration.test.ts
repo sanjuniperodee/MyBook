@@ -73,6 +73,14 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         const [other] = (await tx.execute<{ id: string }>(sql`insert into crm_conversations (channel, channel_id, chat_id, contact_name) values ('whatsapp', 'gowa', ${`7702${Date.now() % 10_000_000}`}, 'bot-store-test') returning id`)).rows;
         expect(await store.stop(other.id, "phone")).toBe(false);
         expect(await store.load(other.id)).toMatchObject({ botStep: -1, state: null });
+        // Ответ менеджера (soft) бота не отключает насовсем: bot_step остаётся, состояние «в работе» закрывается, и AI-продажник
+        // может подхватить, если менеджер снова не ответит.
+        const [soft] = (await tx.execute<{ id: string }>(sql`insert into crm_conversations (channel, channel_id, chat_id, contact_name) values ('whatsapp', 'gowa', ${`7703${Date.now() % 10_000_000}`}, 'bot-store-test') returning id`)).rows;
+        expect(await store.save(soft.id, null, { botStep: 0, state: { ...active, version: 0 }, dueAt: null })).toBe(true);
+        expect(await store.stop(soft.id, "crm", { soft: true })).toBe(true);
+        expect(await store.load(soft.id)).toMatchObject({ botStep: 0, dueAt: null, state: { phase: "done", outcome: "stopped_by_manager", reason: "crm" } });
+        expect(await store.stop(soft.id, "crm", { soft: true })).toBe(false);
+        expect(await store.save(soft.id, 1, { botStep: null, state: { ...waiting, version: 2 }, dueAt: null }, { restart: true })).toBe(true);
 
         // Журнал → метрики.
         await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }, { kind: "answer", field: "recipient" }, { kind: "faq", intent: "price" }, { kind: "skipped", reason: "prior_chat" }]);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { answerValue, contactChanges, contactPhone, defaultBotConfig, isClosingReply, preview, redactSecrets, shouldApplyStatus, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage } from "@/modules/messaging/domain";
-import { BOT_ABANDON_MS, BOT_PAUSE_MS, MessagingService, QualifierBot, type BotCrm, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
+import { answerValue, contactChanges, contactPhone, defaultBotConfig, isClosingReply, preview, redactSecrets, shouldApplyStatus, type BotConfig, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
+import { BOT_ABANDON_MS, BOT_PAUSE_MS, QualifierBot } from "@/modules/messaging/application";
+import { BOT_CONFIG, inbound, setup, start } from "./doubles/botHarness";
 
-const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
 
 describe("домен переписки", () => {
   it("закрывающая реплика клиента: «спасибо», «понятно», эмодзи — да; вопрос, «да», фото — нет", () => {
@@ -39,219 +39,6 @@ describe("домен переписки", () => {
 });
 
 // ─── инбокс и бот на двойниках ─────────────────────────────────────────────
-
-const DEAL_FIELDS: DealField[] = [
-  { key: "recipient", label: "Для кого", type: "text", options: [] },
-  { key: "occasion", label: "Повод", type: "select", options: ["Годовщина", "День рождения", "Свадьба"] },
-];
-const BOT_CONFIG: BotConfig = {
-  ...defaultBotConfig,
-  questions: [
-    { field: "recipient", text: { ru: "Для кого книга?", kk: "Кітап кімге?" } },
-    { field: "occasion", text: { ru: "Повод?", kk: "Қандай мереке?" } },
-  ],
-};
-
-type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null };
-type Msg = { id: string; conv: string; dir: "in" | "out"; text: string; type: string; at: Date; externalId: string | null; status: string; source?: string | null; internal?: boolean; authorId?: string | null };
-
-function setup(
-  opts: {
-    blocked?: boolean;
-    bot?: BotMode;
-    workTime?: boolean;
-    config?: BotConfig;
-    clients?: Record<string, string>;
-    openDeal?: { id: string; assigneeId: string | null };
-    clientOrders?: number;
-    priorChat?: boolean;
-    dealStage?: { firstStage: boolean; orderId?: string | null };
-    noExternalId?: boolean;
-  } = {},
-) {
-  let now = start;
-  const convs = new Map<string, Conv>();
-  const msgs: Msg[] = [];
-  const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown>; tags: string[] }[] = [];
-  const sent: string[] = [];
-  const notes: string[] = [];
-  const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
-  const events: (BotEvent & { conv: string })[] = [];
-  let seq = 0;
-  const settings = { mode: opts.bot ?? "off", workTime: opts.workTime ?? true, config: opts.config ?? BOT_CONFIG };
-  const conversations: ConversationRepository = {
-    linkClientByDeal: async () => {},
-    findById: async (id) => convs.get(id) ?? null,
-    findByChat: async (ch, chId, chat) => [...convs.values()].find((c) => c.channel === ch && c.channelId === chId && c.chatId === chat) ?? null,
-    create: async (i) => {
-      const c: Conv = { ...i, id: `c${++seq}`, dealId: null, assigneeId: null, botStep: null, unread: 0, awaiting: null };
-      convs.set(c.id, c);
-      return c;
-    },
-    updateContact: async (id, p) => Object.assign(convs.get(id)!, p),
-    linkDeal: async (id, l) => Object.assign(convs.get(id)!, l),
-    recordIncoming: async (id, text, at, opts) => {
-      const c = convs.get(id)!;
-      c.unread++;
-      if (opts?.awaiting !== false) c.awaiting ??= at;
-      c.lastText = text;
-    },
-    recordEcho: async (id, text) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null, lastText: text }),
-    recordHistory: async (id, text, at) => {
-      const c = convs.get(id)!;
-      if (!c.lastAt || c.lastAt < at) Object.assign(c, { lastText: text, lastAt: at });
-    },
-    recordOutgoing: async (id, text, _at, author) => {
-      Object.assign(convs.get(id)!, { lastText: text });
-      if (author) Object.assign(convs.get(id)!, { unread: 0, awaiting: null, botStep: -1 });
-    },
-    closeAsSpam: async (id) => void Object.assign(convs.get(id)!, { closed: true }),
-    markRead: async (id) => void Object.assign(convs.get(id)!, { unread: 0 }),
-    advanceBot: async (id, from, to) => {
-      const c = convs.get(id)!;
-      if (c.botStep !== from) return false;
-      c.botStep = to;
-      return true;
-    },
-    latestWhatsapp: async (chatId) => [...convs.values()].filter((c) => c.channel === "whatsapp" && c.chatId === chatId).at(-1) ?? null,
-    assignByDeal: async () => {},
-    chatIdsByDeal: async () => [],
-    closeByDeal: async () => {},
-    setAssignee: async () => {},
-    setStatus: async () => {},
-  };
-  const messages: MessageRepository = {
-    insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received" })),
-    existsExternal: async (e) => msgs.some((x) => x.externalId === e),
-    claimPendingEcho: async (conv, text, _s, ext) => {
-      const own = msgs.find((x) => x.conv === conv && x.dir === "out" && !x.internal && (x.source === "bot" || x.source === "rule") && x.text === text);
-      if (own) return true;
-      const p = msgs.find((x) => x.conv === conv && x.dir === "out" && !x.externalId && x.text === text);
-      if (p) p.externalId = ext;
-      return !!p;
-    },
-    insertEcho: async (conv, m) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent" }),
-    insertOutgoing: async (conv, text, authorId, internal, source) => {
-      const m: Msg = { id: `m${++seq}`, conv, dir: "out", text, type: "text", at: now, externalId: null, status: "pending", source: source ?? null, internal: !!internal, authorId };
-      msgs.push(m);
-      return { id: m.id, conversationId: conv, text, authorId, createdAt: now };
-    },
-    setStatus: async (id, status) => void (msgs.find((m) => m.id === id)!.status = status),
-    attachExternalId: async (id, ext) => void Object.assign(msgs.find((m) => m.id === id)!, { externalId: ext, status: "sent" }),
-    byExternalId: async (e) => {
-      const m = msgs.find((x) => x.externalId === e);
-      return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
-    },
-  };
-  const sales: SalesGateway = {
-    findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,
-    findOpenDeal: async () => (opts.openDeal ? { ...opts.openDeal, clientId: null, utm: null } : null),
-    createDeal: async (i) => {
-      const d = { id: `d${++seq}`, title: i.title, unsorted: i.unsorted, fields: {}, tags: [] };
-      deals.push(d);
-      return { id: d.id, assigneeId: null, clientId: i.clientId };
-    },
-    setUtmIfEmpty: async () => {},
-    acceptUnsorted: async (dealId) => void (deals.find((d) => d.id === dealId) && (deals.find((d) => d.id === dealId)!.unsorted = false)),
-    note: async (_d, text) => void notes.push(text),
-    setField: async (dealId, k, v) => void (deals.find((d) => d.id === dealId)!.fields[k] = v),
-    deal: async (id) => {
-      const d = deals.find((x) => x.id === id) ?? (opts.openDeal?.id === id ? { id, title: "Сделка", fields: {} } : null);
-      return d ? { id: d.id, clientId: null, assigneeId: null, title: d.title, contactName: "", customFields: d.fields } : null;
-    },
-    nextRoundRobin: async () => null,
-  };
-  const store: BotStore = {
-    load: async (id) => {
-      const c = convs.get(id);
-      return c ? { botStep: c.botStep, state: c.botState ? structuredClone(c.botState) : null, dueAt: c.botDueAt ?? null } : null;
-    },
-    save: async (id, expected, next, o) => {
-      const c = convs.get(id)!;
-      if (expected === null ? c.botState != null : (c.botState?.version ?? 0) !== expected) return false;
-      if (!o?.restart && c.botStep === -1) return false;
-      Object.assign(c, { botStep: next.botStep, botState: structuredClone(next.state), botDueAt: next.dueAt });
-      return true;
-    },
-    setDue: async (id, dueAt) => {
-      const c = convs.get(id)!;
-      if (c.botStep !== -1 && c.botState && c.botState.phase !== "done") c.botDueAt = dueAt;
-    },
-    stop: async (id, reason) => {
-      const c = convs.get(id)!;
-      if (c.botStep === -1) return false;
-      const active = !!c.botState && c.botState.phase !== "done";
-      Object.assign(c, { botStep: -1, botDueAt: null });
-      if (active) c.botState = { ...c.botState!, phase: "done", outcome: "stopped_by_manager", reason, asking: null, version: c.botState!.version + 1 };
-      return active;
-    },
-    due: async (at) => [...convs.values()].filter((c) => c.botDueAt && c.botDueAt < at && c.botStep !== -1).map((c) => c.id),
-    incoming: async (id, since) => msgs.filter((m) => m.conv === id && m.dir === "in" && m.at >= since).map((m) => ({ id: m.id, text: m.text, type: m.type, at: m.at })),
-    log: async (id, _deal, _lang, list) => void events.push(...list.map((e) => ({ ...e, conv: id }))),
-  };
-  const crm: BotCrm = {
-    deal: async (id) => {
-      const d = await sales.deal(id);
-      return d && { orderId: opts.dealStage?.orderId ?? null, firstStage: opts.dealStage?.firstStage ?? true, closed: false, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
-    },
-    client: async () => ({ orders: opts.clientOrders ?? 0, books: 0, locale: null, name: null }),
-    tag: async (dealId, tag) => void deals.find((d) => d.id === dealId)?.tags.push(tag),
-    priorChat: async () => !!opts.priorChat,
-  };
-  const quiet = { info: () => {}, warn: () => {}, error: () => {} };
-  const notified: { title: string; kind: string }[] = [];
-  const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }) };
-  const clock = { now: () => now };
-  const scheduled: string[] = [];
-  const service: MessagingService = new MessagingService(
-    conversations,
-    messages,
-    { isBlocked: async () => !!opts.blocked, add: async () => {}, remove: async () => {} },
-    { send: async (_c, _id, text) => (sent.push(text), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }) },
-    sales,
-    { fromText: async () => null },
-    notifier,
-    { chatChanged: () => {}, notificationsChanged: () => {} },
-    { messageIncoming: async () => {} },
-    { onIncoming: (...a) => bot.onIncoming(...a), stopByHuman: (...a) => bot.stopByHuman(...a), isActive: (id) => bot.isActive(id) },
-    clock,
-    quiet,
-  );
-  const deps = {
-    conversations,
-    store,
-    settings: {
-      mode: async () => settings.mode,
-      config: async () => settings.config,
-      isWorkTime: async () => settings.workTime,
-      nextWorkStart: async () => (settings.workTime ? now : new Date("2026-10-02T04:00:00Z")),
-      dealFields: async () => DEAL_FIELDS,
-      catalog: async () => ({ plans: [{ id: "hardcover", price: 30000 }], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
-      site: async () => ({ url: "https://mybook.kz", registrationOpen: false, themes: ["love", "mom", "dad", "friend"], landings: [] }),
-      timeZone: () => "Asia/Almaty",
-    },
-    crm,
-    sales,
-    notifier,
-    tasks: { create: async (t: { title: string; kind: string; assigneeId: string | null }) => void tasks.push(t) },
-    timers: { schedule: (key: string) => void scheduled.push(key) },
-    clock,
-    logger: quiet,
-    send: (id: string, text: string) => service.send(id, text, null, "bot"),
-    note: (id: string, text: string) => service.addInternalNote(id, text, null, "bot"),
-    shopPhone: async () => "77000000000",
-  };
-  const bot = new QualifierBot(deps);
-  /** Время идёт: планировщик делает просроченные ходы (так же, как таймер в процессе). */
-  const advance = async (ms: number) => {
-    now = new Date(now.getTime() + ms);
-    await bot.sweep();
-  };
-  return { service, bot, deps, convs, msgs, deals, sent, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
-}
-
-let ext = 0;
-const inbound = (p: Partial<InboundMessage> = {}): InboundMessage => ({ externalId: `e${++ext}`, channelId: "ch", chatType: "whatsapp", chatId: "77011234567", at: start, isEcho: false, type: "text", text: "Здравствуйте", mediaUrl: null, contactName: "Айгерим", avatarUrl: null, status: null, ...p });
 
 describe("MessagingService", () => {
   it("новое обращение: диалог, заявка в «Неразобранном», «ждёт ответа»; повтор вебхука не дублирует", async () => {
@@ -374,7 +161,7 @@ describe("бот в инбоксе", () => {
     await t.advance(BOT_PAUSE_MS + 1);
     await t.advance(BOT_ABANDON_MS + 1);
     expect(t.sent).toHaveLength(1);
-    expect(t.conv()).toMatchObject({ botStep: -1, botState: expect.objectContaining({ outcome: "stopped_by_manager", reason: "phone" }) });
+    expect(t.conv()).toMatchObject({ botState: expect.objectContaining({ outcome: "stopped_by_manager", reason: "phone" }) });
     expect(t.events.filter((e) => e.kind === "stopped_by_manager")).toHaveLength(1);
     // Поле «для кого» из ответа менеджеру не перехватывается ботом.
     expect(t.deals[0].fields).toEqual({});
@@ -388,7 +175,7 @@ describe("бот в инбоксе", () => {
     await t.service.ingest(inbound({ isEcho: true, externalId: "phone-1", text: "Здравствуйте! Я ваш личный менеджер" }));
     await t.advance(BOT_PAUSE_MS + 1);
     expect(t.sent).toEqual([]);
-    expect(t.conv().botStep).toBe(-1);
+    expect(t.conv().botState).toMatchObject({ outcome: "stopped_by_manager", reason: "phone" });
   });
 
   it("ответ менеджера из CRM тоже останавливает бота; копия сообщения бота с другим ID — нет", async () => {
@@ -450,7 +237,7 @@ describe("бот в инбоксе", () => {
     };
     await t.advance(BOT_PAUSE_MS + 1);
     expect(t.sent).toHaveLength(1);
-    expect(t.conv()).toMatchObject({ botStep: -1, botState: expect.objectContaining({ outcome: "stopped_by_manager", reason: "phone" }) });
+    expect(t.conv()).toMatchObject({ botState: expect.objectContaining({ outcome: "stopped_by_manager", reason: "phone" }) });
     await t.service.ingest(inbound({ text: "на день рождения" }));
     await t.advance(BOT_ABANDON_MS + 1);
     expect(t.sent).toHaveLength(1);

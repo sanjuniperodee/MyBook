@@ -12,6 +12,7 @@ import { catalogVars, fillBotVars, fillFaqLines, type BotCatalog } from "./botFa
 import { detectLang, faqIntents, handoffIntent, isAck, isAgree, isBareNo, isWillLook, isDecline, isDontKnow, isStop, langRequest, looksLikeContinuation, objectionKind, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
+import { newSellerAiState, type SellerAiState } from "./botSellerState";
 
 /** offered — бот сделал предложение, клиент замолчал; invoiced — бот сам выставил счёт. */
 export type BotOutcome = "finished" | "handoff" | "stopped_by_manager" | "abandoned" | "declined" | "skipped" | "disabled" | "offered" | "invoiced";
@@ -90,6 +91,10 @@ export interface BotState {
   /** Напоминание после предложения уже отправлено. */
   followedUp: boolean;
   offeredAt: string | null;
+  /** Кто ведёт беседу: шаблоны из настроек или AI-продажник (режим «Продаёт» с движком AI). */
+  engine: "template" | "ai";
+  /** Память AI-продажника (для шаблонной беседы не используется). */
+  ai: SellerAiState;
 }
 
 export function newBotState(since: Date, fresh: boolean): BotState {
@@ -123,6 +128,8 @@ export function newBotState(since: Date, fresh: boolean): BotState {
     objections: [],
     followedUp: false,
     offeredAt: null,
+    engine: "template",
+    ai: newSellerAiState(),
   };
 }
 

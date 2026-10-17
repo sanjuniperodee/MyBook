@@ -14,6 +14,7 @@ import {
   botTurn,
   findSensitive,
   newBotState,
+  newSellerAiState,
   outcomeTitle,
   safeName,
   startBlocker,
@@ -28,16 +29,11 @@ import {
   type Conversation,
   type InboundMessage,
 } from "../domain";
-import type { BotBrain, BotCrm, BotInvoices, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
+import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
+import { AiSeller } from "./botSeller";
 
-/** Пауза после сообщения клиента: на серию «Здравствуйте / хочу узнать цену / для мамы» бот отвечает одним сообщением. */
-export const BOT_PAUSE_MS = 7_000;
-/** Клиент молчит посреди опроса столько — частичная сводка менеджеру, бот больше не пишет. */
-export const BOT_ABANDON_MS = 30 * 60_000;
-/** Клиент молчит после предложения (и напоминания) столько — итог менеджеру, бот больше не пишет. */
-export const BOT_OFFER_IDLE_MS = 12 * 60 * 60_000;
-/** AI думает не дольше — иначе только детерминированный разбор. */
-export const BOT_AI_TIMEOUT_MS = 6_000;
+export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
+import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 
 export interface QualifierBotDeps {
   conversations: ConversationRepository;
@@ -59,6 +55,9 @@ export interface QualifierBotDeps {
   brain?: BotBrain | null;
   /** Счёт от имени бота (режим «Продаёт» со счётом); null — счета выставляет только менеджер. */
   invoices?: BotInvoices | null;
+  /** Модель AI-продажника и переписка для неё; без них режим «Продаёт» идёт по шаблонам. */
+  seller?: BotSellerModel | null;
+  history?: BotHistory["messages"] | null;
 }
 
 /**
@@ -70,8 +69,26 @@ export interface QualifierBotDeps {
  */
 export class QualifierBot {
   readonly #running = new Set<string>();
+  readonly #seller: AiSeller;
 
-  constructor(private readonly d: QualifierBotDeps) {}
+  constructor(private readonly d: QualifierBotDeps) {
+    this.#seller = new AiSeller(d, {
+      env: (conv, config, fields, now) => this.env(conv, config, fields, now),
+      finish: (conv, state, fields) => this.finish(conv, state, fields),
+      offered: (conv, state, fields) => this.offered(conv, state, fields),
+      later: (conversationId, due) => this.later(conversationId, due),
+    });
+  }
+
+  /** Тест-режим на настоящей модели продажника (настройки бота → «Проверить диалог»). null — продажник не включён или нет модели. */
+  async previewAi(input: Parameters<AiSeller["preview"]>[0], ctx: Parameters<AiSeller["preview"]>[1]) {
+    return (await this.aiEngine(input.config)) ? this.#seller.preview(input, ctx) : null;
+  }
+
+  /** Беседу ведёт AI-продажник: режим «Продаёт» с движком AI и подключённая модель. */
+  private async aiEngine(config: BotEnv["config"]) {
+    return config.sell.on && config.sell.engine === "ai" && (await this.#seller.available());
+  }
 
   /**
    * Входящее сообщение (инбокс вызывает после записи сообщения). quiet — бот ведёт диалог: уведомление на каждое
@@ -95,23 +112,28 @@ export class QualifierBot {
       await this.later(conv.id, new Date(Math.max(rec?.dueAt?.getTime() ?? 0, now.getTime() + BOT_PAUSE_MS)));
       return { quiet: !state.waitHuman };
     }
-    if (state) return { quiet: false };
+    // Менеджер ответил и бот замолчал — не навсегда: если менеджер снова не отвечает, AI-продажник подхватит (takeover).
+    // «Остановить бота» кнопкой (reason button) — окончательно.
+    const softStopped = !!state && state.phase === "done" && state.outcome === "stopped_by_manager" && state.reason !== "button";
+    if (state && !softStopped) return { quiet: false };
     // Диалог, начатый прежней версией бота (без состояния), не продолжаем: вопросы могли уйти поверх человека.
-    if (conv.botStep !== null) {
+    if (!state && conv.botStep !== null) {
       await this.d.conversations.advanceBot(conv.id, conv.botStep, BOT_DONE);
       return { quiet: false };
     }
-    if (!opts.created) return { quiet: false };
+    if (!opts.created) return this.takeover(conv, m, state, mode, now);
 
     const [config, fields, workTime] = await Promise.all([this.d.settings.config(), this.d.settings.dealFields(), this.d.settings.isWorkTime(now)]);
     const channel = botChannelOf(conv.channel);
+    const ai = await this.aiEngine(config);
     const questions = config.questions.filter((q) => fields.some((f) => f.key === q.field)).length;
     const fresh = newBotState(new Date(m.at.getTime() - 1000), opts.dealCreated);
-    let reason: BotSkipReason | null = !channel || !config.channels.includes(channel) ? "channel" : !questions ? "no_questions" : mode === "off_hours" && workTime ? "work_time" : null;
+    if (ai) fresh.engine = "ai";
+    let reason: BotSkipReason | null = !channel || !config.channels.includes(channel) ? "channel" : !questions && !ai ? "no_questions" : mode === "off_hours" && workTime ? "work_time" : null;
     if (!reason) {
       // Клиент с заказом, книгой или сделкой в работе — без опроса (первые сообщения проверяются перед стартом).
       const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
-      reason = startBlocker({ channelOk: true, questions, deal: deal && { ...deal, assigned: !!deal.assigneeId }, fresh: opts.dealCreated, client, priorChat: false, inputs: [] });
+      reason = startBlocker({ channelOk: true, questions: ai ? Math.max(1, questions) : questions, deal: deal && { ...deal, assigned: !!deal.assigneeId }, fresh: opts.dealCreated, client, priorChat: false, inputs: [] });
       if (reason === "media_only") reason = null;
     }
     if (reason) {
@@ -120,8 +142,54 @@ export class QualifierBot {
     }
     fresh.waitHuman = mode === "fallback" && workTime;
     const due = new Date(now.getTime() + (fresh.waitHuman ? config.waitMinutes * 60_000 : BOT_PAUSE_MS));
-    if (await this.d.store.save(conv.id, null, { botStep: null, state: fresh, dueAt: due })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
+    if (await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: { ...fresh, version: (state?.version ?? -1) + 1 }, dueAt: due }, { restart: !!state })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
     return { quiet: false };
+  }
+
+  /**
+   * Подхват начатой переписки: клиент написал в диалог, который бот не вёл (менеджер уже общался, переписка началась до
+   * бота или бот замолчал после ответа менеджера), и менеджер не отвечает. Бот ждёт waitMinutes (вне рабочего времени —
+   * только паузу) и, если «ждёт ответа» осталось, продолжает беседу с места, где остановились: модель читает всю переписку.
+   */
+  private async takeover(conv: Conversation, m: InboundMessage, state: BotState | null, mode: string, now: Date): Promise<{ quiet: boolean }> {
+    const none = { quiet: false };
+    const [config, workTime] = await Promise.all([this.d.settings.config(), this.d.settings.isWorkTime(now)]);
+    if (!config.sell.takeover || !(await this.aiEngine(config))) return none;
+    const channel = botChannelOf(conv.channel);
+    if (!channel || !config.channels.includes(channel)) return none;
+    // «Спасибо» и подобное не открывают «ждёт ответа» — подхватывать нечего.
+    if (!conv.awaitingSince) return none;
+    if (mode === "off_hours" && workTime) return none;
+    const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId!), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
+    if (this.takeoverBlocker(deal, client)) return none;
+    const awaiting = new Date(conv.awaitingSince);
+    const due = new Date(Math.max(now.getTime() + BOT_PAUSE_MS, workTime ? awaiting.getTime() + config.waitMinutes * 60_000 : 0));
+    const next: BotState = {
+      ...newBotState(new Date(awaiting.getTime() - 1000), false),
+      engine: "ai",
+      waitHuman: workTime,
+      reason: "takeover",
+      ai: { ...newSellerAiState(), takeover: true },
+      version: (state?.version ?? -1) + 1,
+    };
+    if (await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: next, dueAt: due }, { restart: true })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
+    return none;
+  }
+
+  /** Сколько ещё ждать менеджера: answered — «ждёт ответа» уже нет (ответил или закрыл чат); Date — до какого момента; null — пора. */
+  private takeoverWait(conv: Conversation, state: BotState, config: BotEnv["config"], now: Date): "answered" | Date | null {
+    if (!conv.awaitingSince) return "answered";
+    if (!state.waitHuman) return null;
+    const at = new Date(new Date(conv.awaitingSince).getTime() + config.waitMinutes * 60_000);
+    return at.getTime() > now.getTime() + 500 ? at : null;
+  }
+
+  /** Подхватывать нельзя: нет сделки, она закрыта или по ней заказ, у клиента уже есть заказы (это уже не продажа). */
+  private takeoverBlocker(deal: Awaited<ReturnType<BotCrm["deal"]>>, client: Awaited<ReturnType<BotCrm["client"]>>): BotSkipReason | null {
+    if (!deal) return "no_deal";
+    if (deal.orderId || (client?.orders ?? 0) > 0) return "client_has_order";
+    if (deal.closed) return "deal_closed";
+    return null;
   }
 
   /** Бот ведёт диалог или собирается (правило-автоответ в такой диалог не пишет — иначе клиенту два ответа). */
@@ -132,7 +200,8 @@ export class QualifierBot {
 
   /** Человек ответил клиенту (с телефона или из CRM) или нажал «Остановить бота»: бот больше не пишет. */
   async stopByHuman(conversationId: string, reason = "reply") {
-    const stopped = await this.d.store.stop(conversationId, reason);
+    // Кнопка «Остановить бота» — окончательно; ответ менеджера (из CRM или с телефона) — до его следующего молчания.
+    const stopped = await this.d.store.stop(conversationId, reason, { soft: reason !== "button" });
     if (stopped) await this.d.store.log(conversationId, null, null, [{ kind: "stopped_by_manager", reason }]).catch((err) => this.d.logger.error("bot log", err));
     return stopped;
   }
@@ -145,7 +214,8 @@ export class QualifierBot {
     if (rec?.state && rec.state.phase !== "done" && rec.botStep !== BOT_DONE) throw new Error("Бот уже ведёт этот диалог");
     const now = this.d.clock.now();
     const prev = rec?.state?.version ?? null;
-    const state: BotState = { ...newBotState(now, false), reason: "manual", version: (prev ?? -1) + 1 };
+    const config = await this.d.settings.config();
+    const state: BotState = { ...newBotState(now, false), reason: "manual", version: (prev ?? -1) + 1, engine: (await this.aiEngine(config)) ? "ai" : "template" };
     if (!(await this.d.store.save(conversationId, prev, { botStep: null, state, dueAt: now }, { restart: true }))) throw new Error("Диалог только что изменился — попробуйте ещё раз");
     await this.process(conversationId);
   }
@@ -200,7 +270,25 @@ export class QualifierBot {
     }
     const [config, fields, inputs] = await Promise.all([this.d.settings.config(), this.d.settings.dealFields(), this.d.store.incoming(conversationId, new Date(state.since))]);
 
-    if (state.phase === "waiting" && state.reason !== "manual") {
+    if (state.phase === "waiting" && state.reason === "takeover") {
+      // Менеджер так и не ответил? Ответил/закрыл чат — бот не вмешивается (но следующее молчание подхватит снова).
+      const wait = this.takeoverWait(conv, state, config, now);
+      if (wait === "answered") {
+        const off: BotState = { ...state, phase: "done", outcome: "stopped_by_manager", reason: "answered", asking: null, version: state.version + 1 };
+        return !(await this.d.store.save(conversationId, state.version, { botStep: null, state: off, dueAt: null }, { restart: true }));
+      }
+      if (wait) {
+        await this.later(conversationId, wait);
+        return false;
+      }
+      const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
+      const blocked = this.takeoverBlocker(deal, client) ?? (!(await this.aiEngine(config)) || !config.sell.takeover ? ("disabled" as BotSkipReason) : null);
+      if (blocked) {
+        const off: BotState = { ...state, phase: "done", outcome: "stopped_by_manager", reason: "answered", asking: null, version: state.version + 1 };
+        await this.d.store.log(conversationId, conv.dealId, null, [{ kind: "skipped", reason: blocked }]);
+        return !(await this.d.store.save(conversationId, state.version, { botStep: null, state: off, dueAt: null }, { restart: true }));
+      }
+    } else if (state.phase === "waiting" && state.reason !== "manual") {
       const reason = await this.gate(conv, state, inputs, mode, now);
       if (reason) {
         await this.skip(conv, state, state.version, reason);
@@ -230,6 +318,9 @@ export class QualifierBot {
       await this.finish(conv, next, fields);
       return false;
     }
+
+    // Беседу ведёт AI-продажник (режим «Продаёт», движок AI): модель понимает клиента и отвечает, код проверяет.
+    if (state.engine === "ai") return this.#seller.turn(conv, state, config, fields, now);
 
     const env = await this.env(conv, config, fields, now);
     let turn = botTurn(state, inputs, env);
@@ -399,6 +490,7 @@ export class QualifierBot {
         await this.later(conv.id, due);
         return false;
       }
+      if (state.engine === "ai") return this.#seller.followUp(conv, state, config, fields, now);
       const env = await this.env(conv, config, fields, now);
       const turn = botFollowUp(state, env);
       if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: turn.state, dueAt: new Date(now.getTime() + BOT_OFFER_IDLE_MS) }))) return true;

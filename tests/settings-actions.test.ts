@@ -184,7 +184,7 @@ describe("Шаблоны ответов и бот", () => {
     expect(w.saved).toHaveLength(1);
     expect(w.saved[0]["bot.mode"]).toBe("fallback");
     expect(parseBotConfig(w.saved[0]["bot.config"])).toEqual(config);
-    expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false, sell: false, invoice: false }]]);
+    expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false, sell: false, engine: "ai", takeover: true, invoice: false }]]);
   });
 
   it("бот продаёт: предоплата не больше цены печатной в счёте бота", async () => {

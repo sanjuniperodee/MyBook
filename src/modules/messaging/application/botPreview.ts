@@ -35,6 +35,8 @@ export interface BotPreviewResult {
   lang: BotLang;
   done: boolean;
   summary: string | null;
+  /** Кто вёл диалог в тесте: шаблоны или AI-модель продажника (настоящий запрос к модели). */
+  engine?: "template" | "ai";
 }
 
 /**
