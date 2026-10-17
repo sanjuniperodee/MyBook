@@ -22,6 +22,7 @@ const toDomain = (r: Row) =>
     channel: r.channel,
     plan: r.plan,
     agreedTotal: r.agreedTotal,
+    booksCount: r.booksCount,
     amount: r.amount,
     purpose: r.purpose,
     status: r.status,

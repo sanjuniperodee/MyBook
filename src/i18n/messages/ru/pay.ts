@@ -10,7 +10,7 @@ export const pay = {
     custom: "оплата",
   } as Record<"prepayment" | "remainder" | "full" | "custom", string>,
   /** Назначение платежа: «Персональная книга: Твёрдая обложка, предоплата». */
-  purposeLine: (plan: string, purpose: string) => `Персональная книга: ${plan}, ${purpose}`,
+  purposeLine: (plan: string, purpose: string, books = 1) => `${books > 1 ? `Персональные книги (${books} шт.)` : "Персональная книга"}: ${plan}, ${purpose}`,
   summary: (plan: string, purpose: string, agreed: string) => `${plan}, ${purpose}. Цена книги по договорённости — ${agreed}.`,
   until: (date: string) => `Счёт действует до ${date}.`,
   toPay: "К оплате",
@@ -50,9 +50,9 @@ export const pay = {
     paid: "Оплата получена! Обновляем страницу…",
   },
   /** Сообщение со счётом в WhatsApp. */
-  message: (i: { name: string; label: string; plan: string; purpose: string; amount: string; link: string; until: string; kaspiPhone: string | null; kaspiOrg: string | null }) =>
+  message: (i: { name: string; label: string; plan: string; books?: number; purpose: string; amount: string; link: string; until: string; kaspiPhone: string | null; kaspiOrg: string | null }) =>
     [
-      `Здравствуйте${i.name ? `, ${i.name}` : ""}! Счёт ${i.label} на оплату: персональная книга (${i.plan}), ${i.purpose} — ${i.amount}.`,
+      `Здравствуйте${i.name ? `, ${i.name}` : ""}! Счёт ${i.label} на оплату: ${i.books && i.books > 1 ? `персональные книги, ${i.books} шт. (${i.plan})` : `персональная книга (${i.plan})`}, ${i.purpose} — ${i.amount}.`,
       `Оплатить: ${i.link}`,
       i.kaspiPhone ? `Счёт также пришёл в приложение Kaspi на номер ${i.kaspiPhone}${i.kaspiOrg ? ` — получатель ${i.kaspiOrg}` : ""}.` : null,
       `Действует до ${i.until}.`,

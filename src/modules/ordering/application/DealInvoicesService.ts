@@ -12,7 +12,9 @@ export interface InvoiceDeal {
   assigneeId: string | null;
   /** Цена книги по договорённости (сумма сделки). */
   amount: number;
-  /** Принято денег (платежи минус возвраты). */
+  /** Сделка — одна из книг пакета (клиент оплачивает сразу несколько): сколько книг в пакете; null — обычная сделка. */
+  batchSize?: number | null;
+  /** Принято денег (платежи минус возвраты); у пакета — по всему пакету. */
   paid: number;
   orderId: string | null;
   /** Сделка закрыта (успех или отказ). */
@@ -22,7 +24,7 @@ export interface InvoiceDeal {
 export interface InvoiceSales {
   deal(dealId: string): Promise<InvoiceDeal | null>;
   /** Договорённость в сделку: тариф и цена книги (журнал сделки — у продаж). */
-  setAgreement(dealId: string, input: { plan: string; agreedTotal: number; actorId: string | null }): Promise<void>;
+  setAgreement(dealId: string, input: { plan: string; agreedTotal: number; /** Сколько книг: больше одной — сделка становится пакетом (по сделке на книгу). */ count: number; actorId: string | null }): Promise<void>;
   /** Онлайн-платёж по счёту: идемпотентно по операции; null — эта операция уже записана. */
   acceptOnline(input: { dealId: string; clientId: string | null; amount: number; paidAt: Date; method: "kaspi" | "cloudpayments"; externalRef: string; invoiceId: string; note: string }): Promise<{ paymentId: string } | null>;
 }
@@ -36,7 +38,10 @@ export interface IssueInvoiceInput {
   locale: "ru" | "kk";
   channel: string;
   plan: string;
+  /** Цена одной книги по договорённости. */
   agreedTotal: number;
+  /** Сколько книг оплачивает счёт (по умолчанию одна). */
+  count?: number;
   amount: number;
   purpose: DealInvoicePurpose;
   /** userId null — счёт выставил бот (режим «Продаёт»). */
@@ -84,7 +89,10 @@ export class DealInvoicesService {
       if (!deal) throw new OrderingError("paymentRule", "Сделка не найдена");
       if (deal.orderId) throw new OrderingError("paymentRule", "По сделке уже оформлен заказ — оплата идёт в заказе");
       if (deal.closed) throw new OrderingError("paymentRule", "Сделка закрыта — верните её в работу, чтобы выставить счёт");
-      const left = input.agreedTotal - deal.paid;
+      // Пакет уже создан — счёт на весь пакет; иначе — столько книг, сколько указал менеджер.
+      const books = deal.batchSize && deal.batchSize > 1 ? deal.batchSize : Math.max(1, Math.min(20, Math.floor(input.count ?? 1)));
+      if (deal.batchSize && deal.batchSize > 1 && input.count && input.count !== deal.batchSize) throw new OrderingError("paymentRule", `По сделке уже пакет из ${deal.batchSize} книг — счёт выставляется на весь пакет`);
+      const left = input.agreedTotal * books - deal.paid;
       if (left <= 0) throw new OrderingError("paymentRule", "По договорённости уже всё оплачено");
       if (!Number.isInteger(input.amount) || input.amount <= 0 || input.amount > left) throw new OrderingError("paymentRule", `Сумма счёта — от 1 до ${left.toLocaleString("ru-RU")} ₸ (остаток по договорённости)`);
       // Один открытый счёт на сделку: прежний закрываем (в транзакции, под блокировкой сделки).
@@ -93,7 +101,7 @@ export class DealInvoicesService {
         await this.invoices.save(prev);
         this.uow.track(prev);
       }
-      await this.sales.setAgreement(deal.id, { plan: input.plan, agreedTotal: input.agreedTotal, actorId: input.actor.userId });
+      await this.sales.setAgreement(deal.id, { plan: input.plan, agreedTotal: input.agreedTotal, count: books, actorId: input.actor.userId });
       const { id, number } = await this.invoices.nextIdentity();
       const invoice = DealInvoice.issue(
         id,
@@ -108,6 +116,7 @@ export class DealInvoicesService {
           channel: input.channel,
           plan: input.plan,
           agreedTotal: input.agreedTotal,
+          booksCount: books,
           amount: input.amount,
           purpose: input.purpose,
           issuedById: input.actor.userId,

@@ -1,0 +1,1 @@
+ALTER TABLE "deal_invoices" ADD COLUMN "books_count" integer DEFAULT 1 NOT NULL;

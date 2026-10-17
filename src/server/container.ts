@@ -320,11 +320,15 @@ export class Container {
           const d = await this.sales.deals.findById(dealId);
           if (!d) return null;
           const stage = await this.sales.deals.stage(d.stageId);
-          return { id: d.id, number: d.number, title: d.title, clientId: d.clientId, assigneeId: d.assigneeId, amount: d.amount, paid: await this.sales.payments.paidTotal(d.id), orderId: d.orderId, closed: !!stage && stage.kind !== "open" };
+          // Деньги пакета (клиент оплатил сразу несколько книг) лежат в сделке счёта, а делятся между книгами при расчёте: счёт видит пакет целиком.
+          const batch = await this.sales.batch.money(d.id);
+          return { id: d.id, number: d.number, title: d.title, clientId: d.clientId, assigneeId: d.assigneeId, amount: d.amount, paid: batch.size ? batch.paid : await this.sales.payments.paidTotal(d.id), batchSize: batch.size, orderId: d.orderId, closed: !!stage && stage.kind !== "open" };
         },
-        setAgreement: async (dealId, { plan, agreedTotal, actorId }) => {
+        setAgreement: async (dealId, { plan, agreedTotal, count, actorId }) => {
           await this.sales.agreedPlan.set(dealId, plan);
           await this.sales.deals.setAgreedTotal(dealId, agreedTotal, actorId);
+          // Несколько книг — сделка становится пакетом (копии под остальные книги).
+          if (count > 1) await this.sales.splitIntoBatch(dealId, count, actorId);
         },
         acceptOnline: async (input) => {
           const row = await this.sales.payments.addOnline(input);

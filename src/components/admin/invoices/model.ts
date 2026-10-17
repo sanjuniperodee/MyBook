@@ -124,12 +124,13 @@ const payTexts = { ru: ruPay, kk: kkPay };
 const planNames = { ru: ruPlans, kk: kkPlans };
 
 /** Предпросмотр сообщения со счётом — тот же шаблон словаря pay, что уходит клиенту (номер счёта появится при выпуске). */
-export function invoicePreview(i: { locale: "ru" | "kk"; clientName: string; plan: string; purpose: InvoicePurpose; amount: number; link: string; until: string; kaspiPhone: string | null }) {
+export function invoicePreview(i: { locale: "ru" | "kk"; clientName: string; plan: string; books?: number; purpose: InvoicePurpose; amount: number; link: string; until: string; kaspiPhone: string | null }) {
   const t = payTexts[i.locale];
   return t.message({
     name: i.clientName.trim().split(" ")[0] ?? "",
     label: "P…",
     plan: planNames[i.locale][i.plan as PlanId]?.name ?? i.plan,
+    books: i.books,
     purpose: t.purpose[i.purpose],
     amount: formatPrice(i.amount),
     link: i.link,

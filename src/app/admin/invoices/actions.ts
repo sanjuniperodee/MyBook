@@ -31,6 +31,8 @@ const schema = z.object({
   channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент"),
   plan: z.string().refine((p) => !!getPlan(p), "Выберите тариф договорённости"),
   agreedTotal: z.coerce.number().int().min(1, "Укажите цену книги").max(10_000_000),
+  /** Сколько книг оплачивает счёт (цена выше — за одну). */
+  count: z.coerce.number().int("Количество книг — целое число").min(1, "Книг — хотя бы одна").max(20, "Не больше 20 книг в одном счёте").default(1),
   amount: z.coerce.number().int().min(1, "Сумма счёта — больше нуля").max(10_000_000),
   purpose: z.enum(["prepayment", "remainder", "full", "custom"]),
   /** Ключ формы (uuid из браузера): двойное нажатие не выпускает второй счёт и не шлёт сообщение дважды. */
@@ -44,8 +46,10 @@ export interface InvoiceFormInfo {
   dealId: string | null;
   dealNumber: number | null;
   plan: string | null;
-  /** Цена книги по договорённости (сумма сделки); 0 — ещё не договорились. */
+  /** Цена одной книги по договорённости (сумма сделки); 0 — ещё не договорились. */
   agreedTotal: number;
+  /** Сделка — пакет из N книг (счёт выставляется на весь пакет); null — обычная сделка. */
+  batchSize?: number | null;
   paid: number;
   hasOrder: boolean;
   /** Заказ сделки: вместо формы — ссылка на него (оплата идёт в заказе). */
@@ -87,10 +91,11 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
   const conv = conv0 ?? (deal ? await c.messaging.queries.whatsappForDeal(deal.id) : null);
   const phone = conv?.channel === "whatsapp" && isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
   const clientId = deal?.clientId ?? conv?.clientId ?? null;
+  const batchSize = deal ? (await c.sales.batch.money(deal.id)).size : null;
   const [methods, plan, paid, open, maxDiscount, stage, client] = await Promise.all([
     availableMethods(),
     deal ? c.sales.agreedPlan.get(deal.id) : Promise.resolve(null),
-    deal ? c.sales.payments.paidTotal(deal.id) : Promise.resolve(0),
+    deal ? c.sales.batch.money(deal.id).then((b) => (b.size ? b.paid : c.sales.payments.paidTotal(deal.id))) : Promise.resolve(0),
     deal ? c.ordering.invoices.listFor(deal.id).then((l) => l.find((i) => i.isPayable(new Date())) ?? null) : Promise.resolve(null),
     getSetting("crm.maxDiscount"),
     deal ? c.sales.deals.stage(deal.stageId) : Promise.resolve(null),
@@ -109,6 +114,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       dealNumber: deal?.number ?? null,
       plan: plan ?? null,
       agreedTotal: deal?.amount ?? 0,
+      batchSize: batchSize && batchSize > 1 ? batchSize : null,
       paid,
       hasOrder: !!deal?.orderId,
       orderId: deal?.orderId ?? null,
@@ -145,7 +151,7 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const d = parsed.data;
-  if (d.amount > d.agreedTotal) return { ok: false, message: "Сумма счёта больше цены книги" };
+  if (d.amount > d.agreedTotal * d.count) return { ok: false, message: "Сумма счёта больше цены книги" };
   if (!(await rateLimit(`invoice:${staff.user.id}`, 20, 600_000))) return { ok: false, message: "Слишком много счетов подряд — подождите несколько минут" };
   const methods = await availableMethods();
   if (!methods.kaspi && !methods.card && !methods.transfer) return { ok: false, message: "Нет способа оплаты: подключите Kaspi или укажите реквизиты перевода в «Интеграциях»" };
@@ -180,6 +186,7 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
       channel: d.channel,
       plan: d.plan,
       agreedTotal: d.agreedTotal,
+      count: d.count,
       amount: d.amount,
       purpose: d.purpose,
       actor: { userId: staff.user.id, label: staff.user.email },
@@ -200,7 +207,7 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
     const msg = await c.messaging.chats.send(conv.id, text, staff.user.id);
     sent = msg.status !== "error";
   }
-  await audit(staff, "invoice.issue", "deal", deal.id, { invoice: invoice.label, amount: d.amount, agreed: d.agreedTotal, plan: d.plan, phone: phone ? phoneTail(phone) : null, kaspiPush: push ? push.ok : null });
+  await audit(staff, "invoice.issue", "deal", deal.id, { invoice: invoice.label, amount: d.amount, agreed: d.agreedTotal, count: d.count, plan: d.plan, phone: phone ? phoneTail(phone) : null, kaspiPush: push ? push.ok : null });
   revalidatePath(`/admin/deals/${deal.id}`);
   revalidatePath("/admin/chats");
   const message = sent ? `Счёт ${invoice.label} отправлен клиенту` : conv ? `Счёт ${invoice.label} создан, но сообщение не ушло — скопируйте ссылку` : `Счёт ${invoice.label} создан — отправьте ссылку клиенту`;

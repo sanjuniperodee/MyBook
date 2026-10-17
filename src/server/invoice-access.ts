@@ -339,13 +339,15 @@ export class InvoiceAccess {
     const stage = prepaidStage(await this.p.deals.stages(), deal.stageId);
     if (stage) await this.p.deals.move(deal.id, stage.id);
 
-    const agreed = deal.amount > 0 ? deal.amount : s.agreedTotal;
+    const books = s.booksCount ?? 1;
+    const perBook = deal.amount > 0 ? deal.amount : s.agreedTotal;
+    const agreed = perBook * books;
     const paid = await this.p.deals.paidTotal(deal.id);
     const left = Math.max(0, agreed - paid);
     const login = isPhoneEmail(account.email) ? `вход по телефону ${phoneTail(account.phone ?? s.phone)}` : `вход по почте ${maskEmail(account.email)}`;
     const terms = [
       `Счёт ${label(s.number)} оплачен (${methodLabel(s.paidMethod ?? "manual")}): ${formatPrice(s.amount)}.`,
-      `Условия: тариф «${planLabels[s.plan as PlanId] ?? s.plan}», договорённость ${formatPrice(agreed)} за книгу, оплачено всего ${formatPrice(paid)}${left > 0 ? `, остаток ${formatPrice(left)}` : " — договорённость оплачена полностью"}.`,
+      `Условия: тариф «${planLabels[s.plan as PlanId] ?? s.plan}», договорённость ${formatPrice(perBook)} за книгу${books > 1 ? ` × ${books} кн. = ${formatPrice(agreed)}` : ""}, оплачено всего ${formatPrice(paid)}${left > 0 ? `, остаток ${formatPrice(left)}` : " — договорённость оплачена полностью"}.`,
       `Клиент на сайте: ${account.name || "без имени"}, ${login}, язык кабинета — ${s.locale === "kk" ? "казахский" : "русский"}.`,
     ].join("\n");
     await this.p.crm.noteOnce({ dealId: deal.id, clientId: account.id, text: terms });
@@ -493,7 +495,11 @@ export function createInvoiceAccess(c: Container): InvoiceAccess {
     deals: {
       find: (id) => c.sales.deals.findById(id),
       paidTotal: (dealId) => c.sales.payments.paidTotal(dealId),
-      linkClient: (dealId, clientId) => c.sales.deals.linkClient(dealId, clientId),
+      // Книги пакета (счёт на несколько книг) — того же клиента.
+      linkClient: async (dealId, clientId) => {
+        await c.sales.deals.linkClient(dealId, clientId);
+        for (const b of await c.sales.batch.of(dealId)) if (b.id !== dealId) await c.sales.deals.linkClient(b.id, clientId);
+      },
       assignMoney: (dealId, clientId, from) => c.sales.payments.assignClient(dealId, clientId, from),
       stages: () => c.sales.queries.listStages(),
       move: async (dealId, stageId) => void (await c.sales.deals.move(dealId, stageId, null)),

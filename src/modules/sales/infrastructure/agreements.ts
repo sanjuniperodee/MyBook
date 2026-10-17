@@ -28,8 +28,15 @@ export interface DealAgreement {
  */
 const isAgreement = (d: SQL) => sql`(${d}.source = 'manual' or (${d}.agreed_plan is not null and exists (select 1 from crm_payments p where p.deal_id = ${d}.id)))`;
 
-/** Принято по сделке: платежи минус возвраты. */
-const paidSum = (d: SQL) => sql`coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = ${d}.id), 0)::int`;
+/**
+ * Принято по сделке: платежи минус возвраты. У книги пакета (клиент оплатил сразу несколько) — её доля общих денег пакета:
+ * деньги делятся поровну по номеру книги (остаток — первым), не больше цены книги. Так не важно, в какой сделке пакета лежит платёж
+ * (счёт — в первой, форма клиента — в каждой), и каждая книга забирает свою часть.
+ */
+const paidSum = (d: SQL) => sql`(case when ${d}.batch_id is null
+  then coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = ${d}.id), 0)
+  else least(${d}.amount, (select (t.total / ${d}.batch_size) + case when ${d}.batch_index < (t.total % ${d}.batch_size) then 1 else 0 end
+      from (select coalesce(sum(case when p.kind = 'refund' then -p.amount else p.amount end), 0)::int as total from crm_payments p join crm_deals b on b.id = p.deal_id where b.batch_id = ${d}.batch_id) t)) end)::int`;
 
 /**
  * Договорённость с клиентом: сделка-договорённость (см. isAgreement) с суммой, по которой ещё нет заказа, — открытая или

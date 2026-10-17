@@ -274,6 +274,13 @@
       "when": 1792255929552,
       "tag": "0038_deal_batches",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792258260741,
+      "tag": "0039_invoice_books_count",
+      "breakpoints": true
     }
   ]
 }

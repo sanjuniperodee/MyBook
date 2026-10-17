@@ -4,7 +4,7 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient, attachAgreementOrder, dealMoney } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
-import { dealAgreedPlan, dealBatch, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
+import { dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -41,7 +41,39 @@ export class SalesModule {
   /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
   readonly agreedPlan = { set: setDealAgreedPlan, get: dealAgreedPlan };
   /** Пакет книг: клиент оплатил сразу несколько — по сделке на книгу. */
-  readonly batch = { set: setDealBatch, of: dealBatch };
+  readonly batch = { set: setDealBatch, of: dealBatch, money: dealBatchMoney };
+  /**
+   * Сделка, по которой выставлен счёт на несколько книг, становится пакетом: копии сделки (тот же клиент, тариф, цена, этап) —
+   * по одной на остальные книги. Деньги остаются в сделке счёта; цена и предоплата делятся между книгами при расчёте договорённости.
+   * Сделка уже пакет — ничего не делает.
+   */
+  async splitIntoBatch(dealId: string, count: number, actorId: string | null): Promise<void> {
+    if (count < 2) return;
+    const deal = await this.deals.findById(dealId);
+    if (!deal || (await dealBatchMoney(dealId)).size) return;
+    const plan = await dealAgreedPlan(dealId);
+    const siblings: { id: string }[] = [];
+    for (let i = 1; i < count; i++) {
+      const copy = await this.deals.create({
+        title: deal.title,
+        source: "manual",
+        clientId: deal.clientId,
+        contactName: deal.contactName,
+        contactPhone: deal.contactPhone,
+        contactEmail: deal.contactEmail,
+        amount: deal.amount,
+        assigneeId: deal.assigneeId,
+        createdById: actorId,
+        stageId: deal.stageId,
+        customFields: deal.customFields,
+        utm: deal.utm,
+      });
+      if (plan) await setDealAgreedPlan(copy.id, plan);
+      siblings.push({ id: copy.id });
+    }
+    await markBatchMembers(dealId, crypto.randomUUID(), siblings);
+  }
+
   /** Перенести вручную выбранный канал клиента на его сделки (у которых нет настоящих UTM-меток). */
   readonly setClientAttribution = setClientDealsAttribution;
 

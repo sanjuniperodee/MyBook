@@ -166,6 +166,7 @@ const INV = "0d0d0d0d-0000-4000-8000-0000000000a1";
 const invoice = (over: Partial<Parameters<typeof DealInvoice.restore>[1]> = {}) =>
   DealInvoice.restore(INV, {
     number: 12,
+    booksCount: 1,
     token: "t".repeat(43),
     dealId: DEAL,
     conversationId: null,

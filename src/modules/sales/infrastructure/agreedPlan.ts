@@ -26,3 +26,21 @@ export async function dealBatch(dealId: string): Promise<{ id: string; number: n
     where d.id = ${dealId} and d.batch_id is not null order by b.batch_index`);
   return r.rows.map((x) => ({ id: x.id, number: x.number, index: x.idx, size: x.size, hasOrder: x.has_order }));
 }
+
+/** Размер пакета сделки (null — не пакет) и деньги по всему пакету: платежи минус возвраты по всем его сделкам. */
+export async function dealBatchMoney(dealId: string): Promise<{ size: number | null; paid: number }> {
+  const r = await executor().execute<{ size: number | null; paid: number }>(sql`
+    select d.batch_size as size,
+      case when d.batch_id is null then coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = d.id), 0)
+      else coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p join crm_deals b on b.id = p.deal_id where b.batch_id = d.batch_id), 0) end::int as paid
+    from crm_deals d where d.id = ${dealId}`);
+  return { size: r.rows[0]?.size ?? null, paid: r.rows[0]?.paid ?? 0 };
+}
+
+/** Сделки пакета, которых ещё нет: книга 1 из N уже есть (сделка dealId) — остальные заводятся копиями. Названия получают «· k из N». */
+export async function markBatchMembers(dealId: string, batchId: string, siblings: { id: string }[]): Promise<void> {
+  const size = siblings.length + 1;
+  await setDealBatch(dealId, batchId, 0, size);
+  for (let i = 0; i < siblings.length; i++) await setDealBatch(siblings[i].id, batchId, i + 1, size);
+  await executor().execute(sql`update crm_deals set title = title || ' · ' || (batch_index + 1) || ' из ' || batch_size where batch_id = ${batchId} and title not like '% из %'`);
+}

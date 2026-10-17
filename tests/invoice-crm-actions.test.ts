@@ -33,6 +33,7 @@ const thrown = (p: Promise<unknown>) => p.then(() => undefined, (e: unknown) => 
 const invoice = (over: Partial<DealInvoiceProps> = {}) =>
   DealInvoice.restore(INV, {
     number: 12,
+    booksCount: 1,
     token: "t".repeat(43),
     dealId: DEAL,
     conversationId: CONV,
@@ -85,6 +86,7 @@ beforeEach(() => {
     deals: { findById: async (id: string) => (id === DEAL ? deal : null), stage: async () => ({ kind: "open" }) },
     agreedPlan: { get: async () => "hardcover" },
     payments: { paidTotal: async () => 0 },
+    batch: { money: async () => ({ size: null, paid: 0 }) },
   };
   fake.messaging = {
     queries: { conversation: async (id: string) => (id === CONV ? conv : null), whatsappForDeal: async () => conv },

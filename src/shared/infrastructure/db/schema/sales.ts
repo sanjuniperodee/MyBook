@@ -153,6 +153,8 @@ export const dealInvoices = pgTable(
     plan: text("plan").notNull(),
     /** Цена книги по договорённости на момент счёта. */
     agreedTotal: integer("agreed_total").notNull(),
+    /** Сколько книг оплачивается счётом (по умолчанию одна): сумма договорённости — цена книги × количество. */
+    booksCount: integer("books_count").notNull().default(1),
     amount: integer("amount").notNull(),
     /** prepayment | remainder | full | custom — назначение в тексте счёта. */
     purpose: text("purpose", { enum: ["prepayment", "remainder", "full", "custom"] }).notNull(),

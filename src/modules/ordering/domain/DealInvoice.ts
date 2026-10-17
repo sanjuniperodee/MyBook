@@ -20,7 +20,10 @@ export interface DealInvoiceProps {
   locale: "ru" | "kk";
   channel: string;
   plan: string;
+  /** Цена одной книги по договорённости. */
   agreedTotal: number;
+  /** Сколько книг оплачивает счёт: договорённость по нему — agreedTotal × booksCount. */
+  booksCount: number;
   amount: number;
   purpose: DealInvoicePurpose;
   status: DealInvoiceStatus;
@@ -69,8 +72,8 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
     return new DealInvoice(id, props);
   }
 
-  static issue(id: string, input: Omit<DealInvoiceProps, "status" | "paidMethod" | "paidRef" | "paidAt" | "claimedAt" | "closedReason" | "expiresAt" | "accessStatus" | "accessUserId" | "accessMessageId" | "accessAttemptedAt" | "createdAt">, now: Date) {
-    return new DealInvoice(id, { ...input, status: "pending_payment", paidMethod: null, paidRef: null, paidAt: null, claimedAt: null, closedReason: null, expiresAt: new Date(now.getTime() + DEAL_INVOICE_TTL_MS), accessStatus: "none", accessUserId: null, accessMessageId: null, accessAttemptedAt: null, createdAt: now });
+  static issue(id: string, input: Omit<DealInvoiceProps, "status" | "paidMethod" | "paidRef" | "paidAt" | "claimedAt" | "closedReason" | "expiresAt" | "accessStatus" | "accessUserId" | "accessMessageId" | "accessAttemptedAt" | "createdAt" | "booksCount"> & { booksCount?: number }, now: Date) {
+    return new DealInvoice(id, { ...input, booksCount: input.booksCount ?? 1, status: "pending_payment", paidMethod: null, paidRef: null, paidAt: null, claimedAt: null, closedReason: null, expiresAt: new Date(now.getTime() + DEAL_INVOICE_TTL_MS), accessStatus: "none", accessUserId: null, accessMessageId: null, accessAttemptedAt: null, createdAt: now });
   }
 
   get number() {

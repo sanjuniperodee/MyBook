@@ -38,6 +38,34 @@ function dealSetup() {
   return { ...base, ordersSvc: base.svc, locks, attempts, deals, sales, uow, invoices, kaspi, svc, cloud, issue, paid, count, dealInvoice };
 }
 
+describe("счёт на несколько книг", () => {
+  const issueMany = (t: ReturnType<typeof dealSetup>, over: { count?: number; amount: number; dealId?: string }) =>
+    t.invoices.issue({ dealId: over.dealId ?? "deal-1", conversationId: null, phone: "77011234567", clientName: "Айжан", locale: "ru", channel: "whatsapp", plan: "hardcover", agreedTotal: 30000, count: over.count, amount: over.amount, purpose: "prepayment", actor: { userId: "staff-1", label: "staff" }, maxDiscountPercent: null });
+
+  it("договорённость по счёту — цена книги × количество: сумма до неё, сделка становится пакетом", async () => {
+    const t = dealSetup();
+    await expect(issueMany(t, { count: 3, amount: 90001 })).rejects.toMatchObject({ code: "paymentRule" });
+    const { invoice } = await issueMany(t, { count: 3, amount: 60000 });
+    expect(invoice.snapshot()).toMatchObject({ booksCount: 3, agreedTotal: 30000, amount: 60000 });
+    expect(t.sales.agreements).toEqual([{ dealId: "deal-1", count: 3, agreedTotal: 30000 }]);
+  });
+
+  it("без количества — одна книга, как раньше", async () => {
+    const t = dealSetup();
+    await expect(issueMany(t, { amount: 30001 })).rejects.toMatchObject({ code: "paymentRule" });
+    const { invoice } = await issueMany(t, { amount: 30000 });
+    expect(invoice.snapshot().booksCount).toBe(1);
+  });
+
+  it("сделка уже пакет: счёт на весь пакет, другое количество — отказ", async () => {
+    const t = dealSetup();
+    t.sales.addDeal("pack", { batchSize: 3 });
+    await expect(issueMany(t, { dealId: "pack", count: 2, amount: 10000 })).rejects.toMatchObject({ code: "paymentRule" });
+    const { invoice } = await issueMany(t, { dealId: "pack", amount: 90000 });
+    expect(invoice.snapshot().booksCount).toBe(3);
+  });
+});
+
 describe("ссылка /pay/<token>", () => {
   it("токен — ровно 43 знака base64url; остальное отсекается до базы", () => {
     expect(isPayToken("A".repeat(43))).toBe(true);

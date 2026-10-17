@@ -82,6 +82,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   // Цена договорённости — из сделки; пока её нет — прайс выбранного тарифа (меняется вместе с тарифом, пока не правили руками).
   const [agreed, setAgreed] = useState(info.agreedTotal > 0 ? String(info.agreedTotal) : info.plan && priceOf(info.plan) ? String(priceOf(info.plan)) : "");
   const [agreedTouched, setAgreedTouched] = useState(info.agreedTotal > 0);
+  const [count, setCount] = useState(String(info.batchSize ?? 1));
   const [kind, setKind] = useState<AmountKind>("remainder");
   const [custom, setCustom] = useState("");
   const [locale, setLocale] = useState(info.locale);
@@ -108,15 +109,17 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
 
   const agreedNum = Number(agreed);
   const agreedOk = Number.isInteger(agreedNum) && agreedNum > 0;
-  const options = amountOptions(agreedOk ? agreedNum : 0, info.paid);
-  const picked = agreedOk ? pickAmount(kind, agreedNum, info.paid, custom) : { error: "Укажите цену книги по договорённости" };
+  const countNum = info.batchSize ?? Math.max(1, Math.min(20, Math.floor(Number(count) || 1)));
+  const totalNum = agreedOk ? agreedNum * countNum : 0; // договорённость по всем книгам счёта
+  const options = amountOptions(totalNum, info.paid);
+  const picked = agreedOk ? pickAmount(kind, totalNum, info.paid, custom) : { error: "Укажите цену книги по договорённости" };
   const discount = discountProblem(priceOf(plan), agreedOk ? agreedNum : 0, info.maxDiscountPercent);
   const noMethods = !info.methods.kaspi && !info.methods.card && !info.methods.transfer;
   const problem = noMethods ? noMethodsText : !plan ? "Выберите тариф договорённости" : "error" in picked ? picked.error : !channel ? "Укажите, откуда пришёл клиент" : discount;
   const methods = [info.methods.kaspi && "Kaspi", info.methods.card && "картой", info.methods.transfer && "переводом по реквизитам"].filter(Boolean).join(" · ");
   const preview =
     plan && "amount" in picked
-      ? invoicePreview({ locale, clientName: name, plan, purpose: picked.purpose, amount: picked.amount, link: info.preview.link[locale], until: info.preview.until[locale], kaspiPhone: kaspiPush ? info.kaspiPhoneMasked : null })
+      ? invoicePreview({ locale, clientName: name, plan, books: countNum, purpose: picked.purpose, amount: picked.amount, link: info.preview.link[locale], until: info.preview.until[locale], kaspiPhone: kaspiPush ? info.kaspiPhoneMasked : null })
       : null;
 
   const submit = async () => {
@@ -124,7 +127,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
     setBusy(true);
     setError(null);
     try {
-      const r = await issueInvoiceAction({ dealId: info.dealId ?? "", conversationId: conversationId ?? "", clientName: name, locale, channel, plan, agreedTotal: agreedNum, amount: picked.amount, purpose: picked.purpose, issueKey, kaspiPush: !!info.kaspiPhoneMasked && kaspiPush });
+      const r = await issueInvoiceAction({ dealId: info.dealId ?? "", conversationId: conversationId ?? "", clientName: name, locale, channel, plan, agreedTotal: agreedNum, count: countNum, amount: picked.amount, purpose: picked.purpose, issueKey, kaspiPush: !!info.kaspiPhoneMasked && kaspiPush });
       if (!r.ok) return setError(r.message);
       setResult(r);
       router.refresh();
@@ -185,7 +188,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-muted">Цена книги по договорённости, ₸</span>
+          <span className="mb-1 block text-[11px] text-muted">{countNum > 1 ? "Цена одной книги по договорённости, ₸" : "Цена книги по договорённости, ₸"}</span>
           <input
             className="input h-10 w-full"
             type="number"
@@ -200,6 +203,11 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
           />
         </label>
       </div>
+      <label className="block">
+        <span className="mb-1 block text-[11px] text-muted">Сколько книг оплачивает счёт</span>
+        <input className="input h-10 w-32" type="number" min={1} max={20} step={1} value={info.batchSize ?? count} disabled={!!info.batchSize} onChange={(e) => setCount(e.target.value)} aria-label="Количество книг" />
+        <span className="mt-1 block text-[11px] text-muted">{info.batchSize ? `Сделка уже пакет из ${info.batchSize} книг — счёт на весь пакет.` : countNum > 1 ? `Сумма договорённости: ${countNum} × ${formatPrice(agreedNum || 0)} = ${formatPrice(totalNum)}. Для остальных книг создадим отдельные сделки — клиент оформит их по очереди.` : "Одна книга. Если клиент платит сразу за несколько — укажите количество."}</span>
+      </label>
       {discount ? (
         <p className="rounded-xl bg-red-50 p-2.5 text-xs text-red-800" data-testid="invoice-discount">
           {discount}
