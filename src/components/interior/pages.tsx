@@ -13,6 +13,7 @@ import { bookMessagesFor } from "@/i18n/messages/partial";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { openerArtShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
+import { openerFit } from "@/lib/book/opener-fit";
 import { openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
@@ -86,6 +87,7 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
   const colors = fill ?? design.palette;
   const flow = openerFlow(format, design);
   const shot = photo ? openerPhotoPlan(format, design) : null;
+  const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   const shapes = [
     ...(art ? openerArtShapes(art, { w: format.widthMm, h: format.heightMm, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : []),
     ...pageFrame(kit, colors),
@@ -97,9 +99,9 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           <ChapterMark kit={kit} colors={colors} number={number} />
-          <div style={{ ...faceCss(design.display, S.openerTitle, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
+          <div style={{ ...faceCss(design.display, fit.titleSize, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
           <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />
-          {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align] }}>{epigraph}</div> : null}
+          {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], ...(fit.epigraphLines ? { display: "-webkit-box", WebkitBoxOrient: "vertical" as const, WebkitLineClamp: fit.epigraphLines, overflow: "hidden" } : {}) }}>{epigraph}</div> : null}
         </Placed>
       </TextArea>
     </PageSurface>
@@ -167,7 +169,7 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
 }
 
 /** Оборот титула: копирайт и выходные данные внизу полосы — как в PDF (pdf/interior/colophon.tsx). */
-export function ColophonPage({ kit, year, author, className, style }: PageProps & { year: number; author: string }) {
+export function ColophonPage({ kit, year, author, recordedBy, className, style }: PageProps & { year: number; author: string; recordedBy?: string }) {
   const { design, sizes: S, u } = kit;
   const t = bookMessagesFor(kit.language);
   return (
@@ -175,7 +177,7 @@ export function ColophonPage({ kit, year, author, className, style }: PageProps 
       <TextArea kit={kit} className="flex flex-col">
         <div className="flex-1" />
         <div style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.colophon), lineHeight: FRONT.colophon.lineHeight, color: design.palette.muted, whiteSpace: "pre-line" }}>
-          {`${t.copyright(year, author)}\n${t.colophon(site.name)}`}
+          {`${t.copyright(year, author)}\n${recordedBy ? `${t.recordedBy(recordedBy)}\n` : ""}${t.colophon(site.name)}`}
         </div>
       </TextArea>
     </PageSurface>
@@ -198,7 +200,7 @@ export function DedicationPage({ kit, text, placeholder, className, style }: Pag
 }
 
 /** Оглавление. */
-export function TocPage({ kit, entries, className, style, muted }: PageProps & { entries: { title: string; number: number; page: number }[]; muted?: boolean }) {
+export function TocPage({ kit, entries, className, style, muted }: PageProps & { entries: { title: string; number: number | null; page: number }[]; muted?: boolean }) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
   const scale = metricsOf(kit).scale;
@@ -209,9 +211,10 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
           {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
-          <div key={e.number} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale) }}>
+          <div key={e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale) }}>
             <span className="truncate" style={{ color: P.ink, maxWidth: TOC.entry.maxWidth }}>
-              {e.number}. {e.title}
+              {e.number ? `${e.number}. ` : ""}
+              {e.title}
             </span>
             <span className="min-w-0 flex-1" style={{ borderBottom: `${u.pt(TOC.leader.width)} dotted ${P.rule}`, margin: `0 ${u.pt(TOC.leader.side)} ${u.pt(TOC.leader.bottom)}` }} />
             <span style={{ color: P.muted }}>{e.page}</span>

@@ -5,6 +5,7 @@ import { mm } from "@/lib/book/formats";
 import type { PhotoItem } from "@/lib/book/layout";
 import { chapterMark, PAPER, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { frameShapes, openerArtShapes } from "@/lib/book/interior-art";
+import { openerFit } from "@/lib/book/opener-fit";
 import { openerPhotoPlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { OPENER, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
@@ -75,6 +76,8 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
   const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors, seed: number ?? 0 }) : [];
   const image = photo ? options.images.get(photo.id) : undefined;
   const shot = image ? openerPhotoPlan(format, design) : null;
+  // Длинное название и эпиграф своей книги не должны выталкивать начальную полосу на вторую (то же правило — в HTML).
+  const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   return (
     <Page size={kit.pageSize} style={{ ...kit.pagePadding, backgroundColor: fill?.paper ?? PAPER }}>
       <PdfPageLayer shapes={[...artShapes, ...frameShapes(design.frame, box, colors)]} box={box} />
@@ -89,10 +92,10 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
       />
       <Placed top={shot?.textTop ?? design.opener.top} align={align}>
         <ChapterMark kit={kit} colors={colors} number={number} />
-        <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.openerTitle), lineHeight: OPENER.title.lineHeight, textAlign: align, color: colors.ink, maxWidth: OPENER.title.maxWidth }}>{title}</Text>
+        <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, fit.titleSize), lineHeight: OPENER.title.lineHeight, textAlign: align, color: colors.ink, maxWidth: OPENER.title.maxWidth }}>{title}</Text>
         <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />
         {epigraph ? (
-          <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: OPENER.epigraph.lineHeight, textAlign: align, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align] }}>{epigraph}</Text>
+          <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: OPENER.epigraph.lineHeight, textAlign: align, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], ...(fit.epigraphLines ? { maxLines: fit.epigraphLines, textOverflow: "ellipsis" as const } : {}) }}>{epigraph}</Text>
         ) : null}
       </Placed>
     </Page>

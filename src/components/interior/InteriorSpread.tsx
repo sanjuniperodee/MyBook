@@ -27,14 +27,16 @@ export interface SpreadSample {
   showToc: boolean;
   /** Фото книги для разворота «Фото» и начала главы; недостающие — пейзажи-заглушки. */
   photos?: { url: string; width: number; height: number; caption: string }[];
+  /** Подписи к фото-заглушкам по виду книги; нет — подписи подарка из словаря. */
+  captions?: readonly string[];
 }
 
 /** Номер правой страницы с текстом главы на развороте «Глава». */
 const TEXT_FOLIO = 7;
 
 /** Фото для разворота «Фото»: снимок на всю полосу и сетка из трёх (пейзажи-заглушки с подписями на языке книги). */
-function samplePhotos(language: Locale, own: NonNullable<SpreadSample["photos"]> = []): { single: PagePhoto[]; grid: PagePhoto[] } {
-  const [a, b, c] = bookMessagesFor(language).samplePhotos;
+function samplePhotos(language: Locale, own: NonNullable<SpreadSample["photos"]> = [], captions?: readonly string[]): { single: PagePhoto[]; grid: PagePhoto[] } {
+  const [a, b, c] = captions ?? bookMessagesFor(language).samplePhotos;
   const stock = [
     { width: 1500, height: 1200, caption: a },
     { width: 1600, height: 1000, caption: b },
@@ -71,7 +73,7 @@ export const InteriorSpread = memo(function InteriorSpread({
     left = <TitlePage kit={kit} title={sample.title} subtitle={sample.subtitle} author={sample.author} year={sample.year} style={page} />;
     right = <DedicationPage kit={kit} text={sample.dedication} placeholder={sample.dedicationPlaceholder} style={page} />;
   } else if (kind === "photos") {
-    const photos = samplePhotos(sample.language, sample.photos);
+    const photos = samplePhotos(sample.language, sample.photos, sample.captions);
     left = <PhotoPage kit={kit} photos={photos.single} style={page} />;
     right = <PhotoPage kit={kit} photos={photos.grid} scene={1} style={page} />;
   } else if (kind === "toc") {
