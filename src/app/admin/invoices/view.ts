@@ -1,11 +1,11 @@
 import "server-only";
-import { env } from "@/config/env";
 import { formatDate } from "@/lib/dates";
 import type { DealInvoice } from "@/modules/ordering";
 import type { InvoiceView } from "@/components/admin/invoices/model";
 
-/** Ссылка на оплату счёта — на языке счёта (/pay или /kk/pay). */
-export const payLink = (invoice: DealInvoice) => `${env.appUrl}${invoice.snapshot().locale === "kk" ? "/kk" : ""}/pay/${invoice.token}`;
+import { payLink } from "@/server/deal-invoices";
+
+export { payLink };
 
 /**
  * Счета сделки для блока «Счета» (страница сделки, карточка сделки в чате). Ссылка на оплату — только тем, кто ведёт

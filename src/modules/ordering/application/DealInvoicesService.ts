@@ -22,7 +22,7 @@ export interface InvoiceDeal {
 export interface InvoiceSales {
   deal(dealId: string): Promise<InvoiceDeal | null>;
   /** Договорённость в сделку: тариф и цена книги (журнал сделки — у продаж). */
-  setAgreement(dealId: string, input: { plan: string; agreedTotal: number; actorId: string }): Promise<void>;
+  setAgreement(dealId: string, input: { plan: string; agreedTotal: number; actorId: string | null }): Promise<void>;
   /** Онлайн-платёж по счёту: идемпотентно по операции; null — эта операция уже записана. */
   acceptOnline(input: { dealId: string; clientId: string | null; amount: number; paidAt: Date; method: "kaspi" | "cloudpayments"; externalRef: string; invoiceId: string; note: string }): Promise<{ paymentId: string } | null>;
 }
@@ -39,7 +39,8 @@ export interface IssueInvoiceInput {
   agreedTotal: number;
   amount: number;
   purpose: DealInvoicePurpose;
-  actor: { userId: string; label: string };
+  /** userId null — счёт выставил бот (режим «Продаёт»). */
+  actor: { userId: string | null; label: string };
   /** Скидка от прайса тарифа сверх лимита менеджера — только руководителю. */
   maxDiscountPercent: number | null;
   /** Ключ формы: повторное нажатие (двойной клик, повтор запроса) возвращает уже выпущенный счёт. */

@@ -55,6 +55,22 @@ const OTHER_TEXTS: [BotTextKey, string][] = [
   ["linkStart", "Ссылка, чтобы начать книгу ({ссылка})"],
 ];
 
+const SELL_TEXTS: [BotTextKey, string][] = [
+  ["offer", "Предложение: чем ценна книга"],
+  ["offerPrice", "Цена и предоплата ({цена.печатная}, {акция}, {предоплата}); строка с пустой переменной не отправляется"],
+  ["deadlineOk", "Успеваем к дате ({дата}, {заполнить_до} — до какого дня дописать)"],
+  ["deadlineExpress", "Успеваем только с экспресс-печатью"],
+  ["deadlineLate", "К дате печатную не успеть"],
+  ["close", "Призыв оформить"],
+  ["closeShort", "«Оформляем?» после ответа на вопрос"],
+  ["invoiceSent", "Бот выставил счёт (дальше — сообщение со ссылкой на оплату)"],
+  ["agreed", "Клиент согласен, счёт пришлёт менеджер"],
+  ["agreedLater", "То же ночью ({когда})"],
+  ["objPrice", "«Дорого», «денег нет»"],
+  ["objLater", "«Подумаю», «завтра», «после зарплаты»"],
+  ["followUp", "Напоминание, если клиент молчит"],
+];
+
 const area = "w-full rounded-xl border border-line bg-[#fbf9f5] px-3 py-2 text-sm";
 
 export function BotForm({
@@ -85,6 +101,13 @@ export function BotForm({
   const [lang, setLang] = useState<BotLang>("ru");
   const [pending, start] = useTransition();
   const patch = (p: Partial<BotConfig>) => setCfg((c) => ({ ...c, ...p }));
+  const setSell = (p: Partial<BotConfig["sell"]>) => setCfg((c) => ({ ...c, sell: { ...c.sell, ...p } }));
+  const sellNumber = (key: "prepay" | "writeDays" | "deliveryDays" | "followUpHours", label: string, min: number, max: number) => (
+    <label key={key} className="block">
+      <span className="mb-1 block text-xs text-muted">{label}</span>
+      <input type="number" min={min} max={max} value={cfg.sell[key]} onChange={(e) => setSell({ [key]: Math.max(min, Math.min(max, Math.floor(Number(e.target.value) || 0))) })} className="input h-9 w-full text-sm" aria-label={label} />
+    </label>
+  );
   const setText = (key: BotTextKey, value: string) => setCfg((c) => ({ ...c, texts: { ...c.texts, [lang]: { ...c.texts[lang], [key]: value } } }));
   const setQuestion = (i: number, p: { field?: string; text?: string }) =>
     setCfg((c) => ({ ...c, questions: c.questions.map((q, j) => (j === i ? { field: p.field ?? q.field, text: p.text === undefined ? q.text : { ...q.text, [lang]: p.text } } : q)) }));
@@ -283,6 +306,61 @@ export function BotForm({
             aria-label="Акция"
           />
         </label>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-line p-3" data-testid="bot-sell">
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.on} onChange={(e) => setSell({ on: e.target.checked })} aria-label="Бот продаёт" />
+          <span>
+            <span className="font-medium">Бот продаёт</span>
+            <span className="block text-xs text-muted">
+              После вопросов бот не прощается, а делает предложение: чем ценна книга, цена «от» и предоплата, успеем ли к дате — и «Оформляем?». Отвечает на «дорого» и «подумаю» (по одному разу), один раз
+              напоминает, если клиент замолчал. Непонятный вопрос, второе возражение или файл — передаёт менеджеру. Выключено — бот только собирает ответы.
+            </span>
+          </span>
+        </label>
+        {cfg.sell.on ? (
+          <>
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
+              {sellNumber("prepay", "Предоплата, ₸ ({предоплата}; 0 — не называть)", 0, 1_000_000)}
+              {sellNumber("writeDays", "Сколько дней клиенты пишут книгу", 0, 30)}
+              {sellNumber("deliveryDays", "Доставка, дней (с запасом)", 0, 30)}
+              {sellNumber("followUpHours", "Напомнить через, часов (0 — не напоминать)", 0, 72)}
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.invoice} onChange={(e) => setSell({ invoice: e.target.checked })} aria-label="Бот выставляет счёт" />
+              <span>
+                Бот сам выставляет счёт
+                <span className="block text-xs text-muted">
+                  На «да» бот выставляет счёт на предоплату (или на всю сумму, если предоплата 0): ссылка на оплату и счёт Kaspi на номер WhatsApp. После оплаты кабинет открывается сам. Не вышло (нет способа
+                  оплаты, сделка закрыта) — менеджеру срочная задача «Выставить счёт». Тариф — электронная, если клиент её выбрал, иначе печатная.
+                </span>
+              </span>
+            </label>
+            {cfg.sell.invoice ? (
+              <div className="grid gap-2 text-sm sm:grid-cols-2">
+                {(["hardcover", "digital"] as const).map((plan) => (
+                  <label key={plan} className="block">
+                    <span className="mb-1 block text-xs text-muted">Цена книги в счёте бота — {plan === "hardcover" ? "печатная" : "электронная"}, ₸ (пусто — из «Цен и тарифов»)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={cfg.sell.prices[plan] || ""}
+                      placeholder={vars.find((v) => v.key === (plan === "hardcover" ? "{цена.печатная}" : "{цена.электронная}"))?.value || ""}
+                      onChange={(e) => setSell({ prices: { ...cfg.sell.prices, [plan]: Math.max(0, Math.floor(Number(e.target.value) || 0)) } })}
+                      className="input h-9 w-full text-sm"
+                      aria-label={`Цена в счёте бота: ${plan === "hardcover" ? "печатная" : "электронная"}`}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            <details className="rounded-xl border border-line p-3">
+              <summary className="cursor-pointer text-sm">Тексты продаж ({lang === "ru" ? "русский" : "қазақша"})</summary>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">{SELL_TEXTS.map(([k, label]) => textField(k, label))}</div>
+            </details>
+          </>
+        ) : null}
       </div>
 
       <div className="space-y-2 text-sm">
