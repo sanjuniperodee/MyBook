@@ -223,7 +223,8 @@ export class QualifierBot {
   /** Фоновый проход (раз в минуту): отложенные ходы, ожидание менеджера, брошенные опросы. */
   async sweep(limit = 50) {
     const ids = await this.d.store.due(this.d.clock.now(), limit);
-    for (const id of ids) await this.process(id);
+    // Ход AI-продажника может идти десятки секунд: диалоги обрабатываются по четыре, а не по одному, иначе очередь встанет.
+    for (let i = 0; i < ids.length; i += 4) await Promise.all(ids.slice(i, i + 4).map((id) => this.process(id)));
     return ids.length;
   }
 

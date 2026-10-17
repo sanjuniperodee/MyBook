@@ -762,6 +762,11 @@ export function botSummary(s: BotState, fields: DealField[], dealValues: Record<
   if (s.links.length) lines.push(`Отправлено: ${s.links.join(", ")}`);
   if (s.offeredAt) lines.push(`Предложение: сделано${s.followedUp ? ", напоминание отправлено" : ""}`);
   if (s.objections.length) lines.push(`Возражения: ${s.objections.map((o) => (o === "price" ? "дорого" : "подумает / позже")).join(", ")}`);
+  if (s.engine === "ai") {
+    if (s.ai.takeover) lines.push(`Бот подхватил переписку: клиент ждал менеджера ${s.ai.waitedMinutes} мин`);
+    if (s.ai.summary) lines.push(`Заметка бота: ${s.ai.summary}`);
+    if (s.ai.objections) lines.push(`Возражений: ${s.ai.objections}`);
+  }
   if (s.first) lines.push(`Первое сообщение: «${s.first}»`);
   if (lack.length && s.outcome !== "finished") lines.push(`Не хватает: ${lack.join(", ")}`);
   return lines.join("\n");

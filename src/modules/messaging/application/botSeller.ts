@@ -241,7 +241,7 @@ export class AiSeller {
   }
 
   private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>) {
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second };
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: [...history].reverse().find((m) => m.from === "bot")?.text ?? null };
   }
 
   /**
@@ -256,7 +256,7 @@ export class AiSeller {
     const rules = await this.rules(conv, env, config);
     const ai = readSellerAi(base.ai);
     const dateKey = fields.find((f) => f.type === "date")?.key;
-    const knownDate = dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null;
+    const knownDate = (dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null) ?? dayValue(ai.eventDate);
     const known = fields
       .filter((f) => f.type !== "checkbox")
       .map((f) => ({ label: f.label, value: base.filled[f.key] ?? env.dealValues[f.key] }))

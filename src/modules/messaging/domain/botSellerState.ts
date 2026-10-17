@@ -22,10 +22,12 @@ export interface SellerAiState {
   failures: number;
   /** Краткая заметка модели о клиенте — в сводку менеджеру. */
   summary: string;
+  /** Дата, к которой клиенту нужна книга (если в сделке нет поля-даты, помним здесь). */
+  eventDate: string | null;
   stage: SellerStage;
 }
 
-export const newSellerAiState = (): SellerAiState => ({ turns: 0, priceQuoted: false, closeAsked: false, objections: 0, takeover: false, waitedMinutes: 0, blocked: 0, failures: 0, summary: "", stage: "greeting" });
+export const newSellerAiState = (): SellerAiState => ({ turns: 0, priceQuoted: false, closeAsked: false, objections: 0, takeover: false, waitedMinutes: 0, blocked: 0, failures: 0, summary: "", eventDate: null, stage: "greeting" });
 
 /** Состояние из базы: недостающее — по умолчанию (запись сделана прежней версией). */
 export const readSellerAi = (raw: unknown): SellerAiState => ({ ...newSellerAiState(), ...(raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Partial<SellerAiState>) : {}) });

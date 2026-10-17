@@ -196,6 +196,29 @@ describe("AI-продажник: счёт", () => {
   });
 });
 
+describe("AI-продажник: сводка менеджеру", () => {
+  it("итог содержит заметку модели и подхват; уведомление «Бот подхватил»", async () => {
+    const { model } = fakeModel([ans({ summary: "Хочет книгу маме на юбилей, спрашивала про сроки", action: "handoff", handoff_reason: "call_request", reply: "Передала менеджеру — он позвонит." })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Позвоните мне" }));
+    await run(t);
+    expect(t.notes.join("\n")).toContain("Заметка бота: Хочет книгу маме на юбилей, спрашивала про сроки");
+    expect(t.tasks.some((x) => /Перезвонить/.test(x.title))).toBe(true);
+  });
+
+  it("слово в слово повторенный ответ — не уходит клиенту второй раз, диалог у менеджера", async () => {
+    const same = ans({ reply: "Здравствуйте! Для кого будет книга?" });
+    const { model } = fakeModel([same, same]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Привет" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Привет" }));
+    await run(t);
+    expect(t.sent).toEqual(["Здравствуйте! Для кого будет книга?"]);
+    expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff" });
+  });
+});
+
 describe("AI-продажник: голос, файлы, благодарность", () => {
   it("голосовое — просьба написать текстом без обращения к модели; фото — менеджеру", async () => {
     const { model, calls } = fakeModel([]);
