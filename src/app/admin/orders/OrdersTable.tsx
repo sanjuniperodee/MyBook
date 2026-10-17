@@ -21,7 +21,10 @@ export interface OrderRow {
   /** Печатный ли тариф: у электронной версии оплаченный заказ — «Выполнен», печати нет. */
   printed: boolean;
   desiredLabel: string | null;
+  /** Полная цена книги (с предоплатой по сделке). */
   amountLabel: string;
+  /** «оплачено X» или «долг Y»; null — бесплатный заказ без денег. */
+  money: { kind: "paid" | "debt"; label: string } | null;
   status: OrderStatus;
   claimed: boolean;
   assignee: string | null;
@@ -107,7 +110,10 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
                   {o.desiredLabel ? <div className="text-xs font-medium text-wine">к {o.desiredLabel}</div> : null}
                   {o.promoCode ? <div className="text-xs text-emerald-700">{o.promoCode}</div> : null}
                 </td>
-                <td className="px-3 py-3 text-right tabular-nums">{o.amountLabel}</td>
+                <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
+                  {o.amountLabel}
+                  {o.money ? <div className={cn("text-xs", o.money.kind === "debt" ? "font-medium text-red-700" : "text-emerald-700")}>{o.money.label}</div> : null}
+                </td>
                 <td className="px-3 py-3">
                   <span className={cn("rounded-full px-2.5 py-1 text-xs whitespace-nowrap", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", o.printed)}</span>
                   {o.claimed ? <div className="mt-1 text-xs text-amber-700">сообщил об оплате</div> : null}
