@@ -12,7 +12,8 @@ export interface ConversationRepository {
   updateContact(id: string, patch: { contactName: string; avatarUrl: string | null; meta: ConversationMeta; clientId: string | null }): Promise<Conversation>;
   linkDeal(id: string, link: { dealId: string; clientId: string | null; assigneeId: string | null }): Promise<Conversation>;
   /** Входящее: +1 непрочитанное, «ждёт ответа» с момента первого неотвеченного, диалог открыт. */
-  recordIncoming(id: string, text: string, at: Date): Promise<void>;
+  /** awaiting: false — сообщение не открывает «ждёт ответа» (клиент только поблагодарил); открытое ожидание не снимается. */
+  recordIncoming(id: string, text: string, at: Date, opts?: { awaiting?: boolean }): Promise<void>;
   /** Менеджер ответил с телефона — клиент больше не ждёт. */
   recordEcho(id: string, text: string, at: Date): Promise<void>;
   /** История задним числом: последнее сообщение — только если оно новее записанного; без «непрочитано» и «ждёт ответа». */

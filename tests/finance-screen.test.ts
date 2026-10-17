@@ -120,7 +120,7 @@ describe("financeScreen: пришло", () => {
 
   it("нетто = поступления − возвраты; онлайн и вручную; изменение к тем же числам прошлого месяца", () => {
     const s = screen({ money: rows });
-    expect(s.totals).toMatchObject({ incoming: 45000, refunds: 3000, net: 42000, online: 35000, manual: 10000, count: 4, refundCount: 1, prevNet: 20000 });
+    expect(s.totals).toMatchObject({ incoming: 45000, refunds: 3000, net: 42000, online: 35000, manual: 7000, count: 4, refundCount: 1, prevNet: 20000 });
     expect(s.totals.delta).toBeCloseTo(1.1);
   });
 

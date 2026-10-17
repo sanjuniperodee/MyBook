@@ -7,6 +7,7 @@ import {
   contactPhone,
   contactTitle,
   findSensitive,
+  isClosingReply,
   preview,
   redactSecrets,
   sensitiveLabels,
@@ -130,7 +131,8 @@ export class MessagingService {
       return;
     }
     const { conv, created: dealCreated } = await this.ensureDeal(base, m.contactName, m.text);
-    await this.conversations.recordIncoming(conv.id, preview(m.text), m.at);
+    // «Спасибо», «хорошо, понятно» в ответ нам — не новый вопрос: чат не становится неотвеченным (первое сообщение — всегда).
+    await this.conversations.recordIncoming(conv.id, preview(m.text), m.at, { awaiting: created || !isClosingReply(m.text, m.type) });
     const fresh = (await this.conversations.findById(conv.id)) ?? conv;
     // Пока бот ведёт опрос, отдельное уведомление на каждое сообщение не нужно: менеджер получит итог бота.
     const { quiet } = await this.bot.onIncoming(fresh, m, { created, dealCreated }).catch((err) => (this.logger.error("bot", err), { quiet: false }));
