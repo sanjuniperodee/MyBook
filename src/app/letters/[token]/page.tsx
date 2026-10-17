@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
+import { bookKind } from "@/lib/content/kinds";
 import { Logo } from "@/components/Logo";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -19,7 +20,9 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
   if (!book) notFound();
   const t = (await getMessages()).gift.letter;
   const author = book.authorName.trim();
-  const recipient = book.recipientName.trim();
+  const kind = bookKind(book.theme);
+  // У автобиографии получателя нет; у своей книги он необязателен.
+  const recipient = kind === "autobiography" ? "" : book.recipientName.trim();
   // Фото-обложку не показываем посторонним — только дизайнерский шаблон.
   const template = getCoverTemplate(book.coverTemplate).requiresPhoto ? "linen" : book.coverTemplate;
 
@@ -37,10 +40,10 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
           <div>
             <div className="eyebrow">{t.invite}</div>
             <h1 className="mt-2 font-serif text-4xl leading-tight font-medium sm:text-5xl">
-              {t.headline(author || t.author)}
+              {kind === "gift" ? t.headline(author || t.author) : t.headlineByKind[kind](author || t.author)}
             </h1>
             <p className="mt-3 text-lg text-muted">
-              {t.text(recipient, book.title)}
+              {kind === "gift" ? t.text(recipient, book.title) : t.textByKind[kind](book.title)}
             </p>
           </div>
         </div>

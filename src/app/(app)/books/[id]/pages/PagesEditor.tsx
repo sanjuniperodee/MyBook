@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/client-api";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, type InteriorMood } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
+import { bookKind } from "@/lib/content/kinds";
 
 interface PagesState {
   interior: InteriorId;
@@ -35,9 +36,12 @@ export function PagesEditor({
   initial,
   sample,
   cover,
+  theme,
   editable,
 }: {
   bookId: string;
+  /** Тема книги — подсказка посвящения зависит от вида книги. */
+  theme: string;
   format: string;
   initial: PagesState;
   sample: SpreadSample;
@@ -50,6 +54,8 @@ export function PagesEditor({
   const [spread, setSpread] = useState<SpreadKind>("chapter");
   const m = useMessages();
   const t = m.books.pages;
+  const kind = bookKind(theme);
+  const dedicationHint = t.dedicationByKind[kind] ?? { text: t.dedicationText, placeholder: t.dedicationPlaceholder };
   const format = getFormat(formatId);
   const design = getInteriorDesign(state.interior);
 
@@ -178,7 +184,7 @@ export function PagesEditor({
           </div>
         </section>
 
-        <FormSection title={t.dedication} description={t.dedicationText}>
+        <FormSection title={t.dedication} description={dedicationHint.text}>
           <textarea
             className="input"
             rows={3}
@@ -186,7 +192,7 @@ export function PagesEditor({
             value={state.dedication}
             onChange={(e) => update({ dedication: e.target.value })}
             onFocus={() => setSpread("front")}
-            placeholder={t.dedicationPlaceholder}
+            placeholder={dedicationHint.placeholder}
             disabled={!editable}
           />
         </FormSection>

@@ -37,6 +37,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         format={format.id}
         editable={book.status === "draft"}
         sample={spreadSample}
+        theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
         initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, photoPlacement: book.photoPlacement }}
       />

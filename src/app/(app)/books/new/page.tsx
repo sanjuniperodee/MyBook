@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
-import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
+import { countQuestions, getTheme, getThemes, isThemeId } from "@/lib/content/themes";
 import { getLocale, getMessages } from "@/i18n/server";
 import { locales } from "@/i18n/config";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -12,21 +12,24 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewBookPage({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {
-  const user = await requireUser("/books/new");
   const { theme } = await searchParams;
+  // Ссылка ?theme=autobiography|blank переживает вход: тему возвращаем в адрес «после входа» (регистрация может быть закрыта).
+  const user = await requireUser(theme && isThemeId(theme) ? `/books/new?theme=${theme}` : "/books/new");
   const locale = await getLocale();
   // Описание темы — на языке интерфейса, варианты названия — на каждом из языков книги.
-  // Пока только подарки: карточки автобиографии и своей книги мастер получит вместе с их формами.
-  const list: WizardTheme[] = giftThemes(locale).map((t) => ({
+  const list: WizardTheme[] = getThemes(locale).map((t) => ({
     id: t.id,
+    kind: t.kind,
+    recipient: t.recipient,
     name: t.name,
     description: t.description,
     questions: countQuestions(t),
-    recipientLabel: t.recipientLabel ?? "",
-    recipientPlaceholder: t.recipientPlaceholder ?? "",
+    recipientLabel: t.recipientLabel,
+    recipientPlaceholder: t.recipientPlaceholder,
     recipientGender: t.recipientGender,
     defaultRecipientGender: t.defaultRecipientGender,
     titleSuggestions: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).titleSuggestions])) as WizardTheme["titleSuggestions"],
+    firstChapterTitle: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).firstChapterTitle ?? ""])) as WizardTheme["firstChapterTitle"],
     // Обложка темы — метаданные шаблона: мастер рисует её без каталога обложек в браузере.
     defaultCover: coverMeta(getCoverTemplate(t.defaultCover)),
   }));

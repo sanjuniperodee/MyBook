@@ -134,6 +134,14 @@ export const gift: typeof ru = {
     invite: "Шақыру",
     author: "Автор",
     headline: (author: string) => `${author} тосынсый-кітап дайындап жатыр`,
+    headlineByKind: {
+      autobiography: (author) => `Өмір кітабы: ${author}`,
+      blank: (author) => `${author} кітап жазып жатыр`,
+    },
+    textByKind: {
+      autobiography: (title) => `Бірнеше жылы сөз, естелік немесе автордың өмірінен бір оқиға жазыңыз — хатыңыз «${title}» кітабына жеке тарау болып кіруі мүмкін.`,
+      blank: (title) => `Бірнеше жылы сөз немесе естелік жазыңыз — хатыңыз «${title}» кітабына жеке тарау болып кіруі мүмкін.`,
+    },
     text: (recipient: string, title: string) => `${recipient ? `Оны ${recipient} алады. ` : ""}Бірнеше жылы сөз, ортақ естелік немесе тілек жазыңыз — хатыңыз «${title}» кітабына жеке тарау болып кіруі мүмкін.`,
     closed: "Кітап баспаға жіберілді — хат қабылдау жабық. Рахмет!",
     thanks: "Рахмет!",

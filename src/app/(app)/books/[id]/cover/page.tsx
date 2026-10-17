@@ -42,6 +42,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           title: book.title,
           subtitle: book.subtitle,
           authorName: book.authorName,
+          recordedBy: book.recordedBy,
           recipientName: book.recipientName,
           hideRecipientOnCover: book.hideRecipientOnCover,
           backText: book.backText,
