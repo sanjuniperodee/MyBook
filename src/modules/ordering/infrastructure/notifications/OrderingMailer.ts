@@ -11,6 +11,7 @@ import type { Mailer } from "@/shared/application";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { parseDay, toIsoDay } from "@/lib/occasions";
 import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed } from "../../domain";
+import { bookKind } from "@/lib/content/kinds";
 import type { GiftPdfRenderer, GiftsService } from "../../application";
 import type { DrizzleOrderingQueries, GiftView } from "../persistence/DrizzleOrderingQueries";
 
@@ -99,7 +100,7 @@ export class OrderingMailer {
       case "shipped":
         return send(m.shipped.title, [m.shipped.text, order.trackingNumber ? m.shipped.tracking(escapeHtml(order.trackingNumber)) : ""].filter(Boolean));
       case "delivered":
-        return send(m.delivered.title, [m.delivered.text]);
+        return send(m.delivered.title, [bookKind(order.book?.theme ?? "") === "gift" ? m.delivered.text : m.delivered.textOwn]);
       case "cancelled":
         return send(m.cancelled.title, [m.cancelled.text]);
     }

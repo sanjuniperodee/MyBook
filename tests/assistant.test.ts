@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AssistantService, type AssistantData, type LanguageModel } from "@/modules/assistant/application";
-import { AssistantError, dossierText, type DealDossier } from "@/modules/assistant/domain";
+import { AssistantError, businessContext, dossierText, proofreadSystemPrompt, type DealDossier } from "@/modules/assistant/domain";
 
 const now = new Date("2026-10-01T06:00:00Z");
 const dossier: DealDossier = {
@@ -11,7 +11,7 @@ const dossier: DealDossier = {
   tasks: [],
   calls: [],
   order: null,
-  books: [{ title: "Мама", recipient: "Мама", status: "draft", answered: 12, total: 40 }],
+  books: [{ title: "Мама", theme: "mom", author: "Айгерим", recipient: "Мама", recordedBy: "", status: "draft", answered: 12, total: 40, words: 800 }],
   messages: [{ direction: "in", text: "Успеете к 15 ноября?", internal: false, author: null, at: now.toISOString() }],
 };
 
@@ -63,5 +63,44 @@ describe("AssistantService", () => {
     const { service } = setup(JSON.stringify({ recipient: "Мама", event_date: "2026-11-15" }));
     const { proposals } = await service.extractDealFields("d1");
     expect(proposals).toEqual([{ key: "event_date", label: "Дата события", type: "date", value: "2026-11-15", current: null }]);
+  });
+});
+
+describe("виды книг в досье и промптах", () => {
+  const withBook = (b: Partial<DealDossier["books"][number]>): DealDossier => ({ ...dossier, books: [{ ...dossier.books[0], ...b }] });
+
+  it("досье: подарок — «для кого», автобиография — рассказчик и кто записывает, своя книга — разделы и слова", () => {
+    expect(dossierText(dossier)).toContain("Книга на сайте «Мама» для Мама: пишется, ответов 12 из 40");
+    const auto = dossierText(withBook({ title: "Моя жизнь", theme: "autobiography", author: "Бакыт", recipient: "", recordedBy: "внучка Аружан", answered: 30, total: 62, words: 4100 }));
+    expect(auto).toContain("Автобиография «Моя жизнь», рассказчик Бакыт, записывает внучка Аружан");
+    expect(auto).toContain("ответов 30 из 62, слов 4100");
+    expect(auto).not.toContain(" для ");
+    const own = dossierText(withBook({ title: "Записки", theme: "blank", author: "Айгерим", recipient: "", answered: 4, total: 6, words: 1250 }));
+    expect(own).toContain("Своя книга «Записки», автор Айгерим");
+    expect(own).toContain("разделов с текстом 4 из 6, слов 1250");
+  });
+
+  it("описание продукта знает три вида книг и не называет книгу только подарком", () => {
+    const ctx = businessContext();
+    expect(ctx).toContain("Три вида книги");
+    expect(ctx).toContain("автобиография");
+    expect(ctx).toContain("с его слов");
+    expect(ctx).toContain("своя книга с нуля");
+    expect(ctx).not.toContain("книг-подарков");
+  });
+
+  it("подсказка ответа и резюме получают описание видов; резюме просит назвать вид книги", async () => {
+    const { service, asked } = setup("Да!");
+    await service.suggestReply("c1", "Менеджер");
+    expect(asked[0].system).toContain("автобиография");
+    const s = setup(JSON.stringify({ summary: "ок", next_step: "позвонить", due_days: 1, temperature: "warm", risks: "" }));
+    await s.service.summarizeDeal("d1");
+    expect(s.asked[0].system).toContain("автобиография чья или своя книга с нуля");
+  });
+
+  it("корректор: вид книги в промпте", () => {
+    expect(proofreadSystemPrompt("ru", "ru")).toContain("подарочной книги-воспоминания");
+    expect(proofreadSystemPrompt("ru", "ru", "autobiography")).toContain("от первого лица");
+    expect(proofreadSystemPrompt("ru", "ru", "blank")).toContain("авторской книги");
   });
 });

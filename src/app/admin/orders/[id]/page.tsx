@@ -8,6 +8,7 @@ import { container } from "@/server/container";
 import { formatPrice, getPlan } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { getTheme } from "@/lib/content/themes";
+import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
@@ -118,9 +119,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[160px_1fr]">
               <dt className="text-muted">Название</dt><dd>{book.title}</dd>
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
-              <dt className="text-muted">Автор → адресат</dt><dd>{book.authorName} → {book.recipientName}</dd>
+              <dt className="text-muted">{bookKind(book.theme) === "autobiography" ? "Рассказчик" : "Автор → адресат"}</dt><dd>{book.authorName}{book.recipientName && bookKind(book.theme) !== "autobiography" ? ` → ${book.recipientName}` : ""}{book.recordedBy ? ` · записано: ${book.recordedBy}` : ""}</dd>
               <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · обложка «{coverName(book.coverTemplate)}» · страницы «{interiorName(book.interior)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
-              <dt className="text-muted">Наполнение</dt><dd>{stats.answered} ответов · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
+              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">

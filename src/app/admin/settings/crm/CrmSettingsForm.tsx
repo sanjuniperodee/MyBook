@@ -59,8 +59,8 @@ export function CrmSettingsForm({
               <option value="off">не заводить (только заказы)</option>
               <option value="registered">зарегистрировался</option>
               <option value="book_started">начал книгу</option>
-              <option value="book_half">ответил на половину вопросов</option>
-              <option value="book_ready">почти закончил (25+ ответов)</option>
+              <option value="book_half">написал половину книги</option>
+              <option value="book_ready">почти закончил книгу</option>
             </select>
           </label>
           <label className="block">

@@ -139,7 +139,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 <td className="px-3 py-3">
                   {r.booksCount ? (
                     <>
-                      {r.booksCount} · {r.bestAnswered} отв.
+                      {r.booksCount} · {r.bestAnswered} отв.{r.bestWords ? ` · ${r.bestWords} сл.` : ""}
                       <div className="text-xs text-muted">изм. {relative(r.lastBookUpdate)}</div>
                     </>
                   ) : (

@@ -29,8 +29,8 @@ export interface DraftProgress {
   answered: number;
   /** Слов во всех ответах книги. */
   words: number;
-  /** Позиция первого вопроса без ответа (для ссылки «продолжить»). */
-  firstEmpty: number | null;
+  /** Id первого раздела без текста (для ссылки «продолжить», ?s=<id>); у книги без разделов — null: ссылка на корень редактора. */
+  firstEmpty: string | null;
   hasOrder: boolean;
   /** Когда клиенту последний раз напоминали дописать книгу. */
   remindedAt: Date | null;

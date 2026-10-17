@@ -3,6 +3,7 @@ import { usersId } from "@/shared/infrastructure/db/refs";
 import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { users } from "@/shared/infrastructure/db/schema";
+import { answeredSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import type { ClientSegment } from "@/shared/domain/segments";
 import { isManualChannel, MANUAL_MEDIUM } from "@/shared/domain/channels";
 
@@ -13,7 +14,9 @@ const ltv = sql<number>`coalesce((select sum(e.amount) from revenue_events e whe
 // Заказы — все, кроме отменённых (неоплаченные тоже): это «оформил», а не «оплатил» (оплаты — в revenue_events).
 const ordersCount = sql<number>`(select count(*)::int from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
 const booksCount = sql<number>`(select count(*)::int from books b where b.user_id = ${usersId})`;
-const bestAnswered = sql<number>`coalesce((select max((select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0)) from books b where b.user_id = ${usersId}), 0)::int`;
+// Ответы — как в progressOf (answeredSql); слова — только у своих книг (blank), где прогресс считается по словам.
+const bestAnswered = sql<number>`coalesce((select max(${answeredSql(sql`b.id`)}) from books b where b.user_id = ${usersId}), 0)::int`;
+const bestWords = sql<number>`coalesce((select max(${wordsSql(sql`b.id`)}) from books b where b.user_id = ${usersId} and b.theme = 'blank'), 0)::int`;
 const lastBookUpdate = sql<Date | null>`(select max(b.updated_at) from books b where b.user_id = ${usersId})`;
 const lastOrderAt = sql<Date | null>`(select max(o.created_at) from orders o where o.user_id = ${usersId})`;
 
@@ -117,7 +120,7 @@ export async function queryClients(opts: {
   const order = opts.sort === "ltv" ? desc(ltv) : opts.sort === "active" ? sql`${users.lastSeenAt} desc nulls last` : desc(users.createdAt);
   const [rows, [{ n }]] = await Promise.all([
     db
-      .select({ user: users, ltv, ordersCount, booksCount, bestAnswered, lastBookUpdate, lastOrderAt })
+      .select({ user: users, ltv, ordersCount, booksCount, bestAnswered, bestWords, lastBookUpdate, lastOrderAt })
       .from(users)
       .where(where)
       .orderBy(order)
