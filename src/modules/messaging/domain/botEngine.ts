@@ -380,12 +380,19 @@ export type DeadlineKind = "ok" | "express" | "late";
  * Успеем ли к дате: дописать книгу (writeDays) + печать + доставка. fillBy — последний день, чтобы дописать.
  * Печать обычная не успевает — экспресс; и экспресс не успевает — late. Прошедшая дата — null (бот про срок молчит).
  */
-export function deadlinePlan(eventIso: string, now: Date, tz: string, sell: { writeDays: number; deliveryDays: number }, production: { standard: string; premium: string }): { kind: DeadlineKind; fillBy: string } | null {
+export function deadlinePlan(
+  eventIso: string,
+  now: Date,
+  tz: string,
+  sell: { writeDays: number; deliveryDays: number; productionDays?: number },
+  production: { standard: string; premium: string },
+): { kind: DeadlineKind; fillBy: string } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(eventIso)) return null;
   const today = dayMs(zonedDay(now, tz));
   const event = dayMs(eventIso);
   if (!Number.isFinite(event) || event < today) return null;
-  const standard = event - (sell.deliveryDays + calendarDays(production.standard)) * DAY;
+  // Срок владельца для бота («книга готовится до 5 дней», календарных) важнее рабочих дней с витрины сайта.
+  const standard = event - (sell.deliveryDays + (sell.productionDays || calendarDays(production.standard))) * DAY;
   if (standard >= today + sell.writeDays * DAY) return { kind: "ok", fillBy: isoDay(standard) };
   const express = event - (sell.deliveryDays + calendarDays(production.premium)) * DAY;
   if (express >= today + DAY) return { kind: "express", fillBy: isoDay(express) };
@@ -725,6 +732,7 @@ const handoffLabels: Record<string, string> = {
   objection: "сомневается после предложения",
   question: "задал(а) вопрос после предложения",
   media: "прислал(а) файл после предложения",
+  price: "спрашивает цену — подберите вариант и назовите цену",
 };
 const intentLabels: Record<string, string> = { price: "цену", delivery: "доставку", timing: "сроки", how: "как это работает", payment: "оплату", examples: "примеры", language: "язык книги" };
 

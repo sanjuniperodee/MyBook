@@ -7,7 +7,7 @@ import { cn } from "@/lib/class-names";
 import { saveBotAction } from "./actions";
 import { BotTester } from "./BotTester";
 import type { BotFormTab } from "./botTabs";
-import type { BotChannel, BotConfig, BotLang, BotTextKey, FaqIntent } from "@/modules/messaging/domain/botConfig";
+import { DEFAULT_SELL_FACTS, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
 
 type Mode = "off" | "fallback" | "off_hours" | "always";
 export interface BotFormField {
@@ -110,7 +110,7 @@ export function BotForm({
   const [pending, start] = useTransition();
   const patch = (p: Partial<BotConfig>) => setCfg((c) => ({ ...c, ...p }));
   const setSell = (p: Partial<BotConfig["sell"]>) => setCfg((c) => ({ ...c, sell: { ...c.sell, ...p } }));
-  const sellNumber = (key: "prepay" | "writeDays" | "deliveryDays" | "followUpHours", label: string, min: number, max: number) => (
+  const sellNumber = (key: "prepay" | "writeDays" | "deliveryDays" | "followUpHours" | "productionDays", label: string, min: number, max: number) => (
     <label key={key} className="block">
       <span className="mb-1 block text-xs text-muted">{label}</span>
       <input type="number" min={min} max={max} value={cfg.sell[key]} onChange={(e) => setSell({ [key]: Math.max(min, Math.min(max, Math.floor(Number(e.target.value) || 0))) })} className="input h-9 w-full text-sm" aria-label={label} />
@@ -427,8 +427,9 @@ export function BotForm({
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               {sellNumber("prepay", "Предоплата, ₸ ({предоплата}; 0 — не называть)", 0, 1_000_000)}
               {sellNumber("writeDays", "Сколько дней клиенты пишут книгу", 0, 30)}
-              {sellNumber("deliveryDays", "Доставка, дней (с запасом)", 0, 30)}
-              {sellNumber("followUpHours", "Напомнить через, часов (0 — не напоминать)", 0, 72)}
+              {sellNumber("productionDays", "Книга готовится, дней (после того как дописана)", 1, 30)}
+              {sellNumber("deliveryDays", "Доставка по Казахстану, дней (с запасом; Алматы — в день готовности)", 0, 30)}
+              {sellNumber("followUpHours", "Напомнить через, часов (AI — второе на следующий день; 0 — не напоминать)", 0, 72)}
             </div>
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.invoice} onChange={(e) => setSell({ invoice: e.target.checked })} aria-label="Бот выставляет счёт" />
@@ -460,13 +461,36 @@ export function BotForm({
             ) : null}
             {cfg.sell.engine === "ai" ? (
               <div className="space-y-3 rounded-xl border border-line p-3">
+                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-muted">Как продажник представляется (женское имя)</span>
+                    <input value={cfg.sell.botName} onChange={(e) => setSell({ botName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя продажника" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-muted">Менеджер, чья она помощница (он называет цену)</span>
+                    <input value={cfg.sell.managerName} onChange={(e) => setSell({ managerName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя менеджера" />
+                  </label>
+                </div>
+                <p className="text-xs text-muted">
+                  Клиенту: «{cfg.sell.botName || "Айгерим"}, помощница менеджера {cfg.sell.managerName || "Марат"}». Сама не говорит, что она бот; если клиент прямо спросит, живой ли человек, — честно скажет, что виртуальная помощница, и
+                  предложит подключить менеджера.
+                </p>
+                <label className="block text-sm">
+                  <span className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+                    Факты для продажника — сроки, доставка, как пишется книга, способы оплаты (без цен; по строке на факт)
+                    <button type="button" className="text-wine underline" onClick={() => setSell({ facts: DEFAULT_SELL_FACTS })}>
+                      по умолчанию
+                    </button>
+                  </span>
+                  <textarea value={cfg.sell.facts} onChange={(e) => setSell({ facts: e.target.value })} rows={6} maxLength={2000} className={area} aria-label="Факты для продажника" />
+                </label>
                 <label className="flex items-start gap-2 text-sm">
                   <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.hidePrices} onChange={(e) => setSell({ hidePrices: e.target.checked })} aria-label="Бот не называет цены" />
                   <span>
                     Бот не называет цены — их озвучивает только менеджер
                     <span className="block text-xs text-muted">
-                      На вопрос «сколько стоит» бот отвечает, что вариантов книги несколько и точную цену назовёт менеджер Марат. Счёт на «да» выставляет менеджер. Выключено — бот называет цену «от» из
-                      тарифов, но не сразу: сначала выясняет, для кого книга и к какой дате.
+                      На первый вопрос «сколько стоит» бот отвечает, что вариантов книги несколько и цену назовёт {cfg.sell.managerName || "менеджер"}, и выясняет, для кого книга и к какой дате; на повторный — передаёт
+                      менеджеру задачу «Назвать цену». Счёт на «да» выставляет менеджер. Выключено — бот называет цену «от» из тарифов, но не сразу: сначала выясняет, для кого книга и к какой дате.
                     </span>
                   </span>
                 </label>
@@ -475,8 +499,8 @@ export function BotForm({
                   <span>
                     Слушать голосовые и смотреть фото клиента
                     <span className="block text-xs text-muted">
-                      Бот распознаёт голосовые (транскрипция) и фото (описание) той же моделью продажника и отвечает на них. Нужна модель с поддержкой изображений и аудио — например,{" "}
-                      <code className="rounded bg-cream px-1">google/gemini-2.5-flash</code> в OpenRouter (DeepSeek не умеет). Не распозналось — бот, как раньше, просит написать текстом или передаёт менеджеру.
+                      Бот расшифровывает голосовые и описывает фото моделью из «Интеграции» → AI → «Голосовые и фото» и отвечает на них, как на текст; чек об оплате передаёт менеджеру. По умолчанию — Gemini Flash
+                      через OpenRouter (DeepSeek вложения не понимает). Не распозналось — бот, как раньше, просит написать текстом или передаёт менеджеру.
                     </span>
                   </span>
                 </label>

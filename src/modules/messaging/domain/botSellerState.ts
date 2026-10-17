@@ -25,13 +25,42 @@ export interface SellerAiState {
   /** Дата, к которой клиенту нужна книга (если в сделке нет поля-даты, помним здесь). */
   eventDate: string | null;
   stage: SellerStage;
-  /** Сколько напоминаний после предложения уже отправлено (максимум два). */
+  /** Сколько напоминаний молчащему клиенту уже отправлено (максимум SELLER_MAX_FOLLOW_UPS). */
   followUps: number;
-  /** Модель не смогла распознать вложение (нет vision/аудио) — в этой беседе больше не пробуем. */
+  /** Модель распознавания не умеет вложения (нет vision/аудио) — в этой беседе больше не пробуем. */
   mediaFailed: boolean;
+  /** Город клиента (для срока: по Алматы доставка в день готовности). */
+  city: string;
+  /** Сколько раз клиент спрашивал цену, пока её называет только менеджер: на повторе — менеджеру. */
+  priceAsks: number;
+  /** Распознанные голосовые и фото (id сообщения → текст): в следующих ходах модель видит их, а не «[голосовое]». */
+  media: Record<string, string>;
+  /** Менеджер уже знает, что клиент замолчал на знакомстве (заметка и уведомление) — второй раз не пишем. */
+  silenceNoted: boolean;
 }
 
-export const newSellerAiState = (): SellerAiState => ({ turns: 0, priceQuoted: false, closeAsked: false, objections: 0, takeover: false, waitedMinutes: 0, blocked: 0, failures: 0, summary: "", eventDate: null, stage: "greeting", followUps: 0, mediaFailed: false });
+/** Сколько раз продажник напоминает о себе молчащему клиенту (как менеджер: «Ознакомились?» → на следующий день «Как ваши дела?»). */
+export const SELLER_MAX_FOLLOW_UPS = 2;
+
+export const newSellerAiState = (): SellerAiState => ({
+  turns: 0,
+  priceQuoted: false,
+  closeAsked: false,
+  objections: 0,
+  takeover: false,
+  waitedMinutes: 0,
+  blocked: 0,
+  failures: 0,
+  summary: "",
+  eventDate: null,
+  stage: "greeting",
+  followUps: 0,
+  mediaFailed: false,
+  city: "",
+  priceAsks: 0,
+  media: {},
+  silenceNoted: false,
+});
 
 /** Состояние из базы: недостающее — по умолчанию (запись сделана прежней версией). */
 export const readSellerAi = (raw: unknown): SellerAiState => ({ ...newSellerAiState(), ...(raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Partial<SellerAiState>) : {}) });

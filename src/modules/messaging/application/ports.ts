@@ -179,8 +179,11 @@ export interface BotSellerModel {
   configured(): Promise<boolean>;
   /** Один запрос со схемой JSON-ответа; возвращает текст ответа модели. */
   complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<string>;
-  /** Распознать вложение (голосовое → транскрипция, фото → описание). null — модель не умеет или не подключена. */
-  media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<string | null>;
+  /**
+   * Распознать вложение (голосовое → расшифровка, фото → описание). { unsupported } — модель распознавания такое не умеет
+   * (больше не пробовать в этой беседе); null — временный сбой.
+   */
+  media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<{ text: string } | { unsupported: true } | null>;
 }
 
 /** Файл вложения по id сообщения — для распознавания голосовых и фото моделью продажника. */

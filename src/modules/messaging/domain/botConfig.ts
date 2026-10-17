@@ -139,7 +139,26 @@ export interface BotSell {
   hidePrices: boolean;
   /** Распознавать голосовые и фото клиента моделью (транскрипция и описание); без поддержки моделью — как раньше. */
   media: boolean;
+  /** Как AI-продажник представляется клиенту («Айгерим, помощница менеджера Марата»). */
+  botName: string;
+  /** Менеджер, который называет цену и оформляет заказ: продажник — его помощница. */
+  managerName: string;
+  /** Факты владельца для беседы: сроки, доставка, как пишется книга, способы оплаты (без цен). Правится в настройках. */
+  facts: string;
+  /** Сколько календарных дней книга готовится после того, как клиент её дописал (для «успеем к дате»). */
+  productionDays: number;
 }
+
+/** Факты владельца по умолчанию (решение 18.10 и переписки менеджера): сроки, доставка, как пишется книга, оплата. */
+export const DEFAULT_SELL_FACTS = [
+  "Книга готовится до 5 дней (обычно 4–5) после того, как клиент дописал её на сайте.",
+  "Доставка по Алматы — в день готовности. По Казахстану — 2–5 дней, зависит от города (СДЭК, Казпочта, InDriver). Доставка оплачивается отдельно, в Алматы есть самовывоз.",
+  "Книгу клиент пишет сам на нашем сайте: около 170 готовых вопросов с подсказками, отвечать на все не обязательно; обычно пишут 2–3 дня. Писать можно на русском или казахском.",
+  "В среднем выходит 80 страниц (от 60 до 200). Фото клиент добавляет сам, дизайн и обложку выбирает сам — можно своё фото на обложку. Клиент — полноценный автор книги.",
+  "Печатная книга — в твёрдом переплёте и подарочной коробке. Есть электронная версия (PDF).",
+  "Оплата: предоплата, остальное — когда электронная версия готова и клиент её одобрил, перед печатью. Можно через Kaspi Red или в рассрочку 0-0-12 без переплаты.",
+  "Работаем онлайн по всему Казахстану, типография в Алматы.",
+].join("\n");
 
 export const MAX_QUESTIONS = 6;
 
@@ -293,7 +312,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5 },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -374,6 +393,12 @@ const int = (v: unknown, min: number, max: number, fallback: number) => {
   return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
 };
 
+/** Имя для представления: одно-два слова, без цифр и ссылок; пусто — по умолчанию. */
+const name = (v: unknown, fallback: string) => {
+  const t = typeof v === "string" ? v.replace(/[^\p{L}\s'-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
+  return t || fallback;
+};
+
 function parseSell(raw: unknown): BotSell {
   const r = record(raw);
   const d = defaultBotConfig.sell;
@@ -391,6 +416,10 @@ function parseSell(raw: unknown): BotSell {
     maxTurns: int(r.maxTurns, 4, 100, d.maxTurns),
     hidePrices: typeof r.hidePrices === "boolean" ? r.hidePrices : d.hidePrices,
     media: typeof r.media === "boolean" ? r.media : d.media,
+    botName: name(r.botName, d.botName),
+    managerName: name(r.managerName, d.managerName),
+    facts: typeof r.facts === "string" ? r.facts.slice(0, 2000) : d.facts,
+    productionDays: int(r.productionDays, 1, 30, d.productionDays),
   };
 }
 

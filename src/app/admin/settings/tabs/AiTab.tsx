@@ -3,14 +3,16 @@ import { fromEnv, getSetting, getSettings, maskSecret } from "@/modules/workspac
 import { AiForm } from "../ai/AiForm";
 import { ProofreadForm } from "../ai/ProofreadForm";
 import { SellerForm } from "../ai/SellerForm";
+import { MediaForm } from "../ai/MediaForm";
 
 export async function AiTab() {
-  const [aiProvider, aiEnabled, aiKnowledge, pr, sellerSettings] = await Promise.all([
+  const [aiProvider, aiEnabled, aiKnowledge, pr, sellerSettings, media] = await Promise.all([
     getSetting("ai.provider"),
     getSetting("ai.enabled"),
     getSetting("ai.knowledge"),
     getSettings(["proofread.provider", "proofread.model", "proofread.enabled"]),
     getSettings(["seller.provider", "seller.model"]),
+    getSettings(["media.provider", "media.model"]),
   ]);
   const aiSaved = Object.fromEntries(
     await Promise.all(
@@ -28,6 +30,13 @@ export async function AiTab() {
     <>
       <AiForm provider={assistant} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} knowledge={aiKnowledge} />
       <SellerForm provider={isAiProvider(sellerSettings["seller.provider"]) ? sellerSettings["seller.provider"] : ""} assistantProvider={assistant} model={sellerSettings["seller.model"]} providers={aiSaved} />
+      <MediaForm
+        provider={isAiProvider(media["media.provider"]) ? media["media.provider"] : ""}
+        sellerProvider={isAiProvider(sellerSettings["seller.provider"]) ? sellerSettings["seller.provider"] : assistant}
+        sellerModel={sellerSettings["seller.model"]}
+        model={media["media.model"]}
+        providers={aiSaved}
+      />
       <ProofreadForm
         provider={isAiProvider(pr["proofread.provider"]) ? pr["proofread.provider"] : ""}
         assistantProvider={assistant}

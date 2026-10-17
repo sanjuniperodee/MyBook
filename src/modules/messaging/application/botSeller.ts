@@ -11,8 +11,10 @@ import {
   newSellerAiState,
   deadlineFact,
   faqNotes,
+  clientSaysPaid,
   findSensitive,
-  handoffIntent,
+  lastBotTurn,
+  mediaLine,
   parseSellerDecision,
   preview,
   priceMentioned,
@@ -23,6 +25,9 @@ import {
   sellerSystemPrompt,
   sellerTranscript,
   sellerUserPrompt,
+  splitReply,
+  withMediaText,
+  SELLER_MAX_FOLLOW_UPS,
   type BotConfig,
   type BotEnv,
   type BotEvent,
@@ -33,23 +38,26 @@ import {
   type HistoryMessage,
   type ReplyProblem,
   type SellerDecision,
+  type SellerAiState,
   type SellerTurn,
 } from "../domain";
-import { BOT_ABANDON_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
+import { BOT_ABANDON_MS, BOT_PAUSE_MS } from "./botTiming";
 import type { BotPreviewInput, BotPreviewResult } from "./botPreview";
 import type { QualifierBotDeps } from "./bot";
 
 /** Сколько модель думает над одним ответом: клиент ждёт в чате. */
 export const SELLER_TIMEOUT_MS = 30_000;
-/** Сколько модель распознаёт голосовое/фото (транскрипция, описание). */
+/** Сколько модель распознаёт голосовое/фото (расшифровка, описание). */
 export const SELLER_MEDIA_TIMEOUT_MS = 25_000;
-/** Инструкция для распознавания вложений: только текст, который дальше идёт в беседу. */
-const MEDIA_RECOGNITION_PROMPT = [
-  "Ты — помощница менеджера Марата в компании MyBooks, помогаешь распознавать вложения клиентов из WhatsApp-чата.",
-  "Голосовое: верни дословную транскрипцию на языке клиента (русский или казахский), без кавычек и пояснений. Если речь неразборчива — верни пустую строку.",
-  "Фото: опиши кратко (1–2 предложения), что на нём. Если это чек или скриншот оплаты — напиши «Чек об оплате» и укажи сумму и номер перевода, если они видны.",
-  "Верни только текст, ничего больше.",
-].join("\n");
+/** Сколько вложений за ход распознаём и какого размера (голосовое WhatsApp на минуту — ~100 КБ). */
+const MEDIA_PER_TURN = 3;
+const MEDIA_MAX_BYTES = 10_000_000;
+/** Инструкция распознаванию: только текст, который дальше идёт в беседу как слова клиента. */
+const MEDIA_PROMPT = {
+  audio: "Это голосовое сообщение клиента из WhatsApp (русский или казахский, бывает вперемешку). Верни дословную расшифровку на языке оригинала — только текст, без кавычек и пояснений. Речь неразборчива — верни пустую строку.",
+  image:
+    "Это фото, которое клиент прислал в WhatsApp компании, делающей персональные книги-подарки. Опиши кратко (1–2 предложения), что на нём и зачем клиент мог его прислать. Если это чек или скриншот оплаты (Kaspi, перевод) — начни ответ словами «Чек об оплате» и укажи сумму, если она видна. Номера телефонов и карт не переписывай. Верни только текст.",
+} as const;
 /** Через сколько повторить ход после сбоя модели; на второй сбой беседу берёт менеджер. */
 export const SELLER_RETRY_MS = 60_000;
 export const SELLER_MAX_FAILURES = 2;
@@ -105,26 +113,25 @@ export class AiSeller {
     const fresh = inputs.filter((i) => !state.seen.includes(i.id));
     if (!fresh.length && state.phase === "active") return false;
     const env = await this.hooks.env(conv, config, fields, now);
-    const c = classifyInputs(fresh);
+    // Голосовые и фото: модель распознавания превращает их в текст — бот отвечает на них, как на обычные сообщения.
+    const media = await this.recognizeMedia(readSellerAi(state.ai), fresh, config.sell.media);
+    const inputs2 = media.inputs;
+    const c = classifyInputs(inputs2);
 
     const start = state.phase === "waiting";
     const questions = config.questions.map((q) => q.field).filter((k) => fields.some((f) => f.key === k));
     const waited = conv.awaitingSince ? Math.max(0, Math.round((now.getTime() - new Date(conv.awaitingSince).getTime()) / 60_000)) : 0;
     const base: BotState = start
-      ? { ...state, phase: "active", startedAt: now.toISOString(), questions, first: preview(c.texts[0] ?? (c.voice ? "🎤" : c.media ? "📷" : "")), ai: { ...readSellerAi(state.ai), waitedMinutes: state.ai.takeover ? waited : 0 } }
-      : state;
+      ? { ...state, phase: "active", startedAt: now.toISOString(), questions, first: preview(c.texts[0] ?? (c.voice ? "🎤" : c.media ? "📷" : "")), ai: { ...media.ai, waitedMinutes: state.ai.takeover ? waited : 0 } }
+      : { ...state, ai: media.ai };
 
     // Бота запустили кнопкой, новых сообщений нет: модель продолжает переписку сама.
     const manual = start && state.reason === "manual";
-    if (!c.text && !manual) {
-      // Голосовые и фото: модель распознаёт (транскрипция/описание) — тогда отвечаем на них как на текст; иначе как раньше.
-      const recognized = await this.recognizeMedia(base, fresh, env.config.sell.media);
-      if (!recognized) return this.withoutText(conv, base, state, fresh, c, env, fields, now);
-      fresh.splice(0, fresh.length, ...recognized);
-    }
+    // Не распозналось (модель не умеет, файла нет): голосовое — просьба написать текстом, фото и файлы — менеджеру.
+    if (!c.text && !manual) return this.withoutText(conv, base, state, inputs2, c, env, fields, now);
 
     const history = await this.d.history!(conv.id, HISTORY_LIMIT);
-    const decided = await this.decide({ conv, base, env, config, fields, history, fresh, purpose: "reply" });
+    const decided = await this.decide({ conv, base, env, config, fields, history, fresh: inputs2, purpose: "reply" });
     if ("error" in decided) return this.failed(conv, base, state, decided.error, env, fields, now);
 
     // Клиент дописал, пока модель думала: ответ был бы на устаревшее — повторяем ход со всеми сообщениями.
@@ -146,64 +153,71 @@ export class AiSeller {
   }
 
   /**
-   * Голосовые и фото клиента: модель распознаёт их (транскрипция дословная / описание) — те же сообщения становятся
-   * текстом, и беседа идёт как обычно. null — распознать не вышло (выключено, модель не умеет, файла нет, вложений
-   * больше двух): старый путь целиком, ни одно вложение не теряется.
+   * Голосовые и фото клиента → текст (расшифровка, описание). Распознанное запоминается в состоянии (id → текст): в
+   * следующих ходах модель видит слова клиента, а не «[голосовое]». Модель не умеет вложения — флаг mediaFailed, в этой
+   * беседе больше не пробуем; временный сбой или файла нет — вложение остаётся как было (старый путь).
    */
-  private async recognizeMedia(base: BotState, fresh: BotInput[], enabled: boolean): Promise<BotInput[] | null> {
-    if (!enabled || !this.d.seller?.media || !this.d.media) return null;
-    const ai = readSellerAi(base.ai);
-    if (ai.mediaFailed) return null;
-    const media = fresh.filter((i) => (i.type === "audio" || i.type === "image") && i.mediaUrl);
-    if (!media.length || media.length > 2) return null;
-    const out = fresh.map((i) => ({ ...i }));
-    const fail = (mediaFailed: boolean): null => {
-      if (mediaFailed) base.ai = { ...ai, mediaFailed: true };
-      return null;
-    };
-    for (const m of media) {
+  private async recognizeMedia(prev: SellerAiState, fresh: BotInput[], enabled: boolean): Promise<{ inputs: BotInput[]; ai: SellerAiState }> {
+    const ai: SellerAiState = { ...prev, media: { ...prev.media } };
+    const caption = (i: BotInput) => (i.text.trim() && i.text.trim() !== mediaCaption(i.type) ? i.text.trim() : "");
+    const asText = (i: BotInput, line: string): BotInput => ({ ...i, type: "text", text: [line, caption(i)].filter(Boolean).join(" ") });
+    const inputs = fresh.map((i) => (ai.media[i.id] ? asText(i, ai.media[i.id]) : i));
+    if (!enabled || ai.mediaFailed || !this.d.seller?.media || !this.d.media) return { inputs, ai };
+    const todo = inputs.filter((i) => (i.type === "audio" || i.type === "image") && i.mediaUrl).slice(0, MEDIA_PER_TURN);
+    for (const m of todo) {
       const file = await this.d.media(m.id).catch(() => null);
-      if (!file || !file.data.length || file.data.length > 10_000_000) return fail(false);
-      const text = await this.d.seller
-        .media({ system: MEDIA_RECOGNITION_PROMPT, parts: [{ kind: m.type === "image" ? "image" : "audio", data: Buffer.from(file.data).toString("base64"), mime: file.mime || (m.type === "image" ? "image/jpeg" : "audio/ogg") }], timeoutMs: SELLER_MEDIA_TIMEOUT_MS })
+      if (!file || !file.data.length || file.data.length > MEDIA_MAX_BYTES) continue;
+      const kind = m.type === "image" ? "image" : "audio";
+      const res = await this.d.seller
+        .media({ system: MEDIA_PROMPT[kind], parts: [{ kind, data: Buffer.from(file.data).toString("base64"), mime: file.mime || (kind === "image" ? "image/jpeg" : "audio/ogg") }], timeoutMs: SELLER_MEDIA_TIMEOUT_MS })
         .catch(() => null);
-      if (!text || !text.trim()) return fail(true);
-      const found = out.find((x) => x.id === m.id);
-      if (found) {
-        found.type = "text";
-        found.text = m.type === "audio" ? `[Голосовое клиента: ${text.trim().slice(0, 1500)}]` : `[Фото клиента: ${text.trim().slice(0, 1500)}]`;
+      if (res && "unsupported" in res) {
+        ai.mediaFailed = true;
+        break;
       }
+      const text = res?.text.trim();
+      if (!text) continue;
+      const line = mediaLine(kind, text);
+      // Помним последние распознанные вложения — состояние беседы не растёт без меры.
+      ai.media = Object.fromEntries([...Object.entries(ai.media), [m.id, line] as const].slice(-12));
+      inputs[inputs.indexOf(m)] = asText(m, line);
     }
-    return out;
+    return { inputs, ai };
   }
 
-  /** Напоминание после предложения: модель решает, нужно ли оно и как написать; false — не отправлено (клиент простился и т. п.). */
+  /**
+   * Напоминание молчащему клиенту: модель решает, уместно ли оно и как написать (как менеджер: «Ознакомились?», на
+   * следующий день — «Как ваши дела?»). Клиент уже платил или модель решила промолчать — больше не напоминаем.
+   * Следующий шаг (второе напоминание или итог менеджеру) считает квалификатор по lastBotAt.
+   */
   async followUp(conv: Conversation, state: BotState, config: BotConfig, fields: DealField[], now: Date): Promise<boolean> {
-    const env = await this.hooks.env(conv, config, fields, now);
     const history = await this.d.history!(conv.id, HISTORY_LIMIT);
-    const decided = await this.decide({ conv, base: state, env, config, fields, history, fresh: [], purpose: "follow_up" });
-    // Напоминание — необязательная любезность: ошибка модели или спорный текст = молчим, не зовём менеджера.
-    const decision = "turn" in decided ? decided.decision : null;
-    const sendIt = !!decision && decision.action !== "wait" && !!decision.reply;
-    let reply: string | null = null;
-    const events: BotEvent[] = [{ kind: "follow_up" }];
-    if (sendIt && decision) {
-      const paid = env.paid === true || history.some((m) => m.from === "client" && m.text.trim() && (handoffIntent(m.text) === "paid" || /\bчек\b|\bтөле[дп]|оплат[аи]л\b/i.test(m.text)));
-      const turn = resolveSellerTurn(state, { ...decision, action: "reply", agreed: false, handoff: "none" }, env, this.ctx(conv, env, config, [], history, false, await this.rules(conv, env, config, paid)));
-      if (!turn.retry && turn.reply) reply = turn.reply;
-    }
     const ai = readSellerAi(state.ai);
-    const next: BotState = { ...state, followedUp: true, lastBotAt: reply ? now.toISOString() : state.lastBotAt, ai: { ...ai, closeAsked: reply ? false : ai.closeAsked, followUps: ai.followUps + 1 }, version: state.version + 1 };
-    // Можно ещё одно напоминание — через followUpHours (в рабочее время), иначе — обычный срок тишины до итога менеджеру.
-    const more = next.ai.followUps < 2 && config.sell.followUpHours > 0;
-    const at = new Date(now.getTime() + config.sell.followUpHours * 3_600_000);
-    const due = (await this.d.settings.isWorkTime(at)) ? at : ((await this.d.settings.nextWorkStart(at)) ?? at);
-    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: more ? due : new Date(now.getTime() + BOT_OFFER_IDLE_MS) }))) return true;
+    const base = await this.hooks.env(conv, config, fields, now);
+    const env: BotEnv = { ...base, paid: base.paid || clientSaysPaid(history, ai.media) };
+    let reply: string | null = null;
+    if (!env.paid) {
+      const decided = await this.decide({ conv, base: state, env, config, fields, history, fresh: [], purpose: "follow_up" });
+      // Напоминание — необязательная любезность: ошибка модели или спорный текст = молчим, не зовём менеджера.
+      const decision = "turn" in decided ? decided.decision : null;
+      if (decision && decision.action !== "wait" && decision.reply) {
+        const turn = resolveSellerTurn(state, { ...decision, action: "reply", agreed: false, handoff: "none" }, env, this.ctx(conv, env, config, [], history, false, await this.rules(conv, env, config)));
+        if (!turn.retry && turn.reply) reply = turn.reply;
+      }
+    }
+    const next: BotState = {
+      ...state,
+      followedUp: true,
+      lastBotAt: reply ? now.toISOString() : state.lastBotAt,
+      ai: { ...ai, closeAsked: reply ? false : ai.closeAsked, followUps: reply ? ai.followUps + 1 : SELLER_MAX_FOLLOW_UPS },
+      version: state.version + 1,
+    };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: new Date(now.getTime() + 60_000) }))) return true;
     if (reply) {
       const current = await this.d.store.load(conv.id);
-      if (current?.state?.outcome !== "stopped_by_manager") await this.d.send(conv.id, reply);
+      if (current?.state?.outcome !== "stopped_by_manager") await this.say(conv, reply);
     }
-    await this.d.store.log(conv.id, conv.dealId, next.lang, events);
+    await this.d.store.log(conv.id, conv.dealId, next.lang, reply ? [{ kind: "follow_up" }] : []);
     return false;
   }
 
@@ -281,11 +295,11 @@ export class AiSeller {
 
   // ─── модель ────────────────────────────────────────────────────────────────
 
-  private async rules(conv: Conversation, env: BotEnv, config: BotConfig, paidInChat: boolean) {
+  private async rules(conv: Conversation, env: BotEnv, config: BotConfig) {
     const knowledge = await this.d.settings.knowledge().catch(() => "");
     const owner = [config.promo.ru, config.promo.kk, knowledge, ...faqNotes(env)];
-    // Владелец: бот цен не называет вообще (их озвучивает только менеджер). Оплата уже внесена — суммы тем более не к месту.
-    const noAmounts = config.sell.hidePrices || env.paid || paidInChat;
+    // Цены называет только менеджер (владелец, 18.10); клиент уже платил — суммы тем более не к месту.
+    const noAmounts = config.sell.hidePrices || !!env.paid;
     return {
       amounts: noAmounts ? new Set<number>() : allowedAmounts(env.catalog, config.sell, owner),
       percents: allowedPercents(owner),
@@ -295,7 +309,7 @@ export class AiSeller {
   }
 
   private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>) {
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: [...history].reverse().find((m) => m.from === "bot")?.text ?? null };
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history) };
   }
 
   /**
@@ -303,15 +317,17 @@ export class AiSeller {
    * ответ нарушил правила (чужая цена, ссылка, номер) — один раз просим переписать. Возвращает ход или ошибку модели.
    */
   private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision } | { error: string }> {
-    const { conv, base, env, config, fields, history, fresh, purpose } = a;
+    const { conv, base, config, fields, fresh, purpose } = a;
     const knowledge = await this.d.settings.knowledge().catch(() => "");
     const schemaFields = fields.filter((f) => base.questions.includes(f.key));
     const schema = sellerSchema(schemaFields);
     const ai = readSellerAi(base.ai);
-    // Клиент писал «оплатил(а)» или присылал чек — считаем оплату внесённой, даже если в сделке её ещё не провели.
-    const paidInChat = history.some((m) => m.from === "client" && m.text.trim() && (handoffIntent(m.text) === "paid" || /\bчек\b|\bтөле[дп]|оплат[аи]л\b/i.test(m.text)));
-    const rules = await this.rules(conv, env, config, paidInChat);
-    const paid = env.paid === true || paidInChat;
+    // Распознанные голосовые и фото — словами клиента, а не «[голосовое сообщение]» (и в старых сообщениях тоже).
+    const history = withMediaText(a.history, ai.media);
+    // Клиент писал «оплатил(а)» или прислал чек — он уже платил, даже если оплату по сделке ещё не провели.
+    const env: BotEnv = { ...a.env, paid: !!a.env.paid || clientSaysPaid(history, ai.media) };
+    const paid = !!env.paid;
+    const rules = await this.rules(conv, env, config);
     const dateKey = fields.find((f) => f.type === "date")?.key;
     const knownDate = (dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null) ?? dayValue(ai.eventDate);
     const known = fields
@@ -319,13 +335,7 @@ export class AiSeller {
       .map((f) => ({ label: f.label, value: base.filled[f.key] ?? env.dealValues[f.key] }))
       .filter((k): k is { label: string; value: string | number } => k.value !== undefined && k.value !== null && k.value !== "")
       .map((k) => ({ label: k.label, value: String(k.value) }));
-    // Распознанные голосовые/фото есть только во fresh (в истории у них пустой текст): подставляем их текст в переписку.
-    const freshById = new Map(fresh.map((i) => [i.id, i]));
-    const transcriptHistory = history.map((m) => {
-      const f = m.id ? freshById.get(m.id) : undefined;
-      return f && f.text.trim() ? { ...m, text: f.text } : m;
-    });
-    const transcript = sellerTranscript(transcriptHistory, fresh.length, env.tz);
+    const transcript = sellerTranscript(history, fresh.length, env.tz);
     const user = sellerUserPrompt(transcript, purpose, fresh.length > 0);
 
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
@@ -340,7 +350,7 @@ export class AiSeller {
       return decision ?? { error: "ответ модели не по схеме" };
     };
 
-    let deadline = knownDate ? deadlineFact(knownDate, env) : null;
+    let deadline = knownDate ? deadlineFact(knownDate, env, ai.city) : null;
     let first = await ask(null, null, deadline);
     // Одна повторная попытка на случай неверного JSON: клиент ждёт, но пустой ход хуже.
     if ("error" in first) first = await ask(null, null, deadline);
@@ -348,12 +358,15 @@ export class AiSeller {
     let decision = first;
 
     // Клиент назвал новую дату — считаем срок кодом и просим ответить с учётом вердикта.
-    if (decision.eventDate && decision.eventDate !== knownDate && purpose === "reply") {
-      const fact = deadlineFact(decision.eventDate, env);
+    // Клиент назвал дату или город — срок пересчитан кодом (по Алматы доставка в день готовности).
+    const date = decision.eventDate ?? knownDate;
+    const newInfo = (decision.eventDate && decision.eventDate !== knownDate) || (decision.city && decision.city !== ai.city);
+    if (date && newInfo && purpose === "reply") {
+      const fact = deadlineFact(date, env, decision.city || ai.city);
       if (fact) {
         deadline = fact;
         const again = await ask(null, null, fact);
-        if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, fields: { ...decision.fields, ...again.fields } };
+        if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, city: again.city || decision.city, fields: { ...decision.fields, ...again.fields } };
       }
     }
 
@@ -391,12 +404,17 @@ export class AiSeller {
         events.push({ kind: "blocked", reason: "invoice: не выставлен" });
       }
     } else if (result.reply) {
-      await this.send(conv, result.reply);
+      await this.say(conv, result.reply);
     }
 
     await this.d.store.log(conv.id, dealId, final.lang, events);
     if (final.stage === "offer" && before.stage !== "offer") await this.hooks.offered(conv, final, fields);
     if (result.done) await this.hooks.finish(conv, final, fields);
+  }
+
+  /** Ответ модели — как пишет человек в WhatsApp: абзацы через пустую строку уходят отдельными сообщениями (до трёх). */
+  private async say(conv: Conversation, text: string) {
+    for (const part of splitReply(text)) await this.send(conv, part);
   }
 
   /** Отправить клиенту, если человек не вмешался, пока бот думал. */
@@ -428,7 +446,7 @@ export class AiSeller {
     }
     const next: BotState = { ...state, outcome: "invoiced", reason: res.label, version: state.version + 1 };
     if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }, { restart: true }))) return null;
-    if (result.reply) await this.send(conv, result.reply);
+    if (result.reply) await this.say(conv, result.reply);
     await this.send(conv, res.text);
     return { state: next, label: res.label };
   }

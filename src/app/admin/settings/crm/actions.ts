@@ -104,6 +104,10 @@ const botConfigSchema = z.object({
     maxTurns: z.number().int().min(4, "Потолок беседы — от 4 ответов").max(100, "Потолок беседы — до 100 ответов"),
     hidePrices: z.boolean(),
     media: z.boolean(),
+    botName: z.string().trim().min(1, "Имя продажника — не пустое").max(40, "Имя продажника — до 40 знаков"),
+    managerName: z.string().trim().min(1, "Имя менеджера — не пустое").max(40, "Имя менеджера — до 40 знаков"),
+    facts: z.string().trim().max(2000, "Факты для продажника — до 2000 знаков"),
+    productionDays: z.number().int().min(1, "Срок изготовления — от 1 дня").max(30, "Срок изготовления — до 30 дней"),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });

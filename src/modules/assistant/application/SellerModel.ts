@@ -8,13 +8,20 @@ export interface MediaPart {
   mime: string;
 }
 
+/** Итог распознавания: текст; «не умеет» (модель без vision/аудио — больше не пробовать); null — временный сбой. */
+export type MediaRecognition = { text: string } | { unsupported: true };
+
 /**
  * Модель AI-продажника: один запрос со схемой JSON. Таймаут короткий (клиент ждёт в чате), без повторов внутри —
  * повтор и запасной путь решает бот. Эффорт средний: продающая беседа требует суждения, а не скорости.
- * Вложения (голосовые, фото) распознаются той же моделью через askMedia (инфраструктура передаётся модулем):
- * не умеет — null, бот идёт старым путём.
+ * Вложения (голосовые, фото) распознаёт своё подключение («Интеграции» → AI → «Голосовые и фото»): беседа может идти на
+ * модели без vision/аудио.
  */
-export function sellerModel(model: LanguageModel, connection: () => Promise<AiConnection>, media: (c: AiConnection, input: { system: string; parts: MediaPart[]; timeoutMs: number }) => Promise<string | null>) {
+export function sellerModel(
+  model: LanguageModel,
+  mediaConnection: () => Promise<AiConnection & { enabled?: boolean }>,
+  media: (c: AiConnection & { enabled?: boolean }, input: { system: string; parts: MediaPart[]; timeoutMs: number }) => Promise<MediaRecognition | null>,
+) {
   return {
     configured: () => model.configured(),
     describe: () => model.describe(),
@@ -22,8 +29,8 @@ export function sellerModel(model: LanguageModel, connection: () => Promise<AiCo
       const { text } = await model.ask({ system: input.system, user: input.user, effort: "medium", schema: input.schema, timeoutMs: input.timeoutMs });
       return text;
     },
-    async media(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<string | null> {
-      return media(await connection(), input);
+    async media(input: { system: string; parts: MediaPart[]; timeoutMs: number }): Promise<MediaRecognition | null> {
+      return media(await mediaConnection(), input);
     },
   };
 }

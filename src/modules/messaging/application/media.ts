@@ -108,14 +108,14 @@ export class ChatMediaService {
     if (saved) {
       const file = await this.gateway.file(saved).catch(() => null);
       if (file) {
-        const data = await readAll(file.body, maxSize);
+        const data = await readAll(file.body, maxSize).catch(() => null);
         return data ? { data, mime: this.typed(message, file).contentType ?? "" } : null;
       }
     }
     if (message.mediaUrl && /^https?:/i.test(message.mediaUrl)) {
-      const res = await fetch(message.mediaUrl).catch(() => null);
-      if (res && res.ok) {
-        const data = await readAll(res.body!, maxSize);
+      const res = await fetch(message.mediaUrl, { signal: AbortSignal.timeout(20_000) }).catch(() => null);
+      if (res?.ok && res.body) {
+        const data = await readAll(res.body, maxSize).catch(() => null);
         return data ? { data, mime: res.headers.get("content-type") ?? "" } : null;
       }
     }
@@ -124,7 +124,7 @@ export class ChatMediaService {
     try {
       const file = await this.open(att);
       if (!file) return null;
-      const data = await readAll(file.body, maxSize);
+      const data = await readAll(file.body, maxSize).catch(() => null);
       return data ? { data, mime: file.contentType ?? "" } : null;
     } catch (err) {
       if (MediaUnavailableError.is(err)) return null;

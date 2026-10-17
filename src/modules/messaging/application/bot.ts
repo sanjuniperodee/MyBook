@@ -17,6 +17,7 @@ import {
   newSellerAiState,
   outcomeTitle,
   readSellerAi,
+  SELLER_MAX_FOLLOW_UPS,
   safeName,
   startBlocker,
   themeLabel,
@@ -33,8 +34,8 @@ import {
 import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
 import { AiSeller } from "./botSeller";
 
-export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
-import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
+export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
+import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 
 export interface QualifierBotDeps {
   conversations: ConversationRepository;
@@ -140,7 +141,6 @@ export class QualifierBot {
       // Клиент с заказом, книгой или сделкой в работе — без опроса (первые сообщения проверяются перед стартом).
       const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
       reason = startBlocker({ channelOk: true, questions: ai ? Math.max(1, questions) : questions, deal: deal && { ...deal, assigned: !!deal.assigneeId }, fresh: opts.dealCreated, client, priorChat: false, inputs: [] });
-      if (reason === "media_only") reason = null;
     }
     if (reason) {
       await this.skip(conv, fresh, null, reason);
@@ -169,17 +169,25 @@ export class QualifierBot {
     const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId!), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
     if (this.takeoverBlocker(deal, client)) return none;
     const awaiting = new Date(conv.awaitingSince);
-    const due = new Date(Math.max(now.getTime() + BOT_PAUSE_MS, workTime ? awaiting.getTime() + config.waitMinutes * 60_000 : 0));
+    // Ночью бот подхватывает сразу — но не когда менеджер сейчас в чате (писал только что): тогда ждёт, как днём.
+    const waitHuman = workTime || (await this.managerActive(conv.id, now));
+    const due = new Date(Math.max(now.getTime() + BOT_PAUSE_MS, waitHuman ? awaiting.getTime() + config.waitMinutes * 60_000 : 0));
     const next: BotState = {
       ...newBotState(new Date(awaiting.getTime() - 1000), false),
       engine: "ai",
-      waitHuman: workTime,
+      waitHuman,
       reason: "takeover",
       ai: { ...newSellerAiState(), takeover: true },
       version: (state?.version ?? -1) + 1,
     };
     if (await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: next, dueAt: due }, { restart: true })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
     return none;
+  }
+
+  /** Менеджер писал клиенту в последние BOT_MANAGER_ACTIVE_MS — он в чате, бот не перебивает. */
+  private async managerActive(conversationId: string, now: Date): Promise<boolean> {
+    const history = await this.d.history?.(conversationId, 30).catch(() => null);
+    return !!history?.some((m) => m.from === "manager" && now.getTime() - new Date(m.at).getTime() < BOT_MANAGER_ACTIVE_MS);
   }
 
   /** Сколько ещё ждать менеджера: answered — «ждёт ответа» уже нет (ответил или закрыл чат); Date — до какого момента; null — пора. */
@@ -312,7 +320,8 @@ export class QualifierBot {
       }
     }
     const fresh = inputs.filter((i) => !state.seen.includes(i.id));
-    if (state.phase === "active" && state.stage === "offer" && !fresh.length) return this.offerIdle(conv, state, config, fields, now);
+    // Клиент молчит: после предложения (или в любой беседе AI-продажника) — напоминания, затем итог менеджеру.
+    if (state.phase === "active" && !fresh.length && (state.stage === "offer" || state.engine === "ai")) return this.offerIdle(conv, state, config, fields, now);
     if (state.phase === "active" && !fresh.length) {
       const last = new Date(state.lastBotAt ?? state.startedAt ?? state.since).getTime();
       if (now.getTime() - last < BOT_ABANDON_MS) {
@@ -371,8 +380,8 @@ export class QualifierBot {
       priorChat: false,
       inputs,
     });
-    // Первое сообщение — только фото/файл: как при создании, бот отвечает (AI распознаёт фото, шаблоны — «передам менеджеру»).
-    if (reason === "media_only") reason = null;
+    // Первое сообщение — голосовое или фото: AI-продажник с распознаванием отвечает на него (шаблонный бот — как раньше молчит).
+    if (reason === "media_only" && state.engine === "ai" && config.sell.media) reason = null;
     if (reason) return reason;
     const prior = await this.d.crm.priorChat(conv, new Date(state.since)).catch((err) => (this.d.logger.warn("bot prior chat", { error: String(err) }), false));
     return prior ? "prior_chat" : null;
@@ -488,22 +497,33 @@ export class QualifierBot {
   }
 
   /**
-   * Клиент молчит после предложения: через N часов (в рабочее время) — одно напоминание; ещё 12 часов тишины — итог
-   * менеджеру (исход «предложение без ответа»).
+   * Клиент молчит. Шаблонный бот после предложения — одно напоминание через N часов. AI-продажник — как менеджер: через
+   * N часов «Ознакомились?», на следующий день «Как ваши дела?» (в рабочее время); если замолчали ещё на знакомстве —
+   * через полчаса менеджер узнаёт об этом (может ответить сам — бот замолчит). Дальше 12 часов тишины — итог менеджеру.
    */
   private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
-    // AI-продажник напоминает дважды (как менеджер: «успели посмотреть?» → «как ваши дела?»), шаблонный — один раз.
-    const canFollowUp = state.engine === "ai" ? readSellerAi(state.ai).followUps < 2 : !state.followedUp;
-    if (canFollowUp && config.sell.followUpHours > 0) {
-      const at = new Date(last + config.sell.followUpHours * 3_600_000);
+    const ai = readSellerAi(state.ai);
+    const aiEngine = state.engine === "ai";
+    const canFollowUp = config.sell.followUpHours > 0 && (aiEngine ? ai.followUps < SELLER_MAX_FOLLOW_UPS : !state.followedUp);
+    if (canFollowUp) {
+      const wait = aiEngine && ai.followUps > 0 ? BOT_NEXT_DAY_FOLLOW_UP_MS : config.sell.followUpHours * 3_600_000;
+      const at = new Date(last + wait);
       // Ночью не пишем: напоминание — с началом рабочего дня.
       const due = (await this.d.settings.isWorkTime(at)) ? at : ((await this.d.settings.nextWorkStart(at)) ?? at);
+      if (aiEngine && state.stage !== "offer" && !ai.silenceNoted && ai.followUps === 0) {
+        const noteAt = last + BOT_ABANDON_MS;
+        if (now.getTime() < noteAt) {
+          await this.later(conv.id, new Date(Math.min(noteAt, due.getTime())));
+          return false;
+        }
+        return this.silenceNote(conv, state, due);
+      }
       if (now.getTime() < due.getTime()) {
         await this.later(conv.id, due);
         return false;
       }
-      if (state.engine === "ai") return this.#seller.followUp(conv, state, config, fields, now);
+      if (aiEngine) return this.#seller.followUp(conv, state, config, fields, now);
       const env = await this.env(conv, config, fields, now);
       const turn = botFollowUp(state, env);
       if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: turn.state, dueAt: new Date(now.getTime() + BOT_OFFER_IDLE_MS) }))) return true;
@@ -514,10 +534,26 @@ export class QualifierBot {
       await this.d.store.setDue(conv.id, new Date(last + BOT_OFFER_IDLE_MS));
       return false;
     }
-    const { state: next, events } = offerExpired(state);
+    // Итог: после предложения — «клиент молчит после предложения», на знакомстве — «не ответил боту».
+    const { state: next, events } = state.stage === "offer" ? offerExpired(state) : abandonBot(state);
     if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }))) return true;
     await this.d.store.log(conv.id, conv.dealId, next.lang, events);
     await this.finish(conv, next, fields);
+    return false;
+  }
+
+  /** Клиент замолчал на знакомстве: менеджеру заметка и уведомление (что известно и когда бот напомнит), бот ждёт дальше. */
+  private async silenceNote(conv: Conversation, state: BotState, due: Date): Promise<boolean> {
+    const next: BotState = { ...state, ai: { ...readSellerAi(state.ai), silenceNoted: true }, version: state.version + 1 };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: due }))) return true;
+    this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
+    const when = new Intl.DateTimeFormat("ru-RU", { timeZone: this.d.settings.timeZone(), day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(due);
+    const summary = readSellerAi(state.ai).summary;
+    const text = `🤖 Клиент замолчал на знакомстве с ботом. Бот напомнит о себе ${when}. Ответьте сами — бот замолчит.${summary ? `\nЗаметка бота: ${summary}` : ""}`;
+    await this.d.note(conv.id, text).catch((err) => this.d.logger.error("bot note", err));
+    const deal = await this.d.sales.deal(conv.dealId!);
+    const who = deal?.contactName || conv.contactName || phoneTail(conv.chatId) || "клиент";
+    await this.d.notifier.notify(deal?.assigneeId ?? conv.assigneeId, "chats.view", { kind: "message", title: `Клиент замолчал: ${who}`, body: `Бот напомнит ${when}.${summary ? ` ${summary}` : ""}`.slice(0, 300), link: `/admin/chats?c=${conv.id}` });
     return false;
   }
 
@@ -533,12 +569,12 @@ export class QualifierBot {
       const now = this.d.clock.now();
       const start = (await this.d.settings.isWorkTime(now)) ? now : ((await this.d.settings.nextWorkStart(now)) ?? now);
       const call = state.reason === "call";
-      const verb = state.reason === "agreed" ? "Выставить счёт" : call ? "Перезвонить" : "Ответить";
+      const verb = state.reason === "agreed" ? "Выставить счёт" : state.reason === "price" ? "Назвать цену" : call ? "Перезвонить" : "Ответить";
       // Ответственного нет (ночь, круг ещё не раздал) — задачу видят все, утром её заберёт круг вместе со сделкой.
       await this.d.tasks.create({
         title: `${verb}: ${who} — ${outcomeTitle(state).replace(/^Клиент /, "").toLowerCase()} (бот)`.slice(0, 200),
         kind: call ? "call" : "message",
-        dueAt: new Date(start.getTime() + (state.reason === "agreed" ? 5 : 15) * 60_000),
+        dueAt: new Date(start.getTime() + (state.reason === "agreed" || state.reason === "price" ? 5 : 15) * 60_000),
         dealId: deal.id,
         clientId: deal.clientId,
         assigneeId: deal.assigneeId,

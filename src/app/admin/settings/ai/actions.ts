@@ -124,6 +124,26 @@ export async function saveSellerAction(_: SettingsState, form: FormData): Promis
   return { ok: "Сохранено" };
 }
 
+// ─── распознавание голосовых и фото для AI-продажника ───────────────────────
+
+const mediaForm = z.object({
+  provider: formText.refine((v) => !v || isAiProvider(v), "Выберите провайдера"),
+  model: modelName,
+});
+
+export async function saveMediaAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = parseForm(mediaForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const { provider, model } = parsed.data;
+  if (provider === "deepseek") return { error: "DeepSeek не понимает голосовые и фото — выберите OpenRouter, Claude или OpenAI." };
+  const keyFor = isAiProvider(provider) ? provider : (await container().assistant.mediaProvider()).provider;
+  await saveSettings({ "media.provider": provider, "media.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "media", { provider: provider || "seller", model: model || null });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
 /** Пробный диалог на сохранённой модели: настоящий ход продажника с сохранёнными настройками бота (без отправки клиенту). */
 export async function testSellerAction(): Promise<{ ok: boolean; message: string }> {
   await assertStaff("settings.manage");

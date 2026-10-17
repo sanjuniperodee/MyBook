@@ -10,11 +10,14 @@ const keys = {
   custom: { apiKey: "ai.custom.apiKey", baseUrl: "ai.custom.baseUrl", model: "ai.custom.model" },
 } as const;
 
+/** Модель OpenRouter для голосовых и фото по умолчанию: понимает аудио (ogg из WhatsApp) и изображения, дешёвая и быстрая. */
+export const MEDIA_OPENROUTER_MODEL = "google/gemini-2.5-flash";
+
 /** Ключи настроек провайдера (для формы в «Интеграциях»). */
 export const providerSettingKeys = keys;
 
 /** Настройки CRM, которые читает AI-помощник: провайдеры, база знаний и AI-корректор. */
-export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model";
+export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "media.provider" | "media.model";
 
 /** Подключение к модели: пустые модель и адрес заменены значениями по умолчанию. */
 export type Connection = () => Promise<AiConnection & { enabled: boolean }>;
@@ -72,5 +75,22 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return isAiProvider(p) ? { provider: p, own: true } : { provider: await activeProvider(), own: false };
   }
 
-  return { active, proofread, proofreadProvider, seller, sellerProvider };
+  /** Провайдер распознавания голосовых и фото: свой или (пусто) — как у продажника. */
+  async function mediaProvider(): Promise<{ provider: AiProvider; own: boolean }> {
+    const p = await settings.get("media.provider");
+    return isAiProvider(p) ? { provider: p, own: true } : { provider: (await sellerProvider()).provider, own: false };
+  }
+
+  /**
+   * Подключение для голосовых и фото клиента. Своя модель или: у OpenRouter — Gemini Flash (слушает голосовые WhatsApp и
+   * видит фото), у остальных — модель продажника. Отдельно от продажника: беседу можно вести на DeepSeek, который
+   * вложения не понимает, а распознавать — на мультимодальной модели.
+   */
+  const media: Connection = async () => {
+    const [{ provider, own }, model, sellerModel] = await Promise.all([mediaProvider(), settings.get("media.model"), settings.get("seller.model")]);
+    const fallback = provider === "openrouter" ? MEDIA_OPENROUTER_MODEL : own ? "" : sellerModel;
+    return connectionOf(provider, model || fallback);
+  };
+
+  return { active, proofread, proofreadProvider, seller, sellerProvider, media, mediaProvider };
 }

@@ -10,19 +10,24 @@ import {
   amountsIn,
   checkSellerReply,
   cleanSellerReply,
+  clientSaysPaid,
   deadlineFact,
   invoiceBlocker,
+  lastBotTurn,
   newSellerAiState,
   normalizeSellerFields,
   parseSellerDecision,
   percentsIn,
   priceMentioned,
   resolveSellerTurn,
+  ruCase,
   sellerInvoice,
   sellerSchema,
   sellerSystemPrompt,
   sellerTranscript,
   sellerUserPrompt,
+  splitReply,
+  withMediaText,
   type ReplyRules,
   type SellerDecision,
 } from "@/modules/messaging/domain/botSeller";
@@ -86,6 +91,7 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   askedToOrder: false,
   agreed: false,
   agreedQuote: "",
+  city: "",
   ...p,
 });
 const rulesFor = (e = env()): ReplyRules => ({ amounts: allowedAmounts(e.catalog, e.config.sell), percents: new Set(), urls: [e.site.url], phones: ["77010000000"] });
@@ -379,16 +385,18 @@ describe("AI-продажник: промпт и переписка", () => {
     expect(p).toContain("2026-10-17");
     expect(p).toContain("суббота");
     expect(p).toContain("игнорируй");
-    expect(p).toContain("не раскрываешь, что ты бот");
+    // Персона: не сообщает сама, что она бот, но на прямой вопрос не обманывает.
+    expect(p).toContain("Айгерим, помощница менеджера Марата");
+    expect(p).toContain("не обманывай");
     expect(p).toContain("Акций сейчас нет");
     // Образцы тона содержат настоящие цены из тарифов, а не выдуманные.
     expect(p).toContain("Печатная книга в твёрдой обложке — от 30 000 ₸");
-    expect(p).toContain("30 000 теңгеден бастап");
   });
 
   it("образцы в промпте проходят собственную проверку цен (модель не научится называть чужие суммы)", () => {
     const p = sellerSystemPrompt(base).replace(/\u00a0/g, " ");
-    const examples = p.slice(p.indexOf("## Примеры хорошего тона"), p.indexOf("## Жёсткие запреты"));
+    const examples = p.slice(p.indexOf("## Примеры"), p.indexOf("## Жёсткие запреты"));
+    expect(examples.length).toBeGreaterThan(200);
     expect(checkSellerReply(examples, rulesFor()).filter((x) => x.kind === "price")).toEqual([]);
   });
 
@@ -427,10 +435,58 @@ describe("AI-продажник: промпт и переписка", () => {
   });
 
   it("deadlineFact: успеваем / только экспресс / не успеть / прошедшая дата", () => {
+    // Сегодня 17.10: пишут 2 дня, книга готовится 5 дней (срок владельца), доставка 2 дня.
     expect(deadlineFact("2026-12-20", env())).toContain("УСПЕВАЕМ");
-    expect(deadlineFact("2026-10-26", env())).toContain("экспресс");
+    expect(deadlineFact("2026-10-26", env())).toContain("УСПЕВАЕМ");
+    expect(deadlineFact("2026-10-25", env())).toContain("экспресс");
     expect(deadlineFact("2026-10-18", env())).toContain("НЕ успеть");
     expect(deadlineFact("2026-10-01", env())).toBeNull();
+  });
+
+  it("deadlineFact: по Алматы доставка в день готовности — к той же дате успеваем, в другой город — нет", () => {
+    expect(deadlineFact("2026-10-24", env(), "Алматы")).toContain("УСПЕВАЕМ");
+    expect(deadlineFact("2026-10-24", env(), "Алматы")).toContain("в день готовности");
+    expect(deadlineFact("2026-10-24", env(), "Актобе")).not.toContain("УСПЕВАЕМ");
+  });
+
+  it("имя менеджера склоняется: помощница Марата, передала Марату; Андрей, Игорь, Никита, не кириллица — как есть", () => {
+    expect(ruCase("Марат", "gen")).toBe("Марата");
+    expect(ruCase("Марат", "dat")).toBe("Марату");
+    expect(ruCase("Андрей", "gen")).toBe("Андрея");
+    expect(ruCase("Игорь", "dat")).toBe("Игорю");
+    expect(ruCase("Никита", "gen")).toBe("Никиты");
+    expect(ruCase("Никита", "dat")).toBe("Никите");
+    expect(ruCase("Mark", "gen")).toBe("Mark");
+  });
+
+  it("ответ по сообщениям: абзацы через пустую строку — отдельно, не больше трёх", () => {
+    expect(splitReply("Здравствуйте! 😊\n\nДля кого книга?")).toEqual(["Здравствуйте! 😊", "Для кого книга?"]);
+    expect(splitReply("Одна строка\nвторая строка")).toEqual(["Одна строка\nвторая строка"]);
+    expect(splitReply("1\n\n2\n\n3\n\n4")).toEqual(["1", "2", "3\n\n4"]);
+  });
+
+  it("распознанные вложения и «оплатил»: переписка с текстом голосовых, чек и «оплатил» — клиент уже платил", () => {
+    const history = [
+      { from: "client" as const, text: "[голосовое сообщение]", at: day, id: "a1" },
+      { from: "client" as const, text: "смотрите", at: day, id: "p1" },
+    ];
+    const media = { a1: "[Голосовое клиента: хочу книгу маме]", p1: "[Фото клиента: Чек об оплате, 10 000 тенге]" };
+    expect(withMediaText(history, media).map((m) => m.text)).toEqual(["[Голосовое клиента: хочу книгу маме]", "[Фото клиента: Чек об оплате, 10 000 тенге] смотрите"]);
+    expect(clientSaysPaid(history, media)).toBe(true);
+    expect(clientSaysPaid([{ from: "client", text: "Оплатил )", at: day }])).toBe(true);
+    expect(clientSaysPaid([{ from: "client", text: "А как оплатить?", at: day }])).toBe(false);
+    expect(clientSaysPaid([{ from: "manager", text: "Вы оплатили?", at: day }])).toBe(false);
+  });
+
+  it("петля: последний ход бота — все его сообщения подряд", () => {
+    const h = [
+      { from: "client" as const, text: "привет", at: day },
+      { from: "bot" as const, text: "Здравствуйте! 😊", at: day },
+      { from: "bot" as const, text: "Для кого книга?", at: day },
+      { from: "client" as const, text: "маме", at: day },
+    ];
+    expect(lastBotTurn(h)).toBe("Здравствуйте! 😊\n\nДля кого книга?");
+    expect(lastBotTurn([])).toBeNull();
   });
 
   it("переписка: роли, метки новых сообщений, пустые и лишние", () => {
