@@ -14,13 +14,13 @@ const tag = `rt${Date.now()}`;
 
 run("sales: круг (PostgreSQL)", () => {
   const ids: Record<string, string> = {};
-  let others: string[] = [];
   const q = async <T extends Record<string, unknown>>(query: ReturnType<typeof sql>) => (await db.execute<T>(query)).rows;
   const router = roundRobinRouter({ isWorkTime: async () => true, workMinutesBetween: async () => 0 }, () => "Asia/Almaty");
-  const next = (exclude: string[] = []) => router.next([...others, ...exclude]);
+  // Чужие сотрудники (в т. ч. заведённые параллельными тестами) исключаются на момент каждого вызова.
+  const others = async () => (await q<{ id: string }>(sql`select id from users where role = 'admin' and email not like ${tag + "%"}`)).map((r) => r.id);
+  const next = async (exclude: string[] = []) => router.next([...(await others()), ...exclude]);
 
   beforeAll(async () => {
-    others = (await q<{ id: string }>(sql`select id from users where role = 'admin'`)).map((r) => r.id);
     const role = async (key: string | null, perms: string[]) => (await q<{ id: string }>(sql`insert into crm_roles (name, key, scope, permissions) values (${tag + key}, ${key ? tag + key : null}, 'own', ${`{${perms.join(",")}}`}::text[]) returning id`))[0].id;
     const manager = await role("m", ["deals.view", "deals.edit"]);
     const viewer = await role("v", ["deals.view"]);
