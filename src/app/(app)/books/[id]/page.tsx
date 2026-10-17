@@ -6,7 +6,7 @@ import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
-import { bookKind, progressOf } from "@/lib/content/kinds";
+import { BLANK_READY_WORDS, bookKind, progressOf } from "@/lib/content/kinds";
 import { messagesFor } from "@/i18n/messages";
 import { questionTexts } from "@/lib/book/layout";
 import { sectionLabel } from "@/lib/book/editor-model";
@@ -14,6 +14,7 @@ import { Book3D } from "@/components/cover/Book3D";
 import { Morph } from "@/components/motion/PageTransition";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
+import { hubChapters, sectionHref as sectionLink } from "@/lib/book/hub-model";
 import { photoUrl } from "@/lib/urls";
 import { coverPhotoRefs } from "@/lib/book/photo-refs";
 import { getFormat, print } from "@/lib/book/formats";
@@ -61,30 +62,29 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const ownTitles = new Map(ownChapters.map((ch) => [ch.key, ch.title.trim()]));
   const titleOf = (key: string) => (kind === "blank" ? ownTitles.get(key) || messagesFor(book.language).book.untitledChapter : g(chapterTitle(theme, key, book.language)));
   const editable = book.status === "draft";
-  const percent = stats.total ? Math.round((stats.answered / stats.total) * 100) : 0;
+  const blank = kind === "blank";
   const base = `/books/${book.id}`;
-
-  // Прогресс по главам
-  const chapters: { key: string; title: string; total: number; answered: number; firstOpen: number; first: number }[] = [];
-  questions.forEach((q, i) => {
-    let ch = chapters[chapters.length - 1];
-    if (!ch || ch.key !== q.chapter) {
-      ch = { key: q.chapter, title: titleOf(q.chapter), total: 0, answered: 0, firstOpen: -1, first: i };
-      chapters.push(ch);
-    }
-    ch.total++;
-    if (q.answer.trim()) ch.answered++;
-    else if (ch.firstOpen === -1) ch.firstOpen = i;
-  });
-  const nextIndex = questions.findIndex((q) => !q.answer.trim());
-  const next = nextIndex >= 0 ? questions[nextIndex] : null;
-  const nextChapter = next ? chapters.find((c) => c.key === next.chapter) : null;
+  // Полоса прогресса: у книг с банком — доля вопросов с ответом, у своей книги — путь к «почти готовой» книге по словам.
+  const percent = blank ? Math.min(100, Math.round((stats.words / BLANK_READY_WORDS) * 100)) : stats.total ? Math.round((stats.answered / stats.total) * 100) : 0;
+  const chapters = hubChapters(book.theme, ownChapters, questions, titleOf);
+  const sectionHref = (id: string | null) => sectionLink(book.id, id);
+  const next = questions.find((q) => !q.answer.trim()) ?? null;
+  const nextChapter = next ? chapters.find((ch) => ch.key === next.chapter) : null;
   // Свой вопрос и раздел своей книги — как их написал автор; пустая подсказка раздела — его заголовок.
   const nextTexts = next ? questionTexts(next, book) : null;
   const nextLabel = next && nextTexts ? sectionLabel({ prompt: nextTexts.prompt, defaultTitle: nextTexts.title, displayText: next.displayText, hideHeading: next.hideHeading }, kind, m.books.untitledSection) : "";
+  // Крупная кнопка на хабе: что делать дальше.
+  const cta =
+    blank && chapters.length === 0
+      ? { href: `${base}/questions`, eyebrow: t.createFirstChapter, label: t.createFirstChapterText }
+      : next
+        ? { href: sectionHref(next.id), eyebrow: `${blank || stats.answered ? (blank ? t.continueWriting : t.nextQuestion) : t.firstQuestion}${nextChapter ? ` · ${nextChapter.title}` : ""}`, label: nextLabel }
+        : blank
+          ? { href: sectionHref(questions[0]?.id ?? null), eyebrow: t.continueWriting, label: t.openEditor }
+          : null;
 
   const steps = [
-    { icon: PenLine, title: t.steps.text, value: c.count.answers(stats.answered), done: progressOf(kind, stats).textStepDone, href: `${base}/questions` },
+    { icon: PenLine, title: t.steps.text, value: blank ? t.blankStats(stats.total, stats.words) : c.count.answers(stats.answered), done: progressOf(kind, stats).textStepDone, href: `${base}/questions` },
     { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
     { icon: BookOpenText, title: t.steps.pages, value: interiorName(book.interior, locale), done: true, href: `${base}/pages` },
     { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
@@ -133,7 +133,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           <dl className="mt-8 grid max-w-xl grid-cols-4 divide-x divide-line">
             {[
               [stats.printedPages, c.word.pages(stats.printedPages)],
-              [stats.answered, c.word.answers(stats.answered)],
+              blank ? [stats.total, t.sectionsWord(stats.total)] : [stats.answered, c.word.answers(stats.answered)],
               [stats.words, c.word.words(stats.words)],
               [stats.photos, c.word.photos()],
             ].map(([v, l], i) => (
@@ -147,7 +147,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
           <div className="mt-6 max-w-xl">
             <div className="flex justify-between text-xs text-muted">
-              <span>{t.percent(percent)}</span>
+              <span>{blank ? t.blankPercent(percent) : t.percent(percent)}</span>
               {stats.estimatedPages < print.minPages ? <span>{t.minPages(print.minPages)}</span> : null}
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
@@ -157,13 +157,11 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
           {editable ? <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} /> : null}
 
-          {editable && next ? (
-            <Link href={`${base}/questions?q=${nextIndex + 1}`} className="group mt-8 flex max-w-xl items-center gap-5 rounded-3xl bg-ink p-5 text-white transition hover:bg-ink-soft sm:p-6">
+          {editable && cta ? (
+            <Link href={cta.href} className="group mt-8 flex max-w-xl items-center gap-5 rounded-3xl bg-ink p-5 text-white transition hover:bg-ink-soft sm:p-6">
               <div className="min-w-0 flex-1">
-                <div className="text-xs text-white/50">
-                  {stats.answered ? t.nextQuestion : t.firstQuestion} · {nextChapter?.title}
-                </div>
-                <div className="mt-1.5 line-clamp-2 font-serif text-xl leading-snug sm:text-2xl">{nextLabel}</div>
+                <div className="text-xs text-white/50">{cta.eyebrow}</div>
+                <div className="mt-1.5 line-clamp-2 font-serif text-xl leading-snug sm:text-2xl">{cta.label}</div>
               </div>
               <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink transition group-hover:translate-x-1">
                 <ArrowRight className="size-5" />
@@ -187,36 +185,38 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
               {t.chaptersStarted(chapters.filter((ch) => ch.answered > 0).length, chapters.length)}
             </span>
           </div>
-          <ol className="mt-5 divide-y divide-line border-y border-line">
-            {chapters.map((ch, i) => {
-              const done = ch.answered === ch.total;
-              const target = (ch.firstOpen >= 0 ? ch.firstOpen : ch.first) + 1;
-              return (
-                <li key={ch.key}>
-                  <Link href={`${base}/questions?q=${target}`} className="group flex items-center gap-4 py-3.5">
-                    <span
-                      className={cn(
-                        "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums",
-                        done ? "bg-wine text-white" : ch.answered ? "bg-rose text-wine" : "bg-cream text-muted",
-                      )}
-                    >
-                      {done ? <Check className="size-4" /> : i + 1}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium group-hover:text-wine" lang={book.language}>{ch.title}</span>
-                      <span className="mt-1.5 block h-1 max-w-56 overflow-hidden rounded-full bg-cream">
-                        <span className="block h-full rounded-full bg-wine/70" style={{ width: `${(ch.answered / ch.total) * 100}%` }} />
+          {chapters.length === 0 ? (
+            blank ? <p className="mt-5 rounded-2xl border border-dashed border-line p-5 text-sm text-muted">{t.createFirstChapterText}</p> : null
+          ) : (
+            <ol className="mt-5 divide-y divide-line border-y border-line">
+              {chapters.map((ch, i) => {
+                const done = ch.total > 0 && ch.answered === ch.total;
+                const href = ch.firstOpenId ?? ch.firstId;
+                return (
+                  <li key={ch.key}>
+                    <Link href={sectionHref(href)} className="group flex items-center gap-4 py-3.5">
+                      <span
+                        className={cn(
+                          "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums",
+                          done ? "bg-wine text-white" : ch.answered ? "bg-rose text-wine" : "bg-cream text-muted",
+                        )}
+                      >
+                        {done ? <Check className="size-4" /> : i + 1}
                       </span>
-                    </span>
-                    <span className="text-sm text-muted tabular-nums">
-                      {ch.answered}/{ch.total}
-                    </span>
-                    <ArrowRight className="size-4 text-muted opacity-0 transition group-hover:opacity-100" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ol>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium group-hover:text-wine" lang={book.language}>{ch.title}</span>
+                        <span className="mt-1.5 block h-1 max-w-56 overflow-hidden rounded-full bg-cream">
+                          <span className="block h-full rounded-full bg-wine/70" style={{ width: `${ch.total ? (ch.answered / ch.total) * 100 : 0}%` }} />
+                        </span>
+                      </span>
+                      <span className="text-sm text-muted tabular-nums">{ch.total ? t.chapterSections(ch.answered, ch.total) : t.chapterEmpty}</span>
+                      <ArrowRight className="size-4 text-muted opacity-0 transition group-hover:opacity-100" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
 
         {/* Путь к книге */}

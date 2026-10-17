@@ -121,9 +121,13 @@ export interface StartInput {
   recordedBy?: string;
   /** Своя книга: название первой главы (пусто — по умолчанию темы, «Начало»). */
   firstChapterTitle?: string;
+  /** Посвящение из мастера (у автобиографии — «кому посвящаете»; получателя у неё нет). */
+  dedication?: string;
 }
 
 const clip = (s: string, max: number) => s.trim().slice(0, max);
+/** Посвящение — те же 600 знаков, что у настроек книги. */
+const DEDICATION_MAX = 600;
 
 /**
  * Книга — корень агрегата контекста Authoring. Пока книга не заказана, её можно править;
@@ -162,7 +166,7 @@ export class Book extends AggregateRoot<BookProps> {
       backPhotoId: null,
       backPhotoExtra: [],
       photoFrames: {},
-      dedication: "",
+      dedication: clip(input.dedication ?? "", DEDICATION_MAX),
       interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       format: "a5",
       photoPlacement: "chapters",

@@ -37,7 +37,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           fixedRecipientGender={!!theme.recipientGender}
           initial={{
             format: getFormat(book.format).id,
+            authorName: book.authorName,
             authorGender: book.authorGender,
+            recordedBy: book.recordedBy,
+            recipientName: book.recipientName,
             recipientGender: book.recipientGender,
             occasion: book.occasion,
             occasionDate: book.occasionDate,
