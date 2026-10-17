@@ -347,7 +347,7 @@ describe("BookOutlineService: разделы своей книги", () => {
 // ─── готовность к заказу ───────────────────────────────────────────────────
 
 describe("checkReadiness по видам", () => {
-  const stats = (s: Partial<BookStats>): BookStats => ({ answered: 0, total: 1, photos: 0, words: 0, estimatedPages: 40, printedPages: 40, ...s });
+  const stats = (s: Partial<BookStats>): BookStats => ({ answered: 0, total: 1, photos: 0, words: 0, estimatedPages: 40, printedPages: 40, emptyChapters: 0, ...s });
   const book = (themeId: string, authorName = "Алия") => ({ id: "b", theme: themeId, coverTemplate: "linen", coverPhotoId: null, coverPhotoExtra: [], authorName, format: "a5" });
   const texts = (b: ReturnType<typeof book>, s: BookStats) => checkReadiness(b, s, []).map((i) => i.text);
 
@@ -355,6 +355,14 @@ describe("checkReadiness по видам", () => {
     expect(texts(book("blank"), stats({}))).toContain("В книге пока нет ни одного раздела с текстом.");
     expect(texts(book("blank"), stats({ answered: 40, words: 600 }))).toContain("Пока написано всего 600 слов — книга получится совсем короткой.");
     expect(texts(book("blank"), stats({ answered: 2, words: 1000 })).some((t) => t.includes("короткой"))).toBe(false);
+  });
+
+  it("своя книга: о пустых главах предупреждает со ссылкой на редактор, у остальных книг — молчит", () => {
+    const issues = checkReadiness(book("blank"), stats({ answered: 5, words: 1200, emptyChapters: 2 }), []);
+    expect(issues.find((i) => i.text.includes("без текста и фото"))).toMatchObject({ level: "warning", href: "/books/b/questions", text: "2 главы без текста и фото в книгу не попадут." });
+    expect(texts(book("blank"), stats({ answered: 5, words: 1200, emptyChapters: 1 }))).toContain("Одна глава без текста и фото в книгу не попадёт.");
+    expect(texts(book("blank"), stats({ answered: 5, words: 1200 })).some((t) => t.includes("без текста и фото"))).toBe(false);
+    expect(texts(book("love"), stats({ answered: 30, emptyChapters: 3 })).some((t) => t.includes("без текста и фото"))).toBe(false);
   });
 
   it("книга с банком — как прежде по ответам; автобиография без имени — «имя рассказчика»", () => {

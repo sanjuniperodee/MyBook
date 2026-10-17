@@ -30,6 +30,8 @@ export function checkReadiness(book: ReadinessBook, stats: BookStats, photos: Re
   if (!book.authorName.trim()) issues.push({ level: "warning", text: kind === "autobiography" ? t.narratorName : t.authorName, href: `${base}/cover` });
   // «Короткая» — по тем же порогам, что шаг «Текст» на хабе и воронка CRM (progressOf): ответы, у своей книги — слова.
   if (progress.short) issues.push({ level: "warning", text: kind === "blank" ? t.shortWords(stats.words) : t.short(stats.answered), href: `${base}/questions` });
+  // Пустые главы своей книги в печать не попадают: автор создаёт главы осознанно и может не заметить, что одна исчезнет.
+  if (kind === "blank" && stats.emptyChapters > 0) issues.push({ level: "warning", text: t.emptyChapters(stats.emptyChapters), href: `${base}/questions` });
   if (stats.estimatedPages < print.minPages)
     issues.push({ level: "warning", text: t.minPages(print.minPages) });
   const format = getFormat(book.format);

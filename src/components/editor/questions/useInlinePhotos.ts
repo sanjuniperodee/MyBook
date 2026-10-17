@@ -75,5 +75,10 @@ export function useInlinePhotos({ bookId, editable, initialPhotos }: { bookId: s
     if (list[0]?.questionId) setSelectedPhotoId(list[0].id);
   };
 
-  return { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, editCaption, addUploaded };
+  /** Разделы удалены (с главой или поодиночке): их фото на сервере отвязаны и ушли в общую галерею — здесь то же. */
+  const detachQuestions = useCallback((ids: ReadonlySet<string>) => {
+    setPhotos((ps) => ps.map((p) => (p.questionId && ids.has(p.questionId) ? { ...p, questionId: null, inline: null } : p)));
+  }, []);
+
+  return { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, editCaption, addUploaded, detachQuestions };
 }

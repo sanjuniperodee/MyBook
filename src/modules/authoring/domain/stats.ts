@@ -12,6 +12,8 @@ export interface BookStats {
   words: number;
   estimatedPages: number;
   printedPages: number;
+  /** Своя книга: сколько глав без текста и фото — в книгу они не попадут (у остальных 0). */
+  emptyChapters: number;
 }
 
 type Args = Parameters<typeof buildBookContent>;
@@ -22,5 +24,7 @@ export function computeStats(book: Args[0], questions: (Args[1][number] & { answ
   const answered = questions.filter((q) => q.answer.trim()).length;
   const words = questions.reduce((s, q) => s + countWords(q.answer), 0);
   const estimatedPages = estimatePages(content);
-  return { answered, total: questions.length, photos: photos.length, words, estimatedPages, printedPages: printablePageCount(estimatedPages) };
+  const printed = new Set(content.chapters.map((c) => c.key));
+  const emptyChapters = chapters.filter((c) => !printed.has(c.key)).length;
+  return { answered, total: questions.length, photos: photos.length, words, estimatedPages, printedPages: printablePageCount(estimatedPages), emptyChapters };
 }
