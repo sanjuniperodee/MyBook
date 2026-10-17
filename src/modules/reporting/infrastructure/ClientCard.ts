@@ -2,7 +2,7 @@ import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { bookLetters, books, crmDeals, crmNotes, crmStages, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
-import { answeredSql, totalSql } from "@/shared/infrastructure/db/bookProgress";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 
 export async function clientById(id: string) {
@@ -20,6 +20,7 @@ export async function clientCard(id: string, sections: { deals: boolean }) {
         book: books,
         answered: answeredSql(booksId),
         total: totalSql(booksId),
+        words: wordsSql(booksId),
         photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
         letters: sql<number>`(select count(*)::int from ${bookLetters} l where l.book_id = ${booksId})`,
       })

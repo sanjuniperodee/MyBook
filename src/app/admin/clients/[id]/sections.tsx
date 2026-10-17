@@ -8,6 +8,7 @@ import { planName } from "@/i18n/labels";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { getTheme } from "@/lib/content/themes";
+import { bookLine, progressRatio, progressText } from "@/lib/content/crm-labels";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import type { clientScreen } from "@/modules/reporting/ui/client-screen";
@@ -187,25 +188,26 @@ export function ClientPayments({ payments }: { payments: { id: string; deal_id: 
 }
 
 /** Книги клиента: прогресс, статус, макет и текст. */
-export function ClientBooks({ books }: { books: { book: { id: string; title: string; theme: string; authorName: string; recipientName: string; updatedAt: Date; status: string }; answered: number; total: number; photos: number; letters: number }[] }) {
+export function ClientBooks({ books }: { books: { book: { id: string; title: string; theme: string; authorName: string; recipientName: string; recordedBy: string; updatedAt: Date; status: string }; answered: number; total: number; words: number; photos: number; letters: number }[] }) {
   return (
     <section className="rounded-2xl border border-line bg-white p-5">
       <h2 className="mb-4 font-semibold">Книги</h2>
       {books.length === 0 ? <p className="text-sm text-muted">Книг пока нет.</p> : null}
       <div className="space-y-3">
-        {books.map(({ book, answered, total, photos: ph, letters }) => (
+        {books.map(({ book, answered, total, words, photos: ph, letters }) => (
           <div key={book.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-line p-4">
             <div className="min-w-0 flex-1">
               <div className="font-medium">{book.title}</div>
               <div className="text-xs text-muted">
-                {getTheme(book.theme).name} · {book.authorName} → {book.recipientName} · изм. {formatDate(book.updatedAt)}
+                {bookLine({ theme: book.theme, themeShort: getTheme(book.theme).name, authorName: book.authorName, recipientName: book.recipientName })}
+                {book.recordedBy ? ` · записано: ${book.recordedBy}` : ""} · изм. {formatDate(book.updatedAt)}
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <div className="h-1.5 w-40 overflow-hidden rounded-full bg-cream">
-                  <div className="h-full rounded-full bg-wine" style={{ width: `${total ? (answered / total) * 100 : 0}%` }} />
+                  <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: book.theme, answered, total, words }) * 100}%` }} />
                 </div>
                 <span className="text-xs text-muted tabular-nums">
-                  {answered}/{total} ответов · {ph} фото{letters ? ` · ${letters} писем` : ""}
+                  {progressText({ theme: book.theme, answered, total, words })} · {ph} фото{letters ? ` · ${letters} писем` : ""}
                 </span>
               </div>
             </div>

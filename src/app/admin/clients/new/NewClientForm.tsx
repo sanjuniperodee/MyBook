@@ -230,7 +230,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
           {deal ? (
             <>
               <div>
-                <label className="label">Кому книга</label>
+                <label className="label">Кому книга (о себе или своя книга — пусто)</label>
                 <input name="recipient" maxLength={80} className="input h-11" placeholder="Мужу" defaultValue={v.recipient} />
               </div>
               <div>

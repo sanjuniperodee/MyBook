@@ -4,6 +4,7 @@ import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
+import { recipientPolicy } from "@/lib/content/kinds";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
 
@@ -86,7 +87,7 @@ export function registerSubscriptions(c: Container) {
         const p = e.payload;
         // Повод, дата и адресат из книги сразу попадают в поля сделки (подписи — по-русски, как в CRM).
         const occasion = p.occasion ? (messagesFor("ru").common.occasions as Record<string, { label: string }>)[p.occasion]?.label : undefined;
-        const fields = { ...(occasion ? { occasion } : {}), ...(p.occasionDate ? { event_date: p.occasionDate } : {}), ...(p.recipientName ? { recipient: p.recipientName } : {}) };
+        const fields = { ...(occasion ? { occasion } : {}), ...(p.occasionDate ? { event_date: p.occasionDate } : {}), ...(p.recipientName && recipientPolicy(p.theme) !== "none" ? { recipient: p.recipientName } : {}) };
         return c.sales.funnel.bookStarted(p.userId, p, fields);
       }),
     "crm.deal.book_started",

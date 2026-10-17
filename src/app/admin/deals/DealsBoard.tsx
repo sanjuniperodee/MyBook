@@ -10,6 +10,7 @@ import { acceptDealAction, moveDealAction, rejectDealAction } from "./actions";
 import { ask } from "@/components/ui/overlays";
 import { lostReasons } from "@/modules/sales/domain/meta";
 import { cn } from "@/lib/class-names";
+import { progressRatio, progressShort, progressText } from "@/lib/content/crm-labels";
 
 export interface DealCard {
   id: string;
@@ -28,7 +29,7 @@ export interface DealCard {
   unread: number;
   tags: string[];
   unsorted: boolean;
-  book: { answered: number; total: number } | null;
+  book: { theme: string; answered: number; total: number; words: number } | null;
   /** Дата события из своего поля «Дата события» (YYYY-MM-DD). */
   eventDate: string | null;
 }
@@ -225,13 +226,13 @@ function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean
         {c.contactName ? ` · ${c.contactName}` : ""} · {c.source}
       </div>
       {c.book ? (
-        <div className="mt-2 flex items-center gap-1.5" title={`Книга: ${c.book.answered} из ${c.book.total} ответов`}>
+        <div className="mt-2 flex items-center gap-1.5" title={`Книга: ${progressText(c.book)}`}>
           <BookOpen className="size-3 text-muted" />
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-cream">
-            <div className="h-full rounded-full bg-wine" style={{ width: `${c.book.total ? Math.round((c.book.answered / c.book.total) * 100) : 0}%` }} />
+            <div className="h-full rounded-full bg-wine" style={{ width: `${Math.round(progressRatio(c.book) * 100)}%` }} />
           </div>
           <span className="text-[10px] text-muted tabular-nums">
-            {c.book.answered}/{c.book.total}
+            {progressShort(c.book)}
           </span>
         </div>
       ) : null}

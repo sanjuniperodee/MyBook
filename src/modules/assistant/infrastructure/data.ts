@@ -2,7 +2,7 @@ import "server-only";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { books, crmCalls, crmConversations, crmDeals, crmNotes, crmStages, crmTasks, orders } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
-import { answeredSql, totalSql } from "@/shared/infrastructure/db/bookProgress";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
 import { executor } from "@/shared/infrastructure/database";
@@ -37,10 +37,14 @@ export const crmAssistantData = (settings: SettingsReader<"ai.knowledge">, field
         ? db
             .select({
               title: books.title,
+              theme: books.theme,
+              author: books.authorName,
               recipient: books.recipientName,
+              recordedBy: books.recordedBy,
               status: books.status,
               answered: answeredSql(booksId),
               total: totalSql(booksId),
+              words: wordsSql(booksId),
             })
             .from(books)
             .where(eq(books.userId, deal.clientId))

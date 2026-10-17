@@ -340,6 +340,14 @@ export class DealsService {
   }
 }
 
+/** Название сделки по книге: вид книги виден менеджеру в воронке с первого взгляда. */
+export function bookDealTitle(book: { title: string; recipientName: string; theme?: string; authorName?: string }): string {
+  const kind = bookKind(book.theme ?? "");
+  if (kind === "autobiography") return book.authorName?.trim() ? `Автобиография: ${book.authorName.trim()}` : "Автобиография";
+  if (kind === "blank") return book.title.trim() ? `Своя книга «${book.title.trim()}»` : "Своя книга";
+  return `Книга${book.recipientName ? ` для: ${book.recipientName}` : book.title ? ` «${book.title}»` : ""}`;
+}
+
 /**
  * Воронка по действиям клиента на сайте: регистрация, книга, заказ, оплата. Сделка идёт только вперёд;
  * сделку заводим сами, начиная с настройки «с какого действия». Ошибка CRM не ломает сценарий клиента.
@@ -432,9 +440,12 @@ export class SiteFunnelService {
     this.#reached.set(bookId, seen);
   }
 
-  /** Книга начата: сделка идёт по воронке, повод, дата и адресат попадают в её поля. */
-  async bookStarted(userId: string, book: { title: string; recipientName: string }, fields: CustomFieldValues) {
-    const deal = await this.advance(userId, "book_started", { title: `Книга${book.recipientName ? ` для: ${book.recipientName}` : book.title ? ` «${book.title}»` : ""}`, customFields: fields });
+  /**
+   * Книга начата: сделка идёт по воронке, повод, дата и адресат попадают в её поля. Название сделки — по виду книги
+   * (lib/content/kinds): подарок «Книга для: …», автобиография «Автобиография: {рассказчик}», своя книга «Своя книга «…»».
+   */
+  async bookStarted(userId: string, book: { title: string; recipientName: string; theme?: string; authorName?: string }, fields: CustomFieldValues) {
+    const deal = await this.advance(userId, "book_started", { title: bookDealTitle(book), customFields: fields });
     if (deal) await this.service.fillEmptyFields(deal.id, fields);
   }
 

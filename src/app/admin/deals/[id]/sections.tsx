@@ -8,6 +8,9 @@ import type { NoteItem } from "@/components/admin/CrmWidgets";
 import type { OrderStatus } from "@/shared/domain/orders";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
+import { getTheme } from "@/lib/content/themes";
+import { bookKind } from "@/lib/content/kinds";
+import { bookLine, progressRatio, progressText } from "@/lib/content/crm-labels";
 import type { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { DuplicateRow, LinkClient } from "./DealControls";
 
@@ -34,7 +37,7 @@ export function Duplicates({ dealId, duplicates, canMerge }: { dealId: string; d
 }
 
 /** Книги клиента по сделке: прогресс ответов и фото. */
-export function DealBooks({ books, seen }: { books: { id: string; title: string | null; recipientName: string | null; status: string; answered: number; total: number; photos: number; updatedAt: Date }[]; seen: Date | null }) {
+export function DealBooks({ books, seen }: { books: { id: string; title: string | null; theme: string; authorName: string; recipientName: string | null; status: string; answered: number; total: number; words: number; photos: number; updatedAt: Date }[]; seen: Date | null }) {
   return (
     <section className="space-y-3 rounded-2xl border border-line bg-white p-5 text-sm" data-testid="deal-books">
       <div className="flex items-baseline justify-between">
@@ -45,15 +48,16 @@ export function DealBooks({ books, seen }: { books: { id: string; title: string 
         <div key={b.id}>
           <div className="flex items-baseline justify-between gap-2">
             <Link href={`/books/${b.id}/preview`} className="truncate font-medium hover:text-wine">
-              {b.title || (b.recipientName ? `Для: ${b.recipientName}` : "Без названия")}
+              {b.title || (b.recipientName && bookKind(b.theme) !== "autobiography" ? `Для: ${b.recipientName}` : "Без названия")}
             </Link>
             <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px]", b.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{b.status === "draft" ? "пишется" : "заказана"}</span>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
-            <div className="h-full rounded-full bg-wine" style={{ width: `${b.total ? Math.round((b.answered / b.total) * 100) : 0}%` }} />
+            <div className="h-full rounded-full bg-wine" style={{ width: `${Math.round(progressRatio(b) * 100)}%` }} />
           </div>
+          <div className="text-xs text-muted">{bookLine({ theme: b.theme, themeShort: getTheme(b.theme).name, authorName: b.authorName, recipientName: b.recipientName ?? "" })}</div>
           <div className="mt-1 text-xs text-muted tabular-nums">
-            {b.answered} из {b.total} ответов · {b.photos} фото · изм. {formatDate(b.updatedAt)}
+            {progressText(b)} · {b.photos} фото · изм. {formatDate(b.updatedAt)}
           </div>
         </div>
       ))}

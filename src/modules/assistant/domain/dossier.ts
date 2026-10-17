@@ -1,3 +1,4 @@
+import { bookKind } from "@/lib/content/kinds";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { transcript, type AiMessage } from "./prompts";
 
@@ -11,8 +12,18 @@ export interface DealDossier {
   tasks: { title: string; dueAt: Date | null }[];
   calls: { direction: string; status: string; durationSec: number; at: Date }[];
   order: { number: number; status: string; amount: number; plan: string } | null;
-  books: { title: string; recipient: string; status: string; answered: number; total: number }[];
+  books: { title: string; theme: string; author: string; recipient: string; recordedBy: string; status: string; answered: number; total: number; words: number }[];
   messages: AiMessage[];
+}
+
+/** Строка досье о книге клиента: вид книги, для кого (или чья), статус и прогресс по виду. */
+export function bookDossierLine(b: DealDossier["books"][number]): string {
+  const kind = bookKind(b.theme);
+  const status = b.status === "draft" ? "пишется" : "заказана";
+  const title = `«${b.title || "без названия"}»`;
+  if (kind === "autobiography") return `Автобиография ${title}${b.author ? `, рассказчик ${b.author}` : ""}${b.recordedBy ? `, записывает ${b.recordedBy}` : ""}: ${status}, ответов ${b.answered} из ${b.total}, слов ${b.words}.`;
+  if (kind === "blank") return `Своя книга ${title}${b.author ? `, автор ${b.author}` : ""}${b.recipient ? ` для ${b.recipient}` : ""}: ${status}, разделов с текстом ${b.answered} из ${b.total}, слов ${b.words}.`;
+  return `Книга на сайте ${title}${b.recipient ? ` для ${b.recipient}` : ""}: ${status}, ответов ${b.answered} из ${b.total}.`;
 }
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -26,7 +37,7 @@ export function dossierText(d: DealDossier) {
     deal.amount ? `Сумма: ${deal.amount} ₸.` : "",
     deal.contactName ? `Контакт: ${deal.contactName}.` : "",
     Object.keys(d.fieldValues).length ? `Поля: ${Object.entries(d.fieldValues).map(([k, v]) => `${k}: ${v}`).join("; ")}.` : "",
-    ...d.books.map((b) => `Книга на сайте «${b.title || "без названия"}»${b.recipient ? ` для ${b.recipient}` : ""}: ${b.status === "draft" ? "пишется" : "заказана"}, ответов ${b.answered} из ${b.total}.`),
+    ...d.books.map(bookDossierLine),
     d.order ? `Заказ №${d.order.number}: ${d.order.status}, ${d.order.amount} ₸, тариф ${d.order.plan}.` : "Заказа пока нет.",
     d.tasks.length ? `Открытые задачи: ${d.tasks.map((t) => `${t.title}${t.dueAt ? ` (до ${day(t.dueAt)})` : ""}`).join("; ")}.` : "Открытых задач нет.",
     d.calls.length ? `Звонки: ${d.calls.map((c) => `${day(c.at)} ${c.direction === "out" ? "исходящий" : c.status === "missed" ? "пропущенный" : "входящий"}${c.durationSec ? ` ${Math.round(c.durationSec / 60)} мин` : ""}`).join("; ")}.` : "",

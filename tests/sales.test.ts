@@ -169,13 +169,15 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const clock = { at: now, now: () => clock.at };
   const invoices = new MemInvoices();
   const service = new DealsService(deals, funnels, clients, settings, router, uow, clock, invoices);
-  const books = { progress: async () => ({ theme: "love", answered: 26, total: 40, words: 900 }) };
+  // Прогресс книги клиента: тест меняет его, чтобы проверить вехи по виду книги.
+  const bookState = { value: { theme: "love", answered: 26, total: 40, words: 900 } };
+  const books = { progress: async () => bookState.value };
   const logger = { info: () => {}, warn: () => {}, error: () => {} };
   const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, money);
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent, invoices };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState };
 }
 
 describe("Круг: распределение заявок", () => {
@@ -316,6 +318,39 @@ describe("SiteFunnelService", () => {
     await site.orderCreated({ id: "o1", userId: "c1", number: 1, amount: 9000 });
     expect(await site.orderPaid({ id: "o1", userId: "c1", amount: 9900 })).toBe(d.id);
     expect(deals.rows.get(d.id)).toMatchObject({ stageId: "won", amount: 9900 });
+  });
+
+  it("название сделки — по виду книги: подарок, автобиография, своя книга", async () => {
+    const titles = async (book: Parameters<ReturnType<typeof setup>["site"]["bookStarted"]>[1]) => {
+      const { site, deals } = setup();
+      await site.bookStarted("c1", book, {});
+      return [...deals.rows.values()][0].title;
+    };
+    expect(await titles({ title: "Ты — моё всё", recipientName: "Марат", theme: "love", authorName: "Айгерим" })).toBe("Книга для: Марат");
+    expect(await titles({ title: "История моей жизни", recipientName: "", theme: "autobiography", authorName: "Бакыт Нурланов" })).toBe("Автобиография: Бакыт Нурланов");
+    expect(await titles({ title: "Записки", recipientName: "", theme: "blank", authorName: "Айгерим" })).toBe("Своя книга «Записки»");
+    expect(await titles({ title: "", recipientName: "", theme: "blank", authorName: "Айгерим" })).toBe("Своя книга");
+    // Старые события без темы — как раньше.
+    expect(await titles({ title: "Ты — моё всё", recipientName: "Марат" })).toBe("Книга для: Марат");
+  });
+
+  it("вехи своей книги — по словам, а у книг с банком «половина» не пропадает при быстрой готовности", async () => {
+    const own = setup();
+    own.bookState.value = { theme: "blank", answered: 12, total: 12, words: 1200 };
+    await own.site.bookStarted("c1", { title: "Записки", recipientName: "", theme: "blank", authorName: "А" }, {});
+    await own.site.bookProgressed("b1", "c1");
+    // 1200 слов — ещё не половина (1500) и не готова: сделка осталась на «Книга».
+    expect([...own.deals.rows.values()][0].stageId).toBe("book");
+    own.bookState.value = { theme: "blank", answered: 3, total: 12, words: 3000 };
+    await own.site.bookProgressed("b1", "c1");
+    expect([...own.deals.rows.values()][0].stageId).toBe("ready");
+
+    // Автобиография: 25 ответов из 60 — готова, хотя до половины далеко; обе вехи отработали, сделка на «готова».
+    const auto = setup();
+    auto.bookState.value = { theme: "autobiography", answered: 25, total: 60, words: 300 };
+    await auto.site.bookStarted("c1", { title: "Моя жизнь", recipientName: "", theme: "autobiography", authorName: "Б" }, {});
+    await auto.site.bookProgressed("b2", "c1");
+    expect([...auto.deals.rows.values()][0].stageId).toBe("ready");
   });
 
   it("заказ по договорённости — к её сделке, даже если её вручную перевели в «успех» до заказа; дубля нет", async () => {
