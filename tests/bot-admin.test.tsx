@@ -32,11 +32,19 @@ describe("настройки бота", () => {
         vars={[{ key: "{цена.печатная}", label: "печатная", value: "30 000 ₸" }]}
         autoReplyRules={["Вне рабочего времени → автоответ"]}
         aiModel="openrouter/free"
+        seller={null}
         stats={<p>метрики</p>}
       />,
     );
-    for (const s of ["Бот-автоответчик", "Если менеджер не ответил", "Только вне рабочего времени", "WhatsApp", "Чат на сайте", "Русский", "Қазақша", "Цена", "Язык книги", "{цена.печатная} = 30 000 ₸", "«Вне рабочего времени → автоответ»", "Бесплатная модель OpenRouter", "Проверить бота", "метрики"]) expect(html).toContain(s);
-    expect(html).toContain("Для кого будет книга?");
+    // Форма разделена на вкладки: каждый раздел рендерится отдельно.
+    const tab = (initialTab: "mode" | "qualifier" | "sell" | "test") =>
+      renderToStaticMarkup(
+        <BotForm mode="always" config={prod} fields={fields} defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }} vars={[{ key: "{цена.печатная}", label: "печатная", value: "30 000 ₸" }]} autoReplyRules={["Вне рабочего времени → автоответ"]} aiModel="openrouter/free" seller={null} stats={<p>метрики</p>} initialTab={initialTab} />,
+      );
+    for (const s of ["Бот-автоответчик", "Когда работает", "Опрос и ответы", "Продажи", "Проверка и статистика"]) expect(html).toContain(s);
+    const all = [tab("mode"), tab("qualifier"), tab("test")].join("\n");
+    for (const s of ["Если менеджер не ответил", "Только вне рабочего времени", "WhatsApp", "Чат на сайте", "Русский", "Қазақша", "Цена", "Язык книги", "{цена.печатная} = 30 000 ₸", "«Вне рабочего времени → автоответ»", "Бесплатная модель OpenRouter", "Проверить бота", "метрики"]) expect(all).toContain(s);
+    expect(all).toContain("Для кого будет книга?");
   });
 
   it("метрики: запуски, итоги, причины пропуска, вопросы клиентов", () => {
@@ -53,7 +61,7 @@ describe("настройки бота", () => {
 
 describe("настройки бота: режим «Продаёт»", () => {
   it("переключатель, предоплата, счёт от бота с ценой из тарифов и тексты продаж", () => {
-    const config = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true } };
+    const config = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true, engine: "template" as const } };
     const html = renderToStaticMarkup(
       <BotForm
         mode="always"
@@ -63,19 +71,35 @@ describe("настройки бота: режим «Продаёт»", () => {
         vars={[{ key: "{цена.печатная}", label: "печатная", value: "30 000 ₸" }]}
         autoReplyRules={[]}
         aiModel={null}
+        seller={null}
         stats={null}
+        initialTab="sell"
       />,
     );
     for (const s of ["Бот продаёт", "Предоплата, ₸", "Бот сам выставляет счёт", "Цена книги в счёте бота — печатная", 'placeholder="30 000 ₸"', "Тексты продаж", "«Дорого», «денег нет»"]) expect(html).toContain(s);
     const off = renderToStaticMarkup(
-      <BotForm mode="always" config={defaultBotConfig} fields={fields} defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }} vars={[]} autoReplyRules={[]} aiModel={null} stats={null} />,
+      <BotForm mode="always" config={{ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: false } }} fields={fields} defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }} vars={[]} autoReplyRules={[]} aiModel={null} seller={null} stats={null} initialTab="sell" />,
     );
     expect(off).toContain("Бот продаёт");
     expect(off).not.toContain("Бот сам выставляет счёт");
   });
 
+  it("движок AI: модель продажника, подхват начатой переписки, указания; без модели — предупреждение, что работают шаблоны", () => {
+    const config = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, engine: "ai" as const, takeover: true, persona: "Говори тепло" } };
+    const render = (seller: string | null) =>
+      renderToStaticMarkup(
+        <BotForm mode="fallback" config={config} fields={fields} defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }} vars={[]} autoReplyRules={[]} aiModel={null} seller={seller} stats={null} initialTab="sell" />,
+      );
+    const ok = render("claude-sonnet-5-5");
+    for (const s of ["AI-продажник", "По шаблонам", "Модель продажника:", "claude-sonnet-5-5", "Подхватывать начатую переписку", "Указания продажнику", "Потолок беседы", "Запасные тексты продаж"]) expect(ok).toContain(s);
+    expect(ok).toContain("3 мин в рабочее время");
+    expect(render("openrouter/free")).toContain("Бесплатные модели OpenRouter нестабильны");
+    expect(render(null)).toContain("AI не подключён — пока продажник работает по шаблонам");
+  });
+
   it("старые настройки без sell — режим выключен; мусор в sell — заводские значения", () => {
     expect(parseBotConfig(JSON.stringify({ texts: {} })).sell).toEqual(defaultBotConfig.sell);
+    expect(defaultBotConfig.sell).toMatchObject({ on: false, engine: "ai", takeover: true });
     expect(parseBotConfig(JSON.stringify({ texts: {}, sell: { on: true, prepay: -5, followUpHours: "x", invoice: true, prices: { hardcover: 25000 } } })).sell).toMatchObject({ on: true, prepay: 0, followUpHours: 3, invoice: true, prices: { hardcover: 25000, digital: 0 } });
   });
 });
@@ -93,5 +117,10 @@ describe("бот в чате", () => {
     expect(stopped.label).toBe("Бот не начинал: переписка была до CRM");
     const offer = botStatus({ botStep: 0, state: { ...state, stage: "offer", asking: null }, dueAt: null }, fields);
     expect(offer.label).toBe("Бот сделал предложение — ждёт ответа клиента");
+    // AI-продажник и подхват переписки.
+    const ai = { ...state, engine: "ai" as const, asking: null, ai: { ...state.ai, takeover: true } };
+    expect(botStatus({ botStep: 0, state: ai, dueAt: null }, fields).label).toBe("Бот подхватил переписку");
+    expect(botStatus({ botStep: 0, state: { ...ai, ai: { ...ai.ai, takeover: false, stage: "objection" as const } }, dueAt: null }, fields).label).toBe("AI-продажник ведёт диалог, снимает возражение");
+    expect(botStatus({ botStep: null, state: { ...ai, phase: "waiting", reason: "takeover" }, dueAt: null }, fields)).toMatchObject({ label: "Менеджер не отвечает — бот подхватит переписку", tone: "waiting", canStop: true });
   });
 });

@@ -3,6 +3,7 @@ import { AssistantService, ProofreadService, type ConversationReader } from "./a
 import { modelOf } from "./infrastructure/models";
 import { aiConnections, type AssistantSettingKey } from "./infrastructure/connection";
 import { crmAssistantData } from "./infrastructure/data";
+import { sellerModel } from "./application/SellerModel";
 
 export { AssistantError, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
 export { providerSettingKeys } from "./infrastructure/connection";
@@ -20,10 +21,19 @@ export class AssistantModule {
     this.#ai = aiConnections(deps.settings);
     this.service = new AssistantService(modelOf(this.#ai.active), crmAssistantData(deps.settings, deps.fields, deps.conversations), deps.clock);
     this.proofreader = new ProofreadService(modelOf(this.#ai.proofread));
+    this.seller = sellerModel(modelOf(this.#ai.seller));
   }
+
+  /** Модель AI-продажника бота («Интеграции» → AI → «Модель продажника»). */
+  readonly seller: ReturnType<typeof sellerModel>;
 
   /** Провайдер AI-корректора: свой или (пусто) — как у помощника. */
   proofreadProvider() {
     return this.#ai.proofreadProvider();
+  }
+
+  /** Провайдер AI-продажника: свой или (пусто) — как у помощника. */
+  sellerProvider() {
+    return this.#ai.sellerProvider();
   }
 }

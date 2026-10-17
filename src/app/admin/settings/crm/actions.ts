@@ -98,6 +98,10 @@ const botConfigSchema = z.object({
     followUpHours: z.number().int().min(0).max(72, "Напоминание — не позже 72 часов"),
     invoice: z.boolean(),
     prices: z.object({ hardcover: z.number().int().min(0).max(10_000_000), digital: z.number().int().min(0).max(10_000_000) }),
+    engine: z.enum(["ai", "template"]),
+    takeover: z.boolean(),
+    persona: z.string().trim().max(1500, "Указания продажнику — до 1500 знаков"),
+    maxTurns: z.number().int().min(4, "Потолок беседы — от 4 ответов").max(100, "Потолок беседы — до 100 ответов"),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });
@@ -123,6 +127,8 @@ async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise
     const price = config.sell.prices.hardcover || catalog.plans.find((p) => p.id === "hardcover" && !p.hidden)?.price || 0;
     if (price && config.sell.prepay > price) return `Предоплата больше цены печатной книги (${price.toLocaleString("ru-RU")} ₸)`;
   }
+  const personaFound = findSensitive(config.sell.persona);
+  if (personaFound.length) return `В указаниях продажнику ${sensitiveLabels[personaFound[0].kind]} — бот такое не отправляет`;
   for (const l of BOT_LANGS) {
     const found = findSensitive(config.promo[l]);
     if (found.length) return `В строке акции ${sensitiveLabels[found[0].kind]} — бот такое не отправляет`;
@@ -138,12 +144,14 @@ export async function saveBotAction(input: z.input<typeof botSchema>): Promise<S
   const parsed = botSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { mode, ...config } = parsed.data;
-  if (mode !== "off" && !config.questions.length) return { error: "Добавьте хотя бы один вопрос" };
+  // Продажнику на AI вопросы не обязательны: он выясняет нужное сам; квалификатору и шаблонному продажнику они нужны.
+  const aiSeller = config.sell.on && config.sell.engine === "ai";
+  if (mode !== "off" && !config.questions.length && !aiSeller) return { error: "Добавьте хотя бы один вопрос" };
   if (mode !== "off" && !config.channels.length) return { error: "Выберите хотя бы один канал" };
   const problem = await botTextsProblem(config);
   if (problem) return { error: problem };
   await saveSettings({ "bot.mode": mode, "bot.config": JSON.stringify(config) }, staff.user.id);
-  await audit(staff, "settings.update", "settings", "bot", { mode, channels: config.channels, questions: config.questions.length, faq: FAQ_INTENTS.filter((i) => config.faq[i].on), ai: config.ai, sell: config.sell.on, invoice: config.sell.on && config.sell.invoice });
+  await audit(staff, "settings.update", "settings", "bot", { mode, channels: config.channels, questions: config.questions.length, faq: FAQ_INTENTS.filter((i) => config.faq[i].on), ai: config.ai, sell: config.sell.on, engine: config.sell.engine, takeover: config.sell.takeover, invoice: config.sell.on && config.sell.invoice });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
@@ -157,6 +165,13 @@ const previewSchema = z.object({
   workTime: z.boolean(),
   client: z.enum(["new", "account", "order"]),
   name: z.string().trim().max(60),
+  // Продолжение теста AI-продажника: состояние беседы и переписка (чужим руки сюда не попадают — действие для руководителя).
+  resume: z
+    .object({
+      state: z.record(z.string(), z.unknown()),
+      history: z.array(z.object({ from: z.enum(["client", "bot", "manager"]), text: z.string().max(3000), at: z.union([z.string(), z.date()]), author: z.string().nullish() })).max(120),
+    })
+    .nullish(),
 });
 
 /** Тест-режим: прогнать диалог с несохранёнными настройками — без базы и без отправки клиенту. */

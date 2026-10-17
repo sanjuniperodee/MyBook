@@ -8,3 +8,4 @@ export { BOT_VARS, catalogVars, pricesOutsideCatalog, type BotCatalog } from "./
 export { FAQ_INTENTS, isClosingReply, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
 export { themeLabel } from "./botThemes";
 export { mediaCaption } from "./wazzup";
+export * from "./botSeller";

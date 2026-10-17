@@ -1,3 +1,4 @@
+import { site } from "@/config/site";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { CustomFieldsReader, LiveFeed, SettingsReader, StaffNotifier as StaffNotifierPort, WorkSchedule } from "@/shared/application";
@@ -86,7 +87,7 @@ export interface BotSiteInfo {
  * Бот-квалификатор: режим и вопросы — из настроек CRM, рабочее время и свои поля сделки — из рабочего пространства,
  * цены и темы книг — с сайта (порт контейнера).
  */
-export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config" | "crm.workHours">; schedule: WorkSchedule; fields: CustomFieldsReader; site: BotSiteInfo }): BotSettings => ({
+export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config" | "crm.workHours" | "ai.knowledge">; schedule: WorkSchedule; fields: CustomFieldsReader; site: BotSiteInfo }): BotSettings => ({
   mode: async () => {
     const v = await deps.settings.get("bot.mode");
     // Не задан — режим по умолчанию («всегда»); испорчен — выключен, чтобы бот не писал клиентам по ошибке.
@@ -100,6 +101,8 @@ export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bo
   catalog: () => deps.site.catalog(),
   site: () => deps.site.site(),
   timeZone: () => storeTimeZone(),
+  knowledge: async () => (await deps.settings.get("ai.knowledge")) ?? "",
+  brand: () => site.name,
 });
 
 /** Отложенные ходы бота в этом процессе: один таймер на диалог (новый заменяет прежний). Дальние сроки — планировщику. */

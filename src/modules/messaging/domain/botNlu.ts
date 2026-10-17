@@ -231,6 +231,25 @@ export function isAgree(text: string) {
   return AGREE.test(t) || (words.length > 0 && words.every((w) => AGREE_WORDS.has(w)));
 }
 
+/** Отрицание или оговорка в тексте («не готова», «давайте уточню у мужа»): такое согласием не считается. */
+export function isHedged(text: string) {
+  const t = norm(text);
+  const words = t.replace(/[^\p{L}\p{N}+ ]/gu, " ").split(" ").filter(Boolean);
+  return words.some((w) => NEGATION.has(w)) || HEDGE.test(t);
+}
+
+/**
+ * Прямая просьба оформить («оформляйте», «выставляйте счёт», «беру», «хочу заказать»): согласие даже тогда, когда бот
+ * не спрашивал «Оформляем?». Вопрос, возражение, отказ, отрицание и оговорка («давайте уточню у мужа») — нет.
+ */
+export function hasOrderIntent(text: string) {
+  const t = norm(text);
+  if (!t || t.includes("?") || objectionKind(t) || isDecline(t)) return false;
+  const words = t.replace(/[^\p{L}\p{N}+ ]/gu, " ").split(" ").filter(Boolean);
+  if (words.some((w) => NEGATION.has(w)) || HEDGE.test(t)) return false;
+  return AGREE.test(t);
+}
+
 /** «Нет» в ответ на «Оформляем?» — не отказ от книги, а «не сейчас». */
 export const isBareNo = (text: string) => /^\s*(?:нет|не|неа|жоқ|жок|пока\s+нет)\s*[.!)]*\s*$/u.test(norm(text));
 

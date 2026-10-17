@@ -12,6 +12,7 @@ import { catalogVars, fillBotVars, fillFaqLines, type BotCatalog } from "./botFa
 import { detectLang, faqIntents, handoffIntent, isAck, isAgree, isBareNo, isWillLook, isDecline, isDontKnow, isStop, langRequest, looksLikeContinuation, objectionKind, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
+import { newSellerAiState, type SellerAiState } from "./botSellerState";
 
 /** offered — бот сделал предложение, клиент замолчал; invoiced — бот сам выставил счёт. */
 export type BotOutcome = "finished" | "handoff" | "stopped_by_manager" | "abandoned" | "declined" | "skipped" | "disabled" | "offered" | "invoiced";
@@ -90,6 +91,10 @@ export interface BotState {
   /** Напоминание после предложения уже отправлено. */
   followedUp: boolean;
   offeredAt: string | null;
+  /** Кто ведёт беседу: шаблоны из настроек или AI-продажник (режим «Продаёт» с движком AI). */
+  engine: "template" | "ai";
+  /** Память AI-продажника (для шаблонной беседы не используется). */
+  ai: SellerAiState;
 }
 
 export function newBotState(since: Date, fresh: boolean): BotState {
@@ -123,6 +128,8 @@ export function newBotState(since: Date, fresh: boolean): BotState {
     objections: [],
     followedUp: false,
     offeredAt: null,
+    engine: "template",
+    ai: newSellerAiState(),
   };
 }
 
@@ -755,6 +762,11 @@ export function botSummary(s: BotState, fields: DealField[], dealValues: Record<
   if (s.links.length) lines.push(`Отправлено: ${s.links.join(", ")}`);
   if (s.offeredAt) lines.push(`Предложение: сделано${s.followedUp ? ", напоминание отправлено" : ""}`);
   if (s.objections.length) lines.push(`Возражения: ${s.objections.map((o) => (o === "price" ? "дорого" : "подумает / позже")).join(", ")}`);
+  if (s.engine === "ai") {
+    if (s.ai.takeover) lines.push(`Бот подхватил переписку: клиент ждал менеджера ${s.ai.waitedMinutes} мин`);
+    if (s.ai.summary) lines.push(`Заметка бота: ${s.ai.summary}`);
+    if (s.ai.objections) lines.push(`Возражений: ${s.ai.objections}`);
+  }
   if (s.first) lines.push(`Первое сообщение: «${s.first}»`);
   if (lack.length && s.outcome !== "finished") lines.push(`Не хватает: ${lack.join(", ")}`);
   return lines.join("\n");

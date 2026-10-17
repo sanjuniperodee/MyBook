@@ -17,6 +17,7 @@ const toConversation = (r: Row): Conversation => ({
   dealId: r.dealId,
   assigneeId: r.assigneeId,
   botStep: r.botStep,
+  awaitingSince: r.awaitingSince,
   meta: r.meta,
 });
 
@@ -82,7 +83,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
         lastMessageAt: at,
         lastMessageText: text,
         // Автоответ и бот не снимают «ждёт ответа»: клиент всё ещё ждёт менеджера.
-        ...(authorId ? { unread: 0, awaitingSince: null, botStep: -1, assigneeId: sql`coalesce(${crmConversations.assigneeId}, ${authorId}::uuid)` } : {}),
+        ...(authorId ? { unread: 0, awaitingSince: null, assigneeId: sql`coalesce(${crmConversations.assigneeId}, ${authorId}::uuid)` } : {}),
         updatedAt: at,
       })
       .where(eq(crmConversations.id, id));
@@ -275,13 +276,14 @@ export class DrizzleBotStore implements BotStore {
       .where(and(eq(crmConversations.id, conversationId), botAlive(), sql`${crmConversations.botState} is not null and ${crmConversations.botState}->>'phase' <> 'done'`));
   }
 
-  async stop(conversationId: string, reason: string) {
-    // Состояние «в работе» закрывается как «остановлен человеком»; законченное — не трогаем. bot_step = -1 в любом случае:
-    // бот не начнёт и там, где ещё не начинал (менеджер написал первым).
+  async stop(conversationId: string, reason: string, opts: { soft?: boolean } = {}) {
+    // Состояние «в работе» закрывается как «остановлен человеком»; законченное — не трогаем. Жёсткая остановка (кнопка
+    // «Остановить бота») ставит bot_step = -1: бот не начнёт и там, где ещё не начинал. Ответ менеджера (soft) бота не
+    // отключает насовсем: не отвечает менеджер снова — AI-продажник подхватит (state done / stopped_by_manager).
     const rows = await executor()
       .update(crmConversations)
       .set({
-        botStep: -1,
+        ...(opts.soft ? {} : { botStep: -1 }),
         botDueAt: null,
         botState: sql`case when ${crmConversations.botState} is not null and ${crmConversations.botState}->>'phase' <> 'done'
           then ${crmConversations.botState} || jsonb_build_object('phase', 'done', 'outcome', 'stopped_by_manager', 'reason', ${reason}::text, 'asking', null,

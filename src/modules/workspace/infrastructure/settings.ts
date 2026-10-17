@@ -82,6 +82,9 @@ export const settingDefs = {
   "proofread.enabled": { default: "on" },
   "proofread.provider": {},
   "proofread.model": {},
+  /** Модель AI-продажника бота (режим «Продаёт», движок AI): свой провайдер и модель или (пусто) — как у AI-помощника. */
+  "seller.provider": {},
+  "seller.model": {},
   /** Любой OpenAI-совместимый сервер: Qwen, локальная модель и т. п. */
   "ai.custom.apiKey": { secret: true },
   "ai.custom.baseUrl": {},

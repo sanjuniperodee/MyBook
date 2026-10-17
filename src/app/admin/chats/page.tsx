@@ -56,7 +56,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       <MessagesSquare className="size-10 text-muted/50" strokeWidth={1.4} />
       <p className="text-sm">{list.length ? "Выберите диалог слева" : "Здесь появятся сообщения из WhatsApp, Instagram, Telegram, чата на сайте и почты"}</p>
       {!list.length && can(staff, "settings.manage") ? (
-        <Link href="/admin/settings" className="btn btn-outline btn-sm">
+        <Link href="/admin/settings?tab=messengers" className="btn btn-outline btn-sm">
           Подключить Wazzup
         </Link>
       ) : null}

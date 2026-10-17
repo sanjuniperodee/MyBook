@@ -1,4 +1,4 @@
-import type { BotCatalog, BotConfig, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage } from "../domain";
+import type { BotCatalog, BotConfig, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage } from "../domain";
 
 /**
  * Диалоги. Счётчики (непрочитанные, «ждёт ответа», шаг бота) меняются параллельными вебхуками,
@@ -124,6 +124,10 @@ export interface BotSettings {
   /** Адрес сайта, открыта ли регистрация, какие темы книг и посадочные страницы есть. */
   site(): Promise<{ url: string; registrationOpen: boolean; themes: string[]; landings: string[]; themeLandings?: Record<string, string> }>;
   timeZone(): string;
+  /** База знаний владельца («Интеграции» → AI-помощник): правила и ответы, которые AI-продажник знает наравне с тарифами. */
+  knowledge(): Promise<string>;
+  /** Название компании для приветствия и инструкции AI-продажника. */
+  brand(): string;
 }
 
 /** Состояние бота в диалоге. Запись — compare-and-set: параллельные вебхуки и ответ менеджера не теряются. */
@@ -143,7 +147,7 @@ export interface BotStore {
   /** Когда сделать следующий ход (пауза после сообщения клиента); только пока бот не остановлен. */
   setDue(conversationId: string, dueAt: Date | null): Promise<void>;
   /** Ответил человек (с телефона, из CRM или кнопкой «Остановить»): бот больше не пишет. true — бот вёл или собирался вести диалог. */
-  stop(conversationId: string, reason: string): Promise<boolean>;
+  stop(conversationId: string, reason: string, opts?: { soft?: boolean }): Promise<boolean>;
   /** Диалоги, где пора сделать ход. */
   due(now: Date, limit: number): Promise<string[]>;
   /** Входящие диалога начиная с момента since. */
@@ -165,6 +169,21 @@ export interface BotCrm {
 /** AI: понять ответ, который детерминированный разбор не понял. Только поля и намерения — тексты клиенту из настроек. */
 export interface BotBrain {
   understand(input: { messages: { from: "client" | "bot"; text: string }[]; fields: DealField[]; asking: string | null; today: string }): Promise<{ fields: Record<string, string>; intents: FaqIntent[]; handoff: HandoffKind | null; lang: BotLang | null } | null>;
+}
+
+/**
+ * Модель AI-продажника: отдельное подключение («Интеграции» → AI → «Модель продажника»), чтобы продающий бот мог работать
+ * на более сильной модели, чем помощник менеджера. Ошибка модели — исключение; бот решает, повторить или позвать человека.
+ */
+export interface BotSellerModel {
+  configured(): Promise<boolean>;
+  /** Один запрос со схемой JSON-ответа; возвращает текст ответа модели. */
+  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<string>;
+}
+
+/** Переписка диалога для AI-продажника: клиент, бот, менеджеры (без внутренних заметок). */
+export interface BotHistory {
+  messages(conversationId: string, limit: number): Promise<HistoryMessage[]>;
 }
 
 /** Счёт от имени бота (режим «Продаёт»): выпуск, счёт Kaspi на номер WhatsApp и текст счёта для клиента. */

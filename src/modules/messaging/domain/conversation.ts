@@ -25,6 +25,8 @@ export interface Conversation {
   dealId: string | null;
   assigneeId: string | null;
   botStep: number | null;
+  /** С какого момента последнее сообщение клиента ждёт ответа человека; null — не ждёт. */
+  awaitingSince?: Date | null;
   meta: ConversationMeta;
 }
 

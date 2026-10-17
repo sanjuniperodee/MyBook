@@ -124,6 +124,17 @@ export interface BotSell {
   invoice: boolean;
   /** Цена книги по договорённости для счёта бота, ₸; 0 — цена тарифа из «Цен и тарифов». */
   prices: { hardcover: number; digital: number };
+  /**
+   * Кто ведёт продающую беседу: "ai" — модель (понимает свободную речь, сама отвечает; цены, сроки и счёт — под
+   * контролем кода), "template" — тексты из настроек. Без подключённого AI продажник работает по шаблонам.
+   */
+  engine: "ai" | "template";
+  /** Подхватывать уже начатую переписку, если менеджер не ответил (ждёт waitMinutes в рабочее время, ночью — сразу). */
+  takeover: boolean;
+  /** Указания владельца продажнику: тон, акценты, чего избегать (до 1500 знаков). */
+  persona: string;
+  /** Потолок ответов модели в одной беседе; дальше — менеджер. */
+  maxTurns: number;
 }
 
 export const MAX_QUESTIONS = 6;
@@ -278,7 +289,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 } },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40 },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -370,6 +381,10 @@ function parseSell(raw: unknown): BotSell {
     followUpHours: int(r.followUpHours, 0, 72, d.followUpHours),
     invoice: r.invoice === true,
     prices: { hardcover: int(record(r.prices).hardcover, 0, 10_000_000, 0), digital: int(record(r.prices).digital, 0, 10_000_000, 0) },
+    engine: r.engine === "template" ? "template" : "ai",
+    takeover: typeof r.takeover === "boolean" ? r.takeover : d.takeover,
+    persona: typeof r.persona === "string" ? r.persona.slice(0, 1500) : d.persona,
+    maxTurns: int(r.maxTurns, 4, 100, d.maxTurns),
   };
 }
 

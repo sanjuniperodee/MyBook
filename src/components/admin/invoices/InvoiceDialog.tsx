@@ -153,7 +153,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             {noMethodsText}.{" "}
-            <Link href="/admin/settings" className="underline">
+            <Link href="/admin/settings?tab=payments" className="underline">
               Открыть интеграции
             </Link>
           </span>
