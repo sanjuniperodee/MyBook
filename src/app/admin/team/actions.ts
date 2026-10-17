@@ -69,6 +69,21 @@ export async function setStaffExtensionAction(userId: string, extension: string)
   revalidateTeam();
 }
 
+/** Телефон сотрудника (WhatsApp): на него уходят личные напоминания о задачах. Пусто — убрать. */
+export async function setStaffPhoneAction(userId: string, phone: string): Promise<{ ok: boolean; message: string }> {
+  const staff = await assertStaff("team.manage");
+  const id = uuid.parse(userId);
+  const members = await container().access.queries.team();
+  if (!members.some((m) => m.user.id === id)) return { ok: false, message: "Сотрудник не найден" };
+  const digits = phone.replace(/\D/g, "");
+  if (digits && digits.length < 10) return { ok: false, message: "Проверьте номер: нужно не меньше 10 цифр" };
+  const account = await container().identity.accounts.account(id);
+  if (!account) return { ok: false, message: "Аккаунт не найден" };
+  await container().identity.accounts.updateProfile(id, account.name, digits ? `+${digits}` : null);
+  revalidateTeam();
+  return { ok: true, message: digits ? "Телефон сохранён" : "Телефон убран" };
+}
+
 export async function setStaffDisabledAction(userId: string, disabled: boolean) {
   const staff = await assertStaff("team.manage");
   await team().setDisabled(staff.context, uuid.parse(userId), disabled);

@@ -3,7 +3,7 @@
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { useActionState, useState, useTransition } from "react";
 import { KeyRound, LoaderCircle, Power, ShieldOff } from "lucide-react";
-import { createStaffAction, resetStaffPasswordAction, revokeStaffAction, setStaffDisabledAction, setStaffExtensionAction, setStaffRoleAction, type TeamState } from "./actions";
+import { createStaffAction, resetStaffPasswordAction, revokeStaffAction, setStaffDisabledAction, setStaffExtensionAction, setStaffPhoneAction, setStaffRoleAction, type TeamState } from "./actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { cn } from "@/lib/class-names";
@@ -53,6 +53,7 @@ interface Member {
   email: string;
   roleId: string;
   extension: string;
+  phone: string;
   disabled: boolean;
   lastSeen: string;
   load: string;
@@ -61,6 +62,7 @@ interface Member {
 export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: { member: Member; roles: { id: string; name: string }[]; isSelf: boolean; canTouchOwner: boolean; isOwner: boolean }) {
   const [pending, start] = useTransition();
   const [ext, setExt] = useState(m.extension);
+  const [phone, setPhone] = useState(m.phone);
   const [msg, setMsg] = useState<string | null>(null);
   const locked = isSelf || (isOwner && !canTouchOwner);
   const run = (fn: () => Promise<unknown>, ok?: string) =>
@@ -102,6 +104,19 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           onChange={(e) => setExt(e.target.value.replace(/\D/g, ""))}
           onBlur={() => ext !== m.extension && run(() => setStaffExtensionAction(m.id, ext), "Номер сохранён")}
           aria-label="Внутренний номер"
+        />
+      </td>
+      <td className="px-4 py-3">
+        <input
+          className="input h-9 w-40 text-sm"
+          inputMode="tel"
+          value={phone}
+          maxLength={20}
+          placeholder="+7 7__ ___ __ __"
+          disabled={pending}
+          onChange={(e) => setPhone(e.target.value)}
+          onBlur={() => phone !== m.phone && run(() => setStaffPhoneAction(m.id, phone), "Телефон сохранён")}
+          aria-label="Телефон сотрудника для напоминаний в WhatsApp"
         />
       </td>
       <td className="px-4 py-3 text-xs text-muted">{m.load}</td>
