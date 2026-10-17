@@ -6,8 +6,10 @@ import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
 import { getOccasion } from "@/lib/occasions";
+import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
+import { CUSTOM_QUESTION } from "./Question";
 
 export type Gender = "m" | "f";
 
@@ -22,6 +24,8 @@ export interface BookProps {
   subtitle: string;
   authorName: string;
   authorGender: Gender;
+  /** Автобиография: кто записал со слов рассказчика (печатается на обороте титула); у остальных — пусто. */
+  recordedBy: string;
   recipientName: string;
   recipientGender: Gender;
   hideRecipientOnCover: boolean;
@@ -66,7 +70,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -78,16 +82,52 @@ export interface QuestionTemplate {
   hint: string | null;
 }
 
+/** Глава своей книги (тема blank), которая создаётся вместе с книгой. */
+export interface ChapterSeed {
+  key: string;
+  title: string;
+  epigraph: string;
+}
+
 /** Тема книги на конкретном языке (из банка вопросов). */
 export interface ThemeOnLanguage {
   id: string;
+  /** Вид книги: подарок, автобиография или своя книга (lib/content/kinds). */
+  kind: BookKind;
+  /** Получатель: обязателен (подарок), по желанию (своя книга) или его нет (автобиография). */
+  recipient: RecipientPolicy;
   recipientGender?: Gender;
   titleSuggestions: string[];
+  /** Название первой главы своей книги, если автор не ввёл своё; у тем с банком — пусто. */
+  firstChapterTitle: string;
   defaultCover: string;
   /** Оформление страниц новой книги; неизвестное — классика. */
   defaultInterior: string;
   questions: QuestionTemplate[];
 }
+
+/** Данные мастера новой книги. */
+export interface StartInput {
+  userId: string;
+  language: Locale;
+  authorName: string;
+  authorGender: Gender;
+  recipientName: string;
+  recipientGender: Gender;
+  title?: string;
+  occasion?: string | null;
+  occasionDate?: string | null;
+  /** Автобиография: кто записывает со слов рассказчика. */
+  recordedBy?: string;
+  /** Своя книга: название первой главы (пусто — по умолчанию темы, «Начало»). */
+  firstChapterTitle?: string;
+  /** Посвящение из мастера (у автобиографии — «кому посвящаете»; получателя у неё нет). */
+  dedication?: string;
+}
+
+const clip = (s: string, max: number) => s.trim().slice(0, max);
+/** Посвящение — те же 600 знаков, что у настроек книги. */
+const DEDICATION_MAX = 600;
 
 /**
  * Книга — корень агрегата контекста Authoring. Пока книга не заказана, её можно править;
@@ -98,13 +138,13 @@ export class Book extends AggregateRoot<BookProps> {
     return new Book(id, props);
   }
 
-  /** Новая книга по теме: вопросы копируются из банка, чтобы банк можно было менять, не ломая начатые книги. */
-  static start(
-    id: string,
-    input: { userId: string; language: Locale; authorName: string; authorGender: Gender; recipientName: string; recipientGender: Gender; title?: string; occasion?: string | null; occasionDate?: string | null },
-    theme: ThemeOnLanguage,
-    now: Date,
-  ) {
+  /**
+   * Новая книга по теме: вопросы копируются из банка, чтобы банк можно было менять, не ломая начатые книги.
+   * Получатель — по виду книги: у автобиографии его нет (посвящение пишут в dedication), у своей книги — по желанию,
+   * род получателя у обеих не используется. Своя книга (blank) создаётся с первой главой и одним пустым разделом —
+   * редактор открывается сразу на нём; ключ главы даёт newKey (uuid).
+   */
+  static start(id: string, input: StartInput, theme: ThemeOnLanguage, now: Date, newKey?: () => string) {
     const occasion = input.occasion && getOccasion(input.occasion) ? input.occasion : null;
     const book = new Book(id, {
       userId: input.userId,
@@ -114,8 +154,9 @@ export class Book extends AggregateRoot<BookProps> {
       subtitle: "",
       authorName: input.authorName.trim(),
       authorGender: input.authorGender,
-      recipientName: input.recipientName.trim(),
-      recipientGender: theme.recipientGender ?? input.recipientGender,
+      recordedBy: theme.kind === "autobiography" ? clip(input.recordedBy ?? "", RECORDED_BY_MAX) : "",
+      recipientName: theme.recipient === "none" ? "" : input.recipientName.trim(),
+      recipientGender: theme.recipientGender ?? (theme.recipient === "required" ? input.recipientGender : "m"),
       hideRecipientOnCover: false,
       coverTemplate: theme.defaultCover,
       coverPhotoId: null,
@@ -125,7 +166,7 @@ export class Book extends AggregateRoot<BookProps> {
       backPhotoId: null,
       backPhotoExtra: [],
       photoFrames: {},
-      dedication: "",
+      dedication: clip(input.dedication ?? "", DEDICATION_MAX),
       interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       format: "a5",
       photoPlacement: "chapters",
@@ -137,7 +178,11 @@ export class Book extends AggregateRoot<BookProps> {
       createdAt: now,
     });
     book.record(AuthoringEvents.bookStarted(book.ref()));
-    return { book, questions: theme.questions };
+    if (theme.kind !== "blank") return { book, questions: theme.questions, chapters: [] as ChapterSeed[] };
+    if (!newKey) throw new Error("Book.start: blank book needs a chapter key generator");
+    const chapter: ChapterSeed = { key: newKey(), title: clip(input.firstChapterTitle?.trim() || theme.firstChapterTitle, CHAPTER_TITLE_MAX), epigraph: "" };
+    const section: QuestionTemplate = { chapter: chapter.key, key: CUSTOM_QUESTION, prompt: "", title: "", hint: null };
+    return { book, questions: [section], chapters: [chapter] };
   }
 
   get userId() {
@@ -154,6 +199,9 @@ export class Book extends AggregateRoot<BookProps> {
   }
   get theme() {
     return this.props.theme;
+  }
+  get kind(): BookKind {
+    return bookKind(this.props.theme);
   }
   get coverPhotoId() {
     return this.props.coverPhotoId;
@@ -175,7 +223,13 @@ export class Book extends AggregateRoot<BookProps> {
   }
 
   ref(): BookRef {
-    return { bookId: this.id, userId: this.props.userId, title: this.props.title, recipientName: this.props.recipientName, occasion: this.props.occasion, occasionDate: this.props.occasionDate };
+    const p = this.props;
+    return { bookId: this.id, userId: p.userId, theme: p.theme, title: p.title, authorName: p.authorName, recipientName: p.recipientName, occasion: p.occasion, occasionDate: p.occasionDate };
+  }
+
+  /** Прогресс книги сдвинулся (удалены раздел или глава с текстом, своя книга пересекла порог по словам). */
+  noteProgress() {
+    this.record(AuthoringEvents.bookProgressed({ bookId: this.id, userId: this.props.userId }));
   }
 
   isVisibleTo(viewer: BookViewer) {
@@ -199,6 +253,14 @@ export class Book extends AggregateRoot<BookProps> {
     if (s.format !== undefined && !(s.format in formats)) throw new AuthoringError("unknownFormat");
     if (s.occasion && !getOccasion(s.occasion)) throw new AuthoringError("unknownOccasion");
     const clean = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)) as BookSettings;
+    // Поля по виду книги: «кто записал» — только у автобиографии, получателя у неё нет, его рода нет и у своей книги.
+    const kind = this.kind;
+    if (clean.recordedBy !== undefined) {
+      if (kind === "autobiography") clean.recordedBy = clip(clean.recordedBy, RECORDED_BY_MAX);
+      else delete clean.recordedBy;
+    }
+    if (kind === "autobiography") delete clean.recipientName;
+    if (kind !== "gift") delete clean.recipientGender;
     this.props = { ...this.props, ...clean };
   }
 

@@ -9,7 +9,8 @@ import type { Locale } from "@/i18n/config";
 import { THANK_YOU } from "@/modules/feedback";
 import { REFERRAL } from "@/modules/referrals";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
@@ -170,7 +171,7 @@ export function BookAside({ book, t }: { book: OrderView["book"]; t: T }) {
             format={book.format}
             title={book.title}
             subtitle={book.subtitle}
-            names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
+            names={coverNames(book)}
             photos={photoUrls(coverPhotoIds(book))}
             className="rounded-[3px] shadow-book"
           />

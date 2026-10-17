@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, SendHorizontal, Sparkles, Wallet } from "lucide-react";
+import { AlertCircle, BadgePercent, BookOpen, Check, CheckCheck, Clock, FileText, LoaderCircle, Lock, MessageSquareQuote, Receipt, ReceiptText, SendHorizontal, Sparkles, Wallet } from "lucide-react";
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { MentionTextarea } from "./MentionTextarea";
+import { InvoiceDialog } from "./invoices/InvoiceDialog";
+import { newIssueKey } from "./invoices/model";
 import type { ChatOffers } from "@/modules/marketing";
 import type { ChatMessage } from "@/modules/messaging";
 import { fillTemplate } from "@/shared/domain/templates";
@@ -41,22 +43,50 @@ function StatusIcon({ status }: { status: string }) {
   return null;
 }
 
-function Media({ m }: { m: ChatMessage }) {
-  if (!m.mediaUrl) return null;
-  if (m.type === "image")
-    return (
-      <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={m.mediaUrl} alt="" className="mb-1 max-h-64 rounded-lg object-cover" loading="lazy" />
-      </a>
-    );
-  if (m.type === "audio") return <audio controls src={m.mediaUrl} className="mb-1 h-9 max-w-full" preload="none" />;
-  if (m.type === "video") return <video controls src={m.mediaUrl} className="mb-1 max-h-64 rounded-lg" preload="none" />;
+/** Адрес вложения: файл шлюза WhatsApp — по id сообщения через наш сервер (он проверяет доступ к диалогу), иначе ссылка канала. */
+const mediaSrc = (m: ChatMessage) => (m.gateway ? `/api/admin/chats/messages/${m.id}/media` : m.mediaUrl);
+
+/**
+ * Голосовое или аудиофайл: плеер; если браузер файл не сыграл (голосовые WhatsApp — Ogg Opus, Safari до 18.4 его
+ * не играет) — подсказка вместо пустого плеера. Файл шлюза (наш адрес) можно скачать; ссылка канала — другой сайт,
+ * атрибут download там не работает, поэтому она открывается в новой вкладке, чтобы не уйти со страницы чата.
+ */
+function Voice({ src, gateway }: { src: string; gateway: boolean }) {
+  const [failed, setFailed] = useState(false);
   return (
-    <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="mb-1 flex items-center gap-1.5 underline">
+    <div className="mb-1">
+      {failed ? <p className="text-xs opacity-80">Браузер не смог воспроизвести запись — скачайте файл.</p> : <audio controls src={src} className="h-9 max-w-full" preload="none" onError={() => setFailed(true)} />}
+      <a href={src} {...(gateway ? { download: true } : { target: "_blank", rel: "noopener noreferrer" })} className="text-[11px] underline opacity-80">
+        {gateway ? "скачать" : "открыть файл"}
+      </a>
+    </div>
+  );
+}
+
+function FileLink({ src }: { src: string }) {
+  return (
+    <a href={src} target="_blank" rel="noopener noreferrer" className="mb-1 flex items-center gap-1.5 underline">
       <FileText className="size-4" /> Открыть файл
     </a>
   );
+}
+
+function Media({ m }: { m: ChatMessage }) {
+  const [broken, setBroken] = useState(false);
+  const src = mediaSrc(m);
+  if (!src) return null;
+  if (m.type === "audio") return <Voice src={src} gateway={!!m.gateway} />;
+  // Картинка или видео не открылись (шлюз не смог скачать файл) — остаётся ссылка: по ней видно, что случилось.
+  if (broken) return <FileLink src={src} />;
+  if (m.type === "image")
+    return (
+      <a href={src} target="_blank" rel="noopener noreferrer">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className="mb-1 max-h-64 rounded-lg object-cover" loading="lazy" onError={() => setBroken(true)} />
+      </a>
+    );
+  if (m.type === "video") return <video controls src={src} className="mb-1 max-h-64 rounded-lg" preload="none" onError={() => setBroken(true)} />;
+  return <FileLink src={src} />;
 }
 
 /**
@@ -74,6 +104,7 @@ export function ChatPanel({
   mentionables = [],
   offers = null,
   ai = false,
+  invoice = null,
   timeZone,
 }: {
   conversationId: string;
@@ -87,6 +118,8 @@ export function ChatPanel({
   offers?: ChatOffers | null;
   /** Подключён AI-помощник: кнопка «Подсказать ответ». */
   ai?: boolean;
+  /** Можно выставить счёт (chats.send + deals.edit, сотрудник ведёт диалог и сделку): кнопка «Счёт». Сделки нет — заведётся при выпуске. */
+  invoice?: { dealId: string | null } | null;
   /** Часовой пояс магазина — storeTimeZone() на сервере. */
   timeZone: string;
 }) {
@@ -97,6 +130,8 @@ export function ChatPanel({
   const [showOffers, setShowOffers] = useState(false);
   const [discount, setDiscount] = useState({ percent: 10, hours: 48 });
   const [mode, setMode] = useState<"client" | "note">(canSend ? "client" : "note");
+  // Ключ формы счёта — новый на каждое открытие диалога: повторное нажатие «Выставить» не выпустит второй счёт.
+  const [invoiceKey, setInvoiceKey] = useState<string | null>(null);
   const [sending, start] = useTransition();
   const [thinking, think] = useTransition();
   const scroller = useRef<HTMLDivElement>(null);
@@ -170,8 +205,20 @@ export function ChatPanel({
           router.refresh();
           return;
         }
-        const res = await sendMessageAction(conversationId, body);
-        setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: res.id, status: res.status, error: res.error } : m)));
+        let res = await sendMessageAction(conversationId, body);
+        if ("blocked" in res) {
+          // Номер, карта или реквизиты: не отправляем, пока менеджер не объяснит зачем (руководитель увидит причину).
+          const reason = window.prompt(`${res.blocked}\n\nЕсли отправить всё же нужно, напишите причину — руководитель её увидит:`);
+          if (!reason?.trim()) {
+            setLocal((l) => l.filter((m) => m.id !== tempId));
+            setText(body);
+            return;
+          }
+          res = await sendMessageAction(conversationId, body, reason);
+          if ("blocked" in res) throw new Error(res.blocked);
+        }
+        const sent = res;
+        setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: sent.id, status: sent.status, error: sent.error } : m)));
         router.refresh();
       } catch (err) {
         setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, status: "error", error: (err as Error).message } : m)));
@@ -228,6 +275,7 @@ export function ChatPanel({
           );
         })}
       </div>
+      {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
       <div className={cn("relative border-t bg-white p-3", mode === "note" ? "border-amber-200 bg-amber-50/60" : "border-line")}>
         {showTemplates && templates.length && mode === "client" ? (
           <div className="absolute right-3 bottom-full left-3 mb-2 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
@@ -304,6 +352,11 @@ export function ChatPanel({
               {offers ? (
                 <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setShowOffers((v) => !v), setShowTemplates(false))} title="Оплата и скидка" aria-label="Оплата и скидка">
                   <Wallet className="size-5" />
+                </button>
+              ) : null}
+              {invoice ? (
+                <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setInvoiceKey(newIssueKey()), setShowOffers(false), setShowTemplates(false))} title="Счёт на оплату: ссылка клиенту в чат" aria-label="Счёт">
+                  <ReceiptText className="size-5" />
                 </button>
               ) : null}
               {ai ? (

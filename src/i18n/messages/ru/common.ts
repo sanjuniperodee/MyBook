@@ -124,7 +124,8 @@ export const common = {
   orderStatusDigital,
   manualPayment: {
     title: "Kaspi перевод",
-    steps: ["Откройте Kaspi.kz → Платежи → Переводы → По номеру телефона", "Номер получателя: +7 700 000 00 00 (ИП «MyBooks»)", "В комментарии укажите номер заказа"],
+    steps: (phone: string, name: string) => ["Откройте Kaspi.kz → Платежи → Переводы → По номеру телефона", `Номер получателя: ${phone}${name ? ` (${name})` : ""}`, "В комментарии укажите номер заказа"],
+    unavailable: "Чтобы оплатить, напишите нам в WhatsApp — пришлём ссылку на оплату.",
   },
   kaspiPay: {
     title: "Оплата через Kaspi",

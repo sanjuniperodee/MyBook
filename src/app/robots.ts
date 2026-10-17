@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { env } from "@/config/env";
 
 /** Закрытые от индексации разделы: кабинет, заказы, служебные страницы по ссылке с токеном и API. */
-const PRIVATE = ["/books", "/orders", "/account", "/invite", "/redeem", "/review", "/letters", "/unsubscribe", "/forgot", "/reset", "/login/2fa", "/gift/", "/go/", "/r/"];
+const PRIVATE = ["/books", "/orders", "/account", "/invite", "/redeem", "/review", "/letters", "/unsubscribe", "/forgot", "/reset", "/login/2fa", "/gift/", "/pay/", "/go/", "/r/"];
 
 export default function robots(): MetadataRoute.Robots {
   const both = (paths: string[]) => paths.flatMap((p) => [p, `/kk${p}`]);

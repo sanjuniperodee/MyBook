@@ -9,7 +9,7 @@ import { workSchedule } from "./infrastructure/schedule";
 export { WorkspaceError } from "./domain";
 export { getSetting, getSettings, saveSettings, deleteSetting, ensureToken, fromEnv, maskSecret, type SettingKey } from "./infrastructure/settings";
 export { listFields, readFieldValues } from "./infrastructure/fields";
-export { notify } from "./infrastructure/notify";
+export { notify, staffNotifier } from "./infrastructure/notify";
 export { subscribe, type LiveEvent } from "./infrastructure/realtime";
 export { mentionableStaff, notifyMentions } from "./infrastructure/mentions";
 export { vapidKeys } from "./infrastructure/push";

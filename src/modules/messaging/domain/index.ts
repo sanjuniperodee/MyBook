@@ -1,3 +1,10 @@
 export * from "./conversation";
 export * from "./bot";
 export * from "./gowa";
+export * from "./sensitive";
+export * from "./botEngine";
+export { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, botChannelOf, defaultBotConfig, parseBotConfig, questionText, type BotChannel, type BotQuestion, type BotTexts, type Localized } from "./botConfig";
+export { BOT_VARS, catalogVars, pricesOutsideCatalog, type BotCatalog } from "./botFaq";
+export { FAQ_INTENTS, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
+export { themeLabel } from "./botThemes";
+export { mediaCaption } from "./wazzup";

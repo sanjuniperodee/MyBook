@@ -34,18 +34,22 @@ function toAssistantError(err: unknown): Error {
  * Claude через Anthropic SDK. Если основная модель откажется отвечать по соображениям безопасности,
  * сервер Anthropic сам повторит запрос на рекомендованной резервной модели (fallbacks: "default").
  */
-export async function askClaude(c: AiConnection, { system, user, effort, schema }: Parameters<LanguageModel["ask"]>[0]) {
+export async function askClaude(c: AiConnection, { system, user, effort, schema, timeoutMs }: Parameters<LanguageModel["ask"]>[0]) {
   let res;
   try {
-    res = await client(c).beta.messages.create({
-      model: c.model,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
-      system,
-      messages: [{ role: "user", content: user }],
-    });
+    res = await client(c).beta.messages.create(
+      {
+        model: c.model,
+        max_tokens: 16000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
+        system,
+        messages: [{ role: "user", content: user }],
+      },
+      // Быстрый запрос (бот в чате): свой таймаут и без повторов.
+      timeoutMs ? { timeout: timeoutMs, maxRetries: 0 } : undefined,
+    );
   } catch (err) {
     throw toAssistantError(err);
   }

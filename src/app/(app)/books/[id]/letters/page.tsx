@@ -3,6 +3,7 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
+import { bookKind } from "@/lib/content/kinds";
 import { LettersManager } from "./LettersManager";
 import { getMessages } from "@/i18n/server";
 
@@ -23,7 +24,7 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
         bookId={book.id}
         initialToken={book.inviteToken}
         appUrl={env.appUrl}
-        recipient={book.recipientName}
+        invitation={{ kind: bookKind(book.theme), author: book.authorName, title: book.title, recipient: book.recipientName }}
         bookLanguage={book.language}
         editable={book.status === "draft"}
         initialLetters={letters.map((l) => ({ id: l.id, authorName: l.authorName, relation: l.relation, text: l.text, status: l.status, createdAt: l.createdAt.toISOString() }))}

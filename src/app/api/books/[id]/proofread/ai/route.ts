@@ -5,6 +5,7 @@ import { rateLimit } from "@/server/rateLimit";
 import { container } from "@/server/container";
 import { AssistantError } from "@/modules/assistant";
 import { isLocale } from "@/i18n/config";
+import { bookKind } from "@/lib/content/kinds";
 import { idParams } from "@/server/input";
 
 export const maxDuration = 120;
@@ -23,7 +24,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!(await proofreader.configured())) throw new HttpError(503, "proofreadOff");
   if (!(await rateLimit(`proofread:${user.id}`, 10, 600_000)) || !(await rateLimit(`proofread-day:${user.id}`, 80, 86_400_000))) throw new HttpError(429, "proofreadRate");
   try {
-    const issues = await proofreader.check(text, book.language, isLocale(ui) ? ui : book.language);
+    const issues = await proofreader.check(text, book.language, isLocale(ui) ? ui : book.language, { kind: bookKind(book.theme) });
     return NextResponse.json({ issues });
   } catch (err) {
     if (!AssistantError.is(err)) throw err;

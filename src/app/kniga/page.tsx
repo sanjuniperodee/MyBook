@@ -11,7 +11,8 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { articles } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
-import { getThemes } from "@/lib/content/themes";
+import { bookKind } from "@/lib/content/kinds";
+import { giftThemes } from "@/lib/content/themes";
 import { absoluteUrl, breadcrumbLd, socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function IdeasPage() {
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
   const t = m.landing.ideas;
-  const themes = getThemes(locale);
+  // Разделы хаба: по теме-подарку, затем одна подпись для книги о себе и своей книги.
+  const sections = [
+    ...giftThemes(locale).map((theme) => ({ id: theme.id as string, title: theme.name, lead: "", items: landings.filter((l) => l.theme === theme.id) })),
+    { id: "self", title: t.selfTitle, lead: t.selfLead, items: landings.filter((l) => bookKind(l.theme) !== "gift") },
+  ].filter((sec) => sec.items.length);
   const jsonLd = [
     breadcrumbLd(
       [
@@ -60,34 +65,31 @@ export default async function IdeasPage() {
           </div>
         </section>
 
-        {themes.map((theme) => {
-          const items = landings.filter((l) => l.theme === theme.id);
-          if (!items.length) return null;
-          return (
-            <section key={theme.id} className="border-t border-line/70 py-14 sm:py-16">
-              <div className="container-x">
-                <h2 className="font-serif text-3xl font-medium tracking-tight sm:text-4xl">{theme.name}</h2>
-                <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {items.map((l) => {
-                    const c = l.content[locale];
-                    return (
-                      <Link key={l.slug} href={`/kniga/${l.slug}`} className="card card-hover flex gap-5 p-5">
-                        <div className="w-24 shrink-0">
-                          <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={14} />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-semibold">{c.label}</h3>
-                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{c.lead}</p>
-                          <span className="mt-3 inline-block text-sm font-medium text-wine">{t.open} →</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+        {sections.map((sec) => (
+          <section key={sec.id} className="border-t border-line/70 py-14 sm:py-16">
+            <div className="container-x">
+              <h2 className="font-serif text-3xl font-medium tracking-tight sm:text-4xl">{sec.title}</h2>
+              {sec.lead ? <p className="mt-3 max-w-2xl text-muted">{sec.lead}</p> : null}
+              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {sec.items.map((l) => {
+                  const c = l.content[locale];
+                  return (
+                    <Link key={l.slug} href={`/kniga/${l.slug}`} className="card card-hover flex gap-5 p-5">
+                      <div className="w-24 shrink-0">
+                        <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold">{c.label}</h3>
+                        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{c.lead}</p>
+                        <span className="mt-3 inline-block text-sm font-medium text-wine">{t.open} →</span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-            </section>
-          );
-        })}
+            </div>
+          </section>
+        ))}
 
         <section className="border-t border-line/70 bg-cream/50 py-14 sm:py-16">
           <div className="container-x">

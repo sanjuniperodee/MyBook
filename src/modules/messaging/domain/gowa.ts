@@ -28,6 +28,72 @@ export function gowaJid(chatId: string): string {
   return chatId.includes("@") ? chatId : `${chatId.replace(/\D/g, "")}@s.whatsapp.net`;
 }
 
+/** Сегмент пути к файлу шлюза: имя без «/», не «.» и не «..», не начинается с точки. */
+const MEDIA_SEGMENT = /^[\w-][\w.-]*$/;
+
+/**
+ * Путь к файлу вложения в каталоге шлюза: statics/media/<файл> или вложенный statics/media/<номер>/<дата>/<файл>
+ * (так GOWA кладёт файлы, скачанные по запросу). Проверяется по сегментам — выйти из каталога вложений нельзя.
+ */
+export function isGowaMediaPath(path: string): boolean {
+  if (path.length > 300) return false;
+  const parts = path.split("/");
+  if (parts.length < 3 || parts.length > 8 || parts[0] !== "statics" || parts[1] !== "media") return false;
+  return parts.slice(2).every((s) => s !== "." && s !== ".." && MEDIA_SEGMENT.test(s));
+}
+
+/**
+ * Как в сообщении запоминается файл, скачанный шлюзом. Это только формат хранения (так записаны и старые сообщения):
+ * в браузер путь не уходит, файл открывается по id сообщения — /api/admin/chats/messages/<id>/media.
+ */
+export const gowaMediaUrl = (path: string) => `/api/admin/whatsapp/media?path=${encodeURIComponent(path)}`;
+
+/** Обратно: путь к файлу шлюза из сохранённой в сообщении ссылки прокси; чужая ссылка (Wazzup) или мусор — null. */
+export function gowaMediaPath(mediaUrl: string | null): string | null {
+  if (!mediaUrl?.startsWith("/api/admin/whatsapp/media?")) return null;
+  const path = new URLSearchParams(mediaUrl.slice(mediaUrl.indexOf("?") + 1)).get("path");
+  return path && isGowaMediaPath(path) ? path : null;
+}
+
+/** id сообщения WhatsApp в шлюзе (3EB0C127D7BACC83D6A1…): только он попадает в адрес запроса к шлюзу. */
+export const GOWA_MESSAGE_ID = /^[A-Za-z0-9]{6,64}$/;
+
+/** Виды сообщений, файл которых шлюз может скачать по id сообщения. */
+const DOWNLOADABLE = new Set(["image", "video", "audio", "document"]);
+
+/**
+ * Кого указать шлюзу при скачивании вложения (?phone=): номер цифрами для обычного чата, скрытый номер (LID) — целиком.
+ * Чужие идентификаторы (группы, почта, мусор) — null.
+ */
+export function gowaDownloadPhone(chatId: string): string | null {
+  if (/^\d{5,20}$/.test(chatId)) return chatId;
+  if (/^\d{5,25}@lid$/.test(chatId)) return chatId;
+  return null;
+}
+
+/**
+ * Файла у вложения нет (история из хранилища шлюза или вебхук без автоскачивания), но шлюз может его скачать:
+ * WhatsApp-диалог шлюза (или любой WhatsApp, когда он идёт через шлюз), вид — фото, видео, голосовое или файл.
+ */
+export function gowaDownloadable(
+  conv: { channel: string; channelId: string; chatId: string },
+  viaGowa: boolean,
+  m: { type: string; mediaUrl: string | null; externalId: string | null },
+): boolean {
+  if (m.mediaUrl || !DOWNLOADABLE.has(m.type) || !m.externalId || !GOWA_MESSAGE_ID.test(m.externalId)) return false;
+  return conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || viaGowa) && gowaDownloadPhone(conv.chatId) !== null;
+}
+
+/**
+ * Content-Type файла для браузера: голосовые WhatsApp (Ogg Opus) шлюз отдаёт как application/ogg — тег <audio>
+ * в части браузеров такой файл не играет, поэтому для голосовых — audio/ogg.
+ */
+export function gowaMediaType(type: string, upstream: string | null): string {
+  const mime = (upstream ?? "").split(";")[0].trim().toLowerCase();
+  if (type === "audio" && (!mime || mime === "application/ogg" || mime === "application/octet-stream")) return "audio/ogg";
+  return upstream || "application/octet-stream";
+}
+
 /** Вложение сообщения: тип в словаре CRM и путь к скачанному шлюзом файлу (statics/media/…). */
 function attachment(p: Record<string, unknown>): { type: string; path: string | null } | null {
   const kinds: [string, string][] = [
@@ -42,7 +108,7 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
     if (!(key in p)) continue;
     const v = p[key];
     const path = typeof v === "string" ? v : str(record(v).path);
-    return { type, path: path && /^statics\/media\/[\w.\-]+$/.test(path) ? path : null };
+    return { type, path: path && isGowaMediaPath(path) ? path : null };
   }
   if ("contact" in p || "contacts_array" in p) return { type: "vcard", path: null };
   if ("location" in p || "live_location" in p) return { type: "geo", path: null };
@@ -52,11 +118,8 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
 /** Получатель статуса — сам аккаунт магазина (он прочитал входящее): такие отметки к нашим сообщениям не относятся. */
 const ownJid = (deviceId: string) => deviceId.split("@")[0].split(":")[0];
 
-/**
- * Вебхук GOWA → входящие (и отправленные с телефона — эхо) и статусы доставки в формате инбокса.
- * mediaUrl — как CRM откроет вложение (шлюз доступен только из внутренней сети, файлы отдаёт наш прокси).
- */
-export function parseGowaWebhook(body: unknown, mediaUrl: (path: string) => string): { messages: InboundMessage[]; statuses: DeliveryStatus[] } {
+/** Вебхук GOWA → входящие (и отправленные с телефона — эхо) и статусы доставки в формате инбокса. */
+export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; statuses: DeliveryStatus[] } {
   const b = record(body);
   const event = str(b.event);
   const p = record(b.payload);
@@ -82,7 +145,7 @@ export function parseGowaWebhook(body: unknown, mediaUrl: (path: string) => stri
           isEcho,
           type,
           text: text || mediaCaption(type),
-          mediaUrl: media?.path ? mediaUrl(media.path) : null,
+          mediaUrl: media?.path ? gowaMediaUrl(media.path) : null,
           contactName: isEcho ? "" : str(p.from_name),
           avatarUrl: null,
           status: null,
@@ -105,7 +168,7 @@ const HISTORY_MEDIA: Record<string, string> = { image: "image", sticker: "image"
 
 /**
  * Сообщение из хранилища чатов GOWA (GET /chat/{jid}/messages) — история, которую WhatsApp передал шлюзу при привязке
- * номера. Вложения истории шлюз не скачивает: в CRM — подпись вида «📷 Фото» без файла. Пустые и служебные — null.
+ * номера. Файлов вложений в истории нет: CRM просит шлюз скачать файл, когда его впервые открывают. Пустые и служебные — null.
  */
 export function parseGowaHistory(raw: unknown): InboundMessage | null {
   const p = record(raw);

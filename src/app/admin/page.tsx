@@ -81,7 +81,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             rows={[
               { label: "Зарегистрировались", value: f.registered },
               { label: "Создали книгу", value: f.with_book, note: pct(f.with_book, f.registered) },
-              { label: "Ответили на 10+ вопросов", value: f.engaged, note: pct(f.engaged, f.registered) },
+              { label: "Начали писать текст книги", value: f.engaged, note: pct(f.engaged, f.registered) },
               { label: "Оформили заказ", value: f.ordered, note: pct(f.ordered, f.registered) },
               { label: "Оплатили", value: f.paid, note: pct(f.paid, f.registered) },
             ]}

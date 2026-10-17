@@ -80,6 +80,21 @@ export class TasksService {
     return { clientId };
   }
 
+  /**
+   * Служебная задача CRM (оплата по счёту, доступ, истёкший счёт): одна открытая на сделку с этим заголовком — повтор
+   * события или прохода планировщика её не дублирует. false — такая задача уже есть.
+   */
+  async createOnce(actor: Actor, input: { title: string; kind: TaskKind; dueAt?: string; clientId?: string; dealId: string; assigneeId?: string }): Promise<boolean> {
+    if (await this.tasks.existsOpen({ dealId: input.dealId, title: input.title })) return false;
+    await this.create(actor, input);
+    return true;
+  }
+
+  /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */
+  closeOpenByPrefix(input: { dealId: string; prefix: string; keepTitle?: string | null }) {
+    return this.tasks.closeOpenByPrefix({ ...input, at: new Date() });
+  }
+
   private async load(actor: Actor, taskId: string) {
     const t = await this.tasks.find(taskId);
     if (t && !canManageTask({ userId: actor.userId, allTasks: actor.allTasks }, t)) throw new ClientsError("forbidden");
@@ -116,6 +131,16 @@ export class NotesService {
     const ids = findMentions(input.text, await this.staff.mentionable()).filter((id) => id !== actor.userId);
     const where = input.dealId ? "заметка в сделке" : input.orderId ? "заметка к заказу" : "заметка о клиенте";
     if (ids.length) await this.notifier.notify(ids, { kind: "mention", title: `${actor.name} упомянул(а) вас · ${where}`, body: input.text.slice(0, 300), link });
+  }
+
+  /**
+   * Запись CRM в ленте сделки (без автора, не удаляется): оплата по счёту, условия, доступ клиента. Одна с таким
+   * текстом на сделку — повтор события или прохода её не дублирует. false — уже есть.
+   */
+  async addSystemOnce(input: { text: string; dealId: string; clientId?: string | null }): Promise<boolean> {
+    if (await this.notes.exists({ dealId: input.dealId, text: input.text })) return false;
+    await this.notes.add({ kind: "system", text: input.text, clientId: input.clientId ?? null, orderId: null, dealId: input.dealId, authorId: null });
+    return true;
   }
 
   find(noteId: string) {

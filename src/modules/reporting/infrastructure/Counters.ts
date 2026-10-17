@@ -13,6 +13,8 @@ export interface CrmCounters {
   deals: number;
   /** Новые отзывы клиентов, которые ещё никто не посмотрел. */
   reviews: number;
+  /** «Финансы» → «Проверить»: ручные подтверждения денег, которые руководитель ещё не сверил (только для team.manage). */
+  finance: number;
 }
 
 /** Счётчики для бейджей в меню CRM — с учётом прав и видимости сотрудника. */
@@ -24,7 +26,7 @@ export async function crmCounters(staff: Pick<StaffView, "userId" | "scope" | "c
   endOfToday.setHours(23, 59, 59, 999);
   const zero = Promise.resolve([{ n: 0 }]);
   const count = sql<number>`count(*)::int`;
-  const [[attention], [tasks], [chats], [calls], [deals], [fresh]] = await Promise.all([
+  const [[attention], [tasks], [chats], [calls], [deals], [fresh], [unreviewed]] = await Promise.all([
     staff.can("orders.view")
       ? db
           .select({ n: count })
@@ -54,6 +56,13 @@ export async function crmCounters(staff: Pick<StaffView, "userId" | "scope" | "c
           .where(and(eq(crmDeals.unsorted, true), mine(crmDeals.assigneeId)))
       : zero,
     staff.can("reviews.manage") ? db.select({ n: count }).from(reviews).where(eq(reviews.status, "new")) : zero,
+    staff.can("team.manage")
+      ? db
+          .execute<{ n: number }>(
+            sql`select ((select count(*) from crm_payments where method = 'manual' and kind <> 'refund' and reviewed_at is null) + (select count(*) from order_payments where method = 'manual' and reviewed_at is null))::int as n`,
+          )
+          .then((r) => r.rows)
+      : zero,
   ]);
-  return { attention: attention.n, tasks: tasks.n, chats: chats.n, calls: calls.n, deals: deals.n, reviews: fresh.n };
+  return { attention: attention.n, tasks: tasks.n, chats: chats.n, calls: calls.n, deals: deals.n, reviews: fresh.n, finance: unreviewed?.n ?? 0 };
 }

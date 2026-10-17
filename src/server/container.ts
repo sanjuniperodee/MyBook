@@ -24,7 +24,9 @@ import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
+import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { botSiteInfo } from "./bot-site";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
 
@@ -58,6 +60,7 @@ export class Container {
   #clients?: ClientsModule;
   #feedback?: FeedbackModule;
   #referrals?: ReferralsModule;
+  #invoiceAccess?: InvoiceAccess;
   /** Отчёты — только чтение. */
   readonly reporting = new ReportingModule();
   readonly workspace = new WorkspaceModule();
@@ -69,9 +72,10 @@ export class Container {
       notifier: this.workspace.notifier,
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
-      sendMessage: async (conversationId, text) => void (await this.messaging.chats.send(conversationId, text, null)),
+      // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд).
+      sendMessage: async (conversationId, text) => void (await this.messaging.chats.sendAutomated(conversationId, text)),
       sales: {
-        nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
+        nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),
         move: async (dealId, stageId) => void (await this.sales.deals.move(dealId, stageId, null)),
         findOpenDealId: async (clientId) => (await this.sales.deals.findOpen({ clientId }))?.id ?? null,
@@ -91,7 +95,13 @@ export class Container {
       fields: this.workspace.fieldsReader,
       smtpConfig,
       smtp: this.smtp,
-      rules: { messageIncoming: (ctx) => this.automation.engine.run("message.incoming", ctx) },
+      rules: {
+        messageIncoming: async (ctx) => {
+          await this.automation.engine.run("message.incoming", ctx);
+          // Клиент написал в чат счёта, по которому доступ не ушёл, — отправить ещё раз (один раз); сбой не ломает приём.
+          await this.invoiceAccess.onIncoming(ctx).catch((err) => console.error("[invoice-access] incoming", err));
+        },
+      },
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),
       whatsappSettings,
@@ -104,7 +114,40 @@ export class Container {
         note: (deal, text) => this.sales.deals.note(deal, text, null),
         setField: (dealId, key, value) => this.sales.deals.setField(dealId, key, value),
         deal: (dealId) => this.sales.deals.findById(dealId),
-        nextRoundRobin: () => this.sales.deals.nextRoundRobin(),
+        nextRoundRobin: () => this.sales.routing.next(),
+      },
+      // Бот-квалификатор: перед опросом смотрит сделку (этап, ответственный, заказ) и клиента (заказы, книги).
+      botCrm: {
+        deal: async (dealId) => {
+          const d = await this.sales.deals.findById(dealId);
+          if (!d) return null;
+          const stage = await this.sales.deals.stage(d.stageId);
+          const first = stage ? await this.sales.deals.stageOfKind("open", stage.pipelineId) : null;
+          return {
+            orderId: d.orderId,
+            firstStage: !!stage && first?.id === stage.id,
+            closed: !!stage && stage.kind !== "open",
+            assigneeId: d.assigneeId,
+            unsorted: d.unsorted,
+            customFields: d.customFields,
+            contactName: d.contactName,
+            title: d.title,
+            clientId: d.clientId,
+          };
+        },
+        client: async (clientId) => {
+          const [orders, books, profile] = await Promise.all([this.ordering.queries.userOrders(clientId), this.authoring.queries.userBooks(clientId), this.clients.clients.find(clientId)]);
+          return { orders: orders.length, books: books.length, locale: null, name: profile?.name ?? null };
+        },
+        tag: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
+      },
+      botSite: botSiteInfo,
+      // AI только понимает ответ, который бот не разобрал сам; тексты клиенту — шаблоны из настроек.
+      brain: {
+        understand: async (input) => {
+          const r = await this.assistant.service.understandForBot(input);
+          return r && { fields: r.fields, intents: r.intents, handoff: r.handoff, lang: r.lang };
+        },
       },
     }));
   }
@@ -168,6 +211,11 @@ export class Container {
         setAgreedPlan: async (dealId, plan) => void (await this.sales.agreedPlan.set(dealId, plan)),
         tagDeal: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
         addPayment: (input) => this.sales.payments.add(input),
+        // Клиент заведён из сделки: сделка и её переписка привязываются к аккаунту.
+        linkClient: async (dealId, clientId) => {
+          await this.sales.deals.linkClient(dealId, clientId);
+          await this.messaging.chats.linkDealClient(dealId, clientId);
+        },
       },
     }));
   }
@@ -188,6 +236,17 @@ export class Container {
         note: async (actor, input) => void (await this.clients.notes.add(actor, { kind: "note", text: input.text, dealId: input.dealId, clientId: input.clientId ?? undefined })),
         audit: (input) => this.access.audit.record(input),
         mailClient: async (input) => (await import("./client-mail")).mailPaymentToClient(this, input),
+        markInvoicePaid: async (input) => void (await this.ordering.invoices.markPaidManually(input)),
+      },
+      notifier: {
+        notify: (userIds, n) => this.workspace.notifier.notify(userIds, n),
+        owners: (n) => this.workspace.notifier.notifyAllWith("team.manage", n),
+      },
+      // Счета из чата живут в заказах: слияние сделок переносит их, удаление сделки их учитывает — в транзакции продаж.
+      invoices: {
+        moveAll: (input) => this.ordering.invoiceLifecycle.moveAll(input),
+        holdForDelete: (dealId) => this.ordering.invoiceLifecycle.holdForDelete(dealId),
+        purgeClosed: (dealId) => this.ordering.invoiceLifecycle.purgeClosed(dealId),
       },
     }));
   }
@@ -250,9 +309,34 @@ export class Container {
         unlock: (bookId) => this.authoring.ordering.unlock(bookId),
         toggleEditing: (bookId) => this.authoring.ordering.toggleEditing(bookId),
       },
-      agreements: { agreementFor: (userId) => this.sales.agreementFor(userId) },
+      agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,
+      // Счёт из чата читает сделку и пишет её деньги через порт продаж.
+      invoiceSales: {
+        deal: async (dealId) => {
+          const d = await this.sales.deals.findById(dealId);
+          if (!d) return null;
+          const stage = await this.sales.deals.stage(d.stageId);
+          return { id: d.id, number: d.number, title: d.title, clientId: d.clientId, assigneeId: d.assigneeId, amount: d.amount, paid: await this.sales.payments.paidTotal(d.id), orderId: d.orderId, closed: !!stage && stage.kind !== "open" };
+        },
+        setAgreement: async (dealId, { plan, agreedTotal, actorId }) => {
+          await this.sales.agreedPlan.set(dealId, plan);
+          await this.sales.deals.setAgreedTotal(dealId, agreedTotal, actorId);
+        },
+        acceptOnline: async (input) => {
+          const row = await this.sales.payments.addOnline(input);
+          return row ? { paymentId: row.id } : null;
+        },
+      },
     }));
+  }
+
+  /**
+   * После оплаты счёта из чата: клиент находится или заводится по номеру чата, сделка, переписка и деньги привязываются,
+   * доступ в кабинет уходит в тот же чат (проход планировщика), заметки и уведомления — подписчики событий счёта.
+   */
+  get invoiceAccess(): InvoiceAccess {
+    return (this.#invoiceAccess ??= createInvoiceAccess(this));
   }
 
   /** Состояние инфраструктуры для /api/health: Redis (null — не настроен) и очередь событий outbox. */

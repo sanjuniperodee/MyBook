@@ -15,7 +15,8 @@ export function PaymentBlock(props: {
   currency: string;
   email: string;
   online: { publicId: string } | null;
-  manual: { title: string; steps: string[] };
+  manual: { title: string; steps: string[] } | null;
+  unavailable: string;
   claimed: boolean;
   /** Оплата через Kaspi Pay подключена: счёт по номеру или QR, подтверждение без менеджера. */
   kaspi: { initial: KaspiInvoiceView | null; defaultPhone: string } | null;
@@ -33,6 +34,7 @@ export function PaymentBlock(props: {
       data={{ orderId: props.orderId }}
       online={props.online}
       manual={props.manual}
+      unavailable={props.unavailable}
       claimedText={props.claimed ? t.claimed : null}
       onClaim={() => claimPaymentAction(props.orderId)}
       kaspiTarget={{ kind: "order", orderId: props.orderId }}

@@ -10,6 +10,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
@@ -59,6 +60,10 @@ export const crmDeals = pgTable(
     contactEmail: text("contact_email"),
     source: text("source").$type<DealSource>().notNull().default("manual"),
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    /** Когда назначен нынешний ответственный: очередь круга (кому меньше за сегодня) и «нет ответа N минут». */
+    assignedAt: timestamp("assigned_at", { withTimezone: true }),
+    /** Кому круг уже отдавал эту заявку: при «нет ответа» она идёт следующему, а не по второму разу тем же. */
+    routeTried: uuid("route_tried").array().notNull().default(sql`'{}'::uuid[]`),
     orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
     lostReason: text("lost_reason"),
     /** «Неразобранное»: заявка с нового номера ждёт, пока менеджер её примет или отклонит. */
@@ -78,7 +83,7 @@ export const crmDeals = pgTable(
     closedAt: timestamp("closed_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId)],
+  (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId), index("crm_deals_assigned_idx").on(t.assignedAt)],
 );
 
 /**
@@ -101,10 +106,77 @@ export const crmPayments = pgTable(
     /** Когда деньги получены (по нему платёж попадает в выручку по дням). */
     paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
     note: text("note").notNull().default(""),
+    /** manual — принял сотрудник с чеком; kaspi, cloudpayments — онлайн по счёту из чата (чек — операция платёжной системы). */
+    method: text("method", { enum: ["manual", "kaspi", "cloudpayments"] }).notNull().default("manual"),
+    /** Операция платёжной системы: повтор той же операции — не новый платёж. */
+    externalRef: text("external_ref"),
+    /** Счёт из чата, которым оплачено (номер для показа — P<n>). */
+    invoiceId: uuid("invoice_id"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    /** Ручной платёж сверил руководитель (чек совпал с поступлением на счёт) — «Финансы». */
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_payments_deal_idx").on(t.dealId), index("crm_payments_paid_idx").on(t.paidAt)],
+  (t) => [
+    index("crm_payments_deal_idx").on(t.dealId),
+    index("crm_payments_paid_idx").on(t.paidAt),
+    uniqueIndex("crm_payments_external_idx").on(t.method, t.externalRef).where(sql`${t.externalRef} is not null`),
+  ],
+);
+
+/**
+ * Счёт из чата (модуль ordering): запрос оплаты по сделке со ссылкой /pay/<token>. Один открытый счёт на сделку.
+ * Оплата записывается платежом сделки (crm_payments.invoice_id), клиент заводится оплатой.
+ */
+export const dealInvoices = pgTable(
+  "deal_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: serial("number").notNull(),
+    token: text("token").notNull(),
+    dealId: uuid("deal_id")
+      .notNull()
+      .references(() => crmDeals.id, { onDelete: "restrict" }),
+    /** Диалог, из которого выставлен: туда уходят счёт и доступ в кабинет. */
+    conversationId: uuid("conversation_id"),
+    /** Номер WhatsApp-чата (цифры) — подтверждённый телефон плательщика: по нему находится или заводится аккаунт. */
+    phone: text("phone"),
+    clientName: text("client_name").notNull().default(""),
+    locale: text("locale", { enum: ["ru", "kk"] }).notNull().default("ru"),
+    /** Откуда пришёл клиент (канал продаж) — в профиль заведённого клиента. */
+    channel: text("channel").notNull().default(""),
+    plan: text("plan").notNull(),
+    /** Цена книги по договорённости на момент счёта. */
+    agreedTotal: integer("agreed_total").notNull(),
+    amount: integer("amount").notNull(),
+    /** prepayment | remainder | full | custom — назначение в тексте счёта. */
+    purpose: text("purpose", { enum: ["prepayment", "remainder", "full", "custom"] }).notNull(),
+    status: text("status", { enum: ["pending_payment", "paid", "cancelled", "expired"] }).notNull().default("pending_payment"),
+    paidMethod: text("paid_method"),
+    paidRef: text("paid_ref"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    closedReason: text("closed_reason"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    issuedById: uuid("issued_by_id").references(() => users.id, { onDelete: "set null" }),
+    /** Доступ в кабинет после оплаты: none | due | sent | failed | needs_manager | skipped. */
+    accessStatus: text("access_status").notNull().default("none"),
+    accessUserId: uuid("access_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Сообщение с доступом в чате (статус доставки) и когда пытались выдать (захват прохода планировщика). */
+    accessMessageId: uuid("access_message_id"),
+    accessAttemptedAt: timestamp("access_attempted_at", { withTimezone: true }),
+    /** Ключ формы выпуска: повторное нажатие не выпускает второй счёт. */
+    issueKey: text("issue_key"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("deal_invoices_number_idx").on(t.number),
+    uniqueIndex("deal_invoices_token_idx").on(t.token),
+    index("deal_invoices_deal_idx").on(t.dealId),
+    uniqueIndex("deal_invoices_open_idx").on(t.dealId).where(sql`${t.status} = 'pending_payment'`),
+    uniqueIndex("deal_invoices_issue_key_idx").on(t.issueKey).where(sql`${t.issueKey} is not null`),
+  ],
 );
 
 /** Чеки об оплате (скриншот перевода, фото чека, PDF): файл лежит в хранилище, здесь — метаданные. */

@@ -3,7 +3,8 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { articles, getArticle } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
-import { isThemeId } from "@/lib/content/themes";
+import { bookKind, hasQuestionBank } from "@/lib/content/kinds";
+import { bankThemes, isThemeId } from "@/lib/content/themes";
 import { absoluteUrl, breadcrumbLd, faqLd, ogImage, organizationLd, productLd, reviewsLd } from "@/lib/seo";
 import { messagesFor } from "@/i18n/messages";
 import { locales } from "@/i18n/config";
@@ -34,11 +35,56 @@ describe("посадочные страницы", () => {
   }
 });
 
+describe("посадочные новых видов книг", () => {
+  const byKind = (kind: string) => landings.filter((l) => bookKind(l.theme) === kind);
+
+  it("у каждой известной темы есть посадочная; род адресата нужен только подаркам", () => {
+    for (const l of landings) {
+      expect(isThemeId(l.theme), l.slug).toBe(true);
+      if (bookKind(l.theme) === "gift") expect(l.recipientGender, l.slug).toBeDefined();
+    }
+    expect(byKind("autobiography")).toHaveLength(1);
+    expect(byKind("blank")).toHaveLength(1);
+  });
+
+  it("автобиография и своя книга попадают в первые восемь — их показывает футер", () => {
+    const top = landings.slice(0, 8).map((l) => l.slug);
+    for (const l of [...byKind("autobiography"), ...byKind("blank")]) expect(top, l.slug).toContain(l.slug);
+  });
+
+  it("свою книгу строят без банка вопросов: у неё нет примеров, их место занимает блок о редакторе", () => {
+    for (const l of byKind("blank")) expect(hasQuestionBank(l.theme)).toBe(false);
+    for (const lc of locales) {
+      const sp = messagesFor(lc).landing.seoPage;
+      expect(sp.editor.items.length).toBeGreaterThanOrEqual(3);
+      expect(sp.howSteps(5, true)[0]).not.toBe(sp.howSteps(5)[0]);
+    }
+  });
+
+  it("у автобиографии примеры вопросов есть в обоих языках, и они не падают без рода адресата", () => {
+    for (const l of byKind("autobiography"))
+      for (const theme of bankThemes().filter((t) => t.id === l.theme)) expect(theme.chapters.every((ch) => ch.questions.length > 0)).toBe(true);
+  });
+
+  for (const lc of locales) {
+    it(`${lc}: главная рассказывает о книге про себя и о своей книге с чистого листа`, () => {
+      const m = messagesFor(lc).landing;
+      expect(m.modes.autobiography.meta(60)).toContain("60");
+      expect(m.modes.blank.meta.length).toBeGreaterThan(0);
+      const faq = m.faq.items({ standard: "5–7", premium: "3–4" }).map(([q]) => q);
+      expect(faq.length).toBeGreaterThanOrEqual(11);
+      expect(m.ideas.selfTitle.length).toBeGreaterThan(0);
+    });
+  }
+});
+
 describe("статьи блога", () => {
   it("адреса уникальны, посадочные из ссылок существуют, тема известна", () => {
     expect(dup(articles.map((a) => a.slug))).toEqual([]);
     for (const a of articles) {
       expect(isThemeId(a.theme)).toBe(true);
+      // Подборка вопросов статьи берётся из банка темы: у своей книги (blank) банка нет.
+      expect(hasQuestionBank(a.theme), a.slug).toBe(true);
       expect(a.landings.length).toBeGreaterThan(0);
       for (const slug of a.landings) expect(landings.some((l) => l.slug === slug), `${a.slug} → ${slug}`).toBe(true);
       expect(a.published).toMatch(/^\d{4}-\d{2}-\d{2}$/);

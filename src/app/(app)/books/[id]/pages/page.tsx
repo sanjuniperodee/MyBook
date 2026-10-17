@@ -17,11 +17,17 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/books/${id}/pages`);
   const book = await getAccessibleBook(id, user);
-  const [questions, photos, m, locale] = await Promise.all([container().authoring.queries.questions(book.id), container().authoring.queries.photos(book.id), getMessages(), getLocale()]);
+  const [questions, chapters, photos, m, locale] = await Promise.all([
+    container().authoring.queries.questions(book.id),
+    container().authoring.queries.chapters(book.id),
+    container().authoring.queries.photos(book.id),
+    getMessages(),
+    getLocale(),
+  ]);
   const t = m.books.pages;
   const format = getFormat(book.format);
 
-  const spreadSample = bookSpreadSample(book, questions, t.dedicationEmpty, photos);
+  const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
@@ -31,6 +37,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         format={format.id}
         editable={book.status === "draft"}
         sample={spreadSample}
+        theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
         initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, photoPlacement: book.photoPlacement }}
       />

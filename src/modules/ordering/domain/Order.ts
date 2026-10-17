@@ -1,5 +1,5 @@
 import { AggregateRoot } from "@/shared/domain";
-import { getPlan, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getPlan, type DeliveryId, type PlanId } from "@/config/site";
 import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
@@ -52,8 +52,25 @@ export interface OrderProps {
   printSpec: OrderPrintSpec | null;
   assigneeId: string | null;
   paidAt: Date | null;
+  /** Постоплата: в печати без оплаты, выручка — когда деньги покроют «к оплате». */
+  postpay: boolean;
+  /** Сколько денег получено по заказу (журнал оплат) — учёт денег, не выручка. */
+  receivedAmount: number;
   createdAt: Date;
 }
+
+/** Деньги по заказу: перевод с чеком (сотрудник) или онлайн (платёжная система). */
+export interface OrderMoney {
+  paymentId: string;
+  amount: number;
+  method: "manual" | "kaspi" | "cloudpayments";
+  paidAt: Date;
+  /** Как записать в журнал заказа: «перевод, чек …», «Kaspi, операция …». */
+  label: string;
+  actor: string;
+}
+
+export const ORDER_MONEY_LABELS: Record<OrderMoney["method"], string> = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" };
 
 export interface PlaceOrderInput {
   id: string;
@@ -68,6 +85,8 @@ export interface PlaceOrderInput {
   promo: PromoCode | null;
   /** Договорённая цена и внесённая предоплата по ручной сделке клиента (если есть). */
   agreement?: Agreement | null;
+  /** Сделка этой договорённости — в событие «заказ оформлен», чтобы продажи привязали заказ к ней, а не завели новую. */
+  agreementDealId?: string | null;
   /** Печатная версия к уже оплаченной электронной: её оплата засчитывается (в agreement — как аванс), здесь — для журнала. */
   credit?: { orderNumber: number; amount: number } | null;
   currency: string;
@@ -126,6 +145,8 @@ export class Order extends AggregateRoot<OrderProps> {
       printSpec: null,
       assigneeId: null,
       paidAt: null,
+      postpay: false,
+      receivedAmount: 0,
       createdAt: now,
     });
     const promoNote = input.promo ? `, промокод ${input.promo.code} (${input.promo.describe(input.formatMoney)})` : "";
@@ -138,8 +159,16 @@ export class Order extends AggregateRoot<OrderProps> {
           : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
     const credited = input.credit && input.credit.amount > 0 ? `, засчитана оплата электронной версии (заказ №${input.credit.orderNumber}): ${input.formatMoney(input.credit.amount)}` : input.credit ? `, печатная версия к электронной (заказ №${input.credit.orderNumber})` : "";
     order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}`, "customer", now);
-    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity }));
+    // Внесено по договорённости больше итога (зачёт — не больше итога): разницу нужно вернуть клиенту.
+    const prepaidExcess = input.agreement && !input.credit ? Math.max(0, Math.round(input.agreement.prepaid) - (price.prepaidAmount ?? 0)) : 0;
+    if (prepaidExcess > 0) order.notePrepaidExcess(prepaidExcess, now);
+    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity, agreementDealId: input.agreement ? (input.agreementDealId ?? null) : null, prepaidExcess }));
     return order;
+  }
+
+  /** Переплата по договорённости при оформлении — в журнал заказа (задачу ответственному ставит подписчик события). */
+  private notePrepaidExcess(excess: number, now: Date) {
+    this.log(null, `Переплата ${formatPrice(excess)} по договорённости — нужен возврат`, "customer", now);
   }
 
   // ─── чтение ──────────────────────────────────────────────────────────────
@@ -177,6 +206,21 @@ export class Order extends AggregateRoot<OrderProps> {
   get assigneeId() {
     return this.props.assigneeId;
   }
+  /** Получено денег по заказу. */
+  get received() {
+    return this.props.receivedAmount;
+  }
+  /** Сколько ещё должен клиент по заказу (к оплате − получено). */
+  get outstanding() {
+    return Math.max(0, this.props.price.amount - this.props.receivedAmount);
+  }
+  get postpay() {
+    return this.props.postpay;
+  }
+  /** Выручка признана (оплачен или постоплата получена полностью). */
+  get isSettled() {
+    return !!this.props.paidAt && this.props.status !== "cancelled";
+  }
 
   /** Новые записи журнала — забирает репозиторий при сохранении. */
   pullHistory(): OrderHistoryEntry[] {
@@ -200,6 +244,48 @@ export class Order extends AggregateRoot<OrderProps> {
   /** Платёж, которым заказ оплачен (id операции платёжной системы). */
   get paymentId() {
     return this.props.paymentId;
+  }
+
+  /**
+   * Деньги по заказу. Покрыли «к оплате»: ждущий оплаты — оплачен; на постоплате — выручка с даты этих денег.
+   * Больше, чем к оплате, или по отменённому заказу (онлайн-деньги пришли, их не вернуть автоматически) — событие
+   * «переплата»: нужен возврат или зачёт. Ручной перевод по отменённому заказу не принимается.
+   */
+  receiveMoney(m: OrderMoney): { settled: boolean; overpaid: number } {
+    const cancelled = this.props.status === "cancelled";
+    if (cancelled && m.method === "manual") throw new OrderingError("paymentRule", "Заказ отменён — оплату по нему не принять");
+    const before = this.props.receivedAmount;
+    this.props.receivedAmount = before + m.amount;
+    const due = this.props.price.amount;
+    this.log(null, `Оплата ${formatPrice(m.amount)} получена (${m.label})${cancelled ? " — заказ отменён, нужен возврат" : ""}`, m.actor, m.paidAt);
+    let settled = false;
+    if (!cancelled && this.props.receivedAmount >= due) {
+      if (this.props.status === "pending_payment") settled = this.markPaid(m.paymentId, m.actor, m.paidAt);
+      else if (!this.props.paidAt) {
+        // Постоплата: заказ уже в печати или доставлен — статус не меняется, выручка признаётся с даты денег.
+        this.props.paidAt = m.paidAt;
+        if (m.paymentId) this.props.paymentId = m.paymentId;
+        this.log(null, "Постоплата получена полностью", m.actor, m.paidAt);
+        this.record(OrderingEvents.orderPaid({ ...this.ref(), paymentId: m.paymentId, actor: m.actor, settled: true }));
+        settled = true;
+      }
+    }
+    const overpaid = cancelled ? m.amount : Math.max(0, this.props.receivedAmount - Math.max(due, before));
+    if (overpaid > 0) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid, method: m.method }));
+    return { settled, overpaid };
+  }
+
+  /**
+   * Постоплата: ждущий оплаты заказ — в печать без денег (договорились, что клиент заплатит после). В выручку не попадает,
+   * пока деньги не покроют «к оплате»; доставлен без полной оплаты — задача «получить постоплату».
+   */
+  startPostpay(reason: string, actor: string, now: Date) {
+    if (this.props.status !== "pending_payment") throw new OrderingError("paymentRule", "В печать с постоплатой — только заказ, который ждёт оплаты");
+    const from = this.props.status;
+    this.props.status = "in_production";
+    this.props.postpay = true;
+    this.log("in_production", `В печать с постоплатой: ждём ${formatPrice(this.outstanding)}${reason ? `. ${reason}` : ""}`, actor, now);
+    this.record(OrderingEvents.statusChanged({ ...this.ref(), from, to: "in_production", trackingNumber: this.props.trackingNumber, actor }));
   }
 
   /** Подтверждение оплаты. Повторное уведомление платёжной системы — без последствий (false). */
@@ -231,10 +317,13 @@ export class Order extends AggregateRoot<OrderProps> {
       return none;
     }
     if (from === "cancelled" && to === "pending_payment") throw new OrderingError("invalidTransition", "cancelled order cannot wait for payment again");
+    // Неоплаченный заказ не уходит в печать и дальше в обход: оплата или явная постоплата (иначе деньги «потеряются»).
+    if (from === "pending_payment" && to !== "paid") throw new OrderingError("paymentRule", "Заказ не оплачен: примите оплату или отправьте в печать с постоплатой");
     this.props.status = to;
     if (to === "paid" && !this.props.paidAt) this.props.paidAt = now;
     this.log(to, note, actor, now);
     this.record(OrderingEvents.statusChanged({ ...this.ref(), from, to, trackingNumber: this.props.trackingNumber, actor }));
+    if (to === "delivered" && this.props.postpay && !this.props.paidAt) this.record(OrderingEvents.postpayDue({ ...this.ref(), outstanding: this.outstanding }));
     return none;
   }
 

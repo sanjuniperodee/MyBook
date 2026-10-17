@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Locale } from "@/i18n/config";
+import type { BookKind } from "@/lib/content/kinds";
 import type { Issue } from "@/lib/proofread/types";
 import { AssistantError, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt } from "../domain";
 import type { LanguageModel } from "./ports";
@@ -41,11 +42,13 @@ export class ProofreadService {
     return this.model.describe();
   }
 
-  async check(text: string, language: Locale, ui: Locale, opts: { fresh?: boolean } = {}): Promise<Issue[]> {
-    const key = createHash("sha1").update(`${language}|${ui}|${text}`).digest("hex");
+  async check(text: string, language: Locale, ui: Locale, opts: { fresh?: boolean; kind?: BookKind } = {}): Promise<Issue[]> {
+    const kind = opts.kind ?? "gift";
+    // Вид книги меняет промпт, поэтому входит в ключ кэша: один и тот же текст в автобиографии и в подарке проверяется заново.
+    const key = createHash("sha1").update(`${kind}|${language}|${ui}|${text}`).digest("hex");
     const hit = this.#cache.get(key);
     if (hit && !opts.fresh && Date.now() - hit.at < CACHE_TTL) return hit.issues;
-    const system = proofreadSystemPrompt(language, ui);
+    const system = proofreadSystemPrompt(language, ui, kind);
     const parts = await Promise.all(
       proofreadChunks(text).map(async (chunk) => {
         const { text: reply } = await this.model.ask({ system, user: chunk.text, effort: "low", schema: proofreadSchema });

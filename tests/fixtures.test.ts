@@ -24,7 +24,7 @@ const dir = mkdtempSync(path.join(tmpdir(), "mybook-fixtures-test-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 const sha256 = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
-const content = ({ bundle }: FixtureBook) => buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), 2026, bundle.letters);
+const content = ({ bundle }: FixtureBook) => buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), bundle.chapters, 2026, bundle.letters);
 
 describe("набор книг для визуальных и характеристических проверок", () => {
   it("каждое оформление × формат × язык — одна книга, ключи уникальны и совпадают с книгой", () => {
@@ -120,7 +120,7 @@ describe("варианты набора вне матрицы", () => {
   it("ключи и id не пересекаются с матрицей, два построения дают одинаковые данные", () => {
     const variants = fixtureVariants();
     const matrix = fixtureBooks();
-    expect(variants.map((v) => v.key)).toEqual(["thin", "bare", "gender", "bigphoto"]);
+    expect(variants.map((v) => v.key)).toEqual(["thin", "bare", "gender", "bigphoto", "autobiography", "blank"]);
     const ids = new Set(matrix.flatMap((b) => [b.key, b.bundle.book.id]));
     expect(variants.filter((v) => ids.has(v.key) || ids.has(v.bundle.book.id))).toEqual([]);
     expect(JSON.stringify(fixtureVariants())).toBe(JSON.stringify(variants));
@@ -154,6 +154,33 @@ describe("варианты набора вне матрицы", () => {
     const theme = getTheme(book.theme, book.language);
     expect(c.chapters.every((ch) => ch.key === LETTERS_CHAPTER || theme.chapters.some((d) => d.key === ch.key))).toBe(true);
     expect(c.chapters[0].items.map((it) => it.heading)).toEqual(["Почему я решил написать эту книгу", "Ты в трёх словах", "За что я люблю тебя, моя любимая"]);
+  });
+
+  it("autobiography: получателя нет, «кто записал» на обороте, главы банка автобиографии, фото — в разделе в конце книги", () => {
+    const fb = variant("autobiography");
+    const c = content(fb);
+    expect([fb.bundle.book.theme, c.kind, c.recipientName, c.recordedBy, c.galleryTitle]).toEqual(["autobiography", "autobiography", "", "внучка Аружан", "Из семейного альбома"]);
+    expect(c.chapters.filter((ch) => ch.key !== LETTERS_CHAPTER).map((ch) => ch.key)).toEqual(["intro", "childhood", "youth", "wisdom"]);
+    expect(c.galleryPhotos.length).toBeGreaterThan(0);
+    expect(c.chapters.every((ch) => ch.photos.length === 0)).toBe(true);
+  });
+
+  it("blank: главы — по оглавлению автора, пустая не печатается, без названия — «Без названия», эмодзи вычищены, свой текст не склоняется", () => {
+    const fb = variant("blank");
+    const c = content(fb);
+    expect([c.kind, c.title, c.galleryTitle]).toEqual(["blank", "Моя книга", "Фотографии"]);
+    expect(fb.bundle.chapters.map((ch) => ch.title)).toContain("Пока пустая глава");
+    expect(c.chapters.map((ch) => [ch.number, ch.title, ch.epigraph ?? null])).toEqual([
+      [1, "С чего всё началось", "Всё, что помню, записываю, пока помню."],
+      [2, "Встреча", "Случайностей не бывает — бывают встречи."],
+      [3, "Без названия", null],
+      [4, "Что дальше", "Лучшее — впереди."],
+      [5, "Письма близких", "Слова тех, кто любит вас"],
+    ]);
+    const headings = c.chapters.flatMap((ch) => ch.items.map((it) => it.heading));
+    expect(headings).toContain("Мы [Аня|Анна] — так нас звали во дворе");
+    expect(headings).toContain("Горы, чай из термоса");
+    expect(headings.filter((h) => h === "")).toHaveLength(2);
   });
 
   it("bigphoto: один снимок 4000×3000 — фотостраница и оборот «во всю»; печати и обложке он велик", () => {

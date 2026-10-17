@@ -75,6 +75,16 @@ export class DrizzlePaymentInvoiceRepository implements PaymentInvoiceRepository
     return rows.map(toDomain);
   }
 
+  async dealInvoiceAttempts(since: Date, limit: number) {
+    const rows = await executor()
+      .select()
+      .from(paymentInvoices)
+      .where(and(eq(paymentInvoices.targetKind, "deal_invoice"), inArray(paymentInvoices.status, ["pending", "expired", "cancelled"]), gte(paymentInvoices.createdAt, since)))
+      .orderBy(desc(paymentInvoices.createdAt))
+      .limit(limit);
+    return rows.map(toDomain);
+  }
+
   async add(invoice: PaymentInvoice) {
     await executor().insert(paymentInvoices).values(toRow(invoice));
   }

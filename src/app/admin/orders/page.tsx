@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Download, Kanban } from "lucide-react";
 import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
-import { requireStaff } from "@/server/access";
+import { contactView, requireStaff } from "@/server/access";
 import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { staffLabel } from "@/shared/domain/staff";
@@ -21,12 +21,14 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const p = Math.max(1, Number(params.page) || 1);
   const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, admin.id, p, PAGE), container().access.queries.allStaff()]);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  const rows: OrderRow[] = list.map((o) => ({
+  const rows: OrderRow[] = list.map((o) => {
+    const contact = contactView(staff, { phone: o.contactPhone, email: o.contactEmail });
+    return {
     id: o.id,
     number: o.number,
     createdLabel: formatDate(o.createdAt, true),
     contactName: o.contactName,
-    contactLine: `${o.contactPhone} · ${o.contactEmail}`,
+    contactLine: [contact.phone, contact.email].filter(Boolean).join(" · "),
     planLabel: `${planName(o.plan)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
     printed: isPrintedPlan(o.plan),
     desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
@@ -35,7 +37,8 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
     claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
     assignee: o.assigneeId ? (names.get(o.assigneeId) ?? null) : null,
     promoCode: o.promoCode,
-  }));
+    };
+  });
   const qs = new URLSearchParams(Object.entries(params).filter(([k, v]) => v && k !== "page") as [string, string][]);
   const pageLink = (n: number) => `?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(n) })}`;
 

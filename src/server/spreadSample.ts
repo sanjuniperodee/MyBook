@@ -1,11 +1,13 @@
 import "server-only";
 import { messagesFor } from "@/i18n/messages";
 import { applyGender } from "@/lib/content/gender";
+import { bookKind } from "@/lib/content/kinds";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { estimateChapterPages, textMetrics } from "@/lib/book/estimate";
 import { buildBookContent } from "@/lib/book/book-content";
+import { printableText } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 
@@ -20,16 +22,28 @@ const SAMPLE_CHARS = 1800;
 export function bookSpreadSample(
   book: Parameters<typeof buildBookContent>[0],
   questions: Parameters<typeof buildBookContent>[1],
+  /** Главы своей книги по порядку (у книг с банком — пусто). */
+  chapters: Parameters<typeof buildBookContent>[3],
   dedicationPlaceholder: string,
   /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
   photos: { id: string; width: number; height: number; caption: string }[] = [],
 ) {
   const format = getFormat(book.format);
-  const content = buildBookContent(book, questions, []);
+  const content = buildBookContent(book, questions, [], chapters);
   const theme = getTheme(book.theme, book.language);
-  const sample = messagesFor(book.language).landing.sample;
+  const t = messagesFor(book.language);
+  const kind = bookKind(book.theme);
+  // Пример до первых ответов: у подарков — любовная история с лендинга, у автобиографии — рассказ о детстве, у своей книги — нейтральная заглушка.
+  const own = kind === "gift" ? null : t.book.sampleByKind[kind];
+  const ownEpigraph: string | undefined = own && "epigraph" in own ? String(own.epigraph) : undefined;
+  const sample = t.landing.sample;
   const first = content.chapters[0];
-  const firstThemeChapter = theme.chapters[0];
+  // Пока ответов нет — главы книги: своей книги — её оглавление (текст автора, без подстановки рода), остальных — темы.
+  const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
+  const planned = chapters.length
+    ? chapters.map((c) => ({ title: printableText(c.title.trim()) || t.book.untitledChapter, epigraph: printableText(c.epigraph.trim()) || undefined }))
+    : theme.chapters.map((c) => ({ title: g(c.title), epigraph: c.epigraph }));
+  const firstPlanned = planned[0];
 
   const entries: { heading: string | null; paragraphs: string[] }[] = [];
   if (first) {
@@ -45,7 +59,8 @@ export function bookSpreadSample(
       if (budget <= 0) break;
     }
   } else {
-    entries.push({ heading: sample.h1, paragraphs: [sample.p1, sample.p2] }, { heading: sample.h2, paragraphs: [sample.p3, sample.p4] });
+    const s = own ?? sample;
+    entries.push({ heading: s.h1, paragraphs: [s.p1, s.p2] }, { heading: s.h2, paragraphs: [s.p3, s.p4] });
   }
 
   // Оглавление: главы книги с примерными номерами страниц (пока ответов нет — главы темы).
@@ -57,7 +72,7 @@ export function bookSpreadSample(
         page += estimateChapterPages(c, metrics);
         return entry;
       })
-    : theme.chapters.slice(0, 10).map((c, i) => ({ number: i + 1, title: applyGender(c.title, book.authorGender, book.recipientGender), page: page + i * 6 }));
+    : planned.slice(0, 10).map((c, i) => ({ number: i + 1, title: c.title, page: page + i * 6 }));
 
   return {
     language: book.language,
@@ -69,10 +84,15 @@ export function bookSpreadSample(
     dedicationPlaceholder,
     chapter: first
       ? { number: 1, title: first.title, epigraph: first.epigraph }
-      : { number: 1, title: applyGender(firstThemeChapter?.title ?? sample.chapterTitle, book.authorGender, book.recipientGender), epigraph: firstThemeChapter?.epigraph ?? sample.epigraph },
+      : kind === "autobiography"
+        ? // Пример рассказа о детстве идёт с главой о детстве, а не с «Вместо предисловия» из оглавления.
+          { number: 1, title: own!.chapterTitle, epigraph: ownEpigraph }
+        : // У главы автора без эпиграфа пример эпиграфа не подставляем: это его текст.
+          { number: 1, title: firstPlanned?.title ?? (own ?? sample).chapterTitle, epigraph: chapters.length ? firstPlanned?.epigraph : (firstPlanned?.epigraph ?? (own ? ownEpigraph : sample.epigraph)) },
     entries,
     toc,
     showToc: book.showToc,
+    captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
   };
 }

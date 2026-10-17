@@ -57,7 +57,7 @@ describe("CallsService", () => {
     await service.handle(event({}));
     await service.handle(event({ stage: "end" }));
     await service.handle(event({ stage: "end" }));
-    expect(log).toEqual(["finished:c1", "deal:Звонок: +7 701 123 45 67", "notify:m2:Пропущенный звонок: +7 701 123 45 67", "rules:c1"]);
+    expect(log).toEqual(["finished:c1", "deal:Звонок: …4567", "notify:m2:Пропущенный звонок: …4567", "rules:c1"]);
   });
 
   it("дозвонились — прошлые пропущенные с номера обработаны", async () => {

@@ -51,6 +51,9 @@ const STATUS_BY_CODE = new Map<string, number>([
   ["kaspiSessionShared", 409],
   ["letterClosed", 404],
   ["letterInvalid", 404],
+  // Оглавление своей книги: операция не для этой книги и устаревший вид у клиента — конфликт состояния.
+  ["outlineNotAllowed", 409],
+  ["outlineOutdated", 409],
 ]);
 
 export function domainStatus(code: string): number {
@@ -101,6 +104,10 @@ function orderingText(m: Messages, err: DomainError): string | null {
     // Только из «Интеграций» (там свой текст); клиенту не попадает.
     kaspiSessionShared: m.api.kaspiNotConnected,
     kaspiUnavailable: m.api.kaspiUnavailable,
+    invalidAmount: m.api.invalidAmount,
+    receiptInvalid: m.api.receiptInvalid,
+    // Правило денег по заказу для сотрудника (не оплачен — в печать только с постоплатой и т. п.): текст в самой ошибке.
+    paymentRule: err.message,
   };
   return has(texts, err.code) ? texts[err.code as OrderingErrorCode] : messageText(err);
 }

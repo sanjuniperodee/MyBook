@@ -12,12 +12,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewBookPage({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {
-  const user = await requireUser("/books/new");
   const { theme } = await searchParams;
+  // Ссылка ?theme=autobiography|blank переживает вход: тему возвращаем в адрес «после входа» (регистрация может быть закрыта).
+  const user = await requireUser(theme && isThemeId(theme) ? `/books/new?theme=${theme}` : "/books/new");
   const locale = await getLocale();
   // Описание темы — на языке интерфейса, варианты названия — на каждом из языков книги.
   const list: WizardTheme[] = getThemes(locale).map((t) => ({
     id: t.id,
+    kind: t.kind,
+    recipient: t.recipient,
     name: t.name,
     description: t.description,
     questions: countQuestions(t),
@@ -26,12 +29,13 @@ export default async function NewBookPage({ searchParams }: { searchParams: Prom
     recipientGender: t.recipientGender,
     defaultRecipientGender: t.defaultRecipientGender,
     titleSuggestions: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).titleSuggestions])) as WizardTheme["titleSuggestions"],
+    firstChapterTitle: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).firstChapterTitle ?? ""])) as WizardTheme["firstChapterTitle"],
     // Обложка темы — метаданные шаблона: мастер рисует её без каталога обложек в браузере.
     defaultCover: coverMeta(getCoverTemplate(t.defaultCover)),
   }));
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
-      <NewBookWizard themes={list} defaultTheme={theme && isThemeId(theme) ? theme : undefined} defaultAuthor={user.name} defaultLanguage={locale} />
+      <NewBookWizard themes={list} defaultTheme={list.find((t) => t.id === theme)?.id} defaultAuthor={user.name} defaultLanguage={locale} />
     </main>
   );
 }

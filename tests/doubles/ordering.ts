@@ -55,6 +55,9 @@ export class MemOrders implements OrderRepository {
   async findById(id: string) {
     return this.load(id);
   }
+  async lockById(id: string) {
+    return this.load(id);
+  }
   async findByNumber(n: number) {
     const r = [...this.rows.values()].find((x) => x.number === n);
     return r ? this.load(r.id) : null;

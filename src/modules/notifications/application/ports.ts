@@ -17,6 +17,8 @@ export interface DraftCandidate {
 
 export interface OrderReminder {
   recipient: Recipient;
+  /** Тема книги заказа: письмо с просьбой об отзыве зависит от вида книги (подарок, автобиография, своя книга). */
+  theme: string;
   orderId: string;
   number: number;
   amount: number;
@@ -27,9 +29,13 @@ export interface OrderReminder {
 export interface LatestDraft {
   bookId: string;
   title: string;
+  /** Тема книги: вид книги для текста напоминания (своя книга — разделы и слова). */
+  theme: string;
   answered: number;
   total: number;
-  firstEmpty: number | null;
+  words: number;
+  /** Id первого раздела без текста; null — все заполнены или разделов нет (ссылка на корень редактора). */
+  firstEmpty: string | null;
 }
 
 /** Кому и о чём можно написать (read-модель поверх книг и заказов). */

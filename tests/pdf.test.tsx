@@ -15,6 +15,7 @@ const book: Book = {
   subtitle: "Четыре года вместе",
   authorName: "Алия",
   authorGender: "f",
+  recordedBy: "",
   recipientName: "Марғұлан",
   recipientGender: "m",
   hideRecipientOnCover: false,
@@ -55,7 +56,7 @@ const questions: BookQuestion[] = Array.from({ length: 30 }, (_, i) => ({
 }));
 
 describe("генерация PDF", () => {
-  const bundle: BookBundle = { book, questions, photos: [] };
+  const bundle: BookBundle = { book, questions, chapters: [], photos: [] };
 
   it("блок: вылеты, TrimBox и кратность страниц", async () => {
     const res = await renderInterior(bundle, "print");
@@ -70,8 +71,8 @@ describe("генерация PDF", () => {
 
   it("каркас для типографии: одна страница — обложка с дизайном и рамками, 1:1", async () => {
     const pageCount = 120;
-    const cover = await renderCover({ book, questions, photos: [] }, pageCount, "preview");
-    const pdf = await renderLayoutScheme({ book, questions, photos: [] }, pageCount, cover.pdf);
+    const cover = await renderCover({ book, questions, chapters: [], photos: [] }, pageCount, "preview");
+    const pdf = await renderLayoutScheme({ book, questions, chapters: [], photos: [] }, pageCount, cover.pdf);
     const doc = await PDFDocument.load(pdf);
     expect(doc.getPageCount()).toBe(1);
     const g = coverSpreadGeometry(formats.a5, pageCount);
@@ -83,9 +84,9 @@ describe("генерация PDF", () => {
   it("казахская книга: блок и обложка собираются, текст с казахскими буквами переносится", async () => {
     const kkBook: Book = { ...book, language: "kk", title: "Сен — менің бәрімсің", subtitle: "Бірге төрт жыл" };
     const kkQuestions = questions.map((q) => ({ ...q, title: `Біз қалай таныстық ${q.position + 1}`, answer: "Біз Алматыға алғашқы қар жауған қарапайым сейсенбіде кездестік. Көктөбеге шығып, қаланың шамдарына ұзақ қарадық. ".repeat(6) }));
-    const res = await renderInterior({ book: kkBook, questions: kkQuestions, photos: [] }, "preview");
+    const res = await renderInterior({ book: kkBook, questions: kkQuestions, chapters: [], photos: [] }, "preview");
     expect(res.pageCount % print.pageMultiple).toBe(0);
-    const cover = await renderCover({ book: kkBook, questions: kkQuestions, photos: [] }, res.pageCount, "preview");
+    const cover = await renderCover({ book: kkBook, questions: kkQuestions, chapters: [], photos: [] }, res.pageCount, "preview");
     expect((await PDFDocument.load(cover.pdf)).getPageCount()).toBe(1);
   });
 
@@ -94,7 +95,7 @@ describe("генерация PDF", () => {
   // попадёт в поток текста, react-pdf вынесет её на отдельную полосу — и счёт разойдётся.
   it.each(interiorDesigns.flatMap((d) => Object.keys(formats).map((f) => [d.id, f] as const)))("оформление %s, %s: ровно расчётное число полос", async (interior, format) => {
     const short = questions.filter((q) => q.position < 3).map((q) => ({ ...q, answer: "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег." }));
-    const res = await renderInterior({ book: { ...book, interior, format }, questions: short, photos: [] }, "reading");
+    const res = await renderInterior({ book: { ...book, interior, format }, questions: short, chapters: [], photos: [] }, "reading");
     expect(res.contentPages).toBe(4 + short.length * 2 + 1);
   });
 

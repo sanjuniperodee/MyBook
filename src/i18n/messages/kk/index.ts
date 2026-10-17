@@ -14,5 +14,7 @@ import { mail } from "./mail";
 import { orders } from "./orders";
 import { review } from "./review";
 import { invite } from "./invite";
+import { pay } from "./pay";
+import { access } from "./access";
 
-export const kk: Messages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api };
+export const kk: Messages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access };

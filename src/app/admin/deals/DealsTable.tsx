@@ -46,7 +46,7 @@ export function DealsTable({
     start(async () => {
       try {
         const r = await bulkDealsAction(ids(), input);
-        toast(r.skipped ? `Готово: ${r.done}, пропущено (нет доступа): ${r.skipped}` : `Готово: ${r.done}`);
+        toast(r.skipped ? `Готово: ${r.done}, пропущено (нет доступа${input.op === "delete" ? " или у сделки деньги или счёт клиента" : ""}): ${r.skipped}` : `Готово: ${r.done}`);
         clear();
         router.refresh();
       } catch (e) {

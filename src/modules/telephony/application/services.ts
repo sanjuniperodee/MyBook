@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { formatPhone } from "@/shared/domain/phone";
+import { phoneTail } from "@/shared/domain/phone";
 import { staffLabel } from "@/shared/domain/staff";
 import { Call, TelephonyError, type CallEvent } from "../domain";
 import type { CallRepository, CallSideEffects, CallTimeline, SalesGateway, StaffDirectory, TelephonyProvider } from "./ports";
@@ -53,7 +53,7 @@ export class CallsService {
     // Номер в спаме: звонок в журнале остаётся, но без заявки, задач и уведомлений.
     if (call.clientPhone && (await this.effects.isBlocked(call.clientPhone))) return call;
     if (call.needsDeal) {
-      const deal = await this.sales.createCallDeal({ title: `Звонок: ${formatPhone(call.clientPhone)}`, clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone) });
+      const deal = await this.sales.createCallDeal({ title: `Звонок: ${phoneTail(call.clientPhone)}`, clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : phoneTail(call.clientPhone) });
       call.linkDeal(deal.id, deal.clientId);
       await this.calls.save(call);
     }
@@ -62,7 +62,7 @@ export class CallsService {
     if (call.isMissed) {
       const owner = call.dealId ? await this.sales.dealOwner(call.dealId) : null;
       await this.effects.notifyMissed(owner?.assigneeId ?? call.staffId, {
-        title: `Пропущенный звонок: ${formatPhone(call.clientPhone) || "скрытый номер"}`,
+        title: `Пропущенный звонок: ${phoneTail(call.clientPhone) || "скрытый номер"}`,
         body: owner?.contactName ?? "",
         link: call.dealId ? `/admin/deals/${call.dealId}` : "/admin/calls",
       });

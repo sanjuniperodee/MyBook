@@ -10,6 +10,7 @@ const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 export function CrmSettingsForm({
   slaMinutes,
+  reassignMinutes,
   workHours,
   autoDealFrom,
   unsorted,
@@ -17,6 +18,7 @@ export function CrmSettingsForm({
   widget,
 }: {
   slaMinutes: number;
+  reassignMinutes: number;
   workHours: { days: number[]; from: string; to: string };
   autoDealFrom: string;
   unsorted: boolean;
@@ -40,12 +42,16 @@ export function CrmSettingsForm({
             <span className="text-muted">—</span>
             <input name="to" type="time" defaultValue={workHours.to} className="input h-9 w-28 text-sm" aria-label="До" />
           </div>
-          <p className="mt-1 text-xs text-muted">Вне рабочего времени заявки не распределяются (утром их берёт первый на смене), норматив ответа не идёт, можно включить автоответ в «Автоматизациях».</p>
+          <p className="mt-1 text-xs text-muted">Новые заявки сразу получает менеджер на смене, у которого меньше всего заявок за сегодня. Вне рабочего времени заявки ждут и утром раздаются по кругу; норматив ответа не идёт, можно включить автоответ в «Автоматизациях».</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-4">
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Норматив ответа, рабочих минут</span>
             <input name="slaMinutes" type="number" min={1} max={1440} defaultValue={slaMinutes} className="input h-10 text-sm" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Не взял заявку — следующему через, мин (0 — нет)</span>
+            <input name="reassignMinutes" type="number" min={0} max={1440} defaultValue={reassignMinutes} className="input h-10 text-sm" />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Сделка с сайта заводится, когда клиент…</span>
@@ -53,8 +59,8 @@ export function CrmSettingsForm({
               <option value="off">не заводить (только заказы)</option>
               <option value="registered">зарегистрировался</option>
               <option value="book_started">начал книгу</option>
-              <option value="book_half">ответил на половину вопросов</option>
-              <option value="book_ready">почти закончил (25+ ответов)</option>
+              <option value="book_half">написал половину книги</option>
+              <option value="book_ready">почти закончил книгу</option>
             </select>
           </label>
           <label className="block">
@@ -65,7 +71,7 @@ export function CrmSettingsForm({
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="unsorted" defaultChecked={unsorted} className="mt-0.5 size-4 accent-wine" />
           <span>
-            «Неразобранное»: заявки с новых номеров (чат, звонок) сначала ждут, пока менеджер их примет или отклонит как спам
+            «Неразобранное»: заявка с нового номера (чат, звонок) считается не взятой, пока ответственный не ответит клиенту или не примет её; не взял вовремя — она уходит следующему
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm">

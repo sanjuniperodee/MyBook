@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { ArrowLeft, Handshake, MessagesSquare, UserRound } from "lucide-react";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { channelLabel } from "@/modules/messaging";
@@ -12,8 +12,10 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { getSetting } from "@/modules/workspace";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
+import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
+import { invoiceViews } from "@/app/admin/invoices/view";
 import { cn } from "@/lib/class-names";
-import { ChatSideControls } from "./ChatControls";
+import { BotBanner, ChatSideControls } from "./ChatControls";
 
 export const metadata = { title: "Чаты" };
 
@@ -64,7 +66,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
 
   if (conv) {
     const chat = container().messaging.view;
-    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai] = await Promise.all([
+    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot] = await Promise.all([
       chat.messages(conv.id),
       chat.templates(),
       chat.vars(conv, staffLabel(staff.user)),
@@ -73,8 +75,22 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),
       container().assistant.service.configured(),
+      conv.dealId && can(staff, "deals.view") ? container().ordering.invoices.listFor(conv.dealId) : Promise.resolve([]),
+      container().messaging.botStatus(conv.id),
     ]);
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
+    // Ничей диалог менеджер только читает: ответит тот, кому его отдаст круг (или назначит руководитель).
+    const mine = canWork(staff, conv.assigneeId);
+    const canReply = can(staff, "chats.send") && mine;
+    // Счета сделки диалога: действия — тому, кто ведёт и диалог, и сделку (сервер проверяет те же права).
+    const dealWork = !dealRow || canWork(staff, dealRow.deal.assigneeId);
+    const invoicePerms = {
+      edit: can(staff, "deals.edit") && mine && dealWork,
+      send: canReply && can(staff, "deals.edit") && dealWork,
+      access: mine && dealWork && can(staff, "clients.create"),
+      pay: can(staff, "deals.edit") && mine && dealWork && !dealRow?.deal.orderId,
+    };
+    const invoices = invoiceViews(invoiceRows, { now: new Date(), withLink: invoicePerms.edit });
     panel = (
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-white px-4">
@@ -92,18 +108,21 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             </div>
           </div>
         </div>
+        {!mine ? <p className="border-b border-line bg-amber-50 px-4 py-2 text-xs text-amber-800">Заявку распределяет круг — ответит менеджер, которому она достанется. Назначить вручную может руководитель.</p> : null}
+        <BotBanner conversationId={conv.id} status={bot} canControl={canReply} hasDeal={!!conv.dealId} />
         <ChatPanel
           key={conv.id}
           className="flex-1"
           conversationId={conv.id}
           messages={messages}
-          canSend={can(staff, "chats.send")}
+          canSend={canReply}
           templates={templates}
           vars={vars}
           sendDisabledReason={blocker}
-          offers={can(staff, "chats.send") ? offers : null}
+          offers={canReply ? offers : null}
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
-          ai={ai && can(staff, "chats.send")}
+          ai={ai && canReply}
+          invoice={invoicePerms.send ? { dealId: conv.dealId } : null}
           timeZone={storeTimeZone()}
         />
       </div>
@@ -129,6 +148,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             <p className="text-sm text-muted">Не привязан к сделке.</p>
           )}
         </section>
+        {dealRow ? <InvoicesBlock compact dealId={dealRow.deal.id} invoices={invoices} perms={invoicePerms} /> : null}
         {client && can(staff, "clients.view") ? (
           <section>
             <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Клиент на сайте</h3>
@@ -143,8 +163,9 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           options={options}
           status={conv.status}
           hasDeal={!!conv.dealId}
-          canSend={can(staff, "chats.send")}
-          canCreateDeal={can(staff, "deals.edit")}
+          canSend={canReply}
+          canCreateDeal={can(staff, "deals.edit") && mine}
+          canStartBot={!bot.label && bot.canStart}
         />
       </aside>
     );

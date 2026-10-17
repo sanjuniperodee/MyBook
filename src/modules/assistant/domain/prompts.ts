@@ -65,7 +65,8 @@ export function businessContext(knowledge = ""): string {
   const deliveryNames: Record<string, string> = { courier: "курьер по Алматы и Астане", post: "доставка по Казахстану", pickup: "самовывоз в Алматы" };
   const addonNames: Record<string, string> = { express: "экспресс-печать за 3–4 рабочих дня", giftwrap: "подарочная упаковка" };
   return [
-    "MyBooks — сервис персональных книг-подарков в Казахстане. Клиент на сайте отвечает на вопросы о близком человеке, добавляет фото и выбирает обложку, а мы печатаем настоящую книгу в твёрдом переплёте. Языки сайта — русский и казахский.",
+    "MyBooks — сервис персональных книг в Казахстане: клиент пишет книгу на сайте, добавляет фото и выбирает обложку, а мы печатаем настоящую книгу в твёрдом переплёте. Языки сайта — русский и казахский.",
+    "Три вида книги: (1) подарок близкому — любимому человеку, маме, папе или другу: клиент отвечает на вопросы о нём; (2) автобиография — книга о своей жизни: вопросы рассказчику о его жизни, текст от первого лица; пишет сам рассказчик или близкий человек с его слов (внук записывает историю дедушки), получателя нет — «для детей и внуков» это посвящение, а кто записал, указано на обороте титула; (3) своя книга с нуля — готовых вопросов нет, автор сам создаёт главы и разделы (заголовок и текст), получатель необязателен. Не говори клиенту, что книгу можно сделать только в подарок.",
     `Тарифы: ${getVisiblePlans().map((p) => `${planNames[p.id] ?? p.id} — ${kzt(p.price)}${p.extraCopyPrice ? ` (доп. экземпляр ${kzt(p.extraCopyPrice)})` : ""}`).join("; ")}.`,
     `Доставка: ${getDeliveryOptions().map((d) => `${deliveryNames[d.id] ?? d.id} — ${d.price ? kzt(d.price) : "бесплатно"}${d.maxDays ? `, до ${d.maxDays} дн.` : ""}`).join("; ")}.`,
     `Допы: ${getAddons().map((a) => `${addonNames[a.id] ?? a.id} — ${kzt(a.price)}`).join("; ")}.`,
@@ -90,7 +91,7 @@ export function summarySystemPrompt(knowledge: string): string {
   return [
     "Ты — опытный руководитель отдела продаж. По истории сделки коротко опиши ситуацию и порекомендуй менеджеру следующий шаг.",
     businessContext(knowledge),
-    "summary — 2–4 предложения: кто клиент, для кого и к какому поводу книга, на чём остановились. next_step — одно конкретное действие менеджера (что сделать и что сказать). due_days — через сколько дней это сделать (0 — сегодня). temperature — hot (готов купить), warm (интересуется), cold (молчит или сомневается). risks — что может сорвать сделку, или пустая строка.",
+    "summary — 2–4 предложения: кто клиент, какая книга (подарок и для кого, автобиография чья или своя книга с нуля), повод или дата, если есть, на чём остановились. next_step — одно конкретное действие менеджера (что сделать и что сказать). due_days — через сколько дней это сделать (0 — сегодня). temperature — hot (готов купить), warm (интересуется), cold (молчит или сомневается). risks — что может сорвать сделку, или пустая строка.",
     "Пиши по-русски. Опирайся только на факты из истории.",
   ].join("\n\n");
 }
@@ -172,6 +173,68 @@ export function normalizeExtracted(fields: AiField[], raw: unknown): Record<stri
     } else out[f.key] = s;
   }
   return out;
+}
+
+// ─── бот-квалификатор: понять ответ клиента ─────────────────────────────────
+
+export const BOT_AI_INTENTS = ["price", "delivery", "timing", "how", "payment", "examples", "language"] as const;
+export const BOT_AI_HANDOFFS = ["call", "manager", "paid", "pay", "complaint"] as const;
+export type BotAiIntent = (typeof BOT_AI_INTENTS)[number];
+export type BotAiHandoff = (typeof BOT_AI_HANDOFFS)[number];
+
+export interface BotUnderstanding {
+  fields: Record<string, string>;
+  intents: BotAiIntent[];
+  handoff: BotAiHandoff | null;
+  lang: "ru" | "kk" | null;
+}
+
+/**
+ * Промпт для бота-квалификатора: модель только понимает сообщение (поля, вопросы клиента, просьбу позвать человека,
+ * язык). Отвечает клиенту бот — шаблонами из настроек; цены, сроки и скидки модель не называет.
+ */
+export function botUnderstandPrompt(fields: AiField[], today: string, asking: string | null): string {
+  const list = extractableFields(fields)
+    .map((f) => `- ${f.key}: «${f.label}»${f.type === "date" ? " — дата ГГГГ-ММ-ДД" : f.type === "number" ? " — число" : f.type === "select" ? ` — одно из: ${f.options.join(" | ")}` : ""}`)
+    .join("\n");
+  const current = fields.find((f) => f.key === asking);
+  return [
+    "Ты разбираешь сообщения клиента в WhatsApp для бота магазина персональных книг-подарков MyBooks (Казахстан). Клиенты пишут по-русски или по-казахски, бывает с ошибками и без казахских букв («туган кунге»).",
+    `Сегодня ${today}. Дату без года понимай как ближайшую будущую.`,
+    current ? `Бот только что спросил «${current.label}» (${current.key}) — сообщение, скорее всего, ответ на этот вопрос.` : "",
+    `Поля:\n${list}`,
+    "fields — значения только тех полей, о которых клиент прямо сказал; для полей-списков — ровно один вариант из перечисленных; иначе пустая строка. Ничего не додумывай.",
+    "intents — о чём клиент спрашивает: price (цена, скидка), delivery (доставка, город), timing (сроки, успеете ли), how (как это работает, с чего начать), payment (оплата, рассрочка, Kaspi), examples (примеры, отзывы), language (язык книги).",
+    "handoff — просит ли человека: call (позвонить), manager (менеджер, живой человек), paid (уже оплатил), pay (хочет оплатить, просит реквизиты), complaint (жалоба, возврат); иначе пустая строка.",
+    "lang — ru или kk: на каком языке пишет клиент. Ответ клиенту не пиши.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function botUnderstandSchema(fields: AiField[]) {
+  return {
+    type: "object",
+    properties: {
+      fields: extractSchema(fields),
+      intents: { type: "array", items: { type: "string", enum: [...BOT_AI_INTENTS] } },
+      handoff: { type: "string", enum: [...BOT_AI_HANDOFFS, ""] },
+      lang: { type: "string", enum: ["ru", "kk"] },
+    },
+    required: ["fields", "intents", "handoff", "lang"],
+    additionalProperties: false,
+  };
+}
+
+/** Ответ модели → то, что бот может использовать: поля по правилам формы, известные намерения, язык. */
+export function parseBotUnderstanding(fields: AiField[], raw: unknown): BotUnderstanding | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const values = Object.fromEntries(Object.entries(normalizeExtracted(fields, r.fields)).map(([k, v]) => [k, String(v)]));
+  const intents = Array.isArray(r.intents) ? BOT_AI_INTENTS.filter((i) => (r.intents as unknown[]).includes(i)) : [];
+  const handoff = BOT_AI_HANDOFFS.find((h) => h === r.handoff) ?? null;
+  const lang = r.lang === "kk" || r.lang === "ru" ? r.lang : null;
+  return { fields: values, intents, handoff, lang };
 }
 
 /** Ответ модели без обрамляющих кавычек и подписи «— Менеджер». */

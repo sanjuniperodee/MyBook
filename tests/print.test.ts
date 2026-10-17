@@ -53,6 +53,7 @@ describe("вёрстка", () => {
     subtitle: "",
     authorName: "А",
     authorGender: "f" as const,
+    recordedBy: "",
     recipientName: "Б",
     recipientGender: "m" as const,
     dedication: "",
@@ -62,16 +63,16 @@ describe("вёрстка", () => {
     showToc: true,
     coverPhotoId: null,
   };
-  const q = (i: number, chapter: string, answer: string) => ({ id: String(i), chapter, position: i, title: "Когда я {понял|поняла}", displayText: null, hideHeading: false, answer });
+  const q = (i: number, chapter: string, answer: string) => ({ id: String(i), chapter, position: i, title: "Когда я {понял|поняла}", displayText: null, hideHeading: false, answer, questionKey: null });
 
   it("в книгу попадают только отвеченные вопросы, с учётом рода", () => {
-    const c = buildBookContent(book, [q(1, "intro", "да"), q(2, "intro", ""), q(3, "meet", "ок")], []);
+    const c = buildBookContent(book, [q(1, "intro", "да"), q(2, "intro", ""), q(3, "meet", "ок")], [], []);
     expect(c.chapters.map((x) => x.key)).toEqual(["intro", "meet"]);
     expect(c.chapters[0].items[0].heading).toBe("Когда я поняла");
   });
   it("оценка страниц растёт с длиной ответов", () => {
-    const short = estimatePages(buildBookContent(book, [q(1, "intro", "коротко")], []));
-    const long = estimatePages(buildBookContent(book, [q(1, "intro", "очень длинный ответ ".repeat(800))], []));
+    const short = estimatePages(buildBookContent(book, [q(1, "intro", "коротко")], [], []));
+    const long = estimatePages(buildBookContent(book, [q(1, "intro", "очень длинный ответ ".repeat(800))], [], []));
     expect(long).toBeGreaterThan(short + 5);
   });
   it("половинки фото объединяются по две на страницу", () => {

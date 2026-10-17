@@ -5,6 +5,7 @@ import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
+import { RECORDED_BY_MAX } from "@/lib/content/kinds";
 
 const patchSchema = z
   .object({
@@ -12,6 +13,8 @@ const patchSchema = z
     subtitle: z.string().trim().max(80),
     authorName: z.string().trim().max(60),
     authorGender: z.enum(["m", "f"]),
+    // Автобиография: кто записал со слов рассказчика (у остальных книг домен поле пропускает).
+    recordedBy: z.string().trim().max(RECORDED_BY_MAX),
     recipientName: z.string().trim().max(60),
     recipientGender: z.enum(["m", "f"]),
     hideRecipientOnCover: z.boolean(),

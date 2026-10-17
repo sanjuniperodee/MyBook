@@ -3,7 +3,8 @@
  * Одна функция на все отрисовки — PDF для типографии, 3D-книгу и превью в редакторе, —
  * поэтому то, что клиент видит на экране, совпадает с напечатанным.
  */
-import { coverNamesLine, type CoverTemplate } from "./covers";
+import type { CoverTemplate } from "./covers";
+import { coverNames } from "./cover-names";
 import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
 import type { FontKey } from "./fonts";
 import { PT_TO_MM, type Rect } from "./formats";
@@ -306,7 +307,7 @@ export function backArtSvg(design: BackDesign, back: { x: number; y: number; w: 
 
 /** Что печатается сзади — из настроек книги. Год — повода, если он задан, иначе текущий. */
 export function backContent(
-  book: { backLayout: string; backText: string; authorName: string; recipientName: string; hideRecipientOnCover: boolean; occasionDate: string | null },
+  book: { theme: string; backLayout: string; backText: string; authorName: string; recipientName: string; hideRecipientOnCover: boolean; occasionDate: string | null },
   photos: { width: number; height: number }[],
   now: Date,
 ): BackContent {
@@ -314,7 +315,7 @@ export function backContent(
     layout: isBackLayout(book.backLayout) ? book.backLayout : DEFAULT_BACK_LAYOUT,
     text: book.backText,
     signature: book.authorName.trim(),
-    names: coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover),
+    names: coverNames(book),
     year: book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : now.getFullYear(),
     photos,
   };

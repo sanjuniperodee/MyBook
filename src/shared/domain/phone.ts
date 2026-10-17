@@ -27,3 +27,12 @@ export function formatPhone(raw: string | null | undefined): string {
 
 /** Последние 10 цифр — ключ для сравнения номеров, записанных по-разному. */
 export const phoneKey = (raw: string | null | undefined) => normalizePhone(raw).slice(-10);
+
+/**
+ * Номер в тексте, который видят все (заголовок сделки, задачи, уведомление, заметка): только последние 4 цифры —
+ * «…4567». Полный номер — в контакте сделки, его видят по праву clients.contacts.
+ */
+export function phoneTail(raw: string | null | undefined): string {
+  const digits = normalizePhone(raw);
+  return digits.length >= 4 ? `…${digits.slice(-4)}` : "";
+}

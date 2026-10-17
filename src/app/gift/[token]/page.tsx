@@ -8,6 +8,7 @@ import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { getCurrentUser } from "@/server/auth";
 import { container } from "@/server/container";
+import { manualPaymentProps } from "@/server/requisites";
 import { isOnlinePayment, redeemUrl } from "@/modules/ordering";
 import { env } from "@/config/env";
 import { formatPrice, site } from "@/config/site";
@@ -60,7 +61,8 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
                 currency={gift.currency}
                 email={gift.buyerEmail}
                 online={isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null}
-                manual={m.common.manualPayment}
+                manual={await manualPaymentProps(m)}
+                unavailable={m.common.manualPayment.unavailable}
                 claimed={!!gift.paymentClaimedAt}
                 kaspi={kaspi}
               />

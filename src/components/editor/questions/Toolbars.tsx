@@ -14,15 +14,19 @@ export function EditorTopBar({
   pages,
   focus,
   onChapters,
+  onRename,
   onTogglePreview,
   onToggleFocus,
 }: {
-  chapterNumber: number;
+  /** Номер главы; null — глава своей книги без текста и фото (в книгу не попадёт и номера не получит). */
+  chapterNumber: number | null;
   chapterTitle: string;
   language: Locale;
   pages: ReactNode;
   focus: boolean;
   onChapters: () => void;
+  /** Быстрое переименование главы (только своя книга): название становится кнопкой. */
+  onRename?: () => void;
   onTogglePreview: () => void;
   onToggleFocus: () => void;
 }) {
@@ -33,7 +37,19 @@ export function EditorTopBar({
         <ListTree className="size-4" /> {t.chapters}
       </button>
       <div className="min-w-0 flex-1 truncate text-sm text-muted">
-        <span className="text-ink">{t.chapter(chapterNumber)}</span> · <span lang={language}>{chapterTitle}</span>
+        {chapterNumber === null ? null : (
+          <>
+            <span className="text-ink">{t.chapter(chapterNumber)}</span> ·{" "}
+          </>
+        )}
+        {onRename ? (
+          <button type="button" className="max-w-full truncate align-bottom hover:text-ink hover:underline max-sm:py-2" title={t.nav.rename} onClick={onRename}>
+            <span lang={language}>{chapterTitle}</span>
+          </button>
+        ) : (
+          <span lang={language}>{chapterTitle}</span>
+        )}
+        {chapterNumber === null ? <span> · {t.nav.notInBook}</span> : null}
       </div>
       {pages}
       {!focus ? (
@@ -52,6 +68,7 @@ export function EditorTopBar({
 export function AnswerToolbar({
   dictation,
   editable,
+  blank,
   custom,
   words,
   answerPages,
@@ -61,6 +78,8 @@ export function AnswerToolbar({
 }: {
   dictation: ReactNode;
   editable: boolean;
+  /** Своя книга: вместо «Свой вопрос» — «+ Раздел», удалить можно любой раздел. */
+  blank: boolean;
   /** Свой вопрос — его можно удалить. */
   custom: boolean;
   words: number;
@@ -81,7 +100,7 @@ export function AnswerToolbar({
       ) : null}
       {editable ? (
         <button className="btn btn-ghost btn-sm text-muted" onClick={onAdd}>
-          <Plus className="size-4" /> {t.ownQuestion}
+          <Plus className="size-4" /> {blank ? t.blank.addSection : t.ownQuestion}
         </button>
       ) : null}
       {editable && custom ? (

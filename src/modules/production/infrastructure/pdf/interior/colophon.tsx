@@ -15,6 +15,7 @@ export function Colophon({ kit }: { kit: PdfKit }) {
       <View style={{ flexGrow: 1 }} />
       <Text style={{ ...face(design.type.body, 400), fontSize: S.colophon, lineHeight: FRONT.colophon.lineHeight, color: design.palette.muted }}>
         {`${t.copyright(content.year, content.authorName)}\n`}
+        {content.recordedBy ? `${t.recordedBy(content.recordedBy)}\n` : ""}
         {t.colophon(site.name)}
       </Text>
     </Page>

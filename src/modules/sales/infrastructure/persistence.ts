@@ -1,12 +1,12 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/shared/infrastructure/db/schema";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
+import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks, crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
+import { Deal, Funnel, REJECTION_TAGS, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 
@@ -27,6 +27,8 @@ function toDomain(r: Row): Deal {
     extraPhones: r.extraPhones,
     amount: r.amount,
     assigneeId: r.assigneeId,
+    assignedAt: r.assignedAt,
+    routeTried: r.routeTried,
     createdById: r.createdById,
     orderId: r.orderId,
     lostReason: r.lostReason,
@@ -91,6 +93,8 @@ export class DrizzleDealRepository implements DealRepository {
       extraPhones: s.extraPhones,
       amount: s.amount,
       assigneeId: s.assigneeId,
+      assignedAt: s.assignedAt,
+      routeTried: s.routeTried,
       orderId: s.orderId,
       lostReason: s.lostReason,
       unsorted: s.unsorted,
@@ -115,6 +119,28 @@ export class DrizzleDealRepository implements DealRepository {
     await this.writeJournal(deal);
   }
 
+  async waitingForRoute(limit: number) {
+    const rows = await executor()
+      .select({ id: crmDeals.id })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "open"), isNull(crmDeals.assigneeId)))
+      .orderBy(asc(crmDeals.createdAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  async notTakenSince(before: Date, limit: number) {
+    const rows = await executor()
+      .select({ id: crmDeals.id })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNotNull(crmDeals.assigneeId), lt(crmDeals.assignedAt, before), sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`))
+      .orderBy(asc(crmDeals.assignedAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
   async save(deal: Deal) {
     await executor()
       .update(crmDeals)
@@ -129,7 +155,24 @@ export class DrizzleDealRepository implements DealRepository {
     await db.update(crmCalls).set({ dealId: target.id }).where(eq(crmCalls.dealId, source.id));
     await db.update(crmTasks).set({ dealId: target.id }).where(eq(crmTasks.dealId, source.id));
     await db.update(crmNotes).set({ dealId: target.id }).where(eq(crmNotes.dealId, source.id));
+    // Деньги и чеки переходят вместе со сделкой: удаление слитой сделки иначе удаляет их каскадом.
+    await db.update(crmPayments).set({ dealId: target.id }).where(eq(crmPayments.dealId, source.id));
+    await db.update(crmReceipts).set({ dealId: target.id }).where(eq(crmReceipts.dealId, source.id));
+    // С деньгами переходит и договорённость (тариф): иначе предоплата слитой сделки не вычтется при заказе.
+    await db.execute(sql`update crm_deals t set agreed_plan = s.agreed_plan from crm_deals s where t.id = ${target.id} and s.id = ${source.id} and t.agreed_plan is null and t.order_id is null`);
     await db.delete(crmDeals).where(eq(crmDeals.id, source.id));
+  }
+
+  async lock(dealIds: string[]) {
+    const ids = [...new Set(dealIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).sort();
+    if (ids.length) await executor().execute(sql`select id from crm_deals where id in (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)}) order by id for update`);
+  }
+
+  async hasMoney(dealId: string) {
+    const { rows } = await executor().execute<{ yes: boolean }>(
+      sql`select exists(select 1 from ${crmPayments} where ${crmPayments.dealId} = ${dealId}) or exists(select 1 from ${crmReceipts} where ${crmReceipts.dealId} = ${dealId}) as yes`,
+    );
+    return !!rows[0]?.yes;
   }
 
   async delete(dealId: string) {

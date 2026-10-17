@@ -37,15 +37,20 @@ export const settingDefs = {
   "crm.workHours": { default: '{"days":[1,2,3,4,5,6,7],"from":"09:00","to":"21:00"}' },
   /** С какого действия клиента на сайте заводить сделку: off | registered | book_started | book_half | book_ready. */
   "crm.autoDealFrom": { default: "book_started" },
+  /** Реквизиты перевода Kaspi для клиентов (заказ, сертификат, счёт из чата): номер получателя и имя. Пусто — перевод не показываем. */
+  "pay.transferPhone": { env: "TRANSFER_PHONE" },
+  "pay.transferName": { env: "TRANSFER_NAME" },
+  /** Через сколько минут не взятая заявка переходит следующему менеджеру по кругу; 0 — не передавать. */
+  "crm.reassignMinutes": { default: "15" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
   "crm.maxDiscount": { default: "15" },
   /** Номер WhatsApp для рекламных ссылок «написать в WhatsApp» (по умолчанию — из контактов сайта). */
   "crm.whatsappNumber": {},
-  /** Бот-квалификатор в WhatsApp: off | always | off_hours. */
-  "bot.mode": { default: "off" },
-  /** Вопросы бота: JSON { greeting, questions: [{ text, field }], finish }. */
+  /** Бот-автоответчик: off | fallback (если менеджер не ответил за N минут) | off_hours | always — по умолчанию (docs/features/bot-autoresponder.md). */
+  "bot.mode": { default: "always" },
+  /** Настройки бота: JSON BotConfig (каналы, вопросы и тексты ru/kk, частые вопросы, акция); старый { greeting, questions: [{ text, field }], finish } тоже читается. */
   "bot.config": {},
   /** Ключи Web Push (создаются автоматически). */
   "push.vapidPublic": {},

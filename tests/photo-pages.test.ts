@@ -48,7 +48,7 @@ describe("обложки с фото", () => {
 
   it("заказать коллаж можно, только когда выбраны все его фото", () => {
     const stats = { answered: 20, estimatedPages: 40 } as Parameters<typeof checkReadiness>[1];
-    const book = { id: "b", coverTemplate: "collage", coverPhotoId: "a", coverPhotoExtra: ["b"], authorName: "Алия", format: "a5" };
+    const book = { id: "b", theme: "love", coverTemplate: "collage", coverPhotoId: "a", coverPhotoExtra: ["b"], authorName: "Алия", format: "a5" };
     const issue = checkReadiness(book, stats, []).find((i) => i.level === "error");
     expect(issue?.text).toContain("3 фото");
     expect(checkReadiness({ ...book, coverPhotoExtra: ["b", "c"] }, stats, []).some((i) => i.level === "error")).toBe(false);

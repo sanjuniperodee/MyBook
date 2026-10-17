@@ -117,6 +117,18 @@ export function assertVisible(staff: Staff, assigneeId: string | null | undefine
   if (!canSeeAssigned(staff, assigneeId)) throw new ForbiddenError();
 }
 
+/**
+ * Работать с записью (писать клиенту, двигать, принимать оплату) может её ответственный или роль «все записи».
+ * Роль «только свои» видит неразобранные, но не берёт их себе: заявки раздаёт круг или руководитель.
+ */
+export function canWork(staff: Staff, assigneeId: string | null | undefined) {
+  return staff.context.canWork(assigneeId);
+}
+
+export function assertWorkable(staff: Staff, assigneeId: string | null | undefined) {
+  if (!canWork(staff, assigneeId)) throw new ForbiddenError(assigneeId ? "Недостаточно прав для этого действия" : "Заявку распределяет круг — её получит менеджер на смене. Назначить вручную может руководитель.");
+}
+
 export function contactView(staff: Staff, v: { phone?: string | null; email?: string | null }) {
   return staff.context.contacts(v);
 }

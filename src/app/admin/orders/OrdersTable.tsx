@@ -40,7 +40,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
     start(async () => {
       try {
         const res = await bulkStatusAction(ids(), status);
-        setMessage(`Обновлено заказов: ${res.count}`);
+        setMessage(`Обновлено заказов: ${res.count}${res.skipped ? `; пропущено ${res.skipped} — не оплачены (примите оплату или отправьте в печать с постоплатой)` : ""}`);
         clear();
         router.refresh();
       } catch (e) {

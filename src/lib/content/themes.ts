@@ -1,26 +1,34 @@
 import type { Locale } from "@/i18n/config";
+import { autobiographyChapters } from "./autobiography";
 import { friendChapters } from "./friend";
 import { loveChapters } from "./love";
 import { parentChapters } from "./parent";
+import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { friendChapters as friendChaptersKk } from "./kk/friend";
 import { loveChapters as loveChaptersKk } from "./kk/love";
 import { parentChapters as parentChaptersKk } from "./kk/parent";
-import type { ChapterDef, ThemeDef, ThemeId } from "./types";
+import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
 
 /**
  * Темы книг. Оформление (обложка, род адресата) общее, тексты — на языке книги.
  * Язык книги выбирается при создании и хранится в books.language: вопросы копируются в книгу
  * на этом языке, на нём же печатаются заголовки глав. Язык интерфейса на это не влияет.
+ * Кроме подарков — автобиография (банк вопросов о жизни рассказчика) и своя книга blank: банка нет, главы и разделы
+ * автор создаёт сам (book_chapters), поэтому её chapters пусты.
  */
 
-type ThemeBase = Pick<ThemeDef, "id" | "emoji" | "recipientGender" | "defaultRecipientGender" | "defaultCover" | "defaultInterior">;
+type ThemeBase = Pick<ThemeDef, "id" | "kind" | "recipient" | "emoji" | "recipientGender" | "defaultRecipientGender" | "defaultCover" | "defaultInterior">;
 type ThemeText = Omit<ThemeDef, keyof ThemeBase>;
 
+/** Порядок важен: любимому — первой (главная считает вопросы по первой теме), новые виды — в конце. */
 const base: ThemeBase[] = [
-  { id: "love", emoji: "❤", defaultRecipientGender: "m", defaultCover: "peony", defaultInterior: "romance" },
-  { id: "mom", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "tenderness", defaultInterior: "herbarium" },
-  { id: "dad", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
-  { id: "friend", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
+  { id: "love", kind: "gift", recipient: "required", emoji: "❤", defaultRecipientGender: "m", defaultCover: "peony", defaultInterior: "romance" },
+  { id: "mom", kind: "gift", recipient: "required", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "tenderness", defaultInterior: "herbarium" },
+  { id: "dad", kind: "gift", recipient: "required", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
+  { id: "friend", kind: "gift", recipient: "required", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
+  // Род получателя у автобиографии и своей книги не используется: в их текстах нет [..|..].
+  { id: "autobiography", kind: "autobiography", recipient: "none", emoji: "❦", defaultRecipientGender: "m", defaultCover: "leather", defaultInterior: "vintage" },
+  { id: "blank", kind: "blank", recipient: "optional", emoji: "✎", defaultRecipientGender: "m", defaultCover: "linen", defaultInterior: "classic" },
 ];
 
 const text: Record<Locale, Record<ThemeId, ThemeText>> = {
@@ -61,6 +69,23 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       titleSuggestions: ["Книга о нашей дружбе", "Друзья навсегда", "Ты и я", "Просто мы"],
       chapters: friendChapters,
     },
+    autobiography: {
+      name: "Автобиография",
+      short: "Автобиография",
+      description: "Книга о вашей жизни: корни, детство, любовь, работа, испытания и то, что хочется передать детям и внукам. Можно записать со слов близкого.",
+      titleSuggestions: ["История моей жизни", "Моя жизнь", "Книга моей жизни", "Моим внукам"],
+      chapters: autobiographyChapters,
+    },
+    blank: {
+      name: "Своя книга",
+      short: "Своя книга",
+      description: "Книга с чистого листа: главы и разделы придумываете сами и пишете в своём порядке — без готовых вопросов.",
+      recipientLabel: "Для кого — необязательно",
+      recipientPlaceholder: "Например, детям",
+      titleSuggestions: ["Моя книга", "Записки", "Истории", "Книга воспоминаний"],
+      firstChapterTitle: "Начало",
+      chapters: [],
+    },
   },
   kk: {
     love: {
@@ -99,6 +124,23 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       titleSuggestions: ["Достығымыз туралы кітап", "Мәңгілік достар", "Сен және мен", "Жай ғана біз"],
       chapters: friendChaptersKk,
     },
+    autobiography: {
+      name: "Өмірбаян",
+      short: "Өмірбаян",
+      description: "Өміріңіз туралы кітап: тегіңіз, балалық шақ, махаббат, еңбек, сынақтар және балалар мен немерелерге айтқыңыз келетін сөздер. Жақын адамның айтуымен де жазуға болады.",
+      titleSuggestions: ["Менің өмірімнің тарихы", "Менің өмірім", "Өмірімнің кітабы", "Немерелеріме"],
+      chapters: autobiographyChaptersKk,
+    },
+    blank: {
+      name: "Өз кітабыңыз",
+      short: "Өз кітабыңыз",
+      description: "Таза парақтан басталатын кітап: тараулар мен бөлімдерді өзіңіз ойлап табасыз, дайын сұрақтарсыз, өз ретіңізбен жазасыз.",
+      recipientLabel: "Кімге арналған — міндетті емес",
+      recipientPlaceholder: "Мысалы, балаларыма",
+      titleSuggestions: ["Менің кітабым", "Жазбалар", "Әңгімелер", "Естеліктер кітабы"],
+      firstChapterTitle: "Бастау",
+      chapters: [],
+    },
   },
 };
 
@@ -109,16 +151,41 @@ const cache = new Map<string, ThemeDef>();
 
 export const themeIds = base.map((b) => b.id);
 
+/** Незнакомые темы, о которых уже предупредили в лог (по разу на тему). */
+const warned = new Set<string>();
+
+/**
+ * Тема по id. Незнакомая тема (старые строки, откат релиза после появления новых видов) показывается как
+ * «любимому» — только для показа: создать такую книгу нельзя (BooksService.start проверяет тему, unknownTheme).
+ */
 export function getTheme(id: string, lang: Locale = "ru"): ThemeDef {
-  const b = base.find((t) => t.id === id) ?? base[0];
+  let b = base.find((t) => t.id === id);
+  if (!b) {
+    if (!warned.has(id)) {
+      warned.add(id);
+      console.warn(`[themes] неизвестная тема книги «${id}» — показываем как love`);
+    }
+    b = base[0];
+  }
   const key = `${b.id}:${lang}`;
   let theme = cache.get(key);
   if (!theme) cache.set(key, (theme = { ...b, ...(text[lang] ?? text.ru)[b.id] }));
   return theme;
 }
 
+/** Все темы: мастер новой книги, фильтры и подписи CRM. */
 export function getThemes(lang: Locale = "ru"): ThemeDef[] {
   return base.map((b) => getTheme(b.id, lang));
+}
+
+/** Темы-подарки: главная, /kniga, статьи — там, где книга дарится близкому и считаются вопросы о нём. */
+export function giftThemes(lang: Locale = "ru"): (ThemeDef & { id: GiftThemeId })[] {
+  return getThemes(lang).filter((t): t is ThemeDef & { id: GiftThemeId } => t.kind === "gift");
+}
+
+/** Темы с банком вопросов (подарки и автобиография): проверки банка, примеры вопросов. */
+export function bankThemes(lang: Locale = "ru"): ThemeDef[] {
+  return getThemes(lang).filter((t) => t.kind !== "blank");
 }
 
 export function isThemeId(id: string): id is ThemeId {

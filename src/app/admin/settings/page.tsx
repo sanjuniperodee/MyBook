@@ -1,6 +1,7 @@
 import { requireStaff } from "@/server/access";
 import { ensureToken, fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
 import { KaspiForm } from "./kaspi/KaspiForm";
+import { TransferForm } from "./transfer/TransferForm";
 import { GowaForm } from "./whatsapp/GowaForm";
 import { container } from "@/server/container";
 import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
@@ -17,7 +18,11 @@ import { Blocklist } from "./crm/Blocklist";
 import { TemplateEditor } from "./crm/TemplateEditor";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { BotForm } from "./crm/BotForm";
-import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
+import { BotStats } from "./crm/BotStats";
+import { defaultBotConfig, defaultOptionLabels, parseBotConfig } from "@/modules/messaging/domain/botConfig";
+import { BOT_VARS, catalogVars } from "@/modules/messaging/domain/botFaq";
+import { skipReasonLabels } from "@/modules/messaging/domain/botEngine";
+import { botSiteInfo } from "@/server/bot-site";
 import { listFields } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatDate } from "@/lib/dates";
@@ -43,8 +48,23 @@ export default async function SettingsPage() {
     getSetting("crm.maxDiscount"),
     container().messaging.queries.blocklist(),
   ]);
-  const [botMode, botConfig, dealFields, stats] = await Promise.all([getSetting("bot.mode"), getSetting("bot.config"), listFields("deal"), container().messaging.queries.botStats()]);
-  const [wEnabled, wChat, zPbx, zWebphone] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone")]);
+  const [botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel] = await Promise.all([
+    getSetting("bot.mode"),
+    getSetting("bot.config"),
+    listFields("deal"),
+    container().messaging.botMetrics(),
+    container().automation.rules.list(),
+    botSiteInfo.catalog(),
+    container()
+      .assistant.service.describe()
+      .then(async (d) => ((await container().assistant.service.configured()) ? d.model || d.label : null))
+      .catch(() => null),
+  ]);
+  const botFields = dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options ?? [] }));
+  const parsedBot = parseBotConfig(botConfig);
+  const ruVars = catalogVars(botCatalog, "ru");
+  const autoReplyRules = rules.filter((r) => r.active && r.trigger === "message.incoming" && (r.actions ?? []).some((a) => a.type === "send_message")).map((r) => r.name);
+  const [wEnabled, wChat, zPbx, zWebphone, reassign] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone"), getSetting("crm.reassignMinutes")]);
   const em = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.webhookToken"]);
   const [aiProvider, aiEnabled, aiKnowledge] = await Promise.all([getSetting("ai.provider"), getSetting("ai.enabled"), getSetting("ai.knowledge")]);
   const pr = await getSettings(["proofread.provider", "proofread.model", "proofread.enabled"]);
@@ -69,6 +89,7 @@ export default async function SettingsPage() {
     container().ordering.kaspiSetup.status(),
     (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl"]), status: await container().messaging.gowa.status() }))(),
   ]);
+  const transfer = await getSettings(["pay.transferPhone", "pay.transferName"]);
   const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -82,6 +103,8 @@ export default async function SettingsPage() {
         webhookUrl={hook("/api/payments/kaspi/webhook")}
         webhookSecret={fromEnv("kaspi.webhookSecret") ? null : await ensureToken("kaspi.webhookSecret")}
       />
+
+      <TransferForm phone={transfer["pay.transferPhone"]} name={transfer["pay.transferName"]} fromEnv={fromEnv("pay.transferPhone")} />
 
       <GowaForm
         provider={gowa.provider}
@@ -129,9 +152,18 @@ export default async function SettingsPage() {
         providers={aiSaved}
       />
 
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
+      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
 
-      <BotForm mode={botMode} config={parseBotConfig(botConfig)} fields={dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type }))} stats={stats} />
+      <BotForm
+        mode={botMode}
+        config={parsedBot}
+        fields={botFields}
+        defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }}
+        vars={BOT_VARS.map((v) => ({ ...v, value: ruVars[v.key.slice(1, -1)] ?? "" })).filter((v) => v.key !== "{акция}" && v.key !== "{ссылка}")}
+        autoReplyRules={autoReplyRules}
+        aiModel={aiModel}
+        stats={<BotStats m={botMetrics} questions={parsedBot.questions.flatMap((q) => botFields.filter((f) => f.key === q.field).map((f) => ({ key: f.key, label: f.label })))} skipLabels={skipReasonLabels} />}
+      />
 
       <Blocklist items={blocked.map((b) => ({ value: b.value, label: /^\d{10,15}$/.test(b.value) ? formatPhone(b.value) : b.value, date: formatDate(b.createdAt) }))} />
 

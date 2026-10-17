@@ -6,6 +6,7 @@
  * до изменившихся слов. Так корректор не может «переписать» текст или подчеркнуть не то место.
  */
 import type { Locale } from "@/i18n/config";
+import type { BookKind } from "@/lib/content/kinds";
 import type { Issue, IssueKind } from "@/lib/proofread/types";
 
 const proofreadKinds = ["spelling", "punctuation", "grammar", "style"] as const satisfies readonly IssueKind[];
@@ -35,9 +36,16 @@ export const proofreadSchema = {
 const bookLanguage: Record<Locale, string> = { ru: "русском", kk: "казахском" };
 const noteLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски" };
 
-export function proofreadSystemPrompt(language: Locale, ui: Locale) {
+/** Чем является текст: у подарка — письмо близкому, у автобиографии — рассказ от первого лица, у своей книги — авторский текст. */
+const textAbout: Record<BookKind, string> = {
+  gift: "ответ автора для подарочной книги-воспоминания: его личная история, письмо близкому человеку",
+  autobiography: "рассказ для книги о жизни самого автора, от первого лица; его мог записать близкий человек со слов рассказчика, поэтому разговорная речь и прямые слова рассказчика — норма",
+  blank: "фрагмент авторской книги, которую человек пишет сам с чистого листа: заголовки и текст разделов — его голос, жанр и стиль выбирает он",
+};
+
+export function proofreadSystemPrompt(language: Locale, ui: Locale, kind: BookKind = "gift") {
   return [
-    `Ты — бережный корректор. Текст на ${bookLanguage[language]} языке — ответ автора для подарочной книги-воспоминания: его личная история, письмо близкому человеку.`,
+    `Ты — бережный корректор. Текст на ${bookLanguage[language]} языке — ${textAbout[kind]}.`,
     "Найди только настоящие ошибки:",
     "- орфография и опечатки (пропущенные, лишние, перепутанные буквы, слитно/раздельно/через дефис, «не» с разными частями речи, -тся/-ться, н/нн);",
     "- пунктуация: прежде всего запятые (сложные предложения, причастные и деепричастные обороты, вводные слова, обращения, однородные члены), точка или вопрос в конце предложения;",

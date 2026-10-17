@@ -3,9 +3,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { PDFDocument, rgb } from "pdf-lib";
 import sharp from "sharp";
-import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
+import type { Book, BookChapter, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
-import { coverNamesLine, coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoDataUrl } from "../coverPhotos";
 import {
   coverFrontGeometry,
@@ -41,6 +42,8 @@ export type RenderMode = "print" | "preview" | "reading";
 export interface BookBundle {
   book: Book;
   questions: BookQuestion[];
+  /** Главы своей книги по порядку (у книг с банком — пусто): без них своя книга напечаталась бы «без названия». */
+  chapters: BookChapter[];
   photos: Photo[];
   letters?: BookLetter[];
 }
@@ -112,11 +115,16 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
 }
 
 export function contentFor(bundle: BookBundle): BookContent {
-  return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), undefined, bundle.letters ?? []);
+  return buildBookContent(bundle.book, bundle.questions, bundle.photos.map(toPhotoItem), bundle.chapters, undefined, bundle.letters ?? []);
 }
 
-/** Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается. */
-const LAYOUT_VERSION = 4;
+/**
+ * Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается.
+ * 5 — виды книг: главы своей книги из book_chapters, подписи галереи и «записано со слов» по виду, свой текст не склоняется.
+ * Начальная полоса с названием и эпиграфом длиннее глав банков (opener-fit) и строка на обороте титула появляются только у
+ * книг этих видов — содержимое и отпечаток подарков прежние, поэтому версия остаётся 5 (не вышедшей до этих правок).
+ */
+const LAYOUT_VERSION = 5;
 
 /** Отпечаток содержимого: меняется вместе с текстом, фото и их раскладкой — ключ кэша предпросмотра. */
 export function contentFingerprint(bundle: BookBundle): string {
@@ -135,6 +143,7 @@ export function plainText(bundle: BookBundle): { title: string; text: string } {
   const lines: string[] = [c.title.toUpperCase()];
   if (c.subtitle) lines.push(c.subtitle);
   if (c.authorName) lines.push(c.authorName);
+  if (c.recordedBy) lines.push(t.recordedBy(c.recordedBy));
   if (c.dedication) lines.push("", c.dedication);
   for (const ch of c.chapters) {
     lines.push("", "", `${t.chapter(ch.number).toUpperCase()}. ${ch.title.toUpperCase()}`);
@@ -303,11 +312,11 @@ async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "fu
 }
 
 export function coverText(book: Book) {
-  const content = buildBookContent(book, [], []);
+  const content = buildBookContent(book, [], [], []);
   return {
     title: content.title,
     subtitle: book.subtitle.trim(),
-    names: coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover),
+    names: coverNames(book),
   };
 }
 

@@ -37,6 +37,8 @@ export interface FacePlan {
   faces: Face[];
   /** Номер полосы (с 1), на которой начинается каждая глава. */
   chapterStarts: number[];
+  /** Номер полосы (с 1), на которой начинается галерея; null — галереи нет. Нужен строке галереи в оглавлении. */
+  galleryStart: number | null;
 }
 
 export function planFaces({ hasDedication, hasToc, textPages, photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
@@ -50,14 +52,16 @@ export function planFaces({ hasDedication, hasToc, textPages, photoPages = [], g
     for (let part = 0; part < count; part++) faces.push({ kind: "text", chapter, part });
     for (let page = 0; page < (photoPages[chapter] ?? 0); page++) faces.push({ kind: "photos", chapter, page });
   });
+  let galleryStart: number | null = null;
   if (galleryPages) {
+    galleryStart = faces.length + 1;
     faces.push({ kind: "galleryOpener" });
     for (let page = 0; page < galleryPages; page++) faces.push({ kind: "photos", chapter: -1, page });
   }
   faces.push({ kind: "end" });
   // Лист двусторонний — последняя полоса должна иметь пару.
   if (faces.length % 2) faces.push({ kind: "blank" });
-  return { faces, chapterStarts };
+  return { faces, chapterStarts, galleryStart };
 }
 
 /** Лицевая и оборотная сторона листа; null — полоса принадлежит переплёту, а не блоку. */

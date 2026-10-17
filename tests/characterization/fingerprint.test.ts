@@ -28,10 +28,10 @@ describe("contentFingerprint", () => {
     expect(Object.fromEntries(characterizationBooks().map((fb) => [fb.key, contentFingerprint(fb.bundle)]))).toMatchSnapshot();
   });
 
-  it("формула: sha1 от версии вёрстки 4, содержимого книги и id:раскладка:подпись каждого фото, первые 16 знаков", () => {
+  it("формула: sha1 от версии вёрстки 5, содержимого книги и id:раскладка:подпись каждого фото, первые 16 знаков", () => {
     const b = bundle();
     const photos = b.photos.map((p) => `${p.id}:${p.layout}:${p.caption}`).join("|");
-    const expected = createHash("sha1").update("v4").update(JSON.stringify(contentFor(b))).update(photos).digest("hex").slice(0, 16);
+    const expected = createHash("sha1").update("v5").update(JSON.stringify(contentFor(b))).update(photos).digest("hex").slice(0, 16);
     expect(contentFingerprint(b)).toBe(expected);
   });
 
@@ -73,6 +73,26 @@ describe("contentFingerprint", () => {
       "шаблон обложки и оборот": false,
       "получатель скрыт на обложке": false,
       "статус и даты": false,
+    });
+  });
+
+  it("виды книг: название и эпиграф главы своей книги, порядок её глав, «кто записал» у автобиографии", () => {
+    const variant = (key: string) => characterizationBooks().find((fb) => fb.key === key)!.bundle;
+    const blank = variant("blank");
+    const auto = variant("autobiography");
+    const changes: Record<string, [BookBundle, BookBundle]> = {
+      "название главы своей книги": [blank, { ...blank, chapters: blank.chapters.map((c, i) => (i === 0 ? { ...c, title: "Другое название" } : c)) }],
+      "эпиграф главы своей книги": [blank, { ...blank, chapters: blank.chapters.map((c, i) => (i === 1 ? { ...c, epigraph: "Другой эпиграф" } : c)) }],
+      "порядок глав своей книги": [blank, { ...blank, chapters: [blank.chapters[1], blank.chapters[0], ...blank.chapters.slice(2)].map((c, position) => ({ ...c, position })) }],
+      "название пустой главы (в книгу не попадает)": [blank, { ...blank, chapters: blank.chapters.map((c) => (c.title === "Пока пустая глава" ? { ...c, title: "Всё ещё пустая" } : c)) }],
+      "кто записал (автобиография)": [auto, { ...auto, book: { ...auto.book, recordedBy: "сын Ерлан" } }],
+    };
+    expect(Object.fromEntries(Object.entries(changes).map(([name, [a, b]]) => [name, contentFingerprint(a) !== contentFingerprint(b)]))).toEqual({
+      "название главы своей книги": true,
+      "эпиграф главы своей книги": true,
+      "порядок глав своей книги": true,
+      "название пустой главы (в книгу не попадает)": false,
+      "кто записал (автобиография)": true,
     });
   });
 

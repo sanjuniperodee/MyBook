@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AuthoringError, Book, isBookVisibleTo, MAX_PHOTOS, Photo, Question } from "@/modules/authoring/domain";
 import { BooksService, LettersService, PhotosService } from "@/modules/authoring/application/services";
-import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noQuestions, now, owner, rejectsWith, staff, startBook, stranger, theme, themes } from "./doubles/authoring";
+import { FakeUow, ids, images, MemBooks, MemFiles, MemLetters, MemPhotos, noChapters, noQuestions, now, owner, rejectsWith, staff, startBook, stranger, theme, themes } from "./doubles/authoring";
 
 // ─── домен ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ describe("BooksService", () => {
     const books = new MemBooks();
     const files = new MemFiles();
     const uow = new FakeUow();
-    const service = new BooksService(books, noQuestions, themes, { bookHasOrders: async () => hasOrders }, files, ids, uow, { now: () => now });
+    const service = new BooksService(books, noQuestions, themes, { bookHasOrders: async () => hasOrders }, files, ids, uow, { now: () => now }, noChapters);
     return { books, files, uow, service };
   };
 

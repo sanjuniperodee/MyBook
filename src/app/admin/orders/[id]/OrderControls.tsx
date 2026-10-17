@@ -1,9 +1,10 @@
 "use client";
 
 import { ask } from "@/components/ui/overlays";
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { LoaderCircle, RefreshCw } from "lucide-react";
-import { generateFilesAction, saveAdminNoteAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
+import { generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
@@ -144,5 +145,158 @@ export function DetailsForm({
         </div>
       </form>
     </details>
+  );
+}
+
+export interface OrderMoneyRow {
+  id: string;
+  amount: number;
+  method: "manual" | "kaspi" | "cloudpayments";
+  ref: string | null;
+  paidLabel: string;
+  note: string;
+  receipt: boolean;
+  /** Ручную оплату проверил руководитель (кто и когда). */
+  reviewed: string | null;
+  by: string | null;
+}
+
+const methodLabels = { manual: "Перевод", kaspi: "Kaspi", cloudpayments: "Карта" } as const;
+
+/**
+ * Деньги по заказу: журнал оплат (перевод с чеком, онлайн), «Принять оплату» в любом статусе, кроме отменённого,
+ * «В печать с постоплатой» для неоплаченного. Руководитель отмечает ручные оплаты «проверено» (сверил с выпиской).
+ */
+export function OrderMoney({
+  orderId,
+  status,
+  due,
+  received,
+  postpay,
+  settled,
+  rows,
+  canEdit,
+  canReview,
+}: {
+  orderId: string;
+  status: OrderStatus;
+  due: number;
+  received: number;
+  postpay: boolean;
+  settled: boolean;
+  rows: OrderMoneyRow[];
+  canEdit: boolean;
+  canReview: boolean;
+}) {
+  const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const outstanding = Math.max(0, due - received);
+  const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
+  const submit = (form: HTMLFormElement) =>
+    start(async () => {
+      setError(null);
+      const res = await fetch(`/api/admin/orders/${orderId}/payments`, { method: "POST", body: new FormData(form) });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string; overpaid?: number };
+      if (!res.ok) return setError(body.message ?? body.error ?? "Не удалось принять оплату");
+      setOpen(false);
+      if (body.overpaid) setError(`Получено больше, чем к оплате, на ${money(body.overpaid)} — ответственному поставлена задача «возврат или зачёт».`);
+      router.refresh();
+    });
+  return (
+    <div className="space-y-3 text-sm" data-testid="order-money">
+      <dl className="space-y-1">
+        <div className="flex justify-between"><dt className="text-muted">Получено</dt><dd className="font-semibold">{money(received)} из {money(due)}</dd></div>
+        {outstanding && status !== "cancelled" ? <div className="flex justify-between text-amber-800"><dt>{postpay ? "Постоплата: ждём" : "Осталось получить"}</dt><dd>{money(outstanding)}</dd></div> : null}
+        {settled && !rows.length && due > 0 ? <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800">Оплата подтверждена без денег в журнале — прикрепите оплату с чеком.</p> : null}
+      </dl>
+      {rows.length ? (
+        <ul className="space-y-1.5 border-t border-line pt-2 text-xs">
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <span>
+                {methodLabels[r.method]} · {money(r.amount)} · {r.paidLabel}
+                {r.ref ? ` · операция ${r.ref}` : ""}
+                {r.by ? ` · ${r.by}` : ""}
+                {r.note ? ` — ${r.note}` : ""}
+              </span>
+              <span className="flex gap-2">
+                {r.receipt ? (
+                  <a href={`/api/admin/order-payments/${r.id}/receipt`} target="_blank" rel="noopener noreferrer" className="underline">
+                    чек
+                  </a>
+                ) : null}
+                {r.method === "manual" ? (
+                  r.reviewed ? (
+                    <span className="text-emerald-700">проверено {r.reviewed}</span>
+                  ) : canReview ? (
+                    <button type="button" className="text-wine underline" disabled={pending} onClick={() => start(async () => void (await reviewOrderPaymentAction(r.id), router.refresh()))}>
+                      проверено
+                    </button>
+                  ) : (
+                    <span className="text-amber-700">не проверено</span>
+                  )
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {canEdit && status !== "cancelled" ? (
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-sm" onClick={() => setOpen((v) => !v)}>
+            Принять оплату
+          </button>
+          {status === "pending_payment" ? (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={pending}
+              onClick={() => {
+                const reason = window.prompt("В печать без оплаты. О чём договорились с клиентом (когда и как заплатит)?");
+                if (reason === null) return;
+                start(async () => {
+                  const r = await startPostpayAction(orderId, reason);
+                  if (r.error) setError(r.error);
+                  else router.refresh();
+                });
+              }}
+            >
+              В печать с постоплатой
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {open ? (
+        <form
+          className="space-y-2 rounded-xl border border-line p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(e.currentTarget);
+          }}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs text-muted">
+              Сумма, ₸
+              <input name="amount" type="number" min={1} step={1} required defaultValue={outstanding || undefined} className="input mt-1 h-9 text-sm" />
+            </label>
+            <label className="block text-xs text-muted">
+              Дата оплаты
+              <input name="paidAt" type="date" className="input mt-1 h-9 text-sm" />
+            </label>
+          </div>
+          <label className="block text-xs text-muted">
+            Чек (скриншот, фото или PDF)
+            <input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required className="mt-1 block w-full text-sm" />
+          </label>
+          <input name="note" maxLength={500} placeholder="Комментарий (необязательно)" className="input h-9 text-sm" />
+          <button className="btn btn-sm" disabled={pending}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Записать оплату
+          </button>
+        </form>
+      ) : null}
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
+    </div>
   );
 }

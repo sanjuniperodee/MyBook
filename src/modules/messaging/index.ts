@@ -1,23 +1,29 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { MessagingService, QualifierBot, SiteChatService, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
-import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type MessagingPermission } from "./infrastructure/adapters";
+import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
-import { parseGowaHistory } from "./domain/gowa";
+import { GOWA_CHANNEL, gowaJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
-import { DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
+import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
+import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
+import type { Conversation } from "./domain";
 
-export { channelLabel, type Conversation, type InboundMessage } from "./domain";
+export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
+export { MediaUnavailableError } from "./application/media";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
-export type { IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules } from "./application";
+export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm } from "./application";
+export type { BotSiteInfo } from "./infrastructure/adapters";
+export type { BotMetrics } from "./infrastructure/persistence";
+export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -56,27 +62,107 @@ export class MessagingModule {
   readonly email: EmailChannel;
   /** Данные экрана чата. */
   readonly view: ChatView;
+  /** Вложения WhatsApp по id сообщения: голосовые, фото, файлы (в том числе из истории — шлюз скачивает их по запросу). */
+  readonly media: ChatMediaService;
+  /** Бот-квалификатор: ходы, фоновый проход, остановка и запуск из чата. */
+  readonly bot: QualifierBot;
+  private readonly botStore = new DrizzleBotStore();
+  private readonly botSettings;
 
   constructor(
-    private readonly deps: { clock: Clock; sales: SalesGateway; rules: IncomingRules; links: LinkAttribution; whatsapp: () => Promise<string>; whatsappSettings: WhatsappSettings } & WorkspacePorts,
+    private readonly deps: {
+      clock: Clock;
+      sales: SalesGateway;
+      rules: IncomingRules;
+      links: LinkAttribution;
+      whatsapp: () => Promise<string>;
+      whatsappSettings: WhatsappSettings;
+      /** Бот: сделка и клиент (Sales, Ordering, Authoring), цены и темы с сайта, AI для понимания ответов — порты контейнера. */
+      botCrm: Omit<BotCrm, "priorChat">;
+      botSite: BotSiteInfo;
+      brain?: BotBrain | null;
+    } & WorkspacePorts,
   ) {
     const conversations = new DrizzleConversationRepository();
     const notifier = crmNotifier(deps.notifier);
     const live = realtimeUpdates(deps.live);
-    const bot = new QualifierBot(conversations, crmBotSettings(deps), deps.sales, notifier, deps.clock);
+    this.botSettings = crmBotSettings({ settings: deps.settings, schedule: deps.schedule, fields: deps.fields, site: deps.botSite });
+    this.bot = new QualifierBot({
+      conversations,
+      store: this.botStore,
+      settings: this.botSettings,
+      crm: { ...deps.botCrm, priorChat: (conv, before) => this.priorChat(conv, before) },
+      sales: deps.sales,
+      notifier,
+      tasks: crmTasksAdapter,
+      timers: processTimers(),
+      clock: deps.clock,
+      logger: consoleLogger("bot"),
+      // Ссылки на chats берутся при вызове: сервис переписки создаётся ниже.
+      send: (conversationId, text) => this.chats.send(conversationId, text, null, "bot"),
+      note: (conversationId, text) => this.chats.addInternalNote(conversationId, text, null, "bot"),
+      shopPhone: deps.whatsapp,
+      brain: deps.brain ?? null,
+    });
+    const bot = this.bot;
     this.gowa = new GowaClient(deps.whatsappSettings.gowa);
     this.wazzup = new WazzupClient(deps.settings);
     // Входящие письма уходят в сервис переписки, а он отправляет ответы через почту: ссылка на chats берётся при вызове.
     this.email = new EmailChannel({ ...deps, chats: { ingest: (message, extra) => this.chats.ingest(message, extra) } });
     this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup, gowa: this.gowa, whatsappProvider: deps.whatsappSettings.provider, smtp: deps.smtp });
     const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup, this.email));
-    this.chats = new MessagingService(conversations, new DrizzleMessageRepository(), drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"));
+    const messages = new DrizzleMessageRepository();
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp);
+    this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa");
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
   }
 
   /** Через что сейчас работает WhatsApp. */
   whatsappProvider() {
     return this.deps.whatsappSettings.provider();
+  }
+
+  /**
+   * Переписка с номером была до CRM: в хранилище шлюза WhatsApp есть сообщения старше первого сообщения диалога.
+   * Тогда это не новый клиент — бот молчит, а история попадает в диалог, чтобы менеджер видел, о чём говорили.
+   */
+  private async priorChat(conv: Conversation, before: Date): Promise<boolean> {
+    if (conv.channel !== "whatsapp") return false;
+    if (conv.channelId !== GOWA_CHANNEL && (await this.deps.whatsappSettings.provider()) !== "gowa") return false;
+    const page = await this.gowa.chatMessages(gowaJid(conv.chatId), 0, 30);
+    const older = page.messages
+      .flatMap((raw) => parseGowaHistory(raw) ?? [])
+      .filter((m) => m.at.getTime() < before.getTime() - 60_000)
+      .sort((a, b) => a.at.getTime() - b.at.getTime());
+    if (!older.length) return false;
+    await this.chats.importHistory(older, { anyWhatsappChannel: true }).catch((err) => console.error("[bot] history", err));
+    return true;
+  }
+
+  /** Состояние бота в диалоге — для шапки чата («Бот: вопрос 2 из 4», «Бот передал менеджеру»). */
+  async botStatus(conversationId: string) {
+    const [rec, fields] = await Promise.all([this.botStore.load(conversationId), this.deps.fields.list("deal")]);
+    return botStatus(rec, fields);
+  }
+
+  /** Тест-режим в настройках: прогнать диалог с несохранёнными настройками — без базы и без отправки клиенту. */
+  async previewBot(input: BotPreviewInput) {
+    const now = this.deps.clock.now();
+    const [fields, catalog, site, nowWork, tomorrowStart] = await Promise.all([
+      this.deps.fields.list("deal"),
+      this.botSettings.catalog(),
+      this.botSettings.site(),
+      this.botSettings.nextWorkStart(now),
+      this.botSettings.nextWorkStart(new Date(now.getTime() + 24 * 3600_000 - ((now.getTime() / 60_000) % (24 * 60)) * 60_000)),
+    ]);
+    // «Нерабочее время» в тесте — как ночью: менеджер ответит со следующей смены.
+    const nextStart = input.workTime ? nowWork : tomorrowStart;
+    return botPreview(input, { fields, catalog, site, now, nextWorkStart: nextStart, tz: this.botSettings.timeZone() });
+  }
+
+  /** Метрики бота для настроек. */
+  botMetrics(days = 30) {
+    return this.queries.botMetrics(days);
   }
 
   /**

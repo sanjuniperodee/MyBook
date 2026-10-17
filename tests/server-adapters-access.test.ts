@@ -232,7 +232,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
     expect(await bookOf({ editable: true })).toEqual({ status: 200, body: BOOK });
 
     // PATCH /api/books/<id>/questions/<qid>: правило домена Book.isEditableBy пускает владельца и сотрудника с clients.edit
-    const theme = { id: "love", titleSuggestions: ["Т"], defaultCover: "linen", defaultInterior: "classic", questions: [] };
+    const theme = { id: "love", kind: "gift" as const, recipient: "required" as const, titleSuggestions: ["Т"], firstChapterTitle: "", defaultCover: "linen", defaultInterior: "classic", questions: [] };
     const book = Book.start(BOOK, { userId: "u1", language: "ru", authorName: "Алия", authorGender: "f", recipientName: "Марат", recipientGender: "m" }, theme, new Date()).book;
     const edits: string[] = [];
     fake.authoring.questions = {

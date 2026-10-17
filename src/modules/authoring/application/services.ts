@@ -1,11 +1,38 @@
 import type { Clock, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
-import { AuthoringError, Book, Letter, MAX_LETTERS, MAX_PHOTOS, MAX_QUESTIONS, Photo, type BookRepository, type BookSettings, type BookViewer, type Gender, type LetterRepository, type LetterStatus, type PhotoProps, type PhotoRepository, type QuestionRepository } from "../domain";
+import { CHAPTER_EPIGRAPH_MAX, CHAPTER_TITLE_MAX, hasOutline, MAX_CHAPTERS, progressChanged, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
+import {
+  AuthoringError,
+  Book,
+  insertKey,
+  Letter,
+  MAX_LETTERS,
+  MAX_PHOTOS,
+  MAX_QUESTIONS,
+  Photo,
+  sameSet,
+  type BookRepository,
+  type BookSettings,
+  type BookViewer,
+  type ChapterRepository,
+  type LetterRepository,
+  type LetterStatus,
+  type Outline,
+  type PhotoProps,
+  type PhotoRepository,
+  type QuestionPatch,
+  type QuestionRepository,
+  type StartInput,
+} from "../domain";
 import type { FileStore, IdGenerator, ImageProcessor, OrdersLookup, ThemeCatalog } from "./ports";
 
-/** Загрузка книги с проверкой доступа: чужая книга (для правки — и книга, которую сотруднику менять нельзя) — как будто её нет. */
-async function loadBook(books: BookRepository, bookId: string, viewer: BookViewer, opts: { editable?: boolean } = {}) {
-  const book = await books.findById(bookId);
+/**
+ * Загрузка книги с проверкой доступа: чужая книга (для правки — и книга, которую сотруднику менять нельзя) — как будто её нет.
+ * lock — строка книги заблокирована до конца транзакции (только внутри uow.run): проверки лимитов и набора и запись
+ * идут без гонок с параллельной правкой и с заказом (lockForOrder ждёт).
+ */
+async function loadBook(books: BookRepository, bookId: string, viewer: BookViewer, opts: { editable?: boolean; lock?: boolean } = {}) {
+  const book = await books.findById(bookId, opts.lock ? { lock: true } : undefined);
   if (!book || !(opts.editable ? book.isEditableBy(viewer) : book.isVisibleTo(viewer))) throw new AuthoringError("bookNotFound");
   if (opts.editable) book.assertEditable();
   return book;
@@ -21,13 +48,16 @@ export class BooksService {
     private readonly ids: IdGenerator,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    private readonly chapters: ChapterRepository,
   ) {}
 
-  async start(userId: string, input: { theme: string; language: Locale; authorName: string; authorGender: Gender; recipientName: string; recipientGender: Gender; title?: string; occasion?: string | null; occasionDate?: string | null }) {
+  /** Новая книга. Тема проверяется: незнакомая — unknownTheme (молчаливый откат на «любимому» — только для показа). */
+  async start(userId: string, input: Omit<StartInput, "userId"> & { theme: string }) {
+    if (!this.themes.isTheme(input.theme)) throw new AuthoringError("unknownTheme");
     const theme = this.themes.get(input.theme, input.language);
-    const { book, questions } = Book.start(this.books.nextId(), { userId, ...input }, theme, this.clock.now());
+    const { book, questions, chapters } = Book.start(this.books.nextId(), { userId, ...input }, theme, this.clock.now(), () => this.ids.uuid());
     await this.uow.run(async () => {
-      await this.books.add(book, questions);
+      await this.books.add(book, questions, chapters);
       this.uow.track(book);
     });
     return book;
@@ -36,7 +66,8 @@ export class BooksService {
   /** Настройки из редактора (включая смену языка книги). */
   async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown }, photos: PhotoRepository) {
     return this.uow.run(async () => {
-      const book = await loadBook(this.books, bookId, viewer, { editable: true });
+      // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
       const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, ...settings } = patch;
       for (const [side, ids] of [
         ["cover", coverPhotoExtra],
@@ -56,8 +87,12 @@ export class BooksService {
       }
       if (photoFrames !== undefined) book.setPhotoFrames(photoFrames);
       if (language && language !== book.language) {
-        const texts = book.switchLanguage(language, this.themes.get(book.theme, book.language), this.themes.get(book.theme, language));
+        const from = this.themes.get(book.theme, book.language);
+        const to = this.themes.get(book.theme, language);
+        const texts = book.switchLanguage(language, from, to);
         await this.questions.replaceTemplates(book.id, texts);
+        // Своя книга: глава с названием по умолчанию («Начало») переводится, свои названия глав остаются.
+        if (hasOutline(book.theme) && from.firstChapterTitle && to.firstChapterTitle) await this.chapters.retitle(book.id, from.firstChapterTitle, to.firstChapterTitle);
       }
       book.applySettings(settings);
       await this.books.save(book);
@@ -121,25 +156,47 @@ export class QuestionsService {
     private readonly books: BookRepository,
     private readonly questions: QuestionRepository,
     private readonly uow: UnitOfWork,
+    private readonly photos: PhotoRepository,
+    private readonly chapters: ChapterRepository,
   ) {}
 
-  /** Автосохранение ответа/заголовка. */
-  async edit(bookId: string, viewer: BookViewer, questionId: string, patch: { answer?: string; displayText?: string | null; hideHeading?: boolean }) {
+  /**
+   * Автосохранение ответа и заголовка. У разделов своей книги (blank) правятся ещё заголовок и подсказка (title, prompt),
+   * а переписанный заголовок и его скрытие не используются; в остальных книгах title и prompt — outlineNotAllowed:
+   * у своих вопросов там заголовок правят через displayText, и правка prompt без title рассинхронизировала бы вопрос.
+   */
+  async edit(bookId: string, viewer: BookViewer, questionId: string, patch: QuestionPatch) {
     return this.uow.run(async () => {
-      const book = await loadBook(this.books, bookId, viewer, { editable: true });
+      // Строка книги — первой, как у операций оглавления: иначе автосохранение держит строку вопроса и ждёт книгу
+      // (touch), а перестановка держит книгу и ждёт этот вопрос (перенумерация) — взаимная блокировка (deadlock).
+      // Заодно заказ, оформленный посреди сохранения, не пропустит правку в уже заказанную книгу.
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
       const q = await this.questions.findInBook(book.id, questionId);
       if (!q) throw new AuthoringError("questionNotFound");
-      q.edit(patch);
+      const outline = hasOutline(book.theme);
+      if ((patch.title !== undefined || patch.prompt !== undefined) && !(outline && q.isCustom)) throw new AuthoringError("outlineNotAllowed");
+      const wordsBefore = q.words;
+      q.edit(outline ? { answer: patch.answer, title: patch.title, prompt: patch.prompt } : patch);
       await this.questions.save(q);
       await this.books.touch(book.id);
       this.uow.track(q);
+      // Своя книга идёт по вехам по словам всей книги: событие, когда сумма пересекла порог progressOf.
+      if (outline && !q.hasPendingEvents && q.words !== wordsBefore) {
+        const after = await this.questions.wordsInBook(book.id);
+        const at = (words: number) => ({ answered: 1, total: 1, words });
+        if (progressChanged("blank", at(after - q.words + wordsBefore), at(after))) {
+          book.noteProgress();
+          this.uow.track(book);
+        }
+      }
     });
   }
 
-  /** Свой вопрос — сразу после указанного, в ту же главу. */
+  /** Свой вопрос — сразу после указанного, в ту же главу (книги с банком; у своей книги — BookOutlineService.addSection). */
   async addCustom(bookId: string, viewer: BookViewer, afterId: string, prompt: string) {
     return this.uow.run(async () => {
-      const book = await loadBook(this.books, bookId, viewer, { editable: true });
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (hasOutline(book.theme)) throw new AuthoringError("outlineNotAllowed");
       const after = await this.questions.findInBook(book.id, afterId);
       if (!after) throw new AuthoringError("questionNotFound");
       if ((await this.questions.count(book.id)) >= MAX_QUESTIONS) throw new AuthoringError("questionsLimit");
@@ -147,10 +204,172 @@ export class QuestionsService {
     });
   }
 
-  /** Удалять можно только собственные вопросы. */
-  async deleteCustom(bookId: string, viewer: BookViewer, questionId: string) {
-    const book = await loadBook(this.books, bookId, viewer, { editable: true });
-    if (!(await this.questions.deleteCustom(book.id, questionId))) throw new AuthoringError("onlyOwnQuestions");
+  /**
+   * Удалять можно только собственные вопросы (у своей книги — любой раздел: все они custom). Фото раздела остаются
+   * в книге среди общих, позиции выравниваются (письма ведут по ним к первому пустому вопросу), а если в разделе
+   * был текст — прогресс книги сдвинулся. Своей книге возвращает оглавление после удаления, остальным — null.
+   */
+  async deleteCustom(bookId: string, viewer: BookViewer, questionId: string): Promise<Outline | null> {
+    return this.uow.run(async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const q = await this.questions.findInBook(book.id, questionId);
+      if (!q) throw new AuthoringError("questionNotFound");
+      if (!q.isCustom) throw new AuthoringError("onlyOwnQuestions");
+      const outline = hasOutline(book.theme);
+      await this.photos.detachFromQuestions(book.id, [q.id]);
+      await this.questions.deleteCustom(book.id, q.id);
+      await this.questions.renumber(book.id, outline ? "outline" : "bank");
+      await this.books.touch(book.id);
+      if (q.isAnswered) {
+        book.noteProgress();
+        this.uow.track(book);
+      }
+      return outline ? this.chapters.outline(book.id) : null;
+    });
+  }
+}
+
+const clip = (s: string, max: number) => s.trim().slice(0, max);
+
+/**
+ * Оглавление своей книги (тема blank): главы и разделы. Каждая операция — в одной транзакции с блокировкой строки
+ * книги (параллельные вкладки и устройства идут по очереди: лимиты и набор проверяются под блокировкой), кончается
+ * перенумерацией (§1.6) и возвращает актуальное оглавление. В книгах с банком — outlineNotAllowed.
+ * Заголовок и подсказка раздела правятся через QuestionsService.edit, раздел удаляется QuestionsService.deleteCustom.
+ */
+export class BookOutlineService {
+  constructor(
+    private readonly books: BookRepository,
+    private readonly questions: QuestionRepository,
+    private readonly chapters: ChapterRepository,
+    private readonly photos: PhotoRepository,
+    private readonly ids: IdGenerator,
+    private readonly uow: UnitOfWork,
+  ) {}
+
+  private async load(bookId: string, viewer: BookViewer) {
+    const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+    if (!hasOutline(book.theme)) throw new AuthoringError("outlineNotAllowed");
+    return book;
+  }
+
+  /** Конец операции: позиции разделов по главам, отметка изменения, событие прогресса (если ушёл текст), оглавление. */
+  private async finish(book: Book, lostText = false): Promise<Outline> {
+    await this.questions.renumber(book.id, "outline");
+    await this.books.touch(book.id);
+    if (lostText) {
+      book.noteProgress();
+      this.uow.track(book);
+    }
+    return this.chapters.outline(book.id);
+  }
+
+  /** Новая глава (после afterKey или в конец) — сразу с пустым разделом, чтобы было куда писать. */
+  addChapter(bookId: string, viewer: BookViewer, input: { title: string; afterKey?: string | null }): Promise<{ key: string; sectionId: string; outline: Outline }> {
+    return this.uow.run(async () => {
+      const book = await this.load(bookId, viewer);
+      const chapters = await this.chapters.list(book.id);
+      if (chapters.length >= MAX_CHAPTERS) throw new AuthoringError("chaptersLimit", undefined, [MAX_CHAPTERS]);
+      const afterKey = input.afterKey ?? null;
+      if (afterKey !== null && !chapters.some((c) => c.key === afterKey)) throw new AuthoringError("chapterNotFound");
+      // Глава приходит с разделом: при полной книге не создаём «главу без раздела».
+      if ((await this.questions.count(book.id)) >= MAX_QUESTIONS) throw new AuthoringError("questionsLimit");
+      const key = this.ids.uuid();
+      const keys = insertKey(
+        chapters.map((c) => c.key),
+        key,
+        afterKey,
+      );
+      await this.chapters.add(book.id, { key, title: clip(input.title, CHAPTER_TITLE_MAX), epigraph: "", position: keys.indexOf(key) });
+      await this.chapters.setOrder(book.id, keys);
+      const sectionId = await this.questions.insertSection(book.id, key, null, { title: "", prompt: "" });
+      return { key, sectionId, outline: await this.finish(book) };
+    });
+  }
+
+  /** Название и эпиграф главы. */
+  renameChapter(bookId: string, viewer: BookViewer, key: string, patch: { title?: string; epigraph?: string }): Promise<Outline> {
+    return this.uow.run(async () => {
+      const book = await this.load(bookId, viewer);
+      const clean = {
+        ...(patch.title !== undefined ? { title: clip(patch.title, CHAPTER_TITLE_MAX) } : {}),
+        ...(patch.epigraph !== undefined ? { epigraph: clip(patch.epigraph, CHAPTER_EPIGRAPH_MAX) } : {}),
+      };
+      if (!(await this.chapters.update(book.id, key, clean))) throw new AuthoringError("chapterNotFound");
+      await this.books.touch(book.id);
+      return this.chapters.outline(book.id);
+    });
+  }
+
+  /** Полный порядок глав: тот же набор ключей, иначе клиент видит устаревшее оглавление (outlineOutdated). */
+  reorderChapters(bookId: string, viewer: BookViewer, keys: string[]): Promise<Outline> {
+    return this.uow.run(async () => {
+      const book = await this.load(bookId, viewer);
+      const current = await this.chapters.list(book.id);
+      if (
+        !sameSet(
+          keys,
+          current.map((c) => c.key),
+        )
+      )
+        throw new AuthoringError("outlineOutdated");
+      await this.chapters.setOrder(book.id, keys);
+      return this.finish(book);
+    });
+  }
+
+  /** Глава удаляется вместе с разделами; их фото остаются в книге среди общих (вкладка «Фото»). */
+  deleteChapter(bookId: string, viewer: BookViewer, key: string): Promise<Outline> {
+    return this.uow.run(async () => {
+      const book = await this.load(bookId, viewer);
+      const current = await this.chapters.list(book.id);
+      if (!current.some((c) => c.key === key)) throw new AuthoringError("chapterNotFound");
+      await this.photos.detachFromQuestions(book.id, await this.questions.idsInChapter(book.id, key));
+      const { hadText } = await this.questions.deleteChapter(book.id, key);
+      await this.chapters.delete(book.id, key);
+      await this.chapters.setOrder(
+        book.id,
+        current.filter((c) => c.key !== key).map((c) => c.key),
+      );
+      return this.finish(book, hadText);
+    });
+  }
+
+  /** Новый раздел в главе: после afterId (он обязан быть в этой главе) или в конец главы. */
+  addSection(bookId: string, viewer: BookViewer, input: { chapterKey: string; afterId?: string | null; title: string; prompt: string }): Promise<{ id: string; outline: Outline }> {
+    return this.uow.run(async () => {
+      const book = await this.load(bookId, viewer);
+      const chapters = await this.chapters.list(book.id);
+      if (!chapters.some((c) => c.key === input.chapterKey)) throw new AuthoringError("chapterNotFound");
+      if ((await this.questions.count(book.id)) >= MAX_QUESTIONS) throw new AuthoringError("questionsLimit");
+      const after = input.afterId ? await this.questions.findInBook(book.id, input.afterId) : null;
+      if (input.afterId && !after) throw new AuthoringError("questionNotFound");
+      if (after && after.chapter !== input.chapterKey) throw new AuthoringError("outlineOutdated");
+      const id = await this.questions.insertSection(book.id, input.chapterKey, after, { title: clip(input.title, SECTION_TITLE_MAX), prompt: clip(input.prompt, SECTION_PROMPT_MAX) });
+      return { id, outline: await this.finish(book) };
+    });
+  }
+
+  /** Полный порядок разделов с главами: тот же набор id и существующие главы, иначе outlineOutdated. */
+  reorderSections(bookId: string, viewer: BookViewer, order: { id: string; chapter: string }[]): Promise<Outline> {
+    return this.uow.run(async () => {
+      const book = await this.load(bookId, viewer);
+      const sections = await this.questions.sections(book.id);
+      const keys = new Set((await this.chapters.list(book.id)).map((c) => c.key));
+      const sameIds = sameSet(
+        order.map((s) => s.id),
+        sections.map((s) => s.id),
+      );
+      if (!sameIds || !order.every((s) => keys.has(s.chapter))) throw new AuthoringError("outlineOutdated");
+      await this.questions.arrange(book.id, order);
+      return this.finish(book);
+    });
+  }
+
+  /** Оглавление книги: главы и разделы по порядку (видно и сотруднику только на просмотр). */
+  async outline(bookId: string, viewer: BookViewer): Promise<Outline> {
+    const book = await loadBook(this.books, bookId, viewer);
+    return this.chapters.outline(book.id);
   }
 }
 

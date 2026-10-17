@@ -13,7 +13,8 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
 import { coverName, interiorName } from "@/i18n/labels";
 import { coverPhotoRefs } from "@/lib/book/photo-refs";
@@ -58,7 +59,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             format={book.format}
             title={book.title}
             subtitle={book.subtitle}
-            names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
+            names={coverNames(book)}
             photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "thumb")}
             lite
             className="rounded-[3px] shadow-book"

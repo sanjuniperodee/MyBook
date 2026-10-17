@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, lt, ne, sql } from "drizzle-orm";
 import { passwordResets, sessions, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { isPhoneEmail, User, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
+import { isPhoneEmail, User, type LinkPurpose, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 
 type Row = typeof users.$inferSelect;
 
@@ -43,12 +43,13 @@ export class DrizzleUserRepository implements UserRepository {
 
   async findClientsByPhone(phone: string) {
     const digits = phone.replace(/\D/g, "");
-    // В базе номера лежат в разном виде (+7 775…, 8775…): сравниваем цифры, 8… считаем за 7….
-    const variants = [digits, digits.length === 11 && digits.startsWith("7") ? `8${digits.slice(1)}` : digits];
+    // В базе номера лежат в разном виде (+7 775…, 8775…): сравниваем цифры, 8… и 7… — один и тот же номер.
+    const kz = digits.length === 11 && (digits.startsWith("7") || digits.startsWith("8")) ? digits.slice(1) : null;
+    const variants = kz ? [`7${kz}`, `8${kz}`] : [digits];
     const rows = await executor()
       .select()
       .from(users)
-      .where(sql`${users.role} = 'user' and regexp_replace(coalesce(${users.phone}, ''), '\D', '', 'g') in (${sql.join(variants.map((v) => sql`${v}`), sql`, `)})`)
+      .where(sql`${users.role} = 'user' and regexp_replace(coalesce(${users.phone}, ''), '\\D', '', 'g') in (${sql.join(variants.map((v) => sql`${v}`), sql`, `)})`)
       .limit(5);
     return rows.map(toDomain);
   }
@@ -93,13 +94,13 @@ export class DrizzleSessionRepository implements SessionRepository {
 }
 
 export class DrizzlePasswordResetRepository implements PasswordResetRepository {
-  async create(tokenHash: string, userId: string, expiresAt: Date) {
-    await executor().insert(passwordResets).values({ id: tokenHash, userId, expiresAt });
+  async create(tokenHash: string, userId: string, expiresAt: Date, purpose: LinkPurpose = "reset") {
+    await executor().insert(passwordResets).values({ id: tokenHash, userId, expiresAt, purpose });
   }
 
   async findValid(tokenHash: string, now: Date) {
     const [r] = await executor()
-      .select({ id: passwordResets.id, userId: passwordResets.userId })
+      .select({ id: passwordResets.id, userId: passwordResets.userId, purpose: passwordResets.purpose })
       .from(passwordResets)
       .where(and(eq(passwordResets.id, tokenHash), gt(passwordResets.expiresAt, now), isNull(passwordResets.usedAt)))
       .limit(1);
@@ -107,6 +108,23 @@ export class DrizzlePasswordResetRepository implements PasswordResetRepository {
   }
 
   async markUsed(id: string, now: Date) {
-    await executor().update(passwordResets).set({ usedAt: now }).where(eq(passwordResets.id, id));
+    const rows = await executor()
+      .update(passwordResets)
+      .set({ usedAt: now })
+      .where(and(eq(passwordResets.id, id), isNull(passwordResets.usedAt)))
+      .returning({ id: passwordResets.id });
+    return rows.length > 0;
+  }
+
+  async peek(tokenHash: string, now: Date) {
+    const [r] = await executor().select({ purpose: passwordResets.purpose, usedAt: passwordResets.usedAt, expiresAt: passwordResets.expiresAt }).from(passwordResets).where(eq(passwordResets.id, tokenHash)).limit(1);
+    return r ? { purpose: r.purpose, valid: !r.usedAt && r.expiresAt > now } : null;
+  }
+
+  async revokeUnused(userId: string, purpose: LinkPurpose, now: Date) {
+    await executor()
+      .update(passwordResets)
+      .set({ usedAt: now })
+      .where(and(eq(passwordResets.userId, userId), eq(passwordResets.purpose, purpose), isNull(passwordResets.usedAt)));
   }
 }

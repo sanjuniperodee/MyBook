@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { applyGender } from "@/lib/content/gender";
-import { countQuestions, getThemes, themeChaptersByLocale, themeIds } from "@/lib/content/themes";
+import { bookKind, hasOutline, hasQuestionBank, progressOf, progressChanged, recipientPolicy } from "@/lib/content/kinds";
+import { bankThemes, countQuestions, getTheme, getThemes, giftThemes, themeChaptersByLocale, themeIds } from "@/lib/content/themes";
 
-const allThemes = [...getThemes("ru"), ...getThemes("kk")];
+/** Темы с банком вопросов на обоих языках: своя книга (blank) банка не имеет и из проверок банка исключена. */
+const allThemes = [...bankThemes("ru"), ...bankThemes("kk")];
+const bankIds = themeIds.filter(hasQuestionBank);
 
 describe("applyGender", () => {
   it("подставляет род автора и адресата независимо", () => {
@@ -29,14 +32,14 @@ describe("банк вопросов", () => {
   });
   it("в каждой теме достаточно вопросов и уникальные ключи глав", () => {
     for (const theme of allThemes) {
-      expect(countQuestions(theme)).toBeGreaterThan(40);
+      expect(countQuestions(theme), theme.id).toBeGreaterThan(40);
       const keys = theme.chapters.map((c) => c.key);
       expect(new Set(keys).size).toBe(keys.length);
     }
   });
   it("казахский банк повторяет русский: те же главы и столько же вопросов в каждой", () => {
     // Ключ вопроса (theme.chapter.N) одинаков на обоих языках — на нём держатся аналитика и CRM.
-    for (const id of themeIds) {
+    for (const id of bankIds) {
       const { ru, kk } = themeChaptersByLocale(id);
       expect(kk.map((c) => c.key), id).toEqual(ru.map((c) => c.key));
       ru.forEach((ch, i) => {
@@ -48,8 +51,100 @@ describe("банк вопросов", () => {
   });
   it("в казахских текстах нет русских слов-двойников", () => {
     // Грубая проверка на недопереведённые строки: русские буквы ё/щ/ъ/э в казахском почти не встречаются.
-    for (const id of themeIds)
+    for (const id of bankIds)
       for (const ch of themeChaptersByLocale(id).kk)
         for (const s of [ch.title, ch.epigraph ?? "", ...ch.questions.flat()] as string[]) expect(s, `${id}.${ch.key}`).not.toMatch(/[ёщъэ]/i);
+  });
+});
+
+describe("виды книг", () => {
+  it("вид и политика получателя — по теме; незнакомая тема — подарок", () => {
+    expect(["love", "mom", "dad", "friend", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+      ["gift", "required", true, false],
+      ["gift", "required", true, false],
+      ["gift", "required", true, false],
+      ["gift", "required", true, false],
+      ["autobiography", "none", true, false],
+      ["blank", "optional", false, true],
+      ["gift", "required", true, false],
+    ]);
+  });
+
+  it("каталог: шесть тем, у каждой вид и получатель как в kinds; подарки — первые четыре, любимому — первой", () => {
+    for (const lang of ["ru", "kk"] as const) {
+      const all = getThemes(lang);
+      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "autobiography", "blank"]);
+      for (const t of all) expect([t.id, t.kind, t.recipient]).toEqual([t.id, bookKind(t.id), recipientPolicy(t.id)]);
+      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "friend"]);
+      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "autobiography"]);
+    }
+  });
+
+  it("своя книга: банка нет, название по умолчанию и первая глава есть на обоих языках, получатель необязателен", () => {
+    for (const lang of ["ru", "kk"] as const) {
+      const t = getTheme("blank", lang);
+      expect(t.chapters).toEqual([]);
+      expect(t.titleSuggestions[0]).toBeTruthy();
+      expect(t.firstChapterTitle).toBeTruthy();
+      expect(t.recipientLabel).toBeTruthy();
+    }
+    expect([getTheme("blank", "ru").firstChapterTitle, getTheme("blank", "kk").firstChapterTitle]).toEqual(["Начало", "Бастау"]);
+  });
+
+  it("автобиография: получателя нет — ни подписи поля, ни [..|..] в банке; {..|..} — род рассказчика", () => {
+    for (const lang of ["ru", "kk"] as const) {
+      const t = getTheme("autobiography", lang);
+      expect(t.recipientLabel).toBeUndefined();
+      for (const ch of t.chapters) for (const s of [ch.title, ch.epigraph ?? "", ...ch.questions.flat()] as string[]) expect(s, `${lang}.${ch.key}`).not.toMatch(/\[[^\]]*\|[^\]]*\]/);
+    }
+    expect(themeChaptersByLocale("autobiography").ru.map((c) => c.key)).toEqual(["intro", "roots", "childhood", "school", "youth", "work", "love", "children", "home", "times", "trials", "joys", "wisdom", "letter"]);
+  });
+
+  it("автобиография: не меньше 60 вопросов на обоих языках; подсказка первого вопроса объясняет запись со слов близкого", () => {
+    for (const lang of ["ru", "kk"] as const) expect(countQuestions(getTheme("autobiography", lang)), lang).toBeGreaterThanOrEqual(60);
+    expect(getTheme("autobiography", "ru").chapters[0].questions[0][2]).toContain("пишите его словами, от первого лица");
+    expect(getTheme("autobiography", "kk").chapters[0].questions[0][2]).toBeTruthy();
+  });
+
+  it("варианты названий ru и kk одной длины — смена языка сопоставляет их по индексу", () => {
+    for (const id of themeIds) expect(getTheme(id, "kk").titleSuggestions.length, id).toBe(getTheme(id, "ru").titleSuggestions.length);
+  });
+});
+
+describe("progressOf", () => {
+  const p = (answered: number, total: number, words: number) => ({ answered, total, words });
+
+  it("книга с банком — по ответам: шаг «Текст» с 10, почти готова с 25, половина — ответов не меньше половины вопросов", () => {
+    expect(progressOf("gift", p(0, 172, 0))).toEqual({ started: false, half: false, ready: false, textStepDone: false, short: false });
+    expect(progressOf("gift", p(9, 172, 900))).toEqual({ started: true, half: false, ready: false, textStepDone: false, short: true });
+    expect(progressOf("gift", p(10, 172, 50))).toEqual({ started: true, half: false, ready: false, textStepDone: true, short: false });
+    expect(progressOf("autobiography", p(30, 60, 0))).toMatchObject({ half: true, ready: true });
+    expect(progressOf("gift", p(5, 10, 0))).toMatchObject({ half: true, ready: false });
+  });
+
+  it("монотонна: «почти готова» ⇒ «половина» ⇒ «начата» (у любимому готовность наступает раньше половины)", () => {
+    expect(progressOf("gift", p(25, 172, 0))).toMatchObject({ started: true, half: true, ready: true });
+    for (const kind of ["gift", "autobiography", "blank"] as const)
+      for (const [a, t, w] of [[0, 0, 0], [1, 600, 3], [25, 172, 0], [3, 3, 3000], [2, 2, 1500]])
+        {
+          const r = progressOf(kind, p(a, t, w));
+          if (r.ready) expect(r.half).toBe(true);
+          if (r.half) expect(r.started).toBe(true);
+        }
+  });
+
+  it("своя книга — по словам: 1000 — шаг «Текст» и не короткая, 1500 — половина, 3000 — почти готова", () => {
+    expect(progressOf("blank", p(1, 1, 999))).toEqual({ started: true, half: false, ready: false, textStepDone: false, short: true });
+    expect(progressOf("blank", p(1, 1, 1000))).toMatchObject({ textStepDone: true, short: false, half: false });
+    expect(progressOf("blank", p(1, 1, 1500))).toMatchObject({ half: true, ready: false });
+    expect(progressOf("blank", p(40, 40, 2999))).toMatchObject({ ready: false });
+    expect(progressOf("blank", p(1, 50, 3000))).toMatchObject({ ready: true, half: true });
+  });
+
+  it("progressChanged: только при пересечении порога", () => {
+    expect(progressChanged("blank", p(1, 1, 990), p(1, 1, 999))).toBe(false);
+    expect(progressChanged("blank", p(1, 1, 990), p(1, 1, 1010))).toBe(true);
+    expect(progressChanged("blank", p(1, 1, 3010), p(1, 1, 2990))).toBe(true);
+    expect(progressChanged("gift", p(3, 100, 0), p(4, 100, 0))).toBe(false);
   });
 });

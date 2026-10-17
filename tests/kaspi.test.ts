@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import { consoleLogger } from "@/shared/application";
-import { kaspiOutcome, kaspiPhone, OrderingError, parseKaspiPayment, parseKaspiWebhook, PaymentInvoice, type KaspiPaymentView, type PaymentInvoiceRepository, type PaymentTarget } from "@/modules/ordering/domain";
+import { kaspiOutcome, kaspiPhone, parseKaspiPayment, parseKaspiWebhook, PaymentInvoice } from "@/modules/ordering/domain";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { KaspiPaymentsService } from "@/modules/ordering/application/KaspiPaymentsService";
 import { KaspiSetupService } from "@/modules/ordering/application/KaspiSetupService";
-import type { KaspiConfigStore, KaspiGateway, KaspiSession } from "@/modules/ordering/application/ports";
+import type { KaspiConfigStore, KaspiSession } from "@/modules/ordering/application/ports";
 import { KaspiPosClient, verifyKaspiSignature } from "@/modules/ordering/infrastructure/payments/KaspiPosClient";
 import { FakeUow, MemGifts, MemPromos, setup } from "./doubles/ordering";
+import { FakeKaspi, MemInvoices } from "./doubles/kaspi";
 
 // ─── протокол kaspi-pos ────────────────────────────────────────────────────
 
@@ -94,72 +95,6 @@ describe("Kaspi: счёт", () => {
 });
 
 // ─── сценарии с фейками ─────────────────────────────────────────────────────
-
-class MemInvoices implements PaymentInvoiceRepository {
-  rows = new Map<string, ReturnType<PaymentInvoice["snapshot"]>>();
-  private seq = 0;
-  snapshot = () => new Map(this.rows);
-  restore = (s: unknown) => (this.rows = structuredClone(s) as typeof this.rows);
-  nextId = () => `inv-${++this.seq}`;
-  private load(r?: ReturnType<PaymentInvoice["snapshot"]>) {
-    if (!r) return null;
-    const { id, ...p } = structuredClone(r);
-    return PaymentInvoice.restore(id, p);
-  }
-  async findById(id: string) {
-    return this.load(this.rows.get(id));
-  }
-  async lockById(id: string) {
-    return this.load(this.rows.get(id));
-  }
-  async findByExternalId(_provider: "kaspi", externalId: string) {
-    return this.load([...this.rows.values()].find((r) => r.externalId === externalId));
-  }
-  async latestFor(target: PaymentTarget) {
-    const all = [...this.rows.values()].filter((r) => r.target.kind === target.kind && r.target.id === target.id);
-    return this.load(all.at(-1));
-  }
-  async toReconcile(since: Date) {
-    return [...this.rows.values()].filter((r) => (r.status === "pending" || r.status === "expired") && r.createdAt >= since).map((r) => this.load(r)!);
-  }
-  async add(i: PaymentInvoice) {
-    this.rows.set(i.id, i.snapshot());
-  }
-  async save(i: PaymentInvoice) {
-    this.rows.set(i.id, i.snapshot());
-  }
-}
-
-class FakeKaspi implements KaspiGateway {
-  created: { method: "invoice" | "qr"; phone?: string; amount: number; comment?: string }[] = [];
-  cancelled: string[] = [];
-  statuses = new Map<string, { status: string; amount?: number }>();
-  isConnected = true;
-  down = false;
-  private seq = 1000;
-  async connected() {
-    return this.isConnected;
-  }
-  private view(status = "RemotePaymentCreated", qr = false): KaspiPaymentView {
-    return { externalId: String(++this.seq), status, amount: null, checkoutUrl: qr ? "https://pay.kaspi.kz/pay/x" : null, qrToken: qr ? "https://pay.kaspi.kz/pay/x" : null, expiresAt: qr ? new Date("2026-10-01T10:05:00Z") : null };
-  }
-  async createInvoice(phone: string, amount: number, comment: string) {
-    if (this.down) throw new OrderingError("kaspiUnavailable");
-    this.created.push({ method: "invoice", phone, amount, comment });
-    return this.view();
-  }
-  async createQr(amount: number) {
-    this.created.push({ method: "qr", amount });
-    return this.view("Wait", true);
-  }
-  async details(externalId: string) {
-    const s = this.statuses.get(externalId);
-    return { externalId, status: s?.status ?? "RemotePaymentCreated", amount: s?.amount ?? null, checkoutUrl: null, qrToken: null, expiresAt: null };
-  }
-  async cancel(externalId: string) {
-    this.cancelled.push(externalId);
-  }
-}
 
 function kaspiSetup() {
   const base = setup();

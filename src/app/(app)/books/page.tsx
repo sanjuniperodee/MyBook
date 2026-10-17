@@ -4,10 +4,12 @@ import { CalendarHeart, Plus } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
+import { BLANK_READY_WORDS, bookKind } from "@/lib/content/kinds";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { OpenBookArt } from "@/components/illustrations";
 import { Morph } from "@/components/motion/PageTransition";
-import { coverNamesLine, coverPhotoIds } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
 import { formatDate, nowMs } from "@/lib/dates";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
@@ -21,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function BooksPage() {
   const user = await requireUser("/books");
   const [rows, locale, m, agreement] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
-  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, answered: r.answered }))} /> : null;
+  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /> : null;
   const t = m.books.list;
   const now = new Date(nowMs());
   if (rows.length === 0) {
@@ -59,9 +61,11 @@ export default async function BooksPage() {
         </Link>
       </div>
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map(({ book, answered, total, photos }) => {
+        {rows.map(({ book, answered, total, words, photos }) => {
           const theme = getTheme(book.theme, locale);
-          const progress = total ? Math.round((answered / total) * 100) : 0;
+          // Своя книга измеряется не ответами на вопросы, а объёмом: разделы и слова, полоса — путь к «почти готовой» книге.
+          const blank = bookKind(book.theme) === "blank";
+          const progress = blank ? Math.min(100, Math.round((words / BLANK_READY_WORDS) * 100)) : total ? Math.round((answered / total) * 100) : 0;
           return (
             <Link key={book.id} href={`/books/${book.id}`} className="card card-hover group flex gap-5 p-5">
               <div className="w-28 shrink-0">
@@ -71,7 +75,7 @@ export default async function BooksPage() {
                   format={book.format}
                   title={book.title}
                   subtitle={book.subtitle}
-                  names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
+                  names={coverNames(book)}
                   photos={photoUrls(coverPhotoIds(book), "thumb")}
                   lite
                   className="rounded-[3px] shadow-book"
@@ -97,7 +101,7 @@ export default async function BooksPage() {
                 })()}
                 <div className="mt-auto pt-4">
                   <div className="flex justify-between text-xs text-muted">
-                    <span>{t.answered(answered, total)}</span>
+                    <span>{blank ? t.blankProgress(total, words) : t.answered(answered, total)}</span>
                     <span>{t.photos(photos)}</span>
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">

@@ -7,6 +7,8 @@ import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
+import type { OrderPaymentsService } from "./OrderPaymentsService";
+import type { DealInvoiceLifecycle } from "./DealInvoiceLifecycle";
 
 export interface PlaceOrderCommand {
   userId: string;
@@ -63,6 +65,10 @@ export class OrdersService {
     private readonly agreements: AgreementGateway,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    /** Журнал денег заказа: онлайн-оплаты записываются туда (по операции) — он и подтверждает заказ. */
+    private readonly money?: Pick<OrderPaymentsService, "recordOnline">,
+    /** Счета из чата по сделке договорённости: заказ закрывает открытый счёт в своей транзакции. */
+    private readonly dealInvoices?: Pick<DealInvoiceLifecycle, "closeForOrder">,
   ) {}
 
   /** Договорённая цена и предоплата клиента по ручной сделке (для страницы оформления и расчёта заказа). */
@@ -96,42 +102,57 @@ export class OrdersService {
     promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
     // Дозаказ печатной версии к электронной — договорённость менеджера не ищем; тариф и цену определяет checkoutTerms (как форма).
-    const found = upgrade ? null : await this.agreements.agreementFor(cmd.userId);
-    // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
-    const { plan, agreement } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
+    const seen = upgrade ? null : await this.agreements.agreementFor(cmd.userId);
     const identity = await this.orders.nextIdentity();
-    const order = Order.place(
-      {
-        ...identity,
-        agreement,
-        credit: upgrade ? { orderNumber: upgrade.number, amount: upgrade.credit } : null,
-        userId: cmd.userId,
-        bookId: cmd.bookId,
-        plan,
-        quantity: cmd.quantity,
-        delivery: cmd.delivery,
-        addons: cmd.addons,
-        contact: cmd.contact,
-        promo,
-        currency: this.payments.currency(),
-        paymentProvider: this.payments.provider(),
-        customerComment: cmd.customerComment,
-        giftNote: cmd.giftNote,
-        desiredDate: cmd.desiredDate,
-        surprise: cmd.surprise,
-        estimatedPages: book.estimatedPages,
-        formatMoney: formatPrice,
-      },
-      now,
-    );
+    const build = (found: typeof seen) => {
+      // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
+      const { plan, agreement } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
+      return Order.place(
+        {
+          ...identity,
+          agreement,
+          agreementDealId: found?.dealId ?? null,
+          credit: upgrade ? { orderNumber: upgrade.number, amount: upgrade.credit } : null,
+          userId: cmd.userId,
+          bookId: cmd.bookId,
+          plan,
+          quantity: cmd.quantity,
+          delivery: cmd.delivery,
+          addons: cmd.addons,
+          contact: cmd.contact,
+          promo,
+          currency: this.payments.currency(),
+          paymentProvider: this.payments.provider(),
+          customerComment: cmd.customerComment,
+          giftNote: cmd.giftNote,
+          desiredDate: cmd.desiredDate,
+          surprise: cmd.surprise,
+          estimatedPages: book.estimatedPages,
+          formatMoney: formatPrice,
+        },
+        now,
+      );
+    };
 
-    await this.uow.run(async () => {
+    let found = seen;
+    const order = await this.uow.run(async () => {
+      if (seen && this.dealInvoices) {
+        // Счета из чата — первыми (порядок блокировок: счета → … → сделки): открытый счёт сделки договорённости закрывается
+        // заказом, а договорённость перечитывается после блокировки — оплата, успевшая прийти по счёту, попадёт в предоплату.
+        await this.dealInvoices.closeForOrder(seen.dealId, identity.number);
+        found = await this.agreements.agreementFor(cmd.userId);
+        if (found && found.dealId !== seen.dealId) await this.dealInvoices.closeForOrder(found.dealId, identity.number);
+      }
+      const order = build(found);
       if (promo && !(await this.promos.tryReserve(promo.id, now))) throw new OrderingError("promoGone");
       // Дозаказ печатной версии: книга уже закрыта электронным заказом — блокировать нечего.
       if (!(upgrade && book.status === "ordered") && !(await this.books.lockForOrder(cmd.bookId))) throw new OrderingError("alreadyOrdered");
       await this.orders.add(order);
+      // Заказ — к сделке договорённости сразу: новый счёт по ней не выставить, оплата старого — «нужен возврат или зачёт».
+      if (found && this.agreements.attachOrder) await this.agreements.attachOrder(found.dealId, order.id);
       if (!cmd.userPhone) await this.people.rememberPhoneIfMissing(cmd.userId, cmd.contact.phone);
       this.uow.track(order);
+      return order;
     });
 
     // Заказ полностью оплачен промокодом, сертификатом или предоплатой по договорённости — сразу передаём в работу.
@@ -145,18 +166,25 @@ export class OrdersService {
   }
 
   /**
-   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: заказ ждёт оплаты — подтверждаем; тот же платёж
-   * повторно — ничего; другой платёж по оплаченному или отменённому заказу — заказ не трогаем, сотруднику заметка
-   * «нужен возврат» (B13).
+   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: деньги записываются в журнал заказа по операции.
+   * Заказ ждёт оплаты — оплачен; та же операция повторно — ничего; другой платёж по оплаченному или отменённому
+   * заказу — заказ не трогаем, «переплата»: сотруднику заметка и задача «нужен возврат» (B13).
    */
   async acceptProviderPayment(cmd: { orderId: string; paymentId: string | null; provider: string; operationId: string; amount: number }, actor: Actor): Promise<"paid" | "duplicate" | "refundNeeded" | null> {
     const order = await this.orders.findById(cmd.orderId);
     if (!order) return null;
+    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
+    if (this.money) {
+      const method = cmd.provider.toLowerCase() === "kaspi" ? "kaspi" : "cloudpayments";
+      const r = await this.money.recordOnline({ orderId: order.id, amount: cmd.amount, method, externalRef: cmd.operationId, paymentId: cmd.paymentId, paidAt: this.clock.now() }, actor);
+      if (r.status === "notFound") return null;
+      if (r.status === "duplicate") return "duplicate";
+      return r.overpaid > 0 ? "refundNeeded" : "paid";
+    }
     if (order.status === "pending_payment") {
       await this.confirmPayment({ orderId: order.id, paymentId: cmd.paymentId }, actor);
       return "paid";
     }
-    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
     await this.addNote(order.id, `${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor);
     return "refundNeeded";
   }

@@ -58,6 +58,18 @@ class MemTasks implements TaskRepository {
     const id = `task-${++this.seq}`;
     this.rows.set(id, { id, doneAt: null, ...t });
   }
+  async existsOpen({ dealId, title }: { dealId: string; title: string }) {
+    return [...this.rows.values()].some((t) => t.dealId === dealId && t.title === title && !t.doneAt);
+  }
+  async closeOpenByPrefix({ dealId, prefix, keepTitle, at }: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }) {
+    let n = 0;
+    for (const [id, t] of this.rows) {
+      if (t.dealId !== dealId || t.doneAt || !t.title.startsWith(prefix) || t.title === keepTitle) continue;
+      this.rows.set(id, { ...t, doneAt: at });
+      n++;
+    }
+    return n;
+  }
   async setDone(id: string, doneAt: Date | null) {
     const t = this.rows.get(id);
     if (t) this.rows.set(id, { ...t, doneAt });
@@ -75,7 +87,7 @@ class MemTasks implements TaskRepository {
 }
 
 class MemNotes implements NoteRepository {
-  rows = new Map<string, Note & { authorId: string }>();
+  rows = new Map<string, Note & { authorId: string | null }>();
   private seq = 0;
   async find(id: string) {
     const n = this.rows.get(id);
@@ -84,6 +96,9 @@ class MemNotes implements NoteRepository {
   async add(n: Parameters<NoteRepository["add"]>[0]) {
     const id = `note-${++this.seq}`;
     this.rows.set(id, { id, ...n });
+  }
+  async exists({ dealId, text }: { dealId: string; text: string }) {
+    return [...this.rows.values()].some((n) => n.dealId === dealId && n.text === text);
   }
   async delete(id: string) {
     this.rows.delete(id);

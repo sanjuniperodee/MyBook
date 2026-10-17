@@ -14,7 +14,8 @@ export function GiftPayment(props: {
   currency: string;
   email: string;
   online: { publicId: string } | null;
-  manual: { title: string; steps: string[] };
+  manual: { title: string; steps: string[] } | null;
+  unavailable: string;
   claimed: boolean;
   /** Оплата через Kaspi Pay подключена: сертификат выпускается сам после оплаты. */
   kaspi: { initial: KaspiInvoiceView | null; defaultPhone: string } | null;
@@ -31,6 +32,7 @@ export function GiftPayment(props: {
       invoiceId={`G${props.number}`}
       online={props.online}
       manual={props.manual}
+      unavailable={props.unavailable}
       claimedText={props.claimed ? t.claimed(props.email) : null}
       onClaim={() => claimGiftPaymentAction(props.token)}
       kaspiTarget={{ kind: "gift", token: props.token }}

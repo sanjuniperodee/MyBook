@@ -35,6 +35,8 @@ const themeOccasions: Record<string, OccasionId[]> = {
   mom: ["birthday", "march8", "parents", "graduation", "wedding", "newyear", "other"],
   dad: ["birthday", "parents", "newyear", "graduation", "wedding", "other"],
   friend: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
+  // Автобиография — к юбилею рассказчика, к празднику семьи; своя книга (blank) — любой повод.
+  autobiography: ["birthday", "parents", "newyear", "other"],
 };
 
 /** Праздник ближе этого — первым в списке: в феврале маме первым предлагаем «8 марта». */

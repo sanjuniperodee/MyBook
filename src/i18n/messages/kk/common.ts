@@ -131,7 +131,8 @@ export const common: Messages["common"] = {
   orderStatusDigital,
   manualPayment: {
     title: "Kaspi аударымы",
-    steps: ["Kaspi.kz → Төлемдер → Аударымдар → Телефон нөмірі бойынша бөлімін ашыңыз", "Алушының нөмірі: +7 700 000 00 00 (ЖК «MyBooks»)", "Түсініктемеге тапсырыс нөмірін жазыңыз"],
+    steps: (phone: string, name: string) => ["Kaspi.kz → Төлемдер → Аударымдар → Телефон нөмірі бойынша бөлімін ашыңыз", `Алушының нөмірі: ${phone}${name ? ` (${name})` : ""}`, "Түсініктемеге тапсырыс нөмірін жазыңыз"],
+    unavailable: "Төлеу үшін бізге WhatsApp-қа жазыңыз — төлем сілтемесін жібереміз.",
   },
   kaspiPay: {
     title: "Kaspi арқылы төлеу",

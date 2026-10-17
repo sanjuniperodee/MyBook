@@ -129,22 +129,52 @@ export async function togglePromoAction(id: string) {
 // ─── CRM: заказы ────────────────────────────────────────────────────────────
 
 /** Перемещение карточки на канбан-доске. */
-export async function moveOrderAction(orderId: string, status: string) {
+/** Перенос заказа на доске. Нарушение правила (неоплаченный — в печать) — текст ошибки, а не исключение. */
+export async function moveOrderAction(orderId: string, status: string): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
-  await container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff));
+  const failed = await orderCommand(() => container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff)));
+  if (failed) return failed;
   revalidatePath("/admin/board");
   revalidatePath("/admin");
+  return {};
+}
+
+/** Постоплата: неоплаченный заказ — в печать (договорились, что клиент заплатит после); причина обязательна. */
+export async function startPostpayAction(orderId: string, reason: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit");
+  const why = z.string().trim().min(3, "Укажите, о чём договорились с клиентом").max(200).safeParse(reason);
+  if (!why.success) return { error: why.error.issues[0].message };
+  const id = uuid.parse(orderId);
+  const failed = await orderCommand(() => container().ordering.payments.startPostpay(id, why.data, staffActor(staff)));
+  if (failed) return failed;
+  await audit(staff, "order.postpay", "order", id, { reason: why.data });
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/board");
+  return { ok: "Заказ в печати с постоплатой" };
+}
+
+/** Руководитель сверил ручную оплату заказа с поступлением на счёт. */
+export async function reviewOrderPaymentAction(paymentId: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit", "team.manage");
+  const p = await container().ordering.payments.review(uuid.parse(paymentId), staff.user.id);
+  if (!p) return { error: "Оплата не найдена или уже проверена" };
+  await audit(staff, "order.payment_review", "order", p.orderId, { payment: p.id, amount: p.amount });
+  revalidatePath(`/admin/orders/${p.orderId}`);
+  revalidatePath("/admin/finance");
+  return { ok: "Отмечено: проверено" };
 }
 
 export async function bulkStatusAction(orderIds: string[], status: string) {
   const staff = await assertStaff("orders.edit");
   const s = z.enum(orderStatuses).parse(status);
   const ids = z.array(uuid).max(200).parse(orderIds);
-  for (const id of ids) await container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff));
-  await audit(staff, "order.bulk_status", "order", null, { count: ids.length, status: s });
+  // Неоплаченные не уходят в печать массово (правило денег) — их пропускаем и считаем.
+  let skipped = 0;
+  for (const id of ids) if (await orderCommand(() => container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff)))) skipped++;
+  await audit(staff, "order.bulk_status", "order", null, { count: ids.length - skipped, status: s });
   revalidatePath("/admin/orders");
   revalidatePath("/admin/board");
-  return { count: ids.length };
+  return { count: ids.length - skipped, skipped };
 }
 
 export async function assignOrderAction(orderId: string, assigneeId: string | null) {

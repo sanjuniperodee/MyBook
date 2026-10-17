@@ -26,6 +26,7 @@ import {
   Star,
   Tag,
   Users,
+  Wallet,
   Workflow,
   X,
   type LucideIcon,
@@ -74,6 +75,8 @@ const sections: { title?: string; items: Item[] }[] = [
     title: "Маркетинг",
     items: [
       { href: "/admin/analytics", label: "Аналитика продаж", icon: BarChart3, perm: ["analytics.view"] },
+      // Деньги: пришло, ожидается, переплаты; бейдж — ручные подтверждения без проверки (считаются только руководителю).
+      { href: "/admin/finance", label: "Финансы", icon: Wallet, badge: "finance", perm: ["analytics.view"] },
       { href: "/admin/marketing", label: "Ссылки и каналы", icon: Link2, perm: ["analytics.view", "promo.manage"] },
       { href: "/admin/promo", label: "Промокоды", icon: Tag, perm: ["promo.manage"] },
       { href: "/admin/gifts", label: "Сертификаты", icon: Gift, perm: ["gifts.manage"] },

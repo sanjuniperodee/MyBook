@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { AssistantError, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiSummary } from "../domain";
+import { AssistantError, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
 import type { AssistantData, LanguageModel, Usage } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -58,6 +58,21 @@ export class AssistantService {
     if (!summary) throw new AssistantError("badResponse", "Не удалось разобрать резюме — попробуйте ещё раз.");
     await this.data.saveSummary(dealId, { ...summary, at: this.clock.now().toISOString() });
     return { summary, usage };
+  }
+
+  /**
+   * Бот-квалификатор не понял ответ клиента: модель подсказывает поля, вопросы клиента, просьбу позвать человека и
+   * язык. Быстро (таймаут) и без исключений: не настроено, ошибка, пустой ответ — null, бот обходится своим разбором.
+   */
+  async understandForBot(input: { messages: { from: "client" | "bot"; text: string }[]; fields: AiField[]; asking: string | null; today: string; timeoutMs?: number }): Promise<BotUnderstanding | null> {
+    try {
+      if (!(await this.model.configured()) || !input.messages.length) return null;
+      const user = input.messages.map((m) => `${m.from === "client" ? "Клиент" : "Бот"}: ${m.text.replace(/\s+/g, " ").trim().slice(0, 1000)}`).join("\n");
+      const { text } = await this.model.ask({ system: botUnderstandPrompt(input.fields, input.today, input.asking), user, effort: "low", schema: botUnderstandSchema(input.fields), timeoutMs: input.timeoutMs ?? 5_000 });
+      return parseBotUnderstanding(input.fields, parseJson(text));
+    } catch {
+      return null;
+    }
   }
 
   /** Значения своих полей сделки из переписки и заметок — только предложение, применяет менеджер. */

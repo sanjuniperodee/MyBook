@@ -24,7 +24,7 @@ export default async function OrdersPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-      {agreement ? <div className="mt-8"><AgreementCard agreement={agreement} books={books.map((r) => ({ id: r.book.id, status: r.book.status, answered: r.answered }))} /></div> : null}
+      {agreement ? <div className="mt-8"><AgreementCard agreement={agreement} books={books.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /></div> : null}
       {list.length === 0 && agreement ? null : list.length === 0 ? (
         <div className="card mt-10">
           <EmptyState

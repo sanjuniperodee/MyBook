@@ -1,9 +1,10 @@
 import { formatPrice } from "@/config/site";
 import type { UnitOfWork } from "@/shared/application";
+import { PaymentError } from "../domain";
 
 /** Хранилище платежей по сделке (infrastructure/payments.ts). */
 export interface PaymentStore {
-  add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string }): Promise<IntakePayment>;
+  add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null }): Promise<IntakePayment>;
   refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string }): Promise<IntakePayment>;
   paidTotal(dealId: string): Promise<number>;
   find(id: string): Promise<{ dealId: string } | null>;
@@ -49,6 +50,8 @@ export interface PaymentEffects {
   note(actor: IntakeActor, input: { text: string; dealId: string; clientId: string | null }): Promise<void>;
   mailClient(input: { clientId: string | null; dealNumber: number; kind: "payment" | "refund"; amount: number; left: number }): Promise<void>;
   audit(input: { actorId: string; action: string; entity: string; entityId: string; details: Record<string, unknown> }): Promise<void>;
+  /** Перевод по счёту из чата: счёт закрывается оплаченным в той же транзакции (ошибка — деньги не записываются). */
+  markInvoicePaid?(input: { invoiceId: string; dealId: string; paymentId: string | null }): Promise<void>;
 }
 
 export interface AcceptInput {
@@ -61,6 +64,8 @@ export interface AcceptInput {
   /** Чек: скриншот, фото или PDF; уже проверен по размеру и виду. */
   receipt: { bytes: Buffer; fileName: string };
   actor: IntakeActor;
+  /** Оплата по счёту из чата (P<n>): счёт этой сделки и ждёт оплаты, сумма — сумма счёта. */
+  invoice?: { id: string; amount: number } | null;
 }
 
 /**
@@ -79,7 +84,8 @@ export class PaymentIntakeService<S = unknown> {
   async acceptWithReceipt(input: AcceptInput): Promise<{ payment: IntakePayment; receipt: IntakeReceipt }> {
     const { deal, actor } = input;
     const refund = input.kind === "refund";
-    const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId };
+    if (input.invoice && (refund || input.invoice.amount !== input.amount)) throw new PaymentError("amount");
+    const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId, invoiceId: input.invoice?.id ?? null };
     // Платёж без чека невозможен (B4): файл чека — до денег; платёж и запись о чеке — одной транзакцией;
     // не записалось одно из двух — транзакция откатывается, файл убираем.
     const staged = await this.receipts.stage({ dealId: deal.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName });
@@ -87,6 +93,11 @@ export class PaymentIntakeService<S = unknown> {
     let receipt: IntakeReceipt;
     try {
       ({ payment, receipt } = await this.uow.run(async () => {
+        // Счёт — первым (тот же порядок блокировок, что у онлайн-оплаты: счёт → сделка): иначе взаимная блокировка.
+        if (input.invoice) {
+          if (!this.effects.markInvoicePaid) throw new PaymentError("amount");
+          await this.effects.markInvoicePaid({ invoiceId: input.invoice.id, dealId: deal.id, paymentId: null });
+        }
         const payment = refund ? await this.payments.refund(money) : await this.payments.add(money);
         const receipt = await this.receipts.record(staged, { clientId: deal.clientId, paymentId: payment.id, amount: payment.amount, uploadedById: actor.userId });
         return { payment, receipt };

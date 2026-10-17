@@ -20,6 +20,10 @@ export interface DealProps {
   extraPhones: string[];
   amount: number;
   assigneeId: string | null;
+  /** Когда назначен нынешний ответственный. */
+  assignedAt: Date | null;
+  /** Кому круг уже отдавал заявку. */
+  routeTried: string[];
   createdById: string | null;
   orderId: string | null;
   lostReason: string | null;
@@ -47,6 +51,10 @@ export interface StageChange {
 
 const blank = (v: unknown) => v === null || v === undefined || v === "";
 
+/** Менеджер предложил отклонить заявку или отметить спамом — тег до решения руководителя (видно на доске и в фильтрах). */
+export const REJECTION_TAGS = { spam: "запрос: спам", reject: "запрос: отклонить" } as const;
+export type RejectionKind = keyof typeof REJECTION_TAGS;
+
 /** Сделка (лид): обращение, которое ведём по воронке до заказа. */
 export class Deal extends AggregateRoot<DealProps> {
   #notes: DealNote[] = [];
@@ -56,9 +64,13 @@ export class Deal extends AggregateRoot<DealProps> {
     return new Deal(id, props);
   }
 
-  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "lostReason" | "tags" | "extraPhones"> & { extraPhones?: string[] }, stage: Stage, now: Date) {
+  /** routed — ответственного выбрал круг (он попадает в routeTried). */
+  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "lostReason" | "tags" | "extraPhones" | "assignedAt" | "routeTried"> & { extraPhones?: string[]; routed?: boolean }, stage: Stage, now: Date) {
+    const { routed, ...props } = input;
     const deal = new Deal(id, {
-      ...input,
+      ...props,
+      assignedAt: input.assigneeId ? now : null,
+      routeTried: routed && input.assigneeId ? [input.assigneeId] : [],
       number,
       title: input.title.slice(0, 200),
       contactName: input.contactName.slice(0, 120),
@@ -127,13 +139,35 @@ export class Deal extends AggregateRoot<DealProps> {
     this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId });
     this.note(`Сделка №${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
     this.record(SalesEvents.dealStageChanged({ ...this.ref(), fromStageId: from, stageId: stage.id, source: this.props.source, at: now.toISOString() }));
+    // Закрыта (успех или отказ) — платить по ней больше нельзя: её открытые счета отменит подписчик заказов.
+    if (stage.kind !== "open") this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));
     return true;
   }
 
-  assign(assigneeId: string | null) {
+  get assignedAt() {
+    return this.props.assignedAt;
+  }
+  get routeTried(): readonly string[] {
+    return this.props.routeTried;
+  }
+
+  assign(assigneeId: string | null, now: Date) {
     if (assigneeId === this.props.assigneeId) return;
+    const from = this.props.assigneeId;
     this.props.assigneeId = assigneeId;
-    if (assigneeId) this.record(SalesEvents.dealAssigned({ ...this.ref(), title: this.props.title }));
+    this.props.assignedAt = assigneeId ? now : null;
+    if (assigneeId) this.record(SalesEvents.dealAssigned({ ...this.ref(), fromAssigneeId: from, title: this.props.title }));
+  }
+
+  /** Заявку некому передать: отсчёт «нет ответа» — заново, от сейчас. */
+  restartRouteTimer(now: Date) {
+    if (this.props.assigneeId) this.props.assignedAt = now;
+  }
+
+  /** Круг отдал заявку менеджеру: он ответственный, а второй раз по «нет ответа» она ему не придёт. */
+  route(assigneeId: string, now: Date) {
+    this.assign(assigneeId, now);
+    if (!this.props.routeTried.includes(assigneeId)) this.props.routeTried = [...this.props.routeTried, assigneeId];
   }
 
   /** Связать с заказом клиента (и обновить сумму). */
@@ -158,6 +192,8 @@ export class Deal extends AggregateRoot<DealProps> {
   accept(authorId: string): boolean {
     if (!this.props.unsorted) return false;
     this.props.unsorted = false;
+    // Взял в работу (ответил клиенту) — предложение отклонить снимается.
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
     this.props.assigneeId ??= authorId;
     return true;
   }
@@ -184,6 +220,37 @@ export class Deal extends AggregateRoot<DealProps> {
 
   addTag(tag: string) {
     this.props.tags = [...new Set([...this.props.tags, tag])].slice(0, 12);
+  }
+
+  /** Что предложил менеджер: спам, отклонить или ничего. */
+  get rejectionRequest(): RejectionKind | null {
+    if (this.props.tags.includes(REJECTION_TAGS.spam)) return "spam";
+    if (this.props.tags.includes(REJECTION_TAGS.reject)) return "reject";
+    return null;
+  }
+
+  /** Менеджер не удаляет заявку сам: предлагает, руководитель подтверждает. Пока ждёт — круг её не передаёт. */
+  requestRejection(kind: RejectionKind, actorId: string, reason: string) {
+    this.props.tags = [...new Set([...this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject), REJECTION_TAGS[kind]])].slice(0, 12);
+    this.note(`${kind === "spam" ? "Предложено отметить спамом" : "Предложено отклонить заявку"} — ждёт решения руководителя${reason ? `. Причина: ${reason}` : ""}`, actorId);
+  }
+
+  /**
+   * Руководитель подтвердил отклонение (спам), а удалить заявку нельзя — по ней деньги или счёт клиента (why): она закрывается
+   * «отказом» с причиной, отметка-предложение снимается. Событие «сделка закрыта» отменит её открытые счета.
+   */
+  closeRejected(lost: Stage, kind: RejectionKind, reason: string, why: string, actorId: string | null, now: Date) {
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
+    this.moveTo(lost, actorId, now, `${kind === "spam" ? "Спам" : "Заявка отклонена"}${reason ? `: ${reason}` : ""}`);
+    this.note(`Заявка не удалена (${why}) — закрыта «отказом»`, actorId);
+  }
+
+  /** Руководитель оставил заявку в работе. */
+  declineRejection(actorId: string) {
+    if (!this.rejectionRequest) return false;
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
+    this.note("Руководитель оставил заявку в работе", actorId);
+    return true;
   }
 
   linkClient(clientId: string | null) {

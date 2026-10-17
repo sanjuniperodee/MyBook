@@ -2,13 +2,17 @@ import "server-only";
 import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { GiftsService, KaspiPaymentsService, KaspiSetupService, OrdersService, PromoService, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
 import { DrizzlePromoCodeRepository } from "./infrastructure/persistence/DrizzlePromoCodeRepository";
 import { DrizzleOrderingQueries } from "./infrastructure/persistence/DrizzleOrderingQueries";
 import { DrizzlePaymentInvoiceRepository } from "./infrastructure/persistence/DrizzlePaymentInvoiceRepository";
+import { DrizzleOrderPaymentRepository } from "./infrastructure/persistence/DrizzleOrderPaymentRepository";
+import { DrizzleDealInvoiceRepository } from "./infrastructure/persistence/DrizzleDealInvoiceRepository";
+import { DrizzleDealInvoiceLifecycleStore } from "./infrastructure/persistence/DrizzleDealInvoiceLifecycleStore";
+import { storageReceiptFiles } from "./infrastructure/gateways/receiptFiles";
 import { DrizzlePeopleGateway } from "./infrastructure/gateways/DrizzlePeopleGateway";
 import { envPaymentSettings, randomCodes } from "./infrastructure/gateways/system";
 import { OrderingMailer } from "./infrastructure/notifications/OrderingMailer";
@@ -20,6 +24,7 @@ export type { InvoiceOwner, KaspiConfigStore, KaspiSession, PlaceOrderCommand, P
 export type { OrderDetailsView, GiftView } from "./infrastructure/persistence/DrizzleOrderingQueries";
 export { isOnlinePayment } from "./infrastructure/payments/CloudPayments";
 export { redeemUrl } from "./infrastructure/notifications/OrderingMailer";
+export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote } from "./application/DealInvoiceLifecycle";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */
 export const GIFT_COOKIE = "mb_gift";
@@ -40,11 +45,19 @@ export interface OrderingDeps {
   mailer: Mailer;
   /** Настройки Kaspi Pay («Интеграции»): сессия кассира, включена ли оплата, секрет вебхуков. */
   kaspiConfig: KaspiConfigStore;
+  /** Сделки и их деньги (контекст «Продажи») — для счетов из чата. */
+  invoiceSales: InvoiceSales;
 }
 
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
 export class OrderingModule {
   readonly orders: OrdersService;
+  /** Счета из чата по сделкам: выпуск, оплата по ссылке, подтверждение, истечение. */
+  readonly invoices: DealInvoicesService;
+  /** Счета из чата в жизни сделки и заказа: слияние и удаление сделки (порт продаж), закрытие заказом. */
+  readonly invoiceLifecycle: DealInvoiceLifecycle;
+  /** Журнал денег по заказу: перевод с чеком, онлайн-оплаты, постоплата. */
+  readonly payments: OrderPaymentsService;
   readonly promos: PromoService;
   readonly gifts: GiftsService;
   readonly queries = new DrizzleOrderingQueries();
@@ -59,13 +72,18 @@ export class OrderingModule {
     const orderRepo = new DrizzleOrderRepository();
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
-    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock);
+    this.invoices = new DealInvoicesService(new DrizzleDealInvoiceRepository(), deps.invoiceSales, deps.uow, deps.clock);
+    this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock);
+    this.invoiceLifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), deps.uow);
+    this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments, this.invoiceLifecycle);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
     this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
-    this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts);
+    // Счета из чата для платёжных систем: P<n> в CloudPayments и цель deal_invoice в Kaspi.
+    const dealInvoices = { repo: new DrizzleDealInvoiceRepository(), service: this.invoices, sales: deps.invoiceSales, clock: deps.clock };
+    this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts, undefined, dealInvoices);
     const kaspiPos = new KaspiPosClient(deps.kaspiConfig);
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
-    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger);
+    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices);
     this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);
     this.subscribe(deps.bus);
@@ -79,6 +97,8 @@ export class OrderingModule {
     on("ordering.order_status_changed", this.mailer.onStatusChanged, "ordering.mail.status");
     on("ordering.order_cancelled", this.mailer.onOrderCancelled, "ordering.mail.cancelled");
     on("ordering.order_cancelled", (e) => this.kaspi.cancelOpenFor({ kind: "order", id: e.payload.orderId }), "ordering.kaspi.cancel_open");
+    // Счёт из чата закрыт без оплаты — ждущую попытку Kaspi по нему отменяем сразу (cancelOpenFor сначала сверяет с Kaspi).
+    on("ordering.deal_invoice_closed", (e) => this.kaspi.cancelOpenFor({ kind: "deal_invoice", id: e.payload.invoiceId }), "ordering.kaspi.cancel_deal_invoice");
     on("ordering.payment_claimed", this.mailer.onPaymentClaimed, "ordering.mail.claimed");
     on("ordering.gift_purchased", this.mailer.onGiftPurchased, "ordering.mail.gift_purchased");
     on("ordering.gift_paid", this.mailer.onGiftPaid, "ordering.mail.gift_paid");
@@ -86,6 +106,8 @@ export class OrderingModule {
     on(
       "ordering.order_paid",
       async (e) => {
+        // Постоплата получена после печати — файлы уже готовы.
+        if (e.payload.settled) return;
         // Файлы для типографии готовим в фоне, чтобы не задерживать ответ платёжной системе.
         runInBackground(async () => {
           const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
@@ -94,11 +116,28 @@ export class OrderingModule {
       },
       "ordering.print.warm_up",
     );
+    // В печать с постоплатой — файлы для типографии нужны так же, как после оплаты.
+    on(
+      "ordering.order_status_changed",
+      async (e) => {
+        if (e.payload.from !== "pending_payment" || e.payload.to !== "in_production") return;
+        runInBackground(async () => {
+          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
+          if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
+        }, this.deps.logger);
+      },
+      "ordering.print.warm_up_postpay",
+    );
   }
 
   /** Подпись вебхука kaspi-pos-automation. */
   async verifyKaspiWebhook(rawBody: string, signature: string | null) {
     return verifyKaspiSignature(rawBody, signature, await this.deps.kaspiConfig.webhookSecret());
+  }
+
+  /** Получатель платежа в Kaspi (организация кассира) — для страницы оплаты и сообщения со счётом; без запроса к Kaspi. */
+  async kaspiRecipient(): Promise<string | null> {
+    return (await this.deps.kaspiConfig.config()).session?.orgName.trim() || null;
   }
 
   /** Отложенная отправка сертификатов получателям (планировщик). */

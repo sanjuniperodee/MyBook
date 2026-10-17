@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine, getCoverTemplate } from "@/lib/book/covers";
+import { getCoverTemplate } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { container } from "@/server/container";
 import { reviewAccess } from "@/server/reviews";
 import { FeedbackError, THANK_YOU } from "@/modules/feedback";
 import { getMessages } from "@/i18n/server";
+import { bookKind } from "@/lib/content/kinds";
 import { ReviewForm } from "./ReviewForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -47,7 +49,7 @@ export default async function ReviewPage({ params, searchParams }: { params: Pro
               template={template}
               format={book.format}
               title={book.title}
-              names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
+              names={coverNames(book)}
               lite
               className="rounded-[3px] shadow-book"
             />
@@ -67,6 +69,7 @@ export default async function ReviewPage({ params, searchParams }: { params: Pro
               token={token ?? null}
               defaultName={state.order.name}
               thankYou={THANK_YOU}
+              kind={bookKind(book.theme)}
               initial={
                 review
                   ? {

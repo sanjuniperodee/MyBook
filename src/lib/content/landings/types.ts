@@ -21,6 +21,7 @@ export interface Landing {
   occasion?: OccasionId;
   coverTemplate: string;
   authorGender: "m" | "f";
-  recipientGender: "m" | "f";
+  /** Род адресата: у подарков обязателен, у автобиографии и своей книги получателя нет. */
+  recipientGender?: "m" | "f";
   content: Record<Locale, LandingContent>;
 }

@@ -16,7 +16,9 @@ import { SaveIndicator } from "@/components/SaveIndicator";
 import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { coverLabel, coverMoods, coverNamesLine, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
+import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
+import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
@@ -27,6 +29,8 @@ interface CoverState {
   title: string;
   subtitle: string;
   authorName: string;
+  /** Автобиография: кто записал со слов рассказчика. */
+  recordedBy: string;
   recipientName: string;
   hideRecipientOnCover: boolean;
   backText: string;
@@ -146,7 +150,8 @@ export function CoverEditor({
   const template = getCoverTemplate(state.coverTemplate);
   const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
-  const names = coverNamesLine(state.authorName, state.recipientName, state.hideRecipientOnCover);
+  const kind = bookKind(theme);
+  const names = coverNames({ theme, ...state });
   const coverIds = [state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots);
   const coverPhotos = coverPhotoRefs(coverIds, photos, state, "view");
   const [side, setSide] = useState<"front" | "back">("front");
@@ -328,20 +333,28 @@ export function CoverEditor({
 
         <Field label={t.bookTitle} value={state.title} max={80} onChange={(v) => update({ title: v })} disabled={!editable} />
         <Field label={t.subtitle} placeholder={t.subtitlePlaceholder} value={state.subtitle} max={80} onChange={(v) => update({ subtitle: v })} disabled={!editable} />
-        <Field label={t.authorName} value={state.authorName} max={60} onChange={(v) => update({ authorName: v })} disabled={!editable} />
-        <div>
-          <Field label={recipientLabel} value={state.recipientName} max={60} onChange={(v) => update({ recipientName: v })} disabled={!editable} />
-          <label className="mt-3 flex items-center gap-2.5 text-sm text-ink-soft">
-            <input
-              type="checkbox"
-              className="size-4 accent-wine"
-              checked={state.hideRecipientOnCover}
-              onChange={(e) => update({ hideRecipientOnCover: e.target.checked })}
-              disabled={!editable}
-            />
-            {t.hideRecipient}
-          </label>
-        </div>
+        <Field label={kind === "autobiography" ? t.narratorName : t.authorName} value={state.authorName} max={60} onChange={(v) => update({ authorName: v })} disabled={!editable} />
+        {kind === "autobiography" ? (
+          <Field label={t.recordedBy} placeholder={t.recordedByPlaceholder} value={state.recordedBy} max={RECORDED_BY_MAX} onChange={(v) => update({ recordedBy: v })} disabled={!editable} />
+        ) : null}
+        {/* Получатель: у подарка — обязательное поле, у своей книги — «необязательно», у автобиографии его нет (посвящение — во вкладке «Страницы»). */}
+        {kind !== "autobiography" ? (
+          <div>
+            <Field label={recipientLabel} value={state.recipientName} max={60} onChange={(v) => update({ recipientName: v })} disabled={!editable} />
+            <label className="mt-3 flex items-center gap-2.5 text-sm text-ink-soft">
+              <input
+                type="checkbox"
+                className="size-4 accent-wine"
+                checked={state.hideRecipientOnCover}
+                onChange={(e) => update({ hideRecipientOnCover: e.target.checked })}
+                disabled={!editable}
+              />
+              {t.hideRecipient}
+            </label>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">{t.recipientNone}</p>
+        )}
         <BackSection
           bookId={bookId}
           theme={theme}

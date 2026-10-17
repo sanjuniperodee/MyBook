@@ -22,8 +22,7 @@ export type { PreparedImage } from "./kit";
  */
 export function InteriorDocument({ content, options }: { content: BookContent; options: InteriorOptions }) {
   const kit = pdfKit(content, options);
-  const { t } = kit;
-  const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
+    const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
   if (content.dedication) pages.push(<Dedication key="dedication" kit={kit} text={content.dedication} />);
   if (content.showToc && content.chapters.length) pages.push(<Toc key="toc" kit={kit} />);
 
@@ -34,7 +33,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   }
 
   if (content.galleryPhotos.length) {
-    pages.push(<Opener key="open-__gallery" kit={kit} chapterKey="__gallery" number={null} title={t.gallery} />);
+    pages.push(<Opener key="open-__gallery" kit={kit} chapterKey="__gallery" number={null} title={content.galleryTitle} />);
     photoPages(content.galleryPhotos).forEach((group, i) => pages.push(<PhotoPage key={`ph-gallery-${i}`} kit={kit} group={group} />));
   }
 

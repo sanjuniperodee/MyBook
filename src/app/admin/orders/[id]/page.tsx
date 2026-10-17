@@ -8,10 +8,11 @@ import { container } from "@/server/container";
 import { formatPrice, getPlan } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { getTheme } from "@/lib/content/themes";
+import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
+import { DetailsForm, GenerateButton, LockButton, NoteForm, OrderMoney, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
@@ -31,11 +32,12 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices] = await Promise.all([
+  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows] = await Promise.all([
     container().authoring.queries.stats(book),
     container().access.queries.allStaff(),
     container().reporting.orderCrm(order),
     container().ordering.queries.paymentInvoices("order", order.id),
+    container().ordering.payments.list(order.id),
   ]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
@@ -117,9 +119,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[160px_1fr]">
               <dt className="text-muted">Название</dt><dd>{book.title}</dd>
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
-              <dt className="text-muted">Автор → адресат</dt><dd>{book.authorName} → {book.recipientName}</dd>
+              <dt className="text-muted">{bookKind(book.theme) === "autobiography" ? "Рассказчик" : "Автор → адресат"}</dt><dd>{book.authorName}{book.recipientName && bookKind(book.theme) !== "autobiography" ? ` → ${book.recipientName}` : ""}{book.recordedBy ? ` · записано: ${book.recordedBy}` : ""}</dd>
               <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · обложка «{coverName(book.coverTemplate)}» · страницы «{interiorName(book.interior)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
-              <dt className="text-muted">Наполнение</dt><dd>{stats.answered} ответов · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
+              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -218,6 +220,29 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               </div>
             ) : null}
           </Card>
+          <Card title="Деньги по заказу" id="money">
+            <OrderMoney
+              orderId={order.id}
+              status={order.status}
+              due={order.amount}
+              received={order.receivedAmount}
+              postpay={order.postpay}
+              settled={!!order.paidAt}
+              canEdit={canEdit}
+              canReview={can(staff, "team.manage")}
+              rows={moneyRows.map((r) => ({
+                id: r.id,
+                amount: r.amount,
+                method: r.method,
+                ref: r.externalRef,
+                paidLabel: formatDate(r.paidAt),
+                note: r.note,
+                receipt: !!r.receipt,
+                reviewed: r.reviewedAt ? `${r.reviewedById ? (adminName.get(r.reviewedById) ?? "") : ""} ${formatDate(r.reviewedAt)}`.trim() : null,
+                by: r.createdById ? (adminName.get(r.createdById) ?? null) : null,
+              }))}
+            />
+          </Card>
           {canEdit ? (
             <>
               <Card title="Управление">
@@ -238,9 +263,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
+    <section id={id} className="rounded-2xl border border-line bg-white p-5">
       <h2 className="mb-4 font-semibold">{title}</h2>
       {children}
     </section>

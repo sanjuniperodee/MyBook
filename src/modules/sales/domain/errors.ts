@@ -2,7 +2,7 @@ import { contextError } from "@/shared/domain";
 import type { ReceiptProblem } from "./receipt";
 
 /** message — текст для сотрудника (CRM работает на русском). */
-export type SalesErrorCode = "dealNotFound" | "stageNotFound" | "noPipeline" | "noOpenStage" | "mergeSelf" | "lostReasonRequired" | "stageProtected" | "lastOpenStage" | "stageHasDeals" | "pipelineProtected" | "pipelineHasDeals" | "notUnsorted";
+export type SalesErrorCode = "dealNotFound" | "stageNotFound" | "noPipeline" | "noOpenStage" | "mergeSelf" | "lostReasonRequired" | "stageProtected" | "lastOpenStage" | "stageHasDeals" | "pipelineProtected" | "pipelineHasDeals" | "notUnsorted" | "dealHasPayments" | "dealHasInvoice";
 
 export const SalesError = contextError<SalesErrorCode>("sales", "SalesError");
 export type SalesError = InstanceType<typeof SalesError>;

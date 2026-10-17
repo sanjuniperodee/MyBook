@@ -5,7 +5,7 @@ import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomField
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
-import { setClientChannelAction, setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { setClientChannelAction, setClientFieldsAction, setClientLocaleAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
 import { channels, manualChannels } from "@/shared/domain/channels";
 import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
@@ -93,6 +93,37 @@ export function ClientManager({ clientId, value, options, disabled }: { clientId
  * Канал привлечения: откуда клиент пришёл. Выбранный вручную — «как есть»; если клиент пришёл по меткам (реклама, ссылка),
  * они показаны подписью «по меткам», и выбор канала заменяет их для отчётов.
  */
+/** Язык кабинета и писем клиента: меняется сразу, при ошибке возвращается прежний. */
+export function ClientLocale({ clientId, value }: { clientId: string; value: "ru" | "kk" }) {
+  const [pending, start] = useTransition();
+  const [current, setCurrent] = useState(value);
+  return (
+    <select
+      className="input h-8 w-32 text-xs"
+      value={current}
+      disabled={pending}
+      aria-label="Язык кабинета и писем"
+      data-testid="client-locale-select"
+      onChange={(e) => {
+        const next = e.target.value as "ru" | "kk";
+        const prev = current;
+        setCurrent(next);
+        start(async () => {
+          const r = await setClientLocaleAction(clientId, next);
+          if (r.ok) toast(r.message ?? "Язык сохранён", "success");
+          else {
+            setCurrent(prev);
+            toast(r.message, "error");
+          }
+        });
+      }}
+    >
+      <option value="ru">русский</option>
+      <option value="kk">казахский</option>
+    </select>
+  );
+}
+
 export function ClientChannel({ clientId, value, auto, disabled }: { clientId: string; value: string; auto?: string; disabled?: boolean }) {
   const [pending, start] = useTransition();
   const [current, setCurrent] = useState(value);

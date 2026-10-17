@@ -1,6 +1,9 @@
 import type { Locale } from "@/i18n/config";
 import type { ThemeId } from "../types";
 
+/** Темы, у которых есть банк вопросов: на «своей книге» (blank) подборки вопросов нет. */
+export type BankThemeId = Exclude<ThemeId, "blank">;
+
 export interface ArticleSection {
   heading: string;
   paragraphs?: string[];
@@ -25,7 +28,7 @@ export interface Article {
   updated?: string;
   readMinutes: number;
   /** Тема книги для кнопки «начать» и для вопросов. */
-  theme: ThemeId;
+  theme: BankThemeId;
   /** Подборка вопросов из банка темы: после скольких разделов вставить и сколько вопросов брать из главы. */
   bank?: { afterSection: number; perChapter: number; skip: string[]; author: "m" | "f"; recipient: "m" | "f" };
   /** Посадочные страницы /kniga/<slug>, на которые ведёт статья. */

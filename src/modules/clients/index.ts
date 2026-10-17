@@ -1,9 +1,9 @@
 import type { Clock, StaffNotifier } from "@/shared/application";
 import { ClientOnboardingService, ClientsService, NotesService, TasksService, type OnboardingAccounts, type OnboardingSales } from "./application";
-import { drizzleClients, drizzleLinks, drizzleNotes, drizzleStaff, drizzleTasks, resolveContact, type ContactTarget } from "./infrastructure/persistence";
+import { accountUsage, accountsByOtherPhones, drizzleClients, drizzleLinks, drizzleNotes, drizzleStaff, drizzleTasks, resolveContact, type ContactTarget } from "./infrastructure/persistence";
 
 export { ClientsError } from "./domain";
-export type { Actor, OnboardingInput, OnboardingResult } from "./application";
+export type { AccountUsage, Actor, OnboardingInput, OnboardingResult } from "./application";
 export type { ContactTarget };
 
 /** Публичный фасад контекста «Клиенты CRM»: профиль клиента, задачи и заметки менеджеров. */
@@ -12,6 +12,10 @@ export class ClientsModule {
   readonly tasks: TasksService;
   readonly notes: NotesService;
   readonly links = drizzleLinks;
+  /** Пользовался ли клиент аккаунтом (заходил, книги, заказы): новому — ссылка «задайте пароль», давнему — «войдите как обычно». */
+  readonly usage = accountUsage;
+  /** Клиенты, у которых номер — доп. телефон или контакт заказа (не подтверждает, чей аккаунт). */
+  readonly accountsByOtherPhones = accountsByOtherPhones;
   /** Менеджер заводит клиента: аккаунт, профиль, сделка, предоплата, заметка и задачи. */
   readonly onboarding: ClientOnboardingService;
 

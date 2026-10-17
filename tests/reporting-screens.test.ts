@@ -50,7 +50,7 @@ describe("dealScreen", () => {
         { id: "c2", direction: "in", status: "missed", startedAt: now, durationSec: 0, staffId: null, hasRecording: false },
       ],
     });
-    expect(s.payments).toEqual([{ id: "p1", amount: 5000, kind: "prepayment", dateLabel: formatDate(now), author: "система", note: "", receipts: [{ id: "r1", fileName: "чек.pdf", isPdf: true }] }]);
+    expect(s.payments).toEqual([{ id: "p1", amount: 5000, kind: "prepayment", dateLabel: formatDate(now), author: "система", note: "", online: null, receipts: [{ id: "r1", fileName: "чек.pdf", isPdf: true }] }]);
     expect(s.calls.map(({ icon, missed, label, duration, staff: who }) => ({ icon, missed, label, duration, who }))).toEqual([
       { icon: "out", missed: false, label: "Исходящий", duration: "2:05", who: "Айгерим" },
       { icon: "missed", missed: true, label: "Пропущенный", duration: null, who: undefined },

@@ -84,6 +84,21 @@ export class AccountService {
     return { id: user.id, login: isPhoneEmail(email.value) ? phone : email.value };
   }
 
+  /** Учётная запись по id (null — нет такой). */
+  account(userId: string) {
+    return this.users.findById(userId);
+  }
+
+  /**
+   * Клиенты (role=user), у которых основной телефон — этот номер (сравнение по цифрам, 8… и 7… — один номер).
+   * Сотрудники сюда не попадают никогда: по телефону чата нельзя выйти на учётную запись команды.
+   */
+  async clientsByPhone(phone: string) {
+    const digits = normalizePhone(phone);
+    if (digits.length < 10 || digits.length > 15) return [];
+    return (await this.users.findClientsByPhone(digits)).filter((u) => u.role === "user");
+  }
+
   /** Новый пароль клиенту (потерял, не получил): прежние сессии завершаются. Возвращает логин для сообщения клиенту. */
   async issueClientPassword(userId: string, password: string): Promise<{ login: string; name: string; locale: Locale }> {
     User.assertPasswordPolicy(password);

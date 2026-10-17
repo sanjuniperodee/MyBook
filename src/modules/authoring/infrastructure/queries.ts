@@ -1,7 +1,8 @@
 import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
+import { bookChapters, bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { rootDb } from "@/shared/infrastructure/database";
 import { computeStats, isBookVisibleTo, type BookViewer } from "../domain";
 
@@ -9,9 +10,12 @@ export type BookRow = typeof books.$inferSelect;
 export type QuestionRow = typeof bookQuestions.$inferSelect;
 export type PhotoRow = typeof photos.$inferSelect;
 export type LetterRow = typeof bookLetters.$inferSelect;
+export type ChapterRow = typeof bookChapters.$inferSelect;
 export interface BookBundle {
   book: BookRow;
   questions: QuestionRow[];
+  /** Главы своей книги по порядку (у книг с банком — пусто): названия, эпиграфы и порядок глав в печати. */
+  chapters: ChapterRow[];
   photos: PhotoRow[];
   letters: LetterRow[];
 }
@@ -37,6 +41,11 @@ export class DrizzleAuthoringQueries {
     return rootDb.select().from(bookQuestions).where(eq(bookQuestions.bookId, bookId)).orderBy(asc(bookQuestions.position));
   }
 
+  /** Главы своей книги по порядку (у книг с банком строк нет). */
+  chapters(bookId: string) {
+    return rootDb.select().from(bookChapters).where(eq(bookChapters.bookId, bookId)).orderBy(asc(bookChapters.position), asc(bookChapters.createdAt));
+  }
+
   photos(bookId: string) {
     return rootDb.select().from(photos).where(eq(photos.bookId, bookId)).orderBy(asc(photos.position));
   }
@@ -50,24 +59,26 @@ export class DrizzleAuthoringQueries {
   }
 
   async stats(book: BookRow) {
-    const [qs, ps, ls] = await Promise.all([this.questions(book.id), this.photos(book.id), this.approvedLetters(book.id)]);
-    return computeStats(book, qs, ps, ls);
+    const [qs, chapters, ps, ls] = await Promise.all([this.questions(book.id), this.chapters(book.id), this.photos(book.id), this.approvedLetters(book.id)]);
+    return computeStats(book, qs, chapters, ps, ls);
   }
 
   /** Всё для рендера PDF и экспорта текста. */
   async bundle(bookId: string): Promise<BookBundle | null> {
     const book = await this.book(bookId);
     if (!book) return null;
-    const [questions, ps, letters] = await Promise.all([this.questions(bookId), this.photos(bookId), this.approvedLetters(bookId)]);
-    return { book, questions, photos: ps, letters };
+    const [questions, chapters, ps, letters] = await Promise.all([this.questions(bookId), this.chapters(bookId), this.photos(bookId), this.approvedLetters(bookId)]);
+    return { book, questions, chapters, photos: ps, letters };
   }
 
+  /** Книги пользователя: ответы (разделы с текстом), всего вопросов (у своей книги — разделов), слова — для progressOf. */
   userBooks(userId: string) {
     return rootDb
       .select({
         book: books,
-        answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
-        total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+        answered: answeredSql(booksId),
+        total: totalSql(booksId),
+        words: wordsSql(booksId),
         photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
       })
       .from(books)

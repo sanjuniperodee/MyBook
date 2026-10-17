@@ -17,6 +17,8 @@ export interface FormState {
   error?: string;
   ok?: boolean;
   message?: string;
+  /** Ссылка доступа устарела: форма предлагает написать в WhatsApp (у клиента по телефону нет почты для «Запросить новую»). */
+  expired?: boolean;
 }
 
 type AuthErrors = Awaited<ReturnType<typeof getMessages>>["auth"]["errors"];
@@ -113,19 +115,33 @@ export async function forgotAction(_: FormState, form: FormData): Promise<FormSt
   return { ok: true, message: m.auth.forgot.sent };
 }
 
+/**
+ * Новый пароль по ссылке (POST формы /reset/<token>): сброс по почте или доступ в кабинет после оплаты по счёту из чата.
+ * Ссылка доступа погашается своим путём — без прав администратора (их даёт только сброс по почте).
+ */
 export async function resetAction(_: FormState, form: FormData): Promise<FormState> {
   const m = await getMessages();
   const password = passwordSchema(m.auth.errors).safeParse(form.get("password"));
   if (!password.success) return { error: password.error.issues[0].message };
+  const token = z.string().regex(/^[A-Za-z0-9_-]{20,100}$/).safeParse(form.get("token"));
+  if (!token.success) return { error: m.auth.errors.resetExpired };
+  const auth = container().identity.auth;
+  const access = (await auth.linkInfo(token.data))?.purpose === "access";
   try {
-    const result = await container().identity.auth.resetPassword(String(form.get("token") ?? ""), password.data);
-    // Смена пароля по письму не обходит второй фактор сотрудника.
-    if (result.kind === "second_factor") {
-      await issueTwoFactorTicket(result.userId);
-      return lredirect("/login/2fa?next=%2Fadmin");
+    if (access) {
+      const session = await auth.redeemAccessLink(token.data, password.data);
+      await startSession(session.token, session.expiresAt);
+    } else {
+      const result = await auth.resetPassword(token.data, password.data);
+      // Смена пароля по письму не обходит второй фактор сотрудника.
+      if (result.kind === "second_factor") {
+        await issueTwoFactorTicket(result.userId);
+        return lredirect("/login/2fa?next=%2Fadmin");
+      }
+      await startSession(result.token, result.expiresAt);
     }
-    await startSession(result.token, result.expiresAt);
   } catch (err) {
+    if (access && IdentityError.is(err) && err.code === "resetExpired") return { error: m.auth.errors.accessExpired, expired: true };
     const error = await actionError(err, IdentityError);
     if (error === null) throw err;
     return { error };

@@ -5,11 +5,11 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, audit, canAssignOthers, ForbiddenError } from "@/server/access";
+import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
-import { normalizePhone } from "@/shared/domain/phone";
+import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
@@ -61,6 +61,24 @@ export async function setClientChannelAction(clientId: string, channel: string):
   return { ok: true, message: `Канал: ${channels[channel]}` };
 }
 
+/**
+ * Язык кабинета и писем клиента — если при заведении выбрали не тот. Ссылка входа и сообщение с доступом
+ * («Доступ в кабинет») после смены — на новом языке; на сайте клиент может переключить язык и сам.
+ */
+export async function setClientLocaleAction(clientId: string, locale: string): Promise<ActionResult> {
+  const staff = await assertStaff("clients.edit");
+  const next = z.enum(["ru", "kk"]).safeParse(locale);
+  if (!next.success) return { ok: false, message: "Выберите язык" };
+  const c = container();
+  const client = await c.clients.clients.find(uuid.parse(clientId));
+  if (!client) return { ok: false, message: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  await c.identity.accounts.setLocale(client.id, next.data);
+  await audit(staff, "client.locale", "client", client.id, { to: next.data });
+  revalidatePath(`/admin/clients/${client.id}`);
+  return { ok: true, message: next.data === "kk" ? "Язык: казахский" : "Язык: русский" };
+}
+
 /** Номер для звонка/чата берём на сервере: сотрудник без права видеть контакты всё равно может связаться. */
 function resolveContact(target: Target) {
   const id = (v?: string) => (v ? uuid.parse(v) : undefined);
@@ -71,7 +89,7 @@ export async function callAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("calls.make");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertVisible(staff, c.assigneeId);
+  assertWorkable(staff, c.assigneeId);
   try {
     await container().telephony.phone.clickToCall(staff.user.sipExtension, normalizePhone(c.phone));
   } catch (err) {
@@ -86,7 +104,7 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertVisible(staff, c.assigneeId);
+  assertWorkable(staff, c.assigneeId);
   // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
   const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
@@ -100,7 +118,7 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
-  assertVisible(staff, c.assigneeId);
+  assertWorkable(staff, c.assigneeId);
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
   const r = await container().messaging.email.sendToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
@@ -138,6 +156,8 @@ export async function setShiftAction(rawOnShift: boolean) {
   const onShift = z.boolean().parse(rawOnShift);
   await container().access.shifts.set(staff.user.id, onShift);
   await audit(staff, onShift ? "staff.shift_on" : "staff.shift_off", "user", staff.user.id);
+  // Вышел на смену — ждущие заявки (ночные, «никого не было») раздаются сразу, не дожидаясь прохода планировщика.
+  if (onShift) void container().sales.routing.run().catch((err) => console.error("[routing] shift on", err));
 }
 
 /** Свои поля клиента (раздел «Свои поля» → поля клиента). */
@@ -150,4 +170,17 @@ export async function setClientFieldsAction(_: { ok?: string; error?: string }, 
   await container().clients.clients.setCustomFields(client, readFieldValues(await listFields("client"), form, client.customFields));
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: "Сохранено" };
+}
+
+/**
+ * Открыть номер и почту своего клиента (роль без «видеть контакты полностью»): каждое открытие — в журнале,
+ * руководитель видит, кто, чей и когда открывал.
+ */
+export async function revealContactAction(target: Target): Promise<{ ok: true; phone: string; email: string } | { ok: false; message: string }> {
+  const staff = await assertStaff("clients.reveal");
+  const c = await resolveContact(target);
+  if (!c) return { ok: false, message: "Контакт не найден" };
+  assertWorkable(staff, c.assigneeId);
+  await audit(staff, "client.contact_reveal", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { name: c.name ?? "" });
+  return { ok: true, phone: c.phone ? formatPhone(c.phone) : "", email: c.email ?? "" };
 }

@@ -22,7 +22,12 @@ export type AuthoringErrorCode =
   | "letterInvalid"
   | "letterClosed"
   | "letterPrinted"
-  | "letterLimit";
+  | "letterLimit"
+  | "unknownTheme"
+  | "outlineNotAllowed"
+  | "outlineOutdated"
+  | "chaptersLimit"
+  | "chapterNotFound";
 
 export const AuthoringError = contextError<AuthoringErrorCode>("authoring", "AuthoringError");
 export type AuthoringError = InstanceType<typeof AuthoringError>;

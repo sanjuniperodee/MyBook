@@ -1,12 +1,12 @@
 import "server-only";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
-import { crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
+import { crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
 import { staffLabel } from "@/shared/domain/staff";
 import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
-import { GOWA_CHANNEL } from "../domain/gowa";
+import { GOWA_CHANNEL, gowaDownloadable, gowaMediaPath } from "../domain/gowa";
 import type { MailTransport } from "./email";
 import type { GowaClient } from "./gowa";
 import type { WazzupClient } from "./wazzup";
@@ -24,10 +24,23 @@ export interface ChatMessage {
   at: string;
   /** Внутренняя заметка сотрудника — клиент её не видит. */
   internal?: boolean;
+  /**
+   * Файл вложения лежит в шлюзе GOWA (или шлюз скачает его по запросу) — открывается по id сообщения,
+   * через /api/admin/chats/messages/<id>/media, с проверкой, что сотрудник видит диалог.
+   */
+  gateway?: boolean;
 }
 
-/** Последние сообщения диалога в виде, готовом для ChatPanel. */
-async function loadChatMessages(conversationId: string, limit: number): Promise<ChatMessage[]> {
+/** Кто отправил исходящее без сотрудника: бот, правило автоматизации, телефон магазина (эхо) или старая запись. */
+function outgoingAuthor(m: Pick<typeof crmMessages.$inferSelect, "internal" | "source" | "externalId" | "authorId">) {
+  if (m.source === "bot") return "бот";
+  if (m.source === "rule") return "автоматически";
+  if (m.internal) return "—";
+  return m.externalId && !m.authorId ? "с телефона" : "автоматически";
+}
+
+/** Последние сообщения диалога в виде, готовом для ChatPanel. gateway — вложение открывается через шлюз GOWA. */
+async function loadChatMessages(conversationId: string, limit: number, gateway: (m: typeof crmMessages.$inferSelect) => boolean): Promise<ChatMessage[]> {
   const rows = await db
     .select({ m: crmMessages, author: { name: users.name, email: users.email } })
     .from(crmMessages)
@@ -35,18 +48,23 @@ async function loadChatMessages(conversationId: string, limit: number): Promise<
     .where(eq(crmMessages.conversationId, conversationId))
     .orderBy(desc(crmMessages.createdAt))
     .limit(limit);
-  return rows.reverse().map(({ m, author }) => ({
-    id: m.id,
-    direction: m.direction,
-    type: m.type,
-    text: m.text,
-    mediaUrl: m.mediaUrl,
-    status: m.status,
-    error: m.error,
-    author: m.internal ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
-    at: m.createdAt.toISOString(),
-    internal: m.internal,
-  }));
+  return rows.reverse().map(({ m, author }) => {
+    const viaGateway = gateway(m);
+    return {
+      id: m.id,
+      direction: m.direction,
+      type: m.type,
+      text: m.text,
+      // Путь файла шлюза (в нём номер клиента) в браузер не уходит: такое вложение открывается по id сообщения.
+      mediaUrl: viaGateway ? null : m.mediaUrl,
+      status: m.status,
+      error: m.error,
+      author: author?.email ? (m.direction === "out" ? staffLabel({ name: author.name ?? "", email: author.email }) : null) : m.direction === "in" ? null : outgoingAuthor(m),
+      at: m.createdAt.toISOString(),
+      internal: m.internal,
+      ...(viaGateway ? { gateway: true } : {}),
+    };
+  });
 }
 
 /** Экран чата (ChatPanel): сообщения, шаблоны ответов, их переменные и почему отправка сейчас не сработает. */
@@ -63,8 +81,10 @@ export class ChatView {
     },
   ) {}
 
-  messages(conversationId: string, limit = 150) {
-    return loadChatMessages(conversationId, limit);
+  async messages(conversationId: string, limit = 150) {
+    const [conv] = await db.select({ channel: crmConversations.channel, channelId: crmConversations.channelId, chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.id, conversationId)).limit(1);
+    const viaGowa = conv?.channel === "whatsapp" && (await this.deps.whatsappProvider()) === "gowa";
+    return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || gowaDownloadable(conv, viaGowa, m)));
   }
 
   templates() {

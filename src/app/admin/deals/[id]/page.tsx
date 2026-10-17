@@ -2,7 +2,7 @@ import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
@@ -13,19 +13,26 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
+import { REJECTION_TAGS } from "@/modules/sales/domain";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatDate } from "@/lib/dates";
+import { formatPrice } from "@/config/site";
+import { invoiceViews } from "@/app/admin/invoices/view";
+import { RECENT_ONLINE_MS, type MoneyGuard } from "@/components/admin/invoices/model";
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
-import { DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
+import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly } from "./sections";
 import { pageId } from "@/server/input";
 
 export const metadata = { title: "Сделка" };
 
-export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DealPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ pay?: string | string[] }> }) {
   const staff = await requireStaff("deals.view");
   const id = pageId((await params).id);
+  // «Оплата пришла» из чата: ?pay=<счёт> открывает приём платежа по этому счёту.
+  const payParam = (await searchParams).pay;
+  const payInvoiceId = typeof payParam === "string" && /^[0-9a-f-]{36}$/i.test(payParam) ? payParam : null;
   const deal = await container().reporting.dealById(id);
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
 
@@ -36,7 +43,14 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
     container().reporting.dealCard(deal, { calls: can(staff, "calls.view"), chats: can(staff, "chats.view") }),
   ]);
   const conv = convs[0] ?? null;
-  const [paymentRows, receiptRows] = await Promise.all([container().sales.payments.list(deal.id), container().sales.receipts.list(deal.id)]);
+  const [paymentRows, receiptRows, orderMoney, invoiceRows] = await Promise.all([
+    container().sales.payments.list(deal.id),
+    container().sales.receipts.list(deal.id),
+    deal.orderId ? container().ordering.payments.summary(deal.orderId) : null,
+    container().ordering.invoices.listFor(deal.id),
+  ]);
+  const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
+  const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.map((r) => ({ id: r.id, amount: r.amount, method: methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
   const [duplicates, suggestedClientId, dealFields] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
@@ -52,8 +66,24 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");
+  // Счета из чата: действия — тому, кто ведёт сделку (сервер проверяет те же права).
+  const works = canWork(staff, deal.assigneeId);
+  const invoicePerms = { edit: canEdit && works, send: canEdit && works && can(staff, "chats.send"), access: works && can(staff, "clients.create"), pay: canEdit && works && !deal.orderId };
+  const now = new Date();
+  const invoices = invoiceViews(invoiceRows, { now, withLink: invoicePerms.edit });
+  const invoiceLabels = new Map(invoiceRows.map((i) => [i.id, i.label]));
+  const openInvoice = invoiceRows.find((i) => i.status === "pending_payment") ?? null;
+  // Защита от двойной записи: открытый счёт и онлайн-оплаты за 72 ч — в форме приёма платежа явный выбор.
+  const guard: MoneyGuard = {
+    invoice: openInvoice ? { id: openInvoice.id, label: openInvoice.label, amount: openInvoice.amount } : null,
+    recentOnline: paymentRows
+      .filter((p) => p.method !== "manual" && p.kind !== "refund" && now.getTime() - p.paidAt.getTime() < RECENT_ONLINE_MS)
+      .map((p) => ({ id: p.id, text: `${formatPrice(p.amount)} (${p.method === "kaspi" ? "Kaspi" : "картой"}${p.invoiceId && invoiceLabels.has(p.invoiceId) ? `, счёт ${invoiceLabels.get(p.invoiceId)}` : ""}, ${formatDate(p.paidAt, true)})` })),
+  };
   const contact = contactView(staff, { phone: deal.contactPhone ? formatPhone(deal.contactPhone) : client?.phone, email: deal.contactEmail ?? client?.email });
-  const screen = dealScreen({ deal, stages: allStages, staff: admins, tasks: taskRows, notes: noteRows, payments: paymentRows, receipts: receiptRows, calls: callRows, now: new Date() });
+  const screen = dealScreen({ deal, stages: allStages, staff: admins, tasks: taskRows, notes: noteRows, payments: paymentRows, receipts: receiptRows, calls: callRows, now });
+  const invoiceOf = new Map(paymentRows.map((p) => [p.id, p.invoiceId ? (invoiceLabels.get(p.invoiceId) ?? null) : null]));
+  const payments = screen.payments.map((p) => ({ ...p, invoice: invoiceOf.get(p.id) ?? null }));
   const { pipelineId, stages, stage, tasks, notes } = screen;
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === deal.assigneeId);
 
@@ -78,7 +108,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </h1>
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
-      {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit} /> : null}
+      {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
       {duplicates.length ? <Duplicates dealId={deal.id} duplicates={duplicates} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
@@ -99,6 +129,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 tags: deal.tags,
               }}
               masked={contact.masked ? { phone: contact.phone, email: contact.email } : null}
+              canReveal={can(staff, "clients.reveal") && canWork(staff, deal.assigneeId)}
               fields={dealFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))}
               values={deal.customFields}
               disabled={!canEdit}
@@ -115,7 +146,14 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             plan={await container().sales.agreedPlan.get(deal.id)}
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
-            payments={screen.payments}
+            payments={payments}
+            canDelete={can(staff, "deals.delete")}
+            orderMoney={orderMoneyView}
+            invoices={invoices}
+            invoicePerms={invoicePerms}
+            guard={guard}
+            payInvoiceId={payInvoiceId}
+            canIssue={invoicePerms.send}
           />
           {bookRows.length ? <DealBooks books={bookRows} seen={clientSeen} /> : null}
           <DealLinks
@@ -129,6 +167,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             can={(p) => can(staff, p)}
             emailOf={(email) => contactView(staff, { email }).email}
           />
+          {!deal.clientId && !suggested && deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId) ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
         </aside>
 
         <div className="min-w-0 space-y-5">
@@ -146,7 +185,20 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   Открыть в чатах
                 </Link>
               </div>
-              <ChatPanel className="h-[460px]" conversationId={conv.id} messages={messages} canSend={can(staff, "chats.send")} templates={templates} vars={vars} sendDisabledReason={blocker} offers={can(staff, "chats.send") ? offers : null} mentionables={mentionables} ai={ai && can(staff, "chats.send")} timeZone={storeTimeZone()} />
+              <ChatPanel
+                className="h-[460px]"
+                conversationId={conv.id}
+                messages={messages}
+                canSend={can(staff, "chats.send") && canWork(staff, deal.assigneeId)}
+                templates={templates}
+                vars={vars}
+                sendDisabledReason={blocker}
+                offers={can(staff, "chats.send") && canWork(staff, deal.assigneeId) ? offers : null}
+                mentionables={mentionables}
+                ai={ai && can(staff, "chats.send") && canWork(staff, deal.assigneeId)}
+                invoice={invoicePerms.send ? { dealId: deal.id } : null}
+                timeZone={storeTimeZone()}
+              />
             </section>
           ) : null}
 
