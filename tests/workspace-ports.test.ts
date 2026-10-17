@@ -186,13 +186,26 @@ describe("messaging: настройки, уведомления, живое об
     expect(live.events).toEqual([{ type: "chat", conversationId: "conv-1" }, { type: "notify" }]);
   });
 
-  it("бот: режим (пусто — выключен) и вопросы из настроек, рабочее время и поля сделки — из рабочего пространства", async () => {
+  it("бот: режим (пусто или неизвестный — выключен) и вопросы из настроек, рабочее время и поля сделки — из рабочего пространства, цены — с сайта", async () => {
     const schedule = new FixedSchedule(false);
-    const bot = crmBotSettings({ settings: new MemSettings<"bot.mode" | "bot.config">(), schedule, fields: new MemFieldsReader({ deal: dealFields }) });
-    expect(await bot.mode()).toBe("off");
+    const site = {
+      catalog: async () => ({ plans: [{ id: "hardcover", price: 30000 }], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
+      site: async () => ({ url: "https://mybook.kz", registrationOpen: false, themes: ["love"], landings: [] }),
+    };
+    const settings = new MemSettings<"bot.mode" | "bot.config" | "crm.workHours">({ "crm.workHours": '{"days":[1,2,3,4,5],"from":"10:00","to":"18:00"}' });
+    const bot = crmBotSettings({ settings, schedule, fields: new MemFieldsReader({ deal: dealFields }), site });
+    // Режим не задан — по умолчанию «всегда» (решение владельца 17.10).
+    expect(await bot.mode()).toBe("always");
     expect((await bot.config()).questions.length).toBeGreaterThan(0);
     expect(await bot.isWorkTime(new Date("2026-10-14T03:00:00Z"))).toBe(false);
     expect(await bot.dealFields()).toEqual(dealFields);
+    // Среда 08:00 по Алматы → начало смены в 10:00 того же дня (график из настроек CRM).
+    expect(await bot.nextWorkStart(new Date("2026-10-14T03:00:00Z"))).toEqual(new Date("2026-10-14T05:00:00Z"));
+    expect((await bot.catalog()).plans).toEqual([{ id: "hardcover", price: 30000 }]);
+    settings.values.set("bot.mode", "fallback");
+    expect(await bot.mode()).toBe("fallback");
+    settings.values.set("bot.mode", "sometimes");
+    expect(await bot.mode()).toBe("off");
   });
 
   it("виджет: выключен — без кнопки WhatsApp и чата, номер не спрашиваем", async () => {

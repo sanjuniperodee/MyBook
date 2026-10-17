@@ -43,6 +43,26 @@ export function isWorkTime(date: Date, hours: WorkHours, tz = storeTimeZone()) {
   return false;
 }
 
+/**
+ * Когда начнётся рабочее время: сейчас рабочее — сам момент date; иначе начало ближайшей смены (по поясу магазина).
+ * null — в графике нет рабочих дней. Для автоответов «менеджер ответит завтра с 09:00».
+ */
+export function nextWorkStart(date: Date, hours: WorkHours, tz = storeTimeZone()): Date | null {
+  if (!hours.days.length) return null;
+  if (isWorkTime(date, hours, tz)) return date;
+  const p = zonedParts(date, tz);
+  const from = toMin(hours.from);
+  for (let i = 0; i <= 8; i++) {
+    // Полдень местного дня i — от него берём дату и смещение пояса (переход на летнее время не сдвигает день).
+    const noon = new Date(Date.UTC(p.y, p.m - 1, p.d + i, 12) - timeZoneOffset(date, tz) * 60_000);
+    const day = zonedParts(noon, tz);
+    if (!hours.days.includes(day.weekday)) continue;
+    const start = new Date(Date.UTC(day.y, day.m - 1, day.d, Math.floor(from / 60), from % 60) - timeZoneOffset(noon, tz) * 60_000);
+    if (start.getTime() > date.getTime()) return start;
+  }
+  return null;
+}
+
 /** Сколько рабочих минут прошло между a и b (для норматива ответа). */
 export function workMinutesBetween(a: Date, b: Date, hours: WorkHours, tz = storeTimeZone()) {
   const start = a.getTime();

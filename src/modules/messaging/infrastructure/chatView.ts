@@ -31,6 +31,14 @@ export interface ChatMessage {
   gateway?: boolean;
 }
 
+/** Кто отправил исходящее без сотрудника: бот, правило автоматизации, телефон магазина (эхо) или старая запись. */
+function outgoingAuthor(m: Pick<typeof crmMessages.$inferSelect, "internal" | "source" | "externalId" | "authorId">) {
+  if (m.source === "bot") return "бот";
+  if (m.source === "rule") return "автоматически";
+  if (m.internal) return "—";
+  return m.externalId && !m.authorId ? "с телефона" : "автоматически";
+}
+
 /** Последние сообщения диалога в виде, готовом для ChatPanel. gateway — вложение открывается через шлюз GOWA. */
 async function loadChatMessages(conversationId: string, limit: number, gateway: (m: typeof crmMessages.$inferSelect) => boolean): Promise<ChatMessage[]> {
   const rows = await db
@@ -51,7 +59,7 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
       mediaUrl: viaGateway ? null : m.mediaUrl,
       status: m.status,
       error: m.error,
-      author: m.internal ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : "—") : m.direction === "out" ? (author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : m.externalId && !m.authorId ? "с телефона" : "автоматически") : null,
+      author: author?.email ? (m.direction === "out" ? staffLabel({ name: author.name ?? "", email: author.email }) : null) : m.direction === "in" ? null : outgoingAuthor(m),
       at: m.createdAt.toISOString(),
       internal: m.internal,
       ...(viaGateway ? { gateway: true } : {}),

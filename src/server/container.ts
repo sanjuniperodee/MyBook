@@ -26,6 +26,7 @@ import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer
 import { registerSubscriptions } from "./subscriptions";
 import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { botSiteInfo } from "./bot-site";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
 
@@ -71,7 +72,8 @@ export class Container {
       notifier: this.workspace.notifier,
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
-      sendMessage: async (conversationId, text) => void (await this.messaging.chats.send(conversationId, text, null)),
+      // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд).
+      sendMessage: async (conversationId, text) => void (await this.messaging.chats.sendAutomated(conversationId, text)),
       sales: {
         nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),
@@ -113,6 +115,39 @@ export class Container {
         setField: (dealId, key, value) => this.sales.deals.setField(dealId, key, value),
         deal: (dealId) => this.sales.deals.findById(dealId),
         nextRoundRobin: () => this.sales.routing.next(),
+      },
+      // Бот-квалификатор: перед опросом смотрит сделку (этап, ответственный, заказ) и клиента (заказы, книги).
+      botCrm: {
+        deal: async (dealId) => {
+          const d = await this.sales.deals.findById(dealId);
+          if (!d) return null;
+          const stage = await this.sales.deals.stage(d.stageId);
+          const first = stage ? await this.sales.deals.stageOfKind("open", stage.pipelineId) : null;
+          return {
+            orderId: d.orderId,
+            firstStage: !!stage && first?.id === stage.id,
+            closed: !!stage && stage.kind !== "open",
+            assigneeId: d.assigneeId,
+            unsorted: d.unsorted,
+            customFields: d.customFields,
+            contactName: d.contactName,
+            title: d.title,
+            clientId: d.clientId,
+          };
+        },
+        client: async (clientId) => {
+          const [orders, books, profile] = await Promise.all([this.ordering.queries.userOrders(clientId), this.authoring.queries.userBooks(clientId), this.clients.clients.find(clientId)]);
+          return { orders: orders.length, books: books.length, locale: null, name: profile?.name ?? null };
+        },
+        tag: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
+      },
+      botSite: botSiteInfo,
+      // AI только понимает ответ, который бот не разобрал сам; тексты клиенту — шаблоны из настроек.
+      brain: {
+        understand: async (input) => {
+          const r = await this.assistant.service.understandForBot(input);
+          return r && { fields: r.fields, intents: r.intents, handoff: r.handoff, lang: r.lang };
+        },
       },
     }));
   }

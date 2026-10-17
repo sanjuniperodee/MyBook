@@ -4,8 +4,10 @@ import type { CustomFieldsReader, LiveFeed, SettingsReader, StaffNotifier as Sta
 import { crmTasks } from "@/shared/infrastructure/db/schema";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { executor } from "@/shared/infrastructure/database";
-import type { BotSettings, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier, Tasks } from "../application";
-import { GOWA_CHANNEL, type BotMode } from "../domain";
+import { nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
+import { storeTimeZone } from "@/shared/domain/time";
+import type { BotSettings, BotTimers, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier, Tasks } from "../application";
+import { DEFAULT_BOT_MODE, GOWA_CHANNEL, isBotMode, type BotCatalog } from "../domain";
 import type { EmailChannel } from "./email";
 import { GowaError, type GowaClient } from "./gowa";
 import { WazzupError, type WazzupClient } from "./wazzup";
@@ -74,13 +76,51 @@ export const realtimeUpdates = (live: LiveFeed): LiveUpdates => ({
   notificationsChanged: () => void live.publish({ type: "notify" }),
 });
 
-/** Бот-квалификатор: режим и вопросы — из настроек CRM, рабочее время и свои поля сделки — из рабочего пространства. */
-export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config">; schedule: WorkSchedule; fields: CustomFieldsReader }): BotSettings => ({
-  mode: async () => ((await deps.settings.get("bot.mode")) || "off") as BotMode,
+/** Что бот берёт с сайта: цены и сроки (действующий каталог), адрес, регистрация, темы книг, посадочные страницы. */
+export interface BotSiteInfo {
+  catalog(): Promise<BotCatalog>;
+  site(): Promise<{ url: string; registrationOpen: boolean; themes: string[]; landings: string[]; themeLandings?: Record<string, string> }>;
+}
+
+/**
+ * Бот-квалификатор: режим и вопросы — из настроек CRM, рабочее время и свои поля сделки — из рабочего пространства,
+ * цены и темы книг — с сайта (порт контейнера).
+ */
+export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config" | "crm.workHours">; schedule: WorkSchedule; fields: CustomFieldsReader; site: BotSiteInfo }): BotSettings => ({
+  mode: async () => {
+    const v = await deps.settings.get("bot.mode");
+    // Не задан — режим по умолчанию («всегда»); испорчен — выключен, чтобы бот не писал клиентам по ошибке.
+    if (!v) return DEFAULT_BOT_MODE;
+    return isBotMode(v) ? v : "off";
+  },
   config: async () => parseBotConfig(await deps.settings.get("bot.config")),
   isWorkTime: (at) => deps.schedule.isWorkTime(at),
+  nextWorkStart: async (at) => nextWorkStart(at, parseWorkHours(await deps.settings.get("crm.workHours"))),
   dealFields: () => deps.fields.list("deal"),
+  catalog: () => deps.site.catalog(),
+  site: () => deps.site.site(),
+  timeZone: () => storeTimeZone(),
 });
+
+/** Отложенные ходы бота в этом процессе: один таймер на диалог (новый заменяет прежний). Дальние сроки — планировщику. */
+export function processTimers(maxDelayMs = 15 * 60_000): BotTimers {
+  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  return {
+    schedule(key, at, run) {
+      const delay = Math.max(0, at.getTime() - Date.now());
+      const prev = timers.get(key);
+      if (prev) clearTimeout(prev);
+      timers.delete(key);
+      if (delay > maxDelayMs) return;
+      const t = setTimeout(() => {
+        timers.delete(key);
+        run();
+      }, delay + 50);
+      t.unref?.();
+      timers.set(key, t);
+    },
+  };
+}
 
 export const crmTasksAdapter: Tasks = {
   async create(t) {

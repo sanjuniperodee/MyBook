@@ -8,7 +8,7 @@ import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, 
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
 import { automationActions, automationTriggers, isTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
-import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
+import { isWorkTime, nextWorkStart, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/shared/domain/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
@@ -224,6 +224,20 @@ describe("рабочее время", () => {
     expect(workMinutesBetween(at("2026-09-30T05:00:00Z"), at("2026-09-30T05:15:00Z"), hours)).toBe(15);
     expect(workMinutesBetween(at("2026-09-30T05:15:00Z"), at("2026-09-30T05:00:00Z"), hours)).toBe(0);
   });
+
+  it("начало следующей смены — для «менеджер ответит завтра с 09:00»", () => {
+    // среда 10:00 — рабочее время: сейчас
+    expect(nextWorkStart(at("2026-09-30T05:00:00Z"), hours)).toEqual(at("2026-09-30T05:00:00Z"));
+    // среда 19:00 → четверг 09:00
+    expect(nextWorkStart(at("2026-09-30T14:00:00Z"), hours)).toEqual(at("2026-10-01T04:00:00Z"));
+    // среда 07:00 → среда 09:00
+    expect(nextWorkStart(at("2026-09-30T02:00:00Z"), hours)).toEqual(at("2026-09-30T04:00:00Z"));
+    // пятница 20:00 → понедельник 09:00
+    expect(nextWorkStart(at("2026-10-02T15:00:00Z"), hours)).toEqual(at("2026-10-05T04:00:00Z"));
+    // 00:50 17.10 (ночь после пятницы) при графике каждый день 09–21 → 09:00 того же дня
+    expect(nextWorkStart(at("2026-10-16T19:50:00Z"), parseWorkHours(null))).toEqual(at("2026-10-17T04:00:00Z"));
+    expect(nextWorkStart(at("2026-10-16T19:50:00Z"), { days: [], from: "09:00", to: "18:00" })).toBeNull();
+  });
 });
 
 describe("упоминания и воронка по действиям", () => {
@@ -312,9 +326,23 @@ describe("бот-квалификатор", () => {
     expect(matchOption("просто так", opts)).toBeNull();
   });
 
+  it("регрессы с прода: «8 марта» — не вариант 8, «др» — не «Другой повод», «4Ноябрь» и «21 окт» — даты, «15 мама» — не май", () => {
+    const occasions = ["Годовщина", "День рождения", "14 февраля", "8 марта", "Новый год", "Свадьба", "Юбилей родителей", "Выпускной", "Другой повод"];
+    expect(matchOption("8 марта", occasions)).toBe("8 марта");
+    expect(matchOption("др", occasions)).toBe("День рождения");
+    expect(matchOption("Туған күнге", occasions)).toBe("День рождения");
+    expect(parseDateAnswer("4Ноябрь", now)).toBe("2026-11-04");
+    expect(parseDateAnswer("21 окт", now)).toBe("2026-10-21");
+    expect(parseDateAnswer("15 қараша", now)).toBe("2026-11-15");
+    expect(parseDateAnswer("15 мама", now)).toBeNull();
+  });
+
   it("показывает варианты списка с номерами и терпит испорченную настройку", () => {
-    expect(questionText({ text: "Повод?", field: "occasion" }, ["А", "Б"])).toBe("Повод?\n1 — А\n2 — Б");
+    expect(questionText("Повод?", ["А", "Б"])).toBe("Повод?\n1 — А\n2 — Б");
     expect(parseBotConfig("{bad")).toEqual(defaultBotConfig);
-    expect(parseBotConfig(JSON.stringify({ greeting: "Привет", questions: [{ text: "", field: "x" }, { text: "Кому?", field: "recipient" }], finish: "" })).questions).toEqual([{ text: "Кому?", field: "recipient" }]);
+    // Старый формат с прода: пустой вопрос отбрасывается, текст становится русским, казахский — заводской для поля.
+    expect(parseBotConfig(JSON.stringify({ greeting: "Привет", questions: [{ text: "", field: "x" }, { text: "Кому?", field: "recipient" }], finish: "" })).questions).toEqual([
+      { field: "recipient", text: { ru: "Кому?", kk: "Кітап кімге арналады? Мысалы: анаңызға, күйеуіңізге, құрбыңызға." } },
+    ]);
   });
 });

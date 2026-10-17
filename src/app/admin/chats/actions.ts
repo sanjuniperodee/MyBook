@@ -90,6 +90,23 @@ export async function setConversationStatusAction(conversationId: string, status
   revalidatePath("/admin/chats");
 }
 
+/** «Остановить бота»: бот больше не пишет в этот диалог (менеджер ведёт сам). */
+export async function stopBotAction(conversationId: string) {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  if (await container().messaging.bot.stopByHuman(conv.id, "button")) await audit(staff, "chat.bot_stop", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
+  revalidatePath("/admin/chats");
+}
+
+/** «Запустить бота» в диалоге, где он не работал или уже закончил: поздоровается и спросит недостающее. */
+export async function startBotAction(conversationId: string) {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  await container().messaging.bot.startManually(conv.id);
+  await audit(staff, "chat.bot_start", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
+  revalidatePath("/admin/chats");
+}
+
 export async function createDealFromChatAction(conversationId: string) {
   const staff = await assertStaff("chats.view", "deals.edit");
   const conv = await loadOwnConv(staff, conversationId);

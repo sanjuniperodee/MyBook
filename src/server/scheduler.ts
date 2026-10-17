@@ -46,6 +46,9 @@ async function crmTick() {
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await container().sales.routing.run();
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);
+    // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
+    const botTurns = await container().messaging.bot.sweep().catch((err) => (console.error("[scheduler] bot", err), 0));
+    if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
     const mails = await container().messaging.email.pollImap();
     if (mails) console.log(`[scheduler] crm emails=${mails}`);

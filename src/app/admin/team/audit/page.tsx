@@ -54,6 +54,8 @@ const actions: Record<string, string> = {
   "chat.assign": "Передал чат",
   "chat.close": "Закрыл чат",
   "chat.reopen": "Открыл чат снова",
+  "chat.bot_stop": "Остановил бота в чате",
+  "chat.bot_start": "Запустил бота в чате",
   "deal.spam_request": "Предложил отметить заявку спамом",
   "deal.reject_request": "Предложил отклонить заявку",
   "deal.request_declined": "Отказал в отклонении заявки",

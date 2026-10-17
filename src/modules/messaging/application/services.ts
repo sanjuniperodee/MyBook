@@ -1,12 +1,6 @@
 import type { Clock, Logger } from "@/shared/application";
 import { normalizePhone, phoneTail } from "@/shared/domain/phone";
 import {
-  BOT_DONE,
-  answerValue,
-  botFinish,
-  botGreeting,
-  botQuestion,
-  botSummary,
   channelLabel,
   contactChanges,
   contactEmail,
@@ -22,7 +16,8 @@ import {
   type DeliveryStatus,
   type InboundMessage,
 } from "../domain";
-import type { Blocklist, BotSettings, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
+import type { QualifierBot } from "./bot";
+import type { Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, SalesGateway, StaffNotifier, Tasks } from "./ports";
 
 /** Сообщение канала без секретов в тексте (redactSecrets): так оно и хранится в CRM. */
 const withoutSecrets = (m: InboundMessage): InboundMessage => {
@@ -42,58 +37,8 @@ export interface IngestExtra {
   anyWhatsappChannel?: boolean;
 }
 
-/**
- * Бот-квалификатор: на новое обращение задаёт вопросы из настроек и записывает ответы в поля сделки.
- * Останавливается, как только отвечает менеджер. Режим: off | always | off_hours.
- */
-export class QualifierBot {
-  constructor(
-    private readonly conversations: ConversationRepository,
-    private readonly settings: BotSettings,
-    private readonly sales: SalesGateway,
-    private readonly notifier: StaffNotifier,
-    private readonly clock: Clock,
-  ) {}
-
-  async onIncoming(conv: Conversation, text: string, isNew: boolean, send: (text: string) => Promise<unknown>) {
-    const mode = await this.settings.mode();
-    if (mode !== "always" && mode !== "off_hours") return;
-    if (conv.botStep === BOT_DONE || !conv.dealId) return;
-    const config = await this.settings.config();
-    if (!config.questions.length) return;
-    const fields = await this.settings.dealFields();
-
-    // Шаг ещё не начат: запускаем только на первое обращение (новый диалог).
-    if (conv.botStep === null) {
-      if (!isNew) return;
-      if (mode === "off_hours" && (await this.settings.isWorkTime(this.clock.now()))) return;
-      if (!(await this.conversations.advanceBot(conv.id, null, 0))) return;
-      await send([botGreeting(config, conv.contactName), botQuestion(config, 0, fields)].filter(Boolean).join("\n\n"));
-      return;
-    }
-
-    // Ответ на текущий вопрос → поле сделки → следующий вопрос или завершение.
-    const step = conv.botStep;
-    const q = config.questions[step];
-    if (!q) return;
-    const field = fields.find((x) => x.key === q.field);
-    const value = answerValue(text, field);
-    if (field && value !== null) await this.sales.setField(conv.dealId, field.key, value);
-    const next = step + 1;
-    const done = next >= config.questions.length;
-    if (!(await this.conversations.advanceBot(conv.id, step, done ? BOT_DONE : next))) return;
-    if (!done) {
-      await send(botQuestion(config, next, fields) ?? "");
-      return;
-    }
-    if (config.finish.trim()) await send(botFinish(config, conv.contactName));
-    const deal = await this.sales.deal(conv.dealId);
-    if (!deal) return;
-    const summary = botSummary(config, fields, deal.customFields);
-    await this.sales.note(deal, `Бот собрал ответы клиента:\n${summary}`);
-    await this.notifier.notify(deal.assigneeId, "chats.view", { kind: "message", title: `Бот собрал ответы: ${deal.contactName || deal.title}`, body: summary.replace(/\n/g, " · "), link: `/admin/chats?c=${conv.id}` });
-  }
-}
+/** Бот в инбоксе: входящие, ответ человека, автоответ правил. */
+type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
 
 /** Единый инбокс: входящие из всех каналов, отправка ответов, статусы доставки. */
 export class MessagingService {
@@ -107,7 +52,7 @@ export class MessagingService {
     private readonly notifier: StaffNotifier,
     private readonly live: LiveUpdates,
     private readonly rules: IncomingRules,
-    private readonly bot: QualifierBot,
+    private readonly bot: InboxBot,
     private readonly clock: Clock,
     private readonly logger: Logger,
     /** Номер магазина: его в сообщениях с телефона компании писать можно. */
@@ -129,9 +74,9 @@ export class MessagingService {
     return { conv: (await this.conversations.findByChat(m.chatType, m.channelId, m.chatId))!, created: false };
   }
 
-  /** Сделка для диалога: открытая по клиенту/телефону или новая заявка (с нового номера — в «Неразобранное»). */
-  private async ensureDeal(conv: Conversation, contactName: string, firstText: string): Promise<Conversation> {
-    if (conv.dealId) return conv;
+  /** Сделка для диалога: открытая по клиенту/телефону или новая заявка (с нового номера — в «Неразобранное»). created — заявку завели сейчас. */
+  private async ensureDeal(conv: Conversation, contactName: string, firstText: string): Promise<{ conv: Conversation; created: boolean }> {
+    if (conv.dealId) return { conv, created: false };
     const phone = contactPhone(conv);
     // Код рекламной ссылки в первом сообщении («… (код: insta-bio)») — откуда пришёл клиент.
     const utm = await this.links.fromText(firstText);
@@ -149,7 +94,8 @@ export class MessagingService {
         unsorted: true,
         utm,
       }));
-    return this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId ?? deal.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
+    const linked = await this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId ?? deal.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
+    return { conv: linked, created: !existing };
   }
 
   async ingest(raw: InboundMessage, extra: IngestExtra = {}) {
@@ -163,6 +109,8 @@ export class MessagingService {
       if (await this.messages.claimPendingEcho(base.id, m.text, new Date(this.clock.now().getTime() - 120_000), m.externalId)) return;
       if (!(await this.messages.insertEcho(base.id, m))) return;
       await this.conversations.recordEcho(base.id, preview(m.text), m.at);
+      // Ответил человек с телефона магазина — бот в этом диалоге больше не пишет (и не начнёт).
+      await this.bot.stopByHuman(base.id, "phone").catch((err) => this.logger.error("bot stop", err));
       // С телефона компании (мимо CRM) ушли чужой номер, карта или реквизиты — запретить нельзя, руководитель узнаёт сразу.
       const found = findSensitive(m.text, [m.chatId, base.meta.phone, await this.shopPhone()]);
       if (found.length)
@@ -181,17 +129,19 @@ export class MessagingService {
       await this.conversations.closeAsSpam(base.id, preview(m.text), m.at);
       return;
     }
-    const conv = await this.ensureDeal(base, m.contactName, m.text);
+    const { conv, created: dealCreated } = await this.ensureDeal(base, m.contactName, m.text);
     await this.conversations.recordIncoming(conv.id, preview(m.text), m.at);
-    await this.notifier.notify(conv.assigneeId, "chats.view", {
-      kind: "message",
-      title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
-      body: preview(m.text),
-      link: `/admin/chats?c=${conv.id}`,
-    });
-    this.live.chatChanged(conv.id);
     const fresh = (await this.conversations.findById(conv.id)) ?? conv;
-    await this.bot.onIncoming(fresh, m.text, created, (text) => this.send(conv.id, text, null)).catch((err) => this.logger.error("bot", err));
+    // Пока бот ведёт опрос, отдельное уведомление на каждое сообщение не нужно: менеджер получит итог бота.
+    const { quiet } = await this.bot.onIncoming(fresh, m, { created, dealCreated }).catch((err) => (this.logger.error("bot", err), { quiet: false }));
+    if (!quiet)
+      await this.notifier.notify(conv.assigneeId, "chats.view", {
+        kind: "message",
+        title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
+        body: preview(m.text),
+        link: `/admin/chats?c=${conv.id}`,
+      });
+    this.live.chatChanged(conv.id);
     await this.rules.messageIncoming({ subject: `${conv.id}:${m.at.toISOString().slice(0, 10)}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
   }
 
@@ -236,14 +186,16 @@ export class MessagingService {
     this.live.chatChanged(msg.conversationId);
   }
 
-  /** Отправка из CRM: менеджером или правилом/ботом (authorId = null). */
-  async send(conversationId: string, text: string, authorId: string | null) {
+  /** Отправка из CRM: менеджером или правилом/ботом (authorId = null, source — кто именно). */
+  async send(conversationId: string, text: string, authorId: string | null, source?: MessageSource) {
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
     const body = text.trim().slice(0, 4000);
     if (!body) throw new Error("Пустое сообщение");
+    // Ответил менеджер — бот замолкает (до записи ответа: она тоже помечает бота остановленным).
+    if (authorId) await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
     // Клиенту уходит текст целиком, в CRM — с маской секретов (ссылка «задайте пароль»).
-    const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId);
+    const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId, false, authorId ? undefined : source);
     await this.conversations.recordOutgoing(conversationId, preview(body), this.clock.now(), authorId);
     if (authorId && conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId);
     this.live.chatChanged(conversationId);
@@ -258,11 +210,20 @@ export class MessagingService {
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
-  /** Внутренняя заметка: видна только сотрудникам, клиенту не уходит и не сбрасывает «ждёт ответа». authorId null — от CRM. */
-  async addInternalNote(conversationId: string, text: string, authorId: string | null) {
+  /**
+   * Сообщение правила автоматизации. Если диалог ведёт бот, правило-автоответ молчит: иначе клиент получит два
+   * автоответа подряд (бот и «ответим утром»). null — не отправлено.
+   */
+  async sendAutomated(conversationId: string, text: string) {
+    if (await this.bot.isActive(conversationId)) return null;
+    return this.send(conversationId, text, null, "rule");
+  }
+
+  /** Внутренняя заметка: видна только сотрудникам, клиенту не уходит и не сбрасывает «ждёт ответа». authorId null — от CRM (итог бота). */
+  async addInternalNote(conversationId: string, text: string, authorId: string | null, source?: MessageSource) {
     const body = redactSecrets(text.trim().slice(0, 4000));
     if (!body) throw new Error("Пустая заметка");
-    return this.messages.insertOutgoing(conversationId, body, authorId, true);
+    return this.messages.insertOutgoing(conversationId, body, authorId, true, authorId ? undefined : source);
   }
 
   /**
