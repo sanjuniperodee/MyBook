@@ -1,14 +1,32 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createDealAction, type DealFormState } from "../actions";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
+import { ClientDealsForm } from "./ClientDealsForm";
 
-export function NewDealForm({ stages, defaultStageId, admins, me, client }: { stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null }) {
+export function NewDealForm({ stages, defaultStageId, admins, me, client, canAssign = false }: { stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null; canAssign?: boolean }) {
   const [state, action] = useActionState<DealFormState, FormData>(createDealAction, {});
+  // Для существующего клиента: обычная заявка или «по договорённости» (оплатил/договорились — можно сразу за несколько книг).
+  const [kind, setKind] = useState<"lead" | "agreement">("lead");
+  if (client && kind === "agreement")
+    return (
+      <div className="space-y-4">
+        <DealKind kind={kind} onChange={setKind} />
+        <ClientDealsForm stages={stages} defaultStageId={defaultStageId} admins={admins} me={me} canAssign={canAssign} client={client} />
+      </div>
+    );
   return (
+    <div className="space-y-4">
+      {client ? <DealKind kind={kind} onChange={setKind} /> : null}
+      {leadForm()}
+    </div>
+  );
+
+  function leadForm() {
+    return (
     <form action={action} className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2">
       {client ? <input type="hidden" name="clientId" value={client.id} /> : null}
       <div className="sm:col-span-2">
@@ -66,5 +84,27 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client }: { st
         <SubmitButton>Создать сделку</SubmitButton>
       </div>
     </form>
+  );
+}
+}
+
+function DealKind({ kind, onChange }: { kind: "lead" | "agreement"; onChange: (k: "lead" | "agreement") => void }) {
+  const tab = (k: "lead" | "agreement", label: string, hint: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={kind === k}
+      onClick={() => onChange(k)}
+      className={`flex-1 rounded-xl border px-4 py-3 text-left text-sm transition ${kind === k ? "border-wine bg-wine/5 ring-2 ring-wine/10" : "border-line bg-white hover:border-ink/30"}`}
+    >
+      <span className="block font-medium">{label}</span>
+      <span className="mt-0.5 block text-xs text-muted">{hint}</span>
+    </button>
+  );
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row" role="tablist" data-testid="deal-kind">
+      {tab("lead", "Заявка", "Обычная сделка: бюджет, источник, этап")}
+      {tab("agreement", "Оплатил / договорились", "Тариф, цена, предоплата с чеком — можно сразу за несколько книг")}
+    </div>
   );
 }

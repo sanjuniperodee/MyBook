@@ -3,7 +3,7 @@ import { ClientOnboardingService, ClientsService, NotesService, TasksService, ty
 import { accountUsage, accountsByOtherPhones, drizzleClients, drizzleLinks, drizzleNotes, drizzleStaff, drizzleTasks, resolveContact, type ContactTarget } from "./infrastructure/persistence";
 
 export { ClientsError } from "./domain";
-export type { AccountUsage, Actor, OnboardingInput, OnboardingResult } from "./application";
+export type { AccountUsage, Actor, DealPart, ExistingClientDealsInput, OnboardingInput, OnboardingResult } from "./application";
 export type { ContactTarget };
 
 /** Публичный фасад контекста «Клиенты CRM»: профиль клиента, задачи и заметки менеджеров. */

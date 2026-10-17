@@ -48,13 +48,14 @@ export function UpgradeNote({ upgrade }: { upgrade: { number: number; credit: nu
 }
 
 /** Договорённость менеджера: продолжить по ней или оформить заказ «с нуля» (внесённое — аванс). */
-export function AgreementChoice({ agreement, mode, onMode }: { agreement: { dealNumber: number; agreedTotal: number; prepaid: number }; mode: AgreementMode; onMode: (mode: AgreementMode) => void }) {
+export function AgreementChoice({ agreement, mode, onMode }: { agreement: { dealNumber: number; agreedTotal: number; prepaid: number; batch?: { index: number; size: number } | null }; mode: AgreementMode; onMode: (mode: AgreementMode) => void }) {
   const t = useMessages().checkout;
   return (
     <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="agreement">
       <input type="hidden" name="agreementMode" value={mode} />
       <h2 className="text-lg font-semibold text-emerald-950">{t.agreement.title}</h2>
       <p className="mt-1 text-sm text-emerald-900">{t.agreement.summary(agreement.dealNumber, formatPrice(agreement.agreedTotal), formatPrice(agreement.prepaid))}</p>
+      {agreement.batch && agreement.batch.size > 1 ? <p className="mt-1 text-sm font-medium text-emerald-950">{t.agreement.batch(agreement.batch.index + 1, agreement.batch.size)}</p> : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-2" role="radiogroup">
         {(["agreed", "advance"] as const).map((id) => (
           <button

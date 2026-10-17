@@ -28,6 +28,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
         defaultStageId={stages.find((s) => s.kind === "open" && s.pipelineId === pipeline.id)?.id}
         admins={options}
         me={staff.user.id}
+        canAssign={canAssignOthers(staff)}
         client={client ? { id: client.id, name: client.name || client.email.split("@")[0], phone: client.phone ?? "" } : null}
       />
     </div>

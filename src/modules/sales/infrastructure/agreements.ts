@@ -14,6 +14,8 @@ export interface DealAgreement {
   plan: string | null;
   /** Срок, к которому клиенту нужна книга (поле «дата события» сделки), YYYY-MM-DD. */
   deadline: string | null;
+  /** Клиент оплатил сразу несколько книг: какая по счёту сейчас, сколько всего и сколько ещё осталось оформить (и денег по ним). */
+  batch?: { index: number; size: number; left: number; agreedLeft: number; prepaidLeft: number } | null;
 }
 
 /**
@@ -32,15 +34,27 @@ const paidSum = (d: SQL) => sql`coalesce((select sum(case when p.kind = 'refund'
  */
 export async function agreementForClient(userId: string): Promise<DealAgreement | null> {
   const d = sql.raw("d");
-  const r = await executor().execute<{ id: string; number: number; amount: number; paid: number; deadline: string | null; plan: string | null }>(sql`
-    select d.id, d.number, d.amount, d.agreed_plan as plan, nullif(d.custom_fields->>'event_date', '') as deadline, ${paidSum(d)} as paid
+  const r = await executor().execute<{ id: string; number: number; amount: number; paid: number; deadline: string | null; plan: string | null; batch_id: string | null; batch_index: number | null; batch_size: number | null }>(sql`
+    select d.id, d.number, d.amount, d.agreed_plan as plan, d.batch_id, d.batch_index, d.batch_size, nullif(d.custom_fields->>'event_date', '') as deadline, ${paidSum(d)} as paid
     from crm_deals d join crm_stages s on s.id = d.stage_id
     where d.client_id = ${userId} and d.order_id is null and d.amount > 0 and ${isAgreement(d)}
       -- Сделку без заказа, но с деньгами, могли перевести в «успех» вручную: договорённость по ней всё равно действует.
       and (s.kind = 'open' or (s.kind = 'won' and exists (select 1 from crm_payments p where p.deal_id = d.id)))
-    order by (s.kind = 'open') desc, d.created_at desc limit 1`);
+    order by (s.kind = 'open') desc, d.created_at::date desc, d.batch_index asc nulls last, d.created_at desc limit 1`);
   const row = r.rows[0];
-  return row ? { dealId: row.id, dealNumber: row.number, agreedTotal: row.amount, prepaid: Math.max(0, row.paid), plan: row.plan, deadline: row.deadline && /^\d{4}-\d{2}-\d{2}$/.test(row.deadline) ? row.deadline : null } : null;
+  if (!row) return null;
+  let batch: DealAgreement["batch"] = null;
+  if (row.batch_id && (row.batch_size ?? 1) > 1) {
+    // Пакет: сколько книг по нему ещё не оформлено и сколько денег по ним внесено.
+    const left = await executor().execute<{ n: number; agreed: number; paid: number }>(sql`
+      select count(*)::int as n, coalesce(sum(d.amount), 0)::int as agreed, coalesce(sum(${paidSum(d)}), 0)::int as paid
+      from crm_deals d join crm_stages s on s.id = d.stage_id
+      where d.batch_id = ${row.batch_id} and d.order_id is null and d.amount > 0 and ${isAgreement(d)}
+        and (s.kind = 'open' or (s.kind = 'won' and exists (select 1 from crm_payments p where p.deal_id = d.id)))`);
+    const l = left.rows[0];
+    batch = { index: row.batch_index ?? 0, size: row.batch_size ?? 1, left: l?.n ?? 1, agreedLeft: l?.agreed ?? row.amount, prepaidLeft: Math.max(0, l?.paid ?? row.paid) };
+  }
+  return { dealId: row.id, dealNumber: row.number, agreedTotal: row.amount, prepaid: Math.max(0, row.paid), plan: row.plan, deadline: row.deadline && /^\d{4}-\d{2}-\d{2}$/.test(row.deadline) ? row.deadline : null, batch };
 }
 
 /** Деньги клиента по сделке и договорённость по ней — тем же правилом, что и agreementForClient. */

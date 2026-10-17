@@ -267,6 +267,13 @@
       "when": 1792203092930,
       "tag": "0037_old_payments_reviewed",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792255929552,
+      "tag": "0038_deal_batches",
+      "breakpoints": true
     }
   ]
 }

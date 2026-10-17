@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClientOnboardingService, type OnboardingInput, type OnboardingSales } from "@/modules/clients/application";
+import { ClientOnboardingService, splitEven, type OnboardingInput, type OnboardingSales } from "@/modules/clients/application";
 import { formatPrice } from "@/config/site";
 import { head, setup } from "./doubles/clients";
 
@@ -15,6 +15,7 @@ function harness() {
     stages: async () => (log.push("sales.stages"), [{ id: "st-new", kind: "open", name: "Новая заявка" }, { id: "st-work", kind: "open", name: "Взяли в работу" }]),
     createDeal: async (d) => (log.push(`sales.createDeal ${d.title} · ${d.stageId} · ${d.amount} · ${JSON.stringify(d.customFields)}`), { id: "deal-9", number: 9 }),
     setAgreedPlan: async (id, plan) => void log.push(`sales.setAgreedPlan ${id} ${plan}`),
+    setBatch: async (id, batch, i, n) => void log.push(`sales.setBatch ${id} ${i + 1}/${n}`),
     tagDeal: async (id, tag) => void log.push(`sales.tagDeal ${id} ${tag}`),
     addPayment: async (p) => (log.push(`sales.addPayment ${p.dealId} ${p.amount}`), { id: "pay-1" }),
     linkClient: async (dealId, clientId) => void log.push(`sales.linkClient ${dealId} ${clientId}`),
@@ -26,7 +27,7 @@ function harness() {
     t.notes,
     t.tasks,
   );
-  return { t, log, service };
+  return { t, log, service, sales };
 }
 
 const input = (deal: OnboardingInput["deal"]): OnboardingInput => ({
@@ -47,7 +48,7 @@ describe("ClientOnboardingService.onboard", () => {
     const { t, log, service } = harness();
     const r = await service.onboard(input({ agreed: 30_000, prepaid: 10_000, deadline: "2026-11-20", stageId: "", comment: "Хочет к годовщине", plan: "hardcover", planLabel: "твёрдая обложка" }), head);
 
-    expect(r).toEqual({ clientId: "new-client", login: "77011234567", deal: { id: "deal-9", number: 9 }, paymentId: "pay-1", tasks: 2 });
+    expect(r).toEqual({ clientId: "new-client", login: "77011234567", deal: { id: "deal-9", number: 9 }, paymentId: "pay-1", parts: [{ dealId: "deal-9", dealNumber: 9, agreed: 30000, prepaid: 10000, paymentId: "pay-1" }], tasks: 2 });
     expect(log).toEqual([
       "accounts.provisionClient Айжан +7 701 123 45 67 —",
       "sales.stages",
@@ -82,7 +83,7 @@ describe("ClientOnboardingService.onboard", () => {
   it("без сделки: только аккаунт, профиль и канал — ни сделки, ни платежа, ни заметки", async () => {
     const { t, log, service } = harness();
     const r = await service.onboard(input(null), head);
-    expect(r).toEqual({ clientId: "new-client", login: "77011234567", deal: null, paymentId: null, tasks: 0 });
+    expect(r).toEqual({ clientId: "new-client", login: "77011234567", deal: null, paymentId: null, parts: [], tasks: 0 });
     expect(log).toEqual(["accounts.provisionClient Айжан +7 701 123 45 67 —"]);
     expect(t.mem.notes.rows.size).toBe(0);
     expect(t.mem.tasks.rows.size).toBe(0);
@@ -142,5 +143,30 @@ describe("служебные заметки и задачи CRM пишутся �
     await t.mem.tasks.setDone(t.mem.tasks.last().id, new Date());
     expect(await t.tasks.createOnce(actor, { title: "Получить остаток", kind: "task", dealId: "deal-1", assigneeId: "m1" })).toBe(true);
     expect(t.mem.tasks.rows.size).toBe(2);
+  });
+
+  it("несколько книг сразу: по сделке на книгу, цена и предоплата делятся, пакет связан, остаток — одной задачей", async () => {
+    const { service, sales } = harness();
+    let n = 9;
+    const batches: string[] = [];
+    const payments: string[] = [];
+    sales.createDeal = async () => ({ id: `deal-${n}`, number: n++ });
+    sales.setBatch = async (id, batch, i, size) => void batches.push(`${id} ${i + 1}/${size} ${batch.length > 10}`);
+    sales.addPayment = async (p) => (payments.push(`${p.dealId}:${p.amount}`), { id: `pay-${p.dealId}` });
+    const r = await service.onboard(input({ agreed: 20_000, count: 3, prepaid: 10_000, deadline: "", stageId: "", comment: "", plan: "hardcover", planLabel: "твёрдая обложка" }), head);
+    expect(r.parts.map((p) => [p.dealNumber, p.agreed, p.prepaid])).toEqual([[9, 20000, 3334], [10, 20000, 3333], [11, 20000, 3333]]);
+    expect(payments).toEqual(["deal-9:3334", "deal-10:3333", "deal-11:3333"]);
+    expect(batches).toEqual(["deal-9 1/3 true", "deal-10 2/3 true", "deal-11 3/3 true"]);
+    expect(r.deal).toEqual({ id: "deal-9", number: 9 });
+    expect(r.tasks).toBe(1); // остаток 50 000 — одна задача на весь пакет
+  });
+});
+
+describe("splitEven", () => {
+  it("части равны, остаток — первым, сумма сходится", () => {
+    expect(splitEven(10, 3)).toEqual([4, 3, 3]);
+    expect(splitEven(0, 4)).toEqual([0, 0, 0, 0]);
+    expect(splitEven(7, 1)).toEqual([7]);
+    expect(splitEven(100000, 7).reduce((a, b) => a + b, 0)).toBe(100000);
   });
 });

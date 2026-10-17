@@ -1,6 +1,7 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import Link from "next/link";
+import { cn } from "@/lib/class-names";
 import { notFound } from "next/navigation";
 import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
@@ -34,6 +35,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const payParam = (await searchParams).pay;
   const payInvoiceId = typeof payParam === "string" && /^[0-9a-f-]{36}$/i.test(payParam) ? payParam : null;
   const deal = await container().reporting.dealById(id);
+  const batch = deal ? await container().sales.batch.of(deal.id) : [];
   if (!deal || !canSeeAssigned(staff, deal.assigneeId)) notFound();
 
   const [allStages, pipelines, admins, { noteRows, taskRows, callRows, convs, client, order, bookRows }] = await Promise.all([
@@ -140,6 +142,21 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             </div>
             <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
           </section>
+          {batch.length > 1 ? (
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm" data-testid="deal-batch">
+              <h2 className="text-sm font-semibold text-emerald-950">Пакет: {batch.length} кн. оплачено сразу</h2>
+              <p className="mt-1 text-xs text-emerald-900">Клиент оформляет книги по очереди — каждая забирает свою сделку (цена и предоплата делятся поровну).</p>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {batch.map((b) => (
+                  <li key={b.id}>
+                    <Link href={`/admin/deals/${b.id}`} className={cn("rounded-full px-2.5 py-1 text-xs", b.id === deal.id ? "bg-wine text-white" : "bg-white text-ink-soft hover:bg-cream")}>
+                      {b.index + 1}/{b.size} · №{b.number}{b.hasOrder ? " · заказ оформлен" : ""}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <PaymentsPanel
             dealId={deal.id}
             agreed={deal.amount}

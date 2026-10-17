@@ -211,6 +211,7 @@ export class Container {
         stages: () => this.sales.queries.listStages(),
         createDeal: (input) => this.sales.deals.create(input),
         setAgreedPlan: async (dealId, plan) => void (await this.sales.agreedPlan.set(dealId, plan)),
+        setBatch: (dealId, batchId, index, size) => this.sales.batch.set(dealId, batchId, index, size),
         tagDeal: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
         addPayment: (input) => this.sales.payments.add(input),
         // Клиент заведён из сделки: сделка и её переписка привязываются к аккаунту.

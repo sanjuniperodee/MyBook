@@ -36,7 +36,7 @@ export function CheckoutForm({
   upgrade = null,
 }: {
   /** Договорённость менеджера с клиентом: цена книги, внесённая предоплата и тариф (ручная сделка). Доставка и допы — сверху. */
-  agreement?: { dealNumber: number; agreedTotal: number; prepaid: number; plan: PlanId | null } | null;
+  agreement?: { dealNumber: number; agreedTotal: number; prepaid: number; plan: PlanId | null; batch?: { index: number; size: number } | null } | null;
   initialPlan?: PlanId;
   /** Печатная версия к уже оплаченной электронной: её оплата засчитывается, выбор — только печатные тарифы. */
   upgrade?: { orderId: string; number: number; credit: number } | null;

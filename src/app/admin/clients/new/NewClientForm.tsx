@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
-import { Check, Copy, KeyRound, LoaderCircle, Paperclip, TriangleAlert } from "lucide-react";
+import { useActionState, useState } from "react";
+import { Check, Copy, KeyRound, Paperclip } from "lucide-react";
 import { createClientAction, type NewClientDone, type NewClientState } from "./actions";
+import { PartsReceipts } from "./PartsReceipts";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice } from "@/config/site";
+import { ruCount } from "@/i18n/plural";
 import { channels, manualChannels } from "@/shared/domain/channels";
 import { getVisiblePlans } from "@/config/site";
 import { planLabels } from "@/modules/ordering/ui/labels";
@@ -63,60 +65,21 @@ export function AccessCard({ login, password, message, title = "Доступ к�
   );
 }
 
-type Upload = "none" | "uploading" | "ok" | "error";
-
 function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
-  const [upload, setUpload] = useState<Upload>(receipt && d.dealId && d.prepaid > 0 ? "uploading" : "none");
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const started = useRef(false);
-
-  async function send() {
-    if (!receipt || !d.dealId) return;
-    setUpload("uploading");
-    setUploadError(null);
-    try {
-      const body = new FormData();
-      body.set("file", receipt);
-      body.set("amount", String(d.prepaid));
-      if (d.paymentId) body.set("paymentId", d.paymentId);
-      const res = await fetch(`/api/admin/deals/${d.dealId}/receipts`, { method: "POST", body });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Не удалось загрузить чек");
-      setUpload("ok");
-    } catch (e) {
-      setUploadError((e as Error).message);
-      setUpload("error");
-    }
-  }
-  useEffect(() => {
-    if (started.current || upload !== "uploading") return;
-    started.current = true;
-    void send();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  const many = d.parts.length > 1;
   return (
     <div className="space-y-4 rounded-2xl border border-line bg-white p-5">
       <div>
         <h2 className="text-lg font-semibold">Клиент {d.clientName} создан</h2>
         {d.dealId ? (
           <p className="mt-1 text-sm text-muted">
-            Сделка №{d.dealNumber}: договорились на {formatPrice(d.agreed)}, предоплата {formatPrice(d.prepaid)}
+            {many ? `${ruCount(d.parts.length, "сделка", "сделки", "сделок")} (по книге на каждую): №${d.parts.map((p) => p.dealNumber).join(", №")}. ` : `Сделка №${d.dealNumber}: `}
+            договорились на {formatPrice(d.agreed)}{many ? " за книгу" : ""}, предоплата {formatPrice(d.prepaid)}
             {d.remainder > 0 ? `, остаток ${formatPrice(d.remainder)}` : ", оплачено полностью"}. Задач создано: {d.tasks}.
           </p>
         ) : null}
       </div>
-      {upload !== "none" ? (
-        <div className={`flex items-center gap-2 rounded-xl p-3 text-sm ${upload === "error" ? "bg-red-50 text-red-800" : upload === "ok" ? "bg-emerald-50 text-emerald-900" : "bg-cream/70 text-ink-soft"}`} role={upload === "error" ? "alert" : "status"}>
-          {upload === "uploading" ? <LoaderCircle className="size-4 animate-spin" /> : upload === "ok" ? <Check className="size-4" /> : <TriangleAlert className="size-4" />}
-          <span className="flex-1">{upload === "uploading" ? "Загружаем чек предоплаты…" : upload === "ok" ? "Чек предоплаты приложен к сделке" : `Чек не загрузился: ${uploadError}. Его можно приложить на карточке сделки.`}</span>
-          {upload === "error" ? (
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => void send()}>
-              Повторить
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <PartsReceipts parts={d.parts} receipt={receipt} />
       <AccessCard login={d.loginText} password={d.password} message={d.message} />
       <p className="text-xs text-muted">Пароль в системе не хранится в открытом виде и больше не покажется. Если клиент потеряет его, выдайте новый на карточке клиента.</p>
       <div className="flex flex-wrap gap-2">
@@ -143,9 +106,11 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
   const [localError, setLocalError] = useState<string | null>(null);
   const [agreed, setAgreed] = useState("");
   const [prepaid, setPrepaid] = useState("");
+  const [count, setCount] = useState("1");
   if (state.done) return <Done d={state.done} receipt={receipt} />;
   const v = state.values ?? {};
-  const a = Number(agreed) || 0;
+  const n = Math.max(1, Math.min(20, Math.floor(Number(count) || 1)));
+  const a = (Number(agreed) || 0) * n; // всего за пакет
   const p = Number(prepaid) || 0;
   return (
     <form
@@ -252,13 +217,18 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                 <p className="mt-1 text-xs text-muted">Клиент оформит заказ именно на этот тариф — сменить его самому нельзя.</p>
               </div>
               <div>
-                <label className="label">Цена книги по договорённости, ₸ *</label>
-                <input name="agreed" type="number" min={0} step={500} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
+                <label className="label">Сколько книг оплачено сразу</label>
+                <input name="count" type="number" min={1} max={20} step={1} value={count} onChange={(e) => setCount(e.target.value)} className="input h-11" />
+                <p className="mt-1 text-xs text-muted">{n > 1 ? `Создадим ${ruCount(n, "сделку", "сделки", "сделок")} — по одной на книгу. Клиент оформит их по очереди, каждая книга заберёт свою долю цены и предоплаты.` : "Одна книга — одна сделка."}</p>
+              </div>
+              <div>
+                <label className="label">Цена одной книги по договорённости, ₸ *</label>
+                <input name="agreed" type="number" min={0} step={100} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
                 <p className="mt-1 text-xs text-muted">Доставка и допы считаются сверху при оформлении заказа.</p>
               </div>
               <div>
-                <label className="label">Предоплата, ₸</label>
-                <input name="prepaid" type="number" min={0} step={500} value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input h-11" placeholder="10000" />
+                <label className="label">{n > 1 ? "Предоплата за все книги, ₸" : "Предоплата, ₸"}</label>
+                <input name="prepaid" type="number" min={0} step={100} value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input h-11" placeholder="10000" />
               </div>
               {p > 0 ? (
                 <div className="sm:col-span-2">
@@ -271,7 +241,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                 </div>
               ) : null}
               <div className={`rounded-xl px-3 py-2 text-sm sm:col-span-2 ${p > a ? "bg-red-50 text-red-800" : "bg-cream/70 text-ink-soft"}`}>
-                {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `Остаток за книгу: ${formatPrice(a - p)} (доставка — сверху)` : "Укажите сумму — посчитаем остаток"}
+                {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `${n > 1 ? `Всего ${n} × ${formatPrice(Number(agreed) || 0)} = ${formatPrice(a)}. Остаток` : "Остаток за книгу"}: ${formatPrice(a - p)} (доставка — сверху)` : "Укажите сумму — посчитаем остаток"}
               </div>
               <div>
                 <label className="label">Этап воронки</label>

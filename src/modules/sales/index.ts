@@ -4,7 +4,7 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient, attachAgreementOrder, dealMoney } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
-import { dealAgreedPlan, setDealAgreedPlan } from "./infrastructure/agreedPlan";
+import { dealAgreedPlan, dealBatch, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -40,6 +40,8 @@ export class SalesModule {
   readonly money = dealMoney;
   /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
   readonly agreedPlan = { set: setDealAgreedPlan, get: dealAgreedPlan };
+  /** Пакет книг: клиент оплатил сразу несколько — по сделке на книгу. */
+  readonly batch = { set: setDealBatch, of: dealBatch };
   /** Перенести вручную выбранный канал клиента на его сделки (у которых нет настоящих UTM-меток). */
   readonly setClientAttribution = setClientDealsAttribution;
 

@@ -76,6 +76,10 @@ export const crmDeals = pgTable(
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     /** Тариф, о котором договорились с клиентом (договорная цена относится к нему): при заказе по договорённости тариф фиксирован. */
     agreedPlan: text("agreed_plan"),
+    /** Клиент оплатил сразу несколько книг: по сделке на каждую книгу, общий пакет — batch_id (batch_index с нуля, batch_size — сколько всего). */
+    batchId: uuid("batch_id"),
+    batchIndex: integer("batch_index"),
+    batchSize: integer("batch_size"),
     /** Последнее AI-резюме сделки: ситуация, следующий шаг, «температура». */
     aiSummary: jsonb("ai_summary").$type<{ summary: string; nextStep: string; dueDays: number; temperature: "hot" | "warm" | "cold"; risks: string; at: string }>(),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),

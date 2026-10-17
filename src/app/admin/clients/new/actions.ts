@@ -8,7 +8,7 @@ import { getPlan, getVisiblePlans } from "@/config/site";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, displayLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
-import type { OnboardingResult } from "@/modules/clients";
+import type { DealPart, OnboardingResult } from "@/modules/clients";
 import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { MAX_PAYMENT } from "@/modules/sales/domain";
@@ -23,6 +23,10 @@ export interface NewClientDone {
   dealNumber: number | null;
   /** Платёж предоплаты (чек к нему догружается отдельным запросом). */
   paymentId: string | null;
+  /** Все книги пакета: сделка, цена и доля предоплаты (чек догружается к каждой). */
+  parts: DealPart[];
+  /** Сколько книг оплачено/заказано сразу. */
+  count: number;
   login: string;
   loginText: string;
   password: string;
@@ -55,6 +59,8 @@ const schema = z.object({
   createDeal: z.string().optional(),
   recipient: z.string().trim().max(80).default(""),
   agreed: money.default(0),
+  /** Сколько книг оплачено сразу: цена и предоплата — за пакет (цена — за одну книгу). */
+  count: z.coerce.number().int("Количество книг — целое число").min(1, "Книг — хотя бы одна").max(20, "Не больше 20 книг в одной сделке").default(1),
   prepaid: money.default(0),
   deadline: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Проверьте срок")]).default(""),
   stageId: z.union([z.literal(""), uuid]).default(""),
@@ -80,7 +86,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const d = parsed.data;
   const channel = d.channel as ManualChannel;
   const withDeal = d.createDeal === "on" && can(staff, "deals.edit");
-  if (withDeal && d.prepaid > d.agreed) return fail("Предоплата не может быть больше суммы договорённости");
+  if (withDeal && d.prepaid > d.agreed * d.count) return fail("Предоплата не может быть больше суммы договорённости");
   if (withDeal && !getVisiblePlans().some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
   if (!normalizePhone(d.phone) || normalizePhone(d.phone).length < 10) return fail("Проверьте номер телефона");
 
@@ -100,7 +106,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
         channel,
         // Ответственный: сам менеджер (роль «только свои» видит лишь своих клиентов), руководитель может назначить другого.
         assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : staff.user.id,
-        deal: withDeal ? { agreed: d.agreed, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan } : null,
+        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan } : null,
       },
       { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     );
@@ -113,10 +119,10 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
     }
     throw err;
   }
-  const { deal, paymentId, tasks } = result;
+  const { deal, paymentId, parts, tasks } = result;
   const account = { id: result.clientId, login: result.login };
 
-  await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, agreed: d.agreed, prepaid: d.prepaid, channel, plan: withDeal ? d.plan : null });
+  await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, deals: parts.map((p) => p.dealNumber), count: withDeal ? d.count : 0, agreed: d.agreed, prepaid: d.prepaid, channel, plan: withDeal ? d.plan : null });
   revalidatePath("/admin/clients");
   revalidatePath("/admin/deals");
   const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
@@ -127,6 +133,8 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
       dealId: deal?.id ?? null,
       dealNumber: deal?.number ?? null,
       paymentId,
+      parts,
+      count: withDeal ? d.count : 0,
       login: account.login,
       loginText: displayLogin(account.login),
       password,
@@ -134,7 +142,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
       message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale }),
       agreed: d.agreed,
       prepaid: d.prepaid,
-      remainder: Math.max(0, d.agreed - d.prepaid),
+      remainder: Math.max(0, d.agreed * d.count - d.prepaid),
       tasks,
     },
   };
@@ -159,4 +167,62 @@ export async function issueClientAccessAction(clientId: string): Promise<{ error
     if (IdentityError.is(err)) return { error: "Для этого аккаунта пароль выдать нельзя" };
     throw err;
   }
+}
+
+export interface ClientDealsState {
+  error?: string;
+  /** Что ввели в форму — подставляем обратно при ошибке. */
+  values?: Record<string, string>;
+  done?: { clientId: string; clientName: string; parts: DealPart[]; count: number; agreed: number; prepaid: number; remainder: number; tasks: number };
+}
+
+const dealsSchema = z.object({
+  clientId: uuid,
+  count: z.coerce.number().int("Количество книг — целое число").min(1, "Книг — хотя бы одна").max(20, "Не больше 20 книг в одной сделке").default(1),
+  plan: z.string().default(""),
+  agreed: money.refine((n) => n > 0, "Укажите цену книги по договорённости"),
+  prepaid: money.default(0),
+  recipient: z.string().trim().max(80).default(""),
+  deadline: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Проверьте срок")]).default(""),
+  stageId: z.union([z.literal(""), uuid]).default(""),
+  assigneeId: z.union([z.literal(""), uuid]).default(""),
+  comment: z.string().trim().max(1000).default(""),
+});
+
+/**
+ * Сделки существующему клиенту: клиент оплатил сразу несколько книг (или договорились о цене). По сделке на книгу;
+ * предоплата делится поровну, чек общий догружается к каждому платежу. В кабинете клиента пакет виден одной карточкой.
+ */
+export async function createClientDealsAction(_: ClientDealsState, form: FormData): Promise<ClientDealsState> {
+  const staff = await assertStaff("deals.edit");
+  const values = Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string"));
+  const fail = (error: string): ClientDealsState => ({ error, values });
+  const parsed = dealsSchema.safeParse(values);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const d = parsed.data;
+  if (!getVisiblePlans().some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
+  if (d.prepaid > d.agreed * d.count) return fail("Предоплата не может быть больше суммы договорённости");
+  const client = await container().clients.clients.find(d.clientId);
+  if (!client) return fail("Клиент не найден");
+  if (staff.scope === "own" && client.managerId && client.managerId !== staff.user.id) return fail("Это клиент другого менеджера");
+  const phone = client.phone ?? "";
+  const plan = getPlan(d.plan);
+  const { parts, tasks } = await container().clients.onboarding.addDeals(
+    {
+      clientId: client.id,
+      name: client.name || client.email.split("@")[0],
+      phone,
+      email: client.email.endsWith(".invalid") ? "" : client.email,
+      city: "",
+      recipient: d.recipient,
+      locale: "ru",
+      assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : client.managerId ?? staff.user.id,
+      deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan },
+    },
+    { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
+  );
+  await audit(staff, "client.deals", "client", client.id, { deals: parts.map((p) => p.dealNumber), count: d.count, agreed: d.agreed, prepaid: d.prepaid, plan: d.plan });
+  revalidatePath("/admin/deals");
+  revalidatePath(`/admin/clients/${client.id}`);
+  return { done: { clientId: client.id, clientName: client.name || client.email, parts, count: d.count, agreed: d.agreed, prepaid: d.prepaid, remainder: Math.max(0, d.agreed * d.count - d.prepaid), tasks } };
 }

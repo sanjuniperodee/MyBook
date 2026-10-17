@@ -21,7 +21,7 @@ export interface PeopleGateway {
 
 /** Договорённость менеджера с клиентом о цене и предоплате (контекст «Продажи»). */
 export interface AgreementGateway {
-  agreementFor(userId: string): Promise<{ dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null; plan: string | null } | null>;
+  agreementFor(userId: string): Promise<{ dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null; plan: string | null; batch?: { index: number; size: number; left: number; agreedLeft: number; prepaidLeft: number } | null } | null>;
   /**
    * Заказ — к сделке договорённости в транзакции оформления: «у сделки есть заказ» сразу видят счета из чата (новый
    * не выставить, оплата старого — «нужен возврат или зачёт»). false — у сделки уже другой заказ.

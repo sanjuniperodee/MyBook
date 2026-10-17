@@ -27,6 +27,8 @@ export interface OnboardingSales {
     customFields: Record<string, string | number>;
   }): Promise<{ id: string; number: number }>;
   setAgreedPlan(dealId: string, plan: string): Promise<void>;
+  /** Сделка — книга пакета: клиент оплатил сразу несколько книг. */
+  setBatch(dealId: string, batchId: string, index: number, size: number): Promise<void>;
   tagDeal(dealId: string, tag: string): Promise<void>;
   addPayment(input: { dealId: string; clientId: string; amount: number; createdById: string }): Promise<{ id: string }>;
   /** Привязать сделку (и её переписку) к аккаунту клиента. */
@@ -60,28 +62,67 @@ export interface OnboardingInput {
   /** Ответственный за клиента и сделку. */
   assigneeId: string;
   /** Сделка с договорённостью — только если менеджеру можно вести сделки. */
-  deal: null | {
-    agreed: number;
-    prepaid: number;
-    /** YYYY-MM-DD или пусто. */
-    deadline: string;
-    /** Этап воронки; пусто — «Взяли в работу». */
-    stageId: string;
-    comment: string;
-    plan: string;
-    /** Тариф для заметки с условиями — как его пишут в тексте («твёрдая обложка»). */
-    planLabel: string;
-  };
+  deal: null | DealTerms;
+}
+
+/** Условия договорённости: цена одной книги, сколько книг оплачено сразу и общая предоплата. */
+export interface DealTerms {
+  /** Цена одной книги по договорённости, ₸. */
+  agreed: number;
+  /** Сколько книг клиент оплатил/заказал сразу (по умолчанию 1 — обычная сделка). */
+  count?: number;
+  /** Предоплата всего, по всем книгам, ₸. */
+  prepaid: number;
+  /** YYYY-MM-DD или пусто. */
+  deadline: string;
+  /** Этап воронки; пусто — «Взяли в работу». */
+  stageId: string;
+  comment: string;
+  plan: string;
+  /** Тариф для заметки с условиями — как его пишут в тексте («твёрдая обложка»). */
+  planLabel: string;
+}
+
+/** Книга пакета: её сделка, цена и доля предоплаты с платежом (чек к нему догружается отдельно). */
+export interface DealPart {
+  dealId: string;
+  dealNumber: number;
+  agreed: number;
+  prepaid: number;
+  paymentId: string | null;
 }
 
 export interface OnboardingResult {
   clientId: string;
   login: string;
+  /** Первая сделка (для ссылки). */
   deal: { id: string; number: number } | null;
-  /** Платёж предоплаты (чек к нему догружается отдельно). */
+  /** Платёж предоплаты первой сделки. */
   paymentId: string | null;
+  /** Все сделки (по книге на каждую) с долями предоплаты. */
+  parts: DealPart[];
   /** Сколько задач поставлено ответственному. */
   tasks: number;
+}
+
+/** Сделки к уже существующему клиенту (клиент оплатил сразу несколько книг или договорились о цене). */
+export interface ExistingClientDealsInput {
+  clientId: string;
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  recipient: string;
+  locale: "ru" | "kk";
+  assigneeId: string;
+  deal: DealTerms;
+}
+
+/** Поровну на n частей, остаток — первым (сумма частей всегда равна total). */
+export function splitEven(total: number, n: number): number[] {
+  const base = Math.floor(total / n);
+  const rest = total - base * n;
+  return Array.from({ length: n }, (_, i) => base + (i < rest ? 1 : 0));
 }
 
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
@@ -112,35 +153,62 @@ export class ClientOnboardingService {
     // Канал привлечения ставим до сделки: она подхватывает метки клиента, и отчёты по каналам сразу видят эту продажу.
     await this.clients.setSource(account.id, manualAttribution(input.channel) as Record<string, string>);
 
-    if (!d) return { clientId: account.id, login: account.login, deal: null, paymentId: null, tasks: 0 };
+    if (!d) return { clientId: account.id, login: account.login, deal: null, paymentId: null, parts: [], tasks: 0 };
 
-    const deal = await this.openDeal(input, d, account.id, actor);
-    // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
-    const paymentId = d.prepaid > 0 ? (await this.sales.addPayment({ dealId: deal.id, clientId: account.id, amount: d.prepaid, createdById: actor.userId })).id : null;
+    const { parts, tasks } = await this.openDeals(input, d, account.id, actor);
+    return { clientId: account.id, login: account.login, deal: { id: parts[0].dealId, number: parts[0].dealNumber }, paymentId: parts[0].paymentId, parts, tasks };
+  }
 
-    const phone = normalizePhone(input.phone);
-    const terms = [
-      `Канал: ${channels[input.channel]}.`,
-      input.recipient ? `Кому книга: ${input.recipient}.` : null,
-      `Клиент: ${input.name}${input.city ? `, г. ${input.city}` : ""}, тел. ${formatPhone(phone) || phone}${input.email ? `, ${input.email}` : ""}, язык — ${input.locale === "kk" ? "казахский" : "русский"}.`,
-      d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
-      `Тариф: ${d.planLabel} (зафиксирован для заказа клиента).`,
-      `Договорились на ${formatPrice(d.agreed)} за книгу (доставка и допы — сверху); предоплата ${formatPrice(d.prepaid)}${d.agreed > d.prepaid ? `; остаток ${formatPrice(d.agreed - d.prepaid)}` : ""}.`,
-      d.comment || null,
-      input.email ? null : "Почты нет: клиент входит по телефону.",
-    ].filter(Boolean) as string[];
-    await this.notes.add(actor, { kind: "note", text: terms.join("\n"), clientId: account.id, dealId: deal.id });
+  /** Менеджер создаёт сделки существующему клиенту: клиент оплатил сразу несколько книг или договорились о цене. */
+  async addDeals(input: ExistingClientDealsInput, actor: Actor): Promise<{ parts: DealPart[]; tasks: number }> {
+    return this.openDeals({ ...input, password: "", channel: "other" as ManualChannel }, input.deal, input.clientId, actor);
+  }
 
+  /**
+   * Сделки договорённости: по одной на книгу (у клиента с пакетом заказы оформляются по очереди — каждая книга забирает свою
+   * сделку со своей долей цены и предоплаты). Предоплата делится поровну — платёж на каждую сделку, чек общий.
+   */
+  private async openDeals(input: Pick<OnboardingInput, "name" | "phone" | "email" | "locale" | "city" | "recipient" | "assigneeId"> & { password?: string; channel?: ManualChannel }, d: DealTerms, clientId: string, actor: Actor) {
+    const count = Math.max(1, Math.min(20, Math.floor(d.count || 1)));
+    const prices = Array.from({ length: count }, () => d.agreed);
+    const prepaids = splitEven(d.prepaid, count);
+    const batchId = count > 1 ? crypto.randomUUID() : null;
+    const total = d.agreed * count;
+    const parts: DealPart[] = [];
     let tasks = 0;
-    if (d.deadline) {
-      await this.tasks.create(actor, { title: `Книга для клиента ${input.name}: готова и передана до ${ruDate(d.deadline)} — желательно раньше`, kind: "task", dueAt: d.deadline, dealId: deal.id, clientId: account.id, assigneeId: input.assigneeId });
+    for (let i = 0; i < count; i++) {
+      const deal = await this.openDeal(input, { ...d, agreed: prices[i], prepaid: prepaids[i] }, clientId, actor, count > 1 ? `${i + 1} из ${count}` : null);
+      if (batchId) await this.sales.setBatch(deal.id, batchId, i, count);
+      // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
+      const paymentId = prepaids[i] > 0 ? (await this.sales.addPayment({ dealId: deal.id, clientId, amount: prepaids[i], createdById: actor.userId })).id : null;
+      parts.push({ dealId: deal.id, dealNumber: deal.number, agreed: prices[i], prepaid: prepaids[i], paymentId });
+
+      const phone = normalizePhone(input.phone);
+      const terms = [
+        input.channel ? `Канал: ${channels[input.channel]}.` : null,
+        count > 1 ? `Пакет: ${count} кн. — книга ${i + 1} из ${count} (оплачено сразу, по книге на сделку; сделки пакета: №${parts.map((p) => p.dealNumber).join(", №")}${i + 1 < count ? " и следующие" : ""}).` : null,
+        input.recipient ? `Кому книга: ${input.recipient}.` : null,
+        `Клиент: ${input.name}${input.city ? `, г. ${input.city}` : ""}, тел. ${formatPhone(phone) || phone}${input.email ? `, ${input.email}` : ""}, язык — ${input.locale === "kk" ? "казахский" : "русский"}.`,
+        d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
+        `Тариф: ${d.planLabel} (зафиксирован для заказа клиента).`,
+        `Договорились на ${formatPrice(prices[i])} за книгу (доставка и допы — сверху); предоплата${count > 1 ? " по книге" : ""} ${formatPrice(prepaids[i])}${prices[i] > prepaids[i] ? `; остаток ${formatPrice(prices[i] - prepaids[i])}` : ""}.`,
+        count > 1 ? `Всего по пакету: ${count} × ${formatPrice(d.agreed)} = ${formatPrice(total)}; предоплата ${formatPrice(d.prepaid)}.` : null,
+        d.comment || null,
+        input.password !== undefined && !input.email ? "Почты нет: клиент входит по телефону." : null,
+      ].filter(Boolean) as string[];
+      await this.notes.add(actor, { kind: "note", text: terms.join("\n"), clientId, dealId: deal.id });
+
+      if (d.deadline) {
+        await this.tasks.create(actor, { title: `Книга${count > 1 ? ` ${i + 1}/${count}` : ""} для клиента ${input.name}: готова и передана до ${ruDate(d.deadline)} — желательно раньше`, kind: "task", dueAt: d.deadline, dealId: deal.id, clientId, assigneeId: input.assigneeId });
+        tasks++;
+      }
+    }
+    // Остаток к оплате — одной задачей на весь пакет.
+    if (total > d.prepaid) {
+      await this.tasks.create(actor, { title: `Получить остаток ${formatPrice(total - d.prepaid)} от ${input.name}${count > 1 ? ` (пакет ${count} кн.)` : ""}`, kind: "task", dueAt: d.deadline || undefined, dealId: parts[0].dealId, clientId, assigneeId: input.assigneeId });
       tasks++;
     }
-    if (d.agreed > d.prepaid) {
-      await this.tasks.create(actor, { title: `Получить остаток ${formatPrice(d.agreed - d.prepaid)} от ${input.name}`, kind: "task", dueAt: d.deadline || undefined, dealId: deal.id, clientId: account.id, assigneeId: input.assigneeId });
-      tasks++;
-    }
-    return { clientId: account.id, login: account.login, deal, paymentId, tasks };
+    return { parts, tasks };
   }
 
   /**
@@ -185,7 +253,7 @@ export class ClientOnboardingService {
   }
 
   /** Сделка «вручную» с суммой договорённости, тарифом и метками; этап по умолчанию — «Взяли в работу». */
-  private async openDeal(input: OnboardingInput, d: NonNullable<OnboardingInput["deal"]>, clientId: string, actor: Actor) {
+  private async openDeal(input: Pick<OnboardingInput, "name" | "phone" | "email" | "city" | "recipient" | "assigneeId">, d: DealTerms, clientId: string, actor: Actor, part: string | null) {
     const custom: Record<string, string | number> = {};
     if (input.recipient) custom.recipient = input.recipient;
     if (d.deadline) custom.event_date = d.deadline;
@@ -193,7 +261,7 @@ export class ClientOnboardingService {
     const stages = await this.sales.stages();
     const stageId = d.stageId || stages.find((s) => s.kind === "open" && s.name === "Взяли в работу")?.id;
     const deal = await this.sales.createDeal({
-      title: input.recipient ? `Книга — ${input.name} (${input.recipient})` : `Книга — ${input.name}`,
+      title: `${input.recipient ? `Книга — ${input.name} (${input.recipient})` : `Книга — ${input.name}`}${part ? ` · ${part}` : ""}`,
       source: "manual",
       clientId,
       contactName: input.name,
