@@ -25,9 +25,13 @@ export interface SellerAiState {
   /** Дата, к которой клиенту нужна книга (если в сделке нет поля-даты, помним здесь). */
   eventDate: string | null;
   stage: SellerStage;
+  /** Сколько напоминаний после предложения уже отправлено (максимум два). */
+  followUps: number;
+  /** Модель не смогла распознать вложение (нет vision/аудио) — в этой беседе больше не пробуем. */
+  mediaFailed: boolean;
 }
 
-export const newSellerAiState = (): SellerAiState => ({ turns: 0, priceQuoted: false, closeAsked: false, objections: 0, takeover: false, waitedMinutes: 0, blocked: 0, failures: 0, summary: "", eventDate: null, stage: "greeting" });
+export const newSellerAiState = (): SellerAiState => ({ turns: 0, priceQuoted: false, closeAsked: false, objections: 0, takeover: false, waitedMinutes: 0, blocked: 0, failures: 0, summary: "", eventDate: null, stage: "greeting", followUps: 0, mediaFailed: false });
 
 /** Состояние из базы: недостающее — по умолчанию (запись сделана прежней версией). */
 export const readSellerAi = (raw: unknown): SellerAiState => ({ ...newSellerAiState(), ...(raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Partial<SellerAiState>) : {}) });

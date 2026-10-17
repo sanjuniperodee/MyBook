@@ -102,6 +102,8 @@ const botConfigSchema = z.object({
     takeover: z.boolean(),
     persona: z.string().trim().max(1500, "Указания продажнику — до 1500 знаков"),
     maxTurns: z.number().int().min(4, "Потолок беседы — от 4 ответов").max(100, "Потолок беседы — до 100 ответов"),
+    hidePrices: z.boolean(),
+    media: z.boolean(),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });

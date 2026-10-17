@@ -128,6 +128,8 @@ export class Container {
           const first = stage ? await this.sales.deals.stageOfKind("open", stage.pipelineId) : null;
           return {
             orderId: d.orderId,
+            // Сколько по сделке уже оплачено (счета): если больше нуля — предоплату бот не предлагает.
+            paid: await this.sales.payments.paidTotal(d.id),
             firstStage: !!stage && first?.id === stage.id,
             closed: !!stage && stage.kind !== "open",
             assigneeId: d.assigneeId,

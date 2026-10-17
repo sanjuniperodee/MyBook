@@ -147,6 +147,8 @@ export interface BotInput {
   text: string;
   type: string;
   at: Date | string;
+  /** Ссылка на вложение (для распознавания голосовых и фото моделью). */
+  mediaUrl?: string | null;
 }
 
 /** Что AI понял из сообщения (необязательно): только дополняет детерминированный разбор. */
@@ -173,6 +175,8 @@ export interface BotEnv {
   /** Имя для обращения (safeName). */
   name: string;
   hints?: BotHints | null;
+  /** По сделке уже есть оплата (счёт оплачен или привязан заказ): предоплату не предлагаем. */
+  paid?: boolean;
 }
 
 export interface BotTurn {

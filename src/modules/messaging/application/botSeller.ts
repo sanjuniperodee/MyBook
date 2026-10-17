@@ -12,6 +12,7 @@ import {
   deadlineFact,
   faqNotes,
   findSensitive,
+  handoffIntent,
   parseSellerDecision,
   preview,
   priceMentioned,
@@ -40,6 +41,15 @@ import type { QualifierBotDeps } from "./bot";
 
 /** Сколько модель думает над одним ответом: клиент ждёт в чате. */
 export const SELLER_TIMEOUT_MS = 30_000;
+/** Сколько модель распознаёт голосовое/фото (транскрипция, описание). */
+export const SELLER_MEDIA_TIMEOUT_MS = 25_000;
+/** Инструкция для распознавания вложений: только текст, который дальше идёт в беседу. */
+const MEDIA_RECOGNITION_PROMPT = [
+  "Ты — помощница менеджера Марата в компании MyBooks, помогаешь распознавать вложения клиентов из WhatsApp-чата.",
+  "Голосовое: верни дословную транскрипцию на языке клиента (русский или казахский), без кавычек и пояснений. Если речь неразборчива — верни пустую строку.",
+  "Фото: опиши кратко (1–2 предложения), что на нём. Если это чек или скриншот оплаты — напиши «Чек об оплате» и укажи сумму и номер перевода, если они видны.",
+  "Верни только текст, ничего больше.",
+].join("\n");
 /** Через сколько повторить ход после сбоя модели; на второй сбой беседу берёт менеджер. */
 export const SELLER_RETRY_MS = 60_000;
 export const SELLER_MAX_FAILURES = 2;
@@ -106,7 +116,12 @@ export class AiSeller {
 
     // Бота запустили кнопкой, новых сообщений нет: модель продолжает переписку сама.
     const manual = start && state.reason === "manual";
-    if (!c.text && !manual) return this.withoutText(conv, base, state, fresh, c, env, fields, now);
+    if (!c.text && !manual) {
+      // Голосовые и фото: модель распознаёт (транскрипция/описание) — тогда отвечаем на них как на текст; иначе как раньше.
+      const recognized = await this.recognizeMedia(base, fresh, env.config.sell.media);
+      if (!recognized) return this.withoutText(conv, base, state, fresh, c, env, fields, now);
+      fresh.splice(0, fresh.length, ...recognized);
+    }
 
     const history = await this.d.history!(conv.id, HISTORY_LIMIT);
     const decided = await this.decide({ conv, base, env, config, fields, history, fresh, purpose: "reply" });
@@ -130,6 +145,38 @@ export class AiSeller {
     return false;
   }
 
+  /**
+   * Голосовые и фото клиента: модель распознаёт их (транскрипция дословная / описание) — те же сообщения становятся
+   * текстом, и беседа идёт как обычно. null — распознать не вышло (выключено, модель не умеет, файла нет, вложений
+   * больше двух): старый путь целиком, ни одно вложение не теряется.
+   */
+  private async recognizeMedia(base: BotState, fresh: BotInput[], enabled: boolean): Promise<BotInput[] | null> {
+    if (!enabled || !this.d.seller?.media || !this.d.media) return null;
+    const ai = readSellerAi(base.ai);
+    if (ai.mediaFailed) return null;
+    const media = fresh.filter((i) => (i.type === "audio" || i.type === "image") && i.mediaUrl);
+    if (!media.length || media.length > 2) return null;
+    const out = fresh.map((i) => ({ ...i }));
+    const fail = (mediaFailed: boolean): null => {
+      if (mediaFailed) base.ai = { ...ai, mediaFailed: true };
+      return null;
+    };
+    for (const m of media) {
+      const file = await this.d.media(m.id).catch(() => null);
+      if (!file || !file.data.length || file.data.length > 10_000_000) return fail(false);
+      const text = await this.d.seller
+        .media({ system: MEDIA_RECOGNITION_PROMPT, parts: [{ kind: m.type === "image" ? "image" : "audio", data: Buffer.from(file.data).toString("base64"), mime: file.mime || (m.type === "image" ? "image/jpeg" : "audio/ogg") }], timeoutMs: SELLER_MEDIA_TIMEOUT_MS })
+        .catch(() => null);
+      if (!text || !text.trim()) return fail(true);
+      const found = out.find((x) => x.id === m.id);
+      if (found) {
+        found.type = "text";
+        found.text = m.type === "audio" ? `[Голосовое клиента: ${text.trim().slice(0, 1500)}]` : `[Фото клиента: ${text.trim().slice(0, 1500)}]`;
+      }
+    }
+    return out;
+  }
+
   /** Напоминание после предложения: модель решает, нужно ли оно и как написать; false — не отправлено (клиент простился и т. п.). */
   async followUp(conv: Conversation, state: BotState, config: BotConfig, fields: DealField[], now: Date): Promise<boolean> {
     const env = await this.hooks.env(conv, config, fields, now);
@@ -141,12 +188,17 @@ export class AiSeller {
     let reply: string | null = null;
     const events: BotEvent[] = [{ kind: "follow_up" }];
     if (sendIt && decision) {
-      const turn = resolveSellerTurn(state, { ...decision, action: "reply", agreed: false, handoff: "none" }, env, this.ctx(conv, env, config, [], history, false, await this.rules(conv, env, config)));
+      const paid = env.paid === true || history.some((m) => m.from === "client" && m.text.trim() && (handoffIntent(m.text) === "paid" || /\bчек\b|\bтөле[дп]|оплат[аи]л\b/i.test(m.text)));
+      const turn = resolveSellerTurn(state, { ...decision, action: "reply", agreed: false, handoff: "none" }, env, this.ctx(conv, env, config, [], history, false, await this.rules(conv, env, config, paid)));
       if (!turn.retry && turn.reply) reply = turn.reply;
     }
     const ai = readSellerAi(state.ai);
-    const next: BotState = { ...state, followedUp: true, lastBotAt: reply ? now.toISOString() : state.lastBotAt, ai: { ...ai, closeAsked: reply ? false : ai.closeAsked }, version: state.version + 1 };
-    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: new Date(now.getTime() + BOT_OFFER_IDLE_MS) }))) return true;
+    const next: BotState = { ...state, followedUp: true, lastBotAt: reply ? now.toISOString() : state.lastBotAt, ai: { ...ai, closeAsked: reply ? false : ai.closeAsked, followUps: ai.followUps + 1 }, version: state.version + 1 };
+    // Можно ещё одно напоминание — через followUpHours (в рабочее время), иначе — обычный срок тишины до итога менеджеру.
+    const more = next.ai.followUps < 2 && config.sell.followUpHours > 0;
+    const at = new Date(now.getTime() + config.sell.followUpHours * 3_600_000);
+    const due = (await this.d.settings.isWorkTime(at)) ? at : ((await this.d.settings.nextWorkStart(at)) ?? at);
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: more ? due : new Date(now.getTime() + BOT_OFFER_IDLE_MS) }))) return true;
     if (reply) {
       const current = await this.d.store.load(conv.id);
       if (current?.state?.outcome !== "stopped_by_manager") await this.d.send(conv.id, reply);
@@ -229,11 +281,13 @@ export class AiSeller {
 
   // ─── модель ────────────────────────────────────────────────────────────────
 
-  private async rules(conv: Conversation, env: BotEnv, config: BotConfig) {
+  private async rules(conv: Conversation, env: BotEnv, config: BotConfig, paidInChat: boolean) {
     const knowledge = await this.d.settings.knowledge().catch(() => "");
     const owner = [config.promo.ru, config.promo.kk, knowledge, ...faqNotes(env)];
+    // Владелец: бот цен не называет вообще (их озвучивает только менеджер). Оплата уже внесена — суммы тем более не к месту.
+    const noAmounts = config.sell.hidePrices || env.paid || paidInChat;
     return {
-      amounts: allowedAmounts(env.catalog, config.sell, owner),
+      amounts: noAmounts ? new Set<number>() : allowedAmounts(env.catalog, config.sell, owner),
       percents: allowedPercents(owner),
       urls: [env.site.url].filter(Boolean),
       phones: [conv.chatId, conv.meta.phone, await this.d.shopPhone()],
@@ -253,8 +307,11 @@ export class AiSeller {
     const knowledge = await this.d.settings.knowledge().catch(() => "");
     const schemaFields = fields.filter((f) => base.questions.includes(f.key));
     const schema = sellerSchema(schemaFields);
-    const rules = await this.rules(conv, env, config);
     const ai = readSellerAi(base.ai);
+    // Клиент писал «оплатил(а)» или присылал чек — считаем оплату внесённой, даже если в сделке её ещё не провели.
+    const paidInChat = history.some((m) => m.from === "client" && m.text.trim() && (handoffIntent(m.text) === "paid" || /\bчек\b|\bтөле[дп]|оплат[аи]л\b/i.test(m.text)));
+    const rules = await this.rules(conv, env, config, paidInChat);
+    const paid = env.paid === true || paidInChat;
     const dateKey = fields.find((f) => f.type === "date")?.key;
     const knownDate = (dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null) ?? dayValue(ai.eventDate);
     const known = fields
@@ -262,11 +319,17 @@ export class AiSeller {
       .map((f) => ({ label: f.label, value: base.filled[f.key] ?? env.dealValues[f.key] }))
       .filter((k): k is { label: string; value: string | number } => k.value !== undefined && k.value !== null && k.value !== "")
       .map((k) => ({ label: k.label, value: String(k.value) }));
-    const transcript = sellerTranscript(history, fresh.length, env.tz);
+    // Распознанные голосовые/фото есть только во fresh (в истории у них пустой текст): подставляем их текст в переписку.
+    const freshById = new Map(fresh.map((i) => [i.id, i]));
+    const transcriptHistory = history.map((m) => {
+      const f = m.id ? freshById.get(m.id) : undefined;
+      return f && f.text.trim() ? { ...m, text: f.text } : m;
+    });
+    const transcript = sellerTranscript(transcriptHistory, fresh.length, env.tz);
     const user = sellerUserPrompt(transcript, purpose, fresh.length > 0);
 
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const system = sellerSystemPrompt({ env, state: base, questions: base.questions, knowledge, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry });
+      const system = sellerSystemPrompt({ env, state: base, questions: base.questions, knowledge, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry, paid, followUps: ai.followUps });
       let raw: string;
       try {
         raw = await this.d.seller!.complete({ system, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });

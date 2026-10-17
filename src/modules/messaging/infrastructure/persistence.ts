@@ -307,7 +307,7 @@ export class DrizzleBotStore implements BotStore {
 
   async incoming(conversationId: string, since: Date) {
     const rows = await executor()
-      .select({ id: crmMessages.id, text: crmMessages.text, type: crmMessages.type, at: crmMessages.createdAt })
+      .select({ id: crmMessages.id, text: crmMessages.text, type: crmMessages.type, at: crmMessages.createdAt, mediaUrl: crmMessages.mediaUrl })
       .from(crmMessages)
       .where(and(eq(crmMessages.conversationId, conversationId), eq(crmMessages.direction, "in"), gte(crmMessages.createdAt, since)))
       .orderBy(asc(crmMessages.createdAt))

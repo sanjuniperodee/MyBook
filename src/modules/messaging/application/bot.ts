@@ -16,6 +16,7 @@ import {
   newBotState,
   newSellerAiState,
   outcomeTitle,
+  readSellerAi,
   safeName,
   startBlocker,
   themeLabel,
@@ -29,7 +30,7 @@ import {
   type Conversation,
   type InboundMessage,
 } from "../domain";
-import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
+import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
 import { AiSeller } from "./botSeller";
 
 export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
@@ -58,6 +59,8 @@ export interface QualifierBotDeps {
   /** Модель AI-продажника и переписка для неё; без них режим «Продаёт» идёт по шаблонам. */
   seller?: BotSellerModel | null;
   history?: BotHistory["messages"] | null;
+  /** Файлы вложений по id сообщения — чтобы продажник распознавал голосовые и фото. */
+  media?: BotMediaReader["read"] | null;
 }
 
 /**
@@ -72,12 +75,15 @@ export class QualifierBot {
   readonly #seller: AiSeller;
 
   constructor(private readonly d: QualifierBotDeps) {
-    this.#seller = new AiSeller(d, {
-      env: (conv, config, fields, now) => this.env(conv, config, fields, now),
-      finish: (conv, state, fields) => this.finish(conv, state, fields),
-      offered: (conv, state, fields) => this.offered(conv, state, fields),
-      later: (conversationId, due) => this.later(conversationId, due),
-    });
+    this.#seller = new AiSeller(
+      { ...d, media: d.media ?? null },
+      {
+        env: (conv, config, fields, now) => this.env(conv, config, fields, now),
+        finish: (conv, state, fields) => this.finish(conv, state, fields),
+        offered: (conv, state, fields) => this.offered(conv, state, fields),
+        later: (conversationId, due) => this.later(conversationId, due),
+      },
+    );
   }
 
   /** Тест-режим на настоящей модели продажника (настройки бота → «Проверить диалог»). null — продажник не включён или нет модели. */
@@ -356,7 +362,7 @@ export class QualifierBot {
       conv.clientId ? this.d.crm.client(conv.clientId) : null,
     ]);
     const channel = botChannelOf(conv.channel);
-    const reason = startBlocker({
+    let reason = startBlocker({
       channelOk: !!channel && config.channels.includes(channel),
       questions: config.questions.filter((q) => fields.some((f) => f.key === q.field)).length,
       deal: deal && { ...deal, assigned: !!deal.assigneeId },
@@ -365,6 +371,8 @@ export class QualifierBot {
       priorChat: false,
       inputs,
     });
+    // Первое сообщение — только фото/файл: как при создании, бот отвечает (AI распознаёт фото, шаблоны — «передам менеджеру»).
+    if (reason === "media_only") reason = null;
     if (reason) return reason;
     const prior = await this.d.crm.priorChat(conv, new Date(state.since)).catch((err) => (this.d.logger.warn("bot prior chat", { error: String(err) }), false));
     return prior ? "prior_chat" : null;
@@ -392,6 +400,8 @@ export class QualifierBot {
       site,
       client: { known: !!conv.clientId, locale },
       name: safeName(conv.contactName, client?.name),
+      // Оплата уже вносилась (счёт оплачен или привязан заказ): предоплату бот не предлагает.
+      paid: (deal?.paid ?? 0) > 0 || !!deal?.orderId,
     };
   }
 
@@ -483,7 +493,9 @@ export class QualifierBot {
    */
   private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
-    if (!state.followedUp && config.sell.followUpHours > 0) {
+    // AI-продажник напоминает дважды (как менеджер: «успели посмотреть?» → «как ваши дела?»), шаблонный — один раз.
+    const canFollowUp = state.engine === "ai" ? readSellerAi(state.ai).followUps < 2 : !state.followedUp;
+    if (canFollowUp && config.sell.followUpHours > 0) {
       const at = new Date(last + config.sell.followUpHours * 3_600_000);
       // Ночью не пишем: напоминание — с началом рабочего дня.
       const due = (await this.d.settings.isWorkTime(at)) ? at : ((await this.d.settings.nextWorkStart(at)) ?? at);

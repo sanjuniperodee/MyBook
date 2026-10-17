@@ -110,6 +110,7 @@ export class MessagingModule {
       invoices: deps.botInvoices ?? null,
       seller: deps.sellerModel ?? null,
       history: (conversationId, limit) => this.botHistory(conversationId, limit),
+      media: (messageId) => this.media.bytes(messageId).catch(() => null),
     });
     const bot = this.bot;
     this.gowa = new GowaClient(deps.whatsappSettings.gowa);
@@ -134,6 +135,7 @@ export class MessagingModule {
         text: m.text || (m.mediaUrl || m.gateway ? `[${m.type === "audio" ? "голосовое сообщение" : m.type === "image" ? "фото" : m.type === "document" ? "файл" : m.type === "video" ? "видео" : m.type}]` : ""),
         at: m.at,
         author: m.direction === "out" && m.author && m.author !== "бот" ? m.author : null,
+        id: m.id,
       }));
   }
 

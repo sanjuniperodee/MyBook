@@ -458,6 +458,30 @@ export function BotForm({
                 ))}
               </div>
             ) : null}
+            {cfg.sell.engine === "ai" ? (
+              <div className="space-y-3 rounded-xl border border-line p-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.hidePrices} onChange={(e) => setSell({ hidePrices: e.target.checked })} aria-label="Бот не называет цены" />
+                  <span>
+                    Бот не называет цены — их озвучивает только менеджер
+                    <span className="block text-xs text-muted">
+                      На вопрос «сколько стоит» бот отвечает, что вариантов книги несколько и точную цену назовёт менеджер Марат. Счёт на «да» выставляет менеджер. Выключено — бот называет цену «от» из
+                      тарифов, но не сразу: сначала выясняет, для кого книга и к какой дате.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.media} onChange={(e) => setSell({ media: e.target.checked })} aria-label="Распознавать голосовые и фото" />
+                  <span>
+                    Слушать голосовые и смотреть фото клиента
+                    <span className="block text-xs text-muted">
+                      Бот распознаёт голосовые (транскрипция) и фото (описание) той же моделью продажника и отвечает на них. Нужна модель с поддержкой изображений и аудио — например,{" "}
+                      <code className="rounded bg-cream px-1">google/gemini-2.5-flash</code> в OpenRouter (DeepSeek не умеет). Не распозналось — бот, как раньше, просит написать текстом или передаёт менеджеру.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            ) : null}
             <details className="rounded-xl border border-line p-3">
               <summary className="cursor-pointer text-sm">{cfg.sell.engine === "ai" ? "Запасные тексты продаж" : "Тексты продаж"} ({lang === "ru" ? "русский" : "қазақша"})</summary>
               {cfg.sell.engine === "ai" ? <p className="mt-2 text-xs text-muted">При движке AI эти тексты нужны, только если модель недоступна или счёт выставить не вышло (например, «менеджер пришлёт счёт»).</p> : null}

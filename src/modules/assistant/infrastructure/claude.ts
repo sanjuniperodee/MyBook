@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { LanguageModel } from "../application";
 import { AssistantError, type AiConnection } from "../domain";
+import type { MediaPart } from "../application/SellerModel";
 
 let cached: { sig: string; client: Anthropic } | null = null;
 
@@ -61,4 +62,32 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
     .trim();
   if (!text) throw new AssistantError("badResponse", "Claude вернул пустой ответ — попробуйте ещё раз.");
   return { text, usage: { input: res.usage.input_tokens, output: res.usage.output_tokens } };
+}
+
+/** Claude умеет картинки; аудио не принимает — null. */
+export async function askClaudeMedia(c: AiConnection, input: { system: string; parts: MediaPart[]; timeoutMs: number }): Promise<string | null> {
+  if (input.parts.some((p) => p.kind !== "image")) return null;
+  const mimeOf = (m: string): "image/jpeg" | "image/png" | "image/gif" | "image/webp" => (/png/i.test(m) ? "image/png" : /gif/i.test(m) ? "image/gif" : /webp/i.test(m) ? "image/webp" : "image/jpeg");
+  const res = await client(c).messages
+    .create(
+      {
+        model: c.model,
+        max_tokens: 2000,
+        system: input.system,
+        messages: [
+          {
+            role: "user",
+            content: input.parts.map((p) => ({ type: "image" as const, source: { type: "base64" as const, media_type: mimeOf(p.mime), data: p.data } })),
+          },
+        ],
+      },
+      { timeout: input.timeoutMs, maxRetries: 0 },
+    )
+    .catch(() => null);
+  if (!res) return null;
+  return res.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as { text: string }).text)
+    .join("")
+    .trim() || null;
 }

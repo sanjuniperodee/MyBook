@@ -16,7 +16,7 @@ export const BOT_CONFIG: BotConfig = {
 };
 
 export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null };
-export type Msg = { id: string; conv: string; dir: "in" | "out"; text: string; type: string; at: Date; externalId: string | null; status: string; source?: string | null; internal?: boolean; authorId?: string | null };
+export type Msg = { id: string; conv: string; dir: "in" | "out"; text: string; type: string; at: Date; externalId: string | null; status: string; source?: string | null; internal?: boolean; authorId?: string | null; mediaUrl?: string | null };
 
 export function setup(
   opts: {
@@ -29,10 +29,14 @@ export function setup(
     clientOrders?: number;
     priorChat?: boolean;
     dealStage?: { firstStage: boolean; orderId?: string | null };
+    /** Сколько по сделке уже оплачено (счета): предоплату бот не предлагает. */
+    dealPaid?: number;
     noExternalId?: boolean;
     /** Модель AI-продажника: без неё — шаблоны. */
     seller?: BotSellerModel;
     invoices?: BotInvoices;
+    /** Читатель файлов вложений: id сообщения → байты (для распознавания голосовых и фото). */
+    mediaFiles?: (id: string) => { data: Uint8Array; mime: string } | null;
     /** Делает сделку ответственного и «открытой» для подхвата. */
     assignee?: string | null;
   } = {},
@@ -92,7 +96,7 @@ export function setup(
     setStatus: async () => {},
   };
   const messages: MessageRepository = {
-    insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received" })),
+    insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received", mediaUrl: m.mediaUrl })),
     existsExternal: async (e) => msgs.some((x) => x.externalId === e),
     claimPendingEcho: async (conv, text, _s, ext) => {
       const own = msgs.find((x) => x.conv === conv && x.dir === "out" && !x.internal && (x.source === "bot" || x.source === "rule") && x.text === text);
@@ -157,13 +161,13 @@ export function setup(
       return active;
     },
     due: async (at) => [...convs.values()].filter((c) => c.botDueAt && c.botDueAt < at && c.botStep !== -1).map((c) => c.id),
-    incoming: async (id, since) => msgs.filter((m) => m.conv === id && m.dir === "in" && m.at >= since).map((m) => ({ id: m.id, text: m.text, type: m.type, at: m.at })),
+    incoming: async (id, since) => msgs.filter((m) => m.conv === id && m.dir === "in" && m.at >= since).map((m) => ({ id: m.id, text: m.text, type: m.type, at: m.at, mediaUrl: m.mediaUrl })),
     log: async (id, _deal, _lang, list) => void events.push(...list.map((e) => ({ ...e, conv: id }))),
   };
   const crm: BotCrm = {
     deal: async (id) => {
       const d = await sales.deal(id);
-      return d && { orderId: opts.dealStage?.orderId ?? null, firstStage: opts.dealStage?.firstStage ?? true, closed: false, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
+      return d && { orderId: opts.dealStage?.orderId ?? null, paid: opts.dealPaid ?? 0, firstStage: opts.dealStage?.firstStage ?? true, closed: false, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
     },
     client: async () => ({ orders: opts.clientOrders ?? 0, books: 0, locale: null, name: null }),
     tag: async (dealId, tag) => void deals.find((d) => d.id === dealId)?.tags.push(tag),
@@ -215,10 +219,11 @@ export function setup(
     shopPhone: async () => "77000000000",
     seller: opts.seller ?? null,
     invoices: opts.invoices ?? null,
+    media: opts.mediaFiles ? async (id: string) => opts.mediaFiles!(id) : null,
     history: async (id: string) =>
       msgs
         .filter((m) => m.conv === id && !m.internal)
-        .map((m) => ({ from: m.dir === "in" ? ("client" as const) : m.source === "bot" ? ("bot" as const) : ("manager" as const), text: m.text, at: m.at, author: m.dir === "out" && m.source !== "bot" ? "Margo" : null })),
+        .map((m) => ({ from: m.dir === "in" ? ("client" as const) : m.source === "bot" ? ("bot" as const) : ("manager" as const), text: m.text, at: m.at, author: m.dir === "out" && m.source !== "bot" ? "Margo" : null, id: m.id })),
   };
   const bot = new QualifierBot(deps);
   /** Время идёт: планировщик делает просроченные ходы (так же, как таймер в процессе). */

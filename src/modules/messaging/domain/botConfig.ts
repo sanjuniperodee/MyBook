@@ -135,6 +135,10 @@ export interface BotSell {
   persona: string;
   /** Потолок ответов модели в одной беседе; дальше — менеджер. */
   maxTurns: number;
+  /** AI-продажник не называет цены и предоплату вообще — их озвучивает только менеджер (несколько вариантов книг). */
+  hidePrices: boolean;
+  /** Распознавать голосовые и фото клиента моделью (транскрипция и описание); без поддержки моделью — как раньше. */
+  media: boolean;
 }
 
 export const MAX_QUESTIONS = 6;
@@ -289,7 +293,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40 },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -385,6 +389,8 @@ function parseSell(raw: unknown): BotSell {
     takeover: typeof r.takeover === "boolean" ? r.takeover : d.takeover,
     persona: typeof r.persona === "string" ? r.persona.slice(0, 1500) : d.persona,
     maxTurns: int(r.maxTurns, 4, 100, d.maxTurns),
+    hidePrices: typeof r.hidePrices === "boolean" ? r.hidePrices : d.hidePrices,
+    media: typeof r.media === "boolean" ? r.media : d.media,
   };
 }
 

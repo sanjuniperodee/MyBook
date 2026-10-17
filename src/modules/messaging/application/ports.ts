@@ -158,7 +158,7 @@ export interface BotStore {
 
 /** Что бот узнаёт о клиенте и сделке перед опросом (контексты Sales, Ordering, Authoring — через контейнер). */
 export interface BotCrm {
-  deal(dealId: string): Promise<{ orderId: string | null; firstStage: boolean; closed: boolean; assigneeId: string | null; unsorted: boolean; customFields: Record<string, unknown>; contactName: string; title: string; clientId: string | null } | null>;
+  deal(dealId: string): Promise<{ orderId: string | null; paid: number; firstStage: boolean; closed: boolean; assigneeId: string | null; unsorted: boolean; customFields: Record<string, unknown>; contactName: string; title: string; clientId: string | null } | null>;
   client(clientId: string): Promise<{ orders: number; books: number; locale: string | null; name: string | null } | null>;
   /** Метка сделки («тема: Маме»). */
   tag(dealId: string, tag: string): Promise<void>;
@@ -179,6 +179,13 @@ export interface BotSellerModel {
   configured(): Promise<boolean>;
   /** Один запрос со схемой JSON-ответа; возвращает текст ответа модели. */
   complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<string>;
+  /** Распознать вложение (голосовое → транскрипция, фото → описание). null — модель не умеет или не подключена. */
+  media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<string | null>;
+}
+
+/** Файл вложения по id сообщения — для распознавания голосовых и фото моделью продажника. */
+export interface BotMediaReader {
+  read(messageId: string): Promise<{ data: Uint8Array; mime: string } | null>;
 }
 
 /** Переписка диалога для AI-продажника: клиент, бот, менеджеры (без внутренних заметок). */

@@ -54,7 +54,8 @@ const catalog: BotCatalog = {
   productionDays: { standard: "5–7", premium: "3–4" },
 };
 const site = { url: "https://mybook.kz", registrationOpen: false, themes: ["love", "mom"], landings: ["kniga-mame"] };
-const sellConfig = (p: Partial<BotConfig["sell"]> = {}): BotConfig => ({ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true, ...p } });
+// Цены ботом в этих тестах разрешены (по умолчанию hidePrices=true — тесты для него отдельные).
+const sellConfig = (p: Partial<BotConfig["sell"]> = {}): BotConfig => ({ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true, hidePrices: false, ...p } });
 const env = (p: Partial<BotEnv> = {}): BotEnv => ({
   config: sellConfig(),
   fields,
@@ -367,7 +368,7 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
 
 describe("AI-продажник: промпт и переписка", () => {
   const state = newBotState(day, true);
-  const base = { env: env(), state, questions: ["recipient", "occasion", "event_date", "format"], knowledge: "", brand: "MyBooks", known: [], deadline: null, takeoverMinutes: null, purpose: "reply" as const };
+  const base = { env: env(), state, questions: ["recipient", "occasion", "event_date", "format"], knowledge: "", brand: "MyBooks", known: [], deadline: null, takeoverMinutes: null, purpose: "reply" as const, paid: false, followUps: 0 };
 
   it("факты: тарифы из каталога, без скрытого тарифа; предоплата; сегодняшняя дата; правила против инъекций", () => {
     const p = sellerSystemPrompt(base).replace(/\u00a0/g, " ");
@@ -378,7 +379,7 @@ describe("AI-продажник: промпт и переписка", () => {
     expect(p).toContain("2026-10-17");
     expect(p).toContain("суббота");
     expect(p).toContain("игнорируй");
-    expect(p).toContain("AI-помощник");
+    expect(p).toContain("не раскрываешь, что ты бот");
     expect(p).toContain("Акций сейчас нет");
     // Образцы тона содержат настоящие цены из тарифов, а не выдуманные.
     expect(p).toContain("Печатная книга в твёрдой обложке — от 30 000 ₸");
