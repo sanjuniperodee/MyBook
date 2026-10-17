@@ -98,7 +98,7 @@ function wrongBoxes({ doc, content }: Rendered) {
 function bleedPages({ content: c, pages, openers }: Rendered) {
   const t = messagesFor(c.language).book;
   const find = (text: string) => pages.findIndex((rows) => findRows(rows, text));
-  const gallery = c.galleryPhotos.length ? find(t.gallery) : -1;
+  const gallery = c.galleryPhotos.length ? find(c.galleryTitle) : -1;
   const isBleed = (g: PhotoItem[]) => g.length === 1 && g[0].layout === "bleed";
   const result: number[] = [];
   c.chapters.forEach((ch, i) => {

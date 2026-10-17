@@ -11,7 +11,7 @@ export function Toc({ kit }: { kit: PdfKit }) {
   const P = design.palette;
   const bodyFace = face(design.type.body, 400);
   const entries = [...content.chapters.map((c) => ({ key: c.key, label: c.title, num: c.number }))];
-  if (content.galleryPhotos.length) entries.push({ key: "__gallery", label: t.gallery, num: 0 });
+  if (content.galleryPhotos.length) entries.push({ key: "__gallery", label: content.galleryTitle, num: 0 });
   return (
     <Page size={kit.pageSize} style={kit.pagePadding} wrap>
       <Watermark kit={kit} />

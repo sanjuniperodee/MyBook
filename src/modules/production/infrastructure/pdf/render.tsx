@@ -121,6 +121,8 @@ export function contentFor(bundle: BookBundle): BookContent {
 /**
  * Версия правил вёрстки блока: поменяли набор — меняем, и кэш предпросмотров пересобирается.
  * 5 — виды книг: главы своей книги из book_chapters, подписи галереи и «записано со слов» по виду, свой текст не склоняется.
+ * Начальная полоса с названием и эпиграфом длиннее глав банков (opener-fit) и строка на обороте титула появляются только у
+ * книг этих видов — содержимое и отпечаток подарков прежние, поэтому версия остаётся 5 (не вышедшей до этих правок).
  */
 const LAYOUT_VERSION = 5;
 
@@ -141,6 +143,7 @@ export function plainText(bundle: BookBundle): { title: string; text: string } {
   const lines: string[] = [c.title.toUpperCase()];
   if (c.subtitle) lines.push(c.subtitle);
   if (c.authorName) lines.push(c.authorName);
+  if (c.recordedBy) lines.push(t.recordedBy(c.recordedBy));
   if (c.dedication) lines.push("", c.dedication);
   for (const ch of c.chapters) {
     lines.push("", "", `${t.chapter(ch.number).toUpperCase()}. ${ch.title.toUpperCase()}`);

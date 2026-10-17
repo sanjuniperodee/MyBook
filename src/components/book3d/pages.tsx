@@ -36,6 +36,8 @@ export interface FlipbookData {
   title: string;
   subtitle: string;
   author: string;
+  /** Автобиография: кто записал со слов автора — строка на обороте титула (пусто — строки нет). */
+  recordedBy: string;
   year: number;
   dedication: string;
   showToc: boolean;
@@ -54,24 +56,36 @@ export interface FaceContext {
   kit: PageKit;
   /** Номера полос, с которых начинаются главы. */
   chapterStarts: number[];
+  /** Полоса, с которой начинается галерея (для строки оглавления). */
+  galleryStart: number | null;
 }
 
 export const faceBox = "absolute inset-0 size-full";
 
 /** Одна полоса книги по её описанию из раскладки. */
 export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceContext }) {
-  const { data, kit, chapterStarts } = ctx;
+  const { data, kit, chapterStarts, galleryStart } = ctx;
   switch (face.kind) {
     case "blank":
       return <div className={cn(faceBox, "bg-white")} />;
     case "title":
       return <TitlePage kit={kit} title={data.title} subtitle={data.subtitle} author={data.author} year={data.year} className={faceBox} />;
     case "colophon":
-      return <ColophonPage kit={kit} year={data.year} author={data.author} className={faceBox} />;
+      return <ColophonPage kit={kit} year={data.year} author={data.author} recordedBy={data.recordedBy} className={faceBox} />;
     case "dedication":
       return <DedicationPage kit={kit} text={data.dedication} className={faceBox} />;
     case "toc":
-      return <TocPage kit={kit} className={faceBox} entries={data.chapters.map((c, i) => ({ number: c.number, title: c.title, page: chapterStarts[i] ?? 0 }))} />;
+      return (
+        <TocPage
+          kit={kit}
+          className={faceBox}
+          entries={[
+            ...data.chapters.map((c, i) => ({ number: c.number as number | null, title: c.title, page: chapterStarts[i] ?? 0 })),
+            // Галерея — строка без номера, как в PDF (pdf/interior/toc.tsx).
+            ...(data.gallery && galleryStart ? [{ number: null, title: data.gallery.title, page: galleryStart }] : []),
+          ]}
+        />
+      );
     case "opener": {
       const ch = data.chapters[face.chapter];
       return <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto ? { url: ch.openerPhoto } : undefined} className={faceBox} />;
@@ -141,7 +155,7 @@ export function usePagedBook(data: FlipbookData): PagedBook {
     });
   }, [textPages, data.chapters, data.dedication, data.showToc, data.gallery]);
   const sheets = useMemo(() => (plan ? planSheets(plan.faces) : []), [plan]);
-  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts } : null), [plan, data, kit]);
+  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart } : null), [plan, data, kit]);
 
   const measure = (
     <div ref={root} aria-hidden className="pointer-events-none invisible fixed top-0 -left-[10000px]" style={{ width: MEASURE_WIDTH }}>
