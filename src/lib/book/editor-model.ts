@@ -117,6 +117,17 @@ export function sectionLabel(q: Pick<EditorQuestion, "hideHeading" | "displayTex
   return (kind === "blank" ? heading || q.prompt.trim() : q.prompt.trim() || heading) || untitled;
 }
 
+/**
+ * Открытый раздел: ?s=<id> (id раздела, не меняется при перестановке) или прежнее ?q=N (номер, для старых ссылок хаба и писем).
+ * Неизвестный id — первый раздел. Параметры могут быть и массивами, и мусором: берётся только строка.
+ */
+export function sectionIndex(ids: readonly string[], s?: string | string[], q?: string | string[]): number {
+  const byId = typeof s === "string" ? ids.indexOf(s) : -1;
+  if (byId >= 0) return byId;
+  const n = Number(typeof q === "string" ? q : "");
+  return Number.isFinite(n) && n >= 1 ? Math.min(Math.floor(n), Math.max(ids.length, 1)) - 1 : 0;
+}
+
 export function editorPhotoUrl(p: Pick<EditorPhoto, "id" | "rev">) {
   return photoUrl(p.id) + (p.rev ? `&v=${p.rev}` : "");
 }
@@ -149,7 +160,7 @@ export function groupByChapter(questions: EditorQuestion[], chapters?: readonly 
  * Вся книга для превью: главы только с заполненными ответами или фото (как в PDF) плюс текущий вопрос, даже пустой.
  * Фото — только вставленные в ответы.
  */
-export function previewChapters(groups: ChapterGroup[], photos: EditorPhoto[], epigraphs: Record<string, string>, currentId: string): PreviewChapter[] {
+export function previewChapters(groups: ChapterGroup[], photos: EditorPhoto[], epigraphs: Record<string, string>, currentId: string | null, untitled = ""): PreviewChapter[] {
   const toPhoto = (p: EditorPhoto): PreviewPhoto => ({ id: p.id, url: editorPhotoUrl(p), width: p.width, height: p.height, caption: p.caption, inline: p.inline });
   const chapters: PreviewChapter[] = [];
   for (const g of groups) {
@@ -157,7 +168,7 @@ export function previewChapters(groups: ChapterGroup[], photos: EditorPhoto[], e
       .map(({ q }) => ({ q, ph: photos.filter((p) => p.questionId === q.id) }))
       .filter(({ q, ph }) => q.id === currentId || q.answer.trim() || ph.length)
       .map(({ q, ph }) => ({ id: q.id, heading: editorHeading(q), answer: q.answer, photos: ph.map(toPhoto) }));
-    if (entries.length) chapters.push({ key: g.key, number: chapters.length + 1, title: g.title, epigraph: epigraphs[g.key], entries });
+    if (entries.length) chapters.push({ key: g.key, number: chapters.length + 1, title: g.title.trim() || untitled, epigraph: epigraphs[g.key], entries });
   }
   return chapters;
 }
