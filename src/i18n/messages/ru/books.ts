@@ -215,6 +215,9 @@ export const books = {
     batch: {
       title: (size: number, left: number) => (left >= size ? `Оплачено сразу за ${size} ${size < 5 ? "книги" : "книг"}` : `Из ${size} оплаченных книг осталось оформить ${left}`),
       now: (index: number, size: number) => `Сейчас — книга ${index} из ${size}. Цена и предоплата ниже — за эту книгу.`,
+      /** Сделки заведены по отдельности: сколько всего оплачено, неизвестно — говорим про оставшиеся. */
+      titleLeft: (left: number) => `У вас оплачено книг: ${left}`,
+      nowNext: (recipient: string | null) => `Сейчас оформляется одна из них${recipient ? ` — книга для: ${recipient}` : ""}. Цена и предоплата ниже — за эту книгу; остальные оформите после.`,
       total: (agreed: string, paid: string, left: string) => `По оставшимся книгам: ${agreed}, внесено ${paid}, осталось ${left}.`,
     },
     hasPrepaid: "Предоплата внесена — деньги за вами закреплены, начинайте книгу.",

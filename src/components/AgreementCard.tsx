@@ -68,8 +68,8 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
       {agreement.plan && getPlan(agreement.plan) ? <p className="mt-1 text-sm font-medium text-emerald-950">{t.plan(m.common.plans[agreement.plan as "digital" | "hardcover" | "premium"].name)}</p> : null}
       {agreement.batch && agreement.batch.size > 1 ? (
         <div className="mt-2 rounded-xl bg-white/70 px-4 py-2.5 text-sm text-emerald-950" data-testid="agreement-batch">
-          <div className="font-medium">{t.batch.title(agreement.batch.size, agreement.batch.left)}</div>
-          <div className="mt-0.5 text-xs text-emerald-900">{t.batch.now(agreement.batch.index + 1, agreement.batch.size)}</div>
+          <div className="font-medium">{agreement.batch.implicit ? t.batch.titleLeft(agreement.batch.left) : t.batch.title(agreement.batch.size, agreement.batch.left)}</div>
+          <div className="mt-0.5 text-xs text-emerald-900">{agreement.batch.implicit ? t.batch.nowNext(agreement.recipient ?? null) : t.batch.now(agreement.batch.index + 1, agreement.batch.size)}</div>
           <div className="mt-0.5 text-xs text-emerald-900">{t.batch.total(formatPrice(agreement.batch.agreedLeft), formatPrice(agreement.batch.prepaidLeft), formatPrice(Math.max(0, agreement.batch.agreedLeft - agreement.batch.prepaidLeft)))}</div>
         </div>
       ) : null}

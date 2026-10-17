@@ -212,6 +212,8 @@ export const books: typeof ru = {
     batch: {
       title: (size: number, left: number) => (left >= size ? `Бірден ${size} кітапқа төленді` : `Төленген ${size} кітаптың ${left} қалды`),
       now: (index: number, size: number) => `Қазір — ${size} кітаптың ${index}-і. Төмендегі баға мен алдын ала төлем — осы кітап үшін.`,
+      titleLeft: (left: number) => `Төленген кітаптар: ${left}`,
+      nowNext: (recipient: string | null) => `Қазір солардың бірі рәсімделуде${recipient ? ` — кітап: ${recipient}` : ""}. Төмендегі баға мен алдын ала төлем — осы кітап үшін; қалғандарын кейін рәсімдейсіз.`,
       total: (agreed: string, paid: string, left: string) => `Қалған кітаптар бойынша: ${agreed}, төленгені ${paid}, қалғаны ${left}.`,
     },
     hasPrepaid: "Алдын ала төлем енгізілді — ақшаңыз сізге бекітілді, кітапты бастай беріңіз.",
