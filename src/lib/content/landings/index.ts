@@ -12,6 +12,8 @@ import { podarokDevushke } from "./podarok-devushke";
 import { podarokNaYubilejMame } from "./podarok-na-yubilej-mame";
 import { podarokNaYubilejPape } from "./podarok-na-yubilej-pape";
 import { podarokPapeNa23Fevralya } from "./podarok-pape-na-23-fevralya";
+import { knigaOSvoejZhizni } from "./kniga-o-svoej-zhizni";
+import { svoyaKnigaSNulya } from "./svoya-kniga-s-nulya";
 import type { Landing } from "./types";
 
 export type * from "./types";
@@ -20,9 +22,10 @@ export type * from "./types";
  * Посадочные страницы под поисковые запросы и рекламу: «книга в подарок маме»,
  * «подарок на годовщину» и т.п. Тексты уникальные для каждого языка (не дословный перевод —
  * казахская версия написана под казахские запросы), вопросы — из настоящего банка вопросов темы.
+ * Автобиография и своя книга стоят сразу за темами-подарками: футер берёт первые восемь.
  * Адрес общий: /kniga/<slug> и /kk/kniga/<slug>, связаны через hreflang.
  */
-export const landings: Landing[] = [podarokLyubimomu, knigaMame, knigaPape, knigaDrugu, podarokNaGodovshchinu, podarokNa14Fevralya, podarokNa8Marta, podarokMuzhu, podarokZhene, podarokParnyu, podarokDevushke, podarokNaYubilejMame, podarokNaYubilejPape, podarokPapeNa23Fevralya];
+export const landings: Landing[] = [podarokLyubimomu, knigaMame, knigaPape, knigaDrugu, knigaOSvoejZhizni, svoyaKnigaSNulya, podarokNaGodovshchinu, podarokNa14Fevralya, podarokNa8Marta, podarokMuzhu, podarokZhene, podarokParnyu, podarokDevushke, podarokNaYubilejMame, podarokNaYubilejPape, podarokPapeNa23Fevralya];
 
 export function getLanding(slug: string) {
   return landings.find((l) => l.slug === slug);

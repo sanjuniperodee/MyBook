@@ -8,6 +8,7 @@ import type { SampleEntry } from "./entry";
 import { pageKit } from "./kit";
 import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "./pages";
 import { cqwUnits } from "./units";
+import type { BookKind } from "@/lib/content/kinds";
 
 export type SpreadKind = "chapter" | "front" | "toc" | "photos";
 
@@ -27,14 +28,17 @@ export interface SpreadSample {
   showToc: boolean;
   /** Фото книги для разворота «Фото» и начала главы; недостающие — пейзажи-заглушки. */
   photos?: { url: string; width: number; height: number; caption: string }[];
+  /** Вид книги: у автобиографии и своей книги подписи заглушек без «мы» (по умолчанию — подарок). */
+  kind?: BookKind;
 }
 
 /** Номер правой страницы с текстом главы на развороте «Глава». */
 const TEXT_FOLIO = 7;
 
 /** Фото для разворота «Фото»: снимок на всю полосу и сетка из трёх (пейзажи-заглушки с подписями на языке книги). */
-function samplePhotos(language: Locale, own: NonNullable<SpreadSample["photos"]> = []): { single: PagePhoto[]; grid: PagePhoto[] } {
-  const [a, b, c] = bookMessagesFor(language).samplePhotos;
+function samplePhotos(language: Locale, own: NonNullable<SpreadSample["photos"]> = [], kind: BookKind = "gift"): { single: PagePhoto[]; grid: PagePhoto[] } {
+  const bm = bookMessagesFor(language);
+  const [a, b, c] = kind === "gift" ? bm.samplePhotos : bm.samplePhotosSolo;
   const stock = [
     { width: 1500, height: 1200, caption: a },
     { width: 1600, height: 1000, caption: b },
@@ -71,7 +75,7 @@ export const InteriorSpread = memo(function InteriorSpread({
     left = <TitlePage kit={kit} title={sample.title} subtitle={sample.subtitle} author={sample.author} year={sample.year} style={page} />;
     right = <DedicationPage kit={kit} text={sample.dedication} placeholder={sample.dedicationPlaceholder} style={page} />;
   } else if (kind === "photos") {
-    const photos = samplePhotos(sample.language, sample.photos);
+    const photos = samplePhotos(sample.language, sample.photos, sample.kind);
     left = <PhotoPage kit={kit} photos={photos.single} style={page} />;
     right = <PhotoPage kit={kit} photos={photos.grid} scene={1} style={page} />;
   } else if (kind === "toc") {

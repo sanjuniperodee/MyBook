@@ -130,7 +130,7 @@ export function LettersManager({
                   {t.close}
                 </button>
               </div>
-              <p className="mt-4 text-xs text-muted">{t.privacy}</p>
+              <p className="mt-4 text-xs text-muted">{recipient.trim() ? t.privacy : t.privacyNoRecipient}</p>
             </>
           ) : (
             <button className="btn btn-primary mt-5 w-full" onClick={() => setInvite(true)} disabled={busy || !editable}>

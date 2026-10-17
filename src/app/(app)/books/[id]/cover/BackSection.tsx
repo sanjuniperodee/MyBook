@@ -5,6 +5,7 @@ import { Link, useMessages } from "@/i18n/client";
 import { BACK_PHOTO_SLOTS, BACK_TEXT_MAX, backLayouts, type BackLayout } from "@/lib/book/cover-back";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
+import { bookKind } from "@/lib/content/kinds";
 
 /** Схематичная миниатюра варианта — как он ляжет на заднюю крышку. */
 function LayoutIcon({ layout }: { layout: BackLayout }) {
@@ -93,6 +94,8 @@ export function BackSection({
   onFocusBack: () => void;
 }) {
   const t = useMessages().books.cover.back;
+  // Автобиография и своя книга — от одного автора: подсказки в единственном числе.
+  const solo = bookKind(theme) !== "gift";
   const ideas = layout === "quote" || layout === "fullPhoto" || layout === "polaroids" ? (t.suggestions[theme] ?? []) : [];
   const need = BACK_PHOTO_SLOTS[layout] ?? 0;
   /** Один снимок — заменить; несколько — добавить или убрать из подборки (порядок — как выбирали). */
@@ -166,7 +169,7 @@ export function BackSection({
       ) : null}
 
       {layout === "minimal" ? (
-        <p className="rounded-xl bg-cream/70 px-4 py-3 text-sm text-ink-soft">{t.minimalNote(names, year)}</p>
+        <p className="rounded-xl bg-cream/70 px-4 py-3 text-sm text-ink-soft">{t.minimalNote(names, year, solo)}</p>
       ) : (
         <div>
           <label className="label" htmlFor="backText">
@@ -177,7 +180,7 @@ export function BackSection({
             className="input"
             rows={layout === "letter" ? 5 : 3}
             maxLength={BACK_TEXT_MAX}
-            placeholder={t.placeholder[layout]}
+            placeholder={(solo && t.placeholderSolo[layout]) || t.placeholder[layout]}
             value={text}
             onChange={(e) => onChange({ backText: e.target.value })}
             disabled={!editable}

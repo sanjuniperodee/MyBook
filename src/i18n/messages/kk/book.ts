@@ -8,6 +8,7 @@ export const book: typeof ru = {
   recordedBy: (name: string) => `Автордың айтуымен жазып алған — ${name}`,
   untitledChapter: "Атаусыз",
   samplePhotos: ["Алғашқы жазымыз", "Сол бір күн", "Жай ғана біз"],
+  samplePhotosSolo: ["Бұрынғы күндер", "Сол бір күн", "Бәрі қалай болды"],
   misc: "Әртүрлі",
   letters: { title: "Жақындардың хаттары", epigraph: "Сізді жақсы көретіндердің сөздері" },
   copyright: (year: number, author: string) => `© ${year}${author ? ` ${author}` : ""}. Барлық құқықтар қорғалған.`,

@@ -7,7 +7,7 @@ import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { queueEvent } from "@/server/track";
 import { isThemeId } from "@/lib/content/themes";
-import { CHAPTER_TITLE_MAX, RECORDED_BY_MAX, recipientPolicy } from "@/lib/content/kinds";
+import { CHAPTER_TITLE_MAX, RECORDED_BY_MAX, bookKind, recipientPolicy } from "@/lib/content/kinds";
 import { getOccasion } from "@/lib/occasions";
 
 export interface CreateState {
@@ -58,6 +58,6 @@ export async function createBookAction(_: CreateState, form: FormData): Promise<
     occasion: d.occasion || null,
     occasionDate: d.occasion ? d.occasionDate || null : null,
   });
-  await queueEvent("book_created");
+  await queueEvent("book_created", undefined, { kind: bookKind(d.theme) });
   return lredirect(`/books/${book.id}`);
 }

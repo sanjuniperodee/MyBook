@@ -1,6 +1,7 @@
 import "server-only";
 import { messagesFor } from "@/i18n/messages";
 import { applyGender } from "@/lib/content/gender";
+import { bookKind } from "@/lib/content/kinds";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
@@ -83,6 +84,7 @@ export function bookSpreadSample(
     entries,
     toc,
     showToc: book.showToc,
+    kind: bookKind(book.theme),
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
   };
 }

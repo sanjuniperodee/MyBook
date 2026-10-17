@@ -5,6 +5,7 @@ import { container } from "@/server/container";
 import { env } from "@/config/env";
 import { LettersManager } from "./LettersManager";
 import { getMessages } from "@/i18n/server";
+import { bookKind } from "@/lib/content/kinds";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.letters.meta };
@@ -23,7 +24,7 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
         bookId={book.id}
         initialToken={book.inviteToken}
         appUrl={env.appUrl}
-        recipient={book.recipientName}
+        recipient={bookKind(book.theme) === "autobiography" ? "" : book.recipientName}
         bookLanguage={book.language}
         editable={book.status === "draft"}
         initialLetters={letters.map((l) => ({ id: l.id, authorName: l.authorName, relation: l.relation, text: l.text, status: l.status, createdAt: l.createdAt.toISOString() }))}

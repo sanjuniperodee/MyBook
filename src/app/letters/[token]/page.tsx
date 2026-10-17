@@ -7,6 +7,7 @@ import { getCoverTemplate } from "@/lib/book/covers";
 import { LetterForm } from "./LetterForm";
 import { getMessages } from "@/i18n/server";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { bookKind } from "@/lib/content/kinds";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).gift.letter.meta, robots: { index: false } };
@@ -19,7 +20,9 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
   if (!book) notFound();
   const t = (await getMessages()).gift.letter;
   const author = book.authorName.trim();
-  const recipient = book.recipientName.trim();
+  const kind = bookKind(book.theme);
+  // У автобиографии получателя нет, у своей книги он необязателен: пустое имя в текст не подставляем.
+  const recipient = kind === "autobiography" ? "" : book.recipientName.trim();
   // Фото-обложку не показываем посторонним — только дизайнерский шаблон.
   const template = getCoverTemplate(book.coverTemplate).requiresPhoto ? "linen" : book.coverTemplate;
 
@@ -37,10 +40,10 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
           <div>
             <div className="eyebrow">{t.invite}</div>
             <h1 className="mt-2 font-serif text-4xl leading-tight font-medium sm:text-5xl">
-              {t.headline(author || t.author)}
+              {kind === "autobiography" ? t.byKind.autobiography.headline(author || t.author) : kind === "blank" ? t.byKind.blank.headline(author || t.author, book.title) : t.headline(author || t.author)}
             </h1>
             <p className="mt-3 text-lg text-muted">
-              {t.text(recipient, book.title)}
+              {kind === "autobiography" ? t.byKind.autobiography.text(book.title) : kind === "blank" ? t.byKind.blank.text(recipient) : t.text(recipient, book.title)}
             </p>
           </div>
         </div>
