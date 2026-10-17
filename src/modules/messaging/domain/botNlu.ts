@@ -105,9 +105,13 @@ export function handoffIntent(text: string): HandoffKind | null {
   return HANDOFF.find(([, re]) => re.test(t))?.[0] ?? null;
 }
 
-const DECLINE = rx(["^(?:спасибо,?\\s*)?не\\s+(?:интересует|надо|нужно|актуально)", "\\bпередумал[аи]?\\b", "\\bуже\\s+не\\s+(?:надо|нужно|актуально)", "\\bкерек\\s+емес", "\\bқажет\\s+емес", "\\bқызықтырмайды"]);
+const STOP = rx(["^(?:стоп|хватит|прекратите)\\b", "\\bне\\s+(?:пишите|пиши|беспокойте|звоните)\\b", "\\bотстаньте\\b", "\\bотпишите(?:сь)?\\b", "\\bжазбаңыз\\b", "\\bмазаламаңыз\\b", "\\bтоқтатыңыз\\b"]);
+/** «Стоп», «не пишите мне» — клиент просит замолчать: это не ответ на вопрос бота. */
+export const isStop = (text: string) => STOP.test(norm(text));
+
+const DECLINE = rx(["^(?:спасибо,?\\s*)?не\\s+(?:интересует|надо|нужно|актуально)", "\\bпередумал[аи]?\\b", "\\bуже\\s+не\\s+(?:надо|нужно|актуально)", "\\bкерек\\s+емес", "\\bқажет\\s+емес", "\bқызықтырмайды"]);
 /** «Не интересует», «уже не надо». */
-export const isDecline = (text: string) => DECLINE.test(norm(text));
+export const isDecline = (text: string) => DECLINE.test(norm(text)) || isStop(text);
 
 const DONT_KNOW = rx([
   "\\bне\\s+зна(?:ю|ем|ет)\\b", "\\bпока\\s+не\\s+(?:решил|решила|решили|определил|определилась|определились)", "\\bзатрудня", "\\bбез\\s+разницы\\b", "\\bпропуст", "\\bне\\s+важно\\b", "\\bпотом\\s+(?:скажу|решу|решим)", "\\bпозже\\s+(?:скажу|решу)",
@@ -146,6 +150,10 @@ export function looksLikeContinuation(text: string) {
   return t.split(/\s+/).filter((w) => /\p{L}/u.test(w)).length <= 3;
 }
 
+/** Отрицание с понятием: «не нужно электронную», «не хочу печатную», «без свадьбы», «электронды керек емес». */
+const NEGATED = rx(["\\bне\\s+(?:нужн\\S*|надо|хочу|хотим|хотелось\\s+бы)\\s+\\S+", "\\bбез\\s+\\S+", "\\S+\\s+(?:керек|қажет|кажет)\\s+емес"]).source;
+const NEGATED_RE = new RegExp(NEGATED, "giu");
+
 /** Понятия в ответах на вопросы-списки: повод и формат. Вариант списка сопоставляется с ними по своему тексту. */
 const CONCEPTS: [string, RegExp][] = [
   ["unknown", DONT_KNOW],
@@ -165,7 +173,8 @@ const CONCEPTS: [string, RegExp][] = [
 
 /** Понятия, найденные в тексте, с позицией первого совпадения. */
 export function concepts(text: string): { id: string; at: number }[] {
-  const t = norm(text);
+  // Отрицание: «не нужно электронную, только печатную» — электронная отпадает; «без подарочной упаковки» — не выбор.
+  const t = norm(text).replace(NEGATED_RE, " ");
   const out: { id: string; at: number }[] = [];
   for (const [id, re] of CONCEPTS) {
     const m = re.exec(t);

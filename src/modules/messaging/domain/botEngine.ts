@@ -8,7 +8,7 @@ import { fillTemplate } from "@/shared/domain/templates";
 import { humanDate, whenText, type DealField } from "./bot";
 import { botText, faqFor, mentionsMonth, promoFor, optionLabel, parseDateAnswer, matchOption, questionFor, questionText, type BotConfig, type BotTextKey } from "./botConfig";
 import { catalogVars, fillBotVars, fillFaqLines, type BotCatalog } from "./botFaq";
-import { detectLang, faqIntents, handoffIntent, isAck, isDecline, isDontKnow, langRequest, looksLikeContinuation, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
+import { detectLang, faqIntents, handoffIntent, isAck, isDecline, isDontKnow, isStop, langRequest, looksLikeContinuation, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
 
@@ -222,7 +222,10 @@ interface Ctx {
   byKey: Map<string, DealField>;
 }
 
-const missing = ({ s, env }: Ctx) => s.questions.filter((f) => !hasValue(s.filled[f]) && !hasValue(env.dealValues[f]) && !s.skipped.includes(f) && !(f in s.raw));
+/** Повод «дарите» не спрашиваем у тех, кто пишет автобиографию или свою книгу: это не подарок. */
+const notAGift = (s: Pick<BotState, "theme">, key: string) => key === "occasion" && (s.theme === "autobiography" || s.theme === "blank");
+
+const missing = ({ s, env }: Ctx) => s.questions.filter((f) => !notAGift(s, f) && !hasValue(s.filled[f]) && !hasValue(env.dealValues[f]) && !s.skipped.includes(f) && !(f in s.raw));
 
 function labelsFor(ctx: Ctx, f: DealField) {
   return f.options.map((o) => optionLabel(ctx.env.config, o, "kk"));
@@ -393,7 +396,9 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
   };
   let answeredCurrent = false;
   let unclear = false;
-  if (current && t && missing(ctx).includes(current)) {
+  // «Стоп», «не пишите» — не ответ на вопрос «для кого»: поля не пишем, прощаемся ниже.
+  const stop = isStop(t);
+  if (current && t && !stop && missing(ctx).includes(current)) {
     const f = byKey.get(current);
     if (f) {
       const a = answerFor(ctx, f, t, false);
@@ -421,7 +426,7 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
     .filter((x) => !x.includes("?"))
     .join(" ");
   for (const key of missing(ctx)) {
-    if (key === current) continue;
+    if (key === current || stop) continue;
     const f = byKey.get(key);
     if (!f || !t) continue;
     const source = isRecipientField(f) || f.type === "date" ? t : statements;
@@ -431,7 +436,7 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
 
   // 4. Не понял ответ: один переспрос с подсказкой, после второго промаха — сохраняем как написано и идём дальше.
   let reasked = false;
-  const attempt = !!current && !!t && !answeredCurrent && !isAck(t) && !intents.length && !handoff && residual(t).length >= 2;
+  const attempt = !!current && !!t && !stop && !answeredCurrent && !isAck(t) && !intents.length && !handoff && residual(t).length >= 2;
   if (attempt && current) {
     unclear = true;
     s.retries[current] = (s.retries[current] ?? 0) + 1;
@@ -468,7 +473,7 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
     s.reason = handoff;
     events.push({ kind: "handoff", reason: handoff });
     done = true;
-  } else if (t && isDecline(t)) {
+  } else if (t && isDecline(t) && !filledNow.length && !answeredCurrent) {
     parts.push(text(ctx, "decline"));
     s.outcome = "declined";
     events.push({ kind: "declined" });
@@ -529,6 +534,7 @@ export function botSummary(s: BotState, fields: DealField[], dealValues: Record<
     const f = byKey.get(key);
     if (!f) continue;
     const v = s.filled[key];
+    if (notAGift(s, key) && !hasValue(v)) continue;
     let shownValue: string;
     if (hasValue(v)) shownValue = f.type === "date" && typeof v === "string" ? humanDate(v, "ru", true) : String(v);
     else if (hasValue(dealValues[key])) shownValue = `${String(dealValues[key])} (было в сделке)`;

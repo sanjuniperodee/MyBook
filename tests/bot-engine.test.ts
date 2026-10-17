@@ -476,3 +476,30 @@ describe("настройки бота: старый формат с прода �
     expect(parseBotConfig(JSON.stringify({ waitMinutes: 999, channels: ["email", "site"] }))).toMatchObject({ waitMinutes: 3, channels: ["site"] });
   });
 });
+
+describe("бот: проверка — отказ и виды книг", () => {
+  it("«стоп», «не пишите» — отказ, а не ответ на вопрос «для кого»", () => {
+    for (const word of ["стоп", "Не пишите мне, пожалуйста", "отстаньте", "жазбаңыз"]) {
+      const { state, fields: f } = talk([["Здравствуйте"], [word]]);
+      expect(state.outcome, word).toBe("declined");
+      expect(f, word).toEqual({});
+    }
+  });
+
+  it("«не нужно электронную, только печатную» — ответ на вопрос, а не отказ от книги", () => {
+    const { state, fields: f } = talk([["Здравствуйте, для мамы на юбилей 15 ноября"], ["Не нужно электронную, только печатную"]]);
+    expect(f.format).toBe("Печатная");
+    expect(state.outcome).toBe("finished");
+  });
+
+  it("автобиография и своя книга: про повод «дарите» не спрашиваем, в сводке его нет", () => {
+    for (const first of ["Здравствуйте, хочу автобиографию", "Хочу написать свою книгу с нуля"]) {
+      const { replies, state } = talk([[first]]);
+      expect(replies[0], first).not.toContain("дарите");
+      expect(replies[0], first).toContain("К какой дате нужна книга?");
+      expect(botSummary(state, fields)).not.toContain("Повод");
+    }
+    // подарок спрашивает повод как раньше
+    expect(talk([["Здравствуйте, для мамы"]]).replies[0]).toContain("По какому поводу дарите?");
+  });
+});
