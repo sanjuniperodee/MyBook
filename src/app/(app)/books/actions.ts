@@ -32,10 +32,10 @@ export async function createBookAction(_: CreateState, form: FormData): Promise<
     occasion: d.occasion || null,
     occasionDate: d.occasion ? d.occasionDate || null : null,
   });
-  // Цель «book_created» — для всех книг; для автобиографии и своей книги — ещё и «book_created_<вид>» (queueEvent
-  // пока без свойств, поэтому вид кодируется именем цели; свойства события — зона сайта).
-  await queueEvent("book_created");
+  // Цель «book_created» — для всех книг, со свойством «вид книги»; для автобиографии и своей книги — ещё и цель
+  // «book_created_<вид>» (её удобно завести целью в Метрике).
   const kind = bookKind(d.theme);
+  await queueEvent("book_created", undefined, { kind });
   if (kind !== "gift") await queueEvent(`book_created_${kind}`);
   return lredirect(`/books/${book.id}`);
 }

@@ -28,7 +28,8 @@ import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
-import { countQuestions, giftThemes } from "@/lib/content/themes";
+import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
+import { getLanding } from "@/lib/content/landings";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
@@ -58,7 +59,10 @@ export default async function HomePage() {
   const cta = user ? "/books/new" : guestClosed ? "/login" : "/register";
   const ctaLabel = (label: string) => (guestClosed ? m.common.nav.login : label);
   const themes = giftThemes(locale);
-  const loveCount = countQuestions(themes[0]);
+  // Число вопросов в шагах «как это работает» — по теме «любимому», а не по первому элементу списка.
+  const loveCount = countQuestions(getTheme("love", locale));
+  const modeThemes = [getTheme("autobiography", locale), getTheme("blank", locale)];
+  const modeHref = (id: string) => (user ? `/books/new?theme=${id}` : guestClosed ? "/login" : `/register?theme=${id}`);
   const faq = t.faq.items(productionDays);
   // Пример для витрины оформлений — та же история, что в листаемой книге-примере.
   const s = t.sample;
@@ -274,6 +278,46 @@ export default async function HomePage() {
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        {/* ─── MODES: книга о себе и своя книга ─── */}
+        <section id="modes" className="below-fold scroll-mt-20 border-t border-line/70 bg-cream/40 py-20 sm:py-28">
+          <div className="container-x">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div className="max-w-2xl">
+                <div className="eyebrow">{t.modes.eyebrow}</div>
+                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.modes.title}</h2>
+              </div>
+              <p className="max-w-sm text-muted">{t.modes.note}</p>
+            </div>
+            <div className="reveal-stagger mt-12 grid gap-5 md:grid-cols-2">
+              {modeThemes.map((th) => (
+                <Link key={th.id} href={modeHref(th.id)} className="group card flex gap-5 p-5 transition hover:-translate-y-1 hover:shadow-lift sm:gap-6 sm:p-6">
+                  <div className="w-24 shrink-0 self-start sm:w-32">
+                    <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={th.id === "blank" ? t.modes.blank.names : t.modes.autobiography.names} lite className="rounded-sm shadow-book" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <h3 className="text-lg font-semibold">{th.name}</h3>
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{th.description}</p>
+                    <div className="mt-5 flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted">{th.id === "blank" ? t.modes.blank.meta : t.modes.autobiography.meta(countQuestions(th))}</span>
+                      <ArrowRight className="size-4 shrink-0 text-wine transition group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+              {t.modes.learn}
+              {[getLanding("kniga-o-svoej-zhizni"), getLanding("svoya-kniga-s-nulya")].map((l) =>
+                l ? (
+                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-wine hover:underline">
+                    {l.content[locale].label}
+                  </Link>
+                ) : null,
+              )}
+            </p>
           </div>
         </section>
 

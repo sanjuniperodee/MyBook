@@ -2,6 +2,7 @@ import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { getTheme } from "@/lib/content/themes";
+import { bookKind } from "@/lib/content/kinds";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
@@ -19,6 +20,8 @@ export default async function BookLayout({ children, params }: { children: React
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const t = m.books.layout;
   const theme = getTheme(book.theme, locale);
+  // У автобиографии получателя нет — вместо него автор; у своей книги получатель необязателен.
+  const subject = (bookKind(book.theme) === "autobiography" ? book.authorName : book.recipientName).trim();
   const order = book.status === "draft" ? null : await container().ordering.queries.lastOrderOfBook(book.id);
 
   return (
@@ -45,7 +48,7 @@ export default async function BookLayout({ children, params }: { children: React
               <div className="truncate font-serif text-lg leading-tight font-medium sm:text-xl">{book.title}</div>
               <div className="truncate text-xs text-muted">
                 {theme.name}
-                {book.recipientName ? ` · ${book.recipientName}` : ""}
+                {subject ? ` · ${subject}` : ""}
               </div>
             </div>
             {book.status === "draft" ? (

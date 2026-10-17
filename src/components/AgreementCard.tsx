@@ -29,7 +29,9 @@ function agreementStep(books: CardBook[]) {
     .sort((a, b) => Number(b.done) - Number(a.done) || b.answered - a.answered || b.words - a.words);
   const best = drafts[0];
   if (!best) return { kind: "start" as const };
-  return best.done ? { kind: "order" as const, bookId: best.id, answered: best.answered } : { kind: "write" as const, bookId: best.id, answered: best.answered };
+  return best.done
+    ? { kind: "order" as const, bookId: best.id }
+    : { kind: "write" as const, bookId: best.id, answered: best.answered, words: best.words, byWords: bookKind(best.theme) === "blank" };
 }
 
 /**
@@ -45,7 +47,7 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
     step.kind === "start"
       ? { href: "/books/new", label: t.start, hint: t.startHint }
       : step.kind === "write"
-        ? { href: `/books/${step.bookId}`, label: t.write(step.answered), hint: t.writeHint }
+        ? { href: `/books/${step.bookId}`, label: step.byWords ? t.writeWords(step.words) : t.write(step.answered), hint: t.writeHint }
         : { href: `/books/${step.bookId}/checkout`, label: t.order(left > 0 ? formatPrice(left) : "0"), hint: t.orderHint };
   const progress = [
     { label: t.steps.prepaid, done: agreement.prepaid > 0 },

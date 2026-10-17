@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { notFound } from "next/navigation";
-import { ArrowRight, CalendarHeart, Check, Gift, MessageCircleQuestion } from "lucide-react";
+import { ArrowRight, CalendarHeart, Check, Gift, MessageCircleQuestion, PenLine } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
@@ -15,6 +15,7 @@ import { articles } from "@/lib/content/articles";
 import { getLanding, landings } from "@/lib/content/landings";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
+import { bookKind, hasQuestionBank } from "@/lib/content/kinds";
 import { deadlineFor, getOccasion, nextFixedDate } from "@/lib/occasions";
 import { formatPrice, getPlan, registrationOpen, site, getVisiblePlans } from "@/config/site";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -51,11 +52,14 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   const t = m.landing;
   const sp = t.seoPage;
   const theme = getTheme(l.theme, locale);
-  const g = (s: string) => applyGender(s, l.authorGender, l.recipientGender);
-  // По одному вопросу из разных глав — показываем, о чём будет книга.
-  const samples = theme.chapters
+  // У автобиографии и своей книги получателя нет: род адресата не нужен, берём род автора.
+  const g = (s: string) => applyGender(s, l.authorGender, l.recipientGender ?? l.authorGender);
+  const blank = bookKind(l.theme) === "blank";
+  // По одному вопросу из разных глав — показываем, о чём будет книга. Своя книга без банка: вместо них — блок о редакторе.
+  const samples = (hasQuestionBank(l.theme) ? theme.chapters : [])
     .filter((_, i) => i % Math.max(1, Math.floor(theme.chapters.length / 6)) === 0)
     .slice(0, 6)
+    .filter((ch) => ch.questions.length)
     .map((ch) => ({ chapter: g(chapterTitle(theme, ch.key, locale)), prompt: g(ch.questions[0][0]) }));
   const occasion = getOccasion(l.occasion);
   const fixed = occasion ? nextFixedDate(occasion, new Date()) : null;
@@ -139,6 +143,27 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           </div>
         </section>
 
+        {blank ? (
+          <section className="py-20 sm:py-24">
+            <div className="container-x">
+              <div className="max-w-2xl">
+                <div className="eyebrow">{sp.editor.eyebrow}</div>
+                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{sp.editor.title}</h2>
+              </div>
+              <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {sp.editor.items.map((it) => (
+                  <div key={it.title} className="card p-6">
+                    <div className="flex items-center gap-2 text-xs font-medium text-wine">
+                      <PenLine className="size-4" /> {it.title}
+                    </div>
+                    <p className="mt-3 leading-relaxed text-ink-soft">{it.text}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-6 text-sm text-muted">{sp.editor.note}</p>
+            </div>
+          </section>
+        ) : (
         <section className="py-20 sm:py-24">
           <div className="container-x">
             <div className="max-w-2xl">
@@ -158,6 +183,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
             <p className="mt-6 text-sm text-muted">{sp.aboutNote}</p>
           </div>
         </section>
+        )}
 
         <section className="bg-cream/60 py-20 sm:py-24">
           <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.2fr]">
@@ -165,7 +191,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
               <div className="eyebrow">{t.how.eyebrow}</div>
               <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight">{sp.howTitle}</h2>
               <ol className="mt-8 space-y-5">
-                {sp.howSteps(coverTemplates.length).map((step, i) => (
+                {sp.howSteps(coverTemplates.length, blank).map((step, i) => (
                   <li key={step} className="flex gap-4">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-wine font-serif text-white">{i + 1}</span>
                     <span className="pt-1 leading-relaxed text-ink-soft">{step}</span>
