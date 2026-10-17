@@ -62,11 +62,15 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
    * требует сильной модели с надёжным JSON-ответом, а подсказки менеджеру могут идти и на лёгкой.
    */
   const seller: Connection = async () => {
-    const [p, model] = await Promise.all([settings.get("seller.provider"), settings.get("seller.model")]);
-    const provider = isAiProvider(p) ? p : await activeProvider();
-    // Модель задана только для своего провайдера: при смене провайдера прежняя модель не подставляется.
-    return connectionOf(provider, isAiProvider(p) || provider === (await activeProvider()) ? model : "");
+    const [{ provider }, model] = await Promise.all([sellerProvider(), settings.get("seller.model")]);
+    return connectionOf(provider, model);
   };
 
-  return { active, proofread, proofreadProvider, seller };
+  /** Провайдер продажника: свой или (пусто) — как у помощника. */
+  async function sellerProvider(): Promise<{ provider: AiProvider; own: boolean }> {
+    const p = await settings.get("seller.provider");
+    return isAiProvider(p) ? { provider: p, own: true } : { provider: await activeProvider(), own: false };
+  }
+
+  return { active, proofread, proofreadProvider, seller, sellerProvider };
 }

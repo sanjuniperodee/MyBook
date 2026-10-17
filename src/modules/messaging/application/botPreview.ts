@@ -12,7 +12,9 @@ import {
   type BotInput,
   type BotLang,
   type BotSkipReason,
+  type BotState,
   type DealField,
+  type HistoryMessage,
 } from "../domain";
 import type { BotRecord } from "./ports";
 
@@ -25,6 +27,8 @@ export interface BotPreviewInput {
   /** Новый клиент, клиент с аккаунтом на сайте или с заказом (бот промолчит). */
   client: "new" | "account" | "order";
   name: string;
+  /** Продолжить тест AI-продажника с места, где остановились (ответы модели не пересчитываются заново). */
+  resume?: { state: unknown; history: HistoryMessage[] } | null;
 }
 
 export interface BotPreviewResult {
@@ -37,6 +41,8 @@ export interface BotPreviewResult {
   summary: string | null;
   /** Кто вёл диалог в тесте: шаблоны или AI-модель продажника (настоящий запрос к модели). */
   engine?: "template" | "ai";
+  /** AI: состояние беседы и переписка — для следующего сообщения (в transcript только новые реплики). */
+  resume?: { state: BotState; history: HistoryMessage[] };
 }
 
 /**
@@ -114,6 +120,11 @@ export function botStatus(rec: BotRecord | null, fields: DealField[]): BotStatus
   if (!s) {
     if (rec?.botStep != null && rec.botStep >= 0) return { label: `Бот (прежняя версия): вопрос ${rec.botStep + 1}`, tone: "active", canStop: true, canStart: false };
     return { label: null, tone: "none", canStop: false, canStart: true };
+  }
+  if (s.phase === "waiting" && rec?.botStep !== BOT_DONE && s.reason === "takeover") return { label: "Менеджер не отвечает — бот подхватит переписку", tone: "waiting", canStop: true, canStart: false };
+  if (s.phase === "active" && rec?.botStep !== BOT_DONE && s.engine === "ai") {
+    const stage = s.ai.stage === "offer" || s.ai.stage === "closing" ? ", предложение сделано" : s.ai.stage === "objection" ? ", снимает возражение" : "";
+    return { label: `${s.ai.takeover ? "Бот подхватил переписку" : "AI-продажник ведёт диалог"}${stage}`, tone: "active", canStop: true, canStart: false };
   }
   if (s.phase === "waiting" && rec?.botStep !== BOT_DONE) return { label: "Бот ответит, если менеджер не ответит раньше", tone: "waiting", canStop: true, canStart: false };
   if (s.phase === "active" && rec?.botStep !== BOT_DONE && s.stage === "offer") return { label: "Бот сделал предложение — ждёт ответа клиента", tone: "active", canStop: true, canStart: false };

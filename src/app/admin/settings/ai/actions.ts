@@ -3,7 +3,8 @@
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
-import { fromEnv, getSettings, saveSettings } from "@/modules/workspace";
+import { fromEnv, getSetting, getSettings, saveSettings } from "@/modules/workspace";
+import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { z } from "zod";
 import { BAD_FORM, formText, textForm } from "@/server/input";
@@ -98,6 +99,52 @@ export async function testProofreadAction(): Promise<{ ok: boolean; message: str
     const fixes = await proofreader.test();
     const took = ((Date.now() - t0) / 1000).toFixed(1);
     return { ok: true, message: `${label} · ${model} отвечает за ${took} с. В проверочной фразе исправил: ${fixes || "ничего (слабая модель — попробуйте другую)"}` };
+  } catch (err) {
+    return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
+  }
+}
+
+// ─── модель AI-продажника бота ─────────────────────────────────────────────
+
+const sellerForm = z.object({
+  provider: formText.refine((v) => !v || isAiProvider(v), "Выберите провайдера"),
+  model: modelName,
+});
+
+export async function saveSellerAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = parseForm(sellerForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const { provider, model } = parsed.data;
+  // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
+  const keyFor = isAiProvider(provider) ? provider : (await container().assistant.sellerProvider()).provider;
+  await saveSettings({ "seller.provider": provider, "seller.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "seller", { provider: provider || "assistant", model: model || null });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
+/** Пробный диалог на сохранённой модели: настоящий ход продажника с сохранёнными настройками бота (без отправки клиенту). */
+export async function testSellerAction(): Promise<{ ok: boolean; message: string }> {
+  await assertStaff("settings.manage");
+  const seller = container().assistant.seller;
+  if (!(await seller.configured())) return { ok: false, message: "Модель не подключена: добавьте ключ провайдера." };
+  const { label, model } = await seller.describe();
+  try {
+    const t0 = Date.now();
+    const config = parseBotConfig(await getSetting("bot.config"));
+    const result = await container().messaging.previewBot({
+      config: { ...config, sell: { ...config.sell, on: true, engine: "ai" } },
+      turns: [[{ text: "Здравствуйте! Сколько стоит печатная книга для мамы?", type: "text" }]],
+      workTime: true,
+      client: "new",
+      name: "Айгерим",
+    });
+    const took = ((Date.now() - t0) / 1000).toFixed(1);
+    const reply = result.transcript.find((m) => m.from === "bot")?.text;
+    if (result.engine !== "ai") return { ok: false, message: "Продажник не запустился на модели (проверьте ключ и модель)." };
+    if (!reply || reply.startsWith("⚠️")) return { ok: false, message: reply ?? "Модель не ответила по схеме — попробуйте другую модель (нужна поддержка JSON-ответа)." };
+    return { ok: true, message: `${label === "AI" ? model : `${label} · ${model}`} ответила за ${took} с: «${reply.slice(0, 280)}»` };
   } catch (err) {
     return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
   }

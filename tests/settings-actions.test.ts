@@ -29,7 +29,7 @@ vi.mock("@/modules/workspace", () => ({
 }));
 vi.mock("@/server/container", () => ({
   container: () => ({
-    assistant: { proofreadProvider: async () => ({ provider: "openrouter" }) },
+    assistant: { proofreadProvider: async () => ({ provider: "openrouter" }), sellerProvider: async () => ({ provider: "openrouter" }) },
     workspace: { templates: { add: async (t: unknown) => void w.saved.push({ template: JSON.stringify(t) }), update: async (id: string, t: unknown) => void w.saved.push({ [id]: JSON.stringify(t) }) } },
     messaging: { previewBot: async (input: { turns: unknown[] }) => ({ skipped: null, transcript: [], fields: [], intents: [], lang: "ru", done: false, summary: null, turns: input.turns.length }) },
   }),
@@ -166,6 +166,16 @@ describe("AI-помощник и корректор", () => {
     expect(await actions.saveProofreadAction({}, form({ provider: "skynet" }))).toEqual({ error: "Выберите провайдера" });
     expect(await actions.saveProofreadAction({}, form({ provider: "anthropic", model: "a b" }))).toEqual({ error: "Название модели — латиница, цифры и символы . : / - _" });
   });
+
+  it("модель продажника: свой провайдер или как у помощника, модель; ключ — провайдера продажника", async () => {
+    expect(await actions.saveSellerAction({}, form({ provider: "anthropic", model: "claude-sonnet-5-5", key: "sk-ant" }))).toEqual({ ok: "Сохранено" });
+    expect(w.saved[0]).toMatchObject({ "seller.provider": "anthropic", "seller.model": "claude-sonnet-5-5" });
+    expect(Object.values(w.saved[0])).toContain("sk-ant");
+    expect(w.audits).toEqual([["settings.update", "settings", "seller", { provider: "anthropic", model: "claude-sonnet-5-5" }]]);
+    expect(await actions.saveSellerAction({}, form({ provider: "", model: "" }))).toEqual({ ok: "Сохранено" });
+    expect(await actions.saveSellerAction({}, form({ provider: "skynet" }))).toEqual({ error: "Выберите провайдера" });
+    expect(await actions.saveSellerAction({}, form({ provider: "openai", model: "a b" }))).toEqual({ error: "Название модели — латиница, цифры и символы . : / - _" });
+  });
 });
 
 describe("Шаблоны ответов и бот", () => {
@@ -192,6 +202,16 @@ describe("Шаблоны ответов и бот", () => {
     expect(await actions.saveBotAction(sell({ prepay: 10000 }))).toEqual({ ok: "Сохранено" });
     expect(await actions.saveBotAction(sell({ prepay: 35000 }))).toEqual({ error: expect.stringMatching(/^Предоплата больше цены печатной книги \(30\s000 ₸\)$/u) });
     expect(await actions.saveBotAction(sell({ prepay: 35000, prices: { hardcover: 40000, digital: 0 } }))).toEqual({ ok: "Сохранено" });
+  });
+
+  it("бот-продажник на AI: вопросы не обязательны; потолок беседы и указания проверяются; номер в указаниях — нет", async () => {
+    const ai = (p: Partial<BotConfig["sell"]>, c: Partial<BotConfig> = {}) => ({ mode: "always" as const, ...defaultBotConfig, questions: [], ...c, sell: { ...defaultBotConfig.sell, on: true, engine: "ai" as const, ...p } });
+    expect(await actions.saveBotAction(ai({ persona: "Говори тепло и коротко", takeover: false, maxTurns: 25 }))).toEqual({ ok: "Сохранено" });
+    expect(parseBotConfig(w.saved[0]["bot.config"]).sell).toMatchObject({ engine: "ai", takeover: false, persona: "Говори тепло и коротко", maxTurns: 25 });
+    // Шаблонному продажнику вопросы по-прежнему нужны.
+    expect(await actions.saveBotAction(ai({ engine: "template" }))).toEqual({ error: "Добавьте хотя бы один вопрос" });
+    expect(await actions.saveBotAction(ai({ maxTurns: 2 }))).toEqual({ error: "Потолок беседы — от 4 ответов" });
+    expect(await actions.saveBotAction(ai({ persona: "Пиши на +7 701 555 44 33" }))).toEqual({ error: "В указаниях продажнику номер телефона — бот такое не отправляет" });
   });
 
   it("бот: включённый без вопросов или каналов, неизвестный режим — ошибка", async () => {

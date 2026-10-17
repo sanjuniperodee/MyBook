@@ -31,4 +31,9 @@ export class AssistantModule {
   proofreadProvider() {
     return this.#ai.proofreadProvider();
   }
+
+  /** Провайдер AI-продажника: свой или (пусто) — как у помощника. */
+  sellerProvider() {
+    return this.#ai.sellerProvider();
+  }
 }

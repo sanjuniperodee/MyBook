@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { saveBotAction } from "./actions";
 import { BotTester } from "./BotTester";
+import type { BotFormTab } from "./botTabs";
 import type { BotChannel, BotConfig, BotLang, BotTextKey, FaqIntent } from "@/modules/messaging/domain/botConfig";
 
 type Mode = "off" | "fallback" | "off_hours" | "always";
@@ -81,7 +82,9 @@ export function BotForm({
   vars,
   autoReplyRules,
   aiModel,
+  seller,
   stats,
+  initialTab = "mode",
 }: {
   mode: string;
   config: BotConfig;
@@ -94,8 +97,13 @@ export function BotForm({
   autoReplyRules: string[];
   /** Модель AI-помощника; null — AI не настроен. */
   aiModel: string | null;
+  /** Модель AI-продажника («Интеграции» → AI); null — не подключена: продажник работает по шаблонам. */
+  seller: string | null;
   stats: React.ReactNode;
+  /** Раздел, который открыт сразу (из адреса ?section=…). */
+  initialTab?: BotFormTab;
 }) {
+  const [tab, setTab] = useState<BotFormTab>(initialTab);
   const [mode, setMode] = useState<Mode>((["off", "fallback", "off_hours", "always"] as const).find((m) => m === initialMode) ?? "off");
   const [cfg, setCfg] = useState<BotConfig>({ ...config, questions: config.questions.filter((q) => fields.some((f) => f.key === q.field)) });
   const [lang, setLang] = useState<BotLang>("ru");
@@ -137,6 +145,23 @@ export function BotForm({
         и отвечает на языке клиента. Замолкает, как только ответит человек — из CRM или с телефона. Не пишет клиентам с заказом, книгой или сделкой в работе и тем, с кем переписка была до CRM.
       </p>
 
+      <div className="flex flex-wrap gap-1 border-b border-line" role="tablist" aria-label="Разделы настройки бота">
+        {(
+          [
+            ["mode", "Когда работает"],
+            ["qualifier", "Опрос и ответы"],
+            ["sell", cfg.sell.on ? "Продажи ✓" : "Продажи"],
+            ["test", "Проверка и статистика"],
+          ] as const
+        ).map(([v, label]) => (
+          <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)} className={cn("-mb-px border-b-2 px-3 py-2 text-sm", tab === v ? "border-wine font-medium text-wine" : "border-transparent text-muted hover:text-ink")}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "mode" ? (
+        <>
       <div className="grid gap-2 sm:grid-cols-2">
         {MODES.map(([v, label, hint]) => (
           <label key={v} className={cn("flex cursor-pointer gap-2 rounded-xl border px-3 py-2 text-sm", mode === v ? "border-wine/40 bg-rose/30" : "border-line")}>
@@ -175,6 +200,10 @@ export function BotForm({
         </p>
       ) : null}
 
+        </>
+      ) : null}
+
+      {tab === "qualifier" || tab === "sell" ? (
       <div className="flex gap-1 border-b border-line" role="tablist">
         {(["ru", "kk"] as const).map((l) => (
           <button key={l} type="button" role="tab" aria-selected={lang === l} onClick={() => setLang(l)} className={cn("-mb-px border-b-2 px-3 py-1.5 text-sm", lang === l ? "border-wine font-medium text-wine" : "border-transparent text-muted")}>
@@ -184,6 +213,10 @@ export function BotForm({
         <span className="ml-auto self-center text-xs text-muted">Пустое поле — заводской текст. Казахский увидят клиенты, которые пишут по-казахски.</span>
       </div>
 
+      ) : null}
+
+      {tab === "qualifier" ? (
+        <>
       {textField("greeting", MAIN_TEXTS[0][1])}
 
       <div className="space-y-2">
@@ -308,19 +341,89 @@ export function BotForm({
         </label>
       </div>
 
-      <div className="space-y-3 rounded-xl border border-line p-3" data-testid="bot-sell">
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.on} onChange={(e) => setSell({ on: e.target.checked })} aria-label="Бот продаёт" />
-          <span>
-            <span className="font-medium">Бот продаёт</span>
-            <span className="block text-xs text-muted">
-              После вопросов бот не прощается, а делает предложение: чем ценна книга, цена «от» и предоплата, успеем ли к дате — и «Оформляем?». Отвечает на «дорого» и «подумаю» (по одному разу), один раз
-              напоминает, если клиент замолчал. Непонятный вопрос, второе возражение или файл — передаёт менеджеру. Выключено — бот только собирает ответы.
+        </>
+      ) : null}
+
+      {tab === "sell" ? (
+        <div className="space-y-4" data-testid="bot-sell">
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.on} onChange={(e) => setSell({ on: e.target.checked })} aria-label="Бот продаёт" />
+            <span>
+              <span className="font-medium">Бот продаёт</span>
+              <span className="block text-xs text-muted">
+                Вместо «передала менеджеру» бот ведёт клиента к покупке: чем ценна книга, цена «от» и предоплата, успеем ли к дате, «Оформляем?», ответы на «дорого» и «подумаю», напоминание, а на «да» — счёт.
+                Выключено — бот только собирает ответы (шаблоны на вкладке «Опрос и ответы»).
+              </span>
             </span>
-          </span>
-        </label>
-        {cfg.sell.on ? (
-          <>
+          </label>
+          {cfg.sell.on ? (
+            <>
+              <fieldset className="space-y-2">
+                <legend className="mb-1 text-xs text-muted">Кто ведёт продающую беседу</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      ["ai", "AI-продажник", "Модель сама понимает клиента (русский, казахский, смесь, опечатки), отвечает на любые вопросы, снимает возражения и ведёт к оплате. Цены, сроки, проценты, ссылки и счёт проверяет код: выдумать цену или скидку модель не может."],
+                      ["template", "По шаблонам", "Бот отвечает заготовленными текстами по сценарию: предложение → возражение → «да». Предсказуемо, но не понимает свободную речь. Обычный бот-квалификатор всегда работает по шаблонам."],
+                    ] as const
+                  ).map(([v, label, hint]) => (
+                    <label key={v} className={cn("flex cursor-pointer gap-2 rounded-xl border px-3 py-2 text-sm", cfg.sell.engine === v ? "border-wine/40 bg-rose/30" : "border-line")}>
+                      <input type="radio" name="sell-engine" checked={cfg.sell.engine === v} onChange={() => setSell({ engine: v })} className="mt-0.5 accent-wine" />
+                      <span>
+                        {label}
+                        <span className="mt-0.5 block text-xs text-muted">{hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {cfg.sell.engine === "ai" ? (
+                  seller ? (
+                    <p className={cn("rounded-xl px-3 py-2 text-xs", /free/i.test(seller) ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900")}>
+                      Модель продажника: <b>{seller}</b>.{" "}
+                      {/free/i.test(seller) ? "Бесплатные модели OpenRouter нестабильны и хуже держат правила — для продаж выберите сильную модель (Claude, GPT) во вкладке «AI» страницы «Интеграции»." : "Сменить — во вкладке «AI» страницы «Интеграции»."}
+                    </p>
+                  ) : (
+                    <p className="flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      <AlertTriangle className="size-4 shrink-0" />
+                      AI не подключён — пока продажник работает по шаблонам. Подключите модель во вкладке «AI» страницы «Интеграции».
+                    </p>
+                  )
+                ) : null}
+              </fieldset>
+
+              {cfg.sell.engine === "ai" ? (
+                <div className="space-y-3 rounded-xl border border-line p-3">
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.takeover} onChange={(e) => setSell({ takeover: e.target.checked })} aria-label="Подхватывать начатую переписку" />
+                    <span>
+                      Подхватывать начатую переписку, если менеджер не отвечает
+                      <span className="block text-xs text-muted">
+                        Клиент написал в уже идущий диалог (менеджер уже общался, переписка была до бота), а ответа нет {mode === "off_hours" ? "в рабочее время бот не вмешивается, ночью — сразу" : `${cfg.waitMinutes} мин в рабочее время, ночью — сразу`}: бот читает всю переписку и
+                        продолжает с того места, где остановились, без повторного приветствия. Менеджеру приходит уведомление; как только он ответит сам — бот замолкает. Не подхватывает клиентов с заказом и закрытые сделки.
+                        Кнопка «Остановить бота» в чате отключает бота в этом диалоге окончательно.
+                      </span>
+                    </span>
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-xs text-muted">Указания продажнику — тон, акценты, чего избегать (необязательно, до 1500 знаков). Цены и скидки сюда не пишите: они берутся из тарифов и строки акции.</span>
+                    <textarea
+                      value={cfg.sell.persona}
+                      onChange={(e) => setSell({ persona: e.target.value })}
+                      rows={3}
+                      maxLength={1500}
+                      placeholder="Например: говори тепло и коротко; клиентам старшего возраста объясняй подробнее; не упоминай конкурентов"
+                      className={area}
+                      aria-label="Указания продажнику"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    Потолок беседы
+                    <input type="number" min={4} max={100} value={cfg.sell.maxTurns} onChange={(e) => setSell({ maxTurns: Math.max(4, Math.min(100, Math.floor(Number(e.target.value) || 4))) })} className="input h-9 w-20 text-sm" aria-label="Потолок беседы" />
+                    ответов, дальше — менеджер
+                  </label>
+                </div>
+              ) : null}
+
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               {sellNumber("prepay", "Предоплата, ₸ ({предоплата}; 0 — не называть)", 0, 1_000_000)}
               {sellNumber("writeDays", "Сколько дней клиенты пишут книгу", 0, 30)}
@@ -356,13 +459,16 @@ export function BotForm({
               </div>
             ) : null}
             <details className="rounded-xl border border-line p-3">
-              <summary className="cursor-pointer text-sm">Тексты продаж ({lang === "ru" ? "русский" : "қазақша"})</summary>
+              <summary className="cursor-pointer text-sm">{cfg.sell.engine === "ai" ? "Запасные тексты продаж" : "Тексты продаж"} ({lang === "ru" ? "русский" : "қазақша"})</summary>
+              {cfg.sell.engine === "ai" ? <p className="mt-2 text-xs text-muted">При движке AI эти тексты нужны, только если модель недоступна или счёт выставить не вышло (например, «менеджер пришлёт счёт»).</p> : null}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">{SELL_TEXTS.map(([k, label]) => textField(k, label))}</div>
             </details>
-          </>
-        ) : null}
-      </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
+      {tab === "qualifier" ? (
       <div className="space-y-2 text-sm">
         <label className="flex items-start gap-2">
           <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sendLink} onChange={(e) => patch({ sendLink: e.target.checked })} />
@@ -387,6 +493,8 @@ export function BotForm({
         </label>
       </div>
 
+      ) : null}
+
       <button
         className="btn btn-sm"
         disabled={pending}
@@ -400,9 +508,12 @@ export function BotForm({
         Сохранить бота
       </button>
 
-      {stats}
-
-      <BotTester config={cfg} />
+      {tab === "test" ? (
+        <>
+          <BotTester config={cfg} />
+          {stats}
+        </>
+      ) : null}
     </section>
   );
 }

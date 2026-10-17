@@ -1,182 +1,42 @@
 import { requireStaff } from "@/server/access";
-import { ensureToken, fromEnv, getSetting, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } from "@/modules/workspace";
-import { KaspiForm } from "./kaspi/KaspiForm";
-import { TransferForm } from "./transfer/TransferForm";
-import { GowaForm } from "./whatsapp/GowaForm";
-import { container } from "@/server/container";
-import { aiProviderIds, aiProviders, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
-import { env } from "@/config/env";
-import { templateVars } from "@/shared/domain/templates";
-import { WazzupForm } from "./wazzup/WazzupForm";
-import { EmailForm } from "./mail/EmailForm";
-import { SmtpForm } from "./mail/SmtpForm";
-import { AiForm } from "./ai/AiForm";
-import { ProofreadForm } from "./ai/ProofreadForm";
-import { TelephonyForm } from "./telephony/TelephonyForm";
-import { CrmSettingsForm } from "./crm/CrmSettingsForm";
-import { Blocklist } from "./crm/Blocklist";
-import { TemplateEditor } from "./crm/TemplateEditor";
-import { parseWorkHours } from "@/shared/domain/schedule";
-import { BotForm } from "./crm/BotForm";
-import { BotStats } from "./crm/BotStats";
-import { defaultBotConfig, defaultOptionLabels, parseBotConfig } from "@/modules/messaging/domain/botConfig";
-import { BOT_VARS, catalogVars } from "@/modules/messaging/domain/botFaq";
-import { skipReasonLabels } from "@/modules/messaging/domain/botEngine";
-import { botSiteInfo } from "@/server/bot-site";
-import { listFields } from "@/modules/workspace";
-import { formatPhone } from "@/shared/domain/phone";
-import { formatDate } from "@/lib/dates";
+import { BOT_FORM_TABS } from "./crm/botTabs";
+import { SettingsNav } from "./SettingsNav";
+import { SETTINGS_TABS, parseTab } from "./tabs";
+import { AiTab } from "./tabs/AiTab";
+import { BotTab } from "./tabs/BotTab";
+import { CrmTab } from "./tabs/CrmTab";
+import { MailTab } from "./tabs/MailTab";
+import { MessengersTab } from "./tabs/MessengersTab";
+import { PaymentsTab } from "./tabs/PaymentsTab";
+import { TelephonyTab } from "./tabs/TelephonyTab";
 
 export const metadata = { title: "Интеграции" };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string | string[]; section?: string | string[] }> }) {
   const staff = await requireStaff("settings.manage");
-  const [apiKey, baseUrl, channelId, webhookToken, provider, zKey, zSecret, pbxToken, sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked] = await Promise.all([
-    getSetting("wazzup.apiKey"),
-    getSetting("wazzup.baseUrl"),
-    getSetting("wazzup.channelId"),
-    getSetting("wazzup.webhookToken"),
-    getSetting("telephony.provider"),
-    getSetting("zadarma.key"),
-    getSetting("zadarma.secret"),
-    getSetting("pbx.token"),
-    getSetting("crm.slaMinutes"),
-    container().workspace.templates.list(),
-    getSetting("crm.workHours"),
-    getSetting("crm.autoDealFrom"),
-    getSetting("crm.unsorted"),
-    getSetting("crm.maxDiscount"),
-    container().messaging.queries.blocklist(),
-  ]);
-  const [botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel] = await Promise.all([
-    getSetting("bot.mode"),
-    getSetting("bot.config"),
-    listFields("deal"),
-    container().messaging.botMetrics(),
-    container().automation.rules.list(),
-    botSiteInfo.catalog(),
-    container()
-      .assistant.service.describe()
-      .then(async (d) => ((await container().assistant.service.configured()) ? d.model || d.label : null))
-      .catch(() => null),
-  ]);
-  const botFields = dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options ?? [] }));
-  const parsedBot = parseBotConfig(botConfig);
-  const ruVars = catalogVars(botCatalog, "ru");
-  const autoReplyRules = rules.filter((r) => r.active && r.trigger === "message.incoming" && (r.actions ?? []).some((a) => a.type === "send_message")).map((r) => r.name);
-  const [wEnabled, wChat, zPbx, zWebphone, reassign] = await Promise.all([getSetting("widget.enabled"), getSetting("widget.chat"), getSetting("zadarma.pbxId"), getSetting("zadarma.webphone"), getSetting("crm.reassignMinutes")]);
-  const em = await getSettings(["email.imapHost", "email.imapPort", "email.imapUser", "email.imapPassword", "email.imapMailbox", "email.webhookToken"]);
-  const [aiProvider, aiEnabled, aiKnowledge] = await Promise.all([getSetting("ai.provider"), getSetting("ai.enabled"), getSetting("ai.knowledge")]);
-  const pr = await getSettings(["proofread.provider", "proofread.model", "proofread.enabled"]);
-  const aiSaved = Object.fromEntries(
-    await Promise.all(
-      aiProviderIds.map(async (p) => {
-        const k = providerSettingKeys[p];
-        const v = await getSettings([k.apiKey, k.model, k.baseUrl]);
-        // Адрес Claude по умолчанию хранится в настройках — показываем его как плейсхолдер, а не как своё значение.
-        const baseUrl = v[k.baseUrl] === aiProviders[p].defaultBaseUrl ? "" : v[k.baseUrl];
-        return [p, { apiKey: maskSecret(v[k.apiKey]), apiKeyEnv: fromEnv(k.apiKey), model: v[k.model], baseUrl, baseUrlEnv: fromEnv(k.baseUrl) }] as const;
-      }),
-    ),
-  ) as Record<AiProvider, { apiKey: string; apiKeyEnv: boolean; model: string; baseUrl: string; baseUrlEnv: boolean }>;
-  const smtpEnv = smtpFromEnvironment();
-  const smtpCfg = smtpEnv ? await smtpConfig() : null;
-  const smtpDb = await getSettings(["mail.smtpHost", "mail.smtpPort", "mail.smtpSecure", "mail.smtpUser", "mail.smtpPassword", "mail.from", "mail.replyTo"]);
-  const smtpSaved = smtpCfg
-    ? { host: smtpCfg.host, port: String(smtpCfg.port), secure: String(smtpCfg.secure), user: smtpCfg.user, password: maskSecret(smtpCfg.password), from: smtpCfg.from, replyTo: smtpCfg.replyTo }
-    : { host: smtpDb["mail.smtpHost"], port: smtpDb["mail.smtpPort"], secure: smtpDb["mail.smtpSecure"], user: smtpDb["mail.smtpUser"], password: maskSecret(smtpDb["mail.smtpPassword"]), from: smtpDb["mail.from"], replyTo: smtpDb["mail.replyTo"] };
-  const [kaspi, gowa] = await Promise.all([
-    container().ordering.kaspiSetup.status(),
-    (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl"]), status: await container().messaging.gowa.status() }))(),
-  ]);
-  const transfer = await getSettings(["pay.transferPhone", "pay.transferName"]);
-  const hook = (path: string, token?: string) => `${env.appUrl}${path}${token ? `?token=${token}` : ""}`;
+  const params = await searchParams;
+  const tab = parseTab(params.tab);
+  const section = [params.section].flat()[0];
+  const current = SETTINGS_TABS.find((t) => t.id === tab)!;
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">Интеграции и настройки</h1>
         <p className="mt-1 text-sm text-muted">Ключи хранятся в базе в зашифрованном виде и не показываются целиком. Значения из переменных окружения сервера имеют приоритет и здесь только для чтения.</p>
       </div>
-
-      <KaspiForm
-        {...kaspi}
-        webhookUrl={hook("/api/payments/kaspi/webhook")}
-        webhookSecret={fromEnv("kaspi.webhookSecret") ? null : await ensureToken("kaspi.webhookSecret")}
-      />
-
-      <TransferForm phone={transfer["pay.transferPhone"]} name={transfer["pay.transferName"]} fromEnv={fromEnv("pay.transferPhone")} />
-
-      <GowaForm
-        provider={gowa.provider}
-        baseUrl={gowa.settings["gowa.baseUrl"]}
-        authSaved={maskSecret(gowa.settings["gowa.basicAuth"])}
-        status={gowa.status}
-        callbackUrl={gowa.settings["gowa.callbackUrl"]}
-        callbackDefault={hook("/api/integrations/gowa")}
-      />
-
-      <WazzupForm
-        saved={{ apiKey: maskSecret(apiKey), baseUrl, channelId }}
-        env={{ apiKey: fromEnv("wazzup.apiKey"), baseUrl: fromEnv("wazzup.baseUrl"), channelId: fromEnv("wazzup.channelId") }}
-        webhookUrl={webhookToken ? hook("/api/integrations/wazzup", webhookToken) : null}
-      />
-
-      <TelephonyForm
-        provider={provider as "off" | "zadarma" | "pbx"}
-        providerFromEnv={fromEnv("telephony.provider")}
-        zadarma={{ key: maskSecret(zKey), secret: maskSecret(zSecret), keyEnv: fromEnv("zadarma.key"), secretEnv: fromEnv("zadarma.secret"), pbxId: zPbx, pbxIdEnv: fromEnv("zadarma.pbxId"), webphone: zWebphone === "on" }}
-        zadarmaUrl={hook("/api/integrations/zadarma")}
-        pbxUrl={pbxToken ? hook("/api/integrations/pbx", pbxToken) : null}
-      />
-
-      <SmtpForm
-        saved={smtpSaved}
-        fromEnv={smtpEnv}
-        staffEmail={staff.user.email}
-      />
-
-      <EmailForm
-        smtp={await container().mailer.configured()}
-        saved={{ imapHost: em["email.imapHost"], imapPort: em["email.imapPort"], imapUser: em["email.imapUser"], imapPassword: maskSecret(em["email.imapPassword"]), imapMailbox: em["email.imapMailbox"] }}
-        env={{ imapHost: fromEnv("email.imapHost"), imapPort: fromEnv("email.imapPort"), imapUser: fromEnv("email.imapUser"), imapPassword: fromEnv("email.imapPassword") }}
-        webhookUrl={em["email.webhookToken"] ? hook("/api/integrations/email", em["email.webhookToken"]) : null}
-      />
-
-      <AiForm provider={isAiProvider(aiProvider) ? aiProvider : "anthropic"} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} knowledge={aiKnowledge} />
-
-      <ProofreadForm
-        provider={isAiProvider(pr["proofread.provider"]) ? pr["proofread.provider"] : ""}
-        assistantProvider={isAiProvider(aiProvider) ? aiProvider : "anthropic"}
-        model={pr["proofread.model"]}
-        enabled={pr["proofread.enabled"] !== "off"}
-        providers={aiSaved}
-      />
-
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
-
-      <BotForm
-        mode={botMode}
-        config={parsedBot}
-        fields={botFields}
-        defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }}
-        vars={BOT_VARS.map((v) => ({ ...v, value: ruVars[v.key.slice(1, -1)] ?? "" })).filter((v) => v.key !== "{акция}" && v.key !== "{ссылка}")}
-        autoReplyRules={autoReplyRules}
-        aiModel={aiModel}
-        stats={<BotStats m={botMetrics} questions={parsedBot.questions.flatMap((q) => botFields.filter((f) => f.key === q.field).map((f) => ({ key: f.key, label: f.label })))} skipLabels={skipReasonLabels} />}
-      />
-
-      <Blocklist items={blocked.map((b) => ({ value: b.value, label: /^\d{10,15}$/.test(b.value) ? formatPhone(b.value) : b.value, date: formatDate(b.createdAt) }))} />
-
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <h2 className="font-semibold">Шаблоны быстрых ответов</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">Вставляются в чат одной кнопкой. Переменные: {templateVars.join(", ")}.</p>
-        <div className="space-y-3">
-          {templates.map((t) => (
-            <TemplateEditor key={t.id} template={{ id: t.id, title: t.title, text: t.text }} />
-          ))}
-          <TemplateEditor template={null} />
+      <div className="grid gap-6 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <SettingsNav active={tab} />
+        <div className="min-w-0 space-y-6" data-testid={`settings-tab-${tab}`}>
+          <h2 className="sr-only">{current.label}</h2>
+          {tab === "payments" ? <PaymentsTab /> : null}
+          {tab === "messengers" ? <MessengersTab /> : null}
+          {tab === "mail" ? <MailTab staffEmail={staff.user.email} /> : null}
+          {tab === "telephony" ? <TelephonyTab /> : null}
+          {tab === "ai" ? <AiTab /> : null}
+          {tab === "bot" ? <BotTab section={BOT_FORM_TABS.find((t) => t === section)} /> : null}
+          {tab === "crm" ? <CrmTab /> : null}
         </div>
-      </section>
+      </div>
     </div>
   );
 }

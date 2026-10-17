@@ -363,6 +363,15 @@ describe("AI-продажник: промпт и переписка", () => {
     expect(p).toContain("игнорируй");
     expect(p).toContain("AI-помощник");
     expect(p).toContain("Акций сейчас нет");
+    // Образцы тона содержат настоящие цены из тарифов, а не выдуманные.
+    expect(p).toContain("Печатная книга в твёрдой обложке — от 30 000 ₸");
+    expect(p).toContain("30 000 теңгеден бастап");
+  });
+
+  it("образцы в промпте проходят собственную проверку цен (модель не научится называть чужие суммы)", () => {
+    const p = sellerSystemPrompt(base).replace(/\u00a0/g, " ");
+    const examples = p.slice(p.indexOf("## Примеры хорошего тона"), p.indexOf("## Жёсткие запреты"));
+    expect(checkSellerReply(examples, rulesFor()).filter((x) => x.kind === "price")).toEqual([]);
   });
 
   it("вопросы: только те, ответа на которые ещё нет", () => {

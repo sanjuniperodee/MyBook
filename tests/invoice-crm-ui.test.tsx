@@ -176,7 +176,7 @@ describe("форма счёта: разметка", () => {
   it("нет ни одного способа оплаты — сказано, что подключить в «Интеграциях», выпуск недоступен", () => {
     const out = html(<InvoiceForm info={info({ methods: { kaspi: false, card: false, transfer: false } })} issueKey="k" onClose={() => {}} />);
     expect(out).toContain("Нет способа оплаты: подключите Kaspi или укажите реквизиты перевода в «Интеграциях»");
-    expect(out).toContain('href="/admin/settings"');
+    expect(out).toContain('href="/admin/settings?tab=payments"');
     expect(disabledButton(out, "Выставить счёт")).toBe(true);
   });
 

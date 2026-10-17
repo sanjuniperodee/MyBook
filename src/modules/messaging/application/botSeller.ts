@@ -15,6 +15,7 @@ import {
   parseSellerDecision,
   preview,
   priceMentioned,
+  readBotState,
   readSellerAi,
   resolveSellerTurn,
   sellerSchema,
@@ -163,14 +164,16 @@ export class AiSeller {
     const questions = config.questions.map((q) => q.field).filter((k) => ctx.fields.some((f) => f.key === k));
     const conv: Conversation = { id: "preview", channel: "whatsapp", channelId: "", chatId: "77000000001", contactName: input.name, avatarUrl: null, clientId: null, dealId: null, assigneeId: null, botStep: null, meta: {} };
     const env: BotEnv = { config, fields: ctx.fields, dealValues: {}, now: ctx.now, tz: ctx.tz, workTime: input.workTime, nextWorkStart: ctx.nextWorkStart, catalog: ctx.catalog, site: ctx.site, client: { known: input.client !== "new", locale: null }, name: input.name };
-    let state: BotState = { ...newBotState(ctx.now, true), engine: "ai", phase: "active", startedAt: ctx.now.toISOString(), questions, ai: newSellerAiState() };
+    const resumed = input.resume ? readBotState(input.resume.state) : null;
+    let state: BotState = resumed ?? { ...newBotState(ctx.now, true), engine: "ai", phase: "active", startedAt: ctx.now.toISOString(), questions, ai: newSellerAiState() };
+    if (resumed?.phase === "done") return { skipped: null, transcript: [{ from: "bot", text: "Диалог уже завершён (передан менеджеру или закрыт). Нажмите «Сначала»." }], fields: [], intents: [], lang: state.lang, done: true, summary: null, engine: "ai", resume: { state, history: input.resume?.history ?? [] } };
     if (input.client === "order") {
       const skipped = "у клиента есть заказ";
       return { skipped, transcript: input.turns[0]?.map((m) => ({ from: "client" as const, text: m.text })) ?? [], fields: [], intents: [], lang: "ru", done: true, summary: null, engine: "ai" };
     }
     const transcript: BotPreviewResult["transcript"] = [];
-    const history: HistoryMessage[] = [];
-    let seq = 0;
+    const history: HistoryMessage[] = (input.resume?.history ?? []).map((m) => ({ ...m, at: new Date(m.at) }));
+    let seq = history.length;
     for (const turn of input.turns) {
       const fresh: BotInput[] = turn.map((m) => ({ id: `p${++seq}`, type: m.type, text: m.type === "text" ? m.text : m.text.trim() || mediaCaption(m.type), at: ctx.now }));
       for (const m of fresh) {
@@ -220,6 +223,7 @@ export class AiSeller {
       done: state.phase === "done",
       summary: state.phase === "done" ? botSummary(state, ctx.fields) : null,
       engine: "ai",
+      resume: { state, history },
     };
   }
 

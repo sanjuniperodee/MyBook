@@ -36,7 +36,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           за {days} дн.: {stats.total} звонков · {stats.answered} разговоров · {stats.missed} пропущено · {Math.round(stats.talk / 60)} мин на линии
         </span>
         {provider === "off" && can(staff, "settings.manage") ? (
-          <Link href="/admin/settings" className="btn btn-outline btn-sm ml-auto">
+          <Link href="/admin/settings?tab=telephony" className="btn btn-outline btn-sm ml-auto">
             <Settings className="size-4" /> Подключить телефонию
           </Link>
         ) : null}

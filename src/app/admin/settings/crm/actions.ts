@@ -165,6 +165,13 @@ const previewSchema = z.object({
   workTime: z.boolean(),
   client: z.enum(["new", "account", "order"]),
   name: z.string().trim().max(60),
+  // Продолжение теста AI-продажника: состояние беседы и переписка (чужим руки сюда не попадают — действие для руководителя).
+  resume: z
+    .object({
+      state: z.record(z.string(), z.unknown()),
+      history: z.array(z.object({ from: z.enum(["client", "bot", "manager"]), text: z.string().max(3000), at: z.union([z.string(), z.date()]), author: z.string().nullish() })).max(120),
+    })
+    .nullish(),
 });
 
 /** Тест-режим: прогнать диалог с несохранёнными настройками — без базы и без отправки клиенту. */
