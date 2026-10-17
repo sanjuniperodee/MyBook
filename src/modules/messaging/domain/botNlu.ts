@@ -189,3 +189,22 @@ export function residual(text: string) {
   for (const re of [GREETING, ...Object.values(FAQ), ...HANDOFF.map(([, r]) => r)]) t = t.replace(new RegExp(re.source, "giu"), " ");
   return t.replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
 }
+
+/** Слова «спасибо, понятно, ок» — ими клиент закрывает разговор, ответ на них не нужен. «Да» и «нет» — не здесь: это ответ на вопрос. */
+const CLOSING_WORDS = new Set([
+  "спасибо", "спс", "пасиб", "благодарю", "большое", "огромное", "вам", "и", "тоже", "взаимно", "хорошо", "ок", "окей", "ok", "okay", "понятно", "понял", "поняла", "поняли", "ясно", "класс", "супер", "отлично",
+  "ага", "угу", "ладно", "принято", "все", "ну", "рахмет", "рақмет", "рахмеет", "көп", "үлкен", "сізге", "де", "жақсы", "жаксы", "түсіндім", "тусиндим", "түсінікті", "мақұл", "макул", "+",
+]);
+
+/**
+ * Клиент только благодарит или подтверждает («Спасибо❤️», «хорошо, спасибо», «Все понял рахмет», «👍»): такое сообщение
+ * не открывает «ждёт ответа» — чат не висит неотвеченным из-за «спасибо». Вопрос, «да» и любые другие слова — открывают.
+ */
+export function isClosingReply(text: string, type = "text") {
+  if (type !== "text") return false;
+  const t = norm(text);
+  if (!t || t.includes("?")) return false;
+  if (!/[\p{L}\p{N}]/u.test(t)) return /\p{Extended_Pictographic}/u.test(t);
+  const words = t.replace(/[^\p{L}\p{N}+ ]/gu, " ").split(" ").filter(Boolean);
+  return words.length > 0 && words.length <= 8 && words.every((w) => CLOSING_WORDS.has(w));
+}

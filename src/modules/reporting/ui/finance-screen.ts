@@ -302,7 +302,8 @@ export function financeScreen(input: {
   const refundRows = cur.filter((m) => m.kind === "refund");
   const incoming = sum(incomingRows);
   const refunds = sum(refundRows);
-  const online = sum(incomingRows.filter((m) => m.method !== "manual"));
+  // Онлайн и вручную — тоже за вычетом возвратов этим способом: вместе они дают «Пришло».
+  const online = cur.filter((m) => m.method !== "manual").reduce((s, m) => s + sign(m), 0);
   const prevNet = prev.reduce((s, m) => s + sign(m), 0);
   const net = incoming - refunds;
 
@@ -507,7 +508,7 @@ export function financeScreen(input: {
       incoming,
       refunds,
       online,
-      manual: incoming - online,
+      manual: net - online,
       count: incomingRows.length,
       refundCount: refundRows.length,
       prevNet,

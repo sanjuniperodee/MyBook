@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { answerValue, contactChanges, contactPhone, defaultBotConfig, preview, redactSecrets, shouldApplyStatus, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage } from "@/modules/messaging/domain";
+import { answerValue, contactChanges, contactPhone, defaultBotConfig, isClosingReply, preview, redactSecrets, shouldApplyStatus, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage } from "@/modules/messaging/domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS, MessagingService, QualifierBot, type BotCrm, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
 
 const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
 
 describe("домен переписки", () => {
+  it("закрывающая реплика клиента: «спасибо», «понятно», эмодзи — да; вопрос, «да», фото — нет", () => {
+    for (const t of ["Спасибо❤️", "хорошо,спасибо", "Все понял рахмет", "Хорошо понятно спасибо большое", "Ок", "👍🙏", "Рақмет сізге"]) expect(isClosingReply(t), t).toBe(true);
+    for (const t of ["Да начинайте", "Да", "А сколько стоит?", "Неее ахаха", "Спасибо, а когда будет готово", ""]) expect(isClosingReply(t), t).toBe(false);
+    expect(isClosingReply("Спасибо", "image")).toBe(false);
+  });
+
+
   it("телефон собеседника — из WhatsApp-идентификатора или оставленный на сайте", () => {
     expect(contactPhone({ chatId: "87011234567", meta: {} })).toBe("77011234567");
     expect(contactPhone({ chatId: "v_abc", meta: { phone: "+7 701 765 43 21" } })).toBe("77017654321");
@@ -83,10 +90,10 @@ function setup(
     },
     updateContact: async (id, p) => Object.assign(convs.get(id)!, p),
     linkDeal: async (id, l) => Object.assign(convs.get(id)!, l),
-    recordIncoming: async (id, text, at) => {
+    recordIncoming: async (id, text, at, opts) => {
       const c = convs.get(id)!;
       c.unread++;
-      c.awaiting ??= at;
+      if (opts?.awaiting !== false) c.awaiting ??= at;
       c.lastText = text;
     },
     recordEcho: async (id, text) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null, lastText: text }),
@@ -267,6 +274,17 @@ describe("MessagingService", () => {
     expect(deals[0].unsorted).toBe(false);
     await service.ingest(inbound({ externalId: "wz-1", isEcho: true, text: "Добрый день!" }));
     expect(msgs.filter((m) => m.dir === "out")).toHaveLength(1);
+  });
+
+  it("«спасибо» после ответа менеджера не делает чат неотвеченным; вопрос после него — делает", async () => {
+    const { service, convs } = setup();
+    await service.ingest(inbound());
+    const [c] = [...convs.values()];
+    await service.send(c.id, "Отправили доступ", "m1");
+    await service.ingest(inbound({ externalId: "in-2", text: "Хорошо, спасибо большое❤️" }));
+    expect(c).toMatchObject({ awaiting: null, unread: 1, lastText: "Хорошо, спасибо большое❤️" });
+    await service.ingest(inbound({ externalId: "in-3", text: "А доставка в Актау есть?" }));
+    expect(c.awaiting).not.toBeNull();
   });
 
   it("переход с Wazzup на свой шлюз: переписка с номером продолжается в прежнем диалоге", async () => {

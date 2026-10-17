@@ -50,14 +50,14 @@ export class DrizzleConversationRepository implements ConversationRepository {
     return toConversation(r);
   }
 
-  async recordIncoming(id: string, text: string, at: Date) {
+  async recordIncoming(id: string, text: string, at: Date, opts: { awaiting?: boolean } = {}) {
     await executor()
       .update(crmConversations)
       .set({
         lastMessageAt: at,
         lastMessageText: text,
         unread: sql`${crmConversations.unread} + 1`,
-        awaitingSince: sql`coalesce(${crmConversations.awaitingSince}, ${at.toISOString()}::timestamptz)`,
+        ...(opts.awaiting === false ? {} : { awaitingSince: sql`coalesce(${crmConversations.awaitingSince}, ${at.toISOString()}::timestamptz)` }),
         status: "open",
         updatedAt: new Date(),
       })
