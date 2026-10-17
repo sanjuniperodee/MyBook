@@ -39,7 +39,7 @@ export async function orderList(f: OrderFilters, viewerId: string, page: number,
   const where = orderWhere(f, viewerId);
   const [list, [totals]] = await Promise.all([
     db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
-    db.select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${orders.amount}) filter (where ${orders.paidAt} is not null and ${orders.status} <> 'cancelled'),0)::int` }).from(orders).where(where),
+    db.select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${orders.prepaidAmount} + case when ${orders.paidAt} is not null then greatest(${orders.receivedAmount}, ${orders.amount}) else ${orders.receivedAmount} end) filter (where ${orders.status} <> 'cancelled'),0)::int` }).from(orders).where(where),
   ]);
   return { list, n: totals.n, sum: totals.sum };
 }

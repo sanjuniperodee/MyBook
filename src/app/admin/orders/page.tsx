@@ -6,6 +6,7 @@ import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { contactView, requireStaff } from "@/server/access";
 import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderMoney } from "@/modules/ordering/ui/money";
 import { staffLabel } from "@/shared/domain/staff";
 import type { OrderFilters } from "@/modules/reporting";
 import { formatDate } from "@/lib/dates";
@@ -23,6 +24,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const rows: OrderRow[] = list.map((o) => {
     const contact = contactView(staff, { phone: o.contactPhone, email: o.contactEmail });
+    const money = orderMoney(o);
     return {
     id: o.id,
     number: o.number,
@@ -32,7 +34,8 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
     planLabel: `${planName(o.plan)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
     printed: isPrintedPlan(o.plan),
     desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
-    amountLabel: formatPrice(o.amount),
+    amountLabel: formatPrice(money.price),
+    money: money.debt > 0 ? { kind: "debt", label: `долг ${formatPrice(money.debt)}` } : money.paid > 0 ? { kind: "paid", label: `оплачено ${formatPrice(money.paid)}` } : null,
     status: o.status,
     claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
     assignee: o.assigneeId ? (names.get(o.assigneeId) ?? null) : null,
@@ -48,7 +51,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
         <div>
           <h1 className="text-2xl font-semibold">Заказы</h1>
           <p className="text-sm text-muted">
-            Найдено {n} · оплачено на {formatPrice(sum)}
+            Найдено {n} · получено {formatPrice(sum)} с предоплатами
           </p>
         </div>
         <div className="flex gap-2">
