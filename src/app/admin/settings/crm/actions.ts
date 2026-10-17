@@ -90,6 +90,15 @@ const botConfigSchema = z.object({
   optionLabels: z.record(z.string().max(100), z.string().trim().max(100)),
   sendLink: z.boolean(),
   ai: z.boolean(),
+  sell: z.object({
+    on: z.boolean(),
+    prepay: z.number().int().min(0, "Предоплата — не меньше 0").max(1_000_000),
+    writeDays: z.number().int().min(0).max(30, "Сколько пишут книгу — до 30 дней"),
+    deliveryDays: z.number().int().min(0).max(30, "Доставка — до 30 дней"),
+    followUpHours: z.number().int().min(0).max(72, "Напоминание — не позже 72 часов"),
+    invoice: z.boolean(),
+    prices: z.object({ hardcover: z.number().int().min(0).max(10_000_000), digital: z.number().int().min(0).max(10_000_000) }),
+  }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });
 
@@ -108,6 +117,11 @@ async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise
     if (found.length) return `В ${where} ${sensitiveLabels[found[0].kind]} — бот такое не отправляет`;
     const prices = pricesOutsideCatalog(text, catalog);
     if (prices.length) return `В ${where} число «${prices[0]}» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, а скидку напишите процентом в строке «Акция»`;
+  }
+  // Счёт от бота: предоплата не больше цены печатной (электронную дешевле предоплаты бот выставит целиком).
+  if (config.sell.on && config.sell.invoice) {
+    const price = config.sell.prices.hardcover || catalog.plans.find((p) => p.id === "hardcover" && !p.hidden)?.price || 0;
+    if (price && config.sell.prepay > price) return `Предоплата больше цены печатной книги (${price.toLocaleString("ru-RU")} ₸)`;
   }
   for (const l of BOT_LANGS) {
     const found = findSensitive(config.promo[l]);
@@ -129,7 +143,7 @@ export async function saveBotAction(input: z.input<typeof botSchema>): Promise<S
   const problem = await botTextsProblem(config);
   if (problem) return { error: problem };
   await saveSettings({ "bot.mode": mode, "bot.config": JSON.stringify(config) }, staff.user.id);
-  await audit(staff, "settings.update", "settings", "bot", { mode, channels: config.channels, questions: config.questions.length, faq: FAQ_INTENTS.filter((i) => config.faq[i].on), ai: config.ai });
+  await audit(staff, "settings.update", "settings", "bot", { mode, channels: config.channels, questions: config.questions.length, faq: FAQ_INTENTS.filter((i) => config.faq[i].on), ai: config.ai, sell: config.sell.on, invoice: config.sell.on && config.sell.invoice });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }

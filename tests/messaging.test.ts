@@ -610,6 +610,58 @@ describe("бот в инбоксе", () => {
   });
 });
 
+describe("бот продаёт", () => {
+  const SELL: BotConfig = { ...BOT_CONFIG, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true } };
+  /** Опрос до предложения: «Здравствуйте» → «для мамы» → «др». */
+  async function offered(t: ReturnType<typeof setup>) {
+    for (const text of ["Здравствуйте", "для мамы", "др"]) {
+      await t.service.ingest(inbound({ text }));
+      await t.advance(BOT_PAUSE_MS + 1);
+    }
+  }
+
+  it("после опроса — предложение и заметка менеджеру; на «да» бот сам выставляет счёт на предоплату", async () => {
+    const t = setup({ bot: "always", config: SELL });
+    const issued: unknown[] = [];
+    Object.assign(t.deps, { invoices: { issue: async (i: unknown) => (issued.push(i), { label: "P7", amount: 10000, text: "Счёт P7 на оплату: …/pay/abc" }) } });
+    await offered(t);
+    expect(t.sent[2]).toContain("Оформляем?");
+    expect(t.sent[2]).toMatch(/предоплаты 10\s000 ₸/u);
+    expect(t.notified.map((n) => n.title)).toContain("Бот сделал предложение: Айгерим");
+    expect(t.conv().botState?.phase).toBe("active");
+    await t.service.ingest(inbound({ text: "да, давайте" }));
+    await t.advance(BOT_PAUSE_MS + 1);
+    expect(issued).toEqual([expect.objectContaining({ plan: "hardcover", agreedTotal: 30000, amount: 10000, locale: "ru" })]);
+    expect(t.sent.slice(3)).toEqual(["Отлично! 🙌 Отправляю счёт — после оплаты кабинет, где пишется книга, откроется сам.", "Счёт P7 на оплату: …/pay/abc"]);
+    expect(t.conv().botState?.outcome).toBe("invoiced");
+    expect(t.tasks).toEqual([]);
+    expect(t.notified.map((n) => n.title)).toContain("Бот выставил счёт: Айгерим");
+  });
+
+  it("счёт не выпустился — «менеджер пришлёт счёт» и срочная задача «Выставить счёт»", async () => {
+    const t = setup({ bot: "always", config: SELL });
+    Object.assign(t.deps, { invoices: { issue: async () => ({ error: "нет способа оплаты" }) } });
+    await offered(t);
+    await t.service.ingest(inbound({ text: "оформляем" }));
+    await t.advance(BOT_PAUSE_MS + 1);
+    expect(t.sent[3]).toContain("пришлёт счёт на предоплату");
+    expect(t.tasks.map((x) => x.title)).toEqual([expect.stringMatching(/^Выставить счёт: Айгерим/)]);
+  });
+
+  it("клиент молчит после предложения — одно напоминание через 3 часа, через 12 часов — итог менеджеру", async () => {
+    const t = setup({ bot: "always", config: SELL });
+    await offered(t);
+    await t.advance(BOT_ABANDON_MS + 1);
+    expect(t.sent).toHaveLength(3); // 30 минут тишины после предложения — не «брошенный опрос»
+    await t.advance(3 * 3_600_000);
+    expect(t.sent[3]).toContain("Успели посмотреть?");
+    await t.advance(12 * 3_600_000 + 1);
+    expect(t.sent).toHaveLength(4);
+    expect(t.conv().botState?.outcome).toBe("offered");
+    expect(t.notified.map((n) => n.title)).toContain("Бот сделал предложение, клиент молчит: Айгерим");
+  });
+});
+
 describe("история переписки из шлюза после привязки номера", () => {
   const msg = (id: string, minutes: number, text: string, isEcho = false): InboundMessage => ({
     externalId: id,

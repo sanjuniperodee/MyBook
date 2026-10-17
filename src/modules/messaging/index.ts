@@ -1,7 +1,7 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
@@ -17,7 +17,7 @@ export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
-export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm } from "./application";
+export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
 export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
@@ -81,6 +81,8 @@ export class MessagingModule {
       botCrm: Omit<BotCrm, "priorChat">;
       botSite: BotSiteInfo;
       brain?: BotBrain | null;
+      /** Счёт от имени бота (Ordering) — режим «Продаёт» со счётом. */
+      botInvoices?: BotInvoices | null;
     } & WorkspacePorts,
   ) {
     const conversations = new DrizzleConversationRepository();
@@ -103,6 +105,7 @@ export class MessagingModule {
       note: (conversationId, text) => this.chats.addInternalNote(conversationId, text, null, "bot"),
       shopPhone: deps.whatsapp,
       brain: deps.brain ?? null,
+      invoices: deps.botInvoices ?? null,
     });
     const bot = this.bot;
     this.gowa = new GowaClient(deps.whatsappSettings.gowa);

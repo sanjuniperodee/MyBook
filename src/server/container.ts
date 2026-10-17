@@ -13,6 +13,7 @@ import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
 import { SalesModule, sourceFromChannel } from "@/modules/sales";
 import { MessagingModule } from "@/modules/messaging";
+import { botInvoices } from "./deal-invoices";
 import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
@@ -105,6 +106,7 @@ export class Container {
       links: { fromText: (text) => this.marketing.service.attributionFromText(text) },
       whatsapp: () => this.marketing.service.shopWhatsapp(),
       whatsappSettings,
+      botInvoices,
       sales: {
         findClientByPhone: (phone) => this.sales.deals.findClientByPhone(phone),
         findOpenDeal: (opts) => this.sales.deals.findOpen(opts),

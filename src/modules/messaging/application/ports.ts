@@ -167,6 +167,12 @@ export interface BotBrain {
   understand(input: { messages: { from: "client" | "bot"; text: string }[]; fields: DealField[]; asking: string | null; today: string }): Promise<{ fields: Record<string, string>; intents: FaqIntent[]; handoff: HandoffKind | null; lang: BotLang | null } | null>;
 }
 
+/** Счёт от имени бота (режим «Продаёт»): выпуск, счёт Kaspi на номер WhatsApp и текст счёта для клиента. */
+export interface BotInvoices {
+  /** error — счёт не выпущен (нет способа оплаты, сделка закрыта…): счёт выставит менеджер. */
+  issue(input: { conversationId: string; dealId: string; plan: "hardcover" | "digital"; agreedTotal: number; amount: number; locale: BotLang; clientName: string; key: string }): Promise<{ label: string; amount: number; text: string } | { error: string }>;
+}
+
 /** Отложенный ход бота в этом процессе (пауза после сообщения клиента). Если процесс перезапустится — подберёт планировщик. */
 export interface BotTimers {
   schedule(key: string, at: Date, run: () => void): void;

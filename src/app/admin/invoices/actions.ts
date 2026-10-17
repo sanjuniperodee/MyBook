@@ -9,19 +9,16 @@ import { assertStaff, assertVisible, assertWorkable, audit, can, canSeeAssigned,
 import { container } from "@/server/container";
 import { rateLimit } from "@/server/rateLimit";
 import { getSetting } from "@/modules/workspace";
-import { DEAL_INVOICE_TTL_MS, OrderingError, isOnlinePayment, kaspiPhone, type DealInvoice } from "@/modules/ordering";
+import { DEAL_INVOICE_TTL_MS, OrderingError, type DealInvoice } from "@/modules/ordering";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { maskPhone } from "@/modules/access";
 import { isPhoneEmail } from "@/modules/identity";
 import { payLink } from "./view";
-import { transferRequisites } from "@/server/requisites";
+import { availableMethods, invoiceText, isKzMobile, pushKaspi } from "@/server/deal-invoices";
 import { sourceFromChannel } from "@/modules/sales";
 import { channelLabel } from "@/modules/messaging";
 import { isManualChannel } from "@/shared/domain/channels";
 import { formatPhone, isPhoneLike, normalizePhone, phoneTail } from "@/shared/domain/phone";
-import { messagesFor } from "@/i18n/messages";
-import { planName } from "@/i18n/labels";
-import { formatPrice } from "@/config/site";
 import { storeTimeZone } from "@/shared/domain/time";
 
 export type InvoiceResult = { ok: true; message: string; link: string; text: string; sent: boolean } | { ok: false; message: string };
@@ -41,16 +38,6 @@ const schema = z.object({
   /** Выставить и счёт Kaspi на номер WhatsApp-чата клиента (номер подставляет сервер). */
   kaspiPush: z.coerce.boolean().default(false),
 });
-
-/** Способы оплаты, которые увидит клиент; пусто — выставлять счёт нельзя. */
-async function availableMethods() {
-  const c = container();
-  const [kaspi, transfer] = await Promise.all([c.ordering.kaspi.available().catch(() => false), transferRequisites()]);
-  return { kaspi, card: isOnlinePayment(), transfer: !!transfer };
-}
-
-/** Мобильный Казахстана (77XXXXXXXXX, без городских 7172/727…) — на него можно выставить счёт Kaspi. */
-const isKzMobile = (digits: string | null) => !!kaspiPhone(digits);
 
 /** Что нужно форме счёта: договорённость из сделки, остаток, открытый счёт, способы оплаты, счёт Kaspi на номер. */
 export interface InvoiceFormInfo {
@@ -140,14 +127,6 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
   };
 }
 
-/** Текст счёта для клиента — на языке счёта; номер для счёта Kaspi показываем с маской. */
-function invoiceText(invoice: DealInvoice, kaspi: { phone: string; org: string | null } | null = null) {
-  const s = invoice.snapshot();
-  const t = messagesFor(s.locale).pay;
-  const until = new Intl.DateTimeFormat(s.locale === "kk" ? "kk-KZ" : "ru-RU", { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(s.expiresAt);
-  return t.message({ name: s.clientName.split(" ")[0] ?? "", label: invoice.label, plan: planName(s.plan, s.locale), purpose: t.purpose[s.purpose], amount: formatPrice(s.amount), link: payLink(invoice), until, kaspiPhone: kaspi ? maskPhone(kaspi.phone) : null, kaspiOrg: kaspi?.org ?? null });
-}
-
 async function conversationOf(staff: Staff, id: string) {
   const conv = await container().messaging.queries.conversation(id);
   if (!conv) throw new Error("Диалог не найден");
@@ -226,27 +205,6 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
   revalidatePath("/admin/chats");
   const message = sent ? `Счёт ${invoice.label} отправлен клиенту` : conv ? `Счёт ${invoice.label} создан, но сообщение не ушло — скопируйте ссылку` : `Счёт ${invoice.label} создан — отправьте ссылку клиенту`;
   return { ok: true, message: push && !push.ok ? `${message}. ${push.message}` : message, link, text, sent };
-}
-
-/** Тексты для менеджера, когда счёт Kaspi на номер не выставился (счёт по ссылке при этом действует). */
-const KASPI_PUSH_ERRORS: Partial<Record<string, string>> = {
-  kaspiUnavailable: "Kaspi не ответил",
-  kaspiNotConnected: "кассир Kaspi не подключён",
-  phoneInvalid: "номер чата не подходит для Kaspi",
-  notPayable: "счёт уже не ждёт оплаты",
-};
-
-/** Счёт Kaspi на номер клиента; ошибка Kaspi не отменяет счёт — менеджер получает понятный текст. */
-async function pushKaspi(invoice: DealInvoice, phone: string): Promise<{ ok: true; org: string | null } | { ok: false; message: string }> {
-  const ordering = container().ordering;
-  try {
-    await ordering.kaspi.pushDealInvoice(invoice.id, phone);
-    return { ok: true, org: await ordering.kaspiRecipient() };
-  } catch (err) {
-    if (!OrderingError.is(err)) console.error("[invoices] kaspi push", err);
-    const reason = (OrderingError.is(err) && KASPI_PUSH_ERRORS[err.code]) || "ошибка Kaspi";
-    return { ok: false, message: `Счёт Kaspi на номер не выставлен (${reason}) — клиент может оплатить по ссылке` };
-  }
 }
 
 async function invoiceOf(staff: Staff, id: string) {

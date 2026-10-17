@@ -3,6 +3,10 @@ import { phoneTail } from "@/shared/domain/phone";
 import {
   BOT_DONE,
   abandonBot,
+  botFollowUp,
+  botSellText,
+  offerExpired,
+  sellPlan,
   channelLabel,
   preview,
   botChannelOf,
@@ -24,12 +28,14 @@ import {
   type Conversation,
   type InboundMessage,
 } from "../domain";
-import type { BotBrain, BotCrm, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
+import type { BotBrain, BotCrm, BotInvoices, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
 
 /** Пауза после сообщения клиента: на серию «Здравствуйте / хочу узнать цену / для мамы» бот отвечает одним сообщением. */
 export const BOT_PAUSE_MS = 7_000;
 /** Клиент молчит посреди опроса столько — частичная сводка менеджеру, бот больше не пишет. */
 export const BOT_ABANDON_MS = 30 * 60_000;
+/** Клиент молчит после предложения (и напоминания) столько — итог менеджеру, бот больше не пишет. */
+export const BOT_OFFER_IDLE_MS = 12 * 60 * 60_000;
 /** AI думает не дольше — иначе только детерминированный разбор. */
 export const BOT_AI_TIMEOUT_MS = 6_000;
 
@@ -51,6 +57,8 @@ export interface QualifierBotDeps {
   /** Номер магазина: его бот писать может, остальные номера, карты и реквизиты — нет. */
   shopPhone(): Promise<string>;
   brain?: BotBrain | null;
+  /** Счёт от имени бота (режим «Продаёт» со счётом); null — счета выставляет только менеджер. */
+  invoices?: BotInvoices | null;
 }
 
 /**
@@ -209,6 +217,7 @@ export class QualifierBot {
       }
     }
     const fresh = inputs.filter((i) => !state.seen.includes(i.id));
+    if (state.phase === "active" && state.stage === "offer" && !fresh.length) return this.offerIdle(conv, state, config, fields, now);
     if (state.phase === "active" && !fresh.length) {
       const last = new Date(state.lastBotAt ?? state.startedAt ?? state.since).getTime();
       if (now.getTime() - last < BOT_ABANDON_MS) {
@@ -235,7 +244,7 @@ export class QualifierBot {
       dueAt: turn.done ? null : new Date(now.getTime() + BOT_ABANDON_MS),
     });
     if (!saved) return true;
-    await this.apply(conv, state, turn, fields);
+    await this.apply(conv, state, turn, fields, env);
     if (!turn.done) {
       // Клиент написал, пока бот думал (ход уже прочитал входящие и сдвинул срок на «клиент замолчал»), — новое
       // сообщение не ждёт 30 минут: следующий ход после обычной паузы.
@@ -310,12 +319,14 @@ export class QualifierBot {
   }
 
   /** Последствия хода: поля сделки, тема, ответ клиенту, журнал, итог менеджеру. */
-  private async apply(conv: Conversation, before: BotState, turn: BotTurn, fields: BotEnv["fields"]) {
+  private async apply(conv: Conversation, before: BotState, turn: BotTurn, fields: BotEnv["fields"], env: BotEnv) {
     const dealId = conv.dealId!;
     for (const [key, value] of Object.entries(turn.fields)) await this.d.sales.setField(dealId, key, value);
     if (turn.state.theme && turn.state.theme !== before.theme) await this.d.crm.tag(dealId, `тема: ${themeLabel(turn.state.theme, "ru")}`).catch((err) => this.d.logger.error("bot tag", err));
     const events: BotEvent[] = [...turn.events];
-    if (turn.reply) {
+    // Клиент согласен: сначала счёт от бота; вышел — текст «менеджер пришлёт счёт» не нужен.
+    const invoiced = turn.done && turn.state.reason === "agreed" ? await this.invoice(conv, turn.state, env) : null;
+    if (turn.reply && !invoiced) {
       // Номер, карта или реквизиты в тексте из настроек — не отправляем (защита от «левака» действует и для бота).
       const found = findSensitive(turn.reply, [conv.chatId, conv.meta.phone, await this.d.shopPhone()]);
       const latest = await this.d.store.load(conv.id);
@@ -328,7 +339,81 @@ export class QualifierBot {
       }
     }
     await this.d.store.log(conv.id, dealId, turn.state.lang, events);
-    if (turn.done) await this.finish(conv, turn.state, fields);
+    if (turn.state.stage === "offer" && before.stage !== "offer") await this.offered(conv, turn.state, fields);
+    if (turn.done) await this.finish(conv, invoiced ?? turn.state, fields);
+  }
+
+  /** Бот сделал предложение: менеджер видит горячего клиента сразу (заметка и уведомление), бот продолжает диалог. */
+  private async offered(conv: Conversation, state: BotState, fields: BotEnv["fields"]) {
+    const deal = await this.d.sales.deal(conv.dealId!);
+    if (!deal) return;
+    const summary = botSummary(state, fields, deal.customFields);
+    await this.d.sales.note(deal, summary);
+    await this.d.note(conv.id, summary).catch((err) => this.d.logger.error("bot note", err));
+    const who = deal.contactName || conv.contactName || phoneTail(conv.chatId) || "клиент";
+    await this.d.notifier.notify(deal.assigneeId, "chats.view", { kind: "message", title: `Бот сделал предложение: ${who}`, body: summary.split("\n").slice(1).join(" · ").slice(0, 300), link: `/admin/chats?c=${conv.id}` });
+  }
+
+  /**
+   * Клиент согласен: в режиме «Продаёт» со счётом бот выпускает счёт сам (цена — из настроек бота или тарифа, сумма —
+   * предоплата) и отправляет его. Не вышло — уже отправлен текст «менеджер пришлёт счёт», задачу поставит finish.
+   */
+  private async invoice(conv: Conversation, state: BotState, env: BotEnv): Promise<BotState | null> {
+    const sell = env.config.sell;
+    if (!sell.on || !sell.invoice || !this.d.invoices) return null;
+    const plan = sellPlan(state, env);
+    const total = sell.prices[plan] || env.catalog.plans.find((p) => p.id === plan && !p.hidden)?.price || 0;
+    if (!total) return null;
+    // Человек ответил, пока бот думал, — счёт не выставляем.
+    if ((await this.d.store.load(conv.id))?.state?.version !== state.version) return null;
+    const amount = sell.prepay > 0 ? Math.min(sell.prepay, total) : total;
+    const deal = await this.d.sales.deal(conv.dealId!);
+    const result = await this.d.invoices
+      .issue({ conversationId: conv.id, dealId: conv.dealId!, plan, agreedTotal: total, amount, locale: state.lang, clientName: env.name || deal?.contactName || "", key: `bot:${conv.id}:${state.version}` })
+      .catch((err) => ({ error: String(err) }));
+    if ("error" in result) {
+      this.d.logger.warn("bot invoice", { error: result.error });
+      await this.d.store.log(conv.id, conv.dealId, state.lang, [{ kind: "blocked", reason: `invoice: ${result.error}`.slice(0, 200) }]);
+      return null;
+    }
+    // Ход уже записан завершённым (botStep -1) — поверх него, но по версии: ответ человека в эту секунду не затирается.
+    const next: BotState = { ...state, outcome: "invoiced", reason: result.label, version: state.version + 1 };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }, { restart: true }))) return null;
+    await this.d.send(conv.id, botSellText(state, env, "invoiceSent"));
+    await this.d.send(conv.id, result.text);
+    await this.d.store.log(conv.id, conv.dealId, state.lang, [{ kind: "invoiced", reason: result.label }]);
+    return next;
+  }
+
+  /**
+   * Клиент молчит после предложения: через N часов (в рабочее время) — одно напоминание; ещё 12 часов тишины — итог
+   * менеджеру (исход «предложение без ответа»).
+   */
+  private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
+    const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
+    if (!state.followedUp && config.sell.followUpHours > 0) {
+      const at = new Date(last + config.sell.followUpHours * 3_600_000);
+      // Ночью не пишем: напоминание — с началом рабочего дня.
+      const due = (await this.d.settings.isWorkTime(at)) ? at : ((await this.d.settings.nextWorkStart(at)) ?? at);
+      if (now.getTime() < due.getTime()) {
+        await this.later(conv.id, due);
+        return false;
+      }
+      const env = await this.env(conv, config, fields, now);
+      const turn = botFollowUp(state, env);
+      if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: turn.state, dueAt: new Date(now.getTime() + BOT_OFFER_IDLE_MS) }))) return true;
+      await this.apply(conv, state, turn, fields, env);
+      return false;
+    }
+    if (now.getTime() - last < BOT_OFFER_IDLE_MS) {
+      await this.d.store.setDue(conv.id, new Date(last + BOT_OFFER_IDLE_MS));
+      return false;
+    }
+    const { state: next, events } = offerExpired(state);
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }))) return true;
+    await this.d.store.log(conv.id, conv.dealId, next.lang, events);
+    await this.finish(conv, next, fields);
+    return false;
   }
 
   /** Итог менеджеру: заметка в сделке и в чате, задача, если клиент просит человека, одно уведомление. */
@@ -343,11 +428,12 @@ export class QualifierBot {
       const now = this.d.clock.now();
       const start = (await this.d.settings.isWorkTime(now)) ? now : ((await this.d.settings.nextWorkStart(now)) ?? now);
       const call = state.reason === "call";
+      const verb = state.reason === "agreed" ? "Выставить счёт" : call ? "Перезвонить" : "Ответить";
       // Ответственного нет (ночь, круг ещё не раздал) — задачу видят все, утром её заберёт круг вместе со сделкой.
       await this.d.tasks.create({
-        title: `${call ? "Перезвонить" : "Ответить"}: ${who} — ${outcomeTitle(state).replace(/^Клиент /, "").toLowerCase()} (бот)`.slice(0, 200),
+        title: `${verb}: ${who} — ${outcomeTitle(state).replace(/^Клиент /, "").toLowerCase()} (бот)`.slice(0, 200),
         kind: call ? "call" : "message",
-        dueAt: new Date(start.getTime() + 15 * 60_000),
+        dueAt: new Date(start.getTime() + (state.reason === "agreed" ? 5 : 15) * 60_000),
         dealId: deal.id,
         clientId: deal.clientId,
         assigneeId: deal.assigneeId,

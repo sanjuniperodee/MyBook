@@ -51,6 +51,35 @@ describe("настройки бота", () => {
   });
 });
 
+describe("настройки бота: режим «Продаёт»", () => {
+  it("переключатель, предоплата, счёт от бота с ценой из тарифов и тексты продаж", () => {
+    const config = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true } };
+    const html = renderToStaticMarkup(
+      <BotForm
+        mode="always"
+        config={config}
+        fields={fields}
+        defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }}
+        vars={[{ key: "{цена.печатная}", label: "печатная", value: "30 000 ₸" }]}
+        autoReplyRules={[]}
+        aiModel={null}
+        stats={null}
+      />,
+    );
+    for (const s of ["Бот продаёт", "Предоплата, ₸", "Бот сам выставляет счёт", "Цена книги в счёте бота — печатная", 'placeholder="30 000 ₸"', "Тексты продаж", "«Дорого», «денег нет»"]) expect(html).toContain(s);
+    const off = renderToStaticMarkup(
+      <BotForm mode="always" config={defaultBotConfig} fields={fields} defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }} vars={[]} autoReplyRules={[]} aiModel={null} stats={null} />,
+    );
+    expect(off).toContain("Бот продаёт");
+    expect(off).not.toContain("Бот сам выставляет счёт");
+  });
+
+  it("старые настройки без sell — режим выключен; мусор в sell — заводские значения", () => {
+    expect(parseBotConfig(JSON.stringify({ texts: {} })).sell).toEqual(defaultBotConfig.sell);
+    expect(parseBotConfig(JSON.stringify({ texts: {}, sell: { on: true, prepay: -5, followUpHours: "x", invoice: true, prices: { hardcover: 25000 } } })).sell).toMatchObject({ on: true, prepay: 0, followUpHours: 3, invoice: true, prices: { hardcover: 25000, digital: 0 } });
+  });
+});
+
 describe("бот в чате", () => {
   it("полоса: вопрос N из M с кнопкой «Остановить»; бот не работал — полосы нет", () => {
     const state = { ...newBotState(new Date(), true), phase: "active" as const, questions: ["recipient", "occasion"], asking: "occasion" };
@@ -62,5 +91,7 @@ describe("бот в чате", () => {
     expect(renderToStaticMarkup(<BotBanner conversationId="c1" status={none} canControl hasDeal />)).toBe("");
     const stopped = botStatus({ botStep: -1, state: { ...state, phase: "done", outcome: "skipped", reason: "prior_chat" }, dueAt: null }, fields);
     expect(stopped.label).toBe("Бот не начинал: переписка была до CRM");
+    const offer = botStatus({ botStep: 0, state: { ...state, stage: "offer", asking: null }, dueAt: null }, fields);
+    expect(offer.label).toBe("Бот сделал предложение — ждёт ответа клиента");
   });
 });

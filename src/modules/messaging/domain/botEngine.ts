@@ -5,15 +5,35 @@
  * вебхук, тест-режим в настройках и тесты. Тексты клиенту — только из настроек (botConfig), цифры — из тарифов.
  */
 import { fillTemplate } from "@/shared/domain/templates";
+import { zonedDay } from "@/shared/domain/time";
 import { humanDate, whenText, type DealField } from "./bot";
 import { botText, faqFor, mentionsMonth, promoFor, optionLabel, parseDateAnswer, matchOption, questionFor, questionText, type BotConfig, type BotTextKey } from "./botConfig";
 import { catalogVars, fillBotVars, fillFaqLines, type BotCatalog } from "./botFaq";
-import { detectLang, faqIntents, handoffIntent, isAck, isDecline, isDontKnow, isStop, langRequest, looksLikeContinuation, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
+import { detectLang, faqIntents, handoffIntent, isAck, isAgree, isBareNo, isWillLook, isDecline, isDontKnow, isStop, langRequest, looksLikeContinuation, objectionKind, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
 
-export type BotOutcome = "finished" | "handoff" | "stopped_by_manager" | "abandoned" | "declined" | "skipped" | "disabled";
-export type BotEventKind = "started" | "skipped" | "blocked" | "answer" | "unrecognized" | "faq" | "media" | "handoff" | "finished" | "stopped_by_manager" | "abandoned" | "declined";
+/** offered — бот сделал предложение, клиент замолчал; invoiced — бот сам выставил счёт. */
+export type BotOutcome = "finished" | "handoff" | "stopped_by_manager" | "abandoned" | "declined" | "skipped" | "disabled" | "offered" | "invoiced";
+export type BotEventKind =
+  | "started"
+  | "skipped"
+  | "blocked"
+  | "answer"
+  | "unrecognized"
+  | "faq"
+  | "media"
+  | "handoff"
+  | "finished"
+  | "stopped_by_manager"
+  | "abandoned"
+  | "declined"
+  | "offer"
+  | "objection"
+  | "agreed"
+  | "follow_up"
+  | "invoiced"
+  | "offered";
 
 export interface BotEvent {
   kind: BotEventKind;
@@ -63,6 +83,13 @@ export interface BotState {
   lastBotAt: string | null;
   outcome: BotOutcome | null;
   reason: string | null;
+  /** ask — опрос; offer — режим «Продаёт»: предложение сделано, бот доводит до «да». */
+  stage: "ask" | "offer";
+  /** Возражения после предложения (price, later) — на каждое бот отвечает один раз. */
+  objections: string[];
+  /** Напоминание после предложения уже отправлено. */
+  followedUp: boolean;
+  offeredAt: string | null;
 }
 
 export function newBotState(since: Date, fresh: boolean): BotState {
@@ -92,6 +119,10 @@ export function newBotState(since: Date, fresh: boolean): BotState {
     lastBotAt: null,
     outcome: null,
     reason: null,
+    stage: "ask",
+    objections: [],
+    followedUp: false,
+    offeredAt: null,
   };
 }
 
@@ -295,22 +326,119 @@ function shown(ctx: Ctx, key: string, value: string | number, r?: Recipient) {
   return String(value);
 }
 
-function render(ctx: Ctx, template: string, extra: Record<string, string> = {}, faq?: FaqIntent) {
+/**
+ * Шаблон бота → текст. faq — ответ на частый вопрос; "lines" — тексты продаж: строка с пустой переменной (нет акции,
+ * предоплаты, даты) выпадает целиком.
+ */
+function render(ctx: Ctx, template: string, extra: Record<string, string> = {}, mode?: FaqIntent | "lines") {
   const { env, s } = ctx;
   const vars: Record<string, string> = {
     ...catalogVars(env.catalog, s.lang),
     акция: promoFor(env.config, s.lang),
     когда: env.nextWorkStart ? whenText(env.nextWorkStart, env.now, s.lang, env.tz) : "",
+    ...(env.config.sell.on ? sellVars(ctx) : {}),
     ...extra,
   };
   // Ответ на частый вопрос: строки с пустой переменной (скрытый тариф, нет акции) выпадают; к цене — акция.
-  const filled = faq ? fillFaqLines(template, vars, { appendPromo: faq === "price" }) : fillBotVars(template, vars);
+  const filled = mode ? fillFaqLines(template, vars, { appendPromo: mode === "price" }) : fillBotVars(template, vars);
   return fillTemplate(filled, { name: env.name, link: extra.ссылка ?? env.site.url });
 }
 
-const text = (ctx: Ctx, key: BotTextKey, extra?: Record<string, string>) => render(ctx, botText(ctx.env.config, ctx.s.lang, key), extra);
+const text = (ctx: Ctx, key: BotTextKey, extra?: Record<string, string>) => render(ctx, botText(ctx.env.config, ctx.s.lang, key), extra, SELL_TEXTS.has(key) ? "lines" : undefined);
 /** Вне рабочего времени (и когда известно, когда оно начнётся) — текст «…{когда}». */
 const laterText = (ctx: Ctx, now: BotTextKey, later: BotTextKey) => (!ctx.env.workTime && ctx.env.nextWorkStart ? text(ctx, later) : text(ctx, now));
+
+// ─── режим «Продаёт» ───────────────────────────────────────────────────────
+
+const SELL_TEXTS = new Set<BotTextKey>(["offer", "offerPrice", "deadlineOk", "deadlineExpress", "deadlineLate", "close", "closeShort", "agreed", "agreedLater", "invoiceSent", "objPrice", "objLater", "followUp"]);
+const DAY = 86_400_000;
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const dayMs = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+/**
+ * «5–7» рабочих дней → от 5 рабочих → 7 календарных. Нижняя граница: так менеджеры и продают (16.10 → 25.10 успели), а
+ * запас владелец задаёт днями доставки в настройках.
+ */
+const calendarDays = (days: string) => {
+  const n = Math.min(...(days.match(/\d+/g) ?? ["0"]).map(Number));
+  return Math.ceil((n * 7) / 5);
+};
+
+export type DeadlineKind = "ok" | "express" | "late";
+
+/**
+ * Успеем ли к дате: дописать книгу (writeDays) + печать + доставка. fillBy — последний день, чтобы дописать.
+ * Печать обычная не успевает — экспресс; и экспресс не успевает — late. Прошедшая дата — null (бот про срок молчит).
+ */
+export function deadlinePlan(eventIso: string, now: Date, tz: string, sell: { writeDays: number; deliveryDays: number }, production: { standard: string; premium: string }): { kind: DeadlineKind; fillBy: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventIso)) return null;
+  const today = dayMs(zonedDay(now, tz));
+  const event = dayMs(eventIso);
+  if (!Number.isFinite(event) || event < today) return null;
+  const standard = event - (sell.deliveryDays + calendarDays(production.standard)) * DAY;
+  if (standard >= today + sell.writeDays * DAY) return { kind: "ok", fillBy: isoDay(standard) };
+  const express = event - (sell.deliveryDays + calendarDays(production.premium)) * DAY;
+  if (express >= today + DAY) return { kind: "express", fillBy: isoDay(express) };
+  return { kind: "late", fillBy: isoDay(event) };
+}
+
+/** Значение поля сделки: из ответа боту или из сделки. */
+const valueOf = (ctx: Ctx, key: string) => (hasValue(ctx.s.filled[key]) ? ctx.s.filled[key] : ctx.env.dealValues[key]);
+
+/** Дата события (первое поле-дата из вопросов) и формат (поле «формат»: электронная или нет). */
+function sellFacts(ctx: Ctx) {
+  const dateKey = ctx.s.questions.find((k) => ctx.byKey.get(k)?.type === "date") ?? [...ctx.byKey.values()].find((f) => f.type === "date")?.key;
+  const date = dateKey ? valueOf(ctx, dateKey) : null;
+  const formatKey = [...ctx.byKey.values()].find((f) => f.key === "format" || /формат/i.test(f.label))?.key;
+  const format = formatKey ? String(valueOf(ctx, formatKey) ?? "") : "";
+  return { date: typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null, digital: /электрон|digital|pdf/i.test(format) };
+}
+
+/** Какой книгой оформлять счёт бота: электронная, если клиент её выбрал, иначе печатная. */
+export function sellPlan(state: BotState, env: Pick<BotEnv, "fields" | "dealValues">): "digital" | "hardcover" {
+  const ctx: Ctx = { s: state, env: env as BotEnv, byKey: new Map(env.fields.map((f) => [f.key, f])) };
+  return sellFacts(ctx).digital ? "digital" : "hardcover";
+}
+
+function sellVars(ctx: Ctx): Record<string, string> {
+  const { env, s } = ctx;
+  const { date } = sellFacts(ctx);
+  const plan = date ? deadlinePlan(date, env.now, env.tz, env.config.sell, env.catalog.productionDays) : null;
+  const prepay = env.config.sell.prepay;
+  return {
+    дата: date ? humanDate(date, s.lang) : "",
+    заполнить_до: plan ? humanDate(plan.fillBy, s.lang) : "",
+    предоплата: prepay > 0 ? `${new Intl.NumberFormat("ru-RU").format(prepay)} ₸` : "",
+  };
+}
+
+/** Предложение после опроса: ценность, цена (если о ней ещё не отвечали), срок к дате, «Оформляем?». */
+function offerParts(ctx: Ctx): string[] {
+  const out = [text(ctx, "offer")];
+  if (!ctx.s.faq.includes("price")) out.push(text(ctx, "offerPrice"));
+  const { date, digital } = sellFacts(ctx);
+  const plan = date && !digital ? deadlinePlan(date, ctx.env.now, ctx.env.tz, ctx.env.config.sell, ctx.env.catalog.productionDays) : null;
+  if (plan) out.push(text(ctx, plan.kind === "ok" ? "deadlineOk" : plan.kind === "express" ? "deadlineExpress" : "deadlineLate"));
+  out.push(text(ctx, "close"));
+  return out;
+}
+
+/** Текст бота вне хода (счёт выставлен, напоминание) — с теми же переменными, что в ходе. */
+export function botSellText(state: BotState, env: BotEnv, key: BotTextKey) {
+  return text({ s: state, env, byKey: new Map(env.fields.map((f) => [f.key, f])) }, key);
+}
+
+/** Напоминание после предложения, если клиент замолчал (один раз). */
+export function botFollowUp(prev: BotState, env: BotEnv): BotTurn {
+  const s: BotState = { ...prev, followedUp: true, version: prev.version + 1 };
+  const reply = botSellText(s, env, "followUp") || null;
+  if (reply) s.lastBotAt = env.now.toISOString();
+  return { state: s, reply, fields: {}, events: [{ kind: "follow_up" }], handoff: null, done: false, unclear: false };
+}
+
+/** Клиент молчит после предложения (и после напоминания): итог менеджеру, бот больше не пишет. */
+export function offerExpired(prev: BotState): { state: BotState; events: BotEvent[] } {
+  return { state: { ...prev, phase: "done", outcome: "offered", asking: null, version: prev.version + 1 }, events: [{ kind: "offered" }] };
+}
 
 /**
  * Один ход бота. state.phase = waiting — первый ход (приветствие); active — продолжение; done — ничего не делает.
@@ -380,6 +508,9 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
       s.ack.push("media");
     }
   }
+
+  // Режим «Продаёт»: предложение уже сделано — доводим до «да», отвечаем на возражения, непонятное — человеку.
+  if (s.stage === "offer") return offerTurn(ctx, prev, { t, c, handoff, intents, events, parts });
 
   // 3. Ответ на текущий вопрос и всё, что ещё можно понять из сообщения.
   const current = start ? null : s.asking;
@@ -486,6 +617,13 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
       if (start || next !== s.asking || s.lang !== prev.lang) parts.push(fullQuestion(ctx, next));
       else if (parts.length) parts.push(shortQuestion(ctx, next));
       s.asking = next;
+    } else if (env.config.sell.on) {
+      // Режим «Продаёт»: вместо «передала менеджеру» — предложение, бот остаётся в диалоге.
+      parts.push(...offerParts(ctx));
+      s.stage = "offer";
+      s.asking = null;
+      s.offeredAt = env.now.toISOString();
+      events.push({ kind: "offer" });
     } else {
       parts.push(laterText(ctx, "finish", "finishLater"));
       s.outcome = "finished";
@@ -503,6 +641,64 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
   return { state: s, reply, fields, events, handoff: done && handoff ? handoff : null, done, unclear };
 }
 
+/** Ход после предложения. Каждое возражение — один ответ; второе возражение, вопрос без шаблона, файл — человеку. */
+function offerTurn(
+  ctx: Ctx,
+  prev: BotState,
+  m: { t: string; c: ReturnType<typeof classifyInputs>; handoff: HandoffKind | null; intents: FaqIntent[]; events: BotEvent[]; parts: string[] },
+): BotTurn {
+  const { s } = ctx;
+  const { t, c, handoff, intents, events, parts } = m;
+  const pass = (reason: string) => {
+    parts.push(laterText(ctx, "handoff", "handoffLater"));
+    s.outcome = "handoff";
+    s.reason = reason;
+    events.push({ kind: "handoff", reason });
+  };
+  let done = true;
+  const agree = !handoff && !intents.length && !!t && isAgree(t);
+  const objection = !handoff && !agree && t ? (objectionKind(t) ?? (isBareNo(t) ? "later" : null)) : null;
+  if (handoff === "pay" || agree) {
+    // Согласие: счёт выставит бот (QualifierBot) или менеджер — этот текст на случай, если бот счёт не выставил.
+    parts.push(laterText(ctx, "agreed", "agreedLater"));
+    s.outcome = "handoff";
+    s.reason = "agreed";
+    events.push({ kind: "agreed" });
+  } else if (handoff) pass(handoff);
+  else if (t && isDecline(t)) {
+    parts.push(text(ctx, "decline"));
+    s.outcome = "declined";
+    events.push({ kind: "declined" });
+  } else if (objection) {
+    if (s.objections.length) pass("objection");
+    else {
+      parts.push(text(ctx, objection === "price" ? "objPrice" : "objLater"));
+      s.objections.push(objection);
+      events.push({ kind: "objection", reason: objection });
+      done = false;
+    }
+  } else if (intents.length) {
+    // Ответили на вопрос (цена, доставка…) — и снова «Оформляем?».
+    if (parts.length) parts.push(text(ctx, "closeShort"));
+    done = false;
+  } else if (c.media && !t) {
+    // Фото или файл после предложения — часто чек: смотрит менеджер. Подтверждение «передам менеджеру» уже в ответе.
+    if (!parts.length) parts.push(laterText(ctx, "handoff", "handoffLater"));
+    s.outcome = "handoff";
+    s.reason = "media";
+    events.push({ kind: "handoff", reason: "media" });
+  } else if (t && !isAck(t) && !isWillLook(t) && residual(t).length >= 2) pass("question");
+  else done = false;
+  if (done) {
+    s.phase = "done";
+    s.asking = null;
+  }
+  const reply = parts.filter((p) => p.trim()).join("\n\n").trim() || null;
+  if (reply) s.lastBotAt = ctx.env.now.toISOString();
+  s.version = prev.version + 1;
+  return { state: s, reply, fields: {}, events, handoff: done && handoff ? handoff : null, done, unclear: false };
+}
+
 /** Клиент замолчал посреди опроса: частичная сводка менеджеру, бот больше не пишет. */
 export function abandonBot(prev: BotState): { state: BotState; events: BotEvent[] } {
   return { state: { ...prev, phase: "done", outcome: "abandoned", reason: prev.asking, asking: null, version: prev.version + 1 }, events: [{ kind: "abandoned", field: prev.asking }] };
@@ -514,6 +710,10 @@ const handoffLabels: Record<string, string> = {
   paid: "сообщает, что оплатил(а)",
   pay: "хочет оплатить",
   complaint: "жалоба или вопрос по заказу",
+  agreed: "согласен(на) оформить — нужен счёт",
+  objection: "сомневается после предложения",
+  question: "задал(а) вопрос после предложения",
+  media: "прислал(а) файл после предложения",
 };
 const intentLabels: Record<string, string> = { price: "цену", delivery: "доставку", timing: "сроки", how: "как это работает", payment: "оплату", examples: "примеры", language: "язык книги" };
 
@@ -522,6 +722,9 @@ export function outcomeTitle(s: BotState) {
   if (s.outcome === "handoff") return `Клиент ${handoffLabels[s.reason ?? ""] ?? "просит человека"}`;
   if (s.outcome === "abandoned") return "Клиент не ответил боту";
   if (s.outcome === "declined") return "Клиенту не интересно";
+  if (s.outcome === "offered") return "Бот сделал предложение, клиент молчит";
+  if (s.outcome === "invoiced") return "Бот выставил счёт";
+  if (s.stage === "offer" && s.phase !== "done") return "Бот сделал предложение";
   return "Бот собрал ответы";
 }
 
@@ -550,6 +753,8 @@ export function botSummary(s: BotState, fields: DealField[], dealValues: Record<
   const asked = s.intents.filter((i) => intentLabels[i]).map((i) => `${intentLabels[i]}${s.faq.includes(i as FaqIntent) ? "" : " (без ответа)"}`);
   if (asked.length) lines.push(`Спрашивал(а): ${asked.join(", ")}`);
   if (s.links.length) lines.push(`Отправлено: ${s.links.join(", ")}`);
+  if (s.offeredAt) lines.push(`Предложение: сделано${s.followedUp ? ", напоминание отправлено" : ""}`);
+  if (s.objections.length) lines.push(`Возражения: ${s.objections.map((o) => (o === "price" ? "дорого" : "подумает / позже")).join(", ")}`);
   if (s.first) lines.push(`Первое сообщение: «${s.first}»`);
   if (lack.length && s.outcome !== "finished") lines.push(`Не хватает: ${lack.join(", ")}`);
   return lines.join("\n");

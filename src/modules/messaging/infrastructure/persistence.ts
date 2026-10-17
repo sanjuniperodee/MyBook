@@ -353,11 +353,11 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     by("handoff", "reason"),
     by("started", "reason"),
     executor().execute<{ key: string; n: number }>(
-      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined') and created_at >= ${since} group by 1`,
+      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined', 'offer', 'agreed', 'invoiced', 'offered') and created_at >= ${since} group by 1`,
     ),
     executor().execute<{ m: number | null }>(sql`
       select percentile_cont(0.5) within group (order by extract(epoch from (r.first_at - e.at)) / 60) as m
-      from (select conversation_id, max(created_at) as at from crm_bot_events where kind in ('finished', 'handoff', 'abandoned') and created_at >= ${since} group by 1) e
+      from (select conversation_id, max(created_at) as at from crm_bot_events where kind in ('finished', 'handoff', 'abandoned', 'offered', 'invoiced') and created_at >= ${since} group by 1) e
       cross join lateral (select min(m.created_at) as first_at from crm_messages m where m.conversation_id = e.conversation_id and m.direction = 'out' and m.internal = false and m.source is null and m.created_at > e.at) r
       where r.first_at is not null`),
     executor().execute<{ n: number }>(sql`

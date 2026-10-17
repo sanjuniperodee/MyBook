@@ -6,6 +6,10 @@ const OUTCOMES: [string, string][] = [
   ["stopped_by_manager", "остановлен ответом менеджера"],
   ["abandoned", "клиент замолчал"],
   ["declined", "клиенту не интересно"],
+  ["offer", "сделал предложение"],
+  ["agreed", "клиент согласился"],
+  ["invoiced", "выставил счёт"],
+  ["offered", "предложение без ответа"],
 ];
 const INTENTS: Record<string, string> = {
   price: "цена",

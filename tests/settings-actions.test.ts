@@ -184,7 +184,14 @@ describe("Шаблоны ответов и бот", () => {
     expect(w.saved).toHaveLength(1);
     expect(w.saved[0]["bot.mode"]).toBe("fallback");
     expect(parseBotConfig(w.saved[0]["bot.config"])).toEqual(config);
-    expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false }]]);
+    expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false, sell: false, invoice: false }]]);
+  });
+
+  it("бот продаёт: предоплата не больше цены печатной в счёте бота", async () => {
+    const sell = (p: Partial<BotConfig["sell"]>) => ({ mode: "always" as const, ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, invoice: true, ...p } });
+    expect(await actions.saveBotAction(sell({ prepay: 10000 }))).toEqual({ ok: "Сохранено" });
+    expect(await actions.saveBotAction(sell({ prepay: 35000 }))).toEqual({ error: expect.stringMatching(/^Предоплата больше цены печатной книги \(30\s000 ₸\)$/u) });
+    expect(await actions.saveBotAction(sell({ prepay: 35000, prices: { hardcover: 40000, digital: 0 } }))).toEqual({ ok: "Сохранено" });
   });
 
   it("бот: включённый без вопросов или каналов, неизвестный режим — ошибка", async () => {

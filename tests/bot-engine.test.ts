@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, type BotConfig } from "@/modules/messaging/domain/botConfig";
-import { detectLang, faqIntents, handoffIntent, isDontKnow, langRequest, looksLikeContinuation } from "@/modules/messaging/domain/botNlu";
+import { detectLang, faqIntents, handoffIntent, isAgree, isDontKnow, langRequest, looksLikeContinuation, objectionKind } from "@/modules/messaging/domain/botNlu";
 import { bookLink, findRecipient } from "@/modules/messaging/domain/botThemes";
 import { catalogVars, fillFaqLines, pricesOutsideCatalog, promoAmounts, type BotCatalog } from "@/modules/messaging/domain/botFaq";
-import { botSummary, botTurn, newBotState, startBlocker, type BotEnv, type BotInput, type BotState } from "@/modules/messaging/domain/botEngine";
+import { botSummary, botTurn, deadlinePlan, newBotState, startBlocker, type BotEnv, type BotInput, type BotState } from "@/modules/messaging/domain/botEngine";
 import { humanDate, safeName, whenText, type DealField } from "@/modules/messaging/domain/bot";
 
 /** 17.10.2026, 00:50 по Алматы (UTC+5) — как в разборе прода: «сегодня» по магазину уже 17-е, по UTC ещё 16-е. */
@@ -501,5 +501,104 @@ describe("бот: проверка — отказ и виды книг", () => {
     }
     // подарок спрашивает повод как раньше
     expect(talk([["Здравствуйте, для мамы"]]).replies[0]).toContain("По какому поводу дарите?");
+  });
+});
+
+describe("бот: режим «Продаёт»", () => {
+  const sellConfig: BotConfig = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000 } };
+  const sell = (p: Partial<BotEnv> = {}) => env({ config: sellConfig, ...p });
+  /** Опрос как у Бекхана (17.10): 1 — любимому, 1 — годовщина, 25.10, 1 — печатная. */
+  const asked = [["Салеметсизбе"], ["1"], ["1"], ["25.10"], ["1"]];
+
+  it("после опроса — предложение, а не «передала менеджеру»; бот остаётся в диалоге", () => {
+    const { replies, state } = talk(asked, sell());
+    const offer = replies[4]!;
+    expect(offer).toContain("Кітаптың авторы — сіз");
+    expect(offer).not.toContain("менеджерге жеткіздім"); // казахский клиент: не финал опроса
+    expect(offer).toMatch(/Қатты мұқабалы кітаптың бастапқы бағасы — 30\s000 ₸/u);
+    expect(offer).toMatch(/10\s000 ₸ алдын ала төлем/u);
+    expect(offer).toContain("25 қазан күніне уақыт тығыз, бірақ экспресс-баспамен үлгереміз. Кітапты толтырудың соңғы күні — 18 қазан.");
+    expect(offer).toContain("Рәсімдейміз бе?");
+    expect(state.phase).toBe("active");
+    expect(state.stage).toBe("offer");
+  });
+
+  it("Бекхан: «подробнее как происходит, примеры» — ответ и снова «Оформляем?», без повторного приветствия", () => {
+    const { replies, state } = talk([...asked, ["подробнее можно информация как происходит все и примеры книг других"]], sell());
+    const r = replies[5]!;
+    expect(r).not.toMatch(/Здравствуйте|Сәлеметсіз/u);
+    expect(r).toMatch(/Всё просто|Бәрі оңай/u);
+    expect(r).toMatch(/Оформляем книгу|Кітапты рәсімдейміз бе/u);
+    expect(state.phase).toBe("active");
+  });
+
+  it("Аль-Али: вопрос о доставке посреди опроса — ответ из шаблона, опрос продолжается", () => {
+    const { replies } = talk([["Здравствуйте! Хочу узнать стоимость."], ["сможете в Актау доставить?"]], sell());
+    expect(replies[1]).toContain("по всему Казахстану");
+    expect(replies[1]).toContain("Для кого будет книга?");
+  });
+
+  const russian = [["Здравствуйте! Хочу узнать стоимость."], ["Для мужа"], ["2"], ["21.11"], ["1"]];
+
+  it("«да давайте» — согласие: исход agreed, текст «менеджер пришлёт счёт»", () => {
+    const { replies, state } = talk([...russian, ["Да, давайте"]], sell());
+    expect(replies[4]).toContain("К 21 ноября успеваем");
+    expect(replies[5]).toContain("пришлёт счёт на предоплату");
+    expect(state.phase).toBe("done");
+    expect(state.reason).toBe("agreed");
+  });
+
+  it("«дорого» — ответ про предоплату и электронную; второе возражение — менеджеру", () => {
+    const { replies, state } = talk([...russian, ["дорого"], ["я подумаю"]], sell());
+    expect(replies[5]).toMatch(/предоплата 10\s000 ₸/u);
+    expect(replies[5]).toMatch(/электронная версия — от 9\s900 ₸/u);
+    expect(state.outcome).toBe("handoff");
+    expect(state.reason).toBe("objection");
+  });
+
+  it("«подумаю» — ответ про акцию и предоплату; без акции строка с ней не выводится", () => {
+    const { replies, state } = talk([...russian, ["хорошо я поняла. дайте время подумать"]], sell());
+    expect(replies[5]).toContain("Конечно, подумайте");
+    expect(replies[5]).not.toContain("{акция}");
+    expect(replies[5]).not.toMatch(/\n\n\n/);
+    expect(state.phase).toBe("active");
+  });
+
+  it("«Хорошо, сейчас ознакомлюсь» — не согласие: бот молчит и ждёт", () => {
+    const { replies, state } = talk([...russian, ["Хорошо, сейчас ознакомлюсь"]], sell());
+    expect(replies[5]).toBeNull();
+    expect(state.phase).toBe("active");
+  });
+
+  it("вопрос без шаблона после предложения — менеджеру", () => {
+    const { state } = talk([...russian, ["А можно добавить видео с QR-кодом внутрь книги"]], sell());
+    expect(state.outcome).toBe("handoff");
+    expect(state.reason).toBe("question");
+  });
+
+  it("электронная — без строки о сроке; режим выключен — как раньше", () => {
+    const digital = talk([["Здравствуйте"], ["маме"], ["2"], ["20.10"], ["2"]], sell());
+    expect(digital.replies[4]).not.toMatch(/успеваем|не успеем|впритык/u);
+    const off = talk(russian);
+    expect(off.replies[4]).toContain("Передала ваши ответы менеджеру");
+    expect(off.state.phase).toBe("done");
+  });
+
+  it("срок: успеем, экспресс, не успеем, прошедшая дата", () => {
+    const s = { writeDays: 2, deliveryDays: 2 };
+    const p = { standard: "5–7", premium: "3–4" };
+    expect(deadlinePlan("2026-11-21", day, TZ, s, p)).toEqual({ kind: "ok", fillBy: "2026-11-12" });
+    expect(deadlinePlan("2026-10-25", day, TZ, s, p)).toEqual({ kind: "express", fillBy: "2026-10-18" });
+    expect(deadlinePlan("2026-10-20", day, TZ, s, p)?.kind).toBe("late");
+    expect(deadlinePlan("2026-10-01", day, TZ, s, p)).toBeNull();
+  });
+
+  it("согласие и возражения по-русски и по-казахски", () => {
+    for (const t of ["да", "Хорошо давайте", "Оформляем", "иә", "Жақсы, бастайық", "готова", "+"]) expect(isAgree(t), t).toBe(true);
+    for (const t of ["Хорошо, сейчас ознакомлюсь", "да, а доставка сколько?", "да, но дорого", "нет"]) expect(isAgree(t), t).toBe(false);
+    expect(objectionKind("Рахмет көрдім бағасы қымбат")).toBe("price");
+    expect(objectionKind("Оған ақшам жоқ")).toBe("price");
+    expect(objectionKind("давайте я внесу предоплату во вторник")).toBe("later");
+    expect(objectionKind("Келесі ай жазамын бұйырса")).toBe("later");
   });
 });

@@ -114,6 +114,7 @@ export function botStatus(rec: BotRecord | null, fields: DealField[]): BotStatus
     return { label: null, tone: "none", canStop: false, canStart: true };
   }
   if (s.phase === "waiting" && rec?.botStep !== BOT_DONE) return { label: "Бот ответит, если менеджер не ответит раньше", tone: "waiting", canStop: true, canStart: false };
+  if (s.phase === "active" && rec?.botStep !== BOT_DONE && s.stage === "offer") return { label: "Бот сделал предложение — ждёт ответа клиента", tone: "active", canStop: true, canStart: false };
   if (s.phase === "active" && rec?.botStep !== BOT_DONE) {
     const i = s.asking ? s.questions.indexOf(s.asking) : -1;
     const label = fields.find((f) => f.key === s.asking)?.label;
