@@ -317,6 +317,8 @@ export class Order extends AggregateRoot<OrderProps> {
       return none;
     }
     if (from === "cancelled" && to === "pending_payment") throw new OrderingError("invalidTransition", "cancelled order cannot wait for payment again");
+    // Отменённый неоплаченный заказ не оживает в обход оплаты (печать, «оплачен», «доставлен»); оплаченный — можно вернуть по ошибке отмены.
+    if (from === "cancelled" && !this.props.paidAt) throw new OrderingError("paymentRule", "Заказ отменён и не оплачен: оформите новый заказ или примите оплату по нему отдельно");
     // Неоплаченный заказ не уходит в печать и дальше в обход: оплата или явная постоплата (иначе деньги «потеряются»).
     if (from === "pending_payment" && to !== "paid") throw new OrderingError("paymentRule", "Заказ не оплачен: примите оплату или отправьте в печать с постоплатой");
     this.props.status = to;

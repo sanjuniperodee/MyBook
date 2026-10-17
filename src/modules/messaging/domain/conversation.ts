@@ -1,4 +1,4 @@
-import { isPhoneLike, normalizePhone } from "@/shared/domain/phone";
+import { isPhoneLike, normalizePhone, phoneTail } from "@/shared/domain/phone";
 import { statusRank } from "@/modules/messaging/domain/wazzup";
 
 export type { WazzupIncoming as InboundMessage, WazzupStatus as DeliveryStatus } from "@/modules/messaging/domain/wazzup";
@@ -83,4 +83,9 @@ export function contactChanges(c: Conversation, m: { contactName: string; avatar
 /** «Доставлено» не откатывается до «отправлено», если вебхуки пришли не по порядку; ошибка — всегда. */
 export function shouldApplyStatus(current: string, next: string) {
   return next === "error" || (statusRank[next] ?? 0) > (statusRank[current] ?? 0);
+}
+
+/** Имя из канала, в котором клиент записал номер («+7 701 234 56 78», «Мама 87012345678»): номер скрыт до «…5678». */
+export function safeContactName(name: string) {
+  return name.replace(/\+?\d[\d\s().-]{8,}\d/g, (m) => phoneTail(m) || "…");
 }
