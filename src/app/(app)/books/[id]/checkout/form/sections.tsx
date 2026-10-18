@@ -2,11 +2,11 @@
 
 import { Link, useMessages } from "@/i18n/client";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
-import { Check, LoaderCircle, Minus, Plus, Tag, X } from "lucide-react";
+import { Check, Globe, LoaderCircle, Minus, Plus, Tag, X } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
-import { formatPrice, getDeliveryOptions, getPlan, getVisiblePlans, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getDeliveryOptions, getPlan, getVisiblePlans, isQuotedDelivery, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { orderByDate, startOfDay } from "@/lib/occasions";
 import type { PromoPreview } from "../actions";
@@ -26,6 +26,8 @@ export interface SummaryPrice {
   total: number;
   /** Выбранное и бесплатное по договорённости (упаковка, доставка). */
   gifted?: readonly AgreementGift[];
+  /** Доставка в другую страну: в итог не входит, стоимость рассчитает менеджер. */
+  deliveryQuoted?: boolean;
 }
 
 /** Поле промокода: применённый (value), ввод, проверка и ошибка — usePromo. */
@@ -200,12 +202,26 @@ export function DeliverySection({ delivery, onDelivery, gifts = [] }: { delivery
               <div className="font-medium">{c.delivery[d.id].name}</div>
               <div className="text-sm text-muted">{c.delivery[d.id].description}</div>
             </div>
-            <div className="text-sm font-medium">{!d.price ? c.free : gifts.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : formatPrice(d.price)}</div>
+            <div className="text-right text-sm font-medium">{d.quoted ? <span className="text-muted">{t.abroad.price}</span> : !d.price ? c.free : gifts.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : formatPrice(d.price)}</div>
           </label>
         ))}
       </div>
+      {isQuotedDelivery(delivery) ? (
+        <p className="mt-4 flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-sm text-amber-900" data-testid="abroad-note">
+          <Globe className="mt-0.5 size-4 shrink-0" />
+          {t.abroad.note}
+        </p>
+      ) : null}
       {delivery !== "pickup" ? (
         <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_2fr]">
+          {isQuotedDelivery(delivery) ? (
+            <div className="sm:col-span-2 sm:max-w-sm">
+              <label className="label" htmlFor="country">
+                {t.country}
+              </label>
+              <input className="input" id="country" name="country" required minLength={2} maxLength={60} placeholder={t.countryPlaceholder} autoComplete="country-name" />
+            </div>
+          ) : null}
           <div>
             <label className="label" htmlFor="city">
               {t.city}
@@ -222,7 +238,7 @@ export function DeliverySection({ delivery, onDelivery, gifts = [] }: { delivery
             <label className="label" htmlFor="postalCode">
               {t.postalCode}
             </label>
-            <input className="input" id="postalCode" name="postalCode" maxLength={20} autoComplete="postal-code" />
+            <input className="input" id="postalCode" name="postalCode" required={isQuotedDelivery(delivery)} maxLength={20} autoComplete="postal-code" />
           </div>
         </div>
       ) : null}
@@ -265,8 +281,8 @@ export function GiftSection({ now, today, desiredDate, onDesiredDate, occasionLa
           {fit ? (
             fit.ok ? (
               <p className="mt-1.5 text-xs text-emerald-700" data-testid="date-fit">
-                <Check className="mr-0.5 inline size-3" /> {t.fitOk}
-                {occasionLabel ? t.fitOccasion(occasionLabel) : ""}
+                <Check className="mr-0.5 inline size-3" /> {isQuotedDelivery(delivery) ? t.abroad.fitOk : t.fitOk}
+                {occasionLabel && !isQuotedDelivery(delivery) ? t.fitOccasion(occasionLabel) : ""}
               </p>
             ) : fit.premiumOk && !express ? (
               <p className="mt-1.5 text-xs text-amber-700" data-testid="date-fit">
@@ -284,7 +300,7 @@ export function GiftSection({ now, today, desiredDate, onDesiredDate, occasionLa
               </p>
             ) : (
               <p className="mt-1.5 text-xs text-amber-700" data-testid="date-fit">
-                {delivery === "post" ? t.fitPost : t.fitNo}
+                {isQuotedDelivery(delivery) ? t.abroad.fitNo : delivery === "post" ? t.fitPost : t.fitNo}
               </p>
             )
           ) : (
@@ -341,7 +357,7 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
   const m = useMessages();
   const t = m.checkout;
   const c = m.common;
-  const { items, discountAmount, agreedDiscount, prepaidApplied, addons, deliveryPrice, total, gifted = [] } = price;
+  const { items, discountAmount, agreedDiscount, prepaidApplied, addons, deliveryPrice, total, gifted = [], deliveryQuoted = false } = price;
   const applied = promo.value;
   return (
   <aside>
@@ -387,7 +403,7 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
         {plan.printed ? (
           <div className="flex justify-between">
             <dt className="text-muted">{t.delivery}</dt>
-            <dd>{gifted.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
+            <dd>{deliveryQuoted ? <span className="text-muted">{t.abroad.price}</span> : gifted.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
           </div>
         ) : null}
       </dl>
@@ -434,6 +450,11 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
         <span className="font-medium">{t.toPay}</span>
         <span className="font-serif text-3xl font-medium">{formatPrice(total)}</span>
       </div>
+      {deliveryQuoted ? (
+        <p className="mt-1 text-right text-xs text-muted" data-testid="abroad-total">
+          {t.abroad.total}
+        </p>
+      ) : null}
       {error ? <Alert className="mt-4">{error}</Alert> : null}
       <label className="mt-5 flex items-start gap-2.5 text-xs text-muted">
         <input type="checkbox" name="consent" required className="mt-0.5 size-4 accent-wine" />
@@ -456,13 +477,14 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
 }
 
 /** На телефоне итог уезжает вниз — держим сумму и кнопку под рукой. */
-export function MobileBar({ total }: { total: number }) {
+export function MobileBar({ total, deliveryQuoted = false }: { total: number; deliveryQuoted?: boolean }) {
   const t = useMessages().checkout;
   return (
   <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
     <div className="min-w-0 flex-1">
       <div className="text-xs text-muted">{t.toPay}</div>
       <div className="font-serif text-2xl leading-none tabular-nums">{formatPrice(total)}</div>
+      {deliveryQuoted ? <div className="mt-0.5 truncate text-[11px] text-muted">{t.abroad.total}</div> : null}
     </div>
     <SubmitButton className="h-11" pendingText={t.pending}>
       {t.submitShort}

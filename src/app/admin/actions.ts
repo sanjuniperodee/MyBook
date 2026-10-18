@@ -194,7 +194,8 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
       contactName: z.string().trim().min(1, "Укажите имя").max(100),
       contactPhone: z.string().trim().min(5, "Укажите телефон").max(30),
       contactEmail: z.string().trim().toLowerCase().email("Проверьте e-mail"),
-      deliveryMethod: z.enum(["pickup", "courier", "post"]).or(z.literal("")).optional(),
+      deliveryMethod: z.enum(["pickup", "courier", "post", "abroad"]).or(z.literal("")).optional(),
+      country: z.string().trim().max(60).optional(),
       city: z.string().trim().max(100).optional(),
       address: z.string().trim().max(300).optional(),
       postalCode: z.string().trim().max(20).optional(),
@@ -209,7 +210,7 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
       {
         orderId,
         contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
-        delivery: { method: d.deliveryMethod || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
+        delivery: { method: d.deliveryMethod || null, country: d.country || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
         desiredDate: d.desiredDate || null,
         giftNote: d.giftNote || null,
       },

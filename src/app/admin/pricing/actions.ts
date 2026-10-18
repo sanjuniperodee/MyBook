@@ -37,7 +37,8 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
       };
     }
     for (const a of factoryCatalog.addons) next.addons![a.id] = { price: money(form, `addon_${a.id}_price`, addonLabels[a.id]) };
-    for (const d of factoryCatalog.delivery) next.delivery![d.id] = { price: money(form, `delivery_${d.id}_price`, deliveryLabels[d.id]) };
+    // Доставку в другую страну считает менеджер — цены у неё нет.
+    for (const d of factoryCatalog.delivery) if (!d.quoted) next.delivery![d.id] = { price: money(form, `delivery_${d.id}_price`, deliveryLabels[d.id]) };
   } catch (err) {
     return { error: (err as Error).message };
   }

@@ -59,6 +59,15 @@ export function registerSubscriptions(c: Container) {
     },
     "crm.task.prepaid_excess",
   );
+  // Доставка в другую страну: стоимость в заказ не вошла — менеджер считает её и согласует с клиентом.
+  c.bus.subscribe<OrderPlaced>(
+    "ordering.order_placed",
+    async (e) => {
+      const abroad = e.payload.deliveryAbroad;
+      if (abroad) await orderTask(e.payload.orderId, `Рассчитать доставку в другую страну (${[abroad.country, abroad.city].filter(Boolean).join(", ") || "страна не указана"}) по заказу №${e.payload.number} и согласовать с клиентом стоимость и оплату`);
+    },
+    "crm.task.delivery_abroad",
+  );
   c.bus.subscribe<PaymentClaimed>("ordering.payment_claimed", (e) => tellManager(e.payload.orderId, () => `Проверьте оплату заказа №${e.payload.number}`, (t) => `${t} · клиент сообщил, что оплатил`), "crm.notify.payment_claimed");
 
   // ─── счёт из чата → CRM: заметки и уведомления (каждый подписчик идемпотентен: outbox повторяет только упавших) ──

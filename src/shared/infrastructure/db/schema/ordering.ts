@@ -50,6 +50,8 @@ export const orders = pgTable(
     contactPhone: text("contact_phone").notNull(),
     contactEmail: text("contact_email").notNull(),
     deliveryMethod: text("delivery_method"),
+    /** Страна доставки — только для доставки в другую страну (abroad, стоимость считает менеджер). */
+    deliveryCountry: text("delivery_country"),
     city: text("city"),
     address: text("address"),
     postalCode: text("postal_code"),

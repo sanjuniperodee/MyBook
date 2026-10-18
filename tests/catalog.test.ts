@@ -13,7 +13,7 @@ describe("цены из админки", () => {
     expect(getPlan("hardcover")).toMatchObject({ price: 30000, extraCopyPrice: 17900 });
     expect(getVisiblePlans().map((p) => p.id)).toEqual(["digital", "hardcover"]);
     expect(getAddons().map((a) => [a.id, a.price])).toEqual([["express", 5000], ["giftwrap", 5000]]);
-    expect(getDeliveryOptions().map((d) => [d.id, d.price])).toEqual([["courier", 2000], ["post", 3500], ["pickup", 0]]);
+    expect(getDeliveryOptions().map((d) => [d.id, d.price])).toEqual([["courier", 2000], ["post", 3500], ["pickup", 0], ["abroad", 0]]);
   });
 
   it("переопределения меняют цены, допы, доставку и видимость; расчёт заказа идёт по ним", () => {
@@ -65,7 +65,7 @@ describe("подписи каталога в CRM", () => {
   it("одна подпись на каждый тариф, доп и способ доставки; порядок доставки — как в списках выбора", () => {
     expect(planLabels).toEqual({ digital: "Электронная версия", hardcover: "Твёрдая обложка", premium: "Премиум" });
     expect(addonLabels).toEqual({ express: "Экспресс-печать", giftwrap: "Подарочная упаковка" });
-    expect(Object.entries(deliveryLabels)).toEqual([["courier", "Курьер по городу"], ["post", "Доставка по Казахстану"], ["pickup", "Самовывоз"]]);
+    expect(Object.entries(deliveryLabels)).toEqual([["courier", "Курьер по городу"], ["post", "Доставка по Казахстану"], ["pickup", "Самовывоз"], ["abroad", "В другую страну (стоимость считает менеджер)"]]);
     expect(Object.keys(planLabels).sort()).toEqual(getPlans().map((p) => p.id).sort());
     expect(Object.keys(addonLabels).sort()).toEqual(getAddons().map((a) => a.id).sort());
     expect(Object.keys(deliveryLabels).sort()).toEqual(getDeliveryOptions().map((d) => d.id).sort());

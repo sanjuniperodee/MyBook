@@ -22,6 +22,7 @@ export const BOT_VARS: { key: string; label: string }[] = [
   { key: "{доставка.курьер}", label: "курьер" },
   { key: "{доставка.почта}", label: "по Казахстану" },
   { key: "{доставка.самовывоз}", label: "самовывоз" },
+  { key: "{доставка.заграница}", label: "в другую страну" },
   { key: "{экспресс}", label: "экспресс-печать" },
   { key: "{упаковка}", label: "подарочная упаковка" },
   { key: "{срок.производства}", label: "печать, рабочих дней" },
@@ -47,6 +48,8 @@ export function catalogVars(c: BotCatalog, lang: BotLang): Record<string, string
     "доставка.курьер": v(delivery("courier")),
     "доставка.почта": v(delivery("post")),
     "доставка.самовывоз": v(delivery("pickup")),
+    // Стоимость доставки в другую страну считает менеджер — цены нет.
+    "доставка.заграница": delivery("abroad") ? (lang === "kk" ? "құнын менеджер бөлек есептейді" : "стоимость рассчитает менеджер отдельно") : "",
     экспресс: v(addon("express")),
     упаковка: v(addon("giftwrap")),
     "срок.производства": c.productionDays.standard,

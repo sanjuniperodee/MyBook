@@ -29,6 +29,7 @@ const schema = (e: CheckoutErrors) =>
         .trim()
         .regex(/^[+\d][\d\s()-]{9,20}$/, e.phone),
       contactEmail: z.string().trim().toLowerCase().email(e.email),
+      country: z.string().trim().max(60).optional(),
       city: z.string().trim().max(100).optional(),
       address: z.string().trim().max(300).optional(),
       postalCode: z.string().trim().max(20).optional(),
@@ -51,10 +52,13 @@ const schema = (e: CheckoutErrors) =>
       if (!plan?.printed) return;
       const del = getDeliveryOptions().find((o) => o.id === d.delivery);
       if (!del) ctx.addIssue({ code: "custom", message: e.delivery });
+      if (del && del.quoted && (!d.country || d.country.length < 2)) ctx.addIssue({ code: "custom", message: e.country });
       if (del && del.id !== "pickup") {
         if (!d.city) ctx.addIssue({ code: "custom", message: e.city });
         if (!d.address || d.address.length < 5) ctx.addIssue({ code: "custom", message: e.address });
       }
+      // За границу без индекса не отправить.
+      if (del && del.quoted && !d.postalCode) ctx.addIssue({ code: "custom", message: e.postalCode });
     });
 
 export async function createOrderAction(_: CheckoutState, form: FormData): Promise<CheckoutState> {
@@ -78,7 +82,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       bookId: d.bookId,
       plan: plan.id,
       quantity: d.quantity,
-      delivery: { method: plan.printed ? (d.delivery as DeliveryId) : null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
+      delivery: { method: plan.printed ? (d.delivery as DeliveryId) : null, country: d.country || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
       addons: d.addons ? d.addons.split(",") : [],
       contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
       promoCode: d.promoCode || undefined,

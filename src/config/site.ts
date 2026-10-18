@@ -31,7 +31,7 @@ export const site = {
  */
 
 export type PlanId = "digital" | "hardcover" | "premium";
-export type DeliveryId = "pickup" | "courier" | "post";
+export type DeliveryId = "pickup" | "courier" | "post" | "abroad";
 export type AddonId = "express" | "giftwrap";
 
 export interface Plan {
@@ -51,6 +51,8 @@ export interface DeliveryOption {
   price: number;
   /** Максимальный срок доставки, дней — для расчёта «успеть к дате». */
   maxDays: number;
+  /** Стоимость считает менеджер отдельно (другая страна): в сумму заказа не входит, цены в админке нет. */
+  quoted?: boolean;
 }
 
 /** Дополнения к печатному заказу. hiddenFor — тарифы, где услуга уже включена. */
@@ -91,6 +93,7 @@ const defaultDelivery: readonly DeliveryOption[] = [
   { id: "courier", price: 2000, maxDays: 2 },
   { id: "post", price: 3500, maxDays: 7 },
   { id: "pickup", price: 0, maxDays: 0 },
+  { id: "abroad", price: 0, maxDays: 21, quoted: true },
 ];
 
 const defaultAddons: readonly Addon[] = [
@@ -127,6 +130,7 @@ export function sanitizeOverrides(raw: unknown): CatalogOverrides {
     if (v !== undefined) (out.addons ??= {})[d.id] = { price: v };
   }
   for (const d of defaultDelivery) {
+    if (d.quoted) continue;
     const v = price(o.delivery?.[d.id]?.price);
     if (v !== undefined) (out.delivery ??= {})[d.id] = { price: v };
   }
@@ -198,6 +202,8 @@ export const getPlans = (): readonly Plan[] => current().plans;
 export const getVisiblePlans = (): readonly Plan[] => current().visible;
 export const getAddons = (): readonly Addon[] => current().addons;
 export const getDeliveryOptions = (): readonly DeliveryOption[] => current().delivery;
+/** Доставку считает менеджер отдельно (в другую страну): в заказе 0 ₸, клиенту — «рассчитает менеджер». */
+export const isQuotedDelivery = (id: string | null | undefined): boolean => !!id && defaultDelivery.some((d) => d.id === id && d.quoted);
 
 export function availableAddons(plan: PlanId) {
   return getAddons().filter((a) => !a.hiddenFor.includes(plan));

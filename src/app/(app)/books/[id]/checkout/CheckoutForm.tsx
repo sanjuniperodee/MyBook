@@ -4,7 +4,7 @@ import { useMessages } from "@/i18n/client";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { track } from "@/lib/analytics-client";
 import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPreview } from "./actions";
-import { availableAddons, getPlan, getPlans, getVisiblePlans, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { availableAddons, getPlan, getPlans, getVisiblePlans, isQuotedDelivery, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
@@ -107,7 +107,7 @@ export function CheckoutForm({
       <Summary
         plan={plan}
         qty={qty}
-        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total, gifted: quote.price.gifted ?? [] }}
+        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total, gifted: quote.price.gifted ?? [], deliveryQuoted: plan.printed && isQuotedDelivery(delivery) }}
         promo={promoField}
         upgrade={upgrade}
         offered={offered}
@@ -115,7 +115,7 @@ export function CheckoutForm({
         blocked={blocked}
       />
 
-      <MobileBar total={total} />
+      <MobileBar total={total} deliveryQuoted={plan.printed && isQuotedDelivery(delivery)} />
     </form>
   );
 }
