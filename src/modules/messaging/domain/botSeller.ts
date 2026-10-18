@@ -199,7 +199,7 @@ export interface ReplyRules {
 }
 
 export interface ReplyProblem {
-  kind: "price" | "percent" | "url" | "sensitive" | "empty" | "language";
+  kind: "price" | "percent" | "url" | "sensitive" | "empty" | "language" | "rule";
   detail: string;
 }
 
@@ -290,6 +290,8 @@ export interface SellerTurnContext {
   lastBotText?: string | null;
   /** Бот уже писал клиенту за последние часы — второй раз не здоровается (напоминание на следующий день — может). */
   greeted?: boolean;
+  /** Бот ещё не писал в этом чате: ответ должен начаться с представления; greet — и с приветствия (давно не общались). */
+  intro?: { greet: boolean } | null;
 }
 
 const HANDOFF_REASON: Record<Exclude<SellerHandoff, "none">, string> = {
@@ -373,8 +375,15 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
     }
   }
 
+  // Бот ещё не писал в этом чате, а модель забыла представиться — представление добавляет код (владелец: «Айгерим»).
+  if (reply && ctx.intro && d.action !== "wait" && !reply.toLowerCase().includes(env.config.sell.botName.toLowerCase())) {
+    reply = `${introLine(env.config.sell, d.lang, ctx.intro.greet)}\n\n${withoutGreeting(reply)}`;
+  }
+
   // Бот повторил своё прошлое сообщение слово в слово: диалог ходит по кругу (чужой автоответчик, непонимание) — человек.
-  if (reply && ctx.lastBotText && (squash(reply) === squash(ctx.lastBotText) || squash(d.reply) === squash(ctx.lastBotText)) && d.action === "reply") {
+  // Прошлый ход мог уйти несколькими сообщениями (с представлением) — повтор его последней части тоже петля.
+  const repeats = (a: string, b: string) => !!squash(a) && (squash(a) === squash(b) || (squash(a).length > 12 && squash(b).endsWith(squash(a))));
+  if (reply && ctx.lastBotText && (repeats(reply, ctx.lastBotText) || repeats(d.reply, ctx.lastBotText)) && d.action === "reply") {
     events.push({ kind: "handoff", reason: "loop" });
     return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: null });
   }
@@ -434,6 +443,11 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       return finish({ phase: "done", outcome: "declined", reason: null, asking: null }, { reply });
     case "handoff": {
       const why = d.handoff === "none" ? "unsure" : d.handoff;
+      // На первое «дорого» бот не сдаётся менеджеру: сначала сам предлагает варианты (владелец: «дожимать»).
+      if (why === "objection" && readSellerAi(prev.ai).objections < 1 && !ctx.second && !env.paid) {
+        events.push({ kind: "blocked", reason: "ai_reply: handoff на первом возражении" });
+        return { state: prev, reply: null, fields: {}, events, done: false, invoice: null, retry: [{ kind: "rule", detail: "рано передавать менеджеру — это первое возражение: сама ответь на него вариантами из фактов и закончи вопросом (action=reply, stage=objection)" }] };
+      }
       events.push({ kind: "handoff", reason: why });
       ai.stage = "handoff";
       s.lastBotAt = reply ? env.now.toISOString() : s.lastBotAt;
@@ -484,6 +498,12 @@ const weekdayOf = (iso: string) => WEEKDAYS[new Date(`${iso}T00:00:00Z`).getUTCD
 const kzt = (n: number) => `${new Intl.NumberFormat("ru-RU").format(n)} ₸`;
 
 const LEADING_GREETING = /^\s*(?:здравствуйте|здравствуй|добрый\s+(?:день|вечер)|доброе\s+утро|доброй\s+ночи|привет|сәлеметсіз\s+бе|салеметсиз\s+бе|салем|сәлем|қайырлы\s+(?:күн|таң|кеш))(?:[\s,]+[\p{Lu}][\p{L}-]*)?\s*[!.,]*\s*(?:[😊🙂👋🤗☺️]\s*)*/iu;
+
+/** Представление продажника — в начале первого её сообщения в чате. */
+export function introLine(sell: Pick<BotSell, "botName" | "managerName">, lang: BotLang, greet: boolean): string {
+  if (lang === "kk") return `${greet ? "Сәлеметсіз бе! 😊 " : ""}Мен ${sell.botName}, ${sell.managerName} менеджердің көмекшісімін${greet ? "." : " 🙂"}`;
+  return greet ? `Здравствуйте! 😊 Меня зовут ${sell.botName}, я помощница менеджера ${ruCase(sell.managerName, "gen")}.` : `Это ${sell.botName}, помощница менеджера ${ruCase(sell.managerName, "gen")} 🙂`;
+}
 
 /** «Здравствуйте, Алишер! 😊 Подскажите…» → «Подскажите…»: второй раз в одном чате бот не здоровается. */
 export function withoutGreeting(reply: string): string {
@@ -703,7 +723,9 @@ export function sellerSystemPrompt(i: SellerPromptInput): string {
           "4. Срок: когда знаешь дату (и лучше город) — скажи по блоку «Срок», успеваем ли и до какого дня дописать книгу. Не успеваем — честно, предложи другую дату или электронную версию.",
           price,
           close,
-          `7. Возражения. «Дорого»: «Понимаю вас 🙂», напомни ценность, скажи, что ${mgr} подберёт удобный вариант (рассрочка и Kaspi Red — если они есть в фактах). «Подумаю / позже / напишу сама»: без давления, «Конечно 😊 Если будут вопросы — пишите»; если есть дата — мягко напомни, к какому дню нужно начать. Второе возражение подряд — предложи, что ${mgr} свяжется и подберёт вариант (action=handoff, handoff_reason=objection).`,
+          sell.hidePrices
+            ? `7. Возражения — дожимай сама, не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции), предложи то, что есть в фактах (рассрочка 0-0-12, Kaspi Red, предоплата, электронная версия) и задай вопрос, чтобы продолжить («Какой вариант вам удобнее?»). «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию. Передавай ${dat} (action=handoff, handoff_reason=objection), только если клиент просит скидку или особые условия, или отказывается снова уже после твоих вариантов. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение.`
+            : `7. Возражения — дожимай сама, не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции) и предложи варианты из фактов: начать с предоплаты (остальное — когда книга готова), рассрочка 0-0-12 или Kaspi Red, электронная версия дешевле; акция — если есть. Закончи вопросом («Какой вариант вам удобнее?» / «Оформляем с предоплатой?»). «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию. Передавай ${dat} (action=handoff, handoff_reason=objection), только если клиент просит скидку или торгуется (скидку даёт только он) или отказывается снова уже после твоих вариантов. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение.`,
         ].join("\n"),
     `8. Передавай беседу ${dat} (action=handoff), когда: просит менеджера или звонок; пишет «я оплатил(а)» или присылает чек; проблема с оплатой или заказом; жалоба; нестандартная просьба (несколько книг, тираж, бизнес, особый формат, встреча); ты не знаешь ответа и в фактах его нет. Скажи это тепло и коротко и когда он ответит (рабочее время — скоро; нерабочее — когда начнётся).`,
     "9. Клиент просто благодарит или прощается — action=wait, reply пустой. Клиент отказался насовсем — тепло попрощайся («Хорошо, если что — мы на связи 😊», action=close_lost).",
@@ -728,7 +750,7 @@ export function sellerSystemPrompt(i: SellerPromptInput): string {
       ? `\n## Режим: продолжение начатой переписки\n${mgr} не ответил клиенту ${i.takeoverMinutes} мин, и ты подхватываешь беседу. Прочитай всю переписку. Если ты ещё не писала в этом чате — начни с короткого «Это ${bot}, помощница ${gen} 🙂» (без нового «здравствуйте», если уже здоровались). Продолжай ровно с того места, где остановились, в том же тоне. Ждал давно — коротко извинись («Простите за ожидание»), не больше одного раза. Не противоречь тому, что уже сказал ${mgr}, не повторяй его вопросов. Если ${mgr} уже назвал клиенту цену или условия — не называй других, детали уточнит он.`
       : "",
     i.purpose === "follow_up" ? followUpRules(i.followUps, mgr) : "",
-    i.retry?.length ? `\n## Исправление\nТвой предыдущий ответ не прошёл проверку: ${problemsText(i.retry)}. Эти значения (суммы, проценты, ссылки, номера) нельзя использовать, их нет в фактах. Перепиши ответ без них.` : "",
+    i.retry?.length ? `\n## Исправление\nТвой предыдущий ответ не прошёл проверку: ${problemsText(i.retry)}. Если это правило (rule) — сделай, как в нём сказано. Эти значения (суммы, проценты, ссылки, номера) нельзя использовать, их нет в фактах. Перепиши ответ без них.` : "",
     "",
     "## Формат ответа",
     "Верни JSON по схеме. summary — 1–2 предложения по-русски для менеджера: чего хочет клиент и на каком вы этапе. language — язык reply. stage — этап беседы. action — reply (ответить), wait (молчать), issue_invoice (клиент готов оформить, см. п.6), handoff (позвать менеджера), close_lost (отказ). fields — значения полей сделки, которые клиент ПРЯМО назвал (иначе пустая строка). event_date — дата, к которой нужна книга, ГГГГ-ММ-ДД (относительные даты считай от сегодняшней; иначе пустая строка). city — город клиента, если он его назвал (иначе пустая строка). plan — формат, который выбрал клиент (hardcover — печатная, digital — электронная, premium, иначе unknown). asked_to_order — true, только если твой reply прямо предлагает оформить. agreed/agreed_quote — только как в п.6.",

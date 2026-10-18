@@ -323,8 +323,12 @@ export class AiSeller {
   private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>) {
     // Бот писал за последние 6 часов — он уже поздоровался; через сутки «Добрый день!» снова уместно.
     const lastBot = [...history].reverse().find((m) => m.from === "bot");
-    const greeted = !!lastBot && this.d.clock.now().getTime() - new Date(lastBot.at).getTime() < 6 * 3_600_000;
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted };
+    const now = this.d.clock.now().getTime();
+    const greeted = !!lastBot && now - new Date(lastBot.at).getTime() < 6 * 3_600_000;
+    // Бот здесь ещё не писал — представится; поздоровается, если с клиентом давно (6 ч) никто не переписывался от нас.
+    const lastOurs = [...history].reverse().find((m) => m.from !== "client");
+    const intro = lastBot ? null : { greet: !lastOurs || now - new Date(lastOurs.at).getTime() > 6 * 3_600_000 };
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro };
   }
 
   /**
