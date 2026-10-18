@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
   },
+  // На сервере деплоя (2 ядра, 4 ГБ, рядом работающий сайт) проверка типов Next не помещается в память и роняет сборку;
+  // типы проверяются до пуша (npx tsc), поэтому deploy/deploy.sh её пропускает (MYBOOK_SKIP_TYPECHECK=1).
+  typescript: { ignoreBuildErrors: process.env.MYBOOK_SKIP_TYPECHECK === "1" },
   poweredByHeader: false,
   env: { COVER_ART_VERSION: coverArtVersion() },
   async headers() {

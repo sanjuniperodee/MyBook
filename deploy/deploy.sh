@@ -43,7 +43,7 @@ trap on_exit EXIT
 # отвечает медленно. Поэтому сборке — одно ядро и мягкий потолок памяти (cgroup через systemd-run), низший приоритет
 # процессора и диска. Нет systemd-run для пользователя — только приоритеты.
 BUILD_CPU="${MYBOOK_BUILD_CPU:-100%}"
-BUILD_MEM="${MYBOOK_BUILD_MEM:-1800M}"
+BUILD_MEM="${MYBOOK_BUILD_MEM:-2200M}"
 limited() {
   if systemd-run --user --scope -q -p CPUQuota=50% true >/dev/null 2>&1; then
     systemd-run --user --scope -q -p CPUQuota="$BUILD_CPU" -p MemoryHigh="$BUILD_MEM" nice -n 19 ionice -c 3 "$@"
@@ -63,7 +63,11 @@ else
 fi
 
 echo "→ Сборка (одно ядро, низкий приоритет — сайт продолжает отвечать быстро)"
-NEXT_TELEMETRY_DISABLED=1 limited npm run build
+# Проверка типов внутри next build не помещается в память сервера (падала с heap out of memory) — типы проверяются до
+# пуша (npx tsc --noEmit); MYBOOK_TYPECHECK=1 вернёт проверку при сборке.
+SKIP_TS=1
+[ "${MYBOOK_TYPECHECK:-0}" = 1 ] && SKIP_TS=0
+MYBOOK_SKIP_TYPECHECK="$SKIP_TS" NEXT_TELEMETRY_DISABLED=1 limited npm run build
 
 echo "→ Релиз $SHA"
 REL="$RELEASES/$(date +%Y%m%d-%H%M%S)-$SHA"
