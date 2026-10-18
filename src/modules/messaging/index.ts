@@ -209,7 +209,7 @@ export class MessagingModule {
     if (!bytes) throw new MessageActionError("Файл голосового недоступен");
     const res = await model.media({ system: SELLER_MEDIA_PROMPT.audio, parts: [{ kind: "audio", data: Buffer.from(bytes.data).toString("base64"), mime: bytes.mime || "audio/ogg" }], timeoutMs: 60_000 }).catch(() => null);
     if (!res) throw new MessageActionError("Не удалось расшифровать — попробуйте ещё раз");
-    if ("unsupported" in res) throw new MessageActionError("Выбранная модель не слушает голосовые — выберите Gemini в «Интеграции» → AI → «Голосовые и фото»");
+    if ("unsupported" in res) throw new MessageActionError(`Не расшифровать: ${res.reason ?? "модель не слушает голосовые"}. «Интеграции» → AI → «Голосовые и фото»`);
     const text = res.text.trim().slice(0, 4000) || "(неразборчиво)";
     await this.messages.setTranscript(m.id, text);
     return text;

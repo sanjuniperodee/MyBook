@@ -20,6 +20,9 @@ export const mediaSrc = (m: Msg) => m.localSrc ?? (m.gateway ? `/api/admin/chats
 
 export const isTemp = (m: Msg) => m.id.startsWith("tmp-");
 
+/** Подписи-заглушки вложений из канала («🎤 Голосовое сообщение») — под самим вложением они лишние. */
+const PLACEHOLDERS = new Set(["🎤 Голосовое сообщение", "📷 Фото", "🎬 Видео", "📎 Файл", "Голосовое сообщение"]);
+
 /** Короткое описание сообщения — для цитаты, пересылки и подсказок. */
 export function snippet(m: Pick<ChatMessage, "type" | "text">) {
   const label = m.type === "image" ? "📷 Фото" : m.type === "video" ? "🎬 Видео" : m.type === "audio" ? "🎤 Голосовое" : m.type === "document" ? "📎 Файл" : "";
@@ -289,7 +292,7 @@ export function MessageBubble({
             <div className={m.type !== "text" ? "pt-1" : undefined}>
               <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />
             </div>
-            {m.text ? (
+            {m.text && !(m.type !== "text" && PLACEHOLDERS.has(m.text.trim())) ? (
               <p className="break-words whitespace-pre-wrap">
                 <Linkified text={m.text} out={false} />
                 {/* Место под время справа, чтобы оно не наезжало на последнюю строку. */}

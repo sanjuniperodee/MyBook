@@ -36,6 +36,14 @@ export const aiProviders = {
     keysUrl: "https://openrouter.ai/settings/keys",
     keyPlaceholder: "sk-or-…",
   },
+  groq: {
+    label: "Groq",
+    title: "Groq (бесплатно: Whisper для голосовых)",
+    defaultModel: "llama-3.3-70b-versatile",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
+    keysUrl: "https://console.groq.com/keys",
+    keyPlaceholder: "gsk_…",
+  },
   custom: {
     label: "AI",
     title: "Другой (OpenAI-совместимый API)",

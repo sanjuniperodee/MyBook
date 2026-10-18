@@ -245,7 +245,7 @@ export interface BotSellerModel {
    * Распознать вложение (голосовое → расшифровка, фото → описание). { unsupported } — модель распознавания такое не умеет
    * (больше не пробовать в этой беседе); null — временный сбой.
    */
-  media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<{ text: string } | { unsupported: true } | null>;
+  media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<{ text: string } | { unsupported: true; reason?: string } | null>;
 }
 
 /** Файл вложения по id сообщения — для распознавания голосовых и фото моделью продажника. */

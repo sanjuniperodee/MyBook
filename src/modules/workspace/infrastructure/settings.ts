@@ -79,6 +79,10 @@ export const settingDefs = {
   "ai.openrouter.apiKey": { secret: true, env: "OPENROUTER_API_KEY" },
   "ai.openrouter.baseUrl": {},
   "ai.openrouter.model": {},
+  /** Groq: бесплатный Whisper для расшифровки голосовых (и быстрые открытые модели). */
+  "ai.groq.apiKey": { secret: true, env: "GROQ_API_KEY" },
+  "ai.groq.baseUrl": {},
+  "ai.groq.model": {},
   /**
    * Проверка текста в редакторе книги (AI-корректор): свой провайдер (пусто — как у AI-помощника) и своя модель
    * (пусто — модель провайдера), чтобы, например, корректор работал на бесплатной модели OpenRouter, а помощник — на Claude.

@@ -7,11 +7,14 @@ const keys = {
   openai: { apiKey: "ai.openai.apiKey", baseUrl: "ai.openai.baseUrl", model: "ai.openai.model" },
   deepseek: { apiKey: "ai.deepseek.apiKey", baseUrl: "ai.deepseek.baseUrl", model: "ai.deepseek.model" },
   openrouter: { apiKey: "ai.openrouter.apiKey", baseUrl: "ai.openrouter.baseUrl", model: "ai.openrouter.model" },
+  groq: { apiKey: "ai.groq.apiKey", baseUrl: "ai.groq.baseUrl", model: "ai.groq.model" },
   custom: { apiKey: "ai.custom.apiKey", baseUrl: "ai.custom.baseUrl", model: "ai.custom.model" },
 } as const;
 
 /** Модель OpenRouter для голосовых и фото по умолчанию: понимает аудио (ogg из WhatsApp) и изображения, дешёвая и быстрая. */
 export const MEDIA_OPENROUTER_MODEL = "google/gemini-2.5-flash";
+/** Groq: Whisper — бесплатная расшифровка голосовых (фото не понимает). */
+export const MEDIA_GROQ_MODEL = "whisper-large-v3";
 
 /** Ключи настроек провайдера (для формы в «Интеграциях»). */
 export const providerSettingKeys = keys;
@@ -88,7 +91,8 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
    */
   const media: Connection = async () => {
     const [{ provider, own }, model, sellerModel] = await Promise.all([mediaProvider(), settings.get("media.model"), settings.get("seller.model")]);
-    const fallback = provider === "openrouter" ? MEDIA_OPENROUTER_MODEL : own ? "" : sellerModel;
+    // У Groq голосовые расшифровывает бесплатный Whisper.
+    const fallback = provider === "openrouter" ? MEDIA_OPENROUTER_MODEL : provider === "groq" ? MEDIA_GROQ_MODEL : own ? "" : sellerModel;
     return connectionOf(provider, model || fallback);
   };
 

@@ -9,7 +9,7 @@ export interface MediaPart {
 }
 
 /** Итог распознавания: текст; «не умеет» (модель без vision/аудио — больше не пробовать); null — временный сбой. */
-export type MediaRecognition = { text: string } | { unsupported: true };
+export type MediaRecognition = { text: string } | { unsupported: true; reason?: string };
 
 /**
  * Модель AI-продажника: один запрос со схемой JSON. Таймаут короткий (клиент ждёт в чате), без повторов внутри —
