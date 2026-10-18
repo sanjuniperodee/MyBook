@@ -23,6 +23,15 @@ export const isTemp = (m: Msg) => m.id.startsWith("tmp-");
 /** Подписи-заглушки вложений из канала («🎤 Голосовое сообщение») — под самим вложением они лишние. */
 const PLACEHOLDERS = new Set(["🎤 Голосовое сообщение", "📷 Фото", "🎬 Видео", "📎 Файл", "Голосовое сообщение"]);
 
+/**
+ * Есть ли у сообщения свой текст под вложением. Подпись-заглушка («🎤 Голосовое сообщение», «📷 Фото») не показывается,
+ * и тогда время с галочками встаёт отдельной строкой — иначе оно наезжает на плеер голосового («расшифровать», «скачать»)
+ * или на край фото.
+ */
+export function hasCaption(m: Pick<ChatMessage, "type" | "text" | "deleted">): boolean {
+  return !m.deleted && !!m.text && !(m.type !== "text" && PLACEHOLDERS.has(m.text.trim()));
+}
+
 /** Короткое описание сообщения — для цитаты, пересылки и подсказок. */
 export function snippet(m: Pick<ChatMessage, "type" | "text">) {
   const label = m.type === "image" ? "📷 Фото" : m.type === "video" ? "🎬 Видео" : m.type === "audio" ? "🎤 Голосовое" : m.type === "document" ? "📎 Файл" : "";
@@ -292,7 +301,7 @@ export function MessageBubble({
             <div className={m.type !== "text" ? "pt-1" : undefined}>
               <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />
             </div>
-            {m.text && !(m.type !== "text" && PLACEHOLDERS.has(m.text.trim())) ? (
+            {hasCaption(m) ? (
               <p className="break-words whitespace-pre-wrap">
                 <Linkified text={m.text} out={false} />
                 {/* Место под время справа, чтобы оно не наезжало на последнюю строку. */}
@@ -301,7 +310,8 @@ export function MessageBubble({
             ) : null}
           </>
         )}
-        <div className={cn("flex items-center justify-end gap-1 text-[11px] leading-none text-muted tabular-nums", m.text && !m.deleted ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-0.5")}>
+        {/* С текстом время встаёт в зарезервированное место его последней строки; без текста — своей строкой под вложением. */}
+        <div className={cn("flex items-center justify-end gap-1 text-[11px] leading-none text-muted tabular-nums", hasCaption(m) ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-1")}>
           {m.edited && !m.deleted ? <span className="italic">изменено</span> : null}
           {time(m.at, timeZone)}
           {out ? <StatusIcon status={m.status} /> : null}
