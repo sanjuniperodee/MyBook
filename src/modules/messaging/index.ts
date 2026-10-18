@@ -10,7 +10,7 @@ import { GOWA_CHANNEL, gowaJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { chatFiles } from "./infrastructure/chatFiles";
-import { parseCoachLog, parseLessons, type BotLesson, type CoachRun } from "./domain";
+import { mediaLine, parseCoachLog, parseLessons, type BotLesson, type CoachRun } from "./domain";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
 import type { Conversation, HistoryMessage } from "./domain";
@@ -230,10 +230,19 @@ export class MessagingModule {
   private async botHistory(conversationId: string, limit: number): Promise<HistoryMessage[]> {
     const all = await this.view.messages(conversationId, limit);
     return all
-      .filter((m) => !m.internal)
+      .filter((m) => !m.internal && !m.deleted)
       .map((m) => ({
         from: m.direction === "in" ? ("client" as const) : m.author === "бот" ? ("bot" as const) : ("manager" as const),
-        text: m.text || (m.mediaUrl || m.gateway ? `[${m.type === "audio" ? "голосовое сообщение" : m.type === "image" ? "фото" : m.type === "document" ? "файл" : m.type === "video" ? "видео" : m.type}]` : ""),
+        // Голосовое уже расшифровано (кнопкой в чате или ботом) — модель видит слова клиента, а не заглушку.
+        text:
+          m.type === "audio" && m.transcript
+            ? mediaLine("audio", m.transcript)
+            : m.text && !/^(?:🎤 Голосовое сообщение|📷 Фото|🎬 Видео|📎 Файл)$/.test(m.text.trim())
+              ? m.text
+              : m.mediaUrl || m.gateway || m.type !== "text"
+                ? `[${m.type === "audio" ? "голосовое сообщение" : m.type === "image" ? "фото" : m.type === "document" ? "файл" : m.type === "video" ? "видео" : m.type}]`
+                : "",
+        type: m.type,
         at: m.at,
         author: m.direction === "out" && m.author && m.author !== "бот" ? m.author : null,
         id: m.id,

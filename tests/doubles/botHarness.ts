@@ -256,10 +256,18 @@ export function setup(
     seller: opts.seller ?? null,
     invoices: opts.invoices ?? null,
     media: opts.mediaFiles ? async (id: string) => opts.mediaFiles!(id) : null,
+    transcript: async (id: string, text: string) => void Object.assign(msgs.find((m) => m.id === id) ?? {}, { transcript: text }),
     history: async (id: string) =>
       msgs
         .filter((m) => m.conv === id && !m.internal)
-        .map((m) => ({ from: m.dir === "in" ? ("client" as const) : m.source === "bot" ? ("bot" as const) : ("manager" as const), text: m.text, at: m.at, author: m.dir === "out" && m.source !== "bot" ? "Margo" : null, id: m.id })),
+        .map((m) => ({
+          from: m.dir === "in" ? ("client" as const) : m.source === "bot" ? ("bot" as const) : ("manager" as const),
+          text: m.type === "audio" ? (m.transcript ? `[Голосовое клиента: ${m.transcript}]` : "[голосовое сообщение]") : m.text,
+          at: m.at,
+          author: m.dir === "out" && m.source !== "bot" ? "Margo" : null,
+          id: m.id,
+          type: m.type,
+        })),
   };
   const bot = new QualifierBot(deps);
   /** Время идёт: планировщик делает просроченные ходы (так же, как таймер в процессе). */

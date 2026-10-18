@@ -141,7 +141,18 @@ export class AiSeller {
     // Не распозналось (модель не умеет, файла нет): голосовое — просьба написать текстом, фото и файлы — менеджеру.
     if (!c.text && !manual) return this.withoutText(conv, base, state, inputs2, c, env, fields, now);
 
-    const history = await this.d.history!(conv.id, HISTORY_LIMIT);
+    let history = await this.d.history!(conv.id, HISTORY_LIMIT);
+    // Голосовые клиента до старта бота (подхват, запуск кнопкой) ещё не расшифрованы — расшифровать последние, иначе
+    // модель видит «[голосовое сообщение]» и просит пересказать то, что клиент уже сказал.
+    const earlier = history
+      .slice(-15)
+      .filter((m) => m.from === "client" && m.type === "audio" && m.id && /^\[голосовое сообщение\]$/.test(m.text) && !base.ai.media?.[m.id] && !inputs2.some((i) => i.id === m.id))
+      .map((m): BotInput => ({ id: m.id!, type: "audio", text: "", at: m.at, mediaUrl: "history" }));
+    if (earlier.length) {
+      const old = await this.recognizeMedia(readSellerAi(base.ai), earlier.slice(-3), config.sell.media);
+      base.ai = old.ai;
+      history = await this.d.history!(conv.id, HISTORY_LIMIT);
+    }
     const decided = await this.decide({ conv, base, env, config, fields, history, fresh: inputs2, purpose: "reply" });
     if ("error" in decided) return this.failed(conv, base, state, decided.error, env, fields, now);
 

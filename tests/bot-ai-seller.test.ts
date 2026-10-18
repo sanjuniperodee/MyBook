@@ -841,3 +841,19 @@ describe("AI-продажник: представление и дожим (ча�
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff", reason: "objection" });
   });
 });
+
+describe("AI-продажник: голосовое до запуска бота (чат MyTest, 18.10)", () => {
+  it("бота запустили кнопкой после голосового — он расшифровывает его и отвечает по сути, а не просит пересказать", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Конечно 🙂 Для кого хотите сделать книгу?" })]);
+    const heard: string[] = [];
+    const seller: BotSellerModel = { ...model, media: async () => (heard.push("x"), { text: "Здравствуйте, я бы хотел узнать стоимость" }) };
+    const t = setup({ bot: "off", config: aiConfig(), seller, mediaFiles: () => ({ data: new TextEncoder().encode("x"), mime: "audio/ogg" }) });
+    await t.service.ingest(inbound({ type: "audio", text: "🎤 Голосовое сообщение", mediaUrl: "https://wz/1" }));
+    t.settings.mode = "always";
+    if (!t.conv().dealId) t.conv().dealId = t.deals[0]?.id ?? "deal-x";
+    await t.bot.startManually(t.conv().id);
+    expect(heard).toHaveLength(1);
+    expect(calls[0].user).toContain("[Голосовое клиента: Здравствуйте, я бы хотел узнать стоимость]");
+    expect(t.msgs.find((m) => m.type === "audio")?.transcript).toBe("Здравствуйте, я бы хотел узнать стоимость");
+  });
+});
