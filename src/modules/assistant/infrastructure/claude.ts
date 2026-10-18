@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { LanguageModel } from "../application";
-import { AssistantError, type AiConnection } from "../domain";
+import { AssistantError, systemBlocks, type AiConnection } from "../domain";
 import type { MediaPart, MediaRecognition } from "../application/SellerModel";
 
 let cached: { sig: string; client: Anthropic } | null = null;
@@ -34,8 +34,11 @@ function toAssistantError(err: unknown): Error {
 /**
  * Claude через Anthropic SDK. Если основная модель откажется отвечать по соображениям безопасности,
  * сервер Anthropic сам повторит запрос на рекомендованной резервной модели (fallbacks: "default").
+ * Стабильное начало инструкции (cachePrefix: факты, правила и примеры продажника — одни на все беседы) уходит отдельным
+ * блоком с меткой кэша на час: повторные ходы читают его из кэша, а не платят за него заново.
  */
-export async function askClaude(c: AiConnection, { system, user, effort, schema, timeoutMs }: Parameters<LanguageModel["ask"]>[0]) {
+export async function askClaude(c: AiConnection, { system, user, effort, schema, timeoutMs, cachePrefix }: Parameters<LanguageModel["ask"]>[0]) {
+  const blocks = systemBlocks(system, cachePrefix);
   let res;
   try {
     res = await client(c).beta.messages.create(
@@ -45,7 +48,7 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
         output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
-        system,
+        system: blocks.some((b) => b.cached) ? blocks.map((b) => (b.cached ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const, ttl: "1h" as const } } : { type: "text" as const, text: b.text })) : system,
         messages: [{ role: "user", content: user }],
       },
       // Быстрый запрос (бот в чате): свой таймаут и без повторов.

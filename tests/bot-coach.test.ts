@@ -69,6 +69,12 @@ describe("Работа над ошибками: уроки", () => {
     expect(p.user).not.toContain("87011234567");
     expect(p.user).toContain("[l1, владелец]");
     expect(p.system).toContain("Нельзя в уроках");
+    // Цены называет менеджер — так и сказано разборщику; бот называет цены сам — правило про цены другое.
+    expect(p.system).toContain("Цены называет только менеджер");
+    const own = coachPrompt({ conversations: [conv], lessons: [], botName: "Айгерим", managerName: "Марат", pricesByBot: true });
+    expect(own.system).toContain("выставляет счёт на предоплату");
+    expect(own.system).toContain("не могут менять цены, скидки и условия");
+    expect(own.system).not.toContain("Цены называет только менеджер");
   });
 });
 

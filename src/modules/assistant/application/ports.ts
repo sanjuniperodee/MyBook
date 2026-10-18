@@ -10,8 +10,12 @@ export type Usage = { input: number; output: number };
 export interface LanguageModel {
   /** Какая модель сейчас отвечает — для подписей в интерфейсе. */
   describe(): Promise<{ provider: AiProvider; label: string; model: string }>;
-  /** timeoutMs — для быстрых запросов (бот в чате): без повторов, по истечении — ошибка. По умолчанию 90 секунд. */
-  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown>; timeoutMs?: number }): Promise<{ text: string; usage: Usage }>;
+  /**
+   * timeoutMs — для быстрых запросов (бот в чате): без повторов, по истечении — ошибка. По умолчанию 90 секунд.
+   * cachePrefix — стабильное начало system (одинаковое между запросами): провайдер с кэшем префикса (Claude) хранит его
+   * и не тарифицирует заново; должно быть именно началом строки system.
+   */
+  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown>; timeoutMs?: number; cachePrefix?: string }): Promise<{ text: string; usage: Usage }>;
   configured(): Promise<boolean>;
 }
 

@@ -3,6 +3,8 @@ import {
   BOT_DONE,
   allowedAmounts,
   allowedPercents,
+  checkSellerReply,
+  problemsText,
   botSellText,
   botSummary,
   classifyInputs,
@@ -23,7 +25,7 @@ import {
   readSellerAi,
   resolveSellerTurn,
   sellerSchema,
-  sellerSystemPrompt,
+  sellerSystemPromptParts,
   sellerTranscript,
   sellerUserPrompt,
   splitReply,
@@ -40,6 +42,7 @@ import {
   type ReplyProblem,
   type SellerDecision,
   type SellerAiState,
+  type SellerStage,
   type SellerTurn,
 } from "../domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS } from "./botTiming";
@@ -66,6 +69,11 @@ export const SELLER_RETRY_MS = 60_000;
 export const SELLER_MAX_FAILURES = 2;
 /** Сколько последних сообщений переписки видит модель. */
 const HISTORY_LIMIT = 60;
+/** Сколько последних сообщений клиента задают тему для выбора кусков базы знаний. */
+const KNOWLEDGE_QUERY_MESSAGES = 3;
+
+/** Черновик ответа для менеджера («Подсказать ответ» в чате): текст, заметка о клиенте и этап — или почему не вышло. */
+export type CopilotSuggestion = { text: string; summary: string; stage: SellerStage } | { error: string };
 
 /** То, что AI-продажнику нужно от квалификатора: окружение хода, итог менеджеру, «предложение сделано», таймер. */
 export interface SellerHooks {
@@ -318,11 +326,12 @@ export class AiSeller {
 
   // ─── модель ────────────────────────────────────────────────────────────────
 
-  private async rules(conv: Conversation, env: BotEnv, config: BotConfig) {
+  private async rules(conv: Conversation, env: BotEnv, config: BotConfig, opts: { manager?: boolean } = {}) {
     const knowledge = await this.d.settings.knowledge().catch(() => "");
-    const owner = [config.promo.ru, config.promo.kk, knowledge, ...faqNotes(env)];
+    const owner = [config.promo.ru, config.promo.kk, knowledge, ...faqNotes(env, !!opts.manager || !config.sell.hidePrices)];
     // Цены называет только менеджер (владелец, 18.10); клиент уже платил — суммы тем более не к месту.
-    const noAmounts = config.sell.hidePrices || !!env.paid;
+    // Черновик для менеджера — суммы из тарифов и фактов называть можно: их называет он сам.
+    const noAmounts = !opts.manager && (config.sell.hidePrices || !!env.paid);
     return {
       amounts: noAmounts ? new Set<number>() : allowedAmounts(env.catalog, config.sell, owner),
       percents: allowedPercents(owner),
@@ -343,11 +352,13 @@ export class AiSeller {
   }
 
   /**
-   * Запрос к модели с проверкой. Если клиент назвал дату — срок считает код и ответ переписывается с этим фактом; если
-   * ответ нарушил правила (чужая цена, ссылка, номер) — один раз просим переписать. Возвращает ход или ошибку модели.
+   * Запрос к модели: инструкция (стабильная часть — под кэш провайдера), переписка, срок по дате. Если клиент назвал
+   * дату или город — срок считает код и ответ переписывается с этим фактом. Возвращает решение модели и «спросить ещё
+   * раз» (с правками после проверки) или ошибку модели. voice — черновик для менеджера, а не ответ бота.
    */
-  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision } | { error: string }> {
+  private async consult(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" | "copilot"; voice?: { manager: string } | null }) {
     const { conv, base, config, fields, fresh, purpose } = a;
+    const voice = a.voice ?? null;
     const [knowledge, lessons] = await Promise.all([this.d.settings.knowledge().catch(() => ""), this.d.settings.lessons?.().catch(() => []) ?? []]);
     const schemaFields = fields.filter((f) => base.questions.includes(f.key));
     const schema = sellerSchema(schemaFields);
@@ -357,7 +368,7 @@ export class AiSeller {
     // Клиент писал «оплатил(а)» или прислал чек — он уже платил, даже если оплату по сделке ещё не провели.
     const env: BotEnv = { ...a.env, paid: !!a.env.paid || clientSaysPaid(history, ai.media) };
     const paid = !!env.paid;
-    const rules = await this.rules(conv, env, config);
+    const rules = await this.rules(conv, env, config, { manager: !!voice });
     const dateKey = fields.find((f) => f.type === "date")?.key;
     const knownDate = (dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null) ?? dayValue(ai.eventDate);
     const known = fields
@@ -367,12 +378,19 @@ export class AiSeller {
       .map((k) => ({ label: k.label, value: String(k.value) }));
     const transcript = sellerTranscript(history, fresh.length, env.tz);
     const user = sellerUserPrompt(transcript, purpose, fresh.length > 0);
+    // Тема разговора для выбора кусков базы знаний: последние сообщения клиента.
+    const knowledgeQuery = history
+      .filter((m) => m.from === "client")
+      .slice(-KNOWLEDGE_QUERY_MESSAGES)
+      .map((m) => m.text)
+      .join("\n")
+      .slice(0, 1500);
 
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const system = sellerSystemPrompt({ env, state: base, questions: base.questions, knowledge, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry, paid, followUps: ai.followUps, lessons });
+      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry, paid, followUps: ai.followUps, lessons, voice });
       let raw: string;
       try {
-        raw = await this.d.seller!.complete({ system, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
+        raw = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
       } catch (err) {
         return { error: err instanceof Error ? err.message : String(err) };
       }
@@ -387,11 +405,10 @@ export class AiSeller {
     if ("error" in first) return first;
     let decision = first;
 
-    // Клиент назвал новую дату — считаем срок кодом и просим ответить с учётом вердикта.
-    // Клиент назвал дату или город — срок пересчитан кодом (по Алматы доставка в день готовности).
+    // Клиент назвал дату или город — срок пересчитан кодом (по Алматы доставка в день готовности), ответ — с учётом вердикта.
     const date = decision.eventDate ?? knownDate;
     const newInfo = (decision.eventDate && decision.eventDate !== knownDate) || (decision.city && decision.city !== ai.city);
-    if (date && newInfo && purpose === "reply") {
+    if (date && newInfo && purpose !== "follow_up") {
       const fact = deadlineFact(date, env, decision.city || ai.city);
       if (fact) {
         deadline = fact;
@@ -399,17 +416,58 @@ export class AiSeller {
         if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, city: again.city || decision.city, fields: { ...decision.fields, ...again.fields } };
       }
     }
+    const rewrite = (problems: ReplyProblem[]) => ask(null, problems, deadline);
+    return { decision, env, rules, history, rewrite };
+  }
 
-    const inputs = fresh;
-    let turn = resolveSellerTurn(base, decision, env, this.ctx(conv, env, config, inputs, history, false, rules));
+  /**
+   * Ход бота: решение модели → проверка кодом (суммы, ссылки, номера, право на счёт); нарушение — один раз просим
+   * переписать. Возвращает ход или ошибку модели.
+   */
+  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision } | { error: string }> {
+    const c = await this.consult(a);
+    if ("error" in c) return c;
+    const { conv, base, config, fresh: inputs } = a;
+    let decision = c.decision;
+    let turn = resolveSellerTurn(base, decision, c.env, this.ctx(conv, c.env, config, inputs, c.history, false, c.rules));
     if (turn.retry) {
-      const problems = turn.retry;
-      const rewritten = await ask(null, problems, deadline);
+      const rewritten = await c.rewrite(turn.retry);
       if ("error" in rewritten) return rewritten;
       decision = rewritten;
-      turn = resolveSellerTurn(base, rewritten, env, this.ctx(conv, env, config, inputs, history, true, rules));
+      turn = resolveSellerTurn(base, rewritten, c.env, this.ctx(conv, c.env, config, inputs, c.history, true, c.rules));
     }
     return { turn, decision };
+  }
+
+  /**
+   * Подсказка менеджеру в чате: тот же «мозг», что у продажника (факты, тарифы, срок к дате, поля сделки, уроки), но
+   * черновик пишется от лица менеджера и ничего не отправляет и не меняет: менеджер правит и шлёт сам. Проверка та же —
+   * суммы только из фактов, ссылки только на сайт, без номеров; нарушение — одна переписка, потом ошибка.
+   */
+  async suggest(conv: Conversation, manager: string): Promise<CopilotSuggestion> {
+    if (!this.d.seller || !this.d.history || !conv.dealId) return { error: "AI-продажник не подключён" };
+    const now = this.d.clock.now();
+    const [config, fields] = await Promise.all([this.d.settings.config(), this.d.settings.dealFields()]);
+    const env = await this.hooks.env(conv, config, fields, now);
+    const rec = await this.d.store.load(conv.id);
+    const questions = config.questions.map((q) => q.field).filter((k) => fields.some((f) => f.key === k));
+    const saved = rec?.state ?? null;
+    const base: BotState = saved ? { ...saved, questions: saved.questions.length ? saved.questions : questions } : { ...newBotState(now, false), engine: "ai", phase: "active", questions, ai: newSellerAiState() };
+    const history = await this.d.history(conv.id, HISTORY_LIMIT);
+    if (!history.some((m) => m.from === "client" && m.text.trim())) return { error: "Клиент ещё ничего не написал — подсказывать нечего." };
+    const c = await this.consult({ conv, base, env, config, fields, history, fresh: [], purpose: "copilot", voice: { manager } });
+    if ("error" in c) return c;
+    let decision = c.decision;
+    const check = (d: SellerDecision) => (d.reply ? checkSellerReply(d.reply, c.rules) : []);
+    let problems = check(decision);
+    if (problems.length) {
+      const again = await c.rewrite(problems);
+      if ("error" in again) return again;
+      decision = again;
+      problems = check(decision);
+    }
+    if (problems.length) return { error: `Подсказка не прошла проверку (${problemsText(problems)}) — ответьте сами.` };
+    return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
   }
 
   // ─── последствия хода ──────────────────────────────────────────────────────

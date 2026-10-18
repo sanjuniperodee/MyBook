@@ -244,8 +244,8 @@ export interface BotBrain {
  */
 export interface BotSellerModel {
   configured(): Promise<boolean>;
-  /** Один запрос со схемой JSON-ответа; возвращает текст ответа модели. */
-  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<string>;
+  /** Один запрос со схемой JSON-ответа; возвращает текст ответа модели. cachePrefix — стабильное начало system (кэш провайдера). */
+  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string }): Promise<string>;
   /**
    * Распознать вложение (голосовое → расшифровка, фото → описание). { unsupported } — модель распознавания такое не умеет
    * (больше не пробовать в этой беседе); null — временный сбой.

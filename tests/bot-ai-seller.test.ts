@@ -857,3 +857,52 @@ describe("AI-продажник: голосовое до запуска бота
     expect(t.msgs.find((m) => m.type === "audio")?.transcript).toBe("Здравствуйте, я бы хотел узнать стоимость");
   });
 });
+
+describe("Подсказка менеджеру («Подсказать ответ») на мозге продажника", () => {
+  it("черновик от лица менеджера: факты и цены в инструкции даже при hidePrices и выключенном боте, стабильная часть — под кэш, клиенту ничего не уходит", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Печатная книга в твёрдой обложке — от 30 000 ₸. Оформляем? 🙂", summary: "Хочет книгу маме, этап — предложение.", stage: "offer" })]);
+    const t = setup({ bot: "off", config: aiConfig({ hidePrices: true, on: false }), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте, сколько стоит книга маме?" }));
+    const r = await t.bot.suggestReply(t.conv().id, "Айгерим Сапарова");
+    expect(r).toEqual({ text: "Печатная книга в твёрдой обложке — от 30 000 ₸. Оформляем? 🙂", summary: "Хочет книгу маме, этап — предложение.", stage: "offer" });
+    expect(calls).toHaveLength(1);
+    const system = calls[0].system.replace(/\u00a0/g, " ");
+    expect(system).toContain("от имени Айгерим Сапарова");
+    expect(system).toContain("от 30 000 ₸");
+    expect(system).not.toContain("помощница менеджера Марата");
+    expect(calls[0].cachePrefix && calls[0].system.startsWith(calls[0].cachePrefix)).toBe(true);
+    expect(calls[0].user).toContain("сколько стоит книга маме");
+    expect(calls[0].user).toContain("черновик");
+    expect(t.sent).toEqual([]);
+    expect(t.conv().botState ?? null).toBeNull();
+  });
+
+  it("цена не из тарифов — модель переписывает черновик; второй раз — ошибка менеджеру, а не чужая сумма", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Для вас сделаю за 12 345 ₸!" }), ans({ reply: "Печатная книга — от 30 000 ₸. Для кого она?" })]);
+    const t = setup({ bot: "off", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Сколько стоит?" }));
+    const r = await t.bot.suggestReply(t.conv().id, "Марат");
+    expect(calls).toHaveLength(2);
+    expect(calls[1].system).toContain("не прошёл проверку");
+    expect(r).toMatchObject({ text: "Печатная книга — от 30 000 ₸. Для кого она?" });
+
+    const bad = ans({ reply: "Скидка 50%, итого 5 000 ₸" });
+    const twice = fakeModel([bad, bad]);
+    const t2 = setup({ bot: "off", config: aiConfig(), seller: twice.model });
+    await t2.service.ingest(inbound({ text: "Сколько стоит?" }));
+    const r2 = await t2.bot.suggestReply(t2.conv().id, "Марат");
+    expect(r2).toMatchObject({ error: expect.stringContaining("не прошла проверку") });
+  });
+
+  it("отвечать нечего (клиент поблагодарил) — пустой текст и заметка; без модели продажника — null (подсказку даст помощник)", async () => {
+    const { model } = fakeModel([ans({ action: "wait", reply: "", summary: "Клиент поблагодарил, ждём его решения.", stage: "closing" })]);
+    const t = setup({ bot: "off", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Спасибо!" }));
+    expect(await t.bot.suggestReply(t.conv().id, "Марат")).toEqual({ text: "", summary: "Клиент поблагодарил, ждём его решения.", stage: "closing" });
+
+    const none = setup({ bot: "off", config: aiConfig() });
+    await none.service.ingest(inbound({ text: "Здравствуйте" }));
+    expect(await none.bot.suggestReply(none.conv().id, "Марат")).toBeNull();
+  });
+});
+
