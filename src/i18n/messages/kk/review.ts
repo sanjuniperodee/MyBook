@@ -49,6 +49,7 @@ export const review: typeof ru = {
     edit: "Пікірді өзгерту",
   },
   showcase: {
+    photoAlt: (name: string) => `Пікірдегі кітап фотосы: ${name}`,
     eyebrow: "Пікірлер",
     title: "Кітапты сыйлап үлгергендер не дейді",
     summary: (avg: string, count: number) => `5-тен ${avg} · ${kkCount(count, "пікір")}`,

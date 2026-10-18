@@ -7,11 +7,13 @@ import { getCurrentUser } from "@/server/auth";
 import { invitedBy } from "@/server/invite";
 import { RegisterForm } from "./RegisterForm";
 import { registrationOpen, site } from "@/config/site";
+import { socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const { meta: title, metaDescription: description } = m.auth.register;
   // ?theme=… и ?ref=… — те же страницы: каноническим остаётся адрес без параметров
-  return { title: m.auth.register.meta, alternates: alternates("/register", locale), ...(registrationOpen() ? {} : { robots: { index: false, follow: false } }) };
+  return { title, description, alternates: alternates("/register", locale), ...socialMeta({ path: "/register", locale, title, description }), ...(registrationOpen() ? {} : { robots: { index: false, follow: false } }) };
 }
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {

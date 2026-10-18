@@ -21,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: `${site.name} — ${m.tagline}`, template: `%s · ${site.name}` },
     description: m.description,
     applicationName: site.name,
+    manifest: "/site.webmanifest",
     category: "shopping",
     formatDetection: { telephone: false, email: false, address: false },
     // Подтверждение прав в Google Search Console и Яндекс Вебмастере (значения — из .env)

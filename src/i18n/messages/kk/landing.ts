@@ -24,7 +24,16 @@ export const landing: typeof ru = {
   },
   occasions: {
     label: "Қай күнге лайық:",
-    items: ["Жылдық", "Туған күн", "14 ақпан", "Той", "Ата-ананың мерейтойы", "8 наурыз", "Жаңа жыл", "Жай ғана"],
+    items: [
+      { label: "Жылдық", slug: "podarok-na-godovshchinu" },
+      { label: "Туған күн" },
+      { label: "14 ақпан", slug: "podarok-na-14-fevralya" },
+      { label: "Той" },
+      { label: "Ата-ананың мерейтойы", slug: "podarok-na-yubilej-mame" },
+      { label: "8 наурыз", slug: "podarok-na-8-marta" },
+      { label: "Жаңа жыл" },
+      { label: "Жай ғана" },
+    ] as { label: string; slug?: string }[],
   },
   how: {
     eyebrow: "Бұл қалай жұмыс істейді",
@@ -55,6 +64,7 @@ export const landing: typeof ru = {
     title: "Әркімге — өз тарихы",
     note: "Сұрақтар әр жағдайға бөлек жазылған: кім жазып отыр және кімге арналған — бәрі ескерілген.",
     meta: (questions: number, chapters: number) => `${questions} сұрақ · ${chapters} тарау`,
+    learn: "Кітаптар туралы толығырақ:",
   },
   modes: {
     eyebrow: "Тек сыйлыққа емес",

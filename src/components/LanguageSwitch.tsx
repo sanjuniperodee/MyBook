@@ -10,18 +10,21 @@ import { cn } from "@/lib/class-names";
 /**
  * Переключатель «Рус / Қаз». Запоминает выбор (cookie + профиль) и открывает эту же страницу на другом языке.
  * Полная навигация, а не клиентская: серверные компоненты и метаданные перерисуются на новом языке.
+ * Это настоящие ссылки с hreflang: поисковик видит вторую языковую версию и без JavaScript.
  */
 export function LanguageSwitch({ className, tone = "light" }: { className?: string; tone?: "light" | "dark" }) {
   const locale = useLocale();
   const pathname = usePathname() ?? "/";
   const [busy, setBusy] = useState(false);
 
+  const { path } = splitLocale(pathname);
+  const hrefOf = (next: Locale) => localizePath(path, next);
+
   const go = async (next: Locale) => {
     if (next === locale || busy) return;
     setBusy(true);
     await fetch("/api/locale", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locale: next }) }).catch(() => {});
-    const { path } = splitLocale(pathname);
-    window.location.assign(localizePath(path, next) + window.location.search + window.location.hash);
+    window.location.assign(hrefOf(next) + window.location.search + window.location.hash);
   };
 
   return (
@@ -32,12 +35,16 @@ export function LanguageSwitch({ className, tone = "light" }: { className?: stri
     >
       <Globe className={cn("mx-1.5 size-3.5", tone === "dark" ? "text-white/60" : "text-muted")} aria-hidden />
       {(["ru", "kk"] as const).map((l) => (
-        <button
+        <a
           key={l}
-          type="button"
+          href={hrefOf(l)}
+          hrefLang={l}
           lang={l}
-          onClick={() => go(l)}
-          aria-pressed={locale === l}
+          onClick={(e) => {
+            e.preventDefault();
+            void go(l);
+          }}
+          aria-current={locale === l ? "true" : undefined}
           title={localeMeta[l].label}
           className={cn(
             "rounded-full px-2.5 py-1 transition",
@@ -45,7 +52,7 @@ export function LanguageSwitch({ className, tone = "light" }: { className?: stri
           )}
         >
           {localeMeta[l].short}
-        </button>
+        </a>
       ))}
     </div>
   );

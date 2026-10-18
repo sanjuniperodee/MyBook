@@ -68,7 +68,7 @@ export function Reviews({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/reviews/photo/${r.id}`}
-                  alt=""
+                  alt={t.photoAlt(r.authorName)}
                   width={r.photo.width}
                   height={r.photo.height}
                   loading="lazy"
