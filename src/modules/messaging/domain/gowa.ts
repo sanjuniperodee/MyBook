@@ -175,6 +175,8 @@ export function parseGowaHistory(raw: unknown): InboundMessage | null {
   const externalId = str(p.id);
   const chatJid = str(p.chat_jid);
   if (!externalId || !PERSONAL.test(chatJid)) return null;
+  // Звонок шлюз хранит строкой-сообщением (media_type «call»): это не сообщение клиента.
+  if (str(p.media_type) === "call") return null;
   const type = HISTORY_MEDIA[str(p.media_type)] ?? (str(p.media_type) ? "document" : "text");
   const text = str(p.content).trim();
   if (!text && type === "text") return null;
@@ -195,4 +197,21 @@ export function parseGowaHistory(raw: unknown): InboundMessage | null {
     avatarUrl: null,
     status: null,
   };
+}
+
+/** Личный чат (не группа, не рассылка, не канал) — только такие идут в CRM. */
+export const isGowaPersonalJid = (jid: string) => PERSONAL.test(jid);
+
+/**
+ * Подстраховка вебхука. GOWA отдаёт событие сайту 30 секунд (попытка — 10 с, повторы через 1, 2, 4, 8 с) и бросает:
+ * пока сайт перезапускается или отвечает дольше, сообщение в CRM само не попадёт. Поэтому планировщик каждые 30 секунд
+ * сверяет хранилище шлюза с CRM. Последние 45 секунд не берём — их ещё доставляет вебхук; первый проход после запуска
+ * процесса смотрит на 2 часа назад (сайт мог лежать), следующие — на 10 минут.
+ */
+export const GOWA_CATCHUP = { everyMs: 30_000, settleMs: 45_000, windowMs: 10 * 60_000, firstWindowMs: 2 * 3600_000 } as const;
+
+/** Окно сверки: с какого и по какой момент сообщения шлюза должны уже быть в CRM. */
+export function gowaCatchUpRange(now: Date, first: boolean): { from: Date; to: Date } {
+  const to = new Date(now.getTime() - GOWA_CATCHUP.settleMs);
+  return { from: new Date(to.getTime() - (first ? GOWA_CATCHUP.firstWindowMs : GOWA_CATCHUP.windowMs)), to };
 }

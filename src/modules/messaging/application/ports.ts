@@ -94,6 +94,8 @@ export interface MessageRepository {
   /** false — повторная доставка вебхука. */
   insertIncoming(conversationId: string, m: InboundMessage, subject: string | null): Promise<boolean>;
   existsExternal(externalId: string): Promise<boolean>;
+  /** Какие из внешних ID уже записаны (одним запросом — для сверки со шлюзом). */
+  knownExternal(externalIds: string[]): Promise<Set<string>>;
   /** Эхо нашего же сообщения, отправленного только что: дописать ему внешний ID. */
   claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string): Promise<boolean>;
   insertEcho(conversationId: string, m: InboundMessage): Promise<boolean>;

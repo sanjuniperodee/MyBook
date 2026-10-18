@@ -75,6 +75,35 @@ async function crmTick() {
   }
 }
 
+/**
+ * Сверка WhatsApp со своим шлюзом (GOWA): шлюз отдаёт событие сайту 30 секунд и бросает, поэтому каждые 30 секунд
+ * сверяем его хранилище с CRM — сообщение, пришедшее во время перезапуска сайта, догоняет обычным путём (заявка,
+ * уведомление со звуком, бот). Ошибку «шлюз недоступен» пишем в лог один раз, а не каждые 30 секунд.
+ */
+const GOWA_CATCHUP_MS = 30_000;
+const GOWA_CATCHUP_LOCK_ID = 7_310_480;
+let gowaCatchUpError = "";
+
+async function gowaCatchUpTick() {
+  const client = await pool.connect();
+  let locked = false;
+  try {
+    const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [GOWA_CATCHUP_LOCK_ID]);
+    locked = !!rows[0]?.locked;
+    if (!locked) return;
+    const caught = await container().messaging.catchUpGowa();
+    if (caught) console.warn(`[scheduler] whatsapp: ${caught} message(s) missed by the GOWA webhook were caught up`);
+    gowaCatchUpError = "";
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message !== gowaCatchUpError) console.error("[scheduler] whatsapp catch-up", err);
+    gowaCatchUpError = message;
+  } finally {
+    if (locked) await client.query("select pg_advisory_unlock($1)", [GOWA_CATCHUP_LOCK_ID]).catch(() => {});
+    client.release();
+  }
+}
+
 /** Воркер outbox: повторная доставка доменных событий (после сбоя подписчика или рестарта процесса). */
 const OUTBOX_INTERVAL_MS = 15_000;
 let outboxBusy = false;
@@ -170,6 +199,7 @@ export function startScheduler() {
   setTimeout(() => void tick(), 60_000).unref?.();
   setInterval(() => void tick(), INTERVAL_MS).unref?.();
   setInterval(() => void crmTick(), CRM_INTERVAL_MS).unref?.();
+  setInterval(() => void gowaCatchUpTick(), GOWA_CATCHUP_MS).unref?.();
   setInterval(() => void outboxTick(), OUTBOX_INTERVAL_MS).unref?.();
   setInterval(() => void paymentsTick(PAYMENTS_FAST_WINDOW_MS), PAYMENTS_FAST_MS).unref?.();
   setInterval(() => void paymentsTick(PAYMENTS_SLOW_WINDOW_MS), PAYMENTS_SLOW_MS).unref?.();

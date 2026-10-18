@@ -142,9 +142,12 @@ export class MessagingService {
     if (m.isEcho) {
       // Эхо нашего же сообщения из CRM: внешний ID уже записан при отправке (или запишется) — не дублируем.
       if (await this.messages.existsExternal(m.externalId)) return;
-      if (await this.messages.claimPendingEcho(base.id, m.text, new Date(this.clock.now().getTime() - 120_000), m.externalId)) return;
+      // Окно «только что отправили» — от времени самого сообщения: эхо, догнанное сверкой со шлюзом, приходит позже.
+      if (await this.messages.claimPendingEcho(base.id, m.text, new Date(Math.min(this.clock.now().getTime(), m.at.getTime()) - 120_000), m.externalId)) return;
       if (!(await this.messages.insertEcho(base.id, m))) return;
       await this.conversations.recordEcho(base.id, preview(m.text), m.at);
+      // Ответ с телефона магазина — в открытых вкладках CRM сразу, а не со следующим опросом.
+      this.live.chatChanged(base.id);
       // Ответил человек с телефона магазина — бот в этом диалоге больше не пишет (и не начнёт).
       await this.bot.stopByHuman(base.id, "phone").catch((err) => this.logger.error("bot stop", err));
       // Отвечал тот, у кого сейчас телефон: новая заявка — его.
@@ -171,6 +174,8 @@ export class MessagingService {
     // Любое сообщение клиента открывает «ждёт ответа»; нужен ли ответ на «Аха» или «спасибо», решает AI (бот снимает
     // ожидание сам), а не словарь.
     await this.conversations.recordIncoming(conv.id, preview(m.text), m.at);
+    // Сообщение уже в базе — открытые вкладки CRM показывают его сразу, не дожидаясь бота, уведомлений и правил.
+    this.live.chatChanged(conv.id);
     const fresh = (await this.conversations.findById(conv.id)) ?? conv;
     // Пока бот ведёт опрос, отдельное уведомление на каждое сообщение не нужно: менеджер получит итог бота.
     const { quiet } = await this.bot.onIncoming(fresh, m, { created, dealCreated }).catch((err) => (this.logger.error("bot", err), { quiet: false }));
@@ -181,6 +186,7 @@ export class MessagingService {
         body: preview(m.text),
         link: `/admin/chats?c=${conv.id}`,
       });
+    // Бот мог взять диалог (плашка «ведёт бот») — ещё раз.
     this.live.chatChanged(conv.id);
     await this.rules.messageIncoming({ subject: `${conv.id}:${m.at.toISOString().slice(0, 10)}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
   }
@@ -217,6 +223,32 @@ export class MessagingService {
       this.live.chatChanged(conv.id);
     }
     return { imported, skipped: null };
+  }
+
+  /**
+   * Сверка со шлюзом: сообщения одного собеседника из хранилища шлюза, которых нет в CRM, — вебхук не дошёл (сайт
+   * перезапускался или отвечал дольше, чем ждёт шлюз). Новее последнего сообщения диалога — обычный путь входящего
+   * (заявка, «ждёт ответа», уведомление, бот); старше — тихо в историю, чтобы не поднять «ждёт ответа» поверх ответа
+   * менеджера. Возвращает, сколько сообщений догнали.
+   */
+  async catchUp(chat: InboundMessage[], extra: IngestExtra = {}): Promise<number> {
+    if (!chat.length) return 0;
+    const known = await this.messages.knownExternal(chat.map((m) => m.externalId));
+    const missed = chat.filter((m) => !known.has(m.externalId)).sort((a, b) => a.at.getTime() - b.at.getTime());
+    if (!missed.length) return 0;
+    const sample = missed[0];
+    const conv =
+      (await this.conversations.findByChat(sample.chatType, sample.channelId, sample.chatId)) ??
+      (extra.anyWhatsappChannel && sample.chatType === "whatsapp" ? await this.conversations.latestWhatsapp(sample.chatId) : null);
+    const last = conv?.lastMessageAt?.getTime() ?? null;
+    const late = last === null ? [] : missed.filter((m) => m.at.getTime() < last);
+    const live = missed.filter((m) => !late.includes(m));
+    let caught = late.length ? (await this.importHistory(late, extra)).imported : 0;
+    for (const m of live) {
+      await this.ingest(m, extra);
+      caught++;
+    }
+    return caught;
   }
 
   async applyStatus(s: DeliveryStatus) {

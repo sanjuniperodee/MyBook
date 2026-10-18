@@ -18,6 +18,7 @@ const toConversation = (r: Row): Conversation => ({
   assigneeId: r.assigneeId,
   botStep: r.botStep,
   awaitingSince: r.awaitingSince,
+  lastMessageAt: r.lastMessageAt,
   meta: r.meta,
 });
 
@@ -166,6 +167,13 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
   async existsExternal(externalId: string) {
     const [r] = await executor().select({ id: crmMessages.id }).from(crmMessages).where(eq(crmMessages.externalId, externalId)).limit(1);
     return !!r;
+  }
+
+  async knownExternal(externalIds: string[]) {
+    const ids = [...new Set(externalIds.filter(Boolean))];
+    if (!ids.length) return new Set<string>();
+    const rows = await executor().select({ id: crmMessages.externalId }).from(crmMessages).where(inArray(crmMessages.externalId, ids));
+    return new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
   }
 
   async claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string) {

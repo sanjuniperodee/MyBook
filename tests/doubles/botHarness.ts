@@ -130,6 +130,7 @@ export function setup(
   const messages: MessageRepository = {
     insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received", mediaUrl: m.mediaUrl })),
     existsExternal: async (e) => msgs.some((x) => x.externalId === e),
+    knownExternal: async (ids) => new Set(ids.filter((e) => msgs.some((x) => x.externalId === e))),
     claimPendingEcho: async (conv, text, _s, ext) => {
       const own = msgs.find((x) => x.conv === conv && x.dir === "out" && !x.internal && (x.source === "bot" || x.source === "rule") && x.text === text);
       if (own) return true;
@@ -221,6 +222,8 @@ export function setup(
   const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }) };
   const clock = { now: () => now };
   const scheduled: string[] = [];
+  /** Диалоги, о которых сервис сообщил открытым вкладкам CRM (live.chatChanged), по порядку. */
+  const changed: string[] = [];
   const triage = new Map<string, { at: Date; run: () => void }>();
   const service: MessagingService = new MessagingService(
     conversations,
@@ -235,7 +238,7 @@ export function setup(
     sales,
     { fromText: async () => null },
     notifier,
-    { chatChanged: () => {}, notificationsChanged: () => {} },
+    { chatChanged: (id) => void changed.push(id), notificationsChanged: () => {} },
     { messageIncoming: async () => {} },
     { onIncoming: (...a) => bot.onIncoming(...a), stopByHuman: (...a) => bot.stopByHuman(...a), isActive: (id) => bot.isActive(id) },
     clock,
@@ -304,7 +307,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

@@ -27,6 +27,8 @@ export interface Conversation {
   botStep: number | null;
   /** С какого момента последнее сообщение клиента ждёт ответа человека; null — не ждёт. */
   awaitingSince?: Date | null;
+  /** Время последнего сообщения диалога (в любую сторону). */
+  lastMessageAt?: Date | null;
   meta: ConversationMeta;
 }
 

@@ -86,15 +86,18 @@ if has whatsapp; then
   touch "$G/.env" && chmod 600 "$G/.env"
   grep -q '^APP_BASIC_AUTH=' "$G/.env" || echo "APP_BASIC_AUTH=mybooks:$(secret 16)" >>"$G/.env"
   # Остальное — наши значения при каждом запуске скрипта. Вебхук устройства магазина сайт настраивает сам.
-  sed -i -E '/^(APP_PORT|APP_HOST|APP_OS|APP_UI_ENABLED|MCP_ENABLED|WHATSAPP_WEBHOOK_IGNORE_JIDS|WHATSAPP_AUTO_DOWNLOAD_MEDIA|WHATSAPP_ACCOUNT_VALIDATION)=/d' "$G/.env"
+  # Скорость: фото статусов (истории контактов телефона магазина) не качаем — шлюз качает фото до вебхука и держит очередь
+  # событий; группы, каналы и рассылки на сайт не шлём.
+  sed -i -E '/^(APP_PORT|APP_HOST|APP_OS|APP_UI_ENABLED|MCP_ENABLED|WHATSAPP_WEBHOOK_IGNORE_JIDS|WHATSAPP_AUTO_DOWNLOAD_MEDIA|WHATSAPP_IGNORE_STATUS_MEDIA|WHATSAPP_ACCOUNT_VALIDATION)=/d' "$G/.env"
   cat >>"$G/.env" <<EOF
 APP_PORT=$GOWA_PORT
 APP_HOST=127.0.0.1
 APP_OS=MyBooks CRM
 APP_UI_ENABLED=false
 MCP_ENABLED=false
-WHATSAPP_WEBHOOK_IGNORE_JIDS=@g.us
+WHATSAPP_WEBHOOK_IGNORE_JIDS=@g.us,@newsletter,@broadcast
 WHATSAPP_AUTO_DOWNLOAD_MEDIA=true
+WHATSAPP_IGNORE_STATUS_MEDIA=true
 WHATSAPP_ACCOUNT_VALIDATION=false
 EOF
   started+=(mybook-gowa)
