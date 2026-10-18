@@ -49,6 +49,43 @@ export interface OutgoingMessage {
   createdAt: Date;
 }
 
+/** Вложение, ответ и пересылка у исходящего. */
+export interface OutgoingExtra {
+  type?: string;
+  mediaUrl?: string | null;
+  replyToId?: string | null;
+  forwarded?: boolean;
+}
+
+/** Сообщение из базы — для правки, удаления, ответа и пересылки. */
+export interface StoredMessage {
+  id: string;
+  conversationId: string;
+  direction: "in" | "out";
+  type: string;
+  text: string;
+  mediaUrl: string | null;
+  externalId: string | null;
+  internal: boolean;
+  authorId: string | null;
+  source: MessageSource | null;
+  status: string;
+  deletedAt: Date | null;
+  transcript: string | null;
+  createdAt: Date;
+}
+
+/** Файл, который сотрудник отправляет или пересылает клиенту. */
+export interface OutgoingFile {
+  data: Uint8Array;
+  name: string;
+  mime: string;
+  /** Как отправить в WhatsApp: фото, видео, голосовое/аудио или файлом. */
+  kind: "image" | "video" | "audio" | "document";
+}
+
+type SendResult = { ok: true; externalId: string | null } | { ok: false; error: string };
+
 export interface MessageRepository {
   /** false — повторная доставка вебхука. */
   insertIncoming(conversationId: string, m: InboundMessage, subject: string | null): Promise<boolean>;
@@ -57,7 +94,12 @@ export interface MessageRepository {
   claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string): Promise<boolean>;
   insertEcho(conversationId: string, m: InboundMessage): Promise<boolean>;
   /** source — кто отправил без сотрудника: бот или правило (в чате подписываются «бот» / «автоматически»). */
-  insertOutgoing(conversationId: string, text: string, authorId: string | null, internal?: boolean, source?: MessageSource): Promise<OutgoingMessage>;
+  insertOutgoing(conversationId: string, text: string, authorId: string | null, internal?: boolean, source?: MessageSource, extra?: OutgoingExtra): Promise<OutgoingMessage>;
+  /** Сообщение для правки, удаления, ответа и пересылки. */
+  findOne(id: string): Promise<StoredMessage | null>;
+  editText(id: string, text: string, at: Date): Promise<void>;
+  markDeleted(id: string, at: Date): Promise<void>;
+  setTranscript(id: string, text: string): Promise<void>;
   setStatus(id: string, status: "sent" | "delivered" | "read" | "error", error?: string | null): Promise<void>;
   /** Эхо-вебхук мог прийти раньше ответа API и создать копию — оставляем исходное сообщение. */
   attachExternalId(id: string, externalId: string | null): Promise<void>;
@@ -72,7 +114,13 @@ export interface Blocklist {
 
 /** Канал доставки исходящих: Wazzup, почта или виджет на сайте. */
 export interface ChannelTransport {
-  send(conv: Conversation, messageId: string, text: string): Promise<{ ok: true; externalId: string | null } | { ok: false; error: string }>;
+  send(conv: Conversation, messageId: string, text: string, opts?: { replyTo?: string | null; forwarded?: boolean }): Promise<SendResult>;
+  /** Файл клиенту (фото, видео, голосовое, документ); нет у канала — не умеет. */
+  sendFile?(conv: Conversation, file: OutgoingFile, opts: { caption: string; replyTo?: string | null; forwarded?: boolean }): Promise<SendResult>;
+  /** Изменить отправленное (WhatsApp — в течение 15 минут). */
+  edit?(conv: Conversation, externalId: string, text: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Удалить у клиента («удалить для всех»). */
+  revoke?(conv: Conversation, externalId: string): Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 /** Продажи (контекст Sales) — через узкий порт. */
@@ -233,6 +281,13 @@ export interface MessageMedia {
   /** Где лежит файл: ссылка нашего прокси на файл шлюза или адрес Wazzup; null — файла ещё нет. */
   mediaUrl: string | null;
   externalId: string | null;
+}
+
+/** Файлы, отправленные из CRM, у нас в хранилище (mediaUrl вида store:…). */
+export interface ChatFileStore {
+  owns(mediaUrl: string | null): boolean;
+  save(conversationId: string, file: { data: Uint8Array; name: string; mime: string }): Promise<string>;
+  read(mediaUrl: string): Promise<{ data: Uint8Array; mime: string } | null>;
 }
 
 /** Вложения сообщений (репозиторий сообщений). */

@@ -56,7 +56,7 @@ export const GREETING_WAIT_MS = 25_000;
 const MEDIA_PER_TURN = 3;
 const MEDIA_MAX_BYTES = 10_000_000;
 /** Инструкция распознаванию: только текст, который дальше идёт в беседу как слова клиента. */
-const MEDIA_PROMPT = {
+export const SELLER_MEDIA_PROMPT = {
   audio: "Это голосовое сообщение клиента из WhatsApp (русский или казахский, бывает вперемешку). Верни дословную расшифровку на языке оригинала — только текст, без кавычек и пояснений. Речь неразборчива — верни пустую строку.",
   image:
     "Это фото, которое клиент прислал в WhatsApp компании, делающей персональные книги-подарки. Опиши кратко (1–2 предложения), что на нём и зачем клиент мог его прислать. Если это чек или скриншот оплаты (Kaspi, перевод) — начни ответ словами «Чек об оплате» и укажи сумму, если она видна. Номера телефонов и карт не переписывай. Верни только текст.",
@@ -180,7 +180,7 @@ export class AiSeller {
       if (!file || !file.data.length || file.data.length > MEDIA_MAX_BYTES) continue;
       const kind = m.type === "image" ? "image" : "audio";
       const res = await this.d.seller
-        .media({ system: MEDIA_PROMPT[kind], parts: [{ kind, data: Buffer.from(file.data).toString("base64"), mime: file.mime || (kind === "image" ? "image/jpeg" : "audio/ogg") }], timeoutMs: SELLER_MEDIA_TIMEOUT_MS })
+        .media({ system: SELLER_MEDIA_PROMPT[kind], parts: [{ kind, data: Buffer.from(file.data).toString("base64"), mime: file.mime || (kind === "image" ? "image/jpeg" : "audio/ogg") }], timeoutMs: SELLER_MEDIA_TIMEOUT_MS })
         .catch(() => null);
       if (res && "unsupported" in res) {
         ai.mediaFailed = true;
@@ -189,6 +189,7 @@ export class AiSeller {
       const text = res?.text.trim();
       if (!text) continue;
       const line = mediaLine(kind, text);
+      if (kind === "audio") await this.d.transcript?.(m.id, text.slice(0, 4000)).catch(() => {});
       // Помним последние распознанные вложения — состояние беседы не растёт без меры.
       ai.media = Object.fromEntries([...Object.entries(ai.media), [m.id, line] as const].slice(-12));
       inputs[inputs.indexOf(m)] = asText(m, line);

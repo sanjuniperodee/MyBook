@@ -5,8 +5,8 @@ import { sourceFromChannel } from "@/modules/sales";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, ForbiddenError, type Staff } from "@/server/access";
-import { channelLabel, findSensitive, sensitiveLabels } from "@/modules/messaging";
+import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, contactView, ForbiddenError, type Staff } from "@/server/access";
+import { channelLabel, findSensitive, MessageActionError, sensitiveLabels } from "@/modules/messaging";
 import type { OfferRequest } from "@/modules/marketing";
 import { notifyMentions, staffNotifier } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
@@ -33,7 +33,7 @@ async function loadOwnConv(staff: Staff, id: string) {
  * только через счёт из CRM. Если это действительно нужно (например, номер курьера), override — причина: сообщение уходит,
  * руководителям — уведомление, в журнал — chat.sensitive.
  */
-export async function sendMessageAction(conversationId: string, text: string, override?: string): Promise<{ id: string; status: string; error: string | null } | { blocked: string }> {
+export async function sendMessageAction(conversationId: string, text: string, override?: string, replyToId?: string | null): Promise<{ id: string; status: string; error: string | null } | { blocked: string }> {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
@@ -44,7 +44,8 @@ export async function sendMessageAction(conversationId: string, text: string, ov
     const what = [...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ");
     return { blocked: `В сообщении ${what}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
   }
-  const msg = await container().messaging.chats.send(conv.id, body, staff.user.id);
+  const reply = replyToId ? uuid.parse(replyToId) : null;
+  const msg = await container().messaging.chats.send(conv.id, body, staff.user.id, undefined, { replyToId: reply });
   if (findings.length) {
     await audit(staff, "chat.sensitive", "conversation", conv.id, { findings, reason, deal: deal?.number ?? null });
     await staffNotifier.notifyAllWith("team.manage", {
@@ -162,4 +163,79 @@ export async function sendOfferAction(conversationId: string, request: OfferRequ
   }
   revalidatePath("/admin/chats");
   return msg.status === "error" ? { ok: false, message: ("error" in msg && msg.error) || "Не удалось отправить" } : { ok: true, message: offer.promo ? `Отправлено, промокод ${offer.promo}` : "Отправлено" };
+}
+
+// ─── действия с сообщениями: ответ, правка, удаление, пересылка, расшифровка ─────────────────
+
+/** Ошибка, понятная сотруднику (окно правки, чужое сообщение, канал не умеет) — текстом, а не исключением. */
+async function messageAction<T>(run: () => Promise<T>): Promise<T | { error: string }> {
+  try {
+    return await run();
+  } catch (err) {
+    if (MessageActionError.is(err)) return { error: err.message };
+    throw err;
+  }
+}
+
+/** Изменить своё сообщение (у клиента тоже — в первые 15 минут) или свою заметку. */
+export async function editMessageAction(conversationId: string, messageId: string, text: string): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
+  if (findSensitive(body, [conv.chatId, conv.meta.phone]).length) return { error: "В тексте номер, карта или реквизиты — так менять нельзя" };
+  const r = await messageAction(() => container().messaging.chats.editMessage(conv.id, uuid.parse(messageId), body, staff.user.id));
+  revalidatePath("/admin/chats");
+  return r && typeof r === "object" && "error" in r ? r : { ok: true };
+}
+
+/** Удалить своё сообщение (у клиента — «удалить для всех») или свою заметку. */
+export async function deleteMessageAction(conversationId: string, messageId: string): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  const r = await messageAction(() => container().messaging.chats.deleteMessage(conv.id, uuid.parse(messageId), staff.user.id));
+  if (!(r && typeof r === "object" && "error" in r)) await audit(staff, "chat.message.delete", "conversation", conv.id, { messageId });
+  revalidatePath("/admin/chats");
+  return r && typeof r === "object" && "error" in r ? r : { ok: true };
+}
+
+/** Куда переслать: диалоги, которые сотрудник ведёт (поиск по имени и номеру). */
+export async function forwardTargetsAction(query: string): Promise<{ id: string; title: string; channel: string; last: string }[]> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const q = z.string().max(100).parse(query ?? "").trim();
+  const list = await container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, "open", q || undefined);
+  return list
+    .filter((c) => canWork(staff, c.assigneeId))
+    .slice(0, 40)
+    .map((c) => ({
+      id: c.id,
+      title: c.contactName || (/^\d{10,15}$/.test(c.chatId) ? contactView(staff, { phone: formatPhone(c.chatId) }).phone || "клиент" : c.chatId),
+      channel: channelLabel(c.channel),
+      last: c.lastMessageText.slice(0, 80),
+    }));
+}
+
+/** Переслать сообщение в другие диалоги (до 10), которые сотрудник ведёт сам. */
+export async function forwardMessageAction(fromConversationId: string, messageId: string, targetIds: string[]): Promise<{ sent?: number; failed?: { title: string; error: string }[]; error?: string }> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const from = await loadConv(staff, fromConversationId);
+  const ids = z.array(uuid).min(1, "Выберите, куда переслать").max(10, "Не больше 10 диалогов за раз").parse(targetIds);
+  const targets = await Promise.all(ids.map((id) => loadOwnConv(staff, id)));
+  const msg = await container().messaging.queries.messageConversation(uuid.parse(messageId));
+  if (msg !== from.id) return { error: "Сообщение не найдено" };
+  const r = await messageAction(() => container().messaging.forward(messageId, targets.map((t) => t.id), staff.user.id));
+  if ("error" in r) return r;
+  await audit(staff, "chat.forward", "conversation", from.id, { messageId, to: targets.map((t) => t.id) });
+  revalidatePath("/admin/chats");
+  const title = new Map(targets.map((t) => [t.id, t.contactName || formatPhone(t.chatId) || t.chatId]));
+  return { sent: r.sent, failed: r.failed.map((f) => ({ title: title.get(f.conversationId) ?? "диалог", error: f.error })) };
+}
+
+/** Расшифровать голосовое моделью «Голосовые и фото». */
+export async function transcribeMessageAction(conversationId: string, messageId: string): Promise<{ text?: string; error?: string }> {
+  const staff = await assertStaff("chats.view");
+  const conv = await loadConv(staff, conversationId);
+  const owner = await container().messaging.queries.messageConversation(uuid.parse(messageId));
+  if (owner !== conv.id) return { error: "Сообщение не найдено" };
+  const r = await messageAction(() => container().messaging.transcribe(messageId));
+  return typeof r === "string" ? { text: r } : r;
 }

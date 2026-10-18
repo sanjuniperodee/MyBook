@@ -19,7 +19,19 @@ import {
   type InboundMessage,
 } from "../domain";
 import type { QualifierBot } from "./bot";
-import type { Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, SalesGateway, StaffNotifier, Tasks } from "./ports";
+import type { Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffNotifier, StoredMessage, Tasks } from "./ports";
+
+/** WhatsApp даёт изменить отправленное 15 минут, удалить «для всех» — около двух суток. */
+export const EDIT_WINDOW_MS = 15 * 60_000;
+export const REVOKE_WINDOW_MS = 48 * 3_600_000;
+
+/** Что нельзя сделать с сообщением — текстом для сотрудника. */
+export class MessageActionError extends Error {
+  readonly isMessageAction = true;
+  static is(err: unknown): err is MessageActionError {
+    return typeof err === "object" && err !== null && (err as { isMessageAction?: boolean }).isMessageAction === true;
+  }
+}
 
 /** Сообщение канала без секретов в тексте (redactSecrets): так оно и хранится в CRM. */
 const withoutSecrets = (m: InboundMessage): InboundMessage => {
@@ -190,20 +202,28 @@ export class MessagingService {
     this.live.chatChanged(msg.conversationId);
   }
 
-  /** Отправка из CRM: менеджером или правилом/ботом (authorId = null, source — кто именно). */
-  async send(conversationId: string, text: string, authorId: string | null, source?: MessageSource) {
+  /** Сообщение этого диалога, на которое отвечают: его id в канале (для цитаты в WhatsApp). */
+  private async replyTarget(conversationId: string, replyToId: string | null | undefined) {
+    if (!replyToId) return null;
+    const m = await this.messages.findOne(replyToId);
+    return m && m.conversationId === conversationId && !m.internal && !m.deletedAt ? m : null;
+  }
+
+  /** Отправка из CRM: менеджером или правилом/ботом (authorId = null, source — кто именно); ответом или пересланным. */
+  async send(conversationId: string, text: string, authorId: string | null, source?: MessageSource, opts: { replyToId?: string | null; forwarded?: boolean } = {}) {
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
     const body = text.trim().slice(0, 4000);
     if (!body) throw new Error("Пустое сообщение");
     // Ответил менеджер — бот замолкает (до записи ответа: она тоже помечает бота остановленным).
     if (authorId) await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
+    const reply = await this.replyTarget(conversationId, opts.replyToId);
     // Клиенту уходит текст целиком, в CRM — с маской секретов (ссылка «задайте пароль»).
-    const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId, false, authorId ? undefined : source);
+    const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId, false, authorId ? undefined : source, { replyToId: reply?.id ?? null, forwarded: opts.forwarded });
     await this.conversations.recordOutgoing(conversationId, preview(body), this.clock.now(), authorId);
     if (authorId && conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId);
     this.live.chatChanged(conversationId);
-    const r = await this.transport.send(conv, msg.id, body);
+    const r = await this.transport.send(conv, msg.id, body, { replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
     if (!r.ok) {
       await this.messages.setStatus(msg.id, "error", r.error);
       this.live.chatChanged(conversationId);
@@ -212,6 +232,76 @@ export class MessagingService {
     await this.messages.attachExternalId(msg.id, r.externalId);
     if (conv.channel === "email") this.live.chatChanged(conversationId);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
+  }
+
+  /**
+   * Файл клиенту от сотрудника (фото, видео, голосовое, документ) с подписью; mediaUrl — где файл лежит у нас (чтобы
+   * открыть его в CRM). Ответом на сообщение или пересланным.
+   */
+  async sendFile(conversationId: string, file: OutgoingFile, caption: string, authorId: string, opts: { mediaUrl: string | null; replyToId?: string | null; forwarded?: boolean }) {
+    const conv = await this.conversations.findById(conversationId);
+    if (!conv) throw new Error("Диалог не найден");
+    if (!this.transport.sendFile) throw new MessageActionError("Отправка файлов в этом канале недоступна");
+    await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
+    const reply = await this.replyTarget(conversationId, opts.replyToId);
+    const text = caption.trim().slice(0, 1000);
+    const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(text), authorId, false, undefined, { type: file.kind, mediaUrl: opts.mediaUrl, replyToId: reply?.id ?? null, forwarded: opts.forwarded });
+    const label = file.kind === "image" ? "📷 Фото" : file.kind === "video" ? "🎬 Видео" : file.kind === "audio" ? "🎤 Голосовое" : `📎 ${file.name}`;
+    await this.conversations.recordOutgoing(conversationId, preview(text || label), this.clock.now(), authorId);
+    if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId);
+    this.live.chatChanged(conversationId);
+    const r = await this.transport.sendFile(conv, file, { caption: text, replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
+    if (!r.ok) {
+      await this.messages.setStatus(msg.id, "error", r.error);
+      this.live.chatChanged(conversationId);
+      return { ...msg, status: "error" as const, error: r.error };
+    }
+    await this.messages.attachExternalId(msg.id, r.externalId);
+    this.live.chatChanged(conversationId);
+    return { ...msg, externalId: r.externalId, status: "sent" as const };
+  }
+
+  /** Своё сообщение или заметку сотрудник меняет и удаляет сам; чужие и сообщения клиента — нет. */
+  private async ownMessage(conversationId: string, messageId: string, authorId: string): Promise<StoredMessage> {
+    const m = await this.messages.findOne(messageId);
+    if (!m || m.conversationId !== conversationId) throw new MessageActionError("Сообщение не найдено");
+    if (m.deletedAt) throw new MessageActionError("Сообщение уже удалено");
+    if (m.direction !== "out" || m.authorId !== authorId) throw new MessageActionError("Изменить и удалить можно только своё сообщение");
+    return m;
+  }
+
+  /** Изменить текст своего сообщения: у клиента тоже (WhatsApp — 15 минут), заметку — в любое время. */
+  async editMessage(conversationId: string, messageId: string, text: string, authorId: string) {
+    const m = await this.ownMessage(conversationId, messageId, authorId);
+    const body = text.trim().slice(0, 4000);
+    if (!body) throw new MessageActionError("Пустое сообщение");
+    if (m.type !== "text") throw new MessageActionError("Изменить можно только текст");
+    if (!m.internal) {
+      if (this.clock.now().getTime() - m.createdAt.getTime() > EDIT_WINDOW_MS) throw new MessageActionError("WhatsApp даёт изменить сообщение только в первые 15 минут");
+      const conv = await this.conversations.findById(conversationId);
+      if (!conv) throw new MessageActionError("Диалог не найден");
+      if (!m.externalId && conv.channel !== "site") throw new MessageActionError("Сообщение ещё не доставлено — подождите пару секунд");
+      const r = this.transport.edit ? await this.transport.edit(conv, m.externalId ?? "", body) : { ok: false as const, error: "Канал не поддерживает правку" };
+      if (!r.ok) throw new MessageActionError(r.error);
+    }
+    await this.messages.editText(m.id, redactSecrets(body), this.clock.now());
+    this.live.chatChanged(conversationId);
+  }
+
+  /** Удалить своё сообщение: у клиента — «удалить для всех» (около двух суток), заметку — в любое время. */
+  async deleteMessage(conversationId: string, messageId: string, authorId: string) {
+    const m = await this.ownMessage(conversationId, messageId, authorId);
+    if (!m.internal && m.status !== "error") {
+      if (this.clock.now().getTime() - m.createdAt.getTime() > REVOKE_WINDOW_MS) throw new MessageActionError("WhatsApp даёт удалить сообщение у клиента только в первые двое суток");
+      const conv = await this.conversations.findById(conversationId);
+      if (!conv) throw new MessageActionError("Диалог не найден");
+      if (m.externalId || conv.channel === "site") {
+        const r = this.transport.revoke ? await this.transport.revoke(conv, m.externalId ?? "") : { ok: false as const, error: "Канал не поддерживает удаление" };
+        if (!r.ok) throw new MessageActionError(r.error);
+      }
+    }
+    await this.messages.markDeleted(m.id, this.clock.now());
+    this.live.chatChanged(conversationId);
   }
 
   /**

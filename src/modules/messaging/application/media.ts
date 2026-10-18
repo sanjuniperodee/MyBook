@@ -1,5 +1,5 @@
 import { gowaDownloadable, gowaMediaPath, gowaMediaType, gowaMediaUrl, type Conversation } from "../domain";
-import type { ConversationRepository, MediaFile, MediaGateway, MessageMedia, MessageMediaStore } from "./ports";
+import type { ChatFileStore, ConversationRepository, MediaFile, MediaGateway, MessageMedia, MessageMediaStore } from "./ports";
 
 /** Вложение и его диалог: по ответственному диалога роут проверяет, видит ли его сотрудник. */
 export interface Attachment {
@@ -56,7 +56,16 @@ export class ChatMediaService {
     /** WhatsApp сейчас идёт через свой шлюз — его же диалоги, начатые при Wazzup, тоже качаются через шлюз. */
     private readonly viaGowa: () => Promise<boolean>,
     private readonly now: () => number = Date.now,
+    /** Файлы, отправленные из CRM (store:…), — из хранилища сайта. */
+    private readonly files: ChatFileStore | null = null,
   ) {}
+
+  /** Файл из хранилища сайта целиком (Range не нужен: файлы небольшие). */
+  private async stored(mediaUrl: string): Promise<MediaFile | null> {
+    const f = await this.files?.read(mediaUrl);
+    if (!f) return null;
+    return { body: new Blob([f.data as BlobPart]).stream(), contentType: f.mime, size: String(f.data.length), range: null };
+  }
 
   async find(messageId: string): Promise<Attachment | null> {
     const message = await this.messages.media(messageId);
@@ -71,6 +80,7 @@ export class ChatMediaService {
    * а следующие MEDIA_RETRY_MS по этому сообщению сразу MediaUnavailableError, без запроса к шлюзу.
    */
   async open({ message, conversation }: Attachment, range?: string | null): Promise<MediaFile | null> {
+    if (this.files?.owns(message.mediaUrl)) return this.stored(message.mediaUrl!);
     const saved = gowaMediaPath(message.mediaUrl);
     if (message.mediaUrl && !saved) return null;
     const file = saved ? await this.gateway.file(saved, range) : null;
@@ -104,6 +114,10 @@ export class ChatMediaService {
     const att = await this.find(messageId);
     if (!att) return null;
     const { message, conversation } = att;
+    if (this.files?.owns(message.mediaUrl)) {
+      const f = await this.files.read(message.mediaUrl!);
+      return f && f.data.length <= maxSize ? f : null;
+    }
     const saved = gowaMediaPath(message.mediaUrl);
     if (saved) {
       const file = await this.gateway.file(saved).catch(() => null);

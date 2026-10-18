@@ -89,6 +89,16 @@ export const crmMessages = pgTable(
     error: text("error"),
     /** Письма: тема и Message-ID для цепочки ответов. */
     subject: text("subject"),
+    /** Ответ на сообщение (цитата в чате; в WhatsApp — reply). */
+    replyToId: uuid("reply_to_id"),
+    /** Переслано из другого диалога (в WhatsApp — пометка «Пересланное»). */
+    forwarded: boolean("forwarded").notNull().default(false),
+    /** Сотрудник изменил текст (в WhatsApp — «Изменено»). */
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    /** Сообщение удалено (у клиента — «удалено для всех»); текст в CRM скрыт. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /** Расшифровка голосового (по кнопке в чате или из распознавания AI-продажника). */
+    transcript: text("transcript"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],

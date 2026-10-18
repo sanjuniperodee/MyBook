@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
@@ -29,6 +29,16 @@ export interface ChatMessage {
    * через /api/admin/chats/messages/<id>/media, с проверкой, что сотрудник видит диалог.
    */
   gateway?: boolean;
+  /** Кто из сотрудников отправил (для «Изменить» и «Удалить» — только своё). */
+  authorId?: string | null;
+  /** Ответ на сообщение: что цитируется. */
+  replyTo?: { id: string; text: string; type: string; direction: "in" | "out"; author: string | null } | null;
+  forwarded?: boolean;
+  edited?: boolean;
+  /** Удалено (у клиента — «для всех»): текст и вложение не показываются. */
+  deleted?: boolean;
+  /** Расшифровка голосового. */
+  transcript?: string | null;
 }
 
 /** Кто отправил исходящее без сотрудника: бот, правило автоматизации, телефон магазина (эхо) или старая запись. */
@@ -48,8 +58,21 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
     .where(eq(crmMessages.conversationId, conversationId))
     .orderBy(desc(crmMessages.createdAt))
     .limit(limit);
+  // Цитаты ответов — одним запросом по id.
+  const replyIds = [...new Set(rows.map((r) => r.m.replyToId).filter((x): x is string => !!x))];
+  const quoted = replyIds.length
+    ? await db
+        .select({ id: crmMessages.id, text: crmMessages.text, type: crmMessages.type, direction: crmMessages.direction, deletedAt: crmMessages.deletedAt, name: users.name, email: users.email })
+        .from(crmMessages)
+        .leftJoin(users, eq(users.id, crmMessages.authorId))
+        .where(inArray(crmMessages.id, replyIds))
+    : [];
+  const byId = new Map(quoted.map((q) => [q.id, q]));
   return rows.reverse().map(({ m, author }) => {
     const viaGateway = gateway(m);
+    const q = m.replyToId ? byId.get(m.replyToId) : undefined;
+    if (m.deletedAt)
+      return { id: m.id, direction: m.direction, type: "text", text: "", mediaUrl: null, status: m.status, error: null, author: author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : null, at: m.createdAt.toISOString(), internal: m.internal, authorId: m.authorId, deleted: true };
     return {
       id: m.id,
       direction: m.direction,
@@ -63,6 +86,11 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
       at: m.createdAt.toISOString(),
       internal: m.internal,
       ...(viaGateway ? { gateway: true } : {}),
+      authorId: m.authorId,
+      replyTo: q ? { id: q.id, text: q.deletedAt ? "Сообщение удалено" : q.text, type: q.type, direction: q.direction, author: q.direction === "in" ? null : q.email ? staffLabel({ name: q.name ?? "", email: q.email }) : null } : null,
+      forwarded: m.forwarded,
+      edited: !!m.editedAt,
+      transcript: m.transcript,
     };
   });
 }
@@ -84,7 +112,8 @@ export class ChatView {
   async messages(conversationId: string, limit = 150) {
     const [conv] = await db.select({ channel: crmConversations.channel, channelId: crmConversations.channelId, chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.id, conversationId)).limit(1);
     const viaGowa = conv?.channel === "whatsapp" && (await this.deps.whatsappProvider()) === "gowa";
-    return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || gowaDownloadable(conv, viaGowa, m)));
+    // Файл шлюза, файл, который шлюз скачает, или файл из хранилища сайта (отправлен из CRM) — через наш адрес.
+    return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || (m.mediaUrl?.startsWith("store:") ?? false) || gowaDownloadable(conv, viaGowa, m)));
   }
 
   templates() {

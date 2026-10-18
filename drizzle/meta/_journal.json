@@ -288,6 +288,13 @@
       "when": 1792261955156,
       "tag": "0040_task_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792292253304,
+      "tag": "0041_chat_message_actions",
+      "breakpoints": true
     }
   ]
 }

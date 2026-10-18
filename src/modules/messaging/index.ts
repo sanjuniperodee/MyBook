@@ -1,7 +1,7 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { BotCoach, ChatMediaService, MessagingService, QualifierBot, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
+import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
@@ -9,6 +9,7 @@ import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type
 import { GOWA_CHANNEL, gowaJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
+import { chatFiles } from "./infrastructure/chatFiles";
 import { parseCoachLog, parseLessons, type BotLesson, type CoachRun } from "./domain";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
@@ -18,6 +19,7 @@ export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conve
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
+export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
@@ -48,6 +50,20 @@ export interface WhatsappSettings {
   gowaWebhook(): Promise<GowaWebhook>;
 }
 
+/** Вложения, которые пересылаются файлом. */
+const FORWARD_MEDIA = new Set(["image", "video", "audio", "document"]);
+/** Больше WhatsApp не примет (видео до 64 МБ, документы до 100 МБ; берём с запасом по памяти сервера). */
+const MAX_UPLOAD = 50 * 1024 * 1024;
+
+/** Как отправить файл в WhatsApp — по типу и имени. */
+export function fileKind(mime: string, name: string): "image" | "video" | "audio" | "document" {
+  const m = mime.toLowerCase();
+  if (/^image\/(?:jpeg|png|webp)$/.test(m) || /\.(jpe?g|png|webp)$/i.test(name)) return "image";
+  if (/^video\/(?:mp4|3gpp|quicktime)$/.test(m) || /\.(mp4|mov|3gp)$/i.test(name)) return "video";
+  if (m.startsWith("audio/") || /\.(ogg|opus|mp3|m4a|aac|wav)$/i.test(name)) return "audio";
+  return "document";
+}
+
 /** Cookie посетителя для чата на сайте. */
 export const VISITOR_COOKIE = "mb_chat";
 
@@ -71,6 +87,7 @@ export class MessagingModule {
   /** Работа над ошибками AI-продажника: ночной разбор бесед → уроки в его инструкции. */
   readonly coach: BotCoach;
   private readonly botStore = new DrizzleBotStore();
+  private readonly messages = new DrizzleMessageRepository();
   private readonly botSettings;
 
   constructor(
@@ -115,6 +132,8 @@ export class MessagingModule {
       seller: deps.sellerModel ?? null,
       history: (conversationId, limit) => this.botHistory(conversationId, limit),
       media: (messageId) => this.media.bytes(messageId).catch(() => null),
+      // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
+      transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
     });
     this.coach = new BotCoach({
       settings: this.botSettings,
@@ -132,10 +151,68 @@ export class MessagingModule {
     this.email = new EmailChannel({ ...deps, chats: { ingest: (message, extra) => this.chats.ingest(message, extra) } });
     this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup, gowa: this.gowa, whatsappProvider: deps.whatsappSettings.provider, smtp: deps.smtp });
     const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup, this.email));
-    const messages = new DrizzleMessageRepository();
+    const messages = this.messages;
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp);
-    this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa");
+    this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
+  }
+
+  /** Файл от сотрудника (фото, видео, аудио, документ): сохраняется у нас (чтобы открыть в CRM) и уходит клиенту. */
+  async sendUpload(conversationId: string, file: { data: Uint8Array; name: string; mime: string }, caption: string, authorId: string, opts: { replyToId?: string | null } = {}) {
+    if (!file.data.length) throw new MessageActionError("Пустой файл");
+    if (file.data.length > MAX_UPLOAD) throw new MessageActionError("Файл больше 50 МБ — WhatsApp такой не примет");
+    const mediaUrl = await chatFiles.save(conversationId, file);
+    return this.chats.sendFile(conversationId, { ...file, kind: fileKind(file.mime, file.name) }, caption, authorId, { mediaUrl, replyToId: opts.replyToId });
+  }
+
+  /**
+   * Переслать сообщение в другие диалоги (до 10): текст — текстом, вложение — тем же файлом с подписью; в WhatsApp
+   * с пометкой «Пересланное». Возвращает, куда не ушло и почему.
+   */
+  async forward(messageId: string, targetIds: string[], authorId: string): Promise<{ sent: number; failed: { conversationId: string; error: string }[] }> {
+    const m = await this.messages.findOne(messageId);
+    if (!m || m.deletedAt) throw new MessageActionError("Сообщение не найдено");
+    if (m.internal) throw new MessageActionError("Заметку для коллег переслать нельзя");
+    const media = FORWARD_MEDIA.has(m.type);
+    let file: { data: Uint8Array; name: string; mime: string; kind: ReturnType<typeof fileKind> } | null = null;
+    let mediaUrl: string | null = null;
+    if (media) {
+      const bytes = await this.media.bytes(m.id).catch(() => null);
+      if (!bytes) throw new MessageActionError("Файл вложения недоступен — переслать не получится");
+      const kind = m.type === "image" || m.type === "video" || m.type === "audio" ? m.type : "document";
+      file = { data: bytes.data, mime: bytes.mime, kind, name: `${kind === "document" ? "file" : kind}.${(bytes.mime.split("/")[1] ?? "bin").split(";")[0]}` };
+      // Шлюз мог только что скачать файл — копия ссылается на тот же файл.
+      mediaUrl = (await this.messages.findOne(m.id))?.mediaUrl ?? null;
+    } else if (!m.text.trim()) throw new MessageActionError("Пустое сообщение");
+    const failed: { conversationId: string; error: string }[] = [];
+    let sent = 0;
+    for (const target of [...new Set(targetIds)].slice(0, 10)) {
+      try {
+        const r = file ? await this.chats.sendFile(target, file, m.text, authorId, { mediaUrl, forwarded: true }) : await this.chats.send(target, m.text, authorId, undefined, { forwarded: true });
+        if (r.status === "error") failed.push({ conversationId: target, error: r.error ?? "не отправилось" });
+        else sent++;
+      } catch (err) {
+        failed.push({ conversationId: target, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return { sent, failed };
+  }
+
+  /** Расшифровка голосового (по кнопке в чате): модель «Голосовые и фото»; готовая — из базы. */
+  async transcribe(messageId: string): Promise<string> {
+    const m = await this.messages.findOne(messageId);
+    if (!m || m.type !== "audio") throw new MessageActionError("Это не голосовое");
+    if (m.transcript) return m.transcript;
+    const model = this.deps.sellerModel;
+    if (!model?.media) throw new MessageActionError("Модель для голосовых не подключена («Интеграции» → AI → «Голосовые и фото»)");
+    const bytes = await this.media.bytes(m.id).catch(() => null);
+    if (!bytes) throw new MessageActionError("Файл голосового недоступен");
+    const res = await model.media({ system: SELLER_MEDIA_PROMPT.audio, parts: [{ kind: "audio", data: Buffer.from(bytes.data).toString("base64"), mime: bytes.mime || "audio/ogg" }], timeoutMs: 60_000 }).catch(() => null);
+    if (!res) throw new MessageActionError("Не удалось расшифровать — попробуйте ещё раз");
+    if ("unsupported" in res) throw new MessageActionError("Выбранная модель не слушает голосовые — выберите Gemini в «Интеграции» → AI → «Голосовые и фото»");
+    const text = res.text.trim().slice(0, 4000) || "(неразборчиво)";
+    await this.messages.setTranscript(m.id, text);
+    return text;
   }
 
   /** Уроки работы над ошибками и журнал разборов (для настроек и разбора). */

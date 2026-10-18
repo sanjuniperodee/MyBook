@@ -16,7 +16,25 @@ export const BOT_CONFIG: BotConfig = {
 };
 
 export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null };
-export type Msg = { id: string; conv: string; dir: "in" | "out"; text: string; type: string; at: Date; externalId: string | null; status: string; source?: string | null; internal?: boolean; authorId?: string | null; mediaUrl?: string | null };
+export type Msg = {
+  id: string;
+  conv: string;
+  dir: "in" | "out";
+  text: string;
+  type: string;
+  at: Date;
+  externalId: string | null;
+  status: string;
+  source?: string | null;
+  internal?: boolean;
+  authorId?: string | null;
+  mediaUrl?: string | null;
+  replyToId?: string | null;
+  forwarded?: boolean;
+  editedAt?: Date | null;
+  deletedAt?: Date | null;
+  transcript?: string | null;
+};
 
 export function setup(
   opts: {
@@ -46,6 +64,10 @@ export function setup(
   const msgs: Msg[] = [];
   const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown>; tags: string[] }[] = [];
   const sent: string[] = [];
+  const sendOpts: { replyTo?: string | null; forwarded?: boolean }[] = [];
+  const files: { name: string; kind: string; caption: string; forwarded: boolean; replyTo: string | null }[] = [];
+  const edits: { externalId: string; text: string }[] = [];
+  const revokes: string[] = [];
   const notes: string[] = [];
   const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
   const events: (BotEvent & { conv: string })[] = [];
@@ -106,12 +128,21 @@ export function setup(
       return !!p;
     },
     insertEcho: async (conv, m) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent" }),
-    insertOutgoing: async (conv, text, authorId, internal, source) => {
-      const m: Msg = { id: `m${++seq}`, conv, dir: "out", text, type: "text", at: now, externalId: null, status: "pending", source: source ?? null, internal: !!internal, authorId };
+    insertOutgoing: async (conv, text, authorId, internal, source, extra = {}) => {
+      const m: Msg = { id: `m${++seq}`, conv, dir: "out", text, type: extra.type ?? "text", at: now, externalId: null, status: "pending", source: source ?? null, internal: !!internal, authorId, mediaUrl: extra.mediaUrl ?? null, replyToId: extra.replyToId ?? null, forwarded: !!extra.forwarded };
       msgs.push(m);
       return { id: m.id, conversationId: conv, text, authorId, createdAt: now };
     },
     setStatus: async (id, status) => void (msgs.find((m) => m.id === id)!.status = status),
+    findOne: async (id) => {
+      const m = msgs.find((x) => x.id === id);
+      return m
+        ? { id: m.id, conversationId: m.conv, direction: m.dir, type: m.type, text: m.text, mediaUrl: m.mediaUrl ?? null, externalId: m.externalId, internal: !!m.internal, authorId: m.authorId ?? null, source: (m.source as "bot" | "rule" | null) ?? null, status: m.status, deletedAt: m.deletedAt ?? null, transcript: m.transcript ?? null, createdAt: m.at }
+        : null;
+    },
+    editText: async (id, text, at) => void Object.assign(msgs.find((m) => m.id === id)!, { text, editedAt: at }),
+    markDeleted: async (id, at) => void Object.assign(msgs.find((m) => m.id === id)!, { deletedAt: at }),
+    setTranscript: async (id, text) => void Object.assign(msgs.find((m) => m.id === id)!, { transcript: text }),
     attachExternalId: async (id, ext) => void Object.assign(msgs.find((m) => m.id === id)!, { externalId: ext, status: "sent" }),
     byExternalId: async (e) => {
       const m = msgs.find((x) => x.externalId === e);
@@ -182,7 +213,12 @@ export function setup(
     conversations,
     messages,
     { isBlocked: async () => !!opts.blocked, add: async () => {}, remove: async () => {} },
-    { send: async (_c, _id, text) => (sent.push(text), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }) },
+    {
+      send: async (_c, _id, text, o) => (sent.push(text), sendOpts.push(o ?? {}), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }),
+      sendFile: async (_c, file, o) => (files.push({ name: file.name, kind: file.kind, caption: o.caption, forwarded: !!o.forwarded, replyTo: o.replyTo ?? null }), { ok: true, externalId: `wzf-${files.length}` }),
+      edit: async (_c, externalId, text) => (edits.push({ externalId, text }), { ok: true }),
+      revoke: async (_c, externalId) => (revokes.push(externalId), { ok: true }),
+    },
     sales,
     { fromText: async () => null },
     notifier,
@@ -231,7 +267,7 @@ export function setup(
     now = new Date(now.getTime() + ms);
     await bot.sweep();
   };
-  return { service, bot, deps, convs, msgs, deals, sent, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

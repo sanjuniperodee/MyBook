@@ -124,6 +124,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           ai={ai && canReply}
           invoice={invoicePerms.send ? { dealId: conv.dealId } : null}
           timeZone={storeTimeZone()}
+          me={staff.user.id}
         />
       </div>
     );

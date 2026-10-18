@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource } from "../application";
+import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
 import { readBotState, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
@@ -198,12 +198,61 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     return rows.length > 0;
   }
 
-  async insertOutgoing(conversationId: string, text: string, authorId: string | null, internal = false, source?: MessageSource) {
+  async insertOutgoing(conversationId: string, text: string, authorId: string | null, internal = false, source?: MessageSource, extra: OutgoingExtra = {}) {
     const [m] = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "out", authorId, text, internal, source: source ?? null, status: internal ? "sent" : "pending" })
+      .values({
+        conversationId,
+        direction: "out",
+        authorId,
+        text,
+        internal,
+        source: source ?? null,
+        status: internal ? "sent" : "pending",
+        type: extra.type ?? "text",
+        mediaUrl: extra.mediaUrl ?? null,
+        replyToId: extra.replyToId ?? null,
+        forwarded: !!extra.forwarded,
+      })
       .returning();
     return m;
+  }
+
+  async findOne(id: string): Promise<StoredMessage | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [m] = await executor()
+      .select({
+        id: crmMessages.id,
+        conversationId: crmMessages.conversationId,
+        direction: crmMessages.direction,
+        type: crmMessages.type,
+        text: crmMessages.text,
+        mediaUrl: crmMessages.mediaUrl,
+        externalId: crmMessages.externalId,
+        internal: crmMessages.internal,
+        authorId: crmMessages.authorId,
+        source: crmMessages.source,
+        status: crmMessages.status,
+        deletedAt: crmMessages.deletedAt,
+        transcript: crmMessages.transcript,
+        createdAt: crmMessages.createdAt,
+      })
+      .from(crmMessages)
+      .where(eq(crmMessages.id, id))
+      .limit(1);
+    return m ?? null;
+  }
+
+  async editText(id: string, text: string, at: Date) {
+    await executor().update(crmMessages).set({ text, editedAt: at }).where(eq(crmMessages.id, id));
+  }
+
+  async markDeleted(id: string, at: Date) {
+    await executor().update(crmMessages).set({ deletedAt: at }).where(eq(crmMessages.id, id));
+  }
+
+  async setTranscript(id: string, text: string) {
+    await executor().update(crmMessages).set({ transcript: text }).where(eq(crmMessages.id, id));
   }
 
   async setStatus(id: string, status: "sent" | "delivered" | "read" | "error", error: string | null = null) {
@@ -398,6 +447,13 @@ export const drizzleBlocklist: Blocklist = {
 
 /** Read-модели переписки. */
 export class DrizzleMessagingQueries {
+  /** В каком диалоге сообщение (проверка доступа к действиям с ним). */
+  async messageConversation(messageId: string): Promise<string | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(messageId)) return null;
+    const [m] = await executor().select({ c: crmMessages.conversationId }).from(crmMessages).where(eq(crmMessages.id, messageId)).limit(1);
+    return m?.c ?? null;
+  }
+
   /** Диалог целиком (для экранов CRM). */
   async conversation(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;

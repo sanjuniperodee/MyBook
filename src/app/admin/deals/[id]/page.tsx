@@ -215,6 +215,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 ai={ai && can(staff, "chats.send") && canWork(staff, deal.assigneeId)}
                 invoice={invoicePerms.send ? { dealId: deal.id } : null}
                 timeZone={storeTimeZone()}
+                me={staff.user.id}
               />
             </section>
           ) : null}

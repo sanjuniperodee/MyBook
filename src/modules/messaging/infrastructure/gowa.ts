@@ -78,10 +78,39 @@ export class GowaClient {
     else await this.json("POST", "/devices", { device_id: GOWA_DEVICE, ...config });
   }
 
-  /** Отправить текст собеседнику. Возвращает id сообщения — по нему придут статусы доставки. */
-  async sendText(chatId: string, text: string): Promise<string | null> {
-    const res = await this.json<{ results?: { message_id?: string } }>("POST", "/send/message", { phone: gowaJid(chatId), message: text });
+  /** Отправить текст собеседнику (ответом на сообщение, пересланным). Возвращает id сообщения — по нему придут статусы. */
+  async sendText(chatId: string, text: string, opts: { replyTo?: string | null; forwarded?: boolean } = {}): Promise<string | null> {
+    const res = await this.json<{ results?: { message_id?: string } }>("POST", "/send/message", {
+      phone: gowaJid(chatId),
+      message: text,
+      ...(opts.replyTo ? { reply_message_id: opts.replyTo } : {}),
+      ...(opts.forwarded ? { is_forwarded: true } : {}),
+    });
     return res.results?.message_id ?? null;
+  }
+
+  /** Отправить файл: фото, видео, голосовое/аудио или документ (multipart, как в API шлюза). */
+  async sendFile(chatId: string, file: { data: Uint8Array; name: string; mime: string; kind: "image" | "video" | "audio" | "document" }, opts: { caption?: string; forwarded?: boolean } = {}): Promise<string | null> {
+    const field = file.kind === "document" ? "file" : file.kind;
+    const form = new FormData();
+    form.set("phone", gowaJid(chatId));
+    if (opts.caption && file.kind !== "audio") form.set("caption", opts.caption);
+    if (opts.forwarded) form.set("is_forwarded", "true");
+    form.set(field, new Blob([file.data as BlobPart], { type: file.mime || "application/octet-stream" }), file.name || "file");
+    const res = await this.json<{ results?: { message_id?: string } }>("POST", `/send/${field}`, form, 120_000);
+    return res.results?.message_id ?? null;
+  }
+
+  /** Изменить отправленное сообщение (WhatsApp разрешает в течение 15 минут). */
+  async edit(chatId: string, messageId: string, text: string) {
+    if (!GOWA_MESSAGE_ID.test(messageId)) throw new GowaError("Неверный id сообщения");
+    await this.json("POST", `/message/${encodeURIComponent(messageId)}/update`, { phone: gowaJid(chatId), message: text });
+  }
+
+  /** Удалить сообщение у всех («удалить для всех»). */
+  async revoke(chatId: string, messageId: string) {
+    if (!GOWA_MESSAGE_ID.test(messageId)) throw new GowaError("Неверный id сообщения");
+    await this.json("POST", `/message/${encodeURIComponent(messageId)}/revoke`, { phone: gowaJid(chatId) });
   }
 
   async status(): Promise<GowaStatus> {
@@ -187,8 +216,9 @@ export class GowaClient {
     try {
       res = await this.fetchImpl(`${baseUrl.replace(/\/+$/, "")}${path}`, {
         method,
-        headers: { ...(await this.headers()), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        // FormData (файлы) — с границей multipart, её ставит fetch; остальное — JSON.
+        headers: { ...(await this.headers()), ...(body === undefined || body instanceof FormData ? {} : { "Content-Type": "application/json" }) },
+        body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch {

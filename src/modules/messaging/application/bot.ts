@@ -65,6 +65,8 @@ export interface QualifierBotDeps {
   history?: BotHistory["messages"] | null;
   /** Файлы вложений по id сообщения — чтобы продажник распознавал голосовые и фото. */
   media?: BotMediaReader["read"] | null;
+  /** Расшифровка голосового — в сообщение, чтобы её видел и менеджер в чате. */
+  transcript?: ((messageId: string, text: string) => Promise<void>) | null;
 }
 
 /**

@@ -8,7 +8,7 @@ import { executor } from "@/shared/infrastructure/database";
 import { nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { storeTimeZone } from "@/shared/domain/time";
 import type { BotSettings, BotTimers, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier, Tasks } from "../application";
-import { DEFAULT_BOT_MODE, GOWA_CHANNEL, isBotMode, parseLessons, type BotCatalog } from "../domain";
+import { DEFAULT_BOT_MODE, GOWA_CHANNEL, isBotMode, parseLessons, type BotCatalog, type Conversation } from "../domain";
 import type { EmailChannel } from "./email";
 import { GowaError, type GowaClient } from "./gowa";
 import { WazzupError, type WazzupClient } from "./wazzup";
@@ -36,15 +36,50 @@ export const channelTransport = (wazzup: WazzupClient, email: Pick<EmailChannel,
  * выбран GOWA (в том числе начатые при Wazzup). Остальное — как раньше, через channelTransport (others).
  */
 export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"wazzup" | "gowa">, others: ChannelTransport): ChannelTransport {
+  const viaGowa = async (conv: Conversation) => conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await provider()) === "gowa");
+  const fail = (err: unknown, what: string) => {
+    if (GowaError.is(err)) return { ok: false as const, error: err.message };
+    console.error(`[chats] gowa ${what}`, err);
+    return { ok: false as const, error: "Не удалось выполнить в WhatsApp" };
+  };
+  /** Чат на сайте: сообщения клиент видит из нашей базы — правка и удаление в CRM сразу видны ему. */
+  const local = (conv: Conversation) => conv.channel === "site";
+  const unsupported = { ok: false as const, error: "Этот канал не поддерживает правку и удаление отправленного" };
   return {
-    async send(conv, messageId, text) {
-      if (conv.channel !== "whatsapp" || (conv.channelId !== GOWA_CHANNEL && (await provider()) !== "gowa")) return others.send(conv, messageId, text);
+    async send(conv, messageId, text, opts) {
+      if (!(await viaGowa(conv))) return others.send(conv, messageId, text, opts);
       try {
-        return { ok: true, externalId: await gowa.sendText(conv.chatId, text) };
+        return { ok: true, externalId: await gowa.sendText(conv.chatId, text, opts) };
       } catch (err) {
-        if (GowaError.is(err)) return { ok: false, error: err.message };
-        console.error("[chats] gowa send", err);
-        return { ok: false, error: "Не удалось отправить" };
+        return fail(err, "send");
+      }
+    },
+    async sendFile(conv, file, opts) {
+      if (!(await viaGowa(conv))) return others.sendFile ? others.sendFile(conv, file, opts) : { ok: false, error: "Файлы можно отправлять только в WhatsApp через свой шлюз" };
+      try {
+        return { ok: true, externalId: await gowa.sendFile(conv.chatId, file, opts) };
+      } catch (err) {
+        return fail(err, "file");
+      }
+    },
+    async edit(conv, externalId, text) {
+      if (local(conv)) return { ok: true };
+      if (!(await viaGowa(conv))) return unsupported;
+      try {
+        await gowa.edit(conv.chatId, externalId, text);
+        return { ok: true };
+      } catch (err) {
+        return fail(err, "edit");
+      }
+    },
+    async revoke(conv, externalId) {
+      if (local(conv)) return { ok: true };
+      if (!(await viaGowa(conv))) return unsupported;
+      try {
+        await gowa.revoke(conv.chatId, externalId);
+        return { ok: true };
+      } catch (err) {
+        return fail(err, "revoke");
       }
     },
   };
