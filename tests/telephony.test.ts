@@ -23,7 +23,7 @@ describe("Call", () => {
   });
 });
 
-function setup(opts: { blocked?: boolean; client?: string; staff?: { name: string; email: string } } = {}) {
+function setup(opts: { blocked?: boolean; client?: string; staff?: { name: string; email: string }; openDeal?: string; owner?: string | null } = {}) {
   const rows = new Map<string, Call>();
   const log: string[] = [];
   const repo: CallRepository = {
@@ -37,9 +37,10 @@ function setup(opts: { blocked?: boolean; client?: string; staff?: { name: strin
   };
   const sales: SalesGateway = {
     findClientByPhone: async () => opts.client ?? null,
-    findOpenDealId: async () => null,
+    findOpenDealId: async () => opts.openDeal ?? null,
     createCallDeal: async (i) => (log.push(`deal:${i.title}`), { id: "d1", clientId: null }),
-    dealOwner: async () => ({ assigneeId: "m2", contactName: "Айгерим" }),
+    dealOwner: async () => ({ assigneeId: opts.owner === undefined ? "m2" : opts.owner, contactName: "Айгерим" }),
+    acceptDeal: async (dealId, staffId, how) => void log.push(`accept:${dealId}:${staffId}:${how}`),
   };
   const effects: CallSideEffects = {
     isBlocked: async () => !!opts.blocked,
@@ -78,6 +79,47 @@ describe("CallsService", () => {
       await service.handle(event({ stage: "end", durationSec: 30 }));
       expect(log).toContain(`note:Входящий звонок, 0:30 · ${who}`);
     }
+  });
+
+  it("менеджер поговорил с клиентом — заявка принята в работу: входящий с нового номера, входящий по открытой сделке, исходящий", async () => {
+    let t = setup();
+    await t.service.handle(event({ stage: "answer", extension: "101" }));
+    await t.service.handle(event({ stage: "end", durationSec: 30 }));
+    expect(t.log).toEqual(["finished:c1", "deal:Звонок: …4567", "accept:d1:m1:входящий звонок принят", "handled:77011234567"]);
+
+    t = setup({ openDeal: "d7" });
+    await t.service.handle(event({ stage: "answer", extension: "101" }));
+    await t.service.handle(event({ stage: "end", durationSec: 30 }));
+    expect(t.log).toContain("accept:d7:m1:входящий звонок принят");
+
+    t = setup({ openDeal: "d7" });
+    await t.service.handle(event({ direction: "out", stage: "answer", extension: "101" }));
+    await t.service.handle(event({ direction: "out", stage: "end", durationSec: 30 }));
+    expect(t.log).toContain("accept:d7:m1:исходящий звонок клиенту");
+  });
+
+  it("менеджер набрал клиента и не дозвонился — заявка всё равно его; пропущенный входящий заявку не принимает", async () => {
+    let t = setup({ openDeal: "d7" });
+    await t.service.handle(event({ direction: "out", stage: "start", extension: "101" }));
+    await t.service.handle(event({ direction: "out", stage: "end", status: "busy" }));
+    expect(t.log).toContain("accept:d7:m1:менеджер набрал клиента");
+
+    t = setup({ openDeal: "d7" });
+    await t.service.handle(event({}));
+    await t.service.handle(event({ stage: "end" }));
+    expect(t.log.some((l) => l.startsWith("accept"))).toBe(false);
+  });
+
+  it("внутренний номер неизвестен — принимает ответственный по сделке; ответственного нет — заявка остаётся неразобранной", async () => {
+    let t = setup({ openDeal: "d7" });
+    await t.service.handle(event({ stage: "answer" }));
+    await t.service.handle(event({ stage: "end", durationSec: 10 }));
+    expect(t.log).toContain("accept:d7:m2:входящий звонок принят");
+
+    t = setup({ openDeal: "d7", owner: null });
+    await t.service.handle(event({ stage: "answer" }));
+    await t.service.handle(event({ stage: "end", durationSec: 10 }));
+    expect(t.log.some((l) => l.startsWith("accept"))).toBe(false);
   });
 
   it("номер в спаме: звонок в журнале, без заявки и уведомлений; запись без звонка игнорируется", async () => {

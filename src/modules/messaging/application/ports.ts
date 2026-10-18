@@ -129,13 +129,13 @@ export interface SalesGateway {
   findOpenDeal(opts: { clientId: string | null; phone: string | null }): Promise<{ id: string; assigneeId: string | null; clientId: string | null; utm: Record<string, string> | null } | null>;
   createDeal(input: { title: string; channel: string; clientId: string | null; contactName: string; contactPhone: string | null; contactEmail: string | null; utm: Record<string, string> | null; unsorted: boolean; source?: "site" }): Promise<{ id: string; assigneeId: string | null; clientId: string | null }>;
   setUtmIfEmpty(dealId: string, utm: Record<string, string>): Promise<void>;
-  /** Менеджер ответил — заявка из «Неразобранного» принята (и взята им, если была ничья). */
-  acceptUnsorted(dealId: string, authorId: string): Promise<void>;
+  /** Менеджер ответил — заявка из «Неразобранного» принята (и взята им, если была ничья); how — как именно, в ленту сделки. */
+  acceptUnsorted(dealId: string, authorId: string, how?: string): Promise<void>;
   /**
    * Ответ с телефона магазина: новая заявка (неразобранная или на первом этапе) переходит к тому, у кого телефон.
    * claimed — теперь его (previous — кто вёл раньше); false — заявка уже в работе у другого, не трогаем.
    */
-  claimNewLead?(dealId: string, userId: string): Promise<{ claimed: boolean; previous: string | null }>;
+  claimNewLead?(dealId: string, userId: string, how: string): Promise<{ claimed: boolean; previous: string | null }>;
   note(deal: { id: string; clientId: string | null }, text: string): Promise<void>;
   setField(dealId: string, key: string, value: string | number): Promise<void>;
   deal(dealId: string): Promise<{ id: string; clientId: string | null; assigneeId: string | null; title: string; contactName: string; customFields: Record<string, unknown> } | null>;

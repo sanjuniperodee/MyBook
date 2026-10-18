@@ -85,7 +85,7 @@ export class MessagingService {
     if (!holder) return;
     let from: string | null = null;
     if (conv.dealId && this.sales.claimNewLead) {
-      const r = await this.sales.claimNewLead(conv.dealId, holder.id);
+      const r = await this.sales.claimNewLead(conv.dealId, holder.id, "ответ клиенту с телефона магазина");
       if (!r.claimed) return;
       from = r.previous;
     } else if (conv.assigneeId && conv.assigneeId !== holder.id) return;
@@ -245,7 +245,7 @@ export class MessagingService {
     // Клиенту уходит текст целиком, в CRM — с маской секретов (ссылка «задайте пароль»).
     const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId, false, authorId ? undefined : source, { replyToId: reply?.id ?? null, forwarded: opts.forwarded });
     await this.conversations.recordOutgoing(conversationId, preview(body), this.clock.now(), authorId);
-    if (authorId && conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId);
+    if (authorId && conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
     this.live.chatChanged(conversationId);
     const r = await this.transport.send(conv, msg.id, body, { replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
     if (!r.ok) {
@@ -272,7 +272,7 @@ export class MessagingService {
     const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(text), authorId, false, undefined, { type: file.kind, mediaUrl: opts.mediaUrl, replyToId: reply?.id ?? null, forwarded: opts.forwarded });
     const label = file.kind === "image" ? "📷 Фото" : file.kind === "video" ? "🎬 Видео" : file.kind === "audio" ? "🎤 Голосовое" : `📎 ${file.name}`;
     await this.conversations.recordOutgoing(conversationId, preview(text || label), this.clock.now(), authorId);
-    if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId);
+    if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
     this.live.chatChanged(conversationId);
     const r = await this.transport.sendFile(conv, file, { caption: text, replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
     if (!r.ok) {

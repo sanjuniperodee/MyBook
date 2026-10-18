@@ -1,5 +1,5 @@
 import type { Clock, StaffNotifier } from "@/shared/application";
-import { ClientOnboardingService, ClientsService, NotesService, TasksService, type OnboardingAccounts, type OnboardingSales, type StaffMessenger } from "./application";
+import { ClientOnboardingService, ClientsService, NotesService, TasksService, type DealContacts, type OnboardingAccounts, type OnboardingSales, type StaffMessenger } from "./application";
 import { accountUsage, accountsByOtherPhones, drizzleClients, drizzleLinks, drizzleNotes, drizzleStaff, drizzleTasks, resolveContact, type ContactTarget } from "./infrastructure/persistence";
 
 export { ClientsError } from "./domain";
@@ -19,10 +19,10 @@ export class ClientsModule {
   /** Менеджер заводит клиента: аккаунт, профиль, сделка, предоплата, заметка и задачи. */
   readonly onboarding: ClientOnboardingService;
 
-  /** Уведомления о задачах и упоминаниях — порт рабочего пространства; аккаунты и продажи — порты для онбординга. */
-  constructor(deps: { clock: Clock; notifier: StaffNotifier; messenger?: StaffMessenger; accounts: OnboardingAccounts; sales: OnboardingSales }) {
+  /** Уведомления о задачах и упоминаниях — порт рабочего пространства; аккаунты и продажи — порты для онбординга и принятия заявки. */
+  constructor(deps: { clock: Clock; notifier: StaffNotifier; messenger?: StaffMessenger; accounts: OnboardingAccounts; sales: OnboardingSales; deals?: DealContacts }) {
     this.tasks = new TasksService(drizzleTasks, drizzleLinks, deps.notifier, deps.clock, drizzleStaff, deps.messenger ?? null);
-    this.notes = new NotesService(drizzleNotes, drizzleStaff, deps.notifier);
+    this.notes = new NotesService(drizzleNotes, drizzleStaff, deps.notifier, deps.deals ?? null);
     this.onboarding = new ClientOnboardingService(deps.accounts, deps.sales, this.clients, this.notes, this.tasks);
   }
 

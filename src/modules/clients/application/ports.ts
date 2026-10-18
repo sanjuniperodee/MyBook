@@ -70,6 +70,11 @@ export interface StaffDirectory {
   mentionable(): Promise<{ id: string; label: string }[]>;
 }
 
+/** Сделки (контекст Sales): менеджер записал контакт с клиентом — неразобранная заявка принята в работу. */
+export interface DealContacts {
+  accept(dealId: string, staffId: string, how: string): Promise<void>;
+}
+
 export interface StaffNotifier {
   notify(userIds: string[], n: { kind: "task" | "reminder" | "mention"; title: string; body: string; link: string | null }): Promise<void>;
 }

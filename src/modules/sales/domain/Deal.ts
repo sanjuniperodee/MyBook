@@ -186,15 +186,17 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /**
-   * Менеджер ответил клиенту: заявка из «Неразобранного» принята и, если была ничья, — его.
+   * Менеджер связался с клиентом (ответил в чате, позвонил, записал контакт) или нажал «Принять»: заявка из
+   * «Неразобранного» принята и, если была ничья, — его. how — как именно, в ленту сделки.
    * Возвращает false, если сделка уже была разобрана.
    */
-  accept(authorId: string): boolean {
+  accept(authorId: string, how?: string): boolean {
     if (!this.props.unsorted) return false;
     this.props.unsorted = false;
-    // Взял в работу (ответил клиенту) — предложение отклонить снимается.
+    // Взял в работу (связался с клиентом) — предложение отклонить снимается.
     this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
     this.props.assigneeId ??= authorId;
+    this.note(`Заявка принята в работу${how ? `: ${how}` : ""}`, authorId);
     return true;
   }
 

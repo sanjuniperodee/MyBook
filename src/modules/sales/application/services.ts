@@ -233,7 +233,6 @@ export class DealsService {
   async acceptByStaff(dealId: string, staffId: string) {
     const deal = await this.load(dealId);
     if (!deal.accept(staffId)) return null;
-    deal.note("Заявка принята в работу", staffId);
     await this.uow.run(async () => {
       await this.deals.save(deal);
       this.uow.track(deal);
@@ -277,9 +276,10 @@ export class DealsService {
     return deal.snapshot();
   }
 
-  async acceptUnsorted(dealId: string, authorId: string) {
+  /** Менеджер связался с клиентом (чат, звонок, заметка о контакте) — заявка принята в работу; how — как именно, в ленту. */
+  async acceptUnsorted(dealId: string, authorId: string, how?: string) {
     const deal = await this.deals.findById(dealId);
-    if (deal?.accept(authorId)) await this.deals.save(deal);
+    if (deal?.accept(authorId, how)) await this.deals.save(deal);
   }
 
   async setUtmIfEmpty(dealId: string, utm: Record<string, string>) {
