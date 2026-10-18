@@ -392,7 +392,7 @@ describe("бот в инбоксе", () => {
 });
 
 describe("бот продаёт", () => {
-  const SELL: BotConfig = { ...BOT_CONFIG, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true } };
+  const SELL: BotConfig = { ...BOT_CONFIG, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true, speaksAs: "assistant" } };
   /** Опрос до предложения: «Здравствуйте» → «для мамы» → «др». */
   async function offered(t: ReturnType<typeof setup>) {
     for (const text of ["Здравствуйте", "для мамы", "др"]) {

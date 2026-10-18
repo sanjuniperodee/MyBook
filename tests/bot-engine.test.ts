@@ -229,8 +229,10 @@ describe("бот: имя и время", () => {
 
 let seq = 0;
 const msg = (text: string, type = "text"): BotInput => ({ id: `m${++seq}`, text, type, at: day });
+/** Шаблонный бот в образе помощницы («Передала менеджеру»); голос самого менеджера — tests/bot-persona.test.ts. */
+const assistantConfig: BotConfig = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, speaksAs: "assistant" } };
 const env = (p: Partial<BotEnv> = {}): BotEnv => ({
-  config: defaultBotConfig,
+  config: assistantConfig,
   fields,
   dealValues: {},
   now: day,
@@ -505,7 +507,7 @@ describe("бот: проверка — отказ и виды книг", () => {
 });
 
 describe("бот: режим «Продаёт»", () => {
-  const sellConfig: BotConfig = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000 } };
+  const sellConfig: BotConfig = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, speaksAs: "assistant" } };
   const sell = (p: Partial<BotEnv> = {}) => env({ config: sellConfig, ...p });
   /** Опрос как у Бекхана (17.10): 1 — любимому, 1 — годовщина, 25.10, 1 — печатная. */
   const asked = [["Салеметсизбе"], ["1"], ["1"], ["25.10"], ["1"]];

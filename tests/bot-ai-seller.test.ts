@@ -43,7 +43,7 @@ const aiConfig = (p: Partial<BotConfig["sell"]> = {}, c: Partial<BotConfig> = {}
   ...BOT_CONFIG,
   waitMinutes: 3,
   ...c,
-  sell: { ...defaultBotConfig.sell, on: true, engine: "ai", takeover: true, prepay: 10000, invoice: true, hidePrices: false, ...p },
+  sell: { ...defaultBotConfig.sell, on: true, engine: "ai", takeover: true, prepay: 10000, invoice: true, hidePrices: false, speaksAs: "assistant", ...p },
 });
 
 const invoices = () => {

@@ -62,7 +62,7 @@ const catalog: BotCatalog = {
 };
 const site = { url: "https://mybook.kz", registrationOpen: false, themes: ["love", "mom"], landings: ["kniga-mame"] };
 // Цены ботом в этих тестах разрешены (по умолчанию hidePrices=true — тесты для него отдельные).
-const sellConfig = (p: Partial<BotConfig["sell"]> = {}): BotConfig => ({ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true, hidePrices: false, ...p } });
+const sellConfig = (p: Partial<BotConfig["sell"]> = {}): BotConfig => ({ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, prepay: 10000, invoice: true, hidePrices: false, speaksAs: "assistant", ...p } });
 const env = (p: Partial<BotEnv> = {}): BotEnv => ({
   config: sellConfig(),
   fields,

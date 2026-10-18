@@ -7,8 +7,10 @@ export const DEAL_FIELDS: DealField[] = [
   { key: "recipient", label: "Для кого", type: "text", options: [] },
   { key: "occasion", label: "Повод", type: "select", options: ["Годовщина", "День рождения", "Свадьба"] },
 ];
+/** Образ помощницы («Айгерим, помощница менеджера Марата»): его проверяют прежние тесты; образ самого менеджера — tests/bot-persona.test.ts. */
 export const BOT_CONFIG: BotConfig = {
   ...defaultBotConfig,
+  sell: { ...defaultBotConfig.sell, speaksAs: "assistant" },
   questions: [
     { field: "recipient", text: { ru: "Для кого книга?", kk: "Кітап кімге?" } },
     { field: "occasion", text: { ru: "Повод?", kk: "Қандай мереке?" } },
