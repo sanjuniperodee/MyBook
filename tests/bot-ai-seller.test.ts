@@ -214,7 +214,8 @@ describe("AI-продажник: сводка менеджеру", () => {
     await t.service.ingest(inbound({ text: "Привет" }));
     await run(t);
     await t.service.ingest(inbound({ text: "Привет" }));
-    await run(t);
+    // Голое «Привет» посреди беседы бот чуть выжидает (вдруг клиент допишет) — потом отвечает.
+    await t.advance(30_000);
     expect(t.sent).toEqual(["Здравствуйте! Для кого будет книга?"]);
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff" });
   });
@@ -730,5 +731,70 @@ describe("AI-продажник: уроки работы над ошибками
     const p = calls[0].system;
     expect(p).toContain("- Задавай один вопрос за сообщение");
     expect(p.indexOf("Работа над ошибками")).toBeLessThan(p.indexOf("## Жёсткие запреты"));
+  });
+});
+
+describe("AI-продажник: «Здравствуйте!» посреди беседы (чат Алишера, 18.10)", () => {
+  it("клиент пишет «Здравствуйте!», а через 9 секунд «Девушке» — один ответ на оба и без второго приветствия", async () => {
+    const { model, calls } = fakeModel([
+      ans({ reply: "Здравствуйте! 😊 Меня зовут Айгерим, я помощница менеджера Марата.\n\nКому хотите подарить книгу? 🎁" }),
+      ans({ reply: "Здравствуйте, Алишер! 😊 Отличный подарок для девушки ❤️ А по какому поводу?" }),
+    ]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Книга" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Здравствуйте!" }));
+    await t.advance(BOT_PAUSE_MS + 1000);
+    expect(calls).toHaveLength(1);
+    await t.service.ingest(inbound({ text: "Девушке" }));
+    await t.advance(26_000);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].user).toContain("Здравствуйте!");
+    expect(calls[1].user).toContain("Девушке");
+    expect(t.sent.at(-1)).toBe("Отличный подарок для девушки ❤️ А по какому поводу?");
+  });
+
+  it("«Здравствуйте!» и больше ничего — бот всё равно отвечает, просто чуть позже", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Здравствуйте! 😊 Кому хотите подарить книгу?" }), ans({ reply: "Слушаю вас 🙂 Кому хотите подарить книгу?" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Книга" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Здравствуйте!" }));
+    await t.advance(BOT_PAUSE_MS + 1000);
+    await t.advance(30_000);
+    expect(calls).toHaveLength(2);
+    expect(t.sent.at(-1)).toBe("Слушаю вас 🙂 Кому хотите подарить книгу?");
+  });
+});
+
+describe("AI-продажник: подхват после законченной анкеты (чат Али, 18.10)", () => {
+  it("шаблонный бот закончил анкету, менеджер ответил днём, клиент пишет ночью — AI подхватывает", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Это Айгерим, помощница менеджера Марата 🙂 Для девушки — отличный подарок! К какой дате нужна книга?" })]);
+    const t = setup({ bot: "off_hours", workTime: false, config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте! Хочу узнать стоимость." }));
+    const c = t.conv();
+    c.botState = { ...c.botState!, phase: "done", outcome: "finished", reason: null, version: (c.botState?.version ?? 0) + 1 };
+    c.botDueAt = null;
+    await t.service.send(c.id, "Меня зовут Марат, как я могу к вам обращаться?", "manager-1");
+    await t.advance(10 * 3_600_000);
+    await t.service.ingest(inbound({ text: "Для девушки" }));
+    await t.advance(BOT_PAUSE_MS + 1000);
+    expect(calls).toHaveLength(1);
+    expect(t.sent.at(-1)).toContain("Это Айгерим");
+  });
+
+  it("после «Остановить бота» и после передачи менеджеру — не подхватывает", async () => {
+    for (const patch of [{ outcome: "stopped_by_manager" as const, reason: "button" }, { outcome: "handoff" as const, reason: "price" }]) {
+      const { model, calls } = fakeModel([ans()]);
+      const t = setup({ bot: "off_hours", workTime: false, config: aiConfig(), seller: model });
+      await t.service.ingest(inbound({ text: "Здравствуйте" }));
+      const c = t.conv();
+      c.botState = { ...c.botState!, phase: "done", ...patch, version: (c.botState?.version ?? 0) + 1 };
+      c.botDueAt = null;
+      await t.advance(3_600_000);
+      await t.service.ingest(inbound({ text: "Ау" }));
+      await t.advance(BOT_PAUSE_MS + 1000);
+      expect(calls).toHaveLength(0);
+    }
   });
 });

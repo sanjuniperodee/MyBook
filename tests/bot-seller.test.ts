@@ -3,7 +3,7 @@ import { defaultBotConfig, parseBotConfig, type BotConfig } from "@/modules/mess
 import type { BotCatalog } from "@/modules/messaging/domain/botFaq";
 import { newBotState, type BotEnv, type BotInput } from "@/modules/messaging/domain/botEngine";
 import type { DealField } from "@/modules/messaging/domain/bot";
-import { hasOrderIntent, isHedged } from "@/modules/messaging/domain/botNlu";
+import { hasOrderIntent, isGreetingOnly, isHedged } from "@/modules/messaging/domain/botNlu";
 import {
   allowedAmounts,
   allowedPercents,
@@ -13,6 +13,7 @@ import {
   clientSaysPaid,
   deadlineFact,
   invoiceBlocker,
+  withoutGreeting,
   lastBotTurn,
   newSellerAiState,
   normalizeSellerFields,
@@ -518,5 +519,38 @@ describe("AI-продажник: настройки", () => {
     const t = parseBotConfig(JSON.stringify({ sell: { on: true, engine: "template", takeover: false, persona: "Тон", maxTurns: 10 } }));
     expect(t.sell).toMatchObject({ engine: "template", takeover: false, persona: "Тон", maxTurns: 10 });
     expect(parseBotConfig(JSON.stringify({ sell: { maxTurns: 1 } })).sell.maxTurns).toBe(40);
+  });
+});
+
+describe("AI-продажник: цены разрешены — продажу закрывает бот, а не менеджер (чат Алишера, 18.10)", () => {
+  const state = newBotState(day, true);
+  const base = { env: env(), state, questions: ["recipient"], knowledge: "", brand: "MyBooks", known: [], deadline: null, takeoverMinutes: null, purpose: "reply" as const, paid: false, followUps: 0 };
+
+  it("в инструкции: назвать цену самой и сразу предложить оформить; не обещать, что менеджер назовёт сумму", () => {
+    const p = sellerSystemPrompt(base).replace(/ /g, " ");
+    expect(p).toContain("назови цену «от X ₸» из фактов сама");
+    expect(p).toContain("Продажу закрываешь ты");
+    expect(p).toContain("Оформляем? Начать можно с предоплаты");
+    const examples = p.slice(p.indexOf("## Примеры"), p.indexOf("## Жёсткие запреты"));
+    expect(checkSellerReply(examples, rulesFor()).filter((x) => x.kind === "price")).toEqual([]);
+  });
+
+  it("бота перезапустили вручную — он ведёт беседу по нынешним правилам, а не по прежнему «менеджер свяжется»", () => {
+    expect(sellerUserPrompt("…", "reply", false)).toContain("не повторяй «менеджер свяжется»");
+  });
+});
+
+describe("AI-продажник: не здоровается второй раз", () => {
+  it("повторное приветствие в начале ответа убирается, суть остаётся; без приветствия — как есть", () => {
+    expect(withoutGreeting("Здравствуйте, Алишер! 😊 Подскажите, для кого книга?")).toBe("Подскажите, для кого книга?");
+    expect(withoutGreeting("Сәлеметсіз бе! Кітап кімге арналады?")).toBe("Кітап кімге арналады?");
+    expect(withoutGreeting("Добрый вечер! Как ваши дела?")).toBe("Как ваши дела?");
+    expect(withoutGreeting("Отличный подарок ❤️")).toBe("Отличный подарок ❤️");
+    expect(withoutGreeting("Здравствуйте!")).toBe("Здравствуйте!");
+  });
+
+  it("только приветствие — «Здравствуйте!», «Добрый вечер», «Сәлеметсіз бе»; с вопросом или ответом — нет", () => {
+    for (const t of ["Здравствуйте!", "Добрый вечер", "Сәлеметсіз бе", "привет)"]) expect(isGreetingOnly(t)).toBe(true);
+    for (const t of ["Здравствуйте, сколько стоит?", "Девушке", "Здравствуйте, хочу книгу маме"]) expect(isGreetingOnly(t)).toBe(false);
   });
 });

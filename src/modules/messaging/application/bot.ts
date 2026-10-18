@@ -37,6 +37,9 @@ import { AiSeller } from "./botSeller";
 export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 
+/** Чем закончилась прежняя беседа бота, после чего его можно снова подхватить, если менеджер молчит. */
+const RESUMABLE_OUTCOMES = new Set(["stopped_by_manager", "finished", "abandoned", "offered", "skipped", "disabled"]);
+
 export interface QualifierBotDeps {
   conversations: ConversationRepository;
   store: BotStore;
@@ -119,9 +122,10 @@ export class QualifierBot {
       await this.later(conv.id, new Date(Math.max(rec?.dueAt?.getTime() ?? 0, now.getTime() + BOT_PAUSE_MS)));
       return { quiet: !state.waitHuman };
     }
-    // Менеджер ответил и бот замолчал — не навсегда: если менеджер снова не отвечает, AI-продажник подхватит (takeover).
-    // «Остановить бота» кнопкой (reason button) — окончательно.
-    const softStopped = !!state && state.phase === "done" && state.outcome === "stopped_by_manager" && state.reason !== "button";
+    // Бот замолчал не навсегда: менеджер ответил, анкета шаблонного бота закончилась, клиент замолкал — если клиент снова
+    // пишет, а менеджер не отвечает, AI-продажник подхватит (takeover). Окончательно — только «Остановить бота» кнопкой,
+    // передача менеджеру (handoff), отказ клиента и выставленный счёт.
+    const softStopped = !!state && state.phase === "done" && !!state.outcome && RESUMABLE_OUTCOMES.has(state.outcome) && state.reason !== "button";
     if (state && !softStopped) return { quiet: false };
     // Диалог, начатый прежней версией бота (без состояния), не продолжаем: вопросы могли уйти поверх человека.
     if (!state && conv.botStep !== null) {

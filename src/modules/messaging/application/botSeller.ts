@@ -13,6 +13,7 @@ import {
   faqNotes,
   clientSaysPaid,
   findSensitive,
+  isGreetingOnly,
   lastBotTurn,
   mediaLine,
   parseSellerDecision,
@@ -49,6 +50,8 @@ import type { QualifierBotDeps } from "./bot";
 export const SELLER_TIMEOUT_MS = 30_000;
 /** Сколько модель распознаёт голосовое/фото (расшифровка, описание). */
 export const SELLER_MEDIA_TIMEOUT_MS = 25_000;
+/** Сколько ждать продолжения, если клиент посреди беседы написал только «Здравствуйте». */
+export const GREETING_WAIT_MS = 25_000;
 /** Сколько вложений за ход распознаём и какого размера (голосовое WhatsApp на минуту — ~100 КБ). */
 const MEDIA_PER_TURN = 3;
 const MEDIA_MAX_BYTES = 10_000_000;
@@ -127,6 +130,14 @@ export class AiSeller {
 
     // Бота запустили кнопкой, новых сообщений нет: модель продолжает переписку сама.
     const manual = start && state.reason === "manual";
+    // «Здравствуйте!» отдельным сообщением посреди беседы: клиент почти всегда дописывает следом — ждём, чтобы ответить
+    // одним сообщением и не здороваться второй раз (чат Алишера, 18.10).
+    const newest = Math.max(0, ...inputs2.map((i) => new Date(i.at).getTime()));
+    if (!start && inputs2.length && inputs2.every((i) => i.type === "text" && isGreetingOnly(i.text)) && now.getTime() - newest < GREETING_WAIT_MS) {
+      await this.hooks.later(conv.id, new Date(newest + GREETING_WAIT_MS));
+      return false;
+    }
+
     // Не распозналось (модель не умеет, файла нет): голосовое — просьба написать текстом, фото и файлы — менеджеру.
     if (!c.text && !manual) return this.withoutText(conv, base, state, inputs2, c, env, fields, now);
 
@@ -309,7 +320,10 @@ export class AiSeller {
   }
 
   private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>) {
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history) };
+    // Бот писал за последние 6 часов — он уже поздоровался; через сутки «Добрый день!» снова уместно.
+    const lastBot = [...history].reverse().find((m) => m.from === "bot");
+    const greeted = !!lastBot && this.d.clock.now().getTime() - new Date(lastBot.at).getTime() < 6 * 3_600_000;
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted };
   }
 
   /**
