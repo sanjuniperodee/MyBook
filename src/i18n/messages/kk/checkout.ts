@@ -73,6 +73,8 @@ export const checkout: typeof ru = {
     refundLink: "WhatsApp-қа жазу",
     agreedLine: "Келісім бойынша жеңілдік",
     prepaidLine: "Бұрын төленгені",
+    gifts: (list: string) => `Келісім бойынша тегін: ${list} — рәсімдегенде таңдаңыз.`,
+    giftFree: "келісім бойынша тегін",
   },
   consent: {
     start: "Мен кітап макетін тексердім және",

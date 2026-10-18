@@ -15,6 +15,7 @@ import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
 import { assertStaff, audit, can, canAssignOthers } from "@/server/access";
 import { container } from "@/server/container";
+import { giftsFromForm } from "@/components/admin/AgreementGiftsField";
 
 export interface NewClientDone {
   clientId: string;
@@ -105,7 +106,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
         channel,
         // Ответственный: сам менеджер (роль «только свои» видит лишь своих клиентов), руководитель может назначить другого.
         assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : staff.user.id,
-        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan } : null,
+        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values) } : null,
       },
       { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     );
@@ -216,11 +217,11 @@ export async function createClientDealsAction(_: ClientDealsState, form: FormDat
       recipient: d.recipient,
       locale: "ru",
       assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : client.managerId ?? staff.user.id,
-      deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan },
+      deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values) },
     },
     { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
   );
-  await audit(staff, "client.deals", "client", client.id, { deals: parts.map((p) => p.dealNumber), count: d.count, agreed: d.agreed, prepaid: d.prepaid, plan: d.plan });
+  await audit(staff, "client.deals", "client", client.id, { deals: parts.map((p) => p.dealNumber), count: d.count, agreed: d.agreed, prepaid: d.prepaid, plan: d.plan, gifts: giftsFromForm(values) });
   revalidatePath("/admin/deals");
   revalidatePath(`/admin/clients/${client.id}`);
   return { done: { clientId: client.id, clientName: client.name || client.email, parts, count: d.count, agreed: d.agreed, prepaid: d.prepaid, remainder: Math.max(0, d.agreed * d.count - d.prepaid), tasks } };

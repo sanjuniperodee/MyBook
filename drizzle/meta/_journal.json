@@ -295,6 +295,13 @@
       "when": 1792292253304,
       "tag": "0041_chat_message_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792337572560,
+      "tag": "0042_agreement_gifts",
+      "breakpoints": true
     }
   ]
 }

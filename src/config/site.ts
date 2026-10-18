@@ -3,6 +3,8 @@
  * Всё, что обычно меняет владелец бизнеса, собрано здесь.
  */
 
+import { AGREEMENT_GIFTS, readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
+
 export const site = {
   name: "MyBooks",
   currency: "KZT",
@@ -199,6 +201,16 @@ export const getDeliveryOptions = (): readonly DeliveryOption[] => current().del
 
 export function availableAddons(plan: PlanId) {
   return getAddons().filter((a) => !a.hiddenFor.includes(plan));
+}
+
+/**
+ * Что по договорённости можно отдать бесплатно на этом тарифе (и оставить из списка gifts): подарочную упаковку — если
+ * она есть среди допов тарифа, доставку — у печатных. У электронной книги — ничего.
+ */
+export function giftsForPlan(planId: string, gifts: readonly AgreementGift[] = AGREEMENT_GIFTS): AgreementGift[] {
+  const plan = getPlan(planId);
+  if (!plan) return [];
+  return readGifts(gifts).filter((g) => (g === "delivery" ? plan.printed : availableAddons(plan.id).some((a) => a.id === g)));
 }
 
 /** Сроки производства печатной книги в рабочих днях. */

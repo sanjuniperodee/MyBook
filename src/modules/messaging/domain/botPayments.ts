@@ -19,6 +19,8 @@ export interface PaymentFacts {
   invoices: { number: number; amount: number; purpose: string; status: "pending_payment" | "paid" | "cancelled" | "expired"; method: PaymentMethod | null; at: string; paidAt: string | null }[];
   /** Заказы клиента на сайте; dealOrder — заказ этой сделки. */
   orders: { number: number; status: string; dealOrder: boolean }[];
+  /** Что по договорённости бесплатно: giftwrap — подарочная упаковка, delivery — доставка. */
+  gifts?: string[];
 }
 
 /** Статусы заказа, в которых деньги уже получены. */
@@ -56,6 +58,10 @@ export function paymentFactsText(f: PaymentFacts, tz: string, claimOnly = false)
   if (f.agreed > 0 && !f.batchSize) {
     const left = f.agreed - Math.max(0, f.paid);
     lines.push(`- Договорённость по сделке — ${kzt(f.agreed)}${f.paid > 0 ? (left > 0 ? `, осталось доплатить ${kzt(left)}` : ", оплачено полностью") : ""}.`);
+  }
+  if (f.gifts?.length) {
+    const names: Record<string, string> = { giftwrap: "подарочная упаковка", delivery: "доставка" };
+    lines.push(`- По договорённости бесплатно: ${f.gifts.map((g) => names[g] ?? g).join(", ")} — клиент выбирает при оформлении заказа, и это стоит 0 ₸. Не говори, что это оплачивается отдельно.`);
   }
   for (const i of f.invoices.slice(0, 4)) {
     const what = `Счёт №${i.number} на ${kzt(i.amount)} (${PURPOSE[i.purpose] ?? "оплата"}) от ${day(i.at)}`;

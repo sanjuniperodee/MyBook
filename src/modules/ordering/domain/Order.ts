@@ -158,7 +158,8 @@ export class Order extends AggregateRoot<OrderProps> {
           ? `, по договорённости с менеджером: итог ${input.formatMoney(price.amount + price.prepaidAmount)}, предоплата ${input.formatMoney(price.prepaidAmount)} учтена`
           : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
     const credited = input.credit && input.credit.amount > 0 ? `, засчитана оплата электронной версии (заказ №${input.credit.orderNumber}): ${input.formatMoney(input.credit.amount)}` : input.credit ? `, печатная версия к электронной (заказ №${input.credit.orderNumber})` : "";
-    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}`, "customer", now);
+    // Бесплатное по договорённости — в журнал заказа: в сумме его не видно (0 ₸), а производство и доставка должны знать.
+    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}${price.gifted?.length ? `; бесплатно по договорённости с менеджером: ${price.gifted.map((g) => (g === "giftwrap" ? "подарочная упаковка" : "доставка")).join(", ")}` : ""}`, "customer", now);
     // Внесено по договорённости больше итога (зачёт — не больше итога): разницу нужно вернуть клиенту.
     const prepaidExcess = input.agreement && !input.credit ? Math.max(0, Math.round(input.agreement.prepaid) - (price.prepaidAmount ?? 0)) : 0;
     if (prepaidExcess > 0) order.notePrepaidExcess(prepaidExcess, now);

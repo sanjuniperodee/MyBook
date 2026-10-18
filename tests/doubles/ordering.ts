@@ -1,4 +1,5 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import { GiftCard, Order, PromoCode, type GiftCardRepository, type OrderRepository, type PromoCodeRepository } from "@/modules/ordering/domain";
 import { OrdersService } from "@/modules/ordering/application/OrdersService";
@@ -191,7 +192,7 @@ export function setup() {
   const books = new MemBooks();
   const c = clock();
   const uow = new FakeUow([orders, promos, books]);
-  let agreement: { dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null; plan: string | null } | null = null;
+  let agreement: { dealId: string; dealNumber: number; agreedTotal: number; prepaid: number; deadline: string | null; plan: string | null; gifts?: AgreementGift[] } | null = null;
   const agreements = { agreementFor: async () => agreement };
   const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, agreements, uow, c);
   books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });

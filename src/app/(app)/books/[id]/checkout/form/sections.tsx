@@ -1,6 +1,7 @@
 "use client";
 
 import { Link, useMessages } from "@/i18n/client";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { Check, LoaderCircle, Minus, Plus, Tag, X } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
@@ -23,6 +24,8 @@ export interface SummaryPrice {
   addons: readonly AddonId[];
   deliveryPrice: number;
   total: number;
+  /** Выбранное и бесплатное по договорённости (упаковка, доставка). */
+  gifted?: readonly AgreementGift[];
 }
 
 /** Поле промокода: применённый (value), ввод, проверка и ошибка — usePromo. */
@@ -48,14 +51,20 @@ export function UpgradeNote({ upgrade }: { upgrade: { number: number; credit: nu
 }
 
 /** Договорённость менеджера: продолжить по ней или оформить заказ «с нуля» (внесённое — аванс). */
-export function AgreementChoice({ agreement, mode, onMode }: { agreement: { dealNumber: number; agreedTotal: number; prepaid: number; batch?: { index: number; size: number } | null }; mode: AgreementMode; onMode: (mode: AgreementMode) => void }) {
-  const t = useMessages().checkout;
+export function AgreementChoice({ agreement, mode, onMode }: { agreement: { dealNumber: number; agreedTotal: number; prepaid: number; batch?: { index: number; size: number } | null; gifts?: AgreementGift[] }; mode: AgreementMode; onMode: (mode: AgreementMode) => void }) {
+  const m = useMessages();
+  const t = m.checkout;
   return (
     <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5" data-testid="agreement">
       <input type="hidden" name="agreementMode" value={mode} />
       <h2 className="text-lg font-semibold text-emerald-950">{t.agreement.title}</h2>
       <p className="mt-1 text-sm text-emerald-900">{t.agreement.summary(agreement.dealNumber, formatPrice(agreement.agreedTotal), formatPrice(agreement.prepaid))}</p>
       {agreement.batch && agreement.batch.size > 1 ? <p className="mt-1 text-sm font-medium text-emerald-950">{t.agreement.batch(agreement.batch.index + 1, agreement.batch.size)}</p> : null}
+      {agreement.gifts?.length ? (
+        <p className="mt-1 text-sm font-medium text-emerald-950" data-testid="agreement-gifts">
+          🎁 {t.agreement.gifts(agreement.gifts.map((g) => m.common.agreementGifts[g]).join(", "))}
+        </p>
+      ) : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-2" role="radiogroup">
         {(["agreed", "advance"] as const).map((id) => (
           <button
@@ -82,7 +91,7 @@ export function AgreementChoice({ agreement, mode, onMode }: { agreement: { deal
 }
 
 /** 1. Тариф, количество экземпляров и допы. */
-export function PlanSection({ plans, planId, lockedPlan, onPlan, qty, onQty, offered, applied, onToggleAddon }: { plans: readonly Plan[]; planId: PlanId; lockedPlan: PlanId | null; onPlan: (id: PlanId) => void; qty: number; onQty: (update: (q: number) => number) => void; offered: Addon[]; applied: readonly AddonId[]; onToggleAddon: (id: AddonId) => void }) {
+export function PlanSection({ plans, planId, lockedPlan, onPlan, qty, onQty, offered, applied, onToggleAddon, gifts = [] }: { plans: readonly Plan[]; planId: PlanId; lockedPlan: PlanId | null; onPlan: (id: PlanId) => void; qty: number; onQty: (update: (q: number) => number) => void; offered: Addon[]; applied: readonly AddonId[]; onToggleAddon: (id: AddonId) => void; gifts?: readonly AgreementGift[] }) {
   const m = useMessages();
   const t = m.checkout;
   const c = m.common;
@@ -154,7 +163,12 @@ export function PlanSection({ plans, planId, lockedPlan, onPlan, qty, onQty, off
                 <input type="checkbox" className="mt-0.5 size-4 accent-wine" checked={on} onChange={() => onToggleAddon(a.id)} />
                 <span className="min-w-0 flex-1">
                   <span className="flex justify-between gap-2 font-medium">
-                    {c.addons[a.id].name} <span className="shrink-0 font-normal text-ink-soft">+{formatPrice(a.price)}</span>
+                    {c.addons[a.id].name}{" "}
+                    {a.id === "giftwrap" && gifts.includes("giftwrap") ? (
+                      <span className="shrink-0 font-normal text-emerald-700">{t.agreement.giftFree}</span>
+                    ) : (
+                      <span className="shrink-0 font-normal text-ink-soft">+{formatPrice(a.price)}</span>
+                    )}
                   </span>
                   <span className="mt-0.5 block text-xs leading-snug text-muted">{c.addons[a.id].description}</span>
                 </span>
@@ -168,7 +182,7 @@ export function PlanSection({ plans, planId, lockedPlan, onPlan, qty, onQty, off
 }
 
 /** 2. Доставка и адрес (для печатных тарифов). */
-export function DeliverySection({ delivery, onDelivery }: { delivery: DeliveryId; onDelivery: (id: DeliveryId) => void }) {
+export function DeliverySection({ delivery, onDelivery, gifts = [] }: { delivery: DeliveryId; onDelivery: (id: DeliveryId) => void; gifts?: readonly AgreementGift[] }) {
   const m = useMessages();
   const t = m.checkout;
   const c = m.common;
@@ -186,7 +200,7 @@ export function DeliverySection({ delivery, onDelivery }: { delivery: DeliveryId
               <div className="font-medium">{c.delivery[d.id].name}</div>
               <div className="text-sm text-muted">{c.delivery[d.id].description}</div>
             </div>
-            <div className="text-sm font-medium">{d.price ? formatPrice(d.price) : c.free}</div>
+            <div className="text-sm font-medium">{!d.price ? c.free : gifts.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : formatPrice(d.price)}</div>
           </label>
         ))}
       </div>
@@ -327,7 +341,7 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
   const m = useMessages();
   const t = m.checkout;
   const c = m.common;
-  const { items, discountAmount, agreedDiscount, prepaidApplied, addons, deliveryPrice, total } = price;
+  const { items, discountAmount, agreedDiscount, prepaidApplied, addons, deliveryPrice, total, gifted = [] } = price;
   const applied = promo.value;
   return (
   <aside>
@@ -366,14 +380,14 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
           return (
             <div key={id} className="flex justify-between">
               <dt className="text-muted">{c.addons[a.id].name}</dt>
-              <dd>{formatPrice(a.price)}</dd>
+              <dd>{gifted.includes(a.id as AgreementGift) ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : formatPrice(a.price)}</dd>
             </div>
           );
         })}
         {plan.printed ? (
           <div className="flex justify-between">
             <dt className="text-muted">{t.delivery}</dt>
-            <dd>{deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
+            <dd>{gifted.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
           </div>
         ) : null}
       </dl>

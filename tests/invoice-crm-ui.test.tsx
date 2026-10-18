@@ -56,9 +56,11 @@ const info = (over: Partial<InvoiceFormInfo> = {}): InvoiceFormInfo => ({
   channel: "instagram",
   chat: "WhatsApp",
   plans: [
-    { id: "digital", label: "Электронная версия", price: 9_900 },
-    { id: "hardcover", label: "Твёрдая обложка", price: 30_000 },
+    { id: "digital", label: "Электронная версия", price: 9_900, printed: false, giftwrap: false },
+    { id: "hardcover", label: "Твёрдая обложка", price: 30_000, printed: true, giftwrap: true },
   ],
+  gifts: [],
+  giftPrices: { giftwrap: 5_000, delivery: 3_500 },
   methods: { kaspi: true, card: false, transfer: true },
   kaspiPhoneMasked: null,
   maxDiscountPercent: 10,
@@ -158,6 +160,19 @@ describe("форма счёта: разметка", () => {
     expect(out).toContain(`Выставить счёт на ${price(30_000)}`);
     expect(disabledButton(out, "Выставить счёт")).toBe(false);
     expect(out).not.toContain("Счёт Kaspi на номер");
+  });
+
+  it("бесплатно по договорённости: галочки упаковки и доставки, отмеченное из сделки — в предпросмотре; у электронной — нет", () => {
+    const blank = html(<InvoiceForm info={info()} issueKey="k" onClose={() => {}} />);
+    expect(blank).toContain("Бесплатно по договорённости");
+    expect(blank).toContain('aria-label="Подарочная упаковка бесплатно"');
+    expect(blank).toContain('aria-label="Доставка бесплатно"');
+    expect(blank).not.toContain("🎁");
+    const marked = html(<InvoiceForm info={info({ gifts: ["delivery"] })} issueKey="k" onClose={() => {}} />);
+    expect(marked).toContain("🎁 Бесплатно по договорённости: доставка.");
+    const digital = html(<InvoiceForm info={info({ plan: "digital", agreedTotal: 9_900, gifts: ["delivery"] })} issueKey="k" onClose={() => {}} />);
+    expect(digital).not.toContain('aria-label="Доставка бесплатно"');
+    expect(digital).not.toContain("🎁");
   });
 
   it("часть оплачена — «Остаток» без предоплаты 50%", () => {

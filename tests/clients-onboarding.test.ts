@@ -15,6 +15,7 @@ function harness() {
     stages: async () => (log.push("sales.stages"), [{ id: "st-new", kind: "open", name: "Новая заявка" }, { id: "st-work", kind: "open", name: "Взяли в работу" }]),
     createDeal: async (d) => (log.push(`sales.createDeal ${d.title} · ${d.stageId} · ${d.amount} · ${JSON.stringify(d.customFields)}`), { id: "deal-9", number: 9 }),
     setAgreedPlan: async (id, plan) => void log.push(`sales.setAgreedPlan ${id} ${plan}`),
+    setAgreedGifts: async (id, gifts) => void log.push(`sales.setAgreedGifts ${id} ${gifts.join(",")}`),
     setBatch: async (id, batch, i, n) => void log.push(`sales.setBatch ${id} ${i + 1}/${n}`),
     tagDeal: async (id, tag) => void log.push(`sales.tagDeal ${id} ${tag}`),
     addPayment: async (p) => (log.push(`sales.addPayment ${p.dealId} ${p.amount}`), { id: "pay-1" }),

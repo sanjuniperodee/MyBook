@@ -165,14 +165,16 @@ export class Container {
         payments: async ({ id, clientId, orderId }) => {
           const batch = await this.sales.batch.of(id);
           const ids = batch.length ? batch.map((b) => b.id) : [id];
-          const [money, deal, rows, invoices, orders] = await Promise.all([
+          const [money, deal, rows, invoices, orders, gifts] = await Promise.all([
             this.sales.batch.money(id),
             this.sales.deals.findById(id),
             Promise.all(ids.map((x) => this.sales.payments.list(x))).then((r) => r.flat()),
             Promise.all(ids.map((x) => this.ordering.invoices.listFor(x))).then((r) => r.flat()),
             clientId ? this.ordering.queries.userOrders(clientId) : Promise.resolve([]),
+            this.sales.agreedGifts.get(id),
           ]);
           return {
+            gifts,
             paid: money.paid,
             agreed: deal?.amount ?? 0,
             batchSize: money.size,
@@ -263,6 +265,7 @@ export class Container {
         stages: () => this.sales.queries.listStages(),
         createDeal: (input) => this.sales.deals.create(input),
         setAgreedPlan: async (dealId, plan) => void (await this.sales.agreedPlan.set(dealId, plan)),
+        setAgreedGifts: async (dealId, gifts) => void (await this.sales.agreedGifts.set(dealId, gifts)),
         setBatch: (dealId, batchId, index, size) => this.sales.batch.set(dealId, batchId, index, size),
         tagDeal: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
         addPayment: (input) => this.sales.payments.add(input),
@@ -376,10 +379,12 @@ export class Container {
           const stage = await this.sales.deals.stage(d.stageId);
           // Деньги пакета (клиент оплатил сразу несколько книг) лежат в сделке счёта, а делятся между книгами при расчёте: счёт видит пакет целиком.
           const batch = await this.sales.batch.money(d.id);
-          return { id: d.id, number: d.number, title: d.title, clientId: d.clientId, assigneeId: d.assigneeId, amount: d.amount, paid: batch.size ? batch.paid : await this.sales.payments.paidTotal(d.id), batchSize: batch.size, orderId: d.orderId, closed: !!stage && stage.kind !== "open" };
+          return { id: d.id, number: d.number, title: d.title, clientId: d.clientId, assigneeId: d.assigneeId, amount: d.amount, paid: batch.size ? batch.paid : await this.sales.payments.paidTotal(d.id), batchSize: batch.size, orderId: d.orderId, closed: !!stage && stage.kind !== "open", gifts: await this.sales.agreedGifts.get(d.id) };
         },
-        setAgreement: async (dealId, { plan, agreedTotal, count, actorId }) => {
+        setAgreement: async (dealId, { plan, agreedTotal, count, gifts, actorId }) => {
           await this.sales.agreedPlan.set(dealId, plan);
+          // Бесплатное по договорённости — в сделку (до пакета: копии сделки его наследуют).
+          await this.sales.changeAgreedGifts(dealId, gifts, actorId, "invoice");
           await this.sales.deals.setAgreedTotal(dealId, agreedTotal, actorId);
           // Несколько книг — сделка становится пакетом (копии под остальные книги).
           if (count > 1) await this.sales.splitIntoBatch(dealId, count, actorId);

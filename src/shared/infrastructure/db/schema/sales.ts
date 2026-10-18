@@ -76,6 +76,8 @@ export const crmDeals = pgTable(
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     /** Тариф, о котором договорились с клиентом (договорная цена относится к нему): при заказе по договорённости тариф фиксирован. */
     agreedPlan: text("agreed_plan"),
+    /** Что по договорённости бесплатно: giftwrap — подарочная упаковка, delivery — доставка (AgreementGift). */
+    agreedGifts: text("agreed_gifts").array().notNull().default(sql`'{}'::text[]`),
     /** Клиент оплатил сразу несколько книг: по сделке на каждую книгу, общий пакет — batch_id (batch_index с нуля, batch_size — сколько всего). */
     batchId: uuid("batch_id"),
     batchIndex: integer("batch_index"),
@@ -155,6 +157,8 @@ export const dealInvoices = pgTable(
     agreedTotal: integer("agreed_total").notNull(),
     /** Сколько книг оплачивается счётом (по умолчанию одна): сумма договорённости — цена книги × количество. */
     booksCount: integer("books_count").notNull().default(1),
+    /** Что по договорённости бесплатно (как в сделке на момент счёта) — строкой в счёте и в сообщении клиенту. */
+    gifts: text("gifts").array().notNull().default(sql`'{}'::text[]`),
     amount: integer("amount").notNull(),
     /** prepayment | remainder | full | custom — назначение в тексте счёта. */
     purpose: text("purpose", { enum: ["prepayment", "remainder", "full", "custom"] }).notNull(),

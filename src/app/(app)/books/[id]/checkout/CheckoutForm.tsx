@@ -8,6 +8,7 @@ import { availableAddons, getPlan, getPlans, getVisiblePlans, type AddonId, type
 import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { AgreementChoice, ContactsSection, DeliverySection, GiftSection, MobileBar, PlanSection, Summary, UpgradeNote, type AgreementMode, type PromoField } from "./form/sections";
 
 /** Промокод или сертификат: ввод, проверка на сервере (checkPromoAction), применённый и ошибка. */
@@ -36,7 +37,7 @@ export function CheckoutForm({
   upgrade = null,
 }: {
   /** Договорённость менеджера с клиентом: цена книги, внесённая предоплата и тариф (ручная сделка). Доставка и допы — сверху. */
-  agreement?: { dealNumber: number; agreedTotal: number; prepaid: number; plan: PlanId | null; batch?: { index: number; size: number } | null } | null;
+  agreement?: { dealNumber: number; agreedTotal: number; prepaid: number; plan: PlanId | null; batch?: { index: number; size: number } | null; /** Что менеджер отдал бесплатно (упаковка, доставка) — 0 ₸, если клиент выберет. */ gifts?: AgreementGift[] } | null;
   initialPlan?: PlanId;
   /** Печатная версия к уже оплаченной электронной: её оплата засчитывается, выбор — только печатные тарифы. */
   upgrade?: { orderId: string; number: number; credit: number } | null;
@@ -75,6 +76,8 @@ export function CheckoutForm({
   const prepaidApplied = quote.price.prepaidAmount ?? 0;
   const { plan: planId, lockedPlan } = quote;
   const plan = getPlans().find((p) => p.id === planId)!;
+  // Бесплатное по договорённости действует, только пока клиент продолжает по ней (не «с нуля»).
+  const gifts: AgreementGift[] = agreement && mode === "agreed" && !upgrade ? (agreement.gifts ?? []) : [];
   const offered = availableAddons(planId);
   // Какие тарифы предлагаем: зафиксированный договорённостью; при дозаказе печатной версии — только печатные; иначе все, что продаются.
   const shownPlans = lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : upgrade ? getVisiblePlans().filter((x) => x.printed) : getVisiblePlans();
@@ -93,8 +96,8 @@ export function CheckoutForm({
       <div className="space-y-10">
         {upgrade ? <UpgradeNote upgrade={upgrade} /> : null}
         {agreement ? <AgreementChoice agreement={agreement} mode={mode} onMode={setMode} /> : null}
-        <PlanSection plans={shownPlans} planId={planId} lockedPlan={lockedPlan} onPlan={setPlanId} qty={qty} onQty={setQty} offered={offered} applied={appliedAddons} onToggleAddon={toggleAddon} />
-        {plan.printed ? <DeliverySection delivery={delivery} onDelivery={setDelivery} /> : null}
+        <PlanSection plans={shownPlans} planId={planId} lockedPlan={lockedPlan} onPlan={setPlanId} qty={qty} onQty={setQty} offered={offered} applied={appliedAddons} onToggleAddon={toggleAddon} gifts={gifts} />
+        {plan.printed ? <DeliverySection delivery={delivery} onDelivery={setDelivery} gifts={gifts} /> : null}
         {plan.printed ? (
           <GiftSection now={now} today={today} desiredDate={desiredDate} onDesiredDate={setDesiredDate} occasionLabel={defaults.occasionLabel} planId={planId} delivery={delivery} offered={offered} applied={appliedAddons} onToggleAddon={toggleAddon} onPlan={setPlanId} />
         ) : null}
@@ -104,7 +107,7 @@ export function CheckoutForm({
       <Summary
         plan={plan}
         qty={qty}
-        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total }}
+        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total, gifted: quote.price.gifted ?? [] }}
         promo={promoField}
         upgrade={upgrade}
         offered={offered}

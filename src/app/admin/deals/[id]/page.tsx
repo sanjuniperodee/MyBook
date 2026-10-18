@@ -161,6 +161,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             dealId={deal.id}
             agreed={deal.amount}
             plan={await container().sales.agreedPlan.get(deal.id)}
+            gifts={await container().sales.agreedGifts.get(deal.id)}
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
             payments={payments}

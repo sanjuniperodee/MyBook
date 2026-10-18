@@ -1,4 +1,5 @@
 import "server-only";
+import { readGifts } from "@/shared/domain/agreementGifts";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { dealInvoices } from "@/shared/infrastructure/db/schema";
@@ -23,6 +24,7 @@ const toDomain = (r: Row) =>
     plan: r.plan,
     agreedTotal: r.agreedTotal,
     booksCount: r.booksCount,
+    gifts: readGifts(r.gifts),
     amount: r.amount,
     purpose: r.purpose,
     status: r.status,

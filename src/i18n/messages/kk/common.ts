@@ -157,6 +157,7 @@ export const common: Messages["common"] = {
     otherWay: "Kaspi арқылы төлеу мүмкін болмаса, нөмір бойынша аударыңыз:",
   },
   free: "Тегін",
+  agreementGifts: { giftwrap: "сыйлық орамы", delivery: "жеткізу" },
   legal: { updated: (d: string) => `${d} редакциясы` },
   date,
   until,

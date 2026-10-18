@@ -20,6 +20,8 @@ import { channelLabel } from "@/modules/messaging";
 import { isManualChannel } from "@/shared/domain/channels";
 import { formatPhone, isPhoneLike, normalizePhone, phoneTail } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
+import { AGREEMENT_GIFTS, type AgreementGift } from "@/shared/domain/agreementGifts";
+import { availableAddons, getDeliveryOptions } from "@/config/site";
 
 export type InvoiceResult = { ok: true; message: string; link: string; text: string; sent: boolean } | { ok: false; message: string };
 
@@ -39,6 +41,8 @@ const schema = z.object({
   issueKey: z.union([uuid, z.literal("")]).default(""),
   /** Выставить и счёт Kaspi на номер WhatsApp-чата клиента (номер подставляет сервер). */
   kaspiPush: z.coerce.boolean().default(false),
+  /** Что по договорённости бесплатно: подарочная упаковка, доставка (недоступное тарифу сервер отбросит). */
+  gifts: z.array(z.enum(AGREEMENT_GIFTS)).max(AGREEMENT_GIFTS.length).default([]),
 });
 
 /** Что нужно форме счёта: договорённость из сделки, остаток, открытый счёт, способы оплаты, счёт Kaspi на номер. */
@@ -64,7 +68,11 @@ export interface InvoiceFormInfo {
   /** Куда уйдёт счёт: канал диалога (WhatsApp…); null — диалога нет, ссылку менеджер отправит сам. */
   chat: string | null;
   /** Тарифы, которые сейчас продаются, с ценой из «Цены и тарифы» (+ тариф договорённости, если его сняли с продажи). */
-  plans: { id: string; label: string; price: number }[];
+  plans: { id: string; label: string; price: number; /** Печатный — можно отдать бесплатно доставку. */ printed: boolean; /** Есть подарочная упаковка среди допов. */ giftwrap: boolean }[];
+  /** Что уже бесплатно по договорённости сделки (упаковка, доставка). */
+  gifts: AgreementGift[];
+  /** Цены упаковки и доставки по прайсу — подсказка, сколько стоит подарок. */
+  giftPrices: { giftwrap: number; delivery: number };
   methods: { kaspi: boolean; card: boolean; transfer: boolean };
   /** Счёт Kaspi на номер чата возможен: Kaspi подключён и номер — казахстанский мобильный; номер — с маской. */
   kaspiPhoneMasked: string | null;
@@ -103,9 +111,12 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
   ]);
   // Имя диалога бывает номером телефона: менеджер со скрытыми номерами его не видит и здесь.
   const name = deal?.contactName || conv?.contactName || "";
-  const plans = getVisiblePlans().map((p) => ({ id: p.id, label: planLabels[p.id], price: p.price }));
+  const giftwrapOf = (id: string) => availableAddons(id as Parameters<typeof availableAddons>[0]).some((a) => a.id === "giftwrap");
+  const plans = getVisiblePlans().map((p) => ({ id: p.id, label: planLabels[p.id], price: p.price, printed: p.printed, giftwrap: giftwrapOf(p.id) }));
   const agreedPlan = plan ? getPlan(plan) : undefined;
-  if (agreedPlan && !plans.some((p) => p.id === agreedPlan.id)) plans.push({ id: agreedPlan.id, label: `${planLabels[agreedPlan.id]} (снят с продажи)`, price: agreedPlan.price });
+  if (agreedPlan && !plans.some((p) => p.id === agreedPlan.id)) plans.push({ id: agreedPlan.id, label: `${planLabels[agreedPlan.id]} (снят с продажи)`, price: agreedPlan.price, printed: agreedPlan.printed, giftwrap: giftwrapOf(agreedPlan.id) });
+  const gifts = deal ? await c.sales.agreedGifts.get(deal.id) : [];
+  const paidDelivery = getDeliveryOptions().filter((d) => d.price > 0).map((d) => d.price);
   const until = new Date(Date.now() + DEAL_INVOICE_TTL_MS);
   return {
     ok: true,
@@ -125,6 +136,8 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       channel: conv && isManualChannel(sourceFromChannel(conv.channel)) ? sourceFromChannel(conv.channel) : "",
       chat: conv ? channelLabel(conv.channel) : null,
       plans,
+      gifts,
+      giftPrices: { giftwrap: availableAddons("hardcover").find((a) => a.id === "giftwrap")?.price ?? 0, delivery: paidDelivery.length ? Math.max(...paidDelivery) : 0 },
       methods,
       kaspiPhoneMasked: methods.kaspi && isKzMobile(phone) ? maskPhone(phone) : null,
       maxDiscountPercent: can(staff, "deals.delete") ? null : Number(maxDiscount) || 0,
@@ -187,6 +200,7 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
       plan: d.plan,
       agreedTotal: d.agreedTotal,
       count: d.count,
+      gifts: d.gifts,
       amount: d.amount,
       purpose: d.purpose,
       actor: { userId: staff.user.id, label: staff.user.email },
@@ -207,7 +221,7 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
     const msg = await c.messaging.chats.send(conv.id, text, staff.user.id);
     sent = msg.status !== "error";
   }
-  await audit(staff, "invoice.issue", "deal", deal.id, { invoice: invoice.label, amount: d.amount, agreed: d.agreedTotal, count: d.count, plan: d.plan, phone: phone ? phoneTail(phone) : null, kaspiPush: push ? push.ok : null });
+  await audit(staff, "invoice.issue", "deal", deal.id, { invoice: invoice.label, amount: d.amount, agreed: d.agreedTotal, count: d.count, plan: d.plan, gifts: invoice.snapshot().gifts, phone: phone ? phoneTail(phone) : null, kaspiPush: push ? push.ok : null });
   revalidatePath(`/admin/deals/${deal.id}`);
   revalidatePath("/admin/chats");
   const message = sent ? `Счёт ${invoice.label} отправлен клиенту` : conv ? `Счёт ${invoice.label} создан, но сообщение не ушло — скопируйте ссылку` : `Счёт ${invoice.label} создан — отправьте ссылку клиенту`;

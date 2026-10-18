@@ -2,6 +2,7 @@ import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
 import type { DealMoney } from "../application";
+import { readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
 
 export interface DealAgreement {
   dealId: string;
@@ -12,6 +13,8 @@ export interface DealAgreement {
   prepaid: number;
   /** Тариф, о котором договорились (PlanId), если менеджер его указал. */
   plan: string | null;
+  /** Что по договорённости бесплатно: упаковка, доставка (если клиент их выберет). */
+  gifts?: AgreementGift[];
   /** Срок, к которому клиенту нужна книга (поле «дата события» сделки), YYYY-MM-DD. */
   deadline: string | null;
   /** Клиент оплатил сразу несколько книг: какая по счёту сейчас, сколько всего и сколько ещё осталось оформить (и денег по ним). */
@@ -44,8 +47,8 @@ const paidSum = (d: SQL) => sql`(case when ${d}.batch_id is null
  */
 export async function agreementForClient(userId: string): Promise<DealAgreement | null> {
   const d = sql.raw("d");
-  const r = await executor().execute<{ id: string; number: number; amount: number; paid: number; deadline: string | null; recipient: string | null; plan: string | null; batch_id: string | null; batch_index: number | null; batch_size: number | null }>(sql`
-    select d.id, d.number, d.amount, d.agreed_plan as plan, d.batch_id, d.batch_index, d.batch_size, nullif(d.custom_fields->>'event_date', '') as deadline, nullif(d.custom_fields->>'recipient', '') as recipient, ${paidSum(d)} as paid
+  const r = await executor().execute<{ id: string; number: number; amount: number; paid: number; deadline: string | null; recipient: string | null; plan: string | null; gifts: string[] | null; batch_id: string | null; batch_index: number | null; batch_size: number | null }>(sql`
+    select d.id, d.number, d.amount, d.agreed_plan as plan, d.agreed_gifts as gifts, d.batch_id, d.batch_index, d.batch_size, nullif(d.custom_fields->>'event_date', '') as deadline, nullif(d.custom_fields->>'recipient', '') as recipient, ${paidSum(d)} as paid
     from crm_deals d join crm_stages s on s.id = d.stage_id
     where d.client_id = ${userId} and d.order_id is null and d.amount > 0 and ${isAgreement(d)}
       -- Сделку без заказа, но с деньгами, могли перевести в «успех» вручную: договорённость по ней всё равно действует.
@@ -74,7 +77,7 @@ export async function agreementForClient(userId: string): Promise<DealAgreement 
     const a = all.rows[0];
     if (a && a.n > 1) batch = { index: 0, size: a.n, left: a.n, agreedLeft: a.agreed, prepaidLeft: Math.max(0, a.paid), implicit: true };
   }
-  return { recipient: row.recipient, dealId: row.id, dealNumber: row.number, agreedTotal: row.amount, prepaid: Math.max(0, row.paid), plan: row.plan, deadline: row.deadline && /^\d{4}-\d{2}-\d{2}$/.test(row.deadline) ? row.deadline : null, batch };
+  return { recipient: row.recipient, dealId: row.id, dealNumber: row.number, agreedTotal: row.amount, prepaid: Math.max(0, row.paid), plan: row.plan, gifts: readGifts(row.gifts ?? []), deadline: row.deadline && /^\d{4}-\d{2}-\d{2}$/.test(row.deadline) ? row.deadline : null, batch };
 }
 
 /** Деньги клиента по сделке и договорённость по ней — тем же правилом, что и agreementForClient. */

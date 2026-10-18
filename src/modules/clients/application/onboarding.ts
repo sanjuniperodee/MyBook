@@ -1,4 +1,5 @@
-import { formatPrice } from "@/config/site";
+import { formatPrice, giftsForPlan } from "@/config/site";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { channels, isManualChannel, manualAttribution, type ManualChannel } from "@/shared/domain/channels";
 import { ClientsError } from "../domain/errors";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
@@ -27,6 +28,8 @@ export interface OnboardingSales {
     customFields: Record<string, string | number>;
   }): Promise<{ id: string; number: number }>;
   setAgreedPlan(dealId: string, plan: string): Promise<void>;
+  /** Что по договорённости бесплатно (упаковка, доставка). */
+  setAgreedGifts(dealId: string, gifts: AgreementGift[]): Promise<void>;
   /** Сделка — книга пакета: клиент оплатил сразу несколько книг. */
   setBatch(dealId: string, batchId: string, index: number, size: number): Promise<void>;
   tagDeal(dealId: string, tag: string): Promise<void>;
@@ -81,7 +84,11 @@ export interface DealTerms {
   plan: string;
   /** Тариф для заметки с условиями — как его пишут в тексте («твёрдая обложка»). */
   planLabel: string;
+  /** Что бесплатно по договорённости (упаковка, доставка); не отмечено — клиент платит по прайсу. */
+  gifts?: AgreementGift[];
 }
+
+const GIFT_NAMES: Record<AgreementGift, string> = { giftwrap: "подарочная упаковка", delivery: "доставка" };
 
 /** Книга пакета: её сделка, цена и доля предоплаты с платежом (чек к нему догружается отдельно). */
 export interface DealPart {
@@ -184,6 +191,7 @@ export class ClientOnboardingService {
       parts.push({ dealId: deal.id, dealNumber: deal.number, agreed: prices[i], prepaid: prepaids[i], paymentId });
 
       const phone = normalizePhone(input.phone);
+      const gifts = giftsForPlan(d.plan, d.gifts ?? []);
       const terms = [
         input.channel ? `Канал: ${channels[input.channel]}.` : null,
         count > 1 ? `Пакет: ${count} кн. — книга ${i + 1} из ${count} (оплачено сразу, по книге на сделку; сделки пакета: №${parts.map((p) => p.dealNumber).join(", №")}${i + 1 < count ? " и следующие" : ""}).` : null,
@@ -191,7 +199,7 @@ export class ClientOnboardingService {
         `Клиент: ${input.name}${input.city ? `, г. ${input.city}` : ""}, тел. ${formatPhone(phone) || phone}${input.email ? `, ${input.email}` : ""}, язык — ${input.locale === "kk" ? "казахский" : "русский"}.`,
         d.deadline ? `Срок: до ${ruDate(d.deadline)} (желательно раньше).` : null,
         `Тариф: ${d.planLabel} (зафиксирован для заказа клиента).`,
-        `Договорились на ${formatPrice(prices[i])} за книгу (доставка и допы — сверху); предоплата${count > 1 ? " по книге" : ""} ${formatPrice(prepaids[i])}${prices[i] > prepaids[i] ? `; остаток ${formatPrice(prices[i] - prepaids[i])}` : ""}.`,
+        `Договорились на ${formatPrice(prices[i])} за книгу (${gifts.length ? `бесплатно: ${gifts.map((g) => GIFT_NAMES[g]).join(", ")}; остальные допы${gifts.includes("delivery") ? "" : " и доставка"} — сверху` : "доставка и допы — сверху"}); предоплата${count > 1 ? " по книге" : ""} ${formatPrice(prepaids[i])}${prices[i] > prepaids[i] ? `; остаток ${formatPrice(prices[i] - prepaids[i])}` : ""}.`,
         count > 1 ? `Всего по пакету: ${count} × ${formatPrice(d.agreed)} = ${formatPrice(total)}; предоплата ${formatPrice(d.prepaid)}.` : null,
         d.comment || null,
         input.password !== undefined && !input.email ? "Почты нет: клиент входит по телефону." : null,
@@ -274,6 +282,8 @@ export class ClientOnboardingService {
       customFields: custom,
     });
     await this.sales.setAgreedPlan(deal.id, d.plan);
+    const gifts = giftsForPlan(d.plan, d.gifts ?? []);
+    if (gifts.length) await this.sales.setAgreedGifts(deal.id, gifts);
     for (const tag of ["вручную", ...(d.prepaid > 0 ? ["предоплата"] : []), ...(input.city ? [input.city.toLowerCase().slice(0, 30)] : [])]) await this.sales.tagDeal(deal.id, tag);
     return { id: deal.id, number: deal.number };
   }

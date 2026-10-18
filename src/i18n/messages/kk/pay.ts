@@ -12,6 +12,7 @@ export const pay: typeof ru = {
     custom: "төлем",
   },
   purposeLine: (plan, purpose, books = 1) => `${books > 1 ? `Жеке кітаптар (${books} дана)` : "Жеке кітап"}: ${plan}, ${purpose}`,
+  gifts: (list: string) => `Келісім бойынша тегін: ${list}.`,
   summary: (plan: string, purpose: string, agreed: string) => `${plan}, ${purpose}. Келісілген кітап бағасы — ${agreed}.`,
   // Дата приходит в именительном падеже («23 қазан»): с «дейін» нужен дательный, поэтому «мерзімі — …».
   until: (date: string) => `Төлеу мерзімі — ${date}.`,
@@ -52,6 +53,7 @@ export const pay: typeof ru = {
   message: (i) =>
     [
       `Сәлеметсіз бе${i.name ? `, ${i.name}` : ""}! ${i.label} төлем шоты: ${i.books && i.books > 1 ? `жеке кітаптар, ${i.books} дана (${i.plan})` : `жеке кітап (${i.plan})`}, ${i.purpose} — ${i.amount}.`,
+      i.gifts ? `🎁 Келісім бойынша тегін: ${i.gifts}.` : null,
       `Төлеу: ${i.link}`,
       i.kaspiPhone ? `Шот Kaspi қосымшасына да ${i.kaspiPhone} нөміріне келді${i.kaspiOrg ? ` — алушы ${i.kaspiOrg}` : ""}.` : null,
       `Төлеу мерзімі — ${i.until}.`,
