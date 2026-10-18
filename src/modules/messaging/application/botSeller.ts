@@ -15,6 +15,7 @@ import {
   faqNotes,
   clientSaysPaid,
   findSensitive,
+  paymentAmounts,
   isGreetingOnly,
   lastBotTurn,
   mediaLine,
@@ -169,6 +170,8 @@ export class AiSeller {
     if (latest.some((i) => !base.seen.includes(i.id) && !fresh.some((f) => f.id === i.id))) return true;
 
     const result = decided.turn;
+    // Подхват: модель решила, что клиент ответа не ждёт («Аха» после ответа менеджера) — бот не вмешивается.
+    if (start && readSellerAi(state.ai).takeover && decided.decision.action === "wait" && result.state.phase !== "done") return this.quietTakeover(conv, state, result.state);
     const next: BotState = { ...result.state, engine: "ai", ai: { ...readSellerAi(result.state.ai), failures: 0 } };
     result.state = next;
     const saved = await this.d.store.save(conv.id, state.version, { botStep: result.done ? BOT_DONE : 0, state: next, dueAt: result.done ? null : new Date(now.getTime() + BOT_ABANDON_MS) });
@@ -332,8 +335,11 @@ export class AiSeller {
     // Цены называет только менеджер (владелец, 18.10); клиент уже платил — суммы тем более не к месту.
     // Черновик для менеджера — суммы из тарифов и фактов называть можно: их называет он сам.
     const noAmounts = !opts.manager && (config.sell.hidePrices || !!env.paid);
+    // Суммы разрешены — можно и те, что есть в оплатах и счетах клиента («принято 10 000», «осталось 20 000»).
+    const amounts = noAmounts ? new Set<number>() : allowedAmounts(env.catalog, config.sell, owner);
+    if (!noAmounts && env.payments) for (const n of paymentAmounts(env.payments)) amounts.add(n);
     return {
-      amounts: noAmounts ? new Set<number>() : allowedAmounts(env.catalog, config.sell, owner),
+      amounts,
       percents: allowedPercents(owner),
       urls: [env.site.url].filter(Boolean),
       phones: [conv.chatId, conv.meta.phone, await this.d.shopPhone()],
@@ -341,13 +347,13 @@ export class AiSeller {
   }
 
   private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>) {
-    // Бот писал за последние 6 часов — он уже поздоровался; через сутки «Добрый день!» снова уместно.
-    const lastBot = [...history].reverse().find((m) => m.from === "bot");
-    const now = this.d.clock.now().getTime();
-    const greeted = !!lastBot && now - new Date(lastBot.at).getTime() < 6 * 3_600_000;
-    // Бот здесь ещё не писал — представится; поздоровается, если с клиентом давно (6 ч) никто не переписывался от нас.
+    // Мы (бот или менеджер) писали за последние 6 часов — уже поздоровались; через сутки «Добрый день!» снова уместно.
     const lastOurs = [...history].reverse().find((m) => m.from !== "client");
-    const intro = lastBot ? null : { greet: !lastOurs || now - new Date(lastOurs.at).getTime() > 6 * 3_600_000 };
+    const now = this.d.clock.now().getTime();
+    const greeted = !!lastOurs && now - new Date(lastOurs.at).getTime() < 6 * 3_600_000;
+    // Представляется только в новом чате: если клиенту уже писали мы (бот или менеджер — подхват, запуск кнопкой), бот не
+    // представляется, а продолжает от лица компании (владелец, 18.10: «не обязательно представляться при подхвате»).
+    const intro = lastOurs ? null : { greet: true };
     return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro };
   }
 
@@ -356,7 +362,7 @@ export class AiSeller {
    * дату или город — срок считает код и ответ переписывается с этим фактом. Возвращает решение модели и «спросить ещё
    * раз» (с правками после проверки) или ошибку модели. voice — черновик для менеджера, а не ответ бота.
    */
-  private async consult(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" | "copilot"; voice?: { manager: string } | null }) {
+  private async consult(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" | "copilot"; voice?: { manager: string } | null; quick?: boolean }) {
     const { conv, base, config, fields, fresh, purpose } = a;
     const voice = a.voice ?? null;
     const [knowledge, lessons] = await Promise.all([this.d.settings.knowledge().catch(() => ""), this.d.settings.lessons?.().catch(() => []) ?? []]);
@@ -365,10 +371,15 @@ export class AiSeller {
     const ai = readSellerAi(base.ai);
     // Распознанные голосовые и фото — словами клиента, а не «[голосовое сообщение]» (и в старых сообщениях тоже).
     const history = withMediaText(a.history, ai.media);
-    // Клиент писал «оплатил(а)» или прислал чек — он уже платил, даже если оплату по сделке ещё не провели.
-    const env: BotEnv = { ...a.env, paid: !!a.env.paid || clientSaysPaid(history, ai.media) };
+    // Клиент писал «оплатил(а)» или прислал чек — не продаём, даже если оплату по сделке ещё не провели; но и не
+    // подтверждаем: денег в CRM нет — проверит менеджер (paidClaimOnly).
+    const claimed = clientSaysPaid(history, ai.media);
+    const env: BotEnv = { ...a.env, paid: !!a.env.paid || claimed };
     const paid = !!env.paid;
+    const paidClaimOnly = claimed && !a.env.paid;
     const rules = await this.rules(conv, env, config, { manager: !!voice });
+    // Кто из менеджеров писал клиенту (подпись в CRM): при подхвате бот не называет других имён.
+    const chatManager = [...history].reverse().find((m) => m.from === "manager" && m.author)?.author ?? null;
     const dateKey = fields.find((f) => f.type === "date")?.key;
     const knownDate = (dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null) ?? dayValue(ai.eventDate);
     const known = fields
@@ -387,7 +398,7 @@ export class AiSeller {
       .slice(0, 1500);
 
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, purpose, extraFact, retry, paid, followUps: ai.followUps, lessons, voice });
+      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice });
       let raw: string;
       try {
         raw = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
@@ -408,7 +419,7 @@ export class AiSeller {
     // Клиент назвал дату или город — срок пересчитан кодом (по Алматы доставка в день готовности), ответ — с учётом вердикта.
     const date = decision.eventDate ?? knownDate;
     const newInfo = (decision.eventDate && decision.eventDate !== knownDate) || (decision.city && decision.city !== ai.city);
-    if (date && newInfo && purpose !== "follow_up") {
+    if (date && newInfo && purpose !== "follow_up" && !a.quick) {
       const fact = deadlineFact(date, env, decision.city || ai.city);
       if (fact) {
         deadline = fact;
@@ -444,7 +455,7 @@ export class AiSeller {
    * черновик пишется от лица менеджера и ничего не отправляет и не меняет: менеджер правит и шлёт сам. Проверка та же —
    * суммы только из фактов, ссылки только на сайт, без номеров; нарушение — одна переписка, потом ошибка.
    */
-  async suggest(conv: Conversation, manager: string): Promise<CopilotSuggestion> {
+  async suggest(conv: Conversation, manager: string, opts: { quick?: boolean } = {}): Promise<CopilotSuggestion> {
     if (!this.d.seller || !this.d.history || !conv.dealId) return { error: "AI-продажник не подключён" };
     const now = this.d.clock.now();
     const [config, fields] = await Promise.all([this.d.settings.config(), this.d.settings.dealFields()]);
@@ -455,9 +466,11 @@ export class AiSeller {
     const base: BotState = saved ? { ...saved, questions: saved.questions.length ? saved.questions : questions } : { ...newBotState(now, false), engine: "ai", phase: "active", questions, ai: newSellerAiState() };
     const history = await this.d.history(conv.id, HISTORY_LIMIT);
     if (!history.some((m) => m.from === "client" && m.text.trim())) return { error: "Клиент ещё ничего не написал — подсказывать нечего." };
-    const c = await this.consult({ conv, base, env, config, fields, history, fresh: [], purpose: "copilot", voice: { manager } });
+    const c = await this.consult({ conv, base, env, config, fields, history, fresh: [], purpose: "copilot", voice: { manager }, quick: opts.quick });
     if ("error" in c) return c;
     let decision = c.decision;
+    // Только оценка «ждёт ли клиент ответа» (triage): текст никуда не уходит — проверять и переписывать его незачем.
+    if (opts.quick) return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
     const check = (d: SellerDecision) => (d.reply ? checkSellerReply(d.reply, c.rules) : []);
     let problems = check(decision);
     if (problems.length) {
@@ -548,6 +561,18 @@ export class AiSeller {
       const who = deal.contactName || conv.contactName || phoneTail(conv.chatId) || "клиент";
       await this.d.notifier.notify(deal.assigneeId, "chats.view", { kind: "message", title: `Бот подхватил чат: ${who}`, body: `Клиент ждал ответа ${state.ai.waitedMinutes} мин.`, link: `/admin/chats?c=${conv.id}` });
     }
+  }
+
+  /**
+   * Подхват не нужен: клиент только подтвердил или поблагодарил, а ответ ему уже дали. Бот молчит, «ждёт ответа»
+   * снимается, беседа закрыта мягко — следующее сообщение клиента снова оценит AI.
+   */
+  private async quietTakeover(conv: Conversation, state: BotState, next: BotState): Promise<boolean> {
+    const off: BotState = { ...next, engine: "ai", phase: "done", outcome: "skipped", reason: "no_reply_needed", asking: null };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: null, state: off, dueAt: null }, { restart: true }))) return true;
+    if (conv.awaitingSince && (await this.d.conversations.dismissAwaiting(conv.id, new Date(conv.awaitingSince)))) this.d.changed?.(conv.id);
+    await this.d.store.log(conv.id, conv.dealId, off.lang, [{ kind: "skipped", reason: "no_reply_needed" }]);
+    return false;
   }
 
   // ─── без текста и сбои ─────────────────────────────────────────────────────

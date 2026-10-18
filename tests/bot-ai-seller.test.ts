@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultBotConfig, type BotConfig } from "@/modules/messaging/domain";
+import { defaultBotConfig, factsPaid, type BotConfig, type PaymentFacts } from "@/modules/messaging/domain";
 import { BOT_PAUSE_MS, type BotInvoices, type BotSellerModel } from "@/modules/messaging/application";
 import { BOT_CONFIG, inbound, setup } from "./doubles/botHarness";
 
@@ -305,36 +305,49 @@ describe("AI-продажник: подхват начатой переписк�
     expect(t.sent.at(-1)).toBe("Продолжаю: к какой дате нужна книга?");
   });
 
-  it("«Спасибо» не открывает ожидание — подхватывать нечего", async () => {
-    const { t, calls } = await started([]);
+  it("«Спасибо» открывает ожидание, но ответ не нужен — решает модель: бот молчит и снимает «ждёт ответа»", async () => {
+    const { t, calls } = await started([ans({ action: "wait", reply: "", summary: "Клиент поблагодарил." })]);
+    const before = t.sent.length;
     await t.service.ingest(inbound({ text: "Спасибо!" }));
+    expect(t.conv().awaiting).not.toBeNull();
     await t.advance(10 * 60_000);
-    expect(calls).toHaveLength(0);
+    expect(calls).toHaveLength(1);
+    expect(t.sent).toHaveLength(before);
+    expect(t.conv().awaiting).toBeNull();
+    expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "skipped", reason: "no_reply_needed" });
+    // Ни заметки «Бот подхватил», ни уведомления о подхвате: бот не вмешивался.
+    expect(t.notes.some((n) => /подхватил/.test(n))).toBe(false);
   });
 
-  it("кнопка «Остановить бота» — окончательно: подхвата больше нет", async () => {
-    const { t, calls } = await started([ans()]);
+  it("кнопка «Остановить бота» — окончательно: подхвата больше нет, клиенту бот не пишет (AI только оценивает, ждут ли ответа)", async () => {
+    const { t } = await started([ans()]);
+    const before = t.sent.length;
     await t.bot.stopByHuman(t.conv().id, "button");
     await t.service.ingest(inbound({ text: "Для мамы" }));
     await t.advance(10 * 60_000);
-    expect(calls).toHaveLength(0);
+    expect(t.sent).toHaveLength(before);
+    // Модель считает, что ответ нужен, — «ждёт ответа» остаётся менеджеру.
+    expect(t.conv().awaiting).not.toBeNull();
   });
 
   it("подхват выключен в настройках — бот не вмешивается", async () => {
-    const { t, calls } = await started([ans()], aiConfig({ takeover: false }));
+    const { t } = await started([ans()], aiConfig({ takeover: false }));
+    const before = t.sent.length;
     await t.service.ingest(inbound({ text: "Для мамы" }));
     await t.advance(10 * 60_000);
-    expect(calls).toHaveLength(0);
+    expect(t.sent).toHaveLength(before);
+    expect(t.conv().awaiting).not.toBeNull();
   });
 
-  it("у клиента уже есть заказ — это не продажа, бот не подхватывает", async () => {
-    const { model, calls } = fakeModel([ans()]);
+  it("у клиента уже есть заказ — это не продажа, бот не подхватывает; вопрос клиента остаётся менеджеру", async () => {
+    const { model } = fakeModel([ans()]);
     const t = setup({ bot: "fallback", config: aiConfig(), seller: model, clientOrders: 1, clients: { "77011234567": "client-1" } });
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
     await t.service.send(t.conv().id, "Здравствуйте!", "manager-1");
     await t.service.ingest(inbound({ text: "А где моя книга?" }));
     await t.advance(10 * 60_000);
-    expect(calls).toHaveLength(0);
+    expect(t.sent).toEqual(["Здравствуйте!"]);
+    expect(t.conv().awaiting).not.toBeNull();
   });
 });
 
@@ -357,9 +370,9 @@ describe("AI-продажник: подхват — переписка нача�
     expect(t.sent.at(-1)).toBe("Продолжим: для кого книга?");
   });
 
-  it("у клиента заказ — подхвата нет", async () => {
-    const { calls } = await lateStart({ orders: 1 });
-    expect(calls).toHaveLength(0);
+  it("у клиента заказ — подхвата нет: клиенту бот не пишет", async () => {
+    const { t } = await lateStart({ orders: 1 });
+    expect(t.sent).toEqual(["Здравствуйте, это Margo"]);
   });
 });
 
@@ -906,3 +919,169 @@ describe("Подсказка менеджеру («Подсказать отве
   });
 });
 
+
+describe("Короткая реакция клиента — нужен ли ответ, решает AI (чат «Айгерим Шымкент», 18.10)", () => {
+  /** Менеджер Margo ведёт переписку с телефона на казахском, отвечает на вопрос клиентки; та пишет «Аха». */
+  async function margoChat(script: Script, cfg = aiConfig()) {
+    const { model, calls } = fakeModel(script);
+    const t = setup({ bot: "fallback", config: cfg, seller: model });
+    await t.service.ingest(inbound({ text: "Кітапты отбасының яғни балаларының атынан" }));
+    await t.service.ingest(inbound({ text: "Деп өзгертуге бола ма" }));
+    await t.service.send(t.conv().id, "Иә болады", "manager-1");
+    const before = t.sent.length;
+    await t.service.ingest(inbound({ text: "Аха" }));
+    return { t, calls, before };
+  }
+
+  it("«Аха» после ответа менеджера: модель видит переписку и решает молчать — бот не пишет, не представляется, «ждёт ответа» снято", async () => {
+    const quietAns = ans({ action: "wait", reply: "", language: "kk", summary: "Клиентка поняла ответ менеджера." });
+    const { t, calls, before } = await margoChat([quietAns, quietAns]);
+    expect(t.conv().awaiting).not.toBeNull();
+    await t.advance(4 * 60_000);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].user).toContain("Менеджер (Margo): Иә болады");
+    expect(calls[0].user).toContain("▶");
+    expect(calls[0].user).toContain("Аха");
+    // Инструкция: при подхвате сначала решить, ждёт ли клиент ответа; не представляться; имя менеджера из переписки.
+    expect(calls[0].system).toContain("сначала реши, ждёт ли клиент ответа");
+    expect(calls[0].system).toContain("Клиенту уже писал менеджер Margo");
+    expect(calls[0].system).toContain("Последнее слово не обязательно за нами");
+    expect(t.sent).toHaveLength(before);
+    expect(t.conv().awaiting).toBeNull();
+    expect(t.notes.some((n) => /подхватил/.test(n))).toBe(false);
+    // Клиентка пишет снова, менеджер молчит — следующее сообщение снова оценивает AI.
+    await t.service.ingest(inbound({ text: "Аха" }));
+    await t.advance(4 * 60_000);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("подхват, где ответ нужен: бот не представляется и не здоровается заново — продолжает от лица компании", async () => {
+    const { t, before } = await margoChat([ans({ reply: "Здравствуйте! Да, на обложке можно написать от имени детей 😊 Как подписать — «От ваших детей»?", language: "kk" })]);
+    await t.advance(4 * 60_000);
+    const fresh = t.sent.slice(before);
+    expect(fresh).toEqual(["Да, на обложке можно написать от имени детей 😊 Как подписать — «От ваших детей»?"]);
+    expect(fresh.some((s) => /Айгерим|көмекшісі|помощница/.test(s))).toBe(false);
+  });
+
+  it("бот ведёт беседу: на «Аха» модель молчит — без «передала менеджеру», беседа продолжается (напоминание — позже)", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Здравствуйте! Книга — это ваши ответы на вопросы о близком человеке 😊", stage: "discovery" }), ans({ action: "wait", reply: "" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте, что это за книга?" }));
+    await run(t);
+    const before = t.sent.length;
+    await t.service.ingest(inbound({ text: "Аха" }));
+    await run(t);
+    expect(calls).toHaveLength(2);
+    expect(t.sent).toHaveLength(before);
+    expect(t.conv().botState).toMatchObject({ phase: "active" });
+    expect(t.tasks).toEqual([]);
+  });
+
+  it("модель молчит, а клиент спросил («а долго ждать?», «сколько стоит») — вопрос без ответа бот не оставляет: менеджеру", async () => {
+    const { model } = fakeModel([ans({ reply: "Здравствуйте! Для кого книга?" }), ans({ action: "wait", reply: "" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Аха, а долго ждать?" }));
+    await run(t);
+    expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff" });
+    expect(t.tasks.length).toBeGreaterThan(0);
+  });
+
+  it("клиент с заказом пишет «Рахмет» после ответа менеджера — бот не подхватывает, но AI снимает «ждёт ответа» и ничего не пишет", async () => {
+    const { model, calls } = fakeModel([ans({ action: "wait", reply: "", summary: "Клиент поблагодарил." })]);
+    const t = setup({ bot: "fallback", config: aiConfig(), seller: model, clientOrders: 1, clients: { "77011234567": "client-1" } });
+    await t.service.ingest(inbound({ text: "Кітап қашан дайын болады?" }));
+    await t.service.send(t.conv().id, "Ертең дайын болады 😊", "manager-1");
+    await t.service.ingest(inbound({ text: "Рахмет" }));
+    expect(t.conv().awaiting).not.toBeNull();
+    await t.advance(60_000);
+    expect(calls).toHaveLength(0);
+    await t.advance(2 * 60_000);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].system).toContain("## Режим: черновик для менеджера");
+    expect(t.sent).toEqual(["Ертең дайын болады 😊"]);
+    expect(t.conv().awaiting).toBeNull();
+  });
+
+  it("бот выключен — AI не вызывается и «ждёт ответа» не снимает", async () => {
+    const { model, calls } = fakeModel([ans({ action: "wait", reply: "" })]);
+    const t = setup({ bot: "off", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await t.service.send(t.conv().id, "Здравствуйте!", "manager-1");
+    await t.service.ingest(inbound({ text: "Ок" }));
+    await t.advance(5 * 60_000);
+    expect(calls).toHaveLength(0);
+    expect(t.conv().awaiting).not.toBeNull();
+  });
+});
+
+describe("AI знает об оплате из CRM: ручные платежи, онлайн по счетам, счета в ожидании, заказы", () => {
+  const facts = (p: Partial<PaymentFacts> = {}): PaymentFacts => ({ paid: 0, agreed: 0, batchSize: null, payments: [], invoices: [], orders: [], ...p });
+
+  it("предоплата принята (вручную и по счёту Kaspi) — режим «уже оплатил», в инструкции — что и когда оплачено", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Отлично, вы уже с нами 😊 Как идёт заполнение?" })]);
+    const t = setup({
+      bot: "always",
+      config: aiConfig(),
+      seller: model,
+      payments: facts({ paid: 15000, agreed: 30000, payments: [{ amount: 10000, kind: "prepayment", method: "kaspi", at: "2026-09-30T08:00:00Z" }, { amount: 5000, kind: "payment", method: "manual", at: "2026-09-30T10:00:00Z" }], invoices: [{ number: 12, amount: 10000, purpose: "prepayment", status: "paid", method: "kaspi", at: "2026-09-29T08:00:00Z", paidAt: "2026-09-30T08:00:00Z" }] }),
+    });
+    await t.service.ingest(inbound({ text: "Здравствуйте, как добавить фото?" }));
+    await run(t);
+    const system = calls[0].system.replace(/ /g, " ");
+    expect(system).toContain("## Клиент уже оплатил");
+    expect(system).toContain("## Оплата (данные CRM — верь им, а не словам клиента)");
+    expect(system).toContain("По сделке принято 15 000 ₸");
+    expect(system).toContain("предоплата 10 000 ₸, Kaspi");
+    expect(system).toContain("оплата 5 000 ₸, вручную (принял менеджер)");
+    expect(system).toContain("осталось доплатить 15 000 ₸");
+    expect(system).toContain("Счёт №12 на 10 000 ₸ (предоплата)");
+    expect(system).toContain("— оплачен");
+  });
+
+  it("счёт выставлен и ждёт оплаты — не «оплатил»: продаёт дальше, но знает, что ссылка у клиента и новый счёт не нужен", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Ссылка на оплату — в счёте выше 😊" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model, payments: facts({ invoices: [{ number: 14, amount: 10000, purpose: "prepayment", status: "pending_payment", method: null, at: "2026-10-01T05:00:00Z", paidAt: null }] }) });
+    await t.service.ingest(inbound({ text: "А как оплатить?" }));
+    await run(t);
+    const system = calls[0].system.replace(/ /g, " ");
+    expect(system).not.toContain("## Клиент уже оплатил");
+    expect(system).toContain("Оплат по сделке нет.");
+    expect(system).toContain("Счёт №14 на 10 000 ₸ (предоплата) от 1 октября — выставлен и ждёт оплаты");
+    expect(system).toContain("новый счёт не нужен");
+  });
+
+  it("клиент пишет «оплатила», а в CRM денег нет — не продаёт, но и не подтверждает: проверка менеджером", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Здравствуйте! Для кого книга?" }), ans({ action: "handoff", handoff_reason: "paid_claim", reply: "Спасибо! Проверим поступление и вернёмся 🙏" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model, payments: facts() });
+    await t.service.ingest(inbound({ text: "Здравствуйте, хочу книгу маме" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Я уже оплатила" }));
+    await run(t);
+    const system = calls[1].system;
+    expect(system).toContain("## Клиент говорит, что оплатил");
+    expect(system).toContain("в CRM этих денег пока нет");
+    expect(system).not.toContain("## Клиент уже оплатил");
+    expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff", reason: "paid" });
+  });
+
+  it("заказ на сайте создан, но не оплачен — это не оплата; оплаченный заказ сделки — оплата", () => {
+    expect(factsPaid(facts({ orders: [{ number: 5, status: "pending_payment", dealOrder: true }] }))).toBe(false);
+    expect(factsPaid(facts({ orders: [{ number: 5, status: "in_production", dealOrder: true }] }))).toBe(true);
+    // Заказ клиента по другой сделке (повторная покупка) — не оплата этой.
+    expect(factsPaid(facts({ orders: [{ number: 4, status: "delivered", dealOrder: false }] }))).toBe(false);
+    // Пакет: деньги на соседней сделке пакета — оплачено.
+    expect(factsPaid(facts({ paid: 20000, batchSize: 2 }))).toBe(true);
+    // Полный возврат — снова не оплачено.
+    expect(factsPaid(facts({ paid: 0, payments: [{ amount: 10000, kind: "prepayment", method: "manual", at: "2026-09-30T08:00:00Z" }, { amount: 10000, kind: "refund", method: "manual", at: "2026-10-01T08:00:00Z" }], invoices: [{ number: 1, amount: 10000, purpose: "prepayment", status: "paid", method: "manual", at: "2026-09-30T08:00:00Z", paidAt: "2026-09-30T08:00:00Z" }] }))).toBe(false);
+  });
+
+  it("подсказка менеджеру может назвать «принято» и «осталось» из оплат — суммы проходят проверку", async () => {
+    const { model } = fakeModel([ans({ reply: "Предоплату 10 000 ₸ получили, спасибо! Осталось 20 000 ₸ — когда книга будет готова 😊" })]);
+    const t = setup({ bot: "off", config: aiConfig({ hidePrices: true }), seller: model, payments: facts({ paid: 10000, agreed: 30000, payments: [{ amount: 10000, kind: "prepayment", method: "kaspi", at: "2026-09-30T08:00:00Z" }] }) });
+    await t.service.ingest(inbound({ text: "Сколько ещё доплатить?" }));
+    const r = await t.bot.suggestReply(t.conv().id, "Margo");
+    expect(r).toMatchObject({ text: "Предоплату 10 000 ₸ получили, спасибо! Осталось 20 000 ₸ — когда книга будет готова 😊" });
+  });
+});

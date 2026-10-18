@@ -1,4 +1,4 @@
-import { defaultBotConfig, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage } from "@/modules/messaging/domain";
+import { defaultBotConfig, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts } from "@/modules/messaging/domain";
 import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
 
 export const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
@@ -60,6 +60,8 @@ export function setup(
     claimNewLead?: (dealId: string, userId: string) => { claimed: boolean; previous: string | null };
     /** Делает сделку ответственного и «открытой» для подхвата. */
     assignee?: string | null;
+    /** Что CRM знает об оплате (платежи, счета, заказы) — для AI. */
+    payments?: PaymentFacts;
   } = {},
 ) {
   let now = start;
@@ -88,14 +90,18 @@ export function setup(
     },
     updateContact: async (id, p) => Object.assign(convs.get(id)!, p),
     linkDeal: async (id, l) => Object.assign(convs.get(id)!, l),
-    recordIncoming: async (id, text, at, opts) => {
+    recordIncoming: async (id, text, at) => {
       const c = convs.get(id)!;
       c.unread++;
-      if (opts?.awaiting !== false) {
-        c.awaiting ??= at;
-        c.awaitingSince = c.awaiting;
-      }
+      c.awaiting ??= at;
+      c.awaitingSince = c.awaiting;
       c.lastText = text;
+    },
+    dismissAwaiting: async (id, since) => {
+      const c = convs.get(id)!;
+      if (!c.awaiting || c.awaiting.getTime() !== since.getTime()) return false;
+      Object.assign(c, { awaiting: null, awaitingSince: null });
+      return true;
     },
     recordEcho: async (id, text) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null, awaitingSince: null, lastText: text }),
     recordHistory: async (id, text, at) => {
@@ -208,12 +214,14 @@ export function setup(
     client: async () => ({ orders: opts.clientOrders ?? 0, books: 0, locale: null, name: null }),
     tag: async (dealId, tag) => void deals.find((d) => d.id === dealId)?.tags.push(tag),
     priorChat: async () => !!opts.priorChat,
+    ...(opts.payments ? { payments: async () => opts.payments! } : {}),
   };
   const quiet = { info: () => {}, warn: () => {}, error: () => {} };
   const notified: { title: string; kind: string }[] = [];
   const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }) };
   const clock = { now: () => now };
   const scheduled: string[] = [];
+  const triage = new Map<string, { at: Date; run: () => void }>();
   const service: MessagingService = new MessagingService(
     conversations,
     messages,
@@ -254,7 +262,13 @@ export function setup(
     sales,
     notifier,
     tasks: { create: async (t: { title: string; kind: string; assigneeId: string | null }) => void tasks.push(t) },
-    timers: { schedule: (key: string) => void scheduled.push(key) },
+    // Ходы бота делает sweep (как планировщик); таймеры «нужен ли ответ» (triage) — только в процессе, их запускает advance.
+    timers: {
+      schedule: (key: string, at: Date, run: () => void) => {
+        scheduled.push(key);
+        if (key.startsWith("triage:")) triage.set(key, { at, run });
+      },
+    },
     clock,
     logger: quiet,
     send: (id: string, text: string) => service.send(id, text, null, "bot"),
@@ -281,6 +295,14 @@ export function setup(
   const advance = async (ms: number) => {
     now = new Date(now.getTime() + ms);
     await bot.sweep();
+    for (const [key, t] of [...triage]) {
+      if (t.at.getTime() > now.getTime()) continue;
+      triage.delete(key);
+      t.run();
+      // Проверка асинхронная: даём ей закончиться до следующего шага теста.
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    }
   };
   return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }

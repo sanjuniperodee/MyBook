@@ -134,6 +134,7 @@ export class MessagingModule {
       media: (messageId) => this.media.bytes(messageId).catch(() => null),
       // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
       transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
+      changed: (conversationId) => live.chatChanged(conversationId),
     });
     this.coach = new BotCoach({
       settings: this.botSettings,

@@ -423,7 +423,7 @@ describe("AI-продажник: промпт и переписка", () => {
     expect(p).toContain("Работаем без выходных.");
     expect(p).toContain("Обращайся по имени и не используй эмодзи.");
     expect(p).toContain("Дата 24 ноября: успеваем.");
-    expect(p).toContain("не ответил клиенту 12 мин");
+    expect(p).toContain("последнее сообщение клиента без ответа 12 мин");
     expect(p).toContain("Тест-факт");
     expect(p).toContain("price: 12 345");
   });

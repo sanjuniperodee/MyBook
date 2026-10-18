@@ -12,6 +12,7 @@ import {
   botChannelOf,
   botSummary,
   botTurn,
+  factsPaid,
   findSensitive,
   newBotState,
   newSellerAiState,
@@ -67,7 +68,12 @@ export interface QualifierBotDeps {
   media?: BotMediaReader["read"] | null;
   /** Расшифровка голосового — в сообщение, чтобы её видел и менеджер в чате. */
   transcript?: ((messageId: string, text: string) => Promise<void>) | null;
+  /** Диалог изменился без сообщения (AI снял «ждёт ответа») — обновить экран чатов. */
+  changed?: ((conversationId: string) => void) | null;
 }
+
+/** Через сколько после сообщения клиента AI решает, ждёт ли он ответа (менеджер мог ответить сам — тогда не спрашиваем). */
+export const TRIAGE_DELAY_MS = 2 * 60_000;
 
 /**
  * Бот-квалификатор: на новое обращение здоровается, отвечает на частые вопросы, спрашивает недостающее из вопросов
@@ -117,34 +123,65 @@ export class QualifierBot {
    * сообщение клиента не нужно, менеджер получит итог.
    */
   async onIncoming(conv: Conversation, m: InboundMessage, opts: { created: boolean; dealCreated: boolean }): Promise<{ quiet: boolean }> {
-    if (conv.botStep === BOT_DONE || !conv.dealId) return { quiet: false };
+    const r = await this.incoming(conv, m, opts);
+    // Бот этот диалог не ведёт и не подхватит (заказ у клиента, подхват выключен, бот остановлен кнопкой…): ждёт ли
+    // клиент ответа на «Аха» или «спасибо», через пару минут решит AI — и снимет «ждёт ответа», если нет.
+    if (!r.handled && !opts.created && conv.dealId) this.d.timers.schedule(`triage:${conv.id}`, new Date(this.d.clock.now().getTime() + TRIAGE_DELAY_MS), () => void this.triage(conv.id).catch((err) => this.d.logger.error("bot triage", err)));
+    return { quiet: r.quiet };
+  }
+
+  /**
+   * Ждёт ли клиент ответа: AI читает переписку (как подсказка менеджеру) и, если ответ не нужен («Аха», «Иә түсінікті»,
+   * «спасибо» после ответа менеджера), снимает «ждёт ответа». Клиенту ничего не пишет. true — ожидание снято.
+   */
+  async triage(conversationId: string): Promise<boolean> {
+    const conv = await this.d.conversations.findById(conversationId);
+    if (!conv?.dealId || !conv.awaitingSince) return false;
+    if ((await this.d.settings.mode()) === "off") return false;
+    const rec = await this.d.store.load(conv.id);
+    // Бот ведёт беседу или собирается подхватить — решит он сам.
+    if (rec?.state && rec.state.phase !== "done" && rec.botStep !== BOT_DONE) return false;
+    if (!(await this.#seller.available())) return false;
+    const config = await this.d.settings.config();
+    const r = await this.#seller.suggest(conv, config.sell.managerName, { quick: true });
+    if ("error" in r || r.text) return false;
+    if (!(await this.d.conversations.dismissAwaiting(conv.id, new Date(conv.awaitingSince)))) return false;
+    this.d.changed?.(conv.id);
+    await this.d.store.log(conv.id, conv.dealId, null, [{ kind: "skipped", reason: "no_reply_needed" }]);
+    return true;
+  }
+
+  /** handled — бот ведёт беседу или запланировал ход (ответ или подхват); иначе о «ждёт ответа» решает triage. */
+  private async incoming(conv: Conversation, m: InboundMessage, opts: { created: boolean; dealCreated: boolean }): Promise<{ quiet: boolean; handled: boolean }> {
+    const no = { quiet: false, handled: false };
+    if (conv.botStep === BOT_DONE || !conv.dealId) return no;
     const mode = await this.d.settings.mode();
-    if (mode === "off") return { quiet: false };
+    if (mode === "off") return no;
     const now = this.d.clock.now();
     const rec = await this.d.store.load(conv.id);
     const state = rec?.state ?? null;
     if (state?.phase === "active") {
       await this.later(conv.id, new Date(now.getTime() + BOT_PAUSE_MS));
-      return { quiet: true };
+      return { quiet: true, handled: true };
     }
     if (state?.phase === "waiting") {
       // Пауза сдвигается с каждым сообщением; срок ожидания менеджера (fallback) — нет. Пока бот ждёт только паузу,
       // о первом сообщении менеджер уже знает — серия «Здравствуйте / хочу узнать цену» не даёт уведомления на каждое;
       // пока бот ждёт ответа человека (fallback), уведомления идут как обычно.
       await this.later(conv.id, new Date(Math.max(rec?.dueAt?.getTime() ?? 0, now.getTime() + BOT_PAUSE_MS)));
-      return { quiet: !state.waitHuman };
+      return { quiet: !state.waitHuman, handled: true };
     }
     // Бот замолчал не навсегда: менеджер ответил, анкета шаблонного бота закончилась, клиент замолкал — если клиент снова
     // пишет, а менеджер не отвечает, AI-продажник подхватит (takeover). Окончательно — только «Остановить бота» кнопкой,
     // передача менеджеру (handoff), отказ клиента и выставленный счёт.
     const softStopped = !!state && state.phase === "done" && !!state.outcome && RESUMABLE_OUTCOMES.has(state.outcome) && state.reason !== "button";
-    if (state && !softStopped) return { quiet: false };
+    if (state && !softStopped) return no;
     // Диалог, начатый прежней версией бота (без состояния), не продолжаем: вопросы могли уйти поверх человека.
     if (!state && conv.botStep !== null) {
       await this.d.conversations.advanceBot(conv.id, conv.botStep, BOT_DONE);
-      return { quiet: false };
+      return no;
     }
-    if (!opts.created) return this.takeover(conv, m, state, mode, now);
+    if (!opts.created) return { quiet: false, handled: await this.takeover(conv, m, state, mode, now) };
 
     const [config, fields, workTime] = await Promise.all([this.d.settings.config(), this.d.settings.dealFields(), this.d.settings.isWorkTime(now)]);
     const channel = botChannelOf(conv.channel);
@@ -160,12 +197,13 @@ export class QualifierBot {
     }
     if (reason) {
       await this.skip(conv, fresh, null, reason);
-      return { quiet: false };
+      return no;
     }
     fresh.waitHuman = mode === "fallback" && workTime;
     const due = new Date(now.getTime() + (fresh.waitHuman ? config.waitMinutes * 60_000 : BOT_PAUSE_MS));
-    if (await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: { ...fresh, version: (state?.version ?? -1) + 1 }, dueAt: due }, { restart: !!state })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
-    return { quiet: false };
+    const saved = await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: { ...fresh, version: (state?.version ?? -1) + 1 }, dueAt: due }, { restart: !!state });
+    if (saved) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
+    return { quiet: false, handled: saved };
   }
 
   /**
@@ -173,13 +211,13 @@ export class QualifierBot {
    * бота или бот замолчал после ответа менеджера), и менеджер не отвечает. Бот ждёт waitMinutes (вне рабочего времени —
    * только паузу) и, если «ждёт ответа» осталось, продолжает беседу с места, где остановились: модель читает всю переписку.
    */
-  private async takeover(conv: Conversation, m: InboundMessage, state: BotState | null, mode: string, now: Date): Promise<{ quiet: boolean }> {
-    const none = { quiet: false };
+  private async takeover(conv: Conversation, m: InboundMessage, state: BotState | null, mode: string, now: Date): Promise<boolean> {
+    const none = false;
     const [config, workTime] = await Promise.all([this.d.settings.config(), this.d.settings.isWorkTime(now)]);
     if (!config.sell.takeover || !(await this.aiEngine(config))) return none;
     const channel = botChannelOf(conv.channel);
     if (!channel || !config.channels.includes(channel)) return none;
-    // «Спасибо» и подобное не открывают «ждёт ответа» — подхватывать нечего.
+    // Менеджер уже ответил (или закрыл чат) — подхватывать нечего. Нужен ли ответ на «Аха» или «спасибо», решит модель.
     if (!conv.awaitingSince) return none;
     if (mode === "off_hours" && workTime) return none;
     const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId!), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
@@ -196,8 +234,9 @@ export class QualifierBot {
       ai: { ...newSellerAiState(), takeover: true },
       version: (state?.version ?? -1) + 1,
     };
-    if (await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: next, dueAt: due }, { restart: true })) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
-    return none;
+    const saved = await this.d.store.save(conv.id, state?.version ?? null, { botStep: null, state: next, dueAt: due }, { restart: true });
+    if (saved) this.d.timers.schedule(conv.id, due, () => void this.process(conv.id));
+    return saved;
   }
 
   /** Менеджер писал клиенту в последние BOT_MANAGER_ACTIVE_MS — он в чате, бот не перебивает. */
@@ -413,6 +452,8 @@ export class QualifierBot {
       this.d.settings.site(),
     ]);
     const locale: BotLang | null = client?.locale === "kk" ? "kk" : null;
+    // Оплата — из CRM: ручные платежи и онлайн-оплаты счетов (у пакета — по всему пакету), счета из чата, заказы.
+    const payments = deal && this.d.crm.payments ? await this.d.crm.payments({ id: conv.dealId!, clientId: conv.clientId ?? deal.clientId, orderId: deal.orderId }).catch((err) => (this.d.logger.warn("bot payments", { error: String(err) }), null)) : null;
     return {
       config,
       fields,
@@ -425,8 +466,9 @@ export class QualifierBot {
       site,
       client: { known: !!conv.clientId, locale },
       name: safeName(conv.contactName, client?.name),
-      // Оплата уже вносилась (счёт оплачен или привязан заказ): предоплату бот не предлагает.
-      paid: (deal?.paid ?? 0) > 0 || !!deal?.orderId,
+      // Оплата уже вносилась (деньги по сделке или оплаченный заказ): предоплату бот не предлагает.
+      paid: payments ? factsPaid(payments) : (deal?.paid ?? 0) > 0 || !!deal?.orderId,
+      payments,
     };
   }
 

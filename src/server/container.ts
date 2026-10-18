@@ -161,6 +161,29 @@ export class Container {
           return { orders: orders.length, books: books.length, locale: null, name: profile?.name ?? null };
         },
         tag: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
+        // Оплата для AI: платежи сделки — и ручные (менеджер), и онлайн по счетам из чата; у пакета книг — по всем его сделкам.
+        payments: async ({ id, clientId, orderId }) => {
+          const batch = await this.sales.batch.of(id);
+          const ids = batch.length ? batch.map((b) => b.id) : [id];
+          const [money, deal, rows, invoices, orders] = await Promise.all([
+            this.sales.batch.money(id),
+            this.sales.deals.findById(id),
+            Promise.all(ids.map((x) => this.sales.payments.list(x))).then((r) => r.flat()),
+            Promise.all(ids.map((x) => this.ordering.invoices.listFor(x))).then((r) => r.flat()),
+            clientId ? this.ordering.queries.userOrders(clientId) : Promise.resolve([]),
+          ]);
+          return {
+            paid: money.paid,
+            agreed: deal?.amount ?? 0,
+            batchSize: money.size,
+            payments: rows.map((p) => ({ amount: p.amount, kind: p.kind, method: p.method, at: p.paidAt.toISOString() })),
+            invoices: invoices.map((inv) => {
+              const s = inv.snapshot();
+              return { number: s.number, amount: s.amount, purpose: s.purpose, status: s.status, method: s.paidMethod, at: s.createdAt.toISOString(), paidAt: s.paidAt?.toISOString() ?? null };
+            }),
+            orders: orders.map((o) => ({ number: o.number, status: o.status, dealOrder: o.id === orderId })),
+          };
+        },
       },
       botSite: botSiteInfo,
       // Режим «Продаёт» с движком AI: отдельная модель продажника («Интеграции» → AI → «Модель продажника»).

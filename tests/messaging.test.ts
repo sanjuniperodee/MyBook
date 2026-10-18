@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { answerValue, contactChanges, contactPhone, defaultBotConfig, isClosingReply, preview, redactSecrets, shouldApplyStatus, type BotConfig, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
+import { answerValue, contactChanges, contactPhone, defaultBotConfig, preview, redactSecrets, shouldApplyStatus, type BotConfig, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS, QualifierBot } from "@/modules/messaging/application";
 import { BOT_CONFIG, inbound, setup, start } from "./doubles/botHarness";
 
 
 describe("домен переписки", () => {
-  it("закрывающая реплика клиента: «спасибо», «понятно», эмодзи — да; вопрос, «да», фото — нет", () => {
-    for (const t of ["Спасибо❤️", "хорошо,спасибо", "Все понял рахмет", "Хорошо понятно спасибо большое", "Ок", "👍🙏", "Рақмет сізге"]) expect(isClosingReply(t), t).toBe(true);
-    for (const t of ["Да начинайте", "Да", "А сколько стоит?", "Неее ахаха", "Спасибо, а когда будет готово", ""]) expect(isClosingReply(t), t).toBe(false);
-    expect(isClosingReply("Спасибо", "image")).toBe(false);
-  });
-
 
   it("телефон собеседника — из WhatsApp-идентификатора или оставленный на сайте", () => {
     expect(contactPhone({ chatId: "87011234567", meta: {} })).toBe("77011234567");
@@ -63,14 +57,14 @@ describe("MessagingService", () => {
     expect(msgs.filter((m) => m.dir === "out")).toHaveLength(1);
   });
 
-  it("«спасибо» после ответа менеджера не делает чат неотвеченным; вопрос после него — делает", async () => {
+  it("любое сообщение клиента открывает «ждёт ответа» — словаря «спасибо/ок» нет: ответ не нужен — снимает AI или менеджер", async () => {
     const { service, convs } = setup();
     await service.ingest(inbound());
     const [c] = [...convs.values()];
     await service.send(c.id, "Отправили доступ", "m1");
+    expect(c.awaiting).toBeNull();
     await service.ingest(inbound({ externalId: "in-2", text: "Хорошо, спасибо большое❤️" }));
-    expect(c).toMatchObject({ awaiting: null, unread: 1, lastText: "Хорошо, спасибо большое❤️" });
-    await service.ingest(inbound({ externalId: "in-3", text: "А доставка в Актау есть?" }));
+    expect(c).toMatchObject({ unread: 1, lastText: "Хорошо, спасибо большое❤️" });
     expect(c.awaiting).not.toBeNull();
   });
 
