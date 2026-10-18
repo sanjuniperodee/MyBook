@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Ban, Check, CheckCheck, ChevronDown, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
+import { AlertCircle, Ban, Bot, Check, CheckCheck, ChevronDown, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
@@ -35,7 +35,7 @@ function Linkified({ text, out }: { text: string; out: boolean }) {
     <>
       {parts.map((p, i) =>
         i % 2 === 1 ? (
-          <a key={i} href={p} target="_blank" rel="noopener noreferrer" className={cn("break-all underline", out ? "text-white" : "text-wine")}>
+          <a key={i} href={p} target="_blank" rel="noopener noreferrer" className={cn("underline [overflow-wrap:anywhere]", out ? "text-white" : "text-wine")}>
             {p}
           </a>
         ) : (
@@ -50,15 +50,15 @@ function StatusIcon({ status }: { status: string }) {
   if (status === "pending") return <Clock className="size-3" />;
   if (status === "sent") return <Check className="size-3" />;
   if (status === "delivered") return <CheckCheck className="size-3" />;
-  if (status === "read") return <CheckCheck className="size-3 text-sky-300" />;
-  if (status === "error") return <AlertCircle className="size-3 text-red-200" />;
+  if (status === "read") return <CheckCheck className="size-3.5 text-sky-600" />;
+  if (status === "error") return <AlertCircle className="size-3.5 text-red-600" />;
   return null;
 }
 
 function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conversationId: string; onOpen: () => void; onVoiceEnded: () => void }) {
   const [broken, setBroken] = useState(false);
   const src = mediaSrc(m);
-  const out = m.direction === "out";
+  const out = false;
   const download = !!m.gateway || !!m.localSrc;
   if (!src) return null;
   if (m.type === "audio") return <VoicePlayer id={m.id} src={src} conversationId={conversationId} out={out} transcript={m.transcript} download={download} onEnded={onVoiceEnded} />;
@@ -139,6 +139,13 @@ export function MessageBubble({
   onVoiceEnded: (id: string) => void;
 }) {
   const [menu, setMenu] = useState(false);
+  const [openNote, setOpenNote] = useState(false);
+  // Внизу экрана меню открывается вверх — иначе его обрезает лента.
+  const [menuUp, setMenuUp] = useState(false);
+  const openMenu = (v: boolean) => {
+    if (v && box.current) setMenuUp(box.current.getBoundingClientRect().bottom > window.innerHeight * 0.6);
+    setMenu(v);
+  };
   const box = useRef<HTMLDivElement>(null);
   const press = useRef<number | null>(null);
   const out = m.direction === "out";
@@ -168,7 +175,7 @@ export function MessageBubble({
 
   const menuEl =
     menu && items.length ? (
-      <div className={cn("absolute top-full z-20 mt-1 w-48 overflow-hidden rounded-xl border border-line bg-white py-1 text-sm text-ink shadow-xl", out ? "right-0" : "left-0")} role="menu">
+      <div className={cn("absolute z-30 w-52 overflow-hidden rounded-xl border border-line bg-white py-1 text-sm text-ink shadow-xl", menuUp ? "bottom-full mb-1" : "top-full mt-1", out ? "right-0" : "left-0")} role="menu">
         {items.map((it) => (
           <button
             key={it.key}
@@ -191,90 +198,113 @@ export function MessageBubble({
       </div>
     ) : null;
 
+  const isBot = out && m.author === "бот";
+  const botNote = m.internal && m.author === "бот";
+
   if (m.internal)
     return (
-      <div ref={box} className={cn("group relative mx-auto my-1 max-w-[88%] rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 transition-shadow", highlighted && "ring-2 ring-amber-400")} data-internal="1" data-mid={m.id}>
-        <div className="mb-0.5 flex items-center gap-1.5 text-[11px] text-amber-800">
-          <Lock className="size-3" /> Заметка · {m.author} · {time(m.at, timeZone)}
-          {m.edited ? " · изменено" : ""}
-          {items.length ? (
-            <button type="button" className="ml-auto rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-amber-100 focus:opacity-100" onClick={() => setMenu((v) => !v)} aria-label="Действия">
-              <ChevronDown className="size-3.5" />
-            </button>
-          ) : null}
+      <div ref={box} className={cn("group relative mx-auto my-2 max-w-[min(560px,92%)]", highlighted && "rounded-xl ring-2 ring-amber-400")} data-internal="1" data-mid={m.id}>
+        <div className={cn("rounded-xl border px-3 py-2 text-[13px]", botNote ? "border-violet-200 bg-violet-50/90 text-violet-950" : "border-amber-200 bg-[#fff8e6] text-amber-950")}>
+          <div className={cn("flex items-center gap-1.5 text-[11px] font-medium", botNote ? "text-violet-700" : "text-amber-800")}>
+            {botNote ? <Bot className="size-3.5" /> : <Lock className="size-3" />}
+            {botNote ? "Итог бота" : `Заметка · ${m.author}`}
+            <span className="font-normal opacity-80">· {time(m.at, timeZone)}</span>
+            {m.edited ? <span className="font-normal opacity-80">· изменено</span> : null}
+            {botNote && !m.deleted ? (
+              <button type="button" onClick={() => setOpenNote((v) => !v)} className="ml-auto rounded px-1 font-normal underline-offset-2 hover:underline">
+                {openNote ? "свернуть" : "подробнее"}
+              </button>
+            ) : null}
+            {items.length ? (
+              <button type="button" className={cn("rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-black/5 focus:opacity-100", !botNote && "ml-auto")} onClick={() => openMenu(!menu)} aria-label="Действия">
+                <ChevronDown className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+          {m.deleted ? (
+            <p className="mt-0.5 italic opacity-70">Заметка удалена</p>
+          ) : botNote && !openNote ? (
+            <p className="mt-0.5 truncate">{m.text.replace(/^🤖\s*/, "").split("\n")[0]}</p>
+          ) : (
+            <p className="mt-0.5 break-words whitespace-pre-wrap">{botNote ? m.text.replace(/^🤖\s*/, "") : m.text}</p>
+          )}
         </div>
-        {m.deleted ? <p className="text-amber-800 italic">Заметка удалена</p> : <p className="break-words whitespace-pre-wrap">{m.text}</p>}
         {menuEl}
       </div>
     );
 
+  const failed = m.status === "error";
   return (
     <div className={cn("flex", out ? "justify-end" : "justify-start")} data-mid={m.id}>
       <div
         ref={box}
         className={cn(
-          "group relative max-w-[78%] rounded-[18px] px-3 py-2 text-[14px] leading-snug shadow-[0_1px_1.5px_rgba(30,25,22,0.12)] transition-shadow",
-          out ? "bg-gradient-to-br from-[#8c2535] to-[#6f1a27] text-white" : "bg-white text-ink",
-          last && (out ? "rounded-br-[6px]" : "rounded-bl-[6px]"),
-          m.status === "error" && "from-red-700 to-red-800 bg-red-700",
+          "group relative max-w-[min(78%,560px)] rounded-[16px] px-3 pt-1.5 pb-1.5 text-[14.5px] leading-[1.4] text-ink shadow-[0_1px_0.5px_rgba(30,25,22,0.13)]",
+          out ? (failed ? "bg-red-50 ring-1 ring-red-200" : m.deleted ? "bg-white/70" : isBot ? "bg-[#ece8fa]" : "bg-[#f7e4e7]") : "bg-white",
+          last && (out ? "rounded-br-[4px]" : "rounded-bl-[4px]"),
           highlighted && "ring-4 ring-amber-300",
         )}
         data-direction={m.direction}
         onContextMenu={(e) => {
           if (!items.length) return;
           e.preventDefault();
-          setMenu(true);
+          openMenu(true);
         }}
         onPointerDown={(e) => {
           if (e.pointerType !== "touch" || !items.length) return;
-          press.current = window.setTimeout(() => setMenu(true), 450);
+          press.current = window.setTimeout(() => openMenu(true), 450);
         }}
         onPointerUp={() => press.current && window.clearTimeout(press.current)}
         onPointerLeave={() => press.current && window.clearTimeout(press.current)}
         onDoubleClick={() => items.some((i) => i.key === "reply") && onAction("reply", m)}
       >
         {items.length ? (
-          <button
-            type="button"
-            className={cn("absolute top-1 right-1 z-10 rounded-full p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100", out ? "bg-wine/80 text-white hover:bg-white/20" : "bg-white/90 text-muted hover:bg-cream")}
-            onClick={() => setMenu((v) => !v)}
-            aria-label="Действия с сообщением"
-          >
+          <button type="button" className="absolute top-1 right-1 z-10 rounded-full bg-white/90 p-0.5 text-muted opacity-0 shadow-sm group-hover:opacity-100 hover:text-ink focus:opacity-100" onClick={() => openMenu(!menu)} aria-label="Действия с сообщением">
             <ChevronDown className="size-4" />
           </button>
         ) : null}
-        {first && out && m.author ? <div className="mb-0.5 text-[11px] font-semibold text-white/80">{m.author}</div> : null}
+        {first && out && m.author ? (
+          <div className={cn("flex items-center gap-1 pt-0.5 text-[12px] font-semibold", isBot ? "text-violet-700" : "text-wine")}>
+            {isBot ? <Bot className="size-3.5" /> : null}
+            {isBot ? "Бот" : m.author}
+          </div>
+        ) : null}
         {m.forwarded && !m.deleted ? (
-          <div className={cn("mb-1 flex items-center gap-1 text-[11px] italic", out ? "text-white/75" : "text-muted")}>
-            <Forward className="size-3" /> Пересланное сообщение
+          <div className="flex items-center gap-1 pt-0.5 text-[12px] text-muted italic">
+            <Forward className="size-3.5" /> Пересланное сообщение
           </div>
         ) : null}
         {m.replyTo && !m.deleted ? (
-          <button type="button" onClick={() => onJump(m.replyTo!.id)} className={cn("mb-1.5 block w-full rounded-lg border-l-4 px-2 py-1 text-left text-xs", out ? "border-white/60 bg-white/15" : "border-wine/60 bg-cream/70")}>
-            <span className={cn("block font-semibold", out ? "text-white" : "text-wine")}>{m.replyTo.direction === "in" ? "Клиент" : (m.replyTo.author ?? "Мы")}</span>
-            <span className={cn("line-clamp-2", out ? "text-white/85" : "text-ink-soft")}>{snippet(m.replyTo)}</span>
+          <button type="button" onClick={() => onJump(m.replyTo!.id)} className={cn("my-1 block w-full rounded-lg border-l-[3px] px-2 py-1 text-left text-[12.5px]", out ? "border-wine bg-white/60" : "border-wine bg-[#f6f2ec]")}>
+            <span className="block font-semibold text-wine">{m.replyTo.direction === "in" ? "Клиент" : (m.replyTo.author ?? "Мы")}</span>
+            <span className="line-clamp-2 text-ink-soft">{snippet(m.replyTo)}</span>
           </button>
         ) : null}
         {m.deleted ? (
-          <p className={cn("flex items-center gap-1.5 italic", out ? "text-white/80" : "text-muted")}>
-            <Ban className="size-3.5" /> Сообщение удалено
+          <p className="flex items-center gap-1.5 py-0.5 pr-14 text-muted italic">
+            <Ban className="size-4" /> Сообщение удалено
           </p>
         ) : (
           <>
-            <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />
+            <div className={m.type !== "text" ? "pt-1" : undefined}>
+              <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />
+            </div>
             {m.text ? (
               <p className="break-words whitespace-pre-wrap">
-                <Linkified text={m.text} out={out} />
+                <Linkified text={m.text} out={false} />
+                {/* Место под время справа, чтобы оно не наезжало на последнюю строку. */}
+                <span className="inline-block w-[68px]" aria-hidden />
               </p>
             ) : null}
           </>
         )}
-        <div className={cn("-mb-0.5 mt-0.5 flex items-center justify-end gap-1 text-[10.5px] leading-none tabular-nums", out ? "text-white/70" : "text-muted")}>
+        <div className={cn("flex items-center justify-end gap-1 text-[11px] leading-none text-muted tabular-nums", m.text && !m.deleted ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-0.5")}>
           {m.edited && !m.deleted ? <span className="italic">изменено</span> : null}
           {time(m.at, timeZone)}
           {out ? <StatusIcon status={m.status} /> : null}
         </div>
-        {m.status === "error" && m.error ? <div className="mt-1 text-[11px] text-red-100">{m.error}</div> : null}
+        <div className="clear-both" />
+        {failed && m.error ? <div className="mt-1 flex items-center gap-1 text-[12px] text-red-700"><AlertCircle className="size-3.5" /> {m.error}</div> : null}
         {menuEl}
       </div>
     </div>

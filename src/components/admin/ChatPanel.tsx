@@ -579,7 +579,7 @@ export function ChatPanel({
           </div>
         ) : null}
         <div className="mb-2 flex items-center gap-2 text-xs">
-          <div className="inline-flex rounded-full bg-cream/70 p-0.5">
+          <div className="inline-flex shrink-0 rounded-full bg-cream/70 p-0.5 whitespace-nowrap">
             {canSend ? (
               <button type="button" onClick={() => setMode("client")} className={cn("rounded-full px-3 py-1 font-medium transition", mode === "client" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink")}>
                 Клиенту
@@ -589,7 +589,7 @@ export function ChatPanel({
               <Lock className="size-3" /> Заметка для коллег
             </button>
           </div>
-          <span className="ml-auto hidden text-[11px] text-muted md:inline">Enter — отправить · Shift+Enter — новая строка</span>
+          <span className="ml-auto hidden truncate text-[11px] text-muted 2xl:inline">Enter — отправить · Shift+Enter — новая строка</span>
         </div>
         <div className="flex items-end gap-2">
           <div className={cn("flex min-w-0 flex-1 items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
