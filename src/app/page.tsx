@@ -29,7 +29,7 @@ import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
 import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
-import { getLanding } from "@/lib/content/landings";
+import { getLanding, landings, type Landing } from "@/lib/content/landings";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
@@ -85,8 +85,8 @@ export default async function HomePage() {
 
   const planNames = Object.fromEntries(getVisiblePlans().map((p) => [p.id, m.common.plans[p.id].name]));
   const jsonLd = [
-    organizationLd(m.common.meta.description),
-    websiteLd(locale),
+    organizationLd(m.common.meta.description, { alternateName: m.common.meta.alternateNames, address: { locality: m.common.footer.address, country: "KZ" } }),
+    websiteLd(locale, m.common.meta.alternateNames),
     productLd({ name: `${site.name} — ${t.meta.title}`, description: t.meta.description, url: absoluteUrl("/", locale), image: ogImage(locale), locale, planNames, reviews: reviews }),
     faqLd(faq),
   ];
@@ -116,7 +116,8 @@ export default async function HomePage() {
                   <Sparkles className="size-4 text-wine" /> {t.hero.badge}
                 </div>
               )}
-              <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
+              {/* Заголовок и лид — самое крупное на экране (LCP): появляются сразу, без анимации входа */}
+              <h1 className="mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
                 {t.hero.titleStart}{" "}
                 <em className="relative inline-block text-wine">
                   {t.hero.titleAccent}
@@ -126,7 +127,7 @@ export default async function HomePage() {
                   </svg>
                 </em>
               </h1>
-              <p style={{ "--i": 2 } as React.CSSProperties} className="enter mt-6 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">
                 {t.hero.lead}
               </p>
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter mt-9 flex flex-col gap-3 sm:flex-row">
@@ -188,11 +189,18 @@ export default async function HomePage() {
         <section className="border-y border-line/70 bg-white/60 py-5">
           <div className="no-scrollbar container-x flex gap-3 overflow-x-auto">
             <span className="shrink-0 py-1.5 text-sm text-muted">{t.occasions.label}</span>
-            {t.occasions.items.map((o) => (
-              <span key={o} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft">
-                {o}
-              </span>
-            ))}
+            {t.occasions.items.map((o) =>
+              o.slug && getLanding(o.slug) ? (
+                // Повод с посадочной страницей — ссылка на неё: перелинковка с главной и понятный путь для поисковика.
+                <Link key={o.label} href={`/kniga/${o.slug}`} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft transition hover:border-wine/40 hover:text-wine">
+                  {o.label}
+                </Link>
+              ) : (
+                <span key={o.label} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft">
+                  {o.label}
+                </span>
+              ),
+            )}
           </div>
         </section>
 
@@ -278,6 +286,17 @@ export default async function HomePage() {
                 );
               })}
             </div>
+            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+              {t.themes.learn}
+              {themes
+                .map((th) => landings.find((l) => l.theme === th.id))
+                .filter((l): l is Landing => !!l)
+                .map((l) => (
+                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-wine hover:underline">
+                    {l.content[locale].label}
+                  </Link>
+                ))}
+            </p>
           </div>
         </section>
 

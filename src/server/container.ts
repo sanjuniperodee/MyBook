@@ -113,12 +113,12 @@ export class Container {
         findOpenDeal: (opts) => this.sales.deals.findOpen(opts),
         createDeal: ({ channel, source, ...input }) => this.sales.deals.create({ ...input, source: source ?? sourceFromChannel(channel) }),
         setUtmIfEmpty: (dealId, utm) => this.sales.deals.setUtmIfEmpty(dealId, utm),
-        acceptUnsorted: (dealId, authorId) => this.sales.deals.acceptUnsorted(dealId, authorId),
-        claimNewLead: async (dealId, userId) => {
+        acceptUnsorted: (dealId, authorId, how) => this.sales.deals.acceptUnsorted(dealId, authorId, how),
+        claimNewLead: async (dealId, userId, how) => {
           const d = await this.sales.deals.findById(dealId);
           if (!d) return { claimed: false, previous: null };
           if (d.assigneeId === userId) {
-            await this.sales.deals.acceptUnsorted(dealId, userId);
+            await this.sales.deals.acceptUnsorted(dealId, userId, how);
             return { claimed: true, previous: null };
           }
           const stage = await this.sales.deals.stage(d.stageId);
@@ -127,7 +127,7 @@ export class Container {
           const fresh = d.unsorted || !d.assigneeId || (!!stage && first?.id === stage.id);
           if (!fresh) return { claimed: false, previous: null };
           await this.sales.deals.assign(dealId, userId);
-          await this.sales.deals.acceptUnsorted(dealId, userId);
+          await this.sales.deals.acceptUnsorted(dealId, userId, how);
           return { claimed: true, previous: d.assigneeId };
         },
         note: (deal, text) => this.sales.deals.note(deal, text, null),
@@ -189,6 +189,7 @@ export class Container {
         findOpenDealId: async (opts) => (await this.sales.deals.findOpen(opts))?.id ?? null,
         createCallDeal: (input) => this.sales.deals.create({ ...input, source: "call", unsorted: true }),
         dealOwner: (dealId) => this.sales.deals.findById(dealId),
+        acceptDeal: (dealId, staffId, how) => this.sales.deals.acceptUnsorted(dealId, staffId, how),
       },
     }));
   }
@@ -248,6 +249,8 @@ export class Container {
           await this.messaging.chats.linkDealClient(dealId, clientId);
         },
       },
+      // Заметка «звонок/сообщение/письмо» в сделке — менеджер связался с клиентом: заявка принята в работу.
+      deals: { accept: (dealId, staffId, how) => this.sales.deals.acceptUnsorted(dealId, staffId, how) },
     }));
   }
 

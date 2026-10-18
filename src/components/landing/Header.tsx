@@ -11,13 +11,16 @@ import { registrationOpen } from "@/config/site";
 export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const m = useMessages().common.nav;
+  const common = useMessages().common;
+  const m = common.nav;
   const lp = useLocalizePath();
   const canRegister = registrationOpen();
-  // Абсолютные ссылки на якоря — шапка общая для лендинга и внутренних публичных страниц.
+  // Абсолютные ссылки на якоря — шапка общая для лендинга и внутренних публичных страниц. «Идеи подарков» — хаб
+  // посадочных страниц: ссылка из шапки нужна и людям, и поисковику.
   const nav = [
     { href: "/#how", label: m.how },
     { href: "/#inside", label: m.sample },
+    { href: "/kniga", label: common.footer.ideas },
     { href: "/#pricing", label: m.pricing },
     { href: "/gift", label: m.gift },
     { href: "/#faq", label: m.faq },

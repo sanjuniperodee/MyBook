@@ -24,6 +24,7 @@ export const legal = {
   updated: "1 сентября 2026 г.",
   offer: {
     meta: "Публичная оферта",
+    metaDescription: "Условия заказа персональной книги в MyBooks: оформление, оплата, сроки изготовления и доставки, возврат.",
     title: "Публичная оферта",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {
@@ -80,6 +81,7 @@ export const legal = {
   },
   privacy: {
     meta: "Политика конфиденциальности",
+    metaDescription: "Какие данные собирает MyBooks, зачем они нужны и как защищены: аккаунт, книги, заказы, рассылки.",
     title: "Политика конфиденциальности",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {

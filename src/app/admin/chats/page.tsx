@@ -82,7 +82,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       container().reporting.conversationContext(conv),
       container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give")),
       mentionableStaff(),
-      container().assistant.service.configured(),
+      // Подсказка ответа: AI-помощник или (для диалогов со сделкой) модель продажника.
+      Promise.all([container().assistant.service.configured(), container().assistant.seller.configured().catch(() => false)]).then(([a, s]) => a || s),
       conv.dealId && can(staff, "deals.view") ? container().ordering.invoices.listFor(conv.dealId) : Promise.resolve([]),
       container().messaging.botStatus(conv.id),
     ]);

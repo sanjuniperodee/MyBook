@@ -38,7 +38,7 @@ export default async function IdeasPage() {
   const jsonLd = [
     breadcrumbLd(
       [
-        { name: site.name, path: "/" },
+        { name: m.landing.seoPage.home, path: "/" },
         { name: m.common.footer.allIdeas, path: "/kniga" },
       ],
       locale,

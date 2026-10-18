@@ -10,6 +10,7 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { articles } from "@/lib/content/articles";
 import { absoluteUrl, breadcrumbLd, socialMeta } from "@/lib/seo";
+import { rssPath } from "./rss.xml/feed";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
@@ -17,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { absolute: `${title} · ${site.name}` },
     description,
-    alternates: alternates("/blog", locale),
+    alternates: { ...alternates("/blog", locale), types: { "application/rss+xml": rssPath(locale) } },
     ...socialMeta({ path: "/blog", locale, title, description }),
   };
 }
@@ -28,7 +29,7 @@ export default async function BlogPage() {
   const jsonLd = [
     breadcrumbLd(
       [
-        { name: site.name, path: "/" },
+        { name: m.landing.seoPage.home, path: "/" },
         { name: t.eyebrow, path: "/blog" },
       ],
       locale,
@@ -57,7 +58,9 @@ export default async function BlogPage() {
                 const c = a.content[locale];
                 return (
                   <Link key={a.slug} href={`/blog/${a.slug}`} className="card card-hover flex flex-col p-7">
-                    <div className="text-xs text-muted">{t.minutes(a.readMinutes)}</div>
+                    <div className="text-xs text-muted">
+                      <time dateTime={a.updated ?? a.published}>{(a.updated ?? a.published).split("-").reverse().join(".")}</time> · {t.minutes(a.readMinutes)}
+                    </div>
                     <h2 className="mt-3 font-serif text-2xl leading-snug font-medium">{c.title}</h2>
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{c.description}</p>
                     <span className="mt-5 text-sm font-medium text-wine">{t.read} →</span>

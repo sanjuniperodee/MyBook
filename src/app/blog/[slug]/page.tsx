@@ -70,7 +70,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     faqLd(c.faq),
     breadcrumbLd(
       [
-        { name: site.name, path: "/" },
+        { name: m.landing.seoPage.home, path: "/" },
         { name: t.eyebrow, path: "/blog" },
         { name: c.title, path },
       ],

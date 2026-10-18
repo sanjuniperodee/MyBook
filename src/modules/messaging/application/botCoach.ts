@@ -71,7 +71,7 @@ export class BotCoach {
     };
     if (!conversations.length) return record({ at: now.toISOString(), reviewed: 0, added: [], removed: [], summary: "Бесед бота за период не было." });
 
-    const { system, user } = coachPrompt({ conversations, lessons, botName: config.sell.botName, managerName: config.sell.managerName });
+    const { system, user } = coachPrompt({ conversations, lessons, botName: config.sell.botName, managerName: config.sell.managerName, pricesByBot: !config.sell.hidePrices });
     let raw: string;
     try {
       raw = await this.d.seller.complete({ system, user, schema: coachSchema() as unknown as Record<string, unknown>, timeoutMs: COACH_TIMEOUT_MS });

@@ -5,7 +5,7 @@ import { articles, getArticle } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
 import { bookKind, hasQuestionBank } from "@/lib/content/kinds";
 import { bankThemes, isThemeId } from "@/lib/content/themes";
-import { absoluteUrl, breadcrumbLd, faqLd, ogImage, organizationLd, productLd, reviewsLd } from "@/lib/seo";
+import { absoluteUrl, articleLd, breadcrumbLd, faqLd, ogImage, organizationLd, productLd, reviewsLd, websiteLd } from "@/lib/seo";
 import { messagesFor } from "@/i18n/messages";
 import { locales } from "@/i18n/config";
 
@@ -152,7 +152,15 @@ describe("sitemap", () => {
   });
 
   it("служебные страницы не попадают в карту", () => {
-    expect(urls.filter((u) => /\/(login|books|orders|account|admin|api)(\/|$)/.test(u))).toEqual([]);
+    expect(urls.filter((u) => /\/(login|register|books|orders|account|admin|api)(\/|$)/.test(u))).toEqual([]);
+  });
+
+  it("у каждой записи — картинка для поиска по картинкам (та же, что для соцсетей), у статей — дата", () => {
+    for (const e of entries) expect(e.images).toEqual([expect.stringMatching(/\/api\/og\?l=(ru|kk)/)]);
+    const landing = entries.find((e) => e.url === absoluteUrl(`/kniga/${landings[0].slug}`, "kk"));
+    expect(landing?.images?.[0]).toContain(`s=${landings[0].slug}`);
+    expect(landing?.images?.[0]).toContain("l=kk");
+    expect(entries.find((e) => e.url === absoluteUrl(`/blog/${articles[0].slug}`, "ru"))?.lastModified).toBe(articles[0].updated ?? articles[0].published);
   });
 
   it("каждая запись ссылается на обе версии и x-default", () => {
@@ -172,8 +180,15 @@ describe("robots", () => {
   });
 
   it("не закрывает публичные страницы и указывает карту сайта", () => {
-    for (const p of ["/", "/kniga", "/blog", "/gift", "/kk"]) expect(disallow.some((d) => p.startsWith(d) && d !== "/")).toBe(false);
+    for (const p of ["/", "/kniga", "/blog", "/gift", "/kk", "/blog/rss.xml"]) expect(disallow.some((d) => p.startsWith(d) && d !== "/")).toBe(false);
     expect(r.sitemap).toBe(absoluteUrl("/", "ru") + "/sitemap.xml");
+  });
+
+  it("Clean-param для Яндекса — в той же группе «*»: метки рекламы и коротких ссылок не плодят адресов", () => {
+    const clean = String((rule as { other?: Record<string, unknown> }).other?.["Clean-param"] ?? "");
+    for (const p of ["utm_source", "utm_campaign", "lnk", "ref", "theme", "gclid"]) expect(clean).toContain(p);
+    expect(clean.endsWith(" /")).toBe(true);
+    expect(Array.isArray(r.rules) ? r.rules.length : 1).toBe(1);
   });
 });
 
@@ -215,5 +230,35 @@ describe("разметка schema.org", () => {
 
   it("Organization содержит название, адрес и логотип", () => {
     expect(organizationLd("d")).toMatchObject({ "@type": "Organization", name: expect.any(String), url: expect.any(String), logo: { url: expect.stringMatching(/logo\.png$/) } });
+  });
+
+  it("Organization: номер-заглушка не попадает в разметку, другие названия бренда и город — попадают", () => {
+    const org = organizationLd("d", { alternateName: ["MyBook", "mybook.kz"], address: { locality: "Almaty", country: "KZ" } }) as Record<string, unknown> & { contactPoint: Record<string, unknown>[] };
+    // В конфиге пока номер «+7 700 000 00 00» — поисковик не должен показать его в карточке компании.
+    expect(org).not.toHaveProperty("telephone");
+    expect(org.contactPoint[0]).not.toHaveProperty("telephone");
+    expect(org).toMatchObject({ alternateName: ["MyBook", "mybook.kz"], address: { "@type": "PostalAddress", addressLocality: "Almaty", addressCountry: "KZ" } });
+    expect(websiteLd("kk", ["MyBook"])).toMatchObject({ alternateName: ["MyBook"], inLanguage: "kk-KZ" });
+    expect(organizationLd("d")).not.toHaveProperty("alternateName");
+  });
+
+  it("Product и Article: свой @id, адрес и ссылка на организацию", () => {
+    const m = messagesFor("ru");
+    const names = Object.fromEntries(Object.entries(m.common.plans).map(([id, p]) => [id, p.name]));
+    const product = productLd({ name: "N", description: "D", url: "https://x.kz/kniga/a", image: "/api/og?l=ru", locale: "ru", planNames: names });
+    expect(product).toMatchObject({ "@id": "https://x.kz/kniga/a#product", manufacturer: { "@id": expect.stringMatching(/#organization$/) } });
+    expect(product).not.toHaveProperty("inLanguage");
+    const article = articleLd({ title: "T", description: "D", url: "https://x.kz/blog/a", image: "/api/og?l=ru&s=a", locale: "ru", published: "2026-10-05" });
+    expect(article).toMatchObject({ "@id": "https://x.kz/blog/a#article", url: "https://x.kz/blog/a", mainEntityOfPage: { "@type": "WebPage", "@id": "https://x.kz/blog/a" }, dateModified: "2026-10-05", publisher: { "@id": expect.stringMatching(/#organization$/), logo: { url: expect.stringMatching(/logo\.png$/) } } });
+  });
+
+  it("поводы на главной ведут на существующие посадочные страницы, у тем есть посадочная", () => {
+    for (const lc of locales) {
+      const items = messagesFor(lc).landing.occasions.items;
+      expect(items.length).toBeGreaterThanOrEqual(6);
+      for (const o of items) if (o.slug) expect(landings.some((l) => l.slug === o.slug), o.slug).toBe(true);
+      expect(items.filter((o) => o.slug).length).toBeGreaterThanOrEqual(3);
+    }
+    for (const theme of ["love", "mom", "dad", "friend"]) expect(landings.some((l) => l.theme === theme), theme).toBe(true);
   });
 });

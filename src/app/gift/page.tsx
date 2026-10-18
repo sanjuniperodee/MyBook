@@ -5,9 +5,11 @@ import { Footer } from "@/components/landing/Footer";
 import { getCurrentUser } from "@/server/auth";
 import { Faq } from "@/components/Faq";
 import { GiftForm } from "./GiftForm";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
-import { socialMeta } from "@/lib/seo";
+import { breadcrumbLd, faqLd, socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
@@ -20,12 +22,25 @@ const icons = [Gift, PenLine, Sparkles];
 export default async function GiftPage() {
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
   const t = m.gift.page;
+  // Вопросы о сертификате — в разметке FAQPage (расширенный сниппет), путь — в BreadcrumbList.
+  const jsonLd = [
+    faqLd(t.faq),
+    breadcrumbLd(
+      [
+        { name: m.landing.seoPage.home, path: "/" },
+        { name: t.eyebrow, path: "/gift" },
+      ],
+      locale,
+    ),
+  ];
   return (
     <>
+      <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
       <main className="pt-28 pb-20 sm:pt-36">
         <div className="container-x">
           <div className="max-w-2xl">
+            <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow }]} />
             <div className="eyebrow">{t.eyebrow}</div>
             <h1 className="mt-3 font-serif text-[40px] leading-[1.05] font-medium tracking-tight sm:text-6xl">
               {t.titleStart} <em className="text-wine">{t.titleAccent}</em>

@@ -4,6 +4,7 @@ export const legal: typeof ru = {
   updated: "2026 жылғы 1 қыркүйек",
   offer: {
     meta: "Жария оферта",
+    metaDescription: "MyBooks-те жеке кітапқа тапсырыс беру шарттары: рәсімдеу, төлем, дайындау және жеткізу мерзімдері, қайтару.",
     title: "Жария оферта",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {
@@ -60,6 +61,7 @@ export const legal: typeof ru = {
   },
   privacy: {
     meta: "Құпиялылық саясаты",
+    metaDescription: "MyBooks қандай деректерді жинайды, олар не үшін керек және қалай қорғалады: аккаунт, кітаптар, тапсырыстар, хаттар.",
     title: "Құпиялылық саясаты",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {

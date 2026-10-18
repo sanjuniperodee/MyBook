@@ -87,6 +87,8 @@ export function ChatPanel({
 }) {
   const router = useRouter();
   const [text, setText] = useState("");
+  /** Заметка AI к подсказанному черновику: чего хочет клиент и на каком этапе (видна над полем ввода, пока не отправили). */
+  const [aiHint, setAiHint] = useState<string | null>(null);
   const [local, setLocal] = useState<Msg[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showOffers, setShowOffers] = useState(false);
@@ -239,6 +241,8 @@ export function ChatPanel({
         const r = await aiSuggestReplyAction(conversationId);
         if (!r.ok) return toast(r.message, "error");
         setText(r.text);
+        setAiHint(r.hint ?? null);
+        if (!r.text) toast("AI считает, что отвечать сейчас не нужно", "success");
         input.current?.focus();
       } catch (err) {
         toastError(err);
@@ -328,6 +332,7 @@ export function ChatPanel({
   };
 
   const send = () => {
+    setAiHint(null);
     const body = text.trim();
     if (sending) return;
     if (editing) {
@@ -576,6 +581,15 @@ export function ChatPanel({
                 </button>
               </div>
             ))}
+          </div>
+        ) : null}
+        {aiHint ? (
+          <div className="mb-2 flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900" data-testid="ai-hint">
+            <Sparkles className="mt-0.5 size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1">{aiHint}</span>
+            <button type="button" onClick={() => setAiHint(null)} className="shrink-0 rounded p-0.5 text-violet-700 hover:bg-violet-100" aria-label="Скрыть подсказку">
+              <X className="size-3.5" />
+            </button>
           </div>
         ) : null}
         <div className="mb-2 flex items-center gap-2 text-xs">

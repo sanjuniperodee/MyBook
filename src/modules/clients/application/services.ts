@@ -3,7 +3,7 @@ import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
 import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
 import { zonedParts } from "@/shared/domain/time";
-import type { ClientProfile, ClientRepository, CrmLinks, NoteRepository, StaffDirectory, StaffMessenger, StaffNotifier, TaskRepository } from "./ports";
+import type { ClientProfile, ClientRepository, CrmLinks, DealContacts, NoteRepository, StaffDirectory, StaffMessenger, StaffNotifier, TaskRepository } from "./ports";
 
 /** Напоминание о задаче со сроком по умолчанию — за час. */
 export const DEFAULT_REMIND_MIN = 60;
@@ -189,16 +189,21 @@ export class TasksService {
   }
 }
 
-/** Заметки менеджеров в карточке клиента, заказа и сделки; @упоминания уведомляют коллег. */
+const CONTACT_NOTE_LABELS = { call: "записан звонок", message: "записано сообщение", email: "записано письмо" } as const;
+
+/** Заметки менеджеров в карточке клиента, заказа и сделки; @упоминания уведомляют коллег; запись о контакте принимает заявку. */
 export class NotesService {
   constructor(
     private readonly notes: NoteRepository,
     private readonly staff: StaffDirectory,
     private readonly notifier: StaffNotifier,
+    private readonly deals: DealContacts | null = null,
   ) {}
 
   async add(actor: Actor, input: { kind: "note" | "call" | "message" | "email"; text: string; clientId?: string; orderId?: string; dealId?: string }) {
     await this.notes.add({ kind: input.kind, text: input.text, clientId: input.clientId ?? null, orderId: input.orderId ?? null, dealId: input.dealId ?? null, authorId: actor.userId });
+    // Записал звонок, сообщение или письмо в сделке — связался с клиентом: заявка принята в работу (как ответ в чате).
+    if (input.dealId && input.kind !== "note") await this.deals?.accept(input.dealId, actor.userId, CONTACT_NOTE_LABELS[input.kind]);
     if (!input.text.includes("@")) return;
     // Ссылка — на то, к чему заметка; без привязки — без ссылки, а не /admin/clients/undefined (B12).
     const link = input.dealId ? `/admin/deals/${input.dealId}` : input.orderId ? `/admin/orders/${input.orderId}` : input.clientId ? `/admin/clients/${input.clientId}` : null;

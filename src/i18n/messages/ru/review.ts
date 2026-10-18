@@ -50,6 +50,7 @@ export const review = {
     edit: "Изменить отзыв",
   },
   showcase: {
+    photoAlt: (name: string) => `Фото книги из отзыва: ${name}`,
     eyebrow: "Отзывы",
     title: "Что говорят те, кто уже подарил книгу",
     summary: (avg: string, count: number) => `${avg} из 5 · ${ruCount(count, "отзыв", "отзыва", "отзывов")}`,

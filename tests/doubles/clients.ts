@@ -166,6 +166,7 @@ export function setup() {
     { id: "x1", label: "Бывший", active: false },
   ]);
   const notifier = new SpyNotifier();
+  const accepted: string[] = [];
   const c = clock();
   mem.clients.rows.set("client-1", { id: "client-1", name: "Айжан", email: "a@b.kz", phone: "+7 701 000 00 00", managerId: null, source: null, customFields: {} });
   return {
@@ -175,6 +176,8 @@ export function setup() {
     c,
     clients: new ClientsService(mem.clients, staff),
     tasks: new TasksService(mem.tasks, links, notifier, c, staff),
-    notes: new NotesService(mem.notes, staff, notifier),
+    notes: new NotesService(mem.notes, staff, notifier, { accept: async (dealId, staffId, how) => void accepted.push(`${dealId}:${staffId}:${how}`) }),
+    /** Какие заявки приняты в работу записью о контакте: «сделка:сотрудник:как». */
+    accepted,
   };
 }

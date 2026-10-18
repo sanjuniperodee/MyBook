@@ -58,6 +58,12 @@ export class CallsService {
       await this.calls.save(call);
     }
     if (call.clientId) await this.timeline.record({ clientId: call.clientId, dealId: call.dealId, authorId: call.staffId, text: call.summary(await this.staffNameOf(call.staffId)) });
+    // Менеджер связался с клиентом (поговорил или сам набрал) — заявка принята в работу, как после ответа в чате.
+    // Неизвестный внутренний номер — принимает ответственный по сделке; совсем некому — остаётся неразобранной.
+    if (call.dealId && call.isContact) {
+      const by = call.staffId ?? (await this.sales.dealOwner(call.dealId))?.assigneeId ?? null;
+      if (by) await this.sales.acceptDeal(call.dealId, by, call.contactLabel);
+    }
     if (call.status === "answered" && call.clientPhone) await this.calls.markMissedHandled(call.clientPhone, this.clock.now());
     if (call.isMissed) {
       const owner = call.dealId ? await this.sales.dealOwner(call.dealId) : null;

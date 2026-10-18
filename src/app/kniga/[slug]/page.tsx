@@ -78,9 +78,11 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   const jsonLd = [
     productLd({ name: sp.productName(site.name, c.label), description: c.metaDescription, url: absoluteUrl(path, locale), image: ogImage(locale, l.slug), locale, planNames, reviews }),
     faqLd(faqItems),
+    // Те же уровни, что в видимых крошках: главная → все идеи → страница.
     breadcrumbLd(
       [
-        { name: site.name, path: "/" },
+        { name: sp.home, path: "/" },
+        { name: sp.allIdeas, path: "/kniga" },
         { name: c.label, path },
       ],
       locale,

@@ -170,6 +170,17 @@ describe("TasksService: задачи менеджеров", () => {
 });
 
 describe("NotesService: заметки и @упоминания", () => {
+  it("звонок, сообщение или письмо в сделке — менеджер связался с клиентом: заявка принята в работу; простая заметка и записи вне сделки — нет", async () => {
+    const t = setup();
+    await t.notes.add(manager, { kind: "call", text: "Поговорили, думает", dealId: "deal-1" });
+    await t.notes.add(manager, { kind: "message", text: "Написал в Telegram", dealId: "deal-1" });
+    await t.notes.add(head, { kind: "email", text: "Отправили КП", dealId: "deal-2", clientId: "client-1" });
+    await t.notes.add(manager, { kind: "note", text: "Похоже на спам", dealId: "deal-1" });
+    await t.notes.add(manager, { kind: "call", text: "Договорились на пятницу", clientId: "client-1" });
+    expect(t.accepted).toEqual(["deal-1:m1:записан звонок", "deal-1:m1:записано сообщение", "deal-2:h1:записано письмо"]);
+    expect(t.mem.notes.rows.size).toBe(5);
+  });
+
   it("заметка без «@» сохраняется, список сотрудников не запрашивается", async () => {
     const t = setup();
     await t.notes.add(manager, { kind: "call", text: "Договорились на пятницу", clientId: "client-1" });

@@ -32,7 +32,7 @@ import {
   type InboundMessage,
 } from "../domain";
 import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
-import { AiSeller } from "./botSeller";
+import { AiSeller, type CopilotSuggestion } from "./botSeller";
 
 export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
@@ -95,6 +95,16 @@ export class QualifierBot {
   /** Тест-режим на настоящей модели продажника (настройки бота → «Проверить диалог»). null — продажник не включён или нет модели. */
   async previewAi(input: Parameters<AiSeller["preview"]>[0], ctx: Parameters<AiSeller["preview"]>[1]) {
     return (await this.aiEngine(input.config)) ? this.#seller.preview(input, ctx) : null;
+  }
+
+  /**
+   * Подсказка менеджеру в чате на «мозге» продажника (факты, тарифы, срок, поля сделки, уроки) — от лица менеджера.
+   * null — модели продажника нет или диалог не привязан к сделке: подсказку даст обычный AI-помощник.
+   */
+  async suggestReply(conversationId: string, manager: string): Promise<CopilotSuggestion | null> {
+    const conv = await this.d.conversations.findById(conversationId);
+    if (!conv?.dealId || !(await this.#seller.available())) return null;
+    return this.#seller.suggest(conv, manager);
   }
 
   /** Беседу ведёт AI-продажник: режим «Продаёт» с движком AI и подключённая модель. */

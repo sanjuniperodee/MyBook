@@ -239,7 +239,7 @@ describe("Круг: распределение заявок", () => {
   });
 
   it("менеджер предлагает спам — сделка остаётся с отметкой и круг её не передаёт; ответил клиенту или руководитель оставил — отметка снимается", async () => {
-    const { service, router } = setup();
+    const { service, router, deals } = setup();
     router.queue = ["m2"];
     const d = await service.create(lead);
     await service.requestRejection(d.id, "spam", "m2", "реклама");
@@ -247,8 +247,12 @@ describe("Круг: распределение заявок", () => {
     await service.declineRejection(d.id, "boss");
     expect((await service.findById(d.id))?.tags).toEqual([]);
     await service.requestRejection(d.id, "reject", "m2", "");
-    await service.acceptUnsorted(d.id, "m2");
+    await service.acceptUnsorted(d.id, "m2", "ответ клиенту в чате");
     expect(await service.findById(d.id)).toMatchObject({ tags: [], unsorted: false });
+    expect(deals.notes.at(-1)).toBe("Заявка принята в работу: ответ клиенту в чате");
+    // Уже в работе — повторный контакт ничего не пишет.
+    await service.acceptUnsorted(d.id, "m3", "записан звонок");
+    expect(deals.notes.filter((n) => n.startsWith("Заявка принята"))).toHaveLength(1);
     await expect(service.requestRejection(d.id, "spam", "m2", "")).rejects.toMatchObject({ code: "notUnsorted" });
   });
 

@@ -25,6 +25,7 @@ import {
   sellerInvoice,
   sellerSchema,
   sellerSystemPrompt,
+  sellerSystemPromptParts,
   sellerTranscript,
   sellerUserPrompt,
   splitReply,
@@ -519,6 +520,58 @@ describe("AI-продажник: настройки", () => {
     const t = parseBotConfig(JSON.stringify({ sell: { on: true, engine: "template", takeover: false, persona: "Тон", maxTurns: 10 } }));
     expect(t.sell).toMatchObject({ engine: "template", takeover: false, persona: "Тон", maxTurns: 10 });
     expect(parseBotConfig(JSON.stringify({ sell: { maxTurns: 1 } })).sell.maxTurns).toBe(40);
+  });
+});
+
+describe("AI-продажник: инструкция в двух частях — стабильная под кэш провайдера и про этот ход", () => {
+  const state = newBotState(day, true);
+  const base = { env: env(), state, questions: ["recipient", "occasion", "event_date", "format"], knowledge: "Работаем без выходных.", brand: "MyBooks", known: [], deadline: null, takeoverMinutes: null, purpose: "reply" as const, paid: false, followUps: 0 };
+
+  it("стабильная часть не зависит от времени, клиента, срока и правок; всё это — в динамической", () => {
+    const a = sellerSystemPromptParts(base);
+    const night = new Date("2026-10-18T17:00:00Z");
+    const b = sellerSystemPromptParts({ ...base, env: env({ now: night, workTime: false, nextWorkStart: new Date("2026-10-19T04:00:00Z"), name: "Алишер", dealValues: { recipient: "Маме" } }), state: { ...state, ai: { ...newSellerAiState(), city: "Караганда" } }, known: [{ label: "Для кого", value: "Маме" }], deadline: "Дата 24 ноября: успеваем.", retry: [{ kind: "price", detail: "12 345" }], extraFact: "Тест-факт" });
+    expect(a.stable).toBe(b.stable);
+    expect(a.dynamic).not.toBe(b.dynamic);
+    // Факты, путь продажи, стиль, примеры, уроки и запреты — в стабильной части; база знаний короткая — тоже.
+    for (const s of ["## Факты", "от 30 000 ₸", "## Как продаёт Марат (", "7а. Другие частые сомнения", "## Стиль", "## Примеры", "## Жёсткие запреты", "Работаем без выходных."]) expect(a.stable.replace(/\u00a0/g, " ")).toContain(s);
+    for (const s of ["## Сейчас", "2026-10-17", "суббота", "## Что известно о клиенте", "## Формат ответа"]) expect(a.dynamic).toContain(s);
+    for (const s of ["Алишер", "Караганда", "Дата 24 ноября: успеваем.", "Тест-факт", "price: 12 345", "- event_date —"]) expect(b.dynamic).toContain(s);
+    for (const s of ["2026-10-17", "Алишер", "Караганда", "Тест-факт"]) expect(a.stable).not.toContain(s);
+    expect(sellerSystemPrompt(base)).toBe(`${a.stable}\n${a.dynamic}`);
+  });
+
+  it("длинная база знаний уходит в динамическую часть кусками по теме, короткая — в стабильную", () => {
+    const long = ["Доставка\nПо Астане курьером за 1–2 дня.", "Оплата\nРассрочка 0-0-12 и Kaspi Red.", ...Array.from({ length: 60 }, (_, i) => `Правило ${i}\n${"Текст, не связанный с вопросом клиента. ".repeat(6)}`)].join("\n\n");
+    const p = sellerSystemPromptParts({ ...base, knowledge: long, knowledgeQuery: "доставка в Астану" });
+    expect(p.stable).not.toContain("По Астане курьером");
+    expect(p.dynamic).toContain("по теме разговора");
+    expect(p.dynamic).toContain("По Астане курьером");
+    expect(p.dynamic.length).toBeLessThan(8000);
+  });
+
+  it("черновик для менеджера: от его лица, без представления бота и передачи менеджеру, цены из тарифов даже при hidePrices", () => {
+    const e = env({ config: sellConfig({ hidePrices: true }) });
+    const p = sellerSystemPrompt({ ...base, env: e, purpose: "copilot", voice: { manager: "Айгерим Сапарова" } }).replace(/\u00a0/g, " ");
+    expect(p).toContain("Менеджер Айгерим Сапарова переписывается");
+    expect(p).toContain("от имени Айгерим Сапарова");
+    expect(p).toContain("от 30 000 ₸");
+    expect(p).toContain("## Режим: черновик для менеджера");
+    expect(p).toContain("7а. Другие частые сомнения");
+    expect(p).not.toContain("помощница менеджера Марата");
+    expect(p).not.toContain("Передавай Марату");
+    expect(p).not.toContain("Ты сумм не называешь никогда");
+    expect(p).not.toContain("Режим: продолжение начатой переписки");
+    // Образцы для черновика проходят проверку цен так же, как у бота.
+    const examples = p.slice(p.indexOf("## Примеры"), p.indexOf("## Жёсткие запреты"));
+    expect(checkSellerReply(examples, rulesFor()).filter((x) => x.kind === "price")).toEqual([]);
+    expect(sellerUserPrompt("…", "copilot")).toContain("черновик");
+  });
+
+  it("клиент уже платил — черновик тоже не продаёт", () => {
+    const p = sellerSystemPrompt({ ...base, purpose: "copilot", voice: { manager: "Марат" }, paid: true });
+    expect(p).toContain("## Клиент уже оплатил");
+    expect(p).not.toContain("## Как продаёт");
   });
 });
 

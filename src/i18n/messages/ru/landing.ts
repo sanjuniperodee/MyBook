@@ -25,7 +25,17 @@ export const landing = {
   },
   occasions: {
     label: "Идеально на:",
-    items: ["Годовщина", "День рождения", "14 февраля", "Свадьба", "Юбилей родителей", "8 марта", "Новый год", "Просто так"],
+    // slug — посадочная страница повода (/kniga/<slug>); без него подпись остаётся просто словом.
+    items: [
+      { label: "Годовщина", slug: "podarok-na-godovshchinu" },
+      { label: "День рождения" },
+      { label: "14 февраля", slug: "podarok-na-14-fevralya" },
+      { label: "Свадьба" },
+      { label: "Юбилей родителей", slug: "podarok-na-yubilej-mame" },
+      { label: "8 марта", slug: "podarok-na-8-marta" },
+      { label: "Новый год" },
+      { label: "Просто так" },
+    ] as { label: string; slug?: string }[],
   },
   how: {
     eyebrow: "Как это работает",
@@ -56,6 +66,7 @@ export const landing = {
     title: "Для каждого — своя история",
     note: "Вопросы написаны отдельно для каждого случая и учитывают, кто пишет и кому — «ты увидел» или «ты увидела».",
     meta: (questions: number, chapters: number) => `${ruCount(questions, "вопрос", "вопроса", "вопросов")} · ${ruCount(chapters, "глава", "главы", "глав")}`,
+    learn: "Подробнее о книгах:",
   },
   /** Блок «Не только в подарок» на главной: автобиография и своя книга (названия и описания — из тем). */
   modes: {

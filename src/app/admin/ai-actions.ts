@@ -32,14 +32,25 @@ async function loadDeal(dealId: string, staff: Awaited<ReturnType<typeof assertS
   return deal;
 }
 
-/** Вариант ответа клиенту — менеджер правит и отправляет сам. */
-export async function aiSuggestReplyAction(conversationId: string): Promise<Result<{ text: string }>> {
+/**
+ * Вариант ответа клиенту — менеджер правит и отправляет сам. Диалог привязан к сделке и подключена модель продажника —
+ * черновик пишет «мозг» продажника (факты, тарифы, срок к дате, поля сделки, уроки) от лица менеджера, с заметкой о
+ * клиенте (hint); иначе — обычный AI-помощник.
+ */
+export async function aiSuggestReplyAction(conversationId: string): Promise<Result<{ text: string; hint?: string }>> {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await container().messaging.queries.conversation(uuid.parse(conversationId));
   if (!conv) return { ok: false, message: "Диалог не найден" };
   assertVisible(staff, conv.assigneeId);
   return guard(staff.user.id, async () => {
-    const r = await container().assistant.service.suggestReply(conv.id, staffLabel(staff.user));
+    const manager = staffLabel(staff.user);
+    const seller = await container().messaging.bot.suggestReply(conv.id, manager);
+    if (seller) {
+      if ("error" in seller) throw new AssistantError("unavailable", seller.error);
+      await audit(staff, "ai.reply", "conversation", conv.id, { engine: "seller", stage: seller.stage });
+      return { text: seller.text, hint: seller.summary || undefined };
+    }
+    const r = await container().assistant.service.suggestReply(conv.id, manager);
     await audit(staff, "ai.reply", "conversation", conv.id, r.usage);
     return { text: r.text };
   });
