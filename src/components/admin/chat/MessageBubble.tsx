@@ -111,6 +111,8 @@ export function MessageBubble({
   m,
   me,
   now,
+  first = true,
+  last = true,
   timeZone,
   conversationId,
   canSend,
@@ -122,6 +124,9 @@ export function MessageBubble({
 }: {
   m: Msg;
   me: string;
+  /** Первое и последнее в группе подряд от одного отправителя: подпись автора — у первого, хвостик — у последнего. */
+  first?: boolean;
+  last?: boolean;
   /** Текущее время (раз в полминуты) — окна правки и удаления. */
   now: number;
   timeZone: string;
@@ -208,9 +213,10 @@ export function MessageBubble({
       <div
         ref={box}
         className={cn(
-          "group relative max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm transition-shadow",
-          out ? "rounded-br-md bg-wine text-white" : "rounded-bl-md bg-white text-ink",
-          m.status === "error" && "bg-red-700",
+          "group relative max-w-[78%] rounded-[18px] px-3 py-2 text-[14px] leading-snug shadow-[0_1px_1.5px_rgba(30,25,22,0.12)] transition-shadow",
+          out ? "bg-gradient-to-br from-[#8c2535] to-[#6f1a27] text-white" : "bg-white text-ink",
+          last && (out ? "rounded-br-[6px]" : "rounded-bl-[6px]"),
+          m.status === "error" && "from-red-700 to-red-800 bg-red-700",
           highlighted && "ring-4 ring-amber-300",
         )}
         data-direction={m.direction}
@@ -237,6 +243,7 @@ export function MessageBubble({
             <ChevronDown className="size-4" />
           </button>
         ) : null}
+        {first && out && m.author ? <div className="mb-0.5 text-[11px] font-semibold text-white/80">{m.author}</div> : null}
         {m.forwarded && !m.deleted ? (
           <div className={cn("mb-1 flex items-center gap-1 text-[11px] italic", out ? "text-white/75" : "text-muted")}>
             <Forward className="size-3" /> Пересланное сообщение
@@ -262,9 +269,8 @@ export function MessageBubble({
             ) : null}
           </>
         )}
-        <div className={cn("mt-1 flex items-center justify-end gap-1 text-[10px]", out ? "text-white/70" : "text-muted")}>
-          {out && m.author ? <span className="mr-1 truncate">{m.author}</span> : null}
-          {m.edited && !m.deleted ? <span>изменено ·</span> : null}
+        <div className={cn("-mb-0.5 mt-0.5 flex items-center justify-end gap-1 text-[10.5px] leading-none tabular-nums", out ? "text-white/70" : "text-muted")}>
+          {m.edited && !m.deleted ? <span className="italic">изменено</span> : null}
           {time(m.at, timeZone)}
           {out ? <StatusIcon status={m.status} /> : null}
         </div>

@@ -430,21 +430,37 @@ export function ChatPanel({
           <Paperclip className="mr-2 size-5" /> Отпустите — файлы прикрепятся к сообщению
         </div>
       ) : null}
-      <div ref={scroller} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto bg-[#f4efe7] px-3 py-4 sm:px-5" data-testid="chat-messages">
-        <div ref={content} className="space-y-1.5">
-          {all.length === 0 ? <p className="py-10 text-center text-sm text-muted">Сообщений пока нет — напишите первым.</p> : null}
-          {all.map((m) => {
+      <div
+        ref={scroller}
+        onScroll={onScroll}
+        className="relative min-h-0 flex-1 overflow-y-auto bg-[#f4efe7] px-3 py-4 sm:px-6"
+        style={{ backgroundImage: "radial-gradient(rgba(122,31,43,0.07) 1px, transparent 1px)", backgroundSize: "18px 18px" }}
+        data-testid="chat-messages"
+      >
+        <div ref={content} className="mx-auto max-w-3xl">
+          {all.length === 0 ? (
+            <div className="mx-auto mt-16 max-w-xs rounded-2xl bg-white/80 px-5 py-6 text-center text-sm text-muted shadow-sm">Сообщений пока нет — напишите первым 👋</div>
+          ) : null}
+          {all.map((m, i) => {
             const day = dayLabel(m.at, timeZone);
             const sep = day !== lastDay;
             lastDay = day;
+            // Подряд от одного отправителя в пределах 5 минут — одной группой: плотнее, хвостик у последнего.
+            const prev = all[i - 1];
+            const next = all[i + 1];
+            const same = (a?: Msg, b?: Msg) => !!a && !!b && a.direction === b.direction && !!a.internal === !!b.internal && a.author === b.author && Math.abs(new Date(b.at).getTime() - new Date(a.at).getTime()) < 5 * 60_000 && dayLabel(a.at, timeZone) === dayLabel(b.at, timeZone);
+            const first = sep || !same(prev, m);
+            const last = !same(m, next);
             return (
-              <div key={m.id}>
+              <div key={m.id} className={first ? "mt-3" : "mt-0.5"}>
                 {sep ? (
-                  <div className="sticky top-0 z-10 my-3 text-center">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] text-muted shadow-sm">{day}</span>
+                  <div className="sticky top-1 z-10 mb-3 text-center">
+                    <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-ink-soft shadow-sm ring-1 ring-line">{day}</span>
                   </div>
                 ) : null}
                 <MessageBubble
+                  first={first}
+                  last={last}
                   m={m}
                   me={me}
                   now={now}
@@ -471,7 +487,7 @@ export function ChatPanel({
       {viewer !== null && gallery.length ? <MediaViewer items={gallery} index={Math.min(viewer, gallery.length - 1)} onIndex={setViewer} onClose={() => setViewer(null)} /> : null}
       {forwarding ? <ForwardDialog conversationId={conversationId} messageId={forwarding.id} preview={snippet(forwarding)} onClose={() => setForwarding(null)} /> : null}
       {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
-      <div className={cn("relative border-t bg-white p-3", mode === "note" ? "border-amber-200 bg-amber-50/60" : "border-line")}>
+      <div className={cn("relative border-t px-3 pt-2.5 pb-3 sm:px-4", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
         {showTemplates && templates.length && mode === "client" ? (
           <div className="absolute right-3 bottom-full left-3 z-20 mb-2 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
             {templates.map((t) => (
@@ -562,40 +578,44 @@ export function ChatPanel({
             ))}
           </div>
         ) : null}
-        <div className="mb-2 flex gap-1 text-xs">
-          {canSend ? (
-            <button type="button" onClick={() => setMode("client")} className={cn("rounded-lg px-2.5 py-1", mode === "client" ? "bg-ink text-white" : "text-muted hover:bg-cream")}>
-              Клиенту
+        <div className="mb-2 flex items-center gap-2 text-xs">
+          <div className="inline-flex rounded-full bg-cream/70 p-0.5">
+            {canSend ? (
+              <button type="button" onClick={() => setMode("client")} className={cn("rounded-full px-3 py-1 font-medium transition", mode === "client" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink")}>
+                Клиенту
+              </button>
+            ) : null}
+            <button type="button" onClick={() => (setMode("note"), setReplyTo(null))} className={cn("flex items-center gap-1 rounded-full px-3 py-1 font-medium transition", mode === "note" ? "bg-amber-500 text-white shadow-sm" : "text-muted hover:text-ink")}>
+              <Lock className="size-3" /> Заметка для коллег
             </button>
-          ) : null}
-          <button type="button" onClick={() => (setMode("note"), setReplyTo(null))} className={cn("flex items-center gap-1 rounded-lg px-2.5 py-1", mode === "note" ? "bg-amber-500 text-white" : "text-muted hover:bg-cream")}>
-            <Lock className="size-3" /> Заметка для коллег
-          </button>
+          </div>
+          <span className="ml-auto hidden text-[11px] text-muted md:inline">Enter — отправить · Shift+Enter — новая строка</span>
         </div>
         <div className="flex items-end gap-2">
+          <div className={cn("flex min-w-0 flex-1 items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
           {mode === "client" && !editing ? (
             <>
               <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => (e.target.files?.length && addFiles(e.target.files), (e.target.value = ""))} />
               {canSend ? (
-                <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => fileInput.current?.click()} title="Прикрепить фото, видео или файл (можно перетащить в чат или вставить Ctrl+V)" aria-label="Прикрепить файл">
+                <button type="button" className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-cream hover:text-ink" onClick={() => fileInput.current?.click()} title="Прикрепить фото, видео или файл (можно перетащить в чат или вставить Ctrl+V)" aria-label="Прикрепить файл">
                   <Paperclip className="size-5" />
                 </button>
               ) : null}
-              <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setShowTemplates((v) => !v), setShowOffers(false))} title="Шаблоны ответов" aria-label="Шаблоны">
+              <button type="button" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-cream hover:text-ink", showTemplates && "bg-cream text-ink")} onClick={() => (setShowTemplates((v) => !v), setShowOffers(false))} title="Шаблоны ответов" aria-label="Шаблоны">
                 <MessageSquareQuote className="size-5" />
               </button>
               {offers ? (
-                <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setShowOffers((v) => !v), setShowTemplates(false))} title="Оплата и скидка" aria-label="Оплата и скидка">
+                <button type="button" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-cream hover:text-ink", showOffers && "bg-cream text-ink")} onClick={() => (setShowOffers((v) => !v), setShowTemplates(false))} title="Оплата и скидка" aria-label="Оплата и скидка">
                   <Wallet className="size-5" />
                 </button>
               ) : null}
               {invoice ? (
-                <button type="button" className="btn btn-ghost btn-sm size-10 px-0" onClick={() => (setInvoiceKey(newIssueKey()), setShowOffers(false), setShowTemplates(false))} title="Счёт на оплату: ссылка клиенту в чат" aria-label="Счёт">
+                <button type="button" className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-cream hover:text-ink" onClick={() => (setInvoiceKey(newIssueKey()), setShowOffers(false), setShowTemplates(false))} title="Счёт на оплату: ссылка клиенту в чат" aria-label="Счёт">
                   <ReceiptText className="size-5" />
                 </button>
               ) : null}
               {ai ? (
-                <button type="button" className="btn btn-ghost btn-sm size-10 px-0 text-violet-700" onClick={suggest} disabled={thinking} title="AI: подсказать ответ (вы сможете поправить текст перед отправкой)" aria-label="Подсказать ответ">
+                <button type="button" className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-cream hover:text-ink text-violet-700 hover:text-violet-800" onClick={suggest} disabled={thinking} title="AI: подсказать ответ (вы сможете поправить текст перед отправкой)" aria-label="Подсказать ответ">
                   {thinking ? <LoaderCircle className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
                 </button>
               ) : null}
@@ -631,12 +651,19 @@ export function ChatPanel({
             }}
             rows={1}
             maxLength={4000}
-            placeholder={editing ? "Новый текст… (Enter — сохранить, Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : "Сообщение… (Enter — отправить, Shift+Enter — новая строка)"}
-            className="max-h-40 min-h-10 w-full resize-none rounded-xl border border-line bg-[#fbf9f5] px-3 py-2 text-sm outline-none field-sizing-content focus:border-wine/40"
+            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : "Написать сообщение…"}
+            className="max-h-40 min-h-9 w-full resize-none border-0 bg-transparent px-2 py-2 text-[14px] outline-none field-sizing-content placeholder:text-muted/80"
             aria-label="Текст сообщения"
           />
-          <button type="button" className={cn("btn size-10 px-0", mode === "note" && "bg-amber-500 hover:bg-amber-600")} disabled={(!text.trim() && !(drafts.length && mode === "client")) || sending} onClick={send} aria-label={editing ? "Сохранить" : "Отправить"}>
-            {sending ? <LoaderCircle className="size-5 animate-spin" /> : <SendHorizontal className="size-5" />}
+          </div>
+          <button
+            type="button"
+            className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow-md transition disabled:opacity-40 disabled:shadow-none", mode === "note" ? "bg-amber-500 hover:bg-amber-600" : "bg-wine hover:bg-wine-dark")}
+            disabled={(!text.trim() && !(drafts.length && mode === "client")) || sending}
+            onClick={send}
+            aria-label={editing ? "Сохранить" : "Отправить"}
+          >
+            {sending ? <LoaderCircle className="size-5 animate-spin" /> : editing ? <Pencil className="size-5" /> : <SendHorizontal className="ml-0.5 size-5" />}
           </button>
         </div>
       </div>
