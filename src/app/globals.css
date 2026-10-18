@@ -286,3 +286,13 @@ body {
   from { transform: rotateY(0deg); }
   to { transform: rotateY(180deg); }
 }
+
+/* Бегущая строка посадочной /love: лента продублирована, сдвиг на половину — бесшовный цикл. */
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+.marquee { animation: marquee var(--marquee-s, 70s) linear infinite; }
+.marquee-reverse { animation-direction: reverse; }
+@media (prefers-reduced-motion: reduce) {
+  .marquee { animation: none; }
+}

@@ -54,10 +54,14 @@ export function buildSiteUrl(base: string, path: string, a: { source: string; me
 /** Куда на самом деле ведёт ссылка. */
 export function linkTarget(l: TrackedLink, appUrl: string, whatsappNumber: string) {
   if (l.kind === "whatsapp") {
-    const text = `${l.waText.trim() || "Здравствуйте! Хочу заказать книгу"} (код: ${l.slug})`;
-    return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+    return whatsappLink(whatsappNumber, l.waText.trim() || "Здравствуйте! Хочу заказать книгу", l.slug);
   }
   return buildSiteUrl(appUrl, l.targetPath, { source: l.utmSource, medium: l.utmMedium, campaign: l.utmCampaign, content: l.utmContent }, l.slug);
+}
+
+/** Ссылка в WhatsApp с первым сообщением и кодом ссылки в нём — по коду CRM узнаёт источник заявки (linkCodeFromText). */
+export function whatsappLink(whatsappNumber: string, text: string, code: string) {
+  return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`${text} (код: ${code})`)}`;
 }
 
 /** Код ссылки в первом сообщении WhatsApp: «… (код: insta-bio)» или «#insta-bio». */

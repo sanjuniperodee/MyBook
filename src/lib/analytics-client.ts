@@ -11,7 +11,7 @@ declare global {
 }
 
 /** Цели в счётчиках. Названия одинаковые для Метрики, GA4 и Meta Pixel (как custom event). */
-const pixelStandard: Record<string, string> = { sign_up: "CompleteRegistration", begin_checkout: "InitiateCheckout", purchase: "Purchase", gift_purchase: "Purchase" };
+const pixelStandard: Record<string, string> = { sign_up: "CompleteRegistration", begin_checkout: "InitiateCheckout", purchase: "Purchase", gift_purchase: "Purchase", contact: "Contact", lead: "Lead" };
 
 export function track(name: string, value?: number, props?: Record<string, string>) {
   try {
