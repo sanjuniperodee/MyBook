@@ -94,6 +94,7 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   agreed: false,
   agreedQuote: "",
   city: "",
+  sendMaterials: false,
   ...p,
 });
 const rulesFor = (e = env()): ReplyRules => ({ amounts: allowedAmounts(e.catalog, e.config.sell), percents: new Set(), urls: [e.site.url], phones: ["77010000000"] });

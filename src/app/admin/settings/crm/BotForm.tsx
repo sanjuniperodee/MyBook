@@ -85,6 +85,7 @@ export function BotForm({
   seller,
   stats,
   coach,
+  materials,
   initialTab = "mode",
 }: {
   mode: string;
@@ -103,6 +104,8 @@ export function BotForm({
   stats: React.ReactNode;
   /** Работа над ошибками AI-продажника (уроки и журнал разборов). */
   coach?: React.ReactNode;
+  /** Подборка материалов продажника (фото, видео, пример книги). */
+  materials?: React.ReactNode;
   /** Раздел, который открыт сразу (из адреса ?section=…). */
   initialTab?: BotFormTab;
 }) {
@@ -541,7 +544,12 @@ export function BotForm({
             </details>
             </>
           ) : null}
-          {cfg.sell.on && cfg.sell.engine === "ai" ? coach : null}
+          {cfg.sell.on && cfg.sell.engine === "ai" ? (
+            <>
+              {materials}
+              {coach}
+            </>
+          ) : null}
         </div>
       ) : null}
 

@@ -5,7 +5,8 @@ import type { ChatFileStore } from "../application";
 
 /** Файлы, которые сотрудник отправил из CRM, лежат в хранилище сайта; в сообщении — ссылка store:<ключ>. */
 const PREFIX = "store:";
-const KEY = /^chat-media\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.[a-z0-9]{1,5}$/;
+/** Файлы, отправленные из CRM, и подборка материалов бота (один файл на все чаты). */
+const KEY = /^(?:chat-media\/[0-9a-f-]{36}\/[0-9a-f-]{36}|bot-media\/[0-9a-f-]{36})\.[a-z0-9]{1,5}$/;
 
 const MIME: Record<string, string> = {
   jpg: "image/jpeg",

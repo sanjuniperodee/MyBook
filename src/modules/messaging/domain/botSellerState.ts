@@ -37,10 +37,31 @@ export interface SellerAiState {
   media: Record<string, string>;
   /** Менеджер уже знает, что клиент замолчал на знакомстве (заметка и уведомление) — второй раз не пишем. */
   silenceNoted: boolean;
+  /** Подборка материалов (фото, видео, пример книги) уже ушла клиенту — второй раз не шлём. */
+  materialsSent: boolean;
 }
 
-/** Сколько раз продажник напоминает о себе молчащему клиенту (как менеджер: «Ознакомились?» → на следующий день «Как ваши дела?»). */
-export const SELLER_MAX_FOLLOW_UPS = 2;
+/** Сколько раз продажник напоминает о себе молчащему клиенту: тёплому — три раза, остальным — два. */
+export const SELLER_MAX_FOLLOW_UPS = 3;
+/** Первое напоминание тёплому клиенту — как у менеджера: «Ознакомились?» через 10–20 минут после материалов и цены. */
+export const WARM_FIRST_FOLLOW_UP_MS = 20 * 60_000;
+
+/** Тёплый клиент: получил подборку, слышал цену, назвал дату или дошёл до предложения — напоминаем чаще. */
+export function isWarmLead(ai: SellerAiState): boolean {
+  return ai.materialsSent || ai.priceQuoted || !!ai.eventDate || ai.stage === "offer" || ai.stage === "objection" || ai.stage === "closing";
+}
+
+/**
+ * Через сколько после последнего сообщения бота напомнить о себе; null — больше не напоминаем.
+ * Тёплому: через 20 минут («Ознакомились? 😊»), через followUpHours («Освободились?») и на следующий день. Остальным:
+ * через followUpHours и на следующий день. followUpHours = 0 — напоминания выключены владельцем.
+ */
+export function followUpDelayMs(ai: SellerAiState, followUpHours: number, nextDayMs: number): number | null {
+  if (followUpHours <= 0) return null;
+  const hours = followUpHours * 3_600_000;
+  const steps = isWarmLead(ai) ? [WARM_FIRST_FOLLOW_UP_MS, hours, nextDayMs] : [hours, nextDayMs];
+  return steps[ai.followUps] ?? null;
+}
 
 export const newSellerAiState = (): SellerAiState => ({
   turns: 0,
@@ -60,6 +81,7 @@ export const newSellerAiState = (): SellerAiState => ({
   priceAsks: 0,
   media: {},
   silenceNoted: false,
+  materialsSent: false,
 });
 
 /** Состояние из базы: недостающее — по умолчанию (запись сделана прежней версией). */

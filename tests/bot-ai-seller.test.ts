@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultBotConfig, factsPaid, type BotConfig, type PaymentFacts } from "@/modules/messaging/domain";
+import { defaultBotConfig, factsPaid, type BotConfig, type BotMaterial, type PaymentFacts } from "@/modules/messaging/domain";
 import { BOT_PAUSE_MS, type BotInvoices, type BotSellerModel } from "@/modules/messaging/application";
 import { BOT_CONFIG, inbound, setup } from "./doubles/botHarness";
 
@@ -527,27 +527,34 @@ describe("AI-продажник: голосовые и фото распозна
   });
 });
 
-describe("AI-продажник: возврат клиента — два напоминания", () => {
-  it("после предложения — напоминание через followUpHours, второе — на следующий день, дальше итог менеджеру", async () => {
-    const { model } = fakeModel([
+describe("AI-продажник: возврат тёплого клиента — три напоминания", () => {
+  it("после предложения — «Ознакомились?» через 20 минут, второе через followUpHours, третье на следующий день, дальше итог", async () => {
+    const { model, calls } = fakeModel([
       ans({ stage: "offer", reply: "Оформляем? 🙂", asked_to_order: true }),
-      ans({ stage: "offer", reply: "Как ваши дела? 🙂 Посмотрели пример книги?" }),
-      ans({ stage: "offer", reply: "Добрый день! Вы ещё с нами? 🙂" }),
+      ans({ stage: "offer", reply: "Ознакомились? 😊" }),
+      ans({ stage: "offer", reply: "Освободились? 🙂 Начнём создание книги?" }),
+      ans({ stage: "offer", reply: "Добрый день! Как ваши дела? 😊" }),
     ]);
     const t = setup({ bot: "always", config: aiConfig({ followUpHours: 3 }), seller: model });
     await t.service.ingest(inbound({ text: "Хочу книгу для жены" }));
     await run(t);
     expect(t.conv().botState).toMatchObject({ stage: "offer", phase: "active" });
-    // Первое напоминание через 3 часа.
+    // Тёплый клиент: первое напоминание через 20 минут, а не через 3 часа.
+    await t.advance(19 * 60_000);
+    expect(said(t)).toHaveLength(1);
+    await t.advance(60_000 + 1000);
+    expect(said(t)).toEqual(["Оформляем? 🙂", "Ознакомились? 😊"]);
+    expect(calls[1].system).toContain("минут на двадцать");
+    // Второе — через 3 часа после первого, в тот же день.
     await t.advance(3 * 3_600_000 + 1000);
-    expect(said(t)).toEqual(["Оформляем? 🙂", "Как ваши дела? 🙂 Посмотрели пример книги?"]);
-    expect(t.conv().botState).toMatchObject({ ai: expect.objectContaining({ followUps: 1 }) });
-    // Второе — не через 3 часа, а на следующий день.
+    expect(t.sent.at(-1)).toBe("Освободились? 🙂 Начнём создание книги?");
+    expect(calls[2].system).toContain("второе напоминание (в тот же день)");
+    // Третье — на следующий день.
     await t.advance(3 * 3_600_000 + 1000);
-    expect(said(t)).toHaveLength(2);
+    expect(said(t)).toHaveLength(3);
     await t.advance(17 * 3_600_000 + 1000);
-    expect(t.sent.at(-1)).toBe("Добрый день! Вы ещё с нами? 🙂");
-    expect(t.conv().botState).toMatchObject({ ai: expect.objectContaining({ followUps: 2 }) });
+    expect(t.sent.at(-1)).toBe("Добрый день! Как ваши дела? 😊");
+    expect(t.conv().botState).toMatchObject({ ai: expect.objectContaining({ followUps: 3 }) });
     // Дальше — тишина 12 часов, итог менеджеру.
     await t.advance(12 * 3_600_000 + 1000);
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "offered" });
@@ -723,7 +730,7 @@ describe("AI-продажник, волна 2: возврат клиента, з
     expect(calls[1].system).toContain("Режим: напоминание");
     await t.advance(20 * 3_600_000 + 1000);
     expect(t.sent.at(-1)).toBe("Добрый день! Как ваши дела? 😊");
-    expect(calls[2].system).toContain("второе напоминание");
+    expect(calls[2].system).toContain("последнее напоминание (на следующий день)");
     await t.advance(12 * 3_600_000 + 1000);
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "abandoned" });
   });
@@ -1083,5 +1090,68 @@ describe("AI знает об оплате из CRM: ручные платежи,
     await t.service.ingest(inbound({ text: "Сколько ещё доплатить?" }));
     const r = await t.bot.suggestReply(t.conv().id, "Margo");
     expect(r).toMatchObject({ text: "Предоплату 10 000 ₸ получили, спасибо! Осталось 20 000 ₸ — когда книга будет готова 😊" });
+  });
+});
+
+describe("AI-продажник: подборка материалов, как у менеджера (19.10)", () => {
+  const mat = (id: string, kind: BotMaterial["kind"], lang: BotMaterial["lang"] = "any", caption = ""): BotMaterial => ({
+    id,
+    kind,
+    key: `bot-media/${id.padEnd(36, "0")}.bin`,
+    name: kind === "document" ? `Пример ${lang}.pdf` : `${id}.jpg`,
+    mime: "application/octet-stream",
+    size: 1,
+    caption,
+    lang,
+    about: kind === "image" ? "обложки книг" : kind === "video" ? "книга в руках" : "пример книги",
+    on: true,
+  });
+  const library = [mat("doc-kk", "document", "kk", "Кітап үлгісі"), mat("v1", "video", "any", "Так выглядит книга"), mat("i1", "image"), mat("i2", "image"), mat("doc-ru", "document", "ru", "Пример готовой книги")];
+  const outgoing = (t: ReturnType<typeof setup>) => t.msgs.filter((m) => m.dir === "out" && !m.internal).map((m) => (m.type === "text" ? m.text : `[${m.type}] ${m.text}`));
+
+  it("подводка → фото → видео → пример книги на языке клиента → вопрос; второй раз не шлёт", async () => {
+    const { model, calls } = fakeModel([
+      ans({ stage: "offer", reply: "Отправляю, как выглядят наши книги 😊\n\nОзнакомьтесь, пожалуйста 🙌 Какие остались вопросы?", send_materials: true }),
+      ans({ stage: "offer", reply: "Супер! Оформляем? 🙂", send_materials: true }),
+    ]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model, materials: library });
+    await t.service.ingest(inbound({ text: "Маме, к 30 октября, Алматы. Как это выглядит?" }));
+    await run(t);
+    expect(outgoing(t)).toEqual([
+      "Здравствуйте! 😊 Меня зовут Айгерим, я помощница менеджера Марата.",
+      "Отправляю, как выглядят наши книги 😊",
+      "[image] ",
+      "[image] ",
+      "[video] Так выглядит книга",
+      "[document] Пример готовой книги",
+      "Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?",
+    ]);
+    expect(t.msgs.filter((m) => m.type !== "text").every((m) => m.source === "bot" && m.mediaUrl?.startsWith("store:bot-media/"))).toBe(true);
+    expect(calls[0].system).toContain("3б. Материалы: у тебя есть подборка — 2 фото (обложки книг), 1 видео (книга в руках), 2 PDF (пример книги)");
+    // Бот не остановился из-за своих же файлов, а подборка второй раз не уходит.
+    await t.service.ingest(inbound({ text: "Красиво!" }));
+    await run(t);
+    expect(t.files).toHaveLength(4);
+    expect(calls[1].system).toContain("клиенту уже отправлена");
+    expect(t.sent.at(-1)).toBe("Супер! Оформляем? 🙂");
+  });
+
+  it("менеджер уже присылал подборку (подхват) — бот её не повторяет", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Ознакомились? 😊", send_materials: true })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model, materials: library });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    for (const name of ["a", "b", "c"]) t.msgs.push({ id: `x${name}`, conv: t.conv().id, dir: "out", text: "📷 Фото", type: "image", at: new Date(), externalId: `e${name}`, status: "sent", source: null });
+    await run(t);
+    expect(t.files).toHaveLength(0);
+    expect(calls[0].system).toContain("клиенту уже отправлена");
+  });
+
+  it("без подборки — правила о материалах в инструкции нет", async () => {
+    const { model, calls } = fakeModel([ans({ reply: "Для кого книга? 🙂", send_materials: true })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await run(t);
+    expect(calls[0].system).not.toContain("3б. Материалы");
+    expect(t.files).toHaveLength(0);
   });
 });

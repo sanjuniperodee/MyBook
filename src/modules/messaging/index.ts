@@ -10,11 +10,13 @@ import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHi
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { chatFiles } from "./infrastructure/chatFiles";
-import { mediaLine, parseCoachLog, parseLessons, type BotLesson, type CoachRun } from "./domain";
+import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
+import { getFile, putFile } from "@/shared/infrastructure/storage";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
 import type { Conversation, HistoryMessage, InboundMessage } from "./domain";
 
+export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
 export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
@@ -27,7 +29,7 @@ export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "whatsapp.phoneHolder" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -135,6 +137,14 @@ export class MessagingModule {
       // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
       transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
       changed: (conversationId) => live.chatChanged(conversationId),
+      materials: {
+        list: () => this.materials(),
+        send: async (conversationId, m) => {
+          const data = await getFile(m.key).catch(() => null);
+          if (!data) return false;
+          return this.chats.sendBotFile(conversationId, { data: new Uint8Array(data), name: m.name, mime: m.mime, kind: m.kind }, m.caption, `store:${m.key}`);
+        },
+      },
     });
     this.coach = new BotCoach({
       settings: this.botSettings,
@@ -232,6 +242,55 @@ export class MessagingModule {
   }
 
   /** Уроки работы над ошибками и журнал разборов (для настроек и разбора). */
+  /** Подборка материалов для клиента (настройки бота → «Продажи» → «Материалы»). */
+  async materials(): Promise<BotMaterial[]> {
+    return parseMaterials(await this.deps.settings.get("bot.materials"));
+  }
+
+  async saveMaterials(list: BotMaterial[], actorId: string) {
+    await this.deps.settings.save({ "bot.materials": JSON.stringify(list.slice(0, MAX_MATERIALS)) }, actorId);
+  }
+
+  /**
+   * Новый файл в подборку: фото, видео или документ (голосовые — нет), не больше лимита WhatsApp. Файл — в хранилище
+   * bot-media/, запись — в конец подборки.
+   */
+  async addMaterial(file: { data: Uint8Array; name: string; mime: string }, meta: { caption: string; lang: MaterialLang; about: string }, actorId: string): Promise<BotMaterial> {
+    const list = await this.materials();
+    if (list.length >= MAX_MATERIALS) throw new MessageActionError(`В подборке уже ${MAX_MATERIALS} файлов — удалите лишний`);
+    const found = fileKind(file.mime, file.name);
+    if (found === "audio") throw new MessageActionError("Голосовые в подборку не добавляются — только фото, видео и документы");
+    const kind: MaterialKind = found;
+    if (!file.data.length) throw new MessageActionError("Пустой файл");
+    if (file.data.length > MATERIAL_MAX_BYTES[kind]) throw new MessageActionError(`Файл больше ${Math.round(MATERIAL_MAX_BYTES[kind] / 1024 / 1024)} МБ — WhatsApp такой может не принять`);
+    const ext = (/\.([a-z0-9]{1,5})$/i.exec(file.name)?.[1] ?? file.mime.split("/")[1] ?? "bin").toLowerCase().replace("jpeg", "jpg").replace(/^(jfif|pjpeg)$/, "jpg").replace("quicktime", "mov").replace(/^f4v$/, "mp4");
+    const id = crypto.randomUUID();
+    const key = `bot-media/${id}.${ext}`;
+    await putFile(key, file.data);
+    const name = file.name.replace(/[\\/]/g, "_").slice(0, 120) || `file.${ext}`;
+    const m: BotMaterial = { id: id.slice(0, 8), kind, key, name, mime: file.mime || "application/octet-stream", size: file.data.length, caption: meta.caption.trim().slice(0, 300), lang: meta.lang, about: meta.about.trim().slice(0, 200), on: true };
+    await this.saveMaterials([...list, m], actorId);
+    return m;
+  }
+
+  /** Файл подборки (превью в настройках); null — нет такого. */
+  async materialFile(id: string): Promise<{ data: Uint8Array; material: BotMaterial } | null> {
+    const m = (await this.materials()).find((x) => x.id === id);
+    const data = m ? await getFile(m.key).catch(() => null) : null;
+    return m && data ? { data: new Uint8Array(data), material: m } : null;
+  }
+
+  /** Убрать файл из подборки. Сам файл остаётся в хранилище: на него ссылаются уже отправленные клиентам сообщения. */
+  async removeMaterial(id: string, actorId: string) {
+    const list = await this.materials();
+    const m = list.find((x) => x.id === id);
+    if (!m) return;
+    await this.saveMaterials(
+      list.filter((x) => x.id !== id),
+      actorId,
+    );
+  }
+
   async lessons(): Promise<{ lessons: BotLesson[]; log: CoachRun[] }> {
     const v = await this.deps.settings.getMany(["bot.lessons", "bot.coach"]);
     return { lessons: parseLessons(v["bot.lessons"]), log: parseCoachLog(v["bot.coach"]) };

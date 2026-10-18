@@ -519,7 +519,8 @@ describe("бот: режим «Продаёт»", () => {
     expect(offer).not.toContain("менеджерге жеткіздім"); // казахский клиент: не финал опроса
     expect(offer).toMatch(/Қатты мұқабалы кітаптың бастапқы бағасы — 30\s000 ₸/u);
     expect(offer).toMatch(/10\s000 ₸ алдын ала төлем/u);
-    expect(offer).toContain("25 қазан күніне уақыт тығыз, бірақ экспресс-баспамен үлгереміз. Кітапты толтырудың соңғы күні — 18 қазан.");
+    // Впритык (дописать до завтра) — обычным сроком успеваем: шаблон «успеваем» с последним днём.
+    expect(offer).toContain("25 қазан күніне үлгереміз 👍 Кітапты толтырудың соңғы күні — 18 қазан");
     expect(offer).toContain("Рәсімдейміз бе?");
     expect(state.phase).toBe("active");
     expect(state.stage).toBe("offer");
@@ -590,7 +591,15 @@ describe("бот: режим «Продаёт»", () => {
     const s = { writeDays: 2, deliveryDays: 2 };
     const p = { standard: "5–7", premium: "3–4" };
     expect(deadlinePlan("2026-11-21", day, TZ, s, p)).toEqual({ kind: "ok", fillBy: "2026-11-12" });
-    expect(deadlinePlan("2026-10-25", day, TZ, s, p)).toEqual({ kind: "express", fillBy: "2026-10-18" });
+    // Экспресс — 4 рабочих дня: готово к пятнице 23-го (доставка 2 дня) — дописать до понедельника 19-го.
+    expect(deadlinePlan("2026-10-25", day, TZ, s, p)).toEqual({ kind: "express", fillBy: "2026-10-19" });
+    // Срок владельца 5 дней: дописать до завтра (сегодня — тоже день на книгу) — успеваем впритык, начать нужно сегодня.
+    const own = { ...s, productionDays: 5 };
+    // …и экспресс как запас: с ним дописать можно на день дольше.
+    expect(deadlinePlan("2026-10-25", day, TZ, own, p)).toEqual({ kind: "tight", fillBy: "2026-10-18", expressFillBy: "2026-10-19" });
+    expect(deadlinePlan("2026-10-26", day, TZ, own, p)).toEqual({ kind: "ok", fillBy: "2026-10-19" });
+    // Чат 19.10: 25-е, Алматы (доставка в день готовности), ночью 19-го — дописать до 20-го, впритык.
+    expect(deadlinePlan("2026-10-25", new Date("2026-10-18T21:03:00Z"), TZ, { writeDays: 2, deliveryDays: 0, productionDays: 5 }, p)).toEqual({ kind: "tight", fillBy: "2026-10-20" });
     expect(deadlinePlan("2026-10-20", day, TZ, s, p)?.kind).toBe("late");
     expect(deadlinePlan("2026-10-01", day, TZ, s, p)).toBeNull();
   });

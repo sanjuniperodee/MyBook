@@ -317,6 +317,29 @@ export class MessagingService {
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
+  /**
+   * Файл клиенту от бота (подборка материалов продажника): бот не останавливается и сделку на себя не берёт; в CRM —
+   * сообщение «бот» со ссылкой на файл. false — канал не умеет файлы или отправка не удалась.
+   */
+  async sendBotFile(conversationId: string, file: OutgoingFile, caption: string, mediaUrl: string): Promise<boolean> {
+    const conv = await this.conversations.findById(conversationId);
+    if (!conv || !this.transport.sendFile) return false;
+    const text = caption.trim().slice(0, 1000);
+    const msg = await this.messages.insertOutgoing(conversationId, text, null, false, "bot", { type: file.kind, mediaUrl });
+    const label = file.kind === "image" ? "📷 Фото" : file.kind === "video" ? "🎬 Видео" : `📎 ${file.name}`;
+    await this.conversations.recordOutgoing(conversationId, preview(text || label), this.clock.now(), null);
+    this.live.chatChanged(conversationId);
+    const r = await this.transport.sendFile(conv, file, { caption: text });
+    if (!r.ok) {
+      await this.messages.setStatus(msg.id, "error", r.error);
+      this.live.chatChanged(conversationId);
+      return false;
+    }
+    await this.messages.attachExternalId(msg.id, r.externalId);
+    this.live.chatChanged(conversationId);
+    return true;
+  }
+
   /** Своё сообщение или заметку сотрудник меняет и удаляет сам; чужие и сообщения клиента — нет. */
   private async ownMessage(conversationId: string, messageId: string, authorId: string): Promise<StoredMessage> {
     const m = await this.messages.findOne(messageId);

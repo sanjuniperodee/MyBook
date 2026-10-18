@@ -1,4 +1,4 @@
-import { defaultBotConfig, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts } from "@/modules/messaging/domain";
+import { defaultBotConfig, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
 import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
 
 export const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
@@ -64,6 +64,8 @@ export function setup(
     assignee?: string | null;
     /** Что CRM знает об оплате (платежи, счета, заказы) — для AI. */
     payments?: PaymentFacts;
+    /** Подборка материалов продажника (фото, видео, пример книги). */
+    materials?: BotMaterial[];
   } = {},
 ) {
   let now = start;
@@ -283,6 +285,9 @@ export function setup(
     invoices: opts.invoices ?? null,
     media: opts.mediaFiles ? async (id: string) => opts.mediaFiles!(id) : null,
     transcript: async (id: string, text: string) => void Object.assign(msgs.find((m) => m.id === id) ?? {}, { transcript: text }),
+    materials: opts.materials
+      ? { list: async () => opts.materials!, send: (id: string, m: BotMaterial) => service.sendBotFile(id, { data: new Uint8Array([1]), name: m.name, mime: m.mime, kind: m.kind }, m.caption, `store:${m.key}`) }
+      : null,
     history: async (id: string) =>
       msgs
         .filter((m) => m.conv === id && !m.internal)

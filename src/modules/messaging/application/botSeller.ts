@@ -30,6 +30,12 @@ import {
   sellerTranscript,
   sellerUserPrompt,
   splitReply,
+  materialsAlreadySent,
+  isWarmLead,
+  WARM_FIRST_FOLLOW_UP_MS,
+  materialsFor,
+  materialsSummary,
+  type BotLang,
   withMediaText,
   SELLER_MAX_FOLLOW_UPS,
   type BotConfig,
@@ -174,7 +180,9 @@ export class AiSeller {
     if (start && readSellerAi(state.ai).takeover && decided.decision.action === "wait" && result.state.phase !== "done") return this.quietTakeover(conv, state, result.state);
     const next: BotState = { ...result.state, engine: "ai", ai: { ...readSellerAi(result.state.ai), failures: 0 } };
     result.state = next;
-    const saved = await this.d.store.save(conv.id, state.version, { botStep: result.done ? BOT_DONE : 0, state: next, dueAt: result.done ? null : new Date(now.getTime() + BOT_ABANDON_MS) });
+    // Тёплый клиент: «Ознакомились?» через 20 минут — следующий ход раньше обычных получаса тишины.
+    const idle = isWarmLead(next.ai) && config.sell.followUpHours > 0 ? Math.min(WARM_FIRST_FOLLOW_UP_MS, BOT_ABANDON_MS) : BOT_ABANDON_MS;
+    const saved = await this.d.store.save(conv.id, state.version, { botStep: result.done ? BOT_DONE : 0, state: next, dueAt: result.done ? null : new Date(now.getTime() + idle) });
     if (!saved) return true;
     await this.apply(conv, state, result, fields, env);
     if (!result.done) {
@@ -307,6 +315,13 @@ export class AiSeller {
         const lead = decided.turn.reply ? `${decided.turn.reply}\n\n` : "";
         transcript.push({ from: "bot", text: `${lead}🧾 [Здесь бот выставит счёт на ${new Intl.NumberFormat("ru-RU").format(inv.amount)} ₸ (${inv.plan === "digital" ? "электронная" : "печатная"}, цена по договорённости ${new Intl.NumberFormat("ru-RU").format(inv.total)} ₸) со ссылкой на оплату]` });
         history.push({ from: "bot", text: decided.turn.reply ?? "", at: ctx.now });
+      } else if (decided.turn.reply && decided.turn.materials) {
+        const parts = splitReply(decided.turn.reply);
+        const after = decided.turn.materialsAfter ?? 1;
+        const list = materialsFor((await this.d.materials?.list().catch(() => [])) ?? [], state.lang);
+        transcript.push({ from: "bot", text: [...parts.slice(0, after), `📎 [Здесь бот отправит подборку: ${materialsSummary(list) || "пусто"}]`, ...parts.slice(after)].join("\n\n") });
+        history.push({ from: "bot", text: decided.turn.reply, at: ctx.now });
+        for (const m of list) history.push({ from: "bot", text: m.caption || m.name, at: ctx.now, type: m.kind });
       } else if (decided.turn.reply) {
         transcript.push({ from: "bot", text: decided.turn.reply });
         history.push({ from: "bot", text: decided.turn.reply, at: ctx.now });
@@ -346,7 +361,7 @@ export class AiSeller {
     };
   }
 
-  private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>) {
+  private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>, materials = false) {
     // Мы (бот или менеджер) писали за последние 6 часов — уже поздоровались; через сутки «Добрый день!» снова уместно.
     const lastOurs = [...history].reverse().find((m) => m.from !== "client");
     const now = this.d.clock.now().getTime();
@@ -354,7 +369,7 @@ export class AiSeller {
     // Представляется только в новом чате: если клиенту уже писали мы (бот или менеджер — подхват, запуск кнопкой), бот не
     // представляется, а продолжает от лица компании (владелец, 18.10: «не обязательно представляться при подхвате»).
     const intro = lastOurs ? null : { greet: true };
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro };
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro, materials };
   }
 
   /**
@@ -365,7 +380,11 @@ export class AiSeller {
   private async consult(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" | "copilot"; voice?: { manager: string } | null; quick?: boolean }) {
     const { conv, base, config, fields, fresh, purpose } = a;
     const voice = a.voice ?? null;
-    const [knowledge, lessons] = await Promise.all([this.d.settings.knowledge().catch(() => ""), this.d.settings.lessons?.().catch(() => []) ?? []]);
+    const [knowledge, lessons, materialList] = await Promise.all([
+      this.d.settings.knowledge().catch(() => ""),
+      this.d.settings.lessons?.().catch(() => []) ?? [],
+      voice ? [] : (this.d.materials?.list().catch(() => []) ?? []),
+    ]);
     const schemaFields = fields.filter((f) => base.questions.includes(f.key));
     const schema = sellerSchema(schemaFields);
     const ai = readSellerAi(base.ai);
@@ -387,6 +406,9 @@ export class AiSeller {
       .map((f) => ({ label: f.label, value: base.filled[f.key] ?? env.dealValues[f.key] }))
       .filter((k): k is { label: string; value: string | number } => k.value !== undefined && k.value !== null && k.value !== "")
       .map((k) => ({ label: k.label, value: String(k.value) }));
+    // Подборка материалов: есть ли она и уходила ли уже (от бота или — при подхвате — от менеджера).
+    const materialsSent = ai.materialsSent || materialsAlreadySent(history);
+    const materials = materialsFor(materialList, base.lang).length ? { summary: materialsSummary(materialList), sent: materialsSent } : null;
     const transcript = sellerTranscript(history, fresh.length, env.tz);
     const user = sellerUserPrompt(transcript, purpose, fresh.length > 0);
     // Тема разговора для выбора кусков базы знаний: последние сообщения клиента.
@@ -398,7 +420,7 @@ export class AiSeller {
       .slice(0, 1500);
 
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice });
+      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials });
       let raw: string;
       try {
         raw = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
@@ -428,7 +450,7 @@ export class AiSeller {
       }
     }
     const rewrite = (problems: ReplyProblem[]) => ask(null, problems, deadline);
-    return { decision, env, rules, history, rewrite };
+    return { decision, env, rules, history, rewrite, materials: !!materials && !materials.sent && purpose === "reply" };
   }
 
   /**
@@ -440,12 +462,12 @@ export class AiSeller {
     if ("error" in c) return c;
     const { conv, base, config, fresh: inputs } = a;
     let decision = c.decision;
-    let turn = resolveSellerTurn(base, decision, c.env, this.ctx(conv, c.env, config, inputs, c.history, false, c.rules));
+    let turn = resolveSellerTurn(base, decision, c.env, this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials));
     if (turn.retry) {
       const rewritten = await c.rewrite(turn.retry);
       if ("error" in rewritten) return rewritten;
       decision = rewritten;
-      turn = resolveSellerTurn(base, rewritten, c.env, this.ctx(conv, c.env, config, inputs, c.history, true, c.rules));
+      turn = resolveSellerTurn(base, rewritten, c.env, this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials));
     }
     return { turn, decision };
   }
@@ -504,6 +526,8 @@ export class AiSeller {
         if (text) await this.send(conv, text);
         events.push({ kind: "blocked", reason: "invoice: не выставлен" });
       }
+    } else if (result.reply && result.materials) {
+      await this.sayWithMaterials(conv, result.reply, final.lang, result.materialsAfter ?? 1);
     } else if (result.reply) {
       await this.say(conv, result.reply);
     }
@@ -516,6 +540,25 @@ export class AiSeller {
   /** Ответ модели — как пишет человек в WhatsApp: абзацы через пустую строку уходят отдельными сообщениями (до трёх). */
   private async say(conv: Conversation, text: string) {
     for (const part of splitReply(text)) await this.send(conv, part);
+  }
+
+  /**
+   * Ответ с подборкой — как у менеджера: подводка → фото (WhatsApp склеивает их в альбом) → видео → пример книги →
+   * остальное (срок, цена, вопрос). Ответил человек посреди подборки — дальше не шлём.
+   */
+  private async sayWithMaterials(conv: Conversation, text: string, lang: BotLang, after: number) {
+    const parts = splitReply(text);
+    for (const part of parts.slice(0, after)) await this.send(conv, part);
+    const rest = parts.slice(after);
+    const list = materialsFor((await this.d.materials?.list().catch(() => [])) ?? [], lang);
+    let sent = 0;
+    for (const m of list) {
+      const current = await this.d.store.load(conv.id);
+      if (current?.state?.outcome === "stopped_by_manager") return;
+      if (await this.d.materials!.send(conv.id, m).catch(() => false)) sent++;
+    }
+    if (list.length && !sent) this.d.logger.error("bot materials", `не ушёл ни один файл из ${list.length}`);
+    for (const part of rest) await this.send(conv, part);
   }
 
   /** Отправить клиенту, если человек не вмешался, пока бот думал. */

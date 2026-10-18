@@ -8,9 +8,10 @@ import { BotForm } from "../crm/BotForm";
 import type { BotFormTab } from "../crm/botTabs";
 import { BotStats } from "../crm/BotStats";
 import { BotLessons } from "../crm/BotLessons";
+import { BotMaterials } from "../crm/BotMaterials";
 
 export async function BotTab({ section }: { section?: BotFormTab }) {
-  const [botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel, sellerModel, coach] = await Promise.all([
+  const [botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel, sellerModel, coach, materials] = await Promise.all([
     getSetting("bot.mode"),
     getSetting("bot.config"),
     listFields("deal"),
@@ -26,6 +27,7 @@ export async function BotTab({ section }: { section?: BotFormTab }) {
       .then(async (d) => ((await container().assistant.seller.configured()) ? d.model || d.label : null))
       .catch(() => null),
     container().messaging.lessons(),
+    container().messaging.materials(),
   ]);
   const botFields = dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options ?? [] }));
   const parsedBot = parseBotConfig(botConfig);
@@ -42,6 +44,7 @@ export async function BotTab({ section }: { section?: BotFormTab }) {
       aiModel={aiModel}
       seller={sellerModel}
       initialTab={section}
+      materials={<BotMaterials initial={materials} />}
       coach={<BotLessons lessons={coach.lessons} log={coach.log} enabled={parsedBot.sell.selfImprove} />}
       stats={<BotStats m={botMetrics} questions={parsedBot.questions.flatMap((q) => botFields.filter((f) => f.key === q.field).map((f) => ({ key: f.key, label: f.label })))} skipLabels={skipReasonLabels} />}
     />

@@ -233,3 +233,42 @@ export async function addBotLessonAction(text: string): Promise<{ error?: string
   revalidatePath("/admin/settings");
   return {};
 }
+
+const materialPatch = z.object({
+  id: z.string().min(1).max(40),
+  caption: z.string().max(300),
+  about: z.string().max(200),
+  lang: z.enum(["any", "ru", "kk"]),
+  on: z.boolean(),
+});
+
+/** Подборка материалов: подписи, язык, вкл/выкл и порядок (файлы добавляются через /api/admin/bot/materials). */
+export async function saveBotMaterialsAction(items: unknown): Promise<{ error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = z.array(materialPatch).max(50).safeParse(items);
+  if (!parsed.success) return { error: "Не удалось сохранить подборку" };
+  const current = await container().messaging.materials();
+  const byId = new Map(current.map((m) => [m.id, m]));
+  // Только известные файлы, в новом порядке; что не пришло — остаётся в конце (добавлено в другой вкладке).
+  const next = parsed.data.flatMap((p) => {
+    const m = byId.get(p.id);
+    return m ? [{ ...m, caption: p.caption.trim(), about: p.about.trim(), lang: p.lang, on: p.on }] : [];
+  });
+  const rest = current.filter((m) => !parsed.data.some((p) => p.id === m.id));
+  for (const m of next) {
+    const found = findSensitive(`${m.caption}`, []);
+    if (found.length) return { error: `В подписи «${m.name}» ${sensitiveLabels[found[0].kind]} — бот такое не отправляет` };
+  }
+  await container().messaging.saveMaterials([...next, ...rest], staff.user.id);
+  await audit(staff, "settings.update", "settings", "bot.materials", { count: next.length + rest.length });
+  revalidatePath("/admin/settings");
+  return {};
+}
+
+export async function deleteBotMaterialAction(id: string): Promise<void> {
+  const staff = await assertStaff("settings.manage");
+  const clean = z.string().min(1).max(40).parse(id);
+  await container().messaging.removeMaterial(clean, staff.user.id);
+  await audit(staff, "settings.update", "settings", "bot.materials", { removed: clean });
+  revalidatePath("/admin/settings");
+}

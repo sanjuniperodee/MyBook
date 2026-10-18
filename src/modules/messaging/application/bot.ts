@@ -19,11 +19,14 @@ import {
   outcomeTitle,
   readSellerAi,
   SELLER_MAX_FOLLOW_UPS,
+  followUpDelayMs,
+  isWarmLead,
   safeName,
   startBlocker,
   themeLabel,
   type BotEnv,
   type BotEvent,
+  type BotMaterial,
   type BotInput,
   type BotLang,
   type BotSkipReason,
@@ -70,6 +73,14 @@ export interface QualifierBotDeps {
   transcript?: ((messageId: string, text: string) => Promise<void>) | null;
   /** Диалог изменился без сообщения (AI снял «ждёт ответа») — обновить экран чатов. */
   changed?: ((conversationId: string) => void) | null;
+  /** Подборка материалов владельца (фото, видео, пример книги) и отправка файла клиенту от имени бота. */
+  materials?: BotMaterialsPort | null;
+}
+
+/** Материалы для клиента: список из настроек и отправка одного файла (false — не ушёл). */
+export interface BotMaterialsPort {
+  list(): Promise<BotMaterial[]>;
+  send(conversationId: string, material: BotMaterial): Promise<boolean>;
 }
 
 /** Через сколько после сообщения клиента AI решает, ждёт ли он ответа (менеджер мог ответить сам — тогда не спрашиваем). */
@@ -555,21 +566,30 @@ export class QualifierBot {
   }
 
   /**
-   * Клиент молчит. Шаблонный бот после предложения — одно напоминание через N часов. AI-продажник — как менеджер: через
-   * N часов «Ознакомились?», на следующий день «Как ваши дела?» (в рабочее время); если замолчали ещё на знакомстве —
-   * через полчаса менеджер узнаёт об этом (может ответить сам — бот замолчит). Дальше 12 часов тишины — итог менеджеру.
+   * Клиент молчит. Шаблонный бот после предложения — одно напоминание через N часов. AI-продажник — как менеджер
+   * (followUpDelayMs): тёплому клиенту через 20 минут «Ознакомились?», через N часов «Освободились?», на следующий день
+   * «Как ваши дела?»; остальным — через N часов и на следующий день (всё в рабочее время). Если холодный клиент замолчал
+   * ещё на знакомстве — через полчаса менеджер узнаёт об этом (может ответить сам — бот замолчит). Дальше 12 часов
+   * тишины — итог менеджеру.
    */
   private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
     const ai = readSellerAi(state.ai);
     const aiEngine = state.engine === "ai";
-    const canFollowUp = config.sell.followUpHours > 0 && (aiEngine ? ai.followUps < SELLER_MAX_FOLLOW_UPS : !state.followedUp);
-    if (canFollowUp) {
-      const wait = aiEngine && ai.followUps > 0 ? BOT_NEXT_DAY_FOLLOW_UP_MS : config.sell.followUpHours * 3_600_000;
+    // AI-продажник: тёплому клиенту — чаще (20 минут, несколько часов, следующий день), остальным — как раньше.
+    const wait = aiEngine
+      ? ai.followUps < SELLER_MAX_FOLLOW_UPS
+        ? followUpDelayMs(ai, config.sell.followUpHours, BOT_NEXT_DAY_FOLLOW_UP_MS)
+        : null
+      : config.sell.followUpHours > 0 && !state.followedUp
+        ? config.sell.followUpHours * 3_600_000
+        : null;
+    if (wait !== null) {
       const at = new Date(last + wait);
       // Ночью не пишем: напоминание — с началом рабочего дня.
       const due = (await this.d.settings.isWorkTime(at)) ? at : ((await this.d.settings.nextWorkStart(at)) ?? at);
-      if (aiEngine && state.stage !== "offer" && !ai.silenceNoted && ai.followUps === 0) {
+      // Тёплому клиенту бот сам напомнит через 20 минут — заметку «клиент замолчал» менеджеру не шлём.
+      if (aiEngine && state.stage !== "offer" && !ai.silenceNoted && ai.followUps === 0 && !isWarmLead(ai)) {
         const noteAt = last + BOT_ABANDON_MS;
         if (now.getTime() < noteAt) {
           await this.later(conv.id, new Date(Math.min(noteAt, due.getTime())));

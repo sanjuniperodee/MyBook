@@ -378,11 +378,12 @@ const calendarDays = (days: string) => {
   return Math.ceil((n * 7) / 5);
 };
 
-export type DeadlineKind = "ok" | "express" | "late";
+export type DeadlineKind = "ok" | "tight" | "express" | "late";
 
 /**
  * Успеем ли к дате: дописать книгу (writeDays) + печать + доставка. fillBy — последний день, чтобы дописать.
- * Печать обычная не успевает — экспресс; и экспресс не успевает — late. Прошедшая дата — null (бот про срок молчит).
+ * tight — обычным сроком успеваем, только если начать писать сегодня (сегодняшний день — тоже день на книгу): так
+ * менеджер и продаёт «нужно начать сегодня, чтобы успеть». Печать обычная не успевает — экспресс; и экспресс — late. Прошедшая дата — null (бот про срок молчит).
  */
 export function deadlinePlan(
   eventIso: string,
@@ -390,17 +391,30 @@ export function deadlinePlan(
   tz: string,
   sell: { writeDays: number; deliveryDays: number; productionDays?: number },
   production: { standard: string; premium: string },
-): { kind: DeadlineKind; fillBy: string } | null {
+): { kind: DeadlineKind; fillBy: string; expressFillBy?: string } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(eventIso)) return null;
   const today = dayMs(zonedDay(now, tz));
   const event = dayMs(eventIso);
   if (!Number.isFinite(event) || event < today) return null;
   // Срок владельца для бота («книга готовится до 5 дней», календарных) важнее рабочих дней с витрины сайта.
   const standard = event - (sell.deliveryDays + (sell.productionDays || calendarDays(production.standard))) * DAY;
+  // Экспресс — рабочие дни (пн–пт), по верхней границе «3–4»: это платное обещание, запас важнее.
+  const express = workdaysBefore(event - sell.deliveryDays * DAY, Math.max(...(production.premium.match(/\d+/g) ?? ["0"]).map(Number)));
   if (standard >= today + sell.writeDays * DAY) return { kind: "ok", fillBy: isoDay(standard) };
-  const express = event - (sell.deliveryDays + calendarDays(production.premium)) * DAY;
+  if (standard >= today + Math.max(1, sell.writeDays - 1) * DAY)
+    return express > standard ? { kind: "tight", fillBy: isoDay(standard), expressFillBy: isoDay(express) } : { kind: "tight", fillBy: isoDay(standard) };
   if (express >= today + DAY) return { kind: "express", fillBy: isoDay(express) };
   return { kind: "late", fillBy: isoDay(event) };
+}
+
+/** Последний день, чтобы дописать: печать — n рабочих дней (пн–пт) после него, книга готова к ready. */
+function workdaysBefore(ready: number, n: number): number {
+  let at = ready;
+  for (let left = n; left > 0; at -= DAY) {
+    const wd = new Date(at).getUTCDay();
+    if (wd !== 0 && wd !== 6) left--;
+  }
+  return at;
 }
 
 /** Значение поля сделки: из ответа боту или из сделки. */
@@ -439,7 +453,7 @@ function offerParts(ctx: Ctx): string[] {
   if (!ctx.s.faq.includes("price")) out.push(text(ctx, "offerPrice"));
   const { date, digital } = sellFacts(ctx);
   const plan = date && !digital ? deadlinePlan(date, ctx.env.now, ctx.env.tz, ctx.env.config.sell, ctx.env.catalog.productionDays) : null;
-  if (plan) out.push(text(ctx, plan.kind === "ok" ? "deadlineOk" : plan.kind === "express" ? "deadlineExpress" : "deadlineLate"));
+  if (plan) out.push(text(ctx, plan.kind === "ok" || plan.kind === "tight" ? "deadlineOk" : plan.kind === "express" ? "deadlineExpress" : "deadlineLate"));
   out.push(text(ctx, "close"));
   return out;
 }
