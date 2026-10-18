@@ -59,7 +59,8 @@ describe("от чьего имени пишет бот", () => {
     const sell = { ...defaultBotConfig.sell, speaksAs: "manager" as const };
     expect(introLine(sell, "ru", true)).toBe("Здравствуйте! 😊 Меня зовут Марат.");
     expect(introLine(sell, "ru", false)).toBe("Это Марат 🙂");
-    expect(introLine(sell, "kk", true)).toBe("Сәлеметсіз бе! 😊 Мен Марат.");
+    expect(introLine(sell, "kk", true)).toBe("Сәлеметсіз бе! 😊 Менің атым Марат.");
+    expect(introLine(sell, "kk", false)).toBe("Менің атым Марат 🙂");
     expect(introLine({ ...sell, speaksAs: "assistant" }, "ru", true)).toContain("помощница менеджера Марата");
   });
 });
@@ -88,6 +89,21 @@ describe("AI-продажник в образе самого менеджера"
     expect(t.sent).toEqual(["Здравствуйте! 😊 Меня зовут Марат.", "Для кого хотите сделать книгу? 🎁"]);
   });
 
+  it("по-казахски: забыла представиться — «Менің атым Марат»; представилась сама — второй раз не добавляется", async () => {
+    const forgot = fakeModel([ans({ language: "kk", reply: "Кітапты кімге сыйлағыңыз келеді? 🎁" })]);
+    const t = setup({ bot: "always", config: marat(), seller: forgot.model });
+    await t.service.ingest(inbound({ text: "Сәлеметсіз бе, кітап жайлы білейін деп едім" }));
+    await run(t);
+    expect(t.sent).toEqual(["Сәлеметсіз бе! 😊 Менің атым Марат.", "Кітапты кімге сыйлағыңыз келеді? 🎁"]);
+
+    const own = fakeModel([ans({ language: "kk", reply: "Сәлеметсіз бе! 😊 Менің атым Марат. Кітапты кімге сыйлағыңыз келеді?" })]);
+    const t2 = setup({ bot: "always", config: marat(), seller: own.model });
+    await t2.service.ingest(inbound({ text: "Сәлеметсіз бе" }));
+    await run(t2);
+    expect(t2.sent).toEqual(["Сәлеметсіз бе! 😊 Менің атым Марат. Кітапты кімге сыйлағыңыз келеді?"]);
+    expect(own.calls[0].system).toContain("«Менің атым Марат»");
+  });
+
   it("«передаю Марату» и «я помощница» — ответ не уходит, модель переписывает от первого лица", async () => {
     const { model, calls } = fakeModel([
       ans({ reply: "Это Марат 🙂 Передаю Марату — он подберёт вариант и напишет цену" }),
@@ -106,7 +122,7 @@ describe("AI-продажник в образе самого менеджера"
     const sell = { speaksAs: "manager" as const, managerName: "Марат" };
     for (const bad of ["Передаю Марату — он подберёт вариант", "Марат напишет вам цену", "Передала ваш вопрос менеджеру", "Я помощница Марата", "Менеджер свяжется с вами", "Маратқа жеткіздім"])
       expect(personaProblems(bad, sell), bad).not.toEqual([]);
-    for (const ok of ["Здравствуйте! 😊 Меня зовут Марат.\n\nКому книга?", "Марат, подскажите, для кого книга?", "Мен Марат. Кітап кімге?", "Подберу вариант и напишу вам цену 🙌"])
+    for (const ok of ["Здравствуйте! 😊 Меня зовут Марат.\n\nКому книга?", "Марат, подскажите, для кого книга?", "Менің атым Марат. Кітап кімге?", "Подберу вариант и напишу вам цену 🙌"])
       expect(personaProblems(ok, sell), ok).toEqual([]);
     expect(personaProblems("Передала Марату", { speaksAs: "assistant", managerName: "Марат" })).toEqual([]);
   });
