@@ -27,7 +27,7 @@ export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "whatsapp.phoneHolder" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -152,7 +152,7 @@ export class MessagingModule {
     this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup, gowa: this.gowa, whatsappProvider: deps.whatsappSettings.provider, smtp: deps.smtp });
     const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup, this.email));
     const messages = this.messages;
-    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp);
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder());
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
   }
@@ -213,6 +213,21 @@ export class MessagingModule {
     const text = res.text.trim().slice(0, 4000) || "(неразборчиво)";
     await this.messages.setTranscript(m.id, text);
     return text;
+  }
+
+  /** У кого сейчас телефон WhatsApp магазина: его ответы с телефона забирают новые заявки. */
+  async phoneHolder(): Promise<{ id: string; name: string } | null> {
+    const raw = await this.deps.settings.get("whatsapp.phoneHolder");
+    try {
+      const v = raw ? (JSON.parse(raw) as { id?: string; name?: string }) : null;
+      return v?.id ? { id: v.id, name: v.name ?? "" } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setPhoneHolder(holder: { id: string; name: string } | null, actorId: string) {
+    await this.deps.settings.save({ "whatsapp.phoneHolder": holder ? JSON.stringify(holder) : "" }, actorId);
   }
 
   /** Уроки работы над ошибками и журнал разборов (для настроек и разбора). */

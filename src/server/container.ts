@@ -114,6 +114,22 @@ export class Container {
         createDeal: ({ channel, source, ...input }) => this.sales.deals.create({ ...input, source: source ?? sourceFromChannel(channel) }),
         setUtmIfEmpty: (dealId, utm) => this.sales.deals.setUtmIfEmpty(dealId, utm),
         acceptUnsorted: (dealId, authorId) => this.sales.deals.acceptUnsorted(dealId, authorId),
+        claimNewLead: async (dealId, userId) => {
+          const d = await this.sales.deals.findById(dealId);
+          if (!d) return { claimed: false, previous: null };
+          if (d.assigneeId === userId) {
+            await this.sales.deals.acceptUnsorted(dealId, userId);
+            return { claimed: true, previous: null };
+          }
+          const stage = await this.sales.deals.stage(d.stageId);
+          const first = stage ? await this.sales.deals.stageOfKind("open", stage.pipelineId) : null;
+          // Новая заявка: ещё в «Неразобранном», без ответственного или на первом этапе воронки.
+          const fresh = d.unsorted || !d.assigneeId || (!!stage && first?.id === stage.id);
+          if (!fresh) return { claimed: false, previous: null };
+          await this.sales.deals.assign(dealId, userId);
+          await this.sales.deals.acceptUnsorted(dealId, userId);
+          return { claimed: true, previous: d.assigneeId };
+        },
         note: (deal, text) => this.sales.deals.note(deal, text, null),
         setField: (dealId, key, value) => this.sales.deals.setField(dealId, key, value),
         deal: (dealId) => this.sales.deals.findById(dealId),

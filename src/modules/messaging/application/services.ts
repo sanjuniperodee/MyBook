@@ -71,7 +71,29 @@ export class MessagingService {
     private readonly logger: Logger,
     /** Номер магазина: его в сообщениях с телефона компании писать можно. */
     private readonly shopPhone: () => Promise<string> = async () => "",
+    /** Кто сейчас держит телефон WhatsApp магазина (настройка в «Чатах»); null — не указано. */
+    private readonly phoneHolder: () => Promise<{ id: string; name: string } | null> = async () => null,
   ) {}
+
+  /**
+   * Ответили клиенту с телефона магазина (мимо CRM): отвечал тот, у кого сейчас телефон. Новая заявка (неразобранная
+   * или на первом этапе) и чат переходят к нему, даже если круг уже отдал их другому; прежнему ответственному —
+   * уведомление. Заявки в работе у коллег не перехватываются.
+   */
+  private async claimByPhone(conv: Conversation) {
+    const holder = await this.phoneHolder().catch(() => null);
+    if (!holder) return;
+    let from: string | null = null;
+    if (conv.dealId && this.sales.claimNewLead) {
+      const r = await this.sales.claimNewLead(conv.dealId, holder.id);
+      if (!r.claimed) return;
+      from = r.previous;
+    } else if (conv.assigneeId && conv.assigneeId !== holder.id) return;
+    if (conv.assigneeId !== holder.id) await this.conversations.setAssignee(conv.id, holder.id);
+    if (from && from !== holder.id)
+      await this.notifier.notify(from, "chats.view", { kind: "message", title: `Заявку взял(а) ${holder.name}: ответил(а) с телефона WhatsApp`, body: conv.contactName || phoneTail(conv.chatId) || "клиент", link: `/admin/chats?c=${conv.id}` });
+    this.live.chatChanged(conv.id);
+  }
 
   /** Диалог по собеседнику; новый сразу связываем с клиентом по телефону. */
   private async upsert(m: InboundMessage, extra: IngestExtra): Promise<{ conv: Conversation; created: boolean }> {
@@ -126,6 +148,8 @@ export class MessagingService {
       await this.conversations.recordEcho(base.id, preview(m.text), m.at);
       // Ответил человек с телефона магазина — бот в этом диалоге больше не пишет (и не начнёт).
       await this.bot.stopByHuman(base.id, "phone").catch((err) => this.logger.error("bot stop", err));
+      // Отвечал тот, у кого сейчас телефон: новая заявка — его.
+      await this.claimByPhone(base).catch((err) => this.logger.error("phone claim", err));
       // С телефона компании (мимо CRM) ушли чужой номер, карта или реквизиты — запретить нельзя, руководитель узнаёт сразу.
       const found = findSensitive(m.text, [m.chatId, base.meta.phone, await this.shopPhone()]);
       if (found.length)

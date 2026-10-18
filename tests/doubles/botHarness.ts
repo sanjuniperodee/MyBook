@@ -55,6 +55,9 @@ export function setup(
     invoices?: BotInvoices;
     /** Читатель файлов вложений: id сообщения → байты (для распознавания голосовых и фото). */
     mediaFiles?: (id: string) => { data: Uint8Array; mime: string } | null;
+    /** У кого телефон WhatsApp; claimNewLead — что вернёт продажи (по умолчанию заявка новая, ничья). */
+    phoneHolder?: { id: string; name: string } | null;
+    claimNewLead?: (dealId: string, userId: string) => { claimed: boolean; previous: string | null };
     /** Делает сделку ответственного и «открытой» для подхвата. */
     assignee?: string | null;
   } = {},
@@ -68,6 +71,7 @@ export function setup(
   const files: { name: string; kind: string; caption: string; forwarded: boolean; replyTo: string | null }[] = [];
   const edits: { externalId: string; text: string }[] = [];
   const revokes: string[] = [];
+  const claims: { dealId: string; userId: string }[] = [];
   const notes: string[] = [];
   const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
   const events: (BotEvent & { conv: string })[] = [];
@@ -166,6 +170,7 @@ export function setup(
       return d ? { id: d.id, clientId: null, assigneeId: null, title: d.title, contactName: "", customFields: d.fields } : null;
     },
     nextRoundRobin: async () => null,
+    claimNewLead: async (dealId: string, userId: string) => (claims.push({ dealId, userId }), opts.claimNewLead ? opts.claimNewLead(dealId, userId) : { claimed: true, previous: null }),
   };
   const store: BotStore = {
     load: async (id) => {
@@ -227,6 +232,8 @@ export function setup(
     { onIncoming: (...a) => bot.onIncoming(...a), stopByHuman: (...a) => bot.stopByHuman(...a), isActive: (id) => bot.isActive(id) },
     clock,
     quiet,
+    async () => "",
+    async () => opts.phoneHolder ?? null,
   );
   const deps = {
     conversations,
@@ -275,7 +282,7 @@ export function setup(
     now = new Date(now.getTime() + ms);
     await bot.sweep();
   };
-  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, tasks, events, settings, advance, scheduled, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

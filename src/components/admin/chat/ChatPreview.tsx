@@ -2,6 +2,7 @@ import { ChatPanel } from "@/components/admin/ChatPanel";
 import { DetailsPanel } from "@/components/admin/chat/DetailsPanel";
 import { ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatListItem } from "@/components/admin/chat/Inbox";
 import type { Msg } from "@/components/admin/chat/MessageBubble";
+import { PhoneHolder } from "@/app/admin/chats/PhoneHolder";
 
 /**
  * Превью дизайна «Чатов» на придуманных данных (страница /dev/chats — только в разработке): страница CRM требует
@@ -44,7 +45,15 @@ export function ChatPreview({ empty }: { empty: boolean }) {
         <header className="h-14 shrink-0 border-b border-line bg-white/85" />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:py-8">
           <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] overflow-hidden bg-white sm:-mx-6 lg:-my-8">
-            <ChatListPane items={items} filter="open" q="" selectedId="a" hidden={false} href={({ c }) => `/dev/chats${c ? `?c=${c}` : ""}`} />
+            <ChatListPane
+              items={items}
+              filter="open"
+              q=""
+              selectedId="a"
+              hidden={false}
+              href={({ c }) => `/dev/chats${c ? `?c=${c}` : ""}`}
+              toolbar={<PhoneHolder holder={{ id: "me", name: "Марат" }} me="me" staff={[{ id: "me", label: "Марат" }, { id: "s", label: "Салауат" }]} canPickAnyone />}
+            />
             <div className="flex min-w-0 flex-1 flex-col">
               <ChatHeader title="Айдана" avatarUrl={null} channel="whatsapp" subtitle="WhatsApp · +7 701 ••• •• 89" backHref="/dev/chats" deal={{ href: "#", number: 42, stage: "Новая заявка", color: "#7a1f2b" }} assignee="Марат" />
               <ChatPanel

@@ -63,7 +63,26 @@ export interface ChatListItem {
 const waitLabel = (m: number) => (m < 60 ? `${m} мин` : m < 1440 ? `${Math.floor(m / 60)} ч` : `${Math.floor(m / 1440)} дн`);
 
 /** Колонка списка: заголовок, поиск, вкладки фильтров, диалоги. */
-export function ChatListPane({ items, filter, q, selectedId, hidden, href, emptyCta }: { items: ChatListItem[]; filter: ChatFilter; q: string; selectedId: string | null; hidden: boolean; href: (p: { f?: ChatFilter; c?: string }) => string; emptyCta?: React.ReactNode }) {
+export function ChatListPane({
+  items,
+  filter,
+  q,
+  selectedId,
+  hidden,
+  href,
+  emptyCta,
+  toolbar,
+}: {
+  items: ChatListItem[];
+  filter: ChatFilter;
+  q: string;
+  selectedId: string | null;
+  hidden: boolean;
+  href: (p: { f?: ChatFilter; c?: string }) => string;
+  emptyCta?: React.ReactNode;
+  /** Под поиском: например, «Телефон WhatsApp у …». */
+  toolbar?: React.ReactNode;
+}) {
   return (
     <div className={cn("flex w-full shrink-0 flex-col border-r border-line bg-white lg:w-[360px]", hidden && "hidden lg:flex")}>
       <div className="px-4 pt-4">
@@ -76,6 +95,7 @@ export function ChatListPane({ items, filter, q, selectedId, hidden, href, empty
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
           <input name="q" defaultValue={q} placeholder="Поиск по имени, номеру, тексту" className="h-10 w-full rounded-full bg-[#f3efe9] pr-4 pl-10 text-sm outline-none transition placeholder:text-muted focus:bg-white focus:ring-2 focus:ring-wine/20" />
         </form>
+        {toolbar ? <div className="mt-2">{toolbar}</div> : null}
       </div>
       <nav className="no-scrollbar mt-2 flex gap-4 overflow-x-auto border-b border-line px-4" aria-label="Фильтр чатов">
         {(Object.keys(CHAT_FILTERS) as ChatFilter[]).map((k) => (

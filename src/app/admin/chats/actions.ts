@@ -239,3 +239,24 @@ export async function transcribeMessageAction(conversationId: string, messageId:
   const r = await messageAction(() => container().messaging.transcribe(messageId));
   return typeof r === "string" ? { text: r } : r;
 }
+
+/**
+ * У кого сейчас телефон WhatsApp магазина: его ответы с телефона забирают новые заявки на него. Назначить любого —
+ * руководитель (назначает других), себе — любой, кто отвечает в чатах; null — не указано.
+ */
+export async function setPhoneHolderAction(userId: string | null): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const id = userId ? uuid.parse(userId) : null;
+  if (id && id !== staff.user.id && !canAssignOthers(staff)) throw new ForbiddenError();
+  if (!id && !canAssignOthers(staff)) throw new ForbiddenError();
+  let name = "";
+  if (id) {
+    const person = await container().access.queries.activeStaff(id);
+    if (!person) return { error: "Сотрудник не найден" };
+    name = staffLabel(person);
+  }
+  await container().messaging.setPhoneHolder(id ? { id, name } : null, staff.user.id);
+  await audit(staff, "settings.update", "settings", "whatsapp.phoneHolder", { to: id });
+  revalidatePath("/admin/chats");
+  return { ok: true };
+}

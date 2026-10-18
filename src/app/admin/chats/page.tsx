@@ -16,6 +16,7 @@ import { DetailsPanel } from "@/components/admin/chat/DetailsPanel";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { invoiceViews } from "@/app/admin/invoices/view";
 import { BotBanner, ChatSideControls } from "./ChatControls";
+import { PhoneHolder } from "./PhoneHolder";
 import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter, type ChatListItem } from "@/components/admin/chat/Inbox";
 
 export const metadata = { title: "Чаты" };
@@ -39,11 +40,12 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const q = sp.q?.trim();
 
   const selectedId = sp.c && /^[0-9a-f-]{36}$/.test(sp.c) ? sp.c : null;
-  const [list, admins, slaRaw, selected] = await Promise.all([
+  const [list, admins, slaRaw, selected, phoneHolder] = await Promise.all([
     container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, q),
     container().access.queries.allStaff(),
     getSetting("crm.slaMinutes"),
     selectedId ? container().messaging.queries.conversation(selectedId) : null,
+    container().messaging.phoneHolder(),
   ]);
   const sla = Number(slaRaw) || 15;
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
@@ -226,6 +228,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
         selectedId={conv?.id ?? null}
         hidden={!!conv}
         href={href}
+        toolbar={can(staff, "chats.send") ? <PhoneHolder holder={phoneHolder} me={staff.user.id} staff={staffOptions(admins)} canPickAnyone={canAssignOthers(staff)} /> : null}
         emptyCta={
           !list.length && !q && can(staff, "settings.manage") ? (
             <Link href="/admin/settings?tab=messengers" className="btn btn-outline btn-sm">

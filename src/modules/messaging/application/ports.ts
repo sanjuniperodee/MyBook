@@ -131,6 +131,11 @@ export interface SalesGateway {
   setUtmIfEmpty(dealId: string, utm: Record<string, string>): Promise<void>;
   /** Менеджер ответил — заявка из «Неразобранного» принята (и взята им, если была ничья). */
   acceptUnsorted(dealId: string, authorId: string): Promise<void>;
+  /**
+   * Ответ с телефона магазина: новая заявка (неразобранная или на первом этапе) переходит к тому, у кого телефон.
+   * claimed — теперь его (previous — кто вёл раньше); false — заявка уже в работе у другого, не трогаем.
+   */
+  claimNewLead?(dealId: string, userId: string): Promise<{ claimed: boolean; previous: string | null }>;
   note(deal: { id: string; clientId: string | null }, text: string): Promise<void>;
   setField(dealId: string, key: string, value: string | number): Promise<void>;
   deal(dealId: string): Promise<{ id: string; clientId: string | null; assigneeId: string | null; title: string; contactName: string; customFields: Record<string, unknown> } | null>;
