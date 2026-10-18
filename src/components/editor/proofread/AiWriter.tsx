@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { AlignLeft, ArrowUp, Expand, LoaderCircle, Minimize2, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "lucide-react";
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import { useMessages } from "@/i18n/client";
@@ -49,13 +50,17 @@ export function AiWriter({
   const [sel, setSel] = useState<[number, number] | null>(null);
   const [history, setHistory] = useState<Record<string, { undo: Edit[]; redo: Edit[] }>>({});
   const box = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const [place, setPlace] = useState<CSSProperties | null>(null);
   const { undo = [], redo = [] } = history[docId] ?? {};
   const last = undo.at(-1);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | TouchEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!box.current?.contains(target) && !panel.current?.contains(target)) setOpen(false);
     };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", close);
@@ -65,6 +70,31 @@ export function AiWriter({
       document.removeEventListener("mousedown", close);
       document.removeEventListener("touchstart", close);
       document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  // Окно — поверх страницы (карточка ответа обрезает всё, что выходит за её края): под кнопкой, а если внизу тесно —
+  // над ней; на телефоне — снизу экрана. Положение следует за кнопкой при прокрутке.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const r = button.current?.getBoundingClientRect();
+      if (!r) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      if (vw < 640) return setPlace({ left: 12, right: 12, bottom: 12 });
+      const width = Math.min(360, vw - 24);
+      const left = Math.max(12, Math.min(r.right - width, vw - width - 12));
+      const below = vh - r.bottom;
+      const height = panel.current?.offsetHeight ?? 320;
+      setPlace(below < height + 16 && r.top > below ? { left, width, bottom: vh - r.top + 8 } : { left, width, top: r.bottom + 8 });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
     };
   }, [open]);
 
@@ -157,6 +187,7 @@ export function AiWriter({
         </button>
       ) : null}
       <button
+        ref={button}
         type="button"
         onMouseDown={keep}
         onClick={toggle}
@@ -172,66 +203,71 @@ export function AiWriter({
         {busy ? t.working : t.open}
       </button>
 
-      {open ? (
-        <div
-          role="dialog"
-          aria-label={t.open}
-          className="animate-pop z-30 rounded-2xl border border-line bg-white p-2 text-left shadow-xl max-sm:fixed max-sm:inset-x-3 max-sm:bottom-3 sm:absolute sm:top-full sm:right-0 sm:mt-2 sm:w-[360px]"
-        >
-          <p className="px-2 pt-1 pb-2 text-[11px] font-medium tracking-wide text-muted uppercase">{sel ? t.selection : t.whole}</p>
-          <div className="grid grid-cols-2 gap-1">
-            {(Object.keys(modeIcons) as (keyof typeof modeIcons)[]).map((m) => {
-              const Icon = modeIcons[m];
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() => void run(m, text, sel ?? undefined)}
-                  className="flex items-start gap-2 rounded-xl px-2.5 py-2 text-left transition hover:bg-violet-50 disabled:opacity-60"
-                >
-                  {busy === m ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-violet-600" /> : <Icon className="mt-0.5 size-4 shrink-0 text-violet-600" />}
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-ink">{t.modes[m].label}</span>
-                    <span className="block text-xs leading-snug text-muted">{t.modes[m].hint}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <form
-            className="mt-2 flex items-end gap-1.5 border-t border-line/70 pt-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (prompt.trim()) void run("custom", text, sel ?? undefined, prompt.trim());
-            }}
-          >
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  e.currentTarget.form?.requestSubmit();
-                }
-              }}
-              rows={2}
-              maxLength={500}
-              placeholder={t.promptPlaceholder}
-              className="min-w-0 flex-1 resize-none rounded-xl bg-cream/60 px-3 py-2 text-sm outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-violet-200"
-            />
-            <button
-              type="submit"
-              disabled={!prompt.trim() || !!busy}
-              aria-label={t.send}
-              title={t.send}
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700 disabled:opacity-40"
+      {open
+        ? createPortal(
+            <div
+              ref={panel}
+              role="dialog"
+              aria-label={t.open}
+              className="animate-pop fixed z-50 rounded-2xl border border-line bg-white p-2 text-left text-xs shadow-xl"
+              style={place ?? { visibility: "hidden", top: 0, left: 0 }}
             >
-              {busy === "custom" ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
-            </button>
-          </form>
-        </div>
-      ) : null}
+              <p className="px-2 pt-1 pb-2 text-[11px] font-medium tracking-wide text-muted uppercase">{sel ? t.selection : t.whole}</p>
+              <div className="grid grid-cols-2 gap-1">
+                {(Object.keys(modeIcons) as (keyof typeof modeIcons)[]).map((m) => {
+                  const Icon = modeIcons[m];
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => void run(m, text, sel ?? undefined)}
+                      className="flex items-start gap-2 rounded-xl px-2.5 py-2 text-left transition hover:bg-violet-50 disabled:opacity-60"
+                    >
+                      {busy === m ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-violet-600" /> : <Icon className="mt-0.5 size-4 shrink-0 text-violet-600" />}
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-ink">{t.modes[m].label}</span>
+                        <span className="block text-xs leading-snug text-muted">{t.modes[m].hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <form
+                className="mt-2 flex items-end gap-1.5 border-t border-line/70 pt-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (prompt.trim()) void run("custom", text, sel ?? undefined, prompt.trim());
+                }}
+              >
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      e.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                  rows={2}
+                  maxLength={500}
+                  placeholder={t.promptPlaceholder}
+                  className="min-w-0 flex-1 resize-none rounded-xl bg-cream/60 px-3 py-2 text-sm outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-violet-200"
+                />
+                <button
+                  type="submit"
+                  disabled={!prompt.trim() || !!busy}
+                  aria-label={t.send}
+                  title={t.send}
+                  className="grid size-9 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700 disabled:opacity-40"
+                >
+                  {busy === "custom" ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+                </button>
+              </form>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
