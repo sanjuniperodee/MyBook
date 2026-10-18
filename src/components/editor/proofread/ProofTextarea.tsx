@@ -262,6 +262,7 @@ export function ProofBar({
   ai,
   aiState,
   onAi,
+  children,
 }: {
   issues: Issue[];
   hasText: boolean;
@@ -272,6 +273,8 @@ export function ProofBar({
   ai: boolean;
   aiState: AiState;
   onAi: () => void;
+  /** Дополнительные кнопки справа (AI-помощник при письме). */
+  children?: React.ReactNode;
 }) {
   const t = useMessages().editor.proofread;
   if (!hasText) return null;
@@ -297,6 +300,7 @@ export function ProofBar({
         </span>
       )}
       <span className="ml-auto flex flex-wrap items-center gap-2">
+        {children}
         {safeCount ? (
           <button type="button" onClick={onFixAll} title={t.fixAllTitle} className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800 ring-1 ring-amber-200 transition hover:bg-amber-100">
             <Wand2 className="size-3.5" /> {t.fixAll(safeCount)}

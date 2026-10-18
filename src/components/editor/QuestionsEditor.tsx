@@ -27,6 +27,7 @@ import { PreviewPane } from "./questions/PreviewPane";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
+import { AiWriter } from "./proofread/AiWriter";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
@@ -131,6 +132,7 @@ function EditorBody({
   const [showTips, setShowTips] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [aiWriting, setAiWriting] = useState(false);
   // Диктуют обычно на языке книги.
   const [lang, setLang] = useState<string>(localeMeta[book.language].speech);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -481,7 +483,8 @@ function EditorBody({
                   onApply={(issue, replacement) => patchQuestion(q.id, { answer: proofread.apply(issue, replacement) })}
                   onSkip={proofread.ignore}
                   onAddWord={proofread.addWord}
-                  readOnly={!editable}
+                  readOnly={!editable || aiWriting}
+                  aria-busy={aiWriting}
                   placeholder={placeholder}
                   aria-label={t.answerAria}
                   lang={book.language}
@@ -509,7 +512,9 @@ function EditorBody({
                     onAi={() => {
                       void proofread.runAi().catch((e) => toastError(e));
                     }}
-                  />
+                  >
+                    {proofreadAi ? <AiWriter bookId={book.id} docId={q.id} text={q.answer} textarea={textarea} onText={(answer) => patchQuestion(q.id, { answer })} onBusy={setAiWriting} /> : null}
+                  </ProofBar>
                 ) : null}
                 {dictation.listening ? <DictationStatus dictation={dictation} /> : null}
               </div>

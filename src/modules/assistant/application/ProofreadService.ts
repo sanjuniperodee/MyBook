@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Locale } from "@/i18n/config";
 import type { BookKind } from "@/lib/content/kinds";
 import type { Issue } from "@/lib/proofread/types";
-import { AssistantError, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt } from "../domain";
+import { AssistantError, cleanRewrite, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt, rewriteSystemPrompt, type RewriteMode } from "../domain";
 import type { LanguageModel } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -59,6 +59,18 @@ export class ProofreadService {
     this.#cache.set(key, { at: Date.now(), issues });
     if (this.#cache.size > CACHE_SIZE) this.#cache.delete(this.#cache.keys().next().value!);
     return issues;
+  }
+
+  /**
+   * AI-помощник при письме: оформить, улучшить, расширить, сократить или переписать по просьбе автора.
+   * Без кэша — автор нажимает «ещё раз», чтобы получить другой вариант.
+   */
+  async rewrite(text: string, mode: RewriteMode, language: Locale, opts: { kind?: BookKind; instruction?: string } = {}): Promise<string> {
+    const system = rewriteSystemPrompt(mode, language, opts.kind ?? "gift", opts.instruction);
+    const { text: reply } = await this.model.ask({ system, user: text, effort: "low" });
+    const out = cleanRewrite(reply);
+    if (!out) throw new AssistantError("badResponse", "Помощник вернул пустой ответ — попробуйте ещё раз.");
+    return out;
   }
 
   /** Проверка подключения из «Интеграций»: фраза с заведомыми ошибками. */

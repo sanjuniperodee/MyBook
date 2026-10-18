@@ -6,7 +6,7 @@ import { crmAssistantData } from "./infrastructure/data";
 import { askMedia } from "./infrastructure/media";
 import { sellerModel } from "./application/SellerModel";
 
-export { AssistantError, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
+export { AssistantError, rewriteModes, type RewriteMode, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
 export { MEDIA_OPENROUTER_MODEL, providerSettingKeys } from "./infrastructure/connection";
 
 /** Публичный фасад контекста «AI-помощник» (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). */
