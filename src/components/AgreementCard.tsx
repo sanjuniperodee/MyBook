@@ -88,6 +88,11 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
         </div>
       </dl>
       <p className="mt-2 text-xs text-emerald-900">{t.extras}</p>
+      {agreement.gifts?.length ? (
+        <p className="mt-1 text-sm font-medium text-emerald-950" data-testid="agreement-card-gifts">
+          🎁 {t.gifts(agreement.gifts.map((g) => m.common.agreementGifts[g]).join(", "))}
+        </p>
+      ) : null}
       <ol className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-emerald-900">
         {progress.map((p) => (
           <li key={p.label} className="inline-flex items-center gap-1.5">

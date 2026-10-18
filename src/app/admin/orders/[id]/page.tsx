@@ -5,7 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
-import { formatPrice, getPlan } from "@/config/site";
+import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
+import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { getTheme } from "@/lib/content/themes";
 import { bookKind } from "@/lib/content/kinds";
@@ -143,8 +144,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               </dd>
               {plan?.printed ? (
                 <>
-                  <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}</dd>
-                  <dt className="text-muted">Адрес</dt><dd>{[order.postalCode, order.city, order.address].filter(Boolean).join(", ") || "—"}</dd>
+                  <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}{isQuotedDelivery(order.deliveryMethod) ? <span className="ml-1.5 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">стоимость считает менеджер — в сумму не входит</span> : null}</dd>
+                  <dt className="text-muted">Адрес</dt><dd>{deliveryAddress({ ...order, country: order.deliveryCountry }) || "—"}</dd>
                 </>
               ) : null}
               {order.customerComment ? (<><dt className="text-muted">Комментарий</dt><dd className="whitespace-pre-line">{order.customerComment}</dd></>) : null}
@@ -196,7 +197,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <div className="flex justify-between"><dt className="text-muted">{planName(order.plan)} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
               {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>{order.promoCode ? `Промокод ${order.promoCode}` : "Договорённая цена"}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
               {order.addons.length ? <div className="flex justify-between"><dt className="text-muted">{order.addons.map((a) => addonName(a)).join(", ")}</dt><dd>{formatPrice(order.addonsAmount)}</dd></div> : null}
-              <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{formatPrice(order.deliveryAmount)}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{isQuotedDelivery(order.deliveryMethod) ? "по расчёту менеджера, отдельно" : formatPrice(order.deliveryAmount)}</dd></div>
               {order.prepaidAmount ? <div className="flex justify-between text-emerald-700"><dt>Внесено ранее менеджеру (предоплата)</dt><dd>−{formatPrice(order.prepaidAmount)}</dd></div> : null}
               <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>{order.prepaidAmount ? "К оплате сейчас" : "Итого"}</dt><dd>{formatPrice(order.amount)}</dd></div>
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>

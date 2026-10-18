@@ -18,6 +18,7 @@ const toConversation = (r: Row): Conversation => ({
   assigneeId: r.assigneeId,
   botStep: r.botStep,
   awaitingSince: r.awaitingSince,
+  lastMessageAt: r.lastMessageAt,
   meta: r.meta,
 });
 
@@ -51,18 +52,27 @@ export class DrizzleConversationRepository implements ConversationRepository {
     return toConversation(r);
   }
 
-  async recordIncoming(id: string, text: string, at: Date, opts: { awaiting?: boolean } = {}) {
+  async recordIncoming(id: string, text: string, at: Date) {
     await executor()
       .update(crmConversations)
       .set({
         lastMessageAt: at,
         lastMessageText: text,
         unread: sql`${crmConversations.unread} + 1`,
-        ...(opts.awaiting === false ? {} : { awaitingSince: sql`coalesce(${crmConversations.awaitingSince}, ${at.toISOString()}::timestamptz)` }),
+        awaitingSince: sql`coalesce(${crmConversations.awaitingSince}, ${at.toISOString()}::timestamptz)`,
         status: "open",
         updatedAt: new Date(),
       })
       .where(eq(crmConversations.id, id));
+  }
+
+  async dismissAwaiting(id: string, since: Date) {
+    const rows = await executor()
+      .update(crmConversations)
+      .set({ awaitingSince: null, updatedAt: new Date() })
+      .where(and(eq(crmConversations.id, id), eq(crmConversations.awaitingSince, since)))
+      .returning({ id: crmConversations.id });
+    return rows.length > 0;
   }
 
   async recordEcho(id: string, text: string, at: Date) {
@@ -157,6 +167,13 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
   async existsExternal(externalId: string) {
     const [r] = await executor().select({ id: crmMessages.id }).from(crmMessages).where(eq(crmMessages.externalId, externalId)).limit(1);
     return !!r;
+  }
+
+  async knownExternal(externalIds: string[]) {
+    const ids = [...new Set(externalIds.filter(Boolean))];
+    if (!ids.length) return new Set<string>();
+    const rows = await executor().select({ id: crmMessages.externalId }).from(crmMessages).where(inArray(crmMessages.externalId, ids));
+    return new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
   }
 
   async claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string) {

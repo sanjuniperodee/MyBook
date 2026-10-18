@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AgreementGiftsField } from "@/components/admin/AgreementGiftsField";
 import { useActionState, useState } from "react";
 import { Check, Copy, KeyRound, Paperclip } from "lucide-react";
 import { createClientAction, type NewClientDone, type NewClientState } from "./actions";
@@ -230,6 +231,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                 <label className="label">{n > 1 ? "Предоплата за все книги, ₸" : "Предоплата, ₸"}</label>
                 <input name="prepaid" type="number" min={0} step={100} value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input h-11" placeholder="10000" />
               </div>
+              <AgreementGiftsField values={v} />
               {p > 0 ? (
                 <div className="sm:col-span-2">
                   <label className="label">Чек предоплаты *</label>

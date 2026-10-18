@@ -87,7 +87,7 @@ export function LockButton({ orderId, locked }: { orderId: string; locked: boole
 export function DetailsForm({
   order,
 }: {
-  order: { id: string; contactName: string; contactPhone: string; contactEmail: string; deliveryMethod: string | null; city: string | null; address: string | null; postalCode: string | null; desiredDate: string | null; giftNote: string | null };
+  order: { id: string; contactName: string; contactPhone: string; contactEmail: string; deliveryMethod: string | null; deliveryCountry: string | null; city: string | null; address: string | null; postalCode: string | null; desiredDate: string | null; giftNote: string | null };
 }) {
   const [state, action] = useActionState<AdminState, FormData>(updateOrderDetailsAction, {});
   return (
@@ -117,6 +117,10 @@ export function DetailsForm({
               </option>
             ))}
           </select>
+        </label>
+        <label className="text-sm">
+          <span className="label">Страна (только для доставки в другую страну)</span>
+          <input name="country" defaultValue={order.deliveryCountry ?? ""} className="input h-10" placeholder="Казахстан — не указывать" />
         </label>
         <label className="text-sm">
           <span className="label">Город</span>

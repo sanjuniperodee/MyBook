@@ -166,9 +166,11 @@ export class FakeInvoiceSales implements InvoiceSales {
     const d = this.deals.get(id);
     return d ? { ...d, paid: this.payments.filter((p) => p.dealId === id).reduce((s, p) => s + p.amount, 0) } : null;
   }
-  agreements: { dealId: string; count: number; agreedTotal: number }[] = [];
+  agreements: { dealId: string; count: number; agreedTotal: number; gifts?: string[] }[] = [];
   async setAgreement(dealId: string, input: Parameters<InvoiceSales["setAgreement"]>[1]) {
-    this.agreements.push({ dealId, count: input.count, agreedTotal: input.agreedTotal });
+    this.agreements.push({ dealId, count: input.count, agreedTotal: input.agreedTotal, ...(input.gifts.length ? { gifts: input.gifts } : {}) });
+    const deal = this.deals.get(dealId);
+    if (deal) this.deals.set(dealId, { ...deal, gifts: input.gifts });
   }
   async acceptOnline(input: Parameters<InvoiceSales["acceptOnline"]>[0]) {
     this.locks.push("crm_deals");

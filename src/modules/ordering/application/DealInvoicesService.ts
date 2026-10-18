@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { Clock, UnitOfWork } from "@/shared/application";
-import { getPlan } from "@/config/site";
+import { getPlan, giftsForPlan } from "@/config/site";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { DealInvoice, OrderingError, type DealInvoicePurpose, type DealInvoiceRepository } from "../domain";
 
 /** Сделка глазами счёта (контекст «Продажи») — через порт, модули друг друга не импортируют. */
@@ -19,12 +20,14 @@ export interface InvoiceDeal {
   orderId: string | null;
   /** Сделка закрыта (успех или отказ). */
   closed: boolean;
+  /** Что сейчас бесплатно по договорённости сделки. */
+  gifts?: AgreementGift[];
 }
 
 export interface InvoiceSales {
   deal(dealId: string): Promise<InvoiceDeal | null>;
   /** Договорённость в сделку: тариф и цена книги (журнал сделки — у продаж). */
-  setAgreement(dealId: string, input: { plan: string; agreedTotal: number; /** Сколько книг: больше одной — сделка становится пакетом (по сделке на книгу). */ count: number; actorId: string | null }): Promise<void>;
+  setAgreement(dealId: string, input: { plan: string; agreedTotal: number; /** Сколько книг: больше одной — сделка становится пакетом (по сделке на книгу). */ count: number; /** Что бесплатно по договорённости (упаковка, доставка). */ gifts: AgreementGift[]; actorId: string | null }): Promise<void>;
   /** Онлайн-платёж по счёту: идемпотентно по операции; null — эта операция уже записана. */
   acceptOnline(input: { dealId: string; clientId: string | null; amount: number; paidAt: Date; method: "kaspi" | "cloudpayments"; externalRef: string; invoiceId: string; note: string }): Promise<{ paymentId: string } | null>;
 }
@@ -42,6 +45,8 @@ export interface IssueInvoiceInput {
   agreedTotal: number;
   /** Сколько книг оплачивает счёт (по умолчанию одна). */
   count?: number;
+  /** Что по договорённости бесплатно (упаковка, доставка); не указано (счёт бота) — как уже записано в сделке. */
+  gifts?: AgreementGift[];
   amount: number;
   purpose: DealInvoicePurpose;
   /** userId null — счёт выставил бот (режим «Продаёт»). */
@@ -101,7 +106,9 @@ export class DealInvoicesService {
         await this.invoices.save(prev);
         this.uow.track(prev);
       }
-      await this.sales.setAgreement(deal.id, { plan: input.plan, agreedTotal: input.agreedTotal, count: books, actorId: input.actor.userId });
+      // Бесплатное — только то, что есть у тарифа: у электронной книги нет ни упаковки, ни доставки.
+      const gifts = giftsForPlan(plan.id, input.gifts ?? deal.gifts ?? []);
+      await this.sales.setAgreement(deal.id, { plan: input.plan, agreedTotal: input.agreedTotal, count: books, gifts, actorId: input.actor.userId });
       const { id, number } = await this.invoices.nextIdentity();
       const invoice = DealInvoice.issue(
         id,
@@ -117,6 +124,7 @@ export class DealInvoicesService {
           plan: input.plan,
           agreedTotal: input.agreedTotal,
           booksCount: books,
+          gifts,
           amount: input.amount,
           purpose: input.purpose,
           issuedById: input.actor.userId,

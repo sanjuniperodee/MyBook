@@ -12,6 +12,7 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { getSetting } from "@/modules/workspace";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
+import { ChatsLive } from "@/components/admin/chat/ChatsLive";
 import { DetailsPanel } from "@/components/admin/chat/DetailsPanel";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { invoiceViews } from "@/app/admin/invoices/view";
@@ -222,6 +223,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const href = (p: { f?: Filter; c?: string }) => `/admin/chats?f=${p.f ?? f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p.c ? `&c=${p.c}` : ""}`;
   return (
     <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] overflow-hidden bg-white sm:-mx-6 lg:-my-8">
+      <ChatsLive />
       <ChatListPane
         items={items}
         filter={f}

@@ -1,4 +1,4 @@
-import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage } from "../domain";
+import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts } from "../domain";
 
 /**
  * Диалоги. Счётчики (непрочитанные, «ждёт ответа», шаг бота) меняются параллельными вебхуками,
@@ -12,8 +12,12 @@ export interface ConversationRepository {
   updateContact(id: string, patch: { contactName: string; avatarUrl: string | null; meta: ConversationMeta; clientId: string | null }): Promise<Conversation>;
   linkDeal(id: string, link: { dealId: string; clientId: string | null; assigneeId: string | null }): Promise<Conversation>;
   /** Входящее: +1 непрочитанное, «ждёт ответа» с момента первого неотвеченного, диалог открыт. */
-  /** awaiting: false — сообщение не открывает «ждёт ответа» (клиент только поблагодарил); открытое ожидание не снимается. */
-  recordIncoming(id: string, text: string, at: Date, opts?: { awaiting?: boolean }): Promise<void>;
+  recordIncoming(id: string, text: string, at: Date): Promise<void>;
+  /**
+   * AI решил, что клиент ответа не ждёт («Аха», «спасибо» после ответа менеджера): «ждёт ответа» снимается — только если
+   * оно всё то же (since), иначе за это время клиент написал что-то новое.
+   */
+  dismissAwaiting(id: string, since: Date): Promise<boolean>;
   /** Менеджер ответил с телефона — клиент больше не ждёт. */
   recordEcho(id: string, text: string, at: Date): Promise<void>;
   /** История задним числом: последнее сообщение — только если оно новее записанного; без «непрочитано» и «ждёт ответа». */
@@ -90,6 +94,8 @@ export interface MessageRepository {
   /** false — повторная доставка вебхука. */
   insertIncoming(conversationId: string, m: InboundMessage, subject: string | null): Promise<boolean>;
   existsExternal(externalId: string): Promise<boolean>;
+  /** Какие из внешних ID уже записаны (одним запросом — для сверки со шлюзом). */
+  knownExternal(externalIds: string[]): Promise<Set<string>>;
   /** Эхо нашего же сообщения, отправленного только что: дописать ему внешний ID. */
   claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string): Promise<boolean>;
   insertEcho(conversationId: string, m: InboundMessage): Promise<boolean>;
@@ -229,6 +235,8 @@ export interface BotCrm {
   client(clientId: string): Promise<{ orders: number; books: number; locale: string | null; name: string | null } | null>;
   /** Метка сделки («тема: Маме»). */
   tag(dealId: string, tag: string): Promise<void>;
+  /** Оплата клиента для AI: платежи (ручные и онлайн по счетам, у пакета — все), счета из чата, заказы на сайте. */
+  payments?(deal: { id: string; clientId: string | null; orderId: string | null }): Promise<PaymentFacts>;
   /** Была ли переписка с этим номером до CRM (история шлюза WhatsApp) — тогда это не новый клиент; историю — в диалог. */
   priorChat(conv: Conversation, before: Date): Promise<boolean>;
 }

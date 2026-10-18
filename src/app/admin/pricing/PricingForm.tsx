@@ -78,6 +78,7 @@ export function PricingForm({ plans, addons, delivery, factory, changed }: Props
         {delivery.map((d) => (
           <Price key={d.id} name={`delivery_${d.id}_price`} label={deliveryLabels[d.id]} value={d.price} factory={factory.delivery[d.id]} />
         ))}
+        <p className="text-xs text-muted sm:col-span-3">Доставка в другую страну — без цены: в сумму заказа не входит, менеджер получает задачу рассчитать её и согласовать с клиентом.</p>
       </section>
 
       <div className="rounded-2xl bg-cream/70 p-4 text-xs leading-relaxed text-ink-soft">

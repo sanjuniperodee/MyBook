@@ -33,6 +33,7 @@ const thrown = (p: Promise<unknown>) => p.then(() => undefined, (e: unknown) => 
 const invoice = (over: Partial<DealInvoiceProps> = {}) =>
   DealInvoice.restore(INV, {
     number: 12,
+    gifts: [],
     booksCount: 1,
     token: "t".repeat(43),
     dealId: DEAL,
@@ -85,6 +86,7 @@ beforeEach(() => {
   fake.sales = {
     deals: { findById: async (id: string) => (id === DEAL ? deal : null), stage: async () => ({ kind: "open" }) },
     agreedPlan: { get: async () => "hardcover" },
+    agreedGifts: { get: async () => ["delivery"] },
     payments: { paidTotal: async () => 0 },
     batch: { money: async () => ({ size: null, paid: 0 }) },
   };
@@ -136,7 +138,8 @@ describe("invoiceFormInfoAction: данные формы счёта", () => {
     if (!r.ok) throw new Error(r.message);
     const { info } = r;
     expect(info).toMatchObject({ dealId: DEAL, dealNumber: 7, plan: "hardcover", agreedTotal: 30_000, paid: 0, hasOrder: false, orderId: null, closed: false, locale: "kk", channel: "whatsapp", chat: "WhatsApp", maxDiscountPercent: 10 });
-    expect(info.plans.find((p) => p.id === "hardcover")).toEqual({ id: "hardcover", label: "Твёрдая обложка", price: 30_000 });
+    expect(info.plans.find((p) => p.id === "hardcover")).toEqual({ id: "hardcover", label: "Твёрдая обложка", price: 30_000, printed: true, giftwrap: true });
+    expect(info.gifts).toEqual(["delivery"]);
     expect(info.kaspiPhoneMasked).toBe("+7 701 ••• •• 67");
     expect(JSON.stringify(info)).not.toContain(PHONE);
     expect(info.methods).toEqual({ kaspi: true, card: false, transfer: true });

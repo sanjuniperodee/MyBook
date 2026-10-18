@@ -18,7 +18,6 @@ import { fillTemplate } from "@/shared/domain/templates";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 
-const REFRESH_MS = 15_000;
 /** Ближе стольких пикселей к низу — «внизу»: новые сообщения прокручивают ленту, дальше — только кнопка «↓». */
 const NEAR_BOTTOM = 160;
 /** Файлов за раз (как на сервере) и размер одного. */
@@ -47,7 +46,7 @@ function dayLabel(iso: string, tz: string) {
 
 
 /**
- * Переписка с клиентом и поле ответа. Список сообщений приходит с сервера и обновляется router.refresh();
+ * Переписка с клиентом и поле ответа. Список сообщений приходит с сервера и обновляется router.refresh() (ChatsLive);
  * отправленное показываем сразу (оптимистично), пока сервер его не подтвердит. Лента не прыгает вниз, пока сотрудник
  * читает старое: новые — кнопкой «↓». Сообщения: ответ (цитата), пересылка, правка и удаление своего, файлы,
  * просмотр фото и видео во весь экран, голосовые с волной, скоростью и расшифровкой.
@@ -183,19 +182,7 @@ export function ChatPanel({
     if (near) setUnseen(0);
   };
 
-  useEffect(() => {
-    // Новые сообщения приходят событием (SSE); опрос — страховка на случай обрыва соединения.
-    const onLive = (e: Event) => {
-      const d = (e as CustomEvent<{ type?: string; conversationId?: string | null }>).detail;
-      if (d?.type === "chat" && (!d.conversationId || d.conversationId === conversationId)) router.refresh();
-    };
-    window.addEventListener("crm:live", onLive);
-    const id = window.setInterval(() => document.visibilityState === "visible" && router.refresh(), REFRESH_MS);
-    return () => {
-      window.removeEventListener("crm:live", onLive);
-      window.clearInterval(id);
-    };
-  }, [router, conversationId]);
+  // Новые сообщения приносит обновление страницы чатов (ChatsLive): событие SSE о любом диалоге, опрос — страховка.
 
   // Превью выбранных файлов — освобождаем память браузера.
   useEffect(() => () => drafts.forEach((d) => d.url && URL.revokeObjectURL(d.url)), [drafts]);

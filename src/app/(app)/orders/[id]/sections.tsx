@@ -2,7 +2,8 @@ import { Link } from "@/i18n/client";
 import { Confetti } from "@/components/motion/Confetti";
 import { CelebrateArt } from "@/components/illustrations";
 import { Check, Download, Gift, Star } from "lucide-react";
-import { formatPrice, site } from "@/config/site";
+import { formatPrice, isQuotedDelivery, site } from "@/config/site";
+import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import type { getMessages } from "@/i18n/server";
 import { addonName, deliveryName, planName } from "@/i18n/labels";
 import type { Locale } from "@/i18n/config";
@@ -120,7 +121,7 @@ export function OrderDetails({ order, printed, locale, t, free }: { order: Order
           {order.address ? (
             <>
               <dt className="text-muted">{t.address}</dt>
-              <dd>{[order.postalCode, order.city, order.address].filter(Boolean).join(", ")}</dd>
+              <dd>{deliveryAddress({ ...order, country: order.deliveryCountry })}</dd>
             </>
           ) : null}
           <dt className="text-muted">{t.recipient}</dt>
@@ -152,9 +153,10 @@ export function OrderDetails({ order, printed, locale, t, free }: { order: Order
           <div className="flex justify-between"><span className="text-muted">{t.books}</span><span>{formatPrice(order.itemsAmount)}</span></div>
           {order.discountAmount ? <div className="flex justify-between text-emerald-700"><span>{order.promoCode ? t.promo(order.promoCode) : t.agreedPrice}</span><span>−{formatPrice(order.discountAmount)}</span></div> : null}
           {order.addons.length ? <div className="flex justify-between"><span className="text-muted">{order.addons.map((a) => addonName(a, locale)).join(", ")}</span><span>{formatPrice(order.addonsAmount)}</span></div> : null}
-          {printed ? <div className="flex justify-between"><span className="text-muted">{t.delivery}</span><span>{order.deliveryAmount ? formatPrice(order.deliveryAmount) : free}</span></div> : null}
+          {printed ? <div className="flex justify-between"><span className="text-muted">{t.delivery}</span><span>{isQuotedDelivery(order.deliveryMethod) ? t.abroadPrice : order.deliveryAmount ? formatPrice(order.deliveryAmount) : free}</span></div> : null}
           {order.prepaidAmount ? <div className="flex justify-between text-emerald-700"><span>{t.prepaid}</span><span>−{formatPrice(order.prepaidAmount)}</span></div> : null}
           <div className="flex justify-between pt-2 text-base font-semibold"><span>{order.prepaidAmount ? t.toPayNow : t.total}</span><span>{formatPrice(order.amount)}</span></div>
+          {printed && isQuotedDelivery(order.deliveryMethod) ? <p className="pt-2 text-xs text-muted" data-testid="abroad-order-note">{t.abroadNote}</p> : null}
         </div>
       </section>
   );

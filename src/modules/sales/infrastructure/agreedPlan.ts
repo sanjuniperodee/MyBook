@@ -1,11 +1,24 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
+import { readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
 
 /** Тариф, о котором договорились по сделке (null — не указан). Меняется, пока по сделке нет заказа. */
 export async function setDealAgreedPlan(dealId: string, plan: string | null): Promise<boolean> {
   const r = await executor().execute(sql`update crm_deals set agreed_plan = ${plan}, updated_at = now() where id = ${dealId} and order_id is null returning id`);
   return r.rows.length > 0;
+}
+
+/** Что по договорённости бесплатно (упаковка, доставка). Меняется, пока по сделке нет заказа. */
+export async function setDealAgreedGifts(dealId: string, gifts: AgreementGift[]): Promise<boolean> {
+  const value = readGifts(gifts);
+  const r = await executor().execute(sql`update crm_deals set agreed_gifts = ${`{${value.join(",")}}`}::text[], updated_at = now() where id = ${dealId} and order_id is null returning id`);
+  return r.rows.length > 0;
+}
+
+export async function dealAgreedGifts(dealId: string): Promise<AgreementGift[]> {
+  const r = await executor().execute<{ gifts: string[] | null }>(sql`select agreed_gifts as gifts from crm_deals where id = ${dealId}`);
+  return readGifts(r.rows[0]?.gifts ?? []);
 }
 
 export async function dealAgreedPlan(dealId: string): Promise<string | null> {

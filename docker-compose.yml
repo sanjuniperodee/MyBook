@@ -61,6 +61,10 @@ services:
   # CRM → «Интеграции» → «WhatsApp — свой шлюз»: выбрать GOWA, сохранить (сайт сам заведёт в шлюзе устройство магазина
   # со своим вебхуком) и привязать номер по QR. Порт наружу не открываем: шлюз держит сессию номера магазина.
   # GOWA_BASIC_AUTH (логин:пароль) — необязательно, тогда тот же логин:пароль укажите в «Интеграциях».
+  # Скорость: шлюз обрабатывает события номера по очереди, а фото скачивает до отправки вебхука — поэтому фото статусов
+  # (истории всех контактов телефона магазина) не качаем, а группы, каналы и рассылки на сайт не шлём. Сообщения,
+  # которые вебхук не донёс (сайт перезапускался), сайт сам забирает из хранилища шлюза раз в 30 секунд.
+  # Логи шлюза содержат текст каждого сообщения — храним не больше 3 × 10 МБ.
   gowa:
     image: aldinokemal2104/go-whatsapp-web-multidevice:v9.6.0
     restart: unless-stopped
@@ -70,9 +74,15 @@ services:
       APP_BASIC_AUTH: ${GOWA_BASIC_AUTH:-}
       APP_UI_ENABLED: "false"
       MCP_ENABLED: "false"
-      WHATSAPP_WEBHOOK_IGNORE_JIDS: "@g.us"
+      WHATSAPP_WEBHOOK_IGNORE_JIDS: "@g.us,@newsletter,@broadcast"
       WHATSAPP_AUTO_DOWNLOAD_MEDIA: "true"
+      WHATSAPP_IGNORE_STATUS_MEDIA: "true"
       WHATSAPP_ACCOUNT_VALIDATION: "false"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - gowa-storages:/app/storages
       - gowa-statics:/app/statics

@@ -9,7 +9,8 @@ import { channels, manualChannels } from "@/shared/domain/channels";
 import { formatPrice } from "@/config/site";
 import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
-import { discountProblem, invoicePreview, pickAmount, amountOptions, type AmountKind } from "./model";
+import { discountProblem, giftOptions, invoicePreview, pickAmount, amountOptions, type AmountKind } from "./model";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 
 /** Скопировать ссылку или текст счёта; не вышло (старый браузер, нет прав) — подсказать выделить вручную. */
 export async function copyText(text: string, done: string) {
@@ -89,6 +90,8 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   const [channel, setChannel] = useState(info.channel);
   const [name, setName] = useState(info.clientName);
   const [kaspiPush, setKaspiPush] = useState(!!info.kaspiPhoneMasked);
+  // Что по договорённости бесплатно — из сделки; менеджер отмечает сам, ничего не включается по умолчанию.
+  const [gifts, setGifts] = useState<AgreementGift[]>(info.gifts);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Extract<InvoiceResult, { ok: true }> | null>(null);
@@ -117,9 +120,12 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   const noMethods = !info.methods.kaspi && !info.methods.card && !info.methods.transfer;
   const problem = noMethods ? noMethodsText : !plan ? "Выберите тариф договорённости" : "error" in picked ? picked.error : !channel ? "Укажите, откуда пришёл клиент" : discount;
   const methods = [info.methods.kaspi && "Kaspi", info.methods.card && "картой", info.methods.transfer && "переводом по реквизитам"].filter(Boolean).join(" · ");
+  // Бесплатным можно отметить только то, что есть у выбранного тарифа (у электронной книги нет упаковки и доставки).
+  const giftChoices = giftOptions(info.plans.find((p) => p.id === plan));
+  const chosenGifts = gifts.filter((g) => giftChoices.includes(g));
   const preview =
     plan && "amount" in picked
-      ? invoicePreview({ locale, clientName: name, plan, books: countNum, purpose: picked.purpose, amount: picked.amount, link: info.preview.link[locale], until: info.preview.until[locale], kaspiPhone: kaspiPush ? info.kaspiPhoneMasked : null })
+      ? invoicePreview({ locale, clientName: name, plan, books: countNum, purpose: picked.purpose, amount: picked.amount, link: info.preview.link[locale], until: info.preview.until[locale], kaspiPhone: kaspiPush ? info.kaspiPhoneMasked : null, gifts: chosenGifts })
       : null;
 
   const submit = async () => {
@@ -127,7 +133,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
     setBusy(true);
     setError(null);
     try {
-      const r = await issueInvoiceAction({ dealId: info.dealId ?? "", conversationId: conversationId ?? "", clientName: name, locale, channel, plan, agreedTotal: agreedNum, count: countNum, amount: picked.amount, purpose: picked.purpose, issueKey, kaspiPush: !!info.kaspiPhoneMasked && kaspiPush });
+      const r = await issueInvoiceAction({ dealId: info.dealId ?? "", conversationId: conversationId ?? "", clientName: name, locale, channel, plan, agreedTotal: agreedNum, count: countNum, amount: picked.amount, purpose: picked.purpose, issueKey, kaspiPush: !!info.kaspiPhoneMasked && kaspiPush, gifts: chosenGifts });
       if (!r.ok) return setError(r.message);
       setResult(r);
       router.refresh();
@@ -203,6 +209,23 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
           />
         </label>
       </div>
+      {giftChoices.length ? (
+        <fieldset className="rounded-xl border border-line px-3 py-2" data-testid="invoice-gifts">
+          <legend className="px-1 text-[11px] text-muted">Бесплатно по договорённости</legend>
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+            {giftChoices.map((g) => (
+              <label key={g} className="flex items-center gap-2">
+                <input type="checkbox" checked={chosenGifts.includes(g)} onChange={(e) => setGifts((l) => (e.target.checked ? [...l.filter((x) => x !== g), g] : l.filter((x) => x !== g)))} aria-label={g === "giftwrap" ? "Подарочная упаковка бесплатно" : "Доставка бесплатно"} />
+                <span>
+                  {g === "giftwrap" ? "Подарочная упаковка" : "Доставка"}
+                  <span className="text-muted"> · {formatPrice(g === "giftwrap" ? info.giftPrices.giftwrap : info.giftPrices.delivery)}{g === "delivery" ? " и меньше" : ""}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <span className="mt-1 block text-[11px] text-muted">Не отмечено — клиент платит по прайсу. Отмеченное клиент выбирает при оформлении сам, и оно стоит 0 ₸; в счёте и сообщении будет строка «Бесплатно по договорённости».</span>
+        </fieldset>
+      ) : null}
       <label className="block">
         <span className="mb-1 block text-[11px] text-muted">Сколько книг оплачивает счёт</span>
         <input className="input h-10 w-32" type="number" min={1} max={20} step={1} value={info.batchSize ?? count} disabled={!!info.batchSize} onChange={(e) => setCount(e.target.value)} aria-label="Количество книг" />

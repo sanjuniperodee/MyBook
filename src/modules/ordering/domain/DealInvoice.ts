@@ -1,4 +1,5 @@
 import { AggregateRoot, domainEvent, type DomainEvent } from "@/shared/domain";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 
 export type DealInvoiceStatus = "pending_payment" | "paid" | "cancelled" | "expired";
 export type DealInvoicePurpose = "prepayment" | "remainder" | "full" | "custom";
@@ -24,6 +25,8 @@ export interface DealInvoiceProps {
   agreedTotal: number;
   /** Сколько книг оплачивает счёт: договорённость по нему — agreedTotal × booksCount. */
   booksCount: number;
+  /** Что по договорённости бесплатно (упаковка, доставка) — строкой в счёте и в сообщении клиенту. */
+  gifts: AgreementGift[];
   amount: number;
   purpose: DealInvoicePurpose;
   status: DealInvoiceStatus;
@@ -72,8 +75,8 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
     return new DealInvoice(id, props);
   }
 
-  static issue(id: string, input: Omit<DealInvoiceProps, "status" | "paidMethod" | "paidRef" | "paidAt" | "claimedAt" | "closedReason" | "expiresAt" | "accessStatus" | "accessUserId" | "accessMessageId" | "accessAttemptedAt" | "createdAt" | "booksCount"> & { booksCount?: number }, now: Date) {
-    return new DealInvoice(id, { ...input, booksCount: input.booksCount ?? 1, status: "pending_payment", paidMethod: null, paidRef: null, paidAt: null, claimedAt: null, closedReason: null, expiresAt: new Date(now.getTime() + DEAL_INVOICE_TTL_MS), accessStatus: "none", accessUserId: null, accessMessageId: null, accessAttemptedAt: null, createdAt: now });
+  static issue(id: string, input: Omit<DealInvoiceProps, "status" | "paidMethod" | "paidRef" | "paidAt" | "claimedAt" | "closedReason" | "expiresAt" | "accessStatus" | "accessUserId" | "accessMessageId" | "accessAttemptedAt" | "createdAt" | "booksCount" | "gifts"> & { booksCount?: number; gifts?: AgreementGift[] }, now: Date) {
+    return new DealInvoice(id, { ...input, booksCount: input.booksCount ?? 1, gifts: input.gifts ?? [], status: "pending_payment", paidMethod: null, paidRef: null, paidAt: null, claimedAt: null, closedReason: null, expiresAt: new Date(now.getTime() + DEAL_INVOICE_TTL_MS), accessStatus: "none", accessUserId: null, accessMessageId: null, accessAttemptedAt: null, createdAt: now });
   }
 
   get number() {

@@ -55,11 +55,11 @@ export class OrderingMailer {
       emailLayout({
         locale,
         title: m.title,
-        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), ...(p.prepaid ? [m.prepaid(formatPrice(p.prepaid))] : []), m.amount(formatPrice(order.amount))],
+        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), ...(p.prepaid ? [m.prepaid(formatPrice(p.prepaid))] : []), m.amount(formatPrice(order.amount)), ...(p.deliveryAbroad ? [m.abroad(escapeHtml(p.deliveryAbroad.country ?? "—"))] : [])],
         button: { label: m.button, url: orderUrl(order.id, locale) },
       }),
     );
-    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}${p.prepaid ? ` (предоплата ${formatPrice(p.prepaid)} уже внесена)` : ""}`], {
+    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}${p.prepaid ? ` (предоплата ${formatPrice(p.prepaid)} уже внесена)` : ""}${p.deliveryAbroad ? ` · доставка в другую страну (${escapeHtml(p.deliveryAbroad.country ?? "—")}) — рассчитать отдельно` : ""}`], {
       label: "Открыть в админке",
       url: `${env.appUrl}/admin/orders/${order.id}`,
     });

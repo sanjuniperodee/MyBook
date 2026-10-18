@@ -13,7 +13,7 @@ export const GET = api(async (req) => {
   await audit(staff, "export", "orders", null, params);
   const rows = await container().reporting.orderExport(params, admin.id);
   const csv = toCsv(
-    ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],
+    ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Страна", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],
     rows.map((o) => [
       o.number,
       o.createdAt,
@@ -31,6 +31,7 @@ export const GET = api(async (req) => {
       o.contactPhone,
       o.contactEmail,
       o.deliveryMethod,
+      o.deliveryCountry,
       o.city,
       o.address,
       o.postalCode,

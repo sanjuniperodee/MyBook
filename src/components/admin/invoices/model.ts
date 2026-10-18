@@ -1,8 +1,11 @@
-import { formatPrice, type PlanId } from "@/config/site";
+import { formatPrice, giftsForPlan, type PlanId } from "@/config/site";
 import { pay as ruPay } from "@/i18n/messages/ru/pay";
 import { pay as kkPay } from "@/i18n/messages/kk/pay";
 import { plans as ruPlans } from "@/i18n/messages/ru/plans";
 import { plans as kkPlans } from "@/i18n/messages/kk/plans";
+import { common as ruCommon } from "@/i18n/messages/ru/common";
+import { common as kkCommon } from "@/i18n/messages/kk/common";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 
 /*
  * Счета из чата глазами CRM: подписи, суммы формы, какие действия доступны. Чистые функции без React и сервера —
@@ -124,7 +127,27 @@ const payTexts = { ru: ruPay, kk: kkPay };
 const planNames = { ru: ruPlans, kk: kkPlans };
 
 /** Предпросмотр сообщения со счётом — тот же шаблон словаря pay, что уходит клиенту (номер счёта появится при выпуске). */
-export function invoicePreview(i: { locale: "ru" | "kk"; clientName: string; plan: string; books?: number; purpose: InvoicePurpose; amount: number; link: string; until: string; kaspiPhone: string | null }) {
+/** Что бесплатно по договорённости — списком на языке клиента («подарочная упаковка, доставка»); пусто — null. */
+export function giftsText(locale: "ru" | "kk", gifts: readonly AgreementGift[] | undefined): string | null {
+  const names = (locale === "kk" ? kkCommon : ruCommon).agreementGifts;
+  return gifts?.length ? gifts.map((g) => names[g]).join(", ") : null;
+}
+
+/**
+ * Что можно отдать бесплатно по тарифу: доставку — у печатных, упаковку — где она есть среди допов. Отметки в форме
+ * для недоступного просто не показываются (сервер такое и не сохранит).
+ */
+export function giftOptions(plan: { printed: boolean; giftwrap: boolean } | undefined): AgreementGift[] {
+  if (!plan) return [];
+  return [...(plan.giftwrap ? (["giftwrap"] as const) : []), ...(plan.printed ? (["delivery"] as const) : [])];
+}
+
+/** То же по id тарифа (карточка сделки); тариф не указан — можно отметить и упаковку, и доставку. */
+export function giftOptionsForPlan(planId: string | null): AgreementGift[] {
+  return planId ? giftsForPlan(planId) : ["giftwrap", "delivery"];
+}
+
+export function invoicePreview(i: { locale: "ru" | "kk"; clientName: string; plan: string; books?: number; purpose: InvoicePurpose; amount: number; link: string; until: string; kaspiPhone: string | null; gifts?: readonly AgreementGift[] }) {
   const t = payTexts[i.locale];
   return t.message({
     name: i.clientName.trim().split(" ")[0] ?? "",
@@ -137,6 +160,7 @@ export function invoicePreview(i: { locale: "ru" | "kk"; clientName: string; pla
     until: i.until,
     kaspiPhone: i.kaspiPhone,
     kaspiOrg: null,
+    gifts: giftsText(i.locale, i.gifts),
   });
 }
 

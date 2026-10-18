@@ -139,9 +139,14 @@ export interface BotSell {
   hidePrices: boolean;
   /** Распознавать голосовые и фото клиента моделью (транскрипция и описание); без поддержки моделью — как раньше. */
   media: boolean;
-  /** Как AI-продажник представляется клиенту («Айгерим, помощница менеджера Марата»). */
+  /**
+   * От чьего имени пишет бот: manager — сам менеджер («Меня зовут Марат», от первого лица; решение владельца 18.10),
+   * assistant — его помощница («Айгерим, помощница менеджера Марата»).
+   */
+  speaksAs: BotSpeaksAs;
+  /** Как представляется помощница (speaksAs = assistant): «Айгерим, помощница менеджера Марата». */
   botName: string;
-  /** Менеджер, который называет цену и оформляет заказ: продажник — его помощница. */
+  /** Менеджер, который называет цену и оформляет заказ; при speaksAs = manager бот пишет от его имени. */
   managerName: string;
   /** Факты владельца для беседы: сроки, доставка, как пишется книга, способы оплаты (без цен). Правится в настройках. */
   facts: string;
@@ -163,6 +168,8 @@ export const DEFAULT_SELL_FACTS = [
 ].join("\n");
 
 export const MAX_QUESTIONS = 6;
+
+export type BotSpeaksAs = "manager" | "assistant";
 
 export const defaultTexts: Record<BotLang, BotTexts> = {
   ru: {
@@ -223,6 +230,42 @@ export const defaultTexts: Record<BotLang, BotTexts> = {
   },
 };
 
+/**
+ * Те же тексты голосом самого менеджера (speaksAs = manager): от первого лица, без «передала менеджеру» и без рода
+ * («уточню», «посмотрю»): имя менеджера в настройках, а род по имени не угадываем. Остальные тексты — общие.
+ */
+export const managerVoiceTexts: Record<BotLang, Partial<BotTexts>> = {
+  ru: {
+    greeting: "Здравствуйте, {имя}! Задам пару коротких вопросов, чтобы сразу подготовить для вас предложение.",
+    finish: "Спасибо! Посмотрю ваши ответы и скоро напишу 🙌",
+    finishLater: "Спасибо! Посмотрю ваши ответы и напишу {когда} 🙌",
+    handoff: "Уточню и вернусь к вам в ближайшее время.",
+    handoffLater: "Уточню и вернусь к вам {когда}.",
+    voice: "Голосовое послушаю чуть позже. Если удобно, ответьте текстом или цифрой 🙏",
+    media: "Спасибо, всё вижу — посмотрю и напишу.",
+    reask: "Не совсем понятно 🙏 Ответьте, пожалуйста, цифрой или своими словами.",
+    noted: "Записываю: {что}.",
+    repeat: "Этот вопрос уточню и отвечу подробнее.",
+    decline: "Хорошо, спасибо! Если появятся вопросы — пишите, я на связи.",
+    linkExample: "Посмотрите, как выглядит такая книга: {ссылка}\nЛичный кабинет, где пишется книга, открою вам — или он откроется сам после оплаты счёта.",
+    agreed: "Отлично! 🙌 Пришлю счёт на предоплату в ближайшие минуты, а после оплаты откроем кабинет.",
+    agreedLater: "Отлично! 🙌 Пришлю счёт на предоплату {когда}, а после оплаты откроем кабинет.",
+  },
+  kk: {
+    greeting: "Сәлеметсіз бе, {имя}! Сізге бірден ұсыныс дайындау үшін бірнеше қысқа сұрақ қоямын.",
+    finish: "Рақмет! Жауаптарыңызды қарап, жақын арада жазамын 🙌",
+    finishLater: "Рақмет! Жауаптарыңызды қарап, {когда} жазамын 🙌",
+    handoff: "Нақтылап, жақын арада хабарласамын.",
+    handoffLater: "Нақтылап, {когда} хабарласамын.",
+    voice: "Дауыстық хабарламаны сәл кейінірек тыңдаймын. Ыңғайлы болса, мәтінмен не цифрмен жауап беріңіз 🙏",
+    media: "Рақмет, көрдім — қарап шығып, жазамын.",
+    repeat: "Бұл сұрақты нақтылап, толығырақ жауап беремін.",
+    linkExample: "Мұндай кітаптың үлгісін мына жерден көріңіз: {ссылка}\nКітап жазатын жеке кабинетті өзім ашып беремін немесе шотты төлегеннен кейін ол өздігінен ашылады.",
+    agreed: "Тамаша! 🙌 Алдын ала төлем шотын жақын арада жіберемін, төлемнен кейін кабинетті ашамыз.",
+    agreedLater: "Тамаша! 🙌 Алдын ала төлем шотын {когда} жіберемін, төлемнен кейін кабинетті ашамыз.",
+  },
+};
+
 /** Заводские вопросы (поля сделки CRM по умолчанию). Казахский текст подставляется и к вопросам из старых настроек. */
 export const defaultQuestions: BotQuestion[] = [
   { field: "recipient", text: { ru: "Для кого будет книга? Например: для мамы, для мужа, для подруги.", kk: "Кітап кімге арналады? Мысалы: анаңызға, күйеуіңізге, құрбыңызға." } },
@@ -261,8 +304,8 @@ export const defaultFaq: Record<FaqIntent, BotFaqAnswer> = {
   delivery: {
     on: true,
     text: {
-      ru: "Доставляем курьером по Алматы и Астане — {доставка.курьер}, по всему Казахстану — {доставка.почта}, самовывоз в Алматы — {доставка.самовывоз}.",
-      kk: "Алматы мен Астанада курьермен жеткіземіз — {доставка.курьер}, бүкіл Қазақстан бойынша — {доставка.почта}, Алматыда өзіңіз алып кетсеңіз — {доставка.самовывоз}.",
+      ru: "Доставляем курьером по Алматы и Астане — {доставка.курьер}, по всему Казахстану — {доставка.почта}, самовывоз в Алматы — {доставка.самовывоз}.\nОтправляем и в другие страны — {доставка.заграница}.",
+      kk: "Алматы мен Астанада курьермен жеткіземіз — {доставка.курьер}, бүкіл Қазақстан бойынша — {доставка.почта}, Алматыда өзіңіз алып кетсеңіз — {доставка.самовывоз}.\nБасқа елдерге де жібереміз — {доставка.заграница}.",
     },
   },
   payment: {
@@ -314,7 +357,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -418,6 +461,7 @@ function parseSell(raw: unknown): BotSell {
     maxTurns: int(r.maxTurns, 4, 100, d.maxTurns),
     hidePrices: typeof r.hidePrices === "boolean" ? r.hidePrices : d.hidePrices,
     media: typeof r.media === "boolean" ? r.media : d.media,
+    speaksAs: r.speaksAs === "assistant" ? "assistant" : "manager",
     botName: name(r.botName, d.botName),
     managerName: name(r.managerName, d.managerName),
     facts: typeof r.facts === "string" ? r.facts.slice(0, 2000) : d.facts,
@@ -426,9 +470,50 @@ function parseSell(raw: unknown): BotSell {
   };
 }
 
-/** Текст бота на языке клиента; пустой казахский — заводской казахский, а не русский. */
+/**
+ * Сохранённый текст голосом нужного автора: заводской текст другого голоса (владелец его не правил) заменяется
+ * заводским текстом этого голоса; свой текст владельца — как есть; пусто — заводской.
+ */
+function voiced(stored: string, assistant: string, manager: string | undefined, speaksAs: BotSpeaksAs): string {
+  const own = stored.trim();
+  if (!manager) return own || assistant;
+  if (speaksAs === "manager") return !own || own === assistant ? manager : own;
+  return !own || own === manager ? assistant : own;
+}
+
+/** Текст бота на языке клиента; пустой казахский — заводской казахский, а не русский. Голос — speaksAs. */
 export function botText(config: BotConfig, lang: BotLang, key: BotTextKey) {
-  return config.texts[lang][key].trim() || defaultTexts[lang][key];
+  return voiced(config.texts[lang][key], defaultTexts[lang][key], managerVoiceTexts[lang][key], config.sell.speaksAs);
+}
+
+/** Ответы на частые вопросы голосом менеджера: «назову», «пришлю» вместо «менеджер назовёт». */
+export const managerVoiceFaq: Partial<Record<FaqIntent, Record<BotLang, string>>> = {
+  price: {
+    ru: defaultFaq.price.text.ru.replace("Точную сумму с учётом акции и доставки менеджер назовёт в ответе.", "Точную сумму с учётом акции и доставки назову в ответе."),
+    kk: defaultFaq.price.text.kk.replace("Акция мен жеткізуді ескергендегі нақты соманы менеджер жауабында айтады.", "Акция мен жеткізуді ескергендегі нақты соманы жауабымда айтамын."),
+  },
+  payment: {
+    ru: defaultFaq.payment.text.ru.replace("Оплата — по счёту, который пришлёт менеджер:", "Оплата — по счёту, который я пришлю:").replace("Про предоплату и рассрочку менеджер расскажет в ответе.", "Про предоплату и рассрочку расскажу в ответе."),
+    kk: defaultFaq.payment.text.kk.replace("Төлем менеджер жіберетін шот арқылы жүреді:", "Төлем мен жіберетін шот арқылы жүреді:").replace("Алдын ала төлем мен бөліп төлеу туралы менеджер жауабында айтады.", "Алдын ала төлем мен бөліп төлеу туралы жауабымда айтамын."),
+  },
+};
+
+/**
+ * Настройки бота голосом speaksAs: заводские тексты и ответы другого голоса (которые владелец не правил) — заводскими
+ * этого. Для формы настроек: при переключении «от чьего имени» поля показывают то, что бот действительно напишет.
+ */
+export function revoiceConfig(config: BotConfig, speaksAs: BotSpeaksAs): BotConfig {
+  const texts = Object.fromEntries(
+    BOT_LANGS.map((lang) => [lang, Object.fromEntries((Object.keys(defaultTexts[lang]) as BotTextKey[]).map((k) => [k, managerVoiceTexts[lang][k] ? voiced(config.texts[lang][k], defaultTexts[lang][k], managerVoiceTexts[lang][k], speaksAs) : config.texts[lang][k]]))]),
+  ) as unknown as BotConfig["texts"];
+  const faq = Object.fromEntries(
+    (Object.keys(config.faq) as FaqIntent[]).map((i) => {
+      const mine = managerVoiceFaq[i];
+      if (!mine) return [i, config.faq[i]];
+      return [i, { ...config.faq[i], text: Object.fromEntries(BOT_LANGS.map((lang) => [lang, voiced(config.faq[i].text[lang], defaultFaq[i].text[lang], mine[lang], speaksAs)])) }];
+    }),
+  ) as BotConfig["faq"];
+  return { ...config, texts, faq, sell: { ...config.sell, speaksAs } };
 }
 
 /** Вопрос на языке клиента: пустой казахский → заводской казахский этого поля → русский. */
@@ -439,8 +524,7 @@ export function questionFor(q: BotQuestion, lang: BotLang) {
 
 /** Ответ на частый вопрос на языке клиента. */
 export function faqFor(config: BotConfig, intent: FaqIntent, lang: BotLang) {
-  const a = config.faq[intent];
-  return a.text[lang].trim() || defaultFaq[intent].text[lang];
+  return voiced(config.faq[intent].text[lang], defaultFaq[intent].text[lang], managerVoiceFaq[intent]?.[lang], config.sell.speaksAs);
 }
 
 /** Строка акции на языке клиента: пустая казахская — русская (акцию пишет владелец, заводского перевода у неё нет). */

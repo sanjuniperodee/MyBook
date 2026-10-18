@@ -7,7 +7,7 @@ import { cn } from "@/lib/class-names";
 import { saveBotAction } from "./actions";
 import { BotTester } from "./BotTester";
 import type { BotFormTab } from "./botTabs";
-import { DEFAULT_SELL_FACTS, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
+import { DEFAULT_SELL_FACTS, revoiceConfig, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
 
 type Mode = "off" | "fallback" | "off_hours" | "always";
 export interface BotFormField {
@@ -108,7 +108,8 @@ export function BotForm({
 }) {
   const [tab, setTab] = useState<BotFormTab>(initialTab);
   const [mode, setMode] = useState<Mode>((["off", "fallback", "off_hours", "always"] as const).find((m) => m === initialMode) ?? "off");
-  const [cfg, setCfg] = useState<BotConfig>({ ...config, questions: config.questions.filter((q) => fields.some((f) => f.key === q.field)) });
+  // Тексты и ответы — голосом того, от чьего имени пишет бот: заводские тексты другого голоса заменены (см. revoiceConfig).
+  const [cfg, setCfg] = useState<BotConfig>(() => revoiceConfig({ ...config, questions: config.questions.filter((q) => fields.some((f) => f.key === q.field)) }, config.sell.speaksAs));
   const [lang, setLang] = useState<BotLang>("ru");
   const [pending, start] = useTransition();
   const patch = (p: Partial<BotConfig>) => setCfg((c) => ({ ...c, ...p }));
@@ -464,19 +465,36 @@ export function BotForm({
             ) : null}
             {cfg.sell.engine === "ai" ? (
               <div className="space-y-3 rounded-xl border border-line p-3">
+                <fieldset className="space-y-1.5 text-sm">
+                  <legend className="mb-1 text-xs text-muted">От чьего имени пишет бот</legend>
+                  {(
+                    [
+                      ["manager", `Сам менеджер — «Меня зовут ${cfg.sell.managerName || "Марат"}», от первого лица`],
+                      ["assistant", `Помощница менеджера — «${cfg.sell.botName || "Айгерим"}, помощница менеджера ${cfg.sell.managerName || "Марат"}»`],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label key={value} className="flex items-start gap-2">
+                      <input type="radio" name="speaksAs" className="mt-0.5 accent-wine" checked={cfg.sell.speaksAs === value} onChange={() => setCfg((c) => revoiceConfig(c, value))} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </fieldset>
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-xs text-muted">Как продажник представляется (женское имя)</span>
-                    <input value={cfg.sell.botName} onChange={(e) => setSell({ botName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя продажника" />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs text-muted">Менеджер, чья она помощница (он называет цену)</span>
+                    <span className="mb-1 block text-xs text-muted">{cfg.sell.speaksAs === "manager" ? "Имя менеджера — от его имени пишет бот" : "Менеджер, чья она помощница (он называет цену)"}</span>
                     <input value={cfg.sell.managerName} onChange={(e) => setSell({ managerName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя менеджера" />
                   </label>
+                  {cfg.sell.speaksAs === "assistant" ? (
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-muted">Как помощница представляется (женское имя)</span>
+                      <input value={cfg.sell.botName} onChange={(e) => setSell({ botName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя продажника" />
+                    </label>
+                  ) : null}
                 </div>
-                <p className="text-xs text-muted">
-                  Клиенту: «{cfg.sell.botName || "Айгерим"}, помощница менеджера {cfg.sell.managerName || "Марат"}». Сама не говорит, что она бот; если клиент прямо спросит, живой ли человек, — честно скажет, что виртуальная помощница, и
-                  предложит подключить менеджера.
+                <p className="text-xs text-muted" data-testid="speaks-as-note">
+                  {cfg.sell.speaksAs === "manager"
+                    ? `Бот пишет как сам ${cfg.sell.managerName || "Марат"}: представляется его именем в новом чате, о передаче «менеджеру» не говорит. Сам не говорит, что ему помогает ИИ; если клиент прямо и всерьёз спросит, живой ли человек, — честно скажет, что отвечать помогает AI-помощник, и предложит продолжить лично.`
+                    : `Сама не говорит, что она бот; если клиент прямо спросит, живой ли человек, — честно скажет, что виртуальная помощница, и предложит подключить менеджера.`}
                 </p>
                 <label className="block text-sm">
                   <span className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">

@@ -1,6 +1,8 @@
 "use server";
 
 import { container } from "@/server/container";
+import { readGifts } from "@/shared/domain/agreementGifts";
+import { giftsForPlan } from "@/config/site";
 import { listFields, readFieldValues } from "@/modules/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -116,6 +118,19 @@ export async function setDealAgreedPlanAction(dealId: string, plan: string | nul
   if (!(await container().sales.agreedPlan.set(deal.id, value))) return { ok: false, message: "Не удалось сохранить тариф" };
   await container().sales.deals.note(deal, `Тариф договорённости: ${before ?? "не указан"} → ${value ?? "не указан"}`, staff.user.id, "system");
   await audit(staff, "deal.plan", "deal", deal.id, { from: before, to: value });
+  revalidateDeal(deal.id, deal.clientId);
+  return { ok: true };
+}
+
+/** Что по договорённости бесплатно (упаковка, доставка). Пока по сделке нет заказа; недоступное тарифу не сохраняется. */
+export async function setDealAgreedGiftsAction(dealId: string, gifts: string[]): Promise<{ ok: boolean; message?: string }> {
+  const staff = await assertStaff("deals.edit");
+  const deal = await loadDeal(staff, dealId);
+  if (deal.orderId) return { ok: false, message: "По сделке уже оформлен заказ: условия не изменить" };
+  const plan = await container().sales.agreedPlan.get(deal.id);
+  const value = plan ? giftsForPlan(plan, readGifts(gifts)) : readGifts(gifts);
+  if (!(await container().sales.changeAgreedGifts(deal.id, value, staff.user.id))) return { ok: false, message: "Не удалось сохранить" };
+  await audit(staff, "deal.gifts", "deal", deal.id, { gifts: value });
   revalidateDeal(deal.id, deal.clientId);
   return { ok: true };
 }

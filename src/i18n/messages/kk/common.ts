@@ -123,6 +123,7 @@ export const common: Messages["common"] = {
     courier: { name: "Қала ішінде курьер", description: "Алматы мен Астана, басылғаннан кейін 1–2 күн" },
     post: { name: "Қазақстан бойынша жеткізу", description: "Қазпошта / СДЭК, 3–7 күн" },
     pickup: { name: "Өзіңіз алып кету", description: "Алматыдағы студиямыздан" },
+    abroad: { name: "Басқа елге жеткізу", description: "Ресей, Қырғызстан, Өзбекстан және басқа елдер — құны мен мерзімін менеджер есептейді" },
   },
   addons: {
     express: { name: "Жедел басып шығару", description: "Кезексіз басамыз — 3–4 жұмыс күнінде" },
@@ -157,6 +158,7 @@ export const common: Messages["common"] = {
     otherWay: "Kaspi арқылы төлеу мүмкін болмаса, нөмір бойынша аударыңыз:",
   },
   free: "Тегін",
+  agreementGifts: { giftwrap: "сыйлық орамы", delivery: "жеткізу" },
   legal: { updated: (d: string) => `${d} редакциясы` },
   date,
   until,

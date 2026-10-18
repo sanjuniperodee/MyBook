@@ -5,6 +5,7 @@
  * вебхук, тест-режим в настройках и тесты. Тексты клиенту — только из настроек (botConfig), цифры — из тарифов.
  */
 import { fillTemplate } from "@/shared/domain/templates";
+import type { PaymentFacts } from "./botPayments";
 import { zonedDay } from "@/shared/domain/time";
 import { humanDate, whenText, type DealField } from "./bot";
 import { botText, faqFor, mentionsMonth, promoFor, optionLabel, parseDateAnswer, matchOption, questionFor, questionText, type BotConfig, type BotTextKey } from "./botConfig";
@@ -177,6 +178,8 @@ export interface BotEnv {
   hints?: BotHints | null;
   /** По сделке уже есть оплата (счёт оплачен или привязан заказ): предоплату не предлагаем. */
   paid?: boolean;
+  /** Что CRM знает об оплате: платежи (ручные и онлайн по счетам), счета из чата, заказы клиента. */
+  payments?: PaymentFacts | null;
 }
 
 export interface BotTurn {
@@ -217,7 +220,7 @@ export function classifyInputs(inputs: BotInput[]) {
 }
 
 /** Почему бот не начинает опрос (или null — начинает). */
-export type BotSkipReason = "channel" | "no_questions" | "no_deal" | "client_has_order" | "client_has_book" | "deal_closed" | "deal_in_work" | "prior_chat" | "continuation" | "media_only" | "work_time" | "disabled";
+export type BotSkipReason = "channel" | "no_questions" | "no_deal" | "client_has_order" | "client_has_book" | "deal_closed" | "deal_in_work" | "prior_chat" | "continuation" | "media_only" | "work_time" | "disabled" | "no_reply_needed";
 
 export const skipReasonLabels: Record<BotSkipReason, string> = {
   channel: "канал без бота",
@@ -232,6 +235,7 @@ export const skipReasonLabels: Record<BotSkipReason, string> = {
   media_only: "только фото или файл",
   work_time: "рабочее время",
   disabled: "бот выключен",
+  no_reply_needed: "клиент не ждёт ответа",
 };
 
 /** Решение «начинать ли опрос» по фактам о клиенте, сделке и первых сообщениях. */

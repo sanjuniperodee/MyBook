@@ -105,6 +105,7 @@ const botConfigSchema = z.object({
     maxTurns: z.number().int().min(4, "Потолок беседы — от 4 ответов").max(100, "Потолок беседы — до 100 ответов"),
     hidePrices: z.boolean(),
     media: z.boolean(),
+    speaksAs: z.enum(["manager", "assistant"]),
     botName: z.string().trim().min(1, "Имя продажника — не пустое").max(40, "Имя продажника — до 40 знаков"),
     managerName: z.string().trim().min(1, "Имя менеджера — не пустое").max(40, "Имя менеджера — до 40 знаков"),
     facts: z.string().trim().max(2000, "Факты для продажника — до 2000 знаков"),

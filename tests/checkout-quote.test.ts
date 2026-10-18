@@ -11,7 +11,7 @@ const deliveryOf = (method: DeliveryId) => ({ method, city: method === "pickup" 
 
 describe("Оформление: форма и сервер считают одинаково", () => {
   const plans: PlanId[] = ["digital", "hardcover", "premium"];
-  const deliveries: DeliveryId[] = ["courier", "post", "pickup"];
+  const deliveries: DeliveryId[] = ["courier", "post", "pickup", "abroad"];
   const agreements = [null, { agreedTotal: 20_000, prepaid: 5_000, plan: null }, { agreedTotal: 25_000, prepaid: 30_000, plan: "premium" as PlanId }];
   const promos = [null, { code: "SALE10", kind: "percent" as const, value: 10 }, { code: "MINUS", kind: "fixed" as const, value: 50_000 }];
 

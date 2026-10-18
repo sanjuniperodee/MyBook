@@ -6,14 +6,14 @@ import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMed
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
-import { GOWA_CHANNEL, gowaJid, parseGowaHistory } from "./domain/gowa";
+import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { chatFiles } from "./infrastructure/chatFiles";
 import { mediaLine, parseCoachLog, parseLessons, type BotLesson, type CoachRun } from "./domain";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import type { Conversation, HistoryMessage } from "./domain";
+import type { Conversation, HistoryMessage, InboundMessage } from "./domain";
 
 export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
@@ -134,6 +134,7 @@ export class MessagingModule {
       media: (messageId) => this.media.bytes(messageId).catch(() => null),
       // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
       transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
+      changed: (conversationId) => live.chatChanged(conversationId),
     });
     this.coach = new BotCoach({
       settings: this.botSettings,
@@ -392,6 +393,54 @@ export class MessagingModule {
     const r = await this.importGowaHistory({ since });
     await this.deps.settings.save({ "gowa.historySyncedAt": started.toISOString() }, null);
     return r.imported;
+  }
+
+  /** Первая сверка со шлюзом в этом процессе смотрит дальше назад: сайт мог не работать. */
+  #caughtUpOnce = false;
+
+  /**
+   * Сверка CRM со шлюзом (планировщик, раз в 30 с): что пришло на номер магазина или ушло с его телефона, но не дошло
+   * вебхуком, — проходит обычным путём (gowaCatchUpRange). Чаты шлюза идут от недавних к старым: дальше окна не читаем.
+   */
+  async catchUpGowa(): Promise<number> {
+    if ((await this.deps.whatsappSettings.provider()) !== "gowa") return 0;
+    const { from, to } = gowaCatchUpRange(this.deps.clock.now(), !this.#caughtUpOnce);
+    const PAGE = 50;
+    let caught = 0;
+    for (let offset = 0; offset < 10 * PAGE; offset += PAGE) {
+      const page = await this.gowa.chats(offset, PAGE);
+      let older = false;
+      for (const { jid, lastMessageAt } of page.chats) {
+        const last = Date.parse(lastMessageAt);
+        if (!Number.isNaN(last) && last < from.getTime()) {
+          older = true;
+          break;
+        }
+        if (!isGowaPersonalJid(jid)) continue;
+        caught += await this.chats.catchUp(await this.recentGowaMessages(jid, from, to), { anyWhatsappChannel: true });
+      }
+      if (older || page.chats.length < PAGE || offset + PAGE >= page.total) break;
+    }
+    this.#caughtUpOnce = true;
+    return caught;
+  }
+
+  /** Сообщения собеседника из хранилища шлюза за окно сверки (шлюз отдаёт новые первыми). */
+  private async recentGowaMessages(jid: string, from: Date, to: Date): Promise<InboundMessage[]> {
+    const PAGE = 50;
+    const out: InboundMessage[] = [];
+    for (let offset = 0; offset < 10 * PAGE; offset += PAGE) {
+      const part = await this.gowa.chatMessages(jid, offset, PAGE);
+      let oldest = Number.POSITIVE_INFINITY;
+      for (const raw of part.messages) {
+        const at = Date.parse(String((raw as { timestamp?: unknown } | null)?.timestamp ?? ""));
+        if (!Number.isNaN(at)) oldest = Math.min(oldest, at);
+        const m = parseGowaHistory(raw);
+        if (m && m.at >= from && m.at <= to) out.push(m);
+      }
+      if (part.messages.length < PAGE || oldest < from.getTime() || offset + PAGE >= part.total) break;
+    }
+    return out;
   }
 
   /** Подпись вебхука GOWA. */

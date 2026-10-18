@@ -25,7 +25,9 @@ export default async function PricingPage() {
       <PricingForm
         plans={plans}
         addons={getAddons().map((a) => ({ id: a.id, price: a.price }))}
-        delivery={getDeliveryOptions().map((d) => ({ id: d.id, price: d.price }))}
+        delivery={getDeliveryOptions()
+          .filter((d) => !d.quoted)
+          .map((d) => ({ id: d.id, price: d.price }))}
         factory={factory}
         changed={changed}
       />

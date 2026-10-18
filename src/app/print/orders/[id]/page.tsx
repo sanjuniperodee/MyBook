@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
+import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import { formatDate } from "@/lib/dates";
 import { PrintButton } from "./PrintButton";
 import { pageId } from "@/server/input";
@@ -35,7 +36,7 @@ export default async function PackingSlip({ params }: { params: Promise<{ id: st
           <div className="text-xs text-muted uppercase">Получатель</div>
           <div className="mt-1 text-xl font-semibold">{order.contactName}</div>
           <div className="text-lg">{order.contactPhone}</div>
-          <div className="mt-2 text-base leading-snug">{[order.postalCode, order.city, order.address].filter(Boolean).join(", ") || "Самовывоз"}</div>
+          <div className="mt-2 text-base leading-snug">{deliveryAddress({ ...order, country: order.deliveryCountry }) || "Самовывоз"}</div>
           <div className="mt-1 text-sm text-muted">{deliveryName(order.deliveryMethod)}</div>
           {order.addons.includes("express") || order.plan === "premium" ? <div className="mt-3 mr-2 inline-block bg-ink px-2 py-1 text-sm font-bold text-white uppercase">Срочно — вне очереди</div> : null}
           {order.surprise ? <div className="mt-3 inline-block border-2 border-ink px-2 py-1 text-sm font-bold uppercase">Сюрприз! Не звонить получателю заранее</div> : null}

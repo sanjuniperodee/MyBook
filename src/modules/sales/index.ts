@@ -1,10 +1,11 @@
 import type { Clock, Logger, SettingsReader, UnitOfWork, WorkSchedule } from "@/shared/application";
+import { readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
 import { DealsService, LeadRoutingService, PaymentIntakeService, PipelinesService, SiteFunnelService, noDealInvoices, type DealInvoicesPort, type PaymentEffects, type RoutingNotifier } from "./application";
 import { storeTimeZone } from "@/shared/domain/time";
 import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient, attachAgreementOrder, dealMoney } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
-import { dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
+import { dealAgreedGifts, dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedGifts, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
 import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
@@ -40,6 +41,24 @@ export class SalesModule {
   readonly money = dealMoney;
   /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
   readonly agreedPlan = { set: setDealAgreedPlan, get: dealAgreedPlan };
+  /** Что по договорённости бесплатно (упаковка, доставка): в заказе по ней они стоят 0 ₸, если клиент их выберет. */
+  readonly agreedGifts = { set: setDealAgreedGifts, get: dealAgreedGifts };
+
+  /**
+   * Сменить бесплатное по договорённости с записью в ленту сделки (только если изменилось). false — по сделке уже заказ
+   * (договорённость закрыта) или сделки нет.
+   */
+  async changeAgreedGifts(dealId: string, gifts: AgreementGift[], actorId: string | null, via: "invoice" | "deal" = "deal"): Promise<boolean> {
+    const before = await dealAgreedGifts(dealId);
+    const next = readGifts(gifts);
+    if (before.join() === next.join()) return true;
+    if (!(await setDealAgreedGifts(dealId, next))) return false;
+    const deal = await this.deals.findById(dealId);
+    const names = { giftwrap: "подарочная упаковка", delivery: "доставка" } as const;
+    const list = (g: AgreementGift[]) => (g.length ? g.map((x) => names[x]).join(", ") : "ничего");
+    if (deal) await this.deals.note(deal, `Бесплатно по договорённости: ${list(before)} → ${list(next)}${via === "invoice" ? " (счёт из чата)" : ""}`, actorId, "system");
+    return true;
+  }
   /** Пакет книг: клиент оплатил сразу несколько — по сделке на книгу. */
   readonly batch = { set: setDealBatch, of: dealBatch, money: dealBatchMoney };
   /**
@@ -52,6 +71,7 @@ export class SalesModule {
     const deal = await this.deals.findById(dealId);
     if (!deal || (await dealBatchMoney(dealId)).size) return;
     const plan = await dealAgreedPlan(dealId);
+    const gifts = await dealAgreedGifts(dealId);
     const siblings: { id: string }[] = [];
     for (let i = 1; i < count; i++) {
       const copy = await this.deals.create({
@@ -69,6 +89,7 @@ export class SalesModule {
         utm: deal.utm,
       });
       if (plan) await setDealAgreedPlan(copy.id, plan);
+      if (gifts.length) await setDealAgreedGifts(copy.id, gifts);
       siblings.push({ id: copy.id });
     }
     await markBatchMembers(dealId, crypto.randomUUID(), siblings);

@@ -8,7 +8,9 @@ import { planLabels } from "@/modules/ordering/ui/labels";
 import { InvoiceDialog } from "@/components/admin/invoices/InvoiceDialog";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { choiceNeeded, guardIds, newIssueKey, overpaidPayments, type InvoicePerms, type InvoiceView, type MoneyGuard } from "@/components/admin/invoices/model";
-import { setDealAgreedPlanAction } from "../actions";
+import { setDealAgreedGiftsAction, setDealAgreedPlanAction } from "../actions";
+import { giftOptionsForPlan } from "@/components/admin/invoices/model";
+import type { AgreementGift } from "@/shared/domain/agreementGifts";
 
 interface PaymentItem {
   id: string;
@@ -99,6 +101,7 @@ export function PaymentsPanel({
   payments,
   agreed,
   plan,
+  gifts = [],
   canEdit,
   canDelete = false,
   order,
@@ -113,6 +116,8 @@ export function PaymentsPanel({
   payments: PaymentItem[];
   agreed: number;
   plan: string | null;
+  /** Что по договорённости бесплатно (упаковка, доставка). */
+  gifts?: AgreementGift[];
   canEdit: boolean;
   canDelete?: boolean;
   order: { id: string; number: number } | null;
@@ -167,6 +172,24 @@ export function PaymentsPanel({
   }
   const [planValue, setPlanValue] = useState(plan ?? "");
   const [planMsg, setPlanMsg] = useState<string | null>(null);
+  const [giftValue, setGiftValue] = useState<AgreementGift[]>(gifts);
+  const [giftMsg, setGiftMsg] = useState<string | null>(null);
+  // Бесплатным можно отметить только то, что есть у тарифа договорённости (тариф не указан — оба варианта).
+  const giftChoices = giftOptionsForPlan(planValue || null);
+  const toggleGift = async (g: AgreementGift, on: boolean) => {
+    const prev = giftValue;
+    const next = on ? [...prev.filter((x) => x !== g), g] : prev.filter((x) => x !== g);
+    setGiftValue(next);
+    setGiftMsg(null);
+    const r = await setDealAgreedGiftsAction(dealId, next);
+    if (r.ok) {
+      setGiftMsg("Сохранено");
+      refresh();
+    } else {
+      setGiftValue(prev);
+      setGiftMsg(r.message ?? "Не удалось");
+    }
+  };
   const planOptions = getPlans().filter((p) => !p.hidden || p.id === plan);
 
   async function add() {
@@ -279,6 +302,20 @@ export function PaymentsPanel({
         </select>
         <p className="mt-1 text-[11px] text-muted">{planMsg ?? "Клиент оформит заказ по договорённости только на этот тариф. Доставка и допы считаются сверху."}</p>
       </div>
+      {giftChoices.length ? (
+        <div data-testid="agreed-gifts">
+          <div className="mb-1 text-[11px] text-muted">Бесплатно по договорённости</div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
+            {giftChoices.map((g) => (
+              <label key={g} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={giftValue.includes(g)} disabled={!canEdit || locked} onChange={(e) => void toggleGift(g, e.target.checked)} />
+                {g === "giftwrap" ? "Подарочная упаковка" : "Доставка"}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-muted">{giftMsg ?? "Отмеченное клиент выбирает при оформлении сам, и оно стоит 0 ₸. Не отмечено — по прайсу."}</p>
+        </div>
+      ) : null}
       {order ? (
         <p className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-900" data-testid="order-linked">
           Оформлен{" "}

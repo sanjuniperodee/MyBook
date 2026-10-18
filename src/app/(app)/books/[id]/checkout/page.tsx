@@ -118,7 +118,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           initialPromo={initialPromo}
           initialPlan={giftPlan}
           upgrade={upgradeOk ? { orderId: upgrade.orderId, number: upgrade.number, credit: upgrade.credit } : null}
-          agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid, batch: agreement.batch && !agreement.batch.implicit ? { index: agreement.batch.index, size: agreement.batch.size } : null, plan: agreement.plan && getPlan(agreement.plan) ? (agreement.plan as PlanId) : null }}
+          agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid, batch: agreement.batch && !agreement.batch.implicit ? { index: agreement.batch.index, size: agreement.batch.size } : null, plan: agreement.plan && getPlan(agreement.plan) ? (agreement.plan as PlanId) : null, gifts: agreement.gifts ?? [] }}
           defaults={{
             name: user.name,
             email: user.email,

@@ -48,6 +48,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
             <div className="eyebrow">{t.eyebrow(invoice.label)}</div>
             <h1 className="mt-3 font-serif text-4xl font-medium sm:text-5xl">{state === "paid" ? t.paidTitle : state === "payable" ? t.meta : t.closedTitle}</h1>
             <p className="mt-3 text-ink-soft">{t.purposeLine(planName(s.plan, locale), t.purpose[s.purpose], s.booksCount)}</p>
+            {s.gifts.length ? <p className="mt-1 text-ink-soft" data-testid="pay-gifts">🎁 {t.gifts(s.gifts.map((g) => m.common.agreementGifts[g]).join(", "))}</p> : null}
             <p className="mt-1 text-ink-soft">
               {state === "paid" ? t.amountPaid : state === "payable" ? t.toPay : t.amount}: <b className="text-ink">{formatPrice(s.amount)}</b>
             </p>
