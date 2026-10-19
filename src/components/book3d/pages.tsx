@@ -10,6 +10,7 @@ import type { SampleEntry } from "@/components/interior/entry";
 import { pageKit, type PageKit } from "@/components/interior/kit";
 import { ColophonPage, DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "@/components/interior/pages";
 import { cqwUnits } from "@/components/interior/units";
+import { VisiblePhotos } from "@/components/interior/entry";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { columnPages, pageSide } from "@/lib/book/page-geometry";
@@ -72,6 +73,8 @@ export interface FaceContext {
   galleryStart: number | null;
   /** Полос текста в каждой главе — для номеров страниц разделов в оглавлении. */
   textPages?: number[];
+  /** В какой колонке (полосе куска) стоит каждое фото: ключ «глава-кусок» → id фото → номер полосы с 0. */
+  photoColumns?: Map<string, Record<string, number>>;
 }
 
 export const faceBox = "absolute inset-0 size-full";
@@ -124,7 +127,14 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       const ch = data.chapters[face.chapter];
       const run = face.run ?? 0;
       const entries = runsOf(ch)[run]?.entries ?? [];
-      return <TextPage kit={kit} entries={entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0 && run === 0} part={face.part} tail={run === lastTextRun(ch)} className={faceBox} />;
+      // Картинкой — только фото этой полосы (остальные — пустое место того же размера), см. VisiblePhotos.
+      const columns = ctx.photoColumns?.get(`${face.chapter}-${run}`);
+      const visible = (id: string) => !columns || columns[id] === undefined || columns[id] === face.part;
+      return (
+        <VisiblePhotos.Provider value={visible}>
+          <TextPage kit={kit} entries={entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0 && run === 0} part={face.part} tail={run === lastTextRun(ch)} className={faceBox} />
+        </VisiblePhotos.Provider>
+      );
     }
     case "pagePhoto": {
       const photo = data.chapters[face.chapter]?.runs?.[face.run]?.photo;
@@ -161,12 +171,21 @@ export function usePagedBook(data: FlipbookData): PagedBook {
 
   const root = useRef<HTMLDivElement>(null);
   const [textPages, setTextPages] = useState<number[] | null>(null);
+  const [photoCols, setPhotoCols] = useState<Record<string, number>[]>([]);
   const measureNow = useCallback(() => {
     const el = root.current;
     if (!el) return;
     const gapPx = (2 * pageSide(format) * MEASURE_WIDTH) / format.widthMm;
-    const next = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"), (flow) => columnPages(flow.scrollWidth, flow.clientWidth, gapPx));
+    const flows = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"));
+    const next = flows.map((flow) => columnPages(flow.scrollWidth, flow.clientWidth, gapPx));
     setTextPages((prev) => (prev && prev.length === next.length && prev.every((n, i) => n === next[i]) ? prev : next));
+    // Колонка каждого фото: по сдвигу от начала потока на шаг колонки (ширина + промежуток).
+    const cols = flows.map((flow) => {
+      const left = flow.getBoundingClientRect().left;
+      const pitch = flow.clientWidth + gapPx;
+      return Object.fromEntries(Array.from(flow.querySelectorAll<HTMLElement>("[data-photo-id]"), (img) => [img.dataset.photoId!, Math.max(0, Math.floor((img.getBoundingClientRect().left - left + 1) / pitch))]));
+    });
+    setPhotoCols((prev) => (JSON.stringify(prev) === JSON.stringify(cols) ? prev : cols));
   }, [format]);
   // Замеряем каждый кусок текста главы отдельно (с концовкой — только последний): так же они идут по полосам.
   const measured = useMemo(
@@ -199,7 +218,8 @@ export function usePagedBook(data: FlipbookData): PagedBook {
     }), textPages: perChapter };
   }, [textPages, data.chapters, data.dedication, data.showToc, data.toc, data.gallery]);
   const sheets = useMemo(() => (plan ? planSheets(plan.faces) : []), [plan]);
-  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart, textPages: plan.textPages } : null), [plan, data, kit]);
+  const photoColumns = useMemo(() => new Map(measured.map((m, i) => [m.key, photoCols[i] ?? {}])), [measured, photoCols]);
+  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart, textPages: plan.textPages, photoColumns } : null), [plan, data, kit, photoColumns]);
 
   const measure = (
     <div ref={root} aria-hidden className="pointer-events-none invisible fixed top-0 -left-[10000px]" style={{ width: MEASURE_WIDTH }}>

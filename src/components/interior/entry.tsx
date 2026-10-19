@@ -1,7 +1,7 @@
-import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
+import { createContext, Fragment, useContext, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
-import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
+import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
@@ -106,6 +106,13 @@ export interface RowPhotoLayer {
   overlay?: ReactNode;
 }
 
+/**
+ * Какие фото рисовать картинкой: в листаемой 3D-книге каждая полоса держит весь текст главы (колонки со сдвигом), и
+ * без отбора каждая хранила бы все снимки главы — Safari на iPhone, упираясь в память под 3D-слои, перестаёт их рисовать
+ * (пустые страницы). Нет провайдера — рисуются все; невидимое фото — пустое место того же размера (вёрстка та же).
+ */
+export const VisiblePhotos = createContext<((id: string) => boolean) | null>(null);
+
 /** Фото в ряду: рамка или поляроид со своей подписью, размеры — как в PDF (inline-photo.ts). */
 function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
   const { design, sizes: S, u } = kit;
@@ -115,6 +122,8 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
   const extra = layer?.(item, b);
+  const visible = useContext(VisiblePhotos);
+  const shown = !visible || visible(p.id);
   return (
     <figure {...extra?.figure} style={{ width: u.mm(b.outerW), margin: 0, flex: "none", ...extra?.figure?.style }}>
       <div
@@ -132,14 +141,19 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
           ...extra?.frame,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы */}
-        <img
-          alt=""
-          {...extra?.img}
-          src={p.url}
-          draggable={false}
-          style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
-        />
+        {shown ? (
+          // eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы
+          <img
+            alt=""
+            {...extra?.img}
+            src={p.url}
+            data-photo-id={p.id}
+            draggable={false}
+            style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
+          />
+        ) : (
+          <div data-photo-id={p.id} style={{ width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM) }} />
+        )}
         {polaroid && p.caption ? (
           <div
             style={{
@@ -269,7 +283,14 @@ export function MediaCard({ kit, media, href, ...rest }: { kit: PageKit; media: 
 }
 
 /** Ответ целиком: блоки набора, фото и QR-коды между ними, как в PDF (в одном месте — сначала фото). */
-export function EntryBody({ kit, entry, leadIn, links = false }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; links?: boolean }) {
+/** Абзац до стольких знаков держим на полосе вместе с заголовком; длиннее — заголовку хватает «трёх строк» (orphans). */
+const KEEP_WITH_HEAD_CHARS = 700;
+
+/**
+ * head — заголовок или разделитель ответа: он ставится в одну неразрывную обёртку с первым блоком (рядом фото или
+ * коротким абзацем). Так заголовок не остаётся внизу полосы и в Safari, где break-after: avoid в колонках не работает.
+ */
+export function EntryBody({ kit, entry, leadIn, links = false, head }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; links?: boolean; head?: ReactNode }) {
   const blocks = answerBlocks(entry.paragraphs);
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
@@ -278,17 +299,44 @@ export function EntryBody({ kit, entry, leadIn, links = false }: { kit: PageKit;
     ...(rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} />),
     ...(media.get(key) ?? []).map((m) => <MediaCard key={`${key}-m-${m.id}`} kit={kit} media={m} href={links ? m.url : undefined} />),
   ];
+  const before = blocks.length ? rowsAt(-1) : [];
+  const tail = rowsAt(Number.POSITIVE_INFINITY);
+  // Что держать вместе с заголовком: ряд фото перед текстом, иначе короткий первый блок, а без текста — первое фото.
+  const keep: "rows" | "block" | "tail" | null = !head ? null : before.length ? "rows" : blocks.length ? (blockChars(blocks[0]) <= KEEP_WITH_HEAD_CHARS ? "block" : null) : tail.length ? "tail" : null;
+  const block = (b: AnswerBlock, j: number) => (
+    // Под заголовком на той же полосе — не меньше трёх строк (как в PDF), иначе заголовок с абзацем — на следующую.
+    <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} style={j === 0 && entry.heading && !before.length ? { orphans: 3 } : undefined} />
+  );
   return (
     <>
-      {blocks.length ? rowsAt(-1) : null}
+      {head ? (
+        <div style={{ breakInside: "avoid" }}>
+          {head}
+          {keep === "rows" ? before : keep === "block" ? block(blocks[0], 0) : keep === "tail" ? tail.slice(0, 1) : null}
+        </div>
+      ) : null}
+      {keep === "rows" ? null : before}
       {blocks.map((b, j) => (
         <Fragment key={j}>
-          {/* Под заголовком на той же полосе — не меньше трёх строк (как в PDF), иначе заголовок с абзацем — на следующую. */}
-          <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} style={j === 0 && entry.heading && !rows.get(-1)?.length ? { orphans: 3 } : undefined} />
+          {keep === "block" && j === 0 ? null : block(b, j)}
           {j < blocks.length - 1 ? rowsAt(j) : null}
         </Fragment>
       ))}
-      {rowsAt(Number.POSITIVE_INFINITY)}
+      {keep === "tail" ? tail.slice(1) : tail}
     </>
   );
+}
+
+/** Знаков в блоке набора — чтобы решить, держать ли его на полосе вместе с заголовком. */
+function blockChars(b: AnswerBlock): number {
+  switch (b.kind) {
+    case "para":
+    case "lede":
+      return b.text.length;
+    case "quote":
+    case "verse":
+      return b.lines.join(" ").length;
+    case "list":
+      return b.items.reduce((n, it) => n + it.text.length, 0);
+  }
 }
