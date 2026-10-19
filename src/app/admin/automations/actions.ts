@@ -31,10 +31,15 @@ const schema = z.object({
     source: z.union([z.enum(dealSources), z.literal(""), z.null()]).optional(),
     channel: z.string().trim().max(30).optional(),
     orderStatus: z.union([z.enum(orderRuleStatuses), z.literal(""), z.null()]).optional(),
-    minutes: z.coerce.number().int().min(1).max(1440).optional(),
+    minutes: z.coerce.number({ error: admin.minutesInvalid(1440) }).int(admin.minutesInvalid(1440)).min(1, admin.minutesInvalid(1440)).max(1440, admin.minutesInvalid(1440)).optional(),
     // «Клиент забросил книгу» и «Сделка без активности»: сколько дней.
     days: z.coerce.number({ error: admin.daysInvalid(IDLE_LIMITS.days) }).int(admin.daysInvalid(IDLE_LIMITS.days)).min(1, admin.daysInvalid(IDLE_LIMITS.days)).max(IDLE_LIMITS.days, admin.daysInvalid(IDLE_LIMITS.days)).optional(),
-    daysBefore: z.coerce.number().int().min(1).max(HOLIDAY_LIMITS.daysBefore).optional(),
+    daysBefore: z.coerce
+      .number({ error: admin.daysBeforeInvalid(HOLIDAY_LIMITS.daysBefore) })
+      .int(admin.daysBeforeInvalid(HOLIDAY_LIMITS.daysBefore))
+      .min(1, admin.daysBeforeInvalid(HOLIDAY_LIMITS.daysBefore))
+      .max(HOLIDAY_LIMITS.daysBefore, admin.daysBeforeInvalid(HOLIDAY_LIMITS.daysBefore))
+      .optional(),
     // «Праздник»: за сколько дней до него покупали год назад; «Годовщина»: покупка с какого дня — уже покупка к ней снова.
     windowDays: z.coerce
       .number({ error: admin.windowDaysInvalid(HOLIDAY_LIMITS.windowDays) })

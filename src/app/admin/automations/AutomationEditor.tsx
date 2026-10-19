@@ -118,6 +118,8 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
   const [name, setName] = useState(rule?.name ?? "");
   const [trigger, setTrigger] = useState(rule?.trigger ?? "deal.created");
   const [conditions, setConditions] = useState<Record<string, string | number | null>>(rule?.conditions ?? {});
+  // «Книга заполнена меньше»: включено, пока порог не null — и когда поле стёрли, чтобы набрать другое число («»), а не 0.
+  const bookCheck = conditions.bookBelow !== null && conditions.bookBelow !== undefined;
   const [actions, setActions] = useState<AutomationAction[]>(rule?.actions ?? [blank("create_task")]);
   const [pending, start] = useTransition();
   const setAction = (i: number, patch: Partial<AutomationAction>) => setActions((a) => a.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -297,16 +299,16 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 дней до даты события или меньше
               </label>
               <label className="flex items-center gap-2" title="Как полоска в карточке сделки: ответы из вопросов, у своей книги — слова. Нет книги — 0%, заказ уже в печати — книга готова">
-                <input type="checkbox" className="size-4 accent-wine" checked={!!conditions.bookBelow} onChange={(e) => setConditions({ ...conditions, bookBelow: e.target.checked ? 50 : null })} aria-label="Проверять заполненность книги" />
+                <input type="checkbox" className="size-4 accent-wine" checked={bookCheck} onChange={(e) => setConditions({ ...conditions, bookBelow: e.target.checked ? 50 : null })} aria-label="Проверять заполненность книги" />
                 книга заполнена меньше
                 <input
                   type="number"
                   min={1}
                   max={100}
-                  disabled={!conditions.bookBelow}
+                  disabled={!bookCheck}
                   className="input h-9 w-20 text-sm"
-                  value={Number(conditions.bookBelow ?? 50)}
-                  onChange={(e) => setConditions({ ...conditions, bookBelow: Number(e.target.value) })}
+                  value={bookCheck ? String(conditions.bookBelow) : "50"}
+                  onChange={(e) => setConditions({ ...conditions, bookBelow: e.target.value })}
                   aria-label="Порог заполненности книги, %"
                 />
                 %
