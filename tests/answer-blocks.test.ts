@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerBlocks, rowsByBlock, tidyLine } from "@/lib/book/answer-blocks";
+import { answerBlocks, listMarkerEm, rowsByBlock, tidyLine } from "@/lib/book/answer-blocks";
 import { printableText } from "@/lib/book/layout";
 
 const long = "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег, и проговорили до утра. ".repeat(3).trim();
@@ -62,5 +62,22 @@ describe("текст для печати", () => {
     expect(printableText("Маған қымбат сөздер😊 и ❤️ навсегда 🤭.")).toBe("Маған қымбат сөздер и навсегда.");
     expect(printableText("© 2024 Мы")).toBe("© 2024 Мы");
     expect(printableText("Обычный текст")).toBe("Обычный текст");
+  });
+});
+
+describe("длинный нумерованный список («Сүюге 200 себеп»)", () => {
+  it("пункты 100 и дальше — тот же список, колонка номера шире под «100.»", () => {
+    const blocks = answerBlocks(["98. Бірінші.", "99. Екінші.", "100. Үшінші.", "101. Төртінші."]);
+    expect(blocks).toHaveLength(1);
+    const list = blocks[0];
+    if (list.kind !== "list") throw new Error("не список");
+    expect(list.items.map((it) => it.marker)).toEqual(["98.", "99.", "100.", "101."]);
+    expect(listMarkerEm(list)).toBeGreaterThan(listMarkerEm({ ...list, items: list.items.slice(0, 2) }));
+  });
+
+  it("до 99 пунктов ширина колонки прежняя", () => {
+    const [list] = answerBlocks(["1. Бір.", "2. Екі."]);
+    if (list.kind !== "list") throw new Error("не список");
+    expect(listMarkerEm(list)).toBe(1.6);
   });
 });

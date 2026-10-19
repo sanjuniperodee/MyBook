@@ -4,6 +4,7 @@
  * поэтому все три выглядят одинаково. Номера абзацев сохраняются: фото, вставленное «после абзаца n»,
  * встаёт после блока, в который попал абзац n.
  */
+import { ANSWER } from "./typesetting";
 
 export type AnswerBlock =
   /** Абзац (строки, которые автор перенёс посреди фразы, склеены). */
@@ -26,7 +27,8 @@ const VERSE_LINE_MAX = 50;
 const VERSE_MIN_LINES = 3;
 
 const BULLET = /^[•·▪●◦○■□▸►✓✔*]\s*/u;
-const NUMBERED = /^(\d{1,2})[.)]\s+/;
+/** Номер пункта — до трёх цифр: «Сүюге 200 себеп» и другие длинные списки (год в начале строки списком не считается). */
+const NUMBERED = /^(\d{1,3})[.)]\s+/;
 /** Дефис в начале строки — набранное с клавиатуры тире прямой речи или пункта: «- Привет» → «— Привет». */
 const HYPHEN_DASH = /^[-–]\s+/;
 
@@ -148,4 +150,14 @@ export function rowsByBlock<R>(blocks: AnswerBlock[], byParagraph: Map<number, R
     out.set(key, [...(out.get(key) ?? []), ...rows]);
   }
   return out;
+}
+
+/**
+ * Ширина колонки маркера списка, em кегля текста: у маркированного — ANSWER.list.marker, у нумерованного — по самому
+ * длинному номеру («99.» помещается в ANSWER.list.orderedMarker, «100.» — шире). Одна для PDF, превью и оценки.
+ */
+export function listMarkerEm(block: Extract<AnswerBlock, { kind: "list" }>): number {
+  if (!block.ordered) return ANSWER.list.marker;
+  const digits = Math.max(0, ...block.items.map((it) => it.marker.length - 1));
+  return Math.max(ANSWER.list.orderedMarker, digits * 0.5 + 0.6);
 }

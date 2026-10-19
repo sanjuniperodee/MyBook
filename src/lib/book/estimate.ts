@@ -5,7 +5,7 @@
  * блоки набора ответа — answer-blocks.ts, ряды фото — inline-photo.ts. От PDF оценку отличают две вещи: знаков
  * в строке — по средней ширине знака, а не по метрикам шрифта, и запас на полосе вместо переноса по строкам.
  */
-import { answerBlocks, type AnswerBlock } from "./answer-blocks";
+import { answerBlocks, listMarkerEm, type AnswerBlock } from "./answer-blocks";
 import { mediaCardBox, normalizeMedia, type AnswerMedia } from "./answer-media";
 import { MM_TO_PT, type BookFormat } from "./formats";
 import { framedBox, layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "./inline-photo";
@@ -66,7 +66,7 @@ function blockHeight(b: AnswerBlock, m: TextMetrics): number {
       return b.lines.reduce((n, l) => n + lines(l.length, w, size), 0) * size * q.lineHeight + S.body * (q.before + q.after);
     }
     case "list": {
-      const w = width - S.body * (b.ordered ? ANSWER.list.orderedMarker : ANSWER.list.marker);
+      const w = width - S.body * listMarkerEm(b);
       const n = b.items.reduce((sum, it) => sum + lines(it.text.length, w, S.body), 0);
       return n * line + (b.items.length - 1) * S.body * ANSWER.list.gap + S.body * ANSWER.list.after;
     }

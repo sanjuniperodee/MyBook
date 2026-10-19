@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { AnswerBlock } from "@/lib/book/answer-blocks";
+import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { ANSWER } from "@/lib/book/typesetting";
 import { textArea } from "@/lib/book/page-geometry";
 import type { PageKit } from "./kit";
@@ -57,7 +57,7 @@ function List({ kit, block, style, ...rest }: BlockProps<"list">) {
     <div style={{ marginBottom: u.pt(S.body * ANSWER.list.after), ...style }} {...rest}>
       {block.items.map((item, i) => (
         <div key={i} style={{ display: "flex", marginBottom: i < block.items.length - 1 ? u.pt(S.body * ANSWER.list.gap) : 0 }}>
-          <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: "none", width: u.pt(S.body * (block.ordered ? ANSWER.list.orderedMarker : ANSWER.list.marker)), textAlign: "left", color: kit.design.palette.accent }}>{item.marker}</span>
+          <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: "none", width: u.pt(S.body * listMarkerEm(block)), textAlign: "left", color: kit.design.palette.accent }}>{item.marker}</span>
           <span style={{ ...paragraphCss(kit), marginBottom: 0, flex: 1, textAlign: "left" }}>{item.text}</span>
         </div>
       ))}
