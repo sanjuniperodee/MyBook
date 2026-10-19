@@ -19,7 +19,7 @@ import type { TraceDeadline, TraceNote } from "./botTrace";
 // ─── состояние AI-беседы ────────────────────────────────────────────────────
 
 export { SELLER_MAX_FOLLOW_UPS, SELLER_STAGES, WARM_FIRST_FOLLOW_UP_MS, followUpDelayMs, isWarmLead, newSellerAiState, readSellerAi, type SellerAiState, type SellerRemind, type SellerStage } from "./botSellerState";
-import { SELLER_STAGES, isWarmLead, readSellerAi, type SellerAiState, type SellerRemind, type SellerStage } from "./botSellerState";
+import { SELLER_MAX_FOLLOW_UPS, SELLER_STAGES, isWarmLead, readSellerAi, type SellerAiState, type SellerRemind, type SellerStage } from "./botSellerState";
 export const SELLER_ACTIONS = ["reply", "wait", "issue_invoice", "handoff", "close_lost"] as const;
 export type SellerAction = (typeof SELLER_ACTIONS)[number];
 export const SELLER_HANDOFFS = ["none", "human_request", "call_request", "price_request", "paid_claim", "payment_issue", "complaint", "custom_request", "file_received", "objection", "unsure"] as const;
@@ -172,8 +172,12 @@ export function parseSellerDecision(raw: unknown, fields: DealField[], today: Da
 export const REMIND_REJECTS = ["format", "past", "too_far", "after_event", "off_hours", "limit", "no_marketing", "paid"] as const;
 export type RemindReject = (typeof REMIND_REJECTS)[number];
 
-/** Итог проверки remind_at для хода: принять (set), отменить договорённость (cancel) или отказать — модель переписывает ответ. */
-export type RemindCheck = { set: SellerRemind } | { cancel: true } | { rejected: RemindReject; problem: ReplyProblem };
+/**
+ * Итог проверки remind_at для хода: принять (set), отменить договорённость (cancel) или отказать — модель переписывает
+ * ответ. У отказа — названный моделью день (null — не дата) и почему, словами для менеджера: если ответ с обещанием всё
+ * же уйдёт, написать клиенту в этот день должен человек.
+ */
+export type RemindCheck = { set: SellerRemind } | { cancel: true } | { rejected: RemindReject; problem: ReplyProblem; day: string | null; label: string };
 
 /** remind_at модели → день и, если клиент назвал время, момент по поясу магазина; null — не дата. */
 export function parseRemindAt(raw: string, tz: string): { day: string; at: Date | null } | null {
@@ -218,6 +222,21 @@ export function remindProblem(reason: RemindReject, i: { maxDays: number; eventD
     paid: never,
   };
   return { kind: "rule", detail: detail[reason] };
+}
+
+/** Почему бот сам не напишет в названный день — менеджеру (заметка и задача, когда обещание уже ушло клиенту). */
+export function remindRejectLabel(reason: RemindReject, i: { maxDays: number; eventDate: string | null }): string {
+  const labels: Record<RemindReject, string> = {
+    format: "день не удалось разобрать",
+    past: "этот день уже прошёл",
+    too_far: `это дальше ${i.maxDays} дней`,
+    after_event: `это позже ${i.eventDate ? humanDate(i.eventDate, "ru") : "даты события"} — даты, к которой нужна книга`,
+    off_hours: "в этот день или час мы не работаем",
+    limit: "лимит повторных сообщений за беседу исчерпан",
+    no_marketing: "клиент в стоп-листе «Не писать первым»",
+    paid: "клиент уже платил",
+  };
+  return labels[reason];
 }
 
 /** «10 ноября, 09:00 — после зарплаты»: когда и почему бот напишет повторно (заметка менеджеру и след хода). */
@@ -400,6 +419,12 @@ export interface SellerTurn {
   materialsAfter?: number;
   /** Что код поправил или остановил в этом ходе — для следа «Почему так?». */
   notes?: TraceNote[];
+  /**
+   * Ответ обещает написать клиенту в названный день, а дату код не принял (модель настояла и со второй попытки): сам бот
+   * не напишет — менеджеру заметка, уведомление и задача. day — названный моделью день (null — не дата), label — почему
+   * (словами для менеджера).
+   */
+  remindBroken?: { day: string | null; reason: RemindReject; label: string } | null;
 }
 
 export interface SellerTurnContext {
@@ -484,6 +509,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   if (askedPrice) ai.priceAsks += 1;
 
   let introAdded = false;
+  let remindBroken: SellerTurn["remindBroken"] = null;
   // Подборку материалов шлём один раз, только вместе с ответом (подводка до неё, вопрос — после) и не тому, кто уже купил.
   const wantsMaterials = d.sendMaterials && !!ctx.materials && !ai.materialsSent && !env.paid && (d.action === "reply" || d.action === "handoff");
   const finish = (patch: Partial<BotState>, extra: Partial<SellerTurn> = {}): SellerTurn => {
@@ -493,7 +519,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       events.push({ kind: "answer", intent: "materials" });
     }
     const state: BotState = { ...s, ...patch, ai: { ...ai }, version: prev.version + 1 };
-    return { state, reply: null, fields, events, done: state.phase === "done", invoice: null, retry: null, ...extra, materials, materialsAfter: introAdded ? 2 : 1, notes };
+    return { state, reply: null, fields, events, done: state.phase === "done", invoice: null, retry: null, ...extra, materials, materialsAfter: introAdded ? 2 : 1, notes, remindBroken: extra.reply ? remindBroken : null };
   };
 
   // Потолок беседы: дальше разговаривает человек.
@@ -507,7 +533,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   let reply: string | null = (ctx.greeted ? withoutGreeting(d.reply) : d.reply) || null;
   if (ctx.greeted && reply !== (d.reply || null)) notes.push({ code: "greeting_removed" });
   // Дата повторного сообщения не подошла, а ответ уже обещает написать в неё: модель переписывает ответ один раз; со второго
-  // раза ответ уходит, а дата отбрасывается (след хода покажет почему).
+  // раза ответ уходит, дата отбрасывается, а обещание передаётся менеджеру (applyRemind → remindBroken).
   const remindBad = !ctx.second && d.action === "reply" && ctx.remind && "rejected" in ctx.remind ? [ctx.remind.problem] : [];
   if (reply) {
     const problems = [...checkSellerReply(reply, ctx.rules), ...personaProblems(reply, env.config.sell), ...remindBad];
@@ -542,16 +568,46 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   }
 
   // Повторное сообщение в названное клиентом время: принятая кодом дата — в состояние беседы (по ней квалификатор и напишет).
-  const applyRemind = () => {
+  // Клиент написал до срока: только подтвердил или поблагодарил (модель промолчала — action=wait) или модель повторила ту же
+  // дату — договорённость в силе (setAt — сейчас); вернулся к разговору — договорённость снимается, дальше обычные
+  // напоминания и итог: «как и договаривались» через 20 минут после живого разговора было бы нелепо. Сообщение в последний
+  // день старта клиент не назначал и модель о нём не знает — любое его сообщение его снимает (код назначит заново, если
+  // клиент снова замолчит).
+  const applyRemind = (ack: boolean) => {
     const r = ctx.remind;
-    if (!r) return;
-    if ("set" in r) {
-      ai.remind = r.set;
-      notes.push({ code: "remind_set", detail: remindLabel(r.set, env.tz) });
-    } else if ("cancel" in r) {
-      if (ai.remind) notes.push({ code: "remind_cancelled" });
+    const pending = ai.remind;
+    const now = env.now.toISOString();
+    if (r && "set" in r) {
+      if (pending?.kind === "promised" && pending.at === r.set.at) {
+        ai.remind = { ...pending, setAt: now };
+        notes.push({ code: "remind_kept", detail: remindLabel(pending, env.tz) });
+      } else {
+        ai.remind = r.set;
+        notes.push({ code: "remind_set", detail: remindLabel(r.set, env.tz) });
+      }
+      return;
+    }
+    if (r && "cancel" in r) {
+      if (pending) notes.push({ code: "remind_cancelled" });
       ai.remind = null;
-    } else notes.push({ code: "remind_rejected", detail: r.rejected });
+      return;
+    }
+    if (r) {
+      notes.push({ code: "remind_rejected", detail: r.rejected });
+      // Модель настояла: ответ с обещанием уходит, а сам бот в этот день не напишет — обещание выполняет менеджер (заметка,
+      // уведомление, задача), а «Ознакомились?» после «напишу 25-го» не нужно.
+      if (reply) {
+        remindBroken = { day: r.day, reason: r.rejected, label: r.label };
+        ai.followUps = SELLER_MAX_FOLLOW_UPS;
+        notes.push({ code: "remind_broken", detail: r.day ? humanDate(r.day, "ru") : "" });
+      }
+    }
+    if (!pending || !ctx.inputs.length) return;
+    if (pending.kind === "promised" && ack) ai.remind = { ...pending, setAt: now };
+    else {
+      ai.remind = null;
+      notes.push({ code: "remind_dropped", detail: pending.kind });
+    }
   };
 
   // Клиент уже платил — он наш клиент, а не лид: бот помогает, но не продаёт (без «предложения», напоминаний и счёта).
@@ -576,7 +632,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
     }
     s.stage = stage === "offer" || s.stage === "offer" ? "offer" : "ask";
     if (reply) events.push({ kind: "answer", intent: "ai" });
-    applyRemind();
+    applyRemind(!reply);
     // Третье возражение подряд — не продавать дальше, а позвать менеджера.
     if (ai.objections >= 3) {
       events.push({ kind: "handoff", reason: "objection" });
@@ -605,7 +661,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
         return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: botSellText({ ...s, lang: d.lang }, env, "handoff") || null });
       }
       ai.stage = d.stage;
-      applyRemind();
+      applyRemind(true);
       return finish({});
     }
     case "close_lost":
@@ -1158,14 +1214,20 @@ function remindRule(maxDays: number): string {
 
 const REMIND_BLOCKED: Partial<Record<RemindReject, string>> = { no_marketing: "клиент просил не писать ему первым", limit: "повторно по договорённости уже писали", paid: "клиент уже платил" };
 
-/** Блок «Сейчас»: о каком дне уже договорились (п.7б) или почему договариваться нельзя. */
+/**
+ * Блок «Сейчас»: о каком дне уже договорились (п.7б) или почему договариваться нельзя. Договорённость остаётся, только
+ * если клиент её лишь подтвердил (модель промолчала или повторила тот же remind_at); вернулся к разговору раньше срока —
+ * снимается кодом (resolveSellerTurn), и беседа идёт как обычно.
+ */
 function remindNow(i: SellerPromptInput, tz: string): string {
   const r = i.remind;
   if (!r) return "";
   if (r.blocked) return `\nПовторное сообщение (п.7б): с этим клиентом не договаривайся (${REMIND_BLOCKED[r.blocked] ?? r.blocked}) — не обещай написать ему в какой-то день, скажи, что он может написать, когда будет удобно; remind_at — пустая строка.`;
   if (r.pending?.kind !== "promised") return "";
-  const day = humanDate(zonedDay(new Date(r.pending.at), tz), "ru");
-  return `\nДоговорённость (п.7б): клиент просил написать ему ${day}${r.pending.why ? ` («${r.pending.why.replace(/\s+/g, " ").slice(0, 80)}», слова клиента)` : ""} — система напишет сама. Клиент просит перенести — новый remind_at; передумал или напишет сам — remind_at=cancel; иначе remind_at — пустая строка.`;
+  const at = new Date(r.pending.at);
+  const day = humanDate(zonedDay(at, tz), "ru");
+  const same = `${zonedDay(at, tz)}T${new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at)}`;
+  return `\nДоговорённость (п.7б): клиент просил написать ему ${day}${r.pending.why ? ` («${r.pending.why.replace(/\s+/g, " ").slice(0, 80)}», слова клиента)` : ""} — система напишет сама, если до этого разговор не продолжится. Клиент только подтверждает или благодарит («Ок», «Спасибо», «Договорились») — договорённость в силе: ответ не нужен (action=wait), а если отвечаешь — remind_at=${same}. Клиент вернулся к разговору раньше (спрашивает, выбирает, готов оформить) — отвечай как обычно и remind_at — пустая строка: договорённость снимется, писать «как и договаривались» не нужно. Просит перенести — новый remind_at; передумал или напишет сам — remind_at=cancel.`;
 }
 
 /** Системная инструкция целиком (stable + dynamic). */

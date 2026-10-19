@@ -22,6 +22,7 @@ const toConversation = (r: Row): Conversation => ({
   botStep: r.botStep,
   awaitingSince: r.awaitingSince,
   lastMessageAt: r.lastMessageAt,
+  status: r.status,
   meta: r.meta,
 });
 

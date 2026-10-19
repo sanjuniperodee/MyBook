@@ -40,8 +40,10 @@ import {
   selectKnowledge,
   turnTrace,
   parseRemindAt,
+  humanDate,
   remindLabel,
   remindProblem,
+  remindRejectLabel,
   remindVerdict,
   sellerEventDate,
   type BotLang,
@@ -533,14 +535,15 @@ export class AiSeller {
   private async remindCheck(d: SellerDecision, i: { env: BotEnv; ai: SellerAiState; eventDate: string | null; noMarketing: boolean; sell: BotConfig["sell"] }): Promise<RemindCheck | null> {
     if (!d.remindAt) return null;
     if (d.remindAt.trim().toLowerCase() === "cancel") return { cancel: true };
-    const reject = (r: RemindReject): RemindCheck => ({ rejected: r, problem: remindProblem(r, { maxDays: i.sell.remindMaxDays, eventDate: i.eventDate }) });
     const parsed = parseRemindAt(d.remindAt, i.env.tz);
+    const facts = { maxDays: i.sell.remindMaxDays, eventDate: i.eventDate };
+    const reject = (r: RemindReject): RemindCheck => ({ rejected: r, problem: remindProblem(r, facts), day: parsed?.day ?? null, label: remindRejectLabel(r, facts) });
     if (!parsed) return reject("format");
     // Только день — с начала рабочего дня; день и час — если это рабочее время.
     const due = parsed.at ? ((await this.d.settings.isWorkTime(parsed.at)) ? parsed.at : null) : await workStartOn(this.d.settings, parsed.day, i.env.tz);
     const verdict = remindVerdict({ day: parsed.day, due, now: i.env.now, tz: i.env.tz, eventDate: i.eventDate, maxDays: i.sell.remindMaxDays, touches: i.ai.touches, maxTouches: i.sell.remindTouches, paid: !!i.env.paid, noMarketing: i.noMarketing });
     if (verdict || !due) return reject(verdict ?? "off_hours");
-    return { set: { kind: "promised", at: due.toISOString(), why: d.remindWhy } };
+    return { set: { kind: "promised", at: due.toISOString(), why: d.remindWhy, setAt: i.env.now.toISOString() } };
   }
 
   /** Клиент в стоп-листе «Не писать первым»; сбой проверки — как будто да: лишнее сообщение хуже пропущенного. */
@@ -643,6 +646,8 @@ export class AiSeller {
     // Договорились написать в названный день — менеджер видит это в чате и сделке (может написать раньше сам — бот замолчит).
     const remind = readSellerAi(final.ai).remind;
     if (remind && final.phase !== "done" && notes.some((n) => n.code === "remind_set")) await this.remindNote(conv, remind, final.ai.summary);
+    // Ответ обещает написать в день, который код не принял: бот сам не напишет — обещание выполняет менеджер.
+    if (result.remindBroken && sent.some((x) => "id" in x)) await this.remindBrokenNote(conv, result.remindBroken, final);
     if (final.stage === "offer" && before.stage !== "offer") await this.hooks.offered(conv, final, fields);
     if (result.done) await this.hooks.finish(conv, final, fields);
   }
@@ -663,6 +668,29 @@ export class AiSeller {
     await this.d.sales.note(deal, text).catch((err) => this.d.logger.error("bot deal note", err));
     const who = deal.contactName || conv.contactName || phoneTail(conv.chatId) || "клиент";
     await this.d.notifier.notify(deal.assigneeId ?? conv.assigneeId, "chats.view", { kind: "message", title: `${remind.kind === "promised" ? "Бот напишет по договорённости" : "Бот напишет в последний день"}: ${who}`, body: label.slice(0, 300), link: `/admin/chats?c=${conv.id}` });
+  }
+
+  /**
+   * Бот пообещал клиенту написать в названный день, а дату код не принял (позже даты события, дальше N дней, нерабочий
+   * день, стоп-лист, лимит): обещание не должно потеряться — заметка в чате и в сделке, уведомление ответственному и, если
+   * беседа не передана менеджеру (там задача уже есть), задача «написать» на этот день (в рабочее время; позже даты события
+   * или день не разобран — сейчас). Ответ клиенту в чате задачу закрывает.
+   */
+  private async remindBrokenNote(conv: Conversation, broken: NonNullable<SellerTurn["remindBroken"]>, state: BotState) {
+    const now = this.d.clock.now();
+    const tz = this.d.settings.timeZone();
+    const day = broken.day ? humanDate(broken.day, "ru") : null;
+    // Позже даты события — к названному дню уже поздно: связаться нужно сейчас.
+    const later = broken.day && broken.day > zonedDay(now, tz) && broken.reason !== "after_event" ? fromZonedTime(`${broken.day}T09:00:00`, tz) : now;
+    const dueAt = (await this.d.settings.isWorkTime(later)) ? later : ((await this.d.settings.nextWorkStart(later)) ?? later);
+    const text = `🤖 Бот пообещал клиенту написать ${day ?? "позже"}, но сам не напишет: ${broken.label}. Свяжитесь с клиентом сами — когда ответите, бот замолчит.`;
+    await this.d.note(conv.id, text).catch((err) => this.d.logger.error("bot note", err));
+    const deal = await this.d.sales.deal(conv.dealId!);
+    if (!deal) return;
+    await this.d.sales.note(deal, text).catch((err) => this.d.logger.error("bot deal note", err));
+    const who = deal.contactName || conv.contactName || phoneTail(conv.chatId) || "клиент";
+    if (state.phase !== "done") await this.d.tasks.create({ title: `Написать: ${who} — бот пообещал написать ${day ?? "позже"}, но сам не напишет (бот)`.slice(0, 200), kind: "message", dueAt, dealId: deal.id, clientId: deal.clientId, assigneeId: deal.assigneeId });
+    await this.d.notifier.notify(deal.assigneeId ?? conv.assigneeId, "chats.view", { kind: "task", title: `Бот пообещал написать, но не напишет: ${who}`, body: `${day ?? "Позже"}: ${broken.label}`.slice(0, 300), link: `/admin/chats?c=${conv.id}` });
   }
 
   /** Ответ модели — как пишет человек в WhatsApp: абзацы через пустую строку уходят отдельными сообщениями (до трёх). */

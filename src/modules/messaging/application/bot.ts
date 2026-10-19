@@ -394,7 +394,7 @@ export class QualifierBot {
     }
     const fresh = inputs.filter((i) => !state.seen.includes(i.id));
     // Клиент молчит: после предложения (или в любой беседе AI-продажника) — напоминания, затем итог менеджеру.
-    if (state.phase === "active" && !fresh.length && (state.stage === "offer" || state.engine === "ai")) return this.offerIdle(conv, state, config, fields, now);
+    if (state.phase === "active" && !fresh.length && (state.stage === "offer" || state.engine === "ai")) return this.offerIdle(conv, state, config, fields, now, inputs);
     if (state.phase === "active" && !fresh.length) {
       const last = new Date(state.lastBotAt ?? state.startedAt ?? state.since).getTime();
       if (now.getTime() - last < BOT_ABANDON_MS) {
@@ -579,12 +579,12 @@ export class QualifierBot {
    * ещё на знакомстве — через полчаса менеджер узнаёт об этом (может ответить сам — бот замолчит). Дальше 12 часов
    * тишины — итог менеджеру. Клиенту из стоп-листа «Не писать первым» бот не напоминает — только итог.
    */
-  private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
+  private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date, inputs: BotInput[]): Promise<boolean> {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
     const ai = readSellerAi(state.ai);
     const aiEngine = state.engine === "ai";
     // Договорились написать в названный день (или в последний день старта): лестница напоминаний не нужна — пишем в срок.
-    if (aiEngine && ai.remind) return this.remindTouch(conv, state, config, fields, now, ai.remind);
+    if (aiEngine && ai.remind) return this.remindTouch(conv, state, config, fields, now, ai.remind, inputs);
     // AI-продажник: тёплому клиенту — чаще (20 минут, несколько часов, следующий день), остальным — как раньше.
     let wait = aiEngine
       ? ai.followUps < SELLER_MAX_FOLLOW_UPS
@@ -637,11 +637,12 @@ export class QualifierBot {
   }
 
   /**
-   * Срок повторного сообщения (bots-5). На момент отправки ещё раз: правило не выключили, лимит за беседу, клиент не
-   * просил не писать первым, дата события не прошла, сейчас рабочее время. Нельзя — договорённость снимается, дальше как
-   * обычно (12 часов тишины — итог менеджеру); в журнал — почему.
+   * Срок повторного сообщения (bots-5). На момент отправки ещё раз: правило не выключили, лимит за беседу, клиент не писал
+   * после договорённости (разговор продолжился — «как и договаривались» некстати), сделка не закрыта, у клиента нет заказа
+   * (и по другой сделке), чат не закрыт, клиент не просил не писать первым, дата события не прошла, сейчас рабочее время.
+   * Нельзя — договорённость снимается, дальше как обычно (12 часов тишины — итог менеджеру); в журнал — почему.
    */
-  private async remindTouch(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date, remind: SellerRemind): Promise<boolean> {
+  private async remindTouch(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date, remind: SellerRemind, inputs: BotInput[]): Promise<boolean> {
     const due = new Date(remind.at);
     if (now.getTime() < due.getTime()) {
       await this.later(conv.id, due);
@@ -653,7 +654,10 @@ export class QualifierBot {
     const deal = await this.d.crm.deal(conv.dealId!);
     const eventDate = sellerEventDate(state, { fields, dealValues: deal?.customFields ?? {} });
     const today = zonedDay(now, tz);
-    let skip: string | null = !(remind.kind === "promised" ? sell.remind : sell.lastStart) ? "off" : ai.touches >= sell.remindTouches ? "limit" : eventDate && today > eventDate ? "after_event" : null;
+    // Клиент писал после договорённости, а ход её не подтвердил (голосовое без распознавания и т. п.) — разговор продолжился.
+    const wrote = inputs.some((i) => new Date(i.at).getTime() > Date.parse(remind.setAt));
+    let skip: string | null = !(remind.kind === "promised" ? sell.remind : sell.lastStart) ? "off" : ai.touches >= sell.remindTouches ? "limit" : wrote ? "client_wrote" : eventDate && today > eventDate ? "after_event" : null;
+    skip ??= await this.remindBlocker(conv, deal);
     if (!skip && (await this.noMarketing(conv))) skip = "no_marketing";
     if (!skip && !(await this.d.settings.isWorkTime(now))) {
       // Проход опоздал за конец смены: пишем с началом следующей, если она не позже даты события.
@@ -683,6 +687,8 @@ export class QualifierBot {
     const ai = readSellerAi(state.ai);
     const sell = config.sell;
     if (!sell.lastStart || ai.touches >= sell.remindTouches || !isWarmLead(ai)) return null;
+    // Сделку закрыли (менеджер дозвонился), у клиента заказ (и по другой сделке), чат закрыт — продавать уже нечего.
+    if (await this.remindBlocker(conv, await this.d.crm.deal(conv.dealId!))) return null;
     const env = await this.env(conv, config, fields, now);
     const eventDate = sellerEventDate(state, env);
     if (!eventDate || env.paid) return null;
@@ -697,11 +703,23 @@ export class QualifierBot {
       due = await workStartOn(this.d.settings, day, env.tz);
     }
     if (!due) return null;
-    const remind: SellerRemind = { kind: "last_start", at: due.toISOString(), why: eventDate };
+    const remind: SellerRemind = { kind: "last_start", at: due.toISOString(), why: eventDate, setAt: now.toISOString() };
     const next: BotState = { ...state, ai: { ...ai, remind }, version: state.version + 1 };
     if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: due }))) return true;
     await this.#seller.remindNote(conv, remind, ai.summary);
     return false;
+  }
+
+  /**
+   * Писать клиенту повторно (по договорённости или в последний день) уже не о чем: чат закрыт, сделки нет или она закрыта,
+   * по ней заказ или у клиента уже есть заказы — как при подхвате (takeoverBlocker). Пока бот ждёт назначенного дня,
+   * сделку могли закрыть по звонку, а клиент — оформить заказ по другой сделке. null — писать можно.
+   */
+  private async remindBlocker(conv: Conversation, deal: Awaited<ReturnType<BotCrm["deal"]>>): Promise<string | null> {
+    if (conv.status === "closed") return "chat_closed";
+    const clientId = conv.clientId ?? deal?.clientId ?? null;
+    const client = clientId ? await this.d.crm.client(clientId) : null;
+    return this.takeoverBlocker(deal, client);
   }
 
   /** В стоп-листе «Не писать первым» (или спам); сбой проверки — не пишем: лишнее напоминание хуже пропущенного. */

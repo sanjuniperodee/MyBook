@@ -278,7 +278,7 @@ run("automation: выборки правил по времени (PostgreSQL)", 
   describe("забытые сделки", () => {
     const idle: Record<string, string> = {};
     const ago = (days: number) => sql`now() - make_interval(hours => ${Math.round(days * 24)})`;
-    const idleKeys = ["quiet", "echo", "rule", "taskOpen", "taskDone", "taskOld", "call", "note", "system", "unsorted", "lost", "blocked", "chatBlocked"];
+    const idleKeys = ["quiet", "echo", "rule", "taskOpen", "taskDone", "taskOld", "call", "note", "system", "unsorted", "lost", "blocked", "chatBlocked", "botActive", "botDone"];
     const idleDeals = async (o: { stageId?: string | null; limit?: number } = {}, ruleId = ids.rule) =>
       (await source.idleDeals(ruleId, { before: new Date(Date.now() - 3 * 86_400_000), stageId: o.stageId ?? null, limit: o.limit ?? 200 }))
         .filter((r) => idleKeys.some((k) => idle[k] === r.dealId))
@@ -315,17 +315,26 @@ run("automation: выборки правил по времени (PostgreSQL)", 
       await deal("blocked", { client: idle.blockedUser });
       await conv(await deal("chatBlocked"), `${tag}-idle-blocked`);
       await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550033', 'no_marketing', ${tag}), (${`${tag}-idle-blocked`}, 'no_marketing', ${tag})`);
+      // Бот ведёт чат сделки: AI-продажник ждёт дня, который назвал клиент (bots-5), — последнее его сообщение 10 дней назад,
+      // но сделка не забыта. Бот закончил (или остановлен кнопкой) — его сообщение просто активность 11 дней назад.
+      const botConv = async (key: string, state: { phase: string; step: number; dueDays: number | null }, days: number) => {
+        const id = await conv(await deal(key, { days }));
+        await q(sql`update crm_conversations set bot_step = ${state.step}, bot_state = ${JSON.stringify({ phase: state.phase, engine: "ai" })}::jsonb,
+          bot_due_at = ${state.dueDays === null ? null : sql`now() + make_interval(days => ${state.dueDays})`} where id = ${id}`);
+        await message(id, { direction: "out", days, source: "bot" });
+      };
+      await botConv("botActive", { phase: "active", step: 0, dueDays: 7 }, 10);
+      await botConv("botDone", { phase: "done", step: -1, dueDays: null }, 11);
     });
 
     afterAll(async () => {
       await q(sql`delete from crm_calls where external_id like ${`${tag}%`}`);
     });
 
-    it("недавно затихшие — первыми; активность — этап, сообщения сделки с эхом (не правил), задачи, звонки, заметки сотрудников", async () => {
+    it("недавно затихшие — первыми; активность — этап, сообщения сделки с эхом (не правил), задачи, звонки, заметки сотрудников; чат ведёт бот — не забыта", async () => {
       const rows = await idleDeals();
-      expect(rows.map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
-      const [taskOld, rule, system, quiet] = rows.map((r) => (Date.now() - r.lastActivity.getTime()) / 86_400_000);
-      expect([taskOld, rule, system, quiet].map((d) => Math.round(d))).toEqual([5, 8, 9, 10]);
+      expect(rows.map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet", "botDone"]);
+      expect(rows.map((r) => Math.round((Date.now() - r.lastActivity.getTime()) / 86_400_000))).toEqual([5, 8, 9, 10, 11]);
     });
 
     it("этап из условия и лимит; сделка, по которой правило сработало за это затишье, не выбирается — subject как в движке", async () => {
@@ -333,11 +342,11 @@ run("automation: выборки правил по времени (PostgreSQL)", 
       expect((await idleDeals({ limit: 2 })).map((r) => r.key)).toHaveLength(2);
       const [first] = await idleDeals();
       await claim(ids.rule, `deal:${idle[first.key!]}:idle:${first.lastActivity.toISOString()}`);
-      expect((await idleDeals()).map((r) => r.key)).toEqual(["rule", "system", "quiet"]);
-      expect((await idleDeals({}, ids.other)).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
+      expect((await idleDeals()).map((r) => r.key)).toEqual(["rule", "system", "quiet", "botDone"]);
+      expect((await idleDeals({}, ids.other)).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet", "botDone"]);
       // Сделку снова тронули (заметка сотрудника позавчера — уже не забыта), затем затишье — новый subject.
       await q(sql`insert into crm_notes (deal_id, author_id, text, created_at) values (${idle.taskOld}, ${idle.staff}, ${tag}, ${ago(4)})`);
-      expect((await idleDeals()).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
+      expect((await idleDeals()).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet", "botDone"]);
     });
   });
 

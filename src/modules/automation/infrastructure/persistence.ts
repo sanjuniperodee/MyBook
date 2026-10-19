@@ -347,11 +347,14 @@ export class SqlScheduledSource implements ScheduledSource {
   /**
    * Открытые сделки, по которым с before ничего не происходило. Кандидаты — по индексу crm_deals_stage_idx (этап, смена
    * этапа): этап открытый и не менялся с before, сделка не «неразобранная», открытой задачи нет (crm_tasks_open_deal_idx),
-   * клиент и собеседники её чатов не в стоп-листе. У кандидата последняя активность — самое позднее из: смены этапа;
-   * последнего сообщения в каждом чате сделки, кроме сообщений правил (входящее, ответ из CRM, эхо ответа с телефона
-   * магазина, бот; по crm_messages_conv_idx — с конца до первого подходящего); задачи сделки — поставлена или закрыта
-   * (crm_tasks_deal_idx); звонка (crm_calls_deal_idx); заметки сотрудника (crm_notes_deal_idx) — один раз на кандидата
-   * (materialized: фильтр, subject и порядок не пересчитывают подзапросы). Недавно затихшие — первыми: их ещё можно вернуть.
+   * клиент и собеседники её чатов не в стоп-листе, ни один её чат не ведёт бот (как isActive бота и silent(): состояние не
+   * «done» и бот не остановлен кнопкой; чаты сделки — по crm_conv_deal_idx) — AI-продажник может ждать дня, который назвал
+   * клиент (bots-5), и задача «связаться» раньше срока нарушила бы договорённость. У кандидата последняя активность —
+   * самое позднее из: смены этапа; последнего сообщения в каждом чате сделки, кроме сообщений правил (входящее, ответ из
+   * CRM, эхо ответа с телефона магазина, бот; по crm_messages_conv_idx — с конца до первого подходящего); задачи сделки —
+   * поставлена или закрыта (crm_tasks_deal_idx); звонка (crm_calls_deal_idx); заметки сотрудника (crm_notes_deal_idx) —
+   * один раз на кандидата (materialized: фильтр, subject и порядок не пересчитывают подзапросы). Недавно затихшие —
+   * первыми: их ещё можно вернуть.
    */
   async idleDeals(ruleId: string, q: { before: Date; stageId: string | null; limit: number }) {
     const before = sql`${q.before.toISOString()}::timestamptz`;
@@ -376,6 +379,7 @@ export class SqlScheduledSource implements ScheduledSource {
           and not d.unsorted
           and not exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null)
           and not exists (select 1 from crm_conversations bc join crm_blocklist bl on bl.value = bc.chat_id where bc.deal_id = d.id)
+          and not exists (select 1 from crm_conversations bc where bc.deal_id = d.id and coalesce(bc.bot_state->>'phase', 'done') <> 'done' and coalesce(bc.bot_step, 0) <> -1)
           and (u.id is null or not ${noMarketing(sql`u`)})
       )
       select c.id as deal_id, c.client_id, c.stage_id, c.last_at

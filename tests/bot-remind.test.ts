@@ -9,7 +9,7 @@ import { deadlinePlan, lastStartDay, newBotState, type BotEnv, type BotInput } f
 import type { DealField } from "@/modules/messaging/domain/bot";
 import { readBotTrace } from "@/modules/messaging/domain/botTrace";
 import { traceNoteText } from "@/modules/messaging/ui/botTrace";
-import { parseRemindAt, parseSellerDecision, readSellerAi, remindLabel, remindProblem, remindVerdict, resolveSellerTurn, sellerSchema, sellerSystemPrompt, sellerUserPrompt, type SellerDecision } from "@/modules/messaging/domain/botSeller";
+import { parseRemindAt, parseSellerDecision, readSellerAi, remindLabel, remindProblem, remindRejectLabel, remindVerdict, resolveSellerTurn, sellerSchema, sellerSystemPrompt, sellerUserPrompt, type SellerDecision } from "@/modules/messaging/domain/botSeller";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
 import { workStartOn, type BotSellerModel } from "@/modules/messaging/application";
 import { isWorkTime, nextWorkStart, type WorkHours } from "@/shared/domain/schedule";
@@ -92,11 +92,11 @@ describe("Повторное сообщение: решение модели и 
   const day = new Date("2026-10-01T06:00:00Z");
   const fields: DealField[] = [{ key: "recipient", label: "Для кого", type: "text", options: [] }];
   const config = (p: Partial<BotConfig["sell"]> = {}): BotConfig => ({ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, hidePrices: false, speaksAs: "assistant", ...p } });
-  const env = (c = config()): BotEnv => ({
+  const env = (c = config(), now = day): BotEnv => ({
     config: c,
     fields,
     dealValues: {},
-    now: day,
+    now,
     tz: TZ,
     workTime: true,
     nextWorkStart: day,
@@ -127,7 +127,10 @@ describe("Повторное сообщение: решение модели и 
   const input: BotInput = { id: "m1", text: "Давайте после зарплаты", type: "text", at: day };
   const ctx = (p: Record<string, unknown> = {}) => ({ inputs: [input], clientText: input.text, priceInHistory: false, rules: { amounts: new Set<number>(), percents: new Set<number>(), urls: ["https://mybook.kz"], phones: [] }, ...p });
   const state = () => ({ ...newBotState(day, true), phase: "active" as const, engine: "ai" as const });
-  const set = { kind: "promised" as const, at: "2026-10-12T04:00:00.000Z", why: "после зарплаты" };
+  const set = { kind: "promised" as const, at: "2026-10-12T04:00:00.000Z", why: "после зарплаты", setAt: day.toISOString() };
+  const oct5 = new Date("2026-10-05T06:00:00Z");
+  const wrote = (text: string, id = "m2") => ({ inputs: [{ ...input, id, text, at: oct5 }], clientText: text });
+  const agreed = () => resolveSellerTurn(state(), decision(), env(), { ...ctx(), remind: { set } }).state;
 
   it("схема и разбор: remind_at и remind_why — только когда правило включено", () => {
     expect(sellerSchema(fields).properties).not.toHaveProperty("remind_at");
@@ -142,24 +145,66 @@ describe("Повторное сообщение: решение модели и 
     expect(turn.reply).toContain("12 октября");
     expect(readSellerAi(turn.state.ai).remind).toEqual(set);
     expect(turn.notes).toContainEqual({ code: "remind_set", detail: "12 октября, 09:00 — после зарплаты" });
-    // «Ок» в следующем ходе без remind_at договорённость не снимает; cancel — снимает.
-    const ok = resolveSellerTurn(turn.state, decision({ action: "wait", reply: "", remindAt: null }), env(), { ...ctx({ inputs: [{ ...input, id: "m2", text: "Ок" }] }), remind: null });
-    expect(readSellerAi(ok.state.ai).remind).toEqual(set);
+    // «Ок» в следующем ходе (модель промолчала) договорённость не снимает — она подтверждена сейчас; cancel — снимает.
+    const ok = resolveSellerTurn(turn.state, decision({ action: "wait", reply: "", remindAt: null }), env(config(), oct5), { ...ctx(wrote("Ок")), remind: null });
+    expect(readSellerAi(ok.state.ai).remind).toEqual({ ...set, setAt: oct5.toISOString() });
     const cancel = resolveSellerTurn(ok.state, decision({ reply: "Хорошо, пишите, когда будет удобно 😊", remindAt: "cancel" }), env(), { ...ctx({ inputs: [{ ...input, id: "m3", text: "Не надо, я сама напишу" }] }), remind: { cancel: true } });
     expect(readSellerAi(cancel.state.ai).remind).toBeNull();
     expect(cancel.notes).toContainEqual({ code: "remind_cancelled" });
   });
 
-  it("дата не подошла: модель переписывает ответ; со второго раза ответ уходит, дата отбрасывается", () => {
-    const rejected = { rejected: "after_event" as const, problem: remindProblem("after_event", { maxDays: 60, eventDate: "2026-10-10" }) };
+  it("клиент вернулся к разговору раньше срока — договорённость снята; повторил ту же дату — в силе; сообщение без клиента её не трогает", () => {
+    const question = decision({ stage: "offer", reply: "Электронная приходит на почту 😊 Оформляем?", remindAt: null, askedToOrder: true });
+    const back = resolveSellerTurn(agreed(), question, env(config(), oct5), { ...ctx(wrote("Здравствуйте, сколько стоит электронная?")), remind: null });
+    expect(back.reply).toContain("Оформляем?");
+    expect(readSellerAi(back.state.ai).remind).toBeNull();
+    expect(back.notes).toContainEqual({ code: "remind_dropped", detail: "promised" });
+    expect(traceNoteText({ code: "remind_dropped", detail: "promised" })).toBe("клиент вернулся к разговору раньше срока — договорённость снята, дальше как обычно");
+    // «Да, напишите 12-го, как договаривались» — модель повторила тот же момент: договорённость та же, менеджеру второй заметки не будет.
+    const again = { ...set, setAt: oct5.toISOString() };
+    const kept = resolveSellerTurn(agreed(), decision({ reply: "Конечно 😊 Напишу 12 октября" }), env(config(), oct5), { ...ctx(wrote("Да, напишите 12-го, как договаривались")), remind: { set: again } });
+    expect(readSellerAi(kept.state.ai).remind).toEqual(again);
+    expect(kept.notes).toContainEqual({ code: "remind_kept", detail: "12 октября, 09:00 — после зарплаты" });
+    expect(kept.notes?.some((n) => n.code === "remind_set")).toBe(false);
+    // Перенесли на другой день — новая договорённость.
+    const moved = { ...again, at: "2026-10-14T04:00:00.000Z" };
+    const next = resolveSellerTurn(agreed(), decision({ reply: "Хорошо, тогда 14 октября 😊" }), env(config(), oct5), { ...ctx(wrote("Давайте лучше 14-го")), remind: { set: moved } });
+    expect(readSellerAi(next.state.ai).remind).toEqual(moved);
+    expect(next.notes).toContainEqual({ code: "remind_set", detail: "14 октября, 09:00 — после зарплаты" });
+    // Ход без новых сообщений клиента (запуск кнопкой, напоминание) договорённость не снимает.
+    const quiet = resolveSellerTurn(agreed(), question, env(config(), oct5), { ...ctx({ inputs: [], clientText: "" }), remind: null });
+    expect(readSellerAi(quiet.state.ai).remind).toEqual(set);
+  });
+
+  it("сообщение в последний день клиент не назначал: любое его сообщение — даже «Ок» — снимает его", () => {
+    const last = { kind: "last_start" as const, at: "2026-10-12T04:00:00.000Z", why: "2026-10-20", setAt: day.toISOString() };
+    const prev = { ...state(), ai: { ...readSellerAi(state().ai), remind: last } };
+    for (const d of [decision({ action: "wait", reply: "", remindAt: null }), decision({ reply: "Отлично 😊 Оформляем?", remindAt: null })]) {
+      const turn = resolveSellerTurn(prev, d, env(config({ lastStart: true }), oct5), { ...ctx(wrote("Ок")), remind: null });
+      expect(readSellerAi(turn.state.ai).remind).toBeNull();
+      expect(turn.notes).toContainEqual({ code: "remind_dropped", detail: "last_start" });
+    }
+  });
+
+  it("дата не подошла: модель переписывает ответ; со второго раза ответ уходит, дата отбрасывается, обещание — менеджеру, лестницы нет", () => {
+    const facts = { maxDays: 60, eventDate: "2026-10-10" };
+    const rejected = { rejected: "after_event" as const, problem: remindProblem("after_event", facts), day: "2026-10-12", label: remindRejectLabel("after_event", facts) };
     const first = resolveSellerTurn(state(), decision(), env(), { ...ctx(), remind: rejected });
     expect(first.reply).toBeNull();
     expect(first.retry).toEqual([rejected.problem]);
-    const second = resolveSellerTurn(state(), decision(), env(), { ...ctx({ second: true }), remind: rejected });
+    expect(first.remindBroken ?? null).toBeNull();
+    // Прежняя договорённость была — клиент попросил другой день: она снимается, новую дату бот выполнить не может.
+    const second = resolveSellerTurn(agreed(), decision(), env(), { ...ctx({ second: true, inputs: [{ ...input, id: "m2" }] }), remind: rejected });
     expect(second.reply).toContain("12 октября");
-    expect(readSellerAi(second.state.ai).remind).toBeNull();
-    expect(second.notes).toContainEqual({ code: "remind_rejected", detail: "after_event" });
+    expect(readSellerAi(second.state.ai)).toMatchObject({ remind: null, followUps: 3 });
+    expect(second.remindBroken).toEqual({ day: "2026-10-12", reason: "after_event", label: "это позже 10 октября — даты, к которой нужна книга" });
+    expect(second.notes).toEqual(expect.arrayContaining([{ code: "remind_rejected", detail: "after_event" }, { code: "remind_broken", detail: "12 октября" }, { code: "remind_dropped", detail: "promised" }]));
     expect(traceNoteText({ code: "remind_rejected", detail: "after_event" })).toBe("дату повторного сообщения отбросил: позже даты, к которой нужна книга");
+    expect(traceNoteText({ code: "remind_broken", detail: "12 октября" })).toBe("ответ с обещанием написать 12 октября ушёл, а сам бот не напишет — менеджеру задача");
+    // Модель промолчала (ответа клиенту нет) — обещания нет, менеджеру нечего передавать.
+    const silent = resolveSellerTurn(state(), decision({ action: "wait", reply: "" }), env(), { ...ctx({ second: true }), remind: rejected });
+    expect(silent.remindBroken ?? null).toBeNull();
+    expect(readSellerAi(silent.state.ai).followUps).toBe(0);
   });
 
   it("инструкция: п.7б и формат — только когда правило включено; договорённость и «нельзя» — в блоке «Сейчас»", () => {
@@ -173,16 +218,21 @@ describe("Повторное сообщение: решение модели и 
     expect(on).toContain("Не дальше чем через 45 дней");
     expect(on).toContain("договорись о дне (п.7б)");
     expect(on).toContain("remind_at, remind_why — только по п.7б");
-    expect(prompt(config({ remind: true }), { pending: set, blocked: null })).toContain("Договорённость (п.7б): клиент просил написать ему 12 октября («после зарплаты», слова клиента)");
+    const pending = prompt(config({ remind: true }), { pending: set, blocked: null });
+    expect(pending).toContain("Договорённость (п.7б): клиент просил написать ему 12 октября («после зарплаты», слова клиента)");
+    // Подтвердил — тот же remind_at дословно; вернулся к разговору — пусто, договорённость снимется.
+    expect(pending).toContain("remind_at=2026-10-12T09:00");
+    expect(pending).toContain("Клиент вернулся к разговору раньше");
+    expect(pending).toContain("договорённость снимется");
     expect(prompt(config({ remind: true }), { pending: null, blocked: "no_marketing" })).toContain("не договаривайся (клиент просил не писать ему первым)");
   });
 
   it("сообщение в срок — свой режим: по договорённости или последний день старта", () => {
-    const touch = (t: typeof set | { kind: "last_start"; at: string; why: string }) =>
+    const touch = (t: typeof set | { kind: "last_start"; at: string; why: string; setAt: string }) =>
       sellerSystemPrompt({ env: env(config({ remind: true })), state: state(), questions: [], knowledge: "", brand: "MyBooks", known: [], deadline: null, takeoverMinutes: null, purpose: "follow_up", paid: false, followUps: 3, touch: t });
     expect(touch(set)).toContain("Режим: сообщение по договорённости");
     expect(touch(set)).toContain("Келіскеніміздей жазып отырмын");
-    const last = touch({ kind: "last_start", at: "2026-10-12T04:00:00.000Z", why: "2026-10-20" });
+    const last = touch({ kind: "last_start", at: "2026-10-12T04:00:00.000Z", why: "2026-10-20", setAt: day.toISOString() });
     expect(last).toContain("последний день, когда можно начать писать книгу и успеть к 20 октября");
     expect(last).not.toContain("Режим: последнее напоминание");
     expect(sellerUserPrompt("…", "follow_up", false, "promised")).toContain("клиент просил написать ему");
@@ -251,7 +301,7 @@ describe("Бот пишет в названное клиентом время (�
     expect(calls[0].schema).toHaveProperty("properties.remind_at");
     expect(calls[1].system).toContain("в этот день или час мы не работаем");
     expect(said(t)).toEqual(["Конечно 😊 10-го суббота — напишу вам в понедельник, 12 октября, хорошо?"]);
-    expect(readSellerAi(t.conv().botState!.ai).remind).toEqual({ kind: "promised", at: "2026-10-12T04:00:00.000Z", why: "после зарплаты" });
+    expect(readSellerAi(t.conv().botState!.ai).remind).toEqual({ kind: "promised", at: "2026-10-12T04:00:00.000Z", why: "после зарплаты", setAt: "2026-10-01T06:00:08.000Z" });
     expect(internal(t)).toContain("Клиент просил написать ему 12 октября, 09:00 — после зарплаты");
     expect(t.notes.join("\n")).toContain("Клиент просил написать ему 12 октября");
     expect(t.notified.map((n) => n.title)).toContain("Бот напишет по договорённости: Айгерим");
@@ -303,9 +353,9 @@ describe("Бот пишет в названное клиентом время (�
     expect(readSellerAi(t.conv().botState!.ai).remind).toBeNull();
   });
 
-  it("дата позже события: модель дважды настаивает — ответ уходит, дата отброшена, в следе почему", async () => {
+  it("дата позже события: модель дважды настаивает — ответ уходит, дата отброшена, обещание — менеджеру задачей, «Ознакомились?» нет", async () => {
     const first = ans({ stage: "objection", event_date: "2026-10-20", reply: "Хорошо 😊 Напишу 25 октября", remind_at: "2026-10-25", remind_why: "после отпуска" });
-    const { model } = fakeModel([first, first, first]);
+    const { model, calls } = fakeModel([first, first, first]);
     const t = setup({ bot: "always", config: aiConfig({ remind: true }), seller: model });
     await t.service.ingest(inbound({ text: "Книга нужна к 20 октября, но напишите после отпуска, 25-го" }));
     await t.advance(8_000);
@@ -313,7 +363,34 @@ describe("Бот пишет в названное клиентом время (�
     expect(readSellerAi(t.conv().botState!.ai).remind).toBeNull();
     const trace = traces(t).at(-1)!;
     expect(trace.notes).toContainEqual({ code: "remind_rejected", detail: "after_event" });
+    expect(trace.notes).toContainEqual({ code: "remind_broken", detail: "25 октября" });
     expect(trace.notes.some((n) => n.code === "rewrite")).toBe(true);
+    // Клиенту обещано, а бот не напишет: менеджеру — заметка в чате и сделке, уведомление и задача «написать» сейчас (к 25-му уже поздно).
+    const note = "🤖 Бот пообещал клиенту написать 25 октября, но сам не напишет: это позже 20 октября — даты, к которой нужна книга. Свяжитесь с клиентом сами — когда ответите, бот замолчит.";
+    expect(internal(t)).toContain(note);
+    expect(t.notes).toContain(note);
+    expect(t.tasks).toEqual([expect.objectContaining({ title: "Написать: Айгерим — бот пообещал написать 25 октября, но сам не напишет (бот)", kind: "message", dueAt: t.deps.clock.now() })]);
+    expect(t.notified).toContainEqual({ title: "Бот пообещал написать, но не напишет: Айгерим", kind: "task" });
+    // Лестница «Ознакомились?» после «напишу 25-го» не идёт: модель больше не спрашивают, через 12 часов — итог.
+    await t.advance(21 * 60_000);
+    await t.advance(4 * 3_600_000);
+    expect(calls).toHaveLength(3);
+    expect(said(t)).toHaveLength(1);
+    await t.advance(8 * 3_600_000);
+    expect(t.conv().botState).toMatchObject({ phase: "done" });
+    expect(said(t)).toHaveLength(1);
+  });
+
+  it("дальше N дней: обещание — менеджеру, задача на названный день, а он выходной — на ближайший рабочий", async () => {
+    const far = ans({ stage: "objection", reply: "Хорошо 😊 Напишу 25 октября", remind_at: "2026-10-25", remind_why: "после отпуска" });
+    const { model } = fakeModel([far, far]);
+    const t = setup({ bot: "always", config: aiConfig({ remind: true, remindMaxDays: 10 }), seller: model, hours: WEEKDAYS });
+    await t.service.ingest(inbound({ text: "Напишите после отпуска, 25-го" }));
+    await t.advance(8_000);
+    expect(said(t)).toEqual(["Хорошо 😊 Напишу 25 октября"]);
+    expect(internal(t)).toContain("Бот пообещал клиенту написать 25 октября, но сам не напишет: это дальше 10 дней.");
+    // 25 октября — воскресенье: задача на понедельник, 26-е, 09:00 по Алматы.
+    expect(t.tasks.map((x) => x.dueAt?.toISOString())).toEqual(["2026-10-26T04:00:00.000Z"]);
   });
 
   it("лимит за беседу: после одного сообщения при лимите 1 вторую дату модель уже не получает", async () => {
@@ -364,6 +441,121 @@ describe("Бот пишет в названное клиентом время (�
   });
 });
 
+describe("Договорённость и разговор до срока (в чате)", () => {
+  const SALARY = "Хочу книгу маме, но сейчас денег нет — напишите после зарплаты, 12-го";
+  const AGREED = ans({ stage: "objection", reply: "Конечно 😊 Напишу вам 12 октября", remind_at: "2026-10-12", remind_why: "после зарплаты" });
+  const TOUCH = "Добрый день! 😊 Как и договаривались, пишу вам. Начнём книгу для мамы?";
+  /** Клиент пишет в момент iso (по одному проходу планировщика на шаг). */
+  const write = async (t: ReturnType<typeof setup>, iso: string, p: Parameters<typeof inbound>[0]) => {
+    t.setNow(new Date(iso));
+    await t.service.ingest(inbound({ ...p, at: t.deps.clock.now() }));
+    await t.advance(8_000);
+  };
+
+  it("клиент вернулся 5 октября и замолчал на «Оформляем?» — договорённость снята: «Ознакомились?», итог, а 12-го не пишет", async () => {
+    const { model, calls } = fakeModel([AGREED, ans({ stage: "offer", reply: "Электронная приходит на почту 😊 Оформляем?", asked_to_order: true }), ans({ stage: "offer", reply: "Ознакомились? 😊" }), ans({ stage: "offer", action: "wait", reply: "" })]);
+    const t = setup({ bot: "always", config: aiConfig({ remind: true, followUpHours: 3 }), seller: model });
+    await t.service.ingest(inbound({ text: SALARY }));
+    await t.advance(8_000);
+    expect(readSellerAi(t.conv().botState!.ai).remind).toMatchObject({ kind: "promised", at: "2026-10-12T04:00:00.000Z" });
+    await write(t, "2026-10-05T06:00:00Z", { text: "Здравствуйте, а электронная как приходит?" });
+    expect(calls[1].system).toContain("Клиент вернулся к разговору раньше");
+    expect(said(t).at(-1)).toBe("Электронная приходит на почту 😊 Оформляем?");
+    expect(readSellerAi(t.conv().botState!.ai).remind).toBeNull();
+    expect(traces(t).at(-1)?.notes).toContainEqual({ code: "remind_dropped", detail: "promised" });
+    // Дальше как обычно: через 20 минут «Ознакомились?», модель решила больше не напоминать — через 12 часов итог менеджеру.
+    await t.advance(21 * 60_000);
+    expect(said(t).at(-1)).toBe("Ознакомились? 😊");
+    await t.advance(3 * 3_600_000 + 60_000);
+    await t.advance(12 * 3_600_000);
+    expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "offered" });
+    expect(t.notified.map((n) => n.title)).toContain("Бот сделал предложение, клиент молчит: Айгерим");
+    await until(t, "2026-10-12T04:00:30Z");
+    expect(said(t).some((x) => x.includes("Как и договаривались"))).toBe(false);
+  });
+
+  it("12-го в 08:40 клиент написал сам — бот ответил, а в 09:00 «как и договаривались» не пишет", async () => {
+    const { model } = fakeModel([AGREED, ans({ stage: "offer", reply: "Электронная приходит на почту 😊 Оформляем?", asked_to_order: true }), ans({ stage: "offer", reply: "Ознакомились? 😊" })]);
+    const t = setup({ bot: "always", config: aiConfig({ remind: true, followUpHours: 3 }), seller: model });
+    await t.service.ingest(inbound({ text: SALARY }));
+    await t.advance(8_000);
+    await write(t, "2026-10-12T03:40:00Z", { text: "Здравствуйте, сколько стоит электронная?" });
+    await until(t, "2026-10-12T04:01:00Z");
+    expect(said(t)).toEqual(["Конечно 😊 Напишу вам 12 октября", "Электронная приходит на почту 😊 Оформляем?", "Ознакомились? 😊"]);
+    expect(readSellerAi(t.conv().botState!.ai)).toMatchObject({ remind: null, touches: 0 });
+    expect(t.events.some((e) => e.kind === "follow_up" && e.reason === "promised")).toBe(false);
+  });
+
+  it("клиент только подтвердил «Ок, спасибо» — договорённость в силе, в срок «как и договаривались»", async () => {
+    const { model, calls } = fakeModel([AGREED, ans({ stage: "objection", action: "wait", reply: "" }), ans({ stage: "offer", reply: TOUCH })]);
+    const t = setup({ bot: "always", config: aiConfig({ remind: true }), seller: model });
+    await t.service.ingest(inbound({ text: SALARY }));
+    await t.advance(8_000);
+    await write(t, "2026-10-01T06:01:00Z", { text: "Ок, спасибо" });
+    expect(calls[1].system).toContain("remind_at=2026-10-12T09:00");
+    expect(readSellerAi(t.conv().botState!.ai).remind).toEqual({ kind: "promised", at: "2026-10-12T04:00:00.000Z", why: "после зарплаты", setAt: "2026-10-01T06:01:08.000Z" });
+    await until(t, "2026-10-12T04:00:30Z");
+    expect(said(t).at(-1)).toBe(TOUCH);
+    expect(readSellerAi(t.conv().botState!.ai)).toMatchObject({ remind: null, touches: 1 });
+  });
+
+  it("после договорённости клиент прислал голосовое (без распознавания) — в срок бот не пишет: remind: client_wrote, дальше итог", async () => {
+    const { model } = fakeModel([AGREED]);
+    const t = setup({ bot: "always", config: aiConfig({ remind: true }), seller: model });
+    await t.service.ingest(inbound({ text: SALARY }));
+    await t.advance(8_000);
+    await write(t, "2026-10-03T06:00:00Z", { type: "audio", text: "", mediaUrl: "https://wz/file" });
+    expect(said(t)).toHaveLength(2);
+    await until(t, "2026-10-12T04:00:30Z");
+    expect(t.events).toContainEqual(expect.objectContaining({ kind: "blocked", reason: "remind: client_wrote" }));
+    expect(said(t)).toHaveLength(2);
+    await t.advance(60_000);
+    expect(t.conv().botState).toMatchObject({ phase: "done" });
+    expect(said(t)).toHaveLength(2);
+  });
+});
+
+describe("Пока бот ждёт срока, сделку закрыли или клиент оформил заказ (в чате)", () => {
+  const SALARY = "Хочу книгу маме, но сейчас денег нет — напишите после зарплаты, 12-го";
+
+  it("сделку закрыли, заказ по другой сделке, чат закрыт — в срок бот не пишет, в журнале почему, дальше итог", async () => {
+    const cases: [string, (t: ReturnType<typeof setup>) => Promise<void> | void][] = [
+      ["deal_closed", (t) => void (t.crmState.closed = true)],
+      ["client_has_order", (t) => void (t.crmState.clientOrders = 1)],
+      ["chat_closed", (t) => t.service.setStatus(t.conv().id, "closed")],
+    ];
+    for (const [reason, change] of cases) {
+      const { model } = fakeModel([ans({ stage: "objection", reply: "Конечно 😊 Напишу вам 12 октября", remind_at: "2026-10-12", remind_why: "после зарплаты" })]);
+      const t = setup({ bot: "always", config: aiConfig({ remind: true }), seller: model, clients: { "77011234567": "client-1" } });
+      await t.service.ingest(inbound({ text: SALARY }));
+      await t.advance(8_000);
+      expect(readSellerAi(t.conv().botState!.ai).remind).not.toBeNull();
+      // 3 октября менеджер дозвонился (звонок бота не останавливает) и закрыл сделку; или клиент оформил заказ сам.
+      await change(t);
+      await until(t, "2026-10-12T04:00:30Z");
+      expect(said(t)).toHaveLength(1);
+      expect(t.events).toContainEqual(expect.objectContaining({ kind: "blocked", reason: `remind: ${reason}` }));
+      await t.advance(60_000);
+      expect(t.conv().botState).toMatchObject({ phase: "done" });
+      expect(said(t)).toHaveLength(1);
+    }
+  });
+
+  it("последний день старта не назначается, если сделку уже закрыли — сразу итог", async () => {
+    const offer = ans({ stage: "offer", event_date: "2026-10-20", reply: "Успеваем 🙌 Оформляем?", asked_to_order: true });
+    const { model } = fakeModel([offer, offer]);
+    const t = setup({ bot: "always", config: aiConfig({ lastStart: true, followUpHours: 0 }), seller: model });
+    await t.service.ingest(inbound({ text: "Хочу книгу маме к 20 октября" }));
+    await t.advance(8_000);
+    t.crmState.closed = true;
+    await t.advance(31 * 60_000);
+    await t.advance(12 * 3_600_000);
+    expect(t.conv().botState).toMatchObject({ phase: "done" });
+    expect(readSellerAi(t.conv().botState!.ai).remind).toBeNull();
+    expect(internal(t)).not.toContain("Бот напишет ему один раз");
+  });
+});
+
 describe("Бот пишет в последний день, чтобы успеть к дате (в чате)", () => {
   it("тёплый клиент с датой замолчал — вместо итога сообщение в последний день старта; потом итог", async () => {
     const offer = ans({ stage: "offer", event_date: "2026-10-20", reply: "Успеваем 🙌 Оформляем?", asked_to_order: true });
@@ -375,7 +567,7 @@ describe("Бот пишет в последний день, чтобы успе�
     await t.advance(31 * 60_000);
     await t.advance(12 * 3_600_000);
     // Итога ещё нет: бот напишет 12 октября (20-е − доставка 2 − изготовление 5 − «впритык» 1 день).
-    expect(t.conv().botState).toMatchObject({ phase: "active", ai: expect.objectContaining({ remind: { kind: "last_start", at: "2026-10-12T04:00:00.000Z", why: "2026-10-20" } }) });
+    expect(t.conv().botState).toMatchObject({ phase: "active", ai: expect.objectContaining({ remind: { kind: "last_start", at: "2026-10-12T04:00:00.000Z", why: "2026-10-20", setAt: "2026-10-01T18:31:08.000Z" } }) });
     expect(internal(t)).toContain("Клиент молчит. Бот напишет ему один раз: 12 октября, 09:00 — последний день, чтобы успеть к 20 октября");
     expect(t.notified.some((n) => n.title.startsWith("Бот напишет в последний день"))).toBe(true);
     await until(t, "2026-10-12T04:00:30Z");

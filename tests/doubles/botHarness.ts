@@ -97,7 +97,7 @@ export function setup(
   const notes: string[] = [];
   /** Те же заметки — с id сделки, в которую записаны. */
   const dealNotes: { dealId: string; text: string }[] = [];
-  const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
+  const tasks: { title: string; kind: string; assigneeId: string | null; dueAt?: Date }[] = [];
   const events: (BotEvent & { conv: string })[] = [];
   let seq = 0;
   /** Стоп-лист: номер → отметка и примечание (spam — от opts.blocked: любой номер). */
@@ -154,7 +154,7 @@ export function setup(
     chatIdsByClient: async (clientId) => [...convs.values()].filter((c) => c.clientId === clientId).map((c) => c.chatId),
     closeByDeal: async () => {},
     setAssignee: async () => {},
-    setStatus: async () => {},
+    setStatus: async (id, status) => void Object.assign(convs.get(id)!, { status }),
   };
   const messages: MessageRepository = {
     insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received", mediaUrl: m.mediaUrl })),
@@ -237,12 +237,14 @@ export function setup(
     incoming: async (id, since) => msgs.filter((m) => m.conv === id && m.dir === "in" && m.at >= since).map((m) => ({ id: m.id, text: m.text, type: m.type, at: m.at, mediaUrl: m.mediaUrl })),
     log: async (id, _deal, _lang, list) => void events.push(...list.map((e) => ({ ...e, conv: id }))),
   };
+  /** Что CRM знает о сделке и клиенте сейчас: тест закрывает сделку или оформляет клиенту заказ посреди беседы. */
+  const crmState = { closed: false, clientOrders: opts.clientOrders ?? 0 };
   const crm: BotCrm = {
     deal: async (id) => {
       const d = await sales.deal(id);
-      return d && { orderId: opts.dealStage?.orderId ?? null, paid: opts.dealPaid ?? 0, firstStage: opts.dealStage?.firstStage ?? true, closed: false, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
+      return d && { orderId: opts.dealStage?.orderId ?? null, paid: opts.dealPaid ?? 0, firstStage: opts.dealStage?.firstStage ?? true, closed: crmState.closed, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
     },
-    client: async () => ({ orders: opts.clientOrders ?? 0, books: 0, locale: null, name: null }),
+    client: async () => ({ orders: crmState.clientOrders, books: 0, locale: null, name: null }),
     tag: async (dealId, tag) => void deals.find((d) => d.id === dealId)?.tags.push(tag),
     priorChat: async () => !!opts.priorChat,
     ...(opts.payments ? { payments: async () => opts.payments! } : {}),
@@ -309,7 +311,7 @@ export function setup(
     crm,
     sales,
     notifier,
-    tasks: { create: async (t: { title: string; kind: string; assigneeId: string | null }) => void tasks.push(t) },
+    tasks: { create: async (t: { title: string; kind: string; assigneeId: string | null; dueAt?: Date }) => void tasks.push(t) },
     // Ходы бота делает sweep (как планировщик); таймеры «нужен ли ответ» (triage) — только в процессе, их запускает advance.
     timers: {
       schedule: (key: string, at: Date, run: () => void) => {
@@ -356,7 +358,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, dealNotes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, crmState, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, dealNotes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;
