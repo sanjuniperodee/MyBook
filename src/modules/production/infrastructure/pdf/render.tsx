@@ -1,6 +1,5 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { PDFDocument, rgb } from "pdf-lib";
 import sharp from "sharp";
 import type { Book, BookChapter, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
@@ -32,7 +31,7 @@ import { frameKey, parseFrames } from "@/lib/book/photo-frame";
 import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
-import { ensureFonts } from "@/modules/production/infrastructure/pdf/fonts";
+import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
 import { refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 
@@ -192,7 +191,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
     let layout: unknown;
     const captured: Record<string, number> = {};
     const rowHeights = new Map<string, number>();
-    await renderToBuffer(
+    await renderPdf(
       <InteriorDocument
         content={content}
         options={{ bleedMm: bleed, watermark, images: draftImages, flow, rowHeights, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
@@ -201,7 +200,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
     tocPages = captured;
     if (!layout || !refineFlow(layout, flow, rowHeights, chapterOf, minLead)) break;
   }
-  const raw = await renderToBuffer(<InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, tocPages, flow }} />);
+  const raw = await renderPdf(<InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, tocPages, flow }} />);
 
   const doc = await PDFDocument.load(raw);
   const contentPages = doc.getPageCount();
@@ -329,7 +328,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const background = await coverBackground(bundle, geometry, dpi, source, back);
   const template = getCoverTemplate(bundle.book.coverTemplate);
   const text = coverText(bundle.book);
-  const pdf = await renderToBuffer(<CoverDocument template={template} geometry={geometry} background={background} text={text} back={{ design: back.design, photos: back.buffers }} title={text.title} language={bundle.book.language} />);
+  const pdf = await renderPdf(<CoverDocument template={template} geometry={geometry} background={background} text={text} back={{ design: back.design, photos: back.buffers }} title={text.title} language={bundle.book.language} />);
   return { pdf: Buffer.from(pdf), geometry };
 }
 
