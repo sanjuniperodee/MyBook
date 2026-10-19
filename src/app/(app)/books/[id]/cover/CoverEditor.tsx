@@ -17,7 +17,7 @@ import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
-import { coverNames } from "@/lib/book/cover-names";
+import { coverNames, NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
@@ -33,6 +33,8 @@ interface CoverState {
   recordedBy: string;
   recipientName: string;
   hideRecipientOnCover: boolean;
+  /** Своя строка имён на обложке; пусто — «Автор & Получатель». */
+  namesOnCover: string;
   backText: string;
   backLayout: BackLayout;
   backPhotoId: string | null;
@@ -355,6 +357,13 @@ export function CoverEditor({
         ) : (
           <p className="text-sm text-muted">{t.recipientNone}</p>
         )}
+        <NamesOnCover
+          value={state.namesOnCover}
+          auto={coverNames({ theme, ...state, namesOnCover: "" })}
+          swapped={kind !== "autobiography" && state.authorName.trim() && state.recipientName.trim() ? `${state.recipientName.trim()} & ${state.authorName.trim()}` : null}
+          onChange={(v) => update({ namesOnCover: v })}
+          disabled={!editable}
+        />
         <BackSection
           bookId={bookId}
           theme={theme}
@@ -471,6 +480,30 @@ function CoverPhotoPicker({
       <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex items-center gap-1.5 text-sm text-wine hover:underline">
         <ImagePlus className="size-4" /> {photos.length ? t.uploadMore : t.uploadFirst}
       </Link>
+    </div>
+  );
+}
+
+/** Своя строка имён на обложке: порядок «Получатель & Автор» одной кнопкой или любой текст; пусто — как по умолчанию. */
+function NamesOnCover({ value, auto, swapped, onChange, disabled }: { value: string; auto: string; swapped: string | null; onChange: (v: string) => void; disabled?: boolean }) {
+  const t = useMessages().books.cover;
+  return (
+    <div>
+      <label className="label">{t.namesOnCover}</label>
+      <input className="input" value={value} maxLength={NAMES_ON_COVER_MAX} placeholder={auto} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span className="text-muted">{t.namesOnCoverText}</span>
+        {swapped && value.trim() !== swapped ? (
+          <button type="button" className="text-wine hover:underline disabled:opacity-50" onClick={() => onChange(swapped)} disabled={disabled}>
+            {t.namesSwap}
+          </button>
+        ) : null}
+        {value.trim() ? (
+          <button type="button" className="text-muted hover:text-ink hover:underline disabled:opacity-50" onClick={() => onChange("")} disabled={disabled}>
+            {t.namesAuto}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

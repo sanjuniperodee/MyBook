@@ -139,6 +139,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     recipientName: t.recipientName,
     recipientGender: "m",
     hideRecipientOnCover: false,
+    namesOnCover: "",
     coverTemplate: COVERS[design].cover,
     coverPhotoId: photo("cover"),
     coverPhotoExtra: COVER_EXTRA.map(photo),

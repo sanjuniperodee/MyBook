@@ -37,6 +37,7 @@ const book: Book = {
   recipientName: "Марғұлан",
   recipientGender: "m",
   hideRecipientOnCover: false,
+  namesOnCover: "",
   coverTemplate: "mosaic",
   coverPhotoId: null,
   coverPhotoExtra: [],

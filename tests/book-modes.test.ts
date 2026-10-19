@@ -388,6 +388,7 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   recipientName: "",
   recipientGender: "m",
   hideRecipientOnCover: false,
+  namesOnCover: "",
   coverTemplate: "linen",
   coverPhotoId: null,
   coverPhotoExtra: [],
@@ -512,6 +513,12 @@ describe("coverNames", () => {
     expect(coverNames(b("blank"))).toBe("Иван Петров & Детям и внукам");
     expect(coverNames(b("blank", ""))).toBe("Иван Петров");
     expect(coverNames(b("love", "Алия", true))).toBe("Иван Петров");
+  });
+
+  it("своя строка автора заменяет имена по умолчанию (порядок, «мен» — что угодно); пустая — как по умолчанию", () => {
+    expect(coverNames({ ...b("love", "Алия"), namesOnCover: " Алия & Иван Петров " })).toBe("Алия & Иван Петров");
+    expect(coverNames({ ...b("autobiography"), namesOnCover: "Иван Петрович" })).toBe("Иван Петрович");
+    expect(coverNames({ ...b("love", "Алия"), namesOnCover: "   " })).toBe("Иван Петров & Алия");
   });
 });
 

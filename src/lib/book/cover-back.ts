@@ -307,7 +307,7 @@ export function backArtSvg(design: BackDesign, back: { x: number; y: number; w: 
 
 /** Что печатается сзади — из настроек книги. Год — повода, если он задан, иначе текущий. */
 export function backContent(
-  book: { theme: string; backLayout: string; backText: string; authorName: string; recipientName: string; hideRecipientOnCover: boolean; occasionDate: string | null },
+  book: { theme: string; backLayout: string; backText: string; authorName: string; recipientName: string; hideRecipientOnCover: boolean; namesOnCover?: string; occasionDate: string | null },
   photos: { width: number; height: number }[],
   now: Date,
 ): BackContent {

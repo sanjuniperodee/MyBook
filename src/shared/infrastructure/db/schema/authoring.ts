@@ -53,6 +53,8 @@ export const books = pgTable(
     recordedBy: text("recorded_by").notNull().default(""),
     recipientName: text("recipient_name").notNull().default(""),
     recipientGender: text("recipient_gender").$type<Gender>().notNull().default("m"),
+    /** Своя строка имён на обложке (порядок, «мен», что угодно); пусто — «Автор & Получатель» (lib/book/cover-names). */
+    namesOnCover: text("names_on_cover").notNull().default(""),
     hideRecipientOnCover: boolean("hide_recipient_on_cover").notNull().default(false),
     coverTemplate: text("cover_template").notNull().default("linen"),
     coverPhotoId: uuid("cover_photo_id"),

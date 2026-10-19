@@ -5,6 +5,7 @@ import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
+import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
@@ -19,6 +20,7 @@ const patchSchema = z
     recipientName: z.string().trim().max(60),
     recipientGender: z.enum(["m", "f"]),
     hideRecipientOnCover: z.boolean(),
+    namesOnCover: z.string().trim().max(NAMES_ON_COVER_MAX),
     coverTemplate: z.string().max(40),
     coverPhotoId: uuid.nullable(),
     coverPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),

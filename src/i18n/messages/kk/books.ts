@@ -289,6 +289,10 @@ export const books: typeof ru = {
     recordedByPlaceholder: "Мысалы, немересі Аружан",
     recipientNone: "Өмірбаянның алушысы жоқ: арнау «Беттер» бөлімінде жазылады.",
     hideRecipient: "Мұқабада көрсетпеу",
+    namesOnCover: "Мұқабадағы есімдер",
+    namesOnCoverText: "Ретін ауыстыруға немесе өзіңізше жазуға болады. Бос болса — қазіргідей.",
+    namesSwap: "Орындарын ауыстыру",
+    namesAuto: "Бұрынғыдай",
     side: { front: "Беті", back: "Сырты", aria: "Қай жағын көрсету" },
     back: {
       title: "Артқы жағы",

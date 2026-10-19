@@ -5,6 +5,7 @@ import { formats } from "@/lib/book/formats";
 import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
+import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { isTocMode, parseTocLines, type TocLines, type TocMode } from "@/lib/book/toc";
 import { getOccasion } from "@/lib/occasions";
 import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
@@ -30,6 +31,8 @@ export interface BookProps {
   recipientName: string;
   recipientGender: Gender;
   hideRecipientOnCover: boolean;
+  /** Своя строка имён на обложке; пусто — «Автор & Получатель». */
+  namesOnCover: string;
   coverTemplate: string;
   coverPhotoId: string | null;
   /** Остальные снимки обложек на несколько фото, по порядку мест (первое — coverPhotoId). */
@@ -74,7 +77,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -162,6 +165,7 @@ export class Book extends AggregateRoot<BookProps> {
       recipientName: theme.recipient === "none" ? "" : input.recipientName.trim(),
       recipientGender: theme.recipientGender ?? (theme.recipient === "required" ? input.recipientGender : "m"),
       hideRecipientOnCover: false,
+      namesOnCover: "",
       coverTemplate: theme.defaultCover,
       coverPhotoId: null,
       coverPhotoExtra: [],
@@ -266,6 +270,7 @@ export class Book extends AggregateRoot<BookProps> {
       if (kind === "autobiography") clean.recordedBy = clip(clean.recordedBy, RECORDED_BY_MAX);
       else delete clean.recordedBy;
     }
+    if (clean.namesOnCover !== undefined) clean.namesOnCover = clip(clean.namesOnCover, NAMES_ON_COVER_MAX);
     if (kind === "autobiography") delete clean.recipientName;
     if (kind !== "gift") delete clean.recipientGender;
     this.props = { ...this.props, ...clean };
