@@ -98,13 +98,17 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   ...p,
 });
 const rulesFor = (e = env()): ReplyRules => ({ amounts: allowedAmounts(e.catalog, e.config.sell), percents: new Set(), urls: [e.site.url], phones: ["77010000000"] });
-const ctxFor = (inputs: BotInput[], p: Partial<{ priceInHistory: boolean; second: boolean; e: BotEnv }> = {}) => ({
+const ctxFor = (inputs: BotInput[], p: Partial<{ priceInHistory: boolean; second: boolean; e: BotEnv; materials: boolean; materialsSeen: boolean }> = {}) => ({
   inputs,
   clientText: inputs.map((i) => i.text).join("\n"),
   priceInHistory: p.priceInHistory ?? false,
   rules: rulesFor(p.e),
   second: p.second,
+  materials: p.materials,
+  materialsSeen: p.materialsSeen,
 });
+/** Клиент уже ознакомился (получил подборку в прошлом ходе): цену называть можно. */
+const warmState = () => ({ ...newBotState(day, true), ai: { ...newSellerAiState(), warmedUp: true } });
 const turn = (state = newBotState(day, true), d: SellerDecision = decision(), inputs: BotInput[] = [msg("Здравствуйте")], p: Parameters<typeof ctxFor>[1] = {}) => resolveSellerTurn(state, d, p.e ?? env(), ctxFor(inputs, p));
 
 describe("AI-продажник: разбор ответа модели", () => {
@@ -254,12 +258,75 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
   });
 
   it("предложение: стадия offer, offeredAt, событие; цена записана; «Оформляем?» запомнено", () => {
-    const r = turn(undefined, decision({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", askedToOrder: true }));
+    const r = turn(warmState(), decision({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", askedToOrder: true }));
     expect(r.state.stage).toBe("offer");
     expect(r.state.offeredAt).toBeTruthy();
     expect(r.events.map((x) => x.kind)).toContain("offer");
     expect(r.state.ai.priceQuoted).toBe(true);
     expect(r.state.ai.closeAsked).toBe(true);
+  });
+
+  it("прогрев: холодному клиенту цену и «Оформляем?» не называет — сначала подборка, цена следующим ходом", () => {
+    const pitch = decision({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", askedToOrder: true });
+    const cold = turn(undefined, pitch, [msg("Для мамы, к 15.11")], { materials: true });
+    expect(cold.retry?.[0].kind).toBe("rule");
+    expect(cold.retry?.[0].detail).toContain("send_materials=true");
+    // Без суммы, но с «Оформляем?» — тоже рано.
+    expect(turn(undefined, decision({ stage: "offer", reply: "Оформляем?", askedToOrder: true }), [msg("Для мамы")]).retry?.[0].kind).toBe("rule");
+    // Подборка ушла — клиент прогрет, следующим ходом цену можно.
+    const warmUp = turn(undefined, decision({ stage: "offer", reply: "Отправляю, как выглядят наши книги 😊\n\nОзнакомьтесь, пожалуйста 🙌 Какие остались вопросы?", sendMaterials: true }), [msg("Для мамы, к 15.11")], { materials: true });
+    expect(warmUp.materials).toBe(true);
+    expect(warmUp.state.ai.warmedUp).toBe(true);
+    const next = turn(warmUp.state, pitch, [msg("Красиво! А сколько стоит?")]);
+    expect(next.retry).toBeNull();
+    expect(next.reply).toContain("30 000");
+    // Подборку раньше отправил менеджер — клиент уже знаком.
+    expect(turn(undefined, pitch, [msg("Для мамы")], { materialsSeen: true }).retry).toBeNull();
+    // Без подборки прогрев — рассказ о книге (стадия предложения) без цены.
+    const story = turn(undefined, decision({ stage: "offer", reply: "Такая книга — история мамы для внуков 🤍 Какие остались вопросы?" }), [msg("Для мамы")]);
+    expect(story.state.ai.warmedUp).toBe(true);
+  });
+
+  it("предоплата больше цены электронной книги — её не предлагает, просит назвать полную сумму", () => {
+    const e = env();
+    e.config = { ...e.config, sell: { ...e.config.sell, prepay: 10000 } };
+    const digital = e.catalog.plans.find((p) => p.id === "digital")!.price;
+    const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
+    const bad = turn(warmState(), decision({ plan: "digital", reply: `Электронная — от ${fmt(digital)} ₸. Оформляем? Начнём с предоплаты 10 000 ₸`, askedToOrder: true }), [msg("Давайте электронную")], { e });
+    expect(bad.retry?.[0].detail).toContain("оплачивают сразу целиком");
+    // Только цена электронной без выбора плана — тоже про неё.
+    expect(turn(warmState(), decision({ reply: `Электронная — ${fmt(digital)} ₸, предоплата 10 000 ₸` }), [msg("А электронная?")], { e }).retry?.[0].kind).toBe("rule");
+    // Печатная с предоплатой — можно; электронная целиком — можно.
+    expect(turn(warmState(), decision({ plan: "hardcover", reply: "Печатная — от 30 000 ₸, начать можно с предоплаты 10 000 ₸. Оформляем?", askedToOrder: true }), [msg("Печатную")], { e }).retry).toBeNull();
+    expect(turn(warmState(), decision({ plan: "digital", reply: `Электронная — ${fmt(digital)} ₸, оплата сразу целиком. Оформляем?`, askedToOrder: true }), [msg("Электронную")], { e }).retry).toBeNull();
+  });
+
+  it("электронную сам не предлагает: на первое «дорого» дожимает печатную, на второе — можно; спросил сам — можно", () => {
+    const e = env();
+    const digital = new Intl.NumberFormat("ru-RU").format(e.catalog.plans.find((p) => p.id === "digital")!.price);
+    const cheap = decision({ stage: "objection", reply: `Понимаю 🙂 Есть электронная версия — от ${digital} ₸. Какой вариант ближе?` });
+    // Сразу с ценой печатной — электронную не называть.
+    expect(turn(warmState(), decision({ stage: "offer", reply: `Печатная — от 30 000 ₸, электронная — от ${digital} ₸. Оформляем?`, askedToOrder: true }), [msg("Сколько стоит?")], { e }).retry?.[0].detail).toContain("электронную версию сам не предлагай");
+    // Первое «дорого» — ещё дожимаем печатную.
+    const first = turn(warmState(), cheap, [msg("Дорого")], { e });
+    expect(first.retry?.[0].detail).toContain("рассрочка");
+    const push = turn(warmState(), decision({ stage: "objection", reply: "Понимаю 🙂 Можно начать с предоплаты или в рассрочку 0-0-12. Как удобнее?" }), [msg("Дорого")], { e });
+    expect(push.retry).toBeNull();
+    expect(push.state.ai.objections).toBe(1);
+    // Второе «дорого» — электронная уместна.
+    expect(turn(push.state, cheap, [msg("Всё равно дорого")], { e }).retry).toBeNull();
+    // Клиент сам спросил про электронную — отвечаем сразу.
+    expect(turn(warmState(), decision({ reply: `Электронная — от ${digital} ₸, в PDF 🙂` }), [msg("А электронная есть?")], { e }).retry).toBeNull();
+    // Упоминание без предложения («электронную версию пришлём сразу») — не нарушение.
+    expect(turn(warmState(), decision({ reply: "Печатную привезём, а электронную версию пришлём сразу после готовности 🙂" }), [msg("Когда будет?")], { e }).retry).toBeNull();
+  });
+
+  it("прогрев: на повторный вопрос о цене называет её сразу", () => {
+    const first = turn(undefined, decision({ reply: "Подскажу 🙂 А для кого книга?" }), [msg("Сколько стоит?")]);
+    expect(first.state.ai.warmedUp).toBe(false);
+    const again = turn(first.state, decision({ reply: "Печатная — от 30 000 ₸ 🙂" }), [msg("Так сколько стоит?")]);
+    expect(again.retry).toBeNull();
+    expect(again.state.ai.priceQuoted).toBe(true);
   });
 
   it("чужая цена: ход не засчитывается и просит переписать; второй раз — менеджеру", () => {

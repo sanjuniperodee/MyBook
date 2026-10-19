@@ -19,9 +19,9 @@ describe("способ «в другую страну»", () => {
     applyCatalog(null);
     expect(getDeliveryOptions().find((d) => d.id === "abroad")).toMatchObject({ price: 0, quoted: true });
     expect(isQuotedDelivery("abroad")).toBe(true);
-    expect(isQuotedDelivery("post")).toBe(false);
+    expect(isQuotedDelivery("pickup")).toBe(false);
     expect(isQuotedDelivery(null)).toBe(false);
-    expect(sanitizeOverrides({ delivery: { abroad: { price: 15000 }, post: { price: 4000 } } })).toEqual({ delivery: { post: { price: 4000 } } });
+    expect(sanitizeOverrides({ delivery: { abroad: { price: 15000 }, post: { price: 4000 }, pickup: { price: 500 } } })).toEqual({ delivery: { pickup: { price: 500 } } });
   });
 
   it("в сумму заказа доставка не входит; бесплатная доставка по договорённости её не касается", () => {
@@ -36,12 +36,12 @@ describe("способ «в другую страну»", () => {
     for (const locale of ["ru", "kk"] as const) {
       const m = messagesFor(locale);
       expect(m.common.delivery.abroad.name).toBeTruthy();
-      expect(m.checkout.abroad.note.length).toBeGreaterThan(40);
+      expect(m.checkout.quoted.note.length).toBeGreaterThan(40);
       expect(m.checkout.errors.country).toBeTruthy();
-      expect(m.orders.order.abroadNote).toBeTruthy();
-      expect(m.mail.order.created.abroad("Россия")).toContain("Россия");
+      expect(m.orders.order.quotedNote).toBeTruthy();
+      expect(m.mail.order.created.quoted("Россия")).toContain("Россия");
     }
-    expect(messagesFor("ru").checkout.abroad.price).toBe("рассчитает менеджер");
+    expect(messagesFor("ru").checkout.quoted.price).toBe("рассчитывается индивидуально");
   });
 });
 
@@ -55,17 +55,24 @@ describe("заказ с доставкой в другую страну", () => 
     const quote = quoteCheckout({ plan: "hardcover", quantity: 1, delivery: "abroad", discount: null, addons: ["giftwrap"], agreement: null });
     expect(s.price).toEqual(quote.price);
     const history = t.orders.history.map((h) => h.note).join("\n");
-    expect(history).toContain("доставка в другую страну (Россия) — в сумму не входит, стоимость рассчитает менеджер");
+    expect(history).toContain("доставка (Россия, Москва) — в сумму не входит, стоимость рассчитывается индивидуально");
     const placed = t.uow.published.find((e) => e.type === "ordering.order_placed") as OrderPlaced;
-    expect(placed.payload.deliveryAbroad).toEqual({ country: "Россия", city: "Москва" });
+    expect(placed.payload.deliveryQuoted).toEqual({ method: "abroad", country: "Россия", city: "Москва" });
   });
 
-  it("по Казахстану страна не хранится и задачи нет", async () => {
+  it("по Казахстану страна не хранится; доставка тоже по расчёту — в сумму не входит, менеджеру задача", async () => {
     const t = setup();
-    const order = await t.place({ delivery: { ...abroad, method: "post" } });
+    const order = await t.place({ delivery: { ...abroad, method: "post", city: "Караганда" } });
     expect(order.snapshot().delivery.country).toBeNull();
+    expect(order.snapshot().price.deliveryAmount).toBe(0);
     const placed = t.uow.published.find((e) => e.type === "ordering.order_placed") as OrderPlaced;
-    expect(placed.payload.deliveryAbroad).toBeUndefined();
+    expect(placed.payload.deliveryQuoted).toEqual({ method: "post", country: null, city: "Караганда" });
+  });
+
+  it("доставку по Казахстану отдали бесплатно по договорённости — она бесплатная, а не «по расчёту»", () => {
+    expect(isQuotedDelivery("courier")).toBe(true);
+    expect(isQuotedDelivery("courier", ["delivery"])).toBe(false);
+    expect(isQuotedDelivery("abroad", ["delivery"])).toBe(true);
   });
 
   it("адрес одной строкой: страна, индекс, город, адрес", () => {
@@ -75,10 +82,12 @@ describe("заказ с доставкой в другую страну", () => 
 });
 
 describe("боты знают о доставке в другие страны", () => {
-  const catalog = { plans: [{ id: "hardcover", price: 30000 }], delivery: [{ id: "courier", price: 2000 }, { id: "abroad", price: 0 }], addons: [], productionDays: { standard: "5–7", premium: "3–4" } };
-  it("шаблонный бот: «рассчитает менеджер», а не «бесплатно»; без способа в каталоге — пусто", () => {
-    expect(catalogVars(catalog, "ru")["доставка.заграница"]).toBe("стоимость рассчитает менеджер отдельно");
-    expect(catalogVars(catalog, "kk")["доставка.заграница"]).toBe("құнын менеджер бөлек есептейді");
+  const catalog = { plans: [{ id: "hardcover", price: 30000 }], delivery: [{ id: "courier", price: 0, quoted: true }, { id: "pickup", price: 0 }, { id: "abroad", price: 0 }], addons: [], productionDays: { standard: "5–7", premium: "3–4" } };
+  it("шаблонный бот: «рассчитывается индивидуально», а не «бесплатно»; без способа в каталоге — пусто", () => {
+    expect(catalogVars(catalog, "ru")["доставка.заграница"]).toBe("стоимость рассчитывается индивидуально");
+    expect(catalogVars(catalog, "ru")["доставка.курьер"]).toBe("стоимость рассчитывается индивидуально");
+    expect(catalogVars(catalog, "ru")["доставка.самовывоз"]).toBe("бесплатно");
+    expect(catalogVars(catalog, "kk")["доставка.заграница"]).toBe("құны жеке есептеледі");
     expect(catalogVars({ ...catalog, delivery: [] }, "ru")["доставка.заграница"]).toBe("");
   });
 
@@ -86,7 +95,8 @@ describe("боты знают о доставке в другие страны",
     applyCatalog(null);
     const text = businessContext();
     expect(text).toContain("в другие страны");
-    expect(text).toContain("рассчитывает менеджер отдельно");
+    expect(text).toContain("рассчитывается индивидуально");
     expect(text).not.toMatch(/в другие страны[^;]*бесплатно/);
+    expect(text).not.toMatch(/курьер[^;]*₸/);
   });
 });
