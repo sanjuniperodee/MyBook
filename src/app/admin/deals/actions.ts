@@ -15,9 +15,11 @@ import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
-import { MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
+import { dealPrice, MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
 import type { DealView } from "@/modules/sales";
 import { staffActionError } from "@/server/errors";
+import { auditDiscount, discountLimit } from "@/server/discount";
+import { DiscountError } from "@/shared/domain/discount";
 import { env } from "@/config/env";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, staffLogin } from "@/app/admin/clients/new/access-message";
@@ -65,18 +67,29 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
   if (d.contactPhone && phone.length < 10) return { error: "Проверьте номер телефона" };
   let assigneeId = d.assigneeId || staff.user.id;
   if (assigneeId !== staff.user.id && !canAssignOthers(staff)) assigneeId = staff.user.id;
-  const deal = await container().sales.deals.create({
-    title: d.title,
-    source: d.source,
-    clientId: d.clientId || null,
-    contactName: d.contactName,
-    contactPhone: phone || null,
-    contactEmail: d.contactEmail || null,
-    amount: d.amount,
-    assigneeId,
-    createdById: staff.user.id,
-    stageId: d.stageId || undefined,
-  });
+  // Сделка «вручную» с бюджетом — договорённость: клиент купит по этой цене (лимит скидки).
+  const limit = await discountLimit(staff);
+  let deal;
+  try {
+    deal = await container().sales.deals.create({
+      title: d.title,
+      source: d.source,
+      clientId: d.clientId || null,
+      contactName: d.contactName,
+      contactPhone: phone || null,
+      contactEmail: d.contactEmail || null,
+      amount: d.amount,
+      assigneeId,
+      createdById: staff.user.id,
+      stageId: d.stageId || undefined,
+      maxDiscountPercent: limit,
+    });
+  } catch (err) {
+    const message = staffActionError(err, DiscountError);
+    if (message) return { error: message };
+    throw err;
+  }
+  await auditDiscount(staff, { entity: "deal", id: deal.id }, dealPrice(null, d.source, d.amount), limit, "deal", { number: deal.number });
   revalidateDeal(deal.id, deal.clientId);
   redirect(`/admin/deals/${deal.id}`);
 }
@@ -97,11 +110,22 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
     : deal.extraPhones;
   const customFields = readFieldValues(await listFields("deal"), form, deal.customFields);
   const tags = [...new Set(String(form.get("tags") ?? "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 12).map((t) => t.slice(0, 30));
-  await container().sales.deals.edit(
-    deal.id,
-    { title: d.title, contactName: d.contactName, amount: d.amount, source: d.source, tags, customFields, contacts: editContacts ? { phone: phone || null, email: d.contactEmail || null, extraPhones } : undefined },
-    staff.user.id,
-  );
+  // Бюджет сделки с тарифом договорённости (или «вручную») — цена продажи: лимит скидки сотрудника.
+  const limit = await discountLimit(staff);
+  let price;
+  try {
+    price = await container().sales.deals.edit(
+      deal.id,
+      { title: d.title, contactName: d.contactName, amount: d.amount, source: d.source, tags, customFields, contacts: editContacts ? { phone: phone || null, email: d.contactEmail || null, extraPhones } : undefined },
+      staff.user.id,
+      limit,
+    );
+  } catch (err) {
+    const message = staffActionError(err, DiscountError);
+    if (message) return { error: message };
+    throw err;
+  }
+  await auditDiscount(staff, { entity: "deal", id: deal.id }, price, limit, "budget", { number: deal.number, from: deal.amount });
   revalidateDeal(deal.id, deal.clientId);
   return { ok: "Сохранено" };
 }
@@ -116,10 +140,21 @@ export async function setDealAgreedPlanAction(dealId: string, plan: string | nul
   if (deal.orderId) return { ok: false, message: "По сделке уже оформлен заказ: тариф не изменить" };
   const value = plan || null;
   if (value && !getPlan(value)) return { ok: false, message: "Выберите тариф из списка" };
-  const before = await container().sales.agreedPlan.get(deal.id);
-  if (!(await container().sales.agreedPlan.set(deal.id, value))) return { ok: false, message: "Не удалось сохранить тариф" };
+  // Сумма сделки сравнивается с прайсом нового тарифа: дорогой тариф по старой цене — та же скидка (лимит).
+  const limit = await discountLimit(staff);
+  let changed;
+  try {
+    changed = await container().sales.deals.changeAgreedPlan(deal.id, value, limit);
+  } catch (err) {
+    const message = staffActionError(err, DiscountError);
+    if (message) return { ok: false, message };
+    throw err;
+  }
+  if (!changed) return { ok: false, message: "Не удалось сохранить тариф" };
+  const { before } = changed;
   await container().sales.deals.note(deal, `Тариф договорённости: ${before ?? "не указан"} → ${value ?? "не указан"}`, staff.user.id, "system");
   await audit(staff, "deal.plan", "deal", deal.id, { from: before, to: value });
+  if (before !== value) await auditDiscount(staff, { entity: "deal", id: deal.id }, changed.price, limit, "plan", { number: deal.number, from: before });
   revalidateDeal(deal.id, deal.clientId);
   return { ok: true };
 }

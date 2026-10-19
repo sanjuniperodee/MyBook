@@ -25,7 +25,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       from: z.string().refine(isValidTime, "Время начала в формате ЧЧ:ММ"),
       to: z.string().refine(isValidTime, "Время окончания в формате ЧЧ:ММ"),
       autoDealFrom: z.enum(["off", "registered", "book_started", "book_half", "book_ready"]),
-      maxDiscount: z.coerce.number().int().min(0).max(50, "Скидка из чата — не больше 50%"),
+      maxDiscount: z.coerce.number().int().min(0).max(50, "Лимит скидки — не больше 50%"),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };

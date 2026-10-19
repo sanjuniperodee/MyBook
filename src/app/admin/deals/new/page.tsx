@@ -3,17 +3,19 @@ import Link from "next/link";
 import { canAssignOthers, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { NewDealForm } from "./NewDealForm";
+import { discountLimit } from "@/server/discount";
 
 export const metadata = { title: "Новая сделка" };
 
 export default async function NewDealPage({ searchParams }: { searchParams: Promise<{ client?: string; p?: string }> }) {
   const staff = await requireStaff("deals.edit");
   const { client: clientId, p } = await searchParams;
-  const [stages, admins, client, pipelines] = await Promise.all([
+  const [stages, admins, client, pipelines, maxDiscount] = await Promise.all([
     container().sales.queries.listStages(),
     container().access.queries.allStaff(),
     clientId ? container().clients.clients.find(clientId) : null,
     container().sales.queries.listPipelines(),
+    discountLimit(staff),
   ]);
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
@@ -29,6 +31,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
         admins={options}
         me={staff.user.id}
         canAssign={canAssignOthers(staff)}
+        maxDiscountPercent={maxDiscount}
         client={client ? { id: client.id, name: client.name || client.email.split("@")[0], phone: client.phone ?? "" } : null}
       />
     </div>

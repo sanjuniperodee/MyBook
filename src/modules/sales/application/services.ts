@@ -2,9 +2,9 @@ import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { bookKind, progressOf } from "@/lib/content/kinds";
-import { Deal, Funnel, SalesError, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
+import { checkDealPrice, Deal, Funnel, SalesError, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
-import { heldMoney, noDealInvoices, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type SalesSettings, type StaffRouter } from "./ports";
+import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type SalesSettings, type StaffRouter } from "./ports";
 
 /** Почему сделку нельзя удалить: по ней приняты деньги или есть счёт из чата, по которому клиент заплатил или ещё может заплатить. */
 type DeleteBlocker = { code: "dealHasPayments" } | { code: "dealHasInvoice"; label: string; reason: "open" | "paid" | "kaspi" };
@@ -41,6 +41,11 @@ export interface NewDeal {
   customFields?: CustomFieldValues;
   /** Откуда пришёл (UTM-метки, реферер, код ссылки). Для клиента с сайта берётся из его профиля, если не передано. */
   utm?: object | null;
+  /**
+   * Сделку заводит сотрудник с формы: сумма сделки «вручную» — цена продажи, она проверяется лимитом скидки (null — без
+   * лимита). Не передан — внутренний вызов, цену уже проверили (копии пакета, онбординг, счёт из чата).
+   */
+  maxDiscountPercent?: number | null;
 }
 
 /** Снимок сделки для вызывающего кода (страницы, чаты, телефония). */
@@ -57,6 +62,8 @@ export class DealsService {
     private readonly clock: Clock,
     /** Счета из чата по сделке (контекст «Заказы»): слияние переносит их, удаление — учитывает. */
     private readonly invoices: DealInvoicesPort = noDealInvoices,
+    /** Тариф договорённости сделки: с его прайсом сравнивается цена (лимит скидки). */
+    private readonly agreedPlans: AgreedPlans = noAgreedPlans,
   ) {}
 
   private async load(dealId: string) {
@@ -78,6 +85,8 @@ export class DealsService {
     const funnel = await this.funnels.load();
     const stage = input.stageId ? funnel.stage(input.stageId) : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
     if (!stage) throw new SalesError(input.stageId ? "stageNotFound" : "noOpenStage");
+    // Сделка «вручную» с суммой — уже договорённость (клиент купит по этой цене): лимит скидки до создания.
+    if (input.maxDiscountPercent !== undefined) checkDealPrice(null, input.source, input.amount ?? 0, input.maxDiscountPercent);
     let clientId = input.clientId ?? null;
     if (!clientId && input.contactPhone) clientId = await this.clients.findByPhone(input.contactPhone);
     const profile = clientId ? await this.clients.profile(clientId) : null;
@@ -181,11 +190,32 @@ export class DealsService {
     if (deal?.fillEmptyFields(values)) await this.deals.save(deal);
   }
 
-  /** Правка карточки сделки. */
-  async edit(dealId: string, patch: Parameters<Deal["edit"]>[0], actorId: string) {
+  /**
+   * Правка карточки сделки. Бюджет сделки с тарифом договорённости (или «вручную») — цена, по которой купит клиент: если
+   * он или источник меняются, цена проверяется лимитом скидки сотрудника (null — без лимита; сверх — DiscountError, ничего
+   * не сохраняется). Возвращает цену против прайса, если она менялась, — для журнала deal.discount; иначе null.
+   */
+  async edit(dealId: string, patch: Parameters<Deal["edit"]>[0], actorId: string, maxDiscountPercent: number | null): Promise<DealPrice | null> {
     const deal = await this.load(dealId);
+    const s = deal.snapshot();
+    // По сделке заказ — цену уже взяли в заказ, бюджет её не меняет.
+    const priced = !s.orderId && (patch.amount !== s.amount || patch.source !== s.source);
+    const price = priced ? checkDealPrice(await this.agreedPlans.get(deal.id), patch.source, patch.amount, maxDiscountPercent) : null;
     deal.edit(patch, actorId);
     await this.deals.save(deal);
+    return price;
+  }
+
+  /**
+   * Сменить тариф договорённости (пока по сделке нет заказа): сумма сделки сравнивается с прайсом нового тарифа (без
+   * тарифа у сделки «вручную» — с самым дорогим), сверх лимита — DiscountError. null — не сохранено (по сделке заказ).
+   */
+  async changeAgreedPlan(dealId: string, plan: string | null, maxDiscountPercent: number | null): Promise<{ before: string | null; price: DealPrice | null } | null> {
+    const deal = (await this.load(dealId)).snapshot();
+    const before = await this.agreedPlans.get(deal.id);
+    const price = deal.orderId ? null : checkDealPrice(plan, deal.source, deal.amount, maxDiscountPercent);
+    if (!(await this.agreedPlans.set(deal.id, plan))) return null;
+    return { before, price };
   }
 
   /**

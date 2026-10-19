@@ -1,4 +1,5 @@
-import { formatPrice, giftsForPlan } from "@/config/site";
+import { formatPrice, getPlan, giftsForPlan } from "@/config/site";
+import { DiscountPolicy } from "@/shared/domain/discount";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { channels, isManualChannel, manualAttribution, type ManualChannel } from "@/shared/domain/channels";
 import { ClientsError } from "../domain/errors";
@@ -86,6 +87,8 @@ export interface DealTerms {
   planLabel: string;
   /** Что бесплатно по договорённости (упаковка, доставка); не отмечено — клиент платит по прайсу. */
   gifts?: AgreementGift[];
+  /** Лимит скидки сотрудника от прайса тарифа, %; null — без лимита (право prices.discount_unlimited). */
+  maxDiscountPercent: number | null;
 }
 
 const GIFT_NAMES: Record<AgreementGift, string> = { giftwrap: "подарочная упаковка", delivery: "доставка" };
@@ -134,6 +137,12 @@ export function splitEven(total: number, n: number): number[] {
 
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
 
+/** Цена книги по договорённости против прайса тарифа (лимит скидки): сверх лимита — DiscountError. Возвращает скидку, %. */
+function checkPrice(d: DealTerms): number {
+  const plan = getPlan(d.plan);
+  return plan ? DiscountPolicy.check({ listPrice: plan.price, price: d.agreed, maxPercent: d.maxDiscountPercent }) : 0;
+}
+
 /**
  * Менеджер заводит клиента: аккаунт с логином и паролем (по телефону, если почты нет), CRM-профиль
  * (ответственный, метки, канал привлечения), сделка в воронке с суммой договорённости и предоплатой,
@@ -150,6 +159,8 @@ export class ClientOnboardingService {
 
   async onboard(input: OnboardingInput, actor: Actor): Promise<OnboardingResult> {
     const d = input.deal;
+    // Цена — до аккаунта: сверх лимита скидки клиента не заводим (иначе остался бы аккаунт без сделки).
+    if (d) checkPrice(d);
     const account = await this.accounts.provisionClient({ name: input.name, phone: input.phone, email: input.email || null, password: input.password, locale: input.locale });
 
     const profile = await this.clients.find(account.id);
@@ -168,6 +179,7 @@ export class ClientOnboardingService {
 
   /** Менеджер создаёт сделки существующему клиенту: клиент оплатил сразу несколько книг или договорились о цене. */
   async addDeals(input: ExistingClientDealsInput, actor: Actor): Promise<{ parts: DealPart[]; tasks: number }> {
+    checkPrice(input.deal);
     return this.openDeals({ ...input, password: "", channel: "other" as ManualChannel }, input.deal, input.clientId, actor);
   }
 

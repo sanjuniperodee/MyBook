@@ -309,6 +309,13 @@
       "when": 1792340066286,
       "tag": "0043_delivery_abroad",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792396323218,
+      "tag": "0044_discount_unlimited",
+      "breakpoints": true
     }
   ]
 }

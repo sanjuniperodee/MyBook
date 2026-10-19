@@ -123,7 +123,7 @@ describe("Отдел продаж", () => {
     ]);
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, slaMinutes: "0" }))).toEqual({ error: "Норматив ответа — от 1 минуты" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, from: "9" }))).toEqual({ error: "Время начала в формате ЧЧ:ММ" });
-    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, maxDiscount: "60" }))).toEqual({ error: "Скидка из чата — не больше 50%" });
+    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, maxDiscount: "60" }))).toEqual({ error: "Лимит скидки — не больше 50%" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, days: ["8"] }))).toEqual({ error: "Выберите хотя бы один рабочий день" });
   });
 });

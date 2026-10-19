@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceProps } from "@/modules/ordering/domain";
 import { ForbiddenError } from "@/server/access";
 import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction, type InvoiceFormInfo } from "@/app/admin/invoices/actions";
-import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
+import { DiscountError } from "@/shared/domain/discount";
+import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, rita, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
 vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
@@ -154,6 +155,11 @@ describe("invoiceFormInfoAction: данные формы счёта", () => {
     expect(((await invoiceFormInfoAction({ conversationId: CONV })) as { info: InvoiceFormInfo }).info.kaspiWarning).toBeNull();
     signIn(owner);
     expect((await invoiceFormInfoAction({ dealId: DEAL })) as { info: { maxDiscountPercent: number | null } }).toMatchObject({ info: { maxDiscountPercent: null } });
+    // Без лимита — право prices.discount_unlimited (не «Удалять сделки», как раньше).
+    signIn(rita);
+    deal.assigneeId = "rita";
+    conv.assigneeId = "rita";
+    expect((await invoiceFormInfoAction({ dealId: DEAL })) as { info: { maxDiscountPercent: number | null } }).toMatchObject({ info: { maxDiscountPercent: null } });
   });
 
   it("язык: клиента нет или аккаунт — сотрудник → ru; по сделке заказ — ссылка на заказ; номер вместо имени скрыт от менеджера", async () => {
@@ -208,6 +214,21 @@ describe("issueInvoiceAction: выпуск", () => {
     (fake.ordering.invoices as Record<string, unknown>).issue = async () => ({ invoice: invoices[0], repeated: true });
     expect(await issueInvoiceAction(form)).toMatchObject({ ok: true, sent: false, message: "Счёт P12 уже выставлен" });
     expect(log.send).toHaveLength(1);
+  });
+
+  it("лимит скидки: отказ сервиса — понятный текст; цена ниже прайса — deal.discount с лимитом сотрудника, повтор той же цены — без записи", async () => {
+    signIn(lena);
+    (fake.ordering.invoices as Record<string, unknown>).issue = async () => Promise.reject(new DiscountError("discountOverLimit", undefined, [10, 30_000, false]));
+    const r = await issueInvoiceAction({ ...form, agreedTotal: 20_000 });
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("больше чем на 10% — согласуйте с руководителем") });
+    expect(log.send).toEqual([]);
+    (fake.ordering.invoices as Record<string, unknown>).issue = async (input: Record<string, unknown>) => (log.issue.push(input), { invoice: invoices[0], repeated: false });
+    await issueInvoiceAction({ ...form, agreedTotal: 28_000, amount: 14_000 });
+    expect(log.audit.filter((a) => a.action === "deal.discount").map((a) => a.details)).toEqual([{ via: "invoice", percent: 6.7, listPrice: 30_000, price: 28_000, plan: "hardcover", limit: 10, number: 7, invoice: "P12" }]);
+    // Договорённость уже записана в сделку — счёт на остаток по той же цене в журнал скидок не пишется второй раз.
+    deal.amount = 28_000;
+    await issueInvoiceAction({ ...form, agreedTotal: 28_000, amount: 14_000, purpose: "remainder" });
+    expect(log.audit.filter((a) => a.action === "deal.discount")).toHaveLength(1);
   });
 });
 

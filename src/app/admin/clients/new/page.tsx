@@ -3,12 +3,13 @@ import { canAssignOthers, requireStaff, can } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { container } from "@/server/container";
 import { NewClientForm } from "./NewClientForm";
+import { discountLimit } from "@/server/discount";
 
 export const metadata = { title: "Новый клиент" };
 
 export default async function NewClientPage() {
   const staff = await requireStaff("clients.create");
-  const [stages, pipelines, admins] = await Promise.all([container().sales.queries.listStages(), container().sales.queries.listPipelines(), container().access.queries.allStaff()]);
+  const [stages, pipelines, admins, maxDiscount] = await Promise.all([container().sales.queries.listStages(), container().sales.queries.listPipelines(), container().access.queries.allStaff(), discountLimit(staff)]);
   const open = stages.filter((s) => s.kind === "open");
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (
@@ -27,6 +28,7 @@ export default async function NewClientPage() {
         admins={options}
         me={staff.user.id}
         canAssign={canAssignOthers(staff)}
+        maxDiscountPercent={maxDiscount}
       />
     </div>
   );

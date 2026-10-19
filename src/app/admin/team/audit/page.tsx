@@ -63,6 +63,7 @@ const actions: Record<string, string> = {
   "chat.sensitive": "Отправил номер или реквизиты в чат",
   "chat.sensitive_echo": "С телефона компании ушли номер или реквизиты",
   "deal.plan": "Сменил тариф договорённости",
+  "deal.discount": "Назначил цену ниже прайса",
   "payment.add": "Принял оплату с чеком",
   "receipt.add": "Приложил чек",
   "email.send": "Отправил письмо клиенту",

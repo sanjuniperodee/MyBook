@@ -6,16 +6,21 @@ import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { ClientDealsForm } from "./ClientDealsForm";
+import { DiscountHint } from "@/components/admin/DiscountHint";
+import { dealListPrice } from "@/modules/sales/domain/pricing";
 
-export function NewDealForm({ stages, defaultStageId, admins, me, client, canAssign = false }: { stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null; canAssign?: boolean }) {
+export function NewDealForm({ stages, defaultStageId, admins, me, client, canAssign = false, maxDiscountPercent = null }: { stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null; canAssign?: boolean; /** Лимит скидки сотрудника от прайса, %; null — без лимита. */ maxDiscountPercent?: number | null }) {
   const [state, action] = useActionState<DealFormState, FormData>(createDealAction, {});
+  // Бюджет сделки «вручную» — уже цена для клиента: подсказка «ниже прайса» (без тарифа — от самого дорогого).
+  const [amount, setAmount] = useState("0");
+  const [source, setSource] = useState("manual");
   // Для существующего клиента: обычная заявка или «по договорённости» (оплатил/договорились — можно сразу за несколько книг).
   const [kind, setKind] = useState<"lead" | "agreement">("lead");
   if (client && kind === "agreement")
     return (
       <div className="space-y-4">
         <DealKind kind={kind} onChange={setKind} />
-        <ClientDealsForm stages={stages} defaultStageId={defaultStageId} admins={admins} me={me} canAssign={canAssign} client={client} />
+        <ClientDealsForm stages={stages} defaultStageId={defaultStageId} admins={admins} me={me} canAssign={canAssign} client={client} maxDiscountPercent={maxDiscountPercent} />
       </div>
     );
   return (
@@ -47,11 +52,12 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client, canAss
       </div>
       <div>
         <label className="label">Бюджет, ₸</label>
-        <input name="amount" type="number" min={0} step={1000} className="input h-11" defaultValue={0} />
+        <input name="amount" type="number" min={0} step={1000} className="input h-11" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <DiscountHint list={dealListPrice(null, source)} price={Number(amount) || 0} maxPercent={maxDiscountPercent} />
       </div>
       <div>
         <label className="label">Источник</label>
-        <select name="source" className="input h-11" defaultValue="manual">
+        <select name="source" className="input h-11" value={source} onChange={(e) => setSource(e.target.value)}>
           {dealSources.map((s) => (
             <option key={s} value={s}>
               {dealSourceLabels[s]}

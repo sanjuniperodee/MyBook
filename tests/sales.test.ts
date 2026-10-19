@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import type { UnitOfWork } from "@/shared/application";
 import { Deal, Funnel, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
-import { DealsService, LeadRoutingService, SiteFunnelService, type ClientDirectory, type DealInvoicesPort, type DealMoney } from "@/modules/sales/application";
+import { DealsService, LeadRoutingService, SiteFunnelService, type AgreedPlans, type ClientDirectory, type DealInvoicesPort, type DealMoney } from "@/modules/sales/application";
 
 const now = new Date("2026-10-01T10:00:00Z");
 const stages: Stage[] = [
@@ -188,7 +188,10 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const router = new MemRouter();
   const clock = { at: now, now: () => clock.at };
   const invoices = new MemInvoices();
-  const service = new DealsService(deals, funnels, clients, settings, router, uow, clock, invoices);
+  // Тариф договорённости сделки (колонка вне агрегата); по сделке с заказом не меняется.
+  const plans = new Map<string, string | null>();
+  const agreedPlans: AgreedPlans = { get: async (id) => plans.get(id) ?? null, set: async (id, plan) => (deals.rows.get(id)?.orderId ? false : (plans.set(id, plan), true)) };
+  const service = new DealsService(deals, funnels, clients, settings, router, uow, clock, invoices, agreedPlans);
   // Прогресс книги клиента: тест меняет его, чтобы проверить вехи по виду книги.
   const bookState = { value: { theme: "love", answered: 26, total: 40, words: 900 } };
   const books = { progress: async () => bookState.value };
@@ -197,7 +200,7 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans };
 }
 
 describe("Круг: распределение заявок", () => {
@@ -316,6 +319,62 @@ describe("DealsService", () => {
     const stranger = await service.create({ title: "WhatsApp", source: "whatsapp", contactPhone: "77001112233", unsorted: true });
     expect(stranger.unsorted).toBe(true);
     expect(uow.events.map((e) => e.type)).toEqual(["sales.deal_created", "sales.deal_created"]);
+  });
+});
+
+describe("DealsService: лимит скидки (DiscountPolicy)", () => {
+  const editPatch = (amount: number, source: "manual" | "whatsapp" = "manual") => ({ title: "Книга", contactName: "Айгерим", amount, source, tags: [], customFields: {} });
+
+  it("бюджет сделки с тарифом договорённости: сверх лимита — DiscountError, ничего не сохранено; без лимита — цена против прайса", async () => {
+    const { service, deals, plans } = setup();
+    const d = await service.create({ title: "Книга", source: "whatsapp", clientId: "c1", amount: 30_000 });
+    plans.set(d.id, "hardcover");
+    await expect(service.edit(d.id, editPatch(25_000, "whatsapp"), "m1", 15)).rejects.toMatchObject({ code: "discountOverLimit", params: [15, 30_000, false] });
+    expect(deals.rows.get(d.id)?.amount).toBe(30_000);
+    expect(await service.edit(d.id, editPatch(25_500, "whatsapp"), "m1", 15)).toMatchObject({ plan: "hardcover", listPrice: 30_000, price: 25_500, percent: 15 });
+    expect(await service.edit(d.id, editPatch(10_000, "whatsapp"), "boss", null)).toMatchObject({ percent: 66.7 });
+    expect(deals.rows.get(d.id)?.amount).toBe(10_000);
+  });
+
+  it("сумма не менялась — не проверяем (правка других полей старой сделки); по сделке заказ или бюджет заявки без тарифа — тоже", async () => {
+    const { service, deals, plans } = setup();
+    const d = await service.create({ title: "Книга", source: "manual", clientId: "c1", amount: 5_000 });
+    plans.set(d.id, "hardcover");
+    expect(await service.edit(d.id, { ...editPatch(5_000), title: "Книга маме" }, "m1", 15)).toBeNull();
+    const lead = await service.create({ title: "Заявка", source: "whatsapp", contactPhone: "77001112233", amount: 0 });
+    expect(await service.edit(lead.id, editPatch(5_000, "whatsapp"), "m1", 15)).toBeNull();
+    const ordered = await service.create({ title: "Заказ", source: "manual", clientId: "c1", orderId: "o1", amount: 30_000 });
+    plans.set(ordered.id, "hardcover");
+    expect(await service.edit(ordered.id, editPatch(1_000), "m1", 15)).toBeNull();
+    expect(deals.rows.get(ordered.id)?.amount).toBe(1_000);
+  });
+
+  it("сделка «вручную» без тарифа: цена действует на любой тариф — сравнение с самым дорогим; смена источника на «вручную» — проверка", async () => {
+    const { service } = setup();
+    const d = await service.create({ title: "Книга", source: "whatsapp", clientId: "c1", amount: 9_900 });
+    await expect(service.edit(d.id, editPatch(9_900, "manual"), "m1", 15)).rejects.toMatchObject({ code: "discountOverLimit", params: [15, 30_000, true] });
+  });
+
+  it("тариф договорённости: дорогой тариф по цене дешёвого — отказ, тариф прежний; без лимита — сохраняется с прежним тарифом в ответе", async () => {
+    const { service, plans } = setup();
+    const d = await service.create({ title: "Книга", source: "manual", clientId: "c1", amount: 9_900 });
+    plans.set(d.id, "digital");
+    await expect(service.changeAgreedPlan(d.id, "hardcover", 15)).rejects.toMatchObject({ code: "discountOverLimit" });
+    expect(plans.get(d.id)).toBe("digital");
+    // Снять тариф у сделки «вручную» — цена станет потолком любого тарифа: тоже сверх лимита.
+    await expect(service.changeAgreedPlan(d.id, null, 15)).rejects.toMatchObject({ params: [15, 30_000, true] });
+    expect(await service.changeAgreedPlan(d.id, "hardcover", null)).toEqual({ before: "digital", price: { plan: "hardcover", listPrice: 30_000, planless: false, price: 9_900, percent: 67 } });
+    expect(plans.get(d.id)).toBe("hardcover");
+  });
+
+  it("новая сделка с формы: «вручную» с бюджетом ниже лимита не создаётся; внутренний вызов (без лимита в запросе) — не проверяется", async () => {
+    const { service, deals } = setup();
+    await expect(service.create({ title: "Книга", source: "manual", clientId: "c1", amount: 20_000, maxDiscountPercent: 15 })).rejects.toMatchObject({ code: "discountOverLimit" });
+    expect(deals.rows.size).toBe(0);
+    await service.create({ title: "Книга", source: "manual", clientId: "c1", amount: 26_000, maxDiscountPercent: 15 });
+    await service.create({ title: "Заявка", source: "whatsapp", clientId: "c1", amount: 1_000, maxDiscountPercent: 15 });
+    await service.create({ title: "Копия пакета", source: "manual", clientId: "c1", amount: 1_000 });
+    expect(deals.rows.size).toBe(3);
   });
 });
 

@@ -108,7 +108,7 @@ export class SalesModule {
     const funnels = new DrizzleFunnelRepository();
     const settings = crmSalesSettings(deps.settings);
     const router = roundRobinRouter(deps.schedule, storeTimeZone);
-    this.deals = new DealsService(repo, funnels, drizzleClients, settings, router, deps.uow, deps.clock, deps.invoices ?? noDealInvoices);
+    this.deals = new DealsService(repo, funnels, drizzleClients, settings, router, deps.uow, deps.clock, deps.invoices ?? noDealInvoices, this.agreedPlan);
     this.routing = new LeadRoutingService(repo, router, settings, deps.notifier, deps.uow, deps.clock, deps.logger);
     this.pipelines = new PipelinesService(new DrizzlePipelineRepository(), () => this.deals.defaultPipelineId());
     this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, settings, sqlBookProgress, this.deals, deps.logger, dealMoney);

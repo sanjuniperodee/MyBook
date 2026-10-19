@@ -16,6 +16,8 @@ import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
+import { dealListPrice } from "@/modules/sales/domain/pricing";
+import { DiscountHint } from "@/components/admin/DiscountHint";
 import { cn } from "@/lib/class-names";
 
 interface Stage {
@@ -89,6 +91,7 @@ export function DealFields({
   disabled,
   fields = [],
   values = {},
+  pricing = null,
 }: {
   /** Кнопка «Показать номер» (право clients.reveal): открытие пишется в журнал. */
   canReveal?: boolean;
@@ -97,8 +100,12 @@ export function DealFields({
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;
+  /** Бюджет — цена продажи (по сделке ещё нет заказа): тариф договорённости и лимит скидки сотрудника (null — без лимита). */
+  pricing?: { plan: string | null; maxPercent: number | null } | null;
 }) {
   const [state, action] = useActionState<DealFormState, FormData>(updateDealAction, {});
+  const [amount, setAmount] = useState(String(deal.amount));
+  const [source, setSource] = useState(deal.source);
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="id" value={deal.id} />
@@ -107,10 +114,11 @@ export function DealFields({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Бюджет, ₸">
-          <input name="amount" type="number" min={0} step={1000} defaultValue={deal.amount} disabled={disabled} className="input h-9 text-sm" />
+          <input name="amount" type="number" min={0} step={1000} value={amount} onChange={(e) => setAmount(e.target.value)} disabled={disabled} className="input h-9 text-sm" />
+          {pricing ? <DiscountHint list={dealListPrice(pricing.plan, source)} price={Number(amount) || 0} maxPercent={pricing.maxPercent} /> : null}
         </Field>
         <Field label="Источник">
-          <select name="source" defaultValue={deal.source} disabled={disabled} className="input h-9 text-sm">
+          <select name="source" value={source} onChange={(e) => setSource(e.target.value)} disabled={disabled} className="input h-9 text-sm">
             {dealSources.map((s) => (
               <option key={s} value={s}>
                 {dealSourceLabels[s]}

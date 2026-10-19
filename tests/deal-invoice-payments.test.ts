@@ -38,6 +38,19 @@ function dealSetup() {
   return { ...base, ordersSvc: base.svc, locks, attempts, deals, sales, uow, invoices, kaspi, svc, cloud, issue, paid, count, dealInvoice };
 }
 
+describe("счёт из чата: лимит скидки (DiscountPolicy)", () => {
+  const issueAt = (t: ReturnType<typeof dealSetup>, agreedTotal: number, maxDiscountPercent: number | null) =>
+    t.invoices.issue({ dealId: "deal-1", conversationId: null, phone: "77011234567", clientName: "Айжан", locale: "ru", channel: "whatsapp", plan: "hardcover", agreedTotal, amount: 1000, purpose: "prepayment", actor: { userId: "staff-1", label: "staff" }, maxDiscountPercent });
+
+  it("граница 15% от прайса тарифа: ниже — DiscountError до выпуска, договорённость не пишется; ровно 15% и без лимита — выпускается", async () => {
+    const t = dealSetup();
+    await expect(issueAt(t, 25_499, 15)).rejects.toMatchObject({ code: "discountOverLimit", params: [15, 30_000, false] });
+    expect(t.sales.agreements).toEqual([]);
+    expect((await issueAt(t, 25_500, 15)).invoice.snapshot().agreedTotal).toBe(25_500);
+    expect((await issueAt(t, 9_000, null)).invoice.snapshot().agreedTotal).toBe(9_000);
+  });
+});
+
 describe("счёт на несколько книг", () => {
   const issueMany = (t: ReturnType<typeof dealSetup>, over: { count?: number; amount: number; dealId?: string }) =>
     t.invoices.issue({ dealId: over.dealId ?? "deal-1", conversationId: null, phone: "77011234567", clientName: "Айжан", locale: "ru", channel: "whatsapp", plan: "hardcover", agreedTotal: 30000, count: over.count, amount: over.amount, purpose: "prepayment", actor: { userId: "staff-1", label: "staff" }, maxDiscountPercent: null });

@@ -64,6 +64,19 @@ export const noDealInvoices: DealInvoicesPort = {
   purgeClosed: async () => {},
 };
 
+/**
+ * Тариф договорённости сделки: колонка вне агрегата (её пишут и счёт из чата, и онбординг клиента). Сценарии продаж читают
+ * его, чтобы сравнить цену сделки с прайсом (лимит скидки).
+ */
+export interface AgreedPlans {
+  get(dealId: string): Promise<string | null>;
+  /** false — по сделке уже заказ (договорённость закрыта) или сделки нет. */
+  set(dealId: string, plan: string | null): Promise<boolean>;
+}
+
+/** Без хранилища (тесты): тарифа нет, сменить нельзя. */
+export const noAgreedPlans: AgreedPlans = { get: async () => null, set: async () => false };
+
 /** Деньги клиента по сделке: принято (платежи минус возвраты) и действует ли по ней договорённость. */
 export interface DealMoney {
   paid: number;

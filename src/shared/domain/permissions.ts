@@ -13,6 +13,10 @@ export const permissionGroups = [
     ],
   },
   {
+    label: "Цены",
+    items: [["prices.discount_unlimited", "Продавать ниже прайса без лимита скидки: счёт, бюджет и тариф договорённости, новый клиент"]],
+  },
+  {
     label: "Чаты",
     items: [
       ["chats.view", "Видеть переписку"],

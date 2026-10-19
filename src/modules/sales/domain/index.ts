@@ -7,3 +7,4 @@ export * from "./repositories";
 export * from "./plans";
 export * from "./receipt";
 export * from "./payment";
+export * from "./pricing";

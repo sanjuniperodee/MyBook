@@ -25,6 +25,7 @@ import { PaymentsPanel } from "./PaymentsPanel";
 import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
 import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly, PastDeals } from "./sections";
 import { pageId } from "@/server/input";
+import { discountLimit } from "@/server/discount";
 
 export const metadata = { title: "Сделка" };
 
@@ -53,10 +54,12 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   ]);
   const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
   const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.map((r) => ({ id: r.id, amount: r.amount, method: methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
-  const [duplicates, suggestedClientId, dealFields] = await Promise.all([
+  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
     listFields("deal"),
+    container().sales.agreedPlan.get(deal.id),
+    discountLimit(staff),
   ]);
   const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
@@ -135,6 +138,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               fields={dealFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))}
               values={deal.customFields}
               disabled={!canEdit}
+              pricing={deal.orderId ? null : { plan: agreedPlan, maxPercent: maxDiscount }}
             />
             <div>
               <div className="mb-1 text-xs text-muted">Ответственный</div>
@@ -160,7 +164,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           <PaymentsPanel
             dealId={deal.id}
             agreed={deal.amount}
-            plan={await container().sales.agreedPlan.get(deal.id)}
+            plan={agreedPlan}
             gifts={await container().sales.agreedGifts.get(deal.id)}
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
