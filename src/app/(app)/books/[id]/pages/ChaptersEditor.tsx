@@ -1,9 +1,13 @@
 "use client";
 
-import { RotateCcw, Undo2, X } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, RotateCcw, Undo2, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { GALLERY_KEY, isRemovedChapter, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
 import { cn } from "@/lib/class-names";
+import { StoryList, type StoryInfo } from "./StoryList";
+
+const LETTERS = "c:__letters";
 
 /**
  * Главы книги: своё название (во всей книге — начальная полоса, колонтитул, оглавление) и «убрать главу» — страницы
@@ -11,11 +15,16 @@ import { cn } from "@/lib/class-names";
  * Настройки — те же строки глав (toc.ts, ключ `c:<глава>`), сборку книги делает layout.ts (foldChapters).
  */
 export function ChaptersEditor({
+  bookId,
   candidates,
   lines,
+  stories,
   editable,
   onChange,
 }: {
+  bookId: string;
+  /** Истории книги по id ответа — для правки заголовков внутри глав. */
+  stories: Readonly<Record<string, StoryInfo>>;
   /** Строки книги из образца разворота: главы (и убранные — folded) и истории по порядку. */
   candidates: readonly SampleTocCandidate[];
   lines: TocLines;
@@ -23,8 +32,9 @@ export function ChaptersEditor({
   onChange: (lines: TocLines) => void;
 }) {
   const t = useMessages().books.pages;
+  const [open, setOpen] = useState<string | null>(null);
   const chapters = candidates.filter((c) => c.kind === "chapter" && c.pageKey !== GALLERY_KEY);
-  const stories = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key).length;
+  const storiesOf = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key);
   if (!chapters.length || chapters.every((c) => c.key.startsWith("c:planned-"))) return <p className="text-sm text-muted">{t.chaptersLater}</p>;
 
   const setLine = (key: string, patch: TocLineSetting) => {
@@ -37,7 +47,9 @@ export function ChaptersEditor({
     onChange(clean.title !== undefined || clean.hidden ? { ...rest, [key]: clean } : rest);
   };
 
-  const rows = chapterRows(chapters, lines, stories);
+  const rows = chapterRows(chapters, lines, (key) => storiesOf(key).length);
+  // Куда переносить истории: оставшиеся главы темы (не письма).
+  const targets = rows.filter((r) => !r.removed && r.c.key !== LETTERS).map((r) => ({ key: r.c.pageKey, title: lines[r.c.key]?.title?.trim() || r.c.label }));
   const removedCount = rows.filter((r) => r.removed).length;
 
   return (
@@ -74,9 +86,24 @@ export function ChaptersEditor({
                   </button>
                 )}
               </div>
-              <p className="mt-1.5 pl-9 text-xs text-muted">
-                {removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}
-              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-9 text-xs text-muted">
+                <span>{removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}</span>
+                {count ? (
+                  <button type="button" className="inline-flex items-center gap-1 font-medium text-wine hover:underline" aria-expanded={open === c.key} onClick={() => setOpen(open === c.key ? null : c.key)}>
+                    {t.storiesToggle(count)} <ChevronDown className={cn("size-3.5 transition", open === c.key && "rotate-180")} />
+                  </button>
+                ) : null}
+              </div>
+              {open === c.key ? (
+                <StoryList
+                  bookId={bookId}
+                  chapterKey={c.pageKey}
+                  rows={storiesOf(c.key).map((s) => ({ id: s.key.slice(2), letter: c.key === LETTERS }))}
+                  stories={stories}
+                  targets={targets.filter((x) => x.key !== c.pageKey)}
+                  editable={editable}
+                />
+              ) : null}
             </li>
           );
         })}

@@ -25,7 +25,7 @@ const candidates: SampleTocCandidate[] = [
   story("d", "love", "Сол бір тосынсый"),
   story("e", "love", "Сенің құшағың"),
 ];
-const render = (lines: TocLines, messages: typeof ru | typeof kk = ru) => text(html(createElement(ChaptersEditor, { candidates, lines, editable: true, onChange: () => {} }), messages));
+const render = (lines: TocLines, messages: typeof ru | typeof kk = ru) => text(html(createElement(ChaptersEditor, { bookId: "b1", stories: {}, candidates, lines, editable: true, onChange: () => {} }), messages));
 
 describe("Главы книги: убрать и переименовать", () => {
   it("по умолчанию — главы по порядку с числом историй; у первой нет кнопки «Убрать»", () => {
@@ -35,6 +35,8 @@ describe("Главы книги: убрать и переименовать", ()
     expect(t).toContain("2 истории");
     expect(t).toContain("первую главу убрать нельзя");
     expect(t.match(/Убрать главу/g)).toHaveLength(3);
+    // Истории главы раскрываются кнопкой: правка заголовков и перенос — внутри.
+    expect(t).toContain("Истории (2)");
   });
 
   it("убранная глава — без номера, с подсказкой, куда уйдут истории, и кнопкой «Вернуть»; номера дальше подряд", () => {

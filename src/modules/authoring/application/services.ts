@@ -162,6 +162,27 @@ export class QuestionsService {
   ) {}
 
   /**
+   * Перенос истории в книге с темой (вкладка «Страницы» → «Главы книги»): в главу chapter перед историей beforeId, без
+   * неё — в конец главы. Глава — из тех, что уже есть в книге (у темы у каждой главы есть вопросы). Позиции всех вопросов
+   * пересчитываются по порядку; своя книга переносит разделы через оглавление (BookOutlineService.reorderSections).
+   */
+  async moveStory(bookId: string, viewer: BookViewer, input: { id: string; chapter: string; beforeId?: string | null }) {
+    return this.uow.run(async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (hasOutline(book.theme)) throw new AuthoringError("outlineNotAllowed");
+      const all = await this.questions.sections(book.id);
+      const moved = all.find((q) => q.id === input.id);
+      if (!moved || !all.some((q) => q.chapter === input.chapter)) throw new AuthoringError("questionNotFound");
+      if (input.beforeId && (input.beforeId === input.id || all.find((q) => q.id === input.beforeId)?.chapter !== input.chapter)) throw new AuthoringError("outlineOutdated");
+      const rest = all.filter((q) => q.id !== input.id).map((q) => ({ id: q.id, chapter: q.chapter }));
+      const at = input.beforeId ? rest.findIndex((q) => q.id === input.beforeId) : rest.findLastIndex((q) => q.chapter === input.chapter) + 1;
+      rest.splice(at, 0, { id: moved.id, chapter: input.chapter });
+      await this.questions.arrange(book.id, rest);
+      await this.books.touch(book.id);
+    });
+  }
+
+  /**
    * Автосохранение ответа и заголовка. У разделов своей книги (blank) правятся ещё заголовок и подсказка (title, prompt),
    * а переписанный заголовок и его скрытие не используются; в остальных книгах title и prompt — outlineNotAllowed:
    * у своих вопросов там заголовок правят через displayText, и правка prompt без title рассинхронизировала бы вопрос.

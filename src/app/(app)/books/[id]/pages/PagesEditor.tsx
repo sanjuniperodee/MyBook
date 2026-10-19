@@ -15,6 +15,7 @@ import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
 import { ChaptersEditor } from "./ChaptersEditor";
+import type { StoryInfo } from "./StoryList";
 import { TocEditor } from "./TocEditor";
 
 interface PagesState {
@@ -43,6 +44,7 @@ export function PagesEditor({
   cover,
   theme,
   editable,
+  stories,
 }: {
   bookId: string;
   /** Тема книги — подсказка посвящения зависит от вида книги. */
@@ -53,6 +55,8 @@ export function PagesEditor({
   /** Обложка книги и дизайны, которые с ней в паре. */
   cover: { name: string; pairs: InteriorId[] };
   editable: boolean;
+  /** Истории книги по id ответа: заголовок по умолчанию, свой и скрыт ли — для блока «Главы книги». */
+  stories: Record<string, StoryInfo>;
 }) {
   const [state, setState] = useState(initial);
   const [filter, setFilter] = useState<Filter>("all");
@@ -209,6 +213,8 @@ export function PagesEditor({
         {kind !== "blank" && sample.tocAll ? (
           <FormSection title={t.chapters} description={t.chaptersText}>
             <ChaptersEditor
+              bookId={bookId}
+              stories={stories}
               candidates={sample.tocAll}
               lines={state.tocLines}
               editable={editable}
