@@ -5,7 +5,8 @@ import { buildBookContent } from "@/lib/book/book-content";
 import { backContent, backPhotoIds } from "@/lib/book/cover-back";
 import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoIds } from "@/lib/book/covers";
-import { estimatePages } from "@/lib/book/estimate";
+import { estimatePages, estimateTocPages, sectionShares, textMetrics, tocParts } from "@/lib/book/estimate";
+import { bookToc, GALLERY_KEY, hasToc, tocKey } from "@/lib/book/toc";
 import { printablePageCount } from "@/lib/book/formats";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import { photoPages, toPhotoItem, type PhotoItem } from "@/lib/book/layout";
@@ -38,6 +39,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
     year: content.year,
     dedication: content.dedication,
     showToc: content.showToc,
+    toc: flipbookToc(content),
     model: {
       pageCount: printablePageCount(estimatePages(content)),
       brand: site.name.toUpperCase(),
@@ -57,5 +59,27 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
       photoPages: photoPages(c.photos).map((group) => group.map(pagePhoto)),
     })),
     gallery: content.galleryPhotos.length ? { title: content.galleryTitle, pages: photoPages(content.galleryPhotos).map((group) => group.map(pagePhoto)) } : undefined,
+  };
+}
+
+/**
+ * Оглавление 3D-книги по настройкам автора: строки, разложенные по полосам, и где каждая начинается — глава
+ * (индекс в chapters, −1 — галерея) и доля текста главы перед разделом. Номер полосы считает клиент по своему замеру.
+ * Оглавление по главам без своих строк — без этих данных: строки и номера даёт сама раскладка (как раньше).
+ */
+function flipbookToc(content: ReturnType<typeof buildBookContent>): FlipbookData["toc"] {
+  if (!hasToc(content) || (!content.tocMode && !content.tocLines)) return undefined;
+  const m = textMetrics(content.format, content.interior);
+  const parts = tocParts(content, m);
+  const where = new Map<string, { chapter: number; share: number | null }>();
+  content.chapters.forEach((c, chapter) => {
+    where.set(c.key, { chapter, share: null });
+    const shares = sectionShares(c, m);
+    c.items.forEach((it, i) => where.set(tocKey.section(it.id), { chapter, share: shares[i] }));
+  });
+  where.set(GALLERY_KEY, { chapter: -1, share: null });
+  return {
+    pages: estimateTocPages(content, m),
+    lines: bookToc(content).map((l, i) => ({ key: l.key, title: l.label, number: l.number, level: l.level, part: parts[i] ?? 0, ...(where.get(l.pageKey) ?? { chapter: -1, share: null }) })),
   };
 }

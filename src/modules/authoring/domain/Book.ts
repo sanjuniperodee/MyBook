@@ -5,6 +5,7 @@ import { formats } from "@/lib/book/formats";
 import { DEFAULT_INTERIOR, isInteriorId } from "@/lib/book/interiors";
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
+import { isTocMode, parseTocLines, type TocLines, type TocMode } from "@/lib/book/toc";
 import { getOccasion } from "@/lib/occasions";
 import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { AuthoringError } from "./errors";
@@ -46,6 +47,9 @@ export interface BookProps {
   format: string;
   photoPlacement: "chapters" | "end";
   showToc: boolean;
+  /** Оглавление: режим и настройки строк (src/lib/book/toc.ts). */
+  tocMode: TocMode;
+  tocLines: TocLines;
   inviteToken: string | null;
   language: Locale;
   occasion: string | null;
@@ -70,7 +74,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "occasion" | "occasionDate">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -171,6 +175,8 @@ export class Book extends AggregateRoot<BookProps> {
       format: "a5",
       photoPlacement: "chapters",
       showToc: true,
+      tocMode: "chapters",
+      tocLines: {},
       inviteToken: null,
       language: input.language,
       occasion,
@@ -252,6 +258,7 @@ export class Book extends AggregateRoot<BookProps> {
     if (s.backLayout !== undefined && !isBackLayout(s.backLayout)) throw new AuthoringError("unknownBackLayout");
     if (s.format !== undefined && !(s.format in formats)) throw new AuthoringError("unknownFormat");
     if (s.occasion && !getOccasion(s.occasion)) throw new AuthoringError("unknownOccasion");
+    if (s.tocMode !== undefined && !isTocMode(s.tocMode)) throw new AuthoringError("unknownTocMode");
     const clean = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)) as BookSettings;
     // Поля по виду книги: «кто записал» — только у автобиографии, получателя у неё нет, его рода нет и у своей книги.
     const kind = this.kind;
@@ -300,6 +307,12 @@ export class Book extends AggregateRoot<BookProps> {
     const frames = { ...this.props.photoFrames };
     for (let i = 0; i < Math.max(before.length, after.length); i++) if ((before[i] ?? null) !== (after[i] ?? null)) delete frames[frameKey(side, i)];
     this.props.photoFrames = frames;
+  }
+
+  /** Свои названия и скрытые строки оглавления: принимаются только ключи строк и названия в пределах длины. */
+  setTocLines(raw: unknown) {
+    this.assertEditable();
+    this.props.tocLines = parseTocLines(raw);
   }
 
   /** Кадры фото на обложке (масштаб и положение по местам). Принимаются только известные места и допустимые числа. */

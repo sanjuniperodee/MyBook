@@ -13,7 +13,8 @@ import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
 import { photoPages, type BookContent, type ContentChapter, type PhotoItem } from "./layout";
 import { interiorMetrics, textArea } from "./page-geometry";
-import { ANSWER, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, interiorSizes, MEDIA_CARD, type InteriorSizes } from "./typesetting";
+import { hasToc, bookToc } from "./toc";
+import { ANSWER, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, interiorSizes, MEDIA_CARD, TOC, type InteriorSizes } from "./typesetting";
 
 /** Средняя ширина знака основного текста, em: по ней считаем, сколько знаков помещается в строке. */
 const AVG_CHAR_EM = 0.5;
@@ -128,12 +129,68 @@ export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos"
   return 1 /* начальная полоса */ + textPages + photoPages(ch.photos).length;
 }
 
+/**
+ * Полос оглавления. По главам без своих строк — по 18 строк на полосу (так оценка сходится с PDF у всех книг набора).
+ * Иначе — по высоте строк: длинное название переносится, строка не делится между полосами (как в PDF).
+ */
+export function estimateTocPages(content: BookContent, m: TextMetrics): number {
+  if (!hasToc(content)) return 0;
+  if (!content.tocMode && !content.tocLines) return Math.ceil(content.chapters.length / 18);
+  const parts = tocParts(content, m);
+  return (parts.at(-1) ?? 0) + 1;
+}
+
+/** На какой полосе оглавления (с 0) стоит каждая его строка — по порядку bookToc. */
+export function tocParts(content: BookContent, m: TextMetrics): number[] {
+  const { sizes: S, scale, width, height } = m;
+  const title = S.tocTitle * HTML_LINE_HEIGHT.tocTitle + (TOC.title.before + TOC.title.after) * scale;
+  // Название — не шире TOC.entry.maxWidth (82%); справа отточие и номер страницы.
+  const labelWidth = width * 0.82;
+  let part = 0;
+  let used = title;
+  return bookToc(content).map((line) => {
+    const chars = line.label.length + (line.number ? String(line.number).length + 2 : 0);
+    const h = lines(chars, labelWidth - (line.level ? TOC.entry.indent * scale : 0), S.body) * S.body * HTML_LINE_HEIGHT.tocEntry + TOC.entry.after * scale;
+    if (used + h > height) {
+      part += 1;
+      used = 0;
+    }
+    used += h;
+    return part;
+  });
+}
+
+/**
+ * С какой полосы главы (от начальной, 0) начинается каждый её ответ — для номеров страниц разделов в превью,
+ * где книгу не верстают: по той же высоте ответов, что и объём главы.
+ */
+export function sectionPageOffsets(ch: Pick<ContentChapter, "items">, m: TextMetrics): number[] {
+  return sectionStarts(ch, m).starts.map((used) => 1 + Math.floor(used / (m.height - PAGE_RESERVE)));
+}
+
+/** Доля текста главы (0…1), после которой начинается каждый ответ: 3D-книга переводит её в полосу по своему замеру. */
+export function sectionShares(ch: Pick<ContentChapter, "items">, m: TextMetrics): number[] {
+  const { starts, total } = sectionStarts(ch, m);
+  return starts.map((used) => (total ? used / total : 0));
+}
+
+/** Высота текста главы до каждого ответа и всего, pt. */
+function sectionStarts(ch: Pick<ContentChapter, "items">, m: TextMetrics) {
+  let total = 0;
+  const starts = ch.items.map((it, i) => {
+    const before = total;
+    total += entryHeight(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0, m);
+    return before;
+  });
+  return { starts, total };
+}
+
 /** Оценка количества страниц в готовой книге (до добивки до кратности). */
 export function estimatePages(content: BookContent): number {
   const m = textMetrics(content.format, content.interior);
   let pages = 2; // титульный лист + оборот
   if (content.dedication) pages += 1;
-  if (content.showToc && content.chapters.length > 0) pages += Math.ceil(content.chapters.length / 18);
+  pages += estimateTocPages(content, m);
   for (const ch of content.chapters) pages += estimateChapterPages(ch, m);
   if (content.galleryPhotos.length) pages += 1 + photoPages(content.galleryPhotos).length;
   pages += 1; // финальная страница

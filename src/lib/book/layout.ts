@@ -10,6 +10,7 @@ import { MAX_INLINE_HEIGHT_SHARE } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
+import { isCustomToc, type TocLines, type TocMode } from "./toc";
 
 export interface ContentItem {
   id: string;
@@ -60,6 +61,9 @@ export interface BookContent {
   recordedBy: string;
   dedication: string;
   showToc: boolean;
+  /** Оглавление не по умолчанию (toc.ts); по главам без своих строк — ключей нет (отпечаток кэша прежних книг не меняется). */
+  tocMode?: TocMode;
+  tocLines?: TocLines;
   chapters: ContentChapter[];
   /** Фото, вынесенные в отдельный раздел в конце книги. */
   galleryPhotos: PhotoItem[];
@@ -88,7 +92,9 @@ export type BookLike = Pick<
   | "photoPlacement"
   | "showToc"
   | "coverPhotoId"
->;
+> &
+  /** Оглавление (toc.ts): нет — по главам, без своих строк. */
+  Partial<Pick<Book, "tocMode" | "tocLines">>;
 
 /** Глава своей книги (book_chapters) для сборки: порядок — порядок списка. У книг с банком список пуст. */
 export type ChapterLike = Pick<BookChapter, "key" | "title" | "epigraph">;
@@ -258,11 +264,25 @@ export function assembleBookContent(
     recordedBy: kind === "autobiography" ? printableText(book.recordedBy.trim()) : "",
     dedication: printableText(book.dedication.trim()),
     showToc: book.showToc,
+    ...tocSettings(book),
     chapters,
     galleryPhotos,
     galleryTitle: texts.galleryTitle,
     year,
   };
+}
+
+/** Настройки оглавления для содержимого: только не по умолчанию; свои названия — без эмодзи, как весь текст книги. */
+function tocSettings(book: Pick<BookLike, "tocMode" | "tocLines">): Pick<BookContent, "tocMode" | "tocLines"> {
+  const mode = book.tocMode ?? "chapters";
+  const raw = book.tocLines ?? {};
+  if (!isCustomToc(mode, raw)) return {};
+  const lines: TocLines = {};
+  for (const [key, s] of Object.entries(raw)) {
+    const title = s.title ? printableText(s.title.trim()) : "";
+    if (title || s.hidden) lines[key] = { ...(title ? { title } : {}), ...(s.hidden ? { hidden: true } : {}) };
+  }
+  return { tocMode: mode, tocLines: lines };
 }
 
 /** Сколько фото «сеткой» помещается на страницу. */

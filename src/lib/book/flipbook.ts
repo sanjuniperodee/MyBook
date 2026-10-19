@@ -12,7 +12,8 @@ export type Face =
   /** Оборот титула: копирайт и выходные данные. */
   | { kind: "colophon" }
   | { kind: "dedication" }
-  | { kind: "toc" }
+  /** part — полоса оглавления по счёту (длинное оглавление по разделам занимает несколько). */
+  | { kind: "toc"; part: number }
   | { kind: "opener"; chapter: number }
   | { kind: "text"; chapter: number; part: number }
   /** Фотостраница главы (как в PDF — после её текста); chapter = −1 — галерея в конце книги. */
@@ -24,6 +25,8 @@ export type Face =
 export interface FacePlanInput {
   hasDedication: boolean;
   hasToc: boolean;
+  /** Сколько полос занимает оглавление (по умолчанию одна). */
+  tocPages?: number;
   /** Сколько полос текста занимает каждая глава (0 — у главы нет текста). */
   textPages: number[];
   /** Сколько фотостраниц у каждой главы (после её текста). */
@@ -41,10 +44,10 @@ export interface FacePlan {
   galleryStart: number | null;
 }
 
-export function planFaces({ hasDedication, hasToc, textPages, photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
+export function planFaces({ hasDedication, hasToc, tocPages = 1, textPages, photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
   const faces: Face[] = [{ kind: "title" }, { kind: "colophon" }];
   if (hasDedication) faces.push({ kind: "dedication" });
-  if (hasToc && textPages.length) faces.push({ kind: "toc" });
+  if (hasToc && textPages.length) for (let part = 0; part < Math.max(1, tocPages); part++) faces.push({ kind: "toc", part });
   const chapterStarts: number[] = [];
   textPages.forEach((count, chapter) => {
     chapterStarts.push(faces.length + 1);

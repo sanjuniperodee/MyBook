@@ -401,6 +401,8 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,
+  tocMode: "chapters",
+  tocLines: {},
   inviteToken: null,
   language: "ru",
   occasion: null,

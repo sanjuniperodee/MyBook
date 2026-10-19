@@ -36,6 +36,7 @@ export const api: typeof ru = {
   unknownBackLayout: "Артқы беттің белгісіз нұсқасы",
   unknownFormat: "Белгісіз формат",
   unknownOccasion: "Белгісіз мереке",
+  unknownTocMode: "Мазмұнның белгісіз түрі",
   unknownLanguage: "Белгісіз тіл",
   unknownTheme: "Кітаптың белгісіз түрі",
   outlineNotAllowed: "Тараулар мен бөлімдерді тек өз кітабыңызда өзгертуге болады",

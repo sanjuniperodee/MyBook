@@ -1,4 +1,5 @@
 import { memo } from "react";
+import type { SampleTocCandidate, SampleTocLine, TocLines, TocMode } from "@/lib/book/toc";
 import type { Locale } from "@/i18n/config";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
@@ -23,7 +24,12 @@ export interface SpreadSample {
   dedicationPlaceholder: string;
   chapter: { number: number; title: string; epigraph?: string };
   entries: SampleEntry[];
-  toc: { title: string; number: number; page: number }[];
+  /** Строки оглавления по сохранённым настройкам (toc.ts). */
+  toc: SampleTocLine[];
+  /** Все строки, которые могут попасть в оглавление, — редактор «Страницы» применяет к ним режим и правки на лету. */
+  tocAll?: SampleTocCandidate[];
+  tocMode?: TocMode;
+  tocLines?: TocLines;
   showToc: boolean;
   /** Фото книги для разворота «Фото» и начала главы; недостающие — пейзажи-заглушки. */
   photos?: { url: string; width: number; height: number; caption: string }[];

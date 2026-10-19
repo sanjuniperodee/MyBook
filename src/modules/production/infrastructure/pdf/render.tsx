@@ -33,7 +33,8 @@ import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } fr
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
-import { refineFlow } from "@/modules/production/infrastructure/pdf/flow";
+import { readLayout, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
+import { tocKey } from "@/lib/book/toc";
 
 export type RenderMode = "print" | "preview" | "reading";
 
@@ -199,6 +200,9 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
         options={{ bleedMm: bleed, watermark, images: draftImages, flow, rowHeights, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
       />,
     );
+    // Оглавление по разделам: страница раздела — полоса, где встал первый помеченный блок ответа (заголовок или текст).
+    if (layout && content.tocMode && content.tocMode !== "chapters")
+      for (const b of readLayout(layout, chapterOf).blocks) captured[tocKey.section(b.item)] ??= b.first.page + 1;
     tocPages = captured;
     if (!layout || !refineFlow(layout, flow, rowHeights, chapterOf, minLead)) break;
   }

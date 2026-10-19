@@ -41,6 +41,11 @@ export interface FlipbookData {
   year: number;
   dedication: string;
   showToc: boolean;
+  /**
+   * Оглавление не по умолчанию (по разделам, свои названия, скрытые строки): строки по полосам оглавления и где
+   * каждая начинается — глава (−1 — галерея) и доля текста главы перед разделом (у главы — null). Нет — по главам.
+   */
+  toc?: { pages: number; lines: { key: string; title: string; number: number | null; level: 0 | 1; part: number; chapter: number; share: number | null }[] };
   chapters: FlipbookChapter[];
   /** Галерея в конце книги (фото не по главам): подпись начальной полосы и фотостраницы. */
   gallery?: { title: string; pages: PagePhoto[][] };
@@ -58,6 +63,8 @@ export interface FaceContext {
   chapterStarts: number[];
   /** Полоса, с которой начинается галерея (для строки оглавления). */
   galleryStart: number | null;
+  /** Полос текста в каждой главе — для номеров страниц разделов в оглавлении. */
+  textPages?: number[];
 }
 
 export const faceBox = "absolute inset-0 size-full";
@@ -75,6 +82,22 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
     case "dedication":
       return <DedicationPage kit={kit} text={data.dedication} className={faceBox} />;
     case "toc":
+      if (data.toc)
+        return (
+          <TocPage
+            kit={kit}
+            className={faceBox}
+            entries={data.toc.lines
+              .filter((l) => l.part === face.part)
+              .map((l) => {
+                const start = l.chapter < 0 ? (galleryStart ?? 0) : (chapterStarts[l.chapter] ?? 0);
+                const text = ctx.textPages?.[l.chapter] ?? 0;
+                // Раздел — на полосе текста главы, куда приходится его доля текста (начальная полоса — первая).
+                const page = l.share === null || !text ? start : start + 1 + Math.min(text - 1, Math.floor(l.share * text));
+                return { key: l.key, title: l.title, number: l.number, level: l.level, page };
+              })}
+          />
+        );
       return (
         <TocPage
           kit={kit}
@@ -146,16 +169,17 @@ export function usePagedBook(data: FlipbookData): PagedBook {
     if (!textPages) return null;
     let k = 0;
     const perChapter = data.chapters.map((c) => (c.entries.length ? (textPages[k++] ?? 1) : 0));
-    return planFaces({
+    return { ...planFaces({
       hasDedication: !!data.dedication,
       hasToc: data.showToc,
+      tocPages: data.toc?.pages,
       textPages: perChapter,
       photoPages: data.chapters.map((c) => c.photoPages?.length ?? 0),
       galleryPages: data.gallery?.pages.length ?? 0,
-    });
-  }, [textPages, data.chapters, data.dedication, data.showToc, data.gallery]);
+    }), textPages: perChapter };
+  }, [textPages, data.chapters, data.dedication, data.showToc, data.toc, data.gallery]);
   const sheets = useMemo(() => (plan ? planSheets(plan.faces) : []), [plan]);
-  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart } : null), [plan, data, kit]);
+  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart, textPages: plan.textPages } : null), [plan, data, kit]);
 
   const measure = (
     <div ref={root} aria-hidden className="pointer-events-none invisible fixed top-0 -left-[10000px]" style={{ width: MEASURE_WIDTH }}>

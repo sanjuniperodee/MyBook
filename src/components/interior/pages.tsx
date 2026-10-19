@@ -200,7 +200,7 @@ export function DedicationPage({ kit, text, placeholder, className, style }: Pag
 }
 
 /** Оглавление. */
-export function TocPage({ kit, entries, className, style, muted }: PageProps & { entries: { title: string; number: number | null; page: number }[]; muted?: boolean }) {
+export function TocPage({ kit, entries, className, style, muted }: PageProps & { entries: { key?: string; title: string; number: number | null; level?: 0 | 1; page: number }[]; muted?: boolean }) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
   const scale = metricsOf(kit).scale;
@@ -211,8 +211,8 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
           {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
-          <div key={e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale) }}>
-            <span className="truncate" style={{ color: P.ink, maxWidth: TOC.entry.maxWidth }}>
+          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
+            <span className="truncate" style={{ color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.number ? `${e.number}. ` : ""}
               {e.title}
             </span>

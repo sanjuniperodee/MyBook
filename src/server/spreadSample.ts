@@ -5,7 +5,8 @@ import { bookKind } from "@/lib/content/kinds";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
-import { estimateChapterPages, textMetrics } from "@/lib/book/estimate";
+import { estimateChapterPages, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
+import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
 import { printableText } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
@@ -63,16 +64,23 @@ export function bookSpreadSample(
     entries.push({ heading: s.h1, paragraphs: [s.p1, s.p2] }, { heading: s.h2, paragraphs: [s.p3, s.p4] });
   }
 
-  // Оглавление: главы книги с примерными номерами страниц (пока ответов нет — главы темы).
+  // Оглавление: все строки, которые могут в него попасть, с примерными номерами страниц (пока ответов нет — главы
+  // темы). Режим и свои названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
   const metrics = textMetrics(format, getInteriorDesign(book.interior));
-  let page = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
-  const toc = content.chapters.length
-    ? content.chapters.slice(0, 10).map((c) => {
-        const entry = { number: c.number, title: c.title, page };
-        page += estimateChapterPages(c, metrics);
-        return entry;
-      })
-    : planned.slice(0, 10).map((c, i) => ({ number: i + 1, title: c.title, page: page + i * 6 }));
+  const start = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
+  const pageOf = new Map<string, number>();
+  let page = start;
+  for (const c of content.chapters) {
+    pageOf.set(c.key, page);
+    sectionPageOffsets(c, metrics).forEach((offset, i) => pageOf.set(`q:${c.items[i].id}`, page + offset));
+    page += estimateChapterPages(c, metrics);
+  }
+  pageOf.set(GALLERY_KEY, page);
+  const tocAll = content.chapters.length
+    ? tocCandidates(content).map((c) => ({ ...c, page: pageOf.get(c.pageKey) ?? start }))
+    : planned.map((c, i) => ({ key: `c:planned-${i}`, pageKey: `planned-${i}`, kind: "chapter" as const, number: i + 1, label: c.title, page: start + i * 6 }));
+  const tocMode = book.tocMode ?? "chapters";
+  const tocSettings = book.tocLines ?? {};
 
   return {
     language: book.language,
@@ -90,9 +98,13 @@ export function bookSpreadSample(
         : // У главы автора без эпиграфа пример эпиграфа не подставляем: это его текст.
           { number: 1, title: firstPlanned?.title ?? (own ?? sample).chapterTitle, epigraph: chapters.length ? firstPlanned?.epigraph : (firstPlanned?.epigraph ?? (own ? ownEpigraph : sample.epigraph)) },
     entries,
-    toc,
+    toc: sampleToc(tocAll, tocMode, tocSettings),
+    tocAll,
+    tocMode,
+    tocLines: tocSettings,
     showToc: book.showToc,
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
   };
 }
+

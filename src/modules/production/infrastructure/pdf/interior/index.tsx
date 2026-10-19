@@ -2,6 +2,7 @@ import "server-only";
 import { Document } from "@react-pdf/renderer";
 import { site } from "@/config/site";
 import { photoPages, type BookContent } from "@/lib/book/layout";
+import { hasToc } from "@/lib/book/toc";
 import { ChapterBody } from "./chapter-body";
 import { Colophon } from "./colophon";
 import { Dedication } from "./dedication";
@@ -24,7 +25,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const kit = pdfKit(content, options);
     const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
   if (content.dedication) pages.push(<Dedication key="dedication" kit={kit} text={content.dedication} />);
-  if (content.showToc && content.chapters.length) pages.push(<Toc key="toc" kit={kit} />);
+  if (hasToc(content)) pages.push(<Toc key="toc" kit={kit} />);
 
   for (const ch of content.chapters) {
     pages.push(<Opener key={`open-${ch.key}`} kit={kit} chapterKey={ch.key} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto} />);

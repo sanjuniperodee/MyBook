@@ -64,11 +64,11 @@ export class BooksService {
   }
 
   /** Настройки из редактора (включая смену языка книги). */
-  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown }, photos: PhotoRepository) {
+  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown }, photos: PhotoRepository) {
     return this.uow.run(async () => {
       // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
       const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
-      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, ...settings } = patch;
+      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, ...settings } = patch;
       for (const [side, ids] of [
         ["cover", coverPhotoExtra],
         ["back", backPhotoExtra],
@@ -86,6 +86,7 @@ export class BooksService {
         book.setBackPhoto(backPhotoId);
       }
       if (photoFrames !== undefined) book.setPhotoFrames(photoFrames);
+      if (tocLines !== undefined) book.setTocLines(tocLines);
       if (language && language !== book.language) {
         const from = this.themes.get(book.theme, book.language);
         const to = this.themes.get(book.theme, language);

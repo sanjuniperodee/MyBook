@@ -31,6 +31,8 @@ const book: Book = {
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,
+  tocMode: "chapters",
+  tocLines: {},
   inviteToken: null,
   occasion: null,
   occasionDate: null,

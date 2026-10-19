@@ -13,11 +13,15 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, type InteriorMood } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
+import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
+import { TocEditor } from "./TocEditor";
 
 interface PagesState {
   interior: InteriorId;
   dedication: string;
   showToc: boolean;
+  tocMode: TocMode;
+  tocLines: TocLines;
   photoPlacement: "chapters" | "end";
 }
 
@@ -79,7 +83,10 @@ export function PagesEditor({
   };
 
   // Большой разворот сразу показывает посвящение и оглавление; миниатюры от них не зависят и не перерисовываются.
-  const live = useMemo(() => ({ ...sample, dedication: state.dedication.trim(), showToc: state.showToc }), [sample, state.dedication, state.showToc]);
+  const live = useMemo(
+    () => ({ ...sample, dedication: state.dedication.trim(), showToc: state.showToc, toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc }),
+    [sample, state.dedication, state.showToc, state.tocMode, state.tocLines],
+  );
   const paired = new Set(cover.pairs);
   const filters: Filter[] = ["all", ...(paired.size ? (["cover"] as const) : []), ...interiorMoods];
   const shown = interiorDesigns.filter((d) => filter === "all" || d.id === state.interior || (filter === "cover" ? paired.has(d.id) : d.mood === filter));
@@ -211,6 +218,11 @@ export function PagesEditor({
             />
             <span>{t.tocLabel}</span>
           </label>
+          {state.showToc && sample.tocAll ? (
+            <div className="mt-5">
+              <TocEditor candidates={sample.tocAll} mode={state.tocMode} lines={state.tocLines} editable={editable} onChange={update} onFocus={() => setSpread("toc")} />
+            </div>
+          ) : null}
         </FormSection>
 
         <FormSection title={t.photos}>

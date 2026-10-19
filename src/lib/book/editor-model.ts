@@ -4,6 +4,7 @@
  * Данные со страницы готовит editorModel (editor-data.ts) — он тянет каталог тем и в браузер не попадает.
  */
 import type { Locale } from "@/i18n/config";
+import type { TocLines, TocMode } from "./toc";
 import type { BookKind } from "@/lib/content/kinds";
 import { photoUrl } from "@/lib/urls";
 import { normalizeMedia } from "./answer-media";
@@ -59,6 +60,9 @@ export interface EditorBook {
   interior: string;
   dedication: string;
   showToc: boolean;
+  /** Оглавление по-своему (toc.ts): от него зависит, сколько полос оно займёт. */
+  tocMode?: TocMode;
+  tocLines?: TocLines;
   photoPlacement: "chapters" | "end";
   title: string;
   /** Язык книги: вопросы, заголовки и превью — на нём; интерфейс редактора — на языке сайта. */

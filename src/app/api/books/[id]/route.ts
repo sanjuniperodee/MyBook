@@ -6,6 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
+import { TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
   .object({
@@ -32,6 +33,11 @@ const patchSchema = z
     format: z.string().max(20),
     photoPlacement: z.enum(["chapters", "end"]),
     showToc: z.boolean(),
+    tocMode: z.enum(TOC_MODES),
+    // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
+    tocLines: z
+      .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional() }))
+      .refine((o) => Object.keys(o).length <= TOC_LINES_MAX),
     occasion: z.string().max(40).nullable(),
     occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
     language: z.string().refine(isLocale, "unknownLanguage"),

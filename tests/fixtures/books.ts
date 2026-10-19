@@ -152,6 +152,8 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     format,
     photoPlacement: language === "kk" && format === "square" ? "end" : "chapters",
     showToc: true,
+    tocMode: "chapters",
+    tocLines: {},
     inviteToken: null,
     occasion: null,
     occasionDate: null,

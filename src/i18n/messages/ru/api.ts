@@ -39,6 +39,7 @@ export const api = {
   unknownBackLayout: "Неизвестный вариант задней стороны",
   unknownFormat: "Неизвестный формат",
   unknownOccasion: "Неизвестный повод",
+  unknownTocMode: "Неизвестный вид оглавления",
   unknownLanguage: "Неизвестный язык",
   unknownTheme: "Неизвестный вид книги",
   outlineNotAllowed: "Главы и разделы можно менять только в своей книге",
