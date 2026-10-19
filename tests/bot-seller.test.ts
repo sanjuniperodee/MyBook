@@ -287,6 +287,20 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
     expect(story.state.ai.warmedUp).toBe(true);
   });
 
+  it("предоплата больше цены электронной книги — её не предлагает, просит назвать полную сумму", () => {
+    const e = env();
+    e.config = { ...e.config, sell: { ...e.config.sell, prepay: 10000 } };
+    const digital = e.catalog.plans.find((p) => p.id === "digital")!.price;
+    const fmt = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
+    const bad = turn(warmState(), decision({ plan: "digital", reply: `Электронная — от ${fmt(digital)} ₸. Оформляем? Начнём с предоплаты 10 000 ₸`, askedToOrder: true }), [msg("Давайте электронную")], { e });
+    expect(bad.retry?.[0].detail).toContain("оплачивают сразу целиком");
+    // Только цена электронной без выбора плана — тоже про неё.
+    expect(turn(warmState(), decision({ reply: `Электронная — ${fmt(digital)} ₸, предоплата 10 000 ₸` }), [msg("А электронная?")], { e }).retry?.[0].kind).toBe("rule");
+    // Печатная с предоплатой — можно; электронная целиком — можно.
+    expect(turn(warmState(), decision({ plan: "hardcover", reply: "Печатная — от 30 000 ₸, начать можно с предоплаты 10 000 ₸. Оформляем?", askedToOrder: true }), [msg("Печатную")], { e }).retry).toBeNull();
+    expect(turn(warmState(), decision({ plan: "digital", reply: `Электронная — ${fmt(digital)} ₸, оплата сразу целиком. Оформляем?`, askedToOrder: true }), [msg("Электронную")], { e }).retry).toBeNull();
+  });
+
   it("прогрев: на повторный вопрос о цене называет её сразу", () => {
     const first = turn(undefined, decision({ reply: "Подскажу 🙂 А для кого книга?" }), [msg("Сколько стоит?")]);
     expect(first.state.ai.warmedUp).toBe(false);

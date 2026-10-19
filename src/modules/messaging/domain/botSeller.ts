@@ -269,6 +269,36 @@ export interface SellerInvoice {
 }
 
 /** Сумма счёта по плану: цена владельца из настроек бота, иначе тариф; предоплата не больше цены. null — цены нет. */
+/**
+ * Книги, к которым предоплата не применяется: цена не больше предоплаты (электронная 9 900 ₸ при предоплате 10 000 ₸) —
+ * их оплачивают сразу целиком. Подпись и цена — для фактов и проверки ответа.
+ */
+export function fullPayPlans(env: Pick<BotEnv, "config" | "catalog">): { id: "hardcover" | "digital"; price: number }[] {
+  const prepay = env.config.sell.prepay;
+  if (prepay <= 0) return [];
+  return (["digital", "hardcover"] as const)
+    .map((id) => ({ id, price: env.config.sell.prices[id] || env.catalog.plans.find((p) => p.id === id && !p.hidden)?.price || 0 }))
+    .filter((p) => p.price > 0 && p.price <= prepay);
+}
+
+/**
+ * Предоплата к книге, которая стоит меньше неё (или столько же), — бессмыслица («электронная — 9 900 ₸, начнём с
+ * предоплаты 10 000 ₸»). Ответ с предоплатой, где речь об этой книге (её выбрал клиент или названа только её цена), —
+ * переписать.
+ */
+export function prepayProblems(reply: string, d: Pick<SellerDecision, "plan">, env: Pick<BotEnv, "config" | "catalog">): ReplyProblem[] {
+  const cheap = fullPayPlans(env);
+  const amounts = amountsIn(reply);
+  if (!cheap.length || !amounts.includes(env.config.sell.prepay)) return [];
+  const prices = new Set(cheap.map((p) => p.price));
+  const others = amounts.filter((n) => n !== env.config.sell.prepay && !prices.has(n));
+  const aboutCheap = cheap.some((p) => p.id === d.plan) || (amounts.some((n) => prices.has(n)) && !others.length);
+  if (!aboutCheap) return [];
+  const names: Record<string, string> = { digital: "электронную книгу", hardcover: "печатную книгу" };
+  const list = cheap.map((p) => `${names[p.id]} (${kzt(p.price)})`).join(", ");
+  return [{ kind: "rule", detail: `предоплата ${kzt(env.config.sell.prepay)} больше цены — ${list} оплачивают сразу целиком, предоплату к ней не предлагай: назови полную сумму и предложи оформить` }];
+}
+
 export function sellerInvoice(plan: SellerPlan, env: Pick<BotEnv, "config" | "catalog">): SellerInvoice | null {
   if (plan !== "hardcover" && plan !== "digital") return null;
   const sell = env.config.sell;
@@ -428,7 +458,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   // Ответ клиенту: проверка до отправки. Бот уже здоровался сегодня — повторное «Здравствуйте» в начале ответа убираем.
   let reply: string | null = (ctx.greeted ? withoutGreeting(d.reply) : d.reply) || null;
   if (reply) {
-    const problems = [...checkSellerReply(reply, ctx.rules), ...personaProblems(reply, env.config.sell), ...warmUpProblems(reply, d, warm, !!ctx.materials)];
+    const problems = [...checkSellerReply(reply, ctx.rules), ...personaProblems(reply, env.config.sell), ...warmUpProblems(reply, d, warm, !!ctx.materials), ...prepayProblems(reply, d, env)];
     if (problems.length) {
       ai.blocked += 1;
       events.push({ kind: "blocked", reason: `ai_reply: ${problemsText(problems)}`.slice(0, 200) });
@@ -926,6 +956,7 @@ export function sellerSystemPromptParts(i: SellerPromptInput): SellerPromptParts
     "## Факты (только они — истина)",
     catalogFacts(env, prices),
     prices && sell.prepay > 0 ? `- Чтобы начать, нужна предоплата ${kzt(sell.prepay)}, остальное — после того как книга готова. Оплата — по ссылке из счёта (Kaspi или картой); счёт выставляется отдельным сообщением.` : "",
+    prices && fullPayPlans(env).length ? `- Предоплата — только к книге дороже ${kzt(sell.prepay)}. ${fullPayPlans(env).map((p) => `${p.id === "digital" ? "Электронную книгу" : "Печатную книгу"} (${kzt(p.price)})`).join(", ")} оплачивают сразу целиком: предоплату к ней не предлагай, называй полную сумму.` : "",
     promo ? `- Акция владельца: ${promo}` : "- Акций сейчас нет — не придумывай скидки.",
     env.site.url ? `- Сайт: ${env.site.url}` : "",
     faq.length ? `\nОтветы владельца на частые вопросы (ориентир по смыслу и тону):\n${faq.map((x) => `- ${x}`).join("\n")}` : "",
