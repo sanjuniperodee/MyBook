@@ -176,14 +176,20 @@ export class DealsService {
   async merge(targetId: string, sourceId: string, actorId: string | null) {
     if (targetId === sourceId) throw new SalesError("mergeSelf");
     const [funnel, windowDays] = await Promise.all([this.funnels.load(), this.settings.mergeClosedDays()]);
+    const stages = (t: Deal, s: Deal) => ({ targetStage: funnel.stage(t.stageId), sourceStage: funnel.stage(s.stageId), windowDays });
     return this.uow.run(async () => {
+      // Отказ — до переноса счетов и блокировок (по прочитанному без блокировки).
+      const [early, earlySource] = await Promise.all([this.load(targetId), this.load(sourceId)]);
+      early.absorb(earlySource, stages(early, earlySource), actorId);
+      const kind = funnel.stage(early.stageId)?.kind;
+      // Счета — первыми (порядок блокировок: счета → сделки), затем обе сделки: платёж, пришедший в эту секунду, не пропадёт.
+      const { moved, cancelled } = await this.invoices.moveAll({ from: sourceId, to: targetId, closeOpen: !!early.orderId || (!!kind && kind !== "open") });
+      await this.deals.lock([targetId, sourceId]);
+      // Под блокировкой — заново по свежим данным: источник могли в эту секунду перевести в «Успех» или «Отказ» (тогда отказ,
+      // и перенос счетов откатится вместе с транзакцией), а цель — изменить (сохраняем её свежую, не затирая чужую правку).
       const [target, source] = await Promise.all([this.load(targetId), this.load(sourceId)]);
       const before = { target: target.snapshot(), source: source.snapshot() };
-      target.absorb(source, { targetStage: funnel.stage(target.stageId), sourceStage: funnel.stage(source.stageId), windowDays }, actorId);
-      const kind = funnel.stage(target.stageId)?.kind;
-      // Счета — первыми (порядок блокировок: счета → сделки), затем обе сделки: платёж, пришедший в эту секунду, не пропадёт.
-      const { moved, cancelled } = await this.invoices.moveAll({ from: source.id, to: target.id, closeOpen: !!target.orderId || (!!kind && kind !== "open") });
-      await this.deals.lock([target.id, source.id]);
+      target.absorb(source, stages(target, source), actorId);
       const parts = [moved.length ? `из сделки №${source.number} перенесены ${moved.join(", ")}` : "", cancelled.length ? `отменены открытые ${cancelled.join(", ")} (сделки объединены)` : ""].filter(Boolean);
       if (parts.length) target.note(`Счета из чата: ${parts.join("; ")}`, actorId);
       await this.deals.mergeInto(target, source);

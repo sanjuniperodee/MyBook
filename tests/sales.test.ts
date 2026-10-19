@@ -587,6 +587,33 @@ describe("Жизнь сделки: деньги и счета из чата не
     expect(await service.findById(dup.id)).toBeNull();
   });
 
+  it("источник перевели в «Успех» в ту же секунду, пока ждали блокировку, — под блокировкой отказ, дубль и его продажа на месте", async () => {
+    const { service, deals } = setup();
+    const target = await service.create({ title: "Основная", source: "whatsapp", clientId: "c1" });
+    const dup = await service.create({ title: "Дубль", source: "manual", clientId: "c1" });
+    // Параллельный запрос закрыл дубль успехом, пока слияние переносило счета и ждало блокировку сделок.
+    deals.lock = async (ids: string[]) => {
+      deals.locked.push(ids);
+      await service.move(dup.id, "won", "m2");
+    };
+    await expect(service.merge(target.id, dup.id, "m1")).rejects.toMatchObject({ code: "mergeClosed", params: [dup.number] });
+    expect(await service.findById(dup.id)).toMatchObject({ stageId: "won" });
+    expect(await service.findById(target.id)).not.toBeNull();
+  });
+
+  it("слияние сохраняет цель свежей: правка цели, сделанная, пока ждали блокировку, не затирается", async () => {
+    const { service, deals } = setup();
+    const target = await service.create({ title: "Основная", source: "whatsapp", clientId: "c1" });
+    const dup = await service.create({ title: "Дубль", source: "manual", clientId: "c1" });
+    deals.lock = async (ids: string[]) => {
+      deals.locked.push(ids);
+      await service.assign(target.id, "m2");
+    };
+    await service.merge(target.id, dup.id, "m1");
+    expect(await service.findById(target.id)).toMatchObject({ assigneeId: "m2" });
+    expect(await service.findById(dup.id)).toBeNull();
+  });
+
   it("слияние с выигранной или проигранной сделкой-источником — отказ до переноса счетов и блокировок, обе сделки на месте", async () => {
     const { service, invoices, deals } = setup();
     const fresh = await service.create({ title: "Новая заявка", source: "whatsapp", clientId: "c1" });
