@@ -180,7 +180,7 @@ export class MessagingModule {
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
-    this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds);
+    this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds, deps.schedule);
   }
 
   /** Файл от сотрудника (фото, видео, аудио, документ): сохраняется у нас (чтобы открыть в CRM) и уходит клиенту. */

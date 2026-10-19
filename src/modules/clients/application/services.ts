@@ -114,14 +114,16 @@ export class TasksService {
    * поставлена (такая уже есть).
    */
   async createSystem(input: { title: string; kind: TaskKind; dueAt: Date | null; clientId?: string | null; orderId?: string | null; dealId?: string | null; assigneeId: string | null; once?: boolean }): Promise<boolean> {
-    if (input.once && input.dealId && (await this.tasks.existsOpen({ dealId: input.dealId, title: input.title }))) return false;
+    // Заголовок хранится обрезанным до 200 знаков: так же и ищем «такую же открытую», иначе длинный заголовок дублировался бы.
+    const title = input.title.slice(0, 200);
+    if (input.once && input.dealId && (await this.tasks.existsOpen({ dealId: input.dealId, title }))) return false;
     let clientId = input.clientId ?? null;
     if (!clientId && input.orderId) clientId = await this.links.clientOfOrder(input.orderId);
     if (!clientId && input.dealId) clientId = await this.links.clientOfDeal(input.dealId);
     const assigneeId = input.assigneeId && (await this.staff.isActiveStaff(input.assigneeId)) ? input.assigneeId : null;
     const lead = input.dueAt ? (input.dueAt.getTime() - this.clock.now().getTime()) / 60_000 : 0;
     const remindBeforeMin = input.dueAt ? (lead > DEFAULT_REMIND_MIN ? DEFAULT_REMIND_MIN : 0) : null;
-    await this.tasks.add({ title: input.title.slice(0, 200), kind: input.kind, dueAt: input.dueAt, remindBeforeMin, clientId, orderId: input.orderId ?? null, dealId: input.dealId ?? null, assigneeId, createdById: null });
+    await this.tasks.add({ title, kind: input.kind, dueAt: input.dueAt, remindBeforeMin, clientId, orderId: input.orderId ?? null, dealId: input.dealId ?? null, assigneeId, createdById: null });
     return true;
   }
 

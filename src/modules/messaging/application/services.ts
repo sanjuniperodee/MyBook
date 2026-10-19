@@ -1,4 +1,4 @@
-import type { Clock, Logger } from "@/shared/application";
+import type { Clock, Logger, WorkSchedule } from "@/shared/application";
 import { normalizePhone, phoneTail } from "@/shared/domain/phone";
 import {
   asksNoMessages,
@@ -702,6 +702,9 @@ export class MessagingService {
   }
 }
 
+/** «Перезвоните мне»: столько рабочих минут на звонок. */
+const CALLBACK_WORK_MIN = 15;
+
 /** Виджет на сайте: чат с посетителем и «Перезвоните мне». */
 export class SiteChatService {
   constructor(
@@ -712,6 +715,8 @@ export class SiteChatService {
     private readonly live: LiveUpdates,
     private readonly clock: Clock,
     private readonly ids: { uuid(): string; visitorChatId(token: string): string },
+    /** График CRM: срок «перезвонить» — в рабочих минутах (ночная заявка — к началу смены, а не просрочена к утру). */
+    private readonly schedule?: Pick<WorkSchedule, "addWorkMinutes">,
   ) {}
 
   chatIdOf(token: string) {
@@ -729,7 +734,8 @@ export class SiteChatService {
 
   /**
    * «Перезвоните мне»: сделка (открытая по телефону или новая — её ответственного выбирает круг), задача «позвонить»
-   * через 15 минут на ответственного сделки и уведомление — чтобы заявка не потерялась.
+   * через 15 рабочих минут на ответственного сделки и уведомление — чтобы заявка не потерялась. Заявка в 23:00 — срок
+   * 09:15, как у пропущенного звонка (tasks-d2), а не «просрочено» к началу смены.
    */
   async requestCallback(input: { name: string; phone: string; comment?: string; page?: string; userId?: string | null }) {
     const phone = normalizePhone(input.phone);
@@ -740,7 +746,9 @@ export class SiteChatService {
     const assigneeId = deal.assigneeId;
     const note = [`📞 Заявка на обратный звонок с сайта: ${input.name || "без имени"}, ${phoneTail(phone)} (номер — в контакте сделки)`, input.comment ? `Комментарий: ${input.comment}` : "", input.page ? `Страница: ${input.page}` : ""].filter(Boolean).join("\n");
     await this.sales.note(deal, note);
-    await this.tasks.create({ title: `Перезвонить ${who} — заявка с сайта`, kind: "call", dueAt: new Date(this.clock.now().getTime() + 15 * 60_000), dealId: deal.id, clientId: deal.clientId, assigneeId });
+    const now = this.clock.now();
+    const dueAt = this.schedule ? await this.schedule.addWorkMinutes(now, CALLBACK_WORK_MIN) : new Date(now.getTime() + CALLBACK_WORK_MIN * 60_000);
+    await this.tasks.create({ title: `Перезвонить ${who} — заявка с сайта`, kind: "call", dueAt, dealId: deal.id, clientId: deal.clientId, assigneeId });
     await this.notifier.notify(assigneeId, "deals.view", { kind: "task", title: `Перезвонить: ${who}`, body: input.comment?.slice(0, 160) || "Заявка на обратный звонок с сайта", link: `/admin/deals/${deal.id}` });
     this.live.notificationsChanged();
     return deal.id;

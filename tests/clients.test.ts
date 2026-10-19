@@ -311,6 +311,11 @@ describe("TasksService: задачи от CRM (бот, правила, «Пер�
     expect(t.mem.tasks.last()).toMatchObject({ assigneeId: null });
     expect(await t.tasks.createSystem({ title: "Позвонить", kind: "call", dueAt: at("2026-10-01T12:00:00Z"), dealId: "deal-1", assigneeId: "m1", once: true })).toBe(false);
     expect(t.mem.tasks.rows.size).toBe(1);
+    // Заголовок длиннее 200 знаков хранится обрезанным — повтор находит ту же открытую задачу, а не заводит вторую.
+    const long = `Перезвонить: ${"очень длинный заголовок правила ".repeat(10)}`;
+    expect(await t.tasks.createSystem({ title: long, kind: "call", dueAt: null, dealId: "deal-1", assigneeId: "m1", once: true })).toBe(true);
+    expect(await t.tasks.createSystem({ title: long, kind: "call", dueAt: null, dealId: "deal-1", assigneeId: "m1", once: true })).toBe(false);
+    expect(t.mem.tasks.rows.size).toBe(2);
     // Без срока — без напоминания.
     await t.tasks.createSystem({ title: "Проверить переплату", kind: "task", dueAt: null, orderId: "order-1", assigneeId: "m1" });
     expect(t.mem.tasks.last()).toMatchObject({ remindBeforeMin: null, clientId: "client-1", orderId: "order-1" });
@@ -421,7 +426,7 @@ describe("TasksService: напоминание сотруднику в WhatsApp 
     expect(await t.tasks.remindDue()).toBe(0); // один раз
   });
 
-  it("срок ночью, раньше начала смены: ничья («Перезвоните мне» в 23:00) — только колокольчик без push, с ответственным — в CRM сразу; в WhatsApp — никому", async () => {
+  it("срок ночью, раньше начала смены (задача со сроком 23:15): ничья — только колокольчик без push, с ответственным — в CRM сразу; в WhatsApp — никому", async () => {
     const t = withWhatsApp();
     t.c.set("2026-10-01T18:00:00Z"); // 23:00
     await t.tasks.createSystem({ title: "Перезвонить Айгерим — заявка с сайта", kind: "call", dueAt: at("2026-10-01T18:15:00Z"), dealId: "deal-7", assigneeId: null });
