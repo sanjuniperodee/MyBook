@@ -61,20 +61,23 @@ export interface ScheduledSource {
   inactiveClients(ruleId: string, days: number): Promise<{ dealId: string; clientId: string; lastSeen: Date }[]>;
   /**
    * Годовщины покупок к поводу через 0…daysBefore дней от today (ГГГГ-ММ-ДД по поясу магазина): заказ сайта (orderId)
-   * или выигранная сделка из чата (dealId). occasion и date — по-русски (задачи, сделки), client — на языке клиента;
+   * или выигранная сделка из чата (dealId). Клиент, который уже купил к этой годовщине снова — покупка не раньше чем за
+   * repurchaseDays дней до неё или покупка к той же дате, — не выбирается; покупка к другому поводу раньше этого
+   * годовщину не гасит (automation-d6). occasion и date — по-русски (задачи, сделки), client — на языке клиента;
    * recipient — кому дарили (получатель книги или поле сделки «Для кого»).
    */
   anniversaries(
     ruleId: string,
     today: string,
     daysBefore: number,
+    repurchaseDays: number,
   ): Promise<{ orderId: string | null; dealId: string | null; clientId: string; occasion: string; date: string; year: number; recipient: string | null; client: { occasion: string; date: string } }[]>;
   /**
    * Покупатели к празднику прошлого года: оплата или выигранная сделка в днях from…to (ГГГГ-ММ-ДД по поясу магазина).
    * Без открытой сделки, без покупки с seasonFrom (уже купили в этом сезоне), не из стоп-листа; клиент, для которого
-   * правило уже сработало к этому празднику (holiday:<id>:<год праздника>:<клиент>), не выбирается. Купившие ближе
-   * к празднику — первыми, не больше limit. occasion и date (праздника, ГГГГ-ММ-ДД в q.date) — по-русски, client — на
-   * языке клиента.
+   * правило уже сработало к этому празднику (holiday:<id>:<год праздника>:<клиент>), не выбирается. Первыми — кто
+   * в прошлом году купил раньше всех (печатной книге нужен запас по времени), не больше limit. occasion и date
+   * (праздника, ГГГГ-ММ-ДД в q.date) — по-русски, client — на языке клиента.
    */
   holidayBuyers(
     ruleId: string,

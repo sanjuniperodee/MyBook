@@ -1,5 +1,6 @@
 import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
+import { ANNIVERSARY_DEFAULTS, ANNIVERSARY_LIMITS } from "./anniversary";
 import { bookBelowPercent, EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "./eventDate";
 import { IDLE_DEFAULTS, IDLE_LIMITS } from "./idle";
 import { SILENT_DEFAULTS, SILENT_LIMITS } from "./silent";
@@ -124,7 +125,10 @@ export function relevantConditions(
   if (trigger.startsWith("message.") && c.channel) out.channel = c.channel;
   if (trigger === "message.unanswered") out.minutes = c.minutes ?? 15;
   if (trigger === "client.inactive") out.days = c.days ?? 5;
-  if (trigger === "occasion.anniversary") out.daysBefore = c.daysBefore ?? 30;
+  if (trigger === "occasion.anniversary") {
+    out.daysBefore = Math.min(ANNIVERSARY_LIMITS.daysBefore, c.daysBefore ?? ANNIVERSARY_DEFAULTS.daysBefore);
+    out.windowDays = Math.min(ANNIVERSARY_LIMITS.windowDays, c.windowDays ?? ANNIVERSARY_DEFAULTS.windowDays);
+  }
   if (trigger === "occasion.holiday") {
     out.daysBefore = c.daysBefore ?? HOLIDAY_DEFAULTS.daysBefore;
     out.windowDays = c.windowDays ?? HOLIDAY_DEFAULTS.windowDays;

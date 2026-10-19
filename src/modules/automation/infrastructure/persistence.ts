@@ -162,14 +162,14 @@ const safeDate = (text: ReturnType<typeof sql>) => sql`case when ${text} ~ '^[12
   case when substr(${text}, 9, 2)::int <= extract(day from make_date(substr(${text}, 1, 4)::int, substr(${text}, 6, 2)::int, 1) + interval '1 month - 1 day')::int then (${text})::date end end`;
 
 /**
- * Клиент купил после дня day (по поясу магазина): оплатил заказ или выиграна сделка — кроме самой покупки (except: заказ,
- * сделка; сделка этого заказа — та же покупка). Поиск по клиенту — индексы orders_user_idx и crm_deals_client_idx.
+ * Клиент купил в день from или позже (по поясу магазина): оплатил заказ или выиграна сделка — кроме самой покупки (except:
+ * заказ, сделка; сделка этого заказа — та же покупка). Поиск по клиенту — индексы orders_user_idx и crm_deals_client_idx.
  */
-const boughtAfter = (clientId: ReturnType<typeof sql>, day: ReturnType<typeof sql>, tz: string, except: { order: ReturnType<typeof sql>; deal: ReturnType<typeof sql> }) => sql`(
-  exists (select 1 from orders o where o.user_id = ${clientId} and ${paidAndNotCancelled} and (o.paid_at at time zone ${tz})::date > ${day}
+const boughtSince = (clientId: ReturnType<typeof sql>, from: ReturnType<typeof sql>, tz: string, except: { order: ReturnType<typeof sql>; deal: ReturnType<typeof sql> }) => sql`(
+  exists (select 1 from orders o where o.user_id = ${clientId} and ${paidAndNotCancelled} and (o.paid_at at time zone ${tz})::date >= ${from}
     and o.id is distinct from ${except.order})
   or exists (select 1 from crm_deals wd join crm_stages ws on ws.id = wd.stage_id and ws.kind = 'won'
-    where wd.client_id = ${clientId} and (coalesce(wd.closed_at, wd.stage_changed_at) at time zone ${tz})::date > ${day}
+    where wd.client_id = ${clientId} and (coalesce(wd.closed_at, wd.stage_changed_at) at time zone ${tz})::date >= ${from}
       and wd.id is distinct from ${except.deal} and (${except.order} is null or wd.order_id is distinct from ${except.order})))`;
 
 /** Номер в виде normalizePhone (77011234567) — так их хранит стоп-лист. */
@@ -226,11 +226,13 @@ export class SqlScheduledSource implements ScheduledSource {
   /**
    * Ближайшая годовщина повода, до которой осталось не больше N дней. Покупки: оплаченный заказ сайта (дата повода книги
    * или желаемая дата заказа) и выигранная сделка из чата без оплаченного заказа (свои поля «Дата события» и «Повод»,
-   * contacts-16). Выпускной не повторяется. Не выбираются: клиент, который после повода уже купил снова (оплата или
-   * выигранная сделка, automation-d6), и тот, кто просил не писать первым (стоп-лист). Ближайшие — первыми; покупка, по
-   * которой правило уже сработало в этом году, не выбирается.
+   * contacts-16). Выпускной не повторяется. Не выбираются: клиент, который уже купил к этой годовщине снова (automation-d6)
+   * — оплата или выигранная сделка не раньше чем за repurchaseDays дней до неё, или другая, более поздняя покупка с
+   * годовщиной в тот же день (купил к этой дате в этом году, покупает каждый год); и тот, кто просил не писать первым
+   * (стоп-лист). Покупка к другому поводу между годовщинами годовщину не гасит. Ближайшие — первыми; покупка, по которой
+   * правило уже сработало в этом году, не выбирается.
    */
-  async anniversaries(ruleId: string, today: string, daysBefore: number) {
+  async anniversaries(ruleId: string, today: string, daysBefore: number, repurchaseDays: number) {
     const tz = storeTimeZone();
     const { rows } = await executor().execute<{ order_id: string | null; deal_id: string | null; client_id: string; code: string | null; label: string | null; recipient: string | null; locale: string; next_date: string; year: number }>(sql`
       with base as (
@@ -253,7 +255,8 @@ export class SqlScheduledSource implements ScheduledSource {
       from nxt2 n join users u on u.id = n.client_id
       where n.next_date > n.d and n.next_date - ${today}::date between 0 and ${daysBefore}
         and ${notFired(ruleId, sql`case when n.order_id is not null then n.order_id::text else 'deal:' || n.deal_id::text end || ':' || extract(year from n.next_date)::int::text`)}
-        and not ${boughtAfter(sql`n.client_id`, sql`n.d`, tz, { order: sql`n.order_id`, deal: sql`n.deal_id` })}
+        and not ${boughtSince(sql`n.client_id`, sql`n.next_date - ${repurchaseDays}::int`, tz, { order: sql`n.order_id`, deal: sql`n.deal_id` })}
+        and not exists (select 1 from nxt2 x where x.client_id = n.client_id and x.next_date = n.next_date and x.d > n.d)
         and not ${noMarketing(sql`u`)}
       order by n.next_date, n.order_id, n.deal_id
       limit ${LIMIT}`);
@@ -277,7 +280,7 @@ export class SqlScheduledSource implements ScheduledSource {
     const year = Number(q.date.slice(0, 4));
     const { rows } = await executor().execute<{ client_id: string; locale: string }>(sql`
       with bought as (
-        select e.client_id, max(e.at) as at
+        select e.client_id, min(e.at) as first_at
         from revenue_events e
         where e.kind <> 'refund' and e.client_id is not null and e.at >= ${dayStart(q.from, tz)} and e.at < ${dayStart(sql`${q.to}::date + 1`, tz)}
         group by e.client_id
@@ -288,7 +291,7 @@ export class SqlScheduledSource implements ScheduledSource {
         and b.client_id not in (select e.client_id from revenue_events e where e.kind <> 'refund' and e.client_id is not null and e.at >= ${dayStart(q.seasonFrom, tz)})
         and not ${noMarketing(sql`u`)}
         and ${notFired(ruleId, sql`${`holiday:${q.holiday.id}:${year}:`} || b.client_id::text`)}
-      order by b.at desc, b.client_id
+      order by b.first_at, b.client_id
       limit ${Math.max(0, Math.min(q.limit, LIMIT))}`);
     return rows.map((r) => {
       const locale = r.locale === "kk" ? "kk" : "ru";

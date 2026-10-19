@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock, Logger, WorkSchedule } from "@/shared/application";
 import {
+  anniversaryQuery,
   clientText,
   conditionNumber,
   DEFAULT_HOLIDAYS,
@@ -277,7 +278,8 @@ export class AutomationEngine {
       }
     });
     await each("occasion.anniversary", async (rule) => {
-      for (const r of await this.scheduled.anniversaries(rule.id, zonedDay(now), conditionNumber(rule, "daysBefore", 30, 120))) {
+      const q = anniversaryQuery(rule);
+      for (const r of await this.scheduled.anniversaries(rule.id, zonedDay(now), q.daysBefore, q.repurchaseDays)) {
         // Сделка из чата — не объект правила: она выиграна, повторная продажа — новая сделка («Создать сделку»).
         const subject = r.orderId ? `${r.orderId}:${r.year}` : `deal:${r.dealId}:${r.year}`;
         await fire(rule, { subject, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client, recipient: r.recipient });

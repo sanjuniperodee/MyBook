@@ -9,6 +9,7 @@ import { isStaffOnlyTrigger, isTransactionalTrigger } from "@/modules/automation
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
+import { ANNIVERSARY_DEFAULTS, ANNIVERSARY_LIMITS } from "@/modules/automation/domain/anniversary";
 import { EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "@/modules/automation/domain/eventDate";
 import { IDLE_DEFAULTS, IDLE_LIMITS } from "@/modules/automation/domain/idle";
 import { SILENT_DEFAULTS, SILENT_LIMITS } from "@/modules/automation/domain/silent";
@@ -43,7 +44,11 @@ function describe(r: Rule, ctx: Ctx) {
     (r.conditions.days ? ` ${r.conditions.days} дн.` : "") +
     (r.conditions.holiday ? ` «${ctx.holidays.find((h) => h.id === r.conditions.holiday)?.label ?? r.conditions.holiday}»` : "") +
     (r.conditions.daysBefore ? ` за ${r.conditions.daysBefore} дн.` : "") +
-    (r.conditions.windowDays ? `, покупали за ${r.conditions.windowDays} дн. до него` : "") +
+    (r.conditions.windowDays
+      ? r.trigger === "occasion.anniversary"
+        ? `, кроме купивших снова за ${Number(r.conditions.daysBefore ?? ANNIVERSARY_DEFAULTS.daysBefore) + Number(r.conditions.windowDays)} дн. до неё`
+        : `, покупали за ${r.conditions.windowDays} дн. до него`
+      : "") +
     (r.conditions.perDay ? `, до ${r.conditions.perDay} в день` : "") +
     (r.conditions.bookBelow ? `, книга заполнена меньше ${r.conditions.bookBelow}%` : "") +
     (r.conditions.unpaid ? ", ничего не оплачено" : "") +
@@ -312,11 +317,34 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               </label>
             </div>
           ) : trigger === "occasion.anniversary" ? (
-            <label className="flex items-center gap-2 text-sm">
-              за
-              <input type="number" min={1} max={120} className="input h-10 w-24 text-sm" value={Number(conditions.daysBefore ?? 30)} onChange={(e) => setConditions({ ...conditions, daysBefore: Number(e.target.value) })} />
-              дней до даты
-            </label>
+            <div className="space-y-2 text-sm">
+              <label className="flex items-center gap-2">
+                за
+                <input
+                  type="number"
+                  min={1}
+                  max={ANNIVERSARY_LIMITS.daysBefore}
+                  className="input h-9 w-20 text-sm"
+                  value={Number(conditions.daysBefore ?? ANNIVERSARY_DEFAULTS.daysBefore)}
+                  onChange={(e) => setConditions({ ...conditions, daysBefore: Number(e.target.value) })}
+                  aria-label="За сколько дней до годовщины"
+                />
+                дней до даты
+              </label>
+              <label className="flex items-center gap-2" title="Оплата или выигранная сделка с этого дня — клиент уже купил к годовщине; покупка к той же дате — когда бы ни была. Покупка к другому поводу раньше годовщину не гасит">
+                кроме купивших снова за
+                <input
+                  type="number"
+                  min={1}
+                  max={ANNIVERSARY_LIMITS.windowDays}
+                  className="input h-9 w-20 text-sm"
+                  value={Number(conditions.windowDays ?? ANNIVERSARY_DEFAULTS.windowDays)}
+                  onChange={(e) => setConditions({ ...conditions, windowDays: Number(e.target.value) })}
+                  aria-label="За сколько дней до начала окна покупка — уже покупка к годовщине"
+                />
+                дней до этого и позже
+              </label>
+            </div>
           ) : (
             <p className="py-2 text-sm text-muted">без условий</p>
           )}

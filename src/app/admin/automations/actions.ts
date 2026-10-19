@@ -35,7 +35,13 @@ const schema = z.object({
     // «Клиент забросил книгу» и «Сделка без активности»: сколько дней.
     days: z.coerce.number({ error: admin.daysInvalid(IDLE_LIMITS.days) }).int(admin.daysInvalid(IDLE_LIMITS.days)).min(1, admin.daysInvalid(IDLE_LIMITS.days)).max(IDLE_LIMITS.days, admin.daysInvalid(IDLE_LIMITS.days)).optional(),
     daysBefore: z.coerce.number().int().min(1).max(HOLIDAY_LIMITS.daysBefore).optional(),
-    windowDays: z.coerce.number().int().min(1, "Покупки к празднику — хотя бы за 1 день").max(HOLIDAY_LIMITS.windowDays, `Покупки к празднику — не больше чем за ${HOLIDAY_LIMITS.windowDays} дней`).optional(),
+    // «Праздник»: за сколько дней до него покупали год назад; «Годовщина»: покупка с какого дня — уже покупка к ней снова.
+    windowDays: z.coerce
+      .number({ error: admin.windowDaysInvalid(HOLIDAY_LIMITS.windowDays) })
+      .int(admin.windowDaysInvalid(HOLIDAY_LIMITS.windowDays))
+      .min(1, admin.windowDaysInvalid(HOLIDAY_LIMITS.windowDays))
+      .max(HOLIDAY_LIMITS.windowDays, admin.windowDaysInvalid(HOLIDAY_LIMITS.windowDays))
+      .optional(),
     perDay: z.coerce.number({ error: admin.perDayInvalid(HOLIDAY_LIMITS.perDay) }).int(admin.perDayInvalid(HOLIDAY_LIMITS.perDay)).min(1, admin.perDayInvalid(HOLIDAY_LIMITS.perDay)).max(HOLIDAY_LIMITS.perDay, admin.perDayInvalid(HOLIDAY_LIMITS.perDay)).optional(),
     holiday: z.union([z.string().trim().regex(/^[a-z0-9-]{1,30}$/), z.literal(""), z.null()]).optional(),
     hours: z.union([z.enum(["work", "off"]), z.literal("any"), z.literal(""), z.null()]).optional(),

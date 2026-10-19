@@ -41,13 +41,32 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     // Сделки, проданные в чате (выиграны, без оплаченного заказа), — повод и дата в своих полях сделки.
     ids.kk = await user("kk", { locale: "kk" });
     ids["deal-kk"] = await wonDeal(ids.kk, { event_date: "2025-11-15", occasion: "Годовщина", recipient: "Ержан" });
-    // Купил снова после повода: оплаченный заказ весной — годовщины нет; выигранная сделка весной — тоже.
+    // Покупка к другому поводу между годовщинами — заказ к 8 Марта, сделка к 7 мая — годовщину не гасит (automation-d6).
     ids.again = await user("again");
     ids["deal-again"] = await wonDeal(ids.again, { event_date: "2025-11-10", occasion: "Годовщина" });
     await order(ids.again, { occasion: "march8", date: "2026-03-08", paidAt: "2026-03-01T10:00:00Z" });
     ids.again2 = await user("again2");
     ids["deal-again2"] = await wonDeal(ids.again2, { event_date: "2025-11-12", occasion: "День рождения" });
     await wonDeal(ids.again2, { event_date: "2026-05-07" }, "2026-05-01T10:00:00Z");
+    // Уже купил к годовщине снова — в её сезоне: годовщина 21.11.2026, сезон — с 21.11 − 30 − 30 = 22.09.2026.
+    // Оплата 22.09 (по Алматы) — годовщины нет; выигранная сделка в сезоне — тоже; оплата 21.09 — до сезона, годовщина есть.
+    ids.season = await user("season");
+    ids["deal-season"] = await wonDeal(ids.season, { event_date: "2025-11-21", occasion: "Годовщина" });
+    await order(ids.season, { occasion: "birthday", date: "2026-10-05", paidAt: "2026-09-21T20:00:00Z" });
+    ids.seasonDeal = await user("season-deal");
+    ids["deal-seasonDeal"] = await wonDeal(ids.seasonDeal, { event_date: "2025-11-21", occasion: "Годовщина" });
+    await wonDeal(ids.seasonDeal, {}, "2026-10-10T10:00:00Z");
+    ids.preseason = await user("preseason");
+    ids["deal-preseason"] = await wonDeal(ids.preseason, { event_date: "2025-11-21", occasion: "Годовщина" });
+    await order(ids.preseason, { occasion: "birthday", date: "2026-10-05", paidAt: "2026-09-21T10:00:00Z" });
+    // Купил к той же дате раньше сезона (книга ко дню рождения 22.11.2026 оплачена в августе) — годовщины прошлой покупки нет.
+    ids.sameDate = await user("same-date");
+    ids["order-sameDate"] = await order(ids.sameDate, { occasion: "birthday", date: "2025-11-22", paidAt: "2025-11-01T10:00:00Z" });
+    ids["order-sameDate-new"] = await order(ids.sameDate, { occasion: "birthday", date: "2026-11-22", paidAt: "2026-08-01T10:00:00Z" });
+    // Покупает каждый год к одной дате: годовщина — одна, у последней покупки.
+    ids.yearly = await user("yearly");
+    ids["order-yearly-old"] = await order(ids.yearly, { occasion: "birthday", date: "2024-11-25", paidAt: "2024-11-01T10:00:00Z" });
+    ids["order-yearly"] = await order(ids.yearly, { occasion: "birthday", date: "2025-11-25", paidAt: "2025-11-01T10:00:00Z" });
     // Просил не писать первым: по номеру (записан как 8 701…) и по собеседнику диалога (Telegram).
     ids.quiet = await user("quiet", { phone: "8 701 555 00 11" });
     ids["deal-quiet"] = await wonDeal(ids.quiet, { event_date: "2025-11-18", occasion: "Свадьба" });
@@ -81,6 +100,10 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550022', 'no_marketing', ${tag})`);
     ids.hbEarly = await user("hb-early");
     await order(ids.hbEarly, { occasion: "birthday", date: "2025-11-25", paidAt: "2025-11-20T10:00:00Z" });
+    // Две покупки к празднику: место в очереди — по первой (07.12), а не по последней (29.12).
+    ids.hbTwice = await user("hb-twice");
+    await order(ids.hbTwice, { occasion: "newyear", date: "2025-12-31", paidAt: "2025-12-07T10:00:00Z" });
+    await order(ids.hbTwice, { occasion: "newyear", date: "2025-12-31", paidAt: "2025-12-29T10:00:00Z" });
 
     // «Успеть к дате» (deals-28): даты события в 2031 году, окно 25.02–05.03.2031.
     ids.lost = await one(sql`select id from crm_stages where kind = 'lost' order by position limit 1`);
@@ -170,33 +193,41 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     expect(mine(await source.inactiveClients(ids.rule, 5), "dealId", ids["deal-a"], ids["deal-b"]).map((r) => r.dealId)).toEqual([ids["deal-a"]]);
   });
 
-  const anniversaries = async () => (await source.anniversaries(ids.rule, "2026-11-01", 30)).filter((r) => Object.values(ids).includes(r.orderId ?? r.dealId ?? ""));
+  // Как в движке по умолчанию: за 30 дней, «уже купил снова» — за 30 + 30 дней до годовщины (anniversaryQuery).
+  const anniversaries = async (ruleId = ids.rule) => (await source.anniversaries(ruleId, "2026-11-01", 30, 60)).filter((r) => Object.values(ids).includes(r.orderId ?? r.dealId ?? ""));
+  const keyOf = (id: string | null) => Object.keys(ids).find((k) => ids[k] === id);
 
-  it("годовщины: заказ сайта и сделка из чата; ближайшие первыми; повод и дата клиенту — на его языке (contacts-16, automation-d6)", async () => {
-    expect(await anniversaries()).toEqual([
+  it("годовщины: заказ сайта и сделка из чата; ближайшие первыми; повод и дата клиенту — на его языке (contacts-16)", async () => {
+    expect((await anniversaries()).filter((r) => r.clientId === ids.kk || r.clientId === ids.buyer)).toEqual([
       { orderId: null, dealId: ids["deal-kk"], clientId: ids.kk, occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, recipient: "Ержан", client: { occasion: "Жылдық", date: expect.stringContaining("2026") } },
       { orderId: ids.order, dealId: null, clientId: ids.buyer, occasion: "День рождения", date: "20 ноября 2026 г.", year: 2026, recipient: "Мама", client: { occasion: "День рождения", date: "20 ноября 2026 г." } },
     ]);
   });
 
+  it("годовщины: «уже купил снова» — только к этой годовщине: в её сезоне или к той же дате; покупка к другому поводу раньше не гасит (automation-d6)", async () => {
+    expect((await anniversaries()).map((r) => keyOf(r.orderId ?? r.dealId))).toEqual(["deal-again", "deal-again2", "deal-kk", "order", "deal-preseason", "order-yearly"]);
+  });
+
   it("годовщина: покупка, по которой правило сработало в этом году, не выбирается — subject как в движке", async () => {
     await claim(ids.rule, `${ids.order}:2026`);
     await claim(ids.rule, `deal:${ids["deal-kk"]}:2026`);
-    expect(await anniversaries()).toEqual([]);
-    expect((await source.anniversaries(ids.other, "2026-11-01", 30)).filter((r) => r.clientId === ids.kk)).toHaveLength(1);
+    expect((await anniversaries()).map((r) => keyOf(r.orderId ?? r.dealId))).toEqual(["deal-again", "deal-again2", "deal-preseason", "order-yearly"]);
+    expect((await anniversaries(ids.other)).filter((r) => r.clientId === ids.kk)).toHaveLength(1);
   });
 
   const ny = { holiday: { id: "newyear", date: "12-31", ru: "Новый год", kk: "Жаңа жыл" }, date: "2026-12-31", from: "2025-12-01", to: "2025-12-31", seasonFrom: "2026-11-01" };
   const holidayBuyers = async (limit = 200, ruleId = ids.rule) =>
-    (await source.holidayBuyers(ruleId, { ...ny, limit })).filter((r) => [ids.hbOrder, ids.hbDeal, ids.hbPayment, ids.hbOpen, ids.hbSeason, ids.hbQuiet, ids.hbEarly].includes(r.clientId));
+    (await source.holidayBuyers(ruleId, { ...ny, limit })).filter((r) => [ids.hbOrder, ids.hbDeal, ids.hbPayment, ids.hbOpen, ids.hbSeason, ids.hbQuiet, ids.hbEarly, ids.hbTwice].includes(r.clientId));
 
-  it("праздник: покупатели прошлого года — заказ, выигранная сделка из чата, платёж по сделке; купившие ближе к празднику — первыми", async () => {
+  it("праздник: покупатели прошлого года — заказ, выигранная сделка из чата, платёж по сделке; кто покупал раньше всех — первыми", async () => {
     expect(await holidayBuyers()).toEqual([
-      { clientId: ids.hbOrder, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
-      { clientId: ids.hbDeal, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Жаңа жыл", date: expect.stringContaining("2026") } },
       { clientId: ids.hbPayment, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
+      { clientId: ids.hbTwice, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
+      { clientId: ids.hbDeal, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Жаңа жыл", date: expect.stringContaining("2026") } },
+      { clientId: ids.hbOrder, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
     ]);
-    expect((await holidayBuyers(2)).map((r) => r.clientId)).toEqual([ids.hbOrder, ids.hbDeal]);
+    // Лимит дня достаётся тем, кому нужен запас по времени (печатная книга), а не купившим в последний момент.
+    expect((await holidayBuyers(2)).map((r) => r.clientId)).toEqual([ids.hbPayment, ids.hbTwice]);
   });
 
   const window = { from: "2031-02-25", to: "2031-03-05" };
@@ -233,8 +264,8 @@ run("automation: выборки правил по времени (PostgreSQL)", 
 
   it("праздник: клиент, для которого правило сработало к этому празднику, не выбирается; счёт срабатываний за сегодня", async () => {
     await claim(ids.rule, `holiday:newyear:2026:${ids.hbOrder}`);
-    expect((await holidayBuyers()).map((r) => r.clientId)).toEqual([ids.hbDeal, ids.hbPayment]);
-    expect((await holidayBuyers(200, ids.other)).map((r) => r.clientId)).toEqual([ids.hbOrder, ids.hbDeal, ids.hbPayment]);
+    expect((await holidayBuyers()).map((r) => r.clientId)).toEqual([ids.hbPayment, ids.hbTwice, ids.hbDeal]);
+    expect((await holidayBuyers(200, ids.other)).map((r) => r.clientId)).toEqual([ids.hbPayment, ids.hbTwice, ids.hbDeal, ids.hbOrder]);
     const [{ today }] = await q<{ today: string }>(sql`select to_char((now() at time zone 'Asia/Almaty')::date, 'YYYY-MM-DD') as today`);
     const fired = await source.firedOn(ids.rule, today);
     expect(fired).toBeGreaterThanOrEqual(1);

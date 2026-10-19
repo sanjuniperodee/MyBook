@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
 import { isTrigger } from "@/modules/automation/domain/meta";
 import {
+  ANNIVERSARY_LIMITS,
+  anniversaryQuery,
   DEFAULT_HOLIDAYS,
   EVENT_DATE_LIMITS,
   eventDateQuery,
@@ -198,12 +200,37 @@ describe("AutomationEngine: выборки правил по времени (aut
         scheduled: {
           unanswered: async (ruleId, since) => (asked.push(`unanswered:${ruleId}:${since.toISOString()}`), []),
           inactiveClients: async (ruleId, days) => (asked.push(`inactive:${ruleId}:${days}`), [{ dealId: "d1", clientId: "c1", lastSeen }]),
-          anniversaries: async (ruleId, today, daysBefore) => (asked.push(`anniversary:${ruleId}:${today}:${daysBefore}`), []),
+          anniversaries: async (ruleId, today, daysBefore, repurchaseDays) => (asked.push(`anniversary:${ruleId}:${today}:${daysBefore}:${repurchaseDays}`), []),
         },
       },
     );
     expect(await engine.runScheduled({ force: true })).toBe(2);
-    expect(asked).toEqual(["unanswered:sla:2026-10-01T05:30:00.000Z", "inactive:back-5:5", "inactive:back-10:10", "anniversary:year:2026-10-01:30"]);
+    expect(asked).toEqual(["unanswered:sla:2026-10-01T05:30:00.000Z", "inactive:back-5:5", "inactive:back-10:10", "anniversary:year:2026-10-01:30:60"]);
+  });
+});
+
+describe("Годовщина: «уже купил снова» — только к этой годовщине (automation-d6)", () => {
+  it("покупка не раньше чем за daysBefore + windowDays дней до годовщины — уже покупка к ней; по умолчанию 30 + 30, как сезон праздника", () => {
+    expect(anniversaryQuery({ conditions: {} })).toEqual({ daysBefore: 30, repurchaseDays: 60 });
+    // Правило с прода (миграция 0014) — только daysBefore: окно по умолчанию.
+    expect(anniversaryQuery({ conditions: { daysBefore: 45 } })).toEqual({ daysBefore: 45, repurchaseDays: 75 });
+    expect(anniversaryQuery({ conditions: { daysBefore: 14, windowDays: 21 } })).toEqual({ daysBefore: 14, repurchaseDays: 35 });
+    expect(anniversaryQuery({ conditions: { daysBefore: 500, windowDays: 500 } })).toEqual({ daysBefore: ANNIVERSARY_LIMITS.daysBefore, repurchaseDays: ANNIVERSARY_LIMITS.daysBefore + ANNIVERSARY_LIMITS.windowDays });
+    expect(anniversaryQuery({ conditions: { daysBefore: "abc", windowDays: 0 } })).toEqual({ daysBefore: 30, repurchaseDays: 60 });
+  });
+
+  it("окно настраивается в правиле: редактор сохраняет дни до даты и окно, лишние условия отбрасывает", () => {
+    expect(relevantConditions("occasion.anniversary", {})).toEqual({ daysBefore: 30, windowDays: 30 });
+    expect(relevantConditions("occasion.anniversary", { daysBefore: 45, windowDays: 20, perDay: 5, holiday: "newyear" })).toEqual({ daysBefore: 45, windowDays: 20 });
+    expect(relevantConditions("occasion.anniversary", { daysBefore: 500, windowDays: 500 })).toEqual({ daysBefore: ANNIVERSARY_LIMITS.daysBefore, windowDays: ANNIVERSARY_LIMITS.windowDays });
+  });
+
+  it("окно из условия правила уходит в выборку", async () => {
+    const asked: number[][] = [];
+    const year = rule({ id: "year", trigger: "occasion.anniversary", conditions: { daysBefore: 20, windowDays: 40 }, actions: [{ type: "notify" }] });
+    const { engine } = setup([year], { scheduled: { anniversaries: async (_r, _t, daysBefore, repurchaseDays) => (asked.push([daysBefore, repurchaseDays]), []) } });
+    await engine.runScheduled({ force: true });
+    expect(asked).toEqual([[20, 60]]);
   });
 });
 
