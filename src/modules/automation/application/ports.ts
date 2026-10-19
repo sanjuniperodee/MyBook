@@ -80,6 +80,16 @@ export interface ScheduledSource {
     ruleId: string,
     q: { holiday: Holiday; date: string; from: string; to: string; seasonFrom: string; limit: number },
   ): Promise<{ clientId: string; occasion: string; date: string; client: { occasion: string; date: string } }[]>;
+  /**
+   * «Успеть к дате»: открытые (не «неразобранные») сделки с «Датой события» (ГГГГ-ММ-ДД) в днях from…to. bookBelow —
+   * книга сделки заполнена меньше стольких процентов (null — не проверять), unpaid — по сделке ничего не оплачено.
+   * Ближайшие даты — первыми; сделка, для которой правило уже сработало на эту дату (deal:<id>:event_date:<дата>), не
+   * выбирается. occasion и date — по-русски (задачи), client — на языке клиента.
+   */
+  eventDates(
+    ruleId: string,
+    q: { from: string; to: string; bookBelow: number | null; unpaid: boolean },
+  ): Promise<{ dealId: string; clientId: string | null; eventDate: string; occasion: string; date: string; client: { occasion: string; date: string } }[]>;
   /** Сколько раз правило сработало с начала дня day (ГГГГ-ММ-ДД по поясу магазина) — для лимита «в день». */
   firedOn(ruleId: string, day: string): Promise<number>;
 }

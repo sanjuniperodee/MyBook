@@ -80,6 +80,52 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550022', 'no_marketing', ${tag})`);
     ids.hbEarly = await user("hb-early");
     await order(ids.hbEarly, { occasion: "birthday", date: "2025-11-25", paidAt: "2025-11-20T10:00:00Z" });
+
+    // «Успеть к дате» (deals-28): даты события в 2031 году, окно 25.02–05.03.2031.
+    ids.lost = await one(sql`select id from crm_stages where kind = 'lost' order by position limit 1`);
+    const soon = async (key: string, eventDate: string | null, o: { stage?: string; unsorted?: boolean; occasion?: string; locale?: string } = {}) => {
+      ids[`ed-${key}-user`] = await user(`ed-${key}`, { locale: o.locale });
+      const fields = { ...(eventDate ? { event_date: eventDate } : {}), ...(o.occasion ? { occasion: o.occasion } : {}) };
+      return (ids[`ed-${key}`] = await one(sql`insert into crm_deals (title, stage_id, client_id, custom_fields, unsorted)
+        values (${tag}, ${o.stage ?? ids.open}, ${ids[`ed-${key}-user`]}, ${JSON.stringify(fields)}::jsonb, ${o.unsorted ?? false}) returning id`));
+    };
+    const book = async (userId: string, theme: string, answers: string[]) => {
+      const id = await one(sql`insert into books (user_id, theme) values (${userId}, ${theme}) returning id`);
+      for (const [i, answer] of answers.entries()) await q(sql`insert into book_questions (book_id, position, chapter, prompt, title, answer) values (${id}, ${i}, 'c', 'p', 't', ${answer})`);
+      return id;
+    };
+    const pay = (dealId: string, amount: number, kind = "prepayment") => q(sql`insert into crm_payments (deal_id, amount, kind) values (${dealId}, ${amount}, ${kind})`);
+    // Своя книга: 1600 слов из 3000 — 53%.
+    await soon("blank", "2031-02-26");
+    await book(ids["ed-blank-user"], "blank", ["слово ".repeat(1600)]);
+    await pay(await soon("paid", "2031-02-27"), 5000);
+    // Книга с вопросами: 2 ответа из 4 — 50%; пустой ответ из пробелов — не ответ.
+    await soon("half", "2031-02-28");
+    await book(ids["ed-half-user"], "mom", ["Ответ", "Ещё ответ", " \n ", ""]);
+    await soon("nobook", "2031-03-01", { occasion: "День рождения", locale: "kk" });
+    // Заказ сделки оплачен и уже в печати: оплачено, книга готова (хотя ответов мало).
+    await soon("order", "2031-03-02");
+    const printedBook = await book(ids["ed-order-user"], "mom", ["Ответ", "", "", ""]);
+    const printed = await one(sql`
+      insert into orders (user_id, book_id, plan, items_amount, amount, currency, payment_provider, contact_name, contact_email, contact_phone, status, paid_at)
+      values (${ids["ed-order-user"]}, ${printedBook}, 'hardcover', 20000, 20000, 'KZT', 'cloudpayments', ${tag}, ${`${tag}@test.kz`}, '77010000000', 'in_production', now())
+      returning id`);
+    await q(sql`update crm_deals set order_id = ${printed} where id = ${ids["ed-order"]}`);
+    // Предоплату вернули — денег по сделке нет.
+    await soon("refunded", "2031-03-03");
+    await pay(ids["ed-refunded"], 5000);
+    await pay(ids["ed-refunded"], 5000, "refund");
+    // Пакет из двух сделок: деньги приняты по второй — первая тоже оплачена.
+    await soon("batch", "2031-03-04");
+    const batch = await one(sql`select gen_random_uuid() as id`);
+    const second = await one(sql`insert into crm_deals (title, stage_id, client_id, batch_id, batch_index, batch_size) values (${tag}, ${ids.open}, ${ids["ed-batch-user"]}, ${batch}, 1, 2) returning id`);
+    await q(sql`update crm_deals set batch_id = ${batch}, batch_index = 0, batch_size = 2 where id = ${ids["ed-batch"]}`);
+    await pay(second, 20000);
+    // Не выбираются: неверная дата, за окном, закрытая сделка, «неразобранная» заявка.
+    await soon("bad", "2031-02-30");
+    await soon("far", "2031-03-06");
+    await soon("lost", "2031-03-01", { stage: ids.lost });
+    await soon("unsorted", "2031-03-01", { unsorted: true });
   });
 
   const user = (key: string, o: { locale?: string; phone?: string } = {}) =>
@@ -150,6 +196,38 @@ run("automation: выборки правил по времени (PostgreSQL)", 
       { clientId: ids.hbPayment, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
     ]);
     expect((await holidayBuyers(2)).map((r) => r.clientId)).toEqual([ids.hbOrder, ids.hbDeal]);
+  });
+
+  const window = { from: "2031-02-25", to: "2031-03-05" };
+  const soonKeys = ["blank", "paid", "half", "nobook", "order", "refunded", "batch", "bad", "far", "lost", "unsorted"];
+  const eventDates = async (o: { bookBelow?: number; unpaid?: boolean } = {}, ruleId = ids.rule) =>
+    (await source.eventDates(ruleId, { ...window, bookBelow: o.bookBelow ?? null, unpaid: o.unpaid ?? false }))
+      .filter((r) => soonKeys.some((k) => ids[`ed-${k}`] === r.dealId))
+      .map((r) => soonKeys.find((k) => ids[`ed-${k}`] === r.dealId));
+
+  it("«успеть к дате»: открытые сделки с датой в окне, ближайшие первыми; неверная дата, за окном, закрытые и «неразобранные» — нет", async () => {
+    expect(await eventDates()).toEqual(["blank", "paid", "half", "nobook", "order", "refunded", "batch"]);
+    const [nobook] = (await source.eventDates(ids.rule, { ...window, bookBelow: null, unpaid: false })).filter((r) => r.dealId === ids["ed-nobook"]);
+    expect(nobook).toEqual({ dealId: ids["ed-nobook"], clientId: ids["ed-nobook-user"], eventDate: "2031-03-01", occasion: "День рождения", date: "1 марта 2031 г.", client: { occasion: expect.not.stringContaining("День"), date: expect.stringContaining("2031") } });
+  });
+
+  it("«успеть к дате»: «ничего не оплачено» — без оплаченного заказа и без денег по сделке и её пакету; возврат денег — снова не оплачено", async () => {
+    expect(await eventDates({ unpaid: true })).toEqual(["blank", "half", "nobook", "refunded"]);
+  });
+
+  it("«успеть к дате»: книга заполнена меньше X% — как полоска в CRM; нет книги — 0%, заказ в печати — книга готова", async () => {
+    expect(await eventDates({ bookBelow: 50 })).toEqual(["paid", "nobook", "refunded", "batch"]);
+    expect(await eventDates({ bookBelow: 60 })).toEqual(["blank", "paid", "half", "nobook", "refunded", "batch"]);
+    expect(await eventDates({ bookBelow: 60, unpaid: true })).toEqual(["blank", "half", "nobook", "refunded"]);
+  });
+
+  it("«успеть к дате»: сделка, для которой правило сработало на эту дату, не выбирается — subject как в движке; для другого правила — выбирается", async () => {
+    await claim(ids.rule, `deal:${ids["ed-nobook"]}:event_date:2031-03-01`);
+    expect(await eventDates({ unpaid: true })).toEqual(["blank", "half", "refunded"]);
+    expect(await eventDates({ unpaid: true }, ids.other)).toEqual(["blank", "half", "nobook", "refunded"]);
+    // Дату перенесли — правило сработает снова.
+    await q(sql`update crm_deals set custom_fields = custom_fields || '{"event_date": "2031-03-02"}'::jsonb where id = ${ids["ed-nobook"]}`);
+    expect(await eventDates({ unpaid: true })).toEqual(["blank", "half", "nobook", "refunded"]);
   });
 
   it("праздник: клиент, для которого правило сработало к этому празднику, не выбирается; счёт срабатываний за сегодня", async () => {

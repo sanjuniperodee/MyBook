@@ -9,6 +9,7 @@ import { isTransactionalTrigger } from "@/modules/automation/domain/rules";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
+import { EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "@/modules/automation/domain/eventDate";
 import { cn } from "@/lib/class-names";
 import { deleteAutomationAction, saveAutomationAction, toggleAutomationAction } from "./actions";
 
@@ -41,6 +42,8 @@ function describe(r: Rule, ctx: Ctx) {
     (r.conditions.daysBefore ? ` за ${r.conditions.daysBefore} дн.` : "") +
     (r.conditions.windowDays ? `, покупали за ${r.conditions.windowDays} дн. до него` : "") +
     (r.conditions.perDay ? `, до ${r.conditions.perDay} в день` : "") +
+    (r.conditions.bookBelow ? `, книга заполнена меньше ${r.conditions.bookBelow}%` : "") +
+    (r.conditions.unpaid ? ", ничего не оплачено" : "") +
     (r.conditions.source ? ` (${dealSourceLabels[r.conditions.source as keyof typeof dealSourceLabels] ?? r.conditions.source})` : "") +
     (r.conditions.hours ? ` · ${automationHours[r.conditions.hours as keyof typeof automationHours]}` : "");
   return { trigger: t + cond, actions: r.actions.map((a) => automationActions[a.type]).join(", ") };
@@ -219,6 +222,41 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 клиентов в день
               </label>
             </div>
+          ) : trigger === "deal.event_date_near" ? (
+            <div className="space-y-2 text-sm">
+              <label className="flex items-center gap-2">
+                за
+                <input
+                  type="number"
+                  min={1}
+                  max={EVENT_DATE_LIMITS.daysBefore}
+                  className="input h-9 w-20 text-sm"
+                  value={Number(conditions.daysBefore ?? EVENT_DATE_DEFAULTS.daysBefore)}
+                  onChange={(e) => setConditions({ ...conditions, daysBefore: Number(e.target.value) })}
+                  aria-label="За сколько дней до даты события"
+                />
+                дней до даты события или меньше
+              </label>
+              <label className="flex items-center gap-2" title="Как полоска в карточке сделки: ответы из вопросов, у своей книги — слова. Нет книги — 0%, заказ уже в печати — книга готова">
+                <input type="checkbox" className="size-4 accent-wine" checked={!!conditions.bookBelow} onChange={(e) => setConditions({ ...conditions, bookBelow: e.target.checked ? 50 : null })} aria-label="Проверять заполненность книги" />
+                книга заполнена меньше
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  disabled={!conditions.bookBelow}
+                  className="input h-9 w-20 text-sm"
+                  value={Number(conditions.bookBelow ?? 50)}
+                  onChange={(e) => setConditions({ ...conditions, bookBelow: Number(e.target.value) })}
+                  aria-label="Порог заполненности книги, %"
+                />
+                %
+              </label>
+              <label className="flex items-center gap-2" title="Ни оплаченного заказа сделки, ни принятых по ней денег (предоплата — уже оплата)">
+                <input type="checkbox" className="size-4 accent-wine" checked={!!conditions.unpaid} onChange={(e) => setConditions({ ...conditions, unpaid: e.target.checked ? 1 : null })} aria-label="По сделке ничего не оплачено" />
+                по сделке ничего не оплачено
+              </label>
+            </div>
           ) : trigger === "occasion.anniversary" ? (
             <label className="flex items-center gap-2 text-sm">
               за
@@ -278,7 +316,9 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 <p className="text-xs text-muted">
                   {isTransactionalTrigger(trigger)
                     ? "О заказе — в переписку клиента в WhatsApp, и когда её ведёт бот (бот не останавливается); переписки нет — не уйдёт: первым на новый номер CRM не пишет, в сделке будет заметка."
-                    : "Уйдёт в тот же чат, откуда пришло обращение."}{" "}
+                    : trigger === "deal.event_date_near"
+                      ? "Уйдёт в последний чат сделки, только если диалог не ведёт бот (у него своё напоминание о сроке «впритык»), в окне и в пределах суточного лимита. Надёжнее — задача менеджеру."
+                      : "Уйдёт в тот же чат, откуда пришло обращение."}{" "}
                   Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {ruleTemplateVars.join(", ")}
                 </p>
               </>

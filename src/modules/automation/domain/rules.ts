@@ -1,5 +1,6 @@
 import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
+import { bookBelowPercent, EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "./eventDate";
 
 type TemplateVars = Parameters<typeof fillTemplate>[1];
 
@@ -89,7 +90,23 @@ export function matches(rule: Pick<AutomationRule, "conditions">, ctx: TriggerCo
 /** Условия, которые имеют смысл для события (остальные из формы отбрасываем). */
 export function relevantConditions(
   trigger: string,
-  c: { stageId?: string | null; source?: string | null; channel?: string; orderStatus?: string | null; minutes?: number; days?: number; daysBefore?: number; windowDays?: number; perDay?: number; holiday?: string | null; hours?: string | null },
+  c: {
+    stageId?: string | null;
+    source?: string | null;
+    channel?: string;
+    orderStatus?: string | null;
+    minutes?: number;
+    days?: number;
+    daysBefore?: number;
+    windowDays?: number;
+    perDay?: number;
+    holiday?: string | null;
+    hours?: string | null;
+    /** «Успеть к дате»: книга заполнена меньше стольких процентов (пусто — не проверять). */
+    bookBelow?: number | null;
+    /** «Успеть к дате»: по сделке ничего не оплачено (1 — проверять). */
+    unpaid?: number | null;
+  },
 ) {
   const out: Record<string, string | number | null> = {};
   if (trigger === "deal.stage_changed" && c.stageId) out.stageId = c.stageId;
@@ -104,6 +121,12 @@ export function relevantConditions(
     out.windowDays = c.windowDays ?? HOLIDAY_DEFAULTS.windowDays;
     out.perDay = c.perDay ?? HOLIDAY_DEFAULTS.perDay;
     if (c.holiday) out.holiday = c.holiday;
+  }
+  if (trigger === "deal.event_date_near") {
+    out.daysBefore = Math.min(EVENT_DATE_LIMITS.daysBefore, c.daysBefore ?? EVENT_DATE_DEFAULTS.daysBefore);
+    const below = bookBelowPercent({ bookBelow: c.bookBelow ?? null });
+    if (below) out.bookBelow = below;
+    if (c.unpaid) out.unpaid = 1;
   }
   if (c.hours === "work" || c.hours === "off") out.hours = c.hours;
   return out;

@@ -103,6 +103,10 @@ export const crmDeals = pgTable(
     index("crm_deals_closed_idx").on(t.closedAt).where(sql`${t.closedAt} is not null`),
     // Статистика правил: сделки, созданные правилом.
     index("crm_deals_automation_idx").on(t.automationId).where(sql`${t.automationId} is not null`),
+    // Правило «Приближается дата события»: сделки с «Датой события» (ГГГГ-ММ-ДД) в ближайшие N дней — диапазоном по тексту.
+    index("crm_deals_event_date_idx")
+      .on(sql`(${t.customFields}->>'event_date')`)
+      .where(sql`(${t.customFields}->>'event_date') is not null`),
   ],
 );
 

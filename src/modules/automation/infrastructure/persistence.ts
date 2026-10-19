@@ -8,6 +8,7 @@ import { messagesFor } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
+import { filledBelowSql, progressCols } from "@/shared/infrastructure/db/bookProgress";
 import type { CustomFieldsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
 import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";
@@ -290,6 +291,51 @@ export class SqlScheduledSource implements ScheduledSource {
     return rows.map((r) => {
       const locale = r.locale === "kk" ? "kk" : "ru";
       return { clientId: r.client_id, occasion: q.holiday.ru, date: formatDate(q.date), client: { occasion: q.holiday[locale], date: formatDate(q.date, false, locale) } };
+    });
+  }
+
+  /**
+   * Открытые сделки с «Датой события» в днях from…to — по индексу crm_deals_event_date_idx (текст ГГГГ-ММ-ДД
+   * сравнивается как дата; неверную дату вроде 2026-02-30 отсекает safeDate). «Неразобранные» заявки — не в работе.
+   * Книга сделки — книга её заказа, иначе последняя книга клиента с вопросами (как на доске сделок); заказ уже в печати,
+   * отправлен или доставлен — книга готова. Оплачено — заказ сделки оплачен или по сделке (пакету сделок) приняты деньги.
+   */
+  async eventDates(ruleId: string, q: { from: string; to: string; bookBelow: number | null; unpaid: boolean }) {
+    const eventDate = sql`(d.custom_fields->>'event_date')`;
+    const net = sql`sum(case when p.kind = 'refund' then -p.amount else p.amount end)`;
+    // Платежи — по crm_payments_deal_idx; у пакета сделок (несколько книг одной оплатой) — по всем сделкам пакета.
+    const paid = sql`(exists (select 1 from orders o where o.id = d.order_id and ${paidAndNotCancelled})
+      or coalesce((select ${net} from crm_payments p where p.deal_id = d.id), 0)
+        + case when d.batch_id is null then 0 else coalesce((select ${net} from crm_payments p join crm_deals b on b.id = p.deal_id where b.batch_id = d.batch_id and b.id <> d.id), 0) end > 0)`;
+    const printed = sql`exists (select 1 from orders o where o.id = d.order_id and o.status in ('in_production', 'shipped', 'delivered'))`;
+    const bookId = sql`coalesce((select o.book_id from orders o where o.id = d.order_id),
+      (select b.id from books b where b.user_id = d.client_id and exists (select 1 from book_questions q0 where q0.book_id = b.id) order by b.updated_at desc limit 1))`;
+    // Нет книги — заполнена на 0%; книга, заполненная на percent и больше, — не выбирается.
+    const notFilled = (percent: number) =>
+      sql`not ${printed} and not exists (select 1 from books bk where bk.id = ${bookId} and not ${filledBelowSql({ theme: sql`bk.theme`, ...progressCols(sql`bk.id`) }, percent)})`;
+    const { rows } = await executor().execute<{ deal_id: string; client_id: string | null; event_date: string; label: string | null; locale: string | null }>(sql`
+      select d.id as deal_id, d.client_id, ${eventDate} as event_date, nullif(d.custom_fields->>'occasion', '') as label, u.locale
+      from crm_deals d
+      join crm_stages s on s.id = d.stage_id and s.kind = 'open'
+      left join users u on u.id = d.client_id
+      where ${eventDate} between ${q.from} and ${q.to}
+        and ${safeDate(eventDate)} is not null
+        and not d.unsorted
+        and ${notFired(ruleId, sql`'deal:' || d.id::text || ':event_date:' || ${eventDate}`)}
+        ${q.unpaid ? sql`and not ${paid}` : sql``}
+        ${q.bookBelow ? sql`and ${notFilled(q.bookBelow)}` : sql``}
+      order by ${eventDate}, d.id
+      limit ${LIMIT}`);
+    return rows.map((r) => {
+      const locale = r.locale === "kk" ? "kk" : "ru";
+      return {
+        dealId: r.deal_id,
+        clientId: r.client_id,
+        eventDate: r.event_date,
+        occasion: occasionLabel(null, r.label, "ru"),
+        date: formatDate(r.event_date),
+        client: { occasion: occasionLabel(null, r.label, locale), date: formatDate(r.event_date, false, locale) },
+      };
     });
   }
 

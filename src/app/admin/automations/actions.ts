@@ -6,8 +6,9 @@ import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { automationTriggers, orderRuleStatuses } from "@/modules/automation/domain/meta";
-import { HOLIDAY_LIMITS } from "@/modules/automation/domain";
+import { EVENT_DATE_LIMITS, HOLIDAY_LIMITS } from "@/modules/automation/domain";
 import { dealSources } from "@/shared/domain/dealSources";
+import { admin } from "@/i18n/admin";
 
 const optUuid = z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null);
 
@@ -37,9 +38,16 @@ const schema = z.object({
     perDay: z.coerce.number().int().min(1, "Клиентов в день — от 1").max(HOLIDAY_LIMITS.perDay, `Клиентов в день — не больше ${HOLIDAY_LIMITS.perDay}`).optional(),
     holiday: z.union([z.string().trim().regex(/^[a-z0-9-]{1,30}$/), z.literal(""), z.null()]).optional(),
     hours: z.union([z.enum(["work", "off"]), z.literal("any"), z.literal(""), z.null()]).optional(),
+    // «Успеть к дате»: порог заполненности книги (пусто — не проверять) и «ничего не оплачено».
+    bookBelow: z.union([z.null(), z.coerce.number({ error: admin.bookBelowInvalid }).int(admin.bookBelowInvalid).min(1, admin.bookBelowInvalid).max(100, admin.bookBelowInvalid)]).optional(),
+    unpaid: z.union([z.literal(1), z.literal(0), z.null()]).optional(),
   }),
   actions: z.array(actionSchema).min(1, "Добавьте хотя бы одно действие").max(6),
   active: z.boolean().default(true),
+}).superRefine((d, ctx) => {
+  const days = d.conditions.daysBefore;
+  if (d.trigger === "deal.event_date_near" && days !== undefined && days > EVENT_DATE_LIMITS.daysBefore)
+    ctx.addIssue({ code: "custom", path: ["conditions", "daysBefore"], message: admin.eventDateDaysInvalid(EVENT_DATE_LIMITS.daysBefore) });
 });
 
 type AutomationInput = z.input<typeof schema>;

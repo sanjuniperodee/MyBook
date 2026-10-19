@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
 import { isTrigger } from "@/modules/automation/domain/meta";
-import { DEFAULT_HOLIDAYS, relevantConditions, type AutomationRule, type Holiday, type RuleAction, type RuleSubject } from "@/modules/automation/domain";
+import { DEFAULT_HOLIDAYS, EVENT_DATE_LIMITS, eventDateQuery, eventDateSubject, relevantConditions, type AutomationRule, type Holiday, type RuleAction, type RuleSubject } from "@/modules/automation/domain";
 import { findSensitive } from "@/modules/messaging/domain/sensitive";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { addWorkMinutes, parseWorkHours } from "@/shared/domain/schedule";
@@ -77,7 +77,7 @@ function setup(
     findOpenDealId: async () => null,
     createDeal: async (input) => (log.push(`deal:${input.source}:${input.title}:${input.automationId}`), { id: "d9", assigneeId: null }),
   };
-  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], firedOn: async () => 0, ...opts.scheduled };
+  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
   const hours = parseWorkHours(null);
   const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
@@ -545,5 +545,91 @@ describe("Стартовые правила о статусе заказа и п
     expect(orderNotice(facts(), "in_production", "in_production")).toEqual({ text: "Статус тот же — клиенту ничего не уйдёт.", warn: false });
     expect(orderNotice(facts(), "shipped", "shipped")).toEqual({ text: "Новый трек-номер клиент получит письмом и в WhatsApp.", warn: false });
     expect(orderNotice(facts({ realEmail: false, whatsappChat: false }), "shipped", "shipped").warn).toBe(true);
+  });
+});
+
+describe("«Успеть к дате»: до даты события N дней (deals-28, automation-5)", () => {
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0053_event_date_rule.sql"), "utf8");
+  const [, name, trigger, conditions, actions, active] = sql.match(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS/)!;
+  const starter = rule({ id: "soon", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
+  // 19.10.2026 10:00 по Алматы — рабочее время.
+  const oct19 = new Date("2026-10-19T05:00:00Z");
+  const row = (dealId: string, eventDate: string, locale: "ru" | "kk" = "ru") => ({
+    dealId,
+    clientId: "c1",
+    eventDate,
+    occasion: "День рождения",
+    date: `${Number(eventDate.slice(8))} октября 2026 г.`,
+    client: locale === "kk" ? { occasion: "Туған күн", date: `2026 жылғы ${Number(eventDate.slice(8))} қазан` } : { occasion: "День рождения", date: `${Number(eventDate.slice(8))} октября 2026 г.` },
+  });
+
+  it("стартовое правило приезжает выключенным: за 10 дней, ничего не оплачено, в рабочее время — только задача менеджеру, клиенту не пишет", () => {
+    expect(active).toBe("false");
+    expect(isTrigger(trigger)).toBe(true);
+    expect(sql).toContain(`WHERE "trigger" = '${trigger}'`);
+    expect(starter.conditions).toEqual({ daysBefore: 10, unpaid: 1, hours: "work" });
+    // Условия — те, что сохранил бы редактор.
+    expect(relevantConditions(trigger, starter.conditions)).toEqual(starter.conditions);
+    expect(starter.actions.map((a) => a.type)).toEqual(["create_task"]);
+  });
+
+  it("дни — по Алматы: в 23:30 ещё 18-е, в 00:30 уже 19-е; условия правила уходят в выборку", async () => {
+    const asked: unknown[] = [];
+    const scheduled = { eventDates: async (ruleId: string, q: unknown) => (asked.push({ ruleId, ...(q as object) }), []) };
+    const r = rule({ id: "soon", trigger: "deal.event_date_near", conditions: { daysBefore: 10, bookBelow: 50, unpaid: 1 }, actions: [{ type: "notify" }] });
+    await setup([r], { now: new Date("2026-10-18T18:30:00Z"), scheduled }).engine.runScheduled({ force: true });
+    await setup([r], { now: new Date("2026-10-18T19:30:00Z"), scheduled }).engine.runScheduled({ force: true });
+    await setup([rule({ ...r, conditions: {} })], { now: oct19, scheduled }).engine.runScheduled({ force: true });
+    expect(asked).toEqual([
+      { ruleId: "soon", from: "2026-10-18", to: "2026-10-28", bookBelow: 50, unpaid: true },
+      { ruleId: "soon", from: "2026-10-19", to: "2026-10-29", bookBelow: 50, unpaid: true },
+      // Без условий: за 10 дней, книга и оплата не проверяются.
+      { ruleId: "soon", from: "2026-10-19", to: "2026-10-29", bookBelow: null, unpaid: false },
+    ]);
+  });
+
+  it("задача ответственному по сделке с датой события; один раз на сделку и дату — перенесли дату, сработает снова", async () => {
+    let rows = [row("d1", "2026-10-25")];
+    const { engine, log, claimed, loaded } = setup([starter], { now: oct19, subject: { assigneeId: "m1" }, scheduled: { eventDates: async () => rows } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(loaded[0]).toMatchObject({ dealId: "d1", clientId: "c1", date: "25 октября 2026 г.", occasion: "День рождения" });
+    expect(await engine.runScheduled({ force: true })).toBe(0);
+    rows = [row("d1", "2026-10-27")];
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect([...claimed]).toEqual(["soon:deal:d1:event_date:2026-10-25", "soon:deal:d1:event_date:2026-10-27"]);
+    expect(log.filter((l) => l.startsWith("task:"))).toEqual([
+      "task:Успеть к 25 октября 2026 г.: по сделке ничего не оплачено — связаться с Айгерим:m1",
+      "task:Успеть к 27 октября 2026 г.: по сделке ничего не оплачено — связаться с Айгерим:m1",
+    ]);
+    expect(eventDateSubject("d1", "2026-10-25")).toBe("deal:d1:event_date:2026-10-25");
+  });
+
+  it("«только в рабочее время»: ночью выборки нет, сделка не застолблена — сработает утром", async () => {
+    let calls = 0;
+    const scheduled = { eventDates: async () => (calls++, [row("d1", "2026-10-25")]) };
+    const night = setup([starter], { now: oct19, workTime: false, scheduled });
+    expect(await night.engine.runScheduled({ force: true })).toBe(0);
+    expect(calls).toBe(0);
+    expect([...night.claimed]).toEqual([]);
+  });
+
+  it("сообщение клиенту — обычное, не о заказе: в диалог, который ведёт бот, не уйдёт; казахскому клиенту — по-казахски с датой по-казахски", async () => {
+    const remind = rule({
+      id: "msg",
+      trigger: "deal.event_date_near",
+      conditions: { daysBefore: 10 },
+      actions: [{ type: "send_message", text: "{имя}, до {дата} осталось немного", textKk: "{имя}, {дата} жақын қалды" }],
+    });
+    const { engine, log } = setup([remind], { now: oct19, subject: { locale: "kk" }, scheduled: { eventDates: async () => [row("d1", "2026-10-25", "kk")] } });
+    await engine.runScheduled({ force: true });
+    // Без пометки «о заказе»: sendAutomated не отправит его в диалог, который ведёт бот (у бота своё «впритык»).
+    expect(log).toEqual(["gate", "msg:conv1:Айгерим, 2026 жылғы 25 қазан жақын қалды (Правило)", "run:msg"]);
+  });
+
+  it("условия редактора: дни — до 60, порог книги — 1…100% (иначе не проверяется), «не оплачено» — 1; чужие условия не сохраняются", () => {
+    expect(relevantConditions("deal.event_date_near", { daysBefore: 90, bookBelow: 40, unpaid: 1, stageId: "s1", hours: "work" })).toEqual({ daysBefore: EVENT_DATE_LIMITS.daysBefore, bookBelow: 40, unpaid: 1, hours: "work" });
+    expect(relevantConditions("deal.event_date_near", { bookBelow: 0, unpaid: 0 })).toEqual({ daysBefore: 10 });
+    expect(relevantConditions("deal.event_date_near", { bookBelow: 101, unpaid: null })).toEqual({ daysBefore: 10 });
+    expect(eventDateQuery({ conditions: { daysBefore: 500, bookBelow: 101 } }, "2026-12-30")).toEqual({ from: "2026-12-30", to: "2027-02-28", bookBelow: null, unpaid: false });
   });
 });
