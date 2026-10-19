@@ -90,6 +90,17 @@ export interface ScheduledSource {
     ruleId: string,
     q: { from: string; to: string; bookBelow: number | null; unpaid: boolean },
   ): Promise<{ dealId: string; clientId: string | null; eventDate: string; occasion: string; date: string; client: { occasion: string; date: string } }[]>;
+  /**
+   * «Сделка без активности»: открытые (не «неразобранные») сделки без открытой задачи, у которых последняя активность
+   * раньше before — смена этапа, сообщение в чатах сделки (кроме сообщений правил), задача (поставлена или закрыта),
+   * звонок, заметка сотрудника. stageId — только этот этап. Клиент из стоп-листа «не писать первым» не выбирается.
+   * Недавно затихшие — первыми, не больше limit; сделка, для которой правило уже сработало за это затишье
+   * (deal:<id>:idle:<последняя активность>), не выбирается. date — день последней активности по-русски.
+   */
+  idleDeals(
+    ruleId: string,
+    q: { before: Date; stageId: string | null; limit: number },
+  ): Promise<{ dealId: string; clientId: string | null; stageId: string; lastActivity: Date; date: string }[]>;
   /** Сколько раз правило сработало с начала дня day (ГГГГ-ММ-ДД по поясу магазина) — для лимита «в день». */
   firedOn(ruleId: string, day: string): Promise<number>;
 }

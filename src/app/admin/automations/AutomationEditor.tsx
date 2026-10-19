@@ -5,11 +5,12 @@ import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { automationActions, automationHours, automationTriggers, orderRuleStatuses, type AutomationActionType } from "@/modules/automation/domain/meta";
 import { ruleTemplateVars } from "@/shared/domain/templates";
-import { isTransactionalTrigger } from "@/modules/automation/domain/rules";
+import { isStaffOnlyTrigger, isTransactionalTrigger } from "@/modules/automation/domain/rules";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
 import { EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "@/modules/automation/domain/eventDate";
+import { IDLE_DEFAULTS, IDLE_LIMITS } from "@/modules/automation/domain/idle";
 import { cn } from "@/lib/class-names";
 import { deleteAutomationAction, saveAutomationAction, toggleAutomationAction } from "./actions";
 
@@ -196,6 +197,43 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               <input type="number" min={1} max={90} className="input h-10 w-24 text-sm" value={Number(conditions.days ?? 5)} onChange={(e) => setConditions({ ...conditions, days: Number(e.target.value) })} />
               дней
             </label>
+          ) : trigger === "deal.idle" ? (
+            <div className="space-y-2 text-sm">
+              <label className="flex items-center gap-2" title="Активность — смена этапа, сообщение в чатах сделки (и ответ с телефона магазина), задача, звонок, заметка сотрудника">
+                ничего не было
+                <input
+                  type="number"
+                  min={1}
+                  max={IDLE_LIMITS.days}
+                  className="input h-9 w-20 text-sm"
+                  value={Number(conditions.days ?? IDLE_DEFAULTS.days)}
+                  onChange={(e) => setConditions({ ...conditions, days: Number(e.target.value) })}
+                  aria-label="Сколько дней без активности"
+                />
+                дней
+              </label>
+              <select className="input h-9 text-sm" value={String(conditions.stageId ?? "")} onChange={(e) => setConditions({ ...conditions, stageId: e.target.value || null })} aria-label="Этап сделки">
+                <option value="">на любом открытом этапе</option>
+                {ctx.stages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    на этапе «{s.name}»
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2" title="Сколько задач менеджеры успеют за день: остальные сделки правило возьмёт в следующие дни, недавно затихшие — первыми">
+                не больше
+                <input
+                  type="number"
+                  min={1}
+                  max={IDLE_LIMITS.perDay}
+                  className="input h-9 w-20 text-sm"
+                  value={Number(conditions.perDay ?? IDLE_DEFAULTS.perDay)}
+                  onChange={(e) => setConditions({ ...conditions, perDay: Number(e.target.value) })}
+                  aria-label="Сделок в день"
+                />
+                сделок в день
+              </label>
+            </div>
           ) : trigger === "occasion.holiday" ? (
             <div className="space-y-2 text-sm">
               <select className="input h-10 text-sm" value={String(conditions.holiday ?? "")} onChange={(e) => setConditions({ ...conditions, holiday: e.target.value || null })} aria-label="Праздник">
@@ -282,11 +320,14 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
           <div key={i} className="space-y-2 rounded-xl border border-line bg-[#fbf9f5] p-3">
             <div className="flex items-center gap-2">
               <select className="input h-9 flex-1 text-sm" value={a.type} onChange={(e) => setActions((l) => l.map((x, j) => (j === i ? blank(e.target.value as AutomationActionType) : x)))} aria-label="Действие">
-                {Object.entries(automationActions).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
+                {Object.entries(automationActions)
+                  // Правило для менеджеров (забытая сделка) клиенту не пишет: задача, уведомление или готовый текст.
+                  .filter(([k]) => k !== "send_message" || !isStaffOnlyTrigger(trigger) || a.type === k)
+                  .map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
               </select>
               {actions.length > 1 ? (
                 <button className="text-muted hover:text-red-700" onClick={() => setActions((l) => l.filter((_, j) => j !== i))} aria-label="Убрать действие">
@@ -314,6 +355,9 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Получили ваше сообщение…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст на русском" />
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком (необязательно)" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст на казахском" />
                 <p className="text-xs text-muted">
+                  {isStaffOnlyTrigger(trigger)
+                    ? "Это правило — для менеджеров, клиенту оно не пишет: замените действие на задачу или «Подготовить текст клиенту». "
+                    : ""}
                   {isTransactionalTrigger(trigger)
                     ? "О заказе — в переписку клиента в WhatsApp, и когда её ведёт бот (бот не останавливается); переписки нет — не уйдёт: первым на новый номер CRM не пишет, в сделке будет заметка."
                     : trigger === "deal.event_date_near"

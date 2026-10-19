@@ -1,6 +1,7 @@
 import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
 import { bookBelowPercent, EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "./eventDate";
+import { IDLE_DEFAULTS, IDLE_LIMITS } from "./idle";
 
 type TemplateVars = Parameters<typeof fillTemplate>[1];
 
@@ -75,11 +76,16 @@ export interface TriggerContext {
   recipient?: string | null;
 }
 
+/** Условие «только в рабочее время» / «только вне рабочего»: подходит ли сейчас (workTime — рабочее ли время). */
+export function inRuleHours(rule: Pick<AutomationRule, "conditions">, workTime: boolean | undefined) {
+  const hours = rule.conditions?.hours;
+  return !(hours === "work" && workTime === false) && !(hours === "off" && workTime !== false);
+}
+
 /** Условия: этап, источник, канал, статус заказа, рабочее время. Пустое условие — подходит всё. */
 export function matches(rule: Pick<AutomationRule, "conditions">, ctx: TriggerContext) {
   const c = rule.conditions ?? {};
-  if (c.hours === "work" && ctx.workTime === false) return false;
-  if (c.hours === "off" && ctx.workTime !== false) return false;
+  if (!inRuleHours(rule, ctx.workTime)) return false;
   for (const key of ["stageId", "source", "channel", "orderStatus"] as const) {
     const want = c[key];
     if (want && String(want) !== String(ctx[key] ?? "")) return false;
@@ -109,7 +115,7 @@ export function relevantConditions(
   },
 ) {
   const out: Record<string, string | number | null> = {};
-  if (trigger === "deal.stage_changed" && c.stageId) out.stageId = c.stageId;
+  if ((trigger === "deal.stage_changed" || trigger === "deal.idle") && c.stageId) out.stageId = c.stageId;
   if (trigger === "order.status_changed" && c.orderStatus) out.orderStatus = c.orderStatus;
   if (trigger === "deal.created" && c.source) out.source = c.source;
   if (trigger.startsWith("message.") && c.channel) out.channel = c.channel;
@@ -128,12 +134,22 @@ export function relevantConditions(
     if (below) out.bookBelow = below;
     if (c.unpaid) out.unpaid = 1;
   }
+  if (trigger === "deal.idle") {
+    out.days = Math.min(IDLE_LIMITS.days, c.days ?? IDLE_DEFAULTS.days);
+    out.perDay = Math.min(IDLE_LIMITS.perDay, c.perDay ?? IDLE_DEFAULTS.perDay);
+  }
   if (c.hours === "work" || c.hours === "off") out.hours = c.hours;
   return out;
 }
 
 /** Повторная продажа: сделка, которую создаёт такое правило, — с источником «повторная» (repeat). */
 export const isRepeatTrigger = (trigger: string) => trigger === "occasion.anniversary" || trigger === "occasion.holiday";
+
+/**
+ * Правило только для сотрудников (automation-4, deals-21): задача, уведомление, готовый текст в историю сделки —
+ * «Отправить сообщение клиенту» в нём нет (решение владельца: о забытой сделке клиенту не пишем, пишет менеджер).
+ */
+export const isStaffOnlyTrigger = (trigger: string) => trigger === "deal.idle";
 
 /** Правило пишет клиенту (действие «Отправить сообщение» с текстом): его держат окно и суточный лимит. */
 export const sendsMessage = (rule: Pick<AutomationRule, "actions">) => (rule.actions ?? []).some((a) => a.type === "send_message" && !!a.text?.trim());

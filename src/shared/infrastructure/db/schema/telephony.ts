@@ -1,4 +1,5 @@
 /** Звонки из АТС (модуль telephony). */
+import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 import { crmDeals } from "./sales";
@@ -30,5 +31,11 @@ export const crmCalls = pgTable(
     handledAt: timestamp("handled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("crm_calls_ext_idx").on(t.provider, t.externalId), index("crm_calls_started_idx").on(t.startedAt), index("crm_calls_phone_idx").on(t.clientPhone)],
+  (t) => [
+    uniqueIndex("crm_calls_ext_idx").on(t.provider, t.externalId),
+    index("crm_calls_started_idx").on(t.startedAt),
+    index("crm_calls_phone_idx").on(t.clientPhone),
+    // Звонки сделки: последняя активность по сделке (правило «Сделка без активности»).
+    index("crm_calls_deal_idx").on(t.dealId).where(sql`${t.dealId} is not null`),
+  ],
 );

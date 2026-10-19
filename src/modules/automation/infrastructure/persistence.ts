@@ -339,6 +339,52 @@ export class SqlScheduledSource implements ScheduledSource {
     });
   }
 
+  /**
+   * Открытые сделки, по которым с before ничего не происходило. Кандидаты — по индексу crm_deals_stage_idx (этап, смена
+   * этапа): этап открытый и не менялся с before, сделка не «неразобранная», открытой задачи нет (crm_tasks_open_deal_idx),
+   * клиент и собеседники её чатов не в стоп-листе. У кандидата последняя активность — самое позднее из: смены этапа;
+   * последнего сообщения в каждом чате сделки, кроме сообщений правил (входящее, ответ из CRM, эхо ответа с телефона
+   * магазина, бот; по crm_messages_conv_idx — с конца до первого подходящего); задачи сделки — поставлена или закрыта
+   * (crm_tasks_deal_idx); звонка (crm_calls_deal_idx); заметки сотрудника (crm_notes_deal_idx) — один раз на кандидата
+   * (materialized: фильтр, subject и порядок не пересчитывают подзапросы). Недавно затихшие — первыми: их ещё можно вернуть.
+   */
+  async idleDeals(ruleId: string, q: { before: Date; stageId: string | null; limit: number }) {
+    const before = sql`${q.before.toISOString()}::timestamptz`;
+    const { rows } = await executor().execute<{ deal_id: string; client_id: string | null; stage_id: string; last_at: Date | string }>(sql`
+      with cand as materialized (
+        select d.id, d.client_id, d.stage_id, greatest(
+          d.stage_changed_at,
+          (select max(m.at) from crm_conversations cv cross join lateral (
+            select x.created_at as at from crm_messages x
+            where x.conversation_id = cv.id and x.source is distinct from 'rule'
+            order by x.created_at desc limit 1) m
+           where cv.deal_id = d.id),
+          (select max(greatest(t.created_at, t.done_at)) from crm_tasks t where t.deal_id = d.id),
+          (select max(k.started_at) from crm_calls k where k.deal_id = d.id),
+          (select max(n.created_at) from crm_notes n where n.deal_id = d.id and n.author_id is not null)
+        ) as last_at
+        from crm_deals d
+        join crm_stages s on s.id = d.stage_id and s.kind = 'open'
+        left join users u on u.id = d.client_id
+        where d.stage_changed_at < ${before}
+          ${q.stageId ? sql`and d.stage_id = ${q.stageId}::uuid` : sql``}
+          and not d.unsorted
+          and not exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null)
+          and not exists (select 1 from crm_conversations bc join crm_blocklist bl on bl.value = bc.chat_id where bc.deal_id = d.id)
+          and (u.id is null or not ${noMarketing(sql`u`)})
+      )
+      select c.id as deal_id, c.client_id, c.stage_id, c.last_at
+      from cand c
+      where c.last_at < ${before}
+        and ${notFired(ruleId, sql`'deal:' || c.id::text || ':idle:' || ${isoText(sql`c.last_at`)}`)}
+      order by c.last_at desc, c.id
+      limit ${Math.max(0, Math.min(q.limit, LIMIT))}`);
+    return rows.map((r) => {
+      const lastActivity = new Date(r.last_at);
+      return { dealId: r.deal_id, clientId: r.client_id, stageId: r.stage_id, lastActivity, date: formatDate(lastActivity) };
+    });
+  }
+
   async firedOn(ruleId: string, day: string) {
     const { rows } = await executor().execute<{ n: number }>(sql`
       select count(*)::int as n from crm_automation_runs where automation_id = ${ruleId}::uuid and created_at >= ${dayStart(day, storeTimeZone())}`);

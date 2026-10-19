@@ -49,5 +49,7 @@ export const crmTasks = pgTable(
     index("crm_tasks_due_idx").on(t.doneAt, t.dueAt),
     // Открытые задачи сделки: переходят к новому ответственному, служебные не дублируются.
     index("crm_tasks_open_deal_idx").on(t.dealId).where(sql`${t.doneAt} is null`),
+    // Все задачи сделки: последняя активность по сделке (правило «Сделка без активности»).
+    index("crm_tasks_deal_idx").on(t.dealId).where(sql`${t.dealId} is not null`),
   ],
 );

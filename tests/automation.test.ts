@@ -3,7 +3,20 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
 import { isTrigger } from "@/modules/automation/domain/meta";
-import { DEFAULT_HOLIDAYS, EVENT_DATE_LIMITS, eventDateQuery, eventDateSubject, relevantConditions, type AutomationRule, type Holiday, type RuleAction, type RuleSubject } from "@/modules/automation/domain";
+import {
+  DEFAULT_HOLIDAYS,
+  EVENT_DATE_LIMITS,
+  eventDateQuery,
+  eventDateSubject,
+  IDLE_LIMITS,
+  idleQuery,
+  idleSubject,
+  relevantConditions,
+  type AutomationRule,
+  type Holiday,
+  type RuleAction,
+  type RuleSubject,
+} from "@/modules/automation/domain";
 import { findSensitive } from "@/modules/messaging/domain/sensitive";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { addWorkMinutes, parseWorkHours } from "@/shared/domain/schedule";
@@ -77,7 +90,7 @@ function setup(
     findOpenDealId: async () => null,
     createDeal: async (input) => (log.push(`deal:${input.source}:${input.title}:${input.automationId}`), { id: "d9", assigneeId: null }),
   };
-  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], firedOn: async () => 0, ...opts.scheduled };
+  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], idleDeals: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
   const hours = parseWorkHours(null);
   const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
@@ -631,5 +644,83 @@ describe("«Успеть к дате»: до даты события N дней 
     expect(relevantConditions("deal.event_date_near", { bookBelow: 0, unpaid: 0 })).toEqual({ daysBefore: 10 });
     expect(relevantConditions("deal.event_date_near", { bookBelow: 101, unpaid: null })).toEqual({ daysBefore: 10 });
     expect(eventDateQuery({ conditions: { daysBefore: 500, bookBelow: 101 } }, "2026-12-30")).toEqual({ from: "2026-12-30", to: "2027-02-28", bookBelow: null, unpaid: false });
+  });
+});
+
+describe("Забытая сделка: N дней без активности (automation-4, deals-21)", () => {
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0054_idle_deals.sql"), "utf8");
+  const [, name, trigger, conditions, actions, active] = sql.match(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS/)!;
+  const starter = rule({ id: "idle", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
+  // 19.10.2026 10:00 по Алматы — рабочее время.
+  const oct19 = new Date("2026-10-19T05:00:00Z");
+  const row = (dealId: string, lastActivity: string) => ({ dealId, clientId: "c1", stageId: "s1", lastActivity: new Date(lastActivity), date: "15 октября 2026 г." });
+
+  it("стартовое правило приезжает выключенным: 3 дня, до 20 сделок в день, в рабочее время — только задача менеджеру, клиенту не пишет", () => {
+    expect(active).toBe("false");
+    expect(isTrigger(trigger)).toBe(true);
+    expect(sql).toContain(`WHERE "trigger" = '${trigger}'`);
+    expect(starter.conditions).toEqual({ days: 3, perDay: 20, hours: "work" });
+    // Условия — те, что сохранил бы редактор.
+    expect(relevantConditions(trigger, starter.conditions)).toEqual(starter.conditions);
+    expect(starter.actions.map((a) => a.type)).toEqual(["create_task"]);
+  });
+
+  it("выборка: активность раньше now − N дней, этап из условия, лимит — сколько осталось на сегодня", async () => {
+    const asked: unknown[] = [];
+    const scheduled = { idleDeals: async (ruleId: string, q: unknown) => (asked.push({ ruleId, ...(q as object) }), []), firedOn: async () => 5 };
+    await setup([rule({ ...starter, conditions: { days: 3, perDay: 20, stageId: "s2" } })], { now: oct19, scheduled }).engine.runScheduled({ force: true });
+    expect(asked).toEqual([{ ruleId: "idle", before: new Date("2026-10-16T05:00:00Z"), stageId: "s2", limit: 15 }]);
+    expect(idleQuery({ conditions: { days: 500, perDay: 0 } }, oct19)).toEqual({ before: new Date(oct19.getTime() - IDLE_LIMITS.days * 86_400_000), stageId: null, perDay: 20 });
+  });
+
+  it("сделка без активности N дней получает ровно одну задачу; снова что-то было и затихло — ещё одну", async () => {
+    let rows = [row("d1", "2026-10-15T12:30:00.123Z")];
+    const { engine, log, claimed, loaded } = setup([starter], { now: oct19, subject: { assigneeId: "m1" }, scheduled: { idleDeals: async () => rows } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(loaded[0]).toMatchObject({ dealId: "d1", clientId: "c1", stageId: "s1", date: "15 октября 2026 г." });
+    // Тот же проход ещё раз (выборка вернула ту же сделку — например, гонка двух процессов): вторая задача не ставится.
+    expect(await engine.runScheduled({ force: true })).toBe(0);
+    rows = [row("d1", "2026-10-16T09:00:00.000Z")];
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect([...claimed]).toEqual(["idle:deal:d1:idle:2026-10-15T12:30:00.123Z", "idle:deal:d1:idle:2026-10-16T09:00:00.000Z"]);
+    expect(log.filter((l) => l.startsWith("task:"))).toEqual([
+      "task:Связаться с Айгерим: по сделке ничего не происходит с 15 октября 2026 г.:m1",
+      "task:Связаться с Айгерим: по сделке ничего не происходит с 15 октября 2026 г.:m1",
+    ]);
+    expect(idleSubject("d1", new Date("2026-10-15T12:30:00.123Z"))).toBe("deal:d1:idle:2026-10-15T12:30:00.123Z");
+  });
+
+  it("не больше perDay в день: сработавшие сегодня — из журнала; лимит выбран — выборки нет", async () => {
+    let calls = 0;
+    const today: string[] = [];
+    const scheduled = {
+      firedOn: async (_r: string, day: string) => (today.push(day), 19),
+      idleDeals: async () => (calls++, [row("d1", "2026-10-10T00:00:00Z"), row("d2", "2026-10-09T00:00:00Z")]),
+    };
+    const { engine, log } = setup([starter], { now: oct19, scheduled });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(log.filter((l) => l.startsWith("task:"))).toHaveLength(1);
+    expect(today).toEqual(["2026-10-19"]);
+    const full = setup([starter], { now: oct19, scheduled: { ...scheduled, firedOn: async () => 20 } });
+    expect(await full.engine.runScheduled({ force: true })).toBe(0);
+    expect(calls).toBe(1);
+  });
+
+  it("«только в рабочее время»: ночью выборки нет, сделка не застолблена — сработает утром", async () => {
+    let calls = 0;
+    const night = setup([starter], { now: oct19, workTime: false, scheduled: { idleDeals: async () => (calls++, [row("d1", "2026-10-10T00:00:00Z")]) } });
+    expect(await night.engine.runScheduled({ force: true })).toBe(0);
+    expect(calls).toBe(0);
+    expect([...night.claimed]).toEqual([]);
+  });
+
+  it("клиенту не пишет: сообщение в правиле (мимо редактора) не уходит, задача и уведомление — да; этап — условие правила", async () => {
+    const r = rule({ id: "idle", trigger: "deal.idle", conditions: { days: 3 }, actions: [{ type: "send_message", text: "{имя}, вы где?" }, { type: "notify" }] });
+    const { engine, log } = setup([r], { now: oct19, subject: { assigneeId: "m1" }, scheduled: { idleDeals: async () => [row("d1", "2026-10-10T00:00:00Z")] } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(log.some((l) => l.startsWith("msg:"))).toBe(false);
+    expect(log).toContain("notify:m1:Сделка без активности");
+    expect(relevantConditions("deal.idle", { days: 500, perDay: 900, stageId: "s1", minutes: 5, hours: "work" })).toEqual({ days: IDLE_LIMITS.days, perDay: IDLE_LIMITS.perDay, stageId: "s1", hours: "work" });
+    expect(relevantConditions("deal.idle", {})).toEqual({ days: 3, perDay: 20 });
   });
 });

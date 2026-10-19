@@ -6,7 +6,7 @@ import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { automationTriggers, orderRuleStatuses } from "@/modules/automation/domain/meta";
-import { EVENT_DATE_LIMITS, HOLIDAY_LIMITS } from "@/modules/automation/domain";
+import { EVENT_DATE_LIMITS, HOLIDAY_LIMITS, IDLE_LIMITS, isStaffOnlyTrigger } from "@/modules/automation/domain";
 import { dealSources } from "@/shared/domain/dealSources";
 import { admin } from "@/i18n/admin";
 
@@ -32,10 +32,11 @@ const schema = z.object({
     channel: z.string().trim().max(30).optional(),
     orderStatus: z.union([z.enum(orderRuleStatuses), z.literal(""), z.null()]).optional(),
     minutes: z.coerce.number().int().min(1).max(1440).optional(),
-    days: z.coerce.number().int().min(1).max(90).optional(),
+    // «Клиент забросил книгу» и «Сделка без активности»: сколько дней.
+    days: z.coerce.number({ error: admin.daysInvalid(IDLE_LIMITS.days) }).int(admin.daysInvalid(IDLE_LIMITS.days)).min(1, admin.daysInvalid(IDLE_LIMITS.days)).max(IDLE_LIMITS.days, admin.daysInvalid(IDLE_LIMITS.days)).optional(),
     daysBefore: z.coerce.number().int().min(1).max(HOLIDAY_LIMITS.daysBefore).optional(),
     windowDays: z.coerce.number().int().min(1, "Покупки к празднику — хотя бы за 1 день").max(HOLIDAY_LIMITS.windowDays, `Покупки к празднику — не больше чем за ${HOLIDAY_LIMITS.windowDays} дней`).optional(),
-    perDay: z.coerce.number().int().min(1, "Клиентов в день — от 1").max(HOLIDAY_LIMITS.perDay, `Клиентов в день — не больше ${HOLIDAY_LIMITS.perDay}`).optional(),
+    perDay: z.coerce.number({ error: admin.perDayInvalid(HOLIDAY_LIMITS.perDay) }).int(admin.perDayInvalid(HOLIDAY_LIMITS.perDay)).min(1, admin.perDayInvalid(HOLIDAY_LIMITS.perDay)).max(HOLIDAY_LIMITS.perDay, admin.perDayInvalid(HOLIDAY_LIMITS.perDay)).optional(),
     holiday: z.union([z.string().trim().regex(/^[a-z0-9-]{1,30}$/), z.literal(""), z.null()]).optional(),
     hours: z.union([z.enum(["work", "off"]), z.literal("any"), z.literal(""), z.null()]).optional(),
     // «Успеть к дате»: порог заполненности книги (пусто — не проверять) и «ничего не оплачено».
@@ -48,6 +49,9 @@ const schema = z.object({
   const days = d.conditions.daysBefore;
   if (d.trigger === "deal.event_date_near" && days !== undefined && days > EVENT_DATE_LIMITS.daysBefore)
     ctx.addIssue({ code: "custom", path: ["conditions", "daysBefore"], message: admin.eventDateDaysInvalid(EVENT_DATE_LIMITS.daysBefore) });
+  // Забытая сделка: клиенту не пишем (решение владельца) — только задача, уведомление или готовый текст менеджеру.
+  if (isStaffOnlyTrigger(d.trigger) && d.actions.some((a) => a.type === "send_message"))
+    ctx.addIssue({ code: "custom", path: ["actions"], message: admin.staffOnlyNoMessage });
 });
 
 type AutomationInput = z.input<typeof schema>;

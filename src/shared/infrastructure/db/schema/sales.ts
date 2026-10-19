@@ -93,7 +93,8 @@ export const crmDeals = pgTable(
     ...timestamps,
   },
   (t) => [
-    index("crm_deals_stage_idx").on(t.stageId),
+    // Этап и смена этапа: сделки этапа, правило «Сделка без активности» — открытые этапы, где этап давно не менялся.
+    index("crm_deals_stage_idx").on(t.stageId, t.stageChangedAt),
     index("crm_deals_assignee_idx").on(t.assigneeId),
     index("crm_deals_client_idx").on(t.clientId),
     // Сделка заказа: события заказа → правила CRM и задачи, карточка заказа.

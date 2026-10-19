@@ -241,4 +241,71 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     expect(await source.firedOn(ids.rule, today)).toBe(fired + 1);
     expect(await source.firedOn(ids.rule, "2099-01-01")).toBe(0);
   });
+
+  // «Сделка без активности» (automation-4, deals-21): before = now − 3 дня, сделки затихли до него.
+  describe("забытые сделки", () => {
+    const idle: Record<string, string> = {};
+    const ago = (days: number) => sql`now() - make_interval(hours => ${Math.round(days * 24)})`;
+    const idleKeys = ["quiet", "echo", "rule", "taskOpen", "taskDone", "taskOld", "call", "note", "system", "unsorted", "lost", "blocked", "chatBlocked"];
+    const idleDeals = async (o: { stageId?: string | null; limit?: number } = {}, ruleId = ids.rule) =>
+      (await source.idleDeals(ruleId, { before: new Date(Date.now() - 3 * 86_400_000), stageId: o.stageId ?? null, limit: o.limit ?? 200 }))
+        .filter((r) => idleKeys.some((k) => idle[k] === r.dealId))
+        .map((r) => ({ key: idleKeys.find((k) => idle[k] === r.dealId), lastActivity: r.lastActivity }));
+    const conv = (dealId: string, chatId = `${tag}-idle-${dealId}`) => one(sql`insert into crm_conversations (channel, chat_id, contact_name, deal_id) values ('whatsapp', ${chatId}, ${tag}, ${dealId}) returning id`);
+    const message = (convId: string, o: { direction: "in" | "out"; days: number; source?: "bot" | "rule" }) =>
+      q(sql`insert into crm_messages (conversation_id, direction, text, source, status, created_at) values (${convId}, ${o.direction}, 'текст', ${o.source ?? null}, 'sent', ${ago(o.days)})`);
+
+    beforeAll(async () => {
+      const deal = async (key: string, o: { days?: number; stage?: string; unsorted?: boolean; client?: string | null } = {}) =>
+        (idle[key] = await one(sql`insert into crm_deals (title, stage_id, client_id, unsorted, stage_changed_at)
+          values (${tag}, ${o.stage ?? ids.open}, ${o.client === undefined ? null : o.client}, ${o.unsorted ?? false}, ${ago(o.days ?? 10)}) returning id`));
+      idle.staff = await user("idle-staff");
+      // Ничего не было 10 дней — затихла с 10 дней назад.
+      await deal("quiet");
+      // Менеджер вчера ответил с телефона магазина (эхо) — активность.
+      await message(await conv(await deal("echo")), { direction: "out", days: 1 });
+      // Вчера писало только правило; клиент писал 8 дней назад — последняя активность 8 дней назад.
+      const ruleConv = await conv(await deal("rule"));
+      await message(ruleConv, { direction: "in", days: 8 });
+      await message(ruleConv, { direction: "out", days: 1, source: "rule" });
+      // Открытая задача — следующий шаг есть; задача закрыта вчера — активность; закрыта 5 дней назад — затихла с неё.
+      await q(sql`insert into crm_tasks (title, deal_id, created_at) values (${tag}, ${await deal("taskOpen")}, ${ago(20)})`);
+      await q(sql`insert into crm_tasks (title, deal_id, created_at, done_at) values (${tag}, ${await deal("taskDone")}, ${ago(20)}, ${ago(1)})`);
+      await q(sql`insert into crm_tasks (title, deal_id, created_at, done_at) values (${tag}, ${await deal("taskOld")}, ${ago(20)}, ${ago(5)})`);
+      // Звонок вчера и заметка сотрудника вчера — активность; запись CRM без автора — нет.
+      await q(sql`insert into crm_calls (provider, external_id, direction, deal_id, started_at) values ('test', ${`${tag}-idle-call`}, 'out', ${await deal("call")}, ${ago(1)})`);
+      await q(sql`insert into crm_notes (deal_id, author_id, text, created_at) values (${await deal("note")}, ${idle.staff}, ${tag}, ${ago(1)})`);
+      await q(sql`insert into crm_notes (deal_id, text, kind, created_at) values (${await deal("system", { days: 9 })}, ${tag}, 'system', ${ago(1)})`);
+      // Не выбираются: «неразобранная», закрытая, клиент или собеседник чата сделки в «Не писать первым».
+      await deal("unsorted", { unsorted: true });
+      await deal("lost", { stage: ids.lost });
+      idle.blockedUser = await user("idle-blocked", { phone: "+7 701 555 00 33" });
+      await deal("blocked", { client: idle.blockedUser });
+      await conv(await deal("chatBlocked"), `${tag}-idle-blocked`);
+      await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550033', 'no_marketing', ${tag}), (${`${tag}-idle-blocked`}, 'no_marketing', ${tag})`);
+    });
+
+    afterAll(async () => {
+      await q(sql`delete from crm_calls where external_id like ${`${tag}%`}`);
+    });
+
+    it("недавно затихшие — первыми; активность — этап, сообщения сделки с эхом (не правил), задачи, звонки, заметки сотрудников", async () => {
+      const rows = await idleDeals();
+      expect(rows.map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
+      const [taskOld, rule, system, quiet] = rows.map((r) => (Date.now() - r.lastActivity.getTime()) / 86_400_000);
+      expect([taskOld, rule, system, quiet].map((d) => Math.round(d))).toEqual([5, 8, 9, 10]);
+    });
+
+    it("этап из условия и лимит; сделка, по которой правило сработало за это затишье, не выбирается — subject как в движке", async () => {
+      expect(await idleDeals({ stageId: ids.lost })).toEqual([]);
+      expect((await idleDeals({ limit: 2 })).map((r) => r.key)).toHaveLength(2);
+      const [first] = await idleDeals();
+      await claim(ids.rule, `deal:${idle[first.key!]}:idle:${first.lastActivity.toISOString()}`);
+      expect((await idleDeals()).map((r) => r.key)).toEqual(["rule", "system", "quiet"]);
+      expect((await idleDeals({}, ids.other)).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
+      // Сделку снова тронули (заметка сотрудника позавчера — уже не забыта), затем затишье — новый subject.
+      await q(sql`insert into crm_notes (deal_id, author_id, text, created_at) values (${idle.taskOld}, ${idle.staff}, ${tag}, ${ago(4)})`);
+      expect((await idleDeals()).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
+    });
+  });
 });

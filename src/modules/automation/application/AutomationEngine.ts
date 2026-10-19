@@ -9,8 +9,12 @@ import {
   HOLIDAY_DEFAULTS,
   HOLIDAY_LIMITS,
   holidayWindows,
+  idleQuery,
+  idleSubject,
+  inRuleHours,
   isRepeatTrigger,
   isReplyTrigger,
+  isStaffOnlyTrigger,
   isTransactionalTrigger,
   linkFor,
   matches,
@@ -126,6 +130,8 @@ export class AutomationEngine {
         return;
       }
       case "send_message": {
+        // Правило для сотрудников (забытая сделка): клиенту не пишет, даже если действие попало в правило мимо редактора.
+        if (isStaffOnlyTrigger(rule.trigger)) return this.logger.warn(`«${rule.name}»: правило для сотрудников — сообщение клиенту не отправлено`);
         const text = clientText(a, s.locale, vars, ctx.clientVars);
         if (!text) return;
         if (isTransactionalTrigger(rule.trigger)) return this.sendTransactional(rule, text, s);
@@ -202,8 +208,8 @@ export class AutomationEngine {
 
   /**
    * Правила по времени. «Клиенту не ответили N минут» — каждый проход, считая только рабочее время;
-   * «клиент забросил книгу», «годовщина повода» и «приближается дата события» — раз в 30 минут (force — сразу, для
-   * scheduler:once). Правило с
+   * «клиент забросил книгу», «годовщина повода», «приближается дата события» и «сделка без активности» — раз в 30 минут
+   * (force — сразу, для scheduler:once). Правило с
    * сообщением клиенту вне окна или сверх суточного лимита пропускается без отметки и сработает позже.
    * Не бросает: сбой загрузки правил или выборки одного правила пишется в лог, остальные правила и шаги минутного
    * прохода (напоминания, круг заявок, бот, почта, доступ по оплаченным счетам) идут дальше.
@@ -278,6 +284,19 @@ export class AutomationEngine {
       if (!matches(rule, { subject: "", workTime })) return;
       for (const r of await this.scheduled.eventDates(rule.id, eventDateQuery(rule, zonedDay(now)))) {
         await fire(rule, { subject: eventDateSubject(r.dealId, r.eventDate), dealId: r.dealId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client });
+      }
+    });
+    await each("deal.idle", async (rule) => {
+      // Задача менеджеру: «только в рабочее время» вне его выборку не делаем — сделки сработают утром.
+      if (!inRuleHours(rule, workTime)) return;
+      const q = idleQuery(rule, now);
+      // Не больше perDay сделок в день: счёт за сегодня — из журнала (перезапуск процесса лимит не обнуляет).
+      let left = q.perDay - (await this.scheduled.firedOn(rule.id, zonedDay(now)));
+      if (left <= 0) return;
+      for (const r of await this.scheduled.idleDeals(rule.id, { before: q.before, stageId: q.stageId, limit: left })) {
+        if (left <= 0) break;
+        const ctx = { subject: idleSubject(r.dealId, r.lastActivity), dealId: r.dealId, clientId: r.clientId, stageId: r.stageId, workTime, date: r.date };
+        if (await fire(rule, ctx)) left--;
       }
     });
     await this.holidayRules(rules, now, workTime, fire);
