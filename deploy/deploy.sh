@@ -39,11 +39,13 @@ on_exit() {
 }
 trap on_exit EXIT
 
-# Сборка идёт на том же сервере, что и сайт (2 ядра, 4 ГБ): без ограничений она забирает оба ядра и память, и сайт
-# отвечает медленно. Поэтому сборке — одно ядро и мягкий потолок памяти (cgroup через systemd-run), низший приоритет
-# процессора и диска. Нет systemd-run для пользователя — только приоритеты.
+# Сборка идёт на том же сервере, что и сайт (4 ядра, 8 ГБ, рядом чужие проекты): без ограничений она забирает ядра
+# и память, и сайт отвечает медленно. Поэтому сборке — одно ядро и мягкий потолок памяти (cgroup через systemd-run),
+# низший приоритет процессора и диска. Нет systemd-run для пользователя — только приоритеты.
+# В потолок входит и файловый кэш, который читает сборка: холодная сборка доходит до ~2,9 ГБ, а при потолке 2200M
+# ядро выбрасывало прочитанное, сборка перечитывала диск по кругу (9 ГБ за 30 минут) и тормозила сайт.
 BUILD_CPU="${MYBOOK_BUILD_CPU:-100%}"
-BUILD_MEM="${MYBOOK_BUILD_MEM:-2200M}"
+BUILD_MEM="${MYBOOK_BUILD_MEM:-3500M}"
 limited() {
   if systemd-run --user --scope -q -p CPUQuota=50% true >/dev/null 2>&1; then
     systemd-run --user --scope -q -p CPUQuota="$BUILD_CPU" -p MemoryHigh="$BUILD_MEM" nice -n 19 ionice -c 3 "$@"
@@ -60,6 +62,18 @@ else
   echo "→ Зависимости"
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 limited npm ci --no-audit --no-fund
   echo "$LOCK_HASH" > node_modules/.deploy-lock-hash
+fi
+
+# Кэш Turbopack (.next/cache/turbopack) старые файлы не удаляет: свежий весит ~400 МБ, а за месяцы дорастает до
+# гигабайтов, и сборка не помещается в потолок памяти. Разросся — удаляем: одна сборка пройдёт холодной.
+CACHE_DIR=.next/cache/turbopack
+CACHE_MAX_MB="${MYBOOK_BUILD_CACHE_MAX_MB:-1200}"
+if [ -d "$CACHE_DIR" ]; then
+  CACHE_MB="$(du -sm "$CACHE_DIR" | cut -f1)"
+  if [ "$CACHE_MB" -gt "$CACHE_MAX_MB" ]; then
+    echo "→ Кэш сборки ${CACHE_MB} МБ (больше ${CACHE_MAX_MB}) — удалён, сборка будет холодной"
+    rm -rf "$CACHE_DIR"
+  fi
 fi
 
 echo "→ Сборка (одно ядро, низкий приоритет — сайт продолжает отвечать быстро)"
