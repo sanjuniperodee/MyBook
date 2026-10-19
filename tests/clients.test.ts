@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ClientsError, snoozedDue } from "@/modules/clients/domain";
 import { TasksService } from "@/modules/clients/application";
+import { isWorkTime, nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { head, lead, manager, setup } from "./doubles/clients";
 
 describe("ClientsService: профиль клиента", () => {
@@ -371,23 +372,81 @@ describe("TasksService: задачи идут за сделкой — tasks-d3",
 });
 
 describe("TasksService: напоминание сотруднику в WhatsApp — только в рабочее время (tasks-d5)", () => {
-  it("ночью — только в CRM, днём — в CRM и WhatsApp; ничья задача в WhatsApp не уходит никогда", async () => {
+  const at = (iso: string) => new Date(iso);
+  // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
+  const hours = parseWorkHours(null);
+  const schedule = { isWorkTime: async (d: Date) => isWorkTime(d, hours, "Asia/Almaty"), nextWorkStart: async (d: Date) => nextWorkStart(d, hours, "Asia/Almaty") };
+  const noLinks = { clientOfOrder: async () => null, clientOfDeal: async () => null, dealAssignee: async () => null };
+  function withWhatsApp() {
     const t = setup();
     const whatsapp: string[] = [];
-    let working = false;
-    const tasks = new TasksService(t.mem.tasks, { clientOfOrder: async () => null, clientOfDeal: async () => null, dealAssignee: async () => null }, t.notifier, t.c, t.staff, { send: async (id) => (whatsapp.push(id), true) }, { isWorkTime: async () => working });
-    const soon = () => new Date(t.c.now().getTime() + 30 * 60_000);
-    t.mem.tasks.seed({ id: "night", assigneeId: "m1", dueAt: soon() });
-    t.mem.tasks.rows.set("night", { ...t.mem.tasks.rows.get("night")!, remindBeforeMin: 60 });
+    const tasks = new TasksService(t.mem.tasks, noLinks, t.notifier, t.c, t.staff, { send: async (id) => (whatsapp.push(id), true) }, schedule);
+    return { ...t, tasks, whatsapp };
+  }
+
+  it("днём — в CRM и WhatsApp; ничья задача в WhatsApp не уходит никогда", async () => {
+    const t = withWhatsApp(); // 01.10 15:00 по Алматы
+    const soon = new Date(t.c.now().getTime() + 30 * 60_000);
+    t.mem.tasks.seed({ id: "day", assigneeId: "m2", dueAt: soon });
+    t.mem.tasks.seed({ id: "nobody", assigneeId: null, dueAt: soon });
+    for (const id of ["day", "nobody"]) t.mem.tasks.rows.set(id, { ...t.mem.tasks.rows.get(id)!, remindBeforeMin: 60 });
+    expect(await t.tasks.remindDue()).toBe(2);
+    expect(t.notifier.sent.map((s) => [s.userIds, s.n.push])).toEqual([[["m2"], undefined], [["deals.view"], undefined]]);
+    expect(t.whatsapp).toEqual(["m2"]);
+  });
+
+  it("пропущенный звонок в 23:00, срок 09:15: в 08:15 напоминание не забирается — в 09:00 приходит в CRM и WhatsApp, а не теряется", async () => {
+    const t = withWhatsApp();
+    t.c.set("2026-10-01T18:00:00Z"); // 23:00
+    await t.tasks.createSystem({ title: "Перезвонить: пропущенный звонок", kind: "call", dueAt: at("2026-10-02T04:15:00Z"), dealId: "deal-1", assigneeId: "m1" });
+    // Ручная задача со сроком 09:30 (напомнить за час — в 08:30) и ночная задача бота без ответственного (срок 09:05).
+    await t.tasks.create(manager, { title: "Позвонить по макету", kind: "call", dueAt: "2026-10-02T09:30" });
+    await t.tasks.createSystem({ title: "Назвать цену: Айгерим (бот)", kind: "message", dueAt: at("2026-10-02T04:05:00Z"), dealId: "deal-7", assigneeId: null });
+    expect([...t.mem.tasks.rows.values()].map((r) => r.remindBeforeMin)).toEqual([60, 60, 60]);
+    for (const iso of ["2026-10-02T03:05:00Z", "2026-10-02T03:15:00Z", "2026-10-02T03:30:00Z", "2026-10-02T03:59:00Z"]) {
+      t.c.set(iso); // 08:05 … 08:59 — время напоминаний пришло, смена ещё не началась
+      expect(await t.tasks.remindDue()).toBe(0);
+    }
+    expect(t.notifier.sent).toEqual([]);
+    expect([...t.mem.tasks.rows.values()].map((r) => r.remindedAt ?? null)).toEqual([null, null, null]);
+    t.c.set("2026-10-02T04:00:00Z"); // 09:00 — начало смены
+    expect(await t.tasks.remindDue()).toBe(3);
+    expect(t.notifier.sent).toEqual([
+      { userIds: ["deals.view"], n: { kind: "reminder", title: "Через 5 мин срок задачи: Назвать цену: Айгерим (бот)", body: "Срок: 02.10 09:05 · задача ничья — возьмите её", link: "/admin/deals/deal-7" } },
+      { userIds: ["m1"], n: { kind: "reminder", title: "Через 15 мин срок задачи: Перезвонить: пропущенный звонок", body: "Срок: 02.10 09:15", link: "/admin/deals/deal-1" } },
+      { userIds: ["m1"], n: { kind: "reminder", title: "Через 30 мин срок задачи: Позвонить по макету", body: "Срок: 02.10 09:30", link: "/admin/tasks" } },
+    ]);
+    expect(t.whatsapp).toEqual(["m1", "m1"]);
+    t.c.set("2026-10-02T04:15:00Z");
+    expect(await t.tasks.remindDue()).toBe(0); // один раз
+  });
+
+  it("срок ночью, раньше начала смены: ничья («Перезвоните мне» в 23:00) — только колокольчик без push, с ответственным — в CRM сразу; в WhatsApp — никому", async () => {
+    const t = withWhatsApp();
+    t.c.set("2026-10-01T18:00:00Z"); // 23:00
+    await t.tasks.createSystem({ title: "Перезвонить Айгерим — заявка с сайта", kind: "call", dueAt: at("2026-10-01T18:15:00Z"), dealId: "deal-7", assigneeId: null });
+    await t.tasks.createSystem({ title: "Перезвонить Марату — заявка с сайта", kind: "call", dueAt: at("2026-10-01T18:15:00Z"), dealId: "deal-8", assigneeId: "m1" });
+    t.c.set("2026-10-01T18:15:00Z");
+    expect(await t.tasks.remindDue()).toBe(2);
+    expect(t.notifier.sent).toEqual([
+      { userIds: ["deals.view"], n: { kind: "reminder", title: "Срок задачи наступил: Перезвонить Айгерим — заявка с сайта", body: "Срок: 01.10 23:15 · задача ничья — возьмите её", link: "/admin/deals/deal-7", push: false } },
+      { userIds: ["m1"], n: { kind: "reminder", title: "Срок задачи наступил: Перезвонить Марату — заявка с сайта", body: "Срок: 01.10 23:15", link: "/admin/deals/deal-8" } },
+    ]);
+    expect(t.whatsapp).toEqual([]);
+    t.c.set("2026-10-02T04:00:00Z");
+    expect(await t.tasks.remindDue()).toBe(0); // утром не повторяется
+  });
+
+  it("график не прочитался — напоминания не теряются: уходят в CRM, без WhatsApp", async () => {
+    const t = setup();
+    const whatsapp: string[] = [];
+    const broken = { isWorkTime: async () => Promise.reject(new Error("db")), nextWorkStart: async () => Promise.reject(new Error("db")) };
+    const tasks = new TasksService(t.mem.tasks, noLinks, t.notifier, t.c, t.staff, { send: async (id) => (whatsapp.push(id), true) }, broken);
+    t.mem.tasks.seed({ id: "t1", assigneeId: "m1", dueAt: new Date(t.c.now().getTime() + 30 * 60_000) });
+    t.mem.tasks.rows.set("t1", { ...t.mem.tasks.rows.get("t1")!, remindBeforeMin: 60 });
     expect(await tasks.remindDue()).toBe(1);
     expect(t.notifier.sent.map((s) => s.userIds)).toEqual([["m1"]]);
     expect(whatsapp).toEqual([]);
-    working = true;
-    t.mem.tasks.seed({ id: "day", assigneeId: "m2", dueAt: soon() });
-    t.mem.tasks.seed({ id: "nobody", assigneeId: null, dueAt: soon() });
-    for (const id of ["day", "nobody"]) t.mem.tasks.rows.set(id, { ...t.mem.tasks.rows.get(id)!, remindBeforeMin: 60 });
-    expect(await tasks.remindDue()).toBe(2);
-    expect(whatsapp).toEqual(["m2"]);
   });
 });
 

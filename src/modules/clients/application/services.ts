@@ -81,8 +81,8 @@ export class TasksService {
     private readonly clock: Clock,
     private readonly staff: StaffDirectory,
     private readonly messenger: StaffMessenger | null = null,
-    /** График работы: в WhatsApp сотруднику напоминание уходит только в рабочее время. null — всегда. */
-    private readonly schedule: Pick<WorkSchedule, "isWorkTime"> | null = null,
+    /** График работы: в WhatsApp сотруднику напоминание уходит только в рабочее время. null — всё время рабочее. */
+    private readonly schedule: Pick<WorkSchedule, "isWorkTime" | "nextWorkStart"> | null = null,
   ) {}
 
   /** remindBeforeMin: undefined — по умолчанию (за час, если есть срок), null — не напоминать. */
@@ -126,15 +126,19 @@ export class TasksService {
   }
 
   /**
-   * Напоминания, время которых пришло: ответственному — уведомление в CRM (со звуком, kind «reminder») и, в рабочее
-   * время, сообщение в его WhatsApp (ночью — только в CRM: сотрудника не будим); ничья задача — уведомление в CRM всем,
-   * кто видит сделки (в WhatsApp — никому). Каждое уходит один раз (задачу забирает claimDueReminders). Сбой WhatsApp
-   * не отменяет уведомление в CRM.
+   * Напоминания, время которых пришло: ответственному — уведомление в CRM (со звуком, kind «reminder») и сообщение в его
+   * WhatsApp; ничья задача — уведомление в CRM всем, кто видит сделки (в WhatsApp — никому). Каждое уходит один раз
+   * (задачу забирает claimDueReminders). Сбой WhatsApp не отменяет уведомление в CRM.
+   * Вне рабочего времени сотрудника не будим: напоминание, срок которого — после начала ближайшей смены, не забирается и
+   * уходит в начале смены (в CRM и WhatsApp), а не теряется. Срок раньше начала смены ждать не может — напоминание
+   * сразу, но только в CRM: ответственному — колокольчик и push, ничья задача — только колокольчик, без push всем.
    */
   async remindDue(): Promise<number> {
     const now = this.clock.now();
-    const due = await this.tasks.claimDueReminders(now, REMIND_STALE_MIN, REMIND_BATCH);
-    const whatsapp = !!this.messenger && due.some((t) => t.assigneeId) && (!this.schedule || (await this.schedule.isWorkTime(now).catch(() => false)));
+    const workTime = !this.schedule || (await this.schedule.isWorkTime(now).catch(() => false));
+    const shiftStart = workTime || !this.schedule ? null : await this.schedule.nextWorkStart(now).catch(() => null);
+    const due = await this.tasks.claimDueReminders(now, REMIND_STALE_MIN, REMIND_BATCH, shiftStart);
+    const whatsapp = !!this.messenger && workTime;
     for (const t of due) {
       const link = t.dealId ? `/admin/deals/${t.dealId}` : t.orderId ? `/admin/orders/${t.orderId}` : "/admin/tasks";
       const left = Math.max(0, Math.round((t.dueAt.getTime() - now.getTime()) / 60_000));
@@ -142,7 +146,7 @@ export class TasksService {
       const when = `${pad(p.d)}.${pad(p.m)} ${pad(Math.floor(p.minutes / 60))}:${pad(p.minutes % 60)}`;
       const title = left < 1 ? `Срок задачи наступил: ${t.title}` : `Через ${leadLabel(left)} срок задачи: ${t.title}`;
       if (!t.assigneeId) {
-        await this.notifier.dealsTeam({ kind: "reminder", title, body: `Срок: ${when} · задача ничья — возьмите её`, link }).catch(() => {});
+        await this.notifier.dealsTeam({ kind: "reminder", title, body: `Срок: ${when} · задача ничья — возьмите её`, link, ...(workTime ? {} : { push: false }) }).catch(() => {});
         continue;
       }
       await this.notifier.notify([t.assigneeId], { kind: "reminder", title, body: `Срок: ${when}`, link }).catch(() => {});
@@ -172,8 +176,10 @@ export class TasksService {
   }
 
   /**
-   * Клиенту ответили в чате (из CRM или с телефона магазина): открытые задачи «ответить» (kind message) по сделке
-   * сделаны — итог «ответили в чате» (automation-12). Звонки и прочие задачи остаются. Сколько закрыто.
+   * Клиенту ответили в чате (из CRM или с телефона магазина): открытые задачи «ответить» (kind message), которые
+   * поставила CRM (бот, правила), по сделке сделаны — итог «ответили в чате» (automation-12). Ручные «Написать»
+   * сотрудников (отложенное дело, задача коллеге) остаются — их закрывает человек; звонки и прочие задачи — тоже.
+   * Сколько закрыто.
    */
   closeAnswered(dealId: string) {
     return this.tasks.closeOpenOfKind({ dealId, kind: "message", result: ANSWERED_RESULT, at: this.clock.now() });

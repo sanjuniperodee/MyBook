@@ -58,9 +58,11 @@ class MemTasks implements TaskRepository {
     const id = `task-${++this.seq}`;
     this.rows.set(id, { id, doneAt: null, ...t });
   }
-  async claimDueReminders(now: Date, staleMin: number, limit: number) {
+  async claimDueReminders(now: Date, staleMin: number, limit: number, dueBefore?: Date | null) {
     const out: Awaited<ReturnType<TaskRepository["claimDueReminders"]>> = [];
-    const open = [...this.rows].filter(([, t]) => !t.doneAt && !t.remindedAt && t.dueAt && t.remindBeforeMin != null).sort(([, a], [, b]) => a.dueAt!.getTime() - b.dueAt!.getTime());
+    const open = [...this.rows]
+      .filter(([, t]) => !t.doneAt && !t.remindedAt && t.dueAt && t.remindBeforeMin != null && (!dueBefore || t.dueAt < dueBefore))
+      .sort(([, a], [, b]) => a.dueAt!.getTime() - b.dueAt!.getTime());
     for (const [id, t] of open) {
       if (out.length >= limit) break;
       if (t.dueAt!.getTime() - t.remindBeforeMin! * 60_000 > now.getTime() || t.dueAt!.getTime() <= now.getTime() - staleMin * 60_000) continue;
@@ -75,7 +77,7 @@ class MemTasks implements TaskRepository {
   async closeOpenOfKind({ dealId, kind, result, at }: { dealId: string; kind: Task["kind"]; result: string; at: Date }) {
     let n = 0;
     for (const [id, t] of this.rows) {
-      if (t.dealId !== dealId || t.doneAt || t.kind !== kind) continue;
+      if (t.dealId !== dealId || t.doneAt || t.kind !== kind || t.createdById) continue;
       this.rows.set(id, { ...t, doneAt: at, result: t.result ?? result });
       n++;
     }
@@ -153,9 +155,9 @@ class FakeStaff implements StaffDirectory {
   }
 }
 
-/** Уведомления: адресатам — userIds, всем с deals.view (ничья задача) — userIds ["deals.view"]. */
+/** Уведомления: адресатам — userIds, всем с deals.view (ничья задача) — userIds ["deals.view"]; push false — без push. */
 class SpyNotifier implements StaffNotifier {
-  sent: { userIds: string[]; n: Parameters<StaffNotifier["notify"]>[1] }[] = [];
+  sent: { userIds: string[]; n: Parameters<StaffNotifier["notify"]>[1] & { push?: boolean } }[] = [];
   async notify(userIds: string[], n: Parameters<StaffNotifier["notify"]>[1]) {
     this.sent.push({ userIds, n });
   }

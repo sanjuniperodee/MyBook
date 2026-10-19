@@ -23,10 +23,10 @@ import {
 } from "@/modules/automation/domain";
 import { findSensitive } from "@/modules/messaging/domain/sensitive";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
-import { addWorkMinutes, parseWorkHours } from "@/shared/domain/schedule";
+import { addWorkMinutes, nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import { inbound, setup as chatSetup } from "./doubles/botHarness";
-import { setup as clientsSetup } from "./doubles/clients";
+import { setup as clientsSetup, lead as crmLead, manager as crmManager } from "./doubles/clients";
 import { admin as orderingAdmin, setup as orderingSetup } from "./doubles/ordering";
 
 const now = new Date("2026-10-01T06:00:00Z");
@@ -104,7 +104,12 @@ function setup(
   const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], idleDeals: async () => [], silent: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
   const hours = parseWorkHours(null);
-  const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => opts.workMinutes ?? 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
+  const schedule = {
+    isWorkTime: async () => opts.workTime ?? true,
+    nextWorkStart: async (at: Date) => nextWorkStart(at, hours, "Asia/Almaty"),
+    workMinutesBetween: async () => opts.workMinutes ?? 0,
+    addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty"),
+  };
   const errors: string[] = [];
   const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
   const holidays = { list: async () => opts.holidays ?? [...DEFAULT_HOLIDAYS] };
@@ -467,6 +472,25 @@ describe("Задачи правил: срок в рабочем времени, 
     await open("Ответить: Айгерим (бот)", "message");
     await chat.service.send(chat.conv().id, "Подскажу по срокам", "m1");
     expect(state().at(-1)).toEqual(["message", "закрыта", "ответили в чате"]);
+  });
+
+  it("ручные «Написать» сотрудников — отложенное дело и задача коллеге — ответ в чате не закрывает, только задачи CRM", async () => {
+    const crm = clientsSetup();
+    const chat = chatSetup({ answeredTasks: { answered: (dealId) => crm.tasks.closeAnswered(dealId) } });
+    await chat.service.ingest(inbound({ externalId: "in-1", text: "Здравствуйте, сколько стоит?" }));
+    const dealId = chat.conv().dealId!;
+    await crm.tasks.create(crmManager, { title: "Написать: напомнить про дату события", kind: "message", dueAt: "2026-10-25", dealId });
+    await crm.tasks.create(crmLead, { title: "Написать: прислать макет", kind: "message", dueAt: "2026-10-02T12:00", dealId, assigneeId: "m1" });
+    await crm.tasks.createSystem({ title: "Ответить: Айгерим (бот)", kind: "message", dueAt: new Date("2026-10-01T06:15:00Z"), dealId, assigneeId: "m1" });
+    const state = () => [...crm.mem.tasks.rows.values()].map((t) => [t.title, t.doneAt ? "закрыта" : "открыта", t.result ?? null]);
+    // Ответ на другой вопрос — с телефона магазина (эхо) и из CRM.
+    await chat.service.ingest(inbound({ externalId: "phone-1", isEcho: true, text: "Добрый день! 15 000 ₸", contactName: "" }));
+    await chat.service.send(chat.conv().id, "Подскажу по срокам", "m1");
+    expect(state()).toEqual([
+      ["Написать: напомнить про дату события", "открыта", null],
+      ["Написать: прислать макет", "открыта", null],
+      ["Ответить: Айгерим (бот)", "закрыта", "ответили в чате"],
+    ]);
   });
 });
 

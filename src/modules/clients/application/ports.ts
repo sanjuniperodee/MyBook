@@ -29,14 +29,16 @@ export interface TaskRepository {
   /**
    * Забрать напоминания, время которых пришло (открытая задача со сроком, напоминание ещё не уходило): помечает их
    * отправленными, поэтому параллельный проход не продублирует. Задачи, просроченные больше чем на staleMin, пропускаются.
-   * Ничьи задачи — тоже (assigneeId null). Не больше limit за раз, самые ранние сроки первыми.
+   * Ничьи задачи — тоже (assigneeId null). Не больше limit за раз, самые ранние сроки первыми. dueBefore — только задачи
+   * со сроком раньше него (вне смены: остальные не забираются и дождутся её начала).
    */
-  claimDueReminders(now: Date, staleMin: number, limit: number): Promise<{ id: string; title: string; kind: TaskKind; dueAt: Date; assigneeId: string | null; dealId: string | null; orderId: string | null }[]>;
+  claimDueReminders(now: Date, staleMin: number, limit: number, dueBefore?: Date | null): Promise<{ id: string; title: string; kind: TaskKind; dueAt: Date; assigneeId: string | null; dealId: string | null; orderId: string | null }[]>;
   /** Есть ли открытая задача с таким заголовком по сделке (служебные задачи CRM не дублируются при повторе). */
   existsOpen(t: { dealId: string; title: string }): Promise<boolean>;
   /**
-   * Закрыть открытые задачи сделки этого типа с итогом result (если итог не записан): клиенту ответили — задачи
-   * «ответить» сделаны. Сколько закрыто.
+   * Закрыть открытые задачи сделки этого типа, поставленные CRM (createdById null: бот, правила), с итогом result (если
+   * итог не записан): клиенту ответили — задачи «ответить» сделаны. Задачи, поставленные сотрудником, не трогаются.
+   * Сколько закрыто.
    */
   closeOpenOfKind(t: { dealId: string; kind: TaskKind; result: string; at: Date }): Promise<number>;
   /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
@@ -89,8 +91,8 @@ export interface DealContacts {
 
 export interface StaffNotifier {
   notify(userIds: string[], n: { kind: "task" | "reminder" | "mention"; title: string; body: string; link: string | null }): Promise<void>;
-  /** Всем, кто видит сделки (право deals.view): напоминание о ничьей задаче. */
-  dealsTeam(n: { kind: "task" | "reminder"; title: string; body: string; link: string | null }): Promise<void>;
+  /** Всем, кто видит сделки (право deals.view): напоминание о ничьей задаче; push false — только колокольчик (ночью). */
+  dealsTeam(n: { kind: "task" | "reminder"; title: string; body: string; link: string | null; push?: boolean }): Promise<void>;
 }
 
 /** Чем пользовался клиент на сайте: заходил ли, книги, заказы (новый ли это аккаунт). */

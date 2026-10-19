@@ -19,9 +19,10 @@ export async function notify(userIds: (string | null | undefined)[], n: StaffNot
   const ids = [...new Set(userIds.filter((x): x is string => !!x))];
   if (!ids.length) return;
   await db.insert(crmNotifications).values(ids.map((userId) => ({ userId, kind: n.kind, title: n.title.slice(0, 200), body: (n.body ?? "").slice(0, 500), link: n.link ?? null })));
-  // Мгновенно — открытым вкладкам CRM (SSE) и на устройства с push, не задерживая основное действие.
+  // Мгновенно — открытым вкладкам CRM (SSE) и на устройства с push (если push не выключен), не задерживая основное действие.
   const { publish } = await import("@/modules/workspace/infrastructure/realtime");
   await publish({ type: "notify", users: ids });
+  if (n.push === false) return;
   const { pushTo } = await import("@/modules/workspace/infrastructure/push");
   void pushTo(ids, { title: n.title, body: n.body, link: n.link, tag: n.kind }).catch((err) => console.error("[push]", err));
 }

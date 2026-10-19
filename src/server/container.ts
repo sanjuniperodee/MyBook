@@ -267,7 +267,7 @@ export class Container {
       clock: this.clock,
       notifier: this.workspace.notifier,
       // Напоминания о задачах — личным сообщением сотруднику на его номер (users.phone), ссылка на задачу — абсолютная;
-      // в WhatsApp — только в рабочее время (график CRM), в CRM — всегда.
+      // в WhatsApp — только в рабочее время (график CRM): ночное напоминание о сроке после начала смены ждёт её начала.
       schedule: this.workspace.schedule,
       messenger: {
         send: async (userId, text) => {
