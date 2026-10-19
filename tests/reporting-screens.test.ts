@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { clientScreen } from "@/modules/reporting/ui/client-screen";
-import { DEFAULT_SLA_MINUTES, responseWait, slaMinutes, waitLabel } from "@/modules/reporting/ui/response-wait";
+import { DEFAULT_SLA_MINUTES, responseWait, shiftMinutes, slaMinutes, waitLabel } from "@/modules/reporting/ui/response-wait";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { formatDate } from "@/lib/dates";
 
@@ -134,6 +134,10 @@ describe("ожидание ответа в «Чатах» и «Моём дне»
   it("норматив из crm.slaMinutes: целое от 1, иначе 15; подпись ожидания", () => {
     expect(slaMinutes("30")).toBe(30);
     for (const raw of [null, undefined, "", "0", "-5", "abc", "2.5"]) expect(slaMinutes(raw)).toBe(DEFAULT_SLA_MINUTES);
-    expect([0, 59, 60, 65, 1439, 2880].map(waitLabel)).toEqual(["0 мин", "59 мин", "1 ч", "1 ч 5 мин", "23 ч 59 мин", "2 дн"]);
+    expect([0, 59, 60, 65, 1439, 2880].map((m) => waitLabel(m))).toEqual(["0 мин", "59 мин", "1 ч", "1 ч 5 мин", "23 ч 59 мин", "48 ч"]);
+    // Минуты рабочие: «день» — смена графика, а не сутки. При 09:00–21:00 сутки рабочих минут — два рабочих дня.
+    expect([719, 720, 1440, 2160].map((m) => waitLabel(m, shiftMinutes({ from: "09:00", to: "21:00" })))).toEqual(["11 ч 59 мин", "1 раб. дн", "2 раб. дн", "3 раб. дн"]);
+    expect(shiftMinutes({ from: "20:00", to: "02:00" })).toBe(360);
+    expect(shiftMinutes({ from: "00:00", to: "00:00" })).toBe(1440);
   });
 });

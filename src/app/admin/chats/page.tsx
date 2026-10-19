@@ -222,6 +222,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       unread: c.unread,
       assignee: c.assigneeId ? (names.get(c.assigneeId) ?? null) : null,
       waitMinutes: wait?.minutes ?? null,
+      waitLabel: wait?.label ?? null,
       overdue: !!wait?.overdue,
       bot: phase === "active" || phase === "waiting",
     };
