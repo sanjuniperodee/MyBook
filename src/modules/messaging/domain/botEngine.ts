@@ -19,6 +19,8 @@ import { newSellerAiState, type SellerAiState } from "./botSellerState";
 export type BotOutcome = "finished" | "handoff" | "stopped_by_manager" | "abandoned" | "declined" | "skipped" | "disabled" | "offered" | "invoiced";
 export type BotEventKind =
   | "started"
+  /** AI-продажник подхватил начатую переписку (вместе с started). */
+  | "takeover"
   | "skipped"
   | "blocked"
   | "answer"

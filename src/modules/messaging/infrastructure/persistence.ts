@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizz
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { readBotState, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
+import { readBotState, splitHandoffs, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
@@ -420,7 +420,12 @@ export interface BotMetrics {
   /** Сколько диалогов дошли до ответа на каждый вопрос и где ответ не распознан. */
   answered: Record<string, number>;
   unrecognized: Record<string, number>;
+  /** О чём спрашивали (частые вопросы). */
   intents: Record<string, number>;
+  /** Почему бот передал беседу менеджеру — просьбы и ситуации клиента. */
+  handoffs: Record<string, number>;
+  /** Передачи из-за сбоя самого бота (модель не ответила, петля, потолок беседы…). */
+  failures: Record<string, number>;
   langs: Record<string, number>;
   /** Медиана минут от итога бота до первого ответа человека. */
   replyMinutes: number | null;
@@ -444,7 +449,7 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     by("handoff", "reason"),
     by("started", "reason"),
     executor().execute<{ key: string; n: number }>(
-      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined', 'offer', 'agreed', 'invoiced', 'offered') and created_at >= ${since} group by 1`,
+      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'takeover', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined', 'offer', 'agreed', 'invoiced', 'offered') and created_at >= ${since} group by 1`,
     ),
     executor().execute<{ m: number | null }>(sql`
       select percentile_cont(0.5) within group (order by extract(epoch from (r.first_at - e.at)) / 60) as m
@@ -457,13 +462,16 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
         and (d.agreed_plan is not null or d.order_id is not null or exists (select 1 from crm_payments p where p.deal_id = d.id))`),
   ]);
   const o = tally(outcomes.rows);
+  const { handoffs, failures } = splitHandoffs(tally(handoff.rows));
   return {
     started: o.started ?? 0,
     skipped: tally(skipped.rows),
     outcomes: o,
     answered: tally(answered.rows),
     unrecognized: tally(unrecognized.rows),
-    intents: { ...tally(faq.rows), ...Object.fromEntries(Object.entries(tally(handoff.rows)).map(([k, v]) => [`handoff:${k}`, v])) },
+    intents: tally(faq.rows),
+    handoffs,
+    failures,
     langs: tally(langs.rows),
     replyMinutes: reply.rows[0]?.m == null ? null : Math.round(Number(reply.rows[0].m)),
     converted: Number(converted.rows[0]?.n ?? 0),

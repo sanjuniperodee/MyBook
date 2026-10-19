@@ -14,3 +14,4 @@ export * from "./botPayments";
 export * from "./botCoach";
 export * from "./botMaterials";
 export * from "./ruleSending";
+export * from "./botStats";

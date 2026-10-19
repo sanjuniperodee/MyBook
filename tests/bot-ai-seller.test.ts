@@ -1155,3 +1155,51 @@ describe("AI-продажник: подборка материалов, как �
     expect(t.files).toHaveLength(0);
   });
 });
+
+describe("AI-продажник: журнал для статистики (bots-d1)", () => {
+  const kinds = (t: ReturnType<typeof setup>, kind: string) => t.events.filter((e) => e.kind === kind);
+
+  it("новая заявка: «начал беседу» один раз и с языком из ответа модели; подхвата нет", async () => {
+    const { model } = fakeModel([ans({ language: "kk", reply: "Сәлеметсіз бе! Кітап кімге?" }), ans({ language: "kk", reply: "Қай күнге керек?" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Сәлеметсіз бе, кітап керек" }));
+    await run(t);
+    expect(kinds(t, "started")).toEqual([expect.objectContaining({ kind: "started", reason: "kk" })]);
+    await t.service.ingest(inbound({ text: "Анама" }));
+    await run(t);
+    expect(kinds(t, "started")).toHaveLength(1);
+    expect(kinds(t, "takeover")).toHaveLength(0);
+  });
+
+  it("подхват начатой переписки — «начал беседу» и отдельное событие «подхватил»", async () => {
+    const { model } = fakeModel([ans({ reply: "Подскажите, к какой дате нужна книга?" })]);
+    const t = setup({ bot: "fallback", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте, интересует книга" }));
+    await t.service.send(t.conv().id, "Добрый день! Для кого книга?", "manager-1");
+    expect(kinds(t, "started")).toHaveLength(0);
+    await t.service.ingest(inbound({ text: "Для мамы" }));
+    await t.advance(4 * 60_000);
+    expect(t.sent.at(-1)).toBe("Подскажите, к какой дате нужна книга?");
+    expect(kinds(t, "started")).toEqual([expect.objectContaining({ reason: "ru" })]);
+    expect(kinds(t, "takeover")).toHaveLength(1);
+  });
+
+  it("модель не ответила на первом ходе — беседа всё равно учтена один раз, сбой — в журнале как ai_error", async () => {
+    const { model } = fakeModel([new Error("таймаут"), new Error("таймаут"), new Error("таймаут"), new Error("таймаут")]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await run(t);
+    await run(t, 61_000);
+    expect(kinds(t, "started")).toHaveLength(1);
+    expect(kinds(t, "handoff")).toEqual([expect.objectContaining({ reason: "ai_error" })]);
+  });
+
+  it("первое сообщение — голосовое, распознавания нет: просьба написать текстом, беседа учтена", async () => {
+    const { model, calls } = fakeModel([]);
+    const t = setup({ bot: "always", config: aiConfig({ media: false }), seller: model });
+    await t.service.ingest(inbound({ type: "audio", text: "🎤 Голосовое сообщение" }));
+    await run(t);
+    expect(calls).toHaveLength(0);
+    expect(kinds(t, "started")).toHaveLength(1);
+  });
+});

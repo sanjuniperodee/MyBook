@@ -83,8 +83,14 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         expect(await store.save(soft.id, 1, { botStep: null, state: { ...waiting, version: 2 }, dueAt: null }, { restart: true })).toBe(true);
 
         // Журнал → метрики.
-        await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }, { kind: "answer", field: "recipient" }, { kind: "faq", intent: "price" }, { kind: "skipped", reason: "prior_chat" }]);
+        await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }, { kind: "takeover" }, { kind: "answer", field: "recipient" }, { kind: "faq", intent: "price" }, { kind: "skipped", reason: "prior_chat" }, { kind: "handoff", reason: "call_request" }, { kind: "handoff", reason: "loop" }]);
         const m = await botMetrics(30);
+        // Подхват продажника — в итогах; сбой бота — отдельно от причин передачи, «вопросами клиентов» не считается.
+        expect(m.outcomes.takeover).toBeGreaterThanOrEqual(1);
+        expect(m.handoffs.call_request).toBeGreaterThanOrEqual(1);
+        expect(m.failures.loop).toBeGreaterThanOrEqual(1);
+        expect(m.handoffs.loop).toBeUndefined();
+        expect(Object.keys(m.intents).some((k) => k.startsWith("handoff:"))).toBe(false);
         expect(m.started).toBeGreaterThanOrEqual(1);
         expect(m.answered.recipient).toBeGreaterThanOrEqual(1);
         expect(m.intents.price).toBeGreaterThanOrEqual(1);

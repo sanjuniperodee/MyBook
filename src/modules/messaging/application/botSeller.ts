@@ -137,6 +137,9 @@ export class AiSeller {
     const c = classifyInputs(inputs2);
 
     const start = state.phase === "waiting";
+    // Начало беседы — в журнал (статистика: «Начал беседу», языки, конверсия); подхват начатой переписки — отдельным
+    // событием. Язык известен после ответа модели; без него (сбой модели, голосовое) — тот, что был.
+    const opening = (lang: BotLang): BotEvent[] => (start ? [{ kind: "started", reason: lang }, ...(readSellerAi(state.ai).takeover ? [{ kind: "takeover" as const }] : [])] : []);
     const questions = config.questions.map((q) => q.field).filter((k) => fields.some((f) => f.key === k));
     const waited = conv.awaitingSince ? Math.max(0, Math.round((now.getTime() - new Date(conv.awaitingSince).getTime()) / 60_000)) : 0;
     const base: BotState = start
@@ -154,7 +157,7 @@ export class AiSeller {
     }
 
     // Не распозналось (модель не умеет, файла нет): голосовое — просьба написать текстом, фото и файлы — менеджеру.
-    if (!c.text && !manual) return this.withoutText(conv, base, state, inputs2, c, env, fields, now);
+    if (!c.text && !manual) return this.withoutText(conv, base, state, inputs2, c, env, fields, now, opening);
 
     let history = await this.d.history!(conv.id, HISTORY_LIMIT);
     // Голосовые клиента до старта бота (подхват, запуск кнопкой) ещё не расшифрованы — расшифровать последние, иначе
@@ -169,7 +172,7 @@ export class AiSeller {
       history = await this.d.history!(conv.id, HISTORY_LIMIT);
     }
     const decided = await this.decide({ conv, base, env, config, fields, history, fresh: inputs2, purpose: "reply" });
-    if ("error" in decided) return this.failed(conv, base, state, decided.error, env, fields, now);
+    if ("error" in decided) return this.failed(conv, base, state, decided.error, env, fields, now, opening);
 
     // Клиент дописал, пока модель думала: ответ был бы на устаревшее — повторяем ход со всеми сообщениями.
     const latest = await this.d.store.incoming(conv.id, new Date(state.since));
@@ -184,7 +187,7 @@ export class AiSeller {
     const idle = isWarmLead(next.ai) && config.sell.followUpHours > 0 ? Math.min(WARM_FIRST_FOLLOW_UP_MS, BOT_ABANDON_MS) : BOT_ABANDON_MS;
     const saved = await this.d.store.save(conv.id, state.version, { botStep: result.done ? BOT_DONE : 0, state: next, dueAt: result.done ? null : new Date(now.getTime() + idle) });
     if (!saved) return true;
-    await this.apply(conv, state, result, fields, env);
+    await this.apply(conv, state, result, fields, env, opening(next.lang));
     if (!result.done) {
       // Клиент написал, пока бот отвечал: следующий ход после обычной паузы, а не через полчаса.
       const unseen = (await this.d.store.incoming(conv.id, new Date(next.since))).filter((i) => !next.seen.includes(i.id));
@@ -507,10 +510,10 @@ export class AiSeller {
 
   // ─── последствия хода ──────────────────────────────────────────────────────
 
-  private async apply(conv: Conversation, before: BotState, result: SellerTurn, fields: DealField[], env: BotEnv) {
+  private async apply(conv: Conversation, before: BotState, result: SellerTurn, fields: DealField[], env: BotEnv, opening: BotEvent[] = []) {
     const dealId = conv.dealId!;
     for (const [key, value] of Object.entries(result.fields)) await this.d.sales.setField(dealId, key, value);
-    const events: BotEvent[] = [...result.events];
+    const events: BotEvent[] = [...opening, ...result.events];
     let final = result.state;
 
     if (result.state.ai.takeover && result.state.ai.turns === 1) await this.announceTakeover(conv, result.state);
@@ -621,9 +624,9 @@ export class AiSeller {
   // ─── без текста и сбои ─────────────────────────────────────────────────────
 
   /** Голосовое, фото или файл: модель их не видит. Голосовое — просим текст (один раз); фото и файлы (чек) — менеджеру. */
-  private async withoutText(conv: Conversation, base: BotState, prev: BotState, fresh: BotInput[], c: ReturnType<typeof classifyInputs>, env: BotEnv, fields: DealField[], now: Date): Promise<boolean> {
+  private async withoutText(conv: Conversation, base: BotState, prev: BotState, fresh: BotInput[], c: ReturnType<typeof classifyInputs>, env: BotEnv, fields: DealField[], now: Date, opening: (lang: BotLang) => BotEvent[]): Promise<boolean> {
     const s: BotState = { ...base, seen: [...base.seen, ...fresh.map((i) => i.id)].slice(-200), version: prev.version + 1, ai: { ...readSellerAi(base.ai) } };
-    const events: BotEvent[] = [];
+    const events: BotEvent[] = opening(s.lang);
     let reply: string | null = null;
     let done = false;
     if (c.media || (c.voice && s.ack.includes("voice"))) {
@@ -651,7 +654,7 @@ export class AiSeller {
   }
 
   /** Модель не ответила: повтор через минуту; на второй сбой беседу берёт менеджер (клиент получает обычное «передала менеджеру»). */
-  private async failed(conv: Conversation, base: BotState, prev: BotState, why: string, env: BotEnv, fields: DealField[], now: Date): Promise<boolean> {
+  private async failed(conv: Conversation, base: BotState, prev: BotState, why: string, env: BotEnv, fields: DealField[], now: Date, opening: (lang: BotLang) => BotEvent[]): Promise<boolean> {
     const ai = readSellerAi(base.ai);
     ai.failures += 1;
     this.d.logger.warn("bot ai", { error: why });
@@ -659,7 +662,7 @@ export class AiSeller {
       const due = new Date(now.getTime() + SELLER_RETRY_MS);
       const s: BotState = { ...base, ai, version: prev.version + 1 };
       if (!(await this.d.store.save(conv.id, prev.version, { botStep: prev.phase === "waiting" ? null : 0, state: s, dueAt: due }))) return true;
-      await this.d.store.log(conv.id, conv.dealId, s.lang, [{ kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }]);
+      await this.d.store.log(conv.id, conv.dealId, s.lang, [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }]);
       await this.hooks.later(conv.id, due);
       return false;
     }
@@ -667,7 +670,7 @@ export class AiSeller {
     if (!(await this.d.store.save(conv.id, prev.version, { botStep: BOT_DONE, state: s, dueAt: null }))) return true;
     const text = botSellText(s, env, "handoff");
     if (text) await this.send(conv, text);
-    await this.d.store.log(conv.id, conv.dealId, s.lang, [{ kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }, { kind: "handoff", reason: "ai_error" }]);
+    await this.d.store.log(conv.id, conv.dealId, s.lang, [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }, { kind: "handoff", reason: "ai_error" }]);
     await this.hooks.finish(conv, s, fields);
     return false;
   }

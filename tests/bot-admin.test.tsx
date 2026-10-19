@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {}, push:
 
 const { BotForm } = await import("@/app/admin/settings/crm/BotForm");
 const { BotStats } = await import("@/app/admin/settings/crm/BotStats");
+const { byLabel, handoffReasonLabels, splitHandoffs } = await import("@/modules/messaging/domain/botStats");
 const { BotBanner } = await import("@/app/admin/chats/ChatControls");
 const { defaultBotConfig, defaultOptionLabels, parseBotConfig } = await import("@/modules/messaging/domain/botConfig");
 const { botStatus } = await import("@/modules/messaging/application/botPreview");
@@ -50,12 +51,39 @@ describe("настройки бота", () => {
   it("метрики: запуски, итоги, причины пропуска, вопросы клиентов", () => {
     const html = renderToStaticMarkup(
       <BotStats
-        m={{ started: 3, skipped: { prior_chat: 2 }, outcomes: { started: 3, finished: 2, stopped_by_manager: 1 }, answered: { recipient: 3 }, unrecognized: { recipient: 1 }, intents: { price: 2, "handoff:call": 1 }, langs: { kk: 1, ru: 2 }, replyMinutes: 4, converted: 1 }}
+        m={{ started: 3, skipped: { prior_chat: 2 }, outcomes: { started: 3, finished: 2, stopped_by_manager: 1 }, answered: { recipient: 3 }, unrecognized: { recipient: 1 }, intents: { price: 2 }, handoffs: { call: 1 }, failures: {}, langs: { kk: 1, ru: 2 }, replyMinutes: 4, converted: 1 }}
         questions={[{ key: "recipient", label: "Для кого" }]}
         skipLabels={{ prior_chat: "переписка была до CRM" }}
       />,
     );
-    for (const s of ["Начал опрос: 3", "собрал ответы: 2", "остановлен ответом менеджера: 1", "переписка была до CRM: 2", "Для кого: 3 (1)", "цена: 2", "просили позвонить: 1", "казахский 1", "~4 мин"]) expect(html).toContain(s);
+    for (const s of ["Начал беседу: 3", "собрал ответы: 2", "остановлен ответом менеджера: 1", "переписка была до CRM: 2", "Для кого: 3 (1)", "цена: 2", "Почему передал менеджеру", "просили позвонить: 1", "казахский 1", "~4 мин"]) expect(html).toContain(s);
+    expect(html).not.toContain("Сбои");
+  });
+
+  it("беседы продажника: подхват, причины передачи по-русски, сбои — отдельным блоком, а не «вопросами клиентов» (bots-d1, bots-d2)", () => {
+    // Как botMetrics раскладывает передачи из журнала: сбои бота — отдельно от просьб клиента.
+    const split = splitHandoffs({ call_request: 2, call: 1, price_request: 3, ai_error: 1, loop: 2, limit: 1, ai_blocked: 1, voice: 1, objection: 1 });
+    expect(split).toEqual({ handoffs: { call_request: 2, call: 1, price_request: 3, objection: 1 }, failures: { ai_error: 1, loop: 2, limit: 1, ai_blocked: 1, voice: 1 } });
+    // Синонимы шаблонного бота и продажника — одной строкой; незнакомая причина — как есть, а не теряется.
+    expect(byLabel({ call_request: 2, call: 1, price_request: 3, mystery: 1 }, handoffReasonLabels)).toEqual([
+      ["просили позвонить", 3],
+      ["цену называет менеджер", 3],
+      ["mystery", 1],
+    ]);
+    const html = renderToStaticMarkup(
+      <BotStats
+        m={{ started: 5, skipped: {}, outcomes: { started: 5, takeover: 2, handoff: 4 }, answered: {}, unrecognized: {}, intents: {}, ...split, langs: { ru: 4, kk: 1 }, replyMinutes: null, converted: 1 }}
+        questions={[]}
+        skipLabels={{}}
+      />,
+    );
+    for (const s of ["Начал беседу: 5", "подхватил начатую переписку: 2", "Языки: русский 4, казахский 1", "Дошли до договорённости или оплаты: 1", "просили позвонить: 3", "цену называет менеджер: 3", "возражения после вариантов: 1", "Сбои", "модель не ответила дважды: 1", "бот повторил своё сообщение (по кругу): 2", "потолок беседы: 1", "голосовое не распознано: 1"]) expect(html).toContain(s);
+    // Сырых кодов на экране нет.
+    for (const code of ["ai_error", "loop", "call_request", "price_request"]) expect(html).not.toContain(code);
+    // Сбои — после причин передачи, отдельным блоком.
+    const failures = html.slice(html.indexOf('data-testid="bot-failures"'));
+    expect(failures).toContain("потолок беседы");
+    expect(failures).not.toContain("просили позвонить");
   });
 });
 

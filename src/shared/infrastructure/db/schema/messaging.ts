@@ -133,7 +133,7 @@ export const crmBotEvents = pgTable(
       .notNull()
       .references(() => crmConversations.id, { onDelete: "cascade" }),
     dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
-    /** started | skipped | answer | unrecognized | faq | media | handoff | finished | stopped_by_manager | abandoned | declined */
+    /** started | takeover | skipped | answer | unrecognized | faq | media | handoff | finished | stopped_by_manager | abandoned | declined | … (BotEventKind) */
     kind: text("kind").notNull(),
     field: text("field"),
     intent: text("intent"),
