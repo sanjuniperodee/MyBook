@@ -36,6 +36,10 @@ jobs:
       - name: Линтер
         run: npm run lint
 
+      # PDF-тесты сверяют текст и растр полос через pdftotext и pdftoppm.
+      - name: poppler-utils для PDF-тестов
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+
       - name: Тесты
         run: npm test
 
