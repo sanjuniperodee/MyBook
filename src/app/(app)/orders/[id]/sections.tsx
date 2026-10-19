@@ -103,6 +103,8 @@ export function UpgradeCard({ upgrade, t }: { upgrade: { bookId: string; orderId
 
 /** Детали заказа и сумма по строкам. */
 export function OrderDetails({ order, printed, locale, t, free }: { order: OrderView; printed: boolean; locale: Locale; t: T; free: string }) {
+  // Доставка не вошла в сумму — рассчитывается индивидуально (у старых заказов с оплаченной доставкой — её сумма).
+  const deliveryQuoted = isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount;
   return (
       <section className="card p-6 sm:p-8">
         <h2 className="text-xl font-semibold">{t.details}</h2>
@@ -153,10 +155,10 @@ export function OrderDetails({ order, printed, locale, t, free }: { order: Order
           <div className="flex justify-between"><span className="text-muted">{t.books}</span><span>{formatPrice(order.itemsAmount)}</span></div>
           {order.discountAmount ? <div className="flex justify-between text-emerald-700"><span>{order.promoCode ? t.promo(order.promoCode) : t.agreedPrice}</span><span>−{formatPrice(order.discountAmount)}</span></div> : null}
           {order.addons.length ? <div className="flex justify-between"><span className="text-muted">{order.addons.map((a) => addonName(a, locale)).join(", ")}</span><span>{formatPrice(order.addonsAmount)}</span></div> : null}
-          {printed ? <div className="flex justify-between"><span className="text-muted">{t.delivery}</span><span>{isQuotedDelivery(order.deliveryMethod) ? t.abroadPrice : order.deliveryAmount ? formatPrice(order.deliveryAmount) : free}</span></div> : null}
+          {printed ? <div className="flex justify-between"><span className="text-muted">{t.delivery}</span><span>{order.deliveryAmount ? formatPrice(order.deliveryAmount) : deliveryQuoted ? t.quotedPrice : free}</span></div> : null}
           {order.prepaidAmount ? <div className="flex justify-between text-emerald-700"><span>{t.prepaid}</span><span>−{formatPrice(order.prepaidAmount)}</span></div> : null}
           <div className="flex justify-between pt-2 text-base font-semibold"><span>{order.prepaidAmount ? t.toPayNow : t.total}</span><span>{formatPrice(order.amount)}</span></div>
-          {printed && isQuotedDelivery(order.deliveryMethod) ? <p className="pt-2 text-xs text-muted" data-testid="abroad-order-note">{t.abroadNote}</p> : null}
+          {printed && deliveryQuoted ? <p className="pt-2 text-xs text-muted" data-testid="abroad-order-note">{t.quotedNote}</p> : null}
         </div>
       </section>
   );

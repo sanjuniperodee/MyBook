@@ -14,8 +14,8 @@ export default async function PricingPage() {
     addons: Object.fromEntries(factoryCatalog.addons.map((a) => [a.id, a.price])),
     delivery: Object.fromEntries(factoryCatalog.delivery.map((d) => [d.id, d.price])),
   };
-  const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => a.price), d: getDeliveryOptions().map((d) => d.price) }) !==
-    JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => a.price), d: factoryCatalog.delivery.map((d) => d.price) });
+  const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => a.price), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]) }) !==
+    JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => a.price), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]) });
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
@@ -26,8 +26,8 @@ export default async function PricingPage() {
         plans={plans}
         addons={getAddons().map((a) => ({ id: a.id, price: a.price }))}
         delivery={getDeliveryOptions()
-          .filter((d) => !d.quoted)
-          .map((d) => ({ id: d.id, price: d.price }))}
+          .filter((d) => d.id !== "abroad")
+          .map((d) => ({ id: d.id, price: d.quoted ? null : d.price, optional: !!factoryCatalog.delivery.find((f) => f.id === d.id)?.quoted }))}
         factory={factory}
         changed={changed}
       />

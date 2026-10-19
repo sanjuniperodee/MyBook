@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { useFixedDelivery } from "./doubles/delivery";
 import { calculatePrice, checkoutTerms, quoteCheckout } from "@/modules/ordering/domain/Pricing";
 import { DealInvoicesService } from "@/modules/ordering/application/DealInvoicesService";
 import { ClientOnboardingService, type OnboardingSales } from "@/modules/clients/application";
@@ -9,6 +10,9 @@ import { messagesFor } from "@/i18n/messages";
 import { setup } from "./doubles/ordering";
 import { setup as clientsSetup, head } from "./doubles/clients";
 import { FakeInvoiceSales, MemDealInvoices } from "./doubles/kaspi";
+
+// Расчёт с платной доставкой: цены, вписанные владельцем (по умолчанию доставка рассчитывается индивидуально).
+beforeEach(useFixedDelivery);
 
 /**
  * «Бесплатно по договорённости»: менеджер отмечает, что подарочная упаковка и/или доставка идут бесплатно. Сами они

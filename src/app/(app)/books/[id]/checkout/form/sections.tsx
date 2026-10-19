@@ -6,7 +6,7 @@ import { Check, Globe, LoaderCircle, Minus, Plus, Tag, X } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
-import { formatPrice, getDeliveryOptions, getPlan, getVisiblePlans, isQuotedDelivery, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getDeliveryOptions, getPlan, getVisiblePlans, isAbroadDelivery, isQuotedDelivery, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { orderByDate, startOfDay } from "@/lib/occasions";
 import type { PromoPreview } from "../actions";
@@ -202,19 +202,19 @@ export function DeliverySection({ delivery, onDelivery, gifts = [] }: { delivery
               <div className="font-medium">{c.delivery[d.id].name}</div>
               <div className="text-sm text-muted">{c.delivery[d.id].description}</div>
             </div>
-            <div className="text-right text-sm font-medium">{d.quoted ? <span className="text-muted">{t.abroad.price}</span> : !d.price ? c.free : gifts.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : formatPrice(d.price)}</div>
+            <div className="text-right text-sm font-medium">{isQuotedDelivery(d.id, gifts) ? <span className="text-muted">{t.quoted.price}</span> : !d.price ? c.free : gifts.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : formatPrice(d.price)}</div>
           </label>
         ))}
       </div>
-      {isQuotedDelivery(delivery) ? (
+      {isQuotedDelivery(delivery, gifts) ? (
         <p className="mt-4 flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-sm text-amber-900" data-testid="abroad-note">
           <Globe className="mt-0.5 size-4 shrink-0" />
-          {t.abroad.note}
+          {t.quoted.note}
         </p>
       ) : null}
       {delivery !== "pickup" ? (
         <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_2fr]">
-          {isQuotedDelivery(delivery) ? (
+          {isAbroadDelivery(delivery) ? (
             <div className="sm:col-span-2 sm:max-w-sm">
               <label className="label" htmlFor="country">
                 {t.country}
@@ -238,7 +238,7 @@ export function DeliverySection({ delivery, onDelivery, gifts = [] }: { delivery
             <label className="label" htmlFor="postalCode">
               {t.postalCode}
             </label>
-            <input className="input" id="postalCode" name="postalCode" required={isQuotedDelivery(delivery)} maxLength={20} autoComplete="postal-code" />
+            <input className="input" id="postalCode" name="postalCode" required={isAbroadDelivery(delivery)} maxLength={20} autoComplete="postal-code" />
           </div>
         </div>
       ) : null}
@@ -281,8 +281,8 @@ export function GiftSection({ now, today, desiredDate, onDesiredDate, occasionLa
           {fit ? (
             fit.ok ? (
               <p className="mt-1.5 text-xs text-emerald-700" data-testid="date-fit">
-                <Check className="mr-0.5 inline size-3" /> {isQuotedDelivery(delivery) ? t.abroad.fitOk : t.fitOk}
-                {occasionLabel && !isQuotedDelivery(delivery) ? t.fitOccasion(occasionLabel) : ""}
+                <Check className="mr-0.5 inline size-3" /> {isAbroadDelivery(delivery) ? t.abroad.fitOk : t.fitOk}
+                {occasionLabel && !isAbroadDelivery(delivery) ? t.fitOccasion(occasionLabel) : ""}
               </p>
             ) : fit.premiumOk && !express ? (
               <p className="mt-1.5 text-xs text-amber-700" data-testid="date-fit">
@@ -300,7 +300,7 @@ export function GiftSection({ now, today, desiredDate, onDesiredDate, occasionLa
               </p>
             ) : (
               <p className="mt-1.5 text-xs text-amber-700" data-testid="date-fit">
-                {isQuotedDelivery(delivery) ? t.abroad.fitNo : delivery === "post" ? t.fitPost : t.fitNo}
+                {isAbroadDelivery(delivery) ? t.abroad.fitNo : delivery === "post" ? t.fitPost : t.fitNo}
               </p>
             )
           ) : (
@@ -403,7 +403,7 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
         {plan.printed ? (
           <div className="flex justify-between">
             <dt className="text-muted">{t.delivery}</dt>
-            <dd>{deliveryQuoted ? <span className="text-muted">{t.abroad.price}</span> : gifted.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
+            <dd>{deliveryQuoted ? <span className="text-muted">{t.quoted.price}</span> : gifted.includes("delivery") ? <span className="text-emerald-700">{t.agreement.giftFree}</span> : deliveryPrice ? formatPrice(deliveryPrice) : c.free}</dd>
           </div>
         ) : null}
       </dl>
@@ -452,7 +452,7 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
       </div>
       {deliveryQuoted ? (
         <p className="mt-1 text-right text-xs text-muted" data-testid="abroad-total">
-          {t.abroad.total}
+          {t.quoted.total}
         </p>
       ) : null}
       {error ? <Alert className="mt-4">{error}</Alert> : null}
@@ -484,7 +484,7 @@ export function MobileBar({ total, deliveryQuoted = false }: { total: number; de
     <div className="min-w-0 flex-1">
       <div className="text-xs text-muted">{t.toPay}</div>
       <div className="font-serif text-2xl leading-none tabular-nums">{formatPrice(total)}</div>
-      {deliveryQuoted ? <div className="mt-0.5 truncate text-[11px] text-muted">{t.abroad.total}</div> : null}
+      {deliveryQuoted ? <div className="mt-0.5 truncate text-[11px] text-muted">{t.quoted.total}</div> : null}
     </div>
     <SubmitButton className="h-11" pendingText={t.pending}>
       {t.submitShort}

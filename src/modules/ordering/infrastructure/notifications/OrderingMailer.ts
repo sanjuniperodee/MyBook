@@ -49,17 +49,20 @@ export class OrderingMailer {
     if (!order) return;
     const locale = await this.customerLocale(p.userId);
     const m = messagesFor(locale).mail.order.created;
+    // Доставка не вошла в сумму (рассчитывается индивидуально): куда — страна и город.
+    const quoted = p.deliveryQuoted ?? p.deliveryAbroad;
+    const where = quoted ? [quoted.country, quoted.city].filter(Boolean).join(", ") || "—" : null;
     await this.mail.send(
       order.contactEmail,
       m.subject(order.number),
       emailLayout({
         locale,
         title: m.title,
-        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), ...(p.prepaid ? [m.prepaid(formatPrice(p.prepaid))] : []), m.amount(formatPrice(order.amount)), ...(p.deliveryAbroad ? [m.abroad(escapeHtml(p.deliveryAbroad.country ?? "—"))] : [])],
+        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), ...(p.prepaid ? [m.prepaid(formatPrice(p.prepaid))] : []), m.amount(formatPrice(order.amount)), ...(where ? [m.quoted(escapeHtml(where))] : [])],
         button: { label: m.button, url: orderUrl(order.id, locale) },
       }),
     );
-    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}${p.prepaid ? ` (предоплата ${formatPrice(p.prepaid)} уже внесена)` : ""}${p.deliveryAbroad ? ` · доставка в другую страну (${escapeHtml(p.deliveryAbroad.country ?? "—")}) — рассчитать отдельно` : ""}`], {
+    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}${p.prepaid ? ` (предоплата ${formatPrice(p.prepaid)} уже внесена)` : ""}${where ? ` · доставка (${escapeHtml(where)}) — рассчитать индивидуально` : ""}`], {
       label: "Открыть в админке",
       url: `${env.appUrl}/admin/orders/${order.id}`,
     });

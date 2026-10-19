@@ -107,7 +107,7 @@ export function CheckoutForm({
       <Summary
         plan={plan}
         qty={qty}
-        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total, gifted: quote.price.gifted ?? [], deliveryQuoted: plan.printed && isQuotedDelivery(delivery) }}
+        price={{ items, discountAmount, agreedDiscount, prepaidApplied, addons: appliedAddons, deliveryPrice, total, gifted: quote.price.gifted ?? [], deliveryQuoted: plan.printed && isQuotedDelivery(delivery, quote.price.gifted) }}
         promo={promoField}
         upgrade={upgrade}
         offered={offered}
@@ -115,7 +115,7 @@ export function CheckoutForm({
         blocked={blocked}
       />
 
-      <MobileBar total={total} deliveryQuoted={plan.printed && isQuotedDelivery(delivery)} />
+      <MobileBar total={total} deliveryQuoted={plan.printed && isQuotedDelivery(delivery, quote.price.gifted)} />
     </form>
   );
 }

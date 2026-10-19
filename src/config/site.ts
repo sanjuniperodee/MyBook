@@ -51,7 +51,10 @@ export interface DeliveryOption {
   price: number;
   /** Максимальный срок доставки, дней — для расчёта «успеть к дате». */
   maxDays: number;
-  /** Стоимость считает менеджер отдельно (другая страна): в сумму заказа не входит, цены в админке нет. */
+  /**
+   * Стоимость рассчитывается индивидуально (курьер, по Казахстану, другая страна): зависит от города и перевозчика
+   * (СДЭК, Казпочта, InDriver), в сумму заказа не входит, цены в админке нет — её называет менеджер.
+   */
   quoted?: boolean;
 }
 
@@ -89,9 +92,10 @@ const defaultPlans: readonly Plan[] = [
   },
 ];
 
+// Доставка — не константа (InDriver может выйти дороже): пока расценки не проверены, её стоимость считает менеджер.
 const defaultDelivery: readonly DeliveryOption[] = [
-  { id: "courier", price: 2000, maxDays: 2 },
-  { id: "post", price: 3500, maxDays: 7 },
+  { id: "courier", price: 0, maxDays: 2, quoted: true },
+  { id: "post", price: 0, maxDays: 7, quoted: true },
   { id: "pickup", price: 0, maxDays: 0 },
   { id: "abroad", price: 0, maxDays: 21, quoted: true },
 ];
@@ -101,11 +105,18 @@ const defaultAddons: readonly Addon[] = [
   { id: "giftwrap", price: 5000, hiddenFor: ["digital", "premium"] },
 ];
 
+/** Доставка в другую страну: нужны страна и индекс, стоимость всегда считает менеджер. */
+export const isAbroadDelivery = (id: string | null | undefined): boolean => id === "abroad";
+
 /** Что владелец поменял в админке: только цены и видимость тарифов, остальное (сроки, состав) — в коде и словарях. */
 export interface CatalogOverrides {
   plans?: Partial<Record<PlanId, { price?: number; extraCopyPrice?: number; hidden?: boolean }>>;
   addons?: Partial<Record<AddonId, { price?: number }>>;
-  delivery?: Partial<Record<DeliveryId, { price?: number }>>;
+  /**
+   * Цена доставки. У способов «по расчёту» (курьер, по Казахстану) цена действует только с fixed: true — её владелец
+   * вписал сам в «Ценах и тарифах»; старые сохранённые цены без отметки не возвращают фиксированную доставку.
+   */
+  delivery?: Partial<Record<DeliveryId, { price?: number; fixed?: boolean }>>;
 }
 
 export const MAX_PRICE = 10_000_000;
@@ -130,9 +141,12 @@ export function sanitizeOverrides(raw: unknown): CatalogOverrides {
     if (v !== undefined) (out.addons ??= {})[d.id] = { price: v };
   }
   for (const d of defaultDelivery) {
-    if (d.quoted) continue;
+    // В другую страну — всегда по расчёту менеджера.
+    if (isAbroadDelivery(d.id)) continue;
     const v = price(o.delivery?.[d.id]?.price);
-    if (v !== undefined) (out.delivery ??= {})[d.id] = { price: v };
+    const fixed = o.delivery?.[d.id]?.fixed === true;
+    if (v === undefined || (d.quoted && !fixed)) continue;
+    (out.delivery ??= {})[d.id] = d.quoted ? { price: v, fixed: true } : { price: v };
   }
   // Хотя бы один тариф должен продаваться: иначе оформить заказ нельзя.
   if (defaultPlans.every((d) => (out.plans?.[d.id]?.hidden ?? d.hidden) === true)) delete out.plans;
@@ -156,7 +170,11 @@ function build(overrides: CatalogOverrides): Effective {
     plans,
     visible: plans.filter((p) => !p.hidden),
     addons: defaultAddons.map((d) => ({ ...d, ...overrides.addons?.[d.id] })),
-    delivery: defaultDelivery.map((d) => ({ ...d, ...overrides.delivery?.[d.id] })),
+    // Владелец вписал цену доставки «по расчёту» — она становится фиксированной.
+    delivery: defaultDelivery.map((d) => {
+      const o = overrides.delivery?.[d.id];
+      return o ? { id: d.id, maxDays: d.maxDays, price: o.price ?? d.price, ...(d.quoted && !o.fixed ? { quoted: true } : {}) } : { ...d };
+    }),
   };
 }
 
@@ -202,8 +220,12 @@ export const getPlans = (): readonly Plan[] => current().plans;
 export const getVisiblePlans = (): readonly Plan[] => current().visible;
 export const getAddons = (): readonly Addon[] => current().addons;
 export const getDeliveryOptions = (): readonly DeliveryOption[] => current().delivery;
-/** Доставку считает менеджер отдельно (в другую страну): в заказе 0 ₸, клиенту — «рассчитает менеджер». */
-export const isQuotedDelivery = (id: string | null | undefined): boolean => !!id && defaultDelivery.some((d) => d.id === id && d.quoted);
+/**
+ * Стоимость доставки рассчитывается индивидуально: в заказе 0 ₸, клиенту — «рассчитывается индивидуально». Доставку по
+ * Казахстану менеджер мог отдать бесплатно по договорённости (gifts) — тогда она бесплатная, а не «по расчёту».
+ */
+export const isQuotedDelivery = (id: string | null | undefined, gifts: readonly string[] = []): boolean =>
+  !!id && current().delivery.some((d) => d.id === id && d.quoted) && !(!isAbroadDelivery(id) && gifts.includes("delivery"));
 
 export function availableAddons(plan: PlanId) {
   return getAddons().filter((a) => !a.hiddenFor.includes(plan));
