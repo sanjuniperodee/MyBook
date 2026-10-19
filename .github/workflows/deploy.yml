@@ -1,0 +1,63 @@
+# Выкатка на прод при пуше в master: проверки и сборка здесь, на сервер уезжает готовый архив (deploy/ci-run.sh).
+# Сервер (общий с другими сайтами) больше не собирает: сборка не помещалась в его память и тормозила сайты.
+# Нужен секрет DEPLOY_SSH_KEY — закрытый ключ, открытая часть которого лежит в ~/.ssh/authorized_keys на сервере.
+name: Выкатка на прод
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Выкатки идут по одной; из ожидающих GitHub оставляет только самую свежую.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Типы
+        run: npx tsc --noEmit
+
+      - name: Линтер
+        run: npm run lint
+
+      - name: Тесты
+        run: npm test
+
+      - name: Сборка
+        run: npm run build
+        env:
+          MYBOOK_SKIP_TYPECHECK: 1
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Архив релиза
+        run: |
+          bash deploy/pack-release.sh release
+          tar -czf mybook.tgz -C release .
+
+      - name: Ключ сервера
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          echo "94.131.93.92 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBvZzOPdHhSf2YhAKy29oLAp8C1uWReP6NovOUcB5+ye" >> ~/.ssh/known_hosts
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Выкатка
+        run: bash deploy/ci-run.sh mybook.tgz

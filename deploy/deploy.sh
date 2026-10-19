@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Деплой MyBooks на сервер с PM2 и nginx (без Docker) — без «битых» страниц во время выкатки.
 # Запуск на сервере из корня репозитория: bash deploy/deploy.sh [ветка]
+# Готовая сборка из GitHub Actions: bash deploy/deploy.sh --artifact <архив.tgz> — код уже обновлён (deploy/ci-run.sh),
+# зависимости и сборка на сервере пропускаются, архив и есть релиз.
 #
 # Сборка идёт в .next репозитория, а запускается копия в ../mybook-releases/releases/<время>-<sha>: пока идёт сборка,
 # работающая версия не затрагивается. Порядок:
@@ -8,6 +10,11 @@
 # Не прошёл smoke-тест — остаётся старая версия. Не ответила после переключения — откат на предыдущий релиз.
 set -euo pipefail
 
+ARTIFACT=""
+if [ "${1:-}" = "--artifact" ]; then
+  ARTIFACT="$(readlink -f "${2:?укажите архив сборки}")"
+  shift 2
+fi
 BRANCH="${1:-$(git rev-parse --abbrev-ref HEAD)}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -23,10 +30,17 @@ CURRENT="$BASE/current"
 [ -f .env ] || { echo "Нет файла .env — скопируйте .env.example и заполните"; exit 1; }
 grep -q '^STORAGE_DIR=/' .env || { echo "В .env укажите абсолютный STORAGE_DIR (например, /home/$USER/mybook-storage)"; exit 1; }
 
-echo "→ Обновляем код ($BRANCH)"
-git fetch origin "$BRANCH"
-git checkout "$BRANCH"
-git pull --ff-only origin "$BRANCH"
+# Две выкатки сразу не помещаются в память и спорят за current — вторая ждёт первую.
+mkdir -p "$BASE"
+exec 9>"$BASE/.deploy.lock"
+flock -w 1800 9 || { echo "✗ Другая выкатка идёт дольше 30 минут — эта не запущена"; exit 1; }
+
+if [ -z "$ARTIFACT" ]; then
+  echo "→ Обновляем код ($BRANCH)"
+  git fetch origin "$BRANCH"
+  git checkout "$BRANCH"
+  git pull --ff-only origin "$BRANCH"
+fi
 SHA="$(git rev-parse --short HEAD)"
 
 # Итог деплоя — в группу WhatsApp от номера, подключённого к своему шлюзу (GOWA). Сбой уведомления деплой не ломает.
@@ -39,58 +53,67 @@ on_exit() {
 }
 trap on_exit EXIT
 
-# Сборка идёт на том же сервере, что и сайт (4 ядра, 8 ГБ, рядом чужие проекты): без ограничений она забирает ядра
-# и память, и сайт отвечает медленно. Поэтому сборке — одно ядро и мягкий потолок памяти (cgroup через systemd-run),
-# низший приоритет процессора и диска. Нет systemd-run для пользователя — только приоритеты.
-# В потолок входит и файловый кэш, который читает сборка: холодная сборка доходит до ~2,9 ГБ, а при потолке 2200M
-# ядро выбрасывало прочитанное, сборка перечитывала диск по кругу (9 ГБ за 30 минут) и тормозила сайт.
-BUILD_CPU="${MYBOOK_BUILD_CPU:-100%}"
-BUILD_MEM="${MYBOOK_BUILD_MEM:-3500M}"
-limited() {
-  if systemd-run --user --scope -q -p CPUQuota=50% true >/dev/null 2>&1; then
-    systemd-run --user --scope -q -p CPUQuota="$BUILD_CPU" -p MemoryHigh="$BUILD_MEM" nice -n 19 ionice -c 3 "$@"
+if [ -z "$ARTIFACT" ]; then
+  # Сборка идёт на том же сервере, что и сайт (4 ядра, 8 ГБ, рядом чужие проекты): без ограничений она забирает ядра
+  # и память, и сайт отвечает медленно. Поэтому сборке — одно ядро и мягкий потолок памяти (cgroup через systemd-run),
+  # низший приоритет процессора и диска. Нет systemd-run для пользователя — только приоритеты.
+  # В потолок входит и файловый кэш, который читает сборка: холодная сборка доходит до ~2,9 ГБ, а при потолке 2200M
+  # ядро выбрасывало прочитанное, сборка перечитывала диск по кругу (9 ГБ за 30 минут) и тормозила сайт.
+  BUILD_CPU="${MYBOOK_BUILD_CPU:-100%}"
+  BUILD_MEM="${MYBOOK_BUILD_MEM:-3500M}"
+  limited() {
+    if systemd-run --user --scope -q -p CPUQuota=50% true >/dev/null 2>&1; then
+      systemd-run --user --scope -q -p CPUQuota="$BUILD_CPU" -p MemoryHigh="$BUILD_MEM" nice -n 19 ionice -c 3 "$@"
+    else
+      nice -n 19 ionice -c 3 "$@"
+    fi
+  }
+
+  # npm ci переустанавливает node_modules целиком (сотни мегабайт с диска) — только если зависимости поменялись.
+  LOCK_HASH="$(sha256sum package-lock.json | cut -d' ' -f1)"
+  if [ -d node_modules ] && [ "$(cat node_modules/.deploy-lock-hash 2>/dev/null)" = "$LOCK_HASH" ]; then
+    echo "→ Зависимости не менялись — npm ci пропущен"
   else
-    nice -n 19 ionice -c 3 "$@"
+    echo "→ Зависимости"
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 limited npm ci --no-audit --no-fund
+    echo "$LOCK_HASH" > node_modules/.deploy-lock-hash
   fi
-}
 
-# npm ci переустанавливает node_modules целиком (сотни мегабайт с диска) — только если зависимости поменялись.
-LOCK_HASH="$(sha256sum package-lock.json | cut -d' ' -f1)"
-if [ -d node_modules ] && [ "$(cat node_modules/.deploy-lock-hash 2>/dev/null)" = "$LOCK_HASH" ]; then
-  echo "→ Зависимости не менялись — npm ci пропущен"
-else
-  echo "→ Зависимости"
-  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 limited npm ci --no-audit --no-fund
-  echo "$LOCK_HASH" > node_modules/.deploy-lock-hash
-fi
-
-# Кэш Turbopack (.next/cache/turbopack) старые файлы не удаляет: свежий весит ~400 МБ, а за месяцы дорастает до
-# гигабайтов, и сборка не помещается в потолок памяти. Разросся — удаляем: одна сборка пройдёт холодной.
-CACHE_DIR=.next/cache/turbopack
-CACHE_MAX_MB="${MYBOOK_BUILD_CACHE_MAX_MB:-1200}"
-if [ -d "$CACHE_DIR" ]; then
-  CACHE_MB="$(du -sm "$CACHE_DIR" | cut -f1)"
-  if [ "$CACHE_MB" -gt "$CACHE_MAX_MB" ]; then
-    echo "→ Кэш сборки ${CACHE_MB} МБ (больше ${CACHE_MAX_MB}) — удалён, сборка будет холодной"
-    rm -rf "$CACHE_DIR"
+  # Кэш Turbopack (.next/cache/turbopack) старые файлы не удаляет: свежий весит ~400 МБ, а за месяцы дорастает до
+  # гигабайтов, и сборка не помещается в потолок памяти. Разросся — удаляем: одна сборка пройдёт холодной.
+  CACHE_DIR=.next/cache/turbopack
+  CACHE_MAX_MB="${MYBOOK_BUILD_CACHE_MAX_MB:-1200}"
+  if [ -d "$CACHE_DIR" ]; then
+    CACHE_MB="$(du -sm "$CACHE_DIR" | cut -f1)"
+    if [ "$CACHE_MB" -gt "$CACHE_MAX_MB" ]; then
+      echo "→ Кэш сборки ${CACHE_MB} МБ (больше ${CACHE_MAX_MB}) — удалён, сборка будет холодной"
+      rm -rf "$CACHE_DIR"
+    fi
   fi
-fi
 
-echo "→ Сборка (одно ядро, низкий приоритет — сайт продолжает отвечать быстро)"
-# Проверка типов внутри next build не помещается в память сервера (падала с heap out of memory) — типы проверяются до
-# пуша (npx tsc --noEmit); MYBOOK_TYPECHECK=1 вернёт проверку при сборке.
-SKIP_TS=1
-[ "${MYBOOK_TYPECHECK:-0}" = 1 ] && SKIP_TS=0
-MYBOOK_SKIP_TYPECHECK="$SKIP_TS" NEXT_TELEMETRY_DISABLED=1 limited npm run build
+  echo "→ Сборка (одно ядро, низкий приоритет — сайт продолжает отвечать быстро)"
+  # Проверка типов внутри next build не помещается в память сервера (падала с heap out of memory) — типы проверяются до
+  # пуша (npx tsc --noEmit); MYBOOK_TYPECHECK=1 вернёт проверку при сборке.
+  SKIP_TS=1
+  [ "${MYBOOK_TYPECHECK:-0}" = 1 ] && SKIP_TS=0
+  MYBOOK_SKIP_TYPECHECK="$SKIP_TS" NEXT_TELEMETRY_DISABLED=1 limited npm run build
+fi
 
 echo "→ Релиз $SHA"
 REL="$RELEASES/$(date +%Y%m%d-%H%M%S)-$SHA"
-mkdir -p "$REL"
-cp -a .next/standalone/. "$REL/"
-# standalone-сборке нужны статика, шрифты для PDF и миграции рядом с server.js
-mkdir -p "$REL/.next"
-cp -a .next/static "$REL/.next/static"
-cp -a public assets drizzle "$REL/"
+if [ -n "$ARTIFACT" ]; then
+  mkdir -p "$REL"
+  tar -xzf "$ARTIFACT" -C "$REL"
+  # Архив должен быть собран из того же коммита, что лежит на сервере: из него берутся PM2-конфиг и скрипты.
+  BUILT="$(cat "$REL/BUILD_SHA" 2>/dev/null || true)"
+  if [ "${BUILT:0:${#SHA}}" != "$SHA" ]; then
+    echo "✗ Архив собран из ${BUILT:-неизвестного коммита}, а код на сервере — $SHA. Ничего не переключено."
+    rm -rf "$REL"
+    exit 1
+  fi
+else
+  bash deploy/pack-release.sh "$REL"
+fi
 
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся (для fork-режима это тот же перезапуск, 1–2 с).
 pm2_apply() {
