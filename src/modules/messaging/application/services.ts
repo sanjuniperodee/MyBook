@@ -27,7 +27,7 @@ import {
 } from "../domain";
 import { zonedDay } from "@/shared/domain/time";
 import type { QualifierBot } from "./bot";
-import type { BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffLine, StaffNotifier, StoredMessage, Tasks } from "./ports";
+import type { AnsweredTasks, BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffLine, StaffNotifier, StoredMessage, Tasks } from "./ports";
 
 /** WhatsApp даёт изменить отправленное 15 минут, удалить «для всех» — около двух суток. */
 export const EDIT_WINDOW_MS = 15 * 60_000;
@@ -102,7 +102,17 @@ export class MessagingService {
     private readonly ruleSending: () => Promise<RuleSendingPolicy> = async () => DEFAULT_RULE_SENDING,
     /** Номера сотрудников и служебные сообщения им (напоминания о задачах): не заявки. null — не различаем. */
     private readonly staffLine: StaffLine | null = null,
+    /** Задачи «ответить» по сделке закрываются ответом клиенту. null — не закрываются. */
+    private readonly answeredTasks: AnsweredTasks | null = null,
   ) {}
+
+  /**
+   * Клиенту ответил человек — из CRM (ушло) или с телефона магазина (эхо): задачи «ответить» по сделке диалога сделаны
+   * (automation-12). Один UPDATE по индексу открытых задач сделки; сбой не мешает ответу.
+   */
+  private async answered(conv: Conversation) {
+    if (conv.dealId && this.answeredTasks) await this.answeredTasks.answered(conv.dealId).catch((err) => this.logger.error("tasks answered", err));
+  }
 
   /** Переписка в WhatsApp с номером действующего сотрудника (сбой проверки — как с клиентом: заявку не теряем). */
   private async isStaffChat(m: InboundMessage, extra: IngestExtra) {
@@ -205,6 +215,7 @@ export class MessagingService {
       await this.conversations.recordEcho(base.id, preview(m.text), m.at);
       // Ответ с телефона магазина — в открытых вкладках CRM сразу, а не со следующим опросом.
       this.live.chatChanged(base.id);
+      await this.answered(base);
       // Ответил человек с телефона магазина — бот в этом диалоге больше не пишет (и не начнёт).
       await this.bot.stopByHuman(base.id, "phone").catch((err) => this.logger.error("bot stop", err));
       // Отвечал тот, у кого сейчас телефон: новая заявка — его.
@@ -354,6 +365,7 @@ export class MessagingService {
     }
     await this.messages.attachExternalId(msg.id, r.externalId);
     if (conv.channel === "email") this.live.chatChanged(conversationId);
+    if (authorId) await this.answered(conv);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
@@ -381,6 +393,7 @@ export class MessagingService {
     }
     await this.messages.attachExternalId(msg.id, r.externalId);
     this.live.chatChanged(conversationId);
+    await this.answered(conv);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 

@@ -11,6 +11,8 @@ export const DEFAULT_REMIND_MIN = 60;
 const REMIND_STALE_MIN = 60;
 /** Сколько напоминаний забирает один минутный проход (остальные — в следующем). */
 const REMIND_BATCH = 200;
+/** Итог задачи «ответить», закрытой ответом клиенту из CRM или с телефона магазина. */
+export const ANSWERED_RESULT = "ответили в чате";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -167,6 +169,14 @@ export class TasksService {
   async followDeal(input: { dealId: string; from: string | null; to: string }): Promise<number> {
     if (input.from === input.to || !(await this.staff.isActiveStaff(input.to))) return 0;
     return this.tasks.reassignOpenOfDeal(input);
+  }
+
+  /**
+   * Клиенту ответили в чате (из CRM или с телефона магазина): открытые задачи «ответить» (kind message) по сделке
+   * сделаны — итог «ответили в чате» (automation-12). Звонки и прочие задачи остаются. Сколько закрыто.
+   */
+  closeAnswered(dealId: string) {
+    return this.tasks.closeOpenOfKind({ dealId, kind: "message", result: ANSWERED_RESULT, at: this.clock.now() });
   }
 
   /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */

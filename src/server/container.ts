@@ -103,7 +103,8 @@ export class Container {
       smtpConfig,
       smtp: this.smtp,
       // Задачи бота и «Перезвоните мне» — через сервис задач: с напоминанием о сроке, без ответственного — ничья.
-      tasks: { create: (t) => this.clients.tasks.createSystem(t) },
+      // Ответ клиенту (из CRM или с телефона магазина) закрывает задачи «ответить» по сделке.
+      tasks: { create: (t) => this.clients.tasks.createSystem(t), answered: (dealId) => this.clients.tasks.closeAnswered(dealId) },
       // Переписка с номерами действующих сотрудников (ответ на напоминание о задаче) — служебная, не заявки.
       staffPhones: () => this.access.queries.activeStaffPhones(),
       rules: {

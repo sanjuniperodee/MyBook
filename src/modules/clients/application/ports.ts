@@ -34,6 +34,11 @@ export interface TaskRepository {
   claimDueReminders(now: Date, staleMin: number, limit: number): Promise<{ id: string; title: string; kind: TaskKind; dueAt: Date; assigneeId: string | null; dealId: string | null; orderId: string | null }[]>;
   /** Есть ли открытая задача с таким заголовком по сделке (служебные задачи CRM не дублируются при повторе). */
   existsOpen(t: { dealId: string; title: string }): Promise<boolean>;
+  /**
+   * Закрыть открытые задачи сделки этого типа с итогом result (если итог не записан): клиенту ответили — задачи
+   * «ответить» сделаны. Сколько закрыто.
+   */
+  closeOpenOfKind(t: { dealId: string; kind: TaskKind; result: string; at: Date }): Promise<number>;
   /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
   closeOpenByPrefix(t: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }): Promise<number>;
   setDone(id: string, doneAt: Date | null): Promise<void>;

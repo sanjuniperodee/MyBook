@@ -11,6 +11,22 @@ export interface RuleAction {
   stageId?: string;
 }
 
+/** Срок задачи правила по умолчанию — час. */
+export const DEFAULT_TASK_DUE_MIN = 60;
+/** С какого срока (минут) он календарный, а не в рабочем времени, — сутки. */
+const CALENDAR_DUE_FROM_MIN = 24 * 60;
+
+/**
+ * Срок задачи правила (automation-d3): до суток — в рабочих минутах (ночь и выходные не в счёт: пропущенный в 23:00
+ * звонок «через 15 минут» — к 09:15, а не просрочен к началу смены); от суток — календарный срок, а если он выпал на
+ * нерабочее время — начало ближайшей смены («через день» не растягивается в два). Возвращает, от какого момента
+ * отсчитать сколько рабочих минут (WorkSchedule.addWorkMinutes).
+ */
+export function ruleTaskDue(now: Date, dueMinutes: number | undefined): { from: Date; workMinutes: number } {
+  const minutes = Math.max(0, dueMinutes ?? DEFAULT_TASK_DUE_MIN);
+  return minutes >= CALENDAR_DUE_FROM_MIN ? { from: new Date(now.getTime() + minutes * 60_000), workMinutes: 0 } : { from: now, workMinutes: minutes };
+}
+
 /** Правило автоматизации: событие → условия → действия. */
 export interface AutomationRule {
   id: string;

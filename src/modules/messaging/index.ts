@@ -1,7 +1,7 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
+import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type AnsweredTasks, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
@@ -101,8 +101,8 @@ export class MessagingModule {
     private readonly deps: {
       clock: Clock;
       sales: SalesGateway;
-      /** Задачи менеджерам (бот, «Перезвоните мне») — сервис задач контекста Clients. */
-      tasks: Tasks;
+      /** Задачи менеджерам (бот, «Перезвоните мне») и закрытие задач «ответить» ответом — сервис задач контекста Clients. */
+      tasks: Tasks & AnsweredTasks;
       rules: IncomingRules;
       links: LinkAttribution;
       whatsapp: () => Promise<string>;
@@ -177,7 +177,7 @@ export class MessagingModule {
     const messages = this.messages;
     // Окно и суточный лимит сообщений от правил — настройки «Интеграции» → «Мессенджеры» (кэш настроек — 10 секунд).
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
-    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine);
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds);
   }

@@ -209,12 +209,12 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               ) : null}
             </div>
             {a.type === "create_task" ? (
-              <div className="grid gap-2 sm:grid-cols-[1fr_130px_180px]">
+              <div className="grid gap-2 sm:grid-cols-[1fr_160px_180px]">
                 <input className="input h-9 text-sm" placeholder="Текст задачи, например «Перезвонить {имя}»" value={a.title ?? ""} onChange={(e) => setAction(i, { title: e.target.value })} />
-                <label className="flex items-center gap-1.5 text-xs text-muted">
+                <label className="flex items-center gap-1.5 text-xs text-muted" title="Минуты рабочего времени: ночь и выходные не в счёт — пропущенный ночью звонок получит срок от начала смены. От 1440 (суток) — календарный срок, а если он выпал на ночь — начало смены. По сделке — одна открытая такая задача.">
                   срок
                   <input type="number" min={0} className="input h-9 w-16 text-sm" value={a.dueMinutes ?? 60} onChange={(e) => setAction(i, { dueMinutes: Number(e.target.value) })} />
-                  мин
+                  раб. мин
                 </label>
                 {staffSelect(a.userId, (v) => setAction(i, { userId: v }), "ответственному по сделке")}
               </div>

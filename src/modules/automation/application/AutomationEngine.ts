@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock, Logger, WorkSchedule } from "@/shared/application";
-import { conditionNumber, isReplyTrigger, linkFor, matches, needsWorkTime, sendsMessage, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
+import { conditionNumber, isReplyTrigger, linkFor, matches, needsWorkTime, ruleTaskDue, sendsMessage, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
 import { fillTemplate } from "@/shared/domain/templates";
 import type { AppInfo, AutomationEffects, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader } from "./ports";
 
@@ -73,15 +73,19 @@ export class AutomationEngine {
       case "create_task": {
         const assigneeId = a.userId || s.deal?.assigneeId || s.assigneeId;
         const title = fillTemplate(a.title || rule.name, vars) || rule.name;
-        await this.effects.createTask({
+        // Срок — в рабочем времени; по сделке — одна открытая такая задача (повтор пропущенного звонка не множит её).
+        const due = ruleTaskDue(this.clock.now(), a.dueMinutes);
+        const created = await this.effects.createTask({
           title: title.slice(0, 200),
           kind: ctx.callId ? "call" : ctx.conversationId ? "message" : "task",
-          dueAt: new Date(this.clock.now().getTime() + (a.dueMinutes ?? 60) * 60_000),
+          dueAt: await this.schedule.addWorkMinutes(due.from, due.workMinutes),
           clientId: s.clientId,
           dealId: s.deal?.id ?? null,
           orderId: ctx.orderId ?? null,
           assigneeId,
+          once: true,
         });
+        if (!created) return;
         await this.effects.notify(assigneeId ? [assigneeId] : "staff", { kind: "task", title: `Задача: ${title}`, body: rule.name, link: linkFor(ctx, s) ?? "/admin/tasks" });
         return;
       }

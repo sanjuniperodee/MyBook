@@ -320,6 +320,11 @@ export interface Tasks {
   create(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; dealId: string; clientId: string | null; assigneeId: string | null }): Promise<unknown>;
 }
 
+/** Клиенту ответили (из CRM или с телефона магазина): открытые задачи «ответить» по сделке закрываются (сервис задач). */
+export interface AnsweredTasks {
+  answered(dealId: string): Promise<unknown>;
+}
+
 /** Вложение сообщения — то, что нужно, чтобы открыть его файл в CRM. */
 export interface MessageMedia {
   id: string;

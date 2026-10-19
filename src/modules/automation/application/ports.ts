@@ -20,8 +20,11 @@ export interface SubjectLoader {
 
 /** Действия правил в других частях CRM. */
 export interface AutomationEffects {
-  /** Задача через сервис задач: с напоминанием о сроке, автор — CRM; без ответственного — ничья (видят все). */
-  createTask(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null }): Promise<unknown>;
+  /**
+   * Задача через сервис задач: с напоминанием о сроке, автор — CRM; без ответственного — ничья (видят все). once — одна
+   * открытая задача с этим заголовком на сделку; false — не поставлена (такая уже открыта).
+   */
+  createTask(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null; once?: boolean }): Promise<boolean>;
   /**
    * Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). reply — ответ на только что
    * пришедшее сообщение клиента (автоответ): окно и суточный лимит его не держат.

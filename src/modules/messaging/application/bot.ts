@@ -660,9 +660,11 @@ export class QualifierBot {
       const call = state.reason === "call";
       const verb = state.reason === "agreed" ? "Выставить счёт" : state.reason === "price" ? "Назвать цену" : call ? "Перезвонить" : "Ответить";
       // Ответственного нет (ночь, круг ещё не раздал) — задачу видят все, утром её заберёт круг вместе со сделкой.
+      // «Ответить» и «Назвать цену» закрывает ответ клиенту в чате; «Выставить счёт» — нет (ответить ещё не значит
+      // выставить), поэтому это обычная задача, а не «сообщение».
       await this.d.tasks.create({
         title: `${verb}: ${who} — ${outcomeTitle(state).replace(/^Клиент /, "").toLowerCase()} (бот)`.slice(0, 200),
-        kind: call ? "call" : "message",
+        kind: call ? "call" : state.reason === "agreed" ? "task" : "message",
         dueAt: new Date(start.getTime() + (state.reason === "agreed" || state.reason === "price" ? 5 : 15) * 60_000),
         dealId: deal.id,
         clientId: deal.clientId,

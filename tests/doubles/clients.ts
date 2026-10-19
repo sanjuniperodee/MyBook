@@ -48,7 +48,7 @@ class MemClients implements ClientRepository {
 }
 
 class MemTasks implements TaskRepository {
-  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null }>();
+  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null; result?: string | null }>();
   private seq = 0;
   async find(id: string) {
     const t = this.rows.get(id);
@@ -71,6 +71,15 @@ class MemTasks implements TaskRepository {
   }
   async existsOpen({ dealId, title }: { dealId: string; title: string }) {
     return [...this.rows.values()].some((t) => t.dealId === dealId && t.title === title && !t.doneAt);
+  }
+  async closeOpenOfKind({ dealId, kind, result, at }: { dealId: string; kind: Task["kind"]; result: string; at: Date }) {
+    let n = 0;
+    for (const [id, t] of this.rows) {
+      if (t.dealId !== dealId || t.doneAt || t.kind !== kind) continue;
+      this.rows.set(id, { ...t, doneAt: at, result: t.result ?? result });
+      n++;
+    }
+    return n;
   }
   async closeOpenByPrefix({ dealId, prefix, keepTitle, at }: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }) {
     let n = 0;
