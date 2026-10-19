@@ -137,7 +137,7 @@ describe("заведение клиента", () => {
     };
     const service = new ClientOnboardingService({ provisionClient: async () => ({ id: "new-client", login: "77011234567" }) }, sales, t.clients, t.notes, t.tasks);
     const onboard = (plan: string, gifts: ("giftwrap" | "delivery")[]) =>
-      service.onboard({ name: "Айжан", phone: "+7 701 123 45 67", email: "", locale: "ru", password: "secret123", city: "", recipient: "", channel: "instagram", assigneeId: "m1", deal: { agreed: 30_000, prepaid: 0, deadline: "", stageId: "", comment: "", plan, planLabel: plan, gifts } }, head);
+      service.onboard({ name: "Айжан", phone: "+7 701 123 45 67", email: "", locale: "ru", password: "secret123", city: "", recipient: "", channel: "instagram", assigneeId: "m1", deal: { agreed: 30_000, prepaid: 0, deadline: "", stageId: "", comment: "", plan, planLabel: plan, gifts, maxDiscountPercent: null } }, head);
     return { t, log, onboard };
   }
 

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { Clock, UnitOfWork } from "@/shared/application";
 import { getPlan, giftsForPlan } from "@/config/site";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
+import { DiscountPolicy } from "@/shared/domain/discount";
 import { DealInvoice, OrderingError, type DealInvoicePurpose, type DealInvoiceRepository } from "../domain";
 
 /** Сделка глазами счёта (контекст «Продажи») — через порт, модули друг друга не импортируют. */
@@ -51,7 +52,7 @@ export interface IssueInvoiceInput {
   purpose: DealInvoicePurpose;
   /** userId null — счёт выставил бот (режим «Продаёт»). */
   actor: { userId: string | null; label: string };
-  /** Скидка от прайса тарифа сверх лимита менеджера — только руководителю. */
+  /** Лимит скидки от прайса тарифа, %; null — без лимита (право prices.discount_unlimited). Сверх лимита — DiscountError. */
   maxDiscountPercent: number | null;
   /** Ключ формы: повторное нажатие (двойной клик, повтор запроса) возвращает уже выпущенный счёт. */
   issueKey?: string | null;
@@ -80,9 +81,8 @@ export class DealInvoicesService {
     const plan = getPlan(input.plan);
     if (!plan) throw new OrderingError("paymentRule", "Выберите тариф договорённости");
     if (!Number.isInteger(input.agreedTotal) || input.agreedTotal <= 0) throw new OrderingError("paymentRule", "Укажите цену книги по договорённости");
-    // Заниженная цена — способ «левака»: скидка от прайса больше лимита менеджера — только руководитель.
-    if (input.maxDiscountPercent !== null && input.agreedTotal < Math.round(plan.price * (1 - input.maxDiscountPercent / 100)))
-      throw new OrderingError("paymentRule", `Цена ниже прайса больше чем на ${input.maxDiscountPercent}% — согласуйте с руководителем`);
+    // Заниженная цена — способ «левака»: скидка от прайса сверх лимита — только с правом без лимита (DiscountError).
+    DiscountPolicy.check({ listPrice: plan.price, price: input.agreedTotal, maxPercent: input.maxDiscountPercent });
     return this.uow.run(async () => {
       await this.invoices.lockDeal(input.dealId);
       const repeated = input.issueKey ? await this.invoices.findByIssueKey(input.issueKey) : null;

@@ -16,7 +16,7 @@ const tag = `rt${Date.now()}`;
 run("sales: круг (PostgreSQL)", () => {
   const ids: Record<string, string> = {};
   const q = async <T extends Record<string, unknown>>(query: ReturnType<typeof sql>) => (await db.execute<T>(query)).rows;
-  const router = roundRobinRouter({ isWorkTime: async () => true, workMinutesBetween: async () => 0 }, () => "Asia/Almaty");
+  const router = roundRobinRouter({ isWorkTime: async () => true, nextWorkStart: async (at) => at, workMinutesBetween: async () => 0, addWorkMinutes: async (from) => from }, () => "Asia/Almaty");
   // Чужие сотрудники (в т. ч. заведённые параллельными тестами) исключаются на момент каждого вызова.
   const others = async () => (await q<{ id: string }>(sql`select id from users where role = 'admin' and email not like ${tag + "%"}`)).map((r) => r.id);
   const next = async (exclude: string[] = []) => router.next([...(await others()), ...exclude]);

@@ -330,6 +330,8 @@ export class Order extends AggregateRoot<OrderProps> {
     if (to === "paid" && !this.props.paidAt) this.props.paidAt = now;
     this.log(to, note, actor, now);
     this.record(OrderingEvents.statusChanged({ ...this.ref(), from, to, trackingNumber: this.props.trackingNumber, actor }));
+    // Отправлен с трек-номером: клиенту есть что отследить (трек вписали раньше или в той же форме).
+    if (to === "shipped" && this.props.trackingNumber) this.record(OrderingEvents.trackingAdded({ ...this.ref(), trackingNumber: this.props.trackingNumber, afterShipping: false, actor }));
     if (to === "delivered" && this.props.postpay && !this.props.paidAt) this.record(OrderingEvents.postpayDue({ ...this.ref(), outstanding: this.outstanding }));
     return none;
   }
@@ -364,8 +366,17 @@ export class Order extends AggregateRoot<OrderProps> {
     this.log(null, `Неуспешная оплата: ${reason || "без причины"}`, actor, now);
   }
 
-  setTrackingNumber(value: string | null) {
-    this.props.trackingNumber = value?.trim() || null;
+  /**
+   * Трек-номер посылки. Новый трек у отправленного заказа — событие «трек-номер появился»: клиенту его сообщат письмо и
+   * правила CRM (automation-d12 — письмо «Книга в пути» ушло раньше, чем вписали трек). У заказа, который ещё не
+   * отправлен, событие будет при переводе в «Отправлен». Доставленному — без события: книга уже у клиента, трек вписали
+   * для истории. Тот же трек повторно — без события.
+   */
+  setTrackingNumber(value: string | null, actor = "system") {
+    const next = value?.trim() || null;
+    if (next === this.props.trackingNumber) return;
+    this.props.trackingNumber = next;
+    if (next && this.props.status === "shipped") this.record(OrderingEvents.trackingAdded({ ...this.ref(), trackingNumber: next, afterShipping: true, actor }));
   }
 
   addNote(note: string, actor: string, now: Date) {

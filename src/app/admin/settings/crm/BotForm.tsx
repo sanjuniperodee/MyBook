@@ -7,7 +7,7 @@ import { cn } from "@/lib/class-names";
 import { saveBotAction } from "./actions";
 import { BotTester } from "./BotTester";
 import type { BotFormTab } from "./botTabs";
-import { DEFAULT_SELL_FACTS, revoiceConfig, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
+import { DEFAULT_SELL_FACTS, REMIND_TOUCHES_MAX, revoiceConfig, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
 
 type Mode = "off" | "fallback" | "off_hours" | "always";
 export interface BotFormField {
@@ -428,6 +428,42 @@ export function BotForm({
                     <input type="number" min={4} max={100} value={cfg.sell.maxTurns} onChange={(e) => setSell({ maxTurns: Math.max(4, Math.min(100, Math.floor(Number(e.target.value) || 4))) })} className="input h-9 w-20 text-sm" aria-label="Потолок беседы" />
                     ответов, дальше — менеджер
                   </label>
+                  <div className="space-y-2 border-t border-line pt-3">
+                    <label className="flex items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.remind} onChange={(e) => setSell({ remind: e.target.checked })} aria-label="Писать повторно в названное клиентом время" />
+                      <span>
+                        Писать повторно в названное клиентом время
+                        <span className="block text-xs text-muted">
+                          Клиент пишет «после зарплаты», «в пятницу», «ближе к празднику» — бот договаривается о конкретном дне и пишет в этот день сам, в рабочее время. Дату проверяет код: не дальше
+                          указанного срока, не позже даты, к которой нужна книга, не тем, кто просил не писать первым. Менеджер видит договорённость в чате и сделке; ответит сам — бот замолчит.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.lastStart} onChange={(e) => setSell({ lastStart: e.target.checked })} aria-label="Написать в последний день, чтобы успеть к дате" />
+                      <span>
+                        Написать в последний день, чтобы успеть к дате
+                        <span className="block text-xs text-muted">
+                          Тёплый клиент назвал дату, но так и не оформил и замолчал — бот пишет ему один раз в последний день, когда ещё можно начать книгу и успеть обычным сроком (по «Сколько дней пишут»,
+                          «Книга готовится» и доставке).
+                        </span>
+                      </span>
+                    </label>
+                    {cfg.sell.remind || cfg.sell.lastStart ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        <label className="flex items-center gap-2">
+                          Не дальше
+                          <input type="number" min={1} max={180} value={cfg.sell.remindMaxDays} onChange={(e) => setSell({ remindMaxDays: Math.max(1, Math.min(180, Math.floor(Number(e.target.value) || 1))) })} className="input h-9 w-20 text-sm" aria-label="Не дальше, дней" />
+                          дней вперёд
+                        </label>
+                        <label className="flex items-center gap-2">
+                          Не больше
+                          <input type="number" min={1} max={REMIND_TOUCHES_MAX} value={cfg.sell.remindTouches} onChange={(e) => setSell({ remindTouches: Math.max(1, Math.min(REMIND_TOUCHES_MAX, Math.floor(Number(e.target.value) || 1))) })} className="input h-9 w-16 text-sm" aria-label="Не больше повторных сообщений за беседу" />
+                          таких сообщений за беседу
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
 
@@ -444,28 +480,10 @@ export function BotForm({
                 Бот сам выставляет счёт
                 <span className="block text-xs text-muted">
                   На «да» бот выставляет счёт на предоплату (или на всю сумму, если предоплата 0): ссылка на оплату и счёт Kaspi на номер WhatsApp. После оплаты кабинет открывается сам. Не вышло (нет способа
-                  оплаты, сделка закрыта) — менеджеру срочная задача «Выставить счёт». Тариф — электронная, если клиент её выбрал, иначе печатная.
+                  оплаты, сделка закрыта) — менеджеру срочная задача «Выставить счёт». Тариф — электронная, если клиент её выбрал, иначе печатная; цена — из «Цен и тарифов».
                 </span>
               </span>
             </label>
-            {cfg.sell.invoice ? (
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
-                {(["hardcover", "digital"] as const).map((plan) => (
-                  <label key={plan} className="block">
-                    <span className="mb-1 block text-xs text-muted">Цена книги в счёте бота — {plan === "hardcover" ? "печатная" : "электронная"}, ₸ (пусто — из «Цен и тарифов»)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={cfg.sell.prices[plan] || ""}
-                      placeholder={vars.find((v) => v.key === (plan === "hardcover" ? "{цена.печатная}" : "{цена.электронная}"))?.value || ""}
-                      onChange={(e) => setSell({ prices: { ...cfg.sell.prices, [plan]: Math.max(0, Math.floor(Number(e.target.value) || 0)) } })}
-                      className="input h-9 w-full text-sm"
-                      aria-label={`Цена в счёте бота: ${plan === "hardcover" ? "печатная" : "электронная"}`}
-                    />
-                  </label>
-                ))}
-              </div>
-            ) : null}
             {cfg.sell.engine === "ai" ? (
               <div className="space-y-3 rounded-xl border border-line p-3">
                 <fieldset className="space-y-1.5 text-sm">

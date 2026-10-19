@@ -17,6 +17,9 @@ export const sensitiveLabels: Record<SensitiveKind, string> = {
   kaspi: "ссылка на перевод Kaspi",
 };
 
+/** Что нашли — словами, без повторов: «номер телефона, номер карты». */
+export const sensitiveWhat = (findings: readonly SensitiveFinding[]) => [...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ");
+
 const digitsOf = (s: string) => s.replace(/\D/g, "");
 
 /** Номер карты: 13–19 цифр с верной контрольной суммой (алгоритм Луна). */
@@ -54,6 +57,8 @@ const asciiDigits = (s: string) => s.replace(/[\u0660-\u0669]/g, (d) => String(d
 export function findSensitive(text: string, allowedPhones: readonly (string | null | undefined)[] = []): SensitiveFinding[] {
   text = asciiDigits(text);
   const allowed = new Set(allowedPhones.map((p) => (p ? (phoneKey(digitsOf(p), true) ?? digitsOf(p).slice(-10)) : null)).filter(Boolean));
+  // Разрешённое значение целиком (трек-номер из цифр) — не карта, даже если его 13–19 цифр проходят проверку Луна.
+  const allowedDigits = new Set(allowedPhones.map((p) => (p ? digitsOf(p) : "")).filter((d) => d.length >= 13));
   const out: SensitiveFinding[] = [];
   const seen = new Set<string>();
   const add = (f: SensitiveFinding) => {
@@ -67,10 +72,15 @@ export function findSensitive(text: string, allowedPhones: readonly (string | nu
   for (const m of text.matchAll(/(?:https?:\/\/)?(?:[\w-]+\.)*kaspi\.kz\/(?:pay|transfers?|p2p)\S*/gi)) add({ kind: "kaspi", value: m[0] });
 
   // Последовательности цифр с разделителями: «+7 (701) 123-45-67», «4400 4301 2345 6789».
-  // IBAN и ссылки уже найдены: их цифры за телефон не считаем.
-  const rest = text.replace(/\bKZ\s?\d{2}(?:\s?[A-Z0-9]){16}\b/gi, " ").replace(/(?:https?:\/\/)?(?:[\w-]+\.)*kaspi\.kz\/(?:pay|transfers?|p2p)\S*/gi, " ");
+  // IBAN и ссылки уже найдены: их цифры за телефон не считаем. UUID (ссылка на заказ или книгу: /orders/<id>) — не
+  // номер: «…-a7012345678b» иначе читался бы как телефон, а «…-1234-5678…» — как карта.
+  const rest = text
+    .replace(/\bKZ\s?\d{2}(?:\s?[A-Z0-9]){16}\b/gi, " ")
+    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*kaspi\.kz\/(?:pay|transfers?|p2p)\S*/gi, " ")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, " ");
   for (const m of rest.matchAll(/\+?\d[\d\s().-]{8,30}\d/g)) {
     const digits = digitsOf(m[0]);
+    if (allowedDigits.has(digits)) continue;
     if (digits.length >= 13 && digits.length <= 19 && luhn(digits)) {
       add({ kind: "card", value: `•••• ${digits.slice(-4)}` });
       continue;

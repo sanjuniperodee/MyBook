@@ -19,16 +19,27 @@ export async function notify(userIds: (string | null | undefined)[], n: StaffNot
   const ids = [...new Set(userIds.filter((x): x is string => !!x))];
   if (!ids.length) return;
   await db.insert(crmNotifications).values(ids.map((userId) => ({ userId, kind: n.kind, title: n.title.slice(0, 200), body: (n.body ?? "").slice(0, 500), link: n.link ?? null })));
-  // Мгновенно — открытым вкладкам CRM (SSE) и на устройства с push, не задерживая основное действие.
+  // Мгновенно — открытым вкладкам CRM (SSE) и на устройства с push (если push не выключен), не задерживая основное действие.
   const { publish } = await import("@/modules/workspace/infrastructure/realtime");
   await publish({ type: "notify", users: ids });
+  if (n.push === false) return;
   const { pushTo } = await import("@/modules/workspace/infrastructure/push");
   void pushTo(ids, { title: n.title, body: n.body, link: n.link, tag: n.kind }).catch((err) => console.error("[push]", err));
 }
 
-/** Ответственному, а если его нет — всем, у кого есть право (неразобранное видят все). */
+/** Действующий ли сотрудник (не отключён и не лишён доступа к CRM): поиск по первичному ключу. */
+async function activeStaff(userId: string) {
+  const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), eq(users.role, "admin"), eq(users.staffDisabled, false))).limit(1);
+  return !!u;
+}
+
+/**
+ * Ответственному, а если его нет — всем, у кого есть право (неразобранное видят все). Ответственный отключён или больше не
+ * сотрудник — как без ответственного: задача по нему уже ничья (TasksService.createSystem), и уведомление не должно уйти
+ * тому, кто его не увидит.
+ */
 export async function notifyOwnerOr(assigneeId: string | null | undefined, perm: Permission, n: StaffNotification) {
-  await notify(assigneeId ? [assigneeId] : await staffWith(perm), n);
+  await notify(assigneeId && (await activeStaff(assigneeId)) ? [assigneeId] : await staffWith(perm), n);
 }
 
 /** Порт уведомлений для других модулей (src/shared/application). */

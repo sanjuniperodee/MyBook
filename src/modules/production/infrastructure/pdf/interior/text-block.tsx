@@ -1,7 +1,7 @@
 import "server-only";
 import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
-import type { AnswerBlock } from "@/lib/book/answer-blocks";
+import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { ANSWER, LEAD_IN, splitLeadIn } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { mark, noHyphens, type PdfKit } from "./kit";
@@ -48,7 +48,7 @@ function List({ kit, block, id }: BlockProps<"list">) {
     <View {...mark(id)} style={{ marginBottom: S.body * ANSWER.list.after }}>
       {block.items.map((item, i) => (
         <View key={i} wrap={item.text.length > 260} style={{ flexDirection: "row", marginBottom: i < block.items.length - 1 ? S.body * ANSWER.list.gap : 0 }}>
-          <Text style={{ ...kit.body, width: S.body * (block.ordered ? ANSWER.list.orderedMarker : ANSWER.list.marker), textAlign: "left", color: kit.design.palette.accent }}>{item.marker}</Text>
+          <Text style={{ ...kit.body, width: S.body * listMarkerEm(block), textAlign: "left", color: kit.design.palette.accent }}>{item.marker}</Text>
           <Text style={{ ...kit.body, flex: 1, textAlign: "left" }} orphans={2} widows={2}>
             {item.text}
           </Text>

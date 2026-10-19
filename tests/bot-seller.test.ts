@@ -11,6 +11,7 @@ import {
   checkSellerReply,
   cleanSellerReply,
   clientSaysPaid,
+  deadlineCheck,
   deadlineFact,
   invoiceBlocker,
   withoutGreeting,
@@ -29,6 +30,7 @@ import {
   sellerTranscript,
   sellerUserPrompt,
   splitReply,
+  staleAmounts,
   withMediaText,
   type ReplyRules,
   type SellerDecision,
@@ -96,6 +98,8 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   city: "",
   sendMaterials: false,
   payment: "unknown",
+  remindAt: null,
+  remindWhy: "",
   ...p,
 });
 const rulesFor = (e = env()): ReplyRules => ({ amounts: allowedAmounts(e.catalog, e.config.sell), percents: new Set(), urls: [e.site.url], phones: ["77010000000"] });
@@ -183,7 +187,7 @@ describe("AI-продажник: суммы, проценты, ссылки, н�
   });
 
   it("allowedAmounts: тарифы, доставка, допы, предоплата, остаток, книга+доставка; скрытый тариф и случайные числа — нет", () => {
-    const a = allowedAmounts(catalog, defaultBotConfig.sell && { prepay: 10000, prices: { hardcover: 0, digital: 0 } }, ["Сегодня скидка, итого 25 000"]);
+    const a = allowedAmounts(catalog, { prepay: 10000 }, ["Сегодня скидка, итого 25 000"]);
     for (const n of [9900, 30000, 17900, 3500, 5000, 10000, 20000, 33500, 38500, 25000]) expect(a.has(n), String(n)).toBe(true);
     expect(a.has(41000)).toBe(false); // скрытый премиум
     expect(a.has(15000)).toBe(false);
@@ -227,10 +231,13 @@ describe("AI-продажник: право выставить счёт", () => 
     expect(invoiceBlocker(agreed({ agreedQuote: "оформляйте пожалуйста" }), { ...ai, closeAsked: false, priceQuoted: false }, "оформляйте пожалуйста", true)).toBeNull();
   });
 
-  it("sellerInvoice: цена владельца или тариф, предоплата не больше цены, премиум и неизвестный — нет", () => {
+  it("sellerInvoice: цена тарифа из «Цен и тарифов», предоплата не больше цены, премиум и неизвестный — нет", () => {
     expect(sellerInvoice("hardcover", env())).toEqual({ plan: "hardcover", total: 30000, amount: 10000 });
     expect(sellerInvoice("digital", env())).toEqual({ plan: "digital", total: 9900, amount: 9900 });
-    expect(sellerInvoice("hardcover", env({ config: sellConfig({ prices: { hardcover: 25000, digital: 0 }, prepay: 0 }) }))).toEqual({ plan: "hardcover", total: 25000, amount: 25000 });
+    expect(sellerInvoice("hardcover", env({ config: sellConfig({ prepay: 0 }) }))).toEqual({ plan: "hardcover", total: 30000, amount: 30000 });
+    // Прежняя «цена в счёте бота» из сохранённых настроек больше не читается (deals-d13).
+    const legacy = parseBotConfig(JSON.stringify({ sell: { on: true, prepay: 0, invoice: true, hidePrices: false, prices: { hardcover: 25000, digital: 5000 } } }));
+    expect(sellerInvoice("hardcover", env({ config: legacy }))).toEqual({ plan: "hardcover", total: 30000, amount: 30000 });
     expect(sellerInvoice("premium", env())).toBeNull();
     expect(sellerInvoice("unknown", env())).toBeNull();
   });
@@ -356,6 +363,33 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
     expect(fake.invoice).toBeNull();
     expect(fake.done).toBe(false);
     expect(fake.events.some((x) => x.kind === "blocked" && /quote_not_from_client/.test(x.reason ?? ""))).toBe(true);
+  });
+
+  it("подняли прайс в «Ценах и тарифах» — счёт бота по новой цене, старую сумму бот назвать не может", () => {
+    const raised = env({ catalog: { ...catalog, plans: catalog.plans.map((p) => (p.id === "hardcover" ? { ...p, price: 36000 } : p)) } });
+    const state = { ...newBotState(day, true), ai: { ...newSellerAiState(), closeAsked: true, priceQuoted: true } };
+    const r = turn(state, decision({ action: "issue_invoice", agreed: true, plan: "hardcover", agreedQuote: "да давайте", reply: "Отлично, выставляю счёт на предоплату!" }), [msg("да давайте")], { e: raised });
+    expect(r.invoice).toEqual({ plan: "hardcover", total: 36000, amount: 10000 });
+    expect(checkSellerReply("Печатная — 30 000 ₸", rulesFor(raised)).map((p) => p.kind)).toEqual(["price"]);
+    expect(checkSellerReply("Печатная — 36 000 ₸", rulesFor(raised))).toEqual([]);
+  });
+
+  it("суммы в базе знаний, которых нет в «Ценах и тарифах», — находка (после смены прайса бот назвал бы старую цену)", () => {
+    // Правило то же, по которому бот вправе назвать сумму (amountsIn): число от 1 000 — сумма и без ₸ («1500 знаков» бот
+    // назвал бы «1 500 ₸»); меньше 1 000 без валюты и годы — нет.
+    const text = "Печатная стоит 29 000 ₸, электронная 9 900 тг, с доставкой 33 500 ₸, упаковка 5к; скидка 7 тыс. До 200 фото, 1500 знаков, 2026 год.";
+    expect(staleAmounts(text, catalog, { prepay: 10000 })).toEqual([7000, 29000, 1500]);
+    expect(staleAmounts("Печатная — 30 000 ₸, предоплата 10 000 ₸, остаток 20 000 ₸", catalog, { prepay: 10000 })).toEqual([]);
+  });
+
+  it("цена в базе знаний без ₸ после подъёма прайса — тоже находка: предупреждение совпадает с тем, что бот вправе назвать", () => {
+    const raised = { ...catalog, plans: catalog.plans.map((p) => (p.id === "hardcover" ? { ...p, price: 36000 } : p)) };
+    const kb = "Печатная — 30 000, электронная — 9 900. Срочная вёрстка — 4 000 т.";
+    expect(staleAmounts(kb, raised, { prepay: 10000 })).toEqual([30000, 4000]);
+    // Всё, что текст владельца добавляет к суммам из цен, — в предупреждении, и наоборот.
+    const added = [...allowedAmounts(raised, { prepay: 10000 }, [kb])].filter((n) => !allowedAmounts(raised, { prepay: 10000 }).has(n));
+    expect(added.sort()).toEqual(staleAmounts(kb, raised, { prepay: 10000 }).sort());
+    expect(checkSellerReply("Печатная — 30 000 ₸", { ...rulesFor(env({ catalog: raised })), amounts: allowedAmounts(raised, { prepay: 10000 }, [kb]) })).toEqual([]);
   });
 
   it("счёт выключен в настройках: согласие → менеджеру «Выставить счёт», клиенту — текст «пришлёт менеджер»", () => {
@@ -683,5 +717,44 @@ describe("AI-продажник: не здоровается второй раз
   it("только приветствие — «Здравствуйте!», «Добрый вечер», «Сәлеметсіз бе»; с вопросом или ответом — нет", () => {
     for (const t of ["Здравствуйте!", "Добрый вечер", "Сәлеметсіз бе", "привет)"]) expect(isGreetingOnly(t)).toBe(true);
     for (const t of ["Здравствуйте, сколько стоит?", "Девушке", "Здравствуйте, хочу книгу маме"]) expect(isGreetingOnly(t)).toBe(false);
+  });
+});
+
+describe("AI-продажник: что код поправил или остановил — в следе хода (bots-1)", () => {
+  it("потолок беседы, петля, третье возражение, молчание на вопрос — каждое со своей пометкой", () => {
+    const e = env({ config: sellConfig({ maxTurns: 4 }) });
+    const capped = newBotState(day, true);
+    expect(turn({ ...capped, ai: { ...capped.ai, turns: 4 } }, decision(), [msg("ещё вопрос")], { e }).notes).toEqual([{ code: "limit", detail: "4" }]);
+
+    const dup = decision({ reply: "Здравствуйте! Для кого будет книга?" });
+    expect(resolveSellerTurn(newBotState(day, true), dup, env(), { ...ctxFor([msg("Здравствуйте")]), lastBotText: "Здравствуйте! Для кого будет книга?" }).notes).toEqual([{ code: "loop" }]);
+
+    let s = newBotState(day, true);
+    for (let i = 0; i < 2; i++) s = turn(s, decision({ stage: "objection", reply: "Понимаю вас." }), [msg("дорого")]).state;
+    expect(turn(s, decision({ stage: "objection", reply: "Понимаю вас." }), [msg("всё равно дорого")]).notes).toEqual([{ code: "objections", detail: "3" }]);
+
+    expect(turn(undefined, decision({ action: "wait", reply: "" }), [msg("А доставка в Астану есть?")]).notes).toEqual([{ code: "unanswered" }]);
+  });
+
+  it("убрал повторное приветствие, добавил представление; счёт не по правилам — с причиной", () => {
+    const greeted = resolveSellerTurn(newBotState(day, true), decision({ reply: "Здравствуйте! К какой дате нужна книга?" }), env(), { ...ctxFor([msg("Маме")]), greeted: true });
+    expect(greeted.notes).toEqual([{ code: "greeting_removed" }]);
+    const intro = resolveSellerTurn(newBotState(day, true), decision({ reply: "Для кого будет книга?" }), env(), { ...ctxFor([msg("Здравствуйте")]), intro: { greet: true } });
+    expect(intro.notes).toEqual([{ code: "intro_added" }]);
+    const invoice = turn(undefined, decision({ action: "issue_invoice", agreed: false, plan: "hardcover", reply: "Отлично! Подскажите формат?" }), [msg("а сколько стоит?")]);
+    expect(invoice.notes).toEqual([{ code: "invoice_blocked", detail: "client_not_agreed" }]);
+    // Обычный ход без вмешательства кода — без пометок.
+    expect(turn().notes).toEqual([]);
+  });
+
+  it("вердикт по сроку для следа — тот же расчёт, что и факт для модели", () => {
+    const e = env();
+    expect(deadlineCheck("2026-11-24", e)).toMatchObject({ date: "2026-11-24", kind: "ok" });
+    expect(deadlineCheck("2026-11-24", e, "Алматы")).toMatchObject({ city: "Алматы" });
+    expect(deadlineFact("2026-11-24", e)).toContain("УСПЕВАЕМ");
+    // Завтра: печатную не успеть — и в следе, и в факте для модели.
+    expect(deadlineCheck("2026-10-18", e)?.kind).toBe("late");
+    expect(deadlineFact("2026-10-18", e)).toContain("НЕ успеть");
+    expect(deadlineCheck("2026-10-01", e)).toBeNull();
   });
 });

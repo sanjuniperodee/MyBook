@@ -1,23 +1,50 @@
-import type { Clock, CustomFieldsReader, StaffNotifier, WorkSchedule } from "@/shared/application";
+import type { Clock, CustomFieldsReader, SettingsReader, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
-import { AutomationEngine, type SalesGateway } from "./application";
-import { appInfo, crmEffects } from "./infrastructure/adapters";
+import { AutomationEngine, type AutomationEffects, type SalesGateway } from "./application";
+import { appInfo, crmEffects, settingsHolidays, type AutomationSettingKey } from "./infrastructure/adapters";
 import { DrizzleRuleRepository, DrizzleSubjectLoader, SqlScheduledSource } from "./infrastructure/persistence";
 import { rulesAdmin } from "./infrastructure/admin";
 
-export type { TriggerContext, AutomationTrigger } from "./domain";
+export type { TriggerContext, AutomationTrigger, Holiday } from "./domain";
+export { DEFAULT_HOLIDAYS, HOLIDAYS_MAX, holidayIdFor, holidaysError, parseHolidays } from "./domain";
 export type { SalesGateway } from "./application";
+export type { AutomationSettingKey } from "./infrastructure/adapters";
 
 /** Публичный фасад контекста «Автоматизации» (цифровая воронка CRM). */
 export class AutomationModule {
   readonly engine: AutomationEngine;
   readonly rules = rulesAdmin;
 
-  /** Уведомления сотрудникам, график работы и свои поля сделки (переменные шаблонов) — порты рабочего пространства. */
+  /**
+   * Задачи и записи в истории сделки — контекст Clients; уведомления сотрудникам, график работы, свои поля сделки и
+   * список праздников — порты рабочего пространства.
+   */
   constructor(
-    deps: { clock: Clock; sales: SalesGateway; sendMessage: (conversationId: string, text: string) => Promise<void>; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
+    deps: {
+      clock: Clock;
+      sales: SalesGateway;
+      createTask: AutomationEffects["createTask"];
+      sendMessage: AutomationEffects["sendMessage"];
+      canMessageNow: AutomationEffects["canMessageNow"];
+      addNote: AutomationEffects["addNote"];
+      notifier: StaffNotifier<"deals.view">;
+      schedule: WorkSchedule;
+      fields: CustomFieldsReader;
+      settings: SettingsReader<AutomationSettingKey>;
+    },
   ) {
-    const effects = crmEffects(deps.sendMessage, deps.notifier);
-    this.engine = new AutomationEngine(new DrizzleRuleRepository(), new DrizzleSubjectLoader(deps.fields), effects, deps.sales, deps.schedule, new SqlScheduledSource(), appInfo, deps.clock, consoleLogger("automations"));
+    const effects = crmEffects(deps, deps.notifier);
+    this.engine = new AutomationEngine(
+      new DrizzleRuleRepository(),
+      new DrizzleSubjectLoader(deps.fields),
+      effects,
+      deps.sales,
+      deps.schedule,
+      new SqlScheduledSource(),
+      appInfo,
+      deps.clock,
+      consoleLogger("automations"),
+      settingsHolidays(deps.settings),
+    );
   }
 }

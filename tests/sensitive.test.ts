@@ -22,4 +22,12 @@ describe("Реквизиты в сообщении менеджера", () => {
     expect(kinds("Итого 20 000 ₸, доставка 2 000 ₸, заказ №1234, до 16.10.2026")).toEqual([]);
     expect(kinds("тарифы: 10 000 20 000")).toEqual([]);
   });
+
+  it("ссылка на заказ с UUID — не номер (правило со {ссылка_на_заказ}), номер рядом с ней — находка", () => {
+    // Без исключения «a7012345678b» в UUID читался бы как телефон 701 234 56 78.
+    const link = "https://mybooks.kz/orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b";
+    expect(kinds(link.replace("orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b", "x a7012345678b"))).toEqual(["phone"]);
+    expect(kinds(`Ваш заказ: ${link}`)).toEqual([]);
+    expect(kinds(`Ваш заказ: ${link}, звоните +7 707 555 12 34`)).toEqual(["phone"]);
+  });
 });

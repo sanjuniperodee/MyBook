@@ -8,13 +8,16 @@ import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
 import { isValidTime } from "@/shared/domain/schedule";
 import { findSensitive, sensitiveLabels, type BotPreviewResult } from "@/modules/messaging";
-import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
-import { pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
+import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, REMIND_TOUCHES_MAX, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
+import { faqIntentLabels, pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
 import { FAQ_INTENTS, type FaqIntent } from "@/modules/messaging/domain/botNlu";
 import { BOT_MODES } from "@/modules/messaging/domain/bot";
 import { LESSON_MAX, MAX_LESSONS, lessonProblems } from "@/modules/messaging/domain/botCoach";
 import { botSiteInfo } from "@/server/bot-site";
 import type { SettingsState } from "../state";
+import { HOLIDAYS_MAX, holidayIdFor, holidaysError, type Holiday } from "@/modules/automation/domain";
+import { admin } from "@/i18n/admin";
+import { DEFAULT_MERGE_CLOSED_DAYS, MERGE_CLOSED_DAYS_MAX } from "@/modules/sales/domain";
 
 export async function saveCrmSettingsAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
@@ -25,7 +28,13 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       from: z.string().refine(isValidTime, "Время начала в формате ЧЧ:ММ"),
       to: z.string().refine(isValidTime, "Время окончания в формате ЧЧ:ММ"),
       autoDealFrom: z.enum(["off", "registered", "book_started", "book_half", "book_ready"]),
-      maxDiscount: z.coerce.number().int().min(0).max(50, "Скидка из чата — не больше 50%"),
+      maxDiscount: z.coerce.number().int().min(0).max(50, "Лимит скидки — не больше 50%"),
+      mergeClosedDays: z.coerce
+        .number()
+        .int(admin.mergeClosedDaysInvalid(MERGE_CLOSED_DAYS_MAX))
+        .min(0, admin.mergeClosedDaysInvalid(MERGE_CLOSED_DAYS_MAX))
+        .max(MERGE_CLOSED_DAYS_MAX, admin.mergeClosedDaysInvalid(MERGE_CLOSED_DAYS_MAX))
+        .default(DEFAULT_MERGE_CLOSED_DAYS),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -40,6 +49,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
       "crm.maxDiscount": String(d.maxDiscount),
+      "crm.mergeClosedDays": String(d.mergeClosedDays),
       "widget.enabled": form.get("widgetEnabled") === "on" ? "on" : "off",
       "widget.chat": form.get("widgetChat") === "on" ? "on" : "off",
     },
@@ -48,6 +58,41 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
   await audit(staff, "settings.update", "settings", "crm", { ...d, days });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
+}
+
+// ─── праздники для повторных продаж ────────────────────────────────────────
+
+const holidaysSchema = z
+  .array(z.object({ id: z.string().trim().max(30).default(""), day: z.string().trim().max(10), ru: z.string().trim().max(60), kk: z.string().trim().max(60) }))
+  .max(HOLIDAYS_MAX * 2);
+
+/** «31.12» → «12-31»; не день.месяц — null. */
+const holidayDate = (day: string) => {
+  const m = /^(\d{1,2})\.(\d{1,2})$/.exec(day);
+  return m ? `${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null;
+};
+
+/**
+ * Праздники для правила «Приближается праздник» (bots-10): день.месяц и названия на русском (сотрудникам и клиентам с
+ * русским языком) и казахском. Код праздника сохраняется — по нему правило помнит, кому уже предложило к нему книгу.
+ */
+export async function saveHolidaysAction(input: z.input<typeof holidaysSchema>): Promise<{ ok: true } | { ok: false; error: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = holidaysSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: admin.badForm };
+  const list: Holiday[] = [];
+  for (const h of parsed.data) {
+    const date = holidayDate(h.day);
+    if (!date) return { ok: false, error: admin.holidayDateInvalid };
+    list.push({ id: /^[a-z0-9-]{1,30}$/.test(h.id) ? h.id : holidayIdFor(date), date, ru: h.ru, kk: h.kk });
+  }
+  const error = holidaysError(list);
+  if (error) return { ok: false, error: error === "holidaysTooMany" ? admin.holidaysTooMany(HOLIDAYS_MAX) : admin[error] };
+  await saveSettings({ "automation.holidays": JSON.stringify(list) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "holidays", { holidays: list.map((h) => `${h.date} ${h.ru}`) });
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/automations");
+  return { ok: true };
 }
 
 // ─── шаблоны ответов ───────────────────────────────────────────────────────
@@ -98,7 +143,6 @@ const botConfigSchema = z.object({
     deliveryDays: z.number().int().min(0).max(30, "Доставка — до 30 дней"),
     followUpHours: z.number().int().min(0).max(72, "Напоминание — не позже 72 часов"),
     invoice: z.boolean(),
-    prices: z.object({ hardcover: z.number().int().min(0).max(10_000_000), digital: z.number().int().min(0).max(10_000_000) }),
     engine: z.enum(["ai", "template"]),
     takeover: z.boolean(),
     persona: z.string().trim().max(1500, "Указания продажнику — до 1500 знаков"),
@@ -111,11 +155,15 @@ const botConfigSchema = z.object({
     facts: z.string().trim().max(2000, "Факты для продажника — до 2000 знаков"),
     productionDays: z.number().int().min(1, "Срок изготовления — от 1 дня").max(30, "Срок изготовления — до 30 дней"),
     selfImprove: z.boolean(),
+    remind: z.boolean(),
+    lastStart: z.boolean(),
+    remindMaxDays: z.number().int().min(1, "Повторное сообщение — от 1 до 180 дней вперёд").max(180, "Повторное сообщение — от 1 до 180 дней вперёд"),
+    remindTouches: z.number().int().min(1, admin.remindTouchesInvalid(REMIND_TOUCHES_MAX)).max(REMIND_TOUCHES_MAX, admin.remindTouchesInvalid(REMIND_TOUCHES_MAX)),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });
 
-const faqLabels: Record<FaqIntent, string> = { price: "Цена", how: "Как это работает", timing: "Сроки", delivery: "Доставка", payment: "Оплата", examples: "Примеры", language: "Язык книги" };
+const faqLabels = faqIntentLabels;
 
 /** Тексты бота: цифры цен — только переменными из «Цен и тарифов», номеров и реквизитов — нет (бот их всё равно не отправит). */
 async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise<string | null> {
@@ -131,9 +179,9 @@ async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise
     const prices = pricesOutsideCatalog(text, catalog);
     if (prices.length) return `В ${where} число «${prices[0]}» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, а скидку напишите процентом в строке «Акция»`;
   }
-  // Счёт от бота: предоплата не больше цены печатной (электронную дешевле предоплаты бот выставит целиком).
+  // Счёт от бота (по «Ценам и тарифам»): предоплата не больше цены печатной (электронную дешевле предоплаты бот выставит целиком).
   if (config.sell.on && config.sell.invoice) {
-    const price = config.sell.prices.hardcover || catalog.plans.find((p) => p.id === "hardcover" && !p.hidden)?.price || 0;
+    const price = catalog.plans.find((p) => p.id === "hardcover" && !p.hidden)?.price || 0;
     if (price && config.sell.prepay > price) return `Предоплата больше цены печатной книги (${price.toLocaleString("ru-RU")} ₸)`;
   }
   const personaFound = findSensitive(config.sell.persona);

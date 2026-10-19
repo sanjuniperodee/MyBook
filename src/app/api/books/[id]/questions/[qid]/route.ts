@@ -24,6 +24,7 @@ const schema = z
     answer: z.string().max(40_000, "answerTooLong"),
     displayText: z.string().trim().max(200).nullable(),
     hideHeading: z.boolean(),
+    pageBreak: z.boolean(),
     media: z.array(media).max(MAX_MEDIA, "tooManyMedia"),
     title: z.string().trim().max(SECTION_TITLE_MAX, "sectionTitleTooLong"),
     prompt: z.string().trim().max(SECTION_PROMPT_MAX),

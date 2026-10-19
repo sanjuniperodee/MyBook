@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { clientScreen } from "@/modules/reporting/ui/client-screen";
+import { DEFAULT_SLA_MINUTES, responseWait, shiftMinutes, slaMinutes, waitLabel } from "@/modules/reporting/ui/response-wait";
+import { parseWorkHours } from "@/shared/domain/schedule";
 import { formatDate } from "@/lib/dates";
 
 /** Модели экранов CRM (D7): страницы загружают данные, эти функции готовят их для секций. */
@@ -103,5 +105,39 @@ describe("clientScreen", () => {
     const draft = { ...base, books: [{ book: { status: "draft" } }] };
     expect(clientScreen(draft).remind).toEqual({ disabled: false, hint: "Письмо со ссылкой на следующий вопрос" });
     expect(clientScreen({ ...draft, remindAllowed: false, client: { ...base.client, remindedAt: now } }).remind).toEqual({ disabled: true, hint: `Последнее напоминание: ${formatDate(now, true)}` });
+  });
+});
+
+describe("ожидание ответа в «Чатах» и «Моём дне» — рабочие минуты и норматив из настроек (tasks-d6)", () => {
+  const tz = "Asia/Almaty"; // UTC+5
+  const daily = parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"09:00","to":"21:00"}');
+  const at = (local: string) => new Date(`${local}+05:00`);
+
+  it("клиент написал ночью — утром ожидание считается от начала смены, а не «просрочено» с 23:00", () => {
+    const since = at("2026-10-18T23:00");
+    expect(responseWait(since, at("2026-10-19T09:10"), daily, 15, tz)).toEqual({ minutes: 10, overdue: false, label: "10 мин" });
+    expect(responseWait(since, at("2026-10-19T09:20"), daily, 15, tz)).toEqual({ minutes: 20, overdue: true, label: "20 мин" });
+    // Ночью ожидание не идёт.
+    expect(responseWait(since, at("2026-10-19T03:00"), daily, 15, tz)).toMatchObject({ minutes: 0, overdue: false });
+  });
+
+  it("днём — порог из настроек: ровно норматив уже просрочен; выходной по графику не считается", () => {
+    const since = at("2026-10-19T10:00");
+    expect(responseWait(since, at("2026-10-19T10:14"), daily, 15, tz).overdue).toBe(false);
+    expect(responseWait(since, at("2026-10-19T10:15"), daily, 15, tz).overdue).toBe(true);
+    expect(responseWait(since, at("2026-10-19T10:20"), daily, 30, tz).overdue).toBe(false);
+    // Пн–Пт: написал в субботу днём — в понедельник 09:05 ждёт 5 минут.
+    const weekdays = parseWorkHours('{"days":[1,2,3,4,5],"from":"09:00","to":"18:00"}');
+    expect(responseWait(at("2026-10-17T12:00"), at("2026-10-19T09:05"), weekdays, 15, tz)).toMatchObject({ minutes: 5, overdue: false });
+  });
+
+  it("норматив из crm.slaMinutes: целое от 1, иначе 15; подпись ожидания", () => {
+    expect(slaMinutes("30")).toBe(30);
+    for (const raw of [null, undefined, "", "0", "-5", "abc", "2.5"]) expect(slaMinutes(raw)).toBe(DEFAULT_SLA_MINUTES);
+    expect([0, 59, 60, 65, 1439, 2880].map((m) => waitLabel(m))).toEqual(["0 мин", "59 мин", "1 ч", "1 ч 5 мин", "23 ч 59 мин", "48 ч"]);
+    // Минуты рабочие: «день» — смена графика, а не сутки. При 09:00–21:00 сутки рабочих минут — два рабочих дня.
+    expect([719, 720, 1440, 2160].map((m) => waitLabel(m, shiftMinutes({ from: "09:00", to: "21:00" })))).toEqual(["11 ч 59 мин", "1 раб. дн", "2 раб. дн", "3 раб. дн"]);
+    expect(shiftMinutes({ from: "20:00", to: "02:00" })).toBe(360);
+    expect(shiftMinutes({ from: "00:00", to: "00:00" })).toBe(1440);
   });
 });

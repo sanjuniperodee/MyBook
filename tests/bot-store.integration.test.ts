@@ -6,7 +6,8 @@ import { TransactionRollbackError } from "drizzle-orm/errors";
 import { pool } from "@/shared/infrastructure/db";
 import { rootDb, txStorage } from "@/shared/infrastructure/database";
 import { newBotState } from "@/modules/messaging/domain/botEngine";
-import { DrizzleBotStore, DrizzleMessageRepository, botMetrics } from "@/modules/messaging/infrastructure/persistence";
+import { DrizzleBotStore, DrizzleMessageRepository, DrizzleMessagingQueries, botMetrics, purgeBotTraces } from "@/modules/messaging/infrastructure/persistence";
+import { turnTrace } from "@/modules/messaging/domain/botTrace";
 
 /**
  * Состояние бота в PostgreSQL: compare-and-set по version, остановка человеком, отложенные ходы, входящие для хода,
@@ -27,6 +28,12 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         const has = await tx.execute<{ n: number }>(sql`select count(*)::int as n from information_schema.columns where table_name = 'crm_conversations' and column_name = 'bot_state'`);
         if (!has.rows[0].n) {
           const ddl = readFileSync(path.join(__dirname, "..", "drizzle", "0035_bot_autoresponder.sql"), "utf8");
+          for (const statement of ddl.split("--> statement-breakpoint")) if (statement.trim()) await tx.execute(sql.raw(statement));
+        }
+        // След хода (0056): база разработки могла его ещё не видеть.
+        const traced = await tx.execute<{ n: number }>(sql`select count(*)::int as n from information_schema.columns where table_name = 'crm_bot_events' and column_name = 'meta'`);
+        if (!traced.rows[0].n) {
+          const ddl = readFileSync(path.join(__dirname, "..", "drizzle", "0060_bot_turn_trace.sql"), "utf8");
           for (const statement of ddl.split("--> statement-breakpoint")) if (statement.trim()) await tx.execute(sql.raw(statement));
         }
         const store = new DrizzleBotStore();
@@ -83,13 +90,31 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         expect(await store.save(soft.id, 1, { botStep: null, state: { ...waiting, version: 2 }, dueAt: null }, { restart: true })).toBe(true);
 
         // Журнал → метрики.
-        await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }, { kind: "answer", field: "recipient" }, { kind: "faq", intent: "price" }, { kind: "skipped", reason: "prior_chat" }]);
+        await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }, { kind: "takeover" }, { kind: "answer", field: "recipient" }, { kind: "faq", intent: "price" }, { kind: "skipped", reason: "prior_chat" }, { kind: "handoff", reason: "call_request" }, { kind: "handoff", reason: "loop" }]);
         const m = await botMetrics(30);
+        // Подхват продажника — в итогах; сбой бота — отдельно от причин передачи, «вопросами клиентов» не считается.
+        expect(m.outcomes.takeover).toBeGreaterThanOrEqual(1);
+        expect(m.handoffs.call_request).toBeGreaterThanOrEqual(1);
+        expect(m.failures.loop).toBeGreaterThanOrEqual(1);
+        expect(m.handoffs.loop).toBeUndefined();
+        expect(Object.keys(m.intents).some((k) => k.startsWith("handoff:"))).toBe(false);
+
+        // След хода у сообщения бота: читается по id сообщения; старше 90 дней — чистится, свежий остаётся.
+        const trace = turnTrace({ purpose: "reply", decision: { action: "reply", stage: "discovery", handoff: "none", lang: "ru", summary: "Хочет книгу маме" }, context: null, state: { phase: "active", outcome: null }, events: [] });
+        await store.log(id, null, "ru", [{ kind: "turn", meta: trace, messageId: own.id }]);
+        const queries = new DrizzleMessagingQueries();
+        expect(await queries.botTrace(own.id)).toEqual(trace);
+        await tx.execute(sql`insert into crm_bot_events (conversation_id, kind, meta, created_at) values (${id}, 'turn', ${JSON.stringify(trace)}::jsonb, now() - interval '100 days')`);
+        expect(await purgeBotTraces(90)).toBeGreaterThanOrEqual(1);
+        expect(await queries.botTrace(own.id)).toEqual(trace);
         expect(m.started).toBeGreaterThanOrEqual(1);
         expect(m.answered.recipient).toBeGreaterThanOrEqual(1);
         expect(m.intents.price).toBeGreaterThanOrEqual(1);
         expect(m.skipped.prior_chat).toBeGreaterThanOrEqual(1);
         expect(m.langs.kk).toBeGreaterThanOrEqual(1);
+        // Продажник подхватил тот же диалог ещё раз (новый started) — языки считаются по беседам, а не по строкам журнала.
+        await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }]);
+        expect((await botMetrics(30)).langs.kk).toBe(m.langs.kk);
       });
       tx.rollback();
     });

@@ -26,6 +26,15 @@ export const DEAL_INVOICE_CLOSE_REASONS = {
   mergedIntoClosed: "сделки объединены, а сделка закрыта или по ней заказ",
 } as const;
 
+/**
+ * Какие счета отменит слияние сделок from → to (правило moveAll; карточка сделки называет их в подтверждении): closeOpen
+ * (целевая закрыта или по ней заказ) — все открытые обеих; иначе открыт у обеих — открытый счёт from; иначе — никакие.
+ */
+export function mergeCancels<T extends { dealId: string; status: string }>(invoices: readonly T[], from: string, closeOpen: boolean): T[] {
+  const open = invoices.filter((i) => i.status === "pending_payment");
+  return closeOpen ? open : open.length > 1 ? open.filter((i) => i.dealId === from) : [];
+}
+
 /** Запись в ленту сделки об отменённом счёте (для CRM). */
 export const dealInvoiceCancelledNote = (invoice: DealInvoice) => {
   const s = invoice.snapshot();
@@ -57,10 +66,8 @@ export class DealInvoiceLifecycle {
     return this.uow.run(async () => {
       await this.lockDeals([input.from, input.to]);
       const all = await this.store.lockAllFor([input.from, input.to]);
-      const open = all.filter((i) => i.status === "pending_payment");
-      const cancel = input.closeOpen ? open : open.length > 1 ? open.filter((i) => i.dealId === input.from) : [];
       const cancelled: string[] = [];
-      for (const invoice of cancel) {
+      for (const invoice of mergeCancels(all, input.from, input.closeOpen)) {
         if (!invoice.cancel(input.closeOpen ? DEAL_INVOICE_CLOSE_REASONS.mergedIntoClosed : DEAL_INVOICE_CLOSE_REASONS.merged)) continue;
         await this.store.save(invoice);
         cancelled.push(invoice.label);

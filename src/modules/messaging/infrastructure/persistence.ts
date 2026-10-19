@@ -3,9 +3,12 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizz
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { readBotState, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
+import { BOT_TRACE_KEEP_DAYS, readBotState, readBotTrace, splitHandoffs, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
+
+/** Последний ответ человека — не назад во времени (эхо, догнанное сверкой со шлюзом, приходит позже). */
+const lastOutgoing = (at: Date) => sql`greatest(${crmConversations.lastOutgoingAt}, ${at.toISOString()}::timestamptz)`;
 const toConversation = (r: Row): Conversation => ({
   id: r.id,
   channel: r.channel,
@@ -19,6 +22,7 @@ const toConversation = (r: Row): Conversation => ({
   botStep: r.botStep,
   awaitingSince: r.awaitingSince,
   lastMessageAt: r.lastMessageAt,
+  status: r.status,
   meta: r.meta,
 });
 
@@ -76,7 +80,10 @@ export class DrizzleConversationRepository implements ConversationRepository {
   }
 
   async recordEcho(id: string, text: string, at: Date) {
-    await executor().update(crmConversations).set({ lastMessageAt: at, lastMessageText: text, awaitingSince: null, unread: 0, updatedAt: new Date() }).where(eq(crmConversations.id, id));
+    await executor()
+      .update(crmConversations)
+      .set({ lastMessageAt: at, lastMessageText: text, awaitingSince: null, unread: 0, lastOutgoingAt: lastOutgoing(at), updatedAt: new Date() })
+      .where(eq(crmConversations.id, id));
   }
 
   async recordHistory(id: string, text: string, at: Date) {
@@ -92,8 +99,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
       .set({
         lastMessageAt: at,
         lastMessageText: text,
-        // Автоответ и бот не снимают «ждёт ответа»: клиент всё ещё ждёт менеджера.
-        ...(authorId ? { unread: 0, awaitingSince: null, assigneeId: sql`coalesce(${crmConversations.assigneeId}, ${authorId}::uuid)` } : {}),
+        // Автоответ и бот не снимают «ждёт ответа» и не считаются нашим ответом: клиент всё ещё ждёт менеджера.
+        ...(authorId ? { unread: 0, awaitingSince: null, lastOutgoingAt: lastOutgoing(at), assigneeId: sql`coalesce(${crmConversations.assigneeId}, ${authorId}::uuid)` } : {}),
         updatedAt: at,
       })
       .where(eq(crmConversations.id, id));
@@ -126,6 +133,11 @@ export class DrizzleConversationRepository implements ConversationRepository {
 
   async chatIdsByDeal(dealId: string) {
     return (await executor().select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.dealId, dealId))).map((c) => c.chatId);
+  }
+
+  async chatIdsByClient(clientId: string) {
+    const rows = await executor().select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.clientId, clientId)).orderBy(desc(crmConversations.lastMessageAt)).limit(50);
+    return rows.map((c) => c.chatId);
   }
 
   async setAssignee(id: string, userId: string | null) {
@@ -309,6 +321,21 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
       .limit(1);
     return r ?? null;
   }
+
+  /**
+   * Суточный лимит правил: по частичному индексу crm_messages_rule_idx, не больше cap строк. Неотправленные (status
+   * error — шлюз не принял) номер WhatsApp не расходуют и в лимит не идут.
+   */
+  async countRuleSince(since: Date, cap: number) {
+    const { rows } = await executor().execute<{ n: number }>(sql`
+      select count(*)::int as n from (
+        select 1 from crm_messages
+        where source = 'rule' and internal = false and created_at >= ${since} and status <> 'error'
+        order by created_at
+        limit ${cap}
+      ) t`);
+    return Number(rows[0]?.n ?? 0);
+  }
 }
 
 /** Бот не остановлен человеком: bot_step null (ещё не начал) или номер вопроса. */
@@ -356,7 +383,9 @@ export class DrizzleBotStore implements BotStore {
             'version', coalesce((${crmConversations.botState}->>'version')::int, 0) + 1)
           else ${crmConversations.botState} end`,
       })
-      .where(and(eq(crmConversations.id, conversationId), botAlive()))
+      // Мягкая остановка уже остановленного бота (каждый следующий ответ менеджера) ничего не меняет — false, без новой
+      // записи «остановлен» в журнал: строка обновляется, только если беседа ещё шла или у бота был срок.
+      .where(and(eq(crmConversations.id, conversationId), botAlive(), opts.soft ? sql`(coalesce(${crmConversations.botState}->>'phase', 'done') <> 'done' or ${crmConversations.botDueAt} is not null)` : undefined))
       .returning({ outcome: sql<string | null>`${crmConversations.botState}->>'outcome'`, reason: sql<string | null>`${crmConversations.botState}->>'reason'` });
     return rows.some((r) => r.outcome === "stopped_by_manager" && r.reason === reason);
   }
@@ -385,8 +414,23 @@ export class DrizzleBotStore implements BotStore {
     if (!events.length) return;
     await executor()
       .insert(crmBotEvents)
-      .values(events.map((e) => ({ conversationId, dealId, kind: e.kind, field: e.field ?? null, intent: e.intent ?? null, lang, reason: e.reason?.slice(0, 200) ?? null })));
+      .values(events.map((e) => ({ conversationId, dealId, kind: e.kind, field: e.field ?? null, intent: e.intent ?? null, lang, reason: e.reason?.slice(0, 200) ?? null, meta: (e.meta as unknown as Record<string, unknown>) ?? null, messageId: e.messageId ?? null })));
   }
+}
+
+/** Сколько старых следов удаляется за проход: чистка идёт порциями, без долгой блокировки журнала. */
+const TRACE_PURGE_BATCH = 2000;
+
+/**
+ * Чистка следов ходов бота старше keepDays (по частичному индексу crm_bot_events_turn_at_idx): за проход — не больше
+ * TRACE_PURGE_BATCH самых старых. Остальной журнал (статистика) не трогается. Возвращает, сколько удалено.
+ */
+export async function purgeBotTraces(keepDays = BOT_TRACE_KEEP_DAYS): Promise<number> {
+  const res = await executor().execute(sql`
+    delete from crm_bot_events where id in (
+      select id from crm_bot_events where kind = 'turn' and created_at < now() - make_interval(days => ${keepDays})
+      order by created_at limit ${TRACE_PURGE_BATCH})`);
+  return res.rowCount ?? 0;
 }
 
 /** Метрики бота за период (настройки бота). */
@@ -397,7 +441,12 @@ export interface BotMetrics {
   /** Сколько диалогов дошли до ответа на каждый вопрос и где ответ не распознан. */
   answered: Record<string, number>;
   unrecognized: Record<string, number>;
+  /** О чём спрашивали (частые вопросы). */
   intents: Record<string, number>;
+  /** Почему бот передал беседу менеджеру — просьбы и ситуации клиента. */
+  handoffs: Record<string, number>;
+  /** Передачи из-за сбоя самого бота (модель не ответила, петля, потолок беседы…). */
+  failures: Record<string, number>;
   langs: Record<string, number>;
   /** Медиана минут от итога бота до первого ответа человека. */
   replyMinutes: number | null;
@@ -419,9 +468,10 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     by("unrecognized", "field", true),
     by("faq", "intent"),
     by("handoff", "reason"),
-    by("started", "reason"),
+    // Язык — по беседам, а не по строкам: продажник пишет started на каждом подхвате того же диалога.
+    by("started", "reason", true),
     executor().execute<{ key: string; n: number }>(
-      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined', 'offer', 'agreed', 'invoiced', 'offered') and created_at >= ${since} group by 1`,
+      sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'takeover', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined', 'offer', 'agreed', 'invoiced', 'offered') and created_at >= ${since} group by 1`,
     ),
     executor().execute<{ m: number | null }>(sql`
       select percentile_cont(0.5) within group (order by extract(epoch from (r.first_at - e.at)) / 60) as m
@@ -434,31 +484,53 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
         and (d.agreed_plan is not null or d.order_id is not null or exists (select 1 from crm_payments p where p.deal_id = d.id))`),
   ]);
   const o = tally(outcomes.rows);
+  const { handoffs, failures } = splitHandoffs(tally(handoff.rows));
   return {
     started: o.started ?? 0,
     skipped: tally(skipped.rows),
     outcomes: o,
     answered: tally(answered.rows),
     unrecognized: tally(unrecognized.rows),
-    intents: { ...tally(faq.rows), ...Object.fromEntries(Object.entries(tally(handoff.rows)).map(([k, v]) => [`handoff:${k}`, v])) },
+    intents: tally(faq.rows),
+    handoffs,
+    failures,
     langs: tally(langs.rows),
     replyMinutes: reply.rows[0]?.m == null ? null : Math.round(Number(reply.rows[0].m)),
     converted: Number(converted.rows[0]?.n ?? 0),
   };
 }
 
+/** Есть ли в стоп-листе один из номеров (spam — только спам; без reason — любая отметка). Поиск по первичному ключу. */
+async function listed(values: (string | null | undefined)[], reason?: "spam") {
+  const list = [...new Set(values.filter((v): v is string => !!v))];
+  if (!list.length) return false;
+  const rows = await executor()
+    .select({ v: crmBlocklist.value })
+    .from(crmBlocklist)
+    .where(and(inArray(crmBlocklist.value, list), reason ? eq(crmBlocklist.reason, reason) : undefined))
+    .limit(1);
+  return rows.length > 0;
+}
+
 export const drizzleBlocklist: Blocklist = {
-  async isBlocked(...values) {
-    const list = values.filter((v): v is string => !!v);
-    if (!list.length) return false;
-    const rows = await executor().select({ v: crmBlocklist.value }).from(crmBlocklist).where(inArray(crmBlocklist.value, list)).limit(1);
-    return rows.length > 0;
+  isBlocked: (...values) => listed(values, "spam"),
+  noMarketing: (...values) => listed(values),
+  async add(values, byUserId, opts = {}) {
+    const list = [...new Set(values.filter(Boolean))];
+    if (!list.length) return;
+    const reason = opts.reason ?? "spam";
+    const insert = executor()
+      .insert(crmBlocklist)
+      .values(list.map((value) => ({ value, reason, note: opts.note?.slice(0, 300) || null, createdById: byUserId })));
+    // Спам сильнее «не писать первым»: номер, который просил не писать, а потом прислал спам, — уже спам.
+    if (reason === "spam") await insert.onConflictDoUpdate({ target: crmBlocklist.value, set: { reason: "spam", note: sql`coalesce(excluded.note, ${crmBlocklist.note})` }, setWhere: sql`${crmBlocklist.reason} <> 'spam'` });
+    else await insert.onConflictDoNothing();
   },
-  async add(values, byUserId) {
-    await executor().insert(crmBlocklist).values(values.map((value) => ({ value, createdById: byUserId }))).onConflictDoNothing();
-  },
-  async remove(value) {
-    await executor().delete(crmBlocklist).where(eq(crmBlocklist.value, value));
+  async remove(values, reason) {
+    if (!values.length) return;
+    await executor()
+      .delete(crmBlocklist)
+      .where(and(inArray(crmBlocklist.value, values), reason ? eq(crmBlocklist.reason, reason) : undefined));
   },
 };
 
@@ -529,9 +601,25 @@ export class DrizzleMessagingQueries {
     return botMetrics(days);
   }
 
-  /** Номера в спаме (настройки). */
+  /** След хода продажника у сообщения бота («Почему так?»); null — следа нет (шаблонный бот, старое сообщение). */
+  async botTrace(messageId: string): Promise<BotTurnTrace | null> {
+    const [row] = await executor()
+      .select({ meta: crmBotEvents.meta })
+      .from(crmBotEvents)
+      .where(and(eq(crmBotEvents.messageId, messageId), eq(crmBotEvents.kind, "turn")))
+      .orderBy(desc(crmBotEvents.createdAt))
+      .limit(1);
+    return row ? readBotTrace(row.meta) : null;
+  }
+
+  /** Стоп-лист для настроек: спам и «не писать первым», кто добавил (null — CRM сама). */
   blocklist() {
-    return executor().select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200);
+    return executor()
+      .select({ value: crmBlocklist.value, reason: crmBlocklist.reason, note: crmBlocklist.note, createdAt: crmBlocklist.createdAt, byName: users.name, byEmail: users.email })
+      .from(crmBlocklist)
+      .leftJoin(users, eq(users.id, crmBlocklist.createdById))
+      .orderBy(desc(crmBlocklist.createdAt))
+      .limit(200);
   }
 
   async staffName(id: string | null) {

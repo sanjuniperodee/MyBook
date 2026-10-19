@@ -1,10 +1,26 @@
 import "server-only";
-import { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, type DealInvoiceClaimed, type DealInvoiceExtraMoney, type DealInvoicePaid, type OrderCancelled, type OrderOverpaid, type OrderPaid, type OrderPlaced, type PaymentClaimed, type PostpayDue } from "@/modules/ordering";
+import {
+  DEAL_INVOICE_CLOSE_REASONS,
+  dealInvoiceCancelledNote,
+  type DealInvoiceClaimed,
+  type DealInvoiceExtraMoney,
+  type DealInvoicePaid,
+  type OrderCancelled,
+  type OrderOverpaid,
+  type OrderPaid,
+  type OrderPlaced,
+  type OrderStatusChanged,
+  type PaymentClaimed,
+  type PostpayDue,
+  type TrackingAdded,
+} from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
 import { recipientPolicy } from "@/lib/content/kinds";
+import { orderRuleSubject } from "@/shared/domain/orders";
+import { isOrderRuleStatus } from "@/modules/automation/domain/meta";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
 
@@ -18,8 +34,36 @@ export function registerSubscriptions(c: Container) {
   const notify = () => import("@/modules/workspace");
 
   // ─── заказы → воронка продаж и правила CRM ───────────────────────────────
+  // Сделка заказа — для правил: сообщение клиенту ищет её переписку, а пропуск пишется заметкой в неё.
+  // У заказа может быть несколько сделок (пакет книг): byOrder отдаёт их по порядку создания — берём первую, всегда одну и ту же.
+  const orderDeal = async (orderId: string) => (await c.sales.deals.byOrder(orderId))[0]?.id ?? null;
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload, amount: e.payload.amount + (e.payload.prepaid ?? 0), dealId: e.payload.agreementDealId ?? null }).then(() => undefined), "crm.deal.order_created");
-  c.bus.subscribe<OrderPlaced>("ordering.order_placed", async (e) => rules().run("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId }), "crm.automation.order_created");
+  // После привязки заказа к сделке (подписчики — по порядку регистрации).
+  c.bus.subscribe<OrderPlaced>(
+    "ordering.order_placed",
+    async (e) => rules().run("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId, dealId: await orderDeal(e.payload.orderId) }),
+    "crm.automation.order_created",
+  );
+  // Статус заказа — один раз на статус (откат и повторный перевод клиенту не повторяются); трек — один раз на номер
+  // (исправили опечатку — клиент получит верный). Событие правил — только «В печати», «Отправлен», «Доставлен»: откат в
+  // «Оплачен» или «Ждёт оплаты» клиенту не сообщается (оплату ловит «Заказ оплачен»), даже правилом «любой статус».
+  c.bus.subscribe<OrderStatusChanged>(
+    "ordering.order_status_changed",
+    async (e) => {
+      const p = e.payload;
+      if (!isOrderRuleStatus(p.to)) return;
+      await rules().run("order.status_changed", { subject: orderRuleSubject.status(p.orderId, p.to), orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId), orderStatus: p.to });
+    },
+    "crm.automation.order_status_changed",
+  );
+  c.bus.subscribe<TrackingAdded>(
+    "ordering.tracking_added",
+    async (e) => {
+      const p = e.payload;
+      await rules().run("order.tracking_added", { subject: orderRuleSubject.track(p.orderId, p.trackingNumber), orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId) });
+    },
+    "crm.automation.order_tracking_added",
+  );
   c.bus.subscribe<OrderPaid>(
     "ordering.order_paid",
     async (e) => {
@@ -41,11 +85,15 @@ export function registerSubscriptions(c: Container) {
     (e) => tellManager(e.payload.orderId, (n) => `Клиент оформил заказ №${e.payload.number} (сделка №${n})`, (t) => `${t}${e.payload.prepaid ? ` · предоплата ${e.payload.prepaid.toLocaleString("ru-RU")} ₸ учтена` : ""}`),
     "crm.notify.order_placed",
   );
-  // Деньги по заказу требуют решения: переплата (возврат или зачёт) и постоплата после доставки — задача ответственному сделки.
+  // Деньги по заказу требуют решения: переплата (возврат или зачёт) и постоплата после доставки — задача ответственному
+  // сделки со сроком «2 рабочих часа» (ночью — к 11:00 утра) и напоминанием. Ответственного нет — задача ничья: её видят
+  // все в «Просрочено» и в бейдже, напоминание — всем с deals.view (tasks-d4). Повтор события (outbox повторяет упавший
+  // подписчик) задачу не дублирует, а уведомление дойдёт.
+  const ORDER_TASK_WORK_MIN = 120;
   const orderTask = async (orderId: string, title: string) => {
     for (const d of await c.sales.deals.byOrder(orderId)) {
-      const actor = { userId: d.assigneeId ?? "", name: "CRM", seesAll: true, allTasks: true };
-      if (d.assigneeId) await c.clients.tasks.create(actor, { title, kind: "task", orderId, dealId: d.id, assigneeId: d.assigneeId });
+      const dueAt = await c.workspace.schedule.addWorkMinutes(c.clock.now(), ORDER_TASK_WORK_MIN);
+      await c.clients.tasks.createSystem({ title, kind: "task", dueAt, orderId, dealId: d.id, assigneeId: d.assigneeId, once: true });
       await (await notify()).staffNotifier.notifyOwnerOr(d.assigneeId, "orders.view", { kind: "task", title, body: d.title, link: `/admin/deals/${d.id}` });
     }
   };
@@ -125,6 +173,17 @@ export function registerSubscriptions(c: Container) {
       if (e.payload.assigneeId) await c.messaging.chats.assignDealConversations(e.payload.dealId, e.payload.assigneeId);
     },
     "crm.chats.follow_deal",
+  );
+  // Задачи идут за сделкой: открытые задачи прежнего ответственного и ничьи (ночная задача бота) — новому, напоминание
+  // ему заново. Повтор из outbox после следующей передачи не уводит задачи к тому, у кого сделки уже нет.
+  c.bus.subscribe<DealAssigned>(
+    "sales.deal_assigned",
+    async (e) => {
+      const p = e.payload;
+      if (!p.assigneeId || (await c.sales.deals.findById(p.dealId))?.assigneeId !== p.assigneeId) return;
+      await c.clients.tasks.followDeal({ dealId: p.dealId, from: p.fromAssigneeId, to: p.assigneeId });
+    },
+    "crm.tasks.follow_deal",
   );
   // Сделка закрыта (успех, отказ, отклонена) — её открытый счёт из чата отменяется: платить по закрытой сделке нельзя.
   // Счёт Kaspi на номер по нему закроет сверка платежей.

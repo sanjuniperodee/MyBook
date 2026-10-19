@@ -8,13 +8,15 @@ import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, can, canSeeAssigned, contactView, type Staff } from "@/server/access";
 import { container } from "@/server/container";
 import { rateLimit } from "@/server/rateLimit";
-import { getSetting } from "@/modules/workspace";
 import { DEAL_INVOICE_TTL_MS, OrderingError, type DealInvoice } from "@/modules/ordering";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { maskPhone } from "@/modules/access";
 import { isPhoneEmail } from "@/modules/identity";
 import { payLink } from "./view";
 import { availableMethods, invoiceText, isKzMobile, pushKaspi } from "@/server/deal-invoices";
+import { auditDiscount, discountLimit } from "@/server/discount";
+import { staffActionError } from "@/server/errors";
+import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
 import { sourceFromChannel } from "@/modules/sales";
 import { channelLabel } from "@/modules/messaging";
 import { isManualChannel } from "@/shared/domain/channels";
@@ -76,7 +78,9 @@ export interface InvoiceFormInfo {
   methods: { kaspi: boolean; card: boolean; transfer: boolean };
   /** Счёт Kaspi на номер чата возможен: Kaspi подключён и номер — казахстанский мобильный; номер — с маской. */
   kaspiPhoneMasked: string | null;
-  /** null — без лимита (руководитель); иначе скидка от прайса тарифа не больше N %. */
+  /** Кассир Kaspi отключён (руководителям уже сообщили) — жёлтая плашка над формой; null — всё в порядке. */
+  kaspiWarning?: string | null;
+  /** null — без лимита (право prices.discount_unlimited); иначе скидка от прайса тарифа не больше N %. */
   maxDiscountPercent: number | null;
   /** Для предпросмотра сообщения: срок счёта и вид ссылки на обоих языках (настоящая ссылка — при выпуске). */
   preview: { until: Record<"ru" | "kk", string>; link: Record<"ru" | "kk", string> };
@@ -100,14 +104,15 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
   const phone = conv?.channel === "whatsapp" && isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
   const clientId = deal?.clientId ?? conv?.clientId ?? null;
   const batchSize = deal ? (await c.sales.batch.money(deal.id)).size : null;
-  const [methods, plan, paid, open, maxDiscount, stage, client] = await Promise.all([
+  const [methods, plan, paid, open, maxDiscount, stage, client, kaspiWarning] = await Promise.all([
     availableMethods(),
     deal ? c.sales.agreedPlan.get(deal.id) : Promise.resolve(null),
     deal ? c.sales.batch.money(deal.id).then((b) => (b.size ? b.paid : c.sales.payments.paidTotal(deal.id))) : Promise.resolve(0),
     deal ? c.ordering.invoices.listFor(deal.id).then((l) => l.find((i) => i.isPayable(new Date())) ?? null) : Promise.resolve(null),
-    getSetting("crm.maxDiscount"),
+    discountLimit(staff),
     deal ? c.sales.deals.stage(deal.stageId) : Promise.resolve(null),
     clientId ? c.reporting.clientBrief(clientId) : Promise.resolve(null),
+    c.ordering.kaspiWatch.warning().catch(() => null),
   ]);
   // Имя диалога бывает номером телефона: менеджер со скрытыми номерами его не видит и здесь.
   const name = deal?.contactName || conv?.contactName || "";
@@ -140,7 +145,8 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       giftPrices: { giftwrap: availableAddons("hardcover").find((a) => a.id === "giftwrap")?.price ?? 0, delivery: paidDelivery.length ? Math.max(...paidDelivery) : 0 },
       methods,
       kaspiPhoneMasked: methods.kaspi && isKzMobile(phone) ? maskPhone(phone) : null,
-      maxDiscountPercent: can(staff, "deals.delete") ? null : Number(maxDiscount) || 0,
+      kaspiWarning,
+      maxDiscountPercent: maxDiscount,
       preview: { until: { ru: untilLabel(until, "ru"), kk: untilLabel(until, "kk") }, link: { ru: `${env.appUrl}/pay/…`, kk: `${env.appUrl}/kk/pay/…` } },
     },
   };
@@ -185,7 +191,9 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
   // Со страницы сделки — её диалог WhatsApp (туда уйдёт счёт и потом доступ).
   conv ??= await c.messaging.queries.whatsappForDeal(deal.id);
   const phone = conv?.channel === "whatsapp" && isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
-  const limit = can(staff, "deals.delete") ? null : Number(await getSetting("crm.maxDiscount")) || 0;
+  const limit = await discountLimit(staff);
+  // Договорённость «до» — в журнал скидки пишем только новую цену или тариф (повторный счёт по той же цене — нет).
+  const before = { plan: await c.sales.agreedPlan.get(deal.id), amount: deal.amount };
   let invoice: DealInvoice;
   let repeated = false;
   try {
@@ -209,6 +217,8 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
     }));
   } catch (err) {
     if (OrderingError.is(err) && err.code === "paymentRule") return { ok: false, message: err.message };
+    const discount = staffActionError(err, DiscountError);
+    if (discount) return { ok: false, message: discount };
     throw err;
   }
   const link = payLink(invoice);
@@ -222,6 +232,8 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
     sent = msg.status !== "error";
   }
   await audit(staff, "invoice.issue", "deal", deal.id, { invoice: invoice.label, amount: d.amount, agreed: d.agreedTotal, count: d.count, plan: d.plan, gifts: invoice.snapshot().gifts, phone: phone ? phoneTail(phone) : null, kaspiPush: push ? push.ok : null });
+  const listPrice = getPlan(d.plan)?.price ?? 0;
+  if (before.plan !== d.plan || before.amount !== d.agreedTotal) await auditDiscount(staff, { entity: "deal", id: deal.id }, { plan: d.plan, listPrice, price: d.agreedTotal, percent: DiscountPolicy.percent(listPrice, d.agreedTotal) }, limit, "invoice", { number: deal.number, invoice: invoice.label });
   revalidatePath(`/admin/deals/${deal.id}`);
   revalidatePath("/admin/chats");
   const message = sent ? `Счёт ${invoice.label} отправлен клиенту` : conv ? `Счёт ${invoice.label} создан, но сообщение не ушло — скопируйте ссылку` : `Счёт ${invoice.label} создан — отправьте ссылку клиенту`;

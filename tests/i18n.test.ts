@@ -109,6 +109,7 @@ describe("нет русских строк вне словарей", () => {
   const skipFiles = new Set([
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
+    "modules/ordering/ui/notice.ts", // подпись под формой статуса в карточке заказа (CRM): что уйдёт клиенту
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
     "shared/domain/channels.ts", // подписи каналов привлечения для CRM — на русском
     "shared/domain/slug.ts", // таблица транслитерации кода ссылки
@@ -128,6 +129,7 @@ describe("нет русских строк вне словарей", () => {
     "modules/ordering/domain/DealInvoice.ts", // причина закрытия счёта из чата — для CRM
     "modules/ordering/application/DealInvoicesService.ts", // счёт из чата: ошибки формы и заметки — сотруднику CRM
     "modules/ordering/application/DealInvoiceLifecycle.ts", // счета в жизни сделки: причины отмены и запись в ленту сделки — для CRM
+    "modules/ordering/application/KaspiWatchService.ts", // «кассир Kaspi отключён»: уведомления руководителям и плашка менеджеру — в CRM
     "server/invoice-access.ts", // после оплаты счёта: заметки, задачи и уведомления команде (клиенту — словарь access)
     "server/deal-invoices.ts", // счёт из чата и от бота: ошибки для менеджера (клиенту — словарь pay)
   ]);

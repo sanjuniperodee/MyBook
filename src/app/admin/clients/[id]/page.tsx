@@ -23,10 +23,11 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const client = await container().reporting.clientById(id);
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
-  const [{ bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money }, admins, clientFields] = await Promise.all([
+  const [{ bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money }, admins, clientFields, noMarketing] = await Promise.all([
     container().reporting.clientCard(id, { deals: can(staff, "deals.view") }),
     container().access.queries.allStaff(),
     listFields("client"),
+    container().messaging.chats.noMarketingFor({ clientId: client.id, phones: [client.phone, ...client.extraPhones] }),
   ]);
 
   const adminOptions = staffOptions(admins);
@@ -45,7 +46,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Профиль */}
         <aside className="space-y-4">
-          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} />
+          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} noMarketing={noMarketing} />
           {clientFields.length ? (
             <section className="rounded-2xl border border-line bg-white p-5">
               <h2 className="mb-3 text-sm font-semibold">Поля клиента</h2>

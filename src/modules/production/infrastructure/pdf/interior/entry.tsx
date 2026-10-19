@@ -101,14 +101,15 @@ function EntryBody({ kit, item, leadIn }: { kit: PdfKit; item: ContentItem; lead
  * Ответ в вёрстке главы: заголовок вопроса (или разделитель, если заголовка нет) и текст с фото.
  * Если доводка решила начать ответ с новой полосы — разрыв перед ним.
  */
-export function Entry({ kit, item, index }: { kit: PdfKit; item: ContentItem; index: number }) {
+export function Entry({ kit, item, index, leadIn = index === 0 }: { kit: PdfKit; item: ContentItem; index: number; leadIn?: boolean }) {
   const { design, sizes: S, flow } = kit;
-  const breaks = flow.breakBefore.has(item.id);
+  // Разрыв: решение доводки вёрстки или «с новой страницы» автора.
+  const breaks = flow.breakBefore.has(item.id) || !!item.pageBreak;
   const fresh = index === 0 || breaks;
   return (
     <View break={index > 0 && breaks} style={{ marginTop: fresh ? 0 : item.heading ? S.beforeHeading : S.beforeHeadless }}>
-      {item.heading ? <Heading kit={kit} text={item.heading} id={`h:${item.id}`} /> : index > 0 ? <Divider kit={kit} id={`h:${item.id}`} /> : null}
-      <EntryBody kit={kit} item={item} leadIn={design.leadIn && index === 0} />
+      {item.heading ? <Heading kit={kit} text={item.heading} id={`h:${item.id}`} /> : index > 0 && !item.continued ? <Divider kit={kit} id={`h:${item.id}`} /> : null}
+      <EntryBody kit={kit} item={item} leadIn={design.leadIn && leadIn && !item.continued} />
     </View>
   );
 }

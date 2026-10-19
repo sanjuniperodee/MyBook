@@ -13,12 +13,18 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, type InteriorMood } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
+import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
+import { ChaptersEditor } from "./ChaptersEditor";
+import type { StoryInfo } from "./StoryList";
+import { TocEditor } from "./TocEditor";
 
 interface PagesState {
   interior: InteriorId;
   dedication: string;
   showToc: boolean;
-  photoPlacement: "chapters" | "end";
+  tocMode: TocMode;
+  tocLines: TocLines;
+  photoPlacement: "chapters" | "end" | "none";
 }
 
 type Filter = InteriorMood | "all" | "cover";
@@ -38,6 +44,7 @@ export function PagesEditor({
   cover,
   theme,
   editable,
+  stories,
 }: {
   bookId: string;
   /** Тема книги — подсказка посвящения зависит от вида книги. */
@@ -48,6 +55,8 @@ export function PagesEditor({
   /** Обложка книги и дизайны, которые с ней в паре. */
   cover: { name: string; pairs: InteriorId[] };
   editable: boolean;
+  /** Истории книги по id ответа: заголовок по умолчанию, свой и скрыт ли — для блока «Главы книги». */
+  stories: Record<string, StoryInfo>;
 }) {
   const [state, setState] = useState(initial);
   const [filter, setFilter] = useState<Filter>("all");
@@ -79,7 +88,10 @@ export function PagesEditor({
   };
 
   // Большой разворот сразу показывает посвящение и оглавление; миниатюры от них не зависят и не перерисовываются.
-  const live = useMemo(() => ({ ...sample, dedication: state.dedication.trim(), showToc: state.showToc }), [sample, state.dedication, state.showToc]);
+  const live = useMemo(
+    () => ({ ...sample, dedication: state.dedication.trim(), showToc: state.showToc, toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc }),
+    [sample, state.dedication, state.showToc, state.tocMode, state.tocLines],
+  );
   const paired = new Set(cover.pairs);
   const filters: Filter[] = ["all", ...(paired.size ? (["cover"] as const) : []), ...interiorMoods];
   const shown = interiorDesigns.filter((d) => filter === "all" || d.id === state.interior || (filter === "cover" ? paired.has(d.id) : d.mood === filter));
@@ -197,6 +209,23 @@ export function PagesEditor({
           />
         </FormSection>
 
+        {/* Главы своей книги автор называет и собирает в редакторе вопросов; здесь — главы темы. */}
+        {kind !== "blank" && sample.tocAll ? (
+          <FormSection title={t.chapters} description={t.chaptersText}>
+            <ChaptersEditor
+              bookId={bookId}
+              stories={stories}
+              candidates={sample.tocAll}
+              lines={state.tocLines}
+              editable={editable}
+              onChange={(tocLines) => {
+                update({ tocLines });
+                if (state.showToc) setSpread("toc");
+              }}
+            />
+          </FormSection>
+        ) : null}
+
         <FormSection title={t.toc}>
           <label className="flex items-center gap-3">
             <input
@@ -211,10 +240,15 @@ export function PagesEditor({
             />
             <span>{t.tocLabel}</span>
           </label>
+          {state.showToc && sample.tocAll ? (
+            <div className="mt-5">
+              <TocEditor candidates={sample.tocAll} mode={state.tocMode} lines={state.tocLines} editable={editable} onChange={update} onFocus={() => setSpread("toc")} />
+            </div>
+          ) : null}
         </FormSection>
 
-        <FormSection title={t.photos}>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <FormSection title={t.photos} description={t.photosText}>
+          <div className="grid gap-4 sm:grid-cols-3">
             <Choice active={state.photoPlacement === "chapters"} onClick={() => update({ photoPlacement: "chapters" })} disabled={!editable}>
               <div className="font-medium">{t.photosChapters}</div>
               <div className="text-sm text-muted">{t.photosChaptersText}</div>
@@ -222,6 +256,10 @@ export function PagesEditor({
             <Choice active={state.photoPlacement === "end"} onClick={() => update({ photoPlacement: "end" })} disabled={!editable}>
               <div className="font-medium">{t.photosEnd}</div>
               <div className="text-sm text-muted">{t.photosEndText}</div>
+            </Choice>
+            <Choice active={state.photoPlacement === "none"} onClick={() => update({ photoPlacement: "none" })} disabled={!editable}>
+              <div className="font-medium">{t.photosNone}</div>
+              <div className="text-sm text-muted">{t.photosNoneText}</div>
             </Choice>
           </div>
         </FormSection>

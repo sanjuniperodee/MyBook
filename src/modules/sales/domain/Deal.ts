@@ -4,7 +4,9 @@ import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { formatPrice } from "@/config/site";
 import { normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { SalesEvents } from "./events";
+import { SalesError } from "./errors";
 import type { Stage } from "./Funnel";
+import { mergeRefusal } from "./merge";
 
 export type NoteKind = "note" | "call" | "message" | "system";
 
@@ -33,6 +35,10 @@ export interface DealProps {
   tags: string[];
   stageChangedAt: Date;
   closedAt: Date | null;
+  /** Когда заведена (в базе — по умолчанию now()): слияние в закрытую сделку заказа смотрит, пришла ли заявка рядом с ним. */
+  createdAt?: Date;
+  /** Правило автоматизации, которое создало сделку (повторная продажа): статистика правила «создано / выиграно / сумма». */
+  automationId?: string | null;
 }
 
 /** Запись в ленту сделки (история, звонки, сообщения, заметки менеджеров). */
@@ -65,7 +71,7 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** routed — ответственного выбрал круг (он попадает в routeTried). */
-  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "lostReason" | "tags" | "extraPhones" | "assignedAt" | "routeTried"> & { extraPhones?: string[]; routed?: boolean }, stage: Stage, now: Date) {
+  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "createdAt" | "lostReason" | "tags" | "extraPhones" | "assignedAt" | "routeTried"> & { extraPhones?: string[]; routed?: boolean }, stage: Stage, now: Date) {
     const { routed, ...props } = input;
     const deal = new Deal(id, {
       ...props,
@@ -82,6 +88,7 @@ export class Deal extends AggregateRoot<DealProps> {
       tags: [],
       stageChangedAt: now,
       closedAt: stage.kind === "open" ? null : now,
+      createdAt: now,
     });
     deal.#stageChanges.push({ fromStageId: null, toStageId: stage.id, actorId: input.createdById });
     deal.note(`Создана сделка №${number} «${deal.props.title}» (${dealSourceLabels[input.source]})`, input.createdById);
@@ -285,11 +292,18 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /**
-   * Слияние дубля: пустые поля заполняются из source, телефон source становится дополнительным,
-   * теги объединяются. Перенос переписки, звонков и задач делает репозиторий.
+   * Слияние дубля: пустые поля (и свои поля сделки, и метки, откуда пришёл) заполняются из source, телефон source
+   * становится дополнительным, теги объединяются. Перенос переписки, звонков, задач и истории этапов делает репозиторий.
+   * Кого с кем сливать нельзя — mergeRefusal: закрытую сделку не вливают (mergeClosed), а в закрытую вливают только заявку
+   * той же покупки — рядом с заказом успешной сделки, окно — windowDays (mergeIntoClosed: номер этой сделки и окно).
    */
-  absorb(source: Deal, actorId: string | null) {
+  absorb(source: Deal, ctx: { targetStage: Stage | null; sourceStage: Stage | null; windowDays: number }, actorId: string | null) {
+    const side = (d: Deal, stage: Stage | null) => ({ kind: stage?.kind ?? null, orderId: d.props.orderId, createdAt: d.props.createdAt ?? null, closedAt: d.props.closedAt });
+    const refusal = mergeRefusal(side(this, ctx.targetStage), side(source, ctx.sourceStage), ctx.windowDays);
+    if (refusal === "mergeClosed") throw new SalesError("mergeClosed", undefined, [source.number]);
+    if (refusal === "mergeIntoClosed") throw new SalesError("mergeIntoClosed", undefined, [this.props.number, ctx.windowDays]);
     const s = source.props;
+    this.fillEmptyFields(s.customFields);
     const phones = new Set([...this.props.extraPhones, ...s.extraPhones]);
     if (s.contactPhone && this.props.contactPhone && phoneKey(s.contactPhone) !== phoneKey(this.props.contactPhone)) phones.add(normalizePhone(s.contactPhone));
     if (this.props.contactPhone) phones.delete(normalizePhone(this.props.contactPhone));
@@ -302,6 +316,7 @@ export class Deal extends AggregateRoot<DealProps> {
       orderId: this.props.orderId ?? s.orderId,
       assigneeId: this.props.assigneeId ?? s.assigneeId,
       amount: this.props.amount || s.amount,
+      utm: this.props.utm ?? s.utm,
       tags: [...new Set([...this.props.tags, ...s.tags])],
       extraPhones: [...phones],
       unsorted: false,

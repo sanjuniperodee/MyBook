@@ -125,7 +125,7 @@ describe("HTML-полосы и 3D-книга", () => {
   };
   const html = (fb: FixtureBook, kind: "colophon" | "toc" | "galleryOpener") => {
     const { ctx } = ctxOf(fb);
-    return renderToStaticMarkup(<FaceView face={{ kind }} no={3} ctx={ctx} />);
+    return renderToStaticMarkup(<FaceView face={kind === "toc" ? { kind, part: 0 } : { kind }} no={3} ctx={ctx} />);
   };
   const withGallery = (fb: FixtureBook): FixtureBook => ({ ...fb, bundle: { ...fb.bundle, book: { ...fb.bundle.book, photoPlacement: "end" } } });
 

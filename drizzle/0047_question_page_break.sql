@@ -1,0 +1,1 @@
+ALTER TABLE "book_questions" ADD COLUMN "page_break" boolean DEFAULT false NOT NULL;

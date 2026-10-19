@@ -1,8 +1,8 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
-import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
+import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type AnsweredTasks, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
+import { channelTransport, crmBotSettings, crmNotifier, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
@@ -10,26 +10,30 @@ import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHi
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { chatFiles } from "./infrastructure/chatFiles";
+import { staffLine } from "./infrastructure/staffLine";
 import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
-import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
+import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist, purgeBotTraces } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import type { Conversation, HistoryMessage, InboundMessage } from "./domain";
+import { contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
+import { normalizePhone } from "@/shared/domain/phone";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
-export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
+export { DEFAULT_RULE_SENDING, RULE_DAILY_LIMIT_MAX, type RuleSendingPolicy } from "./domain";
+export type { BotTurnTrace } from "./domain";
+export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, sensitiveWhat, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
 export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
-export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
+export type { Attachment, BlockReason, ContactsTarget, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
 export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -91,11 +95,15 @@ export class MessagingModule {
   private readonly botStore = new DrizzleBotStore();
   private readonly messages = new DrizzleMessageRepository();
   private readonly botSettings;
+  /** Номера сотрудников и что CRM отправила им сама (напоминания): эхо и ответы не становятся заявками. */
+  private readonly staffLine: ReturnType<typeof staffLine>;
 
   constructor(
     private readonly deps: {
       clock: Clock;
       sales: SalesGateway;
+      /** Задачи менеджерам (бот, «Перезвоните мне») и закрытие задач «ответить» ответом — сервис задач контекста Clients. */
+      tasks: Tasks & AnsweredTasks;
       rules: IncomingRules;
       links: LinkAttribution;
       whatsapp: () => Promise<string>;
@@ -108,10 +116,13 @@ export class MessagingModule {
       botInvoices?: BotInvoices | null;
       /** Модель AI-продажника (Assistant): без неё режим «Продаёт» работает по шаблонам. */
       sellerModel?: BotSellerModel | null;
+      /** Номера действующих сотрудников (Access): переписка с ними — служебная, не заявки. */
+      staffPhones?: () => Promise<string[]>;
     } & WorkspacePorts,
   ) {
     const conversations = new DrizzleConversationRepository();
     const notifier = crmNotifier(deps.notifier);
+    this.staffLine = staffLine(deps.staffPhones ?? (async () => []));
     const live = realtimeUpdates(deps.live);
     this.botSettings = crmBotSettings({ settings: deps.settings, schedule: deps.schedule, fields: deps.fields, site: deps.botSite });
     this.bot = new QualifierBot({
@@ -121,7 +132,7 @@ export class MessagingModule {
       crm: { ...deps.botCrm, priorChat: (conv, before) => this.priorChat(conv, before) },
       sales: deps.sales,
       notifier,
-      tasks: crmTasksAdapter,
+      tasks: deps.tasks,
       timers: processTimers(),
       clock: deps.clock,
       logger: consoleLogger("bot"),
@@ -137,6 +148,8 @@ export class MessagingModule {
       // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
       transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
       changed: (conversationId) => live.chatChanged(conversationId),
+      // Стоп-лист «Не писать первым»: бот отвечает клиенту, но не напоминает о себе.
+      noMarketing: (conv) => this.chats.noMarketing(conv.chatId, contactPhone(conv)),
       materials: {
         list: () => this.materials(),
         send: async (conversationId, m) => {
@@ -163,9 +176,11 @@ export class MessagingModule {
     this.view = new ChatView({ fields: deps.fields, settings: deps.settings, wazzup: this.wazzup, gowa: this.gowa, whatsappProvider: deps.whatsappSettings.provider, smtp: deps.smtp });
     const transport = whatsappTransport(this.gowa, deps.whatsappSettings.provider, channelTransport(this.wazzup, this.email));
     const messages = this.messages;
-    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder());
+    // Окно и суточный лимит сообщений от правил — настройки «Интеграции» → «Мессенджеры» (кэш настроек — 10 секунд).
+    const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
-    this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
+    this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds, deps.schedule);
   }
 
   /** Файл от сотрудника (фото, видео, аудио, документ): сохраняется у нас (чтобы открыть в CRM) и уходит клиенту. */
@@ -178,7 +193,9 @@ export class MessagingModule {
 
   /**
    * Переслать сообщение в другие диалоги (до 10): текст — текстом, вложение — тем же файлом с подписью; в WhatsApp
-   * с пометкой «Пересланное». Возвращает, куда не ушло и почему.
+   * с пометкой «Пересланное». В тексте или подписи чужой для получателя номер, карта, IBAN или ссылка на перевод Kaspi
+   * (например, номер другого клиента) — не уходит никуда (chats-d4); номер самого получателя и магазина — можно.
+   * Возвращает, куда не ушло и почему.
    */
   async forward(messageId: string, targetIds: string[], authorId: string): Promise<{ sent: number; failed: { conversationId: string; error: string }[] }> {
     const m = await this.messages.findOne(messageId);
@@ -195,9 +212,12 @@ export class MessagingModule {
       // Шлюз мог только что скачать файл — копия ссылается на тот же файл.
       mediaUrl = (await this.messages.findOne(m.id))?.mediaUrl ?? null;
     } else if (!m.text.trim()) throw new MessageActionError("Пустое сообщение");
+    const targets = [...new Set(targetIds)].slice(0, 10);
+    // Реквизиты в тексте или подписи — до отправки хоть кому-то.
+    await this.chats.assertForwardable(m.text, targets);
     const failed: { conversationId: string; error: string }[] = [];
     let sent = 0;
-    for (const target of [...new Set(targetIds)].slice(0, 10)) {
+    for (const target of targets) {
       try {
         const r = file ? await this.chats.sendFile(target, file, m.text, authorId, { mediaUrl, forwarded: true }) : await this.chats.send(target, m.text, authorId, undefined, { forwarded: true });
         if (r.status === "error") failed.push({ conversationId: target, error: r.error ?? "не отправилось" });
@@ -326,19 +346,24 @@ export class MessagingModule {
 
   /**
    * Личное сообщение на номер в WhatsApp — не диалог с клиентом, в CRM не записывается (напоминания сотруднику).
-   * Через GOWA или, при Wazzup, через первый активный канал WhatsApp. false — не отправилось.
+   * Через GOWA или, при Wazzup, через первый активный канал WhatsApp. false — не отправилось. Текст и id запоминаются:
+   * эхо с номера магазина не заводит диалог с сотрудником (tasks-d5).
    */
   async sendToPhone(phone: string, text: string): Promise<boolean> {
-    const digits = phone.replace(/\D/g, "");
+    const digits = normalizePhone(phone);
     if (digits.length < 10) return false;
+    // До отправки: эхо шлюза может прийти раньше ответа на запрос.
+    this.staffLine.remember({ text });
     try {
       if ((await this.deps.whatsappSettings.provider()) === "gowa") {
-        await this.gowa.sendText(digits, text);
+        this.staffLine.remember({ externalId: await this.gowa.sendText(digits, text), text });
         return true;
       }
       const channel = (await this.wazzup.listChannels()).find((c) => c.transport === "whatsapp" && c.state === "active");
       if (!channel) return false;
-      await this.wazzup.send({ channelId: channel.channelId, chatType: "whatsapp", chatId: digits, text, crmMessageId: crypto.randomUUID() });
+      const crmMessageId = crypto.randomUUID();
+      this.staffLine.remember({ externalId: crmMessageId, text });
+      this.staffLine.remember({ externalId: await this.wazzup.send({ channelId: channel.channelId, chatType: "whatsapp", chatId: digits, text, crmMessageId }), text });
       return true;
     } catch (err) {
       console.error("[messaging] sendToPhone", err);
@@ -394,6 +419,16 @@ export class MessagingModule {
   /** Метрики бота для настроек. */
   botMetrics(days = 30) {
     return this.queries.botMetrics(days);
+  }
+
+  /** След хода продажника у сообщения бота («Почему так?» в чате); null — следа нет. */
+  botTrace(messageId: string) {
+    return this.queries.botTrace(messageId);
+  }
+
+  /** Медленный проход планировщика: следы ходов бота старше 90 дней удаляются порциями. */
+  purgeBotTraces() {
+    return purgeBotTraces();
   }
 
   /**

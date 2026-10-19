@@ -5,7 +5,9 @@ import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
+import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
+import { TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
   .object({
@@ -18,6 +20,7 @@ const patchSchema = z
     recipientName: z.string().trim().max(60),
     recipientGender: z.enum(["m", "f"]),
     hideRecipientOnCover: z.boolean(),
+    namesOnCover: z.string().trim().max(NAMES_ON_COVER_MAX),
     coverTemplate: z.string().max(40),
     coverPhotoId: uuid.nullable(),
     coverPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),
@@ -30,8 +33,13 @@ const patchSchema = z
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
     format: z.string().max(20),
-    photoPlacement: z.enum(["chapters", "end"]),
+    photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),
+    tocMode: z.enum(TOC_MODES),
+    // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
+    tocLines: z
+      .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional() }))
+      .refine((o) => Object.keys(o).length <= TOC_LINES_MAX),
     occasion: z.string().max(40).nullable(),
     occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
     language: z.string().refine(isLocale, "unknownLanguage"),

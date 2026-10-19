@@ -5,11 +5,13 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError } from "@/server/access";
+import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError, workRefusal } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
+import { findSensitive, MessageActionError, sensitiveWhat, type ContactsTarget } from "@/modules/messaging";
+import { admin } from "@/i18n/admin";
 import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
@@ -85,11 +87,16 @@ function resolveContact(target: Target) {
   return container().clients.contact({ callId: id(target.callId), dealId: id(target.dealId), orderId: id(target.orderId), clientId: id(target.clientId) });
 }
 
+/**
+ * Звонок через АТС. Чужая или неразобранная запись у роли «только свои» — отказ ответом (workRefusal), а не исключением:
+ * у кнопки («Мой день», карточки, «Звонки») всплывёт текст, а не экран ошибки вместо CRM. То же у чата и письма.
+ */
 export async function callAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("calls.make");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertWorkable(staff, c.assigneeId);
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
   try {
     await container().telephony.phone.clickToCall(staff.user.sipExtension, normalizePhone(c.phone));
   } catch (err) {
@@ -104,7 +111,8 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertWorkable(staff, c.assigneeId);
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
   // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
   const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
@@ -118,9 +126,14 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
-  assertWorkable(staff, c.assigneeId);
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
-  const r = await container().messaging.email.sendToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
+  const title = z.string().max(200).parse(subject);
+  // Как в чате: чужой номер, карта или реквизиты клиенту не уходят (номер клиента и магазина — можно).
+  const found = findSensitive(`${title}\n${body}`, [c.phone, await container().marketing.service.shopWhatsapp()]);
+  if (found.length) return { ok: false, message: `В письме ${sensitiveWhat(found)}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
+  const r = await container().messaging.email.sendToContact({ to: c.email, subject: title, text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
   if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
   if (c.clientId) revalidatePath(`/admin/clients/${c.clientId}`);
@@ -148,6 +161,54 @@ export async function setClientPhonesAction(clientId: string, raw: string): Prom
   await audit(staff, "client.phones", "client", client.id, { count: phones.length });
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: true, message: phones.length ? `Сохранено номеров: ${phones.length}` : "Дополнительные номера удалены" };
+}
+
+/** «Не писать первым» по всем номерам и диалогам карточки (или снять отметку); нет ни номера, ни переписки — текст сотруднику. */
+async function markNoMarketing(target: ContactsTarget, on: boolean, byUserId: string, where: string) {
+  try {
+    return await container().messaging.chats.setNoMarketing(target, on, byUserId, where);
+  } catch (err) {
+    if (MessageActionError.is(err)) return null;
+    throw err;
+  }
+}
+
+const noMarketingDone = (on: boolean) => (on ? "Не пишем первыми: бот не напоминает, правила не пишут" : "Снова можно писать первыми");
+
+/**
+ * Клиент просил не писать первым (кнопка в карточке клиента): его номера и диалоги — в стоп-лист «Не писать первым».
+ * Входящие и ответы как обычно; бот не напоминает о себе, правила автоматизаций не пишут.
+ */
+export async function setClientNoMarketingAction(clientId: string, on: boolean): Promise<ActionResult> {
+  const staff = await assertStaff("clients.edit");
+  const next = z.boolean().parse(on);
+  const client = await container().reporting.clientById(uuid.parse(clientId));
+  if (!client) return { ok: false, message: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  const target = { clientId: client.id, phones: [client.phone, ...client.extraPhones] };
+  const values = await markNoMarketing(target, next, staff.user.id, "Карточка клиента");
+  if (!values) return { ok: false, message: admin.noMarketingNoContacts };
+  await audit(staff, "client.no_marketing", "client", client.id, { on: next, numbers: values.length });
+  revalidatePath(`/admin/clients/${client.id}`);
+  if (!next && (await container().messaging.chats.spamFor(target))) return { ok: false, message: admin.noMarketingSpam };
+  return { ok: true, message: noMarketingDone(next) };
+}
+
+/** То же из карточки сделки: номера сделки, её диалоги и диалоги её клиента. */
+export async function setDealNoMarketingAction(dealId: string, on: boolean): Promise<ActionResult> {
+  const staff = await assertStaff("deals.edit");
+  const next = z.boolean().parse(on);
+  const deal = await container().sales.deals.findById(uuid.parse(dealId));
+  if (!deal) return { ok: false, message: admin.dealNotFound };
+  assertWorkable(staff, deal.assigneeId);
+  const target = { dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] };
+  const values = await markNoMarketing(target, next, staff.user.id, `Сделка №${deal.number}`);
+  if (!values) return { ok: false, message: admin.noMarketingNoContacts };
+  await audit(staff, "deal.no_marketing", "deal", deal.id, { on: next, numbers: values.length });
+  revalidatePath(`/admin/deals/${deal.id}`);
+  if (deal.clientId) revalidatePath(`/admin/clients/${deal.clientId}`);
+  if (!next && (await container().messaging.chats.spamFor(target))) return { ok: false, message: admin.noMarketingSpam };
+  return { ok: true, message: noMarketingDone(next) };
 }
 
 /** «На смене» — получать новые заявки по кругу. */

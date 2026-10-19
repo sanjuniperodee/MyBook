@@ -1,5 +1,5 @@
-import type { Clock, StaffNotifier } from "@/shared/application";
-import { ClientOnboardingService, ClientsService, NotesService, TasksService, type DealContacts, type OnboardingAccounts, type OnboardingSales, type StaffMessenger } from "./application";
+import type { Clock, StaffNotifier, WorkSchedule } from "@/shared/application";
+import { ClientOnboardingService, ClientsService, NotesService, TasksService, type DealContacts, type OnboardingAccounts, type OnboardingSales, type StaffMessenger, type StaffNotifier as ClientsNotifier } from "./application";
 import { accountUsage, accountsByOtherPhones, drizzleClients, drizzleLinks, drizzleNotes, drizzleStaff, drizzleTasks, resolveContact, type ContactTarget } from "./infrastructure/persistence";
 
 export { ClientsError } from "./domain";
@@ -20,9 +20,11 @@ export class ClientsModule {
   readonly onboarding: ClientOnboardingService;
 
   /** Уведомления о задачах и упоминаниях — порт рабочего пространства; аккаунты и продажи — порты для онбординга и принятия заявки. */
-  constructor(deps: { clock: Clock; notifier: StaffNotifier; messenger?: StaffMessenger; accounts: OnboardingAccounts; sales: OnboardingSales; deals?: DealContacts }) {
-    this.tasks = new TasksService(drizzleTasks, drizzleLinks, deps.notifier, deps.clock, drizzleStaff, deps.messenger ?? null);
-    this.notes = new NotesService(drizzleNotes, drizzleStaff, deps.notifier, deps.deals ?? null);
+  constructor(deps: { clock: Clock; notifier: StaffNotifier<"deals.view">; messenger?: StaffMessenger; schedule?: WorkSchedule; accounts: OnboardingAccounts; sales: OnboardingSales; deals?: DealContacts }) {
+    // Ничья задача напоминает всем, кто видит сделки.
+    const notifier: ClientsNotifier = { notify: (ids, n) => deps.notifier.notify(ids, n), dealsTeam: (n) => deps.notifier.notifyAllWith("deals.view", n) };
+    this.tasks = new TasksService(drizzleTasks, drizzleLinks, notifier, deps.clock, drizzleStaff, deps.messenger ?? null, deps.schedule ?? null);
+    this.notes = new NotesService(drizzleNotes, drizzleStaff, notifier, deps.deals ?? null);
     this.onboarding = new ClientOnboardingService(deps.accounts, deps.sales, this.clients, this.notes, this.tasks);
   }
 

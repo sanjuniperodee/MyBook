@@ -4,7 +4,7 @@ import type { Permission } from "@/shared/domain/permissions";
 import { channelLabel } from "@/modules/messaging";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
-import type { NoteItem } from "@/components/admin/CrmWidgets";
+import { DraftActions, type NoteItem } from "@/components/admin/CrmWidgets";
 import type { OrderStatus } from "@/shared/domain/orders";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
@@ -17,19 +17,66 @@ import { DuplicateRow, LinkClient } from "./DealControls";
 type Screen = ReturnType<typeof dealScreen>;
 const callIcons = { out: PhoneOutgoing, missed: PhoneMissed, in: PhoneIncoming };
 
-/** Другие сделки того же контакта — объединить, если это дубль. */
-export function Duplicates({ dealId, duplicates, canMerge }: { dealId: string; duplicates: { deal: { id: string; number: number; title: string; createdAt: Date; assigneeId: string | null }; stage: { name: string; color: string } }[]; canMerge: (assigneeId: string | null) => boolean }) {
+type RelatedDeal = { deal: { id: string; number: number; title: string; amount: number; createdAt: Date; closedAt: Date | null; assigneeId: string | null }; stage: { name: string; color: string } };
+/** merge — «Объединить сюда» доступно (null — нет: права или правило слияния); cancels — счета, которые слияние отменит. */
+type OpenDeal = RelatedDeal & { merge: { cancels: string[] } | null };
+
+/**
+ * Другие открытые сделки того же контакта. Эта сделка открыта — «Похоже на дубль»: объединить, если это дубль. Закрыта —
+ * «Текущие заявки контакта»: это новые продажи, их ведут отдельно, а не вливают в прошлую покупку (иначе заявка уйдёт из
+ * работы, плана и воронки). «Объединить сюда» здесь — только у заявки той же покупки (успешная сделка с заказом, заявка
+ * пришла рядом с ним — mergeRefusal), например переписки из WhatsApp о заказе с сайта.
+ */
+export function Duplicates({ dealId, closed, duplicates }: { dealId: string; closed: boolean; duplicates: OpenDeal[] }) {
+  const rows = duplicates.map(({ deal: d, stage: st, merge }) => (
+    <DuplicateRow key={d.id} targetId={dealId} intoClosed={closed} other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }} merge={merge} />
+  ));
+  if (closed)
+    return (
+      <section className="rounded-2xl border border-line bg-white p-4" data-testid="current-deals">
+        <h2 className="text-sm font-semibold">Текущие заявки контакта</h2>
+        <p className="mt-1 text-xs text-muted">
+          Эта сделка закрыта. Новые заявки — новые продажи: ведите их отдельно.
+          {duplicates.some((d) => d.merge) ? " Объединить можно только заявку той же покупки — пришедшую рядом с заказом этой сделки." : ""}
+        </p>
+        <div className="mt-2 divide-y divide-line">{rows}</div>
+      </section>
+    );
   return (
     <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="duplicates">
-      <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие сделки</h2>
-      <div className="mt-2 divide-y divide-amber-200/70">
-        {duplicates.map(({ deal: d, stage: st }) => (
-          <DuplicateRow
-            key={d.id}
-            targetId={dealId}
-            other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }}
-            canMerge={canMerge(d.assigneeId)}
-          />
+      <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие открытые сделки</h2>
+      <div className="mt-2 divide-y divide-amber-200/70">{rows}</div>
+    </section>
+  );
+}
+
+/**
+ * Закрытые сделки того же контакта (успех или отказ): прошлые покупки — для контекста, их не сливают. Только те, что
+ * сотрудник видит (canSee — его ответственность или «все сделки»): у роли «только свои» название и сумма чужой сделки
+ * не показываются, как и сама сделка по ссылке.
+ */
+export function PastDeals({ deals, canSee }: { deals: RelatedDeal[]; canSee: (assigneeId: string | null) => boolean }) {
+  const visible = deals.filter((r) => canSee(r.deal.assigneeId));
+  if (!visible.length) return null;
+  return (
+    <section className="rounded-2xl border border-line bg-white p-5 text-sm" data-testid="past-deals">
+      <h2 className="font-semibold">Прошлые сделки контакта</h2>
+      <div className="mt-2 divide-y divide-line">
+        {visible.map(({ deal: d, stage: st }) => (
+          <Link key={d.id} href={`/admin/deals/${d.id}`} className="flex items-center gap-2 py-2 hover:text-wine">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">
+                №{d.number} {d.title}
+              </span>
+              <span className="text-xs text-muted tabular-nums">
+                {formatDate(d.closedAt ?? d.createdAt)}
+                {d.amount ? ` · ${formatPrice(d.amount)}` : ""}
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: st.color }}>
+              {st.name}
+            </span>
+          </Link>
         ))}
       </div>
     </section>
@@ -149,7 +196,7 @@ export function DealCalls({ calls, canListen }: { calls: Screen["calls"]; canLis
   );
 }
 
-export function NotesTimelineReadonly({ notes }: { notes: NoteItem[] }) {
+export function NotesTimelineReadonly({ notes, whatsappTo }: { notes: NoteItem[]; whatsappTo?: string | null }) {
   return (
     <ol className="space-y-3 text-sm">
       {notes.map((n) => (
@@ -158,6 +205,7 @@ export function NotesTimelineReadonly({ notes }: { notes: NoteItem[] }) {
             {n.author} · {n.dateLabel}
           </div>
           <p className="whitespace-pre-line">{n.text}</p>
+          {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} /> : null}
         </li>
       ))}
       {notes.length === 0 ? <p className="text-muted">Записей нет.</p> : null}

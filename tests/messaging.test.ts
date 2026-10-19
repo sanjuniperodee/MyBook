@@ -354,6 +354,63 @@ describe("бот в инбоксе", () => {
     expect(off.msgs.at(-1)).toMatchObject({ source: "rule", authorId: null });
   });
 
+  it("сообщение о заказе уходит и в диалог, который ведёт бот, а бот продолжает вести (chats-15, chats-d5)", async () => {
+    const t = setup({ bot: "always" });
+    await t.service.ingest(inbound());
+    const id = t.conv().id;
+    expect(await t.bot.isActive(id)).toBe(true);
+    expect(await t.service.sendAutomated(id, "Ответим утром", { rule: "Автоответ" })).toBeNull();
+    expect(await t.service.sendAutomated(id, "Ваша книга в печати", { rule: "Книга в печати", transactional: true })).toMatchObject({ status: "sent" });
+    expect(t.sent.at(-1)).toBe("Ваша книга в печати");
+    expect(t.msgs.at(-1)).toMatchObject({ source: "rule", authorId: null });
+    expect(await t.bot.isActive(id)).toBe(true);
+    // Трек из цифр — не чужой телефон: его правило передаёт как разрешённое.
+    const track = "Трек-номер посылки: 7012345678";
+    expect(await t.service.sendAutomated(id, track, { rule: "Трек", transactional: true })).toBeNull();
+    expect(await t.service.sendAutomated(id, track, { rule: "Трек", transactional: true, allow: ["7012345678"] })).toMatchObject({ status: "sent" });
+  });
+
+  it("сообщение о заказе клиенту, который просил не писать первым, не уходит — заметка в сделку", async () => {
+    const t = setup({ noMarketing: ["77011234567"] });
+    await t.service.ingest(inbound());
+    expect(await t.service.sendAutomated(t.conv().id, "Ваша книга отправлена", { rule: "Книга отправлена", transactional: true })).toBeNull();
+    expect(t.notes.at(-1)).toBe("Правило «Книга отправлена» не отправило клиенту сообщение о заказе: клиент просил не писать первым (стоп-лист). Если нужно — напишите клиенту сами.");
+    expect(t.sent).toEqual([]);
+  });
+
+  it("пропуск сообщения о заказе — заметка в сделку заказа (noteDealId): диалог привязан к другой сделке или ни к какой", async () => {
+    const order = { id: "deal-200", title: "Заказ №42", unsorted: false, fields: {}, tags: [] };
+    const opts = { rule: "Книга в печати", transactional: true, noteDealId: "deal-200" };
+    // Окно 09–21: в 21:30 не уходит.
+    const late = setup();
+    await late.service.ingest(inbound());
+    const oldDeal = late.conv().dealId!;
+    late.deals.push(order);
+    late.setNow(new Date("2026-10-01T21:30:00+05:00"));
+    expect(await late.service.sendAutomated(late.conv().id, "Ваша книга в печати", opts)).toBeNull();
+    expect(late.dealNotes.at(-1)).toEqual({ dealId: "deal-200", text: expect.stringContaining("вне окна 09:00–21:00 (Алматы)") });
+    // Без noteDealId — как раньше, в сделку диалога.
+    expect(await late.service.sendAutomated(late.conv().id, "Напоминаем о книге", { rule: "Забросил книгу" })).toBeNull();
+    expect(late.dealNotes.at(-1)?.dealId).toBe(oldDeal);
+    // Диалог без сделки (начался с эха) — заметка всё равно в сделке заказа.
+    late.conv().dealId = null;
+    expect(await late.service.sendAutomated(late.conv().id, "Ваша книга в печати", opts)).toBeNull();
+    expect(late.dealNotes.at(-1)?.dealId).toBe("deal-200");
+    // Стоп-лист.
+    const stop = setup({ noMarketing: ["77011234567"] });
+    await stop.service.ingest(inbound());
+    stop.deals.push(order);
+    expect(await stop.service.sendAutomated(stop.conv().id, "Ваша книга отправлена", opts)).toBeNull();
+    expect(stop.dealNotes).toEqual([{ dealId: "deal-200", text: expect.stringContaining("клиент просил не писать первым") }]);
+    // Реквизиты в тексте.
+    const card = setup();
+    await card.service.ingest(inbound());
+    card.deals.push(order);
+    expect(await card.service.sendAutomated(card.conv().id, "Оплатите на карту 4111 1111 1111 1111", opts)).toBeNull();
+    expect(card.dealNotes).toEqual([{ dealId: "deal-200", text: expect.stringContaining("Правило «Книга в печати» не отправило клиенту сообщение: в тексте") }]);
+    expect([late.sent, stop.sent, card.sent]).toEqual([[], [], []]);
+  });
+
   it("бота выключили посреди опроса — он замолкает", async () => {
     const t = setup({ bot: "always" });
     await t.service.ingest(inbound());

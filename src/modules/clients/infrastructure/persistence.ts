@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { books, crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
@@ -37,27 +37,56 @@ export const drizzleTasks: TaskRepository = {
       .returning({ id: crmTasks.id });
     return rows.length;
   },
-  async claimDueReminders(now, staleMin) {
-    const rows = await executor()
-      .update(crmTasks)
-      .set({ remindedAt: now })
+  async claimDueReminders(now, staleMin, limit, dueBefore) {
+    const db = executor();
+    // Открытые задачи со сроком — по индексу crm_tasks_due_idx (done_at, due_at): срок не дальше недели вперёд (раньше
+    // напомнить нельзя — предел remindBeforeMin) и не старше staleMin; ничьи — тоже. Ранние сроки первыми, не больше limit.
+    // Вне смены (dueBefore — её начало) — только сроки до неё: остальные ждут смены (тот же диапазон индекса, только уже).
+    const due = db
+      .select({ id: crmTasks.id })
+      .from(crmTasks)
       .where(
         and(
           isNull(crmTasks.doneAt),
           isNull(crmTasks.remindedAt),
-          isNotNull(crmTasks.dueAt),
-          isNotNull(crmTasks.assigneeId),
           isNotNull(crmTasks.remindBeforeMin),
-          sql`${crmTasks.dueAt} - ${crmTasks.remindBeforeMin} * interval '1 minute' <= ${now}`,
+          sql`${crmTasks.dueAt} <= ${now}::timestamptz + interval '7 days'`,
           sql`${crmTasks.dueAt} > ${now}::timestamptz - ${staleMin} * interval '1 minute'`,
+          sql`${crmTasks.dueAt} - ${crmTasks.remindBeforeMin} * interval '1 minute' <= ${now}`,
+          dueBefore ? lt(crmTasks.dueAt, dueBefore) : undefined,
         ),
       )
+      .orderBy(asc(crmTasks.dueAt))
+      .limit(limit);
+    const rows = await db
+      .update(crmTasks)
+      .set({ remindedAt: now })
+      .where(and(inArray(crmTasks.id, due), isNull(crmTasks.remindedAt), isNull(crmTasks.doneAt)))
       .returning({ id: crmTasks.id, title: crmTasks.title, kind: crmTasks.kind, dueAt: crmTasks.dueAt, assigneeId: crmTasks.assigneeId, dealId: crmTasks.dealId, orderId: crmTasks.orderId });
-    return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date, assigneeId: r.assigneeId as string }));
+    return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date })).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
+  // Один UPDATE на ответ клиенту — по частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки). Только задачи
+  // CRM (автора нет): ручные «Написать» сотрудников ответ в чате не закрывает.
+  async closeOpenOfKind({ dealId, kind, result, at }) {
+    const rows = await executor()
+      .update(crmTasks)
+      .set({ doneAt: at, result: sql`coalesce(${crmTasks.result}, ${result})` })
+      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), eq(crmTasks.kind, kind), isNull(crmTasks.createdById)))
+      .returning({ id: crmTasks.id });
+    return rows.length;
+  },
+  // По частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки).
+  async reassignOpenOfDeal({ dealId, from, to }) {
+    const rows = await executor()
+      .update(crmTasks)
+      .set({ assigneeId: to, remindedAt: null })
+      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), from ? or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, from)) : isNull(crmTasks.assigneeId)))
+      .returning({ id: crmTasks.id });
+    return rows.length;
+  },
   async update(id, patch) {
-    const rearm = "dueAt" in patch || "remindBeforeMin" in patch;
+    const rearm = "dueAt" in patch || "remindBeforeMin" in patch || "assigneeId" in patch;
     await executor()
       .update(crmTasks)
       .set({ ...patch, ...(rearm ? { remindedAt: null } : {}) })

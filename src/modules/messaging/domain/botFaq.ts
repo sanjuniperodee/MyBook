@@ -3,7 +3,7 @@
  * config/site, а не пишутся в шаблоне руками. Проверка шаблонов: число, похожее на цену, которого нет в тарифах, —
  * ошибка (иначе бот назовёт цену, которой нет). Без сети и БД.
  */
-import type { BotLang } from "./botNlu";
+import type { BotLang, FaqIntent } from "./botNlu";
 
 /** Что бот знает о ценах и сроках (адаптер берёт из действующего каталога). */
 export interface BotCatalog {
@@ -15,6 +15,9 @@ export interface BotCatalog {
 }
 
 /** Переменные и что в них подставляется — для подсказки в настройках. */
+/** Частые вопросы глазами владельца — для сообщений «в ответе «Цена»…». */
+export const faqIntentLabels: Record<FaqIntent, string> = { price: "Цена", how: "Как это работает", timing: "Сроки", delivery: "Доставка", payment: "Оплата", examples: "Примеры", language: "Язык книги" };
+
 export const BOT_VARS: { key: string; label: string }[] = [
   { key: "{цена.электронная}", label: "электронная книга" },
   { key: "{цена.печатная}", label: "печатная в твёрдой обложке" },

@@ -10,7 +10,7 @@ import { env } from "@/config/env";
 import type { Mailer } from "@/shared/application";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { parseDay, toIsoDay } from "@/lib/occasions";
-import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed } from "../../domain";
+import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed, TrackingAdded } from "../../domain";
 import { bookKind } from "@/lib/content/kinds";
 import type { GiftPdfRenderer, GiftsService } from "../../application";
 import type { DrizzleOrderingQueries, GiftView } from "../persistence/DrizzleOrderingQueries";
@@ -76,6 +76,15 @@ export class OrderingMailer {
 
   onStatusChanged = async (e: OrderStatusChanged) => {
     await this.customerStatusMail(e.payload.orderId, e.payload.to);
+  };
+
+  /**
+   * Трек вписали после отправки: письмо «Книга в пути» ушло без него — ещё одно, с треком (automation-d12). Заказ уже
+   * доставлен — не пишем.
+   */
+  onTrackingAdded = async (e: TrackingAdded) => {
+    if (!e.payload.afterShipping) return;
+    if ((await this.queries.orderDetails(e.payload.orderId))?.status === "shipped") await this.customerStatusMail(e.payload.orderId, "shipped");
   };
 
   onOrderCancelled = async (e: OrderCancelled) => {

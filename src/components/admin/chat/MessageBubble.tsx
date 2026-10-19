@@ -5,6 +5,7 @@ import { AlertCircle, Ban, Bot, Check, CheckCheck, ChevronDown, Clock, Copy, Dow
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
+import { BotTraceButton } from "./BotTrace";
 
 /** Сообщение чата с тем, что знает только браузер: превью ещё не отправленного файла. */
 export type Msg = ChatMessage & { localSrc?: string; fileName?: string };
@@ -318,6 +319,8 @@ export function MessageBubble({
         </div>
         <div className="clear-both" />
         {failed && m.error ? <div className="mt-1 flex items-center gap-1 text-[12px] text-red-700"><AlertCircle className="size-3.5" /> {m.error}</div> : null}
+        {/* Ответ AI-продажника: что решила модель и что сделал код. */}
+        {isBot && m.trace && !m.deleted && !temp ? <BotTraceButton conversationId={conversationId} messageId={m.id} /> : null}
         {menuEl}
       </div>
     </div>

@@ -4,6 +4,10 @@
  */
 export interface WorkSchedule {
   isWorkTime(at: Date): Promise<boolean>;
+  /** Когда начнётся рабочее время: at рабочее — сам at, иначе начало ближайшей смены; null — в графике нет рабочих дней. */
+  nextWorkStart(at: Date): Promise<Date | null>;
   /** Сколько рабочих минут прошло между from и to. */
   workMinutesBetween(from: Date, to: Date): Promise<number>;
+  /** Срок через minutes рабочих минут от from (ночь и выходные не считаются; вне смены — от её начала). */
+  addWorkMinutes(from: Date, minutes: number): Promise<Date>;
 }

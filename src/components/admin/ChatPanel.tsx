@@ -58,6 +58,7 @@ export function ChatPanel({
   templates,
   vars,
   sendDisabledReason,
+  paymentWarning = null,
   className,
   mentionables = [],
   offers = null,
@@ -72,6 +73,8 @@ export function ChatPanel({
   templates: { id: string; title: string; text: string }[];
   vars: { name: string; order: number | null; link: string; manager: string; fields?: Record<string, string> };
   sendDisabledReason?: string | null;
+  /** Оплата сейчас не работает (кассир Kaspi отключён) — жёлтая плашка над полем ввода; сообщения при этом уходят. */
+  paymentWarning?: string | null;
   className?: string;
   mentionables?: string[];
   offers?: ChatOffers | null;
@@ -536,6 +539,11 @@ export function ChatPanel({
           </div>
         ) : null}
         {sendDisabledReason && mode === "client" ? <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{sendDisabledReason}</p> : null}
+        {paymentWarning && mode === "client" ? (
+          <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800" data-testid="chat-payment-warning">
+            {paymentWarning}
+          </p>
+        ) : null}
         {replyTo || editing ? (
           <div className="mb-2 flex items-center gap-2 rounded-xl border-l-4 border-wine bg-cream/60 px-3 py-1.5 text-xs">
             {editing ? <Pencil className="size-4 shrink-0 text-wine" /> : <Reply className="size-4 shrink-0 text-wine" />}

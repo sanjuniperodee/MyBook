@@ -42,11 +42,13 @@ export const settingDefs = {
   "pay.transferName": { env: "TRANSFER_NAME" },
   /** Через сколько минут не взятая заявка переходит следующему менеджеру по кругу; 0 — не передавать. */
   "crm.reassignMinutes": { default: "15" },
+  /** В успешную сделку заказа можно влить заявку того же контакта, пришедшую не дальше N дней от её закрытия; 0 — нельзя (sales mergeRefusal). */
+  "crm.mergeClosedDays": { default: "14" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
   "crm.maxDiscount": { default: "15" },
-  /** Номер WhatsApp для рекламных ссылок «написать в WhatsApp» (по умолчанию — из контактов сайта). */
+  /** Номер WhatsApp магазина: рекламные ссылки «написать в WhatsApp» и контакты сайта (футер, сертификат, оплата); пусто — заглушка из config/site.ts. */
   "crm.whatsappNumber": {},
   /** Бот-автоответчик: off | fallback (если менеджер не ответил за N минут) | off_hours | always — по умолчанию (docs/features/bot-autoresponder.md). */
   "bot.mode": { default: "always" },
@@ -58,6 +60,15 @@ export const settingDefs = {
   "bot.materials": {},
   /** У кого сейчас телефон WhatsApp магазина ({ id, name }): ответ с телефона забирает новую заявку на него. */
   "whatsapp.phoneHolder": {},
+  /** Когда правила автоматизаций пишут клиентам первыми: JSON { from, to } по Алматы (automation-15). Автоответ — в любое время. */
+  "whatsapp.rulesWindow": { default: '{"from":"09:00","to":"21:00"}' },
+  /** Сколько сообщений клиентам от правил уходит за сутки; 0 — правила первыми не пишут. */
+  "whatsapp.rulesDailyLimit": { default: "40" },
+  /**
+   * Праздники для повторных продаж (правило «Приближается праздник»): JSON [{ id, date: "ММ-ДД", ru, kk }]. Пусто —
+   * праздники РК по умолчанию (DEFAULT_HOLIDAYS в automation), «[]» — праздников нет.
+   */
+  "automation.holidays": {},
   /** Журнал ночных разборов бесед AI-продажника (последние 14). */
   "bot.coach": {},
   /** Ключи Web Push (создаются автоматически). */
@@ -137,6 +148,10 @@ export const settingDefs = {
   "catalog.overrides": {},
   /** Регистрация новых клиентов на сайте: on | off (выключена — страница регистрации закрыта, ссылки скрыты). */
   "site.registration": { default: "on" },
+  /** Реквизиты продавца для оферты, футера и упаковочного листа (админка → «Сайт»); пусто — заглушка из config/site.ts. */
+  "site.legalName": {},
+  "site.bin": {},
+  "site.phone": {},
   /**
    * Оплата через Kaspi Pay (kaspi-pos-automation): адрес сервиса, включена ли оплата, сессия кассира (JSON после входа
    * по SMS-коду) и секрет подписи вебхуков — необязательный: без подписи уведомление лишь повод сверить счёт с Kaspi.
@@ -145,6 +160,10 @@ export const settingDefs = {
   "kaspi.enabled": { default: "off" },
   "kaspi.session": { secret: true },
   "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
+  /** Сигнал «кассир Kaspi отключён»: через сколько минут подряд без кассира сообщать руководителям (0 — сразу). */
+  "kaspi.alertAfterMinutes": { default: "5" },
+  /** Что показала последняя проверка кассира (JSON KaspiWatchState): пишет проход планировщика при смене состояния. */
+  "kaspi.watch": {},
   /**
    * WhatsApp: через Wazzup (по умолчанию) или свой шлюз GOWA (go-whatsapp-web-multidevice, номер привязывается по QR).
    * Для GOWA — адрес шлюза и логин:пароль его API (APP_BASIC_AUTH); вебхук устройства магазина сайт настраивает в шлюзе сам.

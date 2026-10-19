@@ -11,6 +11,9 @@ import { isPhoneLike, normalizePhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { env } from "@/config/env";
 import { container } from "./container";
+import { staffActionError } from "./errors";
+import { getSetting } from "@/modules/workspace";
+import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
 import { transferRequisites } from "./requisites";
 
 /** Ссылка на оплату счёта — на языке счёта (/pay или /kk/pay). */
@@ -58,8 +61,9 @@ export async function pushKaspi(invoice: DealInvoice, phone: string): Promise<{ 
 
 /**
  * Счёт от имени бота (режим «Продаёт»): тот же выпуск, что «Счёт» в чате, — договорённость в сделку, ссылка /pay, счёт
- * Kaspi на номер WhatsApp-чата, после оплаты доступ уходит сам (invoice-access). Без сотрудника: цену задал владелец в
- * настройках бота, поэтому лимит скидки менеджера не применяется. Повтор того же хода (key) счёт не задваивает.
+ * Kaspi на номер WhatsApp-чата, после оплаты доступ уходит сам (invoice-access). Цена — тариф из «Цен и тарифов»
+ * (sellerInvoice); бот — тоже точка продажи, поэтому действует общий лимит скидки (crm.maxDiscount): прайс успели поднять
+ * между ходом и счётом — сверх лимита счёт не выйдет, его выставит менеджер. Повтор того же хода (key) счёт не задваивает.
  */
 export const botInvoices: BotInvoices = {
   async issue(input) {
@@ -85,11 +89,13 @@ export const botInvoices: BotInvoices = {
         amount: input.amount,
         purpose: input.amount < input.agreedTotal ? "prepayment" : "full",
         actor: { userId: null, label: "бот" },
-        maxDiscountPercent: null,
+        maxDiscountPercent: DiscountPolicy.readLimit(await getSetting("crm.maxDiscount")),
         issueKey: input.key,
       }));
     } catch (err) {
       if (OrderingError.is(err)) return { error: err.message };
+      const discount = staffActionError(err, DiscountError);
+      if (discount) return { error: discount };
       throw err;
     }
     if (repeated) return { error: "счёт этого хода уже выставлен" };

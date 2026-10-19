@@ -1,7 +1,8 @@
 import "server-only";
 import { Document } from "@react-pdf/renderer";
 import { site } from "@/config/site";
-import { photoPages, type BookContent } from "@/lib/book/layout";
+import { chapterRuns, photoPages, type BookContent } from "@/lib/book/layout";
+import { hasToc } from "@/lib/book/toc";
 import { ChapterBody } from "./chapter-body";
 import { Colophon } from "./colophon";
 import { Dedication } from "./dedication";
@@ -24,11 +25,17 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   const kit = pdfKit(content, options);
     const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
   if (content.dedication) pages.push(<Dedication key="dedication" kit={kit} text={content.dedication} />);
-  if (content.showToc && content.chapters.length) pages.push(<Toc key="toc" kit={kit} />);
+  if (hasToc(content)) pages.push(<Toc key="toc" kit={kit} />);
 
   for (const ch of content.chapters) {
     pages.push(<Opener key={`open-${ch.key}`} kit={kit} chapterKey={ch.key} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto} />);
-    if (ch.items.length) pages.push(<ChapterBody key={`body-${ch.key}`} kit={kit} chapter={ch} />);
+    // Текст главы — кусками: между ними фото на всю страницу из историй (под обрез, без колонтитула).
+    const runs = chapterRuns(ch.items);
+    const lastText = runs.findLastIndex((r) => r.items.length);
+    runs.forEach((run, i) => {
+      if (run.items.length) pages.push(<ChapterBody key={`body-${ch.key}-${i}`} kit={kit} chapter={ch} items={run.items} first={i === 0} tail={i === lastText} />);
+      if (run.photo) pages.push(<PhotoPage key={`pp-${ch.key}-${i}`} kit={kit} group={[run.photo]} />);
+    });
     photoPages(ch.photos).forEach((group, i) => pages.push(<PhotoPage key={`ph-${ch.key}-${i}`} kit={kit} group={group} />));
   }
 

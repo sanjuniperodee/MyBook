@@ -7,7 +7,22 @@ const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
 const LOCK_ID = 7_310_451;
 
-async function tick() {
+/**
+ * Шаг фонового прохода: ошибка шага пишется в лог с его именем и не обрывает проход — следующие шаги выполняются.
+ * Без этого сбой одного шага (правила CRM, база при перезапуске) останавливал напоминания, круг заявок, бота, почту
+ * и выдачу доступа по оплаченным счетам до следующей минуты — и так каждую минуту, пока сбой не уйдёт.
+ */
+async function step<T>(name: string, run: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    console.error(`[scheduler] step "${name}" failed`, err);
+    return fallback;
+  }
+}
+
+/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, ночной разбор бота, чистка следов бота. Экспорт — для тестов. */
+export async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
   let locked = false;
@@ -15,16 +30,19 @@ async function tick() {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const gifts = await container().ordering.deliverDueGifts();
-    const emails = await container().notifications.lifecycle.run();
+    const gifts = await step("gifts", () => container().ordering.deliverDueGifts(), 0);
+    const emails = await step("lifecycle emails", () => container().notifications.lifecycle.run(), 0);
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
-    await container().outbox.purge();
+    await step("outbox purge", () => container().outbox.purge(), undefined);
     // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.
-    const history = await container().messaging.syncGowaHistory().catch((err) => (console.error("[scheduler] whatsapp history", err), 0));
+    const history = await step("whatsapp history", () => container().messaging.syncGowaHistory(), 0);
     if (history) console.log(`[scheduler] whatsapp history imported=${history}`);
     // Работа над ошибками AI-продажника: раз в сутки ночью разбор бесед за день → уроки в его инструкции.
-    const coach = await container().messaging.coach.run().catch((err) => (console.error("[scheduler] bot coach", err), null));
+    const coach = await step("bot coach", () => container().messaging.coach.run(), null);
     if (coach) console.log(`[scheduler] bot coach reviewed=${coach.reviewed} added=${coach.added.length} removed=${coach.removed.length}${coach.error ? ` error=${coach.error}` : ""}`);
+    // След ходов бота («Почему так?») хранится 90 дней: старые записи — порциями по частичному индексу.
+    const traces = await step("bot traces purge", () => container().messaging.purgeBotTraces(), 0);
+    if (traces) console.log(`[scheduler] bot traces purged=${traces}`);
   } catch (err) {
     console.error("[scheduler] tick failed", err);
   } finally {
@@ -33,40 +51,41 @@ async function tick() {
   }
 }
 
-/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут», круг заявок, почта, доступ по оплаченным счетам. */
+/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут», круг заявок, почта, доступ по оплаченным счетам, кассир Kaspi. */
 const CRM_INTERVAL_MS = 60_000;
 const CRM_LOCK_ID = 7_310_452;
 
-async function crmTick() {
+/** Экспорт — для тестов: каждый шаг выполняется, даже если предыдущий упал. */
+export async function crmTick() {
   const client = await pool.connect();
   let locked = false;
   try {
     const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock($1) as locked", [CRM_LOCK_ID]);
     locked = !!rows[0]?.locked;
     if (!locked) return;
-    const fired = await container().automation.engine.runScheduled();
+    const fired = await step("crm automations", () => container().automation.engine.runScheduled(), 0);
     if (fired) console.log(`[scheduler] crm automations fired=${fired}`);
     // Напоминания о задачах: ответственному — в CRM со звуком и в WhatsApp.
-    const reminded = await container().clients.tasks.remindDue().catch((err) => (console.error("[scheduler] task reminders", err), 0));
+    const reminded = await step("task reminders", () => container().clients.tasks.remindDue(), 0);
     if (reminded) console.log(`[scheduler] task reminders=${reminded}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
-    const routed = await container().sales.routing.run();
+    const routed = await step("lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
-    const botTurns = await container().messaging.bot.sweep().catch((err) => (console.error("[scheduler] bot", err), 0));
+    const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
-    const mails = await container().messaging.email.pollImap();
+    const mails = await step("imap", () => container().messaging.email.pollImap(), 0);
     if (mails) console.log(`[scheduler] crm emails=${mails}`);
     // Счета из чата: доступ в кабинет после оплаты (клиент, привязка, сообщение в чат; доставка) и истечение срока.
-    const access = await container()
-      .invoiceAccess.run()
-      .catch((err) => (console.error("[scheduler] invoice access", err), { processed: 0, failed: 0 }));
+    const access = await step("invoice access", () => container().invoiceAccess.run(), { processed: 0, failed: 0 });
     if (access.processed || access.failed) console.log(`[scheduler] invoice access processed=${access.processed} failed=${access.failed}`);
-    const expired = await container()
-      .invoiceAccess.expire()
-      .catch((err) => (console.error("[scheduler] invoice expiry", err), 0));
+    const expired = await step("invoice expiry", () => container().invoiceAccess.expire(), 0);
     if (expired) console.log(`[scheduler] invoices expired=${expired}`);
+    // Кассир Kaspi: запрос к Kaspi раз в 3 минуты, руководителям — только смена состояния («отключён» / «снова подключён»).
+    // Здесь, а не в сверке платежей: та выходит, пока нет сессии, и пропускает ход, когда занята пятисекундная сверка.
+    const kaspi = await step("kaspi watch", () => container().ordering.kaspiWatch.check(), null);
+    if (kaspi) console.warn(`[scheduler] kaspi cashier ${kaspi === "down" ? "disconnected" : "reconnected"}`);
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
   } finally {

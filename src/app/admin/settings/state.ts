@@ -2,4 +2,6 @@
 export interface SettingsState {
   error?: string;
   ok?: string;
+  /** Сохранено, но есть что проверить (например, суммы в базе знаний не из «Цен и тарифов»). */
+  warning?: string;
 }

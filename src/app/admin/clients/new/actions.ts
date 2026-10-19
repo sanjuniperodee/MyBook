@@ -15,6 +15,9 @@ import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
 import { assertStaff, audit, can, canAssignOthers } from "@/server/access";
 import { container } from "@/server/container";
+import { auditDiscount, discountLimit } from "@/server/discount";
+import { staffActionError } from "@/server/errors";
+import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
 import { giftsFromForm } from "@/components/admin/AgreementGiftsField";
 
 export interface NewClientDone {
@@ -92,6 +95,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
 
   const password = d.password || generateAccessPassword();
   const plan = getPlan(d.plan);
+  const limit = withDeal ? await discountLimit(staff) : null;
   let result: OnboardingResult;
   try {
     result = await container().clients.onboarding.onboard(
@@ -106,11 +110,13 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
         channel,
         // Ответственный: сам менеджер (роль «только свои» видит лишь своих клиентов), руководитель может назначить другого.
         assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : staff.user.id,
-        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values) } : null,
+        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values), maxDiscountPercent: limit } : null,
       },
       { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     );
   } catch (err) {
+    const discount = staffActionError(err, DiscountError);
+    if (discount) return fail(discount);
     if (IdentityError.is(err)) {
       if (err.code === "exists") return fail("Клиент с таким телефоном или почтой уже есть", { existingId: (err as unknown as { existingId?: string }).existingId });
       if (err.code === "phone") return fail("Проверьте номер телефона");
@@ -123,6 +129,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const account = { id: result.clientId, login: result.login };
 
   await audit(staff, "client.create", "client", account.id, { phone: normalizePhone(d.phone), deal: deal?.number ?? null, deals: parts.map((p) => p.dealNumber), count: withDeal ? d.count : 0, agreed: d.agreed, prepaid: d.prepaid, channel, plan: withDeal ? d.plan : null });
+  if (withDeal && plan) await auditDiscount(staff, { entity: "client", id: account.id }, { plan: plan.id, listPrice: plan.price, price: d.agreed, percent: DiscountPolicy.percent(plan.price, d.agreed) }, limit, "client", { deals: parts.map((p) => p.dealNumber) });
   revalidatePath("/admin/clients");
   revalidatePath("/admin/deals");
   const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
@@ -207,21 +214,31 @@ export async function createClientDealsAction(_: ClientDealsState, form: FormDat
   if (staff.scope === "own" && client.managerId && client.managerId !== staff.user.id) return fail("Это клиент другого менеджера");
   const phone = client.phone ?? "";
   const plan = getPlan(d.plan);
-  const { parts, tasks } = await container().clients.onboarding.addDeals(
-    {
-      clientId: client.id,
-      name: client.name || client.email.split("@")[0],
-      phone,
-      email: client.email.endsWith(".invalid") ? "" : client.email,
-      city: "",
-      recipient: d.recipient,
-      locale: "ru",
-      assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : client.managerId ?? staff.user.id,
-      deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values) },
-    },
-    { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
-  );
+  const limit = await discountLimit(staff);
+  let added: { parts: DealPart[]; tasks: number };
+  try {
+    added = await container().clients.onboarding.addDeals(
+      {
+        clientId: client.id,
+        name: client.name || client.email.split("@")[0],
+        phone,
+        email: client.email.endsWith(".invalid") ? "" : client.email,
+        city: "",
+        recipient: d.recipient,
+        locale: "ru",
+        assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : client.managerId ?? staff.user.id,
+        deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values), maxDiscountPercent: limit },
+      },
+      { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
+    );
+  } catch (err) {
+    const discount = staffActionError(err, DiscountError);
+    if (discount) return fail(discount);
+    throw err;
+  }
+  const { parts, tasks } = added;
   await audit(staff, "client.deals", "client", client.id, { deals: parts.map((p) => p.dealNumber), count: d.count, agreed: d.agreed, prepaid: d.prepaid, plan: d.plan, gifts: giftsFromForm(values) });
+  if (plan) await auditDiscount(staff, { entity: "client", id: client.id }, { plan: plan.id, listPrice: plan.price, price: d.agreed, percent: DiscountPolicy.percent(plan.price, d.agreed) }, limit, "client_deals", { deals: parts.map((p) => p.dealNumber) });
   revalidatePath("/admin/deals");
   revalidatePath(`/admin/clients/${client.id}`);
   return { done: { clientId: client.id, clientName: client.name || client.email, parts, count: d.count, agreed: d.agreed, prepaid: d.prepaid, remainder: Math.max(0, d.agreed * d.count - d.prepaid), tasks } };

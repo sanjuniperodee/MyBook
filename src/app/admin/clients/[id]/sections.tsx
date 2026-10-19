@@ -14,11 +14,12 @@ import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/or
 import type { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { formatPhone } from "@/shared/domain/phone";
 import { ContactActions } from "@/components/admin/ContactActions";
+import { NoMarketingToggle } from "@/components/admin/NoMarketingToggle";
 import { ClientChannel, ClientLocale, ClientManager, ExtraPhones } from "./ClientControls";
 
 type Screen = ReturnType<typeof clientScreen>;
 
-/** Профиль клиента: имя, контакты (или маска), действия, доп. телефоны, ответственный, покупки, визит, канал, автописьма. */
+/** Профиль клиента: имя, контакты (или маска), действия, доп. телефоны, ответственный, покупки, визит, канал, автописьма, «не писать первым». */
 export function ClientProfile({
   client,
   screen,
@@ -26,8 +27,11 @@ export function ClientProfile({
   canEdit,
   can,
   managerOptions,
+  noMarketing,
 }: {
   client: { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: "ru" | "kk" };
+  /** Стоп-лист «Не писать первым». */
+  noMarketing: boolean;
   screen: Screen;
   contact: { masked: boolean; phone?: string | null; email?: string | null };
   canEdit: boolean;
@@ -125,6 +129,12 @@ export function ClientProfile({
         <div className="flex justify-between">
           <dt>Автописьма</dt>
           <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{client.emailOptOut ? "отписан" : "получает"}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</dt>
+          <dd>
+            <NoMarketingToggle target={{ clientId: client.id }} on={noMarketing} disabled={!canEdit} />
+          </dd>
         </div>
         <div className="flex justify-between">
           <dt>Средний чек</dt>

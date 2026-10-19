@@ -1,7 +1,7 @@
-import type { Clock } from "@/shared/application";
+import type { Clock, WorkSchedule } from "@/shared/application";
 import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
-import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
+import { canManageTask, extraPhones, isDeletableNote, normalizeTags, snoozedDue, taskDue, type TaskKind, type TaskSnooze } from "../domain";
 import { zonedParts } from "@/shared/domain/time";
 import type { ClientProfile, ClientRepository, CrmLinks, DealContacts, NoteRepository, StaffDirectory, StaffMessenger, StaffNotifier, TaskRepository } from "./ports";
 
@@ -9,6 +9,10 @@ import type { ClientProfile, ClientRepository, CrmLinks, DealContacts, NoteRepos
 export const DEFAULT_REMIND_MIN = 60;
 /** Напоминание, опоздавшее больше чем на столько минут (сервер лежал), уже не шлём: срок прошёл. */
 const REMIND_STALE_MIN = 60;
+/** Сколько напоминаний забирает один минутный проход (остальные — в следующем). */
+const REMIND_BATCH = 200;
+/** Итог задачи «ответить», закрытой ответом клиенту из CRM или с телефона магазина. */
+export const ANSWERED_RESULT = "ответили в чате";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -77,6 +81,8 @@ export class TasksService {
     private readonly clock: Clock,
     private readonly staff: StaffDirectory,
     private readonly messenger: StaffMessenger | null = null,
+    /** График работы: в WhatsApp сотруднику напоминание уходит только в рабочее время. null — всё время рабочее. */
+    private readonly schedule: Pick<WorkSchedule, "isWorkTime" | "nextWorkStart"> | null = null,
   ) {}
 
   /** remindBeforeMin: undefined — по умолчанию (за час, если есть срок), null — не напоминать. */
@@ -100,20 +106,53 @@ export class TasksService {
   }
 
   /**
+   * Задача от CRM — бота, правила автоматизации, заявки «Перезвоните мне», денег по заказу: автора нет (createdById
+   * null), ответственного может не быть (ничья — видят все, напоминание — всем с deals.view). Ответственный отключён —
+   * задача ничья. Напоминание по умолчанию — за час до срока; если до срока меньше часа — в сам срок (иначе оно пришло бы
+   * сразу вслед за уведомлением о задаче, а срок прошёл бы молча). Уведомление о новой задаче шлёт тот, кто её ставит.
+   * once — одна открытая задача с этим заголовком на сделку: повтор события или прохода её не дублирует. false — не
+   * поставлена (такая уже есть).
+   */
+  async createSystem(input: { title: string; kind: TaskKind; dueAt: Date | null; clientId?: string | null; orderId?: string | null; dealId?: string | null; assigneeId: string | null; once?: boolean }): Promise<boolean> {
+    // Заголовок хранится обрезанным до 200 знаков: так же и ищем «такую же открытую», иначе длинный заголовок дублировался бы.
+    const title = input.title.slice(0, 200);
+    if (input.once && input.dealId && (await this.tasks.existsOpen({ dealId: input.dealId, title }))) return false;
+    let clientId = input.clientId ?? null;
+    if (!clientId && input.orderId) clientId = await this.links.clientOfOrder(input.orderId);
+    if (!clientId && input.dealId) clientId = await this.links.clientOfDeal(input.dealId);
+    const assigneeId = input.assigneeId && (await this.staff.isActiveStaff(input.assigneeId)) ? input.assigneeId : null;
+    const lead = input.dueAt ? (input.dueAt.getTime() - this.clock.now().getTime()) / 60_000 : 0;
+    const remindBeforeMin = input.dueAt ? (lead > DEFAULT_REMIND_MIN ? DEFAULT_REMIND_MIN : 0) : null;
+    await this.tasks.add({ title, kind: input.kind, dueAt: input.dueAt, remindBeforeMin, clientId, orderId: input.orderId ?? null, dealId: input.dealId ?? null, assigneeId, createdById: null });
+    return true;
+  }
+
+  /**
    * Напоминания, время которых пришло: ответственному — уведомление в CRM (со звуком, kind «reminder») и сообщение в его
-   * WhatsApp. Каждое уходит один раз (задачу забирает claimDueReminders). Сбой WhatsApp не отменяет уведомление в CRM.
+   * WhatsApp; ничья задача — уведомление в CRM всем, кто видит сделки (в WhatsApp — никому). Каждое уходит один раз
+   * (задачу забирает claimDueReminders). Сбой WhatsApp не отменяет уведомление в CRM.
+   * Вне рабочего времени сотрудника не будим: напоминание, срок которого — после начала ближайшей смены, не забирается и
+   * уходит в начале смены (в CRM и WhatsApp), а не теряется. Срок раньше начала смены ждать не может — напоминание
+   * сразу, но только в CRM: ответственному — колокольчик и push, ничья задача — только колокольчик, без push всем.
    */
   async remindDue(): Promise<number> {
     const now = this.clock.now();
-    const due = await this.tasks.claimDueReminders(now, REMIND_STALE_MIN);
+    const workTime = !this.schedule || (await this.schedule.isWorkTime(now).catch(() => false));
+    const shiftStart = workTime || !this.schedule ? null : await this.schedule.nextWorkStart(now).catch(() => null);
+    const due = await this.tasks.claimDueReminders(now, REMIND_STALE_MIN, REMIND_BATCH, shiftStart);
+    const whatsapp = !!this.messenger && workTime;
     for (const t of due) {
       const link = t.dealId ? `/admin/deals/${t.dealId}` : t.orderId ? `/admin/orders/${t.orderId}` : "/admin/tasks";
       const left = Math.max(0, Math.round((t.dueAt.getTime() - now.getTime()) / 60_000));
       const p = zonedParts(t.dueAt);
       const when = `${pad(p.d)}.${pad(p.m)} ${pad(Math.floor(p.minutes / 60))}:${pad(p.minutes % 60)}`;
       const title = left < 1 ? `Срок задачи наступил: ${t.title}` : `Через ${leadLabel(left)} срок задачи: ${t.title}`;
+      if (!t.assigneeId) {
+        await this.notifier.dealsTeam({ kind: "reminder", title, body: `Срок: ${when} · задача ничья — возьмите её`, link, ...(workTime ? {} : { push: false }) }).catch(() => {});
+        continue;
+      }
       await this.notifier.notify([t.assigneeId], { kind: "reminder", title, body: `Срок: ${when}`, link }).catch(() => {});
-      await this.messenger?.send(t.assigneeId, `⏰ ${title}\nСрок: ${when}\n${link}`).catch(() => false);
+      if (whatsapp) await this.messenger?.send(t.assigneeId, `⏰ ${title}\nСрок: ${when}\n${link}`).catch(() => false);
     }
     return due.length;
   }
@@ -126,6 +165,26 @@ export class TasksService {
     if (await this.tasks.existsOpen({ dealId: input.dealId, title: input.title })) return false;
     await this.create(actor, input);
     return true;
+  }
+
+  /**
+   * Задачи идут за сделкой: сменился ответственный (вручную, круг, ответ с телефона магазина) — открытые задачи сделки,
+   * что были у прежнего ответственного или ничьи (ночная задача бота), переходят новому, напоминание взводится заново.
+   * Отключённому сотруднику задачи не переходят. Сколько задач перешло.
+   */
+  async followDeal(input: { dealId: string; from: string | null; to: string }): Promise<number> {
+    if (input.from === input.to || !(await this.staff.isActiveStaff(input.to))) return 0;
+    return this.tasks.reassignOpenOfDeal(input);
+  }
+
+  /**
+   * Клиенту ответили в чате (из CRM или с телефона магазина): открытые задачи «ответить» (kind message), которые
+   * поставила CRM (бот, правила), по сделке сделаны — итог «ответили в чате» (automation-12). Ручные «Написать»
+   * сотрудников (отложенное дело, задача коллеге) остаются — их закрывает человек; звонки и прочие задачи — тоже.
+   * Сколько закрыто.
+   */
+  closeAnswered(dealId: string) {
+    return this.tasks.closeOpenOfKind({ dealId, kind: "message", result: ANSWERED_RESULT, at: this.clock.now() });
   }
 
   /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */
@@ -149,6 +208,23 @@ export class TasksService {
   async delete(actor: Actor, taskId: string) {
     const t = await this.load(actor, taskId);
     if (t) await this.tasks.delete(t.id);
+    return t;
+  }
+
+  /**
+   * Отложить задачу одной кнопкой: «+1 ч» или «Завтра» (snoozedDue). Права — как у правки. Напоминание придёт заново:
+   * если до нового срока меньше, чем «напомнить за», — в сам срок (иначе пришло бы сразу); «не напоминать» остаётся.
+   * У задачи без срока — напоминание по умолчанию. Выполненная задача не меняется.
+   */
+  async snooze(actor: Actor, taskId: string, by: TaskSnooze) {
+    const t = await this.load(actor, taskId);
+    if (!t) throw new ClientsError("taskNotFound", "Задача не найдена");
+    if (t.doneAt) return t;
+    const now = this.clock.now();
+    const dueAt = snoozedDue(t.dueAt, now, by);
+    const remind = t.dueAt ? (t.remindBeforeMin ?? null) : DEFAULT_REMIND_MIN;
+    const lead = (dueAt.getTime() - now.getTime()) / 60_000;
+    await this.tasks.update(t.id, { dueAt, remindBeforeMin: remind === null ? null : lead > remind ? remind : 0 });
     return t;
   }
 

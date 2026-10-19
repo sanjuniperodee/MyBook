@@ -39,13 +39,16 @@ function overlap(chunk: string, query: Set<string>): number {
   return n;
 }
 
+/** Заголовок куска для следа хода: первая строка без «#» и маркеров, до 80 знаков. */
+export const knowledgeTitle = (chunk: string) => (chunk.split("\n")[0] ?? "").replace(/^\s*(?:#{1,6}|[-•*])\s*/, "").trim().slice(0, 80);
+
 /**
  * Что из базы знаний показать модели. filtered — база длиннее лимита и выбраны куски по теме (эта часть инструкции
- * меняется от хода к ходу); иначе текст целиком.
+ * меняется от хода к ходу); иначе текст целиком. titles — заголовки выбранных кусков (след хода «Почему так?»).
  */
-export function selectKnowledge(knowledge: string, query: string, limit = KNOWLEDGE_LIMIT): { text: string; filtered: boolean } {
+export function selectKnowledge(knowledge: string, query: string, limit = KNOWLEDGE_LIMIT): { text: string; filtered: boolean; titles: string[] } {
   const text = knowledge.trim();
-  if (text.length <= limit) return { text, filtered: false };
+  if (text.length <= limit) return { text, filtered: false, titles: [] };
   const chunks = splitKnowledge(text);
   const q = stems(query);
   const scored = chunks.map((c, i) => ({ c, i, score: overlap(c, q) }));
@@ -57,6 +60,7 @@ export function selectKnowledge(knowledge: string, query: string, limit = KNOWLE
     picked.add(x.i);
     size += x.c.length + 2;
   }
-  if (!picked.size) return { text: text.slice(0, limit), filtered: true };
-  return { text: scored.filter((x) => picked.has(x.i)).map((x) => x.c).join("\n\n"), filtered: true };
+  if (!picked.size) return { text: text.slice(0, limit), filtered: true, titles: [knowledgeTitle(text)] };
+  const chosen = scored.filter((x) => picked.has(x.i));
+  return { text: chosen.map((x) => x.c).join("\n\n"), filtered: true, titles: chosen.map((x) => knowledgeTitle(x.c)).filter(Boolean) };
 }

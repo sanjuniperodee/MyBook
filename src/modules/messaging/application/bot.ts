@@ -1,5 +1,6 @@
 import type { Clock, Logger } from "@/shared/application";
 import { phoneTail } from "@/shared/domain/phone";
+import { zonedDay } from "@/shared/domain/time";
 import {
   BOT_DONE,
   abandonBot,
@@ -7,6 +8,7 @@ import {
   botSellText,
   offerExpired,
   sellPlan,
+  sellerInvoice,
   channelLabel,
   preview,
   botChannelOf,
@@ -21,6 +23,8 @@ import {
   SELLER_MAX_FOLLOW_UPS,
   followUpDelayMs,
   isWarmLead,
+  lastStartFor,
+  sellerEventDate,
   safeName,
   startBlocker,
   themeLabel,
@@ -34,9 +38,10 @@ import {
   type BotTurn,
   type Conversation,
   type InboundMessage,
+  type SellerRemind,
 } from "../domain";
 import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
-import { AiSeller, type CopilotSuggestion } from "./botSeller";
+import { AiSeller, workStartOn, type CopilotSuggestion } from "./botSeller";
 
 export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
@@ -55,8 +60,8 @@ export interface QualifierBotDeps {
   timers: BotTimers;
   clock: Clock;
   logger: Logger;
-  /** Отправить клиенту от имени бота. */
-  send(conversationId: string, text: string): Promise<unknown>;
+  /** Отправить клиенту от имени бота; id — записанное сообщение (к нему след хода «Почему так?»). */
+  send(conversationId: string, text: string): Promise<{ id: string } | void>;
   /** Внутренняя заметка в чате (итог бота) — клиент её не видит. */
   note(conversationId: string, text: string): Promise<unknown>;
   /** Номер магазина: его бот писать может, остальные номера, карты и реквизиты — нет. */
@@ -75,6 +80,8 @@ export interface QualifierBotDeps {
   changed?: ((conversationId: string) => void) | null;
   /** Подборка материалов владельца (фото, видео, пример книги) и отправка файла клиенту от имени бота. */
   materials?: BotMaterialsPort | null;
+  /** Клиент просил не писать первым (стоп-лист): на его сообщения бот отвечает, но сам не напоминает о себе. */
+  noMarketing?: ((conv: Conversation) => Promise<boolean>) | null;
 }
 
 /** Материалы для клиента: список из настроек и отправка одного файла (false — не ушёл). */
@@ -387,7 +394,7 @@ export class QualifierBot {
     }
     const fresh = inputs.filter((i) => !state.seen.includes(i.id));
     // Клиент молчит: после предложения (или в любой беседе AI-продажника) — напоминания, затем итог менеджеру.
-    if (state.phase === "active" && !fresh.length && (state.stage === "offer" || state.engine === "ai")) return this.offerIdle(conv, state, config, fields, now);
+    if (state.phase === "active" && !fresh.length && (state.stage === "offer" || state.engine === "ai")) return this.offerIdle(conv, state, config, fields, now, inputs);
     if (state.phase === "active" && !fresh.length) {
       const last = new Date(state.lastBotAt ?? state.startedAt ?? state.since).getTime();
       if (now.getTime() - last < BOT_ABANDON_MS) {
@@ -535,18 +542,18 @@ export class QualifierBot {
   }
 
   /**
-   * Клиент согласен: в режиме «Продаёт» со счётом бот выпускает счёт сам (цена — из настроек бота или тарифа, сумма —
+   * Клиент согласен: в режиме «Продаёт» со счётом бот выпускает счёт сам (цена — тариф из «Цен и тарифов», сумма —
    * предоплата) и отправляет его. Не вышло — уже отправлен текст «менеджер пришлёт счёт», задачу поставит finish.
    */
   private async invoice(conv: Conversation, state: BotState, env: BotEnv): Promise<BotState | null> {
     const sell = env.config.sell;
     if (!sell.on || !sell.invoice || !this.d.invoices) return null;
     const plan = sellPlan(state, env);
-    const total = sell.prices[plan] || env.catalog.plans.find((p) => p.id === plan && !p.hidden)?.price || 0;
-    if (!total) return null;
+    const priced = sellerInvoice(plan, env);
+    if (!priced) return null;
+    const { total, amount } = priced;
     // Человек ответил, пока бот думал, — счёт не выставляем.
     if ((await this.d.store.load(conv.id))?.state?.version !== state.version) return null;
-    const amount = sell.prepay > 0 ? Math.min(sell.prepay, total) : total;
     const deal = await this.d.sales.deal(conv.dealId!);
     const result = await this.d.invoices
       .issue({ conversationId: conv.id, dealId: conv.dealId!, plan, agreedTotal: total, amount, locale: state.lang, clientName: env.name || deal?.contactName || "", key: `bot:${conv.id}:${state.version}` })
@@ -570,20 +577,24 @@ export class QualifierBot {
    * (followUpDelayMs): тёплому клиенту через 20 минут «Ознакомились?», через N часов «Освободились?», на следующий день
    * «Как ваши дела?»; остальным — через N часов и на следующий день (всё в рабочее время). Если холодный клиент замолчал
    * ещё на знакомстве — через полчаса менеджер узнаёт об этом (может ответить сам — бот замолчит). Дальше 12 часов
-   * тишины — итог менеджеру.
+   * тишины — итог менеджеру. Клиенту из стоп-листа «Не писать первым» бот не напоминает — только итог.
    */
-  private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
+  private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date, inputs: BotInput[]): Promise<boolean> {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
     const ai = readSellerAi(state.ai);
     const aiEngine = state.engine === "ai";
+    // Договорились написать в названный день (или в последний день старта): лестница напоминаний не нужна — пишем в срок.
+    if (aiEngine && ai.remind) return this.remindTouch(conv, state, config, fields, now, ai.remind, inputs);
     // AI-продажник: тёплому клиенту — чаще (20 минут, несколько часов, следующий день), остальным — как раньше.
-    const wait = aiEngine
+    let wait = aiEngine
       ? ai.followUps < SELLER_MAX_FOLLOW_UPS
         ? followUpDelayMs(ai, config.sell.followUpHours, BOT_NEXT_DAY_FOLLOW_UP_MS)
         : null
       : config.sell.followUpHours > 0 && !state.followedUp
         ? config.sell.followUpHours * 3_600_000
         : null;
+    // Клиент просил не писать первым — напоминаний нет: после 12 часов тишины только итог менеджеру.
+    if (wait !== null && (await this.noMarketing(conv))) wait = null;
     if (wait !== null) {
       const at = new Date(last + wait);
       // Ночью не пишем: напоминание — с началом рабочего дня.
@@ -612,12 +623,109 @@ export class QualifierBot {
       await this.d.store.setDue(conv.id, new Date(last + BOT_OFFER_IDLE_MS));
       return false;
     }
+    // Тёплый клиент с датой так и не оформил — вместо итога одно сообщение в последний день, когда ещё можно успеть.
+    if (aiEngine) {
+      const planned = await this.planLastStart(conv, state, config, fields, now);
+      if (planned !== null) return planned;
+    }
     // Итог: после предложения — «клиент молчит после предложения», на знакомстве — «не ответил боту».
     const { state: next, events } = state.stage === "offer" ? offerExpired(state) : abandonBot(state);
     if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }))) return true;
     await this.d.store.log(conv.id, conv.dealId, next.lang, events);
     await this.finish(conv, next, fields);
     return false;
+  }
+
+  /**
+   * Срок повторного сообщения (bots-5). На момент отправки ещё раз: правило не выключили, лимит за беседу, клиент не писал
+   * после договорённости (разговор продолжился — «как и договаривались» некстати), сделка не закрыта, у клиента нет заказа
+   * (и по другой сделке), чат не закрыт, клиент не просил не писать первым, дата события не прошла, сейчас рабочее время.
+   * Нельзя — договорённость снимается, дальше как обычно (12 часов тишины — итог менеджеру); в журнал — почему.
+   */
+  private async remindTouch(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date, remind: SellerRemind, inputs: BotInput[]): Promise<boolean> {
+    const due = new Date(remind.at);
+    if (now.getTime() < due.getTime()) {
+      await this.later(conv.id, due);
+      return false;
+    }
+    const ai = readSellerAi(state.ai);
+    const sell = config.sell;
+    const tz = this.d.settings.timeZone();
+    const deal = await this.d.crm.deal(conv.dealId!);
+    const eventDate = sellerEventDate(state, { fields, dealValues: deal?.customFields ?? {} });
+    const today = zonedDay(now, tz);
+    // Клиент писал после договорённости, а ход её не подтвердил (голосовое без распознавания и т. п.) — разговор продолжился.
+    const wrote = inputs.some((i) => new Date(i.at).getTime() > Date.parse(remind.setAt));
+    let skip: string | null = !(remind.kind === "promised" ? sell.remind : sell.lastStart) ? "off" : ai.touches >= sell.remindTouches ? "limit" : wrote ? "client_wrote" : eventDate && today > eventDate ? "after_event" : null;
+    skip ??= await this.remindBlocker(conv, deal);
+    if (!skip && (await this.noMarketing(conv))) skip = "no_marketing";
+    if (!skip && !(await this.d.settings.isWorkTime(now))) {
+      // Проход опоздал за конец смены: пишем с началом следующей, если она не позже даты события.
+      const next = await this.d.settings.nextWorkStart(now);
+      if (next && (!eventDate || zonedDay(next, tz) <= eventDate)) {
+        await this.later(conv.id, next);
+        return false;
+      }
+      skip = "off_hours";
+    }
+    if (skip) {
+      // Лестница напоминаний не возобновляется: «Ознакомились?» спустя дни после разговора было бы странно.
+      const next: BotState = { ...state, ai: { ...ai, remind: null, followUps: SELLER_MAX_FOLLOW_UPS }, version: state.version + 1 };
+      if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: now }))) return true;
+      await this.d.store.log(conv.id, conv.dealId, state.lang, [{ kind: "blocked", reason: `remind: ${skip}` }]);
+      return false;
+    }
+    return this.#seller.followUp(conv, state, config, fields, now, remind);
+  }
+
+  /**
+   * Клиент замолчал насовсем (напоминания кончились, 12 часов тишины), но он тёплый, не платил и назвал дату: вместо
+   * итога — одно сообщение в последний день старта (lastStartDay), если он ещё впереди, в рабочее время и в пределах
+   * remindMaxDays. Последний день нерабочий — ближайший рабочий день до него. null — не нужно, итог как раньше.
+   */
+  private async planLastStart(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean | null> {
+    const ai = readSellerAi(state.ai);
+    const sell = config.sell;
+    if (!sell.lastStart || ai.touches >= sell.remindTouches || !isWarmLead(ai)) return null;
+    // Сделку закрыли (менеджер дозвонился), у клиента заказ (и по другой сделке), чат закрыт — продавать уже нечего.
+    if (await this.remindBlocker(conv, await this.d.crm.deal(conv.dealId!))) return null;
+    const env = await this.env(conv, config, fields, now);
+    const eventDate = sellerEventDate(state, env);
+    if (!eventDate || env.paid) return null;
+    const today = zonedDay(now, env.tz);
+    const lastDay = lastStartFor(eventDate, env, ai.city);
+    if (!lastDay || lastDay <= today || (Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000 > sell.remindMaxDays) return null;
+    if (await this.noMarketing(conv)) return null;
+    let due: Date | null = null;
+    for (let back = 0; back < 7 && !due; back++) {
+      const day = new Date(Date.parse(`${lastDay}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10);
+      if (day <= today) break;
+      due = await workStartOn(this.d.settings, day, env.tz);
+    }
+    if (!due) return null;
+    const remind: SellerRemind = { kind: "last_start", at: due.toISOString(), why: eventDate, setAt: now.toISOString() };
+    const next: BotState = { ...state, ai: { ...ai, remind }, version: state.version + 1 };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: due }))) return true;
+    await this.#seller.remindNote(conv, remind, ai.summary);
+    return false;
+  }
+
+  /**
+   * Писать клиенту повторно (по договорённости или в последний день) уже не о чем: чат закрыт, сделки нет или она закрыта,
+   * по ней заказ или у клиента уже есть заказы — как при подхвате (takeoverBlocker). Пока бот ждёт назначенного дня,
+   * сделку могли закрыть по звонку, а клиент — оформить заказ по другой сделке. null — писать можно.
+   */
+  private async remindBlocker(conv: Conversation, deal: Awaited<ReturnType<BotCrm["deal"]>>): Promise<string | null> {
+    if (conv.status === "closed") return "chat_closed";
+    const clientId = conv.clientId ?? deal?.clientId ?? null;
+    const client = clientId ? await this.d.crm.client(clientId) : null;
+    return this.takeoverBlocker(deal, client);
+  }
+
+  /** В стоп-листе «Не писать первым» (или спам); сбой проверки — не пишем: лишнее напоминание хуже пропущенного. */
+  private async noMarketing(conv: Conversation) {
+    if (!this.d.noMarketing) return false;
+    return this.d.noMarketing(conv).catch((err) => (this.d.logger.error("bot no marketing", err), true));
   }
 
   /** Клиент замолчал на знакомстве: менеджеру заметка и уведомление (что известно и когда бот напомнит), бот ждёт дальше. */
@@ -649,9 +757,11 @@ export class QualifierBot {
       const call = state.reason === "call";
       const verb = state.reason === "agreed" ? "Выставить счёт" : state.reason === "price" ? "Назвать цену" : call ? "Перезвонить" : "Ответить";
       // Ответственного нет (ночь, круг ещё не раздал) — задачу видят все, утром её заберёт круг вместе со сделкой.
+      // «Ответить» и «Назвать цену» закрывает ответ клиенту в чате; «Выставить счёт» — нет (ответить ещё не значит
+      // выставить), поэтому это обычная задача, а не «сообщение».
       await this.d.tasks.create({
         title: `${verb}: ${who} — ${outcomeTitle(state).replace(/^Клиент /, "").toLowerCase()} (бот)`.slice(0, 200),
-        kind: call ? "call" : "message",
+        kind: call ? "call" : state.reason === "agreed" ? "task" : "message",
         dueAt: new Date(start.getTime() + (state.reason === "agreed" || state.reason === "price" ? 5 : 15) * 60_000),
         dealId: deal.id,
         clientId: deal.clientId,

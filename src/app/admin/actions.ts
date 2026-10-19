@@ -10,6 +10,7 @@ import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
 import { staffActionError } from "@/server/errors";
+import { admin } from "@/i18n/admin";
 import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
 
 export interface AdminState {
@@ -302,7 +303,22 @@ export async function updateTaskAction(taskId: string, raw: { title?: string; ki
     revalidateCrm(t.clientId, t.orderId, t.dealId);
     return {};
   } catch (err) {
-    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? "Нет прав менять эту задачу" : err.message };
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
+    throw err;
+  }
+}
+
+/** Отложить задачу одной кнопкой из «Моего дня» и «Задач»: «+1 ч» или «Завтра» (срок считает сервер). */
+export async function snoozeTaskAction(taskId: string, by: string): Promise<{ error?: string }> {
+  const staff = await assertStaff();
+  const how = z.enum(["hour", "tomorrow"]).safeParse(by);
+  if (!how.success) return { error: admin.badForm };
+  try {
+    const t = await container().clients.tasks.snooze(crmActor(staff), uuid.parse(taskId), how.data);
+    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    return {};
+  } catch (err) {
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
     throw err;
   }
 }

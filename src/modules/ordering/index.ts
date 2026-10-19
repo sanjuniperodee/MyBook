@@ -1,8 +1,8 @@
 import "server-only";
-import type { Clock, EventBus, Logger, Mailer, UnitOfWork } from "@/shared/application";
+import type { Clock, EventBus, Logger, Mailer, SettingsStore, StaffNotifier, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -20,11 +20,12 @@ import { CloudPaymentsWebhook } from "./infrastructure/payments/CloudPayments";
 import { KaspiPosClient, verifyKaspiSignature } from "./infrastructure/payments/KaspiPosClient";
 
 export * from "./domain";
-export type { InvoiceOwner, KaspiConfigStore, KaspiSession, PlaceOrderCommand, PromoCheck, PromoView, PurchaseGiftCommand, UpdateOrderCommand } from "./application";
+export type { InvoiceOwner, KaspiConfigStore, KaspiSession, KaspiWatchSettingKey, PlaceOrderCommand, PromoCheck, PromoView, PurchaseGiftCommand, UpdateOrderCommand } from "./application";
 export type { OrderDetailsView, GiftView } from "./infrastructure/persistence/DrizzleOrderingQueries";
 export { isOnlinePayment } from "./infrastructure/payments/CloudPayments";
 export { redeemUrl } from "./infrastructure/notifications/OrderingMailer";
-export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote } from "./application/DealInvoiceLifecycle";
+export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, mergeCancels } from "./application/DealInvoiceLifecycle";
+export { KASPI_ALERT_AFTER_MAX } from "./application/KaspiWatchService";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */
 export const GIFT_COOKIE = "mb_gift";
@@ -47,6 +48,10 @@ export interface OrderingDeps {
   kaspiConfig: KaspiConfigStore;
   /** Сделки и их деньги (контекст «Продажи») — для счетов из чата. */
   invoiceSales: InvoiceSales;
+  /** Слежка за кассиром Kaspi: состояние между проверками и порог тревоги («Рабочее пространство»). */
+  settings: SettingsStore<KaspiWatchSettingKey>;
+  /** Тревога «кассир Kaspi отключён» руководителям: CRM и push. */
+  notifier: StaffNotifier<"settings.manage">;
 }
 
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
@@ -66,6 +71,8 @@ export class OrderingModule {
   readonly kaspi: KaspiPaymentsService;
   /** Подключение кассира Kaspi в «Интеграциях». */
   readonly kaspiSetup: KaspiSetupService;
+  /** Сигнал «кассир Kaspi отключён»: проверка в проходе планировщика, тревога руководителям, плашка менеджерам. */
+  readonly kaspiWatch: KaspiWatchService;
   readonly mailer: OrderingMailer;
 
   constructor(private readonly deps: OrderingDeps) {
@@ -85,6 +92,7 @@ export class OrderingModule {
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
     this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices);
     this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
+    this.kaspiWatch = new KaspiWatchService(deps.kaspiConfig, kaspiPos, deps.settings, deps.notifier, deps.clock);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);
     this.subscribe(deps.bus);
   }
@@ -95,6 +103,7 @@ export class OrderingModule {
     on("ordering.order_placed", this.mailer.onOrderPlaced, "ordering.mail.placed");
     on("ordering.order_paid", this.mailer.onOrderPaid, "ordering.mail.paid");
     on("ordering.order_status_changed", this.mailer.onStatusChanged, "ordering.mail.status");
+    on("ordering.tracking_added", this.mailer.onTrackingAdded, "ordering.mail.tracking");
     on("ordering.order_cancelled", this.mailer.onOrderCancelled, "ordering.mail.cancelled");
     on("ordering.order_cancelled", (e) => this.kaspi.cancelOpenFor({ kind: "order", id: e.payload.orderId }), "ordering.kaspi.cancel_open");
     // Счёт из чата закрыт без оплаты — ждущую попытку Kaspi по нему отменяем сразу (cancelOpenFor сначала сверяет с Kaspi).

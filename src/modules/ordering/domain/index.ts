@@ -4,6 +4,7 @@ export * from "./events";
 export * from "./fileAccess";
 export * from "./GiftCard";
 export * from "./kaspi";
+export * from "./kaspiWatch";
 export * from "./Order";
 export * from "./OrderStatus";
 export * from "./PaymentInvoice";

@@ -12,6 +12,7 @@ import { formatPrice } from "@/config/site";
 import { ruCount } from "@/i18n/plural";
 import { channels, manualChannels } from "@/shared/domain/channels";
 import { getVisiblePlans } from "@/config/site";
+import { PlanDiscountHint } from "@/components/admin/DiscountHint";
 import { planLabels } from "@/modules/ordering/ui/labels";
 
 function CopyButton({ text, label = "Копировать" }: { text: string; label?: string }) {
@@ -100,12 +101,13 @@ function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
   );
 }
 
-export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, canAssign }: { canDeal: boolean; stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; canAssign: boolean }) {
+export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, canAssign, maxDiscountPercent = null }: { canDeal: boolean; stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; canAssign: boolean; /** Лимит скидки сотрудника от прайса, %; null — без лимита. */ maxDiscountPercent?: number | null }) {
   const [state, formAction] = useActionState<NewClientState, FormData>(createClientAction, {});
   const [deal, setDeal] = useState(canDeal);
   const [receipt, setReceipt] = useState<File | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [agreed, setAgreed] = useState("");
+  const [planId, setPlanId] = useState("");
   const [prepaid, setPrepaid] = useState("");
   const [count, setCount] = useState("1");
   if (state.done) return <Done d={state.done} receipt={receipt} />;
@@ -205,7 +207,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
               </div>
               <div>
                 <label className="label">Тариф *</label>
-                <select name="plan" required className="input h-11" defaultValue={v.plan ?? ""}>
+                <select name="plan" required className="input h-11" value={planId || v.plan || ""} onChange={(e) => setPlanId(e.target.value)}>
                   <option value="" disabled>
                     Выберите тариф
                   </option>
@@ -226,6 +228,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                 <label className="label">Цена одной книги по договорённости, ₸ *</label>
                 <input name="agreed" type="number" min={0} step={100} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
                 <p className="mt-1 text-xs text-muted">Доставка и допы считаются сверху при оформлении заказа.</p>
+                <PlanDiscountHint plan={planId || v.plan || ""} price={Number(agreed) || 0} maxPercent={maxDiscountPercent} />
               </div>
               <div>
                 <label className="label">{n > 1 ? "Предоплата за все книги, ₸" : "Предоплата, ₸"}</label>

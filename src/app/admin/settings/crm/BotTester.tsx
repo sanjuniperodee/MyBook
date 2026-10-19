@@ -5,6 +5,7 @@ import { FlaskConical, LoaderCircle, RotateCcw, Send } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { previewBotAction } from "./actions";
+import { BotTraceView } from "@/components/admin/chat/BotTrace";
 import type { BotConfig } from "@/modules/messaging/domain/botConfig";
 import type { BotPreviewResult } from "@/modules/messaging";
 
@@ -102,8 +103,17 @@ export function BotTester({ config }: { config: BotConfig }) {
         <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl bg-[#f7f4ef] p-3">
           {!result && !pending ? <p className="text-center text-xs text-muted">Напишите сообщение как клиент или выберите сценарий</p> : null}
           {messages.map((m, i) => (
-            <div key={i} className={cn("max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-line", m.from === "client" ? "bg-white" : "ml-auto bg-emerald-100")}>
-              {m.text}
+            <div key={i} className={cn("max-w-[85%] rounded-xl px-3 py-2 text-sm", m.from === "client" ? "bg-white" : m.text ? "ml-auto bg-emerald-100" : "ml-auto bg-emerald-50 text-muted italic")}>
+              <div className="whitespace-pre-line">{m.text || "бот промолчал"}</div>
+              {/* Тот же след хода, что «Почему так?» у ответа в чате. */}
+              {m.trace ? (
+                <details className="mt-1 not-italic" data-testid="bot-tester-trace">
+                  <summary className="cursor-pointer text-xs text-emerald-900">Почему так?</summary>
+                  <div className="mt-1 rounded-lg bg-white/80 p-2">
+                    <BotTraceView trace={m.trace} />
+                  </div>
+                </details>
+              ) : null}
             </div>
           ))}
           {result?.skipped ? <p className="text-center text-xs text-amber-800">Бот не начал бы опрос: {result.skipped}</p> : null}

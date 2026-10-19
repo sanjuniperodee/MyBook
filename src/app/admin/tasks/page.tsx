@@ -3,21 +3,14 @@ import { Search } from "lucide-react";
 import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
-import { canManageTask } from "@/modules/clients/domain";
 import { TaskList, taskKinds } from "@/components/admin/CrmWidgets";
 import { cn } from "@/lib/class-names";
-import { formatDate } from "@/lib/dates";
-import { TaskRows, type TaskRow } from "./TaskRows";
+import { TaskRows } from "./TaskRows";
+import { taskRow } from "./task-row";
 
 export const metadata = { title: "Задачи" };
 
 type Sp = { who?: string; done?: string; kind?: string; q?: string };
-
-/** Срок для поля «дата и время» — по времени магазина (сервер работает в TZ=Asia/Almaty). */
-const localInput = (d: Date) => {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-};
 
 export default async function TasksPage({ searchParams }: { searchParams: Promise<Sp> }) {
   const staff = await requireStaff();
@@ -39,32 +32,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   tomorrow.setHours(0, 0, 0, 0);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const toRow = (r: (typeof rows)[number]): TaskRow => {
-    const t = r.task;
-    const deal = t.dealId ? `сделка${r.dealNumber ? ` №${r.dealNumber}` : ""} · ${r.dealContact || r.dealTitle || "без имени"}` : null;
-    return {
-      id: t.id,
-      title: t.title.replace(/\s*\(бот\)\s*$/, ""),
-      kind: t.kind,
-      due: t.dueAt ? localInput(t.dueAt) : "",
-      dueLabel: t.dueAt ? `до ${formatDate(t.dueAt, true)}` : null,
-      overdue: !!t.dueAt && t.dueAt < now,
-      done: !!t.doneAt,
-      doneLabel: t.doneAt ? formatDate(t.doneAt, true) : null,
-      assigneeId: t.assigneeId,
-      remindBeforeMin: t.remindBeforeMin,
-      result: t.result ?? "",
-      context: t.dealId
-        ? { label: deal!, href: `/admin/deals/${t.dealId}` }
-        : t.orderId
-          ? { label: `заказ №${r.orderNumber}`, href: `/admin/orders/${t.orderId}` }
-          : t.clientId
-            ? { label: r.clientName || r.clientEmail || "клиент", href: `/admin/clients/${t.clientId}` }
-            : null,
-      fromBot: /\(бот\)\s*$/.test(t.title),
-      editable: canManageTask({ userId: me.id, allTasks }, t),
-    };
-  };
+  const toRow = (r: (typeof rows)[number]) => taskRow(r, { userId: me.id, allTasks }, now);
 
   const groups = showDone
     ? [{ key: "done", title: "Выполненные", tone: "", items: rows }]

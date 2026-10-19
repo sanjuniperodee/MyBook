@@ -60,7 +60,11 @@ const chatAgent = Role.restore("r-chats", { name: "Чаты", scope: "own", perm
 const salesAgent = Role.restore("r-sales", { name: "Менеджер продаж", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send"], key: "manager" });
 /** Старший менеджер продаж «только свои»: ещё заводит клиентов и выдаёт доступ (clients.create), полных номеров не видит. */
 const salesLead = Role.restore("r-sales-lead", { name: "Старший менеджер", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "clients.view", "clients.create"], key: null });
-const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent, salesLead];
+/** Старший продавец «только свои»: как старший менеджер, и ещё продаёт ниже прайса без лимита скидки (prices.discount_unlimited). */
+const salesHead = Role.restore("r-sales-head", { name: "Старший продавец", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "clients.view", "clients.create", "prices.discount_unlimited"], key: null });
+/** Менеджер продаж «только свои» со звонками через АТС (calls.make) и полными номерами (clients.contacts). */
+const salesCaller = Role.restore("r-sales-caller", { name: "Менеджер со звонками", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.make", "clients.contacts"], key: "manager" });
+const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent, salesLead, salesHead, salesCaller];
 
 const roles: RoleRepository = {
   nextId: () => "r-new",
@@ -97,6 +101,10 @@ export const dina = person("dina", { role: "admin", crmRoleId: chatAgent.id });
 export const lena = person("lena", { role: "admin", crmRoleId: salesAgent.id });
 /** Старший менеджер «только свои»: сделки, чаты, заводит клиентов и выдаёт доступ; полные номера скрыты. */
 export const kira = person("kira", { role: "admin", crmRoleId: salesLead.id });
+/** Старший продавец «только свои»: продаёт ниже прайса без лимита скидки. */
+export const rita = person("rita", { role: "admin", crmRoleId: salesHead.id });
+/** Менеджер «только свои» с внутренним номером АТС: звонит через Zadarma и пишет клиентам своих сделок. */
+export const timur = person("timur", { role: "admin", crmRoleId: salesCaller.id, sipExtension: "101" });
 export const withTwoFactor = { totpEnabledAt: new Date(), totpSecret: "secret" };
 
 const sessions = new Map<string, User>();

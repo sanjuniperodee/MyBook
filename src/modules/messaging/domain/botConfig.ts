@@ -120,10 +120,11 @@ export interface BotSell {
   deliveryDays: number;
   /** Напомнить через столько часов тишины после предложения (в рабочее время); 0 — не напоминать. */
   followUpHours: number;
-  /** На «да» бот сам выставляет счёт (ссылка /pay и счёт Kaspi на номер WhatsApp). Не вышло — счёт выставит менеджер. */
+  /**
+   * На «да» бот сам выставляет счёт (ссылка /pay и счёт Kaspi на номер WhatsApp) по цене тарифа из «Цен и тарифов» —
+   * своей цены у бота нет (deals-d13: после подъёма прайса счёт не уходит по старой цене). Не вышло — счёт выставит менеджер.
+   */
   invoice: boolean;
-  /** Цена книги по договорённости для счёта бота, ₸; 0 — цена тарифа из «Цен и тарифов». */
-  prices: { hardcover: number; digital: number };
   /**
    * Кто ведёт продающую беседу: "ai" — модель (понимает свободную речь, сама отвечает; цены, сроки и счёт — под
    * контролем кода), "template" — тексты из настроек. Без подключённого AI продажник работает по шаблонам.
@@ -154,6 +155,17 @@ export interface BotSell {
   productionDays: number;
   /** Работа над ошибками: раз в сутки модель разбирает беседы бота и обновляет уроки в его инструкции. */
   selfImprove: boolean;
+  /**
+   * AI-продажник пишет повторно в названное клиентом время («после зарплаты», «в пятницу», «ближе к празднику»): дату
+   * предлагает модель, код проверяет (рабочее время, не дальше remindMaxDays, не позже даты события, не «не писать первым»).
+   */
+  remind: boolean;
+  /** Тёплому неоплатившему с датой события — одно сообщение в последний день, когда ещё можно начать и успеть. */
+  lastStart: boolean;
+  /** Повторное сообщение — не дальше стольких дней от сегодня. */
+  remindMaxDays: number;
+  /** Повторных сообщений (по договорённости и в последний день) — не больше стольких за беседу. */
+  remindTouches: number;
 }
 
 /** Факты владельца по умолчанию (решение 18.10 и переписки менеджера): сроки, доставка, как пишется книга, оплата. */
@@ -347,6 +359,9 @@ export const defaultOptionLabels: Record<string, string> = {
   "Пока не знает": "Әзірге білмеймін",
 };
 
+/** Сколько раз за беседу бот пишет клиенту сам по договорённости или в последний день — не больше двух (решение владельца по P0-12). */
+export const REMIND_TOUCHES_MAX = 2;
+
 export const defaultBotConfig: BotConfig = {
   channels: ["whatsapp"],
   waitMinutes: 3,
@@ -357,7 +372,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true, remind: false, lastStart: false, remindMaxDays: 60, remindTouches: 2 },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -453,8 +468,8 @@ function parseSell(raw: unknown): BotSell {
     writeDays: int(r.writeDays, 0, 30, d.writeDays),
     deliveryDays: int(r.deliveryDays, 0, 30, d.deliveryDays),
     followUpHours: int(r.followUpHours, 0, 72, d.followUpHours),
+    // Прежняя «цена в счёте бота» (sell.prices) не читается: счёт бота — по «Ценам и тарифам».
     invoice: r.invoice === true,
-    prices: { hardcover: int(record(r.prices).hardcover, 0, 10_000_000, 0), digital: int(record(r.prices).digital, 0, 10_000_000, 0) },
     engine: r.engine === "template" ? "template" : "ai",
     takeover: typeof r.takeover === "boolean" ? r.takeover : d.takeover,
     persona: typeof r.persona === "string" ? r.persona.slice(0, 1500) : d.persona,
@@ -467,6 +482,11 @@ function parseSell(raw: unknown): BotSell {
     facts: typeof r.facts === "string" ? r.facts.slice(0, 2000) : d.facts,
     productionDays: int(r.productionDays, 1, 30, d.productionDays),
     selfImprove: typeof r.selfImprove === "boolean" ? r.selfImprove : d.selfImprove,
+    // Пишет клиенту сам — приезжает выключенным (решение владельца по P0).
+    remind: r.remind === true,
+    lastStart: r.lastStart === true,
+    remindMaxDays: int(r.remindMaxDays, 1, 180, d.remindMaxDays),
+    remindTouches: int(r.remindTouches, 1, REMIND_TOUCHES_MAX, d.remindTouches),
   };
 }
 

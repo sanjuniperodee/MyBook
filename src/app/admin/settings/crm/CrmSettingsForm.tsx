@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Section, Result } from "../ui";
 import type { SettingsState } from "../state";
 import { saveCrmSettingsAction } from "./actions";
+import { MERGE_CLOSED_DAYS_MAX } from "@/modules/sales/domain/merge";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -15,6 +16,7 @@ export function CrmSettingsForm({
   autoDealFrom,
   unsorted,
   maxDiscount,
+  mergeClosedDays,
   widget,
 }: {
   slaMinutes: number;
@@ -23,6 +25,7 @@ export function CrmSettingsForm({
   autoDealFrom: string;
   unsorted: boolean;
   maxDiscount: number;
+  mergeClosedDays: number;
   widget: { enabled: boolean; chat: boolean };
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveCrmSettingsAction, {});
@@ -64,8 +67,14 @@ export function CrmSettingsForm({
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Макс. скидка менеджера из чата, %</span>
+            <span className="mb-1 block text-xs text-muted">Лимит скидки от прайса, %</span>
             <input name="maxDiscount" type="number" min={0} max={50} defaultValue={maxDiscount} className="input h-10 text-sm" />
+            <span className="mt-1 block text-[11px] text-muted">Один для счёта из чата, бюджета и тарифа договорённости, новых клиентов и промокода из чата. Счёт и договорённость ниже — только роли с правом «Продавать ниже прайса без лимита»; промокод из чата не больше лимита ни у кого.</span>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Влить заявку в закрытую сделку заказа — если пришла в пределах, дней (0 — нельзя)</span>
+            <input name="mergeClosedDays" type="number" min={0} max={MERGE_CLOSED_DAYS_MAX} defaultValue={mergeClosedDays} className="input h-10 text-sm" />
+            <span className="mt-1 block text-[11px] text-muted">Только в успешную сделку с заказом и только заявку, пришедшую до или после её закрытия не дальше этого срока, — та же покупка (например, переписка в WhatsApp о заказе с сайта). Остальные заявки — новые продажи: их не вливают в закрытые.</span>
           </label>
         </div>
         <label className="flex items-start gap-2 text-sm">

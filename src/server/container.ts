@@ -74,8 +74,17 @@ export class Container {
       notifier: this.workspace.notifier,
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
-      // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд).
-      sendMessage: async (conversationId, text) => void (await this.messaging.chats.sendAutomated(conversationId, text)),
+      // Задача из правила — через сервис задач: с напоминанием о сроке, без ответственного — ничья (видят все).
+      createTask: (t) => this.clients.tasks.createSystem(t),
+      // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд); текст с
+      // реквизитами не уходит — заметка в сделку и руководителю. Первым правило пишет только в окне и в пределах
+      // суточного лимита («Интеграции» → «Мессенджеры»).
+      sendMessage: async (conversationId, text, opts) => void (await this.messaging.chats.sendAutomated(conversationId, text, opts)),
+      canMessageNow: async () => !(await this.messaging.chats.ruleSendBlock()),
+      // Готовый текст клиенту (правило «праздник») — запись CRM в истории сделки: клиенту не уходит, отправит менеджер.
+      addNote: async (n) => void (await this.clients.notes.addSystemOnce(n)),
+      // Праздники для повторных продаж — «Интеграции» → CRM.
+      settings: this.workspace.settings,
       sales: {
         nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),
@@ -97,6 +106,11 @@ export class Container {
       fields: this.workspace.fieldsReader,
       smtpConfig,
       smtp: this.smtp,
+      // Задачи бота и «Перезвоните мне» — через сервис задач: с напоминанием о сроке, без ответственного — ничья.
+      // Ответ клиенту (из CRM или с телефона магазина) закрывает задачи «ответить» по сделке.
+      tasks: { create: (t) => this.clients.tasks.createSystem(t), answered: (dealId) => this.clients.tasks.closeAnswered(dealId) },
+      // Переписка с номерами действующих сотрудников (ответ на напоминание о задаче) — служебная, не заявки.
+      staffPhones: () => this.access.queries.activeStaffPhones(),
       rules: {
         messageIncoming: async (ctx) => {
           await this.automation.engine.run("message.incoming", ctx);
@@ -252,7 +266,9 @@ export class Container {
     return (this.#clients ??= new ClientsModule({
       clock: this.clock,
       notifier: this.workspace.notifier,
-      // Напоминания о задачах — личным сообщением сотруднику на его номер (users.phone), ссылка на задачу — абсолютная.
+      // Напоминания о задачах — личным сообщением сотруднику на его номер (users.phone), ссылка на задачу — абсолютная;
+      // в WhatsApp — только в рабочее время (график CRM): ночное напоминание о сроке после начала смены ждёт её начала.
+      schedule: this.workspace.schedule,
       messenger: {
         send: async (userId, text) => {
           const phone = (await this.identity.accounts.account(userId))?.phone;
@@ -371,6 +387,9 @@ export class Container {
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,
+      // Слежка за кассиром Kaspi: состояние и порог тревоги — в настройках, тревога — руководителям.
+      settings: this.workspace.settings,
+      notifier: this.workspace.notifier,
       // Счёт из чата читает сделку и пишет её деньги через порт продаж.
       invoiceSales: {
         deal: async (dealId) => {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Bot, Camera, Globe, Handshake, Mail, MessageCircle, MessagesSquare, Search, Send } from "lucide-react";
 import { cn } from "@/lib/class-names";
+import { waitLabel, waitTone } from "@/modules/reporting/ui/response-wait";
 import { DetailsToggle } from "./DetailsPanel";
 
 /**
@@ -54,13 +55,14 @@ export interface ChatListItem {
   unread: number;
   /** Кто ведёт; null — не назначен. */
   assignee: string | null;
-  /** Ждёт ответа столько минут; null — не ждёт. */
+  /** Ждёт ответа столько рабочих минут (responseWait); null — не ждёт. */
   waitMinutes: number | null;
+  /** Подпись ожидания (responseWait: «1 ч 5 мин», «2 раб. дн») — та же, что в «Моём дне»; нет — из waitMinutes. */
+  waitLabel?: string | null;
+  /** Норматив ответа вышел. */
   overdue: boolean;
   bot: boolean;
 }
-
-const waitLabel = (m: number) => (m < 60 ? `${m} мин` : m < 1440 ? `${Math.floor(m / 60)} ч` : `${Math.floor(m / 1440)} дн`);
 
 /** Колонка списка: заголовок, поиск, вкладки фильтров, диалоги. */
 export function ChatListPane({
@@ -129,7 +131,7 @@ export function ChatListPane({
                 </div>
                 {c.waitMinutes !== null || c.bot || !c.assignee ? (
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
-                    {c.waitMinutes !== null ? <span className={cn("rounded-md px-1.5 py-0.5", c.overdue ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800")}>ждёт {waitLabel(c.waitMinutes)}</span> : null}
+                    {c.waitMinutes !== null ? <span className={cn("rounded-md px-1.5 py-0.5", waitTone(c.overdue))}>ждёт {c.waitLabel || waitLabel(c.waitMinutes)}</span> : null}
                     {c.bot ? (
                       <span className="flex items-center gap-1 rounded-md bg-violet-50 px-1.5 py-0.5 text-violet-700">
                         <Bot className="size-3" /> бот ведёт

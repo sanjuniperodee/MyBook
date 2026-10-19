@@ -29,6 +29,8 @@ export interface Conversation {
   awaitingSince?: Date | null;
   /** Время последнего сообщения диалога (в любую сторону). */
   lastMessageAt?: Date | null;
+  /** Чат закрыт (менеджер закрыл, спам): бот сам туда не пишет (повторное сообщение по договорённости). */
+  status?: "open" | "closed";
   meta: ConversationMeta;
 }
 

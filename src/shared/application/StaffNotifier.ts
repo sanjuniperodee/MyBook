@@ -4,6 +4,8 @@ export interface StaffNotification {
   title: string;
   body?: string;
   link?: string | null;
+  /** false — только колокольчик и открытые вкладки, без push на устройства: ночью никого не будим. По умолчанию — с push. */
+  push?: boolean;
 }
 
 /**

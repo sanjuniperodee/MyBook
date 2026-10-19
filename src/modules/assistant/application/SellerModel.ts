@@ -25,9 +25,10 @@ export function sellerModel(
   return {
     configured: () => model.configured(),
     describe: () => model.describe(),
-    async complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string }): Promise<string> {
-      const { text } = await model.ask({ system: input.system, user: input.user, effort: "medium", schema: input.schema, timeoutMs: input.timeoutMs, cachePrefix: input.cachePrefix });
-      return text;
+    /** Текст ответа и токены запроса (они идут в след хода бота: «Почему так?»). */
+    async complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string }): Promise<{ text: string; usage: { input: number; output: number } }> {
+      const { text, usage } = await model.ask({ system: input.system, user: input.user, effort: "medium", schema: input.schema, timeoutMs: input.timeoutMs, cachePrefix: input.cachePrefix });
+      return { text, usage: { input: usage.input, output: usage.output } };
     },
     async media(input: { system: string; parts: MediaPart[]; timeoutMs: number }): Promise<MediaRecognition | null> {
       return media(await mediaConnection(), input);

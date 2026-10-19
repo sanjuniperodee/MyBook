@@ -47,7 +47,7 @@ const input = (deal: OnboardingInput["deal"]): OnboardingInput => ({
 describe("ClientOnboardingService.onboard", () => {
   it("со сделкой и предоплатой: аккаунт → профиль → канал → сделка «Взяли в работу» → тариф и метки → платёж → заметка → задачи", async () => {
     const { t, log, service } = harness();
-    const r = await service.onboard(input({ agreed: 30_000, prepaid: 10_000, deadline: "2026-11-20", stageId: "", comment: "Хочет к годовщине", plan: "hardcover", planLabel: "твёрдая обложка" }), head);
+    const r = await service.onboard(input({ agreed: 30_000, prepaid: 10_000, deadline: "2026-11-20", stageId: "", comment: "Хочет к годовщине", plan: "hardcover", planLabel: "твёрдая обложка", maxDiscountPercent: null }), head);
 
     expect(r).toEqual({ clientId: "new-client", login: "77011234567", deal: { id: "deal-9", number: 9 }, paymentId: "pay-1", parts: [{ dealId: "deal-9", dealNumber: 9, agreed: 30000, prepaid: 10000, paymentId: "pay-1" }], tasks: 2 });
     expect(log).toEqual([
@@ -92,11 +92,31 @@ describe("ClientOnboardingService.onboard", () => {
 
   it("сделка без предоплаты и срока, этап выбран: платежа нет, задача одна — остаток", async () => {
     const { t, log, service } = harness();
-    const r = await service.onboard(input({ agreed: 25_000, prepaid: 0, deadline: "", stageId: "st-new", comment: "", plan: "digital", planLabel: "электронная" }), head);
+    const r = await service.onboard(input({ agreed: 25_000, prepaid: 0, deadline: "", stageId: "st-new", comment: "", plan: "digital", planLabel: "электронная", maxDiscountPercent: null }), head);
     expect(r.paymentId).toBeNull();
     expect(log.filter((l) => l.startsWith("sales.addPayment"))).toEqual([]);
     expect(log.find((l) => l.startsWith("sales.createDeal"))).toContain("· st-new ·");
     expect([...t.mem.tasks.rows.values()].map((x) => x.title)).toEqual([`Получить остаток ${formatPrice(25_000)} от Айжан`]);
+  });
+});
+
+describe("ClientOnboardingService: лимит скидки от прайса тарифа", () => {
+  const terms = (agreed: number, maxDiscountPercent: number | null) => ({ agreed, count: 2, prepaid: 0, deadline: "", stageId: "", comment: "", plan: "hardcover", planLabel: "твёрдая обложка", maxDiscountPercent });
+
+  it("«Новый клиент»: цена сверх лимита — DiscountError до аккаунта, ничего не заведено; в пределах — как обычно", async () => {
+    const { log, service } = harness();
+    await expect(service.onboard(input(terms(25_499, 15)), head)).rejects.toMatchObject({ code: "discountOverLimit", params: [15, 30_000, false] });
+    expect(log).toEqual([]);
+    await service.onboard(input(terms(25_500, 15)), head);
+    expect(log[0]).toBe("accounts.provisionClient Айжан +7 701 123 45 67 —");
+  });
+
+  it("«Сделки по договорённости»: сверх лимита — ни одной сделки; без лимита (право prices.discount_unlimited) — любая цена", async () => {
+    const { log, service } = harness();
+    const deals = (agreed: number, limit: number | null) => service.addDeals({ clientId: "new-client", name: "Айжан", phone: "77011234567", email: "", city: "", recipient: "", locale: "ru", assigneeId: "m1", deal: terms(agreed, limit) }, head);
+    await expect(deals(10_000, 15)).rejects.toMatchObject({ code: "discountOverLimit" });
+    expect(log.filter((l) => l.startsWith("sales.createDeal"))).toEqual([]);
+    expect((await deals(10_000, null)).parts).toHaveLength(2);
   });
 });
 
@@ -154,7 +174,7 @@ describe("служебные заметки и задачи CRM пишутся �
     sales.createDeal = async () => ({ id: `deal-${n}`, number: n++ });
     sales.setBatch = async (id, batch, i, size) => void batches.push(`${id} ${i + 1}/${size} ${batch.length > 10}`);
     sales.addPayment = async (p) => (payments.push(`${p.dealId}:${p.amount}`), { id: `pay-${p.dealId}` });
-    const r = await service.onboard(input({ agreed: 20_000, count: 3, prepaid: 10_000, deadline: "", stageId: "", comment: "", plan: "hardcover", planLabel: "твёрдая обложка" }), head);
+    const r = await service.onboard(input({ agreed: 20_000, count: 3, prepaid: 10_000, deadline: "", stageId: "", comment: "", plan: "hardcover", planLabel: "твёрдая обложка", maxDiscountPercent: null }), head);
     expect(r.parts.map((p) => [p.dealNumber, p.agreed, p.prepaid])).toEqual([[9, 20000, 3334], [10, 20000, 3333], [11, 20000, 3333]]);
     expect(payments).toEqual(["deal-9:3334", "deal-10:3333", "deal-11:3333"]);
     expect(batches).toEqual(["deal-9 1/3 true", "deal-10 2/3 true", "deal-11 3/3 true"]);

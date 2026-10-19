@@ -111,7 +111,7 @@ describe("ошибки Authoring: у каждого кода — текст api 
   // satisfies Record<…> делает список исчерпывающим: новый код без строки здесь не скомпилируется.
   const codes = {
     bookNotFound: 1, bookLocked: 1, bookHasOrders: 1, questionNotFound: 1, questionsLimit: 1, onlyOwnQuestions: 1, photoNotFound: 1, photosPick: 1, photosLimit: 1, photosOutdated: 1,
-    unknownCover: 1, unknownInterior: 1, unknownBackLayout: 1, unknownFormat: 1, unknownOccasion: 1, unknownLanguage: 1, letterNotFound: 1, letterInvalid: 1, letterClosed: 1, letterPrinted: 1, letterLimit: 1,
+    unknownCover: 1, unknownInterior: 1, unknownBackLayout: 1, unknownFormat: 1, unknownOccasion: 1, unknownTocMode: 1, unknownLanguage: 1, letterNotFound: 1, letterInvalid: 1, letterClosed: 1, letterPrinted: 1, letterLimit: 1,
     unknownTheme: 1, outlineNotAllowed: 1, outlineOutdated: 1, chaptersLimit: 1, chapterNotFound: 1,
   } satisfies Record<AuthoringErrorCode, 1>;
 
@@ -141,10 +141,23 @@ describe("staffActionError(): действия сотрудника CRM — вс
   it("выбор ошибок и сообщение домена — как у actionError: чужая ошибка и не доменная — null, message — готовый текст", () => {
     expect(staffActionError(new Error("db down"))).toBeNull();
     expect(staffActionError(new OrderingError("notFound"), IdentityError)).toBeNull();
-    expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBeNull();
+    expect(staffActionError(new SalesError("mergeSelf"), SalesError)).toBeNull();
     expect(staffActionError(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель"), AccessError)).toBe("Должен остаться хотя бы один руководитель");
     expect(staffActionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
     // руководителю при добавлении сотрудника не предлагаем «Войдите в аккаунт» — клиентский текст кода exists
     expect(staffActionError(new IdentityError("exists"), IdentityError)).toBe("Этот e-mail уже зарегистрирован");
+  });
+
+  it("код без message у остальных контекстов — текст словаря admin по коду (с параметрами); покупателю — по-прежнему null", async () => {
+    expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBe("Сделка не найдена");
+    // закрытую не вливают — и не советуем влить в неё открытую заявку (deals-d6)
+    expect(staffActionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBe("Сделка №41 закрыта — это прошлая покупка или отказ, её не вливают в другую. Если это дубль, закройте лишнюю отказом.");
+    const intoClosed = staffActionError(new SalesError("mergeIntoClosed", undefined, [120, 14]), SalesError);
+    expect(intoClosed).toMatch(/^Сделка №120 закрыта\. В неё вливают только заявку той же покупки: .+ не дальше 14 дн\. от её закрытия\. Эта заявка — новая продажа: ведите её отдельно/);
+    expect(intoClosed).not.toContain("объедините");
+    expect(staffActionError(new SalesError("mergeIntoClosed", undefined, [120, 0]), SalesError)).toContain("слияние с закрытыми сделками выключено в настройках CRM");
+    // message — готовый текст — важнее словаря
+    expect(staffActionError(new SalesError("dealNotFound", "Сделку уже удалили"), SalesError)).toBe("Сделку уже удалили");
+    expect(await actionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBeNull();
   });
 });

@@ -48,7 +48,7 @@ class MemClients implements ClientRepository {
 }
 
 class MemTasks implements TaskRepository {
-  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null }>();
+  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null; result?: string | null }>();
   private seq = 0;
   async find(id: string) {
     const t = this.rows.get(id);
@@ -58,18 +58,30 @@ class MemTasks implements TaskRepository {
     const id = `task-${++this.seq}`;
     this.rows.set(id, { id, doneAt: null, ...t });
   }
-  async claimDueReminders(now: Date, staleMin: number) {
+  async claimDueReminders(now: Date, staleMin: number, limit: number, dueBefore?: Date | null) {
     const out: Awaited<ReturnType<TaskRepository["claimDueReminders"]>> = [];
-    for (const [id, t] of this.rows) {
-      if (t.doneAt || t.remindedAt || !t.dueAt || !t.assigneeId || t.remindBeforeMin == null) continue;
-      if (t.dueAt.getTime() - t.remindBeforeMin * 60_000 > now.getTime() || t.dueAt.getTime() <= now.getTime() - staleMin * 60_000) continue;
+    const open = [...this.rows]
+      .filter(([, t]) => !t.doneAt && !t.remindedAt && t.dueAt && t.remindBeforeMin != null && (!dueBefore || t.dueAt < dueBefore))
+      .sort(([, a], [, b]) => a.dueAt!.getTime() - b.dueAt!.getTime());
+    for (const [id, t] of open) {
+      if (out.length >= limit) break;
+      if (t.dueAt!.getTime() - t.remindBeforeMin! * 60_000 > now.getTime() || t.dueAt!.getTime() <= now.getTime() - staleMin * 60_000) continue;
       this.rows.set(id, { ...t, remindedAt: now });
-      out.push({ id, title: t.title, kind: t.kind, dueAt: t.dueAt, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
+      out.push({ id, title: t.title, kind: t.kind, dueAt: t.dueAt!, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
     }
     return out;
   }
   async existsOpen({ dealId, title }: { dealId: string; title: string }) {
     return [...this.rows.values()].some((t) => t.dealId === dealId && t.title === title && !t.doneAt);
+  }
+  async closeOpenOfKind({ dealId, kind, result, at }: { dealId: string; kind: Task["kind"]; result: string; at: Date }) {
+    let n = 0;
+    for (const [id, t] of this.rows) {
+      if (t.dealId !== dealId || t.doneAt || t.kind !== kind || t.createdById) continue;
+      this.rows.set(id, { ...t, doneAt: at, result: t.result ?? result });
+      n++;
+    }
+    return n;
   }
   async closeOpenByPrefix({ dealId, prefix, keepTitle, at }: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }) {
     let n = 0;
@@ -87,9 +99,18 @@ class MemTasks implements TaskRepository {
   async delete(id: string) {
     this.rows.delete(id);
   }
+  async reassignOpenOfDeal({ dealId, from, to }: { dealId: string; from: string | null; to: string }) {
+    let n = 0;
+    for (const [id, t] of this.rows) {
+      if (t.dealId !== dealId || t.doneAt || (t.assigneeId !== null && t.assigneeId !== from)) continue;
+      this.rows.set(id, { ...t, assigneeId: to, remindedAt: null });
+      n++;
+    }
+    return n;
+  }
   async update(id: string, patch: Parameters<TaskRepository["update"]>[1]) {
     const t = this.rows.get(id);
-    if (t) this.rows.set(id, { ...t, ...patch, ...("dueAt" in patch || "remindBeforeMin" in patch ? { remindedAt: null } : {}) });
+    if (t) this.rows.set(id, { ...t, ...patch, ...("dueAt" in patch || "remindBeforeMin" in patch || "assigneeId" in patch ? { remindedAt: null } : {}) });
   }
   /** Готовая задача: по умолчанию ничья и открытая. */
   seed(p: Partial<Task> & { id: string }) {
@@ -134,10 +155,14 @@ class FakeStaff implements StaffDirectory {
   }
 }
 
+/** Уведомления: адресатам — userIds, всем с deals.view (ничья задача) — userIds ["deals.view"]; push false — без push. */
 class SpyNotifier implements StaffNotifier {
-  sent: { userIds: string[]; n: Parameters<StaffNotifier["notify"]>[1] }[] = [];
+  sent: { userIds: string[]; n: Parameters<StaffNotifier["notify"]>[1] & { push?: boolean } }[] = [];
   async notify(userIds: string[], n: Parameters<StaffNotifier["notify"]>[1]) {
     this.sent.push({ userIds, n });
+  }
+  async dealsTeam(n: Parameters<StaffNotifier["dealsTeam"]>[0]) {
+    this.sent.push({ userIds: ["deals.view"], n });
   }
 }
 

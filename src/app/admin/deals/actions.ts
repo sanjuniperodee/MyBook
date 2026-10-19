@@ -15,12 +15,17 @@ import { normalizePhone } from "@/shared/domain/phone";
 import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
-import { MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
+import { dealPrice, MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
+import type { DealView } from "@/modules/sales";
+import { staffActionError } from "@/server/errors";
+import { auditDiscount, discountLimit } from "@/server/discount";
+import { DiscountError } from "@/shared/domain/discount";
 import { env } from "@/config/env";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, staffLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
 import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
+import { admin } from "@/i18n/admin";
 
 export interface DealFormState {
   error?: string;
@@ -61,20 +66,35 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
   const d = parsed.data;
   const phone = d.contactPhone ? normalizePhone(d.contactPhone) : "";
   if (d.contactPhone && phone.length < 10) return { error: "Проверьте номер телефона" };
+  // Тариф договорённости — необязательный: с ним бюджет сравнивается с прайсом этого тарифа, а не самого дорогого.
+  const plan = String(form.get("plan") ?? "") || null;
+  if (plan && !getPlan(plan)) return { error: "Выберите тариф из списка" };
   let assigneeId = d.assigneeId || staff.user.id;
   if (assigneeId !== staff.user.id && !canAssignOthers(staff)) assigneeId = staff.user.id;
-  const deal = await container().sales.deals.create({
-    title: d.title,
-    source: d.source,
-    clientId: d.clientId || null,
-    contactName: d.contactName,
-    contactPhone: phone || null,
-    contactEmail: d.contactEmail || null,
-    amount: d.amount,
-    assigneeId,
-    createdById: staff.user.id,
-    stageId: d.stageId || undefined,
-  });
+  // Сделка «вручную» или с тарифом договорённости и бюджетом — договорённость: клиент купит по этой цене (лимит скидки).
+  const limit = await discountLimit(staff);
+  let deal;
+  try {
+    deal = await container().sales.deals.create({
+      title: d.title,
+      source: d.source,
+      clientId: d.clientId || null,
+      contactName: d.contactName,
+      contactPhone: phone || null,
+      contactEmail: d.contactEmail || null,
+      amount: d.amount,
+      assigneeId,
+      createdById: staff.user.id,
+      stageId: d.stageId || undefined,
+      maxDiscountPercent: limit,
+      agreedPlan: plan,
+    });
+  } catch (err) {
+    // Без тарифа — подсказать выбрать его здесь же, в форме: блока «Оплата» у сделки ещё нет.
+    if (DiscountError.is(err)) return { error: admin.discountOverLimit(...(err.params as [number, number, boolean]), "newDeal") };
+    throw err;
+  }
+  await auditDiscount(staff, { entity: "deal", id: deal.id }, dealPrice(plan, d.source, d.amount), limit, "deal", { number: deal.number });
   revalidateDeal(deal.id, deal.clientId);
   redirect(`/admin/deals/${deal.id}`);
 }
@@ -95,11 +115,22 @@ export async function updateDealAction(_: DealFormState, form: FormData): Promis
     : deal.extraPhones;
   const customFields = readFieldValues(await listFields("deal"), form, deal.customFields);
   const tags = [...new Set(String(form.get("tags") ?? "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 12).map((t) => t.slice(0, 30));
-  await container().sales.deals.edit(
-    deal.id,
-    { title: d.title, contactName: d.contactName, amount: d.amount, source: d.source, tags, customFields, contacts: editContacts ? { phone: phone || null, email: d.contactEmail || null, extraPhones } : undefined },
-    staff.user.id,
-  );
+  // Бюджет сделки с тарифом договорённости (или «вручную») — цена продажи: лимит скидки сотрудника.
+  const limit = await discountLimit(staff);
+  let price;
+  try {
+    price = await container().sales.deals.edit(
+      deal.id,
+      { title: d.title, contactName: d.contactName, amount: d.amount, source: d.source, tags, customFields, contacts: editContacts ? { phone: phone || null, email: d.contactEmail || null, extraPhones } : undefined },
+      staff.user.id,
+      limit,
+    );
+  } catch (err) {
+    const message = staffActionError(err, DiscountError);
+    if (message) return { error: message };
+    throw err;
+  }
+  await auditDiscount(staff, { entity: "deal", id: deal.id }, price, limit, "budget", { number: deal.number, from: deal.amount });
   revalidateDeal(deal.id, deal.clientId);
   return { ok: "Сохранено" };
 }
@@ -114,10 +145,21 @@ export async function setDealAgreedPlanAction(dealId: string, plan: string | nul
   if (deal.orderId) return { ok: false, message: "По сделке уже оформлен заказ: тариф не изменить" };
   const value = plan || null;
   if (value && !getPlan(value)) return { ok: false, message: "Выберите тариф из списка" };
-  const before = await container().sales.agreedPlan.get(deal.id);
-  if (!(await container().sales.agreedPlan.set(deal.id, value))) return { ok: false, message: "Не удалось сохранить тариф" };
+  // Сумма сделки сравнивается с прайсом нового тарифа: дорогой тариф по старой цене — та же скидка (лимит).
+  const limit = await discountLimit(staff);
+  let changed;
+  try {
+    changed = await container().sales.deals.changeAgreedPlan(deal.id, value, limit);
+  } catch (err) {
+    const message = staffActionError(err, DiscountError);
+    if (message) return { ok: false, message };
+    throw err;
+  }
+  if (!changed) return { ok: false, message: "Не удалось сохранить тариф" };
+  const { before } = changed;
   await container().sales.deals.note(deal, `Тариф договорённости: ${before ?? "не указан"} → ${value ?? "не указан"}`, staff.user.id, "system");
   await audit(staff, "deal.plan", "deal", deal.id, { from: before, to: value });
+  if (before !== value) await auditDiscount(staff, { entity: "deal", id: deal.id }, changed.price, limit, "plan", { number: deal.number, from: before });
   revalidateDeal(deal.id, deal.clientId);
   return { ok: true };
 }
@@ -276,22 +318,52 @@ export async function declineRejectionAction(dealId: string) {
   revalidateDeal(deal.id, deal.clientId);
 }
 
-/** Слить дубль source в target. */
-export async function mergeDealAction(targetId: string, sourceId: string) {
+/** Снимок сделки для журнала — без контактов: журнал могут видеть роли, которым номера клиентов скрыты (номер дубля и так становится доп. номером целевой). */
+const CONTACT_KEYS = new Set(["contactPhone", "contactEmail", "extraPhones"]);
+const mergeSnapshot = (deal: DealView) => Object.fromEntries(Object.entries(deal).filter(([key]) => !CONTACT_KEYS.has(key)));
+
+/**
+ * Слить дубль source в target. Закрытую source (успех или отказ) не сливаем — текст сотруднику вместо ошибки сервера.
+ * В журнал — снимки обеих сделок «до»: слитую сделку можно восстановить вручную.
+ */
+export async function mergeDealAction(targetId: string, sourceId: string): Promise<{ error: string } | void> {
   const staff = await assertStaff("deals.edit", "deals.delete");
   const target = await loadDeal(staff, targetId);
   const source = await loadDeal(staff, sourceId);
-  await container().sales.deals.merge(target.id, source.id, staff.user.id);
-  await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title });
+  let before: { target: DealView; source: DealView };
+  try {
+    before = await container().sales.deals.merge(target.id, source.id, staff.user.id);
+  } catch (err) {
+    const error = staffActionError(err, SalesError);
+    if (error === null) throw err;
+    return { error };
+  }
+  await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title, before: { target: mergeSnapshot(before.target), source: mergeSnapshot(before.source) } });
   revalidateDeal(target.id, target.clientId);
 }
 
-/** Снять номер со спама (ошибочно отклонили). */
+/** Убрать номер из стоп-листа (ошибочно отклонили как спам или клиент снова согласен на сообщения). */
 export async function unblockAction(value: string) {
   const staff = await assertStaff("settings.manage");
   await container().messaging.chats.unblock(z.string().min(1).max(100).parse(value));
   await audit(staff, "settings.update", "blocklist", value, { removed: true });
   revalidatePath("/admin/settings");
+}
+
+const blocklistInput = z.object({ phone: z.string().max(40), reason: z.enum(["spam", "no_marketing"]), note: z.string().trim().max(300).default("") });
+
+/** Номер в стоп-лист вручную («Интеграции» → CRM): спам или «не писать первым», с причиной. */
+export async function addBlocklistAction(input: z.input<typeof blocklistInput>): Promise<{ ok: boolean; message: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = blocklistInput.safeParse(input);
+  if (!parsed.success) return { ok: false, message: admin.badForm };
+  const { reason, note } = parsed.data;
+  const phone = normalizePhone(parsed.data.phone);
+  if (phone.length < 10 || phone.length > 15) return { ok: false, message: admin.blocklistPhoneInvalid };
+  await container().messaging.chats.blockPhone(phone, reason, staff.user.id, note || null);
+  await audit(staff, "settings.update", "blocklist", phone, { added: reason, ...(note ? { note } : {}) });
+  revalidatePath("/admin/settings");
+  return { ok: true, message: reason === "spam" ? "Номер в спаме" : "Номер в стоп-листе: первыми не пишем" };
 }
 
 // ─── воронки ───────────────────────────────────────────────────────────────

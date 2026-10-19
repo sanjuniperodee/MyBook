@@ -16,6 +16,8 @@ export interface SalesSettings {
   autoDealFrom(): Promise<StageMilestone | "off">;
   /** Через сколько минут не взятая заявка переходит следующему по кругу; 0 — не передавать. */
   reassignMinutes(): Promise<number>;
+  /** Окно в днях от закрытия успешной сделки заказа, в которое заявку можно влить в неё (mergeRefusal); 0 — нельзя. */
+  mergeClosedDays(): Promise<number>;
 }
 
 /** Распределение заявок между менеджерами (круг). */
@@ -63,6 +65,19 @@ export const noDealInvoices: DealInvoicesPort = {
   holdForDelete: async () => null,
   purgeClosed: async () => {},
 };
+
+/**
+ * Тариф договорённости сделки: колонка вне агрегата (её пишут и счёт из чата, и онбординг клиента). Сценарии продаж читают
+ * его, чтобы сравнить цену сделки с прайсом (лимит скидки).
+ */
+export interface AgreedPlans {
+  get(dealId: string): Promise<string | null>;
+  /** false — по сделке уже заказ (договорённость закрыта) или сделки нет. */
+  set(dealId: string, plan: string | null): Promise<boolean>;
+}
+
+/** Без хранилища (тесты): тарифа нет, сменить нельзя. */
+export const noAgreedPlans: AgreedPlans = { get: async () => null, set: async () => false };
 
 /** Деньги клиента по сделке: принято (платежи минус возвраты) и действует ли по ней договорённость. */
 export interface DealMoney {

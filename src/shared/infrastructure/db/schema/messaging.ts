@@ -1,6 +1,7 @@
 /** Переписка: диалоги, сообщения и чёрный список номеров (модуль messaging). */
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -46,6 +47,11 @@ export const crmConversations = pgTable(
     lastMessageText: text("last_message_text").notNull().default(""),
     /** Последнее входящее, ещё без ответа — для SLA «ответить за N минут». */
     awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
+    /**
+     * Последний ответ человека: из CRM или с телефона магазина (эхо). Бот и правила его не двигают. Правило «клиент
+     * молчит после нашего ответа» (automation-6).
+     */
+    lastOutgoingAt: timestamp("last_outgoing_at", { withTimezone: true }),
     /** Бот-квалификатор: номер текущего вопроса; null — не запускался, -1 — закончил или его остановил менеджер. */
     botStep: integer("bot_step"),
     /**
@@ -63,6 +69,13 @@ export const crmConversations = pgTable(
     uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId),
     index("crm_conv_last_idx").on(t.lastMessageAt),
     index("crm_conv_bot_due_idx").on(t.botDueAt).where(sql`${t.botDueAt} is not null`),
+    // Правило «клиенту не ответили N минут» (каждую минуту): ждущие ответа, дольше всех ждущие — первыми.
+    index("crm_conv_awaiting_idx").on(t.awaitingSince).where(sql`${t.awaitingSince} is not null`),
+    // Правило «клиент молчит после нашего ответа» (раз в 30 минут): наш ответ в окне «N часов назад − неделя».
+    index("crm_conv_last_out_idx").on(t.lastOutgoingAt).where(sql`${t.lastOutgoingAt} is not null`),
+    // Переписка сделки и клиента: куда правило пишет о заказе, диалоги карточек сделки и клиента.
+    index("crm_conv_deal_idx").on(t.dealId),
+    index("crm_conv_client_idx").on(t.clientId),
   ],
 );
 
@@ -101,7 +114,11 @@ export const crmMessages = pgTable(
     transcript: text("transcript"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+  (t) => [
+    index("crm_messages_conv_idx").on(t.conversationId, t.createdAt),
+    // Суточный лимит сообщений клиентам от правил (automation-15): счёт за сегодня — по этому индексу, без обхода переписки.
+    index("crm_messages_rule_idx").on(t.createdAt).where(sql`${t.source} = 'rule' and ${t.internal} = false`),
+  ],
 );
 
 /**
@@ -116,21 +133,42 @@ export const crmBotEvents = pgTable(
       .notNull()
       .references(() => crmConversations.id, { onDelete: "cascade" }),
     dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
-    /** started | skipped | answer | unrecognized | faq | media | handoff | finished | stopped_by_manager | abandoned | declined */
+    /** started | takeover | skipped | answer | unrecognized | faq | media | handoff | finished | stopped_by_manager | abandoned | declined | … (BotEventKind) */
     kind: text("kind").notNull(),
     field: text("field"),
     intent: text("intent"),
     lang: text("lang"),
     reason: text("reason"),
+    /** След хода AI-продажника (kind = turn): что решила модель и что сделал код — «Почему так?» у ответа бота. */
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    /** Последнее сообщение клиенту в этом ходе — у него в чате «Почему так?». */
+    messageId: uuid("message_id").references(() => crmMessages.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_bot_events_at_idx").on(t.createdAt), index("crm_bot_events_conv_idx").on(t.conversationId)],
+  (t) => [
+    index("crm_bot_events_at_idx").on(t.createdAt),
+    index("crm_bot_events_conv_idx").on(t.conversationId),
+    // «Почему так?» в чате: след по id сообщения (есть только у ходов продажника).
+    index("crm_bot_events_message_idx").on(t.messageId).where(sql`${t.messageId} is not null`),
+    // Чистка следов старше 90 дней в проходе планировщика — по своим строкам, без обхода остального журнала.
+    index("crm_bot_events_turn_at_idx").on(t.createdAt).where(sql`${t.kind} = 'turn'`),
+  ],
 );
 
-/** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */
-export const crmBlocklist = pgTable("crm_blocklist", {
-  value: text("value").primaryKey(),
-  reason: text("reason").notNull().default("spam"),
-  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/**
+ * Стоп-лист номеров и чатов. spam — по ним не создаются заявки и не приходят уведомления, писать им нельзя;
+ * no_marketing — «не писать первым»: входящие и ответы как обычно, но бот не напоминает о себе и правила не пишут.
+ */
+export const crmBlocklist = pgTable(
+  "crm_blocklist",
+  {
+    value: text("value").primaryKey(),
+    reason: text("reason", { enum: ["spam", "no_marketing"] }).notNull().default("spam"),
+    /** Почему в стоп-листе: слова сотрудника или фраза клиента, по которой номер попал сюда сам. */
+    note: text("note"),
+    /** Кто добавил; null — CRM сама (клиент написал «не пишите мне»). */
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("crm_blocklist_reason_check", sql`${t.reason} in ('spam', 'no_marketing')`)],
+);

@@ -16,6 +16,8 @@ import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
+import { dealListPrice } from "@/modules/sales/domain/pricing";
+import { DiscountHint } from "@/components/admin/DiscountHint";
 import { cn } from "@/lib/class-names";
 
 interface Stage {
@@ -82,6 +84,20 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
   );
 }
 
+/** Что сотрудник набрал в поле и от какого значения с сервера начинал. */
+export interface FieldDraft {
+  from: string;
+  value: string;
+}
+
+/**
+ * Значение поля, которое может поменять не только форма (бюджет записал счёт из чата, затем router.refresh()): набранное —
+ * пока на сервере то же значение, от которого начинали; сервер его сменил — действует новое значение с сервера.
+ */
+export function draftValue(draft: FieldDraft | null, server: string): string {
+  return draft && draft.from === server ? draft.value : server;
+}
+
 export function DealFields({
   deal,
   masked,
@@ -89,6 +105,7 @@ export function DealFields({
   disabled,
   fields = [],
   values = {},
+  pricing = null,
 }: {
   /** Кнопка «Показать номер» (право clients.reveal): открытие пишется в журнал. */
   canReveal?: boolean;
@@ -97,20 +114,37 @@ export function DealFields({
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;
+  /** Бюджет — цена продажи (по сделке ещё нет заказа): тариф договорённости и лимит скидки сотрудника (null — без лимита). */
+  pricing?: { plan: string | null; maxPercent: number | null } | null;
 }) {
   const [state, action] = useActionState<DealFormState, FormData>(updateDealAction, {});
+  // Бюджет и источник может поменять не эта форма: счёт из чата записывает сумму договорённости, затем router.refresh().
+  // Поля неуправляемые и пересоздаются по значению с сервера (key) — в форму уходит новая сумма, а не та, что была при
+  // открытии страницы. Набранное хранится только для подсказки «ниже прайса» и действует, пока на сервере то же значение.
+  const [amountDraft, setAmountDraft] = useState<FieldDraft | null>(null);
+  const [sourceDraft, setSourceDraft] = useState<FieldDraft | null>(null);
+  const serverAmount = String(deal.amount);
   return (
-    <form action={action} className="space-y-3">
+    <form
+      action={action}
+      // После действия React сбрасывает неуправляемые поля к значениям с сервера — черновик подсказки тоже.
+      onReset={() => {
+        setAmountDraft(null);
+        setSourceDraft(null);
+      }}
+      className="space-y-3"
+    >
       <input type="hidden" name="id" value={deal.id} />
       <Field label="Название">
         <input name="title" defaultValue={deal.title} required maxLength={200} disabled={disabled} className="input h-9 text-sm" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Бюджет, ₸">
-          <input name="amount" type="number" min={0} step={1000} defaultValue={deal.amount} disabled={disabled} className="input h-9 text-sm" />
+          <input key={`amount:${serverAmount}`} name="amount" type="number" min={0} step={1000} defaultValue={serverAmount} onChange={(e) => setAmountDraft({ from: serverAmount, value: e.target.value })} disabled={disabled} className="input h-9 text-sm" />
+          {pricing ? <DiscountHint list={dealListPrice(pricing.plan, draftValue(sourceDraft, deal.source))} price={Number(draftValue(amountDraft, serverAmount)) || 0} maxPercent={pricing.maxPercent} /> : null}
         </Field>
         <Field label="Источник">
-          <select name="source" defaultValue={deal.source} disabled={disabled} className="input h-9 text-sm">
+          <select key={`source:${deal.source}`} name="source" defaultValue={deal.source} onChange={(e) => setSourceDraft({ from: deal.source, value: e.target.value })} disabled={disabled} className="input h-9 text-sm">
             {dealSources.map((s) => (
               <option key={s} value={s}>
                 {dealSourceLabels[s]}
@@ -275,8 +309,26 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
   );
 }
 
-export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; canMerge: boolean }) {
+/**
+ * Подтверждение «Объединить сюда». В закрытую сделку — прямо: заявка уйдёт из работы, плана и воронки. Счета, которые слияние
+ * отменит (cancels, «P77 на 15 000 ₸»), — поимённо: ссылка на оплату у клиента перестанет работать.
+ */
+export function mergeQuestion(number: number, intoClosed: boolean, cancels: readonly string[]) {
+  const base = intoClosed
+    ? `Влить заявку №${number} в эту закрытую сделку? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится и уйдёт из работы — в план и воронку как новая продажа она не попадёт. Так делают, только если это та же покупка.`
+    : `Объединить сделку №${number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится.`;
+  if (!cancels.length) return base;
+  return cancels.length === 1
+    ? `${base} Будет отменён открытый счёт ${cancels[0]} — ссылка на оплату у клиента перестанет работать.`
+    : `${base} Будут отменены открытые счета ${cancels.join(", ")} — ссылки на оплату у клиента перестанут работать.`;
+}
+
+export function DuplicateRow({ targetId, intoClosed, other, merge }: { targetId: string; intoClosed: boolean; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; merge: { cancels: string[] } | null }) {
   const { pending, run } = useRun();
+  const doMerge = async () => {
+    const r = await mergeDealAction(targetId, other.id);
+    if (r?.error) throw new Error(r.error);
+  };
   return (
     <div className="flex flex-wrap items-center gap-3 py-2 text-sm">
       <Link href={`/admin/deals/${other.id}`} className="min-w-0 flex-1 truncate hover:text-wine">
@@ -285,12 +337,8 @@ export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; 
       <span className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: other.color }}>
         {other.stage}
       </span>
-      {canMerge ? (
-        <button
-          className="btn btn-outline btn-sm h-8"
-          disabled={pending}
-          onClick={async () => (await ask(`Объединить сделку №${other.number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${other.number} удалится.`, true)) && run(() => mergeDealAction(targetId, other.id))}
-        >
+      {merge ? (
+        <button className="btn btn-outline btn-sm h-8" disabled={pending} onClick={async () => (await ask(mergeQuestion(other.number, intoClosed, merge.cancels), true)) && run(doMerge)}>
           <Merge className="size-3.5" /> Объединить сюда
         </button>
       ) : null}

@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmAudit, crmCalls, crmDeals, crmRoles, users } from "@/shared/infrastructure/db/schema";
 import { crmRolesId, usersId } from "@/shared/infrastructure/db/refs";
 import { executor } from "@/shared/infrastructure/database";
@@ -124,6 +124,12 @@ export class DrizzleAccessQueries {
   /** Активные сотрудники по имени (планы продаж). */
   activeStaffList() {
     return executor().select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.role, "admin"), eq(users.staffDisabled, false))).orderBy(users.name);
+  }
+
+  /** Телефоны действующих сотрудников (как записаны): переписка с ними в WhatsApp — служебная, не заявки. */
+  async activeStaffPhones(): Promise<string[]> {
+    const rows = await executor().select({ phone: users.phone }).from(users).where(and(eq(users.role, "admin"), eq(users.staffDisabled, false), isNotNull(users.phone)));
+    return rows.map((r) => r.phone ?? "").filter(Boolean);
   }
 
   /** Статус 2FA у сотрудников (страница «Безопасность»). */

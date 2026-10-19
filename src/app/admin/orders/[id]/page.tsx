@@ -22,6 +22,22 @@ import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
 import { pageId } from "@/server/input";
+import { isPhoneEmail } from "@/modules/identity/domain";
+import type { OrderNoticeFacts } from "@/modules/ordering/ui/notice";
+
+/**
+ * Что получит клиент при смене статуса: настоящая ли почта, правила WhatsApp о заказе (о чём уже писали), переписка,
+ * стоп-лист, рабочее ли время и открыты ли окно и суточный лимит сообщений от правил.
+ */
+async function noticeFacts(order: { id: string; userId: string; contactEmail: string; contactPhone: string; trackingNumber: string | null }): Promise<OrderNoticeFacts> {
+  const n = await container().reporting.orderNotice(order);
+  const [noMarketing, pause, workTime] = await Promise.all([
+    container().messaging.chats.noMarketingFor({ dealId: n.dealId, clientId: order.userId, phones: [order.contactPhone] }),
+    n.rules.length ? container().messaging.chats.ruleSendPause() : null,
+    n.rules.some((r) => r.hours) ? container().workspace.schedule.isWorkTime(new Date()) : true,
+  ]);
+  return { realEmail: !isPhoneEmail(order.contactEmail), rules: n.rules, whatsappChat: n.whatsappChat, noMarketing, workTime, pause };
+}
 
 /** Статусы счетов Kaspi в карточке заказа. */
 const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
@@ -63,6 +79,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const contact = contactView(staff, { phone: order.contactPhone, email: order.contactEmail });
   const accountEmail = contactView(staff, { email: order.user.email }).email;
   const canEdit = can(staff, "orders.edit");
+  const notice = canEdit ? await noticeFacts(order) : null;
   const canClients = can(staff, "clients.view");
   const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
 
@@ -244,10 +261,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               }))}
             />
           </Card>
-          {canEdit ? (
+          {canEdit && notice ? (
             <>
               <Card title="Управление">
-                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} printed={isPrintedPlan(order.plan)} />
+                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} printed={isPrintedPlan(order.plan)} notice={notice} />
               </Card>
               <Card title="Заметка">
                 <NoteForm orderId={order.id} note={order.adminNote} />

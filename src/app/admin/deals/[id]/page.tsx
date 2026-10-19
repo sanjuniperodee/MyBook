@@ -9,13 +9,15 @@ import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { channelLabel } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
-import { formatPhone } from "@/shared/domain/phone";
+import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
-import { REJECTION_TAGS } from "@/modules/sales/domain";
+import { REJECTION_TAGS, mergeRefusal } from "@/modules/sales/domain";
+import { mergeCancels } from "@/modules/ordering";
 import { ContactActions } from "@/components/admin/ContactActions";
+import { NoMarketingToggle } from "@/components/admin/NoMarketingToggle";
 import { formatDate } from "@/lib/dates";
 import { formatPrice } from "@/config/site";
 import { invoiceViews } from "@/app/admin/invoices/view";
@@ -23,8 +25,9 @@ import { RECENT_ONLINE_MS, type MoneyGuard } from "@/components/admin/invoices/m
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
 import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
-import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly } from "./sections";
+import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly, PastDeals } from "./sections";
 import { pageId } from "@/server/input";
+import { discountLimit } from "@/server/discount";
 
 export const metadata = { title: "Сделка" };
 
@@ -53,10 +56,14 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   ]);
   const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
   const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.map((r) => ({ id: r.id, amount: r.amount, method: methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
-  const [duplicates, suggestedClientId, dealFields] = await Promise.all([
+  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount, noMarketing, mergeDays] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
     listFields("deal"),
+    container().sales.agreedPlan.get(deal.id),
+    discountLimit(staff),
+    container().messaging.chats.noMarketingFor({ dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] }),
+    container().sales.deals.mergeClosedDays(),
   ]);
   const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
@@ -64,7 +71,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const [messages, templates, vars, blocker, offers] = conv
     ? await Promise.all([chat.messages(conv.id), chat.templates(), chat.vars(conv, staffLabel(staff.user)), chat.sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
-  const ai = await container().assistant.service.configured();
+  const [ai, kaspiWarning] = await Promise.all([container().assistant.service.configured(), conv ? container().ordering.kaspiWatch.warning().catch(() => null) : null]);
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");
@@ -83,11 +90,26 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       .map((p) => ({ id: p.id, text: `${formatPrice(p.amount)} (${p.method === "kaspi" ? "Kaspi" : "картой"}${p.invoiceId && invoiceLabels.has(p.invoiceId) ? `, счёт ${invoiceLabels.get(p.invoiceId)}` : ""}, ${formatDate(p.paidAt, true)})` })),
   };
   const contact = contactView(staff, { phone: deal.contactPhone ? formatPhone(deal.contactPhone) : client?.phone, email: deal.contactEmail ?? client?.email });
+  // Готовый текст клиенту (правило «праздник») открывается в WhatsApp с номером, только если сотрудник номер видит.
+  const whatsappTo = contact.masked ? null : normalizePhone(deal.contactPhone ?? client?.phone) || null;
   const screen = dealScreen({ deal, stages: allStages, staff: admins, tasks: taskRows, notes: noteRows, payments: paymentRows, receipts: receiptRows, calls: callRows, now });
   const invoiceOf = new Map(paymentRows.map((p) => [p.id, p.invoiceId ? (invoiceLabels.get(p.invoiceId) ?? null) : null]));
   const payments = screen.payments.map((p) => ({ ...p, invoice: invoiceOf.get(p.id) ?? null }));
   const { pipelineId, stages, stage, tasks, notes } = screen;
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === deal.assigneeId);
+  // Другие открытые сделки контакта: «Объединить сюда» — по правилу продаж (в закрытую — только заявку той же покупки), а в
+  // подтверждении — счета, которые слияние отменит (то же правило, что у переноса счетов: mergeCancels).
+  const closed = !!stage && stage.kind !== "open";
+  const closeOpen = !!deal.orderId || closed;
+  const targetSide = { kind: stage?.kind ?? null, orderId: deal.orderId, createdAt: deal.createdAt, closedAt: deal.closedAt };
+  const openDeals = await Promise.all(
+    duplicates.open.map(async (r) => {
+      const allowed = can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, r.deal.assigneeId) && !mergeRefusal(targetSide, { kind: r.stage.kind, orderId: r.deal.orderId, createdAt: r.deal.createdAt, closedAt: r.deal.closedAt }, mergeDays);
+      if (!allowed) return { ...r, merge: null };
+      const theirs = closeOpen || openInvoice ? await container().ordering.invoices.listFor(r.deal.id) : [];
+      return { ...r, merge: { cancels: mergeCancels([...invoiceRows, ...theirs], r.deal.id, closeOpen).map((i) => `${i.label} на ${formatPrice(i.snapshot().amount)}`) } };
+    }),
+  );
 
   return (
     <div className="space-y-5">
@@ -111,7 +133,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
       {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
-      {duplicates.length ? <Duplicates dealId={deal.id} duplicates={duplicates} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
+      {openDeals.length ? <Duplicates dealId={deal.id} closed={closed} duplicates={openDeals} /> : null}
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
@@ -135,12 +157,17 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               fields={dealFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))}
               values={deal.customFields}
               disabled={!canEdit}
+              pricing={deal.orderId ? null : { plan: agreedPlan, maxPercent: maxDiscount }}
             />
             <div>
               <div className="mb-1 text-xs text-muted">Ответственный</div>
               <DealAssignee dealId={deal.id} value={deal.assigneeId} options={options} disabled={!canEdit} />
             </div>
             <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
+            <div className="flex items-center justify-between gap-3 text-xs text-muted">
+              <span title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</span>
+              <NoMarketingToggle target={{ dealId: deal.id }} on={noMarketing} disabled={!canEdit || !works} />
+            </div>
           </section>
           {batch.length > 1 ? (
             <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm" data-testid="deal-batch">
@@ -160,7 +187,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           <PaymentsPanel
             dealId={deal.id}
             agreed={deal.amount}
-            plan={await container().sales.agreedPlan.get(deal.id)}
+            plan={agreedPlan}
             gifts={await container().sales.agreedGifts.get(deal.id)}
             canEdit={canEdit}
             order={order ? { id: order.id, number: order.number } : null}
@@ -185,6 +212,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             can={(p) => can(staff, p)}
             emailOf={(email) => contactView(staff, { email }).email}
           />
+          {duplicates.past.length ? <PastDeals deals={duplicates.past} canSee={(assigneeId) => canSeeAssigned(staff, assigneeId)} /> : null}
           {!deal.clientId && !suggested && deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId) ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
         </aside>
 
@@ -211,6 +239,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 templates={templates}
                 vars={vars}
                 sendDisabledReason={blocker}
+                paymentWarning={invoicePerms.send ? kaspiWarning : null}
                 offers={can(staff, "chats.send") && canWork(staff, deal.assigneeId) ? offers : null}
                 mentionables={mentionables}
                 ai={ai && can(staff, "chats.send") && canWork(staff, deal.assigneeId)}
@@ -225,7 +254,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
 
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-4 font-semibold">История</h2>
-            {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} /> : <NotesTimelineReadonly notes={notes} />}
+            {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} whatsappTo={whatsappTo} /> : <NotesTimelineReadonly notes={notes} whatsappTo={whatsappTo} />}
           </section>
         </div>
       </div>

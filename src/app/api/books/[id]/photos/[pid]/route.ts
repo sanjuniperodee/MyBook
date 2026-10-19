@@ -20,6 +20,7 @@ const schema = z
         focusX: z.number().min(0).max(1),
         focusY: z.number().min(0).max(1),
         frame: z.enum(["none", "line", "polaroid", "round"]),
+        page: z.boolean().optional(),
       })
       .strict()
       .nullable(),

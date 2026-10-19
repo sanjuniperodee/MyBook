@@ -43,5 +43,13 @@ export const halfSql = (c: ProgressCols) =>
 /** Шаг «Текст» выполнен (книга не короткая): progressOf(...).textStepDone. */
 export const textStepSql = (c: ProgressCols) => sql<boolean>`(case when ${isBlank(c.theme)} then ${c.words} >= ${BLANK_TEXT_WORDS} else ${c.answered} >= ${BANK_TEXT_STEP} end)`;
 
+/**
+ * Книга заполнена меньше percent процентов — по той же доле, что полоска в CRM (progressRatio, lib/content/crm-labels):
+ * ответы из вопросов, у своей книги — слова до порога «почти готова». Без деления: доля сравнивается умножением, слова
+ * считаются только у своей книги (CASE не вычисляет вторую ветку).
+ */
+export const filledBelowSql = (c: ProgressCols, percent: number) =>
+  sql<boolean>`(case when ${isBlank(c.theme)} then ${c.words} * 100 < ${percent * BLANK_READY_WORDS}::int else ${c.answered} * 100 < ${percent}::int * ${c.total} or ${c.total} = 0 end)`;
+
 /** Все показатели книги из внешнего запроса по books: ответы, вопросы, слова. */
 export const progressCols = (book: BookRef) => ({ answered: answeredSql(book), total: totalSql(book), words: wordsSql(book) });

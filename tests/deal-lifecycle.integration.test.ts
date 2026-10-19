@@ -7,7 +7,8 @@ import { DrizzleUnitOfWork } from "@/shared/infrastructure/DrizzleUnitOfWork";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import type { OutboxDispatcher } from "@/shared/infrastructure/OutboxDispatcher";
 import { DealsService, SiteFunnelService, type DealInvoicesPort } from "@/modules/sales/application";
-import { DrizzleDealRepository, DrizzleFunnelRepository } from "@/modules/sales/infrastructure/persistence";
+import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzleSalesQueries } from "@/modules/sales/infrastructure/persistence";
+import { duplicateGroups } from "@/modules/reporting/infrastructure/Duplicates";
 import { drizzleClients } from "@/modules/sales/infrastructure/adapters";
 import { agreementForClient, attachAgreementOrder, dealMoney } from "@/modules/sales/infrastructure/agreements";
 import { setDealAgreedPlan } from "@/modules/sales/infrastructure/agreedPlan";
@@ -41,7 +42,7 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
   const funnels = new DrizzleFunnelRepository();
   const lifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), uow);
   const port: DealInvoicesPort = { moveAll: (i) => lifecycle.moveAll(i), holdForDelete: (id) => lifecycle.holdForDelete(id), purgeClosed: (id) => lifecycle.purgeClosed(id) };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => "off" as const, reassignMinutes: async () => 15 };
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => "off" as const, reassignMinutes: async () => 15, mergeClosedDays: async () => 14 };
   const router = { isWorkTime: async () => false, lock: async () => {}, next: async () => null, isActive: async () => false };
   const deals = new DealsService(repo, funnels, drizzleClients, settings, router, uow, systemClock, port);
   const site = new SiteFunnelService(repo, funnels, drizzleClients, settings, { progress: async () => null }, deals, { info: () => {}, warn: () => {}, error: () => {} }, dealMoney);
@@ -143,12 +144,62 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
     expect(notes.map((n) => n.text)).toContainEqual(expect.stringContaining(`отменены открытые ${sOpen.label} (сделки объединены)`));
   });
 
-  it("слияние в успешную сделку — открытый счёт дубля отменяется, а не висит у закрытой", async () => {
+  /** Заказ клиента c2 (вставкой: книга остаётся черновиком) — к успешной сделке. */
+  const withOrder = async (dealId: string) => {
+    const [o] = await q<{ id: string }>(sql`
+      insert into orders (user_id, book_id, plan, items_amount, amount, currency, payment_provider, contact_name, contact_email, contact_phone, status, paid_at)
+      values (${ids.c2}, ${ids.book_c2}, 'hardcover', 20000, 20000, 'KZT', 'cloudpayments', ${tag}, ${`${tag}@test.kz`}, '77010000000', 'paid', now())
+      returning id`);
+    await q(sql`update crm_deals set order_id = ${o.id} where id = ${dealId}`);
+  };
+
+  it("слияние в успешную сделку заказа (заявка той же покупки) — открытый счёт дубля отменяется, а не висит у закрытой", async () => {
     const target = await deal("wonT", { stage: "won" });
+    await withOrder(target);
     const source = await deal("wonS");
     const open = await bill(source);
     await deals.merge(target, source, ids.mgr);
     expect(await invoiceRow(open.id)).toMatchObject({ deal_id: target, status: "cancelled", closed_reason: "сделки объединены, а сделка закрыта или по ней заказ" });
+  });
+
+  it("новую заявку в прошлогоднюю успешную сделку не вливают (deals-d6): заявка, её счёт и этап на месте", async () => {
+    const lastYear = await deal("oldWon", { stage: "won" });
+    await withOrder(lastYear);
+    await q(sql`update crm_deals set closed_at = now() - interval '365 days', created_at = now() - interval '370 days' where id = ${lastYear}`);
+    const fresh = await deal("newLead");
+    const open = await bill(fresh);
+    await expect(deals.merge(lastYear, fresh, ids.mgr)).rejects.toMatchObject({ code: "mergeIntoClosed" });
+    expect(await dealRow(fresh)).toMatchObject({ stage_id: stages.open });
+    expect(await invoiceRow(open.id)).toMatchObject({ deal_id: fresh, status: "pending_payment" });
+  });
+
+  it("слияние переносит историю этапов дубля в целевую; выигранный дубль не вливается — его счёт и этап на месте", async () => {
+    const target = await deal("histT");
+    const source = await deal("histS");
+    await q(sql`insert into crm_stage_history (deal_id, from_stage_id, to_stage_id, actor_id) values (${source}, null, ${stages.open}, ${ids.mgr})`);
+    await deals.merge(target, source, ids.mgr);
+    expect(await q(sql`select from_stage_id, to_stage_id from crm_stage_history where deal_id = ${target}`)).toEqual([{ from_stage_id: null, to_stage_id: stages.open }]);
+
+    const won = await deal("histWon", { stage: "won" });
+    const paid = await bill(won, "paid");
+    await expect(deals.merge(target, won, ids.mgr)).rejects.toMatchObject({ code: "mergeClosed" });
+    expect(await dealRow(won)).toMatchObject({ stage_id: stages.won });
+    expect(await invoiceRow(paid.id)).toMatchObject({ deal_id: won, status: "paid" });
+  });
+
+  it("«Похоже на дубль» — только открытые сделки контакта, закрытые — прошлые; группы дублей — только из открытых", async () => {
+    const phone = `7701${String(Date.now()).slice(-7)}`;
+    const mk = async (key: string, stage: "open" | "won") => {
+      const id = await deal(key, { stage });
+      await q(sql`update crm_deals set contact_phone = ${phone} where id = ${id}`);
+      return id;
+    };
+    const [self, open, won] = [await mk("dupSelf", "open"), await mk("dupOpen", "open"), await mk("dupWon", "won")];
+    const related = await new DrizzleSalesQueries().duplicates({ id: self, clientId: null, contactEmail: null, contactPhone: phone, extraPhones: [] });
+    expect(related.open.map((r) => r.deal.id)).toEqual([open]);
+    expect(related.past.map((r) => r.deal.id)).toEqual([won]);
+    const group = (await duplicateGroups()).find((g) => g.key === phone.slice(-10));
+    expect(group?.deals.map((d) => d.id).sort()).toEqual([self, open].sort());
   });
 
   it("удаление: счёт ждёт оплаты — 409 понятным текстом; отменённые и истёкшие — удаляются вместе со сделкой; счёт Kaspi ещё ждёт — нельзя", async () => {

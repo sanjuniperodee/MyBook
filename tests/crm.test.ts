@@ -8,7 +8,7 @@ import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, 
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
 import { automationActions, automationTriggers, isTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
-import { isWorkTime, nextWorkStart, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
+import { addWorkMinutes, isWorkTime, nextWorkStart, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/shared/domain/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
@@ -238,6 +238,25 @@ describe("рабочее время", () => {
     expect(nextWorkStart(at("2026-10-16T19:50:00Z"), parseWorkHours(null))).toEqual(at("2026-10-17T04:00:00Z"));
     expect(nextWorkStart(at("2026-10-16T19:50:00Z"), { days: [], from: "09:00", to: "18:00" })).toBeNull();
   });
+
+  it("срок через N рабочих минут: ночь и выходные не считаются, вне смены — от её начала", () => {
+    // среда 10:00 + 2 ч → среда 12:00
+    expect(addWorkMinutes(at("2026-09-30T05:00:00Z"), 120, hours)).toEqual(at("2026-09-30T07:00:00Z"));
+    // среда 17:30 + 2 ч → 30 мин в среду и 1,5 ч в четверг: 10:30
+    expect(addWorkMinutes(at("2026-09-30T12:30:00Z"), 120, hours)).toEqual(at("2026-10-01T05:30:00Z"));
+    // среда 23:00 + 15 мин → четверг 09:15 (пропущенный ночью звонок не просрочен к началу смены)
+    expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 15, hours)).toEqual(at("2026-10-01T04:15:00Z"));
+    // пятница 20:00 + 2 ч → понедельник 11:00
+    expect(addWorkMinutes(at("2026-10-02T15:00:00Z"), 120, hours)).toEqual(at("2026-10-05T06:00:00Z"));
+    // 0 минут — как nextWorkStart
+    expect(addWorkMinutes(at("2026-09-30T02:00:00Z"), 0, hours)).toEqual(at("2026-09-30T04:00:00Z"));
+    // смена через полночь 20:00–02:00: 01:00 + 2 ч → 1 ч до 02:00 и 1 ч с 20:00 → 21:00
+    const night = parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"20:00","to":"02:00"}');
+    expect(addWorkMinutes(at("2026-09-30T20:00:00Z"), 120, night)).toEqual(at("2026-10-01T16:00:00Z"));
+    // круглосуточно и без рабочих дней — календарные минуты
+    expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 90, parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"00:00","to":"00:00"}'))).toEqual(at("2026-09-30T19:30:00Z"));
+    expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 90, { days: [], from: "09:00", to: "18:00" })).toEqual(at("2026-09-30T19:30:00Z"));
+  });
 });
 
 describe("упоминания и воронка по действиям", () => {
@@ -266,6 +285,9 @@ describe("упоминания и воронка по действиям", () =>
 
   it("переменные повода и даты в шаблонах", () => {
     expect(fillTemplate("Годовщина: {повод}, {дата}", { occasion: "Свадьба", date: "12 ноября" })).toBe("Годовщина: Свадьба, 12 ноября");
+    // Кому дарили книгу (повторные продажи, contacts-16); не знаем — пусто.
+    expect(fillTemplate("Книга для {получатель} к {повод}", { recipient: " мамы ", occasion: "8 Марта" })).toBe("Книга для мамы к 8 Марта");
+    expect(fillTemplate("Подарок {получатель}!", {})).toBe("Подарок!");
   });
 });
 

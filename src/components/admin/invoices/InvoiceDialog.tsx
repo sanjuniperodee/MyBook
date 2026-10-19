@@ -89,7 +89,8 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   const [locale, setLocale] = useState(info.locale);
   const [channel, setChannel] = useState(info.channel);
   const [name, setName] = useState(info.clientName);
-  const [kaspiPush, setKaspiPush] = useState(!!info.kaspiPhoneMasked);
+  // Кассир Kaspi отключён — счёт на номер не выставится, поэтому по умолчанию не отмечаем.
+  const [kaspiPush, setKaspiPush] = useState(!!info.kaspiPhoneMasked && !info.kaspiWarning);
   // Что по договорённости бесплатно — из сделки; менеджер отмечает сам, ничего не включается по умолчанию.
   const [gifts, setGifts] = useState<AgreementGift[]>(info.gifts);
   const [busy, setBusy] = useState(false);
@@ -163,6 +164,12 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
               Открыть интеграции
             </Link>
           </span>
+        </p>
+      ) : null}
+      {info.kaspiWarning ? (
+        <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-900" role="status" data-testid="invoice-kaspi-warning">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <span>{info.kaspiWarning}</span>
         </p>
       ) : null}
       {info.open ? (

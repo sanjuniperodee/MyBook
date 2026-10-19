@@ -19,3 +19,14 @@ export interface OrderPrintSpec {
 }
 
 export type GiftStatus = "pending_payment" | "paid" | "cancelled";
+
+/**
+ * Объект срабатывания правила CRM на событие заказа (crm_automation_runs.subject): «Статус заказа изменился» — один раз
+ * на статус (откат и повторный перевод клиенту не повторяются), «Заказ отправлен с трек-номером» — один раз на номер,
+ * «Заказ оплачен» — один раз на заказ (subject — id заказа). По ним подпись в карточке заказа знает, о чём правило
+ * клиенту уже писало.
+ */
+export const orderRuleSubject = {
+  status: (orderId: string, status: string) => `order:status:${orderId}:${status}`,
+  track: (orderId: string, trackingNumber: string) => `order:track:${orderId}:${trackingNumber}`,
+} as const;

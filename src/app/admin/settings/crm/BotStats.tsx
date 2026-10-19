@@ -1,6 +1,8 @@
 import type { BotMetrics } from "@/modules/messaging";
+import { byLabel, failureReasonLabels, handoffReasonLabels } from "@/modules/messaging/domain/botStats";
 
 const OUTCOMES: [string, string][] = [
+  ["takeover", "подхватил начатую переписку"],
   ["finished", "собрал ответы"],
   ["handoff", "передал человеку"],
   ["stopped_by_manager", "остановлен ответом менеджера"],
@@ -19,17 +21,17 @@ const INTENTS: Record<string, string> = {
   payment: "оплата",
   examples: "примеры",
   language: "язык книги",
-  "handoff:call": "просили позвонить",
-  "handoff:manager": "просили менеджера",
-  "handoff:paid": "сообщили об оплате",
-  "handoff:pay": "хотели оплатить",
-  "handoff:complaint": "жалоба",
 };
 
-/** Метрики бота за 30 дней — по журналу событий: запуски и пропуски, итоги, воронка по вопросам, вопросы клиентов. */
+/**
+ * Метрики бота за 30 дней — по журналу событий: запуски и пропуски, итоги, воронка по вопросам, вопросы клиентов,
+ * почему беседа ушла менеджеру и — отдельно — сбои самого бота (модель не ответила, петля, потолок беседы).
+ */
 export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; questions: { key: string; label: string }[]; skipLabels: Record<string, string> }) {
   const skipped = Object.entries(m.skipped).sort((a, b) => b[1] - a[1]);
   const intents = Object.entries(m.intents).sort((a, b) => b[1] - a[1]);
+  const handoffs = byLabel(m.handoffs, handoffReasonLabels);
+  const failures = byLabel(m.failures, failureReasonLabels);
   const langs = Object.entries(m.langs);
   return (
     <div className="rounded-xl border border-line p-3 text-sm" data-testid="bot-stats">
@@ -37,7 +39,7 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
       {!m.started && !skipped.length ? <p className="text-xs text-muted">Бот ещё не работал.</p> : null}
       <div className="grid gap-3 text-xs sm:grid-cols-2">
         <div>
-          <div className="mb-1 text-muted">Начал опрос: {m.started}</div>
+          <div className="mb-1 text-muted">Начал беседу: {m.started}</div>
           {OUTCOMES.map(([k, label]) => (m.outcomes[k] ? <div key={k}>{`${label}: ${m.outcomes[k]}`}</div> : null))}
           {langs.length ? <div className="mt-1 text-muted">Языки: {langs.map(([l, n]) => `${l === "kk" ? "казахский" : "русский"} ${n}`).join(", ")}</div> : null}
           {m.replyMinutes !== null ? <div className="mt-1 text-muted">Менеджер ответил после бота за ~{m.replyMinutes} мин (медиана)</div> : null}
@@ -66,6 +68,22 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
             <div className="mb-1 text-muted">О чём спрашивали</div>
             {intents.map(([k, n]) => (
               <div key={k}>{`${INTENTS[k] ?? k}: ${n}`}</div>
+            ))}
+          </div>
+        ) : null}
+        {handoffs.length ? (
+          <div>
+            <div className="mb-1 text-muted">Почему передал менеджеру</div>
+            {handoffs.map(([label, n]) => (
+              <div key={label}>{`${label}: ${n}`}</div>
+            ))}
+          </div>
+        ) : null}
+        {failures.length ? (
+          <div data-testid="bot-failures">
+            <div className="mb-1 text-red-700">Сбои</div>
+            {failures.map(([label, n]) => (
+              <div key={label}>{`${label}: ${n}`}</div>
             ))}
           </div>
         ) : null}

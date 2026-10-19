@@ -20,6 +20,7 @@ vi.mock("@/server/access", () => ({
   audit: async (_s: unknown, ...rest: unknown[]) => void w.audits.push(rest),
 }));
 vi.mock("@/modules/workspace", () => ({
+  getSetting: async (k: string) => w.stored[k] ?? "",
   fromEnv: (k: string) => w.env.has(k),
   getSettings: async (keys: string[]) => Object.fromEntries(keys.map((k) => [k, w.stored[k] ?? ""])),
   saveSettings: async (values: Record<string, string>) => void w.saved.push(values),
@@ -32,20 +33,27 @@ vi.mock("@/server/container", () => ({
     assistant: { proofreadProvider: async () => ({ provider: "openrouter" }), sellerProvider: async () => ({ provider: "openrouter" }) },
     workspace: { templates: { add: async (t: unknown) => void w.saved.push({ template: JSON.stringify(t) }), update: async (id: string, t: unknown) => void w.saved.push({ [id]: JSON.stringify(t) }) } },
     messaging: { previewBot: async (input: { turns: unknown[] }) => ({ skipped: null, transcript: [], fields: [], intents: [], lang: "ru", done: false, summary: null, turns: input.turns.length }) },
+    ordering: { kaspiWatch: { setAlertAfterMinutes: async (minutes: number, actorId: string) => void w.saved.push({ "kaspi.alertAfterMinutes": String(minutes), actorId }) } },
   }),
 }));
+vi.mock("@/modules/ordering", () => ({ KASPI_ALERT_AFTER_MAX: 240, OrderingError: { is: () => false } }));
 vi.mock("@/server/bot-site", () => ({
   botSiteInfo: {
     catalog: async () => ({ plans: [{ id: "digital", price: 9900 }, { id: "hardcover", price: 30000 }], delivery: [{ id: "courier", price: 3500 }], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
   },
 }));
 
+vi.mock("@/server/catalog", () => ({ ensureCatalog: async () => {}, saveCatalog: async (next: unknown) => void w.saved.push({ catalog: JSON.stringify(next) }) }));
+
 const actions = {
+  ...(await import("@/app/admin/pricing/actions")),
   ...(await import("@/app/admin/settings/wazzup/actions")),
   ...(await import("@/app/admin/settings/telephony/actions")),
   ...(await import("@/app/admin/settings/crm/actions")),
   ...(await import("@/app/admin/settings/mail/actions")),
   ...(await import("@/app/admin/settings/ai/actions")),
+  ...(await import("@/app/admin/settings/kaspi/actions")),
+  ...(await import("@/app/admin/settings/whatsapp/actions")),
 };
 
 const form = (fields: Record<string, string | string[] | File>) => {
@@ -83,6 +91,32 @@ describe("Wazzup", () => {
   });
 });
 
+describe("Kaspi: порог сигнала «кассир отключён»", () => {
+  it("целые минуты 0…240 сохраняются с журналом; дробное, отрицательное и больше 240 — понятная ошибка", async () => {
+    expect(await actions.saveKaspiAlertAfterAction(15)).toEqual({ ok: true });
+    expect(await actions.saveKaspiAlertAfterAction(0)).toEqual({ ok: true });
+    expect(w.saved).toEqual([
+      { "kaspi.alertAfterMinutes": "15", actorId: "boss" },
+      { "kaspi.alertAfterMinutes": "0", actorId: "boss" },
+    ]);
+    expect(w.audits[0]).toEqual(["settings.update", "settings", "kaspi", { alertAfterMinutes: 15 }]);
+    for (const bad of [2.5, -1, 241, Number.NaN]) expect(await actions.saveKaspiAlertAfterAction(bad)).toEqual({ ok: false, error: "Порог — целое число минут от 0 до 240" });
+    expect(w.saved).toHaveLength(2);
+  });
+});
+
+describe("WhatsApp: окно и суточный лимит сообщений от правил", () => {
+  it("окно ЧЧ:ММ и лимит 0…300 сохраняются с журналом; кривое время и лимит — понятная ошибка, ничего не сохраняется", async () => {
+    expect(await actions.saveRuleSendingAction({ from: "10:00", to: "20:30", dailyLimit: 25 })).toEqual({ ok: true });
+    expect(w.saved).toEqual([{ "whatsapp.rulesWindow": '{"from":"10:00","to":"20:30"}', "whatsapp.rulesDailyLimit": "25" }]);
+    expect(w.audits[0]).toEqual(["settings.update", "settings", "whatsapp", { rulesWindow: "10:00–20:30", rulesDailyLimit: 25 }]);
+    expect(await actions.saveRuleSendingAction({ from: "9:00", to: "21:00", dailyLimit: 40 })).toEqual({ ok: false, error: "Время окна — в формате ЧЧ:ММ, например 09:00 и 21:00" });
+    for (const bad of [-1, 2.5, 301, Number.NaN]) expect(await actions.saveRuleSendingAction({ from: "09:00", to: "21:00", dailyLimit: bad })).toEqual({ ok: false, error: "Сообщений в сутки — целое число от 0 до 300" });
+    expect(await actions.saveRuleSendingAction({ from: "09:00", to: "21:00", dailyLimit: 0 })).toEqual({ ok: true });
+    expect(w.saved).toHaveLength(2);
+  });
+});
+
 describe("Телефония", () => {
   it("Zadarma: ключи, номер АТС только цифрами, веб-телефон; своя АТС — заводит токен; без выбора — ошибка", async () => {
     expect(await actions.saveTelephonyAction({}, form({ provider: "zadarma", zadarmaKey: "k", zadarmaSecret: "s", pbxId: "12-345abc", webphone: "on" }))).toEqual({ ok: "Сохранено" });
@@ -97,17 +131,49 @@ describe("Телефония", () => {
   });
 });
 
+describe("Праздники для повторных продаж (bots-10)", () => {
+  it("день.месяц → ММ-ДД, код праздника сохраняется, у нового — h<ММДД>; ошибки — словами сотруднику", async () => {
+    const list = [
+      { id: "newyear", day: "31.12", ru: "Новый год", kk: "Жаңа жыл" },
+      { id: "", day: "21.3", ru: "Наурыз", kk: "Наурыз мейрамы" },
+    ];
+    expect(await actions.saveHolidaysAction(list)).toEqual({ ok: true });
+    expect(JSON.parse(w.saved[0]["automation.holidays"])).toEqual([
+      { id: "newyear", date: "12-31", ru: "Новый год", kk: "Жаңа жыл" },
+      { id: "h0321", date: "03-21", ru: "Наурыз", kk: "Наурыз мейрамы" },
+    ]);
+    expect(w.audits[0]).toEqual(["settings.update", "settings", "holidays", { holidays: ["12-31 Новый год", "03-21 Наурыз"] }]);
+    expect(await actions.saveHolidaysAction([])).toEqual({ ok: true });
+    expect(w.saved[1]).toEqual({ "automation.holidays": "[]" });
+    const bad = (patch: Partial<(typeof list)[number]>) => actions.saveHolidaysAction([{ ...list[0], ...patch }]);
+    expect(await bad({ day: "29.02" })).toEqual({ ok: false, error: "Дата праздника — день и месяц, например 31.12; 29 февраля не подходит — праздник должен быть каждый год" });
+    expect(await bad({ day: "31 декабря" })).toEqual({ ok: false, error: "Дата праздника — день и месяц, например 31.12; 29 февраля не подходит — праздник должен быть каждый год" });
+    expect(await bad({ kk: "" })).toEqual({ ok: false, error: "У каждого праздника — название на русском и на казахском" });
+    expect(await actions.saveHolidaysAction([list[0], { ...list[0], id: "" }])).toEqual({ ok: false, error: "Два праздника в один день — оставьте один" });
+    expect(w.saved).toHaveLength(2);
+  });
+});
+
 describe("Отдел продаж", () => {
   it("сохраняет график, норматив, передачу не взятой заявки, автосделки, скидку и виджет; ошибки — первым сообщением схемы", async () => {
     const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["5", "1", "1", "9"], unsorted: "on", widgetChat: "on" };
     expect(await actions.saveCrmSettingsAction({}, form(ok))).toEqual({ ok: "Сохранено" });
     expect(w.saved).toEqual([
-      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.maxDiscount": "10", "widget.enabled": "off", "widget.chat": "on" },
+      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.maxDiscount": "10", "crm.mergeClosedDays": "14", "widget.enabled": "off", "widget.chat": "on" },
     ]);
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, slaMinutes: "0" }))).toEqual({ error: "Норматив ответа — от 1 минуты" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, from: "9" }))).toEqual({ error: "Время начала в формате ЧЧ:ММ" });
-    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, maxDiscount: "60" }))).toEqual({ error: "Скидка из чата — не больше 50%" });
+    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, maxDiscount: "60" }))).toEqual({ error: "Лимит скидки — не больше 50%" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, days: ["8"] }))).toEqual({ error: "Выберите хотя бы один рабочий день" });
+  });
+
+  it("окно слияния с закрытой сделкой заказа (deals-d6): 0 — нельзя, до 90 дней; вне пределов — текст словаря", async () => {
+    const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["1"] };
+    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, mergeClosedDays: "0" }))).toEqual({ ok: "Сохранено" });
+    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, mergeClosedDays: "30" }))).toEqual({ ok: "Сохранено" });
+    expect(w.saved.map((v) => v["crm.mergeClosedDays"])).toEqual(["0", "30"]);
+    for (const bad of ["91", "-1", "2.5"]) expect(await actions.saveCrmSettingsAction({}, form({ ...ok, mergeClosedDays: bad }))).toEqual({ error: "Окно слияния с закрытой сделкой заказа — целое число дней от 0 до 90" });
+    expect(w.saved).toHaveLength(2);
   });
 });
 
@@ -148,6 +214,16 @@ describe("AI-помощник и корректор", () => {
     expect(await actions.saveAiAction({}, form({ ...ok, knowledge: "x".repeat(6001) }))).toEqual({ error: "База знаний — не больше 6000 символов" });
     expect(await actions.saveAiAction({}, form({ ...ok, aiKey: new File(["x"], "k") }))).toEqual({ error: "Проверьте введённые данные" });
     expect(w.saved).toHaveLength(1);
+  });
+
+  it("база знаний: суммы не из «Цен и тарифов» — сохраняется, но с предупреждением (бот назвал бы старую цену)", async () => {
+    const ok = { provider: "openrouter", aiModel: "", knowledge: "" };
+    expect(await actions.saveAiAction({}, form({ ...ok, knowledge: "Печатная — 30 000 ₸, электронная 9 900 тг, до 200 фото" }))).toEqual({ ok: "Сохранено" });
+    const r = await actions.saveAiAction({}, form({ ...ok, knowledge: "Печатная — 29 000 ₸, по акции 25 тыс." }));
+    expect(r).toEqual({ ok: "Сохранено", warning: expect.any(String) });
+    expect(r.warning?.replace(/\s/g, " ")).toContain("в базе знаний AI — 25 000 ₸, 29 000 ₸");
+    expect(r.warning).toContain("Бот может назвать их клиенту");
+    expect(w.saved).toHaveLength(2);
   });
 
   it("помощник: провайдер из окружения не сохраняется, берётся сохранённый", async () => {
@@ -197,11 +273,12 @@ describe("Шаблоны ответов и бот", () => {
     expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false, sell: false, engine: "ai", takeover: true, invoice: false }]]);
   });
 
-  it("бот продаёт: предоплата не больше цены печатной в счёте бота", async () => {
+  it("бот продаёт: предоплата не больше цены печатной из «Цен и тарифов» (своей цены в счёте у бота нет)", async () => {
     const sell = (p: Partial<BotConfig["sell"]>) => ({ mode: "always" as const, ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, invoice: true, ...p } });
     expect(await actions.saveBotAction(sell({ prepay: 10000 }))).toEqual({ ok: "Сохранено" });
     expect(await actions.saveBotAction(sell({ prepay: 35000 }))).toEqual({ error: expect.stringMatching(/^Предоплата больше цены печатной книги \(30\s000 ₸\)$/u) });
-    expect(await actions.saveBotAction(sell({ prepay: 35000, prices: { hardcover: 40000, digital: 0 } }))).toEqual({ ok: "Сохранено" });
+    // Прежнее поле «цена в счёте бота» из старой формы не сохраняется и не поднимает потолок предоплаты.
+    expect(await actions.saveBotAction({ ...sell({ prepay: 35000 }), sell: { ...sell({ prepay: 35000 }).sell, prices: { hardcover: 40000, digital: 0 } } } as never)).toEqual({ error: expect.stringMatching(/^Предоплата больше цены печатной книги/u) });
   });
 
   it("бот-продажник на AI: вопросы не обязательны; потолок беседы и указания проверяются; номер в указаниях — нет", async () => {
@@ -244,5 +321,19 @@ describe("Шаблоны ответов и бот", () => {
     expect(await actions.previewBotAction({ config: defaultBotConfig, turns: [], workTime: true, client: "new", name: "" })).toEqual({ error: "Напишите сообщение клиента" });
     expect(await actions.previewBotAction({ config: defaultBotConfig, turns: [[{ text: "Здравствуйте", type: "text" }]], workTime: false, client: "order", name: "Айгерим" })).toMatchObject({ result: { turns: 1 } });
     expect(w.saved).toEqual([]);
+  });
+});
+
+describe("Цены и тарифы", () => {
+  const prices = (hardcover: string) =>
+    form({ plan_digital_price: "9900", plan_digital_visible: "on", plan_hardcover_price: hardcover, plan_hardcover_extra: "17900", plan_hardcover_visible: "on", plan_premium_price: "35000", plan_premium_extra: "24900", addon_express_price: "5000", addon_giftwrap_price: "5000", delivery_courier_price: "2000", delivery_post_price: "3500", delivery_pickup_price: "0" });
+
+  it("после сохранения — предупреждение, если в базе знаний или включённом ответе бота остались суммы не из цен", async () => {
+    expect(await actions.savePricingAction({}, prices("30000"))).toEqual({ ok: expect.stringContaining("в счетах бота") });
+    w.stored = { "ai.knowledge": "Печатная — 29 000 ₸", "bot.config": JSON.stringify({ ...defaultBotConfig, faq: { ...defaultBotConfig.faq, price: { on: true, text: { ru: "Печатная — 28 000 ₸", kk: "" } } } }) };
+    const r = await actions.savePricingAction({}, prices("30000"));
+    expect(r.ok).toContain("Сохранено");
+    expect(r.warning?.replace(/\s/g, " ")).toContain("в базе знаний AI — 29 000 ₸");
+    expect(r.warning?.replace(/\s/g, " ")).toContain("в ответе бота «Цена» (RU) — 28 000 ₸");
   });
 });

@@ -86,7 +86,7 @@ describe("Работа над ошибками: ночной разбор", () =
       configured: async () => true,
       complete: async (req) => {
         calls.push(req.user);
-        return JSON.stringify(opts.reply ?? { summary: "Бот задавал по два вопроса", add: [{ text: "Задавай один вопрос за сообщение", why: "беседа 1" }], remove: [] });
+        return { text: JSON.stringify(opts.reply ?? { summary: "Бот задавал по два вопроса", add: [{ text: "Задавай один вопрос за сообщение", why: "беседа 1" }], remove: [] }) };
       },
     };
     const config = { ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, engine: "ai" as const, selfImprove: opts.selfImprove ?? true } };

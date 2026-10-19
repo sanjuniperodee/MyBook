@@ -64,11 +64,11 @@ export class BooksService {
   }
 
   /** Настройки из редактора (включая смену языка книги). */
-  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown }, photos: PhotoRepository) {
+  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown }, photos: PhotoRepository) {
     return this.uow.run(async () => {
       // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
       const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
-      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, ...settings } = patch;
+      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, ...settings } = patch;
       for (const [side, ids] of [
         ["cover", coverPhotoExtra],
         ["back", backPhotoExtra],
@@ -86,6 +86,7 @@ export class BooksService {
         book.setBackPhoto(backPhotoId);
       }
       if (photoFrames !== undefined) book.setPhotoFrames(photoFrames);
+      if (tocLines !== undefined) book.setTocLines(tocLines);
       if (language && language !== book.language) {
         const from = this.themes.get(book.theme, book.language);
         const to = this.themes.get(book.theme, language);
@@ -161,6 +162,27 @@ export class QuestionsService {
   ) {}
 
   /**
+   * Перенос истории в книге с темой (вкладка «Страницы» → «Главы книги»): в главу chapter перед историей beforeId, без
+   * неё — в конец главы. Глава — из тех, что уже есть в книге (у темы у каждой главы есть вопросы). Позиции всех вопросов
+   * пересчитываются по порядку; своя книга переносит разделы через оглавление (BookOutlineService.reorderSections).
+   */
+  async moveStory(bookId: string, viewer: BookViewer, input: { id: string; chapter: string; beforeId?: string | null }) {
+    return this.uow.run(async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (hasOutline(book.theme)) throw new AuthoringError("outlineNotAllowed");
+      const all = await this.questions.sections(book.id);
+      const moved = all.find((q) => q.id === input.id);
+      if (!moved || !all.some((q) => q.chapter === input.chapter)) throw new AuthoringError("questionNotFound");
+      if (input.beforeId && (input.beforeId === input.id || all.find((q) => q.id === input.beforeId)?.chapter !== input.chapter)) throw new AuthoringError("outlineOutdated");
+      const rest = all.filter((q) => q.id !== input.id).map((q) => ({ id: q.id, chapter: q.chapter }));
+      const at = input.beforeId ? rest.findIndex((q) => q.id === input.beforeId) : rest.findLastIndex((q) => q.chapter === input.chapter) + 1;
+      rest.splice(at, 0, { id: moved.id, chapter: input.chapter });
+      await this.questions.arrange(book.id, rest);
+      await this.books.touch(book.id);
+    });
+  }
+
+  /**
    * Автосохранение ответа и заголовка. У разделов своей книги (blank) правятся ещё заголовок и подсказка (title, prompt),
    * а переписанный заголовок и его скрытие не используются; в остальных книгах title и prompt — outlineNotAllowed:
    * у своих вопросов там заголовок правят через displayText, и правка prompt без title рассинхронизировала бы вопрос.
@@ -176,7 +198,7 @@ export class QuestionsService {
       const outline = hasOutline(book.theme);
       if ((patch.title !== undefined || patch.prompt !== undefined) && !(outline && q.isCustom)) throw new AuthoringError("outlineNotAllowed");
       const wordsBefore = q.words;
-      q.edit(outline ? { answer: patch.answer, media: patch.media, title: patch.title, prompt: patch.prompt } : patch);
+      q.edit(outline ? { answer: patch.answer, media: patch.media, title: patch.title, prompt: patch.prompt, pageBreak: patch.pageBreak } : patch);
       await this.questions.save(q);
       await this.books.touch(book.id);
       this.uow.track(q);

@@ -108,9 +108,11 @@ describe("форма счёта: суммы", () => {
     expect(pickAmount("remainder", 30_000, 30_000, "")).toEqual({ error: "По договорённости уже всё оплачено" });
   });
 
-  it("лимит скидки — как на сервере: ниже прайса больше чем на N % нельзя, руководителю (null) — можно", () => {
+  it("лимит скидки — как на сервере: ниже прайса больше чем на N % нельзя, сотруднику с правом без лимита (null) — можно", () => {
     expect(discountProblem(30_000, 27_000, 10)).toBeNull();
     expect(discountProblem(30_000, 26_999, 10)).toContain("больше чем на 10%");
+    // Без лимита продаёт не «руководитель», а любая роль с правом prices.discount_unlimited.
+    expect(discountProblem(30_000, 26_999, 10)).toContain("только сотрудник с правом «Продавать ниже прайса без лимита»");
     expect(discountProblem(30_000, 1_000, null)).toBeNull();
     expect(discountProblem(undefined, 1_000, 10)).toBeNull();
   });
@@ -206,6 +208,19 @@ describe("форма счёта: разметка", () => {
     expect(out).toContain(`Открыт счёт P11 на ${price(15_000)} — новый счёт его заменит`);
     expect(out).toContain("Счёт Kaspi на номер клиента +7 701 ••• •• 67");
     expect(out).toContain("Сәлеметсіз бе");
+  });
+
+  it("кассир Kaspi отключён — жёлтая плашка над формой, счёт Kaspi на номер по умолчанию не отмечен", () => {
+    const warning = "Кассир Kaspi отключён с 14:05 — оплаты Kaspi не подтверждаются сами";
+    const out = html(<InvoiceForm info={info({ kaspiPhoneMasked: "+7 701 ••• •• 67", kaspiWarning: warning })} issueKey="k" onClose={() => {}} />);
+    expect(out).toContain('data-testid="invoice-kaspi-warning"');
+    expect(out).toContain(warning);
+    const push = out.split("<label").find((l) => l.includes("Счёт Kaspi на номер клиента"))!;
+    expect(push).not.toContain('checked=""');
+    // Кассир работает — плашки нет, счёт на номер отмечен.
+    const ok = html(<InvoiceForm info={info({ kaspiPhoneMasked: "+7 701 ••• •• 67" })} issueKey="k" onClose={() => {}} />);
+    expect(ok).not.toContain("invoice-kaspi-warning");
+    expect(ok.split("<label").find((l) => l.includes("Счёт Kaspi на номер клиента"))).toContain('checked=""');
   });
 
   it("закрытая сделка — счёт не выставить", () => {

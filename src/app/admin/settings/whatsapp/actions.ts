@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { GowaError } from "@/modules/messaging";
+import { GowaError, RULE_DAILY_LIMIT_MAX } from "@/modules/messaging";
 import { saveSettings } from "@/modules/workspace";
+import { isValidTime } from "@/shared/domain/schedule";
+import { admin } from "@/i18n/admin";
 import { assertStaff, audit } from "@/server/access";
 import { container } from "@/server/container";
 
@@ -54,6 +56,25 @@ export async function saveWhatsappSettingsAction(input: z.input<typeof settingsS
     // Настройки сохранены; шлюз пока не отвечает — подключим устройство при следующем сохранении или привязке номера.
     return { ok: true, warning: gowaError(err).error };
   }
+}
+
+const ruleSendingSchema = z.object({ from: z.string().refine(isValidTime), to: z.string().refine(isValidTime), dailyLimit: z.number().int().min(0).max(RULE_DAILY_LIMIT_MAX) });
+
+/**
+ * Защита номера (automation-15): окно по Алматы, в которое правила автоматизаций пишут клиентам первыми, и сколько
+ * таких сообщений уходит за сутки (0 — не пишут).
+ */
+export async function saveRuleSendingAction(input: z.input<typeof ruleSendingSchema>): Promise<Result> {
+  const staff = await assertStaff("settings.manage");
+  const times = ruleSendingSchema.pick({ from: true, to: true }).safeParse(input);
+  if (!times.success) return { ok: false, error: admin.ruleWindowInvalid };
+  const parsed = ruleSendingSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: admin.ruleDailyLimitInvalid(RULE_DAILY_LIMIT_MAX) };
+  const { from, to, dailyLimit } = parsed.data;
+  await saveSettings({ "whatsapp.rulesWindow": JSON.stringify({ from, to }), "whatsapp.rulesDailyLimit": String(dailyLimit) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "whatsapp", { rulesWindow: `${from}–${to}`, rulesDailyLimit: dailyLimit });
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
 
 /** QR для привязки номера магазина: WhatsApp → Настройки → Связанные устройства → Привязать устройство. */

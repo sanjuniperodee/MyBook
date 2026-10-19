@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultBotConfig, factsPaid, type BotConfig, type BotMaterial, type PaymentFacts } from "@/modules/messaging/domain";
+import { defaultBotConfig, factsPaid, type BotConfig, type BotLesson, type BotMaterial, type PaymentFacts } from "@/modules/messaging/domain";
 import { BOT_PAUSE_MS, type BotInvoices, type BotSellerModel } from "@/modules/messaging/application";
 import { BOT_CONFIG, inbound, setup } from "./doubles/botHarness";
 
@@ -32,7 +32,8 @@ function fakeModel(script: Script, configured = true) {
       const next = script.shift();
       if (next === undefined) throw new Error("модель: сценарий кончился");
       if (next instanceof Error) throw next;
-      return JSON.stringify(typeof next === "function" ? next(req) : next);
+      // Токены — как у провайдера: по ним проверяется след хода.
+      return { text: JSON.stringify(typeof next === "function" ? next(req) : next), usage: { input: 1000, output: 50 } };
     },
   };
   return { model, calls };
@@ -247,6 +248,8 @@ describe("AI-продажник: голос, файлы, благодарнос�
     await run(t);
     expect(calls).toHaveLength(0);
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff", reason: "media" });
+    // В журнале — передача с причиной «прислали фото или файл», как у шаблонного бота.
+    expect(t.events.filter((e) => e.kind === "handoff")).toEqual([expect.objectContaining({ kind: "handoff", reason: "media" })]);
   });
 
   it("«спасибо» после ответа — модель молчит (wait), клиент не остаётся «неотвеченным» из-за бота", async () => {
@@ -487,7 +490,7 @@ describe("AI-продажник: оплата уже внесена — пред
 describe("AI-продажник: голосовые и фото распознаются моделью", () => {
   const mediaModel = (script: string[]): BotSellerModel => ({
     configured: async () => true,
-    complete: async () => JSON.stringify(ans()),
+    complete: async () => ({ text: JSON.stringify(ans()) }),
     media: async () => {
       const next = script.shift();
       return next === undefined ? { unsupported: true as const } : { text: next };
@@ -1162,5 +1165,181 @@ describe("AI-продажник: подборка материалов, как �
     await run(t);
     expect(calls[0].system).not.toContain("3б. Материалы");
     expect(t.files).toHaveLength(0);
+  });
+});
+
+describe("AI-продажник: журнал для статистики (bots-d1)", () => {
+  const kinds = (t: ReturnType<typeof setup>, kind: string) => t.events.filter((e) => e.kind === kind);
+
+  it("новая заявка: «начал беседу» один раз и с языком из ответа модели; подхвата нет", async () => {
+    const { model } = fakeModel([ans({ language: "kk", reply: "Сәлеметсіз бе! Кітап кімге?" }), ans({ language: "kk", reply: "Қай күнге керек?" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Сәлеметсіз бе, кітап керек" }));
+    await run(t);
+    expect(kinds(t, "started")).toEqual([expect.objectContaining({ kind: "started", reason: "kk" })]);
+    await t.service.ingest(inbound({ text: "Анама" }));
+    await run(t);
+    expect(kinds(t, "started")).toHaveLength(1);
+    expect(kinds(t, "takeover")).toHaveLength(0);
+  });
+
+  it("подхват начатой переписки — «начал беседу» и отдельное событие «подхватил»", async () => {
+    const { model } = fakeModel([ans({ reply: "Подскажите, к какой дате нужна книга?" })]);
+    const t = setup({ bot: "fallback", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте, интересует книга" }));
+    await t.service.send(t.conv().id, "Добрый день! Для кого книга?", "manager-1");
+    expect(kinds(t, "started")).toHaveLength(0);
+    await t.service.ingest(inbound({ text: "Для мамы" }));
+    await t.advance(4 * 60_000);
+    expect(t.sent.at(-1)).toBe("Подскажите, к какой дате нужна книга?");
+    expect(kinds(t, "started")).toEqual([expect.objectContaining({ reason: "ru" })]);
+    expect(kinds(t, "takeover")).toHaveLength(1);
+  });
+
+  it("модель не ответила на первом ходе — беседа всё равно учтена один раз, сбой — в журнале как ai_error", async () => {
+    const { model } = fakeModel([new Error("таймаут"), new Error("таймаут"), new Error("таймаут"), new Error("таймаут")]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await run(t);
+    await run(t, 61_000);
+    expect(kinds(t, "started")).toHaveLength(1);
+    expect(kinds(t, "handoff")).toEqual([expect.objectContaining({ reason: "ai_error" })]);
+  });
+
+  it("первое сообщение — голосовое, распознавания нет: просьба написать текстом, беседа учтена", async () => {
+    const { model, calls } = fakeModel([]);
+    const t = setup({ bot: "always", config: aiConfig({ media: false }), seller: model });
+    await t.service.ingest(inbound({ type: "audio", text: "🎤 Голосовое сообщение" }));
+    await run(t);
+    expect(calls).toHaveLength(0);
+    expect(kinds(t, "started")).toHaveLength(1);
+  });
+});
+
+describe("AI-продажник: след хода «Почему так?» (bots-1, bots-3)", () => {
+  const turns = (t: ReturnType<typeof setup>) => t.events.filter((e) => e.kind === "turn");
+  const botMsgs = (t: ReturnType<typeof setup>) => t.msgs.filter((m) => m.dir === "out" && m.source === "bot" && !m.internal);
+
+  it("ход пишет след: решение модели, итог, поля сделки подписями, правки кода, уроки, токены — у последнего сообщения хода", async () => {
+    const { model } = fakeModel([ans({ reply: "Для вас сделаю за 12 345 ₸!" }), ans({ summary: "Хочет книгу маме", reply: "Книга маме — тёплый подарок 😊\n\nК какой дате нужна?", fields: { recipient: "Маме", occasion: "" } })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    Object.assign(t.deps.settings, { lessons: async (): Promise<BotLesson[]> => [{ id: "l1", text: "Задавай один вопрос за сообщение", why: "беседа 1", at: "2026-09-30T00:00:00Z", source: "owner" }] });
+    await t.service.ingest(inbound({ text: "Сколько стоит книга маме?" }));
+    await run(t);
+    const [turn] = turns(t);
+    expect(turns(t)).toHaveLength(1);
+    // «Почему так?» — у последнего сообщения хода (ответ ушёл двумя сообщениями).
+    expect(botMsgs(t).at(-1)?.text).toBe("К какой дате нужна?");
+    expect(turn.messageId).toBe(botMsgs(t).at(-1)?.id);
+    expect(turn.meta).toMatchObject({
+      v: 1,
+      purpose: "reply",
+      model: { action: "reply", stage: "discovery", handoff: "none", lang: "ru", summary: "Хочет книгу маме" },
+      result: { phase: "active", outcome: null, handoff: null },
+      fields: { "Для кого": "Маме" },
+      lessons: [{ id: "l1", text: "Задавай один вопрос за сообщение" }],
+      knowledge: null,
+      deadline: null,
+      materials: null,
+      // Два запроса: первый ответ с чужой ценой код вернул на переписывание.
+      tokens: { input: 2000, output: 100, calls: 2 },
+    });
+    expect(turn.meta!.notes).toEqual(expect.arrayContaining([{ code: "rewrite", detail: expect.stringMatching(/price: 12\s345/) }, { code: "intro_added" }]));
+    // В следе нет текста ответа и номера клиента.
+    expect(JSON.stringify(turn.meta)).not.toMatch(/30 000|77011234567/);
+  });
+
+  it("клиент назвал дату — вердикт кода по сроку и пересчёт в следе; база знаний — заголовки выбранных кусков", async () => {
+    const { model } = fakeModel([ans({ event_date: "2026-11-20", reply: "Отлично!" }), ans({ event_date: "2026-11-20", reply: "Успеваем, если допишете до 13 ноября 🙌" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    const filler = (n: number) => `Правило ${n}\n${"Текст о работе редакции, который к вопросу не относится. ".repeat(20)}`;
+    t.deps.settings.knowledge = async () => [filler(1), "Доставка\nПо Астане курьер привозит за 1–2 дня.", ...Array.from({ length: 8 }, (_, i) => filler(i + 2))].join("\n\n");
+    await t.service.ingest(inbound({ text: "Нужна книга к 20 ноября, доставка в Астану" }));
+    await run(t);
+    const [turn] = turns(t);
+    expect(turn.meta!.deadline).toMatchObject({ date: "2026-11-20", kind: "ok" });
+    expect(turn.meta!.notes).toEqual(expect.arrayContaining([{ code: "deadline_recheck" }]));
+    expect(turn.meta!.tokens).toMatchObject({ calls: 2 });
+    expect(turn.meta!.knowledge).toMatchObject({ all: false, titles: expect.arrayContaining(["Доставка"]) });
+  });
+
+  it("модель передала менеджеру — причина в следе; повтор прошлого сообщения — что код остановил, без сообщения", async () => {
+    const { model } = fakeModel([ans({ action: "handoff", handoff_reason: "call_request", reply: "Конечно! Наберу вам 🙌" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Позвоните мне, пожалуйста" }));
+    await run(t);
+    expect(turns(t)[0]).toMatchObject({ messageId: botMsgs(t).at(-1)?.id, meta: { model: { action: "handoff", handoff: "call_request" }, result: { phase: "done", outcome: "handoff", handoff: "call_request" } } });
+
+    const same = ans({ reply: "Здравствуйте! Для кого будет книга?" });
+    const loop = setup({ bot: "always", config: aiConfig(), seller: fakeModel([same, same]).model });
+    await loop.service.ingest(inbound({ text: "Привет" }));
+    await run(loop);
+    await loop.service.ingest(inbound({ text: "Привет" }));
+    await loop.advance(30_000);
+    const last = turns(loop).at(-1)!;
+    expect(last.messageId).toBeNull();
+    expect(last.meta).toMatchObject({ result: { phase: "done", outcome: "handoff", handoff: "loop" } });
+    expect(last.meta!.notes).toEqual(expect.arrayContaining([{ code: "loop" }]));
+  });
+
+  it("модель не ответила дважды — след у «передала менеджеру»: ошибка модели, токенов нет", async () => {
+    const { model } = fakeModel([new Error("таймаут"), new Error("таймаут"), new Error("таймаут"), new Error("таймаут")]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await run(t);
+    expect(turns(t)).toHaveLength(0);
+    await run(t, 61_000);
+    const [turn] = turns(t);
+    expect(turn.messageId).toBe(botMsgs(t).at(-1)?.id);
+    expect(turn.meta).toMatchObject({ model: null, error: "таймаут", tokens: null, result: { outcome: "handoff", handoff: "ai_error" }, notes: [{ code: "ai_error" }] });
+  });
+
+  it("счёт не выставился — в следе почему; голосовое без распознавания — шаблонный ответ с пометкой", async () => {
+    const { model } = fakeModel([ans({ stage: "offer", reply: "Это книга о нём вашими словами и с вашими фото 😊 Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?" }), ans({ stage: "offer", reply: "Печатная — от 30 000 ₸. Оформляем?", asked_to_order: true }), ans({ action: "issue_invoice", agreed: true, plan: "hardcover", agreed_quote: "да, давайте", reply: "Отлично!" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model, invoices: { issue: async () => ({ error: "нет способа оплаты" }) } });
+    await t.service.ingest(inbound({ text: "Хочу печатную книгу мужу" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Красиво! Сколько стоит?" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "да, давайте" }));
+    await run(t);
+    const last = turns(t).at(-1)!;
+    expect(last.meta!.notes).toEqual(expect.arrayContaining([{ code: "invoice_failed", detail: "нет способа оплаты" }]));
+    expect(last.messageId).toBe(botMsgs(t).at(-1)?.id);
+
+    const voice = setup({ bot: "always", config: aiConfig({ media: false }), seller: fakeModel([]).model });
+    await voice.service.ingest(inbound({ type: "audio", text: "🎤 Голосовое сообщение" }));
+    await run(voice);
+    expect(turns(voice)[0]).toMatchObject({ messageId: botMsgs(voice).at(-1)?.id, meta: { model: null, tokens: null, notes: [{ code: "voice" }] } });
+  });
+
+  it("напоминание молчащему — свой след (purpose follow_up) у «Ознакомились?»", async () => {
+    const { model } = fakeModel([ans({ stage: "offer", reply: "Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?" }), ans({ stage: "offer", reply: "Ознакомились? 😊" })]);
+    const t = setup({ bot: "always", config: aiConfig({ followUpHours: 3 }), seller: model });
+    await t.service.ingest(inbound({ text: "Хочу книгу для жены" }));
+    await run(t);
+    await t.advance(20 * 60_000 + 1000);
+    expect(t.sent.at(-1)).toBe("Ознакомились? 😊");
+    const last = turns(t).at(-1)!;
+    expect(last).toMatchObject({ messageId: botMsgs(t).at(-1)?.id, meta: { purpose: "follow_up", model: { action: "reply", stage: "offer" }, tokens: { calls: 1 } } });
+  });
+
+  it("тест-режим в настройках: тот же след под каждым ответом бота, «бот промолчал» — тоже со следом", async () => {
+    const { model } = fakeModel([ans({ reply: "Здравствуйте! Для кого книга?", fields: { recipient: "Маме", occasion: "" } })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    const r = await t.bot.previewAi(
+      { config: aiConfig(), turns: [[{ text: "Книга маме", type: "text" }]], workTime: true, client: "new", name: "Айгерим" },
+      { fields: [{ key: "recipient", label: "Для кого", type: "text", options: [] }], catalog: { plans: [{ id: "hardcover", price: 30000 }], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }, site: { url: "https://mybook.kz", registrationOpen: false, themes: [], landings: [] }, now: new Date("2026-10-01T06:00:00Z"), nextWorkStart: null, tz: "Asia/Almaty" },
+    );
+    const bot = r!.transcript.filter((m) => m.from === "bot");
+    expect(bot).toHaveLength(1);
+    expect(bot[0].trace).toMatchObject({ purpose: "reply", model: { action: "reply" }, fields: { "Для кого": "Маме" }, tokens: { calls: 1 } });
+
+    const quiet = setup({ bot: "always", config: aiConfig(), seller: fakeModel([ans({ action: "wait", reply: "" })]).model });
+    const q = await quiet.bot.previewAi(
+      { config: aiConfig(), turns: [[{ text: "Спасибо", type: "text" }]], workTime: true, client: "new", name: "Айгерим" },
+      { fields: [], catalog: { plans: [], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }, site: { url: "https://mybook.kz", registrationOpen: false, themes: [], landings: [] }, now: new Date("2026-10-01T06:00:00Z"), nextWorkStart: null, tz: "Asia/Almaty" },
+    );
+    expect(q!.transcript.at(-1)).toMatchObject({ from: "bot", text: "", trace: { model: { action: "wait" } } });
   });
 });

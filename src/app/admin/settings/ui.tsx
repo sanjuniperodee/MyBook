@@ -25,7 +25,13 @@ export const Status = ({ on, label }: { on: boolean; label: string }) => (
 
 export function Result({ state }: { state: SettingsState }) {
   if (state.error) return <span className="text-xs text-red-700">{state.error}</span>;
-  if (state.ok) return <span className="text-xs text-emerald-700">{state.ok}</span>;
+  if (state.ok)
+    return (
+      <span className="text-xs text-emerald-700">
+        {state.ok}
+        {state.warning ? <span className="mt-1 block text-amber-800">{state.warning}</span> : null}
+      </span>
+    );
   return null;
 }
 

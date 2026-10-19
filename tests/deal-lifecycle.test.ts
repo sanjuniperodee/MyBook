@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceStatus, type OrderPlaced } from "@/modules/ordering/domain";
-import { DEAL_INVOICE_CLOSE_REASONS, DealInvoiceLifecycle, OrdersService, type DealInvoiceLifecycleStore } from "@/modules/ordering/application";
-import type { DealClosed } from "@/modules/sales";
+import { DEAL_INVOICE_CLOSE_REASONS, DealInvoiceLifecycle, OrdersService, mergeCancels, type DealInvoiceLifecycleStore } from "@/modules/ordering/application";
+import type { DealAssigned, DealClosed } from "@/modules/sales";
 import type { DomainEvent } from "@/shared/domain";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import { FakeUow, setup as orderingSetup } from "./doubles/ordering";
+import { FixedSchedule } from "./doubles/workspace";
 
-vi.mock("@/modules/workspace", () => ({ notify: async () => {}, staffNotifier: { notifyOwnerOr: async () => {}, notifyAllWith: async () => {} } }));
+const { notifyOwnerOr } = vi.hoisted(() => ({ notifyOwnerOr: vi.fn<(to: string | null, perm: string, n: { title: string }) => Promise<void>>(async () => {}) }));
+vi.mock("@/modules/workspace", () => ({ notify: async () => {}, staffNotifier: { notifyOwnerOr, notifyAllWith: async () => {} } }));
 
 /**
  * Счета из чата в жизни сделки и заказа (chat-invoices 1.4, 1.5, 1.10): слияние переносит счета (один открытый на сделку),
@@ -86,6 +88,24 @@ describe("Слияние сделок: счета переходят в целе
     expect([b.store.get(x.id).status, b.store.get(y.id).status]).toEqual(["cancelled", "cancelled"]);
     expect(b.store.get(y.id).closedReason).toBe(DEAL_INVOICE_CLOSE_REASONS.mergedIntoClosed);
   });
+
+  it("mergeCancels — то, что карточка называет в подтверждении, совпадает с тем, что отменит перенос", async () => {
+    const cases: [DealInvoice[], boolean][] = [
+      [[invoice("src"), invoice("src", "paid")], false],
+      [[invoice("src"), invoice("tgt")], false],
+      [[invoice("src"), invoice("src", "cancelled")], true],
+      [[invoice("src"), invoice("tgt"), invoice("tgt", "paid")], true],
+      [[invoice("src", "expired")], true],
+    ];
+    const expected = [[], [0], [0], [0, 1], []];
+    for (const [i, [list, closeOpen]] of cases.entries()) {
+      const named = mergeCancels(list, "src", closeOpen).map((x) => x.label);
+      expect(named).toEqual(expected[i].map((k) => list[k].label));
+      const { store, svc } = lifecycle();
+      store.put(...list);
+      expect((await svc.moveAll({ from: "src", to: "tgt", closeOpen })).cancelled.sort()).toEqual([...named].sort());
+    }
+  });
 });
 
 describe("Удаление сделки: счета", () => {
@@ -164,6 +184,10 @@ describe("Подписчики жизни сделки", () => {
     const { registerSubscriptions } = await import("@/server/subscriptions");
     const bus = new InProcessEventBus({ info: () => {}, warn: () => {}, error: () => {} });
     const calls: string[] = [];
+    const tasks: { title: string; assigneeId: string | null; dueAt: Date | null; once?: boolean }[] = [];
+    const notified: { to: string | null; perm: string; title: string }[] = [];
+    // Сейчас 17.10 10:00 UTC (15:00 по Алматы), рабочее время: 2 рабочих часа — 17:00 по Алматы.
+    const schedule = new FixedSchedule(true);
     const cancelled = invoice("deal-9");
     cancelled.cancel(DEAL_INVOICE_CLOSE_REASONS.dealLost("Дорого"));
     const c = {
@@ -172,18 +196,27 @@ describe("Подписчики жизни сделки", () => {
       sales: {
         funnel: { orderCreated: async () => null },
         deals: {
-          // deal-9 — проиграна, deal-0 — успешна, deal-5 — уже снова в работе (повтор события из outbox)
-          findById: async (id: string) => ({ id, stageId: { "deal-9": "lost", "deal-0": "won", "deal-5": "open" }[id] }),
+          // deal-9 — проиграна, deal-0 — успешна, deal-5 — уже снова в работе (повтор события из outbox); deal-3 — у m2
+          findById: async (id: string) => ({ id, stageId: { "deal-9": "lost", "deal-0": "won", "deal-5": "open" }[id], assigneeId: id === "deal-3" ? "m2" : null }),
           stage: async (id: string) => ({ id, kind: id }),
-          byOrder: async () => [{ id: "deal-9", number: 9, title: "Книга", assigneeId: "m1" }],
+          byOrder: async (orderId: string) => [{ id: "deal-9", number: 9, title: "Книга", assigneeId: orderId === "o-night" ? null : "m1" }],
           note: async (deal: { id: string }, text: string) => void calls.push(`note:${deal.id}:${text}`),
         },
       },
       ordering: { invoices: { cancelOpenFor: async (dealId: string, reason: string) => (calls.push(`cancel:${dealId}:${reason}`), dealId === "deal-9" ? cancelled : null) } },
-      clients: { tasks: { create: async (_a: unknown, t: { title: string; assigneeId: string }) => void calls.push(`task:${t.assigneeId}:${t.title}`) } },
+      clients: {
+        tasks: {
+          createSystem: async (t: { title: string; assigneeId: string | null; dueAt: Date | null; once?: boolean }) => (calls.push(`task:${t.assigneeId}:${t.title}`), tasks.push(t), true),
+          followDeal: async (t: { dealId: string; from: string | null; to: string }) => (calls.push(`follow:${t.dealId}:${t.from}>${t.to}`), 1),
+        },
+      },
+      messaging: { chats: { assignDealConversations: async (dealId: string, to: string) => void calls.push(`chats:${dealId}>${to}`) } },
+      workspace: { schedule },
+      clock: { now: () => now },
     };
+    notifyOwnerOr.mockImplementation(async (to: string | null, perm: string, n: { title: string }) => void notified.push({ to, perm, title: n.title }));
     registerSubscriptions(c as never);
-    return { bus, calls, cancelled };
+    return { bus, calls, cancelled, tasks, notified, schedule };
   }
   const closed = (dealId: string, outcome: "won" | "lost", reason: string | null): DealClosed => ({ type: "sales.deal_closed", occurredAt: now, payload: { dealId, number: 9, clientId: null, assigneeId: "m1", outcome, reason } });
 
@@ -207,5 +240,29 @@ describe("Подписчики жизни сделки", () => {
     expect(calls.filter((c) => c.startsWith("task:"))).toEqual([]);
     await bus.publish([placed(30000)]);
     expect(calls.filter((c) => c.startsWith("task:"))).toEqual([expect.stringMatching(/^task:m1:Переплата 30\s000 ₸ по договорённости \(заказ №12\) — оформите возврат$/)]);
+  });
+
+  it("денежная задача по заказу — со сроком «2 рабочих часа» и без дублей; у сделки нет ответственного — ничья задача, а не только уведомление (tasks-d4)", async () => {
+    const { bus, tasks, notified, schedule } = await wire();
+    const overpaid = (orderId: string): DomainEvent => ({ type: "ordering.order_overpaid", occurredAt: now, payload: { orderId, number: 12, overpaid: 5000 } });
+    await bus.publish([overpaid("o1")]);
+    expect(tasks.at(-1)).toMatchObject({ assigneeId: "m1", dueAt: new Date("2026-10-17T12:00:00Z"), once: true });
+    // Ночью — от начала смены: 09:00 + 2 ч.
+    schedule.working = false;
+    schedule.shiftStart = new Date("2026-10-18T04:00:00Z");
+    await bus.publish([overpaid("o-night")]);
+    expect(tasks.at(-1)).toMatchObject({ assigneeId: null, dueAt: new Date("2026-10-18T06:00:00Z"), once: true });
+    expect(tasks.at(-1)?.title).toMatch(/^Переплата 5\s000 ₸ по заказу №12 — оформите возврат или зачёт$/);
+    // Уведомление — ответственному, а без него — всем с orders.view.
+    expect(notified.map((n) => [n.to, n.perm])).toEqual([["m1", "orders.view"], [null, "orders.view"]]);
+  });
+
+  it("сделку передали — её чаты и открытые задачи идут новому; повтор старого события после следующей передачи задачи не уводит", async () => {
+    const { bus, calls } = await wire();
+    const assigned = (dealId: string, from: string | null, to: string): DealAssigned => ({ type: "sales.deal_assigned", occurredAt: now, payload: { dealId, number: 3, clientId: null, assigneeId: to, fromAssigneeId: from, title: "Книга" } });
+    await bus.publish([assigned("deal-3", "m1", "m2")]);
+    // deal-4 сейчас ни у кого: событие «m1 → m3» устарело (повтор из outbox) — задачи не трогаются.
+    await bus.publish([assigned("deal-4", "m1", "m3")]);
+    expect(calls).toEqual(["chats:deal-3>m2", "follow:deal-3:m1>m2", "chats:deal-4>m3"]);
   });
 });

@@ -239,7 +239,8 @@ export const FRONT = {
 /** Оглавление: отбивки заголовка и строк — pt × scale; отточие — толщина и поля, pt; наибольшая ширина названия главы. */
 export const TOC = {
   title: { before: 20, after: 26 },
-  entry: { after: 7, maxWidth: "82%" },
+  /** indent — отступ строки раздела под главой (режим «главы и заголовки»), pt. */
+  entry: { after: 7, maxWidth: "82%", indent: 14 },
   leader: { width: 0.6, side: 5, bottom: 3 },
 } as const;
 

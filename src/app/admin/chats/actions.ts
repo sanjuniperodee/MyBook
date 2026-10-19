@@ -6,7 +6,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, contactView, ForbiddenError, type Staff } from "@/server/access";
-import { channelLabel, findSensitive, MessageActionError, sensitiveLabels } from "@/modules/messaging";
+import { channelLabel, MessageActionError, type BotTurnTrace } from "@/modules/messaging";
+import { admin } from "@/i18n/admin";
+import { sensitiveFor, sensitiveWhat } from "@/server/sensitive";
 import type { OfferRequest } from "@/modules/marketing";
 import { notifyMentions, staffNotifier } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
@@ -38,19 +40,16 @@ export async function sendMessageAction(conversationId: string, text: string, ov
   const conv = await loadOwnConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
   const deal = conv.dealId ? await container().sales.deals.findById(conv.dealId) : null;
-  const findings = findSensitive(body, [conv.chatId, conv.meta.phone, deal?.contactPhone, ...(deal?.extraPhones ?? []), await container().marketing.service.shopWhatsapp()]);
+  const findings = await sensitiveFor(conv, body, deal);
   const reason = override?.trim().slice(0, 200) ?? "";
-  if (findings.length && !reason) {
-    const what = [...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ");
-    return { blocked: `В сообщении ${what}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
-  }
+  if (findings.length && !reason) return { blocked: `В сообщении ${sensitiveWhat(findings)}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
   const reply = replyToId ? uuid.parse(replyToId) : null;
   const msg = await container().messaging.chats.send(conv.id, body, staff.user.id, undefined, { replyToId: reply });
   if (findings.length) {
     await audit(staff, "chat.sensitive", "conversation", conv.id, { findings, reason, deal: deal?.number ?? null });
     await staffNotifier.notifyAllWith("team.manage", {
       kind: "system",
-      title: `В чат ушли ${[...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ")}`,
+      title: `В чат ушли ${sensitiveWhat(findings)}`,
       body: `${staffLabel(staff.user)} → ${conv.contactName || "клиент"}: ${findings.map((f) => f.value).join(", ")}. Причина: ${reason}`,
       link: `/admin/chats?c=${conv.id}`,
     });
@@ -182,7 +181,8 @@ export async function editMessageAction(conversationId: string, messageId: strin
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
   const body = z.string().trim().min(1, "Пустое сообщение").max(4000).parse(text);
-  if (findSensitive(body, [conv.chatId, conv.meta.phone]).length) return { error: "В тексте номер, карта или реквизиты — так менять нельзя" };
+  // Тот же список разрешённых номеров, что у отправки: номер клиента и магазина в правке — не находка.
+  if ((await sensitiveFor(conv, body)).length) return { error: "В тексте номер, карта или реквизиты — так менять нельзя" };
   const r = await messageAction(() => container().messaging.chats.editMessage(conv.id, uuid.parse(messageId), body, staff.user.id));
   revalidatePath("/admin/chats");
   return r && typeof r === "object" && "error" in r ? r : { ok: true };
@@ -238,6 +238,16 @@ export async function transcribeMessageAction(conversationId: string, messageId:
   if (owner !== conv.id) return { error: "Сообщение не найдено" };
   const r = await messageAction(() => container().messaging.transcribe(messageId));
   return typeof r === "string" ? { text: r } : r;
+}
+
+/** «Почему так?» у ответа бота: след хода AI-продажника — что решила модель, что сделал код, срок, уроки, токены. */
+export async function botTraceAction(conversationId: string, messageId: string): Promise<{ trace?: BotTurnTrace; error?: string }> {
+  const staff = await assertStaff("chats.view");
+  const conv = await loadConv(staff, conversationId);
+  const id = uuid.parse(messageId);
+  if ((await container().messaging.queries.messageConversation(id)) !== conv.id) return { error: admin.chatMessageNotFound };
+  const trace = await container().messaging.botTrace(id);
+  return trace ? { trace } : { error: admin.botTraceMissing };
 }
 
 /**

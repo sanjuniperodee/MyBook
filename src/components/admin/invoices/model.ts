@@ -6,6 +6,7 @@ import { plans as kkPlans } from "@/i18n/messages/kk/plans";
 import { common as ruCommon } from "@/i18n/messages/ru/common";
 import { common as kkCommon } from "@/i18n/messages/kk/common";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
+import { DiscountPolicy } from "@/shared/domain/discount";
 
 /*
  * Счета из чата глазами CRM: подписи, суммы формы, какие действия доступны. Чистые функции без React и сервера —
@@ -116,11 +117,11 @@ export function pickAmount(kind: AmountKind, agreed: number, paid: number, custo
   return { amount: n, purpose: "custom" };
 }
 
-/** Цена договорённости ниже прайса тарифа больше лимита скидки — выставит только руководитель (как проверяет сервер). */
+/** Цена договорённости ниже прайса тарифа больше лимита скидки — выставит только сотрудник с правом без лимита (как проверяет сервер). */
 export function discountProblem(price: number | null | undefined, agreed: number, maxPercent: number | null): string | null {
   if (maxPercent === null || !price || !agreed) return null;
-  if (agreed >= Math.round(price * (1 - maxPercent / 100))) return null;
-  return `Цена ниже прайса (${formatPrice(price)}) больше чем на ${maxPercent}% — такой счёт выставляет только руководитель`;
+  if (DiscountPolicy.allows({ listPrice: price, price: agreed, maxPercent })) return null;
+  return `Цена ниже прайса (${formatPrice(price)}) больше чем на ${maxPercent}% — такой счёт выставляет только сотрудник с правом «Продавать ниже прайса без лимита»`;
 }
 
 const payTexts = { ru: ruPay, kk: kkPay };

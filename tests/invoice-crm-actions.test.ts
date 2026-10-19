@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceProps } from "@/modules/ordering/domain";
 import { ForbiddenError } from "@/server/access";
-import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction } from "@/app/admin/invoices/actions";
-import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
+import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction, type InvoiceFormInfo } from "@/app/admin/invoices/actions";
+import { DiscountError } from "@/shared/domain/discount";
+import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, rita, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
 vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
@@ -96,6 +97,7 @@ beforeEach(() => {
   };
   fake.ordering = {
     kaspi: { available: async () => true },
+    kaspiWatch: { warning: async () => null },
     invoices: {
       listFor: async () => invoices,
       byId: async (id: string) => invoices.find((i) => i.id === id) ?? null,
@@ -145,7 +147,18 @@ describe("invoiceFormInfoAction: данные формы счёта", () => {
     expect(info.methods).toEqual({ kaspi: true, card: false, transfer: true });
     expect(info.open).toEqual({ id: INV, label: "P12", amount: 15_000 });
     expect(info.preview.link.kk).toMatch(/\/kk\/pay\/…$/);
+    expect(info.kaspiWarning).toBeNull();
+    // Кассир Kaspi отключён (руководителям сообщили) — форма получает текст плашки; сбой чтения состояния форму не ломает.
+    fake.ordering.kaspiWatch = { warning: async () => "Кассир Kaspi отключён с 14:05" };
+    expect(((await invoiceFormInfoAction({ conversationId: CONV })) as { info: InvoiceFormInfo }).info.kaspiWarning).toBe("Кассир Kaspi отключён с 14:05");
+    fake.ordering.kaspiWatch = { warning: async () => Promise.reject(new Error("база")) };
+    expect(((await invoiceFormInfoAction({ conversationId: CONV })) as { info: InvoiceFormInfo }).info.kaspiWarning).toBeNull();
     signIn(owner);
+    expect((await invoiceFormInfoAction({ dealId: DEAL })) as { info: { maxDiscountPercent: number | null } }).toMatchObject({ info: { maxDiscountPercent: null } });
+    // Без лимита — право prices.discount_unlimited (не «Удалять сделки», как раньше).
+    signIn(rita);
+    deal.assigneeId = "rita";
+    conv.assigneeId = "rita";
     expect((await invoiceFormInfoAction({ dealId: DEAL })) as { info: { maxDiscountPercent: number | null } }).toMatchObject({ info: { maxDiscountPercent: null } });
   });
 
@@ -201,6 +214,21 @@ describe("issueInvoiceAction: выпуск", () => {
     (fake.ordering.invoices as Record<string, unknown>).issue = async () => ({ invoice: invoices[0], repeated: true });
     expect(await issueInvoiceAction(form)).toMatchObject({ ok: true, sent: false, message: "Счёт P12 уже выставлен" });
     expect(log.send).toHaveLength(1);
+  });
+
+  it("лимит скидки: отказ сервиса — понятный текст; цена ниже прайса — deal.discount с лимитом сотрудника, повтор той же цены — без записи", async () => {
+    signIn(lena);
+    (fake.ordering.invoices as Record<string, unknown>).issue = async () => Promise.reject(new DiscountError("discountOverLimit", undefined, [10, 30_000, false]));
+    const r = await issueInvoiceAction({ ...form, agreedTotal: 20_000 });
+    expect(r).toMatchObject({ ok: false, message: expect.stringContaining("больше чем на 10% — согласуйте с руководителем") });
+    expect(log.send).toEqual([]);
+    (fake.ordering.invoices as Record<string, unknown>).issue = async (input: Record<string, unknown>) => (log.issue.push(input), { invoice: invoices[0], repeated: false });
+    await issueInvoiceAction({ ...form, agreedTotal: 28_000, amount: 14_000 });
+    expect(log.audit.filter((a) => a.action === "deal.discount").map((a) => a.details)).toEqual([{ via: "invoice", percent: 6.7, listPrice: 30_000, price: 28_000, plan: "hardcover", limit: 10, number: 7, invoice: "P12" }]);
+    // Договорённость уже записана в сделку — счёт на остаток по той же цене в журнал скидок не пишется второй раз.
+    deal.amount = 28_000;
+    await issueInvoiceAction({ ...form, agreedTotal: 28_000, amount: 14_000, purpose: "remainder" });
+    expect(log.audit.filter((a) => a.action === "deal.discount")).toHaveLength(1);
   });
 });
 

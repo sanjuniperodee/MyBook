@@ -18,11 +18,14 @@ export interface ConversationRepository {
    * оно всё то же (since), иначе за это время клиент написал что-то новое.
    */
   dismissAwaiting(id: string, since: Date): Promise<boolean>;
-  /** Менеджер ответил с телефона — клиент больше не ждёт. */
+  /** Менеджер ответил с телефона — клиент больше не ждёт; это наш последний ответ (правило «клиент молчит»). */
   recordEcho(id: string, text: string, at: Date): Promise<void>;
   /** История задним числом: последнее сообщение — только если оно новее записанного; без «непрочитано» и «ждёт ответа». */
   recordHistory(id: string, text: string, at: Date): Promise<void>;
-  /** Исходящее из CRM. Ответ человека снимает «ждёт ответа» и останавливает бота; первый ответивший становится ответственным. */
+  /**
+   * Исходящее из CRM. Ответ человека снимает «ждёт ответа», останавливает бота и становится нашим последним ответом
+   * (правило «клиент молчит»); первый ответивший становится ответственным. Бот и правила (authorId = null) — нет.
+   */
   recordOutgoing(id: string, text: string, at: Date, authorId: string | null): Promise<void>;
   /** Спам: сообщение сохранено, диалог закрыт. */
   closeAsSpam(id: string, text: string, at: Date): Promise<void>;
@@ -35,6 +38,8 @@ export interface ConversationRepository {
   assignByDeal(dealId: string, userId: string): Promise<void>;
   /** Идентификаторы собеседников в диалогах сделки. */
   chatIdsByDeal(dealId: string): Promise<string[]>;
+  /** Идентификаторы собеседников в диалогах клиента (не больше нескольких десятков). */
+  chatIdsByClient(clientId: string): Promise<string[]>;
   setAssignee(id: string, userId: string | null): Promise<void>;
   /** Закрытый диалог больше не «ждёт ответа». */
   setStatus(id: string, status: "open" | "closed"): Promise<void>;
@@ -110,12 +115,26 @@ export interface MessageRepository {
   /** Эхо-вебхук мог прийти раньше ответа API и создать копию — оставляем исходное сообщение. */
   attachExternalId(id: string, externalId: string | null): Promise<void>;
   byExternalId(externalId: string): Promise<{ id: string; status: string; conversationId: string } | null>;
+  /** Сколько сообщений правил ушло клиентам начиная с since (заметки не в счёт); дальше cap не считаем. */
+  countRuleSince(since: Date, cap: number): Promise<number>;
 }
 
+/** Почему номер в стоп-листе: спам или «не писать первым». */
+export type BlockReason = "spam" | "no_marketing";
+
+/** Стоп-лист номеров и собеседников (crm_blocklist). */
 export interface Blocklist {
+  /** Спам: по номеру не заводятся заявки и не приходят уведомления. «Не писать первым» сюда не относится. */
   isBlocked(...values: (string | null | undefined)[]): Promise<boolean>;
-  add(values: string[], byUserId: string): Promise<void>;
-  remove(value: string): Promise<void>;
+  /** Первым писать нельзя: «не писать первым» или спам. */
+  noMarketing(...values: (string | null | undefined)[]): Promise<boolean>;
+  /**
+   * В стоп-лист (byUserId null — CRM сама). Спам заменяет «не писать первым» у того же номера; «не писать первым»
+   * спам и прежнюю отметку не трогает.
+   */
+  add(values: string[], byUserId: string | null, opts?: { reason?: BlockReason; note?: string | null }): Promise<void>;
+  /** Убрать из стоп-листа; reason — только эту отметку («можно писать первым» спам не снимает). */
+  remove(values: string[], reason?: BlockReason): Promise<void>;
 }
 
 /** Канал доставки исходящих: Wazzup, почта или виджет на сайте. */
@@ -252,8 +271,11 @@ export interface BotBrain {
  */
 export interface BotSellerModel {
   configured(): Promise<boolean>;
-  /** Один запрос со схемой JSON-ответа; возвращает текст ответа модели. cachePrefix — стабильное начало system (кэш провайдера). */
-  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string }): Promise<string>;
+  /**
+   * Один запрос со схемой JSON-ответа; возвращает текст ответа модели и токены (для следа хода; провайдер не сообщил —
+   * без них). cachePrefix — стабильное начало system (кэш провайдера).
+   */
+  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string }): Promise<{ text: string; usage?: { input: number; output: number } | null }>;
   /**
    * Распознать вложение (голосовое → расшифровка, фото → описание). { unsupported } — модель распознавания такое не умеет
    * (больше не пробовать в этой беседе); null — временный сбой.
@@ -282,8 +304,31 @@ export interface BotTimers {
   schedule(key: string, at: Date, run: () => void): void;
 }
 
+/**
+ * Служебная переписка магазина с сотрудниками на их личные номера WhatsApp (напоминания о задачах) — не диалог
+ * с клиентом (tasks-d5): заявок, бота, правил, уведомлений и «ответа с телефона магазина» по ней нет.
+ */
+export interface StaffLine {
+  /** Номер (цифры) — действующего сотрудника CRM. */
+  isStaffPhone(phone: string): Promise<boolean>;
+  /**
+   * Эхо сообщения, которое CRM сама отправила сотруднику с номера магазина: узнаётся по id в канале или по тексту
+   * (эхо может прийти раньше, чем шлюз вернёт id, и прийти со скрытым номером).
+   */
+  isServiceEcho(m: { externalId: string; text: string }): boolean;
+}
+
+/**
+ * Задачи менеджерам (контекст Clients, сервис задач): с напоминанием о сроке, автор — CRM; без ответственного — ничья,
+ * её видят и о ней напоминают всем, кто видит сделки.
+ */
 export interface Tasks {
-  create(task: { title: string; kind: "call" | "message"; dueAt: Date; dealId: string; clientId: string | null; assigneeId: string | null }): Promise<void>;
+  create(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; dealId: string; clientId: string | null; assigneeId: string | null }): Promise<unknown>;
+}
+
+/** Клиенту ответили (из CRM или с телефона магазина): открытые задачи «ответить» по сделке закрываются (сервис задач). */
+export interface AnsweredTasks {
+  answered(dealId: string): Promise<unknown>;
 }
 
 /** Вложение сообщения — то, что нужно, чтобы открыть его файл в CRM. */

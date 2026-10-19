@@ -1,5 +1,6 @@
-import { defaultBotConfig, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
-import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
+import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
+import { isWorkTime, nextWorkStart, type WorkHours } from "@/shared/domain/schedule";
+import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway, type StaffLine, type AnsweredTasks } from "@/modules/messaging/application";
 
 export const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
 
@@ -17,7 +18,10 @@ export const BOT_CONFIG: BotConfig = {
   ],
 };
 
-export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null };
+export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null; lastOutgoingAt?: Date | null };
+
+/** Последний ответ человека не двигается назад (как greatest в DrizzleConversationRepository). */
+const later = (prev: Date | null | undefined, at: Date) => (prev && prev > at ? prev : at);
 export type Msg = {
   id: string;
   conv: string;
@@ -66,6 +70,18 @@ export function setup(
     payments?: PaymentFacts;
     /** Подборка материалов продажника (фото, видео, пример книги). */
     materials?: BotMaterial[];
+    /** Номер WhatsApp магазина (его в сообщениях писать можно). */
+    shopPhone?: string;
+    /** Стоп-лист «Не писать первым»: номера, которые там уже есть. */
+    noMarketing?: string[];
+    /** Окно и суточный лимит сообщений от правил (по умолчанию 09:00–21:00 и 40). */
+    ruleSending?: RuleSendingPolicy;
+    /** Номера сотрудников и служебные сообщения им (напоминания о задачах). */
+    staffLine?: StaffLine;
+    /** Задачи «ответить», которые закрывает ответ клиенту. */
+    answeredTasks?: AnsweredTasks;
+    /** Настоящий график (по Алматы) вместо «всегда рабочее время» / «всегда нерабочее» (workTime). */
+    hours?: WorkHours;
   } = {},
 ) {
   let now = start;
@@ -79,9 +95,13 @@ export function setup(
   const revokes: string[] = [];
   const claims: { dealId: string; userId: string }[] = [];
   const notes: string[] = [];
-  const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
+  /** Те же заметки — с id сделки, в которую записаны. */
+  const dealNotes: { dealId: string; text: string }[] = [];
+  const tasks: { title: string; kind: string; assigneeId: string | null; dueAt?: Date }[] = [];
   const events: (BotEvent & { conv: string })[] = [];
   let seq = 0;
+  /** Стоп-лист: номер → отметка и примечание (spam — от opts.blocked: любой номер). */
+  const blocklist = new Map<string, { reason: "spam" | "no_marketing"; note: string | null; by: string | null }>((opts.noMarketing ?? []).map((v) => [v, { reason: "no_marketing", note: null, by: "m1" }]));
   const settings = { mode: opts.bot ?? "off", workTime: opts.workTime ?? true, config: opts.config ?? BOT_CONFIG };
   const conversations: ConversationRepository = {
     linkClientByDeal: async () => {},
@@ -107,14 +127,18 @@ export function setup(
       Object.assign(c, { awaiting: null, awaitingSince: null });
       return true;
     },
-    recordEcho: async (id, text) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null, awaitingSince: null, lastText: text }),
+    recordEcho: async (id, text, at) => {
+      const c = convs.get(id)!;
+      Object.assign(c, { unread: 0, awaiting: null, awaitingSince: null, lastText: text, lastOutgoingAt: later(c.lastOutgoingAt, at) });
+    },
     recordHistory: async (id, text, at) => {
       const c = convs.get(id)!;
       if (!c.lastAt || c.lastAt < at) Object.assign(c, { lastText: text, lastAt: at });
     },
-    recordOutgoing: async (id, text, _at, author) => {
-      Object.assign(convs.get(id)!, { lastText: text });
-      if (author) Object.assign(convs.get(id)!, { unread: 0, awaiting: null, awaitingSince: null });
+    recordOutgoing: async (id, text, at, author) => {
+      const c = convs.get(id)!;
+      Object.assign(c, { lastText: text });
+      if (author) Object.assign(c, { unread: 0, awaiting: null, awaitingSince: null, lastOutgoingAt: later(c.lastOutgoingAt, at) });
     },
     closeAsSpam: async (id) => void Object.assign(convs.get(id)!, { closed: true }),
     markRead: async (id) => void Object.assign(convs.get(id)!, { unread: 0 }),
@@ -126,10 +150,11 @@ export function setup(
     },
     latestWhatsapp: async (chatId) => [...convs.values()].filter((c) => c.channel === "whatsapp" && c.chatId === chatId).at(-1) ?? null,
     assignByDeal: async () => {},
-    chatIdsByDeal: async () => [],
+    chatIdsByDeal: async (dealId) => [...convs.values()].filter((c) => c.dealId === dealId).map((c) => c.chatId),
+    chatIdsByClient: async (clientId) => [...convs.values()].filter((c) => c.clientId === clientId).map((c) => c.chatId),
     closeByDeal: async () => {},
     setAssignee: async () => {},
-    setStatus: async () => {},
+    setStatus: async (id, status) => void Object.assign(convs.get(id)!, { status }),
   };
   const messages: MessageRepository = {
     insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received", mediaUrl: m.mediaUrl })),
@@ -163,6 +188,7 @@ export function setup(
       const m = msgs.find((x) => x.externalId === e);
       return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
     },
+    countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since && m.status !== "error").length),
   };
   const sales: SalesGateway = {
     findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,
@@ -174,7 +200,7 @@ export function setup(
     },
     setUtmIfEmpty: async () => {},
     acceptUnsorted: async (dealId) => void (deals.find((d) => d.id === dealId) && (deals.find((d) => d.id === dealId)!.unsorted = false)),
-    note: async (_d, text) => void notes.push(text),
+    note: async (d, text) => void (notes.push(text), dealNotes.push({ dealId: d.id, text })),
     setField: async (dealId, k, v) => void (deals.find((d) => d.id === dealId)!.fields[k] = v),
     deal: async (id) => {
       const d = deals.find((x) => x.id === id) ?? (opts.openDeal?.id === id ? { id, title: "Сделка", fields: {} } : null);
@@ -211,19 +237,23 @@ export function setup(
     incoming: async (id, since) => msgs.filter((m) => m.conv === id && m.dir === "in" && m.at >= since).map((m) => ({ id: m.id, text: m.text, type: m.type, at: m.at, mediaUrl: m.mediaUrl })),
     log: async (id, _deal, _lang, list) => void events.push(...list.map((e) => ({ ...e, conv: id }))),
   };
+  /** Что CRM знает о сделке и клиенте сейчас: тест закрывает сделку или оформляет клиенту заказ посреди беседы. */
+  const crmState = { closed: false, clientOrders: opts.clientOrders ?? 0 };
   const crm: BotCrm = {
     deal: async (id) => {
       const d = await sales.deal(id);
-      return d && { orderId: opts.dealStage?.orderId ?? null, paid: opts.dealPaid ?? 0, firstStage: opts.dealStage?.firstStage ?? true, closed: false, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
+      return d && { orderId: opts.dealStage?.orderId ?? null, paid: opts.dealPaid ?? 0, firstStage: opts.dealStage?.firstStage ?? true, closed: crmState.closed, assigneeId: d.assigneeId, unsorted: true, customFields: d.customFields, contactName: d.contactName, title: d.title, clientId: d.clientId };
     },
-    client: async () => ({ orders: opts.clientOrders ?? 0, books: 0, locale: null, name: null }),
+    client: async () => ({ orders: crmState.clientOrders, books: 0, locale: null, name: null }),
     tag: async (dealId, tag) => void deals.find((d) => d.id === dealId)?.tags.push(tag),
     priorChat: async () => !!opts.priorChat,
     ...(opts.payments ? { payments: async () => opts.payments! } : {}),
   };
   const quiet = { info: () => {}, warn: () => {}, error: () => {} };
   const notified: { title: string; kind: string }[] = [];
-  const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }) };
+  /** Уведомления руководителям (реквизиты с телефона компании, правило с реквизитами): заголовок и текст. */
+  const alerts: { title: string; body: string }[] = [];
+  const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }), managers: async (n: { title: string; body: string }) => void alerts.push({ title: n.title, body: n.body }) };
   const clock = { now: () => now };
   const scheduled: string[] = [];
   /** Диалоги, о которых сервис сообщил открытым вкладкам CRM (live.chatChanged), по порядку. */
@@ -232,7 +262,17 @@ export function setup(
   const service: MessagingService = new MessagingService(
     conversations,
     messages,
-    { isBlocked: async () => !!opts.blocked, add: async () => {}, remove: async () => {} },
+    {
+      isBlocked: async (...v) => !!opts.blocked || v.some((x) => !!x && blocklist.get(x)?.reason === "spam"),
+      noMarketing: async (...v) => !!opts.blocked || v.some((x) => !!x && blocklist.has(x)),
+      add: async (values, by, o = {}) => {
+        for (const v of values) {
+          const had = blocklist.get(v);
+          if (!had || (o.reason ?? "spam") === "spam") blocklist.set(v, { reason: o.reason ?? "spam", note: o.note ?? had?.note ?? null, by: had?.by ?? by });
+        }
+      },
+      remove: async (values, reason) => values.forEach((v) => (!reason || blocklist.get(v)?.reason === reason) && blocklist.delete(v)),
+    },
     {
       send: async (_c, _id, text, o) => (sent.push(text), sendOpts.push(o ?? {}), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }),
       sendFile: async (_c, file, o) => (files.push({ name: file.name, kind: file.kind, caption: o.caption, forwarded: !!o.forwarded, replyTo: o.replyTo ?? null }), { ok: true, externalId: `wzf-${files.length}` }),
@@ -247,8 +287,11 @@ export function setup(
     { onIncoming: (...a) => bot.onIncoming(...a), stopByHuman: (...a) => bot.stopByHuman(...a), isActive: (id) => bot.isActive(id) },
     clock,
     quiet,
-    async () => "",
+    async () => opts.shopPhone ?? "",
     async () => opts.phoneHolder ?? null,
+    async () => opts.ruleSending ?? DEFAULT_RULE_SENDING,
+    opts.staffLine ?? null,
+    opts.answeredTasks ?? null,
   );
   const deps = {
     conversations,
@@ -256,8 +299,8 @@ export function setup(
     settings: {
       mode: async () => settings.mode,
       config: async () => settings.config,
-      isWorkTime: async () => settings.workTime,
-      nextWorkStart: async () => (settings.workTime ? now : new Date("2026-10-02T04:00:00Z")),
+      isWorkTime: async (at: Date) => (opts.hours ? isWorkTime(at, opts.hours, "Asia/Almaty") : settings.workTime),
+      nextWorkStart: async (at: Date) => (opts.hours ? nextWorkStart(at, opts.hours, "Asia/Almaty") : settings.workTime ? now : new Date("2026-10-02T04:00:00Z")),
       dealFields: async () => DEAL_FIELDS,
       catalog: async () => ({ plans: [{ id: "hardcover", price: 30000 }], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
       site: async () => ({ url: "https://mybook.kz", registrationOpen: false, themes: ["love", "mom", "dad", "friend"], landings: [] }),
@@ -268,7 +311,7 @@ export function setup(
     crm,
     sales,
     notifier,
-    tasks: { create: async (t: { title: string; kind: string; assigneeId: string | null }) => void tasks.push(t) },
+    tasks: { create: async (t: { title: string; kind: string; assigneeId: string | null; dueAt?: Date }) => void tasks.push(t) },
     // Ходы бота делает sweep (как планировщик); таймеры «нужен ли ответ» (triage) — только в процессе, их запускает advance.
     timers: {
       schedule: (key: string, at: Date, run: () => void) => {
@@ -285,6 +328,7 @@ export function setup(
     invoices: opts.invoices ?? null,
     media: opts.mediaFiles ? async (id: string) => opts.mediaFiles!(id) : null,
     transcript: async (id: string, text: string) => void Object.assign(msgs.find((m) => m.id === id) ?? {}, { transcript: text }),
+    noMarketing: (c: Conversation) => service.noMarketing(c.chatId, c.meta.phone),
     materials: opts.materials
       ? { list: async () => opts.materials!, send: (id: string, m: BotMaterial) => service.sendBotFile(id, { data: new Uint8Array([1]), name: m.name, mime: m.mime, kind: m.kind }, m.caption, `store:${m.key}`) }
       : null,
@@ -314,7 +358,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, crmState, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, dealNotes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

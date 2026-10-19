@@ -1,33 +1,56 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
-import { CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
-import { can, contactView, type Staff } from "@/server/access";
+import { CalendarX, CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
+import { can, canWork, contactView, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
+import { getSetting } from "@/modules/workspace";
+import { parseWorkHours } from "@/shared/domain/schedule";
+import { responseWait, slaMinutes, waitTone } from "@/modules/reporting/ui/response-wait";
+import { TaskRows, type TaskRow } from "./tasks/TaskRows";
+import { taskContact, taskRow, type Reacher } from "./tasks/task-row";
 
-const minutesAgo = (d: Date) => Math.max(0, Math.round((Date.now() - d.getTime()) / 60_000));
-const waitLabel = (m: number) => (m < 60 ? `${m} мин` : m < 1440 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${Math.floor(m / 1440)} дн`);
-
-/** «Мой день» — рабочий стол менеджера: что горит прямо сейчас. */
+/**
+ * «Мой день» — рабочий стол менеджера: что горит прямо сейчас. Числа на плитках — настоящие, как бейджи меню, а списки
+ * под ними — первые несколько. «Сегодня» — задачи с галочкой, «+1 ч» и «Завтра», у звонка — «Позвонить», у «Написать» —
+ * WhatsApp и «Открыть чат». Ожидание клиента — в рабочих минутах против норматива из настроек CRM, как в «Чатах».
+ */
 export async function MyDay({ staff }: { staff: Staff }) {
   const me = staff.user.id;
   const viewer = { userId: me, seesAll: staff.scope === "all" };
-  const [{ tasks, waiting, missed, deals, unsorted }, plans] = await Promise.all([
+  const [{ tasks, waiting, missed, deals, unsorted, counts }, plans, slaRaw, hoursRaw, provider] = await Promise.all([
     container().reporting.myDay(viewer, { chats: can(staff, "chats.view"), calls: can(staff, "calls.view"), deals: can(staff, "deals.view") }),
     container().sales.queries.planProgress(currentMonth(), [me]),
+    getSetting("crm.slaMinutes"),
+    getSetting("crm.workHours"),
+    can(staff, "calls.make") ? container().telephony.phone.currentProvider() : null,
   ]);
   const plan = plans.get(me);
   const now = new Date();
+  const sla = slaMinutes(slaRaw);
+  const hours = parseWorkHours(hoursRaw);
+  // Звонок через АТС — только с подключённой Zadarma и внутренним номером сотрудника, и у каждой задачи — только если её
+  // сделку (заказ, клиента) ведёт этот сотрудник: «ничья» задача бота на неразобранной сделке у роли «только свои» — без
+  // АТС и «Открыть чат» (сервер откажет), «Позвонить» — ссылка tel:. Номер для tel: и wa.me — только тому, кому видны контакты.
+  const reacher: Reacher = {
+    phoneVisible: can(staff, "clients.contacts"),
+    works: (assigneeId) => canWork(staff, assigneeId),
+    pbx: provider === "zadarma" && !!staff.user.sipExtension,
+    chat: can(staff, "chats.send"),
+  };
+  const today: TaskRow[] = tasks.map((r) => ({ ...taskRow(r, { userId: me, allTasks: can(staff, "tasks.all") }, now), contact: taskContact(r, reacher) }));
   const tiles = [
     unsorted.n > 0 && { href: "/admin/deals", icon: Inbox, label: "Неразобранные заявки", value: String(unsorted.n), hot: true },
-    { href: "/admin/tasks", icon: CheckSquare, label: "Задачи на сегодня", value: String(tasks.length), hot: tasks.some((t) => t.dueAt && t.dueAt < now) },
-    can(staff, "chats.view") && { href: "/admin/chats?f=waiting", icon: MessagesSquare, label: "Ждут ответа", value: String(waiting.length), hot: waiting.length > 0 },
-    can(staff, "calls.view") && { href: "/admin/calls?f=missed", icon: PhoneMissed, label: "Пропущенные звонки", value: String(missed.length), hot: missed.length > 0 },
+    { href: "/admin/tasks", icon: CheckSquare, label: counts.overdueTasks ? `Задачи на сегодня · просрочено ${counts.overdueTasks}` : "Задачи на сегодня", value: String(counts.tasks), hot: counts.overdueTasks > 0 },
+    can(staff, "chats.view") && { href: "/admin/chats?f=waiting", icon: MessagesSquare, label: "Ждут ответа", value: String(counts.waiting), hot: counts.waiting > 0 },
+    can(staff, "calls.view") && { href: "/admin/calls?f=missed", icon: PhoneMissed, label: "Пропущенные звонки", value: String(counts.missed), hot: counts.missed > 0 },
     can(staff, "deals.view") && { href: "/admin/deals?mine=1", icon: Handshake, label: "Мои сделки в работе", value: `${deals.n}${deals.sum ? ` · ${formatPrice(deals.sum)}` : ""}`, hot: false },
+    // Тот же NOT EXISTS, что фильтр сделок «Без задачи»: открытая сделка без открытой задачи.
+    can(staff, "deals.view") && { href: "/admin/deals?mine=1&task=none", icon: CalendarX, label: "Мои сделки без следующего шага", value: String(deals.noNextStep), hot: deals.noNextStep > 0 },
   ].filter(Boolean) as { href: string; icon: typeof CheckSquare; label: string; value: string; hot: boolean }[];
 
   return (
@@ -46,7 +69,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
           </div>
         </div>
       ) : null}
-      <div className={cn("grid gap-3 sm:grid-cols-2", tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
+      <div className={cn("grid gap-3 sm:grid-cols-2", tiles.length > 5 ? "lg:grid-cols-3" : tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
         {tiles.map((t) => (
           <Link key={t.href} href={t.href} className={cn("flex items-center gap-3 rounded-2xl border bg-white p-4 transition hover:shadow-soft", t.hot ? "border-wine/30" : "border-line")}>
             <span className={cn("flex size-10 items-center justify-center rounded-xl", t.hot ? "bg-rose text-wine" : "bg-cream text-ink-soft")}>
@@ -59,21 +82,47 @@ export async function MyDay({ staff }: { staff: Staff }) {
           </Link>
         ))}
       </div>
+      {today.length ? (
+        <section className="overflow-hidden rounded-2xl border border-line bg-white" data-testid="my-day-tasks">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold">
+              Сегодня · {counts.tasks}
+              {counts.overdueTasks ? <span className="font-normal text-red-700"> · просрочено {counts.overdueTasks}</span> : null}
+            </h2>
+            <Link href="/admin/tasks" className="text-xs text-muted hover:text-ink">
+              Все задачи →
+            </Link>
+          </div>
+          <div className="px-4">
+            <TaskRows tasks={today} staff={[]} canAssign={false} compact />
+          </div>
+          {counts.tasks > today.length ? (
+            <p className="border-t border-line px-4 py-2 text-xs text-muted">
+              Показаны первые {today.length} из {counts.tasks} —{" "}
+              <Link href="/admin/tasks" className="text-wine hover:underline">
+                остальные в «Задачах»
+              </Link>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
       {waiting.length || missed.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {waiting.length ? (
             <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Клиенты ждут ответа</h2>
+              <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Клиенты ждут ответа{counts.waiting > waiting.length ? ` · ${counts.waiting}` : ""}</h2>
               <div className="divide-y divide-line">
                 {waiting.map((c) => {
-                  const m = minutesAgo(c.awaitingSince!);
+                  const wait = responseWait(c.awaitingSince!, now, hours, sla);
                   return (
                     <Link key={c.id} href={`/admin/chats?c=${c.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-cream/40">
                       <span className="min-w-0 flex-1 truncate">
                         <span className="font-medium">{c.contactName || contactView(staff, { phone: formatPhone(c.chatId) }).phone}</span>
                         <span className="text-muted"> · {channelLabel(c.channel)} · {c.lastMessageText}</span>
                       </span>
-                      <span className={cn("shrink-0 text-xs tabular-nums", m >= 15 ? "font-semibold text-red-700" : "text-muted")}>{waitLabel(m)}</span>
+                      <span className={cn("shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums", waitTone(wait.overdue))} title={`Норматив ответа — ${sla} рабочих минут`}>
+                        ждёт {wait.label}
+                      </span>
                     </Link>
                   );
                 })}
@@ -82,7 +131,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
           ) : null}
           {missed.length ? (
             <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Перезвонить</h2>
+              <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Перезвонить{counts.missed > missed.length ? ` · ${counts.missed}` : ""}</h2>
               <div className="divide-y divide-line">
                 {missed.map((c) => (
                   <Link key={c.id} href={c.dealId ? `/admin/deals/${c.dealId}` : "/admin/calls?f=missed"} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-cream/40">
