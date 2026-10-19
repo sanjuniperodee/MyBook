@@ -23,7 +23,7 @@ import { RECENT_ONLINE_MS, type MoneyGuard } from "@/components/admin/invoices/m
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
 import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
-import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly } from "./sections";
+import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly, PastDeals } from "./sections";
 import { pageId } from "@/server/input";
 
 export const metadata = { title: "Сделка" };
@@ -111,7 +111,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
       {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
-      {duplicates.length ? <Duplicates dealId={deal.id} duplicates={duplicates} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
+      {duplicates.open.length ? <Duplicates dealId={deal.id} closed={!!stage && stage.kind !== "open"} duplicates={duplicates.open} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
@@ -185,6 +185,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             can={(p) => can(staff, p)}
             emailOf={(email) => contactView(staff, { email }).email}
           />
+          {duplicates.past.length ? <PastDeals deals={duplicates.past} /> : null}
           {!deal.clientId && !suggested && deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId) ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
         </aside>
 

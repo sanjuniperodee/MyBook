@@ -8,7 +8,7 @@ export const metadata = { title: "Дубли сделок" };
 
 type Row = { key: string; kind: "phone" | "email"; deals: { id: string; number: number; title: string; stage: string; color: string; created: string; assignee: string | null }[] };
 
-/** Группы сделок одного человека (по телефону или e-mail) — чтобы объединить их в одну. */
+/** Группы открытых сделок одного человека (по телефону или e-mail) — чтобы объединить их в одну. */
 export default async function DuplicatesPage() {
   const staff = await requireStaff("deals.view", "deals.edit");
   const rows: Row[] = await container().reporting.duplicateGroups();
@@ -20,7 +20,7 @@ export default async function DuplicatesPage() {
       </Link>
       <div>
         <h1 className="text-2xl font-semibold">Дубли</h1>
-        <p className="mt-1 text-sm text-muted">Сделки с одинаковым телефоном (включая дополнительные номера) или e-mail. Откройте основную сделку и нажмите «Объединить сюда» у лишней.</p>
+        <p className="mt-1 text-sm text-muted">Открытые сделки с одинаковым телефоном (включая дополнительные номера) или e-mail. Откройте основную сделку и нажмите «Объединить сюда» у лишней. Закрытые сделки — прошлые покупки и отказы — здесь не показываются: их не вливают в другие.</p>
       </div>
       {visible.length === 0 ? <p className="rounded-2xl border border-line bg-white p-6 text-center text-sm text-muted">Дублей не найдено 🎉</p> : null}
       {visible.map((g) => (

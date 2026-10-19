@@ -7,7 +7,8 @@ import { DrizzleUnitOfWork } from "@/shared/infrastructure/DrizzleUnitOfWork";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import type { OutboxDispatcher } from "@/shared/infrastructure/OutboxDispatcher";
 import { DealsService, SiteFunnelService, type DealInvoicesPort } from "@/modules/sales/application";
-import { DrizzleDealRepository, DrizzleFunnelRepository } from "@/modules/sales/infrastructure/persistence";
+import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzleSalesQueries } from "@/modules/sales/infrastructure/persistence";
+import { duplicateGroups } from "@/modules/reporting/infrastructure/Duplicates";
 import { drizzleClients } from "@/modules/sales/infrastructure/adapters";
 import { agreementForClient, attachAgreementOrder, dealMoney } from "@/modules/sales/infrastructure/agreements";
 import { setDealAgreedPlan } from "@/modules/sales/infrastructure/agreedPlan";
@@ -149,6 +150,35 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
     const open = await bill(source);
     await deals.merge(target, source, ids.mgr);
     expect(await invoiceRow(open.id)).toMatchObject({ deal_id: target, status: "cancelled", closed_reason: "сделки объединены, а сделка закрыта или по ней заказ" });
+  });
+
+  it("слияние переносит историю этапов дубля в целевую; выигранный дубль не вливается — его счёт и этап на месте", async () => {
+    const target = await deal("histT");
+    const source = await deal("histS");
+    await q(sql`insert into crm_stage_history (deal_id, from_stage_id, to_stage_id, actor_id) values (${source}, null, ${stages.open}, ${ids.mgr})`);
+    await deals.merge(target, source, ids.mgr);
+    expect(await q(sql`select from_stage_id, to_stage_id from crm_stage_history where deal_id = ${target}`)).toEqual([{ from_stage_id: null, to_stage_id: stages.open }]);
+
+    const won = await deal("histWon", { stage: "won" });
+    const paid = await bill(won, "paid");
+    await expect(deals.merge(target, won, ids.mgr)).rejects.toMatchObject({ code: "mergeClosed" });
+    expect(await dealRow(won)).toMatchObject({ stage_id: stages.won });
+    expect(await invoiceRow(paid.id)).toMatchObject({ deal_id: won, status: "paid" });
+  });
+
+  it("«Похоже на дубль» — только открытые сделки контакта, закрытые — прошлые; группы дублей — только из открытых", async () => {
+    const phone = `7701${String(Date.now()).slice(-7)}`;
+    const mk = async (key: string, stage: "open" | "won") => {
+      const id = await deal(key, { stage });
+      await q(sql`update crm_deals set contact_phone = ${phone} where id = ${id}`);
+      return id;
+    };
+    const [self, open, won] = [await mk("dupSelf", "open"), await mk("dupOpen", "open"), await mk("dupWon", "won")];
+    const related = await new DrizzleSalesQueries().duplicates({ id: self, clientId: null, contactEmail: null, contactPhone: phone, extraPhones: [] });
+    expect(related.open.map((r) => r.deal.id)).toEqual([open]);
+    expect(related.past.map((r) => r.deal.id)).toEqual([won]);
+    const group = (await duplicateGroups()).find((g) => g.key === phone.slice(-10));
+    expect(group?.deals.map((d) => d.id).sort()).toEqual([self, open].sort());
   });
 
   it("удаление: счёт ждёт оплаты — 409 понятным текстом; отменённые и истёкшие — удаляются вместе со сделкой; счёт Kaspi ещё ждёт — нельзя", async () => {

@@ -117,12 +117,12 @@ const messageText = (err: DomainError) => (err.message === err.code ? null : err
 
 /**
  * Текст ошибки домена для пользователя. Identity и ordering — из словарей по коду; у остальных контекстов
- * (access, sales, clients…) message — готовый текст для сотрудника.
+ * (access, sales, clients…) message — готовый текст для сотрудника, а код без message — ключ словаря admin (только сотруднику).
  */
 function domainText(m: Messages, err: DomainError, staff = false): string | null {
   if (err.context === "identity") return identityText(m, err, staff);
   if (err.context === "ordering") return orderingText(m, err);
-  return messageText(err);
+  return messageText(err) ?? (staff && has(admin, err.code) ? errorText(m.api, err.code, [...err.params]) : null);
 }
 
 /** Ошибка домена, которую действие ждёт (`only` пуст — любая); остальное оно пробросит. */

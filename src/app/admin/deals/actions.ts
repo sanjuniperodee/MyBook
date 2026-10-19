@@ -16,6 +16,8 @@ import { getPlan } from "@/config/site";
 import { STAGE_MILESTONES } from "@/shared/domain/stageMilestones";
 import { dealSources } from "@/shared/domain/dealSources";
 import { MAX_PAYMENT, SalesError } from "@/modules/sales/domain";
+import type { DealView } from "@/modules/sales";
+import { staffActionError } from "@/server/errors";
 import { env } from "@/config/env";
 import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, staffLogin } from "@/app/admin/clients/new/access-message";
@@ -276,13 +278,27 @@ export async function declineRejectionAction(dealId: string) {
   revalidateDeal(deal.id, deal.clientId);
 }
 
-/** Слить дубль source в target. */
-export async function mergeDealAction(targetId: string, sourceId: string) {
+/** Снимок сделки для журнала — без контактов: журнал могут видеть роли, которым номера клиентов скрыты (номер дубля и так становится доп. номером целевой). */
+const CONTACT_KEYS = new Set(["contactPhone", "contactEmail", "extraPhones"]);
+const mergeSnapshot = (deal: DealView) => Object.fromEntries(Object.entries(deal).filter(([key]) => !CONTACT_KEYS.has(key)));
+
+/**
+ * Слить дубль source в target. Закрытую source (успех или отказ) не сливаем — текст сотруднику вместо ошибки сервера.
+ * В журнал — снимки обеих сделок «до»: слитую сделку можно восстановить вручную.
+ */
+export async function mergeDealAction(targetId: string, sourceId: string): Promise<{ error: string } | void> {
   const staff = await assertStaff("deals.edit", "deals.delete");
   const target = await loadDeal(staff, targetId);
   const source = await loadDeal(staff, sourceId);
-  await container().sales.deals.merge(target.id, source.id, staff.user.id);
-  await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title });
+  let before: { target: DealView; source: DealView };
+  try {
+    before = await container().sales.deals.merge(target.id, source.id, staff.user.id);
+  } catch (err) {
+    const error = staffActionError(err, SalesError);
+    if (error === null) throw err;
+    return { error };
+  }
+  await audit(staff, "deal.merge", "deal", target.id, { merged: source.number, title: source.title, before: { target: mergeSnapshot(before.target), source: mergeSnapshot(before.source) } });
   revalidateDeal(target.id, target.clientId);
 }
 

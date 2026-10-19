@@ -156,6 +156,8 @@ export class DrizzleDealRepository implements DealRepository {
     await db.update(crmCalls).set({ dealId: target.id }).where(eq(crmCalls.dealId, source.id));
     await db.update(crmTasks).set({ dealId: target.id }).where(eq(crmTasks.dealId, source.id));
     await db.update(crmNotes).set({ dealId: target.id }).where(eq(crmNotes.dealId, source.id));
+    // История этапов слитой сделки удалилась бы каскадом — и её путь по воронке пропал бы из аналитики.
+    await db.update(crmStageHistory).set({ dealId: target.id }).where(eq(crmStageHistory.dealId, source.id));
     // Деньги и чеки переходят вместе со сделкой: удаление слитой сделки иначе удаляет их каскадом.
     await db.update(crmPayments).set({ dealId: target.id }).where(eq(crmPayments.dealId, source.id));
     await db.update(crmReceipts).set({ dealId: target.id }).where(eq(crmReceipts.dealId, source.id));
@@ -218,7 +220,11 @@ export class DrizzleSalesQueries {
     return ids.length ? executor().select().from(crmDeals).where(inArray(crmDeals.id, ids)) : Promise.resolve([]);
   }
 
-  /** Другие сделки того же человека: по клиенту, телефону (включая доп. номера) или e-mail. */
+  /**
+   * Другие сделки того же человека: по клиенту, телефону (включая доп. номера) или e-mail. open — открытые, их можно
+   * объединить с этой («Похоже на дубль»); past — закрытые (успех или отказ): прошлые покупки, их не сливают.
+   * Открытые — первыми: у постоянного клиента много прошлых сделок, и новая заявка не должна выпасть за предел выборки.
+   */
   async duplicates(deal: Pick<Row, "id" | "clientId" | "contactEmail" | "contactPhone" | "extraPhones">) {
     const keys = [deal.contactPhone, ...deal.extraPhones].map(phoneKey).filter((k) => k.length >= 10);
     const conds = [
@@ -226,14 +232,15 @@ export class DrizzleSalesQueries {
       deal.contactEmail ? sql`lower(${crmDeals.contactEmail}) = ${deal.contactEmail.toLowerCase()}` : undefined,
       ...keys.flatMap((k) => [sql`${phoneDigits(crmDeals.contactPhone)} = ${k}`, inExtra(crmDeals.extraPhones, k)]),
     ].filter((c): c is SQL => !!c);
-    if (!conds.length) return [];
-    return executor()
+    if (!conds.length) return { open: [], past: [] };
+    const rows = await executor()
       .select({ deal: crmDeals, stage: crmStages })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
       .where(and(ne(crmDeals.id, deal.id), or(...conds)))
-      .orderBy(desc(crmDeals.createdAt))
-      .limit(10);
+      .orderBy(sql`${crmStages.kind} = 'open' desc`, desc(crmDeals.createdAt))
+      .limit(20);
+    return { open: rows.filter((r) => r.stage.kind === "open").slice(0, 10), past: rows.filter((r) => r.stage.kind !== "open").slice(0, 10) };
   }
 
   /** План и факт за месяц (по часовому поясу магазина) по сотрудникам. */

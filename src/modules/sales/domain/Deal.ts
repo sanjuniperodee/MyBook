@@ -4,6 +4,7 @@ import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { formatPrice } from "@/config/site";
 import { normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { SalesEvents } from "./events";
+import { SalesError } from "./errors";
 import type { Stage } from "./Funnel";
 
 export type NoteKind = "note" | "call" | "message" | "system";
@@ -285,11 +286,15 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /**
-   * Слияние дубля: пустые поля заполняются из source, телефон source становится дополнительным,
-   * теги объединяются. Перенос переписки, звонков и задач делает репозиторий.
+   * Слияние дубля: пустые поля (и свои поля сделки, и метки, откуда пришёл) заполняются из source, телефон source
+   * становится дополнительным, теги объединяются. Перенос переписки, звонков, задач и истории этапов делает репозиторий.
+   * Закрытую сделку (успех или отказ) влить нельзя: это прошлая покупка или отказ — она нужна в плане, воронке
+   * и у своего заказа, а новая заявка того же человека — повторное обращение, а не дубль.
    */
-  absorb(source: Deal, actorId: string | null) {
+  absorb(source: Deal, sourceStage: Stage | null, actorId: string | null) {
+    if (sourceStage && sourceStage.kind !== "open") throw new SalesError("mergeClosed", undefined, [source.number]);
     const s = source.props;
+    this.fillEmptyFields(s.customFields);
     const phones = new Set([...this.props.extraPhones, ...s.extraPhones]);
     if (s.contactPhone && this.props.contactPhone && phoneKey(s.contactPhone) !== phoneKey(this.props.contactPhone)) phones.add(normalizePhone(s.contactPhone));
     if (this.props.contactPhone) phones.delete(normalizePhone(this.props.contactPhone));
@@ -302,6 +307,7 @@ export class Deal extends AggregateRoot<DealProps> {
       orderId: this.props.orderId ?? s.orderId,
       assigneeId: this.props.assigneeId ?? s.assigneeId,
       amount: this.props.amount || s.amount,
+      utm: this.props.utm ?? s.utm,
       tags: [...new Set([...this.props.tags, ...s.tags])],
       extraPhones: [...phones],
       unsorted: false,

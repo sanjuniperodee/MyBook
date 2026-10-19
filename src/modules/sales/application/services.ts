@@ -150,7 +150,8 @@ export class DealsService {
   /**
    * Слияние дублей: всё из source переносится в target, source удаляется. Деньги не теряются: платежи, чеки и счета из чата
    * переходят в target. Открытый счёт — один на сделку: открыт у обеих — открытый счёт source отменяется; target закрыта
-   * или по ней заказ — открытые отменяются (платить по ним уже нельзя).
+   * или по ней заказ — открытые отменяются (платить по ним уже нельзя). Закрытую source не вливаем (mergeClosed) — до
+   * переноса чего-либо. Возвращает снимки обеих сделок «до» — для журнала действий.
    */
   async merge(targetId: string, sourceId: string, actorId: string | null) {
     if (targetId === sourceId) throw new SalesError("mergeSelf");
@@ -158,7 +159,7 @@ export class DealsService {
     return this.uow.run(async () => {
       const [target, source] = await Promise.all([this.load(targetId), this.load(sourceId)]);
       const before = { target: target.snapshot(), source: source.snapshot() };
-      target.absorb(source, actorId);
+      target.absorb(source, funnel.stage(source.stageId), actorId);
       const kind = funnel.stage(target.stageId)?.kind;
       // Счета — первыми (порядок блокировок: счета → сделки), затем обе сделки: платёж, пришедший в эту секунду, не пропадёт.
       const { moved, cancelled } = await this.invoices.moveAll({ from: source.id, to: target.id, closeOpen: !!target.orderId || (!!kind && kind !== "open") });

@@ -275,8 +275,13 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
   );
 }
 
-export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; canMerge: boolean }) {
+export function DuplicateRow({ targetId, intoClosed, other, canMerge }: { targetId: string; intoClosed: boolean; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; canMerge: boolean }) {
   const { pending, run } = useRun();
+  const question = `Объединить сделку №${other.number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${other.number} удалится.${intoClosed ? " Эта сделка закрыта — заявка уйдёт из работы." : ""}`;
+  const merge = async () => {
+    const r = await mergeDealAction(targetId, other.id);
+    if (r?.error) throw new Error(r.error);
+  };
   return (
     <div className="flex flex-wrap items-center gap-3 py-2 text-sm">
       <Link href={`/admin/deals/${other.id}`} className="min-w-0 flex-1 truncate hover:text-wine">
@@ -289,7 +294,7 @@ export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; 
         <button
           className="btn btn-outline btn-sm h-8"
           disabled={pending}
-          onClick={async () => (await ask(`Объединить сделку №${other.number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${other.number} удалится.`, true)) && run(() => mergeDealAction(targetId, other.id))}
+          onClick={async () => (await ask(question, true)) && run(merge)}
         >
           <Merge className="size-3.5" /> Объединить сюда
         </button>

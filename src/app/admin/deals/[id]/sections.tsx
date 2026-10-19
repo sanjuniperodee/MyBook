@@ -17,19 +17,52 @@ import { DuplicateRow, LinkClient } from "./DealControls";
 type Screen = ReturnType<typeof dealScreen>;
 const callIcons = { out: PhoneOutgoing, missed: PhoneMissed, in: PhoneIncoming };
 
-/** Другие сделки того же контакта — объединить, если это дубль. */
-export function Duplicates({ dealId, duplicates, canMerge }: { dealId: string; duplicates: { deal: { id: string; number: number; title: string; createdAt: Date; assigneeId: string | null }; stage: { name: string; color: string } }[]; canMerge: (assigneeId: string | null) => boolean }) {
+type RelatedDeal = { deal: { id: string; number: number; title: string; amount: number; createdAt: Date; closedAt: Date | null; assigneeId: string | null }; stage: { name: string; color: string } };
+
+/**
+ * Другие открытые сделки того же контакта — объединить, если это дубль. closed — эта сделка уже закрыта: открытая заявка,
+ * влитая сюда, уйдёт из работы (так сливают, например, переписку из WhatsApp в сделку оплаченного заказа с сайта).
+ */
+export function Duplicates({ dealId, closed, duplicates, canMerge }: { dealId: string; closed: boolean; duplicates: RelatedDeal[]; canMerge: (assigneeId: string | null) => boolean }) {
   return (
     <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="duplicates">
-      <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие сделки</h2>
+      <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие открытые сделки</h2>
       <div className="mt-2 divide-y divide-amber-200/70">
         {duplicates.map(({ deal: d, stage: st }) => (
           <DuplicateRow
             key={d.id}
             targetId={dealId}
+            intoClosed={closed}
             other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }}
             canMerge={canMerge(d.assigneeId)}
           />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Закрытые сделки того же контакта (успех или отказ): прошлые покупки — для контекста, их не сливают. */
+export function PastDeals({ deals }: { deals: RelatedDeal[] }) {
+  return (
+    <section className="rounded-2xl border border-line bg-white p-5 text-sm" data-testid="past-deals">
+      <h2 className="font-semibold">Прошлые сделки контакта</h2>
+      <div className="mt-2 divide-y divide-line">
+        {deals.map(({ deal: d, stage: st }) => (
+          <Link key={d.id} href={`/admin/deals/${d.id}`} className="flex items-center gap-2 py-2 hover:text-wine">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate">
+                №{d.number} {d.title}
+              </span>
+              <span className="text-xs text-muted tabular-nums">
+                {formatDate(d.closedAt ?? d.createdAt)}
+                {d.amount ? ` · ${formatPrice(d.amount)}` : ""}
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: st.color }}>
+              {st.name}
+            </span>
+          </Link>
         ))}
       </div>
     </section>

@@ -141,10 +141,18 @@ describe("staffActionError(): действия сотрудника CRM — вс
   it("выбор ошибок и сообщение домена — как у actionError: чужая ошибка и не доменная — null, message — готовый текст", () => {
     expect(staffActionError(new Error("db down"))).toBeNull();
     expect(staffActionError(new OrderingError("notFound"), IdentityError)).toBeNull();
-    expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBeNull();
+    expect(staffActionError(new SalesError("mergeSelf"), SalesError)).toBeNull();
     expect(staffActionError(new AccessError("lastOwner", "Должен остаться хотя бы один руководитель"), AccessError)).toBe("Должен остаться хотя бы один руководитель");
     expect(staffActionError(new IdentityError("twoFactorAlreadyOn"), IdentityError)).toBe("2FA уже включена");
     // руководителю при добавлении сотрудника не предлагаем «Войдите в аккаунт» — клиентский текст кода exists
     expect(staffActionError(new IdentityError("exists"), IdentityError)).toBe("Этот e-mail уже зарегистрирован");
+  });
+
+  it("код без message у остальных контекстов — текст словаря admin по коду (с параметрами); покупателю — по-прежнему null", async () => {
+    expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBe("Сделка не найдена");
+    expect(staffActionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBe("Сделка №41 закрыта — это прошлая покупка или отказ, её не вливают в другую. Если это дубль, откройте №41 и объедините в неё эту.");
+    // message — готовый текст — важнее словаря
+    expect(staffActionError(new SalesError("dealNotFound", "Сделку уже удалили"), SalesError)).toBe("Сделку уже удалили");
+    expect(await actionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBeNull();
   });
 });

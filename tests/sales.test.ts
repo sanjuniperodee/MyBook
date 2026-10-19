@@ -71,12 +71,32 @@ describe("Deal", () => {
   it("слияние: пустые поля из дубля, его телефон — дополнительный, теги объединяются", () => {
     const target = openDeal({ contactEmail: null });
     const source = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, contactPhone: "87079998877", contactEmail: "a@b.kz", amount: 15000, tags: ["vip"], extraPhones: [] });
-    target.absorb(source, "m1");
+    target.absorb(source, stage("book"), "m1");
     const s = target.snapshot();
     expect(s.contactEmail).toBe("a@b.kz");
     expect(s.amount).toBe(15000);
     expect(s.extraPhones).toEqual(["77079998877"]);
     expect(s.tags).toEqual(["vip"]);
+  });
+
+  it("слияние: свои поля дубля заполняют только пустые, метки «откуда пришёл» — если своих нет", () => {
+    const target = openDeal({ customFields: { recipient: "Мама", occasion: "" }, utm: null });
+    const source = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, customFields: { recipient: "Папа", occasion: "Юбилей", event_date: "2026-12-01" }, utm: { source: "instagram" } });
+    target.absorb(source, stage("new"), "m1");
+    expect(target.snapshot()).toMatchObject({ customFields: { recipient: "Мама", occasion: "Юбилей", event_date: "2026-12-01" }, utm: { source: "instagram" } });
+    const tagged = openDeal({ utm: { source: "google" } });
+    tagged.absorb(source, stage("new"), "m1");
+    expect(tagged.snapshot().utm).toEqual({ source: "google" });
+  });
+
+  it("закрытую сделку (успех или отказ) влить нельзя: mergeClosed с её номером, цель не меняется", () => {
+    const target = openDeal({ contactEmail: null });
+    const source = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, contactEmail: "a@b.kz", orderId: "o-old" });
+    for (const closed of ["won", "lost"]) {
+      expect(() => target.absorb(source, stage(closed), "m1")).toThrow(expect.objectContaining({ code: "mergeClosed", params: [8] }));
+    }
+    expect(target.snapshot()).toMatchObject({ contactEmail: null, orderId: null });
+    expect(target.pullJournal().notes.map((n) => n.text)).not.toContainEqual(expect.stringContaining("Объединена"));
   });
 });
 
@@ -436,6 +456,21 @@ describe("Жизнь сделки: деньги и счета из чата не
     expect(deals.locked).toEqual([[target.id, dup.id]]);
     expect(deals.notes).toContain(`Счета из чата: из сделки №${dup.number} перенесены P3, P5; отменены открытые P5 (сделки объединены)`);
     expect(await service.findById(dup.id)).toBeNull();
+  });
+
+  it("слияние с выигранной или проигранной сделкой-источником — отказ до переноса счетов и блокировок, обе сделки на месте", async () => {
+    const { service, invoices, deals } = setup();
+    const fresh = await service.create({ title: "Новая заявка", source: "whatsapp", clientId: "c1" });
+    const lastYear = await service.create({ title: "Прошлый заказ", source: "site", clientId: "c1", orderId: "o-old" });
+    await service.move(lastYear.id, "won", "m1");
+    const refused = await service.create({ title: "Отказ", source: "whatsapp", clientId: "c1" });
+    await service.move(refused.id, "lost", "m1", "Дорого");
+    await expect(service.merge(fresh.id, lastYear.id, "m1")).rejects.toMatchObject({ code: "mergeClosed", params: [lastYear.number] });
+    await expect(service.merge(fresh.id, refused.id, "m1")).rejects.toMatchObject({ code: "mergeClosed" });
+    expect(invoices.calls).toEqual([]);
+    expect(deals.locked).toEqual([]);
+    expect(await service.findById(lastYear.id)).toMatchObject({ stageId: "won", orderId: "o-old" });
+    expect(await service.findById(fresh.id)).toMatchObject({ orderId: null });
   });
 
   it("слияние в закрытую сделку или в сделку с заказом — открытые счета отменяются (платить по ним уже нельзя)", async () => {
