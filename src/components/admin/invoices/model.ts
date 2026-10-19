@@ -121,7 +121,7 @@ export function pickAmount(kind: AmountKind, agreed: number, paid: number, custo
 export function discountProblem(price: number | null | undefined, agreed: number, maxPercent: number | null): string | null {
   if (maxPercent === null || !price || !agreed) return null;
   if (DiscountPolicy.allows({ listPrice: price, price: agreed, maxPercent })) return null;
-  return `Цена ниже прайса (${formatPrice(price)}) больше чем на ${maxPercent}% — такой счёт выставляет только руководитель`;
+  return `Цена ниже прайса (${formatPrice(price)}) больше чем на ${maxPercent}% — такой счёт выставляет только сотрудник с правом «Продавать ниже прайса без лимита»`;
 }
 
 const payTexts = { ru: ruPay, kk: kkPay };

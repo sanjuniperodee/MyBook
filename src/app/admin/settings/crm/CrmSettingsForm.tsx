@@ -69,7 +69,7 @@ export function CrmSettingsForm({
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Лимит скидки от прайса, %</span>
             <input name="maxDiscount" type="number" min={0} max={50} defaultValue={maxDiscount} className="input h-10 text-sm" />
-            <span className="mt-1 block text-[11px] text-muted">Один для счёта из чата, бюджета и тарифа договорённости, новых клиентов и промокода из чата. Ниже — только роли с правом «Продавать ниже прайса без лимита».</span>
+            <span className="mt-1 block text-[11px] text-muted">Один для счёта из чата, бюджета и тарифа договорённости, новых клиентов и промокода из чата. Счёт и договорённость ниже — только роли с правом «Продавать ниже прайса без лимита»; промокод из чата не больше лимита ни у кого.</span>
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Влить заявку в закрытую сделку заказа — если пришла в пределах, дней (0 — нельзя)</span>
