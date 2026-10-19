@@ -1,7 +1,7 @@
 import type { Clock, WorkSchedule } from "@/shared/application";
 import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
-import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
+import { canManageTask, extraPhones, isDeletableNote, normalizeTags, snoozedDue, taskDue, type TaskKind, type TaskSnooze } from "../domain";
 import { zonedParts } from "@/shared/domain/time";
 import type { ClientProfile, ClientRepository, CrmLinks, DealContacts, NoteRepository, StaffDirectory, StaffMessenger, StaffNotifier, TaskRepository } from "./ports";
 
@@ -200,6 +200,23 @@ export class TasksService {
   async delete(actor: Actor, taskId: string) {
     const t = await this.load(actor, taskId);
     if (t) await this.tasks.delete(t.id);
+    return t;
+  }
+
+  /**
+   * Отложить задачу одной кнопкой: «+1 ч» или «Завтра» (snoozedDue). Права — как у правки. Напоминание придёт заново:
+   * если до нового срока меньше, чем «напомнить за», — в сам срок (иначе пришло бы сразу); «не напоминать» остаётся.
+   * У задачи без срока — напоминание по умолчанию. Выполненная задача не меняется.
+   */
+  async snooze(actor: Actor, taskId: string, by: TaskSnooze) {
+    const t = await this.load(actor, taskId);
+    if (!t) throw new ClientsError("taskNotFound", "Задача не найдена");
+    if (t.doneAt) return t;
+    const now = this.clock.now();
+    const dueAt = snoozedDue(t.dueAt, now, by);
+    const remind = t.dueAt ? (t.remindBeforeMin ?? null) : DEFAULT_REMIND_MIN;
+    const lead = (dueAt.getTime() - now.getTime()) / 60_000;
+    await this.tasks.update(t.id, { dueAt, remindBeforeMin: remind === null ? null : lead > remind ? remind : 0 });
     return t;
   }
 

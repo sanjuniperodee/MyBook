@@ -50,6 +50,8 @@ export const admin = {
   botPriceDriftKnowledge: (amounts: string) => `в базе знаний AI — ${amounts}`,
   botPriceDriftFaq: (label: string, lang: string, amounts: string) => `в ответе бота «${label}» (${lang}) — ${amounts}`,
   botPriceDrift: (places: string) => `Суммы, которых нет в «Ценах и тарифах»: ${places}. Бот может назвать их клиенту — поправьте, если это старая цена.`,
+  /** Задачу правят и откладывают её ответственный, автор или право «все задачи». */
+  taskForbidden: "Нет прав менять эту задачу",
   /** Лимит скидки (DiscountPolicy): без тарифа цена действует на любой тариф — сравнивали с самым дорогим. */
   discountOverLimit: (max: number, listPrice: number, planless: boolean) =>
     planless

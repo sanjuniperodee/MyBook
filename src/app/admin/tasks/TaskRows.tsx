@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
-import { Bot, ChevronDown, LoaderCircle, Trash2 } from "lucide-react";
-import { ask } from "@/components/ui/overlays";
-import { deleteTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
+import { Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
+import { ask, toast } from "@/components/ui/overlays";
+import { deleteTaskAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
+import { callAction, openChatAction } from "@/app/admin/crm-actions";
 import { taskKinds } from "@/components/admin/CrmWidgets";
 import { cn } from "@/lib/class-names";
 
@@ -27,6 +29,17 @@ export interface TaskRow {
   fromBot: boolean;
   /** Можно ли менять (своя, ничья, поставлена мной или право «все задачи»). */
   editable: boolean;
+  /**
+   * С кем связаться по задаче: phone — цифры номера для tel: и wa.me (только если сотруднику видны контакты), target —
+   * для звонка через АТС и «Открыть чат» (номер сервер найдёт сам). null — задача ни к кому.
+   */
+  contact?: { phone: string | null; target: { dealId?: string; orderId?: string; clientId?: string } } | null;
+}
+
+/** Чем связаться с клиентом из строки задачи: звонок через АТС (Zadarma подключена) и чат WhatsApp в CRM. */
+export interface TaskReach {
+  pbx: boolean;
+  chat: boolean;
 }
 
 const reminders = [
@@ -46,20 +59,22 @@ const kindTone: Record<TaskRow["kind"], string> = {
 };
 
 /**
- * Строки задач на странице «Задачи»: всё правится на месте — выполнено, тип, заголовок, срок, ответственный; в
- * «Подробнее» — напоминание, результат и удаление. Изменение сохраняется сразу, ошибка — под строкой.
+ * Строки задач на странице «Задачи» и в «Моём дне»: всё правится на месте — выполнено, тип, заголовок, срок («+1 ч»,
+ * «Завтра» или поле), ответственный; в «Подробнее» — напоминание, результат и удаление. Изменение сохраняется сразу,
+ * ошибка — под строкой. compact — для телефона («Мой день»): срок подписью, без поля срока и выбора ответственного.
+ * reach — у звонка «Позвонить» (через АТС, если она подключена, иначе tel:), у «Написать» — WhatsApp (wa.me) и «Открыть чат».
  */
-export function TaskRows({ tasks, staff, canAssign }: { tasks: TaskRow[]; staff: { id: string; label: string }[]; canAssign: boolean }) {
+export function TaskRows({ tasks, staff, canAssign, compact = false, reach = { pbx: false, chat: false } }: { tasks: TaskRow[]; staff: { id: string; label: string }[]; canAssign: boolean; compact?: boolean; reach?: TaskReach }) {
   return (
     <ul className="divide-y divide-line">
       {tasks.map((t) => (
-        <Row key={t.id} task={t} staff={staff} canAssign={canAssign} />
+        <Row key={t.id} task={t} staff={staff} canAssign={canAssign} compact={compact} reach={reach} />
       ))}
     </ul>
   );
 }
 
-function Row({ task, staff, canAssign }: { task: TaskRow; staff: { id: string; label: string }[]; canAssign: boolean }) {
+function Row({ task, staff, canAssign, compact, reach }: { task: TaskRow; staff: { id: string; label: string }[]; canAssign: boolean; compact: boolean; reach: TaskReach }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -78,6 +93,14 @@ function Row({ task, staff, canAssign }: { task: TaskRow; staff: { id: string; l
     start(async () => {
       patchLocal({ done: !t.done });
       await toggleTaskAction(t.id);
+    });
+
+  // Новый срок считает сервер (по времени магазина); строка обновится вместе со страницей.
+  const snooze = (by: "hour" | "tomorrow") =>
+    start(async () => {
+      patchLocal({ overdue: false });
+      const res = await snoozeTaskAction(t.id, by);
+      setError(res.error ?? null);
     });
 
   return (
@@ -133,41 +156,57 @@ function Row({ task, staff, canAssign }: { task: TaskRow; staff: { id: string; l
                 {t.context.label}
               </Link>
             ) : null}
+            {compact && t.dueLabel && !t.done ? <span className={cn(t.overdue && "font-medium text-red-700")}>{t.overdue ? `просрочена · ${t.dueLabel}` : t.dueLabel}</span> : null}
             {t.done && t.doneLabel ? <span>выполнена {t.doneLabel}</span> : null}
             {t.result && !open ? <span className="truncate">· {t.result}</span> : null}
             {pending ? <LoaderCircle className="size-3 animate-spin" /> : null}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="datetime-local"
-            value={t.due}
-            disabled={ro}
-            onChange={(e) => save({ due: e.target.value, overdue: false }, { dueAt: e.target.value })}
-            className={cn("input h-8 w-[11.5rem] text-xs", t.overdue && !t.done && "border-red-300 text-red-700")}
-            aria-label="Срок"
-            title={t.dueLabel ?? "Без срока"}
-          />
-          <select
-            value={t.assigneeId ?? ""}
-            disabled={ro || !canAssign}
-            onChange={(e) => e.target.value && save({ assigneeId: e.target.value }, { assigneeId: e.target.value })}
-            className="input h-8 w-40 text-xs"
-            aria-label="Ответственный"
-            title={canAssign ? "Ответственный" : "Передать задачу может руководитель"}
-          >
-            {t.assigneeId ? null : <option value="">Ничья</option>}
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          {!ro && !t.done ? (
+            <>
+              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs" disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
+                +1 ч
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs" disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
+                Завтра
+              </button>
+            </>
+          ) : null}
+          {compact ? null : (
+            <>
+              <input
+                type="datetime-local"
+                value={t.due}
+                disabled={ro}
+                onChange={(e) => save({ due: e.target.value, overdue: false }, { dueAt: e.target.value })}
+                className={cn("input h-8 w-[11.5rem] text-xs", t.overdue && !t.done && "border-red-300 text-red-700")}
+                aria-label="Срок"
+                title={t.dueLabel ?? "Без срока"}
+              />
+              <select
+                value={t.assigneeId ?? ""}
+                disabled={ro || !canAssign}
+                onChange={(e) => e.target.value && save({ assigneeId: e.target.value }, { assigneeId: e.target.value })}
+                className="input h-8 w-40 text-xs"
+                aria-label="Ответственный"
+                title={canAssign ? "Ответственный" : "Передать задачу может руководитель"}
+              >
+                {t.assigneeId ? null : <option value="">Ничья</option>}
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button type="button" onClick={() => setOpen((v) => !v)} className="rounded-lg p-1 text-muted hover:bg-cream hover:text-ink" aria-label="Подробнее" aria-expanded={open}>
             <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
           </button>
         </div>
       </div>
+      {!t.done && t.contact ? <Reach kind={t.kind} contact={t.contact} reach={reach} /> : null}
       {open ? (
         <div className="mt-2 ml-7 grid gap-2 rounded-xl bg-[#fbf9f5] p-3 sm:grid-cols-[180px_1fr_auto]">
           <label className="block text-xs text-muted">
@@ -214,4 +253,69 @@ function Row({ task, staff, canAssign }: { task: TaskRow; staff: { id: string; l
       {error ? <p className="mt-1 ml-7 text-xs text-red-700">{error}</p> : null}
     </li>
   );
+}
+
+/**
+ * Связаться по задаче: у звонка — «Позвонить» (через АТС, если Zadarma подключена; иначе tel: — звонит телефон, с
+ * которого открыта CRM), у «Написать» — WhatsApp (wa.me открывает WhatsApp на этом телефоне — на телефоне магазина
+ * сообщение уйдёт с номера магазина и попадёт в «Чаты») и «Открыть чат» в CRM.
+ */
+function Reach({ kind, contact, reach }: { kind: TaskRow["kind"]; contact: NonNullable<TaskRow["contact"]>; reach: TaskReach }) {
+  const [calling, startCall] = useTransition();
+  const [opening, startChat] = useTransition();
+  const router = useRouter();
+  const link = "btn btn-outline btn-sm h-8 px-2.5 text-xs";
+  const buttons: React.ReactNode[] = [];
+  if (kind === "call") {
+    if (reach.pbx)
+      buttons.push(
+        <button
+          key="pbx"
+          type="button"
+          className={link}
+          disabled={calling}
+          onClick={() =>
+            startCall(async () => {
+              const r = await callAction(contact.target);
+              toast(r.message ?? "Звоним", r.ok ? "success" : "error");
+            })
+          }
+        >
+          {calling ? <LoaderCircle className="size-3.5 animate-spin" /> : <PhoneOutgoing className="size-3.5" />} Позвонить
+        </button>,
+      );
+    else if (contact.phone)
+      buttons.push(
+        <a key="tel" href={`tel:+${contact.phone}`} className={link}>
+          <Phone className="size-3.5" /> Позвонить
+        </a>,
+      );
+  }
+  if (kind === "message") {
+    if (contact.phone)
+      buttons.push(
+        <a key="wa" href={`https://wa.me/${contact.phone}`} target="_blank" rel="noopener noreferrer" className={link} title="Откроет WhatsApp на этом телефоне">
+          <MessageCircle className="size-3.5" /> WhatsApp
+        </a>,
+      );
+    if (reach.chat)
+      buttons.push(
+        <button
+          key="chat"
+          type="button"
+          className={link}
+          disabled={opening}
+          onClick={() =>
+            startChat(async () => {
+              const r = await openChatAction(contact.target);
+              if (r.ok && r.id) router.push(`/admin/chats?c=${r.id}`);
+              else toast(r.ok ? "Готово" : r.message, r.ok ? "success" : "error");
+            })
+          }
+        >
+          {opening ? <LoaderCircle className="size-3.5 animate-spin" /> : <MessagesSquare className="size-3.5" />} Открыть чат
+        </button>,
+      );
+  }
+  return buttons.length ? <div className="mt-2 ml-7 flex flex-wrap gap-2" data-testid="task-reach">{buttons}</div> : null;
 }

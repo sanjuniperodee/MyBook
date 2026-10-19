@@ -6,6 +6,7 @@ import { crmDealsClientId, crmDealsId } from "@/shared/infrastructure/db/refs";
 import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
+import { noOpenTask } from "./conditions";
 
 const CLOSED_DAYS = 30;
 
@@ -33,8 +34,9 @@ export async function dealList(
     const v = sp[`cf_${f.key}`];
     if (v && f.options.includes(v)) w.push(sql`${crmDeals.customFields}->>${f.key} = ${v}`);
   }
-  // Быстрые фильтры: без задачи, просроченная задача, застряла на этапе.
-  if (sp.task === "none") w.push(sql`not exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`);
+  // Быстрые фильтры: без задачи (открытые сделки без следующего шага — как плитка «Моего дня»), просроченная задача,
+  // застряла на этапе.
+  if (sp.task === "none") w.push(noOpenTask(), eq(crmStages.kind, "open"));
   if (sp.task === "overdue") w.push(sql`exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and t.due_at < now())`);
   const stale = Number(sp.stale);
   if (stale > 0) w.push(sql`${crmDeals.stageChangedAt} < now() - make_interval(days => ${Math.min(stale, 365)})`, eq(crmStages.kind, "open"));

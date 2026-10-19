@@ -3,7 +3,7 @@ import { iso, localDay } from "@/modules/reporting/time";
 import { storeTimeZone } from "@/shared/domain/time";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff } from "@/server/access";
@@ -19,7 +19,6 @@ const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur 
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const staff = await requireStaff();
-  const admin = staff.user;
   // Без доступа к аналитике — только рабочий стол сотрудника, без выручки магазина.
   if (!can(staff, "analytics.view"))
     return (
@@ -32,7 +31,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const period = periods.find((p) => String(p) === raw) ?? 30;
   const channelsReport = await container().marketing.service.report(period);
   const sources = { rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8) };
-  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, tasks, attention, events } = await container().reporting.dashboard(period, admin.id);
+  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events } = await container().reporting.dashboard(period);
 
   const byDay = new Map(daily.map((r) => [r.d, r]));
   const series: DayPoint[] = Array.from({ length: period }, (_, i) => {
@@ -134,7 +133,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-line bg-white p-5">
           <h2 className="mb-5 font-semibold">Выручка по тарифам</h2>
           <BarList
@@ -170,17 +169,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                 </Link>
               );
             })}
-        </Panel>
-
-        <Panel title="Мои задачи на сегодня" icon={CheckSquare} href="/admin/tasks" empty="Задач на сегодня нет">
-          {tasks.map((t) => (
-            <Link key={t.id} href="/admin/tasks" className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
-              <span className="min-w-0 flex-1 truncate">{t.title}</span>
-              {t.dueAt ? (
-                <span className={cn("text-xs", t.dueAt < localDay(0) ? "text-red-700" : "text-muted")}>{t.dueAt < localDay(0) ? "просрочена" : "сегодня"}</span>
-              ) : null}
-            </Link>
-          ))}
         </Panel>
       </div>
 

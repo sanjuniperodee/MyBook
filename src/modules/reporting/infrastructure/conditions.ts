@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, gte, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { crmCalls, crmConversations, crmTasks } from "@/shared/infrastructure/db/schema";
+import { crmDealsId } from "@/shared/infrastructure/db/refs";
 import { localDay } from "./time";
 
 /**
@@ -30,3 +31,9 @@ export const waitingChats = (viewer: Viewer) => and(isNotNull(crmConversations.a
 /** Пропущенные входящие за 3 дня, по которым не перезвонили, — как бейдж «Звонки» и фильтр «Пропущенные». */
 export const missedCalls = (viewer: Viewer) =>
   and(eq(crmCalls.status, "missed"), eq(crmCalls.direction, "in"), isNull(crmCalls.handledAt), gte(crmCalls.startedAt, sql`now() - interval '3 days'`), visibleTo(viewer, crmCalls.staffId));
+
+/**
+ * У сделки нет открытой задачи — нет следующего шага: фильтр сделок «Без задачи» (task=none) и плитка «Моего дня».
+ * В выборке из crm_deals; по частичному индексу crm_tasks_open_deal_idx.
+ */
+export const noOpenTask = () => sql`not exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`;

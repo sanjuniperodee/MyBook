@@ -4,10 +4,11 @@ import { db, pool } from "@/shared/infrastructure/db";
 import { MY_DAY_LIMITS, myDay } from "@/modules/reporting/infrastructure/MyDay";
 import { crmCounters } from "@/modules/reporting/infrastructure/Counters";
 import { inbox } from "@/modules/reporting/infrastructure/Inbox";
+import { dealList } from "@/modules/reporting/infrastructure/Deals";
 
 /**
  * Честные числа «Моего дня» (tasks-d1) на PostgreSQL: плитка показывает настоящее число, а не длину обрезанного списка,
- * и совпадает с бейджем меню и экраном по ссылке.
+ * и совпадает с бейджем меню и экраном по ссылке. Блок «Сегодня» и «сделки без следующего шага» (tasks-17).
  * Запуск: INTEGRATION=1 npx vitest run tests/my-day.integration.test.ts (база из DATABASE_URL с миграциями).
  */
 const run = process.env.INTEGRATION === "1" ? describe : describe.skip;
@@ -19,18 +20,25 @@ run("reporting: числа «Моего дня» и бейджи меню (Postg
   const one = async (query: ReturnType<typeof sql>) => (await q<{ id: string }>(query))[0].id;
   const ids: Record<string, string> = {};
   const viewer = () => ({ userId: ids.me, seesAll: false });
-  const task = (assignee: string, due: ReturnType<typeof sql>, done = false) =>
-    q(sql`insert into crm_tasks (title, assignee_id, due_at, done_at) values (${tag}, ${assignee}, ${due}, ${done ? sql`now()` : null})`);
+  const task = (assignee: string, due: ReturnType<typeof sql>, done = false, dealId: string | null = null) =>
+    q(sql`insert into crm_tasks (title, assignee_id, due_at, done_at, deal_id) values (${tag}, ${assignee}, ${due}, ${done ? sql`now()` : null}, ${dealId})`);
+  const deal = (stage: string, assignee: string, phone: string | null = null) =>
+    one(sql`insert into crm_deals (title, stage_id, assignee_id, contact_phone) values (${tag}, ${stage}, ${assignee}, ${phone}) returning id`);
 
   beforeAll(async () => {
     ids.me = await one(sql`insert into users (email, password_hash, name, role) values (${`${tag}-me@test.kz`}, 'x', ${tag}, 'admin') returning id`);
     ids.other = await one(sql`insert into users (email, password_hash, name, role) values (${`${tag}-other@test.kz`}, 'x', ${tag}, 'admin') returning id`);
+    const [open] = await q<{ id: string; pipeline_id: string }>(sql`select id, pipeline_id from crm_stages where kind = 'open' order by position limit 1`);
+    ids.open = open.id;
+    ids.pipeline = open.pipeline_id;
+    ids.won = await one(sql`select id from crm_stages where kind = 'won' order by position limit 1`);
   });
 
   afterAll(async () => {
     await q(sql`delete from crm_tasks where title = ${tag}`);
     await q(sql`delete from crm_conversations where contact_name = ${tag}`);
     await q(sql`delete from crm_calls where provider = ${tag}`);
+    await q(sql`delete from crm_deals where title = ${tag}`);
     await q(sql`delete from users where name = ${tag}`);
     await pool.end();
   });
@@ -75,5 +83,31 @@ run("reporting: числа «Моего дня» и бейджи меню (Postg
     expect(after.counts.missed - before.counts.missed).toBe(8);
     expect(after.missed.length).toBeLessThanOrEqual(MY_DAY_LIMITS.missed);
     expect((await crmCounters({ userId: ids.me, scope: "own", can: () => true })).calls).toBe(after.counts.missed);
+  });
+
+  it("«Сегодня»: первые 10, просроченные сверху; номер для «Позвонить» — из контакта сделки", async () => {
+    const d = await deal(ids.open, ids.me, "8 701 555 44 33");
+    await task(ids.me, sql`now() - interval '30 days'`, false, d);
+    const { tasks, counts } = await myDay(viewer(), sections);
+    expect(tasks).toHaveLength(Math.min(MY_DAY_LIMITS.tasks, counts.tasks));
+    const due = tasks.map((r) => r.task.dueAt!.getTime());
+    expect(due).toEqual([...due].sort((a, b) => a - b));
+    expect(tasks.find((r) => r.task.dealId === d)).toMatchObject({ phone: "8 701 555 44 33", dealTitle: tag });
+  });
+
+  it("сделки без следующего шага: открытые мои без открытой задачи — как фильтр «Без задачи»; выигранные и чужие — нет", async () => {
+    const before = await myDay(viewer(), sections);
+    const withTask = await deal(ids.open, ids.me);
+    await task(ids.me, sql`now() + interval '2 days'`, false, withTask);
+    const bare = await deal(ids.open, ids.me);
+    const doneOnly = await deal(ids.open, ids.me);
+    await task(ids.me, sql`now() - interval '1 day'`, true, doneOnly);
+    await deal(ids.won, ids.me);
+    await deal(ids.open, ids.other);
+
+    const after = await myDay(viewer(), sections);
+    expect(after.deals.noNextStep - before.deals.noNextStep).toBe(2);
+    const list = await dealList(viewer(), { id: ids.pipeline }, { mine: "1", task: "none", q: tag }, [], "list");
+    expect(list.map((r) => r.deal.id).sort()).toEqual([bare, doneOnly].sort());
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClientsError } from "@/modules/clients/domain";
+import { ClientsError, snoozedDue } from "@/modules/clients/domain";
 import { TasksService } from "@/modules/clients/application";
 import { head, lead, manager, setup } from "./doubles/clients";
 
@@ -388,5 +388,60 @@ describe("TasksService: напоминание сотруднику в WhatsApp 
     for (const id of ["day", "nobody"]) t.mem.tasks.rows.set(id, { ...t.mem.tasks.rows.get(id)!, remindBeforeMin: 60 });
     expect(await tasks.remindDue()).toBe(2);
     expect(whatsapp).toEqual(["m2"]);
+  });
+});
+
+describe("отложить задачу одной кнопкой — «+1 ч» и «Завтра» (tasks-17)", () => {
+  const tz = "Asia/Almaty"; // UTC+5
+  const at = (local: string) => new Date(`${local}+05:00`);
+
+  it("«+1 ч»: на час позже срока; срок прошёл или его нет — через час от сейчас", () => {
+    const now = at("2026-10-19T10:00");
+    expect(snoozedDue(at("2026-10-19T12:00"), now, "hour", tz)).toEqual(at("2026-10-19T13:00"));
+    expect(snoozedDue(at("2026-10-19T08:00"), now, "hour", tz)).toEqual(at("2026-10-19T11:00"));
+    expect(snoozedDue(null, now, "hour", tz)).toEqual(at("2026-10-19T11:00"));
+  });
+
+  it("«Завтра»: завтрашний день магазина в то же время, что и срок; без срока — в то же время, что сейчас; через конец месяца", () => {
+    expect(snoozedDue(at("2026-10-30T09:30"), at("2026-10-31T20:00"), "tomorrow", tz)).toEqual(at("2026-11-01T09:30"));
+    expect(snoozedDue(null, at("2026-10-31T20:00"), "tomorrow", tz)).toEqual(at("2026-11-01T20:00"));
+    // 20:30 UTC — уже 01:30 следующего дня в Алматы: «завтра» — по дню магазина, а не по UTC.
+    expect(snoozedDue(null, new Date("2026-10-19T20:30:00Z"), "tomorrow", tz)).toEqual(at("2026-10-21T01:30"));
+  });
+
+  it("сервис: новый срок, напоминание взводится заново; до срока меньше «напомнить за» — напоминание в сам срок", async () => {
+    const t = setup();
+    t.c.set("2026-10-19T05:00:00Z");
+    t.mem.tasks.seed({ id: "t1", assigneeId: "m1", dueAt: new Date("2026-10-19T04:00:00Z"), remindBeforeMin: 60 });
+    t.mem.tasks.rows.set("t1", { ...t.mem.tasks.rows.get("t1")!, remindedAt: new Date("2026-10-19T03:00:00Z") });
+    await t.tasks.snooze(manager, "t1", "hour");
+    expect(t.mem.tasks.rows.get("t1")).toMatchObject({ dueAt: new Date("2026-10-19T06:00:00Z"), remindBeforeMin: 0, remindedAt: null });
+    await t.tasks.snooze(manager, "t1", "tomorrow");
+    expect(t.mem.tasks.rows.get("t1")).toMatchObject({ dueAt: new Date("2026-10-20T06:00:00Z"), remindBeforeMin: 0 });
+    // Далёкий срок: «напомнить за 15 минут» остаётся; «не напоминать» — тоже.
+    t.mem.tasks.seed({ id: "t2", assigneeId: "m1", dueAt: new Date("2026-10-19T04:00:00Z"), remindBeforeMin: 15 });
+    t.mem.tasks.seed({ id: "t3", assigneeId: "m1", dueAt: new Date("2026-10-19T04:00:00Z"), remindBeforeMin: null });
+    await t.tasks.snooze(manager, "t2", "tomorrow");
+    await t.tasks.snooze(manager, "t3", "tomorrow");
+    expect(t.mem.tasks.rows.get("t2")).toMatchObject({ dueAt: new Date("2026-10-20T04:00:00Z"), remindBeforeMin: 15 });
+    expect(t.mem.tasks.rows.get("t3")).toMatchObject({ dueAt: new Date("2026-10-20T04:00:00Z"), remindBeforeMin: null });
+    // Без срока — напоминание по умолчанию (за час), если до срока больше часа.
+    t.mem.tasks.seed({ id: "t4", assigneeId: "m1" });
+    await t.tasks.snooze(manager, "t4", "tomorrow");
+    expect(t.mem.tasks.rows.get("t4")).toMatchObject({ dueAt: new Date("2026-10-20T05:00:00Z"), remindBeforeMin: 60 });
+  });
+
+  it("сервис: выполненная не меняется; чужую без права «все задачи» — forbidden; нет задачи — taskNotFound", async () => {
+    const t = setup();
+    const due = new Date("2026-10-01T09:00:00Z");
+    t.mem.tasks.seed({ id: "done", assigneeId: "m1", dueAt: due, doneAt: new Date("2026-10-01T08:00:00Z") });
+    await t.tasks.snooze(manager, "done", "hour");
+    expect(t.mem.tasks.rows.get("done")?.dueAt).toEqual(due);
+    t.mem.tasks.seed({ id: "alien", assigneeId: "m2", createdById: "h1", dueAt: due });
+    await expect(t.tasks.snooze(manager, "alien", "hour")).rejects.toMatchObject({ code: "forbidden" });
+    expect(t.mem.tasks.rows.get("alien")?.dueAt).toEqual(due);
+    await t.tasks.snooze(head, "alien", "hour");
+    expect(t.mem.tasks.rows.get("alien")?.dueAt).toEqual(new Date("2026-10-01T11:00:00Z"));
+    await expect(t.tasks.snooze(manager, "nope", "hour")).rejects.toMatchObject({ code: "taskNotFound" });
   });
 });

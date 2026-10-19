@@ -1,15 +1,17 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { crmTasks, orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, or, sql } from "drizzle-orm";
+import { orderEvents, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { progressCols, textStepSql } from "@/shared/infrastructure/db/bookProgress";
 import { storeTimeZone } from "@/shared/domain/time";
 import { iso, localDay } from "./time";
 
-/** Обзор магазина за период: выручка по дням, сравнение с прошлым периодом, воронка когорты, дедлайны, задачи, внимание. */
-export async function dashboard(period: number, staffId: string) {
+/**
+ * Обзор магазина за период: выручка по дням, сравнение с прошлым периодом, воронка когорты, дедлайны, внимание. Задачи
+ * сотрудника на сегодня — в «Моём дне» над обзором (myDay).
+ */
+export async function dashboard(period: number) {
   const db = executor();
-  const admin = { id: staffId };
   // Границы периода в часовом поясе магазина (пояс — параметром запроса)
   const tz = storeTimeZone();
   const startLocal = localDay(-(period - 1));
@@ -17,7 +19,7 @@ export async function dashboard(period: number, staffId: string) {
   const start = sql`(${iso(startLocal)}::date at time zone ${tz})`;
   const prevStart = sql`(${iso(prevStartLocal)}::date at time zone ${tz})`;
 
-  const [dailyRes, curRes, prevRes, [newUsers], funnelRows, byPlanRes, deadlines, dealDeadlines, tasks, attention, events] = await Promise.all([
+  const [dailyRes, curRes, prevRes, [newUsers], funnelRows, byPlanRes, deadlines, dealDeadlines, attention, events] = await Promise.all([
     // Выручка — единый журнал revenue_events: оплаченные заказы, платежи по ручным сделкам, успешные сделки без заказа.
     db.execute<{ d: string; sum: number; n: number }>(sql`
       select to_char((e.at at time zone ${tz})::date, 'YYYY-MM-DD') as d, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n
@@ -61,12 +63,6 @@ export async function dashboard(period: number, staffId: string) {
       order by due limit 8`),
     db
       .select()
-      .from(crmTasks)
-      .where(and(isNull(crmTasks.doneAt), lte(crmTasks.dueAt, localDay(1)), or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, admin.id))))
-      .orderBy(asc(crmTasks.dueAt))
-      .limit(8),
-    db
-      .select()
       .from(orders)
       .where(or(and(eq(orders.status, "paid"), ne(orders.plan, "digital")), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
       .orderBy(asc(orders.createdAt))
@@ -80,5 +76,5 @@ export async function dashboard(period: number, staffId: string) {
       .limit(10),
   ]);
   const zero = { sum: 0, n: 0 };
-  return { daily: dailyRes.rows, cur: curRes.rows[0] ?? zero, prev: prevRes.rows[0] ?? zero, newUsers, funnelRows, byPlan: byPlanRes.rows, deadlines, dealDeadlines: dealDeadlines.rows, tasks, attention, events };
+  return { daily: dailyRes.rows, cur: curRes.rows[0] ?? zero, prev: prevRes.rows[0] ?? zero, newUsers, funnelRows, byPlan: byPlanRes.rows, deadlines, dealDeadlines: dealDeadlines.rows, attention, events };
 }
