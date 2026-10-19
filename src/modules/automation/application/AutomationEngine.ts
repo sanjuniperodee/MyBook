@@ -143,13 +143,28 @@ export class AutomationEngine {
   /**
    * Правила по времени. «Клиенту не ответили N минут» — каждый проход, считая только рабочее время;
    * «клиент забросил книгу» и «годовщина повода» — раз в 30 минут (force — сразу, для scheduler:once).
+   * Не бросает: сбой загрузки правил или выборки одного правила пишется в лог, остальные правила и шаги минутного
+   * прохода (напоминания, круг заявок, бот, почта, доступ по оплаченным счетам) идут дальше.
    */
   async runScheduled(opts: { force?: boolean } = {}) {
-    const rules = await this.rules.active();
-    if (!rules.length) return 0;
     const now = this.clock.now();
-    const workTime = await this.schedule.isWorkTime(now);
+    let rules: AutomationRule[];
+    let workTime: boolean;
+    try {
+      rules = await this.rules.active();
+      if (!rules.length) return 0;
+      workTime = await this.schedule.isWorkTime(now);
+    } catch (err) {
+      this.logger.error("правила по времени: загрузка правил и графика", err);
+      return 0;
+    }
     let fired = 0;
+    /** Выборка для правила (кому не ответили, кто забросил книгу, годовщины): ошибка одного правила не мешает другим. */
+    const each = async (trigger: AutomationTrigger, body: (rule: AutomationRule) => Promise<void>) => {
+      for (const rule of rules.filter((r) => r.trigger === trigger)) {
+        await body(rule).catch((err) => this.logger.error(`«${rule.name}»: выборка правила по времени`, err));
+      }
+    };
     const fire = async (rule: AutomationRule, ctx: TriggerContext) => {
       if (!matches(rule, ctx)) return;
       const ok = await this.#depth
@@ -161,28 +176,28 @@ export class AutomationEngine {
       if (ok) fired++;
     };
 
-    for (const rule of rules.filter((r) => r.trigger === "message.unanswered")) {
+    await each("message.unanswered", async (rule) => {
       const minutes = conditionNumber(rule, "minutes", 15);
       for (const c of await this.scheduled.unanswered(new Date(now.getTime() - minutes * 60_000))) {
         // Ночь и выходные не считаем: норматив — в рабочих минутах.
         if ((await this.schedule.workMinutesBetween(c.awaitingSince, now)) < minutes) continue;
         await fire(rule, { subject: `${c.conversationId}:${c.awaitingSince.toISOString()}`, conversationId: c.conversationId, dealId: c.dealId, clientId: c.clientId, channel: c.channel, workTime });
       }
-    }
+    });
 
     if (!opts.force && now.getTime() - this.#lastSlowRun < 30 * 60_000) return fired;
     this.#lastSlowRun = now.getTime();
 
-    for (const rule of rules.filter((r) => r.trigger === "client.inactive")) {
+    await each("client.inactive", async (rule) => {
       for (const r of await this.scheduled.inactiveClients(conditionNumber(rule, "days", 5))) {
         await fire(rule, { subject: `${r.dealId}:${r.lastSeen.toISOString()}`, dealId: r.dealId, clientId: r.clientId, workTime });
       }
-    }
-    for (const rule of rules.filter((r) => r.trigger === "occasion.anniversary")) {
+    });
+    await each("occasion.anniversary", async (rule) => {
       for (const r of await this.scheduled.anniversaries(conditionNumber(rule, "daysBefore", 30, 120))) {
         await fire(rule, { subject: `${r.orderId}:${r.year}`, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date });
       }
-    }
+    });
     return fired;
   }
 }

@@ -4,11 +4,11 @@ import type { AutomationRule, RuleSubject } from "@/modules/automation/domain";
 
 const now = new Date("2026-10-01T06:00:00Z");
 
-function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Partial<RuleSubject>; onMove?: (dealId: string, stageId: string) => Promise<void> } = {}) {
+function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Partial<RuleSubject>; onMove?: (dealId: string, stageId: string) => Promise<void>; scheduled?: Partial<ScheduledSource>; active?: RuleRepository["active"] } = {}) {
   const claimed = new Set<string>();
   const log: string[] = [];
   const repo: RuleRepository = {
-    active: async (trigger) => rules.filter((r) => !trigger || r.trigger === trigger),
+    active: opts.active ?? (async (trigger) => rules.filter((r) => !trigger || r.trigger === trigger)),
     claim: async (id, subject) => !claimed.has(`${id}:${subject}`) && !!claimed.add(`${id}:${subject}`),
     markRun: async (id) => void log.push(`run:${id}`),
   };
@@ -36,11 +36,12 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
     findOpenDealId: async () => null,
     createDeal: async () => ({ id: "d9", assigneeId: null }),
   };
-  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [] };
+  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], ...opts.scheduled };
   const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0 };
-  const quiet = { info: () => {}, warn: () => {}, error: () => {} };
+  const errors: string[] = [];
+  const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
   const engine = new AutomationEngine(repo, loader, effects, sales, schedule, scheduled, { url: "https://mybook.kz" }, { now: () => now }, quiet);
-  return { engine, log };
+  return { engine, log, errors };
 }
 
 const rule = (p: Partial<AutomationRule>): AutomationRule => ({ id: "r1", name: "Правило", trigger: "deal.created", conditions: {}, actions: [], ...p });
@@ -79,5 +80,32 @@ describe("AutomationEngine", () => {
     ref.engine = ctx.engine;
     await ctx.engine.run("deal.stage_changed", { subject: "d1:0" });
     expect(moves).toBe(3);
+  });
+});
+
+describe("AutomationEngine: правила по времени не обрывают минутный проход", () => {
+  const failing = async (): Promise<never> => {
+    throw new Error("relation does not exist");
+  };
+
+  it("правила не загрузились — проход возвращает 0 и пишет ошибку в лог, а не бросает", async () => {
+    const { engine, errors } = setup([], { active: failing });
+    await expect(engine.runScheduled({ force: true })).resolves.toBe(0);
+    expect(errors).toEqual(["правила по времени: загрузка правил и графика"]);
+  });
+
+  it("выборка одного правила упала — остальные правила срабатывают, в логе имя упавшего", async () => {
+    const lastSeen = new Date("2026-09-20T00:00:00Z");
+    const { engine, log, errors } = setup(
+      [
+        rule({ id: "sla", name: "SLA", trigger: "message.unanswered", actions: [{ type: "notify", title: "SLA" }] }),
+        rule({ id: "inactive", name: "Забросил книгу", trigger: "client.inactive", actions: [{ type: "notify", title: "Вернуть" }] }),
+        rule({ id: "anniversary", name: "Годовщина", trigger: "occasion.anniversary", actions: [{ type: "notify", title: "Годовщина" }] }),
+      ],
+      { scheduled: { unanswered: failing, inactiveClients: async () => [{ dealId: "d1", clientId: "c1", lastSeen }], anniversaries: failing } },
+    );
+    await expect(engine.runScheduled({ force: true })).resolves.toBe(1);
+    expect(log).toEqual(["notify:staff:Вернуть", "run:inactive"]);
+    expect(errors).toEqual(["«SLA»: выборка правила по времени", "«Годовщина»: выборка правила по времени"]);
   });
 });
