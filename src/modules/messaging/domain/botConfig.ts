@@ -359,6 +359,9 @@ export const defaultOptionLabels: Record<string, string> = {
   "Пока не знает": "Әзірге білмеймін",
 };
 
+/** Сколько раз за беседу бот пишет клиенту сам по договорённости или в последний день — не больше двух (решение владельца по P0-12). */
+export const REMIND_TOUCHES_MAX = 2;
+
 export const defaultBotConfig: BotConfig = {
   channels: ["whatsapp"],
   waitMinutes: 3,
@@ -483,7 +486,7 @@ function parseSell(raw: unknown): BotSell {
     remind: r.remind === true,
     lastStart: r.lastStart === true,
     remindMaxDays: int(r.remindMaxDays, 1, 180, d.remindMaxDays),
-    remindTouches: int(r.remindTouches, 1, 5, d.remindTouches),
+    remindTouches: int(r.remindTouches, 1, REMIND_TOUCHES_MAX, d.remindTouches),
   };
 }
 

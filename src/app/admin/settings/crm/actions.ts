@@ -8,7 +8,7 @@ import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
 import { isValidTime } from "@/shared/domain/schedule";
 import { findSensitive, sensitiveLabels, type BotPreviewResult } from "@/modules/messaging";
-import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
+import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, REMIND_TOUCHES_MAX, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
 import { faqIntentLabels, pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
 import { FAQ_INTENTS, type FaqIntent } from "@/modules/messaging/domain/botNlu";
 import { BOT_MODES } from "@/modules/messaging/domain/bot";
@@ -158,7 +158,7 @@ const botConfigSchema = z.object({
     remind: z.boolean(),
     lastStart: z.boolean(),
     remindMaxDays: z.number().int().min(1, "Повторное сообщение — от 1 до 180 дней вперёд").max(180, "Повторное сообщение — от 1 до 180 дней вперёд"),
-    remindTouches: z.number().int().min(1, "Повторных сообщений — от 1").max(5, "Повторных сообщений — не больше 5 за беседу"),
+    remindTouches: z.number().int().min(1, admin.remindTouchesInvalid(REMIND_TOUCHES_MAX)).max(REMIND_TOUCHES_MAX, admin.remindTouchesInvalid(REMIND_TOUCHES_MAX)),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });

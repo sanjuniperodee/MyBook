@@ -7,7 +7,7 @@ import { cn } from "@/lib/class-names";
 import { saveBotAction } from "./actions";
 import { BotTester } from "./BotTester";
 import type { BotFormTab } from "./botTabs";
-import { DEFAULT_SELL_FACTS, revoiceConfig, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
+import { DEFAULT_SELL_FACTS, REMIND_TOUCHES_MAX, revoiceConfig, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
 
 type Mode = "off" | "fallback" | "off_hours" | "always";
 export interface BotFormField {
@@ -458,7 +458,7 @@ export function BotForm({
                         </label>
                         <label className="flex items-center gap-2">
                           Не больше
-                          <input type="number" min={1} max={5} value={cfg.sell.remindTouches} onChange={(e) => setSell({ remindTouches: Math.max(1, Math.min(5, Math.floor(Number(e.target.value) || 1))) })} className="input h-9 w-16 text-sm" aria-label="Не больше повторных сообщений за беседу" />
+                          <input type="number" min={1} max={REMIND_TOUCHES_MAX} value={cfg.sell.remindTouches} onChange={(e) => setSell({ remindTouches: Math.max(1, Math.min(REMIND_TOUCHES_MAX, Math.floor(Number(e.target.value) || 1))) })} className="input h-9 w-16 text-sm" aria-label="Не больше повторных сообщений за беседу" />
                           таких сообщений за беседу
                         </label>
                       </div>

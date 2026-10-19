@@ -79,7 +79,9 @@ describe("Повторное сообщение: проверки кода", () 
 
   it("настройки приезжают выключенными: не больше 2 сообщений, не дальше 60 дней; границы — при чтении", () => {
     expect(defaultBotConfig.sell).toMatchObject({ remind: false, lastStart: false, remindMaxDays: 60, remindTouches: 2 });
-    expect(parseBotConfig(JSON.stringify({ sell: { remind: true, lastStart: true, remindMaxDays: 30, remindTouches: 3 } })).sell).toMatchObject({ remind: true, lastStart: true, remindMaxDays: 30, remindTouches: 3 });
+    expect(parseBotConfig(JSON.stringify({ sell: { remind: true, lastStart: true, remindMaxDays: 30, remindTouches: 1 } })).sell).toMatchObject({ remind: true, lastStart: true, remindMaxDays: 30, remindTouches: 1 });
+    // Не больше двух касаний за беседу (решение владельца): 3 и 5 из старых настроек — по умолчанию.
+    for (const remindTouches of [3, 5]) expect(parseBotConfig(JSON.stringify({ sell: { remindTouches } })).sell.remindTouches).toBe(2);
     expect(parseBotConfig(JSON.stringify({ sell: { remind: "yes", remindMaxDays: 999, remindTouches: 0 } })).sell).toMatchObject({ remind: false, remindMaxDays: 60, remindTouches: 2 });
   });
 
