@@ -587,6 +587,29 @@ describe("Статус заказа и трек-номер для правил (
     expect(runs.map(([, ctx]) => (ctx as { subject: string }).subject)).toEqual([orderRuleSubject.status(t.id, "shipped"), orderRuleSubject.track(t.id, "RR123456789KZ")]);
   });
 
+  it("откат статуса (в «Оплачен», в «Ждёт оплаты») и трек у доставленного заказа правилам о заказе не сообщаются", async () => {
+    const { registerSubscriptions } = await import("@/server/subscriptions");
+    const bus = new InProcessEventBus({ info: () => {}, warn: () => {}, error: () => {} });
+    const runs: string[] = [];
+    registerSubscriptions({ bus, automation: { engine: { run: async (trigger: string, ctx: { orderStatus?: string }) => void runs.push(`${trigger}:${ctx.orderStatus ?? ""}`) } }, sales: { deals: { byOrder: async () => [{ id: "deal-7" }] } } } as never);
+    const t = await inProduction();
+    // Ошиблись — вернули в «Оплачен»: правило «любой статус» не пишет клиенту «ваш заказ оплачен» второй раз.
+    await t.svc.changeStatus({ orderId: t.id, to: "paid" }, orderingAdmin);
+    await t.svc.changeStatus({ orderId: t.id, to: "in_production" }, orderingAdmin);
+    await t.svc.update({ orderId: t.id, status: "delivered", trackingNumber: "" }, orderingAdmin);
+    // Трек вписали уже после доставки — для истории: ни письма, ни правила.
+    await t.svc.update({ orderId: t.id, status: "delivered", trackingNumber: "RR123456789KZ" }, orderingAdmin);
+    expect(t.tracking()).toEqual([]);
+    await bus.publish(t.uow.published);
+    expect(runs).toEqual(["order.status_changed:in_production", "order.status_changed:delivered"]);
+  });
+
+  it("трек-номер из цифр — не «номер карты», когда он разрешён (сообщение о треке); чужой такой же длины — карта", () => {
+    const track = "10293847561239"; // 14 цифр, проходит проверку Луна
+    expect(findSensitive(`Трек-номер: ${track}`, [track])).toEqual([]);
+    expect(findSensitive(`Трек-номер: ${track}`)).toEqual([{ kind: "card", value: "•••• 1239" }]);
+  });
+
   it("условие «статус»: правило на «Отправлен» не срабатывает на «В печати»; откат и повторный перевод клиенту не повторяются", async () => {
     const shipped = rule({ id: "ship", name: "Отправлена", trigger: "order.status_changed", conditions: { orderStatus: "shipped" }, actions: [{ type: "send_message", text: "Книга отправлена" }] });
     const { engine, log } = setup([shipped]);

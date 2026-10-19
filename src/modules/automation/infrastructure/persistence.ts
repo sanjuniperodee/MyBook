@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gt, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { books, crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, dealInvoices, orders, users } from "@/shared/infrastructure/db/schema";
 import { appLink } from "@/shared/infrastructure/mail";
 import { staffLabel } from "@/shared/domain/staff";
@@ -13,6 +13,9 @@ import type { CustomFieldsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
 import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";
 import type { AutomationRule, Holiday, RuleSubject, TriggerContext } from "../domain";
+
+/** Переписка в WhatsApp: шлюз GOWA (whatsapp) и WhatsApp API через Wazzup (wapi). */
+const WHATSAPP_CHANNELS = ["whatsapp", "wapi"];
 
 /** Заказ (алиас o) оплачен по paid_at и не отменён; не isPaid() из ordering (тот — по статусу). */
 const paidAndNotCancelled = sql`o.paid_at is not null and o.status <> 'cancelled'`;
@@ -114,14 +117,14 @@ export class DrizzleSubjectLoader implements SubjectLoader {
     return c?.id ?? null;
   }
 
-  /** Диалоги сделки и клиента — по индексам crm_conv_deal_idx и crm_conv_client_idx. */
+  /** Диалоги сделки и клиента в WhatsApp (GOWA и Wazzup) — по индексам crm_conv_deal_idx и crm_conv_client_idx. */
   async latestWhatsapp(dealId: string | null, clientId: string | null) {
     const of = [dealId ? eq(crmConversations.dealId, dealId) : undefined, clientId ? eq(crmConversations.clientId, clientId) : undefined].filter((c) => c !== undefined);
     if (!of.length) return null;
     const [c] = await executor()
       .select({ id: crmConversations.id })
       .from(crmConversations)
-      .where(and(eq(crmConversations.channel, "whatsapp"), or(...of)))
+      .where(and(inArray(crmConversations.channel, WHATSAPP_CHANNELS), or(...of)))
       .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`, desc(crmConversations.id))
       .limit(1);
     return c?.id ?? null;

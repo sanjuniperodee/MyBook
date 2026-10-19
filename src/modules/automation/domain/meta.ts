@@ -42,6 +42,8 @@ export type AutomationTrigger = keyof typeof automationTriggers;
 
 /** Статусы заказа для условия «Статус заказа изменился»: оплату ловит «Заказ оплачен», отмена клиенту не пишется. */
 export const orderRuleStatuses = ["in_production", "shipped", "delivered"] as const;
+/** Статус, о котором правила «Сменился статус заказа» сообщают: только движение заказа вперёд, не откат в оплату. */
+export const isOrderRuleStatus = (status: string): status is (typeof orderRuleStatuses)[number] => (orderRuleStatuses as readonly string[]).includes(status);
 export const isTrigger = (t: string): t is AutomationTrigger => Object.prototype.hasOwnProperty.call(automationTriggers, t);
 
 export const automationActions = {

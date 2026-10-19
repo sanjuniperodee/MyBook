@@ -60,8 +60,9 @@ export class DrizzleDealRepository implements DealRepository {
     return list.length ? (await executor().select().from(crmDeals).where(inArray(crmDeals.id, list))).map(toDomain) : [];
   }
 
+  /** Сделки заказа по порядку создания (crm_deals_order_idx): первая — всегда одна и та же. */
   async findByOrder(orderId: string) {
-    return (await executor().select().from(crmDeals).where(eq(crmDeals.orderId, orderId))).map(toDomain);
+    return (await executor().select().from(crmDeals).where(eq(crmDeals.orderId, orderId)).orderBy(asc(crmDeals.createdAt), asc(crmDeals.id))).map(toDomain);
   }
 
   async findOpen(opts: { clientId?: string | null; phone?: string | null }) {

@@ -5,7 +5,8 @@ import { DrizzleSubjectLoader } from "@/modules/automation/infrastructure/persis
 
 /**
  * Куда правило пишет клиенту (PostgreSQL): «Отправить сообщение» — в диалог сделки, а если у сделки его нет (сделку
- * годовщины только что создало правило) — в последний диалог клиента; сообщение о заказе — только в WhatsApp.
+ * годовщины только что создало правило) — в последний диалог клиента; сообщение о заказе — только в WhatsApp (GOWA
+ * или Wazzup).
  * Запуск: INTEGRATION=1 npx vitest run tests/automation-subjects.integration.test.ts (база из DATABASE_URL с миграциями).
  */
 const run = process.env.INTEGRATION === "1" ? describe : describe.skip;
@@ -52,5 +53,11 @@ run("automation: переписка для сообщения правила (Po
     expect(await loader.latestConversation(ids.fresh, ids.client)).toBe(ids.mail);
     expect(await loader.latestConversation(null, ids.client)).toBe(ids.mail);
     expect(await loader.latestConversation(null, null)).toBeNull();
+  });
+
+  it("сообщение о заказе — в WhatsApp, и через Wazzup (wapi) тоже; письмо — не WhatsApp", async () => {
+    expect(await loader.latestWhatsapp(ids.withChat, ids.client)).toBe(ids.wapi);
+    expect(await loader.latestWhatsapp(ids.fresh, null)).toBeNull();
+    expect(await loader.latestWhatsapp(ids.withChat, null)).toBe(ids.dealChat);
   });
 });

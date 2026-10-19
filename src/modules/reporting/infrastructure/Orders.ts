@@ -97,7 +97,7 @@ export async function orderNotice(order: { id: string; userId: string; trackingN
     db
       .select({ id: crmConversations.id })
       .from(crmConversations)
-      .where(and(eq(crmConversations.channel, "whatsapp"), or(eq(crmConversations.clientId, order.userId), deal ? eq(crmConversations.dealId, deal.id) : undefined)))
+      .where(and(inArray(crmConversations.channel, ["whatsapp", "wapi"]), or(eq(crmConversations.clientId, order.userId), deal ? eq(crmConversations.dealId, deal.id) : undefined)))
       .limit(1),
     rules.length
       ? db

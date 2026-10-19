@@ -366,15 +366,16 @@ export class Order extends AggregateRoot<OrderProps> {
   }
 
   /**
-   * Трек-номер посылки. Новый трек у отправленного или доставленного заказа — событие «трек-номер появился»: клиенту
-   * его сообщат письмо и правила CRM (automation-d12 — письмо «Книга в пути» ушло раньше, чем вписали трек). У заказа,
-   * который ещё не отправлен, событие будет при переводе в «Отправлен». Тот же трек повторно — без события.
+   * Трек-номер посылки. Новый трек у отправленного заказа — событие «трек-номер появился»: клиенту его сообщат письмо и
+   * правила CRM (automation-d12 — письмо «Книга в пути» ушло раньше, чем вписали трек). У заказа, который ещё не
+   * отправлен, событие будет при переводе в «Отправлен». Доставленному — без события: книга уже у клиента, трек вписали
+   * для истории. Тот же трек повторно — без события.
    */
   setTrackingNumber(value: string | null, actor = "system") {
     const next = value?.trim() || null;
     if (next === this.props.trackingNumber) return;
     this.props.trackingNumber = next;
-    if (next && (this.props.status === "shipped" || this.props.status === "delivered")) this.record(OrderingEvents.trackingAdded({ ...this.ref(), trackingNumber: next, afterShipping: true, actor }));
+    if (next && this.props.status === "shipped") this.record(OrderingEvents.trackingAdded({ ...this.ref(), trackingNumber: next, afterShipping: true, actor }));
   }
 
   addNote(note: string, actor: string, now: Date) {

@@ -57,6 +57,8 @@ const asciiDigits = (s: string) => s.replace(/[\u0660-\u0669]/g, (d) => String(d
 export function findSensitive(text: string, allowedPhones: readonly (string | null | undefined)[] = []): SensitiveFinding[] {
   text = asciiDigits(text);
   const allowed = new Set(allowedPhones.map((p) => (p ? (phoneKey(digitsOf(p), true) ?? digitsOf(p).slice(-10)) : null)).filter(Boolean));
+  // Разрешённое значение целиком (трек-номер из цифр) — не карта, даже если его 13–19 цифр проходят проверку Луна.
+  const allowedDigits = new Set(allowedPhones.map((p) => (p ? digitsOf(p) : "")).filter((d) => d.length >= 13));
   const out: SensitiveFinding[] = [];
   const seen = new Set<string>();
   const add = (f: SensitiveFinding) => {
@@ -78,6 +80,7 @@ export function findSensitive(text: string, allowedPhones: readonly (string | nu
     .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, " ");
   for (const m of rest.matchAll(/\+?\d[\d\s().-]{8,30}\d/g)) {
     const digits = digitsOf(m[0]);
+    if (allowedDigits.has(digits)) continue;
     if (digits.length >= 13 && digits.length <= 19 && luhn(digits)) {
       add({ kind: "card", value: `•••• ${digits.slice(-4)}` });
       continue;

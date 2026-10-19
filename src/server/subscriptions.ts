@@ -20,6 +20,7 @@ import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/
 import { messagesFor } from "@/i18n/messages";
 import { recipientPolicy } from "@/lib/content/kinds";
 import { orderRuleSubject } from "@/shared/domain/orders";
+import { isOrderRuleStatus } from "@/modules/automation/domain/meta";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
 
@@ -34,6 +35,7 @@ export function registerSubscriptions(c: Container) {
 
   // ─── заказы → воронка продаж и правила CRM ───────────────────────────────
   // Сделка заказа — для правил: сообщение клиенту ищет её переписку, а пропуск пишется заметкой в неё.
+  // У заказа может быть несколько сделок (пакет книг): byOrder отдаёт их по порядку создания — берём первую, всегда одну и ту же.
   const orderDeal = async (orderId: string) => (await c.sales.deals.byOrder(orderId))[0]?.id ?? null;
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload, amount: e.payload.amount + (e.payload.prepaid ?? 0), dealId: e.payload.agreementDealId ?? null }).then(() => undefined), "crm.deal.order_created");
   // После привязки заказа к сделке (подписчики — по порядку регистрации).
@@ -43,11 +45,13 @@ export function registerSubscriptions(c: Container) {
     "crm.automation.order_created",
   );
   // Статус заказа — один раз на статус (откат и повторный перевод клиенту не повторяются); трек — один раз на номер
-  // (исправили опечатку — клиент получит верный).
+  // (исправили опечатку — клиент получит верный). Событие правил — только «В печати», «Отправлен», «Доставлен»: откат в
+  // «Оплачен» или «Ждёт оплаты» клиенту не сообщается (оплату ловит «Заказ оплачен»), даже правилом «любой статус».
   c.bus.subscribe<OrderStatusChanged>(
     "ordering.order_status_changed",
     async (e) => {
       const p = e.payload;
+      if (!isOrderRuleStatus(p.to)) return;
       await rules().run("order.status_changed", { subject: orderRuleSubject.status(p.orderId, p.to), orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId), orderStatus: p.to });
     },
     "crm.automation.order_status_changed",
