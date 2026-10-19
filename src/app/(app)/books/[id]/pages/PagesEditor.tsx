@@ -24,7 +24,7 @@ interface PagesState {
   showToc: boolean;
   tocMode: TocMode;
   tocLines: TocLines;
-  photoPlacement: "chapters" | "end";
+  photoPlacement: "chapters" | "end" | "none";
 }
 
 type Filter = InteriorMood | "all" | "cover";
@@ -247,8 +247,8 @@ export function PagesEditor({
           ) : null}
         </FormSection>
 
-        <FormSection title={t.photos}>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <FormSection title={t.photos} description={t.photosText}>
+          <div className="grid gap-4 sm:grid-cols-3">
             <Choice active={state.photoPlacement === "chapters"} onClick={() => update({ photoPlacement: "chapters" })} disabled={!editable}>
               <div className="font-medium">{t.photosChapters}</div>
               <div className="text-sm text-muted">{t.photosChaptersText}</div>
@@ -256,6 +256,10 @@ export function PagesEditor({
             <Choice active={state.photoPlacement === "end"} onClick={() => update({ photoPlacement: "end" })} disabled={!editable}>
               <div className="font-medium">{t.photosEnd}</div>
               <div className="text-sm text-muted">{t.photosEndText}</div>
+            </Choice>
+            <Choice active={state.photoPlacement === "none"} onClick={() => update({ photoPlacement: "none" })} disabled={!editable}>
+              <div className="font-medium">{t.photosNone}</div>
+              <div className="text-sm text-muted">{t.photosNoneText}</div>
             </Choice>
           </div>
         </FormSection>

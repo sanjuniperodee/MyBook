@@ -245,7 +245,9 @@ export function assembleBookContent(
   const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
   const innerPhotos = photos.filter((p) => p.id !== book.coverPhotoId && !placedInAnswers.has(p.id));
   let galleryPhotos: PhotoItem[] = [];
-  if (book.photoPlacement === "end" || chapters.length === 0) {
+  // «Не печатать» (none): фото вне историй в книгу не идут — ни по главам, ни в конце (у обложки свои снимки).
+  if (book.photoPlacement === "none") galleryPhotos = [];
+  else if (book.photoPlacement === "end" || chapters.length === 0) {
     galleryPhotos = innerPhotos;
   } else {
     innerPhotos.forEach((p, i) => {

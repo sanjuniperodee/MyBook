@@ -75,7 +75,8 @@ export const books = pgTable(
     /** Оформление страниц — id из src/lib/book/interiors. */
     interior: text("interior").notNull().default("classic"),
     format: text("format").notNull().default("a5"),
-    photoPlacement: text("photo_placement", { enum: ["chapters", "end"] }).notNull().default("chapters"),
+    /** Фото, не вставленные в истории: между главами, отдельным разделом в конце или не печатать (none). */
+    photoPlacement: text("photo_placement", { enum: ["chapters", "end", "none"] }).notNull().default("chapters"),
     showToc: boolean("show_toc").notNull().default(true),
     /** Оглавление: по главам, по заголовкам разделов или главы с разделами — src/lib/book/toc.ts. */
     tocMode: text("toc_mode", { enum: ["chapters", "sections", "both"] }).notNull().default("chapters"),

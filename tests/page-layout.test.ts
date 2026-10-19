@@ -116,3 +116,16 @@ describe.skipIf(textless)("PDF: фото на всю страницу и «с н
     }, 120_000);
   }
 });
+
+describe("фото вне историй: «Не печатать»", () => {
+  it("ни галереи, ни фотостраниц между главами; фото в историях остаются", () => {
+    const fb = fixtureBook("classic", "a5", "ru");
+    const book = (photoPlacement: "chapters" | "end" | "none") => buildBookContent({ ...fb.bundle.book, photoPlacement }, fb.bundle.questions, fb.bundle.photos.map(toPhotoItem), [], 2026, fb.bundle.letters);
+    const inline = (c: BookContent) => c.chapters.flatMap((ch) => ch.items.flatMap((it) => it.photos ?? [])).length;
+    const none = book("none");
+    expect(none.galleryPhotos).toEqual([]);
+    expect(none.chapters.every((ch) => ch.photos.length === 0 && !ch.openerPhoto)).toBe(true);
+    expect(inline(none)).toBe(inline(book("chapters")));
+    expect(book("end").galleryPhotos.length).toBeGreaterThan(0);
+  });
+});

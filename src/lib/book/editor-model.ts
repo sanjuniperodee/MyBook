@@ -63,7 +63,7 @@ export interface EditorBook {
   /** Оглавление по-своему (toc.ts): от него зависит, сколько полос оно займёт. */
   tocMode?: TocMode;
   tocLines?: TocLines;
-  photoPlacement: "chapters" | "end";
+  photoPlacement: "chapters" | "end" | "none";
   title: string;
   /** Язык книги: вопросы, заголовки и превью — на нём; интерфейс редактора — на языке сайта. */
   language: Locale;

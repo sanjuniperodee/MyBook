@@ -48,7 +48,7 @@ export interface BookProps {
   dedication: string;
   interior: string;
   format: string;
-  photoPlacement: "chapters" | "end";
+  photoPlacement: "chapters" | "end" | "none";
   showToc: boolean;
   /** Оглавление: режим и настройки строк (src/lib/book/toc.ts). */
   tocMode: TocMode;

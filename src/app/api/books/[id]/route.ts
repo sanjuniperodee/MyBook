@@ -33,7 +33,7 @@ const patchSchema = z
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
     format: z.string().max(20),
-    photoPlacement: z.enum(["chapters", "end"]),
+    photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),
     tocMode: z.enum(TOC_MODES),
     // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
