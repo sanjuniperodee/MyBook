@@ -8,12 +8,15 @@ import { Alert } from "@/components/ui/Alert";
 import { ClientDealsForm } from "./ClientDealsForm";
 import { DiscountHint } from "@/components/admin/DiscountHint";
 import { dealListPrice } from "@/modules/sales/domain/pricing";
+import { formatPrice, getVisiblePlans } from "@/config/site";
+import { planLabels } from "@/modules/ordering/ui/labels";
 
 export function NewDealForm({ stages, defaultStageId, admins, me, client, canAssign = false, maxDiscountPercent = null }: { stages: { id: string; name: string }[]; defaultStageId?: string; admins: { id: string; label: string }[]; me: string; client: { id: string; name: string; phone: string } | null; canAssign?: boolean; /** Лимит скидки сотрудника от прайса, %; null — без лимита. */ maxDiscountPercent?: number | null }) {
   const [state, action] = useActionState<DealFormState, FormData>(createDealAction, {});
-  // Бюджет сделки «вручную» — уже цена для клиента: подсказка «ниже прайса» (без тарифа — от самого дорогого).
+  // Бюджет сделки «вручную» или с тарифом — уже цена для клиента: подсказка «ниже прайса» (от тарифа; без него — от самого дорогого).
   const [amount, setAmount] = useState("0");
   const [source, setSource] = useState("manual");
+  const [plan, setPlan] = useState("");
   // Для существующего клиента: обычная заявка или «по договорённости» (оплатил/договорились — можно сразу за несколько книг).
   const [kind, setKind] = useState<"lead" | "agreement">("lead");
   if (client && kind === "agreement")
@@ -53,7 +56,19 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client, canAss
       <div>
         <label className="label">Бюджет, ₸</label>
         <input name="amount" type="number" min={0} step={1000} className="input h-11" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        <DiscountHint list={dealListPrice(null, source)} price={Number(amount) || 0} maxPercent={maxDiscountPercent} />
+        <DiscountHint list={dealListPrice(plan || null, source)} price={Number(amount) || 0} maxPercent={maxDiscountPercent} />
+      </div>
+      <div>
+        <label className="label">Тариф договорённости</label>
+        <select name="plan" className="input h-11" value={plan} onChange={(e) => setPlan(e.target.value)} data-testid="new-deal-plan">
+          <option value="">Не указан</option>
+          {getVisiblePlans().map((p) => (
+            <option key={p.id} value={p.id}>
+              {planLabels[p.id]} · по прайсу {formatPrice(p.price)}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted">Клиент оформит заказ по договорённости только на этот тариф. Не указан — бюджет сделки «вручную» действует на любой тариф.</p>
       </div>
       <div>
         <label className="label">Источник</label>

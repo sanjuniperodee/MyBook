@@ -307,9 +307,21 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
   });
 
   it("суммы в базе знаний, которых нет в «Ценах и тарифах», — находка (после смены прайса бот назвал бы старую цену)", () => {
+    // Правило то же, по которому бот вправе назвать сумму (amountsIn): число от 1 000 — сумма и без ₸ («1500 знаков» бот
+    // назвал бы «1 500 ₸»); меньше 1 000 без валюты и годы — нет.
     const text = "Печатная стоит 29 000 ₸, электронная 9 900 тг, с доставкой 33 500 ₸, упаковка 5к; скидка 7 тыс. До 200 фото, 1500 знаков, 2026 год.";
-    expect(staleAmounts(text, catalog, { prepay: 10000 })).toEqual([7000, 29000]);
+    expect(staleAmounts(text, catalog, { prepay: 10000 })).toEqual([7000, 29000, 1500]);
     expect(staleAmounts("Печатная — 30 000 ₸, предоплата 10 000 ₸, остаток 20 000 ₸", catalog, { prepay: 10000 })).toEqual([]);
+  });
+
+  it("цена в базе знаний без ₸ после подъёма прайса — тоже находка: предупреждение совпадает с тем, что бот вправе назвать", () => {
+    const raised = { ...catalog, plans: catalog.plans.map((p) => (p.id === "hardcover" ? { ...p, price: 36000 } : p)) };
+    const kb = "Печатная — 30 000, электронная — 9 900. Срочная вёрстка — 4 000 т.";
+    expect(staleAmounts(kb, raised, { prepay: 10000 })).toEqual([30000, 4000]);
+    // Всё, что текст владельца добавляет к суммам из цен, — в предупреждении, и наоборот.
+    const added = [...allowedAmounts(raised, { prepay: 10000 }, [kb])].filter((n) => !allowedAmounts(raised, { prepay: 10000 }).has(n));
+    expect(added.sort()).toEqual(staleAmounts(kb, raised, { prepay: 10000 }).sort());
+    expect(checkSellerReply("Печатная — 30 000 ₸", { ...rulesFor(env({ catalog: raised })), amounts: allowedAmounts(raised, { prepay: 10000 }, [kb]) })).toEqual([]);
   });
 
   it("счёт выключен в настройках: согласие → менеджеру «Выставить счёт», клиенту — текст «пришлёт менеджер»", () => {

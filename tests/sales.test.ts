@@ -434,6 +434,18 @@ describe("DealsService: лимит скидки (DiscountPolicy)", () => {
     await service.create({ title: "Копия пакета", source: "manual", clientId: "c1", amount: 1_000 });
     expect(deals.rows.size).toBe(3);
   });
+
+  it("новая сделка с тарифом договорённости: бюджет — против его прайса, тариф сохраняется в сделку; дорогой тариф по цене дешёвого — отказ", async () => {
+    const { service, deals, plans } = setup();
+    const d = await service.create({ title: "Электронная по телефону", source: "manual", clientId: "c1", amount: 9_900, agreedPlan: "digital", maxDiscountPercent: 15 });
+    expect(plans.get(d.id)).toBe("digital");
+    await expect(service.create({ title: "Книга", source: "manual", clientId: "c1", amount: 9_900, agreedPlan: "hardcover", maxDiscountPercent: 15 })).rejects.toMatchObject({ code: "discountOverLimit", params: [15, 30_000, false] });
+    // Заявка из WhatsApp с тарифом — бюджет тоже цена продажи (как в карточке).
+    await expect(service.create({ title: "Заявка", source: "whatsapp", clientId: "c1", amount: 20_000, agreedPlan: "hardcover", maxDiscountPercent: 15 })).rejects.toMatchObject({ code: "discountOverLimit" });
+    expect(deals.rows.size).toBe(1);
+    const lead = await service.create({ title: "Заявка", source: "whatsapp", clientId: "c1" });
+    expect(plans.has(lead.id)).toBe(false);
+  });
 });
 
 describe("SiteFunnelService", () => {

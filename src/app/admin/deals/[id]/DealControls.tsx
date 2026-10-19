@@ -84,6 +84,20 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
   );
 }
 
+/** Что сотрудник набрал в поле и от какого значения с сервера начинал. */
+export interface FieldDraft {
+  from: string;
+  value: string;
+}
+
+/**
+ * Значение поля, которое может поменять не только форма (бюджет записал счёт из чата, затем router.refresh()): набранное —
+ * пока на сервере то же значение, от которого начинали; сервер его сменил — действует новое значение с сервера.
+ */
+export function draftValue(draft: FieldDraft | null, server: string): string {
+  return draft && draft.from === server ? draft.value : server;
+}
+
 export function DealFields({
   deal,
   masked,
@@ -104,21 +118,33 @@ export function DealFields({
   pricing?: { plan: string | null; maxPercent: number | null } | null;
 }) {
   const [state, action] = useActionState<DealFormState, FormData>(updateDealAction, {});
-  const [amount, setAmount] = useState(String(deal.amount));
-  const [source, setSource] = useState(deal.source);
+  // Бюджет и источник может поменять не эта форма: счёт из чата записывает сумму договорённости, затем router.refresh().
+  // Поля неуправляемые и пересоздаются по значению с сервера (key) — в форму уходит новая сумма, а не та, что была при
+  // открытии страницы. Набранное хранится только для подсказки «ниже прайса» и действует, пока на сервере то же значение.
+  const [amountDraft, setAmountDraft] = useState<FieldDraft | null>(null);
+  const [sourceDraft, setSourceDraft] = useState<FieldDraft | null>(null);
+  const serverAmount = String(deal.amount);
   return (
-    <form action={action} className="space-y-3">
+    <form
+      action={action}
+      // После действия React сбрасывает неуправляемые поля к значениям с сервера — черновик подсказки тоже.
+      onReset={() => {
+        setAmountDraft(null);
+        setSourceDraft(null);
+      }}
+      className="space-y-3"
+    >
       <input type="hidden" name="id" value={deal.id} />
       <Field label="Название">
         <input name="title" defaultValue={deal.title} required maxLength={200} disabled={disabled} className="input h-9 text-sm" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Бюджет, ₸">
-          <input name="amount" type="number" min={0} step={1000} value={amount} onChange={(e) => setAmount(e.target.value)} disabled={disabled} className="input h-9 text-sm" />
-          {pricing ? <DiscountHint list={dealListPrice(pricing.plan, source)} price={Number(amount) || 0} maxPercent={pricing.maxPercent} /> : null}
+          <input key={`amount:${serverAmount}`} name="amount" type="number" min={0} step={1000} defaultValue={serverAmount} onChange={(e) => setAmountDraft({ from: serverAmount, value: e.target.value })} disabled={disabled} className="input h-9 text-sm" />
+          {pricing ? <DiscountHint list={dealListPrice(pricing.plan, draftValue(sourceDraft, deal.source))} price={Number(draftValue(amountDraft, serverAmount)) || 0} maxPercent={pricing.maxPercent} /> : null}
         </Field>
         <Field label="Источник">
-          <select name="source" value={source} onChange={(e) => setSource(e.target.value)} disabled={disabled} className="input h-9 text-sm">
+          <select key={`source:${deal.source}`} name="source" defaultValue={deal.source} onChange={(e) => setSourceDraft({ from: deal.source, value: e.target.value })} disabled={disabled} className="input h-9 text-sm">
             {dealSources.map((s) => (
               <option key={s} value={s}>
                 {dealSourceLabels[s]}

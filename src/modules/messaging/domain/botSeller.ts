@@ -271,24 +271,15 @@ export function allowedAmounts(catalog: BotCatalog, sell: Pick<BotSell, "prepay"
   return out;
 }
 
-const THOUSANDS = /(\d+(?:[.,]\d+)?)\s*(?:к|k|тыс\.?|тысяч\w*|мың\w*)(?![\p{L}\p{N}])/giu;
-
-/** Суммы с валютой: «29 000 ₸», «29000 тг», «29 тыс», «29к» (числа без валюты — не суммы: «200 фото», «1500 знаков»). */
-function moneyAmounts(text: string): number[] {
-  const out: number[] = [];
-  for (const m of text.matchAll(THOUSANDS)) out.push(Math.round(Number(m[1].replace(",", ".")) * 1000));
-  for (const m of text.replace(THOUSANDS, " ").matchAll(/(\d[\d \u00a0\u202f]*\d|\d)[ \u00a0\u202f]*(?:₸|тг(?![\p{L}])|тенге|теңге)/giu)) out.push(Number(m[1].replace(/\D/g, "")));
-  return [...new Set(out.filter((n) => n > 0))];
-}
-
 /**
- * Суммы с валютой в тексте владельца (база знаний, ответы на частые вопросы), которых нет среди сумм из «Цен и тарифов»
- * (allowedAmounts без текстов владельца). Бот вправе назвать сумму из базы знаний — после смены прайса он назвал бы
- * старую цену (deals-d13): владельцу — предупреждение при сохранении базы знаний и прайса.
+ * Суммы в базе знаний AI, которых нет среди сумм из «Цен и тарифов» (allowedAmounts без текстов владельца). Бот вправе
+ * назвать любую сумму из базы знаний — после смены прайса он назвал бы старую цену (deals-d13): владельцу — предупреждение
+ * при сохранении базы знаний и прайса. Суммы ищет то же правило amountsIn, по которому бот их называет: «Печатная — 30 000»
+ * без ₸ — тоже сумма, иначе предупреждение её пропустит.
  */
 export function staleAmounts(text: string, catalog: BotCatalog, sell: Pick<BotSell, "prepay">): number[] {
   const known = allowedAmounts(catalog, sell);
-  return moneyAmounts(text).filter((n) => !known.has(n));
+  return amountsIn(text).filter((n) => !known.has(n));
 }
 
 /** Проценты, которые владелец сам написал (акция, база знаний, ответы на частые вопросы): другие бот не называет. */

@@ -66,9 +66,12 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
   const d = parsed.data;
   const phone = d.contactPhone ? normalizePhone(d.contactPhone) : "";
   if (d.contactPhone && phone.length < 10) return { error: "Проверьте номер телефона" };
+  // Тариф договорённости — необязательный: с ним бюджет сравнивается с прайсом этого тарифа, а не самого дорогого.
+  const plan = String(form.get("plan") ?? "") || null;
+  if (plan && !getPlan(plan)) return { error: "Выберите тариф из списка" };
   let assigneeId = d.assigneeId || staff.user.id;
   if (assigneeId !== staff.user.id && !canAssignOthers(staff)) assigneeId = staff.user.id;
-  // Сделка «вручную» с бюджетом — договорённость: клиент купит по этой цене (лимит скидки).
+  // Сделка «вручную» или с тарифом договорённости и бюджетом — договорённость: клиент купит по этой цене (лимит скидки).
   const limit = await discountLimit(staff);
   let deal;
   try {
@@ -84,13 +87,14 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
       createdById: staff.user.id,
       stageId: d.stageId || undefined,
       maxDiscountPercent: limit,
+      agreedPlan: plan,
     });
   } catch (err) {
-    const message = staffActionError(err, DiscountError);
-    if (message) return { error: message };
+    // Без тарифа — подсказать выбрать его здесь же, в форме: блока «Оплата» у сделки ещё нет.
+    if (DiscountError.is(err)) return { error: admin.discountOverLimit(...(err.params as [number, number, boolean]), "newDeal") };
     throw err;
   }
-  await auditDiscount(staff, { entity: "deal", id: deal.id }, dealPrice(null, d.source, d.amount), limit, "deal", { number: deal.number });
+  await auditDiscount(staff, { entity: "deal", id: deal.id }, dealPrice(plan, d.source, d.amount), limit, "deal", { number: deal.number });
   revalidateDeal(deal.id, deal.clientId);
   redirect(`/admin/deals/${deal.id}`);
 }

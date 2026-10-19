@@ -82,7 +82,7 @@ describe("прайс сделки", () => {
 
 describe("точки продажи: лимит сотрудника и журнал", () => {
   let deal: { id: string; number: number; title: string; contactName: string; clientId: string | null; assigneeId: string | null; orderId: string | null; amount: number; source: string; customFields: Record<string, unknown>; extraPhones: string[] };
-  let log: { limits: (number | null)[]; audit: { action: string; details?: Record<string, unknown> }[]; notes: string[] };
+  let log: { limits: (number | null)[]; plans: (string | null)[]; audit: { action: string; details?: Record<string, unknown> }[]; notes: string[] };
 
   beforeEach(() => {
     resetRequest();
@@ -91,7 +91,7 @@ describe("точки продажи: лимит сотрудника и журн
     for (const k of Object.keys(settings)) delete settings[k];
     settings["crm.maxDiscount"] = "15";
     deal = { id: DEAL, number: 7, title: "Книга", contactName: "Айгерим", clientId: CLIENT, assigneeId: "lena", orderId: null, amount: 30_000, source: "manual", customFields: {}, extraPhones: [] };
-    log = { limits: [], audit: [], notes: [] };
+    log = { limits: [], plans: [], audit: [], notes: [] };
     fake.access.audit = { record: async (e: { action: string; details?: Record<string, unknown> }) => void log.audit.push(e) };
     // Сценарии продаж — по правилу домена: тариф договорённости сделки — твёрдая обложка.
     fake.sales = {
@@ -99,7 +99,7 @@ describe("точки продажи: лимит сотрудника и журн
         findById: async (id: string) => (id === DEAL ? deal : null),
         edit: async (_id: string, patch: { amount: number; source: string }, _actor: string, limit: number | null) => (log.limits.push(limit), checkDealPrice("hardcover", patch.source, patch.amount, limit)),
         changeAgreedPlan: async (_id: string, plan: string | null, limit: number | null) => (log.limits.push(limit), { before: "digital", price: checkDealPrice(plan, "manual", deal.amount, limit) }),
-        create: async (input: { source: string; amount: number; maxDiscountPercent: number | null }) => (log.limits.push(input.maxDiscountPercent), checkDealPrice(null, input.source, input.amount, input.maxDiscountPercent), { id: DEAL, number: 8, clientId: null }),
+        create: async (input: { source: string; amount: number; maxDiscountPercent: number | null; agreedPlan: string | null }) => (log.limits.push(input.maxDiscountPercent), log.plans.push(input.agreedPlan), checkDealPrice(input.agreedPlan, input.source, input.amount, input.maxDiscountPercent), { id: DEAL, number: 8, clientId: null }),
         note: async (_d: unknown, text: string) => void log.notes.push(text),
       },
     };
@@ -150,11 +150,31 @@ describe("точки продажи: лимит сотрудника и журн
       for (const [k, v] of Object.entries({ title: "Книга маме", amount, source })) f.set(k, v);
       return f;
     };
-    expect((await createDealAction({}, form("20000"))).error).toContain("Без тарифа договорённости эта цена действует на любой тариф");
+    const error = (await createDealAction({}, form("20000"))).error;
+    expect(error).toContain("Без тарифа договорённости эта цена действует на любой тариф");
+    // Блока «Оплата» у сделки ещё нет — тариф выбирают здесь же, в форме.
+    expect(error).toContain("Выберите тариф договорённости в этой форме или согласуйте цену с руководителем");
+    expect(error).not.toContain("«Оплата»");
     await expect(createDealAction({}, form("20000", "whatsapp"))).rejects.toBeInstanceOf(Redirect);
     await expect(createDealAction({}, form("26000"))).rejects.toBeInstanceOf(Redirect);
     expect(log.limits).toEqual([15, 15, 15]);
     expect(discounts()).toEqual([{ via: "deal", percent: 13.3, listPrice: 30_000, price: 26_000, plan: null, planless: true, limit: 15, number: 8 }]);
+  });
+
+  it("новая сделка «вручную» с тарифом: электронная за 9 900 создаётся сразу, тариф уходит в сделку; дорогой тариф по цене дешёвого — отказ", async () => {
+    signIn(lena);
+    const form = (amount: string, plan: string) => {
+      const f = new FormData();
+      for (const [k, v] of Object.entries({ title: "Электронная по телефону", amount, source: "manual", plan })) f.set(k, v);
+      return f;
+    };
+    await expect(createDealAction({}, form("9900", "digital"))).rejects.toBeInstanceOf(Redirect);
+    expect(await createDealAction({}, form("9900", "hardcover"))).toEqual({ error: OVER });
+    expect(await createDealAction({}, form("9900", "gold"))).toEqual({ error: "Выберите тариф из списка" });
+    expect(log.plans).toEqual(["digital", "hardcover"]);
+    expect(discounts()).toEqual([]);
+    await expect(createDealAction({}, form("9000", "digital"))).rejects.toBeInstanceOf(Redirect);
+    expect(discounts()).toEqual([{ via: "deal", percent: 9.1, listPrice: 9_900, price: 9_000, plan: "digital", limit: 15, number: 8 }]);
   });
 
   describe("«Сделки по договорённости» существующему клиенту", () => {

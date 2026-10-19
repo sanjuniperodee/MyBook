@@ -46,6 +46,11 @@ export interface NewDeal {
    * лимита). Не передан — внутренний вызов, цену уже проверили (копии пакета, онбординг, счёт из чата).
    */
   maxDiscountPercent?: number | null;
+  /**
+   * Тариф договорённости из формы «Новая сделка»: бюджет сравнивается с его прайсом (без тарифа сделка «вручную» — с самым
+   * дорогим), тариф сохраняется в сделку, как из блока «Оплата».
+   */
+  agreedPlan?: string | null;
   /** Сделку создало правило автоматизации — для его статистики. */
   automationId?: string | null;
 }
@@ -87,8 +92,9 @@ export class DealsService {
     const funnel = await this.funnels.load();
     const stage = input.stageId ? funnel.stage(input.stageId) : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
     if (!stage) throw new SalesError(input.stageId ? "stageNotFound" : "noOpenStage");
-    // Сделка «вручную» с суммой — уже договорённость (клиент купит по этой цене): лимит скидки до создания.
-    if (input.maxDiscountPercent !== undefined) checkDealPrice(null, input.source, input.amount ?? 0, input.maxDiscountPercent);
+    // Сделка «вручную» или с тарифом договорённости и суммой — уже договорённость (клиент купит по этой цене): лимит скидки до создания.
+    const plan = input.agreedPlan ?? null;
+    if (input.maxDiscountPercent !== undefined) checkDealPrice(plan, input.source, input.amount ?? 0, input.maxDiscountPercent);
     let clientId = input.clientId ?? null;
     if (!clientId && input.contactPhone) clientId = await this.clients.findByPhone(input.contactPhone);
     const profile = clientId ? await this.clients.profile(clientId) : null;
@@ -129,6 +135,7 @@ export class DealsService {
       );
       if (routed) deal.note("Ответственный назначен по кругу", null);
       await this.deals.add(deal);
+      if (plan) await this.agreedPlans.set(deal.id, plan);
       this.uow.track(deal);
       return deal;
     });
