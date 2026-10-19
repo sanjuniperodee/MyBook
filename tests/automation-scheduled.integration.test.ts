@@ -33,17 +33,50 @@ run("automation: выборки правил по времени (PostgreSQL)", 
       await q(sql`insert into books (user_id, theme, status) values (${ids[`user-${key}`]}, 'mom', 'draft')`);
       ids[`deal-${key}`] = await one(sql`insert into crm_deals (title, stage_id, client_id) values (${tag}, ${ids.open}, ${ids[`user-${key}`]}) returning id`);
     }
-    // Годовщина: оплаченный год назад заказ к поводу, до которого теперь 20 дней.
-    ids.buyer = await one(sql`insert into users (email, password_hash, name) values (${`${tag}-buyer@test.kz`}, 'x', ${tag}) returning id`);
-    const book = await one(sql`insert into books (user_id, theme, occasion, occasion_date) values (${ids.buyer}, 'mom', 'birthday', (current_date - interval '1 year' + interval '20 days')::date) returning id`);
-    ids.order = await one(sql`
-      insert into orders (user_id, book_id, plan, items_amount, amount, currency, payment_provider, contact_name, contact_email, contact_phone, status, paid_at)
-      values (${ids.buyer}, ${book}, 'hardcover', 20000, 20000, 'KZT', 'cloudpayments', ${tag}, ${`${tag}@test.kz`}, '77010000000', 'paid', now() - interval '1 year')
-      returning id`);
+    // Годовщины к «сегодня» 01.11.2026. Заказ сайта: оплачен в октябре 2025 к дню рождения 20.11.2025.
+    ids.won = await one(sql`select id from crm_stages where kind = 'won' order by position limit 1`);
+    ids.buyer = await user("buyer");
+    ids.order = await order(ids.buyer, { occasion: "birthday", date: "2025-11-20", paidAt: "2025-10-25T10:00:00Z" });
+    // Сделки, проданные в чате (выиграны, без оплаченного заказа), — повод и дата в своих полях сделки.
+    ids.kk = await user("kk", { locale: "kk" });
+    ids["deal-kk"] = await wonDeal(ids.kk, { event_date: "2025-11-15", occasion: "Годовщина" });
+    // Купил снова после повода: оплаченный заказ весной — годовщины нет; выигранная сделка весной — тоже.
+    ids.again = await user("again");
+    ids["deal-again"] = await wonDeal(ids.again, { event_date: "2025-11-10", occasion: "Годовщина" });
+    await order(ids.again, { occasion: "march8", date: "2026-03-08", paidAt: "2026-03-01T10:00:00Z" });
+    ids.again2 = await user("again2");
+    ids["deal-again2"] = await wonDeal(ids.again2, { event_date: "2025-11-12", occasion: "День рождения" });
+    await wonDeal(ids.again2, { event_date: "2026-05-07" }, "2026-05-01T10:00:00Z");
+    // Просил не писать первым: по номеру (записан как 8 701…) и по собеседнику диалога (Telegram).
+    ids.quiet = await user("quiet", { phone: "8 701 555 00 11" });
+    ids["deal-quiet"] = await wonDeal(ids.quiet, { event_date: "2025-11-18", occasion: "Свадьба" });
+    ids.quietChat = await user("quietchat");
+    ids["deal-quietChat"] = await wonDeal(ids.quietChat, { event_date: "2025-11-18", occasion: "Свадьба" });
+    await q(sql`insert into crm_conversations (channel, chat_id, contact_name, client_id) values ('telegram', ${`${tag}-quiet`}, ${tag}, ${ids.quietChat})`);
+    await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550011', 'no_marketing', ${tag}), (${`${tag}-quiet`}, 'no_marketing', ${tag})`);
+    // Неверная дата и выпускной — не годовщина; сделка с оплаченным заказом — уже годовщина заказа.
+    ids.odd = await user("odd");
+    ids["deal-bad"] = await wonDeal(ids.odd, { event_date: "2025-02-30", occasion: "Годовщина" });
+    ids["deal-grad"] = await wonDeal(ids.odd, { event_date: "2025-11-20", occasion: "Выпускной" });
+    ids["deal-site"] = await wonDeal(ids.buyer, { event_date: "2025-11-20", occasion: "День рождения" });
+    await q(sql`update crm_deals set order_id = ${ids.order} where id = ${ids["deal-site"]}`);
   });
+
+  const user = (key: string, o: { locale?: string; phone?: string } = {}) =>
+    one(sql`insert into users (email, password_hash, name, locale, phone) values (${`${tag}-${key}@test.kz`}, 'x', ${tag}, ${o.locale ?? "ru"}, ${o.phone ?? null}) returning id`);
+  const order = async (userId: string, o: { occasion: string; date: string; paidAt: string }) => {
+    const book = await one(sql`insert into books (user_id, theme, occasion, occasion_date) values (${userId}, 'mom', ${o.occasion}, ${o.date}) returning id`);
+    return one(sql`
+      insert into orders (user_id, book_id, plan, items_amount, amount, currency, payment_provider, contact_name, contact_email, contact_phone, status, paid_at)
+      values (${userId}, ${book}, 'hardcover', 20000, 20000, 'KZT', 'cloudpayments', ${tag}, ${`${tag}@test.kz`}, '77010000000', 'paid', ${o.paidAt})
+      returning id`);
+  };
+  const wonDeal = (clientId: string, fields: Record<string, string>, closedAt = "2025-11-01T10:00:00Z") =>
+    one(sql`insert into crm_deals (title, stage_id, client_id, custom_fields, closed_at) values (${tag}, ${ids.won}, ${clientId}, ${JSON.stringify(fields)}::jsonb, ${closedAt}) returning id`);
 
   afterAll(async () => {
     await q(sql`delete from crm_automations where name like ${tag + "%"}`);
+    await q(sql`delete from crm_blocklist where note = ${tag}`);
     await q(sql`delete from crm_conversations where contact_name = ${tag}`);
     await q(sql`delete from orders where contact_name = ${tag}`);
     await q(sql`delete from crm_deals where title = ${tag}`);
@@ -69,10 +102,19 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     expect(mine(await source.inactiveClients(ids.rule, 5), "dealId", ids["deal-a"], ids["deal-b"]).map((r) => r.dealId)).toEqual([ids["deal-a"]]);
   });
 
-  it("годовщина: заказ, по которому правило сработало в этом году, не выбирается", async () => {
-    const [row] = mine(await source.anniversaries(ids.rule, 30), "orderId", ids.order);
-    expect(row).toMatchObject({ clientId: ids.buyer, occasion: "День рождения" });
-    await claim(ids.rule, `${row.orderId}:${row.year}`);
-    expect(mine(await source.anniversaries(ids.rule, 30), "orderId", ids.order)).toEqual([]);
+  const anniversaries = async () => (await source.anniversaries(ids.rule, "2026-11-01", 30)).filter((r) => Object.values(ids).includes(r.orderId ?? r.dealId ?? ""));
+
+  it("годовщины: заказ сайта и сделка из чата; ближайшие первыми; повод и дата клиенту — на его языке (contacts-16, automation-d6)", async () => {
+    expect(await anniversaries()).toEqual([
+      { orderId: null, dealId: ids["deal-kk"], clientId: ids.kk, occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, client: { occasion: "Жылдық", date: expect.stringContaining("2026") } },
+      { orderId: ids.order, dealId: null, clientId: ids.buyer, occasion: "День рождения", date: "20 ноября 2026 г.", year: 2026, client: { occasion: "День рождения", date: "20 ноября 2026 г." } },
+    ]);
+  });
+
+  it("годовщина: покупка, по которой правило сработало в этом году, не выбирается — subject как в движке", async () => {
+    await claim(ids.rule, `${ids.order}:2026`);
+    await claim(ids.rule, `deal:${ids["deal-kk"]}:2026`);
+    expect(await anniversaries()).toEqual([]);
+    expect((await source.anniversaries(ids.other, "2026-11-01", 30)).filter((r) => r.clientId === ids.kk)).toHaveLength(1);
   });
 });

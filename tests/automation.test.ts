@@ -17,8 +17,9 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
     markRun: async (id) => void log.push(`run:${id}`),
   };
   const subject = (): RuleSubject => ({ deal: { id: "d1", number: 5, title: "Заявка", assigneeId: null, orderId: null, clientId: "c1", customFields: {} }, clientId: "c1", name: "Айгерим", assigneeId: null, ...opts.subject });
+  const loaded: Parameters<SubjectLoader["load"]>[0][] = [];
   const loader: SubjectLoader = {
-    load: async () => subject(),
+    load: async (ctx) => (loaded.push(ctx), subject()),
     managerName: async (id) => (id ? "Менеджер" : ""),
     dealFieldVars: async () => ({}),
     latestConversation: async () => "conv1",
@@ -54,7 +55,7 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
   const errors: string[] = [];
   const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
   const engine = new AutomationEngine(repo, loader, effects, sales, schedule, scheduled, { url: "https://mybook.kz" }, { now: () => opts.now ?? now }, quiet);
-  return { engine, log, errors, tasks };
+  return { engine, log, errors, tasks, claimed, loaded };
 }
 
 const rule = (p: Partial<AutomationRule>): AutomationRule => ({ id: "r1", name: "Правило", trigger: "deal.created", conditions: {}, actions: [], ...p });
@@ -138,12 +139,53 @@ describe("AutomationEngine: выборки правил по времени (aut
         scheduled: {
           unanswered: async (ruleId, since) => (asked.push(`unanswered:${ruleId}:${since.toISOString()}`), []),
           inactiveClients: async (ruleId, days) => (asked.push(`inactive:${ruleId}:${days}`), [{ dealId: "d1", clientId: "c1", lastSeen }]),
-          anniversaries: async (ruleId, daysBefore) => (asked.push(`anniversary:${ruleId}:${daysBefore}`), []),
+          anniversaries: async (ruleId, today, daysBefore) => (asked.push(`anniversary:${ruleId}:${today}:${daysBefore}`), []),
         },
       },
     );
     expect(await engine.runScheduled({ force: true })).toBe(2);
-    expect(asked).toEqual(["unanswered:sla:2026-10-01T05:30:00.000Z", "inactive:back-5:5", "inactive:back-10:10", "anniversary:year:30"]);
+    expect(asked).toEqual(["unanswered:sla:2026-10-01T05:30:00.000Z", "inactive:back-5:5", "inactive:back-10:10", "anniversary:year:2026-10-01:30"]);
+  });
+});
+
+describe("Годовщины: сделки, проданные в чате, и язык клиента (contacts-16, automation-d6)", () => {
+  const year = rule({
+    id: "year",
+    name: "Годовщина",
+    trigger: "occasion.anniversary",
+    actions: [
+      { type: "create_deal", title: "Годовщина: {повод} — вторая книга" },
+      { type: "create_task", title: "Предложить книгу к годовщине ({дата}): {имя}", dueMinutes: 1440 },
+      { type: "send_message", text: "{имя}, скоро {повод} ({дата})", textKk: "{имя}, жақында {повод} ({дата})" },
+    ],
+  });
+  const kk = { orderId: null, dealId: "won-1", clientId: "c1", occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, client: { occasion: "Жылдық", date: "2026 жылғы 15 қараша" } };
+
+  it("сделка из чата: объект — `deal:<id>:<год>`, выигранная сделка не становится сделкой правила — повторная продажа создаётся новой", async () => {
+    const { engine, claimed, loaded, log } = setup([year], { subject: { deal: null }, scheduled: { anniversaries: async () => [kk] } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect([...claimed]).toEqual(["year:deal:won-1:2026"]);
+    expect(loaded[0]).toMatchObject({ subject: "deal:won-1:2026", clientId: "c1" });
+    expect(loaded[0].dealId).toBeUndefined();
+    // «Создать сделку» создала новую (d9) — её и загрузили под задачу.
+    expect(loaded[1]).toEqual({ subject: "", dealId: "d9" });
+    expect(log.filter((l) => l.startsWith("task:"))).toEqual(["task:Предложить книгу к годовщине (15 ноября 2026 г.): Айгерим:null"]);
+  });
+
+  it("казахоязычному клиенту — казахский текст с поводом и датой по-казахски; в задаче и сделке сотрудникам — по-русски", async () => {
+    const { engine, log } = setup([year], { subject: { deal: null, locale: "kk" }, scheduled: { anniversaries: async () => [kk] } });
+    await engine.runScheduled({ force: true });
+    expect(log.filter((l) => l.startsWith("task:") || l.startsWith("msg:"))).toEqual(["task:Предложить книгу к годовщине (15 ноября 2026 г.): Айгерим:null", "msg:conv1:Айгерим, жақында Жылдық (2026 жылғы 15 қараша) (Годовщина)"]);
+  });
+
+  it("казахского текста нет — русский текст с русскими подписями, языки в сообщении не смешиваются; русскоязычному — русский", async () => {
+    const ruOnly = rule({ ...year, actions: [{ type: "send_message", text: "{имя}, скоро {повод} ({дата})" }] });
+    const kkClient = setup([ruOnly], { subject: { deal: null, locale: "kk" }, scheduled: { anniversaries: async () => [kk] } });
+    await kkClient.engine.runScheduled({ force: true });
+    expect(kkClient.log.filter((l) => l.startsWith("msg:"))).toEqual(["msg:conv1:Айгерим, скоро Годовщина (15 ноября 2026 г.) (Годовщина)"]);
+    const ruClient = setup([year], { subject: { deal: null, locale: "ru" }, scheduled: { anniversaries: async () => [kk] } });
+    await ruClient.engine.runScheduled({ force: true });
+    expect(ruClient.log.filter((l) => l.startsWith("msg:"))).toEqual(["msg:conv1:Айгерим, скоро Годовщина (15 ноября 2026 г.) (Годовщина)"]);
   });
 });
 

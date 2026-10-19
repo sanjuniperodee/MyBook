@@ -53,7 +53,15 @@ export interface SalesGateway {
 export interface ScheduledSource {
   unanswered(ruleId: string, awaitingSince: Date): Promise<{ conversationId: string; dealId: string | null; clientId: string | null; channel: string; awaitingSince: Date }[]>;
   inactiveClients(ruleId: string, days: number): Promise<{ dealId: string; clientId: string; lastSeen: Date }[]>;
-  anniversaries(ruleId: string, daysBefore: number): Promise<{ orderId: string; clientId: string; occasion: string; date: string; year: number }[]>;
+  /**
+   * Годовщины покупок к поводу через 0…daysBefore дней от today (ГГГГ-ММ-ДД по поясу магазина): заказ сайта (orderId)
+   * или выигранная сделка из чата (dealId). occasion и date — по-русски (задачи, сделки), client — на языке клиента.
+   */
+  anniversaries(
+    ruleId: string,
+    today: string,
+    daysBefore: number,
+  ): Promise<{ orderId: string | null; dealId: string | null; clientId: string; occasion: string; date: string; year: number; client: { occasion: string; date: string } }[]>;
 }
 
 export interface AppInfo {

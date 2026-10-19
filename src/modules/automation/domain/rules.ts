@@ -1,4 +1,7 @@
 import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
+import { fillTemplate } from "@/shared/domain/templates";
+
+type TemplateVars = Parameters<typeof fillTemplate>[1];
 
 export type { AutomationTrigger } from "@/modules/automation/domain/meta";
 
@@ -6,6 +9,8 @@ export interface RuleAction {
   type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal";
   title?: string;
   text?: string;
+  /** Текст клиенту на казахском: его получает клиент с казахским языком (users.locale); пусто — русский text. */
+  textKk?: string;
   dueMinutes?: number;
   userId?: string | null;
   stageId?: string;
@@ -50,9 +55,11 @@ export interface TriggerContext {
   channel?: string | null;
   /** Сейчас рабочее время отдела продаж (для условия «только в рабочее / вне рабочего»). */
   workTime?: boolean;
-  /** Повод и дата — для повторных продаж. */
+  /** Повод и дата — для повторных продаж: по-русски, для задач, сделок и уведомлений сотрудникам. */
   occasion?: string | null;
   date?: string | null;
+  /** Они же на языке клиента — для казахского текста клиенту (textKk). */
+  clientVars?: { occasion?: string | null; date?: string | null } | null;
 }
 
 /** Условия: этап, источник, канал, рабочее время. Пустое условие — подходит всё. */
@@ -104,6 +111,17 @@ export interface RuleSubject {
   /** Имя клиента для шаблонов. */
   name: string;
   assigneeId: string | null;
+  /** Язык клиента (users.locale); без клиента — русский. */
+  locale?: "ru" | "kk";
+}
+
+/**
+ * Текст клиенту на его языке: казахоязычному — казахский вариант действия (если задан) с поводом и датой по-казахски,
+ * остальным — русский текст с русскими подписями: язык в одном сообщении не смешивается.
+ */
+export function clientText(a: Pick<RuleAction, "text" | "textKk">, locale: RuleSubject["locale"], vars: TemplateVars, clientVars: TriggerContext["clientVars"]) {
+  const kk = locale === "kk" && !!a.textKk?.trim();
+  return fillTemplate((kk ? a.textKk : a.text) ?? "", kk ? { ...vars, ...clientVars } : vars);
 }
 
 /** Куда вести сотрудника из уведомления: для переписки — в чат, для остального — в сделку. */

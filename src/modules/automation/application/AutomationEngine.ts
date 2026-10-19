@@ -1,7 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock, Logger, WorkSchedule } from "@/shared/application";
-import { conditionNumber, isReplyTrigger, linkFor, matches, needsWorkTime, ruleTaskDue, sendsMessage, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
+import { clientText, conditionNumber, isReplyTrigger, linkFor, matches, needsWorkTime, ruleTaskDue, sendsMessage, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
 import { fillTemplate } from "@/shared/domain/templates";
+import { zonedDay } from "@/shared/domain/time";
 import type { AppInfo, AutomationEffects, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader } from "./ports";
 
 /** Защита от зацикливания: правило двигает сделку → срабатывает правило на этап → … */
@@ -90,7 +91,7 @@ export class AutomationEngine {
         return;
       }
       case "send_message": {
-        const text = fillTemplate(a.text ?? "", vars);
+        const text = clientText(a, s.locale, vars, ctx.clientVars);
         if (!text) return;
         const convId = s.conversation?.id ?? (await this.subjects.latestConversation(s.deal?.id ?? null, s.clientId));
         if (convId) await this.effects.sendMessage(convId, text, { rule: rule.name, reply: isReplyTrigger(rule.trigger) });
@@ -208,8 +209,10 @@ export class AutomationEngine {
       }
     });
     await each("occasion.anniversary", async (rule) => {
-      for (const r of await this.scheduled.anniversaries(rule.id, conditionNumber(rule, "daysBefore", 30, 120))) {
-        await fire(rule, { subject: `${r.orderId}:${r.year}`, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date });
+      for (const r of await this.scheduled.anniversaries(rule.id, zonedDay(now), conditionNumber(rule, "daysBefore", 30, 120))) {
+        // Сделка из чата — не объект правила: она выиграна, повторная продажа — новая сделка («Создать сделку»).
+        const subject = r.orderId ? `${r.orderId}:${r.year}` : `deal:${r.dealId}:${r.year}`;
+        await fire(rule, { subject, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client });
       }
     });
     return fired;

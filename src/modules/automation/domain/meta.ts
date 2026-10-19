@@ -8,7 +8,10 @@ export const automationTriggers = {
   "order.created": { label: "Оформлен заказ", hint: "Клиент оформил заказ на сайте" },
   "order.paid": { label: "Заказ оплачен", hint: "" },
   "client.inactive": { label: "Клиент забросил книгу", hint: "Условие: сколько дней не заходит (есть открытая сделка и черновик)" },
-  "occasion.anniversary": { label: "Приближается годовщина повода", hint: "За сколько дней до даты, к которой дарили книгу год назад" },
+  "occasion.anniversary": {
+    label: "Приближается годовщина повода",
+    hint: "За сколько дней до даты, к которой год назад купили книгу: заказ на сайте или сделка из чата с датой события. Кто уже купил снова или просил не писать — не попадает",
+  },
 } as const;
 
 export type AutomationTrigger = keyof typeof automationTriggers;

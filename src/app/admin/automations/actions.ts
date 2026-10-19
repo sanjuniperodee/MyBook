@@ -12,7 +12,7 @@ const optUuid = z.union([uuid, z.literal(""), z.null()]).transform((v) => v || n
 
 const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("create_task"), title: z.string().trim().min(1, "Текст задачи").max(200), dueMinutes: z.coerce.number().int().min(0).max(60 * 24 * 30), userId: optUuid.optional() }),
-  z.object({ type: z.literal("send_message"), text: z.string().trim().min(1, "Текст сообщения").max(2000) }),
+  z.object({ type: z.literal("send_message"), text: z.string().trim().min(1, "Текст сообщения").max(2000), textKk: z.string().trim().max(2000).optional() }),
   z.object({ type: z.literal("assign"), userId: optUuid.optional() }),
   z.object({ type: z.literal("move_stage"), stageId: uuid }),
   z.object({ type: z.literal("create_deal"), title: z.string().trim().max(200).optional(), userId: optUuid.optional() }),

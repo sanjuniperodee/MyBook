@@ -24,7 +24,7 @@ interface Ctx {
 }
 
 const blank = (type: AutomationActionType): AutomationAction =>
-  type === "create_task" ? { type, title: "", dueMinutes: 60, userId: null } : type === "create_deal" ? { type, title: "", userId: null } : type === "send_message" ? { type, text: "" } : type === "notify" ? { type, title: "", text: "", userId: null } : type === "move_stage" ? { type, stageId: "" } : { type, userId: null };
+  type === "create_task" ? { type, title: "", dueMinutes: 60, userId: null } : type === "create_deal" ? { type, title: "", userId: null } : type === "send_message" ? { type, text: "", textKk: "" } : type === "notify" ? { type, title: "", text: "", userId: null } : type === "move_stage" ? { type, stageId: "" } : { type, userId: null };
 
 function describe(r: Rule, ctx: Ctx) {
   const t = automationTriggers[r.trigger as keyof typeof automationTriggers]?.label ?? r.trigger;
@@ -225,8 +225,9 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               </div>
             ) : a.type === "send_message" ? (
               <>
-                <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Получили ваше сообщение…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} />
-                <p className="text-xs text-muted">Уйдёт в тот же чат, откуда пришло обращение. Переменные: {templateVars.join(", ")}</p>
+                <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Получили ваше сообщение…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст на русском" />
+                <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком (необязательно)" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст на казахском" />
+                <p className="text-xs text-muted">Уйдёт в тот же чат, откуда пришло обращение. Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {templateVars.join(", ")}</p>
               </>
             ) : a.type === "assign" ? (
               staffSelect(a.userId, (v) => setAction(i, { userId: v }), "по кругу между менеджерами")
