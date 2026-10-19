@@ -301,6 +301,26 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
     expect(turn(warmState(), decision({ plan: "digital", reply: `Электронная — ${fmt(digital)} ₸, оплата сразу целиком. Оформляем?`, askedToOrder: true }), [msg("Электронную")], { e }).retry).toBeNull();
   });
 
+  it("электронную сам не предлагает: на первое «дорого» дожимает печатную, на второе — можно; спросил сам — можно", () => {
+    const e = env();
+    const digital = new Intl.NumberFormat("ru-RU").format(e.catalog.plans.find((p) => p.id === "digital")!.price);
+    const cheap = decision({ stage: "objection", reply: `Понимаю 🙂 Есть электронная версия — от ${digital} ₸. Какой вариант ближе?` });
+    // Сразу с ценой печатной — электронную не называть.
+    expect(turn(warmState(), decision({ stage: "offer", reply: `Печатная — от 30 000 ₸, электронная — от ${digital} ₸. Оформляем?`, askedToOrder: true }), [msg("Сколько стоит?")], { e }).retry?.[0].detail).toContain("электронную версию сам не предлагай");
+    // Первое «дорого» — ещё дожимаем печатную.
+    const first = turn(warmState(), cheap, [msg("Дорого")], { e });
+    expect(first.retry?.[0].detail).toContain("рассрочка");
+    const push = turn(warmState(), decision({ stage: "objection", reply: "Понимаю 🙂 Можно начать с предоплаты или в рассрочку 0-0-12. Как удобнее?" }), [msg("Дорого")], { e });
+    expect(push.retry).toBeNull();
+    expect(push.state.ai.objections).toBe(1);
+    // Второе «дорого» — электронная уместна.
+    expect(turn(push.state, cheap, [msg("Всё равно дорого")], { e }).retry).toBeNull();
+    // Клиент сам спросил про электронную — отвечаем сразу.
+    expect(turn(warmState(), decision({ reply: `Электронная — от ${digital} ₸, в PDF 🙂` }), [msg("А электронная есть?")], { e }).retry).toBeNull();
+    // Упоминание без предложения («электронную версию пришлём сразу») — не нарушение.
+    expect(turn(warmState(), decision({ reply: "Печатную привезём, а электронную версию пришлём сразу после готовности 🙂" }), [msg("Когда будет?")], { e }).retry).toBeNull();
+  });
+
   it("прогрев: на повторный вопрос о цене называет её сразу", () => {
     const first = turn(undefined, decision({ reply: "Подскажу 🙂 А для кого книга?" }), [msg("Сколько стоит?")]);
     expect(first.state.ai.warmedUp).toBe(false);

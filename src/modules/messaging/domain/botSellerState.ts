@@ -44,6 +44,8 @@ export interface SellerAiState {
    * не называет цену и не предлагает оформить — сначала клиент знакомится (владелец, 19.10).
    */
   warmedUp: boolean;
+  /** Клиент сам спросил про электронную версию: её можно предлагать, не дожидаясь второго «дорого». */
+  digitalAsked: boolean;
 }
 
 /** Сколько раз продажник напоминает о себе молчащему клиенту: тёплому — три раза, остальным — два. */
@@ -88,6 +90,7 @@ export const newSellerAiState = (): SellerAiState => ({
   silenceNoted: false,
   materialsSent: false,
   warmedUp: false,
+  digitalAsked: false,
 });
 
 /** Состояние из базы: недостающее — по умолчанию (запись сделана прежней версией). */
