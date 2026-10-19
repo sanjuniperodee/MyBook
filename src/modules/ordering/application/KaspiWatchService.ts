@@ -8,6 +8,11 @@ export type KaspiWatchSettingKey = "kaspi.watch" | "kaspi.alertAfterMinutes";
 
 /** Не чаще раза в столько спрашиваем Kaspi о сессии кассира: проход планировщика идёт каждую минуту. */
 export const KASPI_WATCH_EVERY_MS = 3 * 60_000;
+/**
+ * Запас на неровный шаг: «kaspi watch» — последний шаг минутного прохода, после бота, IMAP и доступа по счетам, и через три
+ * прохода он может начаться на долю секунды раньше, чем три минуты назад. Без запаса проверка уехала бы на четвёртую минуту.
+ */
+const PROBE_SLACK_MS = 20_000;
 /** Порог тревоги по умолчанию и допустимые значения, минут: столько кассир не работает подряд — сообщаем руководителям. */
 export const KASPI_ALERT_AFTER_DEFAULT = 5;
 export const KASPI_ALERT_AFTER_MAX = 240;
@@ -18,14 +23,14 @@ const SETTINGS_LINK = "/admin/settings?tab=payments";
 
 const why: Record<KaspiDownReason, string> = {
   rejected: "Kaspi не принимает сессию кассира — скорее всего, в кассира вошли с другого устройства.",
-  unreachable: "Сервис kaspi-pos не отвечает.",
+  unreachable: "Сервис kaspi-pos не отвечает или Kaspi ответил ошибкой.",
   no_session: "Нет сессии кассира.",
 };
 
 /** Что сделать руководителю: общую сессию обновляют на сервере, свою — входом по SMS в «Интеграциях». */
 function fix(reason: KaspiDownReason, shared: boolean) {
-  if (reason === "unreachable") return "Проверьте, что kaspi-pos запущен на сервере.";
-  if (shared) return "Сессия общая с другим проектом: войдите заново там и обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID на сервере.";
+  if (reason === "unreachable") return "Проверьте, что kaspi-pos запущен на сервере; если запущен — возможно, сбой у самого Kaspi: когда он пройдёт, придёт «снова подключён».";
+  if (shared) return "Сессия общая с другим проектом: войдите заново там, обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID в .env на сервере и перезапустите сайт (pm2 restart mybook) — ключи из .env читаются только при запуске.";
   return "Подключите кассира заново в «Интеграциях» → «Оплата».";
 }
 
@@ -73,7 +78,7 @@ export class KaspiWatchService {
       return null;
     }
     const now = this.clock.now();
-    if (now.getTime() - this.lastProbeAt < this.everyMs) return null;
+    if (now.getTime() - this.lastProbeAt < this.everyMs - PROBE_SLACK_MS) return null;
     this.lastProbeAt = now.getTime();
     const probe: KaspiProbe = session ? await this.probe() : { ok: false, reason: "no_session" };
     const { next, signal } = kaspiWatchStep(prev, probe, now, (await this.alertAfterMinutes()) * 60_000);
@@ -112,7 +117,7 @@ export class KaspiWatchService {
     return kaspiWatchFromJson(await this.settings.get("kaspi.watch"));
   }
 
-  /** Принимает ли Kaspi сессию: 401 от kaspi-pos — нет; сеть, таймаут, 5xx — сервис не отвечает. */
+  /** Принимает ли Kaspi сессию: 401 от kaspi-pos — нет; сеть, таймаут, 5xx и другие ошибки kaspi-pos — сервис не отвечает. */
   private async probe(): Promise<KaspiProbe> {
     try {
       return (await this.auth.sessionActive()) ? { ok: true } : { ok: false, reason: "rejected" };

@@ -85,11 +85,12 @@ function harness(opts: { enabled?: boolean; shared?: boolean; session?: KaspiSes
   const settings = new MemSettings<KaspiWatchSettingKey>(opts.alertAfter === undefined ? {} : { "kaspi.alertAfterMinutes": opts.alertAfter });
   const notifier = new SpyStaffNotifier({ "settings.manage": ["owner-1", "admin-2"] });
   let now = start;
-  const clock = { now: () => now };
+  const clock = { now: () => now, set: (d: Date) => void (now = d) };
   const make = () => new KaspiWatchService(config, kaspi, settings, notifier, clock);
   const h = {
     cfg,
     kaspi,
+    clock,
     settings,
     notifier,
     service: make(),
@@ -152,6 +153,18 @@ describe("Kaspi: тревога руководителям из прохода �
     expect(h.notifier.sent).toEqual([]);
   });
 
+  it("проход планировщика через три минуты начался на долю секунды раньше — Kaspi всё равно спрашиваем, а не через четыре минуты", async () => {
+    const h = harness();
+    await h.service.check();
+    expect(h.kaspi.calls).toBe(1);
+    // Следующие проходы: через 59,99 с, 2 мин и 2 мин 59,99 с после первой проверки (шаги до «kaspi watch» шли чуть быстрее).
+    for (const ms of [59_990, 120_000, 179_990]) {
+      h.clock.set(new Date(start.getTime() + ms));
+      await h.service.check();
+    }
+    expect(h.kaspi.calls).toBe(2);
+  });
+
   it("перезапуск процесса посреди сбоя не повторяет тревогу; восстановление после перезапуска — «снова подключён»", async () => {
     const h = harness({ alertAfter: "0" });
     h.kaspi.answer = false;
@@ -173,8 +186,9 @@ describe("Kaspi: тревога руководителям из прохода �
     const unreachable = harness({ alertAfter: "0" });
     unreachable.kaspi.answer = new OrderingError("kaspiUnavailable", "kaspi-pos недоступен: fetch failed");
     await unreachable.tick();
-    expect(unreachable.notifier.sent[0].n.body).toContain("Сервис kaspi-pos не отвечает");
+    expect(unreachable.notifier.sent[0].n.body).toContain("Сервис kaspi-pos не отвечает или Kaspi ответил ошибкой");
     expect(unreachable.notifier.sent[0].n.body).toContain("Проверьте, что kaspi-pos запущен");
+    expect(unreachable.notifier.sent[0].n.body).toContain("возможно, сбой у самого Kaspi");
 
     const none = harness({ alertAfter: "0", session: null });
     await none.tick();
@@ -187,6 +201,8 @@ describe("Kaspi: тревога руководителям из прохода �
     h.kaspi.answer = false;
     await h.tick();
     expect(h.notifier.sent[0].n.body).toContain("обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID");
+    // Сайт читает .env только при запуске (node --env-file): без перезапуска новые ключи не подействуют.
+    expect(h.notifier.sent[0].n.body).toContain("перезапустите сайт (pm2 restart mybook)");
     expect(h.notifier.sent[0].n.body).not.toContain("Подключите кассира заново");
   });
 
