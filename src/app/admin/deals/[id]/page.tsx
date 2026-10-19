@@ -9,7 +9,7 @@ import { staffLabel } from "@/shared/domain/staff";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { channelLabel } from "@/modules/messaging";
 import { mentionableStaff } from "@/modules/workspace";
-import { formatPhone } from "@/shared/domain/phone";
+import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
@@ -88,6 +88,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       .map((p) => ({ id: p.id, text: `${formatPrice(p.amount)} (${p.method === "kaspi" ? "Kaspi" : "картой"}${p.invoiceId && invoiceLabels.has(p.invoiceId) ? `, счёт ${invoiceLabels.get(p.invoiceId)}` : ""}, ${formatDate(p.paidAt, true)})` })),
   };
   const contact = contactView(staff, { phone: deal.contactPhone ? formatPhone(deal.contactPhone) : client?.phone, email: deal.contactEmail ?? client?.email });
+  // Готовый текст клиенту (правило «праздник») открывается в WhatsApp с номером, только если сотрудник номер видит.
+  const whatsappTo = contact.masked ? null : normalizePhone(deal.contactPhone ?? client?.phone) || null;
   const screen = dealScreen({ deal, stages: allStages, staff: admins, tasks: taskRows, notes: noteRows, payments: paymentRows, receipts: receiptRows, calls: callRows, now });
   const invoiceOf = new Map(paymentRows.map((p) => [p.id, p.invoiceId ? (invoiceLabels.get(p.invoiceId) ?? null) : null]));
   const payments = screen.payments.map((p) => ({ ...p, invoice: invoiceOf.get(p.id) ?? null }));
@@ -237,7 +239,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
 
           <section className="rounded-2xl border border-line bg-white p-5">
             <h2 className="mb-4 font-semibold">История</h2>
-            {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} /> : <NotesTimelineReadonly notes={notes} />}
+            {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} whatsappTo={whatsappTo} /> : <NotesTimelineReadonly notes={notes} whatsappTo={whatsappTo} />}
           </section>
         </div>
       </div>

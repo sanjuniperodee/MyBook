@@ -6,7 +6,7 @@ type TemplateVars = Parameters<typeof fillTemplate>[1];
 export type { AutomationTrigger } from "@/modules/automation/domain/meta";
 
 export interface RuleAction {
-  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal";
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message";
   title?: string;
   text?: string;
   /** Текст клиенту на казахском: его получает клиент с казахским языком (users.locale); пусто — русский text. */
@@ -15,6 +15,14 @@ export interface RuleAction {
   userId?: string | null;
   stageId?: string;
 }
+
+/**
+ * Правило «Приближается праздник» по умолчанию: за 30 дней (печать 7 рабочих дней, доставка и время написать книгу);
+ * покупатели прошлого года — за 30 дней до праздника (печатную книгу к празднику оплачивают за 2–4 недели);
+ * не больше 30 клиентов в день (задачи одному-двум менеджерам). Пределы — дни до 120, клиентов до 200 в день.
+ */
+export const HOLIDAY_DEFAULTS = { daysBefore: 30, windowDays: 30, perDay: 30 } as const;
+export const HOLIDAY_LIMITS = { daysBefore: 120, windowDays: 90, perDay: 200 } as const;
 
 /** Срок задачи правила по умолчанию — час. */
 export const DEFAULT_TASK_DUE_MIN = 60;
@@ -75,7 +83,10 @@ export function matches(rule: Pick<AutomationRule, "conditions">, ctx: TriggerCo
 }
 
 /** Условия, которые имеют смысл для события (остальные из формы отбрасываем). */
-export function relevantConditions(trigger: string, c: { stageId?: string | null; source?: string | null; channel?: string; minutes?: number; days?: number; daysBefore?: number; hours?: string | null }) {
+export function relevantConditions(
+  trigger: string,
+  c: { stageId?: string | null; source?: string | null; channel?: string; minutes?: number; days?: number; daysBefore?: number; windowDays?: number; perDay?: number; holiday?: string | null; hours?: string | null },
+) {
   const out: Record<string, string | number | null> = {};
   if (trigger === "deal.stage_changed" && c.stageId) out.stageId = c.stageId;
   if (trigger === "deal.created" && c.source) out.source = c.source;
@@ -83,9 +94,18 @@ export function relevantConditions(trigger: string, c: { stageId?: string | null
   if (trigger === "message.unanswered") out.minutes = c.minutes ?? 15;
   if (trigger === "client.inactive") out.days = c.days ?? 5;
   if (trigger === "occasion.anniversary") out.daysBefore = c.daysBefore ?? 30;
+  if (trigger === "occasion.holiday") {
+    out.daysBefore = c.daysBefore ?? HOLIDAY_DEFAULTS.daysBefore;
+    out.windowDays = c.windowDays ?? HOLIDAY_DEFAULTS.windowDays;
+    out.perDay = c.perDay ?? HOLIDAY_DEFAULTS.perDay;
+    if (c.holiday) out.holiday = c.holiday;
+  }
   if (c.hours === "work" || c.hours === "off") out.hours = c.hours;
   return out;
 }
+
+/** Повторная продажа: сделка, которую создаёт такое правило, — с источником «повторная» (repeat). */
+export const isRepeatTrigger = (trigger: string) => trigger === "occasion.anniversary" || trigger === "occasion.holiday";
 
 /** Правило пишет клиенту (действие «Отправить сообщение» с текстом): его держат окно и суточный лимит. */
 export const sendsMessage = (rule: Pick<AutomationRule, "actions">) => (rule.actions ?? []).some((a) => a.type === "send_message" && !!a.text?.trim());

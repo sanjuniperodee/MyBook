@@ -1,13 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
-import type { AutomationRule, RuleSubject } from "@/modules/automation/domain";
+import { DEFAULT_HOLIDAYS, type AutomationRule, type Holiday, type RuleSubject } from "@/modules/automation/domain";
 import { addWorkMinutes, parseWorkHours } from "@/shared/domain/schedule";
 import { inbound, setup as chatSetup } from "./doubles/botHarness";
 import { setup as clientsSetup } from "./doubles/clients";
 
 const now = new Date("2026-10-01T06:00:00Z");
 
-function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Partial<RuleSubject>; onMove?: (dealId: string, stageId: string) => Promise<void>; scheduled?: Partial<ScheduledSource>; active?: RuleRepository["active"]; canMessage?: () => boolean; createTask?: AutomationEffects["createTask"]; now?: Date } = {}) {
+function setup(
+  rules: AutomationRule[],
+  opts: {
+    workTime?: boolean;
+    subject?: Partial<RuleSubject>;
+    onMove?: (dealId: string, stageId: string) => Promise<void>;
+    scheduled?: Partial<ScheduledSource>;
+    active?: RuleRepository["active"];
+    canMessage?: () => boolean;
+    createTask?: AutomationEffects["createTask"];
+    now?: Date;
+    holidays?: Holiday[];
+  } = {},
+) {
   const claimed = new Set<string>();
   const log: string[] = [];
   const tasks: Parameters<AutomationEffects["createTask"]>[0][] = [];
@@ -19,7 +32,12 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
   const subject = (): RuleSubject => ({ deal: { id: "d1", number: 5, title: "Заявка", assigneeId: null, orderId: null, clientId: "c1", customFields: {} }, clientId: "c1", name: "Айгерим", assigneeId: null, ...opts.subject });
   const loaded: Parameters<SubjectLoader["load"]>[0][] = [];
   const loader: SubjectLoader = {
-    load: async (ctx) => (loaded.push(ctx), subject()),
+    // Сделка по id из контекста (например, только что созданная правилом) — с этим id.
+    load: async (ctx) => {
+      loaded.push(ctx);
+      const s = subject();
+      return ctx.dealId ? { ...s, deal: { id: ctx.dealId, number: 9, title: "Сделка", assigneeId: null, orderId: null, clientId: s.clientId, customFields: {} } } : s;
+    },
     managerName: async (id) => (id ? "Менеджер" : ""),
     dealFieldVars: async () => ({}),
     latestConversation: async () => "conv1",
@@ -36,6 +54,7 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
     sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""})` : ""}`),
     canMessageNow: async () => (log.push("gate"), opts.canMessage?.() ?? true),
     assignConversation: async () => {},
+    addNote: async (n) => void log.push(`note:${n.dealId}:${n.text}`),
     notify: async (to, n) => void log.push(`notify:${Array.isArray(to) ? to.join(",") : to}:${n.title}`),
   };
   const sales: SalesGateway = {
@@ -46,15 +65,16 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
       await opts.onMove?.(d, s);
     },
     findOpenDealId: async () => null,
-    createDeal: async () => ({ id: "d9", assigneeId: null }),
+    createDeal: async (input) => (log.push(`deal:${input.source}:${input.title}`), { id: "d9", assigneeId: null }),
   };
-  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], ...opts.scheduled };
+  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
   const hours = parseWorkHours(null);
   const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
   const errors: string[] = [];
   const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
-  const engine = new AutomationEngine(repo, loader, effects, sales, schedule, scheduled, { url: "https://mybook.kz" }, { now: () => opts.now ?? now }, quiet);
+  const holidays = { list: async () => opts.holidays ?? [...DEFAULT_HOLIDAYS] };
+  const engine = new AutomationEngine(repo, loader, effects, sales, schedule, scheduled, { url: "https://mybook.kz" }, { now: () => opts.now ?? now }, quiet, holidays);
   return { engine, log, errors, tasks, claimed, loaded };
 }
 
@@ -186,6 +206,77 @@ describe("Годовщины: сделки, проданные в чате, и �
     const ruClient = setup([year], { subject: { deal: null, locale: "ru" }, scheduled: { anniversaries: async () => [kk] } });
     await ruClient.engine.runScheduled({ force: true });
     expect(ruClient.log.filter((l) => l.startsWith("msg:"))).toEqual(["msg:conv1:Айгерим, скоро Годовщина (15 ноября 2026 г.) (Годовщина)"]);
+  });
+});
+
+describe("Праздник через N дней: повторная продажа без автоотправки (bots-10, analytics-11)", () => {
+  const holiday = rule({
+    id: "ny",
+    name: "Праздник → повторная продажа",
+    trigger: "occasion.holiday",
+    conditions: { daysBefore: 30, windowDays: 30, perDay: 30 },
+    actions: [
+      { type: "create_deal", title: "Повторная продажа: {повод}" },
+      { type: "draft_message", text: "{имя}, {повод} — {дата}, подготовим новую книгу?", textKk: "{имя}, {повод} — {дата}, жаңа кітап дайындайық па?" },
+      { type: "create_task", title: "Предложить книгу к празднику «{повод}» ({дата}): {имя}", dueMinutes: 1440 },
+    ],
+  });
+  const dec1 = new Date("2026-12-01T05:00:00Z"); // 10:00 по Алматы, до Нового года (31.12) — 30 дней
+  const buyer = (clientId: string, locale: "ru" | "kk" = "ru") => ({
+    clientId,
+    occasion: "Новый год",
+    date: "31 декабря 2026 г.",
+    client: locale === "kk" ? { occasion: "Жаңа жыл", date: "2026 жылғы 31 желтоқсан" } : { occasion: "Новый год", date: "31 декабря 2026 г." },
+  });
+
+  it("покупателю прошлого года — новая сделка «повторная», готовый текст на его языке в истории сделки и задача; клиенту ничего не уходит", async () => {
+    const asked: unknown[] = [];
+    const { engine, log, claimed } = setup([holiday], {
+      now: dec1,
+      subject: { deal: null, locale: "kk" },
+      scheduled: { holidayBuyers: async (ruleId, q) => (asked.push({ ruleId, ...q }), [buyer("c1", "kk")]) },
+    });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(asked).toEqual([{ ruleId: "ny", holiday: DEFAULT_HOLIDAYS[0], date: "2026-12-31", from: "2025-12-01", to: "2025-12-31", seasonFrom: "2026-11-01", limit: 30 }]);
+    expect([...claimed]).toEqual(["ny:holiday:newyear:2026:c1"]);
+    expect(log).toEqual([
+      "deal:repeat:Повторная продажа: Новый год",
+      "note:d9:Текст клиенту — отправьте сами (правило «Праздник → повторная продажа»):\nАйгерим, Жаңа жыл — 2026 жылғы 31 желтоқсан, жаңа кітап дайындайық па?",
+      "task:Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим:null",
+      "notify:staff:Задача: Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим",
+      "run:ny",
+    ]);
+  });
+
+  it("не больше perDay в день: сработавшие сегодня — из журнала (перезапуск не обнуляет); второй проход в тот же день выборку не повторяет", async () => {
+    const limits: number[] = [];
+    const { engine } = setup([holiday], {
+      now: dec1,
+      scheduled: { firedOn: async (ruleId, day) => (ruleId === "ny" && day === "2026-12-01" ? 28 : 0), holidayBuyers: async (_r, q) => (limits.push(q.limit), [buyer("c1"), buyer("c2")]) },
+    });
+    expect(await engine.runScheduled({ force: true })).toBe(2);
+    expect(await engine.runScheduled({ force: true })).toBe(0);
+    expect(limits).toEqual([2]);
+  });
+
+  it("выборки нет: вне рабочего времени, праздник дальше N дней, лимит дня выбран; условие «праздник» — только он", async () => {
+    let calls = 0;
+    const scheduled = { holidayBuyers: async () => (calls++, []) };
+    await setup([holiday], { now: dec1, workTime: false, scheduled }).engine.runScheduled({ force: true });
+    await setup([holiday], { now: new Date("2026-10-01T05:00:00Z"), scheduled }).engine.runScheduled({ force: true });
+    await setup([holiday], { now: dec1, scheduled: { ...scheduled, firedOn: async () => 30 } }).engine.runScheduled({ force: true });
+    await setup([rule({ ...holiday, conditions: { ...holiday.conditions, holiday: "march8" } })], { now: dec1, scheduled }).engine.runScheduled({ force: true });
+    expect(calls).toBe(0);
+  });
+
+  it("без сделки готовый текст не пишется; русскоязычному — русский текст", async () => {
+    const draftOnly = rule({ ...holiday, actions: [holiday.actions[1]] });
+    const noDeal = setup([draftOnly], { now: dec1, subject: { deal: null }, scheduled: { holidayBuyers: async () => [buyer("c1")] } });
+    await noDeal.engine.runScheduled({ force: true });
+    expect(noDeal.log.filter((l) => l.startsWith("note:"))).toEqual([]);
+    const ru = setup([holiday], { now: dec1, subject: { deal: null, locale: "ru" }, scheduled: { holidayBuyers: async () => [buyer("c1")] } });
+    await ru.engine.runScheduled({ force: true });
+    expect(ru.log.filter((l) => l.startsWith("note:"))).toEqual(["note:d9:Текст клиенту — отправьте сами (правило «Праздник → повторная продажа»):\nАйгерим, Новый год — 31 декабря 2026 г., подготовим новую книгу?"]);
   });
 });
 

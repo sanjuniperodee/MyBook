@@ -8,9 +8,11 @@ import { formatDate } from "@/lib/dates";
 import { CrmSettingsForm } from "../crm/CrmSettingsForm";
 import { Blocklist } from "../crm/Blocklist";
 import { TemplateEditor } from "../crm/TemplateEditor";
+import { HolidaysForm } from "../crm/HolidaysForm";
+import { DEFAULT_HOLIDAYS, HOLIDAYS_MAX, parseHolidays } from "@/modules/automation/domain";
 
 export async function CrmTab() {
-  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign] = await Promise.all([
+  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays] = await Promise.all([
     getSetting("crm.slaMinutes"),
     container().workspace.templates.list(),
     getSetting("crm.workHours"),
@@ -21,6 +23,7 @@ export async function CrmTab() {
     getSetting("widget.enabled"),
     getSetting("widget.chat"),
     getSetting("crm.reassignMinutes"),
+    getSetting("automation.holidays"),
   ]);
   return (
     <>
@@ -36,6 +39,8 @@ export async function CrmTab() {
           by: b.byEmail ? staffLabel({ name: b.byName ?? "", email: b.byEmail }) : null,
         }))}
       />
+
+      <HolidaysForm holidays={parseHolidays(holidays)} defaults={[...DEFAULT_HOLIDAYS]} max={HOLIDAYS_MAX} />
 
       <section className="rounded-2xl border border-line bg-white p-5">
         <h2 className="font-semibold">Шаблоны быстрых ответов</h2>

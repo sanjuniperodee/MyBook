@@ -21,10 +21,12 @@ interface Rule {
 interface Ctx {
   stages: { id: string; name: string }[];
   staff: { id: string; label: string }[];
+  /** Праздники из «Интеграции» → CRM — для правила «Приближается праздник». */
+  holidays: { id: string; label: string }[];
 }
 
 const blank = (type: AutomationActionType): AutomationAction =>
-  type === "create_task" ? { type, title: "", dueMinutes: 60, userId: null } : type === "create_deal" ? { type, title: "", userId: null } : type === "send_message" ? { type, text: "", textKk: "" } : type === "notify" ? { type, title: "", text: "", userId: null } : type === "move_stage" ? { type, stageId: "" } : { type, userId: null };
+  type === "create_task" ? { type, title: "", dueMinutes: 60, userId: null } : type === "create_deal" ? { type, title: "", userId: null } : type === "send_message" || type === "draft_message" ? { type, text: "", textKk: "" } : type === "notify" ? { type, title: "", text: "", userId: null } : type === "move_stage" ? { type, stageId: "" } : { type, userId: null };
 
 function describe(r: Rule, ctx: Ctx) {
   const t = automationTriggers[r.trigger as keyof typeof automationTriggers]?.label ?? r.trigger;
@@ -32,7 +34,10 @@ function describe(r: Rule, ctx: Ctx) {
     (r.conditions.stageId ? ` «${ctx.stages.find((s) => s.id === r.conditions.stageId)?.name ?? "?"}»` : "") +
     (r.conditions.minutes ? ` ${r.conditions.minutes} мин` : "") +
     (r.conditions.days ? ` ${r.conditions.days} дн.` : "") +
+    (r.conditions.holiday ? ` «${ctx.holidays.find((h) => h.id === r.conditions.holiday)?.label ?? r.conditions.holiday}»` : "") +
     (r.conditions.daysBefore ? ` за ${r.conditions.daysBefore} дн.` : "") +
+    (r.conditions.windowDays ? `, покупали за ${r.conditions.windowDays} дн. до него` : "") +
+    (r.conditions.perDay ? `, до ${r.conditions.perDay} в день` : "") +
     (r.conditions.source ? ` (${dealSourceLabels[r.conditions.source as keyof typeof dealSourceLabels] ?? r.conditions.source})` : "") +
     (r.conditions.hours ? ` · ${automationHours[r.conditions.hours as keyof typeof automationHours]}` : "");
   return { trigger: t + cond, actions: r.actions.map((a) => automationActions[a.type]).join(", ") };
@@ -171,6 +176,32 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               <input type="number" min={1} max={90} className="input h-10 w-24 text-sm" value={Number(conditions.days ?? 5)} onChange={(e) => setConditions({ ...conditions, days: Number(e.target.value) })} />
               дней
             </label>
+          ) : trigger === "occasion.holiday" ? (
+            <div className="space-y-2 text-sm">
+              <select className="input h-10 text-sm" value={String(conditions.holiday ?? "")} onChange={(e) => setConditions({ ...conditions, holiday: e.target.value || null })} aria-label="Праздник">
+                <option value="">любой праздник из списка</option>
+                {ctx.holidays.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.label}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2">
+                за
+                <input type="number" min={1} max={120} className="input h-9 w-20 text-sm" value={Number(conditions.daysBefore ?? 30)} onChange={(e) => setConditions({ ...conditions, daysBefore: Number(e.target.value) })} aria-label="За сколько дней до праздника" />
+                дней до праздника
+              </label>
+              <label className="flex items-center gap-2" title="Покупка — оплата или выигранная сделка в эти дни до праздника год назад">
+                покупали за
+                <input type="number" min={1} max={90} className="input h-9 w-20 text-sm" value={Number(conditions.windowDays ?? 30)} onChange={(e) => setConditions({ ...conditions, windowDays: Number(e.target.value) })} aria-label="За сколько дней до праздника покупали в прошлом году" />
+                дней до него год назад
+              </label>
+              <label className="flex items-center gap-2" title="Сколько задач менеджеры успеют за день: остальных правило возьмёт в следующие дни">
+                не больше
+                <input type="number" min={1} max={200} className="input h-9 w-20 text-sm" value={Number(conditions.perDay ?? 30)} onChange={(e) => setConditions({ ...conditions, perDay: Number(e.target.value) })} aria-label="Клиентов в день" />
+                клиентов в день
+              </label>
+            </div>
           ) : trigger === "occasion.anniversary" ? (
             <label className="flex items-center gap-2 text-sm">
               за
@@ -228,6 +259,12 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Получили ваше сообщение…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст на русском" />
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком (необязательно)" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст на казахском" />
                 <p className="text-xs text-muted">Уйдёт в тот же чат, откуда пришло обращение. Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {templateVars.join(", ")}</p>
+              </>
+            ) : a.type === "draft_message" ? (
+              <>
+                <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Скоро {повод} — {дата}…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст клиенту на русском" />
+                <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст клиенту на казахском" />
+                <p className="text-xs text-muted">Клиенту не уходит: текст на языке клиента появится в истории сделки с кнопкой «Открыть в WhatsApp», отправит менеджер. Нужна сделка — поставьте выше «Создать сделку». Переменные: {templateVars.join(", ")}</p>
               </>
             ) : a.type === "assign" ? (
               staffSelect(a.userId, (v) => setAction(i, { userId: v }), "по кругу между менеджерами")

@@ -3,7 +3,7 @@ import { boolean, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } 
 import { timestamps } from "./columns";
 
 export interface AutomationAction {
-  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal";
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message";
   title?: string;
   text?: string;
   /** Текст клиенту на казахском (клиенту с казахским языком); пусто — русский text. */

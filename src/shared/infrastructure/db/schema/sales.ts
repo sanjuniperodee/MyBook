@@ -89,7 +89,14 @@ export const crmDeals = pgTable(
     closedAt: timestamp("closed_at", { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index("crm_deals_stage_idx").on(t.stageId), index("crm_deals_assignee_idx").on(t.assigneeId), index("crm_deals_client_idx").on(t.clientId), index("crm_deals_assigned_idx").on(t.assignedAt)],
+  (t) => [
+    index("crm_deals_stage_idx").on(t.stageId),
+    index("crm_deals_assignee_idx").on(t.assigneeId),
+    index("crm_deals_client_idx").on(t.clientId),
+    index("crm_deals_assigned_idx").on(t.assignedAt),
+    // Выигранные сделки за период (вьюха revenue_events): правило «праздник» — кто покупал к празднику год назад.
+    index("crm_deals_closed_idx").on(t.closedAt).where(sql`${t.closedAt} is not null`),
+  ],
 );
 
 /**

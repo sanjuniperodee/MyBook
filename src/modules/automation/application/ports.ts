@@ -1,4 +1,4 @@
-import type { AutomationRule, RuleSubject, TriggerContext } from "../domain";
+import type { AutomationRule, Holiday, RuleSubject, TriggerContext } from "../domain";
 
 export interface RuleRepository {
   active(trigger?: string): Promise<AutomationRule[]>;
@@ -33,6 +33,8 @@ export interface AutomationEffects {
   /** Можно ли сейчас написать клиенту первым: окно и суточный лимит сообщений от правил (automation-15). */
   canMessageNow(): Promise<boolean>;
   assignConversation(conversationId: string, userId: string): Promise<void>;
+  /** Запись CRM в истории сделки (без автора, одна с таким текстом на сделку): готовый текст клиенту. */
+  addNote(note: { dealId: string; clientId: string | null; text: string }): Promise<void>;
   /** Уведомить сотрудников; без адресатов — всех с правом deals.view. */
   notify(userIds: string[] | "staff", n: { kind: "task" | "sla" | "system"; title: string; body: string; link: string | null }): Promise<void>;
 }
@@ -62,6 +64,24 @@ export interface ScheduledSource {
     today: string,
     daysBefore: number,
   ): Promise<{ orderId: string | null; dealId: string | null; clientId: string; occasion: string; date: string; year: number; client: { occasion: string; date: string } }[]>;
+  /**
+   * Покупатели к празднику прошлого года: оплата или выигранная сделка в днях from…to (ГГГГ-ММ-ДД по поясу магазина).
+   * Без открытой сделки, без покупки с seasonFrom (уже купили в этом сезоне), не из стоп-листа; клиент, для которого
+   * правило уже сработало к этому празднику (holiday:<id>:<год праздника>:<клиент>), не выбирается. Купившие ближе
+   * к празднику — первыми, не больше limit. occasion и date (праздника, ГГГГ-ММ-ДД в q.date) — по-русски, client — на
+   * языке клиента.
+   */
+  holidayBuyers(
+    ruleId: string,
+    q: { holiday: Holiday; date: string; from: string; to: string; seasonFrom: string; limit: number },
+  ): Promise<{ clientId: string; occasion: string; date: string; client: { occasion: string; date: string } }[]>;
+  /** Сколько раз правило сработало с начала дня day (ГГГГ-ММ-ДД по поясу магазина) — для лимита «в день». */
+  firedOn(ruleId: string, day: string): Promise<number>;
+}
+
+/** Праздники для повторных продаж — настройка «Интеграции» → CRM. */
+export interface HolidayCalendar {
+  list(): Promise<Holiday[]>;
 }
 
 export interface AppInfo {

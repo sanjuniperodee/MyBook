@@ -3,15 +3,26 @@ import { requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/dates";
 import { AutomationCard } from "./AutomationEditor";
+import { getSetting } from "@/modules/workspace";
+import { parseHolidays } from "@/modules/automation/domain";
 
 export const metadata = { title: "Автоматизации" };
 
 export default async function AutomationsPage() {
   await requireStaff("settings.manage");
-  const [rules, stages, admins] = await Promise.all([container().automation.rules.list(), container().sales.queries.listStages(), container().access.queries.allStaff()]);
+  const [rules, stages, admins, holidays] = await Promise.all([
+    container().automation.rules.list(),
+    container().sales.queries.listStages(),
+    container().access.queries.allStaff(),
+    getSetting("automation.holidays"),
+  ]);
   const pipelines = await container().sales.queries.listPipelines();
   const pname = new Map(pipelines.map((p) => [p.id, p.name]));
-  const ctx = { stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name })), staff: staffOptions(admins) };
+  const ctx = {
+    stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name })),
+    staff: staffOptions(admins),
+    holidays: parseHolidays(holidays).map((h) => ({ id: h.id, label: `${h.ru} (${h.date.slice(3)}.${h.date.slice(0, 2)})` })),
+  };
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <div>

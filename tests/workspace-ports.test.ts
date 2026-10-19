@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { settingsSecurityStore } from "@/modules/access/infrastructure/adapters";
 import { aiConnections, type AssistantSettingKey } from "@/modules/assistant/infrastructure/connection";
 import { crmAssistantData } from "@/modules/assistant/infrastructure/data";
-import { crmEffects } from "@/modules/automation/infrastructure/adapters";
+import { crmEffects, settingsHolidays, type AutomationSettingKey } from "@/modules/automation/infrastructure/adapters";
 import { DrizzleSubjectLoader } from "@/modules/automation/infrastructure/persistence";
 import { crmMarketingSettings } from "@/modules/marketing/infrastructure/adapters";
 import { channelTransport, crmBotSettings, crmNotifier, realtimeUpdates, widgetSettings } from "@/modules/messaging/infrastructure/adapters";
@@ -127,10 +127,17 @@ describe("telephony: настройки АТС, уведомления и жив
 describe("automation: уведомления и свои поля", () => {
   it("«staff» — всем с deals.view, список — адресатам", async () => {
     const notifier = new SpyStaffNotifier({ "deals.view": ["m1", "h1"] });
-    const effects = crmEffects(async () => true, async () => {}, async () => true, notifier);
+    const effects = crmEffects({ createTask: async () => true, sendMessage: async () => {}, canMessageNow: async () => true, addNote: async () => {} }, notifier);
     await effects.notify("staff", { kind: "sla", title: "Клиенту не ответили 15 минут", body: "", link: null });
     await effects.notify(["m2"], { kind: "task", title: "Задача", body: "", link: null });
     expect(notifier.sent.map((s) => s.to)).toEqual([["m1", "h1"], ["m2"]]);
+  });
+
+  it("праздники — из настройки; пусто — праздники РК по умолчанию, «[]» — праздников нет", async () => {
+    expect((await settingsHolidays(new MemSettings<AutomationSettingKey>()).list()).map((h) => h.date)).toEqual(["12-31", "02-14", "03-08", "05-07"]);
+    const own = [{ id: "nauryz", date: "03-21", ru: "Наурыз", kk: "Наурыз" }];
+    expect(await settingsHolidays(new MemSettings<AutomationSettingKey>({ "automation.holidays": JSON.stringify(own) })).list()).toEqual(own);
+    expect(await settingsHolidays(new MemSettings<AutomationSettingKey>({ "automation.holidays": "[]" })).list()).toEqual([]);
   });
 
   it("переменные своих полей сделки — по полям из рабочего пространства", async () => {

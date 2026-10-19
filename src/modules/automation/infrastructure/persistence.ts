@@ -10,7 +10,7 @@ import { executor } from "@/shared/infrastructure/database";
 import type { CustomFieldsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
 import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";
-import type { AutomationRule, RuleSubject, TriggerContext } from "../domain";
+import type { AutomationRule, Holiday, RuleSubject, TriggerContext } from "../domain";
 
 /** Заказ (алиас o) оплачен по paid_at и не отменён; не isPaid() из ordering (тот — по статусу). */
 const paidAndNotCancelled = sql`o.paid_at is not null and o.status <> 'cancelled'`;
@@ -94,6 +94,9 @@ const isoText = (at: unknown) => sql`to_char(${at} at time zone 'UTC', 'YYYY-MM-
  * место в выборке, и новые объекты не теряются за лимитом. Поиск по уникальному индексу (automation_id, subject).
  */
 const notFired = (ruleId: string, subject: ReturnType<typeof sql>) => sql`not exists (select 1 from crm_automation_runs r where r.automation_id = ${ruleId}::uuid and r.subject = ${subject})`;
+
+/** Начало местного дня day (ГГГГ-ММ-ДД или выражение date) по поясу магазина — момент для сравнения с timestamptz. */
+const dayStart = (day: string | ReturnType<typeof sql>, tz: string) => sql`((${day})::date::timestamp at time zone ${tz})`;
 
 /** Подпись выпускного в поле «Повод» сделки (как в CRM): выпускной не повторяется — годовщины нет. */
 const GRADUATION_LABEL = (messagesFor("ru").common.occasions as Record<string, { label: string }>).graduation.label;
@@ -226,5 +229,35 @@ export class SqlScheduledSource implements ScheduledSource {
         client: { occasion: occasionLabel(r.code, r.label, locale), date: formatDate(r.next_date, false, locale) },
       };
     });
+  }
+
+  async holidayBuyers(ruleId: string, q: { holiday: Holiday; date: string; from: string; to: string; seasonFrom: string; limit: number }) {
+    const tz = storeTimeZone();
+    const year = Number(q.date.slice(0, 4));
+    const { rows } = await executor().execute<{ client_id: string; locale: string }>(sql`
+      with bought as (
+        select e.client_id, max(e.at) as at
+        from revenue_events e
+        where e.kind <> 'refund' and e.client_id is not null and e.at >= ${dayStart(q.from, tz)} and e.at < ${dayStart(sql`${q.to}::date + 1`, tz)}
+        group by e.client_id
+      )
+      select b.client_id, u.locale
+      from bought b join users u on u.id = b.client_id
+      where not exists (select 1 from crm_deals d join crm_stages s on s.id = d.stage_id and s.kind = 'open' where d.client_id = b.client_id)
+        and b.client_id not in (select e.client_id from revenue_events e where e.kind <> 'refund' and e.client_id is not null and e.at >= ${dayStart(q.seasonFrom, tz)})
+        and not ${noMarketing(sql`u`)}
+        and ${notFired(ruleId, sql`${`holiday:${q.holiday.id}:${year}:`} || b.client_id::text`)}
+      order by b.at desc, b.client_id
+      limit ${Math.max(0, Math.min(q.limit, LIMIT))}`);
+    return rows.map((r) => {
+      const locale = r.locale === "kk" ? "kk" : "ru";
+      return { clientId: r.client_id, occasion: q.holiday.ru, date: formatDate(q.date), client: { occasion: q.holiday[locale], date: formatDate(q.date, false, locale) } };
+    });
+  }
+
+  async firedOn(ruleId: string, day: string) {
+    const { rows } = await executor().execute<{ n: number }>(sql`
+      select count(*)::int as n from crm_automation_runs where automation_id = ${ruleId}::uuid and created_at >= ${dayStart(day, storeTimeZone())}`);
+    return Number(rows[0]?.n ?? 0);
   }
 }

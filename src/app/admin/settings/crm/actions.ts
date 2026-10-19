@@ -15,6 +15,8 @@ import { BOT_MODES } from "@/modules/messaging/domain/bot";
 import { LESSON_MAX, MAX_LESSONS, lessonProblems } from "@/modules/messaging/domain/botCoach";
 import { botSiteInfo } from "@/server/bot-site";
 import type { SettingsState } from "../state";
+import { HOLIDAYS_MAX, holidayIdFor, holidaysError, type Holiday } from "@/modules/automation/domain";
+import { admin } from "@/i18n/admin";
 
 export async function saveCrmSettingsAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
@@ -48,6 +50,41 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
   await audit(staff, "settings.update", "settings", "crm", { ...d, days });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
+}
+
+// ─── праздники для повторных продаж ────────────────────────────────────────
+
+const holidaysSchema = z
+  .array(z.object({ id: z.string().trim().max(30).default(""), day: z.string().trim().max(10), ru: z.string().trim().max(60), kk: z.string().trim().max(60) }))
+  .max(HOLIDAYS_MAX * 2);
+
+/** «31.12» → «12-31»; не день.месяц — null. */
+const holidayDate = (day: string) => {
+  const m = /^(\d{1,2})\.(\d{1,2})$/.exec(day);
+  return m ? `${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null;
+};
+
+/**
+ * Праздники для правила «Приближается праздник» (bots-10): день.месяц и названия на русском (сотрудникам и клиентам с
+ * русским языком) и казахском. Код праздника сохраняется — по нему правило помнит, кому уже предложило к нему книгу.
+ */
+export async function saveHolidaysAction(input: z.input<typeof holidaysSchema>): Promise<{ ok: true } | { ok: false; error: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = holidaysSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: admin.badForm };
+  const list: Holiday[] = [];
+  for (const h of parsed.data) {
+    const date = holidayDate(h.day);
+    if (!date) return { ok: false, error: admin.holidayDateInvalid };
+    list.push({ id: /^[a-z0-9-]{1,30}$/.test(h.id) ? h.id : holidayIdFor(date), date, ru: h.ru, kk: h.kk });
+  }
+  const error = holidaysError(list);
+  if (error) return { ok: false, error: error === "holidaysTooMany" ? admin.holidaysTooMany(HOLIDAYS_MAX) : admin[error] };
+  await saveSettings({ "automation.holidays": JSON.stringify(list) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "holidays", { holidays: list.map((h) => `${h.date} ${h.ru}`) });
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/automations");
+  return { ok: true };
 }
 
 // ─── шаблоны ответов ───────────────────────────────────────────────────────

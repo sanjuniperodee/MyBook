@@ -131,6 +131,29 @@ describe("Телефония", () => {
   });
 });
 
+describe("Праздники для повторных продаж (bots-10)", () => {
+  it("день.месяц → ММ-ДД, код праздника сохраняется, у нового — h<ММДД>; ошибки — словами сотруднику", async () => {
+    const list = [
+      { id: "newyear", day: "31.12", ru: "Новый год", kk: "Жаңа жыл" },
+      { id: "", day: "21.3", ru: "Наурыз", kk: "Наурыз мейрамы" },
+    ];
+    expect(await actions.saveHolidaysAction(list)).toEqual({ ok: true });
+    expect(JSON.parse(w.saved[0]["automation.holidays"])).toEqual([
+      { id: "newyear", date: "12-31", ru: "Новый год", kk: "Жаңа жыл" },
+      { id: "h0321", date: "03-21", ru: "Наурыз", kk: "Наурыз мейрамы" },
+    ]);
+    expect(w.audits[0]).toEqual(["settings.update", "settings", "holidays", { holidays: ["12-31 Новый год", "03-21 Наурыз"] }]);
+    expect(await actions.saveHolidaysAction([])).toEqual({ ok: true });
+    expect(w.saved[1]).toEqual({ "automation.holidays": "[]" });
+    const bad = (patch: Partial<(typeof list)[number]>) => actions.saveHolidaysAction([{ ...list[0], ...patch }]);
+    expect(await bad({ day: "29.02" })).toEqual({ ok: false, error: "Дата праздника — день и месяц, например 31.12; 29 февраля не подходит — праздник должен быть каждый год" });
+    expect(await bad({ day: "31 декабря" })).toEqual({ ok: false, error: "Дата праздника — день и месяц, например 31.12; 29 февраля не подходит — праздник должен быть каждый год" });
+    expect(await bad({ kk: "" })).toEqual({ ok: false, error: "У каждого праздника — название на русском и на казахском" });
+    expect(await actions.saveHolidaysAction([list[0], { ...list[0], id: "" }])).toEqual({ ok: false, error: "Два праздника в один день — оставьте один" });
+    expect(w.saved).toHaveLength(2);
+  });
+});
+
 describe("Отдел продаж", () => {
   it("сохраняет график, норматив, передачу не взятой заявки, автосделки, скидку и виджет; ошибки — первым сообщением схемы", async () => {
     const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["5", "1", "1", "9"], unsorted: "on", widgetChat: "on" };

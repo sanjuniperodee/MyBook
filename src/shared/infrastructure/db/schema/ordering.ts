@@ -78,6 +78,8 @@ export const orders = pgTable(
     uniqueIndex("orders_number_idx").on(t.number),
     index("orders_user_idx").on(t.userId),
     index("orders_status_idx").on(t.status),
+    // Покупки за период (вьюха revenue_events): правило «праздник» — кто покупал к празднику год назад.
+    index("orders_paid_idx").on(t.paidAt).where(sql`${t.paidAt} is not null`),
   ],
 );
 

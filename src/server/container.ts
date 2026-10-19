@@ -81,6 +81,10 @@ export class Container {
       // суточного лимита («Интеграции» → «Мессенджеры»).
       sendMessage: async (conversationId, text, opts) => void (await this.messaging.chats.sendAutomated(conversationId, text, opts)),
       canMessageNow: async () => !(await this.messaging.chats.ruleSendBlock()),
+      // Готовый текст клиенту (правило «праздник») — запись CRM в истории сделки: клиенту не уходит, отправит менеджер.
+      addNote: async (n) => void (await this.clients.notes.addSystemOnce(n)),
+      // Праздники для повторных продаж — «Интеграции» → CRM.
+      settings: this.workspace.settings,
       sales: {
         nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),

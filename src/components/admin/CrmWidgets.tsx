@@ -1,13 +1,14 @@
 "use client";
 
-import { ask } from "@/components/ui/overlays";
+import { ask, toast } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
-import { Mail, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
+import { Copy, Mail, MessageCircle, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { MentionTextarea } from "./MentionTextarea";
 import { cn } from "@/lib/class-names";
+import { draftFromNote, whatsappLink } from "@/shared/domain/templates";
 
 export const taskKinds = { task: "Задача", call: "Позвонить", message: "Написать", meeting: "Встреча" } as const;
 
@@ -144,8 +145,37 @@ const kinds = {
 } as const;
 const manualKinds = ["note", "call", "message", "email"] as const;
 
-/** История общения с клиентом. */
-export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[] }) {
+/**
+ * Готовый текст клиенту в истории сделки (правило «праздник»): CRM его не отправляет — «Открыть в WhatsApp» открывает
+ * чат клиента на телефоне магазина с этим текстом (номер скрыт от сотрудника — WhatsApp спросит, кому), «Скопировать» —
+ * чтобы вставить в чат CRM.
+ */
+export function DraftActions({ note, whatsappTo }: { note: string; whatsappTo?: string | null }) {
+  const text = draftFromNote(note);
+  if (!text) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-2" data-testid="draft-actions">
+      <a href={whatsappLink(text, whatsappTo)} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
+        <MessageCircle className="size-4" /> Открыть в WhatsApp
+      </a>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={() =>
+          navigator.clipboard.writeText(text).then(
+            () => toast("Текст скопирован"),
+            () => toast("Не удалось скопировать — выделите текст вручную", "error"),
+          )
+        }
+      >
+        <Copy className="size-4" /> Скопировать
+      </button>
+    </div>
+  );
+}
+
+/** История общения с клиентом. whatsappTo — номер клиента (цифры), если сотрудник его видит: для готовых текстов. */
+export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, whatsappTo }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[]; whatsappTo?: string | null }) {
   const [text, setText] = useState("");
   const [, start] = useTransition();
   const [state, action] = useActionState<AdminState, FormData>(addNoteAction, {});
@@ -213,6 +243,7 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables }
                   ) : null}
                 </div>
                 <p className="mt-1 text-sm whitespace-pre-line">{n.text}</p>
+                {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} /> : null}
               </div>
             </li>
           );

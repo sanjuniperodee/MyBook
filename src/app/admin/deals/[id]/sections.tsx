@@ -4,7 +4,7 @@ import type { Permission } from "@/shared/domain/permissions";
 import { channelLabel } from "@/modules/messaging";
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
-import type { NoteItem } from "@/components/admin/CrmWidgets";
+import { DraftActions, type NoteItem } from "@/components/admin/CrmWidgets";
 import type { OrderStatus } from "@/shared/domain/orders";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
@@ -182,7 +182,7 @@ export function DealCalls({ calls, canListen }: { calls: Screen["calls"]; canLis
   );
 }
 
-export function NotesTimelineReadonly({ notes }: { notes: NoteItem[] }) {
+export function NotesTimelineReadonly({ notes, whatsappTo }: { notes: NoteItem[]; whatsappTo?: string | null }) {
   return (
     <ol className="space-y-3 text-sm">
       {notes.map((n) => (
@@ -191,6 +191,7 @@ export function NotesTimelineReadonly({ notes }: { notes: NoteItem[] }) {
             {n.author} · {n.dateLabel}
           </div>
           <p className="whitespace-pre-line">{n.text}</p>
+          {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} /> : null}
         </li>
       ))}
       {notes.length === 0 ? <p className="text-muted">Записей нет.</p> : null}

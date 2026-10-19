@@ -1,9 +1,30 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock, Logger, WorkSchedule } from "@/shared/application";
-import { clientText, conditionNumber, isReplyTrigger, linkFor, matches, needsWorkTime, ruleTaskDue, sendsMessage, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
-import { fillTemplate } from "@/shared/domain/templates";
+import {
+  clientText,
+  conditionNumber,
+  DEFAULT_HOLIDAYS,
+  HOLIDAY_DEFAULTS,
+  HOLIDAY_LIMITS,
+  holidayWindows,
+  isRepeatTrigger,
+  isReplyTrigger,
+  linkFor,
+  matches,
+  needsWorkTime,
+  ruleTaskDue,
+  sendsMessage,
+  triggerLabel,
+  upcomingHolidays,
+  type AutomationRule,
+  type AutomationTrigger,
+  type RuleAction,
+  type RuleSubject,
+  type TriggerContext,
+} from "../domain";
+import { draftNote, fillTemplate } from "@/shared/domain/templates";
 import { zonedDay } from "@/shared/domain/time";
-import type { AppInfo, AutomationEffects, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader } from "./ports";
+import type { AppInfo, AutomationEffects, HolidayCalendar, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader } from "./ports";
 
 /** Защита от зацикливания: правило двигает сделку → срабатывает правило на этап → … */
 const MAX_DEPTH = 3;
@@ -15,6 +36,8 @@ const MAX_DEPTH = 3;
 export class AutomationEngine {
   readonly #depth = new AsyncLocalStorage<number>();
   #lastSlowRun = 0;
+  /** Правило «праздник», которое сегодня уже прошло выборку: до завтра её не повторяем (id правила → день). */
+  readonly #holidayDone = new Map<string, string>();
 
   constructor(
     private readonly rules: RuleRepository,
@@ -26,6 +49,7 @@ export class AutomationEngine {
     private readonly app: AppInfo,
     private readonly clock: Clock,
     private readonly logger: Logger,
+    private readonly holidays: HolidayCalendar = { list: async () => [...DEFAULT_HOLIDAYS] },
   ) {}
 
   async run(trigger: AutomationTrigger, initial: TriggerContext) {
@@ -120,7 +144,7 @@ export class AutomationEngine {
         if (!client) return;
         const deal = await this.sales.createDeal({
           title: fillTemplate(a.title || rule.name, vars) || rule.name,
-          source: rule.trigger === "occasion.anniversary" ? "repeat" : "manual",
+          source: isRepeatTrigger(rule.trigger) ? "repeat" : "manual",
           clientId: s.clientId,
           contactName: client.name,
           contactPhone: client.phone,
@@ -129,6 +153,13 @@ export class AutomationEngine {
         });
         s.deal = (await this.subjects.load({ subject: "", dealId: deal.id })).deal;
         s.assigneeId = s.assigneeId ?? deal.assigneeId;
+        return;
+      }
+      case "draft_message": {
+        // Текст кладётся в историю сделки — без сделки его негде показать (поставьте раньше «Создать сделку»).
+        if (!s.deal) return;
+        const text = clientText(a, s.locale, vars, ctx.clientVars);
+        if (text) await this.effects.addNote({ dealId: s.deal.id, clientId: s.clientId, text: draftNote(rule.name, text) });
         return;
       }
       case "notify": {
@@ -173,14 +204,15 @@ export class AutomationEngine {
     };
     /** Окно и лимит сообщений от правил: false — закрыто до конца прохода (за проход окно не откроется, лимит не вырастет). */
     let messaging: boolean | null = null;
-    const fire = async (rule: AutomationRule, ctx: TriggerContext) => {
-      if (!matches(rule, ctx)) return;
+    /** Сработало ли правило для объекта. */
+    const fire = async (rule: AutomationRule, ctx: TriggerContext): Promise<boolean> => {
+      if (!matches(rule, ctx)) return false;
       // Правило с сообщением клиенту вне окна или сверх суточного лимита объект не застолбляет: сработает в следующем
       // проходе (утром, завтра) целиком — с задачей и уведомлением, а не без сообщения.
       if (sendsMessage(rule)) {
-        if (messaging === false) return;
+        if (messaging === false) return false;
         messaging = await this.effects.canMessageNow().catch((err) => (this.logger.error("правила по времени: окно и лимит сообщений", err), false));
-        if (!messaging) return;
+        if (!messaging) return false;
       }
       const ok = await this.#depth
         .run(1, () => this.execute(rule, ctx))
@@ -189,6 +221,7 @@ export class AutomationEngine {
           return false;
         });
       if (ok) fired++;
+      return ok;
     };
 
     await each("message.unanswered", async (rule) => {
@@ -215,6 +248,46 @@ export class AutomationEngine {
         await fire(rule, { subject, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client });
       }
     });
+    await this.holidayRules(rules, now, workTime, fire);
     return fired;
+  }
+
+  /**
+   * «Приближается праздник» (bots-10): покупатели прошлого года к празднику из списка, до которого 0…daysBefore дней.
+   * Раз в день, в рабочее время (задачи и уведомления — не ночью), не больше perDay клиентов на правило: счёт
+   * срабатываний за сегодня — из журнала, так что перезапуск процесса лимит не обнуляет. Выборка идёт, только пока
+   * праздник близко; после прохода — до завтра не повторяется (кандидаты кончились или лимит дня выбран).
+   */
+  private async holidayRules(rules: AutomationRule[], now: Date, workTime: boolean, fire: (rule: AutomationRule, ctx: TriggerContext) => Promise<boolean>) {
+    const holidayRules = rules.filter((r) => r.trigger === "occasion.holiday");
+    if (!holidayRules.length || !workTime) return;
+    const today = zonedDay(now);
+    let list;
+    try {
+      list = await this.holidays.list();
+    } catch (err) {
+      this.logger.error("правила по времени: список праздников", err);
+      return;
+    }
+    for (const rule of holidayRules) {
+      if (this.#holidayDone.get(rule.id) === today) continue;
+      const daysBefore = conditionNumber(rule, "daysBefore", HOLIDAY_DEFAULTS.daysBefore, HOLIDAY_LIMITS.daysBefore);
+      const windowDays = conditionNumber(rule, "windowDays", HOLIDAY_DEFAULTS.windowDays, HOLIDAY_LIMITS.windowDays);
+      const upcoming = upcomingHolidays(list, today, daysBefore, rule.conditions?.holiday ? String(rule.conditions.holiday) : null);
+      if (!upcoming.length) continue;
+      try {
+        let left = conditionNumber(rule, "perDay", HOLIDAY_DEFAULTS.perDay, HOLIDAY_LIMITS.perDay) - (await this.scheduled.firedOn(rule.id, today));
+        for (const u of upcoming) {
+          if (left <= 0) break;
+          for (const r of await this.scheduled.holidayBuyers(rule.id, { holiday: u.holiday, date: u.date, ...holidayWindows(u, windowDays, daysBefore), limit: left })) {
+            const ctx = { subject: `holiday:${u.holiday.id}:${u.year}:${r.clientId}`, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client };
+            if (await fire(rule, ctx)) left--;
+          }
+        }
+        this.#holidayDone.set(rule.id, today);
+      } catch (err) {
+        this.logger.error(`«${rule.name}»: выборка правила по времени`, err);
+      }
+    }
   }
 }

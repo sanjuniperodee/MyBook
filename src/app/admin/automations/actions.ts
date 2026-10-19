@@ -6,6 +6,7 @@ import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { automationTriggers } from "@/modules/automation/domain/meta";
+import { HOLIDAY_LIMITS } from "@/modules/automation/domain";
 import { dealSources } from "@/shared/domain/dealSources";
 
 const optUuid = z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null);
@@ -16,6 +17,7 @@ const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("assign"), userId: optUuid.optional() }),
   z.object({ type: z.literal("move_stage"), stageId: uuid }),
   z.object({ type: z.literal("create_deal"), title: z.string().trim().max(200).optional(), userId: optUuid.optional() }),
+  z.object({ type: z.literal("draft_message"), text: z.string().trim().min(1, "Текст клиенту").max(2000), textKk: z.string().trim().max(2000).optional() }),
   z.object({ type: z.literal("notify"), title: z.string().trim().max(120).optional(), text: z.string().trim().max(500).optional(), userId: optUuid.optional() }),
 ]);
 
@@ -29,7 +31,10 @@ const schema = z.object({
     channel: z.string().trim().max(30).optional(),
     minutes: z.coerce.number().int().min(1).max(1440).optional(),
     days: z.coerce.number().int().min(1).max(90).optional(),
-    daysBefore: z.coerce.number().int().min(1).max(120).optional(),
+    daysBefore: z.coerce.number().int().min(1).max(HOLIDAY_LIMITS.daysBefore).optional(),
+    windowDays: z.coerce.number().int().min(1, "Покупки к празднику — хотя бы за 1 день").max(HOLIDAY_LIMITS.windowDays, `Покупки к празднику — не больше чем за ${HOLIDAY_LIMITS.windowDays} дней`).optional(),
+    perDay: z.coerce.number().int().min(1, "Клиентов в день — от 1").max(HOLIDAY_LIMITS.perDay, `Клиентов в день — не больше ${HOLIDAY_LIMITS.perDay}`).optional(),
+    holiday: z.union([z.string().trim().regex(/^[a-z0-9-]{1,30}$/), z.literal(""), z.null()]).optional(),
     hours: z.union([z.enum(["work", "off"]), z.literal("any"), z.literal(""), z.null()]).optional(),
   }),
   actions: z.array(actionSchema).min(1, "Добавьте хотя бы одно действие").max(6),

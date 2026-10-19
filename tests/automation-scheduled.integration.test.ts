@@ -60,6 +60,26 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     ids["deal-grad"] = await wonDeal(ids.odd, { event_date: "2025-11-20", occasion: "Выпускной" });
     ids["deal-site"] = await wonDeal(ids.buyer, { event_date: "2025-11-20", occasion: "День рождения" });
     await q(sql`update crm_deals set order_id = ${ids.order} where id = ${ids["deal-site"]}`);
+
+    // Праздник: Новый год 31.12.2026, покупки к нему — 01.12–31.12.2025, «уже купил в этом сезоне» — с 01.11.2026.
+    ids.hbOrder = await user("hb-order");
+    await order(ids.hbOrder, { occasion: "newyear", date: "2025-12-31", paidAt: "2025-12-20T10:00:00Z" });
+    ids.hbDeal = await user("hb-deal", { locale: "kk" });
+    await q(sql`update crm_deals set amount = 25000 where id = ${await wonDeal(ids.hbDeal, {}, "2025-12-10T10:00:00Z")}`);
+    ids.hbPayment = await user("hb-payment");
+    const paidDeal = await wonDeal(ids.hbPayment, {}, "2026-01-15T10:00:00Z");
+    await q(sql`insert into crm_payments (deal_id, client_id, amount, kind, paid_at) values (${paidDeal}, ${ids.hbPayment}, 12000, 'prepayment', '2025-12-05T10:00:00Z')`);
+    ids.hbOpen = await user("hb-open");
+    await order(ids.hbOpen, { occasion: "newyear", date: "2025-12-31", paidAt: "2025-12-15T10:00:00Z" });
+    await q(sql`insert into crm_deals (title, stage_id, client_id) values (${tag}, ${ids.open}, ${ids.hbOpen})`);
+    ids.hbSeason = await user("hb-season");
+    await order(ids.hbSeason, { occasion: "newyear", date: "2025-12-31", paidAt: "2025-12-18T10:00:00Z" });
+    await order(ids.hbSeason, { occasion: "birthday", date: "2026-11-20", paidAt: "2026-11-10T10:00:00Z" });
+    ids.hbQuiet = await user("hb-quiet", { phone: "+7 (701) 555-00-22" });
+    await order(ids.hbQuiet, { occasion: "newyear", date: "2025-12-31", paidAt: "2025-12-12T10:00:00Z" });
+    await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550022', 'no_marketing', ${tag})`);
+    ids.hbEarly = await user("hb-early");
+    await order(ids.hbEarly, { occasion: "birthday", date: "2025-11-25", paidAt: "2025-11-20T10:00:00Z" });
   });
 
   const user = (key: string, o: { locale?: string; phone?: string } = {}) =>
@@ -79,6 +99,7 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     await q(sql`delete from crm_blocklist where note = ${tag}`);
     await q(sql`delete from crm_conversations where contact_name = ${tag}`);
     await q(sql`delete from orders where contact_name = ${tag}`);
+    await q(sql`delete from crm_payments where deal_id in (select id from crm_deals where title = ${tag})`);
     await q(sql`delete from crm_deals where title = ${tag}`);
     await q(sql`delete from users where name = ${tag}`);
     await pool.end();
@@ -116,5 +137,30 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     await claim(ids.rule, `deal:${ids["deal-kk"]}:2026`);
     expect(await anniversaries()).toEqual([]);
     expect((await source.anniversaries(ids.other, "2026-11-01", 30)).filter((r) => r.clientId === ids.kk)).toHaveLength(1);
+  });
+
+  const ny = { holiday: { id: "newyear", date: "12-31", ru: "Новый год", kk: "Жаңа жыл" }, date: "2026-12-31", from: "2025-12-01", to: "2025-12-31", seasonFrom: "2026-11-01" };
+  const holidayBuyers = async (limit = 200, ruleId = ids.rule) =>
+    (await source.holidayBuyers(ruleId, { ...ny, limit })).filter((r) => [ids.hbOrder, ids.hbDeal, ids.hbPayment, ids.hbOpen, ids.hbSeason, ids.hbQuiet, ids.hbEarly].includes(r.clientId));
+
+  it("праздник: покупатели прошлого года — заказ, выигранная сделка из чата, платёж по сделке; купившие ближе к празднику — первыми", async () => {
+    expect(await holidayBuyers()).toEqual([
+      { clientId: ids.hbOrder, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
+      { clientId: ids.hbDeal, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Жаңа жыл", date: expect.stringContaining("2026") } },
+      { clientId: ids.hbPayment, occasion: "Новый год", date: "31 декабря 2026 г.", client: { occasion: "Новый год", date: "31 декабря 2026 г." } },
+    ]);
+    expect((await holidayBuyers(2)).map((r) => r.clientId)).toEqual([ids.hbOrder, ids.hbDeal]);
+  });
+
+  it("праздник: клиент, для которого правило сработало к этому празднику, не выбирается; счёт срабатываний за сегодня", async () => {
+    await claim(ids.rule, `holiday:newyear:2026:${ids.hbOrder}`);
+    expect((await holidayBuyers()).map((r) => r.clientId)).toEqual([ids.hbDeal, ids.hbPayment]);
+    expect((await holidayBuyers(200, ids.other)).map((r) => r.clientId)).toEqual([ids.hbOrder, ids.hbDeal, ids.hbPayment]);
+    const [{ today }] = await q<{ today: string }>(sql`select to_char((now() at time zone 'Asia/Almaty')::date, 'YYYY-MM-DD') as today`);
+    const fired = await source.firedOn(ids.rule, today);
+    expect(fired).toBeGreaterThanOrEqual(1);
+    await claim(ids.rule, `holiday:newyear:2026:${tag}`);
+    expect(await source.firedOn(ids.rule, today)).toBe(fired + 1);
+    expect(await source.firedOn(ids.rule, "2099-01-01")).toBe(0);
   });
 });

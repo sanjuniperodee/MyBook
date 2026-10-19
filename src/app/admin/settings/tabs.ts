@@ -8,7 +8,7 @@ export const SETTINGS_TABS = [
   { id: "telephony", label: "Телефония", hint: "Zadarma, АТС", icon: Headphones, group: "Каналы связи" },
   { id: "ai", label: "AI", hint: "Помощник, корректор, продажник", icon: Brain, group: "Автоматизация" },
   { id: "bot", label: "Бот", hint: "Автоответчик и продажник", icon: Bot, group: "Автоматизация" },
-  { id: "crm", label: "CRM", hint: "График, правила, шаблоны, спам", icon: Settings2, group: "Работа менеджеров" },
+  { id: "crm", label: "CRM", hint: "График, правила, праздники, шаблоны, спам", icon: Settings2, group: "Работа менеджеров" },
 ] as const satisfies readonly { id: string; label: string; hint: string; icon: LucideIcon; group: string }[];
 
 export type SettingsTabId = (typeof SETTINGS_TABS)[number]["id"];
