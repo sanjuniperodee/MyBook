@@ -259,6 +259,18 @@ describe("Годовщины: сделки, проданные в чате, и �
     expect(log.filter((l) => l.startsWith("task:"))).toEqual(["task:Предложить книгу к годовщине (15 ноября 2026 г.): Айгерим:null"]);
   });
 
+  it("ночью годовщины не выбираются: сделка и задача остались бы ничьими (круг ночью не раздаёт) — сработают в начале смены", async () => {
+    let asked = 0;
+    const anniversaries = async () => (asked++, [kk]);
+    const night = setup([year], { workTime: false, subject: { deal: null }, scheduled: { anniversaries } });
+    expect(await night.engine.runScheduled({ force: true })).toBe(0);
+    expect(asked).toBe(0);
+    expect(night.log).toEqual([]);
+    const day = setup([year], { workTime: true, subject: { deal: null }, scheduled: { anniversaries } });
+    expect(await day.engine.runScheduled({ force: true })).toBe(1);
+    expect(asked).toBe(1);
+  });
+
   it("казахоязычному клиенту — казахский текст с поводом и датой по-казахски; в задаче и сделке сотрудникам — по-русски", async () => {
     const { engine, log } = setup([year], { subject: { deal: null, locale: "kk" }, scheduled: { anniversaries: async () => [kk] } });
     await engine.runScheduled({ force: true });

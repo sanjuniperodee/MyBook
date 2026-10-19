@@ -280,6 +280,9 @@ export class AutomationEngine {
       }
     });
     await each("occasion.anniversary", async (rule) => {
+      // Сделка «Повторная продажа», задача и уведомление менеджеру — не ночью: ночью круг сделки не раздаёт, и они
+      // остались бы ничьими. Кандидаты держатся все daysBefore дней — сработают в начале смены.
+      if (!workTime) return;
       const q = anniversaryQuery(rule);
       for (const r of await this.scheduled.anniversaries(rule.id, zonedDay(now), q.daysBefore, q.repurchaseDays)) {
         // Сделка из чата — не объект правила: она выиграна, повторная продажа — новая сделка («Создать сделку»).

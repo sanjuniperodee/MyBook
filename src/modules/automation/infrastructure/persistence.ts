@@ -95,10 +95,22 @@ export class DrizzleSubjectLoader implements SubjectLoader {
     return fieldVars(await this.fields.list("deal"), customFields);
   }
 
+  /**
+   * Переписка для «Отправить сообщение»: диалог сделки, а если его нет — последний диалог клиента (crm_conv_deal_idx,
+   * crm_conv_client_idx). Сделку годовщины или праздника правило только что создало — диалогов у неё нет, а с клиентом
+   * переписка есть; сделку с сайта или заведённую вручную к диалогу часто не привязывают.
+   */
   async latestConversation(dealId: string | null, clientId: string | null) {
-    const cond = dealId ? eq(crmConversations.dealId, dealId) : clientId ? eq(crmConversations.clientId, clientId) : null;
-    if (!cond) return null;
-    const [c] = await executor().select({ id: crmConversations.id }).from(crmConversations).where(cond).orderBy(desc(crmConversations.lastMessageAt)).limit(1);
+    const of = [dealId ? eq(crmConversations.dealId, dealId) : undefined, clientId ? eq(crmConversations.clientId, clientId) : undefined].filter((c) => c !== undefined);
+    if (!of.length) return null;
+    // Сначала диалоги сделки, потом остальные диалоги клиента — самые свежие.
+    const order = [sql`${crmConversations.lastMessageAt} desc nulls last`, desc(crmConversations.id)];
+    const [c] = await executor()
+      .select({ id: crmConversations.id })
+      .from(crmConversations)
+      .where(or(...of))
+      .orderBy(...(dealId ? [sql`(${crmConversations.dealId} is not distinct from ${dealId}) desc`, ...order] : order))
+      .limit(1);
     return c?.id ?? null;
   }
 
