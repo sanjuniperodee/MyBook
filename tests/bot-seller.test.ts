@@ -98,13 +98,17 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   ...p,
 });
 const rulesFor = (e = env()): ReplyRules => ({ amounts: allowedAmounts(e.catalog, e.config.sell), percents: new Set(), urls: [e.site.url], phones: ["77010000000"] });
-const ctxFor = (inputs: BotInput[], p: Partial<{ priceInHistory: boolean; second: boolean; e: BotEnv }> = {}) => ({
+const ctxFor = (inputs: BotInput[], p: Partial<{ priceInHistory: boolean; second: boolean; e: BotEnv; materials: boolean; materialsSeen: boolean }> = {}) => ({
   inputs,
   clientText: inputs.map((i) => i.text).join("\n"),
   priceInHistory: p.priceInHistory ?? false,
   rules: rulesFor(p.e),
   second: p.second,
+  materials: p.materials,
+  materialsSeen: p.materialsSeen,
 });
+/** Клиент уже ознакомился (получил подборку в прошлом ходе): цену называть можно. */
+const warmState = () => ({ ...newBotState(day, true), ai: { ...newSellerAiState(), warmedUp: true } });
 const turn = (state = newBotState(day, true), d: SellerDecision = decision(), inputs: BotInput[] = [msg("Здравствуйте")], p: Parameters<typeof ctxFor>[1] = {}) => resolveSellerTurn(state, d, p.e ?? env(), ctxFor(inputs, p));
 
 describe("AI-продажник: разбор ответа модели", () => {
@@ -254,12 +258,41 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
   });
 
   it("предложение: стадия offer, offeredAt, событие; цена записана; «Оформляем?» запомнено", () => {
-    const r = turn(undefined, decision({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", askedToOrder: true }));
+    const r = turn(warmState(), decision({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", askedToOrder: true }));
     expect(r.state.stage).toBe("offer");
     expect(r.state.offeredAt).toBeTruthy();
     expect(r.events.map((x) => x.kind)).toContain("offer");
     expect(r.state.ai.priceQuoted).toBe(true);
     expect(r.state.ai.closeAsked).toBe(true);
+  });
+
+  it("прогрев: холодному клиенту цену и «Оформляем?» не называет — сначала подборка, цена следующим ходом", () => {
+    const pitch = decision({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", askedToOrder: true });
+    const cold = turn(undefined, pitch, [msg("Для мамы, к 15.11")], { materials: true });
+    expect(cold.retry?.[0].kind).toBe("rule");
+    expect(cold.retry?.[0].detail).toContain("send_materials=true");
+    // Без суммы, но с «Оформляем?» — тоже рано.
+    expect(turn(undefined, decision({ stage: "offer", reply: "Оформляем?", askedToOrder: true }), [msg("Для мамы")]).retry?.[0].kind).toBe("rule");
+    // Подборка ушла — клиент прогрет, следующим ходом цену можно.
+    const warmUp = turn(undefined, decision({ stage: "offer", reply: "Отправляю, как выглядят наши книги 😊\n\nОзнакомьтесь, пожалуйста 🙌 Какие остались вопросы?", sendMaterials: true }), [msg("Для мамы, к 15.11")], { materials: true });
+    expect(warmUp.materials).toBe(true);
+    expect(warmUp.state.ai.warmedUp).toBe(true);
+    const next = turn(warmUp.state, pitch, [msg("Красиво! А сколько стоит?")]);
+    expect(next.retry).toBeNull();
+    expect(next.reply).toContain("30 000");
+    // Подборку раньше отправил менеджер — клиент уже знаком.
+    expect(turn(undefined, pitch, [msg("Для мамы")], { materialsSeen: true }).retry).toBeNull();
+    // Без подборки прогрев — рассказ о книге (стадия предложения) без цены.
+    const story = turn(undefined, decision({ stage: "offer", reply: "Такая книга — история мамы для внуков 🤍 Какие остались вопросы?" }), [msg("Для мамы")]);
+    expect(story.state.ai.warmedUp).toBe(true);
+  });
+
+  it("прогрев: на повторный вопрос о цене называет её сразу", () => {
+    const first = turn(undefined, decision({ reply: "Подскажу 🙂 А для кого книга?" }), [msg("Сколько стоит?")]);
+    expect(first.state.ai.warmedUp).toBe(false);
+    const again = turn(first.state, decision({ reply: "Печатная — от 30 000 ₸ 🙂" }), [msg("Так сколько стоит?")]);
+    expect(again.retry).toBeNull();
+    expect(again.state.ai.priceQuoted).toBe(true);
   });
 
   it("чужая цена: ход не засчитывается и просит переписать; второй раз — менеджеру", () => {
