@@ -81,7 +81,7 @@ export const books = pgTable(
     /** Оглавление: по главам, по заголовкам разделов или главы с разделами — src/lib/book/toc.ts. */
     tocMode: text("toc_mode", { enum: ["chapters", "sections", "both"] }).notNull().default("chapters"),
     /** Свои названия и скрытые строки оглавления по ключу строки (`c:<глава>`, `q:<раздел>`) — src/lib/book/toc.ts. */
-    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean }>>().notNull().default({}),
+    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean; epigraph?: string }>>().notNull().default({}),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */

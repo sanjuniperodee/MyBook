@@ -51,6 +51,8 @@ export interface ContentChapter {
   openerPhoto?: PhotoItem;
   /** Название главы по книге, если автор переименовал её (title — новое); нет — не переименована. */
   defaultTitle?: string;
+  /** Эпиграф главы по книге, если автор написал свой (epigraph — новый); нет — не менялся. */
+  defaultEpigraph?: string;
   /**
    * Главы, которые автор убрал (toc.ts, скрытая строка главы): их истории идут дальше в этой главе с ответа at.
    * Нужны редактору оглавления, чтобы главу можно было вернуть. Нет — ничего не убрано.
@@ -301,7 +303,7 @@ export function assembleBookContent(
  * скрытие действует только на оглавление. only — применить только к этой главе (письма добавляются позже остальных).
  * Номера глав — заново по порядку.
  */
-function foldChapters(chapters: ContentChapter[], lines: Readonly<Record<string, { title?: string; hidden?: boolean }>>, only?: string) {
+function foldChapters(chapters: ContentChapter[], lines: Readonly<Record<string, { title?: string; hidden?: boolean; epigraph?: string }>>, only?: string) {
   for (let i = 0; i < chapters.length; i++) {
     const ch = chapters[i];
     if (only && ch.key !== only) continue;
@@ -310,6 +312,12 @@ function foldChapters(chapters: ContentChapter[], lines: Readonly<Record<string,
     if (title && title !== ch.title) {
       ch.defaultTitle = ch.title;
       ch.title = title;
+    }
+    // Свой эпиграф — на начальной полосе главы вместо эпиграфа темы.
+    const epigraph = s?.epigraph ? printableText(s.epigraph.trim()) : "";
+    if (epigraph && epigraph !== ch.epigraph) {
+      ch.defaultEpigraph = ch.epigraph ?? "";
+      ch.epigraph = epigraph;
     }
     if (!s?.hidden || i === 0) continue;
     const prev = chapters[i - 1];
@@ -330,7 +338,8 @@ function tocSettings(book: Pick<BookLike, "tocMode" | "tocLines">): Pick<BookCon
   const lines: TocLines = {};
   for (const [key, s] of Object.entries(raw)) {
     const title = s.title ? printableText(s.title.trim()) : "";
-    if (title || s.hidden) lines[key] = { ...(title ? { title } : {}), ...(s.hidden ? { hidden: true } : {}) };
+    const epigraph = s.epigraph ? printableText(s.epigraph.trim()) : "";
+    if (title || s.hidden || epigraph) lines[key] = { ...(title ? { title } : {}), ...(s.hidden ? { hidden: true } : {}), ...(epigraph ? { epigraph } : {}) };
   }
   return { tocMode: mode, tocLines: lines };
 }

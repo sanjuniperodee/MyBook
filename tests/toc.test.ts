@@ -77,7 +77,7 @@ describe("оглавление в содержимом книги", () => {
 
 describe("главы по-своему: переименовать во всей книге, убрать — истории в предыдущей главе", () => {
   const { bundle } = fixtureBook("classic", "a5", "ru");
-  const content = (tocLines: Record<string, { title?: string; hidden?: boolean }>) =>
+  const content = (tocLines: Record<string, { title?: string; hidden?: boolean; epigraph?: string }>) =>
     buildBookContent({ ...bundle.book, tocLines }, bundle.questions, bundle.photos.map(toPhotoItem), [], 2026, bundle.letters);
   const base = content({});
 
@@ -106,6 +106,14 @@ describe("главы по-своему: переименовать во всей
     expect(c.chapters[1]).toMatchObject({ title: "Своя глава", defaultTitle: second.title });
     expect(tocCandidates(c).find((x) => x.key === tocKey.chapter(second.key))?.label).toBe(second.title);
     expect(bookToc(c).find((l) => l.key === tocKey.chapter(second.key))?.label).toBe("Своя глава");
+  });
+
+  it("свой эпиграф главы — на начальной полосе вместо эпиграфа темы; прежний — подсказкой редактору", () => {
+    const first = base.chapters[0];
+    const c = content({ [tocKey.chapter(first.key)]: { epigraph: "Всё в мире начинается с мамы 🌷" } });
+    expect(c.chapters[0]).toMatchObject({ epigraph: "Всё в мире начинается с мамы", defaultEpigraph: first.epigraph ?? "" });
+    expect(tocCandidates(c)[0].epigraph).toBe(first.epigraph);
+    expect(parseTocLines({ "c:intro": { epigraph: "  Своё  " }, "q:x": { epigraph: "нет" } })).toEqual({ "c:intro": { epigraph: "Своё" } });
   });
 
   it("письма тоже можно убрать — они идут в конце последней главы", () => {

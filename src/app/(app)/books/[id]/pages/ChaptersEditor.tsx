@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, RotateCcw, Undo2, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import { GALLERY_KEY, isRemovedChapter, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
+import { GALLERY_KEY, isRemovedChapter, TOC_EPIGRAPH_MAX, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
 import { cn } from "@/lib/class-names";
 import { StoryList, type StoryInfo } from "./StoryList";
 
@@ -42,9 +42,10 @@ export function ChaptersEditor({
     const clean: TocLineSetting = {};
     if (next.title) clean.title = next.title.slice(0, TOC_TITLE_MAX);
     if (next.hidden) clean.hidden = true;
+    if (next.epigraph) clean.epigraph = next.epigraph.slice(0, TOC_EPIGRAPH_MAX);
     const rest = { ...lines };
     delete rest[key];
-    onChange(clean.title !== undefined || clean.hidden ? { ...rest, [key]: clean } : rest);
+    onChange(clean.title !== undefined || clean.hidden || clean.epigraph !== undefined ? { ...rest, [key]: clean } : rest);
   };
 
   const rows = chapterRows(chapters, lines, (key) => storiesOf(key).length);
@@ -86,6 +87,24 @@ export function ChaptersEditor({
                   </button>
                 )}
               </div>
+              {removed ? null : (
+                <div className="mt-1.5 flex items-center gap-2 pl-9">
+                  <input
+                    className="input h-9 min-w-0 flex-1 text-sm italic"
+                    value={s?.epigraph ?? ""}
+                    placeholder={c.epigraph || t.chapterEpigraphPlaceholder}
+                    maxLength={TOC_EPIGRAPH_MAX}
+                    aria-label={t.chapterEpigraphAria(c.label)}
+                    onChange={(e) => setLine(c.key, { epigraph: e.target.value })}
+                    disabled={!editable}
+                  />
+                  {s?.epigraph ? (
+                    <button type="button" className="shrink-0 rounded-lg p-2.5 text-muted hover:bg-cream hover:text-ink disabled:opacity-50 sm:p-1.5" title={t.chapterEpigraphReset} aria-label={t.chapterEpigraphReset} onClick={() => setLine(c.key, { epigraph: "" })} disabled={!editable}>
+                      <RotateCcw className="size-4" />
+                    </button>
+                  ) : null}
+                </div>
+              )}
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-9 text-xs text-muted">
                 <span>{removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}</span>
                 {count ? (
