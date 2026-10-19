@@ -17,6 +17,9 @@ export const sensitiveLabels: Record<SensitiveKind, string> = {
   kaspi: "ссылка на перевод Kaspi",
 };
 
+/** Что нашли — словами, без повторов: «номер телефона, номер карты». */
+export const sensitiveWhat = (findings: readonly SensitiveFinding[]) => [...new Set(findings.map((f) => sensitiveLabels[f.kind]))].join(", ");
+
 const digitsOf = (s: string) => s.replace(/\D/g, "");
 
 /** Номер карты: 13–19 цифр с верной контрольной суммой (алгоритм Луна). */

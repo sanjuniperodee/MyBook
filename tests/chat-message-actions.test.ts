@@ -65,3 +65,38 @@ describe("Сообщения в чате: ответ, правка, удален
     expect(t.msgs.at(-1)).toMatchObject({ type: "image", text: "Пример книги", mediaUrl: "store:chat-media/x", forwarded: true, externalId: "wzf-1" });
   });
 });
+
+describe("Реквизиты во всех путях отправки (chats-d4): правила и пересылка", () => {
+  /** Номер магазина 7 700 555 66 77; клиент — 7 701 123 45 67 (номер чата). */
+  async function two() {
+    const t = setup({ shopPhone: "77005556677" });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await t.service.ingest(inbound({ chatId: "77029998877", text: "Добрый день", contactName: "Марат" }));
+    const [a, b] = [...t.convs.values()];
+    return { t, a, b };
+  }
+
+  it("правило с чужим номером или картой не уходит: заметка в сделку с названием правила, уведомление руководителям", async () => {
+    const { t, a } = await two();
+    expect(await t.service.sendAutomated(a.id, "Оплатите на карту 4111 1111 1111 1111 или позвоните +7 702 999 88 77", { rule: "Ответ ночью" })).toBeNull();
+    expect(t.sent).toEqual([]);
+    expect(t.notes.at(-1)).toContain("Правило «Ответ ночью» не отправило клиенту сообщение: в тексте номер карты, номер телефона");
+    expect(t.alerts).toEqual([{ title: "Правило «Ответ ночью» не отправило сообщение: в тексте номер карты, номер телефона", body: "Айгерим: •••• 1111, +7 702 999 88 77" }]);
+  });
+
+  it("номер самого клиента и магазина в тексте правила — можно: сообщение уходит", async () => {
+    const { t, a } = await two();
+    const r = await t.service.sendAutomated(a.id, "Перезвоним на +7 701 123 45 67, наш WhatsApp: +7 700 555 66 77", { rule: "Ответ ночью" });
+    expect(r?.status).toBe("sent");
+    expect(t.sent).toEqual(["Перезвоним на +7 701 123 45 67, наш WhatsApp: +7 700 555 66 77"]);
+    expect(t.alerts).toEqual([]);
+  });
+
+  it("пересылка: номер одного клиента другому — нельзя (до отправки хоть кому-то); номер получателя и магазина — можно", async () => {
+    const { t, a, b } = await two();
+    await expect(t.service.assertForwardable("Мой номер 8 701 123 45 67", [a.id, b.id])).rejects.toThrow("В сообщении номер телефона — переслать его нельзя");
+    await expect(t.service.assertForwardable("Пишите на 8 701 123 45 67 или нам +7 700 555 66 77", [a.id])).resolves.toBeUndefined();
+    await expect(t.service.assertForwardable("Ссылка: https://kaspi.kz/pay/abc", [a.id])).rejects.toBeInstanceOf(MessageActionError);
+    await expect(t.service.assertForwardable("", [a.id, b.id])).resolves.toBeUndefined();
+  });
+});

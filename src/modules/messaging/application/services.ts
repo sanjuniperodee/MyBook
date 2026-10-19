@@ -10,7 +10,7 @@ import {
   findSensitive,
   preview,
   redactSecrets,
-  sensitiveLabels,
+  sensitiveWhat,
   shouldApplyStatus,
   type Conversation,
   type ConversationMeta,
@@ -157,7 +157,7 @@ export class MessagingService {
       if (found.length)
         await this.notifier.managers?.({
           kind: "system",
-          title: `С телефона компании ушли ${[...new Set(found.map((f) => sensitiveLabels[f.kind]))].join(", ")}`,
+          title: `С телефона компании ушли ${sensitiveWhat(found)}`,
           body: `${base.contactName || phoneTail(m.chatId) || "клиенту"}: ${found.map((f) => f.value).join(", ")}`,
           link: `/admin/chats?c=${base.id}`,
         });
@@ -385,11 +385,41 @@ export class MessagingService {
 
   /**
    * Сообщение правила автоматизации. Если диалог ведёт бот, правило-автоответ молчит: иначе клиент получит два
-   * автоответа подряд (бот и «ответим утром»). null — не отправлено.
+   * автоответа подряд (бот и «ответим утром»). В тексте чужой номер, карта, IBAN или ссылка на перевод Kaspi (шаблон
+   * правила или подставленное поле) — не уходит: заметка в сделку и уведомление руководителю (chats-d4). Номер самого
+   * клиента и магазина — можно. null — не отправлено.
    */
-  async sendAutomated(conversationId: string, text: string) {
+  async sendAutomated(conversationId: string, text: string, opts: { rule?: string } = {}) {
     if (await this.bot.isActive(conversationId)) return null;
+    const conv = await this.conversations.findById(conversationId);
+    if (!conv) throw new Error("Диалог не найден");
+    const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.shopPhone()]);
+    if (found.length) {
+      const what = sensitiveWhat(found);
+      const rule = opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации";
+      const values = found.map((f) => f.value).join(", ");
+      this.logger.warn(`${rule}: сообщение в диалог ${conv.id} не отправлено — ${what}`);
+      const deal = conv.dealId ? await this.sales.deal(conv.dealId) : null;
+      if (deal) await this.sales.note(deal, `${rule} не отправило клиенту сообщение: в тексте ${what} (${values}). Оплата — только через счёт из CRM; проверьте текст правила в «Автоматизациях».`);
+      await this.notifier.managers?.({ kind: "system", title: `${rule} не отправило сообщение: в тексте ${what}`, body: `${conv.contactName || phoneTail(conv.chatId) || "клиенту"}: ${values}`, link: `/admin/chats?c=${conv.id}` });
+      return null;
+    }
     return this.send(conversationId, text, null, "rule");
+  }
+
+  /**
+   * Пересылка в другие диалоги: текст или подпись уходят их клиентам. Чужой для получателя номер (например, другого
+   * клиента), карта, IBAN или ссылка на перевод Kaspi — MessageActionError до отправки (chats-d4); номер самого
+   * получателя и магазина — можно.
+   */
+  async assertForwardable(text: string, targetIds: readonly string[]) {
+    if (!text.trim()) return;
+    const shop = await this.shopPhone();
+    for (const id of targetIds) {
+      const conv = await this.conversations.findById(id);
+      const found = conv ? findSensitive(text, [conv.chatId, conv.meta.phone, shop]) : [];
+      if (found.length) throw new MessageActionError(`В сообщении ${sensitiveWhat(found)} — переслать его нельзя. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.`);
+    }
   }
 
   /** Внутренняя заметка: видна только сотрудникам, клиенту не уходит и не сбрасывает «ждёт ответа». authorId null — от CRM (итог бота). */

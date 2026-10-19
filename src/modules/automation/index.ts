@@ -1,6 +1,6 @@
 import type { Clock, CustomFieldsReader, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
-import { AutomationEngine, type SalesGateway } from "./application";
+import { AutomationEngine, type AutomationEffects, type SalesGateway } from "./application";
 import { appInfo, crmEffects } from "./infrastructure/adapters";
 import { DrizzleRuleRepository, DrizzleSubjectLoader, SqlScheduledSource } from "./infrastructure/persistence";
 import { rulesAdmin } from "./infrastructure/admin";
@@ -15,7 +15,7 @@ export class AutomationModule {
 
   /** Уведомления сотрудникам, график работы и свои поля сделки (переменные шаблонов) — порты рабочего пространства. */
   constructor(
-    deps: { clock: Clock; sales: SalesGateway; sendMessage: (conversationId: string, text: string) => Promise<void>; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
+    deps: { clock: Clock; sales: SalesGateway; sendMessage: AutomationEffects["sendMessage"]; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
   ) {
     const effects = crmEffects(deps.sendMessage, deps.notifier);
     this.engine = new AutomationEngine(new DrizzleRuleRepository(), new DrizzleSubjectLoader(deps.fields), effects, deps.sales, deps.schedule, new SqlScheduledSource(), appInfo, deps.clock, consoleLogger("automations"));

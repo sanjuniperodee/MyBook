@@ -17,7 +17,7 @@ import { botPreview, botStatus, type BotPreviewInput } from "./application/botPr
 import type { Conversation, HistoryMessage, InboundMessage } from "./domain";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
-export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
+export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, sensitiveWhat, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
@@ -178,7 +178,9 @@ export class MessagingModule {
 
   /**
    * Переслать сообщение в другие диалоги (до 10): текст — текстом, вложение — тем же файлом с подписью; в WhatsApp
-   * с пометкой «Пересланное». Возвращает, куда не ушло и почему.
+   * с пометкой «Пересланное». В тексте или подписи чужой для получателя номер, карта, IBAN или ссылка на перевод Kaspi
+   * (например, номер другого клиента) — не уходит никуда (chats-d4); номер самого получателя и магазина — можно.
+   * Возвращает, куда не ушло и почему.
    */
   async forward(messageId: string, targetIds: string[], authorId: string): Promise<{ sent: number; failed: { conversationId: string; error: string }[] }> {
     const m = await this.messages.findOne(messageId);
@@ -195,9 +197,12 @@ export class MessagingModule {
       // Шлюз мог только что скачать файл — копия ссылается на тот же файл.
       mediaUrl = (await this.messages.findOne(m.id))?.mediaUrl ?? null;
     } else if (!m.text.trim()) throw new MessageActionError("Пустое сообщение");
+    const targets = [...new Set(targetIds)].slice(0, 10);
+    // Реквизиты в тексте или подписи — до отправки хоть кому-то.
+    await this.chats.assertForwardable(m.text, targets);
     const failed: { conversationId: string; error: string }[] = [];
     let sent = 0;
-    for (const target of [...new Set(targetIds)].slice(0, 10)) {
+    for (const target of targets) {
       try {
         const r = file ? await this.chats.sendFile(target, file, m.text, authorId, { mediaUrl, forwarded: true }) : await this.chats.send(target, m.text, authorId, undefined, { forwarded: true });
         if (r.status === "error") failed.push({ conversationId: target, error: r.error ?? "не отправилось" });

@@ -89,7 +89,7 @@ export class AutomationEngine {
         const text = fillTemplate(a.text ?? "", vars);
         if (!text) return;
         const convId = s.conversation?.id ?? (await this.subjects.latestConversation(s.deal?.id ?? null, s.clientId));
-        if (convId) await this.effects.sendMessage(convId, text);
+        if (convId) await this.effects.sendMessage(convId, text, { rule: rule.name });
         return;
       }
       case "assign": {

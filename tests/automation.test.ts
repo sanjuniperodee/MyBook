@@ -22,7 +22,8 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
   };
   const effects: AutomationEffects = {
     createTask: async (t) => void log.push(`task:${t.title}:${t.assigneeId}`),
-    sendMessage: async (id, text) => void log.push(`msg:${id}:${text}`),
+    // Название правила уходит в отправку: текст с реквизитами не отправится, а в заметке будет видно, какое правило.
+    sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule})` : ""}`),
     assignConversation: async () => {},
     notify: async (to, n) => void log.push(`notify:${Array.isArray(to) ? to.join(",") : to}:${n.title}`),
   };
@@ -51,7 +52,7 @@ describe("AutomationEngine", () => {
     const { engine, log } = setup([rule({ actions: [{ type: "send_message", text: "Здравствуйте, {имя}!" }] })]);
     await engine.run("deal.created", { subject: "d1" });
     await engine.run("deal.created", { subject: "d1" });
-    expect(log).toEqual(["msg:conv1:Здравствуйте, Айгерим!", "run:r1"]);
+    expect(log).toEqual(["msg:conv1:Здравствуйте, Айгерим! (Правило)", "run:r1"]);
   });
 
   it("условия: источник и рабочее время", async () => {

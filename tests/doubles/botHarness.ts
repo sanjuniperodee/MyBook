@@ -66,6 +66,8 @@ export function setup(
     payments?: PaymentFacts;
     /** Подборка материалов продажника (фото, видео, пример книги). */
     materials?: BotMaterial[];
+    /** Номер WhatsApp магазина (его в сообщениях писать можно). */
+    shopPhone?: string;
   } = {},
 ) {
   let now = start;
@@ -223,7 +225,9 @@ export function setup(
   };
   const quiet = { info: () => {}, warn: () => {}, error: () => {} };
   const notified: { title: string; kind: string }[] = [];
-  const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }) };
+  /** Уведомления руководителям (реквизиты с телефона компании, правило с реквизитами): заголовок и текст. */
+  const alerts: { title: string; body: string }[] = [];
+  const notifier = { notify: async (_to: unknown, _p: unknown, n: { title: string; kind: string }) => void notified.push({ title: n.title, kind: n.kind }), managers: async (n: { title: string; body: string }) => void alerts.push({ title: n.title, body: n.body }) };
   const clock = { now: () => now };
   const scheduled: string[] = [];
   /** Диалоги, о которых сервис сообщил открытым вкладкам CRM (live.chatChanged), по порядку. */
@@ -247,7 +251,7 @@ export function setup(
     { onIncoming: (...a) => bot.onIncoming(...a), stopByHuman: (...a) => bot.stopByHuman(...a), isActive: (id) => bot.isActive(id) },
     clock,
     quiet,
-    async () => "",
+    async () => opts.shopPhone ?? "",
     async () => opts.phoneHolder ?? null,
   );
   const deps = {
@@ -314,7 +318,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

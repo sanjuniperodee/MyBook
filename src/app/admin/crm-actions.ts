@@ -10,6 +10,7 @@ import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
+import { findSensitive, sensitiveWhat } from "@/modules/messaging";
 import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
@@ -120,7 +121,11 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
   assertWorkable(staff, c.assigneeId);
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
-  const r = await container().messaging.email.sendToContact({ to: c.email, subject: z.string().max(200).parse(subject), text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
+  const title = z.string().max(200).parse(subject);
+  // Как в чате: чужой номер, карта или реквизиты клиенту не уходят (номер клиента и магазина — можно).
+  const found = findSensitive(`${title}\n${body}`, [c.phone, await container().marketing.service.shopWhatsapp()]);
+  if (found.length) return { ok: false, message: `В письме ${sensitiveWhat(found)}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM.` };
+  const r = await container().messaging.email.sendToContact({ to: c.email, subject: title, text: body, authorId: staff.user.id, dealId: c.dealId, clientId: c.clientId, contactName: c.name ?? "" });
   await audit(staff, "email.send", c.dealId ? "deal" : "client", c.dealId ?? c.clientId, { ok: r.ok });
   if (c.dealId) revalidatePath(`/admin/deals/${c.dealId}`);
   if (c.clientId) revalidatePath(`/admin/clients/${c.clientId}`);

@@ -74,8 +74,9 @@ export class Container {
       notifier: this.workspace.notifier,
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
-      // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд).
-      sendMessage: async (conversationId, text) => void (await this.messaging.chats.sendAutomated(conversationId, text)),
+      // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд); текст с
+      // реквизитами не уходит — заметка в сделку и руководителю.
+      sendMessage: async (conversationId, text, opts) => void (await this.messaging.chats.sendAutomated(conversationId, text, opts)),
       sales: {
         nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),

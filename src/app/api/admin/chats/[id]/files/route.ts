@@ -5,6 +5,7 @@ import { canWork } from "@/server/access";
 import { container } from "@/server/container";
 import { idParams, uuid } from "@/server/input";
 import { MessageActionError } from "@/modules/messaging";
+import { sensitiveFor, sensitiveWhat } from "@/server/sensitive";
 
 export const maxDuration = 120;
 
@@ -13,7 +14,8 @@ const MAX_FILES = 10;
 
 /**
  * Файлы клиенту из чата (фото, видео, аудио, документы) — multipart: files (до 10), caption (подпись к первому файлу),
- * replyToId (ответ на сообщение). Отправляет тот, кто ведёт диалог; файлы уходят по одному, по порядку.
+ * replyToId (ответ на сообщение). Отправляет тот, кто ведёт диалог; файлы уходят по одному, по порядку. В подписи чужой
+ * номер, карта, IBAN или ссылка на перевод Kaspi — 400, не уходит ничего (как у сообщения без причины).
  */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "chats.view", "chats.send");
@@ -26,6 +28,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!files.length) return NextResponse.json({ error: "Выберите файл" }, { status: 400 });
   if (files.length > MAX_FILES) return NextResponse.json({ error: `Не больше ${MAX_FILES} файлов за раз` }, { status: 400 });
   const caption = String(form.get("caption") ?? "").slice(0, 1000);
+  // Подпись — тот же текст клиенту, что и сообщение: чужой номер, карта или реквизиты не уходят ни с одним файлом.
+  const findings = await sensitiveFor(conv, caption);
+  if (findings.length) throw new HttpError(400, "sensitiveCaption", sensitiveWhat(findings));
   const replyRaw = String(form.get("replyToId") ?? "");
   const replyToId = uuid.safeParse(replyRaw).success ? replyRaw : null;
   const results: { name: string; id?: string; status?: string; error?: string }[] = [];
