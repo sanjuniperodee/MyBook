@@ -10,11 +10,13 @@ import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHi
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { chatFiles } from "./infrastructure/chatFiles";
+import { staffLine } from "./infrastructure/staffLine";
 import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
 import { contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
+import { normalizePhone } from "@/shared/domain/phone";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
 export { DEFAULT_RULE_SENDING, RULE_DAILY_LIMIT_MAX, type RuleSendingPolicy } from "./domain";
@@ -92,6 +94,8 @@ export class MessagingModule {
   private readonly botStore = new DrizzleBotStore();
   private readonly messages = new DrizzleMessageRepository();
   private readonly botSettings;
+  /** Номера сотрудников и что CRM отправила им сама (напоминания): эхо и ответы не становятся заявками. */
+  private readonly staffLine: ReturnType<typeof staffLine>;
 
   constructor(
     private readonly deps: {
@@ -111,10 +115,13 @@ export class MessagingModule {
       botInvoices?: BotInvoices | null;
       /** Модель AI-продажника (Assistant): без неё режим «Продаёт» работает по шаблонам. */
       sellerModel?: BotSellerModel | null;
+      /** Номера действующих сотрудников (Access): переписка с ними — служебная, не заявки. */
+      staffPhones?: () => Promise<string[]>;
     } & WorkspacePorts,
   ) {
     const conversations = new DrizzleConversationRepository();
     const notifier = crmNotifier(deps.notifier);
+    this.staffLine = staffLine(deps.staffPhones ?? (async () => []));
     const live = realtimeUpdates(deps.live);
     this.botSettings = crmBotSettings({ settings: deps.settings, schedule: deps.schedule, fields: deps.fields, site: deps.botSite });
     this.bot = new QualifierBot({
@@ -170,7 +177,7 @@ export class MessagingModule {
     const messages = this.messages;
     // Окно и суточный лимит сообщений от правил — настройки «Интеграции» → «Мессенджеры» (кэш настроек — 10 секунд).
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
-    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending);
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds);
   }
@@ -338,19 +345,24 @@ export class MessagingModule {
 
   /**
    * Личное сообщение на номер в WhatsApp — не диалог с клиентом, в CRM не записывается (напоминания сотруднику).
-   * Через GOWA или, при Wazzup, через первый активный канал WhatsApp. false — не отправилось.
+   * Через GOWA или, при Wazzup, через первый активный канал WhatsApp. false — не отправилось. Текст и id запоминаются:
+   * эхо с номера магазина не заводит диалог с сотрудником (tasks-d5).
    */
   async sendToPhone(phone: string, text: string): Promise<boolean> {
-    const digits = phone.replace(/\D/g, "");
+    const digits = normalizePhone(phone);
     if (digits.length < 10) return false;
+    // До отправки: эхо шлюза может прийти раньше ответа на запрос.
+    this.staffLine.remember({ text });
     try {
       if ((await this.deps.whatsappSettings.provider()) === "gowa") {
-        await this.gowa.sendText(digits, text);
+        this.staffLine.remember({ externalId: await this.gowa.sendText(digits, text), text });
         return true;
       }
       const channel = (await this.wazzup.listChannels()).find((c) => c.transport === "whatsapp" && c.state === "active");
       if (!channel) return false;
-      await this.wazzup.send({ channelId: channel.channelId, chatType: "whatsapp", chatId: digits, text, crmMessageId: crypto.randomUUID() });
+      const crmMessageId = crypto.randomUUID();
+      this.staffLine.remember({ externalId: crmMessageId, text });
+      this.staffLine.remember({ externalId: await this.wazzup.send({ channelId: channel.channelId, chatType: "whatsapp", chatId: digits, text, crmMessageId }), text });
       return true;
     } catch (err) {
       console.error("[messaging] sendToPhone", err);

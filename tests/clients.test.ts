@@ -369,3 +369,24 @@ describe("TasksService: задачи идут за сделкой — tasks-d3",
     expect(t.notifier.sent.at(-1)).toMatchObject({ userIds: ["m2"], n: { kind: "reminder" } });
   });
 });
+
+describe("TasksService: напоминание сотруднику в WhatsApp — только в рабочее время (tasks-d5)", () => {
+  it("ночью — только в CRM, днём — в CRM и WhatsApp; ничья задача в WhatsApp не уходит никогда", async () => {
+    const t = setup();
+    const whatsapp: string[] = [];
+    let working = false;
+    const tasks = new TasksService(t.mem.tasks, { clientOfOrder: async () => null, clientOfDeal: async () => null, dealAssignee: async () => null }, t.notifier, t.c, t.staff, { send: async (id) => (whatsapp.push(id), true) }, { isWorkTime: async () => working });
+    const soon = () => new Date(t.c.now().getTime() + 30 * 60_000);
+    t.mem.tasks.seed({ id: "night", assigneeId: "m1", dueAt: soon() });
+    t.mem.tasks.rows.set("night", { ...t.mem.tasks.rows.get("night")!, remindBeforeMin: 60 });
+    expect(await tasks.remindDue()).toBe(1);
+    expect(t.notifier.sent.map((s) => s.userIds)).toEqual([["m1"]]);
+    expect(whatsapp).toEqual([]);
+    working = true;
+    t.mem.tasks.seed({ id: "day", assigneeId: "m2", dueAt: soon() });
+    t.mem.tasks.seed({ id: "nobody", assigneeId: null, dueAt: soon() });
+    for (const id of ["day", "nobody"]) t.mem.tasks.rows.set(id, { ...t.mem.tasks.rows.get(id)!, remindBeforeMin: 60 });
+    expect(await tasks.remindDue()).toBe(2);
+    expect(whatsapp).toEqual(["m2"]);
+  });
+});

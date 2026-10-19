@@ -27,7 +27,7 @@ import {
 } from "../domain";
 import { zonedDay } from "@/shared/domain/time";
 import type { QualifierBot } from "./bot";
-import type { BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffNotifier, StoredMessage, Tasks } from "./ports";
+import type { BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffLine, StaffNotifier, StoredMessage, Tasks } from "./ports";
 
 /** WhatsApp даёт изменить отправленное 15 минут, удалить «для всех» — около двух суток. */
 export const EDIT_WINDOW_MS = 15 * 60_000;
@@ -100,7 +100,32 @@ export class MessagingService {
     private readonly phoneHolder: () => Promise<{ id: string; name: string } | null> = async () => null,
     /** Окно и суточный лимит сообщений от правил («Интеграции» → «Мессенджеры»). */
     private readonly ruleSending: () => Promise<RuleSendingPolicy> = async () => DEFAULT_RULE_SENDING,
+    /** Номера сотрудников и служебные сообщения им (напоминания о задачах): не заявки. null — не различаем. */
+    private readonly staffLine: StaffLine | null = null,
   ) {}
+
+  /** Переписка в WhatsApp с номером действующего сотрудника (сбой проверки — как с клиентом: заявку не теряем). */
+  private async isStaffChat(m: InboundMessage, extra: IngestExtra) {
+    if (!this.staffLine || m.chatType !== "whatsapp") return false;
+    const phone = contactPhone({ chatId: m.chatId, meta: extra.meta ?? {} });
+    return !!phone && (await this.staffLine.isStaffPhone(phone).catch((err) => (this.logger.error("staff phone", err), false)));
+  }
+
+  /**
+   * Сообщение с номера сотрудника или ему с телефона магазина (ответ на напоминание, переписка коллег): сохраняется
+   * в его диалоге тихо — без «непрочитано» и «ждёт ответа»; заявки, бота, правил, уведомлений и захвата заявки
+   * «с телефона магазина» нет (tasks-d5).
+   */
+  private async ingestStaff(m: InboundMessage, extra: IngestExtra) {
+    const { conv } = await this.upsert(m, extra);
+    if (m.isEcho) {
+      if (await this.messages.existsExternal(m.externalId)) return;
+      if (await this.messages.claimPendingEcho(conv.id, m.text, new Date(Math.min(this.clock.now().getTime(), m.at.getTime()) - 120_000), m.externalId)) return;
+      if (!(await this.messages.insertEcho(conv.id, m))) return;
+    } else if (!(await this.messages.insertIncoming(conv.id, m, extra.subject ?? null))) return;
+    await this.conversations.recordHistory(conv.id, preview(m.text), m.at);
+    this.live.chatChanged(conv.id);
+  }
 
   /**
    * Ответили клиенту с телефона магазина (мимо CRM): отвечал тот, у кого сейчас телефон. Новая заявка (неразобранная
@@ -162,10 +187,14 @@ export class MessagingService {
   }
 
   async ingest(raw: InboundMessage, extra: IngestExtra = {}) {
+    // Эхо напоминания, которое CRM отправила сотруднику с номера магазина, — не переписка: ни диалога, ни заявки.
+    if (raw.isEcho && this.staffLine?.isServiceEcho(raw)) return;
     // Входящее, эхо и захват эха — по тексту без секретов: ссылка доступа не ложится в CRM открытым текстом,
     // а эхо нашего сообщения сравнивается с уже замаскированной записью.
     const clean = withoutSecrets(raw);
     const m = { ...clean, contactName: safeContactName(clean.contactName) };
+    // Номер действующего сотрудника — служебная переписка, не заявка.
+    if (await this.isStaffChat(m, extra)) return this.ingestStaff(m, extra);
     const { conv: base, created } = await this.upsert(m, extra);
     if (m.isEcho) {
       // Эхо нашего же сообщения из CRM: внешний ID уже записан при отправке (или запишется) — не дублируем.

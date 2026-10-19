@@ -104,6 +104,8 @@ export class Container {
       smtp: this.smtp,
       // Задачи бота и «Перезвоните мне» — через сервис задач: с напоминанием о сроке, без ответственного — ничья.
       tasks: { create: (t) => this.clients.tasks.createSystem(t) },
+      // Переписка с номерами действующих сотрудников (ответ на напоминание о задаче) — служебная, не заявки.
+      staffPhones: () => this.access.queries.activeStaffPhones(),
       rules: {
         messageIncoming: async (ctx) => {
           await this.automation.engine.run("message.incoming", ctx);
@@ -259,7 +261,9 @@ export class Container {
     return (this.#clients ??= new ClientsModule({
       clock: this.clock,
       notifier: this.workspace.notifier,
-      // Напоминания о задачах — личным сообщением сотруднику на его номер (users.phone), ссылка на задачу — абсолютная.
+      // Напоминания о задачах — личным сообщением сотруднику на его номер (users.phone), ссылка на задачу — абсолютная;
+      // в WhatsApp — только в рабочее время (график CRM), в CRM — всегда.
+      schedule: this.workspace.schedule,
       messenger: {
         send: async (userId, text) => {
           const phone = (await this.identity.accounts.account(userId))?.phone;

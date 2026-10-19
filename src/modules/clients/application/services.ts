@@ -1,4 +1,4 @@
-import type { Clock } from "@/shared/application";
+import type { Clock, WorkSchedule } from "@/shared/application";
 import { findMentions } from "@/shared/domain/mentions";
 import { ClientsError } from "../domain/errors";
 import { canManageTask, extraPhones, isDeletableNote, normalizeTags, taskDue, type TaskKind } from "../domain";
@@ -79,6 +79,8 @@ export class TasksService {
     private readonly clock: Clock,
     private readonly staff: StaffDirectory,
     private readonly messenger: StaffMessenger | null = null,
+    /** График работы: в WhatsApp сотруднику напоминание уходит только в рабочее время. null — всегда. */
+    private readonly schedule: Pick<WorkSchedule, "isWorkTime"> | null = null,
   ) {}
 
   /** remindBeforeMin: undefined — по умолчанию (за час, если есть срок), null — не напоминать. */
@@ -122,13 +124,15 @@ export class TasksService {
   }
 
   /**
-   * Напоминания, время которых пришло: ответственному — уведомление в CRM (со звуком, kind «reminder») и сообщение в его
-   * WhatsApp; ничья задача — уведомление в CRM всем, кто видит сделки (в WhatsApp — никому). Каждое уходит один раз
-   * (задачу забирает claimDueReminders). Сбой WhatsApp не отменяет уведомление в CRM.
+   * Напоминания, время которых пришло: ответственному — уведомление в CRM (со звуком, kind «reminder») и, в рабочее
+   * время, сообщение в его WhatsApp (ночью — только в CRM: сотрудника не будим); ничья задача — уведомление в CRM всем,
+   * кто видит сделки (в WhatsApp — никому). Каждое уходит один раз (задачу забирает claimDueReminders). Сбой WhatsApp
+   * не отменяет уведомление в CRM.
    */
   async remindDue(): Promise<number> {
     const now = this.clock.now();
     const due = await this.tasks.claimDueReminders(now, REMIND_STALE_MIN, REMIND_BATCH);
+    const whatsapp = !!this.messenger && due.some((t) => t.assigneeId) && (!this.schedule || (await this.schedule.isWorkTime(now).catch(() => false)));
     for (const t of due) {
       const link = t.dealId ? `/admin/deals/${t.dealId}` : t.orderId ? `/admin/orders/${t.orderId}` : "/admin/tasks";
       const left = Math.max(0, Math.round((t.dueAt.getTime() - now.getTime()) / 60_000));
@@ -140,7 +144,7 @@ export class TasksService {
         continue;
       }
       await this.notifier.notify([t.assigneeId], { kind: "reminder", title, body: `Срок: ${when}`, link }).catch(() => {});
-      await this.messenger?.send(t.assigneeId, `⏰ ${title}\nСрок: ${when}\n${link}`).catch(() => false);
+      if (whatsapp) await this.messenger?.send(t.assigneeId, `⏰ ${title}\nСрок: ${when}\n${link}`).catch(() => false);
     }
     return due.length;
   }
