@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, ilike, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { ORDER_STATUSES } from "@/shared/domain/orders";
-import { crmNotes, crmTasks, orders } from "@/shared/infrastructure/db/schema";
+import { crmAutomations, crmConversations, crmDeals, crmNotes, crmTasks, orders } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { getPlans } from "@/config/site";
 
@@ -71,4 +71,32 @@ export async function orderCrm(order: { id: string; userId: string }) {
       .where(and(eq(orders.userId, order.userId), ne(orders.status, "cancelled"))),
   ]);
   return { taskRows, noteRows, clientStats };
+}
+
+/**
+ * Что получит клиент при смене статуса заказа — для подписи в карточке заказа: включённые правила на события заказа,
+ * которые пишут клиенту (действие «Отправить сообщение» с текстом), сделка заказа и есть ли переписка в WhatsApp —
+ * по сделке заказа или по клиенту (crm_conv_deal_idx, crm_conv_client_idx).
+ */
+export async function orderNotice(order: { id: string; userId: string }) {
+  const db = executor();
+  const [rules, [deal]] = await Promise.all([
+    db
+      .select({ trigger: crmAutomations.trigger, conditions: crmAutomations.conditions, actions: crmAutomations.actions })
+      .from(crmAutomations)
+      .where(and(eq(crmAutomations.active, true), sql`${crmAutomations.trigger} like 'order.%'`)),
+    db.select({ id: crmDeals.id }).from(crmDeals).where(eq(crmDeals.orderId, order.id)).limit(1),
+  ]);
+  const [chat] = await db
+    .select({ id: crmConversations.id })
+    .from(crmConversations)
+    .where(and(eq(crmConversations.channel, "whatsapp"), or(eq(crmConversations.clientId, order.userId), deal ? eq(crmConversations.dealId, deal.id) : undefined)))
+    .limit(1);
+  return {
+    dealId: deal?.id ?? null,
+    whatsappChat: !!chat,
+    rules: rules
+      .filter((r) => r.actions.some((a) => a.type === "send_message" && !!a.text?.trim()))
+      .map((r) => ({ trigger: r.trigger, orderStatus: r.conditions?.orderStatus ? String(r.conditions.orderStatus) : null })),
+  };
 }

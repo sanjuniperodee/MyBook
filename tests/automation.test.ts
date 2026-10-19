@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
-import { DEFAULT_HOLIDAYS, type AutomationRule, type Holiday, type RuleSubject } from "@/modules/automation/domain";
+import { isTrigger } from "@/modules/automation/domain/meta";
+import { DEFAULT_HOLIDAYS, relevantConditions, type AutomationRule, type Holiday, type RuleAction, type RuleSubject } from "@/modules/automation/domain";
+import { findSensitive } from "@/modules/messaging/domain/sensitive";
+import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { addWorkMinutes, parseWorkHours } from "@/shared/domain/schedule";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import { inbound, setup as chatSetup } from "./doubles/botHarness";
@@ -474,5 +479,71 @@ describe("Статус заказа и трек-номер для правил (
     const none = setup([rule({ ...track, actions: [{ type: "send_message", text: "{ссылка} {трек}" }] })]);
     await none.engine.run("order.tracking_added", { subject: "x" });
     expect(none.log[0]).toBe("msg:conv1:https://mybook.kz (Трек, о заказе)");
+  });
+});
+
+describe("Стартовые правила о статусе заказа и подпись в карточке заказа (chats-15, automation-d8)", () => {
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0052_order_status_rules.sql"), "utf8");
+  const seeded = [...sql.matchAll(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS \(SELECT 1 FROM "crm_automations" WHERE "trigger" = '([\w.]+)'\)/g)].map(
+    ([, name, trigger, conditions, actions, active, guard]) => ({ name, trigger, conditions: JSON.parse(conditions) as Record<string, string>, actions: JSON.parse(actions) as RuleAction[], active: active === "true", guard }),
+  );
+
+  it("миграция: «в печати» и «отправлена + трек» приезжают выключенными, с текстами на русском и казахском", () => {
+    expect(seeded.map((r) => [r.trigger, r.conditions, r.active])).toEqual([
+      ["order.status_changed", { orderStatus: "in_production" }, false],
+      ["order.tracking_added", {}, false],
+    ]);
+    for (const r of seeded) {
+      expect(isTrigger(r.trigger)).toBe(true);
+      expect(r.guard).toBe(r.trigger);
+      // Условия — те, что сохранил бы редактор.
+      expect(relevantConditions(r.trigger, r.conditions)).toEqual(r.conditions);
+      expect(r.actions).toEqual([{ type: "send_message", text: expect.stringContaining("{ссылка_на_заказ}"), textKk: expect.stringContaining("{ссылка_на_заказ}") }]);
+    }
+  });
+
+  it("стартовые правила: русскому клиенту — русский текст, казахскому — казахский; переменные подставлены, реквизитов нет", async () => {
+    const order = "https://mybooks.kz/orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b";
+    const subject = { orderNumber: 42, trackingNumber: "7012345678", links: { order, book: null, pay: null } };
+    const sent: string[] = [];
+    for (const locale of ["ru", "kk"] as const) {
+      const rules = seeded.map((r, i) => rule({ id: `s${i}`, name: r.name, trigger: r.trigger, conditions: r.conditions, actions: r.actions }));
+      const { engine, log } = setup(rules, { subject: { ...subject, locale, links: { ...subject.links, order: locale === "kk" ? order.replace("/orders", "/kk/orders") : order } } });
+      await engine.run("order.status_changed", { subject: "order:status:o1:in_production", orderId: "o1", orderStatus: "in_production" });
+      await engine.run("order.tracking_added", { subject: "order:track:o1:7012345678", orderId: "o1" });
+      sent.push(...log.filter((l) => l.startsWith("msg:")));
+    }
+    expect(sent).toEqual([
+      "msg:conv1:Здравствуйте, Айгерим! Ваша книга по заказу №42 ушла в печать. Обычно это занимает несколько рабочих дней. Как только отправим, пришлём трек-номер. Заказ: https://mybooks.kz/orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b (Книга в печати → сообщение клиенту, о заказе, можно: 7012345678)",
+      "msg:conv1:Здравствуйте, Айгерим! Ваша книга по заказу №42 напечатана и отправлена. Трек-номер: 7012345678. Отследить и посмотреть заказ: https://mybooks.kz/orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b (Книга отправлена + трек-номер → сообщение клиенту, о заказе, можно: 7012345678)",
+      "msg:conv1:Сәлеметсіз бе, Айгерим! №42 тапсырыс бойынша кітабыңыз баспаға жіберілді. Әдетте бұл бірнеше жұмыс күнін алады. Жібергеннен кейін трек-нөмірін жолдаймыз. Тапсырыс: https://mybooks.kz/kk/orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b (Книга в печати → сообщение клиенту, о заказе, можно: 7012345678)",
+      "msg:conv1:Сәлеметсіз бе, Айгерим! №42 тапсырыс бойынша кітабыңыз басылып, жеткізуге берілді. Трек-нөмір: 7012345678. Тапсырысты бақылау: https://mybooks.kz/kk/orders/5d1c9e2a-4b3f-4c6d-8e9f-a7012345678b (Книга отправлена + трек-номер → сообщение клиенту, о заказе, можно: 7012345678)",
+    ]);
+    // Ссылка и трек (с разрешением, которое передаёт правило) проверку реквизитов проходят.
+    for (const m of sent) expect(findSensitive(m.replace(/ \(Книга[^)]*\)$/, ""), ["7012345678"])).toEqual([]);
+  });
+
+  const facts = (p: Partial<OrderNoticeFacts> = {}): OrderNoticeFacts => ({
+    realEmail: true,
+    rules: seeded.map((r) => ({ trigger: r.trigger, orderStatus: r.conditions.orderStatus ?? null })),
+    whatsappChat: true,
+    noMarketing: false,
+    ...p,
+  });
+
+  it("подпись: что реально уйдёт — письмо, если почта настоящая, и WhatsApp, если правило включено и есть переписка", () => {
+    expect(orderNotice(facts(), "paid", "in_production")).toEqual({ text: "Клиент получит письмо и сообщение в WhatsApp («В производстве»).", warn: false });
+    expect(orderNotice(facts({ realEmail: false }), "in_production", "shipped")).toEqual({ text: "Клиент получит сообщение в WhatsApp (трек-номер, если он вписан). Письма не будет — у клиента нет почты.", warn: false });
+    expect(orderNotice(facts({ whatsappChat: false }), "paid", "in_production")).toEqual({ text: "Клиент получит письмо. В WhatsApp не уйдёт: с клиентом нет переписки в WhatsApp, а первым CRM не пишет.", warn: false });
+    // Клиент из WhatsApp без почты, правила выключены — не узнает ничего: менеджеру написать самому.
+    expect(orderNotice(facts({ realEmail: false, rules: [] }), "paid", "in_production")).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — правило о таком статусе выключено («Автоматизации»). Напишите ему сами.", warn: true });
+    expect(orderNotice(facts({ realEmail: false, noMarketing: true }), "in_production", "shipped")).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — клиент просил не писать первым. Напишите ему сами.", warn: true });
+    expect(orderNotice(facts({ realEmail: false }), "shipped", "cancelled")).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — об отмене правила не пишут. Напишите ему сами.", warn: true });
+  });
+
+  it("подпись: статус тот же — ничего; у отправленного — куда уйдёт новый трек-номер", () => {
+    expect(orderNotice(facts(), "in_production", "in_production")).toEqual({ text: "Статус тот же — клиенту ничего не уйдёт.", warn: false });
+    expect(orderNotice(facts(), "shipped", "shipped")).toEqual({ text: "Новый трек-номер клиент получит письмом и в WhatsApp.", warn: false });
+    expect(orderNotice(facts({ realEmail: false, whatsappChat: false }), "shipped", "shipped").warn).toBe(true);
   });
 });

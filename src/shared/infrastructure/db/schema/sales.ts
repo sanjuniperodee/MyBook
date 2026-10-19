@@ -96,6 +96,8 @@ export const crmDeals = pgTable(
     index("crm_deals_stage_idx").on(t.stageId),
     index("crm_deals_assignee_idx").on(t.assigneeId),
     index("crm_deals_client_idx").on(t.clientId),
+    // Сделка заказа: события заказа → правила CRM и задачи, карточка заказа.
+    index("crm_deals_order_idx").on(t.orderId).where(sql`${t.orderId} is not null`),
     index("crm_deals_assigned_idx").on(t.assignedAt),
     // Выигранные сделки за период (вьюха revenue_events): правило «праздник» — кто покупал к празднику год назад.
     index("crm_deals_closed_idx").on(t.closedAt).where(sql`${t.closedAt} is not null`),

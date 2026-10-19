@@ -109,6 +109,7 @@ describe("нет русских строк вне словарей", () => {
   const skipFiles = new Set([
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
+    "modules/ordering/ui/notice.ts", // подпись под формой статуса в карточке заказа (CRM): что уйдёт клиенту
     "components/LanguageSwitch.tsx", // двуязычная подпись «Тіл / Язык»
     "shared/domain/channels.ts", // подписи каналов привлечения для CRM — на русском
     "shared/domain/slug.ts", // таблица транслитерации кода ссылки

@@ -8,20 +8,24 @@ import { generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, sta
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
 
 /** У электронной версии нет печати и доставки: только «ждёт оплаты → выполнен» и отмена. */
 const digitalStatuses: readonly OrderStatus[] = ["pending_payment", "paid", "cancelled"];
 
-export function StatusForm({ orderId, status, trackingNumber, printed = true }: { orderId: string; status: OrderStatus; trackingNumber: string | null; printed?: boolean }) {
+/** Форма статуса; notice — что известно о каналах клиента: под формой видно, что реально уйдёт при выбранном статусе. */
+export function StatusForm({ orderId, status, trackingNumber, printed = true, notice }: { orderId: string; status: OrderStatus; trackingNumber: string | null; printed?: boolean; notice: OrderNoticeFacts }) {
   const [state, action] = useActionState<AdminState, FormData>(updateOrderAction, {});
+  const [to, setTo] = useState<OrderStatus>(status);
+  const hint = orderNotice(notice, status, to);
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="orderId" value={orderId} />
       <div>
         <label className="label">Статус</label>
-        <select name="status" defaultValue={status} className="input h-11">
+        <select name="status" defaultValue={status} onChange={(e) => setTo(e.target.value as OrderStatus)} className="input h-11">
           {orderStatuses.filter((s) => printed || digitalStatuses.includes(s)).map((s) => (
             <option key={s} value={s}>{orderStatusLabel(s, "ru", printed)}</option>
           ))}
@@ -42,7 +46,9 @@ export function StatusForm({ orderId, status, trackingNumber, printed = true }: 
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
       <SubmitButton className="w-full">Сохранить</SubmitButton>
-      <p className="text-xs text-muted">Клиент получит письмо при смене статуса.</p>
+      <p className={hint.warn ? "rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800" : "text-xs text-muted"} data-testid="order-notice">
+        {hint.text}
+      </p>
     </form>
   );
 }

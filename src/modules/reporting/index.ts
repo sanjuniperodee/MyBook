@@ -6,7 +6,7 @@ import { clientBrief, dealById, dealCard } from "./infrastructure/DealCard";
 import { clientById, clientCard } from "./infrastructure/ClientCard";
 import { conversationContext, inbox } from "./infrastructure/Inbox";
 import { callJournal, taskList } from "./infrastructure/Lists";
-import { orderCrm, orderExport, orderList, productionBoard } from "./infrastructure/Orders";
+import { orderCrm, orderExport, orderList, orderNotice, productionBoard } from "./infrastructure/Orders";
 import { dealList, savedViews, stageCounts } from "./infrastructure/Deals";
 import { duplicateGroups } from "./infrastructure/Duplicates";
 import { bookList } from "./infrastructure/Books";
@@ -48,6 +48,7 @@ export class ReportingModule {
   readonly orderExport = orderExport;
   readonly productionBoard = productionBoard;
   readonly orderCrm = orderCrm;
+  readonly orderNotice = orderNotice;
   readonly dealList = dealList;
   readonly savedViews = savedViews;
   readonly stageCounts = stageCounts;

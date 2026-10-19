@@ -365,6 +365,13 @@
       "when": 1792408419895,
       "tag": "0051_order_chat_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1792408749222,
+      "tag": "0052_order_status_rules",
+      "breakpoints": true
     }
   ]
 }
