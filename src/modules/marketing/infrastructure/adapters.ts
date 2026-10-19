@@ -5,6 +5,7 @@ import { env } from "@/config/env";
 import { formatDate } from "@/lib/dates";
 import type { SettingsReader } from "@/shared/application";
 import { appLink } from "@/shared/infrastructure/mail";
+import { normalizePhone } from "@/shared/domain/phone";
 import type { AppLinks, MarketingSettings } from "../application";
 
 /** Настройки CRM, которые читает маркетинг: предел скидки из чата и номер WhatsApp для рекламных ссылок. */
@@ -12,9 +13,9 @@ export type MarketingSettingKey = "crm.maxDiscount" | "crm.whatsappNumber";
 
 export const crmMarketingSettings = (settings: SettingsReader<MarketingSettingKey>): MarketingSettings => ({
   maxDiscount: async () => Number(await settings.get("crm.maxDiscount")) || 0,
-  /** Номер WhatsApp магазина: из настроек CRM или контактов сайта. */
+  /** Номер WhatsApp магазина: из настроек CRM или контактов сайта; «8 701…», сохранённый раньше, — как 77011234567 (wa.me). */
   async whatsappNumber() {
-    const fromSettings = (await settings.get("crm.whatsappNumber")).replace(/\D/g, "");
+    const fromSettings = normalizePhone(await settings.get("crm.whatsappNumber"));
     return fromSettings || site.contacts.whatsapp.replace(/\D/g, "");
   },
 });

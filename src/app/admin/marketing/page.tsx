@@ -8,6 +8,7 @@ import { env } from "@/config/env";
 import { formatPrice } from "@/config/site";
 import { BarList } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
+import { formatPhone } from "@/shared/domain/phone";
 import { formatDate } from "@/lib/dates";
 import { LinkBuilder, LinkRowActions, WhatsappNumberForm } from "./MarketingControls";
 
@@ -170,7 +171,13 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
           </table>
           {visibleLinks.length === 0 ? <p className="py-4 text-sm text-muted">{sp.archived === "1" ? "Архив пуст." : "Ссылок пока нет — создайте первую для шапки Instagram."}</p> : null}
         </div>
-        {can(staff, "promo.manage") ? <WhatsappNumberForm value={waNumber} /> : null}
+        {can(staff, "settings.manage") ? (
+          <WhatsappNumberForm value={waNumber} />
+        ) : (
+          <p className="mt-5 border-t border-line pt-4 text-xs text-muted">
+            Ссылки «Сразу в WhatsApp» ведут на номер магазина {formatPhone(waNumber)}. Он же — в реквизитах на сайте, поэтому его меняет руководитель в «Сайт» → «Реквизиты продавца».
+          </p>
+        )}
       </section>
 
       {showAnalytics && report.campaigns.length ? (
