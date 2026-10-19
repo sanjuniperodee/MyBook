@@ -465,23 +465,27 @@ export class MessagingService {
 
   /**
    * Сообщение правила автоматизации. Если диалог ведёт бот, правило-автоответ молчит: иначе клиент получит два
-   * автоответа подряд (бот и «ответим утром»). Номер в стоп-листе («не писать первым» или спам) — не уходит (contacts-18).
-   * В тексте чужой номер, карта, IBAN или ссылка на перевод Kaspi (шаблон правила или подставленное поле) — не уходит:
-   * заметка в сделку и уведомление руководителю (chats-d4). Номер самого клиента и магазина — можно. Вне окна по Алматы
-   * или сверх суточного лимита сообщений от правил — не уходит, заметка в сделку (automation-15); автоответ на сообщение
-   * клиента (reply) окно и лимит не держат. null — не отправлено.
+   * автоответа подряд (бот и «ответим утром»). Сообщение о заказе (transactional: статус, трек) уходит и в такой диалог —
+   * бот его не заменит; бот при этом не останавливается (chats-15). Номер в стоп-листе («не писать первым» или спам) — не
+   * уходит (contacts-18), о заказе — с заметкой в сделку. В тексте чужой номер, карта, IBAN или ссылка на перевод Kaspi
+   * (шаблон правила или подставленное поле) — не уходит: заметка в сделку и уведомление руководителю (chats-d4). Номер
+   * самого клиента и магазина, значения allow (трек-номер) — можно. Вне окна по Алматы или сверх суточного лимита
+   * сообщений от правил — не уходит, заметка в сделку (automation-15); автоответ на сообщение клиента (reply) окно и
+   * лимит не держат. null — не отправлено.
    */
-  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean } = {}) {
-    if (await this.bot.isActive(conversationId)) return null;
+  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean; transactional?: boolean; allow?: readonly string[] } = {}) {
+    if (!opts.transactional && (await this.bot.isActive(conversationId))) return null;
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
     const rule = opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации";
     // Клиент просил не писать первым (или номер в спаме) — правила ему не пишут, даже автоответом.
     if (await this.blocklist.noMarketing(conv.chatId, contactPhone(conv))) {
       this.logger.info(`${rule}: диалог ${conv.id} — «не писать первым», сообщение не отправлено`);
+      const deal = opts.transactional && conv.dealId ? await this.sales.deal(conv.dealId) : null;
+      if (deal) await this.sales.note(deal, `${rule} не отправило клиенту сообщение о заказе: клиент просил не писать первым (стоп-лист). Если нужно — напишите клиенту сами.`);
       return null;
     }
-    const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.shopPhone()]);
+    const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.shopPhone(), ...(opts.allow ?? [])]);
     if (found.length) {
       const what = sensitiveWhat(found);
       const values = found.map((f) => f.value).join(", ");

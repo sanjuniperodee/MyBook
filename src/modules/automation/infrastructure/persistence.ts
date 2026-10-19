@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, lte, or, sql } from "drizzle-orm";
 import { books, crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, dealInvoices, orders, users } from "@/shared/infrastructure/db/schema";
 import { appLink } from "@/shared/infrastructure/mail";
 import { staffLabel } from "@/shared/domain/staff";
@@ -98,6 +98,19 @@ export class DrizzleSubjectLoader implements SubjectLoader {
     const cond = dealId ? eq(crmConversations.dealId, dealId) : clientId ? eq(crmConversations.clientId, clientId) : null;
     if (!cond) return null;
     const [c] = await executor().select({ id: crmConversations.id }).from(crmConversations).where(cond).orderBy(desc(crmConversations.lastMessageAt)).limit(1);
+    return c?.id ?? null;
+  }
+
+  /** Диалоги сделки и клиента — по индексам crm_conv_deal_idx и crm_conv_client_idx. */
+  async latestWhatsapp(dealId: string | null, clientId: string | null) {
+    const of = [dealId ? eq(crmConversations.dealId, dealId) : undefined, clientId ? eq(crmConversations.clientId, clientId) : undefined].filter((c) => c !== undefined);
+    if (!of.length) return null;
+    const [c] = await executor()
+      .select({ id: crmConversations.id })
+      .from(crmConversations)
+      .where(and(eq(crmConversations.channel, "whatsapp"), or(...of)))
+      .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`, desc(crmConversations.id))
+      .limit(1);
     return c?.id ?? null;
   }
 

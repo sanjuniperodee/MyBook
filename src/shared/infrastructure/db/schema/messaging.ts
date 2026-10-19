@@ -66,6 +66,9 @@ export const crmConversations = pgTable(
     index("crm_conv_bot_due_idx").on(t.botDueAt).where(sql`${t.botDueAt} is not null`),
     // Правило «клиенту не ответили N минут» (каждую минуту): ждущие ответа, дольше всех ждущие — первыми.
     index("crm_conv_awaiting_idx").on(t.awaitingSince).where(sql`${t.awaitingSince} is not null`),
+    // Переписка сделки и клиента: куда правило пишет о заказе, диалоги карточек сделки и клиента.
+    index("crm_conv_deal_idx").on(t.dealId),
+    index("crm_conv_client_idx").on(t.clientId),
   ],
 );
 

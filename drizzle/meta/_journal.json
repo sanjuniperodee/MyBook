@@ -358,6 +358,13 @@
       "when": 1792405594209,
       "tag": "0050_deal_automation",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1792408419895,
+      "tag": "0051_order_chat_lookup",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,8 @@ export interface SubjectLoader {
   dealFieldVars(customFields: Record<string, string | number | boolean | null>): Promise<Record<string, string>>;
   /** Последний диалог сделки или клиента — куда отправить сообщение. */
   latestConversation(dealId: string | null, clientId: string | null): Promise<string | null>;
+  /** Последний диалог клиента в WhatsApp — по сделке или по клиенту (сообщение о заказе — только в существующий). */
+  latestWhatsapp(dealId: string | null, clientId: string | null): Promise<string | null>;
   clientContact(clientId: string): Promise<{ name: string; email: string; phone: string | null; managerId: string | null } | null>;
 }
 
@@ -27,9 +29,10 @@ export interface AutomationEffects {
   createTask(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null; once?: boolean }): Promise<boolean>;
   /**
    * Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). reply — ответ на только что
-   * пришедшее сообщение клиента (автоответ): окно и суточный лимит его не держат.
+   * пришедшее сообщение клиента (автоответ): окно и суточный лимит его не держат. transactional — сообщение о заказе:
+   * уходит и в диалог, который ведёт бот; allow — значения, которые в тексте не реквизиты (трек-номер из цифр).
    */
-  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean }): Promise<void>;
+  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean; transactional?: boolean; allow?: string[] }): Promise<void>;
   /** Можно ли сейчас написать клиенту первым: окно и суточный лимит сообщений от правил (automation-15). */
   canMessageNow(): Promise<boolean>;
   assignConversation(conversationId: string, userId: string): Promise<void>;

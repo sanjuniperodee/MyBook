@@ -21,6 +21,8 @@ function setup(
     createTask?: AutomationEffects["createTask"];
     now?: Date;
     holidays?: Holiday[];
+    /** Переписка клиента в WhatsApp (сообщения о заказе); null — её нет. */
+    whatsapp?: string | null;
   } = {},
 ) {
   const claimed = new Set<string>();
@@ -43,6 +45,7 @@ function setup(
     managerName: async (id) => (id ? "Менеджер" : ""),
     dealFieldVars: async () => ({}),
     latestConversation: async () => "conv1",
+    latestWhatsapp: async () => (opts.whatsapp === undefined ? "conv1" : opts.whatsapp),
     clientContact: async () => ({ name: "Айгерим", email: "a@test.kz", phone: null, managerId: null }),
   };
   const effects: AutomationEffects = {
@@ -53,7 +56,7 @@ function setup(
       return true;
     },
     // Название правила уходит в отправку: текст с реквизитами не отправится, а в заметке будет видно, какое правило.
-    sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""})` : ""}`),
+    sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""}${o.transactional ? ", о заказе" : ""}${o.allow?.length ? `, можно: ${o.allow.join(" ")}` : ""})` : ""}`),
     canMessageNow: async () => (log.push("gate"), opts.canMessage?.() ?? true),
     assignConversation: async () => {},
     addNote: async (n) => void log.push(`note:${n.dealId}:${n.text}`),
@@ -437,7 +440,25 @@ describe("Статус заказа и трек-номер для правил (
     expect(log).toEqual([]);
     await engine.run("order.status_changed", { subject: "order:status:o1:shipped", orderId: "o1", orderStatus: "shipped" });
     await engine.run("order.status_changed", { subject: "order:status:o1:shipped", orderId: "o1", orderStatus: "shipped" });
-    expect(log).toEqual(["msg:conv1:Книга отправлена (Отправлена)", "run:ship"]);
+    expect(log).toEqual(["msg:conv1:Книга отправлена (Отправлена, о заказе)", "run:ship"]);
+  });
+
+  it("сообщение о заказе — только в переписку WhatsApp: её нет — не уходит, в сделку заметка; трек передаётся как разрешённый", async () => {
+    const track = rule({ id: "track", name: "Отправлена + трек", trigger: "order.tracking_added", actions: [{ type: "send_message", text: "Трек: {трек}" }, { type: "notify", title: "Трек ушёл" }] });
+    const none = setup([track], { whatsapp: null, subject: { trackingNumber: "RR123456789KZ" } });
+    await none.engine.run("order.tracking_added", { subject: "order:track:o1:RR123456789KZ", orderId: "o1", dealId: "d1" });
+    expect(none.log).toEqual([
+      "note:d1:Правило «Отправлена + трек» не отправило клиенту сообщение: с ним нет переписки в WhatsApp, а первым на новый номер CRM не пишет. Если нужно — напишите клиенту сами; письмо о заказе уходит, если у клиента настоящая почта.",
+      "notify:staff:Трек ушёл",
+      "run:track",
+    ]);
+    const wa = setup([track], { whatsapp: "wa-7", subject: { trackingNumber: "RR123456789KZ" } });
+    await wa.engine.run("order.tracking_added", { subject: "order:track:o1:RR123456789KZ", orderId: "o1" });
+    expect(wa.log[0]).toBe("msg:wa-7:Трек: RR123456789KZ (Отправлена + трек, о заказе, можно: RR123456789KZ)");
+    // Без сделки заметку писать некуда — только лог; остальные правила — как раньше, в последний диалог.
+    const noDeal = setup([track], { whatsapp: null, subject: { deal: null } });
+    await noDeal.engine.run("order.tracking_added", { subject: "x" });
+    expect(noDeal.log.filter((l) => l.startsWith("note:") || l.startsWith("msg:"))).toEqual([]);
   });
 
   it("{трек}, {ссылка_на_заказ}, {ссылка_на_книгу}, {ссылка_на_оплату}; {ссылка} — заказ, иначе книга, иначе сайт", async () => {
@@ -446,12 +467,12 @@ describe("Статус заказа и трек-номер для правил (
     const links = { order: "https://mybook.kz/kk/orders/o1", book: "https://mybook.kz/kk/books/b1", pay: null };
     const withOrder = setup([track], { subject: { trackingNumber: "RR123456789KZ", links } });
     await withOrder.engine.run("order.tracking_added", { subject: "order:track:o1:RR123456789KZ", orderId: "o1" });
-    expect(withOrder.log[0]).toBe("msg:conv1:Айгерим, трек RR123456789KZ: https://mybook.kz/kk/orders/o1 · книга https://mybook.kz/kk/books/b1 · оплата · https://mybook.kz/kk/orders/o1 (Трек)");
+    expect(withOrder.log[0]).toBe("msg:conv1:Айгерим, трек RR123456789KZ: https://mybook.kz/kk/orders/o1 · книга https://mybook.kz/kk/books/b1 · оплата · https://mybook.kz/kk/orders/o1 (Трек, о заказе, можно: RR123456789KZ)");
     const bookOnly = setup([rule({ ...track, actions: [{ type: "send_message", text: "{ссылка}" }] })], { subject: { links: { order: null, book: "https://mybook.kz/books/b1", pay: "https://mybook.kz/pay/t" } } });
     await bookOnly.engine.run("order.tracking_added", { subject: "x" });
-    expect(bookOnly.log[0]).toBe("msg:conv1:https://mybook.kz/books/b1 (Трек)");
+    expect(bookOnly.log[0]).toBe("msg:conv1:https://mybook.kz/books/b1 (Трек, о заказе)");
     const none = setup([rule({ ...track, actions: [{ type: "send_message", text: "{ссылка} {трек}" }] })]);
     await none.engine.run("order.tracking_added", { subject: "x" });
-    expect(none.log[0]).toBe("msg:conv1:https://mybook.kz (Трек)");
+    expect(none.log[0]).toBe("msg:conv1:https://mybook.kz (Трек, о заказе)");
   });
 });

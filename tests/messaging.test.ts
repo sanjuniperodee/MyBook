@@ -354,6 +354,30 @@ describe("бот в инбоксе", () => {
     expect(off.msgs.at(-1)).toMatchObject({ source: "rule", authorId: null });
   });
 
+  it("сообщение о заказе уходит и в диалог, который ведёт бот, а бот продолжает вести (chats-15, chats-d5)", async () => {
+    const t = setup({ bot: "always" });
+    await t.service.ingest(inbound());
+    const id = t.conv().id;
+    expect(await t.bot.isActive(id)).toBe(true);
+    expect(await t.service.sendAutomated(id, "Ответим утром", { rule: "Автоответ" })).toBeNull();
+    expect(await t.service.sendAutomated(id, "Ваша книга в печати", { rule: "Книга в печати", transactional: true })).toMatchObject({ status: "sent" });
+    expect(t.sent.at(-1)).toBe("Ваша книга в печати");
+    expect(t.msgs.at(-1)).toMatchObject({ source: "rule", authorId: null });
+    expect(await t.bot.isActive(id)).toBe(true);
+    // Трек из цифр — не чужой телефон: его правило передаёт как разрешённое.
+    const track = "Трек-номер посылки: 7012345678";
+    expect(await t.service.sendAutomated(id, track, { rule: "Трек", transactional: true })).toBeNull();
+    expect(await t.service.sendAutomated(id, track, { rule: "Трек", transactional: true, allow: ["7012345678"] })).toMatchObject({ status: "sent" });
+  });
+
+  it("сообщение о заказе клиенту, который просил не писать первым, не уходит — заметка в сделку", async () => {
+    const t = setup({ noMarketing: ["77011234567"] });
+    await t.service.ingest(inbound());
+    expect(await t.service.sendAutomated(t.conv().id, "Ваша книга отправлена", { rule: "Книга отправлена", transactional: true })).toBeNull();
+    expect(t.notes.at(-1)).toBe("Правило «Книга отправлена» не отправило клиенту сообщение о заказе: клиент просил не писать первым (стоп-лист). Если нужно — напишите клиенту сами.");
+    expect(t.sent).toEqual([]);
+  });
+
   it("бота выключили посреди опроса — он замолкает", async () => {
     const t = setup({ bot: "always" });
     await t.service.ingest(inbound());

@@ -5,6 +5,7 @@ import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { automationActions, automationHours, automationTriggers, orderRuleStatuses, type AutomationActionType } from "@/modules/automation/domain/meta";
 import { ruleTemplateVars } from "@/shared/domain/templates";
+import { isTransactionalTrigger } from "@/modules/automation/domain/rules";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
@@ -274,7 +275,12 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               <>
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Получили ваше сообщение…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст на русском" />
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком (необязательно)" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст на казахском" />
-                <p className="text-xs text-muted">Уйдёт в тот же чат, откуда пришло обращение. Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {ruleTemplateVars.join(", ")}</p>
+                <p className="text-xs text-muted">
+                  {isTransactionalTrigger(trigger)
+                    ? "О заказе — в переписку клиента в WhatsApp, и когда её ведёт бот (бот не останавливается); переписки нет — не уйдёт: первым на новый номер CRM не пишет, в сделке будет заметка."
+                    : "Уйдёт в тот же чат, откуда пришло обращение."}{" "}
+                  Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {ruleTemplateVars.join(", ")}
+                </p>
               </>
             ) : a.type === "draft_message" ? (
               <>

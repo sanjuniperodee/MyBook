@@ -115,6 +115,17 @@ export const isRepeatTrigger = (trigger: string) => trigger === "occasion.annive
 /** Правило пишет клиенту (действие «Отправить сообщение» с текстом): его держат окно и суточный лимит. */
 export const sendsMessage = (rule: Pick<AutomationRule, "actions">) => (rule.actions ?? []).some((a) => a.type === "send_message" && !!a.text?.trim());
 
+/**
+ * Сообщение о заказе (статус, трек, оплата, оформление) — транзакционное (chats-15, chats-d5): уходит и в диалог, который
+ * ведёт бот (бота не останавливает), но только в существующую переписку WhatsApp — первым на новый номер CRM не пишет
+ * (automation-11). Окно, лимит и «не писать первым» держат и его.
+ */
+export const isTransactionalTrigger = (trigger: string) => trigger.startsWith("order.");
+
+/** Заметка в сделку: сообщение о заказе не ушло — с клиентом нет переписки в WhatsApp. */
+export const noWhatsappNote = (rule: string) =>
+  `Правило «${rule}» не отправило клиенту сообщение: с ним нет переписки в WhatsApp, а первым на новый номер CRM не пишет. Если нужно — напишите клиенту сами; письмо о заказе уходит, если у клиента настоящая почта.`;
+
 /** Ответ на только что пришедшее сообщение клиента (автоответ): окно и лимит его не держат, «не писать первым» — держит. */
 export const isReplyTrigger = (trigger: string) => trigger === "message.incoming";
 
