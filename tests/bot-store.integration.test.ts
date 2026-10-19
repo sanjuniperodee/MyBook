@@ -112,6 +112,9 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         expect(m.intents.price).toBeGreaterThanOrEqual(1);
         expect(m.skipped.prior_chat).toBeGreaterThanOrEqual(1);
         expect(m.langs.kk).toBeGreaterThanOrEqual(1);
+        // Продажник подхватил тот же диалог ещё раз (новый started) — языки считаются по беседам, а не по строкам журнала.
+        await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }]);
+        expect((await botMetrics(30)).langs.kk).toBe(m.langs.kk);
       });
       tx.rollback();
     });

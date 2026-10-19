@@ -804,7 +804,10 @@ export class AiSeller {
       s.reason = c.media ? "media" : "manager";
       s.asking = null;
       reply = botSellText(s, env, c.media ? "media" : "handoff") || null;
-      events.push({ kind: c.media ? "media" : "handoff", reason: c.media ? "ai" : "voice" });
+      // Передача менеджеру — событием handoff с причиной, как у шаблонного бота: статистика «Почему передал менеджеру»
+      // видит «прислали фото или файл» (повторное голосовое — сбой «voice»).
+      if (c.media) events.push({ kind: "media", reason: "ai" }, { kind: "handoff", reason: "media" });
+      else events.push({ kind: "handoff", reason: "voice" });
       done = true;
     } else if (c.voice) {
       s.ack = [...s.ack, "voice"];

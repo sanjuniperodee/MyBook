@@ -383,7 +383,9 @@ export class DrizzleBotStore implements BotStore {
             'version', coalesce((${crmConversations.botState}->>'version')::int, 0) + 1)
           else ${crmConversations.botState} end`,
       })
-      .where(and(eq(crmConversations.id, conversationId), botAlive()))
+      // Мягкая остановка уже остановленного бота (каждый следующий ответ менеджера) ничего не меняет — false, без новой
+      // записи «остановлен» в журнал: строка обновляется, только если беседа ещё шла или у бота был срок.
+      .where(and(eq(crmConversations.id, conversationId), botAlive(), opts.soft ? sql`(coalesce(${crmConversations.botState}->>'phase', 'done') <> 'done' or ${crmConversations.botDueAt} is not null)` : undefined))
       .returning({ outcome: sql<string | null>`${crmConversations.botState}->>'outcome'`, reason: sql<string | null>`${crmConversations.botState}->>'reason'` });
     return rows.some((r) => r.outcome === "stopped_by_manager" && r.reason === reason);
   }
@@ -466,7 +468,8 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     by("unrecognized", "field", true),
     by("faq", "intent"),
     by("handoff", "reason"),
-    by("started", "reason"),
+    // Язык — по беседам, а не по строкам: продажник пишет started на каждом подхвате того же диалога.
+    by("started", "reason", true),
     executor().execute<{ key: string; n: number }>(
       sql`select kind as key, count(distinct conversation_id)::int as n from crm_bot_events where kind in ('started', 'takeover', 'finished', 'handoff', 'stopped_by_manager', 'abandoned', 'declined', 'offer', 'agreed', 'invoiced', 'offered') and created_at >= ${since} group by 1`,
     ),

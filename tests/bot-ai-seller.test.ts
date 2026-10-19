@@ -239,6 +239,8 @@ describe("AI-продажник: голос, файлы, благодарнос�
     await run(t);
     expect(calls).toHaveLength(0);
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff", reason: "media" });
+    // В журнале — передача с причиной «прислали фото или файл», как у шаблонного бота.
+    expect(t.events.filter((e) => e.kind === "handoff")).toEqual([expect.objectContaining({ kind: "handoff", reason: "media" })]);
   });
 
   it("«спасибо» после ответа — модель молчит (wait), клиент не остаётся «неотвеченным» из-за бота", async () => {
