@@ -3,7 +3,8 @@
  * по нему печатает PDF (interior/toc.tsx), рисуют превью разворота и 3D-книги и считается объём.
  *
  * Автор выбирает режим (tocMode) и для любой строки может задать своё название или скрыть её (tocLines).
- * Название строки меняется только в оглавлении: глава и заголовок раздела в тексте книги остаются как были.
+ * Глава — часть книги: её название меняется во всей книге, скрытая глава убирается (истории идут дальше в
+ * предыдущей) — это делает сборка содержимого (layout.ts, foldChapters). Строка раздела меняется только в оглавлении.
  */
 import type { BookContent } from "./layout";
 
@@ -49,6 +50,10 @@ export interface TocCandidate {
   label: string;
   /** Глава раздела (ключ строки главы) — для вложенного режима и редактора. */
   parent?: string;
+  /** Глава убрана автором (её истории — в предыдущей): в оглавлении её нет, редактор показывает её, чтобы вернуть. */
+  folded?: boolean;
+  /** Первая глава: убрать её некуда — скрытие действует только на оглавление. */
+  first?: boolean;
 }
 
 /** Строка, которая печатается: level 1 — раздел под главой в режиме «главы и заголовки». */
@@ -63,14 +68,19 @@ export interface TocLine {
 /** Все кандидаты по порядку книги: глава, её разделы, следующая глава…, в конце галерея. */
 export function tocCandidates(content: Pick<BookContent, "chapters" | "galleryPhotos" | "galleryTitle">): TocCandidate[] {
   const out: TocCandidate[] = [];
-  for (const ch of content.chapters) {
-    const parent = tocKey.chapter(ch.key);
-    out.push({ key: parent, pageKey: ch.key, kind: "chapter", number: ch.number, label: ch.title });
-    for (const it of ch.items) {
+  content.chapters.forEach((ch, i) => {
+    let parent = tocKey.chapter(ch.key);
+    out.push({ key: parent, pageKey: ch.key, kind: "chapter", number: ch.number, label: ch.defaultTitle ?? ch.title, ...(i === 0 ? { first: true } : {}) });
+    ch.items.forEach((it, at) => {
+      for (const f of ch.folded ?? []) {
+        if (f.at !== at) continue;
+        parent = tocKey.chapter(f.key);
+        out.push({ key: parent, pageKey: f.key, kind: "chapter", number: null, label: f.title, folded: true });
+      }
       const key = tocKey.section(it.id);
       out.push({ key, pageKey: key, kind: "section", number: null, label: it.heading ?? "", parent });
-    }
-  }
+    });
+  });
   if (content.galleryPhotos.length) out.push({ key: tocKey.chapter(GALLERY_KEY), pageKey: GALLERY_KEY, kind: "chapter", number: null, label: content.galleryTitle });
   return out;
 }
@@ -89,7 +99,7 @@ export function inMode(c: Pick<TocCandidate, "kind" | "pageKey">, mode: TocMode)
 export function selectToc(candidates: readonly TocCandidate[], mode: TocMode, lines: TocLines): TocLine[] {
   return candidates.flatMap((c): TocLine[] => {
     const s = lines[c.key];
-    if (!inMode(c, mode) || s?.hidden) return [];
+    if (!inMode(c, mode) || s?.hidden || c.folded) return [];
     const label = s?.title?.trim() || c.label;
     if (!label) return [];
     return [{ key: c.key, pageKey: c.pageKey, level: mode === "both" && c.kind === "section" ? 1 : 0, number: mode === "sections" ? null : c.number, label }];

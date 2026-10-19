@@ -3,7 +3,7 @@
 import { Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { Choice } from "@/components/ui/Choice";
-import { inMode, TOC_MODES, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting, type TocMode } from "@/lib/book/toc";
+import { GALLERY_KEY, inMode, TOC_MODES, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting, type TocMode } from "@/lib/book/toc";
 import { cn } from "@/lib/class-names";
 
 /**
@@ -30,7 +30,8 @@ export function TocEditor({
   const t = useMessages().books.pages;
   // Пока ответов нет, в образце — главы темы-примера: их настройки не к чему привязать.
   const real = candidates.some((c) => !c.key.startsWith("c:planned-"));
-  const shown = real ? candidates.filter((c) => inMode(c, mode)) : [];
+  // Главы — части книги: их видно во всех режимах (переименовать или убрать), истории — когда они в оглавлении.
+  const shown = real ? candidates.filter((c) => c.kind === "chapter" || inMode(c, mode)) : [];
   const hidden = shown.filter((c) => lines[c.key]?.hidden).length;
 
   const setLine = (key: string, patch: TocLineSetting) => {
@@ -80,6 +81,9 @@ export function TocEditor({
               const nested = mode === "both" && c.kind === "section";
               const number = mode !== "sections" && c.number ? `${c.number}.` : null;
               const name = s?.title || c.label;
+              // Убрать из книги можно любую главу, кроме первой и галереи: у них — только строка оглавления.
+              const structural = c.kind === "chapter" && !c.first && c.pageKey !== GALLERY_KEY;
+              const toggleLabel = structural ? (s?.hidden ? t.tocChapterShow : t.tocChapterHide) : s?.hidden ? t.tocShow : t.tocHide;
               return (
                 <li key={c.key} className={cn("flex items-center gap-2", nested && "pl-6")}>
                   {number ? <span className="w-6 shrink-0 text-right text-sm text-muted tabular-nums">{number}</span> : null}
@@ -96,6 +100,7 @@ export function TocEditor({
                     onFocus={onFocus}
                     disabled={!editable}
                   />
+                  {structural && s?.hidden ? <span className="shrink-0 text-xs text-muted">{t.tocChapterFolded}</span> : null}
                   {s?.title ? (
                     <button type="button" className="shrink-0 rounded-lg p-2.5 text-muted hover:bg-cream hover:text-ink disabled:opacity-50 sm:p-1.5" title={t.tocReset} aria-label={t.tocReset} onClick={() => setLine(c.key, { title: "" })} disabled={!editable}>
                       <RotateCcw className="size-4" />
@@ -104,8 +109,8 @@ export function TocEditor({
                   <button
                     type="button"
                     className="shrink-0 rounded-lg p-2.5 text-muted hover:bg-cream hover:text-ink disabled:opacity-50 sm:p-1.5"
-                    title={s?.hidden ? t.tocShow : t.tocHide}
-                    aria-label={s?.hidden ? t.tocShow : t.tocHide}
+                    title={toggleLabel}
+                    aria-label={toggleLabel}
                     aria-pressed={!!s?.hidden}
                     onClick={() => {
                       setLine(c.key, { hidden: !s?.hidden });

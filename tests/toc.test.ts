@@ -75,6 +75,48 @@ describe("оглавление в содержимом книги", () => {
   });
 });
 
+describe("главы по-своему: переименовать во всей книге, убрать — истории в предыдущей главе", () => {
+  const { bundle } = fixtureBook("classic", "a5", "ru");
+  const content = (tocLines: Record<string, { title?: string; hidden?: boolean }>) =>
+    buildBookContent({ ...bundle.book, tocLines }, bundle.questions, bundle.photos.map(toPhotoItem), [], 2026, bundle.letters);
+  const base = content({});
+
+  it("убранная глава: её истории — в конце предыдущей, номера глав подряд, в оглавлении её нет, редактор её видит", () => {
+    const [first, second, third] = base.chapters;
+    const c = content({ [tocKey.chapter(second.key)]: { hidden: true } });
+    expect(c.chapters.map((ch) => ch.key)).toEqual(base.chapters.filter((ch) => ch.key !== second.key).map((ch) => ch.key));
+    expect(c.chapters[0].items.map((it) => it.id)).toEqual([...first.items, ...second.items].map((it) => it.id));
+    expect(c.chapters[0].folded).toEqual([{ key: second.key, title: second.title, at: first.items.length }]);
+    expect(c.chapters.map((ch) => ch.number)).toEqual(c.chapters.map((_, i) => i + 1));
+    expect(c.chapters[1]).toMatchObject({ key: third.key, number: 2 });
+    expect(bookToc(c).some((l) => l.key === tocKey.chapter(second.key))).toBe(false);
+    expect(tocCandidates(c).find((x) => x.key === tocKey.chapter(second.key))).toMatchObject({ folded: true, label: second.title });
+  });
+
+  it("первую главу убрать некуда — она остаётся в книге, скрыта только строка оглавления", () => {
+    const first = base.chapters[0];
+    const c = content({ [tocKey.chapter(first.key)]: { hidden: true } });
+    expect(c.chapters[0].key).toBe(first.key);
+    expect(bookToc(c).some((l) => l.key === tocKey.chapter(first.key))).toBe(false);
+  });
+
+  it("переименованная глава — новое название в книге, прежнее — подсказкой редактору", () => {
+    const second = base.chapters[1];
+    const c = content({ [tocKey.chapter(second.key)]: { title: "Своя глава 🌙" } });
+    expect(c.chapters[1]).toMatchObject({ title: "Своя глава", defaultTitle: second.title });
+    expect(tocCandidates(c).find((x) => x.key === tocKey.chapter(second.key))?.label).toBe(second.title);
+    expect(bookToc(c).find((l) => l.key === tocKey.chapter(second.key))?.label).toBe("Своя глава");
+  });
+
+  it("письма тоже можно убрать — они идут в конце последней главы", () => {
+    const letters = base.chapters.at(-1)!;
+    if (letters.key !== "__letters") return;
+    const c = content({ "c:__letters": { hidden: true } });
+    expect(c.chapters.some((ch) => ch.key === "__letters")).toBe(false);
+    expect(c.chapters.at(-1)!.items.slice(-letters.items.length).map((it) => it.id)).toEqual(letters.items.map((it) => it.id));
+  });
+});
+
 // ─── PDF: оглавление по заголовкам с настоящими номерами страниц ───────────────
 
 const textless = !hasTool("pdftotext");
@@ -129,4 +171,17 @@ describe.skipIf(textless)("PDF: оглавление по заголовкам",
       }
     }, 120_000);
   }
+
+  it("убранная глава: страницы с её названием нет, её истории в книге", async () => {
+    const fb = fixtureBook("classic", "a5", "ru");
+    const base = buildBookContent(fb.bundle.book, fb.bundle.questions, fb.bundle.photos.map(toPhotoItem), [], undefined, fb.bundle.letters);
+    const hidden = base.chapters[1];
+    const { content, pages } = await build(fb, { tocMode: "chapters", tocLines: { [tocKey.chapter(hidden.key)]: { hidden: true } } });
+    const text = pages.map((rows) => norm(rows.join(" ")));
+    // Название — отдельной строкой (начальная полоса, колонтитул, оглавление); внутри текста ответа фраза может встретиться.
+    const at = pages.flatMap((rows, i) => rows.filter((r) => norm(r).replace(/^\d+\.?/, "").replace(/\d+$/, "") === norm(hidden.title)).map((r) => `с. ${i + 1}: ${r}`));
+    expect(at, hidden.title).toEqual([]);
+    for (const it of hidden.items.filter((x) => x.heading)) expect(text.some((p) => p.includes(norm(it.heading!))), it.heading!).toBe(true);
+    expect(content.chapters.length).toBe(base.chapters.length - 1);
+  }, 120_000);
 });

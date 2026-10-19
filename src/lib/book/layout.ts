@@ -43,6 +43,13 @@ export interface ContentChapter {
   photos: PhotoItem[];
   /** Снимок на начальной полосе главы — в оформлениях, где глава открывается фото (первое фото главы). */
   openerPhoto?: PhotoItem;
+  /** Название главы по книге, если автор переименовал её (title — новое); нет — не переименована. */
+  defaultTitle?: string;
+  /**
+   * Главы, которые автор убрал (toc.ts, скрытая строка главы): их истории идут дальше в этой главе с ответа at.
+   * Нужны редактору оглавления, чтобы главу можно было вернуть. Нет — ничего не убрано.
+   */
+  folded?: { key: string; title: string; at: number }[];
 }
 
 export interface BookContent {
@@ -220,6 +227,8 @@ export function assembleBookContent(
     const epigraph = def?.own ? printableText(def.epigraph?.trim() ?? "") || undefined : def?.epigraph;
     return { key, number: i + 1, title, epigraph, items: byChapter.get(key)!, photos: [] };
   });
+  // Главы по-своему: переименованные и убранные автором (их истории — в предыдущей главе) — до раздачи фото по главам.
+  foldChapters(chapters, book.tocLines ?? {});
 
   // Фото обложки не дублируем внутри книги.
   const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
@@ -249,6 +258,7 @@ export function assembleBookContent(
       items: letterItems.map((l) => ({ id: l.id, heading: printableText(l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim()), answer: printableText(l.text.trim()) })),
       photos: [],
     });
+    foldChapters(chapters, book.tocLines ?? {}, LETTERS_CHAPTER);
   }
 
   const kind = bookKind(book.theme);
@@ -270,6 +280,33 @@ export function assembleBookContent(
     galleryTitle: texts.galleryTitle,
     year,
   };
+}
+
+/**
+ * Главы по-своему (настройки строк глав, toc.ts): своё название — во всей книге (начальная полоса, колонтитул,
+ * оглавление); скрытая глава убирается, а её истории идут дальше в предыдущей. Первую главу убрать некуда — у неё
+ * скрытие действует только на оглавление. only — применить только к этой главе (письма добавляются позже остальных).
+ * Номера глав — заново по порядку.
+ */
+function foldChapters(chapters: ContentChapter[], lines: Readonly<Record<string, { title?: string; hidden?: boolean }>>, only?: string) {
+  for (let i = 0; i < chapters.length; i++) {
+    const ch = chapters[i];
+    if (only && ch.key !== only) continue;
+    const s = lines[`c:${ch.key}`];
+    const title = s?.title ? printableText(s.title.trim()) : "";
+    if (title && title !== ch.title) {
+      ch.defaultTitle = ch.title;
+      ch.title = title;
+    }
+    if (!s?.hidden || i === 0) continue;
+    const prev = chapters[i - 1];
+    prev.folded = [...(prev.folded ?? []), { key: ch.key, title: ch.defaultTitle ?? ch.title, at: prev.items.length }, ...(ch.folded ?? []).map((f) => ({ ...f, at: f.at + prev.items.length }))];
+    prev.items = [...prev.items, ...ch.items];
+    prev.photos = [...prev.photos, ...(ch.openerPhoto ? [ch.openerPhoto] : []), ...ch.photos];
+    chapters.splice(i, 1);
+    i -= 1;
+  }
+  chapters.forEach((ch, i) => (ch.number = i + 1));
 }
 
 /** Настройки оглавления для содержимого: только не по умолчанию; свои названия — без эмодзи, как весь текст книги. */
