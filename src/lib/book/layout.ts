@@ -4,7 +4,8 @@
 import type { Locale } from "@/i18n/config";
 import { applyGender } from "../content/gender";
 import { bookKind, type BookKind } from "../content/kinds";
-import type { Book, BookChapter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
+import type { AnswerMedia, Book, BookChapter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
+import { normalizeMedia } from "./answer-media";
 import { MAX_INLINE_HEIGHT_SHARE } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
@@ -16,6 +17,8 @@ export interface ContentItem {
   answer: string;
   /** Фото, вставленные в ответ (печатаются после текста). */
   photos?: PhotoItem[];
+  /** Видео и музыка — QR-коды с подписью (answer-media.ts); нет — ключа нет (отпечаток кэша прежних книг не меняется). */
+  media?: AnswerMedia[];
 }
 
 export interface PhotoItem {
@@ -65,7 +68,9 @@ export interface BookContent {
   year: number;
 }
 
-export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey">;
+export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & {
+  media?: readonly Partial<AnswerMedia>[] | null;
+};
 export type BookLike = Pick<
   Book,
   | "theme"
@@ -184,7 +189,8 @@ export function assembleBookContent(
   }
   for (const q of sorted) {
     const qPhotos = inline.get(q.id) ?? [];
-    if (!q.answer.trim() && !qPhotos.length) continue;
+    const media = normalizeMedia(q.media).map((m) => ({ ...m, title: printableText(m.title) }));
+    if (!q.answer.trim() && !qPhotos.length && !media.length) continue;
     if (!byChapter.has(q.chapter)) {
       byChapter.set(q.chapter, []);
       chapterOrder.push(q.chapter);
@@ -194,6 +200,7 @@ export function assembleBookContent(
       heading: q.hideHeading ? null : printableText(questionHeading(q, book)),
       answer: printableText(q.answer.trim()),
       photos: qPhotos,
+      ...(media.length ? { media } : {}),
     });
   }
 

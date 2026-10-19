@@ -72,7 +72,7 @@ describe("Book", () => {
 });
 
 describe("Question", () => {
-  const q = () => Question.restore("q1", { bookId: "b1", userId: "u1", position: 0, chapter: "meet", key: "q1", prompt: "?", title: "", hint: null, answer: "", displayText: null, hideHeading: false });
+  const q = () => Question.restore("q1", { bookId: "b1", userId: "u1", position: 0, chapter: "meet", key: "q1", prompt: "?", title: "", hint: null, answer: "", displayText: null, hideHeading: false, media: [] });
 
   it("событие прогресса — только когда вопрос становится отвеченным или пустым", () => {
     const question = q();

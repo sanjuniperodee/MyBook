@@ -6,13 +6,14 @@
  * в строке — по средней ширине знака, а не по метрикам шрифта, и запас на полосе вместо переноса по строкам.
  */
 import { answerBlocks, type AnswerBlock } from "./answer-blocks";
+import { mediaCardBox, normalizeMedia, type AnswerMedia } from "./answer-media";
 import { MM_TO_PT, type BookFormat } from "./formats";
 import { framedBox, layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "./inline-photo";
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
 import { photoPages, type BookContent, type ContentChapter, type PhotoItem } from "./layout";
 import { interiorMetrics, textArea } from "./page-geometry";
-import { ANSWER, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, interiorSizes, type InteriorSizes } from "./typesetting";
+import { ANSWER, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, interiorSizes, MEDIA_CARD, type InteriorSizes } from "./typesetting";
 
 /** Средняя ширина знака основного текста, em: по ней считаем, сколько знаков помещается в строке. */
 const AVG_CHAR_EM = 0.5;
@@ -106,17 +107,23 @@ function rowHeight(row: { p: RowPhoto; style: InlinePhotoStyle }[], m: TextMetri
   return S.body * (INLINE_ROW.before + INLINE_ROW.after) + Math.max(...heights);
 }
 
-/** Высота ответа в вёрстке главы, pt: начало, блоки текста и ряды фото. first — первый ответ главы. */
-function entryHeight(heading: string | null, answer: string, photos: RowPhoto[], first: boolean, m: TextMetrics): number {
+/** Высота карточки видео или музыки с отбивками, pt: она не зависит от подписи (та не длиннее двух строк). */
+export function mediaCardHeight(m: TextMetrics) {
+  return mediaCardBox(m.width, m.scale).height + m.sizes.body * (MEDIA_CARD.before + MEDIA_CARD.after);
+}
+
+/** Высота ответа в вёрстке главы, pt: начало, блоки текста, ряды фото и карточки QR-кодов. first — первый ответ главы. */
+function entryHeight(heading: string | null, answer: string, photos: RowPhoto[], media: readonly Partial<AnswerMedia>[], first: boolean, m: TextMetrics): number {
   const paragraphs = splitParagraphs(answer);
   const rows = [...layoutInline(photos.map((p) => ({ p, style: normalizeStyle(p.inline) })), paragraphs.length).values()].flat();
   const text = answerBlocks(paragraphs).reduce((sum, b) => sum + blockHeight(b, m), 0);
-  return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0);
+  const cards = normalizeMedia(media).length * mediaCardHeight(m);
+  return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0) + cards;
 }
 
 /** Полос в главе: начальная, текст (всё, что на полосе не помещается, переходит на следующую) и фотостраницы. */
 export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics): number {
-  const height = ch.items.reduce((sum, it, i) => sum + entryHeight(it.heading, it.answer, it.photos ?? [], i === 0, m), 0);
+  const height = ch.items.reduce((sum, it, i) => sum + entryHeight(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0, m), 0);
   const textPages = ch.items.length ? Math.max(1, Math.ceil(height / (m.height - PAGE_RESERVE))) : 0;
   return 1 /* начальная полоса */ + textPages + photoPages(ch.photos).length;
 }
@@ -134,6 +141,6 @@ export function estimatePages(content: BookContent): number {
 }
 
 /** Оценка для одного ответа: сколько страниц он займёт посреди главы (для индикатора в редакторе). */
-export function estimateAnswerPages(heading: string | null, answer: string, photos: RowPhoto[], m: TextMetrics) {
-  return entryHeight(heading, answer, photos, false, m) / m.height;
+export function estimateAnswerPages(heading: string | null, answer: string, photos: RowPhoto[], m: TextMetrics, media: readonly Partial<AnswerMedia>[] = []) {
+  return entryHeight(heading, answer, photos, media, false, m) / m.height;
 }

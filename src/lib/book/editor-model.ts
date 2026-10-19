@@ -6,7 +6,8 @@
 import type { Locale } from "@/i18n/config";
 import type { BookKind } from "@/lib/content/kinds";
 import { photoUrl } from "@/lib/urls";
-import type { Book, InlinePhotoStyle } from "@/shared/infrastructure/db/schema";
+import { normalizeMedia } from "./answer-media";
+import type { AnswerMedia, Book, InlinePhotoStyle } from "@/shared/infrastructure/db/schema";
 
 export interface EditorQuestion {
   id: string;
@@ -21,6 +22,8 @@ export interface EditorQuestion {
   displayText: string | null;
   hideHeading: boolean;
   answer: string;
+  /** Видео и музыка в ответе — QR-коды в книге (answer-media.ts). */
+  media: AnswerMedia[];
   /** Свой вопрос или раздел своей книги: текст автора, его можно удалить, род в нём не подставляется. */
   isCustom: boolean;
 }
@@ -79,12 +82,13 @@ export interface PreviewPhoto {
   inline?: InlinePhotoStyle | null;
 }
 
-/** Ответ в вёрстке превью: заголовок, текст и фото в ответе. */
+/** Ответ в вёрстке превью: заголовок, текст, фото и QR-коды в ответе. */
 export interface PreviewEntry {
   id: string;
   heading: string | null;
   answer: string;
   photos: PreviewPhoto[];
+  media: AnswerMedia[];
 }
 
 export interface PreviewChapter {
@@ -166,8 +170,8 @@ export function previewChapters(groups: ChapterGroup[], photos: EditorPhoto[], e
   for (const g of groups) {
     const entries = g.items
       .map(({ q }) => ({ q, ph: photos.filter((p) => p.questionId === q.id) }))
-      .filter(({ q, ph }) => q.id === currentId || q.answer.trim() || ph.length)
-      .map(({ q, ph }) => ({ id: q.id, heading: editorHeading(q), answer: q.answer, photos: ph.map(toPhoto) }));
+      .filter(({ q, ph }) => q.id === currentId || q.answer.trim() || ph.length || q.media.length)
+      .map(({ q, ph }) => ({ id: q.id, heading: editorHeading(q), answer: q.answer, photos: ph.map(toPhoto), media: normalizeMedia(q.media) }));
     if (entries.length) chapters.push({ key: g.key, number: chapters.length + 1, title: g.title.trim() || untitled, epigraph: epigraphs[g.key], entries });
   }
   return chapters;

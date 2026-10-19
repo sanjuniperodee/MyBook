@@ -19,5 +19,5 @@ export function useBookPages(book: EditorBook, questions: EditorQuestion[], phot
 
 /** Доля полосы, которую займёт ответ с его фото посреди главы; 0 — ни текста, ни фото. */
 export function answerPagesOf(q: EditorQuestion, photos: EditorPhoto[], format: BookFormat, design: InteriorDesign) {
-  return q.answer.trim() || photos.length ? estimateAnswerPages(editorHeading(q), q.answer, photos, textMetrics(format, design)) : 0;
+  return q.answer.trim() || photos.length || q.media.length ? estimateAnswerPages(editorHeading(q), q.answer, photos, textMetrics(format, design), q.media) : 0;
 }

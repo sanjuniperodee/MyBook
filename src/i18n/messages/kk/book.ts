@@ -35,6 +35,11 @@ export const book: typeof ru = {
   letters: { title: "Жақындардың хаттары", epigraph: "Сізді жақсы көретіндердің сөздері" },
   copyright: (year: number, author: string) => `© ${year}${author ? ` ${author}` : ""}. Барлық құқықтар қорғалған.`,
   colophon: (brand: string) => `Бұл кітап сүйіспеншілікпен жазылып, ${brand} сервисінде жалғыз данада басылды.`,
+  media: {
+    video: "Бейне",
+    music: "Музыка",
+    scan: { video: "Көру үшін телефон камерасын кодқа бағыттаңыз", music: "Тыңдау үшін телефон камерасын кодқа бағыттаңыз" },
+  },
   theEnd: "Жалғасы бар…",
   previewMark: "АЛДЫН АЛА ҚАРАУ",
   coverDoc: (title: string) => `${title} — мұқаба`,

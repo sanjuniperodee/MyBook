@@ -149,7 +149,9 @@ export function plainText(bundle: BookBundle): { title: string; text: string } {
     for (const it of ch.items) {
       lines.push("");
       if (it.heading) lines.push(it.heading, "");
-      lines.push(it.answer);
+      if (it.answer) lines.push(it.answer);
+      // Видео и музыка — ссылками: в резервной копии QR-код не отсканировать.
+      for (const m of it.media ?? []) lines.push("", `${t.media[m.kind]}: ${m.title ? `${m.title} — ` : ""}${m.url}`);
     }
   }
   return { title: c.title, text: lines.join("\r\n") + "\r\n" };
@@ -200,7 +202,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, opts:
     tocPages = captured;
     if (!layout || !refineFlow(layout, flow, rowHeights, chapterOf, minLead)) break;
   }
-  const raw = await renderPdf(<InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, tocPages, flow }} />);
+  const raw = await renderPdf(<InteriorDocument content={content} options={{ bleedMm: bleed, watermark, images, tocPages, flow, links: mode === "reading" }} />);
 
   const doc = await PDFDocument.load(raw);
   const contentPages = doc.getPageCount();

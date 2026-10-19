@@ -1,10 +1,10 @@
 import type { EditorQuestion } from "@/lib/book/editor-model";
 
 /**
- * Несохранённая правка вопроса: ответ, свой заголовок, скрытый заголовок; у раздела своей книги — ещё заголовок в книге
+ * Несохранённая правка вопроса: ответ, QR-коды видео и музыки, свой заголовок, скрытый заголовок; у раздела своей книги — ещё заголовок в книге
  * (title) и подсказка для себя (prompt).
  */
-export type Patch = Partial<Pick<EditorQuestion, "answer" | "displayText" | "hideHeading" | "prompt">> & { title?: string };
+export type Patch = Partial<Pick<EditorQuestion, "answer" | "media" | "displayText" | "hideHeading" | "prompt">> & { title?: string };
 
 /** Несохранённая правка главы своей книги. */
 export type ChapterPatch = { title?: string; epigraph?: string };

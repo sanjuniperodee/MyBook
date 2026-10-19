@@ -176,7 +176,7 @@ export class QuestionsService {
       const outline = hasOutline(book.theme);
       if ((patch.title !== undefined || patch.prompt !== undefined) && !(outline && q.isCustom)) throw new AuthoringError("outlineNotAllowed");
       const wordsBefore = q.words;
-      q.edit(outline ? { answer: patch.answer, title: patch.title, prompt: patch.prompt } : patch);
+      q.edit(outline ? { answer: patch.answer, media: patch.media, title: patch.title, prompt: patch.prompt } : patch);
       await this.questions.save(q);
       await this.books.touch(book.id);
       this.uow.track(q);

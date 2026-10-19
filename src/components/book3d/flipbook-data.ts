@@ -52,7 +52,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
       entries: c.items.flatMap((it) => {
         const paragraphs = splitParagraphs(it.answer);
         const inline = (it.photos ?? []).map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
-        return paragraphs.length || inline.length ? [{ heading: it.heading, paragraphs, photos: inline }] : [];
+        return paragraphs.length || inline.length || it.media?.length ? [{ heading: it.heading, paragraphs, photos: inline, media: it.media }] : [];
       }),
       photoPages: photoPages(c.photos).map((group) => group.map(pagePhoto)),
     })),

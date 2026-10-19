@@ -95,7 +95,7 @@ export class DrizzleQuestionRepository implements QuestionRepository {
       .limit(1);
     if (!r) return null;
     const q = r.q;
-    return Question.restore(q.id, { bookId: q.bookId, userId: r.userId, position: q.position, chapter: q.chapter, key: q.questionKey, prompt: q.prompt, title: q.title, hint: q.hint, answer: q.answer, displayText: q.displayText, hideHeading: q.hideHeading });
+    return Question.restore(q.id, { bookId: q.bookId, userId: r.userId, position: q.position, chapter: q.chapter, key: q.questionKey, prompt: q.prompt, title: q.title, hint: q.hint, answer: q.answer, displayText: q.displayText, hideHeading: q.hideHeading, media: q.media });
   }
   async count(bookId: string) {
     const [{ n }] = await executor().select({ n: sql<number>`count(*)::int` }).from(bookQuestions).where(eq(bookQuestions.bookId, bookId));
@@ -157,7 +157,7 @@ export class DrizzleQuestionRepository implements QuestionRepository {
   }
   async save(q: Question) {
     const s = q.snapshot();
-    await executor().update(bookQuestions).set({ answer: s.answer, displayText: s.displayText, hideHeading: s.hideHeading, prompt: s.prompt, title: s.title, updatedAt: new Date() }).where(eq(bookQuestions.id, q.id));
+    await executor().update(bookQuestions).set({ answer: s.answer, media: s.media, displayText: s.displayText, hideHeading: s.hideHeading, prompt: s.prompt, title: s.title, updatedAt: new Date() }).where(eq(bookQuestions.id, q.id));
   }
   async deleteCustom(bookId: string, questionId: string) {
     if (!isUuid(questionId)) return false;

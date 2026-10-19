@@ -422,6 +422,7 @@ const section = (id: string, chapter: string, position: number, title: string, a
   displayText: null,
   hideHeading: false,
   answer,
+  media: [],
   createdAt: CREATED,
   updatedAt: CREATED,
 });

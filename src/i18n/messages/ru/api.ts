@@ -33,6 +33,7 @@ export const api = {
   questionsLimit: "Достигнут предел количества вопросов",
   questionEmpty: "Напишите вопрос",
   answerTooLong: "Слишком длинный ответ",
+  tooManyMedia: "В один ответ — не больше 8 QR-кодов",
   unknownCover: "Неизвестная обложка",
   unknownInterior: "Неизвестное оформление страниц",
   unknownBackLayout: "Неизвестный вариант задней стороны",
