@@ -185,10 +185,12 @@ export async function setClientNoMarketingAction(clientId: string, on: boolean):
   const client = await container().reporting.clientById(uuid.parse(clientId));
   if (!client) return { ok: false, message: "Клиент не найден" };
   assertVisible(staff, client.managerId);
-  const values = await markNoMarketing({ clientId: client.id, phones: [client.phone, ...client.extraPhones] }, next, staff.user.id, "Карточка клиента");
+  const target = { clientId: client.id, phones: [client.phone, ...client.extraPhones] };
+  const values = await markNoMarketing(target, next, staff.user.id, "Карточка клиента");
   if (!values) return { ok: false, message: admin.noMarketingNoContacts };
   await audit(staff, "client.no_marketing", "client", client.id, { on: next, numbers: values.length });
   revalidatePath(`/admin/clients/${client.id}`);
+  if (!next && (await container().messaging.chats.spamFor(target))) return { ok: false, message: admin.noMarketingSpam };
   return { ok: true, message: noMarketingDone(next) };
 }
 
@@ -199,11 +201,13 @@ export async function setDealNoMarketingAction(dealId: string, on: boolean): Pro
   const deal = await container().sales.deals.findById(uuid.parse(dealId));
   if (!deal) return { ok: false, message: admin.dealNotFound };
   assertWorkable(staff, deal.assigneeId);
-  const values = await markNoMarketing({ dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] }, next, staff.user.id, `Сделка №${deal.number}`);
+  const target = { dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] };
+  const values = await markNoMarketing(target, next, staff.user.id, `Сделка №${deal.number}`);
   if (!values) return { ok: false, message: admin.noMarketingNoContacts };
   await audit(staff, "deal.no_marketing", "deal", deal.id, { on: next, numbers: values.length });
   revalidatePath(`/admin/deals/${deal.id}`);
   if (deal.clientId) revalidatePath(`/admin/clients/${deal.clientId}`);
+  if (!next && (await container().messaging.chats.spamFor(target))) return { ok: false, message: admin.noMarketingSpam };
   return { ok: true, message: noMarketingDone(next) };
 }
 

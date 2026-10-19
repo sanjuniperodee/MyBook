@@ -188,7 +188,7 @@ export function setup(
       const m = msgs.find((x) => x.externalId === e);
       return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
     },
-    countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since).length),
+    countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since && m.status !== "error").length),
   };
   const sales: SalesGateway = {
     findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,

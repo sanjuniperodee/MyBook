@@ -90,6 +90,20 @@ describe("сообщение правила (sendAutomated)", () => {
     expect(t.sent).toEqual(["Первое", "Второе", "Ответим утром", "Пятое"]);
   });
 
+  it("сообщение правила, которое шлюз не принял (ошибка отправки), номер не расходует и в лимит не идёт", async () => {
+    const t = setup({ ruleSending: { from: "09:00", to: "21:00", dailyLimit: 2 } });
+    await t.service.ingest(inbound());
+    const id = t.conv().id;
+    t.setNow(almaty("12:00"));
+    expect(await t.service.sendAutomated(id, "Первое", { rule: "Годовщина" })).toMatchObject({ status: "sent" });
+    // Шлюз вернул ошибку: строка сообщения осталась с source = rule, status = error.
+    t.msgs.find((m) => m.text === "Первое")!.status = "error";
+    expect(await t.service.sendAutomated(id, "Второе", { rule: "Годовщина" })).toMatchObject({ status: "sent" });
+    expect(await t.service.sendAutomated(id, "Третье", { rule: "Годовщина" })).toMatchObject({ status: "sent" });
+    expect(await t.service.sendAutomated(id, "Четвёртое", { rule: "Годовщина" })).toBeNull();
+    expect(await t.service.ruleSendingToday()).toMatchObject({ sent: 2 });
+  });
+
   it("почему правило сейчас не напишет — для подписи в карточке заказа: окно, лимит; руководителям не сообщает", async () => {
     const t = setup({ ruleSending: { from: "09:00", to: "21:00", dailyLimit: 1 } });
     await t.service.ingest(inbound());

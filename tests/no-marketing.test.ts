@@ -147,9 +147,14 @@ describe("стоп-лист «Не писать первым» в инбоксе
     expect(t.blocklist.get("77071112233")).toEqual({ reason: "no_marketing", note: "Сделка №5", by: "m1" });
     expect(await t.service.noMarketingFor({ dealId, phones: [] })).toBe(true);
     await t.service.blockPhone("+7 707 111 22 33", "spam", "boss", null);
+    expect(await t.service.spamFor({ dealId, phones: [] })).toBe(false);
+    expect(await t.service.spamFor({ dealId, phones: ["87071112233"] })).toBe(true);
     await t.service.setNoMarketing({ dealId, phones: ["87071112233"] }, false, "m1");
     expect(t.blocklist.get(PHONE)).toBeUndefined();
     expect(t.blocklist.get("77071112233")?.reason).toBe("spam");
+    // Карточка по-прежнему «не писать первым»: спам кнопкой «снять» не снимается — действие так и скажет сотруднику.
+    expect(await t.service.noMarketingFor({ dealId, phones: ["87071112233"] })).toBe(true);
+    expect(await t.service.spamFor({ dealId, phones: ["87071112233"] })).toBe(true);
     await expect(t.service.setNoMarketing({ phones: ["123"] }, true, "m1")).rejects.toThrow("нет ни номера телефона, ни переписки");
   });
 });

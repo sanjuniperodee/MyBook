@@ -9,6 +9,7 @@ const w = vi.hoisted(() => ({
   blocked: [] as unknown[],
   marked: [] as unknown[],
   noContacts: false,
+  spam: false,
   workable: true,
 }));
 
@@ -40,6 +41,7 @@ vi.mock("@/server/container", async () => {
             w.marked.push({ target, on, by, where });
             return ["77011234567", "77071112233"];
           },
+          spamFor: async () => w.spam,
         },
       },
       sales: { deals: { findById: async (id: string) => (id === DEAL ? { id: DEAL, number: 5, clientId: CLIENT, assigneeId: "boss", contactPhone: "77011234567", extraPhones: ["77071112233"] } : null) } },
@@ -56,6 +58,7 @@ beforeEach(() => {
   w.blocked = [];
   w.marked = [];
   w.noContacts = false;
+  w.spam = false;
   w.workable = true;
 });
 
@@ -88,6 +91,14 @@ describe("«Не писать первым» в карточках", () => {
     w.noContacts = true;
     expect(await setClientNoMarketingAction(CLIENT, true)).toEqual({ ok: false, message: "У клиента нет ни номера телефона, ни переписки — отмечать нечего" });
     expect(w.audits).toHaveLength(1);
+  });
+
+  it("номер в спаме: «снять» не обещает «можно писать» — сотрудник видит, где убрать спам", async () => {
+    w.spam = true;
+    expect(await setDealNoMarketingAction(DEAL, false)).toEqual({ ok: false, message: "Номер клиента в спаме — первыми ему не пишем, пока он там. Убрать из спама — «Интеграции» → CRM → «Стоп-лист»" });
+    expect(await setClientNoMarketingAction(CLIENT, false)).toMatchObject({ ok: false });
+    // Отметить «не писать первым» спаму можно — это ничего не меняет и не мешает.
+    expect(await setDealNoMarketingAction(DEAL, true)).toMatchObject({ ok: true });
   });
 
   it("чужая сделка — отказ; не та сделка и мусор вместо id — без изменений", async () => {

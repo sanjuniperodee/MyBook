@@ -322,12 +322,15 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     return r ?? null;
   }
 
-  /** Суточный лимит правил: по частичному индексу crm_messages_rule_idx, не больше cap строк. */
+  /**
+   * Суточный лимит правил: по частичному индексу crm_messages_rule_idx, не больше cap строк. Неотправленные (status
+   * error — шлюз не принял) номер WhatsApp не расходуют и в лимит не идут.
+   */
   async countRuleSince(since: Date, cap: number) {
     const { rows } = await executor().execute<{ n: number }>(sql`
       select count(*)::int as n from (
         select 1 from crm_messages
-        where source = 'rule' and internal = false and created_at >= ${since}
+        where source = 'rule' and internal = false and created_at >= ${since} and status <> 'error'
         order by created_at
         limit ${cap}
       ) t`);

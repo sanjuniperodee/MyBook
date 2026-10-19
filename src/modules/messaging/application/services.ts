@@ -623,6 +623,12 @@ export class MessagingService {
     return values.length ? this.blocklist.noMarketing(...values) : false;
   }
 
+  /** Номер или собеседник карточки в спаме: «можно писать первым» спам не снимает (его убирают в стоп-листе). */
+  async spamFor(target: ContactsTarget) {
+    const values = await this.contactsOf(target);
+    return values.length ? this.blocklist.isBlocked(...values) : false;
+  }
+
   /**
    * Кнопка «Не писать первым» в карточке клиента или сделки: on — все её номера и собеседники в стоп-лист, off — снять
    * эту отметку (спам так не снимается). Возвращает номера, которых это коснулось.
