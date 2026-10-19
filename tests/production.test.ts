@@ -37,6 +37,15 @@ describe("PrintFilesService: файлы для типографии", () => {
     expect(t.renderer.calls).toEqual(Array(4).fill("package:b1:7"));
   });
 
+  it("пересборка пакета сбрасывает старую читательскую версию — следующий запрос собирает её заново", async () => {
+    const t = setup();
+    await t.printFiles.getFile(job, "reading");
+    await t.printFiles.prepare(job, { force: true });
+    expect(t.files.keys()).not.toContain("orders/o1/reading.pdf");
+    expect((await t.printFiles.getFile(job, "reading")).toString()).toBe("reading#3");
+    expect(t.renderer.calls).toEqual(["reading:b1", "package:b1:7", "reading:b1"]);
+  });
+
   it("книги нет — ошибка «book … not found», файлы не пишутся", async () => {
     const t = setup();
     const lost = { ...job, bookId: "gone" };
