@@ -2,6 +2,7 @@ import { automationTriggers, type AutomationTrigger } from "@/modules/automation
 import { fillTemplate } from "@/shared/domain/templates";
 import { bookBelowPercent, EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "./eventDate";
 import { IDLE_DEFAULTS, IDLE_LIMITS } from "./idle";
+import { SILENT_DEFAULTS, SILENT_LIMITS } from "./silent";
 
 type TemplateVars = Parameters<typeof fillTemplate>[1];
 
@@ -112,6 +113,8 @@ export function relevantConditions(
     bookBelow?: number | null;
     /** «Успеть к дате»: по сделке ничего не оплачено (1 — проверять). */
     unpaid?: number | null;
+    /** «Клиент молчит после нашего ответа»: сколько часов. */
+    silentHours?: number;
   },
 ) {
   const out: Record<string, string | number | null> = {};
@@ -138,6 +141,7 @@ export function relevantConditions(
     out.days = Math.min(IDLE_LIMITS.days, c.days ?? IDLE_DEFAULTS.days);
     out.perDay = Math.min(IDLE_LIMITS.perDay, c.perDay ?? IDLE_DEFAULTS.perDay);
   }
+  if (trigger === "message.silent") out.silentHours = Math.min(SILENT_LIMITS.hours, c.silentHours ?? SILENT_DEFAULTS.hours);
   if (c.hours === "work" || c.hours === "off") out.hours = c.hours;
   return out;
 }
@@ -146,13 +150,18 @@ export function relevantConditions(
 export const isRepeatTrigger = (trigger: string) => trigger === "occasion.anniversary" || trigger === "occasion.holiday";
 
 /**
- * Правило только для сотрудников (automation-4, deals-21): задача, уведомление, готовый текст в историю сделки —
- * «Отправить сообщение клиенту» в нём нет (решение владельца: о забытой сделке клиенту не пишем, пишет менеджер).
+ * Правило только для сотрудников (automation-4, deals-21, automation-6): задача, уведомление, готовый текст в историю
+ * сделки — «Отправить сообщение клиенту» в нём нет (решение владельца: о забытой сделке и замолчавшем клиенте клиенту не
+ * пишем, пишет менеджер).
  */
-export const isStaffOnlyTrigger = (trigger: string) => trigger === "deal.idle";
+export const isStaffOnlyTrigger = (trigger: string) => trigger === "deal.idle" || trigger === "message.silent";
 
-/** Правило пишет клиенту (действие «Отправить сообщение» с текстом): его держат окно и суточный лимит. */
-export const sendsMessage = (rule: Pick<AutomationRule, "actions">) => (rule.actions ?? []).some((a) => a.type === "send_message" && !!a.text?.trim());
+/**
+ * Правило пишет клиенту (действие «Отправить сообщение» с текстом): его держат окно и суточный лимит. Правило для
+ * сотрудников клиенту не пишет — окно и лимит его задачу не откладывают.
+ */
+export const sendsMessage = (rule: Pick<AutomationRule, "actions" | "trigger">) =>
+  !isStaffOnlyTrigger(rule.trigger) && (rule.actions ?? []).some((a) => a.type === "send_message" && !!a.text?.trim());
 
 /**
  * Сообщение о заказе (статус, трек, оплата, оформление) — транзакционное (chats-15, chats-d5): уходит и в диалог, который

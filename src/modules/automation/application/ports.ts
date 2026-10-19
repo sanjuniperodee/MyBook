@@ -101,6 +101,16 @@ export interface ScheduledSource {
     ruleId: string,
     q: { before: Date; stageId: string | null; limit: number },
   ): Promise<{ dealId: string; clientId: string | null; stageId: string; lastActivity: Date; date: string }[]>;
+  /**
+   * «Клиент молчит после нашего ответа»: последний ответ человека в диалоге (last_outgoing_at) — в since…before, после
+   * него клиент не писал. Диалог открыт и не ждёт ответа, бот его не ведёт, сделка диалога в работе и без открытой
+   * задачи, клиент и собеседник не в стоп-листе. Дольше всех молчащие — первыми, до 100; диалог, по которому правило
+   * уже сработало за этот ответ (conv:<id>:silent:<ответ>), не выбирается. date — день нашего ответа по-русски.
+   */
+  silent(
+    ruleId: string,
+    q: { before: Date; since: Date },
+  ): Promise<{ conversationId: string; dealId: string; clientId: string | null; channel: string; lastOutgoingAt: Date; date: string }[]>;
   /** Сколько раз правило сработало с начала дня day (ГГГГ-ММ-ДД по поясу магазина) — для лимита «в день». */
   firedOn(ruleId: string, day: string): Promise<number>;
 }

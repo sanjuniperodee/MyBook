@@ -123,6 +123,8 @@ export class DrizzleSubjectLoader implements SubjectLoader {
 
 /** Сколько объектов правило по времени берёт за проход. */
 const LIMIT = 200;
+/** «Клиент молчит после нашего ответа» — до 100 диалогов за проход (задачи менеджерам; остальные — в следующий). */
+const SILENT_LIMIT = 100;
 
 /** Момент как в Date.toISOString() (2026-10-01T06:00:00.000Z) — так он записан в subject срабатывания. */
 const isoText = (at: unknown) => sql`to_char(${at} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
@@ -382,6 +384,36 @@ export class SqlScheduledSource implements ScheduledSource {
     return rows.map((r) => {
       const lastActivity = new Date(r.last_at);
       return { dealId: r.deal_id, clientId: r.client_id, stageId: r.stage_id, lastActivity, date: formatDate(lastActivity) };
+    });
+  }
+
+  /**
+   * Диалоги, где наш последний ответ (last_outgoing_at: из CRM или эхо с телефона магазина) — в since…before, по индексу
+   * crm_conv_last_out_idx, и после него клиент не писал (crm_messages_conv_idx; «спасибо», снятое AI с ожидания, —
+   * тоже ответ клиента). Диалог открыт и не ждёт ответа, бот его не ведёт (как isActive бота: состояние не «done» и бот
+   * не остановлен кнопкой). Сделка диалога в работе и без открытой задачи — следующий шаг не запланирован. Собеседник
+   * и клиент не в стоп-листе: напомнить о себе такому — нарушить его просьбу. Дольше всех молчащие — первыми.
+   */
+  async silent(ruleId: string, q: { before: Date; since: Date }) {
+    const { rows } = await executor().execute<{ id: string; deal_id: string; client_id: string | null; channel: string; at: Date | string }>(sql`
+      select c.id, c.deal_id, coalesce(c.client_id, d.client_id) as client_id, c.channel, c.last_outgoing_at as at
+      from crm_conversations c
+      join crm_deals d on d.id = c.deal_id
+      join crm_stages s on s.id = d.stage_id and s.kind = 'open'
+      left join users u on u.id = coalesce(c.client_id, d.client_id)
+      where c.last_outgoing_at <= ${q.before.toISOString()}::timestamptz and c.last_outgoing_at > ${q.since.toISOString()}::timestamptz
+        and c.status = 'open' and c.awaiting_since is null
+        and not (coalesce(c.bot_state->>'phase', 'done') <> 'done' and coalesce(c.bot_step, 0) <> -1)
+        and not exists (select 1 from crm_messages m where m.conversation_id = c.id and m.direction = 'in' and m.created_at > c.last_outgoing_at)
+        and not exists (select 1 from crm_tasks t where t.deal_id = c.deal_id and t.done_at is null)
+        and not exists (select 1 from crm_blocklist bl where bl.value = c.chat_id)
+        and (u.id is null or not ${noMarketing(sql`u`)})
+        and ${notFired(ruleId, sql`'conv:' || c.id::text || ':silent:' || ${isoText(sql`c.last_outgoing_at`)}`)}
+      order by c.last_outgoing_at, c.id
+      limit ${SILENT_LIMIT}`);
+    return rows.map((r) => {
+      const lastOutgoingAt = new Date(r.at);
+      return { conversationId: r.id, dealId: r.deal_id, clientId: r.client_id, channel: r.channel, lastOutgoingAt, date: formatDate(lastOutgoingAt) };
     });
   }
 

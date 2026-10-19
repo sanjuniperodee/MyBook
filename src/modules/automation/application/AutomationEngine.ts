@@ -22,6 +22,8 @@ import {
   noWhatsappNote,
   ruleTaskDue,
   sendsMessage,
+  silentQuery,
+  silentSubject,
   triggerLabel,
   upcomingHolidays,
   type AutomationRule,
@@ -208,8 +210,8 @@ export class AutomationEngine {
 
   /**
    * Правила по времени. «Клиенту не ответили N минут» — каждый проход, считая только рабочее время;
-   * «клиент забросил книгу», «годовщина повода», «приближается дата события» и «сделка без активности» — раз в 30 минут
-   * (force — сразу, для scheduler:once). Правило с
+   * «клиент забросил книгу», «годовщина повода», «приближается дата события», «сделка без активности» и «клиент молчит
+   * после нашего ответа» — раз в 30 минут (force — сразу, для scheduler:once). Правило с
    * сообщением клиенту вне окна или сверх суточного лимита пропускается без отметки и сработает позже.
    * Не бросает: сбой загрузки правил или выборки одного правила пишется в лог, остальные правила и шаги минутного
    * прохода (напоминания, круг заявок, бот, почта, доступ по оплаченным счетам) идут дальше.
@@ -297,6 +299,14 @@ export class AutomationEngine {
         if (left <= 0) break;
         const ctx = { subject: idleSubject(r.dealId, r.lastActivity), dealId: r.dealId, clientId: r.clientId, stageId: r.stageId, workTime, date: r.date };
         if (await fire(rule, ctx)) left--;
+      }
+    });
+    await each("message.silent", async (rule) => {
+      // Задача менеджеру: «только в рабочее время» вне его выборку не делаем — диалоги сработают утром.
+      if (!inRuleHours(rule, workTime)) return;
+      for (const c of await this.scheduled.silent(rule.id, silentQuery(rule, now))) {
+        const ctx = { subject: silentSubject(c.conversationId, c.lastOutgoingAt), conversationId: c.conversationId, dealId: c.dealId, clientId: c.clientId, channel: c.channel, workTime, date: c.date };
+        await fire(rule, ctx);
       }
     });
     await this.holidayRules(rules, now, workTime, fire);

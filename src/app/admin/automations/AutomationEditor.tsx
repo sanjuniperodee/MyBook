@@ -11,6 +11,7 @@ import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
 import { EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "@/modules/automation/domain/eventDate";
 import { IDLE_DEFAULTS, IDLE_LIMITS } from "@/modules/automation/domain/idle";
+import { SILENT_DEFAULTS, SILENT_LIMITS } from "@/modules/automation/domain/silent";
 import { cn } from "@/lib/class-names";
 import { deleteAutomationAction, saveAutomationAction, toggleAutomationAction } from "./actions";
 
@@ -38,6 +39,7 @@ function describe(r: Rule, ctx: Ctx) {
     (r.conditions.stageId ? ` «${ctx.stages.find((s) => s.id === r.conditions.stageId)?.name ?? "?"}»` : "") +
     (r.conditions.orderStatus ? ` «${orderStatusLabel(String(r.conditions.orderStatus))}»` : "") +
     (r.conditions.minutes ? ` ${r.conditions.minutes} мин` : "") +
+    (r.conditions.silentHours ? ` ${r.conditions.silentHours} ч` : "") +
     (r.conditions.days ? ` ${r.conditions.days} дн.` : "") +
     (r.conditions.holiday ? ` «${ctx.holidays.find((h) => h.id === r.conditions.holiday)?.label ?? r.conditions.holiday}»` : "") +
     (r.conditions.daysBefore ? ` за ${r.conditions.daysBefore} дн.` : "") +
@@ -191,6 +193,20 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               <input type="number" min={1} max={1440} className="input h-10 w-24 text-sm" value={Number(conditions.minutes ?? 15)} onChange={(e) => setConditions({ ...conditions, minutes: Number(e.target.value) })} />
               рабочих минут
             </label>
+          ) : trigger === "message.silent" ? (
+            <label className="flex items-center gap-2 text-sm" title="Часы — календарные. Ответ старше недели после порога правило не берёт">
+              клиент молчит
+              <input
+                type="number"
+                min={1}
+                max={SILENT_LIMITS.hours}
+                className="input h-10 w-24 text-sm"
+                value={Number(conditions.silentHours ?? SILENT_DEFAULTS.hours)}
+                onChange={(e) => setConditions({ ...conditions, silentHours: Number(e.target.value) })}
+                aria-label="Сколько часов клиент молчит после нашего ответа"
+              />
+              часов после нашего ответа
+            </label>
           ) : trigger === "client.inactive" ? (
             <label className="flex items-center gap-2 text-sm">
               не заходит
@@ -321,7 +337,7 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
             <div className="flex items-center gap-2">
               <select className="input h-9 flex-1 text-sm" value={a.type} onChange={(e) => setActions((l) => l.map((x, j) => (j === i ? blank(e.target.value as AutomationActionType) : x)))} aria-label="Действие">
                 {Object.entries(automationActions)
-                  // Правило для менеджеров (забытая сделка) клиенту не пишет: задача, уведомление или готовый текст.
+                  // Правило для менеджеров (забытая сделка, клиент молчит) клиенту не пишет: задача, уведомление или готовый текст.
                   .filter(([k]) => k !== "send_message" || !isStaffOnlyTrigger(trigger) || a.type === k)
                   .map(([k, v]) => (
                     <option key={k} value={k}>

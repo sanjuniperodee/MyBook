@@ -47,6 +47,11 @@ export const crmConversations = pgTable(
     lastMessageText: text("last_message_text").notNull().default(""),
     /** Последнее входящее, ещё без ответа — для SLA «ответить за N минут». */
     awaitingSince: timestamp("awaiting_since", { withTimezone: true }),
+    /**
+     * Последний ответ человека: из CRM или с телефона магазина (эхо). Бот и правила его не двигают. Правило «клиент
+     * молчит после нашего ответа» (automation-6).
+     */
+    lastOutgoingAt: timestamp("last_outgoing_at", { withTimezone: true }),
     /** Бот-квалификатор: номер текущего вопроса; null — не запускался, -1 — закончил или его остановил менеджер. */
     botStep: integer("bot_step"),
     /**
@@ -66,6 +71,8 @@ export const crmConversations = pgTable(
     index("crm_conv_bot_due_idx").on(t.botDueAt).where(sql`${t.botDueAt} is not null`),
     // Правило «клиенту не ответили N минут» (каждую минуту): ждущие ответа, дольше всех ждущие — первыми.
     index("crm_conv_awaiting_idx").on(t.awaitingSince).where(sql`${t.awaitingSince} is not null`),
+    // Правило «клиент молчит после нашего ответа» (раз в 30 минут): наш ответ в окне «N часов назад − неделя».
+    index("crm_conv_last_out_idx").on(t.lastOutgoingAt).where(sql`${t.lastOutgoingAt} is not null`),
     // Переписка сделки и клиента: куда правило пишет о заказе, диалоги карточек сделки и клиента.
     index("crm_conv_deal_idx").on(t.dealId),
     index("crm_conv_client_idx").on(t.clientId),

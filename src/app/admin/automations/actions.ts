@@ -6,7 +6,7 @@ import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
 import { automationTriggers, orderRuleStatuses } from "@/modules/automation/domain/meta";
-import { EVENT_DATE_LIMITS, HOLIDAY_LIMITS, IDLE_LIMITS, isStaffOnlyTrigger } from "@/modules/automation/domain";
+import { EVENT_DATE_LIMITS, HOLIDAY_LIMITS, IDLE_LIMITS, isStaffOnlyTrigger, SILENT_LIMITS } from "@/modules/automation/domain";
 import { dealSources } from "@/shared/domain/dealSources";
 import { admin } from "@/i18n/admin";
 
@@ -42,6 +42,13 @@ const schema = z.object({
     // «Успеть к дате»: порог заполненности книги (пусто — не проверять) и «ничего не оплачено».
     bookBelow: z.union([z.null(), z.coerce.number({ error: admin.bookBelowInvalid }).int(admin.bookBelowInvalid).min(1, admin.bookBelowInvalid).max(100, admin.bookBelowInvalid)]).optional(),
     unpaid: z.union([z.literal(1), z.literal(0), z.null()]).optional(),
+    // «Клиент молчит после нашего ответа»: сколько часов.
+    silentHours: z.coerce
+      .number({ error: admin.silentHoursInvalid(SILENT_LIMITS.hours) })
+      .int(admin.silentHoursInvalid(SILENT_LIMITS.hours))
+      .min(1, admin.silentHoursInvalid(SILENT_LIMITS.hours))
+      .max(SILENT_LIMITS.hours, admin.silentHoursInvalid(SILENT_LIMITS.hours))
+      .optional(),
   }),
   actions: z.array(actionSchema).min(1, "Добавьте хотя бы одно действие").max(6),
   active: z.boolean().default(true),
@@ -49,7 +56,7 @@ const schema = z.object({
   const days = d.conditions.daysBefore;
   if (d.trigger === "deal.event_date_near" && days !== undefined && days > EVENT_DATE_LIMITS.daysBefore)
     ctx.addIssue({ code: "custom", path: ["conditions", "daysBefore"], message: admin.eventDateDaysInvalid(EVENT_DATE_LIMITS.daysBefore) });
-  // Забытая сделка: клиенту не пишем (решение владельца) — только задача, уведомление или готовый текст менеджеру.
+  // Забытая сделка и замолчавший клиент: клиенту не пишем (решение владельца) — задача, уведомление или готовый текст.
   if (isStaffOnlyTrigger(d.trigger) && d.actions.some((a) => a.type === "send_message"))
     ctx.addIssue({ code: "custom", path: ["actions"], message: admin.staffOnlyNoMessage });
 });

@@ -6,6 +6,9 @@ import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMed
 import { readBotState, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
+
+/** Последний ответ человека — не назад во времени (эхо, догнанное сверкой со шлюзом, приходит позже). */
+const lastOutgoing = (at: Date) => sql`greatest(${crmConversations.lastOutgoingAt}, ${at.toISOString()}::timestamptz)`;
 const toConversation = (r: Row): Conversation => ({
   id: r.id,
   channel: r.channel,
@@ -76,7 +79,10 @@ export class DrizzleConversationRepository implements ConversationRepository {
   }
 
   async recordEcho(id: string, text: string, at: Date) {
-    await executor().update(crmConversations).set({ lastMessageAt: at, lastMessageText: text, awaitingSince: null, unread: 0, updatedAt: new Date() }).where(eq(crmConversations.id, id));
+    await executor()
+      .update(crmConversations)
+      .set({ lastMessageAt: at, lastMessageText: text, awaitingSince: null, unread: 0, lastOutgoingAt: lastOutgoing(at), updatedAt: new Date() })
+      .where(eq(crmConversations.id, id));
   }
 
   async recordHistory(id: string, text: string, at: Date) {
@@ -92,8 +98,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
       .set({
         lastMessageAt: at,
         lastMessageText: text,
-        // Автоответ и бот не снимают «ждёт ответа»: клиент всё ещё ждёт менеджера.
-        ...(authorId ? { unread: 0, awaitingSince: null, assigneeId: sql`coalesce(${crmConversations.assigneeId}, ${authorId}::uuid)` } : {}),
+        // Автоответ и бот не снимают «ждёт ответа» и не считаются нашим ответом: клиент всё ещё ждёт менеджера.
+        ...(authorId ? { unread: 0, awaitingSince: null, lastOutgoingAt: lastOutgoing(at), assigneeId: sql`coalesce(${crmConversations.assigneeId}, ${authorId}::uuid)` } : {}),
         updatedAt: at,
       })
       .where(eq(crmConversations.id, id));

@@ -12,6 +12,9 @@ import {
   idleQuery,
   idleSubject,
   relevantConditions,
+  SILENT_LIMITS,
+  silentQuery,
+  silentSubject,
   type AutomationRule,
   type Holiday,
   type RuleAction,
@@ -90,7 +93,7 @@ function setup(
     findOpenDealId: async () => null,
     createDeal: async (input) => (log.push(`deal:${input.source}:${input.title}:${input.automationId}`), { id: "d9", assigneeId: null }),
   };
-  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], idleDeals: async () => [], firedOn: async () => 0, ...opts.scheduled };
+  const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], idleDeals: async () => [], silent: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
   const hours = parseWorkHours(null);
   const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
@@ -722,5 +725,77 @@ describe("Забытая сделка: N дней без активности (a
     expect(log).toContain("notify:m1:Сделка без активности");
     expect(relevantConditions("deal.idle", { days: 500, perDay: 900, stageId: "s1", minutes: 5, hours: "work" })).toEqual({ days: IDLE_LIMITS.days, perDay: IDLE_LIMITS.perDay, stageId: "s1", hours: "work" });
     expect(relevantConditions("deal.idle", {})).toEqual({ days: 3, perDay: 20 });
+  });
+});
+
+describe("Клиент молчит после нашего ответа (automation-6)", () => {
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0055_client_silent.sql"), "utf8");
+  const [, name, trigger, conditions, actions, active] = sql.match(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS/)!;
+  const starter = rule({ id: "silent", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
+  // 19.10.2026 10:00 по Алматы — рабочее время.
+  const oct19 = new Date("2026-10-19T05:00:00Z");
+  const row = (conversationId: string, at: string) => ({ conversationId, dealId: "d1", clientId: "c1", channel: "whatsapp", lastOutgoingAt: new Date(at), date: "18 октября 2026 г." });
+
+  it("стартовое правило приезжает выключенным: сутки молчания, в рабочее время — только задача менеджеру, клиенту не пишет", () => {
+    expect(active).toBe("false");
+    expect(isTrigger(trigger)).toBe(true);
+    expect(sql).toContain(`WHERE "trigger" = '${trigger}'`);
+    expect(starter.conditions).toEqual({ silentHours: 24, hours: "work" });
+    expect(relevantConditions(trigger, starter.conditions)).toEqual(starter.conditions);
+    expect(starter.actions.map((a) => a.type)).toEqual(["create_task"]);
+  });
+
+  it("выборка: наш ответ не позже now − N часов и не раньше недели до этого; часы — 1…168, иначе сутки", async () => {
+    const asked: unknown[] = [];
+    const scheduled = { silent: async (ruleId: string, q: unknown) => (asked.push({ ruleId, ...(q as object) }), []) };
+    await setup([rule({ ...starter, conditions: { silentHours: 6 } })], { now: oct19, scheduled }).engine.runScheduled({ force: true });
+    expect(asked).toEqual([{ ruleId: "silent", before: new Date("2026-10-18T23:00:00Z"), since: new Date("2026-10-11T23:00:00Z") }]);
+    expect(silentQuery({ conditions: { silentHours: 500 } }, oct19).before).toEqual(new Date(oct19.getTime() - SILENT_LIMITS.hours * 3_600_000));
+    expect(silentQuery({ conditions: { silentHours: 0 } }, oct19).before).toEqual(new Date("2026-10-18T05:00:00Z"));
+    expect(relevantConditions("message.silent", { silentHours: 900, minutes: 5, channel: "whatsapp" })).toEqual({ silentHours: SILENT_LIMITS.hours, channel: "whatsapp" });
+  });
+
+  it("задача «написать» ответственному — одна на наш ответ: повторный проход по тому же сообщению второй не ставит; ответили снова и клиент молчит — ещё одна", async () => {
+    let rows = [row("conv7", "2026-10-18T04:00:00.250Z")];
+    const { engine, log, claimed, tasks } = setup([starter], { now: oct19, subject: { assigneeId: "m1" }, scheduled: { silent: async () => rows } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(await engine.runScheduled({ force: true })).toBe(0);
+    rows = [row("conv7", "2026-10-18T06:30:00.000Z")];
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect([...claimed]).toEqual(["silent:conv:conv7:silent:2026-10-18T04:00:00.250Z", "silent:conv:conv7:silent:2026-10-18T06:30:00.000Z"]);
+    // Задача «написать» по диалогу — её закроет ответ клиенту (из CRM или с телефона магазина).
+    expect(tasks.map((t) => [t.kind, t.title, t.assigneeId, t.dealId])).toEqual([
+      ["message", "Напомнить о себе: Айгерим молчит после нашего ответа", "m1", "d1"],
+      ["message", "Напомнить о себе: Айгерим молчит после нашего ответа", "m1", "d1"],
+    ]);
+    expect(log.some((l) => l.startsWith("msg:"))).toBe(false);
+    expect(silentSubject("conv7", new Date("2026-10-18T04:00:00.250Z"))).toBe("conv:conv7:silent:2026-10-18T04:00:00.250Z");
+  });
+
+  it("«только в рабочее время»: ночью выборки нет; сообщение клиенту в правиле (мимо редактора) не уходит", async () => {
+    let calls = 0;
+    const night = setup([starter], { now: oct19, workTime: false, scheduled: { silent: async () => (calls++, [row("conv7", "2026-10-18T04:00:00Z")]) } });
+    expect(await night.engine.runScheduled({ force: true })).toBe(0);
+    expect(calls).toBe(0);
+    const r = rule({ id: "silent", trigger: "message.silent", conditions: {}, actions: [{ type: "send_message", text: "{имя}, вы тут?" }, { type: "notify" }] });
+    const { engine, log } = setup([r], { now: oct19, subject: { assigneeId: "m1" }, scheduled: { silent: async () => [row("conv7", "2026-10-18T04:00:00Z")] } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(log.some((l) => l.startsWith("msg:") || l === "gate")).toBe(false);
+    expect(log).toContain("notify:m1:Клиент молчит после нашего ответа");
+  });
+
+  it("наш ответ — ответ человека: эхо с телефона магазина и ответ из CRM двигают его, бот и входящее — нет", async () => {
+    const chat = chatSetup();
+    await chat.service.ingest(inbound({ externalId: "in-1", text: "Сколько стоит книга?", at: new Date("2026-10-01T06:00:00Z") }));
+    expect(chat.conv().lastOutgoingAt ?? null).toBeNull();
+    await chat.service.send(chat.conv().id, "Здравствуйте! Я помощник", null, "bot");
+    expect(chat.conv().lastOutgoingAt ?? null).toBeNull();
+    await chat.service.ingest(inbound({ externalId: "phone-1", isEcho: true, text: "Добрый день! 15 000 ₸", contactName: "", at: new Date("2026-10-01T06:05:00Z") }));
+    expect(chat.conv().lastOutgoingAt).toEqual(new Date("2026-10-01T06:05:00Z"));
+    chat.setNow(new Date("2026-10-01T07:00:00Z"));
+    await chat.service.send(chat.conv().id, "Подскажу по срокам", "m1");
+    expect(chat.conv().lastOutgoingAt).toEqual(new Date("2026-10-01T07:00:00Z"));
+    await chat.service.ingest(inbound({ externalId: "in-2", text: "Спасибо", at: new Date("2026-10-01T07:10:00Z") }));
+    expect(chat.conv().lastOutgoingAt).toEqual(new Date("2026-10-01T07:00:00Z"));
   });
 });

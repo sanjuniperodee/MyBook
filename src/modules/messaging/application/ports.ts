@@ -18,11 +18,14 @@ export interface ConversationRepository {
    * оно всё то же (since), иначе за это время клиент написал что-то новое.
    */
   dismissAwaiting(id: string, since: Date): Promise<boolean>;
-  /** Менеджер ответил с телефона — клиент больше не ждёт. */
+  /** Менеджер ответил с телефона — клиент больше не ждёт; это наш последний ответ (правило «клиент молчит»). */
   recordEcho(id: string, text: string, at: Date): Promise<void>;
   /** История задним числом: последнее сообщение — только если оно новее записанного; без «непрочитано» и «ждёт ответа». */
   recordHistory(id: string, text: string, at: Date): Promise<void>;
-  /** Исходящее из CRM. Ответ человека снимает «ждёт ответа» и останавливает бота; первый ответивший становится ответственным. */
+  /**
+   * Исходящее из CRM. Ответ человека снимает «ждёт ответа», останавливает бота и становится нашим последним ответом
+   * (правило «клиент молчит»); первый ответивший становится ответственным. Бот и правила (authorId = null) — нет.
+   */
   recordOutgoing(id: string, text: string, at: Date, authorId: string | null): Promise<void>;
   /** Спам: сообщение сохранено, диалог закрыт. */
   closeAsSpam(id: string, text: string, at: Date): Promise<void>;

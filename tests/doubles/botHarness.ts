@@ -17,7 +17,10 @@ export const BOT_CONFIG: BotConfig = {
   ],
 };
 
-export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null };
+export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null; lastOutgoingAt?: Date | null };
+
+/** Последний ответ человека не двигается назад (как greatest в DrizzleConversationRepository). */
+const later = (prev: Date | null | undefined, at: Date) => (prev && prev > at ? prev : at);
 export type Msg = {
   id: string;
   conv: string;
@@ -119,14 +122,18 @@ export function setup(
       Object.assign(c, { awaiting: null, awaitingSince: null });
       return true;
     },
-    recordEcho: async (id, text) => void Object.assign(convs.get(id)!, { unread: 0, awaiting: null, awaitingSince: null, lastText: text }),
+    recordEcho: async (id, text, at) => {
+      const c = convs.get(id)!;
+      Object.assign(c, { unread: 0, awaiting: null, awaitingSince: null, lastText: text, lastOutgoingAt: later(c.lastOutgoingAt, at) });
+    },
     recordHistory: async (id, text, at) => {
       const c = convs.get(id)!;
       if (!c.lastAt || c.lastAt < at) Object.assign(c, { lastText: text, lastAt: at });
     },
-    recordOutgoing: async (id, text, _at, author) => {
-      Object.assign(convs.get(id)!, { lastText: text });
-      if (author) Object.assign(convs.get(id)!, { unread: 0, awaiting: null, awaitingSince: null });
+    recordOutgoing: async (id, text, at, author) => {
+      const c = convs.get(id)!;
+      Object.assign(c, { lastText: text });
+      if (author) Object.assign(c, { unread: 0, awaiting: null, awaitingSince: null, lastOutgoingAt: later(c.lastOutgoingAt, at) });
     },
     closeAsSpam: async (id) => void Object.assign(convs.get(id)!, { closed: true }),
     markRead: async (id) => void Object.assign(convs.get(id)!, { unread: 0 }),

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@/shared/infrastructure/db";
 import { SqlScheduledSource } from "@/modules/automation/infrastructure/persistence";
+import { DrizzleConversationRepository } from "@/modules/messaging/infrastructure/persistence";
 
 /**
  * Выборки правил по времени на PostgreSQL (automation-d4): порядок, исключение объектов, по которым правило уже
@@ -306,6 +307,77 @@ run("automation: выборки правил по времени (PostgreSQL)", 
       // Сделку снова тронули (заметка сотрудника позавчера — уже не забыта), затем затишье — новый subject.
       await q(sql`insert into crm_notes (deal_id, author_id, text, created_at) values (${idle.taskOld}, ${idle.staff}, ${tag}, ${ago(4)})`);
       expect((await idleDeals()).map((r) => r.key)).toEqual(["taskOld", "rule", "system", "quiet"]);
+    });
+  });
+
+  // «Клиент молчит после нашего ответа» (automation-6): before = now − 24 ч, since = before − 7 дней.
+  describe("клиент молчит", () => {
+    const silent: Record<string, string> = {};
+    const repo = new DrizzleConversationRepository();
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
+    const keys = ["silent", "botDone", "replied", "fresh", "old", "awaiting", "bot", "closed", "task", "lost", "blocked", "botOnly"];
+    const query = async (ruleId = ids.rule) =>
+      (await source.silent(ruleId, { before: hoursAgo(24), since: hoursAgo(24 + 7 * 24) })).filter((r) => keys.some((k) => silent[k] === r.conversationId));
+    const silentKeys = async (ruleId = ids.rule) => (await query(ruleId)).map((r) => keys.find((k) => silent[k] === r.conversationId));
+
+    beforeAll(async () => {
+      const make = async (key: string, o: { stage?: string; replyHours?: number | null } = {}) => {
+        const dealId = await one(sql`insert into crm_deals (title, stage_id) values (${tag}, ${o.stage ?? ids.open}) returning id`);
+        silent[`${key}-deal`] = dealId;
+        const id = (silent[key] = await one(sql`insert into crm_conversations (channel, chat_id, contact_name, deal_id) values ('whatsapp', ${`${tag}-silent-${key}`}, ${tag}, ${dealId}) returning id`));
+        // Клиент написал раньше нашего ответа; ответ менеджера — с телефона магазина (эхо).
+        await q(sql`insert into crm_messages (conversation_id, direction, text, status, created_at) values (${id}, 'in', 'вопрос', 'received', ${hoursAgo((o.replyHours ?? 30) + 1).toISOString()}::timestamptz)`);
+        if (o.replyHours !== null) await repo.recordEcho(id, "ответ", hoursAgo(o.replyHours ?? 30));
+        return id;
+      };
+      await make("silent", { replyHours: 40 });
+      // Бот закончил (phase done) — не ведёт.
+      await q(sql`update crm_conversations set bot_state = '{"phase": "done"}'::jsonb where id = ${await make("botDone")}`);
+      // Клиент ответил после нас («спасибо», снятое AI с ожидания): не молчит.
+      await q(sql`insert into crm_messages (conversation_id, direction, text, status, created_at) values (${await make("replied")}, 'in', 'спасибо', 'received', ${hoursAgo(29).toISOString()}::timestamptz)`);
+      await make("fresh", { replyHours: 2 });
+      await make("old", { replyHours: 24 + 8 * 24 });
+      await q(sql`update crm_conversations set awaiting_since = now() where id = ${await make("awaiting")}`);
+      await q(sql`update crm_conversations set bot_state = '{"phase": "asking"}'::jsonb where id = ${await make("bot")}`);
+      await q(sql`update crm_conversations set status = 'closed' where id = ${await make("closed")}`);
+      await make("task");
+      await q(sql`insert into crm_tasks (title, deal_id) values (${tag}, ${silent["task-deal"]})`);
+      await make("lost", { stage: ids.lost });
+      await make("blocked");
+      await q(sql`insert into crm_blocklist (value, reason, note) values (${`${tag}-silent-blocked`}, 'no_marketing', ${tag})`);
+      // Писал только бот: это не наш ответ.
+      const botOnly = await make("botOnly", { replyHours: null });
+      await repo.recordOutgoing(botOnly, "Я помощник", hoursAgo(30), null);
+    });
+
+    it("эхо и ответ из CRM записывают наш последний ответ, бот — нет; время не идёт назад", async () => {
+      const at = async (id: string) => {
+        const [r] = await q<{ at: Date | string | null }>(sql`select last_outgoing_at as at from crm_conversations where id = ${id}`);
+        return r.at === null ? null : new Date(r.at).getTime();
+      };
+      expect(await at(silent.botOnly)).toBeNull();
+      expect(await at(silent.silent)).toBeCloseTo(hoursAgo(40).getTime(), -4);
+      // Эхо, догнанное сверкой позже (старое), ответ не сдвигает назад.
+      await repo.recordEcho(silent.silent, "старое", hoursAgo(50));
+      expect(await at(silent.silent)).toBeCloseTo(hoursAgo(40).getTime(), -4);
+      const staff = await user("silent-staff");
+      await repo.recordOutgoing(silent.fresh, "ответ из CRM", hoursAgo(1), staff);
+      expect(await at(silent.fresh)).toBeCloseTo(hoursAgo(1).getTime(), -4);
+    });
+
+    it("молчат после нашего ответа: дольше всех — первыми; клиент ответил, свежий и старый ответ, ждёт ответа, бот ведёт, закрыт, есть задача, сделка закрыта, стоп-лист — нет", async () => {
+      expect(await silentKeys()).toEqual(["silent", "botDone"]);
+    });
+
+    it("повторный проход по тому же ответу: диалог, по которому правило сработало, не выбирается — subject как в движке; для другого правила — выбирается", async () => {
+      const [first] = await query();
+      expect(first.dealId).toBe(silent["silent-deal"]);
+      await claim(ids.rule, `conv:${first.conversationId}:silent:${first.lastOutgoingAt.toISOString()}`);
+      expect(await silentKeys()).toEqual(["botDone"]);
+      expect(await silentKeys(ids.other)).toEqual(["silent", "botDone"]);
+      // Менеджер написал снова (эхо), клиент снова молчит — новый ответ, правило сработает ещё раз.
+      await repo.recordEcho(silent.silent, "ещё раз", hoursAgo(26));
+      expect(await silentKeys()).toEqual(["botDone", "silent"]);
     });
   });
 });
