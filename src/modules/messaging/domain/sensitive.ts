@@ -70,8 +70,12 @@ export function findSensitive(text: string, allowedPhones: readonly (string | nu
   for (const m of text.matchAll(/(?:https?:\/\/)?(?:[\w-]+\.)*kaspi\.kz\/(?:pay|transfers?|p2p)\S*/gi)) add({ kind: "kaspi", value: m[0] });
 
   // Последовательности цифр с разделителями: «+7 (701) 123-45-67», «4400 4301 2345 6789».
-  // IBAN и ссылки уже найдены: их цифры за телефон не считаем.
-  const rest = text.replace(/\bKZ\s?\d{2}(?:\s?[A-Z0-9]){16}\b/gi, " ").replace(/(?:https?:\/\/)?(?:[\w-]+\.)*kaspi\.kz\/(?:pay|transfers?|p2p)\S*/gi, " ");
+  // IBAN и ссылки уже найдены: их цифры за телефон не считаем. UUID (ссылка на заказ или книгу: /orders/<id>) — не
+  // номер: «…-a7012345678b» иначе читался бы как телефон, а «…-1234-5678…» — как карта.
+  const rest = text
+    .replace(/\bKZ\s?\d{2}(?:\s?[A-Z0-9]){16}\b/gi, " ")
+    .replace(/(?:https?:\/\/)?(?:[\w-]+\.)*kaspi\.kz\/(?:pay|transfers?|p2p)\S*/gi, " ")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, " ");
   for (const m of rest.matchAll(/\+?\d[\d\s().-]{8,30}\d/g)) {
     const digits = digitsOf(m[0]);
     if (digits.length >= 13 && digits.length <= 19 && luhn(digits)) {

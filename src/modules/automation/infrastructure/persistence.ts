@@ -1,6 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
-import { crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, orders, users } from "@/shared/infrastructure/db/schema";
+import { and, asc, desc, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
+import { books, crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, dealInvoices, orders, users } from "@/shared/infrastructure/db/schema";
+import { appLink } from "@/shared/infrastructure/mail";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
 import { messagesFor } from "@/i18n/messages";
@@ -45,19 +46,42 @@ export class DrizzleSubjectLoader implements SubjectLoader {
     const [conv] = ctx.conversationId ? await db.select().from(crmConversations).where(eq(crmConversations.id, ctx.conversationId)).limit(1) : [];
     const [call] = ctx.callId ? await db.select().from(crmCalls).where(eq(crmCalls.id, ctx.callId)).limit(1) : [];
     const orderId = ctx.orderId ?? deal?.orderId;
-    const [order] = orderId ? await db.select({ number: orders.number }).from(orders).where(eq(orders.id, orderId)).limit(1) : [];
+    const [order] = orderId ? await db.select({ id: orders.id, number: orders.number, status: orders.status, trackingNumber: orders.trackingNumber, bookId: orders.bookId }).from(orders).where(eq(orders.id, orderId)).limit(1) : [];
     const clientId = ctx.clientId ?? deal?.clientId ?? conv?.clientId ?? call?.clientId ?? null;
     const [client] = clientId ? await db.select({ name: users.name, managerId: users.managerId, locale: users.locale }).from(users).where(eq(users.id, clientId)).limit(1) : [];
+    const locale = client?.locale === "kk" ? "kk" : "ru";
     return {
       deal: deal ? { id: deal.id, number: deal.number, title: deal.title, assigneeId: deal.assigneeId, orderId: deal.orderId, clientId: deal.clientId, customFields: deal.customFields } : null,
       conversation: conv ? { id: conv.id, assigneeId: conv.assigneeId, contactName: conv.contactName, lastMessageText: conv.lastMessageText, clientId: conv.clientId } : null,
       call: call ? { id: call.id, staffId: call.staffId, clientId: call.clientId } : null,
       orderNumber: order?.number ?? null,
+      trackingNumber: order?.trackingNumber ?? null,
+      links: await this.links(order ?? null, deal?.id ?? null, clientId, locale),
       clientId,
       name: deal?.contactName || conv?.contactName || client?.name || "",
       assigneeId: deal?.assigneeId ?? conv?.assigneeId ?? call?.staffId ?? client?.managerId ?? null,
-      locale: client?.locale === "kk" ? "kk" : "ru",
+      locale,
     };
+  }
+
+  /**
+   * Ссылки на сайт на языке клиента. Книга — книга заказа, иначе последняя книга клиента (books_user_idx). Оплата —
+   * неоплаченный заказ, иначе открытый неистёкший счёт из чата по сделке (deal_invoices_open_idx).
+   */
+  private async links(order: { id: string; status: string; bookId: string } | null, dealId: string | null, clientId: string | null, locale: "ru" | "kk") {
+    const db = executor();
+    const [book] = order ? [{ id: order.bookId }] : clientId ? await db.select({ id: books.id }).from(books).where(eq(books.userId, clientId)).orderBy(desc(books.updatedAt)).limit(1) : [];
+    const unpaid = order?.status === "pending_payment";
+    const [invoice] =
+      !unpaid && dealId
+        ? await db
+            .select({ token: dealInvoices.token })
+            .from(dealInvoices)
+            .where(and(eq(dealInvoices.dealId, dealId), eq(dealInvoices.status, "pending_payment"), gt(dealInvoices.expiresAt, new Date())))
+            .limit(1)
+        : [];
+    const orderUrl = order ? appLink(`/orders/${order.id}`, locale) : null;
+    return { order: orderUrl, book: book ? appLink(`/books/${book.id}`, locale) : null, pay: unpaid ? orderUrl : invoice ? appLink(`/pay/${invoice.token}`, locale) : null };
   }
 
   async managerName(userId: string | null) {

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { uuid } from "@/server/input";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
-import { automationTriggers } from "@/modules/automation/domain/meta";
+import { automationTriggers, orderRuleStatuses } from "@/modules/automation/domain/meta";
 import { HOLIDAY_LIMITS } from "@/modules/automation/domain";
 import { dealSources } from "@/shared/domain/dealSources";
 
@@ -29,6 +29,7 @@ const schema = z.object({
     stageId: optUuid.optional(),
     source: z.union([z.enum(dealSources), z.literal(""), z.null()]).optional(),
     channel: z.string().trim().max(30).optional(),
+    orderStatus: z.union([z.enum(orderRuleStatuses), z.literal(""), z.null()]).optional(),
     minutes: z.coerce.number().int().min(1).max(1440).optional(),
     days: z.coerce.number().int().min(1).max(90).optional(),
     daysBefore: z.coerce.number().int().min(1).max(HOLIDAY_LIMITS.daysBefore).optional(),

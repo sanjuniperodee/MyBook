@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
-import { automationActions, automationHours, automationTriggers, type AutomationActionType } from "@/modules/automation/domain/meta";
-import { templateVars } from "@/shared/domain/templates";
+import { automationActions, automationHours, automationTriggers, orderRuleStatuses, type AutomationActionType } from "@/modules/automation/domain/meta";
+import { ruleTemplateVars } from "@/shared/domain/templates";
+import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import type { RuleAction as AutomationAction } from "@/modules/automation/domain";
 import { cn } from "@/lib/class-names";
@@ -32,6 +33,7 @@ function describe(r: Rule, ctx: Ctx) {
   const t = automationTriggers[r.trigger as keyof typeof automationTriggers]?.label ?? r.trigger;
   const cond =
     (r.conditions.stageId ? ` «${ctx.stages.find((s) => s.id === r.conditions.stageId)?.name ?? "?"}»` : "") +
+    (r.conditions.orderStatus ? ` «${orderStatusLabel(String(r.conditions.orderStatus))}»` : "") +
     (r.conditions.minutes ? ` ${r.conditions.minutes} мин` : "") +
     (r.conditions.days ? ` ${r.conditions.days} дн.` : "") +
     (r.conditions.holiday ? ` «${ctx.holidays.find((h) => h.id === r.conditions.holiday)?.label ?? r.conditions.holiday}»` : "") +
@@ -169,6 +171,15 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 </option>
               ))}
             </select>
+          ) : trigger === "order.status_changed" ? (
+            <select className="input h-10 text-sm" value={String(conditions.orderStatus ?? "")} onChange={(e) => setConditions({ hours: conditions.hours ?? null, orderStatus: e.target.value || null })} aria-label="Статус заказа">
+              <option value="">любой статус</option>
+              {orderRuleStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {orderStatusLabel(s)}
+                </option>
+              ))}
+            </select>
           ) : trigger === "message.unanswered" ? (
             <label className="flex items-center gap-2 text-sm">
               дольше
@@ -263,13 +274,13 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               <>
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Получили ваше сообщение…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст на русском" />
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком (необязательно)" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст на казахском" />
-                <p className="text-xs text-muted">Уйдёт в тот же чат, откуда пришло обращение. Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {templateVars.join(", ")}</p>
+                <p className="text-xs text-muted">Уйдёт в тот же чат, откуда пришло обращение. Клиенту с казахским языком — казахский текст ({"{повод}"} и {"{дата}"} в нём по-казахски), если он заполнен. Переменные: {ruleTemplateVars.join(", ")}</p>
               </>
             ) : a.type === "draft_message" ? (
               <>
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={3} placeholder="Здравствуйте, {имя}! Скоро {повод} — {дата}…" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} aria-label="Текст клиенту на русском" />
                 <textarea className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" rows={2} placeholder="Қазақша мәтін — клиенту с казахским языком" value={a.textKk ?? ""} onChange={(e) => setAction(i, { textKk: e.target.value })} aria-label="Текст клиенту на казахском" />
-                <p className="text-xs text-muted">Клиенту не уходит: текст на языке клиента появится в истории сделки с кнопкой «Открыть в WhatsApp», отправит менеджер. Нужна сделка — поставьте выше «Создать сделку». Переменные: {templateVars.join(", ")}</p>
+                <p className="text-xs text-muted">Клиенту не уходит: текст на языке клиента появится в истории сделки с кнопкой «Открыть в WhatsApp», отправит менеджер. Нужна сделка — поставьте выше «Создать сделку». Переменные: {ruleTemplateVars.join(", ")}</p>
               </>
             ) : a.type === "assign" ? (
               staffSelect(a.userId, (v) => setAction(i, { userId: v }), "по кругу между менеджерами")

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
 import { DEFAULT_HOLIDAYS, type AutomationRule, type Holiday, type RuleSubject } from "@/modules/automation/domain";
 import { addWorkMinutes, parseWorkHours } from "@/shared/domain/schedule";
+import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import { inbound, setup as chatSetup } from "./doubles/botHarness";
 import { setup as clientsSetup } from "./doubles/clients";
+import { admin as orderingAdmin, setup as orderingSetup } from "./doubles/ordering";
 
 const now = new Date("2026-10-01T06:00:00Z");
 
@@ -374,5 +376,82 @@ describe("Задачи правил: срок в рабочем времени, 
     await open("Ответить: Айгерим (бот)", "message");
     await chat.service.send(chat.conv().id, "Подскажу по срокам", "m1");
     expect(state().at(-1)).toEqual(["message", "закрыта", "ответили в чате"]);
+  });
+});
+
+describe("Статус заказа и трек-номер для правил (automation-2, automation-11, automation-d12)", () => {
+  /** Заказ, оплаченный и переданный в печать: дальше — «Отправлен» и трек-номер. */
+  async function inProduction() {
+    const t = orderingSetup();
+    const o = await t.place();
+    await t.svc.confirmPayment({ orderId: o.id, paymentId: null }, orderingAdmin);
+    await t.svc.changeStatus({ orderId: o.id, to: "in_production" }, orderingAdmin);
+    t.uow.published.length = 0;
+    const tracking = () => t.uow.published.filter((e) => e.type === "ordering.tracking_added").map((e) => e.payload as { trackingNumber: string; afterShipping: boolean });
+    return { ...t, id: o.id, tracking };
+  }
+
+  it("трек, вписанный после перевода в «Отправлен», — событие «трек-номер появился»; тот же трек ещё раз — без события", async () => {
+    const t = await inProduction();
+    await t.svc.update({ orderId: t.id, status: "shipped", trackingNumber: "" }, orderingAdmin);
+    expect(t.tracking()).toEqual([]);
+    await t.svc.update({ orderId: t.id, status: "shipped", trackingNumber: " RR123456789KZ " }, orderingAdmin);
+    expect(t.tracking()).toEqual([expect.objectContaining({ trackingNumber: "RR123456789KZ", afterShipping: true })]);
+    await t.svc.update({ orderId: t.id, status: "shipped", trackingNumber: "RR123456789KZ" }, orderingAdmin);
+    expect(t.tracking()).toHaveLength(1);
+    // Исправили опечатку — новый трек, новое событие.
+    await t.svc.update({ orderId: t.id, status: "shipped", trackingNumber: "RR123456780KZ" }, orderingAdmin);
+    expect(t.tracking().map((p) => p.trackingNumber)).toEqual(["RR123456789KZ", "RR123456780KZ"]);
+  });
+
+  it("трек вписали в печати — событие при переводе в «Отправлен» (письмо «Книга в пути» уже с треком: afterShipping = false)", async () => {
+    const t = await inProduction();
+    await t.svc.update({ orderId: t.id, status: "in_production", trackingNumber: "RR123456789KZ" }, orderingAdmin);
+    expect(t.tracking()).toEqual([]);
+    await t.svc.update({ orderId: t.id, status: "shipped", trackingNumber: "RR123456789KZ" }, orderingAdmin);
+    expect(t.tracking()).toEqual([expect.objectContaining({ trackingNumber: "RR123456789KZ", afterShipping: false })]);
+    // Статус и трек одной формой — тоже одно событие.
+    const both = await inProduction();
+    await both.svc.update({ orderId: both.id, status: "shipped", trackingNumber: "CDEK-1029384756" }, orderingAdmin);
+    expect(both.tracking()).toEqual([expect.objectContaining({ trackingNumber: "CDEK-1029384756", afterShipping: false })]);
+  });
+
+  it("события заказа запускают правила со сделкой заказа: статус — один раз на статус, трек — один раз на номер", async () => {
+    const { registerSubscriptions } = await import("@/server/subscriptions");
+    const bus = new InProcessEventBus({ info: () => {}, warn: () => {}, error: () => {} });
+    const runs: [string, unknown][] = [];
+    registerSubscriptions({ bus, automation: { engine: { run: async (trigger: string, ctx: unknown) => void runs.push([trigger, ctx]) } }, sales: { deals: { byOrder: async () => [{ id: "deal-7" }] } } } as never);
+    const t = await inProduction();
+    await t.svc.update({ orderId: t.id, status: "shipped", trackingNumber: "RR123456789KZ" }, orderingAdmin);
+    await bus.publish(t.uow.published);
+    expect(runs).toEqual([
+      ["order.status_changed", { subject: `order:status:${t.id}:shipped`, orderId: t.id, clientId: "user-1", dealId: "deal-7", orderStatus: "shipped" }],
+      ["order.tracking_added", { subject: `order:track:${t.id}:RR123456789KZ`, orderId: t.id, clientId: "user-1", dealId: "deal-7" }],
+    ]);
+  });
+
+  it("условие «статус»: правило на «Отправлен» не срабатывает на «В печати»; откат и повторный перевод клиенту не повторяются", async () => {
+    const shipped = rule({ id: "ship", name: "Отправлена", trigger: "order.status_changed", conditions: { orderStatus: "shipped" }, actions: [{ type: "send_message", text: "Книга отправлена" }] });
+    const { engine, log } = setup([shipped]);
+    await engine.run("order.status_changed", { subject: "order:status:o1:in_production", orderId: "o1", orderStatus: "in_production" });
+    expect(log).toEqual([]);
+    await engine.run("order.status_changed", { subject: "order:status:o1:shipped", orderId: "o1", orderStatus: "shipped" });
+    await engine.run("order.status_changed", { subject: "order:status:o1:shipped", orderId: "o1", orderStatus: "shipped" });
+    expect(log).toEqual(["msg:conv1:Книга отправлена (Отправлена)", "run:ship"]);
+  });
+
+  it("{трек}, {ссылка_на_заказ}, {ссылка_на_книгу}, {ссылка_на_оплату}; {ссылка} — заказ, иначе книга, иначе сайт", async () => {
+    const text = "{имя}, трек {трек}: {ссылка_на_заказ} · книга {ссылка_на_книгу} · оплата {ссылка_на_оплату} · {ссылка}";
+    const track = rule({ id: "track", name: "Трек", trigger: "order.tracking_added", actions: [{ type: "send_message", text }] });
+    const links = { order: "https://mybook.kz/kk/orders/o1", book: "https://mybook.kz/kk/books/b1", pay: null };
+    const withOrder = setup([track], { subject: { trackingNumber: "RR123456789KZ", links } });
+    await withOrder.engine.run("order.tracking_added", { subject: "order:track:o1:RR123456789KZ", orderId: "o1" });
+    expect(withOrder.log[0]).toBe("msg:conv1:Айгерим, трек RR123456789KZ: https://mybook.kz/kk/orders/o1 · книга https://mybook.kz/kk/books/b1 · оплата · https://mybook.kz/kk/orders/o1 (Трек)");
+    const bookOnly = setup([rule({ ...track, actions: [{ type: "send_message", text: "{ссылка}" }] })], { subject: { links: { order: null, book: "https://mybook.kz/books/b1", pay: "https://mybook.kz/pay/t" } } });
+    await bookOnly.engine.run("order.tracking_added", { subject: "x" });
+    expect(bookOnly.log[0]).toBe("msg:conv1:https://mybook.kz/books/b1 (Трек)");
+    const none = setup([rule({ ...track, actions: [{ type: "send_message", text: "{ссылка} {трек}" }] })]);
+    await none.engine.run("order.tracking_added", { subject: "x" });
+    expect(none.log[0]).toBe("msg:conv1:https://mybook.kz (Трек)");
   });
 });

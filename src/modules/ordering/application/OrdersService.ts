@@ -199,7 +199,7 @@ export class OrdersService {
   /** Форма заказа в CRM: трек-номер, статус и комментарий одним действием. */
   async update(cmd: UpdateOrderCommand, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, async (order, now) => {
-      if (cmd.trackingNumber !== undefined) order.setTrackingNumber(cmd.trackingNumber);
+      if (cmd.trackingNumber !== undefined) order.setTrackingNumber(cmd.trackingNumber, actor.label);
       const r = order.changeStatus(cmd.status, actor.label, cmd.note ?? "", now);
       if (r.cancelled) await this.afterCancel(order, r.releasePromo);
     });

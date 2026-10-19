@@ -1,5 +1,19 @@
 import "server-only";
-import { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, type DealInvoiceClaimed, type DealInvoiceExtraMoney, type DealInvoicePaid, type OrderCancelled, type OrderOverpaid, type OrderPaid, type OrderPlaced, type PaymentClaimed, type PostpayDue } from "@/modules/ordering";
+import {
+  DEAL_INVOICE_CLOSE_REASONS,
+  dealInvoiceCancelledNote,
+  type DealInvoiceClaimed,
+  type DealInvoiceExtraMoney,
+  type DealInvoicePaid,
+  type OrderCancelled,
+  type OrderOverpaid,
+  type OrderPaid,
+  type OrderPlaced,
+  type OrderStatusChanged,
+  type PaymentClaimed,
+  type PostpayDue,
+  type TrackingAdded,
+} from "@/modules/ordering";
 import type { UserRegistered } from "@/modules/identity";
 import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
@@ -18,8 +32,33 @@ export function registerSubscriptions(c: Container) {
   const notify = () => import("@/modules/workspace");
 
   // ─── заказы → воронка продаж и правила CRM ───────────────────────────────
+  // Сделка заказа — для правил: сообщение клиенту ищет её переписку, а пропуск пишется заметкой в неё.
+  const orderDeal = async (orderId: string) => (await c.sales.deals.byOrder(orderId))[0]?.id ?? null;
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload, amount: e.payload.amount + (e.payload.prepaid ?? 0), dealId: e.payload.agreementDealId ?? null }).then(() => undefined), "crm.deal.order_created");
-  c.bus.subscribe<OrderPlaced>("ordering.order_placed", async (e) => rules().run("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId }), "crm.automation.order_created");
+  // После привязки заказа к сделке (подписчики — по порядку регистрации).
+  c.bus.subscribe<OrderPlaced>(
+    "ordering.order_placed",
+    async (e) => rules().run("order.created", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId, dealId: await orderDeal(e.payload.orderId) }),
+    "crm.automation.order_created",
+  );
+  // Статус заказа — один раз на статус (откат и повторный перевод клиенту не повторяются); трек — один раз на номер
+  // (исправили опечатку — клиент получит верный).
+  c.bus.subscribe<OrderStatusChanged>(
+    "ordering.order_status_changed",
+    async (e) => {
+      const p = e.payload;
+      await rules().run("order.status_changed", { subject: `order:status:${p.orderId}:${p.to}`, orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId), orderStatus: p.to });
+    },
+    "crm.automation.order_status_changed",
+  );
+  c.bus.subscribe<TrackingAdded>(
+    "ordering.tracking_added",
+    async (e) => {
+      const p = e.payload;
+      await rules().run("order.tracking_added", { subject: `order:track:${p.orderId}:${p.trackingNumber}`, orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId) });
+    },
+    "crm.automation.order_tracking_added",
+  );
   c.bus.subscribe<OrderPaid>(
     "ordering.order_paid",
     async (e) => {

@@ -31,13 +31,18 @@ export type OrderOverpaid = DomainEvent<"ordering.order_overpaid", OrderRef & { 
 /** Заказ на постоплате доставлен, а оплата получена не полностью — ответственному задача «получить постоплату». */
 export type PostpayDue = DomainEvent<"ordering.postpay_due", OrderRef & { outstanding: number }>;
 export type OrderStatusChanged = DomainEvent<"ordering.order_status_changed", OrderRef & { from: OrderStatus; to: OrderStatus; trackingNumber: string | null; actor: string }>;
+/**
+ * Клиент может отследить посылку: заказ перевели в «Отправлен» с трек-номером или отправленному (доставленному) заказу
+ * вписали новый трек. afterShipping — трек появился после отправки: в письме «Книга в пути» его не было.
+ */
+export type TrackingAdded = DomainEvent<"ordering.tracking_added", OrderRef & { trackingNumber: string; afterShipping: boolean; actor: string }>;
 export type OrderCancelled = DomainEvent<"ordering.order_cancelled", OrderRef & { wasPaid: boolean; releasedPromo: boolean; actor: string }>;
 export type PaymentClaimed = DomainEvent<"ordering.payment_claimed", OrderRef>;
 export type GiftCardPurchased = DomainEvent<"ordering.gift_purchased", { giftId: string }>;
 export type GiftCardPaid = DomainEvent<"ordering.gift_paid", { giftId: string; actor: string }>;
 export type GiftPaymentClaimed = DomainEvent<"ordering.gift_payment_claimed", { giftId: string }>;
 
-export type OrderingEvent = DealInvoiceEvent | OrderPlaced | OrderPaid | OrderOverpaid | PostpayDue | OrderStatusChanged | OrderCancelled | PaymentClaimed | GiftCardPurchased | GiftCardPaid | GiftPaymentClaimed;
+export type OrderingEvent = DealInvoiceEvent | OrderPlaced | OrderPaid | OrderOverpaid | PostpayDue | OrderStatusChanged | TrackingAdded | OrderCancelled | PaymentClaimed | GiftCardPurchased | GiftCardPaid | GiftPaymentClaimed;
 
 export const OrderingEvents = {
   orderPlaced: (p: OrderPlaced["payload"]): OrderPlaced => domainEvent("ordering.order_placed", p),
@@ -45,6 +50,7 @@ export const OrderingEvents = {
   orderOverpaid: (p: OrderOverpaid["payload"]): OrderOverpaid => domainEvent("ordering.order_overpaid", p),
   postpayDue: (p: PostpayDue["payload"]): PostpayDue => domainEvent("ordering.postpay_due", p),
   statusChanged: (p: OrderStatusChanged["payload"]): OrderStatusChanged => domainEvent("ordering.order_status_changed", p),
+  trackingAdded: (p: TrackingAdded["payload"]): TrackingAdded => domainEvent("ordering.tracking_added", p),
   orderCancelled: (p: OrderCancelled["payload"]): OrderCancelled => domainEvent("ordering.order_cancelled", p),
   paymentClaimed: (p: PaymentClaimed["payload"]): PaymentClaimed => domainEvent("ordering.payment_claimed", p),
   giftPurchased: (p: GiftCardPurchased["payload"]): GiftCardPurchased => domainEvent("ordering.gift_purchased", p),

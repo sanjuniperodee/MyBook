@@ -84,7 +84,12 @@ export class AutomationEngine {
     return {
       name: s.name,
       order: s.orderNumber ?? null,
-      link: this.app.url,
+      // {ссылка} — самое нужное клиенту: его заказ, иначе его книга, иначе сайт (automation-11).
+      link: s.links?.order || s.links?.book || this.app.url,
+      track: s.trackingNumber ?? "",
+      orderUrl: s.links?.order ?? "",
+      bookUrl: s.links?.book ?? "",
+      payUrl: s.links?.pay ?? "",
       manager: await this.subjects.managerName(s.assigneeId),
       occasion: ctx.occasion ?? "",
       date: ctx.date ?? "",

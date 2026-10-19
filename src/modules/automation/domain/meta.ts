@@ -7,6 +7,14 @@ export const automationTriggers = {
   "call.missed": { label: "Пропущенный звонок", hint: "Входящий звонок, на который никто не ответил" },
   "order.created": { label: "Оформлен заказ", hint: "Клиент оформил заказ на сайте" },
   "order.paid": { label: "Заказ оплачен", hint: "" },
+  "order.status_changed": {
+    label: "Статус заказа изменился",
+    hint: "Условие: статус. Для заказа — один раз на статус: откат и повторный перевод клиенту не повторяются. Трек-номер — {трек}, страница заказа — {ссылка_на_заказ}",
+  },
+  "order.tracking_added": {
+    label: "Заказ отправлен с трек-номером",
+    hint: "Заказ перевели в «Отправлен» с трек-номером или отправленному вписали трек. Новый трек (исправили опечатку) — ещё раз. Трек-номер — {трек}",
+  },
   "client.inactive": { label: "Клиент забросил книгу", hint: "Условие: сколько дней не заходит (есть открытая сделка и черновик)" },
   "occasion.anniversary": {
     label: "Приближается годовщина повода",
@@ -19,6 +27,9 @@ export const automationTriggers = {
 } as const;
 
 export type AutomationTrigger = keyof typeof automationTriggers;
+
+/** Статусы заказа для условия «Статус заказа изменился»: оплату ловит «Заказ оплачен», отмена клиенту не пишется. */
+export const orderRuleStatuses = ["in_production", "shipped", "delivered"] as const;
 export const isTrigger = (t: string): t is AutomationTrigger => Object.prototype.hasOwnProperty.call(automationTriggers, t);
 
 export const automationActions = {

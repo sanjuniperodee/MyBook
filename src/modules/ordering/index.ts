@@ -103,6 +103,7 @@ export class OrderingModule {
     on("ordering.order_placed", this.mailer.onOrderPlaced, "ordering.mail.placed");
     on("ordering.order_paid", this.mailer.onOrderPaid, "ordering.mail.paid");
     on("ordering.order_status_changed", this.mailer.onStatusChanged, "ordering.mail.status");
+    on("ordering.tracking_added", this.mailer.onTrackingAdded, "ordering.mail.tracking");
     on("ordering.order_cancelled", this.mailer.onOrderCancelled, "ordering.mail.cancelled");
     on("ordering.order_cancelled", (e) => this.kaspi.cancelOpenFor({ kind: "order", id: e.payload.orderId }), "ordering.kaspi.cancel_open");
     // Счёт из чата закрыт без оплаты — ждущую попытку Kaspi по нему отменяем сразу (cancelOpenFor сначала сверяет с Kaspi).

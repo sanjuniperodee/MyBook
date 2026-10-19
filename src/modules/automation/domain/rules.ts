@@ -61,6 +61,8 @@ export interface TriggerContext {
   stageId?: string | null;
   source?: string | null;
   channel?: string | null;
+  /** Новый статус заказа (order.status_changed). */
+  orderStatus?: string | null;
   /** Сейчас рабочее время отдела продаж (для условия «только в рабочее / вне рабочего»). */
   workTime?: boolean;
   /** Повод и дата — для повторных продаж: по-русски, для задач, сделок и уведомлений сотрудникам. */
@@ -72,12 +74,12 @@ export interface TriggerContext {
   recipient?: string | null;
 }
 
-/** Условия: этап, источник, канал, рабочее время. Пустое условие — подходит всё. */
+/** Условия: этап, источник, канал, статус заказа, рабочее время. Пустое условие — подходит всё. */
 export function matches(rule: Pick<AutomationRule, "conditions">, ctx: TriggerContext) {
   const c = rule.conditions ?? {};
   if (c.hours === "work" && ctx.workTime === false) return false;
   if (c.hours === "off" && ctx.workTime !== false) return false;
-  for (const key of ["stageId", "source", "channel"] as const) {
+  for (const key of ["stageId", "source", "channel", "orderStatus"] as const) {
     const want = c[key];
     if (want && String(want) !== String(ctx[key] ?? "")) return false;
   }
@@ -87,10 +89,11 @@ export function matches(rule: Pick<AutomationRule, "conditions">, ctx: TriggerCo
 /** Условия, которые имеют смысл для события (остальные из формы отбрасываем). */
 export function relevantConditions(
   trigger: string,
-  c: { stageId?: string | null; source?: string | null; channel?: string; minutes?: number; days?: number; daysBefore?: number; windowDays?: number; perDay?: number; holiday?: string | null; hours?: string | null },
+  c: { stageId?: string | null; source?: string | null; channel?: string; orderStatus?: string | null; minutes?: number; days?: number; daysBefore?: number; windowDays?: number; perDay?: number; holiday?: string | null; hours?: string | null },
 ) {
   const out: Record<string, string | number | null> = {};
   if (trigger === "deal.stage_changed" && c.stageId) out.stageId = c.stageId;
+  if (trigger === "order.status_changed" && c.orderStatus) out.orderStatus = c.orderStatus;
   if (trigger === "deal.created" && c.source) out.source = c.source;
   if (trigger.startsWith("message.") && c.channel) out.channel = c.channel;
   if (trigger === "message.unanswered") out.minutes = c.minutes ?? 15;
@@ -129,6 +132,13 @@ export interface RuleSubject {
   conversation?: { id: string; assigneeId: string | null; contactName: string; lastMessageText: string; clientId: string | null } | null;
   call?: { id: string; staffId: string | null; clientId: string | null } | null;
   orderNumber?: number | null;
+  /** Трек-номер посылки заказа: {трек}. */
+  trackingNumber?: string | null;
+  /**
+   * Ссылки на сайт на языке клиента: заказ ({ссылка_на_заказ}), книга — заказа или последняя книга клиента
+   * ({ссылка_на_книгу}), оплата — неоплаченный заказ или открытый счёт из чата ({ссылка_на_оплату}).
+   */
+  links?: { order: string | null; book: string | null; pay: string | null };
   clientId: string | null;
   /** Имя клиента для шаблонов. */
   name: string;
