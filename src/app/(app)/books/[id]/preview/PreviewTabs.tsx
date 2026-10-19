@@ -6,7 +6,7 @@ import { Box, FileText } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import type { FlipbookData } from "@/components/book3d/pages";
 import { supportsWebGL } from "@/components/book3d/webgl/support";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { PreviewFrame } from "./PreviewFrame";
 
 const placeholder = () => <div className="mx-auto aspect-[5/4] w-full max-w-3xl animate-pulse rounded-3xl bg-cream" aria-hidden />;

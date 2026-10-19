@@ -1,4 +1,5 @@
 import { cropSvg, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 
 export { cropSvg };
 import { coverSpreadGeometry, type BookFormat } from "@/lib/book/formats";
@@ -15,12 +16,26 @@ export interface CoverArt {
   spine: string;
 }
 
-/** Арт обложки по сторонам: из одной развёртки, обрезанной под лицо, оборот и корешок. photoHref — data-URL фото клиента. */
-export function buildCoverArt(template: CoverTemplate, format: BookFormat, pageCount: number, dims: BookDims, photoHref?: string): CoverArt {
+/**
+ * Арт обложки по сторонам: из одной развёртки, обрезанной под лицо, оборот и корешок. photos — data-URL фото клиента
+ * по местам шаблона; imageHref — data-URL снимка обложки на готовом снимке (картинка-SVG не загружает внешние файлы;
+ * пока снимок грузится — подложка); plainBack — оборот без повтора композиции лица (под «Полароидами»);
+ * samples — снимки-примеры обложки с фото клиента (data-URL по ключу) для пустых мест.
+ */
+export function buildCoverArt(
+  template: CoverTemplate,
+  format: BookFormat,
+  pageCount: number,
+  dims: BookDims,
+  opts: { photos?: (PhotoRef | undefined)[]; imageHref?: string; plainBack?: boolean; samples?: Record<string, string> } = {},
+): CoverArt {
   const g = coverSpreadGeometry(format, pageCount);
   const uid = `bo${template.id}${format.id}`;
-  const flat = renderCoverSvg(template, g, { uid });
-  const photo = template.requiresPhoto && photoHref ? renderCoverSvg(template, g, { uid: `${uid}p`, photoHref }) : null;
+  const { photos, plainBack = false, samples } = opts;
+  // Снимки-примеры (data-URL) — в пустые места под фото; без них рисуется пейзаж.
+  const sampleHref = samples ? (k: string) => samples[k] ?? "" : undefined;
+  const flat = renderCoverSvg(template, g, { uid, imageHref: opts.imageHref ?? (template.photo ? "data:," : undefined), sampleHref }, { plainBack });
+  const photo = template.requiresPhoto && photos?.some(Boolean) ? renderCoverSvg(template, g, { uid: `${uid}p`, photos, sampleHref }) : null;
   const { front, back, spine } = dims.rects;
   return {
     frontInline: photo ? cropSvg(photo, front, dims.spread) : null,

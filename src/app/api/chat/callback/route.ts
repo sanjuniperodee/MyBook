@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, checkOrigin, HttpError } from "@/server/api";
 import { getCurrentUser } from "@/server/auth";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { normalizePhone } from "@/shared/domain/phone";
 import { container } from "@/server/container";
 
@@ -19,7 +19,7 @@ export const POST = api(async (req) => {
   if (!(await container().messaging.widgetConfig()).enabled) throw new HttpError(403, "widgetOff");
   const body = schema.parse(await req.json());
   if (normalizePhone(body.phone).length < 10) throw new HttpError(400, "widgetPhone");
-  if (!await rateLimit(`callback:${await clientIp()}`, 5, 3600_000)) throw new HttpError(429, "widgetRate");
+  if (!await rateLimit(`callback:${await trustedClientIp()}`, 5, 3600_000)) throw new HttpError(429, "widgetRate");
   const user = await getCurrentUser();
   await container().messaging.site.requestCallback({ ...body, userId: user?.role === "user" ? user.id : null });
   return NextResponse.json({ ok: true });

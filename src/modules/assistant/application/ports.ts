@@ -10,8 +10,32 @@ export type Usage = { input: number; output: number };
 export interface LanguageModel {
   /** Какая модель сейчас отвечает — для подписей в интерфейсе. */
   describe(): Promise<{ provider: AiProvider; label: string; model: string }>;
-  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown> }): Promise<{ text: string; usage: Usage }>;
+  /**
+   * timeoutMs — для быстрых запросов (бот в чате): без повторов, по истечении — ошибка. По умолчанию 90 секунд.
+   * cachePrefix — стабильное начало system (одинаковое между запросами): провайдер с кэшем префикса (Claude) хранит его
+   * и не тарифицирует заново; должно быть именно началом строки system.
+   */
+  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown>; timeoutMs?: number; cachePrefix?: string }): Promise<{ text: string; usage: Usage }>;
   configured(): Promise<boolean>;
+}
+
+/** Сообщение диалога в том виде, как его отдаёт переписка (контекст Messaging). */
+export interface ConversationMessage {
+  direction: "in" | "out";
+  type: string;
+  text: string;
+  mediaUrl: string | null;
+  /** Вложение лежит в шлюзе WhatsApp (mediaUrl тогда пустой). */
+  gateway?: boolean;
+  /** Внутренняя заметка сотрудника — клиент её не видел. */
+  internal?: boolean;
+  author: string | null;
+  at: string;
+}
+
+/** Переписка с клиентом (контекст Messaging): последние сообщения диалога по порядку. */
+export interface ConversationReader {
+  messages(conversationId: string, limit: number): Promise<ConversationMessage[]>;
 }
 
 export interface AssistantData {

@@ -1,25 +1,116 @@
-import type { Clock, Logger, UnitOfWork } from "@/shared/application";
-import { DealsService, PipelinesService, SiteFunnelService } from "./application";
-import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress } from "./infrastructure/adapters";
+import type { Clock, Logger, SettingsReader, UnitOfWork, WorkSchedule } from "@/shared/application";
+import { readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
+import { DealsService, LeadRoutingService, PaymentIntakeService, PipelinesService, SiteFunnelService, noDealInvoices, type DealInvoicesPort, type PaymentEffects, type RoutingNotifier } from "./application";
+import { storeTimeZone } from "@/shared/domain/time";
+import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
+import { agreementForClient, attachAgreementOrder, dealMoney } from "./infrastructure/agreements";
+import { setClientDealsAttribution } from "./infrastructure/attribution";
+import { dealAgreedGifts, dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedGifts, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
+import { DealPayments } from "./infrastructure/payments";
+import { DealReceipts } from "./infrastructure/receipts";
 import { DrizzleDealRepository, DrizzleFunnelRepository, DrizzlePipelineRepository, DrizzleSalesQueries, DrizzleSavedViews, drizzlePlans } from "./infrastructure/persistence";
 
-export { currentMonth, shiftMonth, type PlanProgress, dealSourceLabels, dealSources, sourceFromChannel, SalesError, type DealCreated, type DealStageChanged, type DealAssigned, type SalesEvent, type CustomValues, type DealSource, type StageMilestone } from "./domain";
-export type { DealView, NewDeal } from "./application";
+export { currentMonth, shiftMonth, type PlanProgress, sourceFromChannel, type DealCreated, type DealStageChanged, type DealAssigned, type DealClosed, type SalesEvent } from "./domain";
+export type { DealView, NewDeal, DealInvoicesPort } from "./application";
+export type { ReceiptRow } from "./infrastructure/receipts";
+export type { DealAgreement } from "./infrastructure/agreements";
+export type { PaymentRow } from "./infrastructure/payments";
+export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "./domain";
 
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {
   readonly deals: DealsService;
+  /** Круг: раздача ночных заявок и передача не взятых вовремя (проход планировщика раз в минуту). */
+  readonly routing: LeadRoutingService;
   readonly funnel: SiteFunnelService;
   readonly queries = new DrizzleSalesQueries();
   readonly pipelines: PipelinesService;
   readonly savedViews = new DrizzleSavedViews();
   readonly plans = drizzlePlans;
+  /** Чеки об оплате по сделкам (файлы и метаданные). */
+  readonly receipts = new DealReceipts();
+  /** Принятые деньги по сделкам, оформленным вручную (предоплата, доплаты) — источник выручки наряду с заказами. */
+  readonly payments = new DealPayments();
+  /** Принять платёж или возврат с чеком: деньги, чек, заметка, журнал, письмо клиенту. */
+  readonly intake: PaymentIntakeService;
+  /** Договорённая цена и предоплата клиента по ручной сделке — их применяет оформление заказа. */
+  readonly agreementFor = agreementForClient;
+  /** Заказ по договорённости привязывается к её сделке в транзакции оформления (счета из чата сразу видят заказ). */
+  readonly attachAgreementOrder = attachAgreementOrder;
+  /** Деньги клиента по сделке и действует ли по ней договорённость (то же правило, что у agreementFor). */
+  readonly money = dealMoney;
+  /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
+  readonly agreedPlan = { set: setDealAgreedPlan, get: dealAgreedPlan };
+  /** Что по договорённости бесплатно (упаковка, доставка): в заказе по ней они стоят 0 ₸, если клиент их выберет. */
+  readonly agreedGifts = { set: setDealAgreedGifts, get: dealAgreedGifts };
 
-  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger }) {
+  /**
+   * Сменить бесплатное по договорённости с записью в ленту сделки (только если изменилось). false — по сделке уже заказ
+   * (договорённость закрыта) или сделки нет.
+   */
+  async changeAgreedGifts(dealId: string, gifts: AgreementGift[], actorId: string | null, via: "invoice" | "deal" = "deal"): Promise<boolean> {
+    const before = await dealAgreedGifts(dealId);
+    const next = readGifts(gifts);
+    if (before.join() === next.join()) return true;
+    if (!(await setDealAgreedGifts(dealId, next))) return false;
+    const deal = await this.deals.findById(dealId);
+    const names = { giftwrap: "подарочная упаковка", delivery: "доставка" } as const;
+    const list = (g: AgreementGift[]) => (g.length ? g.map((x) => names[x]).join(", ") : "ничего");
+    if (deal) await this.deals.note(deal, `Бесплатно по договорённости: ${list(before)} → ${list(next)}${via === "invoice" ? " (счёт из чата)" : ""}`, actorId, "system");
+    return true;
+  }
+  /** Пакет книг: клиент оплатил сразу несколько — по сделке на книгу. */
+  readonly batch = { set: setDealBatch, of: dealBatch, money: dealBatchMoney };
+  /**
+   * Сделка, по которой выставлен счёт на несколько книг, становится пакетом: копии сделки (тот же клиент, тариф, цена, этап) —
+   * по одной на остальные книги. Деньги остаются в сделке счёта; цена и предоплата делятся между книгами при расчёте договорённости.
+   * Сделка уже пакет — ничего не делает.
+   */
+  async splitIntoBatch(dealId: string, count: number, actorId: string | null): Promise<void> {
+    if (count < 2) return;
+    const deal = await this.deals.findById(dealId);
+    if (!deal || (await dealBatchMoney(dealId)).size) return;
+    const plan = await dealAgreedPlan(dealId);
+    const gifts = await dealAgreedGifts(dealId);
+    const siblings: { id: string }[] = [];
+    for (let i = 1; i < count; i++) {
+      const copy = await this.deals.create({
+        title: deal.title,
+        source: "manual",
+        clientId: deal.clientId,
+        contactName: deal.contactName,
+        contactPhone: deal.contactPhone,
+        contactEmail: deal.contactEmail,
+        amount: deal.amount,
+        assigneeId: deal.assigneeId,
+        createdById: actorId,
+        stageId: deal.stageId,
+        customFields: deal.customFields,
+        utm: deal.utm,
+      });
+      if (plan) await setDealAgreedPlan(copy.id, plan);
+      if (gifts.length) await setDealAgreedGifts(copy.id, gifts);
+      siblings.push({ id: copy.id });
+    }
+    await markBatchMembers(dealId, crypto.randomUUID(), siblings);
+  }
+
+  /** Перенести вручную выбранный канал клиента на его сделки (у которых нет настоящих UTM-меток). */
+  readonly setClientAttribution = setClientDealsAttribution;
+
+  /**
+   * Настройки CRM и график работы (распределение заявок по кругу) — порты рабочего пространства; счета из чата (слияние,
+   * удаление сделки) — порт контекста «Заказы».
+   */
+  constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects; notifier: RoutingNotifier; invoices?: DealInvoicesPort }) {
+    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects, deps.uow);
     const repo = new DrizzleDealRepository();
     const funnels = new DrizzleFunnelRepository();
-    this.deals = new DealsService(repo, funnels, drizzleClients, crmSalesSettings, roundRobinRouter, deps.uow, deps.clock);
+    const settings = crmSalesSettings(deps.settings);
+    const router = roundRobinRouter(deps.schedule, storeTimeZone);
+    this.deals = new DealsService(repo, funnels, drizzleClients, settings, router, deps.uow, deps.clock, deps.invoices ?? noDealInvoices, this.agreedPlan);
+    this.routing = new LeadRoutingService(repo, router, settings, deps.notifier, deps.uow, deps.clock, deps.logger);
     this.pipelines = new PipelinesService(new DrizzlePipelineRepository(), () => this.deals.defaultPipelineId());
-    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, crmSalesSettings, sqlBookProgress, this.deals, deps.logger);
+    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, settings, sqlBookProgress, this.deals, deps.logger, dealMoney);
   }
 }

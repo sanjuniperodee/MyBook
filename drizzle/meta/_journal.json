@@ -162,6 +162,272 @@
       "when": 1791372533985,
       "tag": "0022_back_cover",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791553896318,
+      "tag": "0023_cover_photo_slots",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791633390594,
+      "tag": "0024_client_provisioning",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791633836732,
+      "tag": "0025_crm_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791635066325,
+      "tag": "0026_book_photo_frames",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791636656145,
+      "tag": "0027_crm_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791639100627,
+      "tag": "0028_order_prepaid",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791811010008,
+      "tag": "0029_deal_agreed_plan",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791899903333,
+      "tag": "0030_payment_invoices",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792167896705,
+      "tag": "0031_deal_routing",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792169668464,
+      "tag": "0032_contacts_hidden",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792172855170,
+      "tag": "0033_order_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792177752307,
+      "tag": "0034_deal_invoices",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792181204404,
+      "tag": "0035_book_modes",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792185389133,
+      "tag": "0036_bot_autoresponder",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792203092930,
+      "tag": "0037_old_payments_reviewed",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792255929552,
+      "tag": "0038_deal_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792258260741,
+      "tag": "0039_invoice_books_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792261955156,
+      "tag": "0040_task_reminders",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792292253304,
+      "tag": "0041_chat_message_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792337572560,
+      "tag": "0042_agreement_gifts",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792340066286,
+      "tag": "0043_delivery_abroad",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792403262034,
+      "tag": "0044_answer_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792410810068,
+      "tag": "0045_book_toc",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792414674710,
+      "tag": "0046_names_on_cover",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792427017575,
+      "tag": "0047_question_page_break",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792427018575,
+      "tag": "0048_discount_unlimited",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792427019575,
+      "tag": "0049_no_marketing",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792427020575,
+      "tag": "0050_rule_sending",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1792427021575,
+      "tag": "0051_task_follow_deal",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1792427022575,
+      "tag": "0052_rule_selections",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1792427023575,
+      "tag": "0053_holiday_rule",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1792427024575,
+      "tag": "0054_deal_automation",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1792427025575,
+      "tag": "0055_order_chat_lookup",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792427026575,
+      "tag": "0056_order_status_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1792427027575,
+      "tag": "0057_event_date_rule",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792427028575,
+      "tag": "0058_idle_deals",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792427029575,
+      "tag": "0059_client_silent",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792427030575,
+      "tag": "0060_bot_turn_trace",
+      "breakpoints": true
     }
   ]
 }

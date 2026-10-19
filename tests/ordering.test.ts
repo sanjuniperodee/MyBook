@@ -1,195 +1,153 @@
-import { describe, expect, it } from "vitest";
-import type { Actor, Clock, EventBus, UnitOfWork } from "@/shared/application";
-import type { AggregateRoot, DomainEvent } from "@/shared/domain";
-import { GiftCard, Order, OrderingError, PromoCode, type GiftCardRepository, type OrderRepository, type PromoCodeRepository } from "@/modules/ordering/domain";
+import { beforeEach, describe, expect, it } from "vitest";
+import { useFixedDelivery } from "./doubles/delivery";
+import type { EventBus } from "@/shared/application";
+import { canDownloadFile, filePermission, isPaid, Order, OrderingError, PromoCode } from "@/modules/ordering/domain";
+import { ORDER_STATUSES } from "@/shared/domain/orders";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
-import { OrdersService } from "@/modules/ordering/application/OrdersService";
 import { PromoService } from "@/modules/ordering/application/PromoService";
-import type { BookGateway, PeopleGateway } from "@/modules/ordering/application/ports";
+import { addPromo, admin, clock, FakeUow, MemGifts, MemOrders, MemPromos, setup } from "./doubles/ordering";
 
-// ─── тестовые двойники ─────────────────────────────────────────────────────
-
-const clock = (iso = "2026-10-01T10:00:00Z"): Clock & { set(iso: string): void } => {
-  let now = new Date(iso);
-  return { now: () => new Date(now), set: (v) => (now = new Date(v)) };
-};
-
-/** Unit of Work в памяти: откат = восстановление снимка репозиториев, события — после «коммита». */
-class FakeUow implements UnitOfWork {
-  published: DomainEvent[] = [];
-  private tracked = new Set<AggregateRoot<object, string | number>>();
-  constructor(private readonly stores: { snapshot(): unknown; restore(s: unknown): void }[]) {}
-  async run<T>(work: () => Promise<T>): Promise<T> {
-    const snaps = this.stores.map((s) => s.snapshot());
-    try {
-      const v = await work();
-      for (const a of this.tracked) this.published.push(...a.pullEvents());
-      return v;
-    } catch (e) {
-      this.stores.forEach((s, i) => s.restore(snaps[i]));
-      throw e;
-    } finally {
-      this.tracked.clear();
-    }
-  }
-  track(...a: AggregateRoot<object, string | number>[]) {
-    a.forEach((x) => this.tracked.add(x));
-  }
-  types() {
-    return this.published.map((e) => e.type);
-  }
-}
-
-class MemOrders implements OrderRepository {
-  rows = new Map<string, ReturnType<Order["snapshot"]>>();
-  history: { orderId: string; note: string; status: string | null }[] = [];
-  seq = 100;
-  snapshot = () => ({ rows: new Map(this.rows), history: [...this.history], seq: this.seq });
-  restore = (s: unknown) => Object.assign(this, structuredClone(s));
-  async nextIdentity() {
-    return { id: crypto.randomUUID(), number: ++this.seq };
-  }
-  private load(id: string) {
-    const r = this.rows.get(id);
-    if (!r) return null;
-    const { id: _id, ...props } = structuredClone(r);
-    return Order.restore(_id, props);
-  }
-  async findById(id: string) {
-    return this.load(id);
-  }
-  async findByNumber(n: number) {
-    const r = [...this.rows.values()].find((x) => x.number === n);
-    return r ? this.load(r.id) : null;
-  }
-  async findOwned(id: string, userId: string) {
-    const o = this.load(id);
-    return o && o.userId === userId ? o : null;
-  }
-  async hasOtherActiveOrders(bookId: string, except: string) {
-    return [...this.rows.values()].some((r) => r.bookId === bookId && r.id !== except && r.status !== "cancelled");
-  }
-  async hasPaidOrders(userId: string) {
-    return [...this.rows.values()].some((r) => r.userId === userId && r.paidAt && r.status !== "cancelled");
-  }
-  async add(o: Order) {
-    this.rows.set(o.id, o.snapshot());
-    this.flush(o);
-  }
-  async save(o: Order) {
-    this.rows.set(o.id, o.snapshot());
-    this.flush(o);
-  }
-  private flush(o: Order) {
-    for (const h of o.pullHistory()) this.history.push({ orderId: o.id, note: h.note, status: h.status });
-  }
-}
-
-class MemPromos implements PromoCodeRepository {
-  rows = new Map<string, ReturnType<PromoCode["snapshot"]>>();
-  snapshot = () => new Map(this.rows);
-  restore = (s: unknown) => (this.rows = structuredClone(s) as typeof this.rows);
-  nextId = () => crypto.randomUUID();
-  private load(r?: ReturnType<PromoCode["snapshot"]>) {
-    if (!r) return null;
-    const { id, ...p } = structuredClone(r);
-    return PromoCode.restore(id, p);
-  }
-  async findByCode(code: string) {
-    return this.load([...this.rows.values()].find((r) => r.code === code.trim().toUpperCase()));
-  }
-  async findById(id: string) {
-    return this.load(this.rows.get(id));
-  }
-  async findByOwner(ownerId: string) {
-    return this.load([...this.rows.values()].find((r) => r.ownerId === ownerId));
-  }
-  async tryReserve(id: string, now: Date) {
-    const r = this.rows.get(id);
-    if (!r || !r.active || (r.maxUses !== null && r.usedCount >= r.maxUses) || (r.expiresAt && r.expiresAt <= now)) return false;
-    this.rows.set(id, { ...r, usedCount: r.usedCount + 1 });
-    return true;
-  }
-  async release(code: string) {
-    const r = [...this.rows.values()].find((x) => x.code === code);
-    if (r) this.rows.set(r.id, { ...r, usedCount: Math.max(0, r.usedCount - 1) });
-  }
-  async add(p: PromoCode) {
-    if ([...this.rows.values()].some((r) => r.code === p.code)) return false;
-    this.rows.set(p.id, p.snapshot());
-    return true;
-  }
-  async save(p: PromoCode) {
-    this.rows.set(p.id, p.snapshot());
-  }
-}
-
-class MemBooks implements BookGateway {
-  books = new Map<string, { userId: string; status: "draft" | "ordered"; blocking: string | null }>();
-  snapshot = () => new Map([...this.books].map(([k, v]) => [k, { ...v }]));
-  restore = (s: unknown) => (this.books = s as typeof this.books);
-  async checkoutInfo(bookId: string, userId: string) {
-    const b = this.books.get(bookId);
-    return b && b.userId === userId ? { status: b.status, blockingIssue: b.blocking, estimatedPages: 64 } : null;
-  }
-  async lockForOrder(bookId: string) {
-    const b = this.books.get(bookId);
-    if (!b || b.status !== "draft") return false;
-    b.status = "ordered";
-    return true;
-  }
-  async unlock(bookId: string) {
-    const b = this.books.get(bookId);
-    if (b) b.status = "draft";
-  }
-  async toggleEditing(bookId: string) {
-    const b = this.books.get(bookId)!;
-    b.status = b.status === "draft" ? "ordered" : "draft";
-    return b.status;
-  }
-}
-
-const people: PeopleGateway = { rememberPhoneIfMissing: async () => {}, staffLabel: async (id) => (id === "staff-1" ? "Айгерим" : null) };
-const admin: Actor = { label: "admin:a@b.kz" };
-
-function setup() {
-  const orders = new MemOrders();
-  const promos = new MemPromos();
-  const books = new MemBooks();
-  const c = clock();
-  const uow = new FakeUow([orders, promos, books]);
-  const svc = new OrdersService(orders, promos, books, people, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, uow, c);
-  books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });
-  const place = (extra: Partial<Parameters<OrdersService["place"]>[0]> = {}) =>
-    svc.place({
-      userId: "user-1",
-      userPhone: null,
-      locale: "ru",
-      bookId: "book-1",
-      plan: "hardcover",
-      quantity: 1,
-      delivery: { method: "courier", city: "Алматы", address: "Абая, 1", postalCode: null },
-      addons: [],
-      contact: { name: "Айжан", phone: "+77010000000", email: "a@b.kz" },
-      ...extra,
-    });
-  return { orders, promos, books, c, uow, svc, place };
-}
-
-const addPromo = async (promos: MemPromos, code: string, input: Partial<{ kind: "percent" | "fixed"; value: number; maxUses: number | null; expiresAt: Date | null }> = {}) => {
-  const p = PromoCode.create(promos.nextId(), { code, kind: input.kind ?? "percent", value: input.value ?? 10, maxUses: input.maxUses ?? null, expiresAt: input.expiresAt ?? null }, new Date("2026-01-01"));
-  await promos.add(p);
-  return p;
-};
+// Расчёт с платной доставкой: цены, вписанные владельцем (по умолчанию доставка рассчитывается индивидуально).
+beforeEach(useFixedDelivery);
 
 // ─── домен ─────────────────────────────────────────────────────────────────
+
+describe("Ordering: договорённая цена и предоплата по ручной сделке", () => {
+  const deal = (agreedTotal: number, prepaid: number) => ({ dealId: "d1", dealNumber: 6, agreedTotal, prepaid, deadline: null, plan: null as string | null });
+
+  it("цена по договорённости: скидка до согласованной суммы, предоплата вычтена из «к оплате»", async () => {
+    const { place, setAgreement, orders, uow } = setup();
+    setAgreement(deal(20000, 10000));
+    const o = await place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    // каталог: твёрдая обложка 30 000, самовывоз → за книгу по договорённости 20 000, из них внесено 10 000
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, discountAmount: 10000, prepaidAmount: 10000, amount: 10000 });
+    expect(o.status).toBe("pending_payment");
+    expect(orders.history[0].note).toContain("по договорённости с менеджером: итог 20");
+    expect(uow.types()).toEqual(["ordering.order_placed"]);
+    expect(o.ref()).toMatchObject({ amount: 10000, prepaid: 10000 });
+  });
+
+  it("доставка и допы считаются сверху договорённой цены книги; предоплата не покрывает доставку", async () => {
+    const { place, setAgreement, svc } = setup();
+    setAgreement(deal(20000, 10000));
+    const o = await place({ addons: ["giftwrap"], delivery: { method: "courier", city: "Алматы", address: "ул. Абая 1", postalCode: null } });
+    // книга 30 000 → 20 000 по договорённости; сверху доставка 2 000 и упаковка 5 000; внесено 10 000
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, discountAmount: 10000, deliveryAmount: 2000, addonsAmount: 5000, prepaidAmount: 10000, amount: 17000 });
+    // книга оплачена полностью, но доставка — нет: заказ ждёт оплаты, в работу сам не уходит
+    const full = setup();
+    full.setAgreement(deal(20000, 20000));
+    const f = await full.place({ delivery: { method: "courier", city: "Алматы", address: "ул. Абая 1", postalCode: null } });
+    expect((await full.svc.findByNumber(f.number))!.snapshot()).toMatchObject({ status: "pending_payment", price: { deliveryAmount: 2000, prepaidAmount: 20000, amount: 2000 } });
+    void svc;
+  });
+
+  it("тариф договорённости фиксирован: по договорённости заказ идёт на него, «с нуля» — на любой; доп. экземпляры сверху", async () => {
+    const a = setup();
+    a.setAgreement({ ...deal(9000, 5000), plan: "digital" });
+    // клиент (или подмена формы) просит печатный тариф, а договорились на электронный — заказ оформляется на электронный
+    const agreed = await a.place({ plan: "hardcover", delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect(agreed.snapshot().plan).toBe("digital");
+    expect(agreed.snapshot().price).toMatchObject({ itemsAmount: 9900, discountAmount: 900, prepaidAmount: 5000, amount: 4000 });
+    const a2 = setup();
+    a2.setAgreement({ ...deal(9000, 5000), plan: "digital" });
+    const scratch = await a2.place({ plan: "hardcover", agreementMode: "advance", delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect(scratch.snapshot().plan).toBe("hardcover");
+    const b = setup();
+    b.setAgreement({ ...deal(20000, 10000), plan: "hardcover" });
+    const two = await b.place({ quantity: 2, delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    // первый экземпляр по договорённости (20 000), второй — по прайсу (17 900)
+    expect(two.snapshot().price).toMatchObject({ itemsAmount: 30000 + 17900, discountAmount: 10000, prepaidAmount: 10000, amount: 27900 });
+  });
+
+  it("«с нуля»: обычная цена по каталогу, внесённые деньги засчитываются как аванс", async () => {
+    const { place, setAgreement } = setup();
+    setAgreement(deal(20000, 10000));
+    const o = await place({ agreementMode: "advance", delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, discountAmount: 0, prepaidAmount: 10000, amount: 20000 });
+  });
+
+  it("предоплата покрыла всё — заказ сразу оплачен и уходит в работу", async () => {
+    const { place, setAgreement, svc, uow } = setup();
+    setAgreement(deal(20000, 20000));
+    const o = await place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect((await svc.findByNumber(o.number))!.snapshot()).toMatchObject({ status: "paid", price: { amount: 0, prepaidAmount: 20000 } });
+    expect(uow.types()).toEqual(["ordering.order_placed", "ordering.order_paid"]);
+  });
+
+  it("договорённость не может поднять цену, предоплата не больше итога, без договорённости всё как раньше", async () => {
+    const a = setup();
+    a.setAgreement(deal(90000, 10000)); // договорились на сумму больше каталога
+    const high = await a.place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } });
+    expect(high.snapshot().price).toMatchObject({ discountAmount: 0, prepaidAmount: 10000, amount: 20000 });
+    const b = setup();
+    b.setAgreement(deal(20000, 50000)); // внесли больше итога — зачёт не больше итога
+    expect((await b.place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } })).snapshot().price).toMatchObject({ prepaidAmount: 20000, amount: 0 });
+    const c = setup();
+    expect((await c.place({ delivery: { method: "pickup", city: null, address: null, postalCode: null } })).snapshot().price).toEqual({ itemsAmount: 30000, discountAmount: 0, deliveryAmount: 0, addonsAmount: 0, addons: [], amount: 30000 });
+  });
+});
+
+describe("Ordering: печатная версия к оплаченной электронной", () => {
+  const pickup = { method: "pickup" as const, city: null, address: null, postalCode: null };
+  const digitalPaid = async (t: ReturnType<typeof setup>) => {
+    const d = await t.place({ plan: "digital", delivery: pickup });
+    await t.svc.confirmPayment({ orderId: d.id, paymentId: null }, admin);
+    return d;
+  };
+
+  it("предложение есть только у оплаченной электронной версии без других живых заказов", async () => {
+    const t = setup();
+    const d = await t.place({ plan: "digital", delivery: pickup });
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toBeNull(); // ещё не оплачена
+    await t.svc.confirmPayment({ orderId: d.id, paymentId: null }, admin);
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toMatchObject({ number: d.number, bookId: "book-1", credit: 9900 });
+    expect(await t.svc.upgradeOffer(d.id, "user-2")).toBeNull(); // чужой заказ
+  });
+
+  it("оплата электронной засчитывается; книга остаётся закрытой; повторно дозаказать нельзя, отмена печатного книгу не открывает", async () => {
+    const t = setup();
+    const d = await digitalPaid(t);
+    expect(t.books.books.get("book-1")!.status).toBe("ordered");
+    const o = await t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: pickup });
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, prepaidAmount: 9900, amount: 20100 });
+    expect(t.orders.history.find((h) => h.orderId === o.id)?.note).toContain(`засчитана оплата электронной версии (заказ №${d.number}): 9`);
+    expect(t.books.books.get("book-1")!.status).toBe("ordered");
+    // печатный уже заказан — второй дозаказ невозможен
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toBeNull();
+    await expect(t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: pickup })).rejects.toMatchObject({ code: "upgradeUnavailable" });
+    // отмена печатного: электронный остаётся живым, книга не открывается для правок
+    await t.svc.cancelByCustomer(o.id, "user-1");
+    expect(t.books.books.get("book-1")!.status).toBe("ordered");
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toMatchObject({ credit: 9900 });
+  });
+
+  it("нельзя дозаказать электронный тариф или заказ, который не оплачен/чужой; доставка считается сверху", async () => {
+    const t = setup();
+    const d = await digitalPaid(t);
+    await expect(t.place({ plan: "digital", upgradeFromOrderId: d.id, delivery: pickup })).rejects.toMatchObject({ code: "upgradeUnavailable" });
+    await expect(t.place({ plan: "hardcover", upgradeFromOrderId: crypto.randomUUID(), delivery: pickup })).rejects.toMatchObject({ code: "upgradeUnavailable" });
+    const o = await t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: { method: "courier", city: "Алматы", address: "Абая, 1", postalCode: null } });
+    expect(o.snapshot().price).toMatchObject({ prepaidAmount: 9900, deliveryAmount: 2000, amount: 30000 + 2000 - 9900 });
+  });
+
+  it("бесплатная электронная (по промокоду): зачёта нет, печатную можно заказать по полной цене", async () => {
+    const t = setup();
+    const promo = await addPromo(t.promos, "FREE", { kind: "percent", value: 100 });
+    const d = await t.place({ plan: "digital", promoCode: promo.code, delivery: pickup });
+    expect((await t.svc.findByNumber(d.number))!.status).toBe("paid");
+    expect(await t.svc.upgradeOffer(d.id, "user-1")).toMatchObject({ credit: 0 });
+    const o = await t.place({ plan: "hardcover", upgradeFromOrderId: d.id, delivery: pickup });
+    expect(o.snapshot().price).toMatchObject({ itemsAmount: 30000, amount: 30000 });
+    expect(o.snapshot().price.prepaidAmount ?? 0).toBe(0);
+  });
+});
 
 describe("Ordering: агрегат Order", () => {
   it("цена считается в агрегате: тариф, доставка, скидка только на книги", async () => {
     const { place, orders, uow } = setup();
     const order = await place({ quantity: 2 });
     const s = order.snapshot();
-    expect(s.price).toMatchObject({ itemsAmount: 24900 + 17900, deliveryAmount: 2000, amount: 24900 + 17900 + 2000 });
+    expect(s.price).toMatchObject({ itemsAmount: 30000 + 17900, deliveryAmount: 2000, amount: 30000 + 17900 + 2000 });
     expect(order.status).toBe("pending_payment");
     expect(orders.history[0].note).toBe("Заказ создан, 64 стр. (оценка)");
     expect(uow.types()).toEqual(["ordering.order_placed"]);
@@ -237,6 +195,8 @@ function setupSnapshot() {
     currency: "KZT",
     status: "pending_payment" as const,
     paymentProvider: "manual",
+    postpay: false,
+    receivedAmount: 0,
     paymentId: null,
     paymentClaimedAt: null,
     contact: { name: "", phone: "", email: "" },
@@ -274,7 +234,7 @@ describe("Ordering: оформление заказа", () => {
     const { place, promos, c } = setup();
     await addPromo(promos, "SALE10", { value: 10, maxUses: 1 });
     const o = await place({ promoCode: "sale10" });
-    expect(o.snapshot().price.discountAmount).toBe(2490);
+    expect(o.snapshot().price.discountAmount).toBe(3000);
     expect((await promos.findByCode("SALE10"))!.snapshot().usedCount).toBe(1);
     await addPromo(promos, "OLD", { expiresAt: new Date("2026-09-01") });
     c.set("2026-10-01T10:00:00Z");
@@ -306,6 +266,11 @@ function setupWith(promos: MemPromos) {
 }
 
 describe("Ordering: отмена и статусы", () => {
+  it("«заказ оплачен» — одно правило: всё, кроме ожидания оплаты и отмены", () => {
+    expect(ORDER_STATUSES.filter(isPaid)).toEqual(["paid", "in_production", "shipped", "delivered"]);
+    expect(ORDER_STATUSES.filter((s) => !isPaid(s))).toEqual(["pending_payment", "cancelled"]);
+  });
+
   it("отмена неоплаченного возвращает промокод и открывает книгу", async () => {
     const { place, promos, books, svc } = setup();
     await addPromo(promos, "BACK", { maxUses: 1 });
@@ -341,6 +306,15 @@ describe("Ordering: отмена и статусы", () => {
     await expect(svc.assign(o.id, "client-9", admin)).rejects.toMatchObject({ code: "staffNotFound" });
   });
 
+  it("ответственный в журнале подписан как везде в CRM: имя, а у «Администратора» — логин из почты (не полный адрес)", async () => {
+    const { place, svc, orders } = setup();
+    const o = await place();
+    await svc.assign(o.id, "staff-2", admin);
+    expect(orders.history.at(-1)!.note).toBe("Ответственный: boss");
+    await svc.assign(o.id, null, admin);
+    expect(orders.history.at(-1)!.note).toBe("Ответственный: снят");
+  });
+
   it("сообщение об оплате переводом — один раз", async () => {
     const { place, svc, uow } = setup();
     const o = await place();
@@ -368,29 +342,17 @@ describe("Ordering: промокоды и сертификаты", () => {
 
   it("GiftsService: оплата выпускает одноразовый код на номинал, повтор безопасен", async () => {
     const promos = new MemPromos();
-    const store = new Map<string, ReturnType<GiftCard["snapshot"]>>();
-    const load = (r?: ReturnType<GiftCard["snapshot"]>) => (r ? GiftCard.restore(r.id, (({ id: _id, ...p }) => (void _id, p))(structuredClone(r))) : null);
-    const gifts: GiftCardRepository = {
-      nextIdentity: async () => ({ id: crypto.randomUUID(), number: 7 }),
-      findById: async (id) => load(store.get(id)),
-      findByNumber: async (n) => load([...store.values()].find((g) => g.number === n)),
-      findByToken: async (t) => load([...store.values()].find((g) => g.token === t)),
-      findByPromoId: async () => null,
-      findDueForDelivery: async () => [],
-      lockById: async (id) => load(store.get(id)),
-      add: async (g) => void store.set(g.id, g.snapshot()),
-      save: async (g) => void store.set(g.id, g.snapshot()),
-    };
-    const uow = new FakeUow([promos, { snapshot: () => new Map(store), restore: () => {} }]);
+    const gifts = new MemGifts();
+    const uow = new FakeUow([promos, gifts]);
     const svc = new GiftsService(gifts, promos, { giftCode: () => "GIFT-TEST-0001", giftToken: () => "t".repeat(24) }, { provider: () => "manual", currency: () => "KZT" }, uow, clock(), () => "2026-10-01");
     await expect(svc.purchase({ plan: "premium", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "", recipientName: "Б", recipientEmail: "b@c.kz", sendAt: "2026-09-01", message: "", locale: "ru", buyerLocale: "ru" })).rejects.toMatchObject({ code: "giftPastDate" });
     const gift = await svc.purchase({ plan: "premium", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "", recipientName: "Б", recipientEmail: null, sendAt: "2026-12-01", message: "", locale: "ru", buyerLocale: "ru" });
-    expect(gift.amount).toBe(34900);
+    expect(gift.amount).toBe(35000);
     expect(gift.snapshot().sendAt).toBeNull(); // без адреса получателя дата отправки не нужна
     await svc.confirmPayment(gift.id, "tx", admin);
     expect(await svc.confirmPayment(gift.id, "tx", admin)).toBeNull();
     const promo = (await promos.findByCode("GIFT-TEST-0001"))!.snapshot();
-    expect(promo).toMatchObject({ kind: "fixed", value: 34900, maxUses: 1 });
+    expect(promo).toMatchObject({ kind: "fixed", value: 35000, maxUses: 1 });
     expect(uow.types()).toEqual(["ordering.gift_purchased", "ordering.gift_paid"]);
     await svc.cancel(gift.id);
     expect((await promos.findByCode("GIFT-TEST-0001"))!.active).toBe(false);
@@ -441,5 +403,35 @@ describe("Ordering: коды-приглашения", () => {
 
     books.books.set("book-3", { userId: "friend-owner", status: "draft", blocking: null });
     await expect(place({ userId: "friend-owner", bookId: "book-3", promoCode: "ASEL-7K2Q" })).rejects.toMatchObject({ code: "ownCode" });
+  });
+});
+
+describe("Ordering: доступ к файлам заказа", () => {
+  const order = (status: "pending_payment" | "paid") => ({ userId: "u1", status });
+  const owner = { userId: "u1", can: () => false };
+  const stranger = { userId: "u2", can: () => false };
+  const printed = { printed: true };
+  const digital = { printed: false };
+
+  it("сотрудник: читательская версия по orders.view, файлы типографии — по orders.files", () => {
+    const viewer = { userId: "s", can: (p: string) => p === "orders.view" };
+    expect(canDownloadFile(order("pending_payment"), printed, "reading", viewer)).toBe("staff");
+    expect(canDownloadFile(order("pending_payment"), printed, "block", viewer)).toBe("notFound");
+    const files = { userId: "s", can: (p: string) => p === "orders.files" };
+    expect(canDownloadFile(order("pending_payment"), printed, "block", files)).toBe("staff");
+    expect(filePermission("spec")).toBe("orders.files");
+  });
+
+  it("покупатель: после оплаты — читательская версия, файлы печати только в электронном тарифе", () => {
+    expect(canDownloadFile(order("pending_payment"), digital, "reading", owner)).toBe("notReady");
+    expect(canDownloadFile(order("paid"), printed, "reading", owner)).toBe("owner");
+    expect(canDownloadFile(order("paid"), printed, "cover", owner)).toBe("notReady");
+    expect(canDownloadFile(order("paid"), digital, "cover", owner)).toBe("owner");
+    // тарифа больше нет в каталоге — как раньше, считается электронным
+    expect(canDownloadFile(order("paid"), undefined, "layout", owner)).toBe("owner");
+  });
+
+  it("чужой заказ — «не найден», даже оплаченный", () => {
+    expect(canDownloadFile(order("paid"), digital, "reading", stranger)).toBe("notFound");
   });
 });

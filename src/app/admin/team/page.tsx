@@ -1,6 +1,6 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { StaffForm, StaffRow } from "./TeamControls";
 
 export const metadata = { title: "Команда" };
@@ -28,6 +28,7 @@ export default async function AdminTeam() {
               <th className="px-4 py-3 font-medium">Сотрудник</th>
               <th className="px-4 py-3 font-medium">Роль</th>
               <th className="px-4 py-3 font-medium">Внутр. номер</th>
+              <th className="px-4 py-3 font-medium">Телефон (WhatsApp)</th>
               <th className="px-4 py-3 font-medium">Нагрузка</th>
               <th className="px-4 py-3 font-medium">Последний вход</th>
               <th className="px-4 py-3" />
@@ -43,6 +44,7 @@ export default async function AdminTeam() {
                   email: u.email,
                   roleId: u.crmRoleId ?? ownerRole?.id ?? "",
                   extension: u.sipExtension ?? "",
+                  phone: u.phone ?? "",
                   disabled: u.staffDisabled,
                   lastSeen: u.lastSeenAt ? formatDate(u.lastSeenAt, true) : "—",
                   load: `${openDeals} сделок · ${calls7d} звонков за 7 дней`,

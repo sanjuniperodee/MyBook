@@ -7,9 +7,10 @@ import { Bookmark, X } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { bulkDealsAction, deleteViewAction, saveViewAction } from "./actions";
 import { LostDialog } from "./DealsBoard";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { useRowSelection } from "@/components/admin/useRowSelection";
 
-export interface DealRow {
+interface DealRow {
   id: string;
   number: number;
   title: string;
@@ -20,6 +21,7 @@ export interface DealRow {
   campaign: string | null;
   assignee: string | null;
   amount: string;
+  paid?: string | null;
   created: string;
 }
 
@@ -36,18 +38,16 @@ export function DealsTable({
   canEdit: boolean;
   canDelete: boolean;
 }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { selected, all, ids, toggle, toggleAll, clear } = useRowSelection(rows);
   const [lostFor, setLostFor] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const all = rows.length > 0 && selected.size === rows.length;
-  const toggle = (id: string) => setSelected((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set([...s, id])));
   const run = (input: Parameters<typeof bulkDealsAction>[1]) =>
     start(async () => {
       try {
-        const r = await bulkDealsAction([...selected], input);
-        toast(r.skipped ? `Готово: ${r.done}, пропущено (нет доступа): ${r.skipped}` : `Готово: ${r.done}`);
-        setSelected(new Set());
+        const r = await bulkDealsAction(ids(), input);
+        toast(r.skipped ? `Готово: ${r.done}, пропущено (нет доступа${input.op === "delete" ? " или у сделки деньги или счёт клиента" : ""}): ${r.skipped}` : `Готово: ${r.done}`);
+        clear();
         router.refresh();
       } catch (e) {
         toastError(e);
@@ -117,7 +117,7 @@ export function DealsTable({
               Удалить
             </button>
           ) : null}
-          <button className="ml-auto text-muted hover:text-ink" onClick={() => setSelected(new Set())} aria-label="Снять выделение">
+          <button className="ml-auto text-muted hover:text-ink" onClick={clear} aria-label="Снять выделение">
             <X className="size-4" />
           </button>
         </div>
@@ -127,7 +127,7 @@ export function DealsTable({
           <tr>
             {canEdit ? (
               <th className="w-10 px-4 py-3">
-                <input type="checkbox" className="size-4 accent-wine" checked={all} onChange={() => setSelected(all ? new Set() : new Set(rows.map((r) => r.id)))} aria-label="Выбрать все" />
+                <input type="checkbox" className="size-4 accent-wine" checked={all} onChange={toggleAll} aria-label="Выбрать все" />
               </th>
             ) : null}
             <th className="px-4 py-3 font-medium">№</th>
@@ -169,7 +169,10 @@ export function DealsTable({
                 {r.campaign ? <span className="block text-[11px]">{r.campaign}</span> : null}
               </td>
               <td className="px-4 py-2.5">{r.assignee ?? <span className="text-muted">—</span>}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums">{r.amount}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums">
+                {r.amount}
+                {r.paid ? <div className="text-[11px] text-emerald-700">получено {r.paid}</div> : null}
+              </td>
               <td className="px-4 py-2.5 whitespace-nowrap text-muted">{r.created}</td>
             </tr>
           ))}

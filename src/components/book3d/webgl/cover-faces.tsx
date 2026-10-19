@@ -4,6 +4,7 @@ import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { CoverSpineText } from "@/components/cover/CoverSpine";
 import type { BackDesign } from "@/lib/book/cover-back";
 import type { CoverTemplate } from "@/lib/book/covers";
+import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import type { CoverArt } from "../cover-art";
 
 /**
@@ -33,11 +34,11 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
   );
 }
 
-export function CoverBackFace({ art, design, photoUrl, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photoUrl?: string; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
+export function CoverBackFace({ art, design, photos, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photos?: (PhotoRef | undefined)[]; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
-      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photoUrl={photoUrl} brand={brand} />
+      <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photos={photos} brand={brand} />
     </div>
   );
 }

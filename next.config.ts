@@ -1,6 +1,19 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import type { NextConfig } from "next";
+
+/**
+ * Файлы, от которых зависит рисунок обложек: весь каталог src/lib/book/covers и то, что он импортирует
+ * (геометрия формата, рамка фото, шаблон на снимке, мотивы, реестр шаблонов из CRM), и маршрут, который
+ * растрирует и обрезает фоны (/api/covers). Полноту списка сверяет tests/cover-art-version.test.ts по графу импортов.
+ */
+export function coverArtSources() {
+  const covers = readdirSync("src/lib/book/covers", { recursive: true, encoding: "utf8" })
+    .filter((f) => f.endsWith(".ts"))
+    .sort()
+    .map((f) => `src/lib/book/covers/${f}`);
+  return [...covers, ...["cover-registry", "formats", "motifs", "photo-cover", "photo-frame"].map((f) => `src/lib/book/${f}.ts`), "src/app/api/covers/[file]/route.ts"];
+}
 
 /**
  * Версия рисунков обложек: меняется только вместе с их кодом — браузер кэширует SVG-фоны навсегда.
@@ -8,7 +21,7 @@ import type { NextConfig } from "next";
  */
 function coverArtVersion() {
   try {
-    const sources = ["covers", "covers-collection", "cover-kit", "motifs", "formats"].map((f) => readFileSync(`src/lib/book/${f}.ts`, "utf8"));
+    const sources = coverArtSources().map((f) => readFileSync(f, "utf8"));
     return createHash("sha1").update(sources.join("\n")).digest("hex").slice(0, 10);
   } catch {
     return "build";
@@ -18,13 +31,16 @@ function coverArtVersion() {
 const nextConfig: NextConfig = {
   output: "standalone",
   // Heavy Node-only packages used by PDF generation and image processing.
-  serverExternalPackages: ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver"],
+  serverExternalPackages: ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm"],
   outputFileTracingIncludes: {
     "/**": ["./assets/**/*", "./drizzle/**/*"],
   },
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
   },
+  // На сервере деплоя (2 ядра, 4 ГБ, рядом работающий сайт) проверка типов Next не помещается в память и роняет сборку;
+  // типы проверяются до пуша (npx tsc), поэтому deploy/deploy.sh её пропускает (MYBOOK_SKIP_TYPECHECK=1).
+  typescript: { ignoreBuildErrors: process.env.MYBOOK_SKIP_TYPECHECK === "1" },
   poweredByHeader: false,
   env: { COVER_ART_VERSION: coverArtVersion() },
   async headers() {

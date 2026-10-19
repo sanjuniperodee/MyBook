@@ -124,6 +124,8 @@ export class SmtpMailer implements Mailer {
   }
 
   async send(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
+    // Клиент без почты заведён с адресом-заглушкой (@phone.invalid) — письма ему не уходят и в лог не попадают.
+    if (to.trim().toLowerCase().endsWith(".invalid")) return;
     const t = await this.transport().catch((err) => {
       console.error("[mail] settings", err);
       return null;

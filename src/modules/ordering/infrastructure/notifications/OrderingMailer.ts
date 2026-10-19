@@ -10,12 +10,13 @@ import { env } from "@/config/env";
 import type { Mailer } from "@/shared/application";
 import { appLink, emailLayout, escapeHtml } from "@/shared/infrastructure/mail";
 import { parseDay, toIsoDay } from "@/lib/occasions";
-import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed } from "../../domain";
-import type { GiftsService } from "../../application";
+import type { GiftCardPaid, GiftCardPurchased, GiftPaymentClaimed, OrderCancelled, OrderPaid, OrderPlaced, OrderStatusChanged, PaymentClaimed, TrackingAdded } from "../../domain";
+import { bookKind } from "@/lib/content/kinds";
+import type { GiftPdfRenderer, GiftsService } from "../../application";
 import type { DrizzleOrderingQueries, GiftView } from "../persistence/DrizzleOrderingQueries";
 
 const orderUrl = (orderId: string, locale: Locale = "ru") => appLink(`/orders/${orderId}`, locale);
-export const giftUrl = (token: string, locale: Locale = "ru") => appLink(`/gift/${token}`, locale);
+const giftUrl = (token: string, locale: Locale = "ru") => appLink(`/gift/${token}`, locale);
 export const redeemUrl = (code: string, locale: Locale = "ru") => appLink(`/redeem?code=${encodeURIComponent(code)}`, locale);
 
 /**
@@ -27,6 +28,7 @@ export class OrderingMailer {
     private readonly queries: DrizzleOrderingQueries,
     private readonly gifts: GiftsService,
     private readonly mail: Mailer,
+    private readonly giftPdfRenderer: GiftPdfRenderer,
   ) {}
 
   private async customerLocale(userId: string): Promise<Locale> {
@@ -47,17 +49,20 @@ export class OrderingMailer {
     if (!order) return;
     const locale = await this.customerLocale(p.userId);
     const m = messagesFor(locale).mail.order.created;
+    // Доставка не вошла в сумму (рассчитывается индивидуально): куда — страна и город.
+    const quoted = p.deliveryQuoted ?? p.deliveryAbroad;
+    const where = quoted ? [quoted.country, quoted.city].filter(Boolean).join(", ") || "—" : null;
     await this.mail.send(
       order.contactEmail,
       m.subject(order.number),
       emailLayout({
         locale,
         title: m.title,
-        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), m.amount(formatPrice(order.amount))],
+        paragraphs: [m.number(order.number), m.plan(planName(order.plan, locale), order.quantity), ...(p.prepaid ? [m.prepaid(formatPrice(p.prepaid))] : []), m.amount(formatPrice(order.amount)), ...(where ? [m.quoted(escapeHtml(where))] : [])],
         button: { label: m.button, url: orderUrl(order.id, locale) },
       }),
     );
-    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}`], {
+    await this.shop(`Новый заказ №${order.number}`, `Новый заказ №${order.number}`, [`${escapeHtml(order.contactName)}, ${escapeHtml(order.contactPhone)}`, `${planName(order.plan)} × ${order.quantity} — ${formatPrice(order.amount)}${p.prepaid ? ` (предоплата ${formatPrice(p.prepaid)} уже внесена)` : ""}${where ? ` · доставка (${escapeHtml(where)}) — рассчитать индивидуально` : ""}`], {
       label: "Открыть в админке",
       url: `${env.appUrl}/admin/orders/${order.id}`,
     });
@@ -71,6 +76,15 @@ export class OrderingMailer {
 
   onStatusChanged = async (e: OrderStatusChanged) => {
     await this.customerStatusMail(e.payload.orderId, e.payload.to);
+  };
+
+  /**
+   * Трек вписали после отправки: письмо «Книга в пути» ушло без него — ещё одно, с треком (automation-d12). Заказ уже
+   * доставлен — не пишем.
+   */
+  onTrackingAdded = async (e: TrackingAdded) => {
+    if (!e.payload.afterShipping) return;
+    if ((await this.queries.orderDetails(e.payload.orderId))?.status === "shipped") await this.customerStatusMail(e.payload.orderId, "shipped");
   };
 
   onOrderCancelled = async (e: OrderCancelled) => {
@@ -98,7 +112,7 @@ export class OrderingMailer {
       case "shipped":
         return send(m.shipped.title, [m.shipped.text, order.trackingNumber ? m.shipped.tracking(escapeHtml(order.trackingNumber)) : ""].filter(Boolean));
       case "delivered":
-        return send(m.delivered.title, [m.delivered.text]);
+        return send(m.delivered.title, [bookKind(order.book?.theme ?? "") === "gift" ? m.delivered.text : m.delivered.textOwn]);
       case "cancelled":
         return send(m.cancelled.title, [m.cancelled.text]);
     }
@@ -161,8 +175,7 @@ export class OrderingMailer {
 
   async giftPdf(gift: GiftView): Promise<Buffer> {
     if (!gift.promo) throw new Error("gift is not paid yet");
-    const { renderGiftPdf } = await import("@/modules/production");
-    return renderGiftPdf({ locale: gift.locale, number: gift.number, code: gift.promo.code, plan: gift.plan, amount: gift.amount, buyerName: gift.buyerName, recipientName: gift.recipientName, message: gift.message, validUntil: gift.promo.expiresAt ?? new Date() });
+    return this.giftPdfRenderer.render({ locale: gift.locale, number: gift.number, code: gift.promo.code, plan: gift.plan, amount: gift.amount, buyerName: gift.buyerName, recipientName: gift.recipientName, message: gift.message, validUntil: gift.promo.expiresAt ?? new Date() });
   }
 
   async sendToRecipient(gift: GiftView, pdf?: Buffer) {

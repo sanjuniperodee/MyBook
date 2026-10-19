@@ -1,13 +1,14 @@
 "use client";
 
-import { ask } from "@/components/ui/overlays";
+import { ask, toast } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
-import { Mail, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
+import { Copy, Mail, MessageCircle, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { MentionTextarea } from "./MentionTextarea";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { draftFromNote, whatsappLink } from "@/shared/domain/templates";
 
 export const taskKinds = { task: "Задача", call: "Позвонить", message: "Написать", meeting: "Встреча" } as const;
 
@@ -88,7 +89,7 @@ export function TaskList({
         ))}
       </ul>
       {showForm ? (
-        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_150px_150px_auto]">
+        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_140px_100px_150px_150px_auto]">
           {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
           {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
           {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
@@ -101,6 +102,15 @@ export function TaskList({
           </select>
           <input name="title" required maxLength={300} placeholder="Новая задача: перезвонить, уточнить адрес…" className="input h-10 text-sm" />
           <input name="dueAt" type="date" className="input h-10 text-sm" title="Срок" />
+          <input name="dueTime" type="time" className="input h-10 text-sm" title="Время (без времени — до 18:00)" />
+          <select name="remindBeforeMin" className="input h-10 text-sm" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
+            <option value="none">Не напоминать</option>
+            <option value="0">В срок</option>
+            <option value="15">За 15 мин</option>
+            <option value="60">За 1 час</option>
+            <option value="180">За 3 часа</option>
+            <option value="1440">За день</option>
+          </select>
           <select name="assigneeId" className="input h-10 text-sm" defaultValue="">
             <option value="">Мне</option>
             {admins.map((a) => (
@@ -110,7 +120,7 @@ export function TaskList({
             ))}
           </select>
           <SubmitButton className="btn-sm h-10">Добавить</SubmitButton>
-          {state.error ? <p className="text-xs text-red-700 sm:col-span-5">{state.error}</p> : null}
+          {state.error ? <p className="text-xs text-red-700 sm:col-span-7">{state.error}</p> : null}
         </form>
       ) : null}
     </div>
@@ -135,8 +145,37 @@ const kinds = {
 } as const;
 const manualKinds = ["note", "call", "message", "email"] as const;
 
-/** История общения с клиентом. */
-export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[] }) {
+/**
+ * Готовый текст клиенту в истории сделки (правило «праздник»): CRM его не отправляет — «Открыть в WhatsApp» открывает
+ * чат клиента на телефоне магазина с этим текстом (номер скрыт от сотрудника — WhatsApp спросит, кому), «Скопировать» —
+ * чтобы вставить в чат CRM.
+ */
+export function DraftActions({ note, whatsappTo }: { note: string; whatsappTo?: string | null }) {
+  const text = draftFromNote(note);
+  if (!text) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-2" data-testid="draft-actions">
+      <a href={whatsappLink(text, whatsappTo)} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
+        <MessageCircle className="size-4" /> Открыть в WhatsApp
+      </a>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={() =>
+          navigator.clipboard.writeText(text).then(
+            () => toast("Текст скопирован"),
+            () => toast("Не удалось скопировать — выделите текст вручную", "error"),
+          )
+        }
+      >
+        <Copy className="size-4" /> Скопировать
+      </button>
+    </div>
+  );
+}
+
+/** История общения с клиентом. whatsappTo — номер клиента (цифры), если сотрудник его видит: для готовых текстов. */
+export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, whatsappTo }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[]; whatsappTo?: string | null }) {
   const [text, setText] = useState("");
   const [, start] = useTransition();
   const [state, action] = useActionState<AdminState, FormData>(addNoteAction, {});
@@ -204,6 +243,7 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables }
                   ) : null}
                 </div>
                 <p className="mt-1 text-sm whitespace-pre-line">{n.text}</p>
+                {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} /> : null}
               </div>
             </li>
           );

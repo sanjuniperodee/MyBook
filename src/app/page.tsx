@@ -28,11 +28,12 @@ import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
-import { countQuestions, getThemes } from "@/lib/content/themes";
+import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
+import { getLanding, landings, type Landing } from "@/lib/content/landings";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
-import { formatPrice, plans, productionDays, site } from "@/config/site";
+import { formatPrice, productionDays, registrationOpen, site, getVisiblePlans } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { coverName } from "@/i18n/labels";
@@ -53,9 +54,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   const [user, locale, m, reviews, invited] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6), invitedBy()]);
   const t = m.landing;
-  const cta = user ? "/books/new" : "/register";
-  const themes = getThemes(locale);
-  const loveCount = countQuestions(themes[0]);
+  // Регистрацию можно закрыть в админке («Сайт»): гостю вместо «начать» — вход и пояснение.
+  const guestClosed = !user && !registrationOpen();
+  const cta = user ? "/books/new" : guestClosed ? "/login" : "/register";
+  const ctaLabel = (label: string) => (guestClosed ? m.common.nav.login : label);
+  const themes = giftThemes(locale);
+  // Число вопросов в шагах «как это работает» — по теме «любимому», а не по первому элементу списка.
+  const loveCount = countQuestions(getTheme("love", locale));
+  const modeThemes = [getTheme("autobiography", locale), getTheme("blank", locale)];
+  const modeHref = (id: string) => (user ? `/books/new?theme=${id}` : guestClosed ? "/login" : `/register?theme=${id}`);
   const faq = t.faq.items(productionDays);
   // Пример для витрины оформлений — та же история, что в листаемой книге-примере.
   const s = t.sample;
@@ -76,10 +83,10 @@ export default async function HomePage() {
     showToc: true,
   };
 
-  const planNames = Object.fromEntries(plans.map((p) => [p.id, m.common.plans[p.id].name]));
+  const planNames = Object.fromEntries(getVisiblePlans().map((p) => [p.id, m.common.plans[p.id].name]));
   const jsonLd = [
-    organizationLd(m.common.meta.description),
-    websiteLd(locale),
+    organizationLd(m.common.meta.description, { alternateName: m.common.meta.alternateNames, address: { locality: m.common.footer.address, country: "KZ" } }),
+    websiteLd(locale, m.common.meta.alternateNames),
     productLd({ name: `${site.name} — ${t.meta.title}`, description: t.meta.description, url: absoluteUrl("/", locale), image: ogImage(locale), locale, planNames, reviews: reviews }),
     faqLd(faq),
   ];
@@ -109,7 +116,8 @@ export default async function HomePage() {
                   <Sparkles className="size-4 text-wine" /> {t.hero.badge}
                 </div>
               )}
-              <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
+              {/* Заголовок и лид — самое крупное на экране (LCP): появляются сразу, без анимации входа */}
+              <h1 className="mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
                 {t.hero.titleStart}{" "}
                 <em className="relative inline-block text-wine">
                   {t.hero.titleAccent}
@@ -119,17 +127,22 @@ export default async function HomePage() {
                   </svg>
                 </em>
               </h1>
-              <p style={{ "--i": 2 } as React.CSSProperties} className="enter mt-6 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">
                 {t.hero.lead}
               </p>
               <div style={{ "--i": 3 } as React.CSSProperties} className="enter mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link href={cta} className="btn btn-primary btn-lg">
-                  {t.hero.cta} <ArrowRight className="size-5" />
+                  {ctaLabel(t.hero.cta)} <ArrowRight className="size-5" />
                 </Link>
                 <a href="#inside" className="btn btn-outline btn-lg">
                   {t.hero.sample}
                 </a>
               </div>
+              {guestClosed ? (
+                <p style={{ "--i": 3 } as React.CSSProperties} className="enter mt-4 max-w-xl text-sm text-muted" data-testid="registration-closed">
+                  {t.hero.closed}
+                </p>
+              ) : null}
               {reviews.summary && reviews.reviews.length ? (
                 <a href="#reviews" style={{ "--i": 4 } as React.CSSProperties} className="enter mt-5 inline-flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
                   <Stars value={reviews.summary.average} />
@@ -152,12 +165,12 @@ export default async function HomePage() {
               </div>
               <div style={{ "--i": 4 } as React.CSSProperties} className="enter absolute top-0 right-[4%] w-[40%]">
                 <div className="animate-float [--r:7deg] [animation-delay:-4s]">
-                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={-18} />
+                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={12} />
                 </div>
               </div>
               <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
                 <div className="animate-float">
-                  <Book3D priority template="blossom" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={-14} />
+                  <Book3D priority template="peony" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={15} />
                 </div>
               </div>
               {/* Рукописная пометка со стрелкой */}
@@ -176,11 +189,18 @@ export default async function HomePage() {
         <section className="border-y border-line/70 bg-white/60 py-5">
           <div className="no-scrollbar container-x flex gap-3 overflow-x-auto">
             <span className="shrink-0 py-1.5 text-sm text-muted">{t.occasions.label}</span>
-            {t.occasions.items.map((o) => (
-              <span key={o} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft">
-                {o}
-              </span>
-            ))}
+            {t.occasions.items.map((o) =>
+              o.slug && getLanding(o.slug) ? (
+                // Повод с посадочной страницей — ссылка на неё: перелинковка с главной и понятный путь для поисковика.
+                <Link key={o.label} href={`/kniga/${o.slug}`} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft transition hover:border-wine/40 hover:text-wine">
+                  {o.label}
+                </Link>
+              ) : (
+                <span key={o.label} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft">
+                  {o.label}
+                </span>
+              ),
+            )}
           </div>
         </section>
 
@@ -246,7 +266,7 @@ export default async function HomePage() {
               {themes.map((th) => {
                 const qn = countQuestions(th);
                 return (
-                  <Link key={th.id} href={user ? `/books/new?theme=${th.id}` : `/register?theme=${th.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
+                  <Link key={th.id} href={user ? `/books/new?theme=${th.id}` : guestClosed ? "/login" : `/register?theme=${th.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
                     <div className="flex justify-center bg-cream/60 px-10 pt-8 pb-0">
                       <div className="w-[62%] translate-y-4 transition duration-500 group-hover:translate-y-1">
                         <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={t.coverSamples[th.defaultCover]?.names} lite className="rounded-sm shadow-book" />
@@ -266,6 +286,57 @@ export default async function HomePage() {
                 );
               })}
             </div>
+            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+              {t.themes.learn}
+              {themes
+                .map((th) => landings.find((l) => l.theme === th.id))
+                .filter((l): l is Landing => !!l)
+                .map((l) => (
+                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-wine hover:underline">
+                    {l.content[locale].label}
+                  </Link>
+                ))}
+            </p>
+          </div>
+        </section>
+
+        {/* ─── MODES: книга о себе и своя книга ─── */}
+        <section id="modes" className="below-fold scroll-mt-20 border-t border-line/70 bg-cream/40 py-20 sm:py-28">
+          <div className="container-x">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div className="max-w-2xl">
+                <div className="eyebrow">{t.modes.eyebrow}</div>
+                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.modes.title}</h2>
+              </div>
+              <p className="max-w-sm text-muted">{t.modes.note}</p>
+            </div>
+            <div className="reveal-stagger mt-12 grid gap-5 md:grid-cols-2">
+              {modeThemes.map((th) => (
+                <Link key={th.id} href={modeHref(th.id)} className="group card flex gap-5 p-5 transition hover:-translate-y-1 hover:shadow-lift sm:gap-6 sm:p-6">
+                  <div className="w-24 shrink-0 self-start sm:w-32">
+                    <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={th.id === "blank" ? t.modes.blank.names : t.modes.autobiography.names} lite className="rounded-sm shadow-book" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <h3 className="text-lg font-semibold">{th.name}</h3>
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{th.description}</p>
+                    <div className="mt-5 flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted">{th.id === "blank" ? t.modes.blank.meta : t.modes.autobiography.meta(countQuestions(th))}</span>
+                      <ArrowRight className="size-4 shrink-0 text-wine transition group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+              {t.modes.learn}
+              {[getLanding("kniga-o-svoej-zhizni"), getLanding("svoya-kniga-s-nulya")].map((l) =>
+                l ? (
+                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-wine hover:underline">
+                    {l.content[locale].label}
+                  </Link>
+                ) : null,
+              )}
+            </p>
           </div>
         </section>
 
@@ -274,7 +345,7 @@ export default async function HomePage() {
           <div className="container-x">
             <div className="reveal mx-auto max-w-2xl text-center">
               <div className="eyebrow">{t.covers.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length)}</h2>
+              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length, coverTemplates.filter((c) => c.requiresPhoto).length)}</h2>
               <p className="mt-4 text-muted">{t.covers.text}</p>
             </div>
             <div className="reveal-stagger mt-14 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">
@@ -351,8 +422,8 @@ export default async function HomePage() {
               <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.pricing.title}</h2>
               <p className="mt-4 text-muted">{t.pricing.text}</p>
             </div>
-            <div className="reveal-stagger mt-14 grid gap-5 lg:grid-cols-3">
-              {plans.map((p) => ({ ...p, ...m.common.plans[p.id] })).map((p) => (
+            <div className={`reveal-stagger mt-14 grid gap-5 ${getVisiblePlans().length === 2 ? "lg:mx-auto lg:max-w-4xl lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+              {getVisiblePlans().map((p) => ({ ...p, ...m.common.plans[p.id] })).map((p) => (
                 <div key={p.id} className={`card relative flex flex-col p-8 ${p.featured ? "border-wine/40 ring-4 ring-wine/10" : ""}`}>
                   {"badge" in p && p.badge ? <span className="absolute -top-3 left-8 rounded-full bg-wine px-3 py-1 text-xs font-medium text-white">{p.badge}</span> : null}
                   <h3 className="text-lg font-semibold">{p.name}</h3>
@@ -366,7 +437,7 @@ export default async function HomePage() {
                     ))}
                   </ul>
                   <Link href={cta} className={`btn mt-8 ${p.featured ? "btn-primary" : "btn-outline"}`}>
-                    {t.pricing.start}
+                    {ctaLabel(t.pricing.start)}
                   </Link>
                 </div>
               ))}
@@ -420,7 +491,7 @@ export default async function HomePage() {
               <h2 className="reveal relative mx-auto max-w-3xl font-serif text-4xl leading-tight font-medium sm:text-6xl">{t.cta.title}</h2>
               <p className="relative mx-auto mt-5 max-w-xl text-lg text-white/80">{t.cta.text}</p>
               <Link href={cta} className="btn btn-lg relative mt-9 bg-white text-wine hover:bg-paper">
-                {t.cta.button} <ArrowRight className="size-5" />
+                {ctaLabel(t.cta.button)} <ArrowRight className="size-5" />
               </Link>
             </div>
           </div>

@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/server/access";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
-import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
+import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
 import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
+import { staffActionError } from "@/server/errors";
+import { admin } from "@/i18n/admin";
 import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
 
 export interface AdminState {
@@ -50,23 +53,9 @@ async function orderCommand(run: () => Promise<unknown>): Promise<AdminState | n
     await run();
     return null;
   } catch (err) {
-    if (OrderingError.is(err)) return { error: orderingStaffMessage(err) };
-    throw err;
-  }
-}
-
-function orderingStaffMessage(err: OrderingError) {
-  switch (err.code) {
-    case "orderNotFound":
-      return "Заказ не найден";
-    case "invalidTransition":
-      return "Такой переход статуса невозможен";
-    case "staffNotFound":
-      return "Ответственным может быть только сотрудник CRM";
-    case "promoExists":
-      return "Такой промокод уже есть";
-    default:
-      return err.message;
+    const error = staffActionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
   }
 }
 
@@ -74,10 +63,10 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
   const staff = await assertStaff("orders.edit");
   const parsed = z
     .object({
-      orderId: z.string().uuid(),
-      status: z.enum(orderStatuses),
-      trackingNumber: z.string().trim().max(100).optional(),
-      note: z.string().trim().max(1000).optional(),
+      orderId: z.string("Заказ не найден").uuid("Заказ не найден"),
+      status: z.enum(orderStatuses, "Выберите статус заказа"),
+      trackingNumber: z.string().trim().max(100, "Номер отслеживания — до 100 символов").optional(),
+      note: z.string().trim().max(1000, "Заметка — до 1000 символов").optional(),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -90,7 +79,7 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
 
 export async function saveAdminNoteAction(_: AdminState, form: FormData): Promise<AdminState> {
   await assertStaff("orders.edit");
-  const orderId = z.string().uuid().parse(form.get("orderId"));
+  const orderId = uuid.parse(form.get("orderId"));
   await container().ordering.orders.saveAdminNote(orderId, String(form.get("adminNote") ?? ""));
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Заметка сохранена" };
@@ -98,14 +87,14 @@ export async function saveAdminNoteAction(_: AdminState, form: FormData): Promis
 
 export async function generateFilesAction(orderId: string) {
   const staff = await assertStaff("orders.files");
-  await container().ordering.orders.regeneratePrintFiles(z.string().uuid().parse(orderId), staffActor(staff));
+  await container().ordering.orders.regeneratePrintFiles(uuid.parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
 /** Временно открыть книгу для правок клиентом (например, по просьбе исправить опечатку). */
 export async function toggleBookLockAction(orderId: string) {
   const staff = await assertStaff("orders.edit");
-  await container().ordering.orders.toggleBookEditing(z.string().uuid().parse(orderId), staffActor(staff));
+  await container().ordering.orders.toggleBookEditing(uuid.parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
 
@@ -133,7 +122,7 @@ export async function createPromoAction(_: AdminState, form: FormData): Promise<
 
 export async function togglePromoAction(id: string) {
   const staff = await assertStaff("promo.manage");
-  const promo = await container().ordering.promos.toggle(z.string().uuid().parse(id));
+  const promo = await container().ordering.promos.toggle(uuid.parse(id));
   await audit(staff, promo.active ? "promo.enable" : "promo.disable", "promo", promo.code);
   revalidatePath("/admin/promo");
 }
@@ -141,28 +130,58 @@ export async function togglePromoAction(id: string) {
 // ─── CRM: заказы ────────────────────────────────────────────────────────────
 
 /** Перемещение карточки на канбан-доске. */
-export async function moveOrderAction(orderId: string, status: string) {
+/** Перенос заказа на доске. Нарушение правила (неоплаченный — в печать) — текст ошибки, а не исключение. */
+export async function moveOrderAction(orderId: string, status: string): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
-  await container().ordering.orders.changeStatus({ orderId: z.string().uuid().parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff));
+  const failed = await orderCommand(() => container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff)));
+  if (failed) return failed;
   revalidatePath("/admin/board");
   revalidatePath("/admin");
+  return {};
+}
+
+/** Постоплата: неоплаченный заказ — в печать (договорились, что клиент заплатит после); причина обязательна. */
+export async function startPostpayAction(orderId: string, reason: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit");
+  const why = z.string().trim().min(3, "Укажите, о чём договорились с клиентом").max(200).safeParse(reason);
+  if (!why.success) return { error: why.error.issues[0].message };
+  const id = uuid.parse(orderId);
+  const failed = await orderCommand(() => container().ordering.payments.startPostpay(id, why.data, staffActor(staff)));
+  if (failed) return failed;
+  await audit(staff, "order.postpay", "order", id, { reason: why.data });
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/board");
+  return { ok: "Заказ в печати с постоплатой" };
+}
+
+/** Руководитель сверил ручную оплату заказа с поступлением на счёт. */
+export async function reviewOrderPaymentAction(paymentId: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit", "team.manage");
+  const p = await container().ordering.payments.review(uuid.parse(paymentId), staff.user.id);
+  if (!p) return { error: "Оплата не найдена или уже проверена" };
+  await audit(staff, "order.payment_review", "order", p.orderId, { payment: p.id, amount: p.amount });
+  revalidatePath(`/admin/orders/${p.orderId}`);
+  revalidatePath("/admin/finance");
+  return { ok: "Отмечено: проверено" };
 }
 
 export async function bulkStatusAction(orderIds: string[], status: string) {
   const staff = await assertStaff("orders.edit");
   const s = z.enum(orderStatuses).parse(status);
-  const ids = z.array(z.string().uuid()).max(200).parse(orderIds);
-  for (const id of ids) await container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff));
-  await audit(staff, "order.bulk_status", "order", null, { count: ids.length, status: s });
+  const ids = z.array(uuid).max(200).parse(orderIds);
+  // Неоплаченные не уходят в печать массово (правило денег) — их пропускаем и считаем.
+  let skipped = 0;
+  for (const id of ids) if (await orderCommand(() => container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff)))) skipped++;
+  await audit(staff, "order.bulk_status", "order", null, { count: ids.length - skipped, status: s });
   revalidatePath("/admin/orders");
   revalidatePath("/admin/board");
-  return { count: ids.length };
+  return { count: ids.length - skipped, skipped };
 }
 
 export async function assignOrderAction(orderId: string, assigneeId: string | null) {
   const staff = await assertStaff("orders.edit");
-  const id = z.string().uuid().parse(orderId);
-  const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? z.string().uuid().parse(assigneeId) : null, staffActor(staff)));
+  const id = uuid.parse(orderId);
+  const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? uuid.parse(assigneeId) : null, staffActor(staff)));
   if (failed) throw new Error(failed.error);
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/board");
@@ -172,11 +191,12 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
   const staff = await assertStaff("orders.edit");
   const parsed = z
     .object({
-      orderId: z.string().uuid(),
+      orderId: uuid,
       contactName: z.string().trim().min(1, "Укажите имя").max(100),
       contactPhone: z.string().trim().min(5, "Укажите телефон").max(30),
       contactEmail: z.string().trim().toLowerCase().email("Проверьте e-mail"),
-      deliveryMethod: z.enum(["pickup", "courier", "post"]).or(z.literal("")).optional(),
+      deliveryMethod: z.enum(["pickup", "courier", "post", "abroad"]).or(z.literal("")).optional(),
+      country: z.string().trim().max(60).optional(),
       city: z.string().trim().max(100).optional(),
       address: z.string().trim().max(300).optional(),
       postalCode: z.string().trim().max(20).optional(),
@@ -191,7 +211,7 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
       {
         orderId,
         contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
-        delivery: { method: d.deliveryMethod || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
+        delivery: { method: d.deliveryMethod || null, country: d.country || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
         desiredDate: d.desiredDate || null,
         giftNote: d.giftNote || null,
       },
@@ -220,15 +240,18 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     .object({
       title: z.string().trim().min(2, "Опишите задачу").max(300),
       dueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).optional(),
-      clientId: z.string().uuid().optional(),
-      orderId: z.string().uuid().optional(),
-      dealId: z.string().uuid().optional(),
-      assigneeId: z.string().uuid().optional(),
+      remindBeforeMin: z.union([z.literal("none").transform(() => null), z.coerce.number().int().min(0).max(10_080)]).optional(),
+      clientId: uuid.optional(),
+      orderId: uuid.optional(),
+      dealId: uuid.optional(),
+      assigneeId: uuid.optional(),
       kind: z.enum(["task", "call", "message", "meeting"]).default("task"),
     })
     .safeParse({
       title: form.get("title"),
-      dueAt: opt(form.get("dueAt")),
+      // Дата и необязательное время («17:30»): без времени срок — до конца рабочего дня.
+      dueAt: opt(form.get("dueAt")) && opt(form.get("dueTime")) ? `${opt(form.get("dueAt"))}T${opt(form.get("dueTime"))}` : opt(form.get("dueAt")),
+      remindBeforeMin: opt(form.get("remindBeforeMin")),
       clientId: opt(form.get("clientId")),
       orderId: opt(form.get("orderId")),
       dealId: opt(form.get("dealId")),
@@ -237,20 +260,72 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const { clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d));
+  let clientId: string | null;
+  try {
+    ({ clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d)));
+  } catch (err) {
+    // Исполнитель отключён или не сотрудник — текстом в форме, как другие ошибки (B12).
+    if (ClientsError.is(err) && err.code === "staffNotFound") return { error: err.message };
+    throw err;
+  }
   revalidateCrm(clientId, d.orderId, d.dealId);
   return { ok: "Задача добавлена" };
 }
 
 export async function toggleTaskAction(taskId: string) {
   const staff = await assertStaff();
-  const t = await clientsCommand(() => container().clients.tasks.toggle(crmActor(staff), z.string().uuid().parse(taskId)));
+  const t = await clientsCommand(() => container().clients.tasks.toggle(crmActor(staff), uuid.parse(taskId)));
   revalidateCrm(t.clientId, t.orderId, t.dealId);
+}
+
+/**
+ * Правка задачи со страницы «Задачи» (поле за полем): заголовок, тип, срок («ГГГГ-ММ-ДД» или с временем; "" — без срока),
+ * напоминание, ответственный, результат. Ошибка — текстом для строки задачи.
+ */
+export async function updateTaskAction(taskId: string, raw: { title?: string; kind?: string; dueAt?: string | null; remindBeforeMin?: string | null; assigneeId?: string; result?: string }): Promise<{ error?: string }> {
+  const staff = await assertStaff();
+  const parsed = z
+    .object({
+      title: z.string().trim().min(2, "Опишите задачу").max(300).optional(),
+      kind: z.enum(["task", "call", "message", "meeting"]).optional(),
+      dueAt: z
+        .union([z.literal("").transform(() => null), z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, "Неверный срок")])
+        .nullable()
+        .optional(),
+      remindBeforeMin: z.union([z.literal("none").transform(() => null), z.coerce.number().int().min(0).max(10_080)]).nullable().optional(),
+      assigneeId: uuid.optional(),
+      result: z.string().max(1000).optional(),
+    })
+    .safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  try {
+    const t = await container().clients.tasks.update(crmActor(staff), uuid.parse(taskId), parsed.data);
+    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    return {};
+  } catch (err) {
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
+    throw err;
+  }
+}
+
+/** Отложить задачу одной кнопкой из «Моего дня» и «Задач»: «+1 ч» или «Завтра» (срок считает сервер). */
+export async function snoozeTaskAction(taskId: string, by: string): Promise<{ error?: string }> {
+  const staff = await assertStaff();
+  const how = z.enum(["hour", "tomorrow"]).safeParse(by);
+  if (!how.success) return { error: admin.badForm };
+  try {
+    const t = await container().clients.tasks.snooze(crmActor(staff), uuid.parse(taskId), how.data);
+    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    return {};
+  } catch (err) {
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
+    throw err;
+  }
 }
 
 export async function deleteTaskAction(taskId: string) {
   const staff = await assertStaff();
-  const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), z.string().uuid().parse(taskId)));
+  const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId)));
   if (t) revalidateCrm(t.clientId, t.orderId, t.dealId);
 }
 
@@ -260,9 +335,9 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   const staff = await assertStaff(form.get("dealId") ? "deals.edit" : "clients.edit");
   const parsed = z
     .object({
-      clientId: dealOnly ? z.undefined() : z.string().uuid(),
-      orderId: z.string().uuid().optional(),
-      dealId: z.string().uuid().optional(),
+      clientId: dealOnly ? z.undefined() : uuid,
+      orderId: uuid.optional(),
+      dealId: uuid.optional(),
       kind: z.enum(["note", "call", "message", "email"]).default("note"),
       text: z.string().trim().min(1, "Пустая заметка").max(5000),
     })
@@ -277,7 +352,7 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
 
 export async function deleteNoteAction(noteId: string) {
   const staff = await assertStaff();
-  const note = await container().clients.notes.find(z.string().uuid().parse(noteId));
+  const note = await container().clients.notes.find(uuid.parse(noteId));
   if (!note) return;
   if (!can(staff, "clients.edit") && !(note.dealId && can(staff, "deals.edit"))) throw new ForbiddenError();
   if (note.clientId) await guardClient(staff, note.clientId);
@@ -292,7 +367,7 @@ export async function deleteNoteAction(noteId: string) {
 
 export async function updateClientTagsAction(clientId: string, tags: string[]) {
   const staff = await assertStaff("clients.edit");
-  const id = z.string().uuid().parse(clientId);
+  const id = uuid.parse(clientId);
   await guardClient(staff, id);
   const clean = await container().clients.clients.setTags(id, z.array(z.string().trim().toLowerCase().min(1).max(30)).max(20).parse(tags));
   await audit(staff, "client.tags", "client", clientId, { tags: clean });
@@ -309,8 +384,8 @@ const reminderRefusal: Record<Exclude<ReminderResult, { ok: true }>["reason"], s
 export async function remindClientAction(clientId: string): Promise<{ ok: boolean; message: string }> {
   const staff = await assertStaff("clients.edit");
   const admin = staff.user;
-  await guardClient(staff, z.string().uuid().parse(clientId));
-  const res = await container().notifications.reminders.send(z.string().uuid().parse(clientId), admin.id);
+  await guardClient(staff, uuid.parse(clientId));
+  const res = await container().notifications.reminders.send(uuid.parse(clientId), admin.id);
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/books");
   return res.ok ? { ok: true, message: "Напоминание отправлено" } : { ok: false, message: reminderRefusal[res.reason] };
@@ -321,7 +396,7 @@ export async function remindManyAction(clientIds: string[]): Promise<{ sent: num
   const admin = staff.user;
   let sent = 0;
   let skipped = 0;
-  for (const id of z.array(z.string().uuid()).max(300).parse(clientIds)) {
+  for (const id of z.array(uuid).max(300).parse(clientIds)) {
     await guardClient(staff, id);
     const res = await container().notifications.reminders.send(id, admin.id);
     if (res.ok) sent++;

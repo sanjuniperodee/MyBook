@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
-import { site } from "@/config/site";
+import { getCatalogOverrides, getSellerOverrides, registrationOpen, site } from "@/config/site";
 import { env } from "@/config/env";
 import "./globals.css";
 import { Suspense } from "react";
@@ -8,6 +8,8 @@ import { Analytics } from "@/components/analytics/Analytics";
 import { Overlays } from "@/components/ui/overlays";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
+import { ensureCatalog } from "@/server/catalog";
+import { CatalogSync } from "@/components/CatalogSync";
 import { messagesFor } from "@/i18n/messages";
 import { localeMeta } from "@/i18n/config";
 
@@ -19,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: `${site.name} — ${m.tagline}`, template: `%s · ${site.name}` },
     description: m.description,
     applicationName: site.name,
+    manifest: "/site.webmanifest",
     category: "shopping",
     formatDetection: { telephone: false, email: false, address: false },
     // Подтверждение прав в Google Search Console и Яндекс Вебмастере (значения — из .env)
@@ -45,9 +48,11 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
+  await ensureCatalog();
   return (
     <html lang={locale} className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">
+        <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>
           {children}
           <Overlays />

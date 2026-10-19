@@ -1,19 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useMessages } from "@/i18n/client";
 import { designBack } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
 import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { FaceView, usePagedBook, type FlipbookData } from "./pages";
+import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { buildCoverArt } from "./cover-art";
+import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls, type ViewId } from "./ViewerControls";
+import { useBookKeys, useFullscreen } from "./hooks";
 import { RasterHost, type RasterJob } from "./webgl/RasterHost";
 import { CoverBackFace, CoverFrontFace, CoverSpineFace } from "./webgl/cover-faces";
-import { BookScene, type FaceKey } from "./webgl/scene";
+import { BookScene, type FaceKey } from "./webgl/BookScene";
 
 /** Ракурсы осмотра: азимут и полярный угол камеры в радианах. */
 const VIEW_ANGLES: Record<ViewId, { azimuth: number; polar: number }> = {
@@ -28,6 +31,8 @@ const INITIAL = { azimuth: -0.49, polar: 1.33 };
 const READ = { azimuth: 0, polar: 1.36, zoom: 1.04 };
 /** Листы вокруг читаемой страницы, для которых держим текстуры: окно отрисовки плюс запас на следующий переворот. */
 const KEEP = RENDER_WINDOW + 1;
+/** Сколько ждём снимки обложки (фото, снимки-примеры), прежде чем снять обложку с тем, что есть. */
+const ART_WAIT_MS = 6000;
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -40,6 +45,13 @@ function averageColor(canvas: HTMLCanvasElement) {
   ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 1, 1);
   const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
   return `rgb(${r}, ${g}, ${b})`;
+}
+
+/** Короткий отпечаток строки: версия арта обложки должна меняться при любой правке кадра. */
+function hash(text: string) {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }
 
 /** Фото клиента как data-URL: картинка-SVG и снимок вёрстки не загружают чужие файлы. */
@@ -63,7 +75,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const mm = m.model;
   const format = getFormat(data.formatId);
   const template = getCoverTemplate(data.cover.template);
-  const { pageCount, brand, back, backPhotoUrl } = data.model;
+  const { pageCount, brand, back, backPhotos } = data.model;
   const { sheets, ctx, measure } = usePagedBook(data);
   const count = sheets.length;
   /** Листов блока между обложкой и задней крышкой. */
@@ -77,19 +89,42 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const boardH = Math.round((texW * dims.h) / dims.w);
   const spineW = Math.max(48, Math.round((dims.d * texW) / dims.w));
 
-  const [photoHref, setPhotoHref] = useState<string | undefined>();
-  const photoUrl = data.cover.photoUrl;
+  // Фото обложки встраиваются в SVG data-URL: иначе их не увидит растеризация в текстуру. Размеры и кадр (масштаб,
+  // положение) едут вместе с адресом: по ним снимок ставится в место так же, как в редакторе.
+  const [photoHrefs, setPhotoHrefs] = useState<(PhotoRef | undefined)[] | undefined>();
+  const photoKey = JSON.stringify(data.cover.photos ?? []);
   useEffect(() => {
-    if (!template.requiresPhoto || !photoUrl) return;
+    const refs = (JSON.parse(photoKey) as (PhotoRef | null)[]).map((r) => r ?? undefined);
+    if (!template.requiresPhoto || !refs.some(Boolean)) return;
     let alive = true;
-    toDataUrl(photoUrl)
-      .then((href) => alive && setPhotoHref(href))
-      .catch(() => {});
+    Promise.all(
+      refs.map(async (ref) => {
+        const url = photoHref(ref);
+        if (!url) return undefined;
+        const href = await toDataUrl(url).catch(() => undefined);
+        if (!href) return undefined;
+        return typeof ref === "string" || !ref ? href : { ...ref, href };
+      }),
+    ).then((list) => alive && setPhotoHrefs(list));
     return () => {
       alive = false;
     };
-  }, [template.requiresPhoto, photoUrl]);
-  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, photoHref), [template, format, pageCount, dims, photoHref]);
+  }, [template.requiresPhoto, photoKey]);
+  const imageHref = useCoverImage(template);
+  const samples = useCoverSamples(template);
+  // Фото, снимок обложки и снимки-примеры приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
+  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples]);
+  // Пока снимки обложки ещё грузятся, растеризация даёт пустую (чёрную) текстуру: до их прихода обложку не снимаем,
+  // а на случай медленной сети или сбоя ждём не дольше нескольких секунд — потом рисуем с тем, что есть.
+  const pendingArt = (!!template.photo && !imageHref) || (!!template.samples && !samples) || (template.requiresPhoto && !!data.cover.photos?.some(Boolean) && !photoHrefs);
+  const [waitedFor, setWaitedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingArt) return;
+    const t = setTimeout(() => setWaitedFor(template.id), ART_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [pendingArt, template.id]);
+  const coverReady = !pendingArt || waitedFor === template.id;
 
   const wrapper = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -206,9 +241,9 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     (key: FaceKey): RasterJob | null => {
       const title = data.cover.title || data.title;
       if (key === "front")
-        return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
-      if (key === "back") return { key, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photoUrl={backPhotoUrl} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
-      if (key === "spine") return { key, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
+        return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
+      if (key === "back") return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
+      if (key === "spine") return { key, version: artVersion, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
       if (!ctx) return null;
       const [, index, side] = key.split(":");
       const sheet = sheets[Number(index)];
@@ -225,12 +260,19 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       );
       return { key, width: texW, height: pageH, node };
     },
-    [art, backDesign, backPhotoUrl, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
+    [art, artVersion, backDesign, backPhotos, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
   );
 
+  // Версия арта, для которой текстуры обложки уже учтены как готовые.
+  const coverVersion = useRef(artVersion);
   useEffect(() => {
     const s = scene.current;
     if (!s) return;
+    // Фото обложки догрузились — текстуры обложки, снятые с заглушкой, устарели: снимаем заново.
+    if (coverVersion.current !== artVersion) {
+      coverVersion.current = artVersion;
+      for (const k of ["front", "back", "spine"] as const) have.current.delete(k);
+    }
     // Освобождаем текстуры дальних листов (память и видеопамять), оставляя обложку и окно вокруг страницы.
     const keep = new Set<FaceKey>(wanted);
     for (const key of s.textureKeys()) {
@@ -239,17 +281,18 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
         have.current.delete(key);
       }
     }
-    const missing = wanted.filter((k) => !have.current.has(k));
+    const missing = wanted.filter((k) => !have.current.has(k) && (coverReady || (k !== "front" && k !== "back" && k !== "spine")));
     const next = missing.flatMap((k) => nodeFor(k) ?? []);
-    setJobs((prev) => (prev.length === next.length && prev.every((j, i) => j.key === next[i].key) ? prev : next));
-  }, [wanted, nodeFor, count]);
+    setJobs((prev) => (prev.length === next.length && prev.every((j, i) => j.key === next[i].key && j.version === next[i].version) ? prev : next));
+  }, [wanted, nodeFor, count, artVersion, coverReady]);
 
-  const onRasterDone = useCallback((key: string, source: HTMLCanvasElement) => {
+  const onRasterDone = useCallback((key: string, source: HTMLCanvasElement, version?: string) => {
     const s = scene.current;
     const k = key as FaceKey;
     if (s) {
       s.setTexture(k, source);
-      have.current.add(k);
+      // Снимок старой версии (пока шло фото) ставим как временный, но готовым не считаем — следом придёт новый.
+      if (!version || version === coverVersion.current) have.current.add(k);
       if (k === "front") {
         const color = averageColor(source);
         if (color) s.setEdgeColor(color);
@@ -270,46 +313,31 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     scene.current?.setAutoRotate(false);
     setAuto(false);
   };
+  const keys = useBookKeys({
+    turn: (step) => goTo(target.current + step),
+    edge: (to) => goTo(to === "first" ? 0 : countRef.current - 1),
+    orbit: (dir) => orbitBy(0.17 * dir),
+    // ↑ — выше над книгой: полярный угол меньше.
+    tilt: (dir) => {
+      const s = scene.current;
+      if (s) s.setView({ polar: s.getView().polar - 0.15 * dir }, 280);
+    },
+    zoom: (dir) => scene.current?.zoomBy(dir > 0 ? 1.25 : 1 / 1.25),
+    reset: () => {
+      const s = scene.current;
+      if (!s) return;
+      s.setView({ ...INITIAL, distance: s.baseDistance }, 700);
+      setActive("front");
+    },
+    before: stopAuto,
+  });
+  // Пока сцена не создана, клавиши не перехватываем.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const s = scene.current;
-    if (!s) return;
-    const orbit = e.shiftKey;
-    const actions: Record<string, () => void> = {
-      ArrowRight: () => (orbit ? orbitBy(0.17) : goTo(target.current + 1)),
-      ArrowLeft: () => (orbit ? orbitBy(-0.17) : goTo(target.current - 1)),
-      ArrowUp: () => s.setView({ polar: s.getView().polar - 0.15 }, 280),
-      ArrowDown: () => s.setView({ polar: s.getView().polar + 0.15 }, 280),
-      PageDown: () => goTo(target.current + 1),
-      PageUp: () => goTo(target.current - 1),
-      Home: () => goTo(0),
-      End: () => goTo(countRef.current - 1),
-      "+": () => s.zoomBy(1.25),
-      "=": () => s.zoomBy(1.25),
-      "-": () => s.zoomBy(1 / 1.25),
-      "0": () => {
-        s.setView({ ...INITIAL, distance: s.baseDistance }, 700);
-        setActive("front");
-      },
-    };
-    const run = actions[e.key];
-    if (!run) return;
-    e.preventDefault();
-    stopAuto();
-    run();
+    if (scene.current) keys(e);
   };
 
   // ── Полный экран ──
-  const canFull = useSyncExternalStore(
-    () => () => {},
-    () => document.fullscreenEnabled,
-    () => false,
-  );
-  const [full, setFull] = useState(false);
-  useEffect(() => {
-    const sync = () => setFull(document.fullscreenElement === wrapper.current);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
+  const { canFull, full, toggleFull } = useFullscreen(wrapper);
 
   const spread = count ? visibleSpread(slot, count) : { left: null, right: null };
   const label = !count ? f.loading : slot === 0 ? f.cover : slot === count - 1 ? f.backCover : f.pages(spread.left, spread.right);
@@ -395,10 +423,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
           if (s) s.setView({ ...INITIAL, distance: s.baseDistance }, 750);
           setActive("front");
         }}
-        onFull={() => {
-          if (document.fullscreenElement) void document.exitFullscreen();
-          else void wrapper.current?.requestFullscreen();
-        }}
+        onFull={toggleFull}
       />
     </div>
   );

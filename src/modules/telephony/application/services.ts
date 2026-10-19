@@ -1,5 +1,6 @@
 import type { Clock } from "@/shared/application";
-import { formatPhone } from "@/shared/domain/phone";
+import { phoneTail } from "@/shared/domain/phone";
+import { staffLabel } from "@/shared/domain/staff";
 import { Call, TelephonyError, type CallEvent } from "../domain";
 import type { CallRepository, CallSideEffects, CallTimeline, SalesGateway, StaffDirectory, TelephonyProvider } from "./ports";
 
@@ -52,23 +53,34 @@ export class CallsService {
     // Номер в спаме: звонок в журнале остаётся, но без заявки, задач и уведомлений.
     if (call.clientPhone && (await this.effects.isBlocked(call.clientPhone))) return call;
     if (call.needsDeal) {
-      const deal = await this.sales.createCallDeal({ title: `Звонок: ${formatPhone(call.clientPhone)}`, clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : formatPhone(call.clientPhone) });
+      const deal = await this.sales.createCallDeal({ title: `Звонок: ${phoneTail(call.clientPhone)}`, clientId: call.clientId, contactPhone: call.clientPhone, contactName: call.clientId ? "" : phoneTail(call.clientPhone) });
       call.linkDeal(deal.id, deal.clientId);
       await this.calls.save(call);
     }
-    const staffName = call.staffId ? await this.staff.displayName(call.staffId) : null;
-    if (call.clientId) await this.timeline.record({ clientId: call.clientId, dealId: call.dealId, authorId: call.staffId, text: call.summary(staffName) });
+    if (call.clientId) await this.timeline.record({ clientId: call.clientId, dealId: call.dealId, authorId: call.staffId, text: call.summary(await this.staffNameOf(call.staffId)) });
+    // Менеджер связался с клиентом (поговорил или сам набрал) — заявка принята в работу, как после ответа в чате.
+    // Неизвестный внутренний номер — принимает ответственный по сделке; совсем некому — остаётся неразобранной.
+    if (call.dealId && call.isContact) {
+      const by = call.staffId ?? (await this.sales.dealOwner(call.dealId))?.assigneeId ?? null;
+      if (by) await this.sales.acceptDeal(call.dealId, by, call.contactLabel);
+    }
     if (call.status === "answered" && call.clientPhone) await this.calls.markMissedHandled(call.clientPhone, this.clock.now());
     if (call.isMissed) {
       const owner = call.dealId ? await this.sales.dealOwner(call.dealId) : null;
       await this.effects.notifyMissed(owner?.assigneeId ?? call.staffId, {
-        title: `Пропущенный звонок: ${formatPhone(call.clientPhone) || "скрытый номер"}`,
+        title: `Пропущенный звонок: ${phoneTail(call.clientPhone) || "скрытый номер"}`,
         body: owner?.contactName ?? "",
         link: call.dealId ? `/admin/deals/${call.dealId}` : "/admin/calls",
       });
       await this.effects.missedRules({ subject: call.id, callId: call.id, dealId: call.dealId, clientId: call.clientId });
     }
     return call;
+  }
+
+  /** Подпись сотрудника в заметке о звонке — та же, что везде в CRM (staffLabel). */
+  private async staffNameOf(staffId: string | null) {
+    const staff = staffId ? await this.staff.byId(staffId) : null;
+    return staff ? staffLabel(staff) : null;
   }
 }
 

@@ -1,15 +1,20 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { allPermissions, isPermission, maskEmail, maskPhone, permissionGroups, systemRoles } from "@/modules/access/domain/permissions";
+import { maskEmail, maskPhone, systemRoles } from "@/modules/access/domain/permissions";
+import { allPermissions, isPermission, permissionGroups } from "@/shared/domain/permissions";
 import { formatPhone, isPhoneLike, normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, zadarmaSignedString } from "@/modules/telephony/domain/protocol";
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
-import { automationActions, automationTriggers, fillTemplate, isTrigger } from "@/modules/automation/domain/meta";
-import { isWorkTime, parseWorkHours, workMinutesBetween } from "@/modules/workspace/domain/schedule";
-import { findMentions } from "@/modules/workspace/infrastructure/mentions";
+import { automationActions, automationTriggers, isTrigger } from "@/modules/automation/domain/meta";
+import { fillTemplate } from "@/shared/domain/templates";
+import { addWorkMinutes, isWorkTime, nextWorkStart, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
+import { storeTimeZoneIs } from "./doubles/time";
+import { findMentions } from "@/shared/domain/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
-import { buildSiteUrl, channelOf, linkCodeFromText, normalizeSlug, toAttribution } from "@/modules/marketing/domain/channels";
+import { buildSiteUrl, linkCodeFromText } from "@/modules/marketing/domain/links";
+import { channelOf, toAttribution } from "@/shared/domain/channels";
+import { normalizeSlug } from "@/shared/domain/slug";
 import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, questionText } from "@/modules/messaging/domain/botConfig";
 import { decryptSecret, encryptSecret, safeEqual } from "@/shared/crypto";
 import { matches } from "@/modules/automation/domain";
@@ -37,8 +42,12 @@ describe("права и системные роли", () => {
       expect(name).toBe(role.name);
       expect(scope).toBe(role.scope);
       const list = perms.split(",").map((p) => p.trim().replace(/'/g, ""));
-      // Права, добавленные следующими миграциями.
-      for (const m of later.matchAll(/array_append\("permissions", '([\w.]+)'\) WHERE "key" IN \(([^)]*)\)/g)) if (m[2].includes(`'${key}'`)) list.push(m[1]);
+      // Права, добавленные и снятые следующими миграциями (по порядку файлов).
+      for (const m of later.matchAll(/array_(append|remove)\("permissions", '([\w.]+)'\) WHERE "key" IN \(([^)]*)\)/g)) {
+        if (!m[3].includes(`'${key}'`)) continue;
+        if (m[1] === "append") list.push(m[2]);
+        else list.splice(list.indexOf(m[2]) >>> 0, list.includes(m[2]) ? 1 : 0);
+      }
       expect(list.every(isPermission)).toBe(true);
       expect([...list].sort()).toEqual([...role.permissions].sort());
     }
@@ -187,7 +196,8 @@ describe("шифрование секретов", () => {
 
 describe("рабочее время", () => {
   const hours = parseWorkHours('{"days":[1,2,3,4,5],"from":"09:00","to":"18:00"}');
-  // Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  // Магазин в Алматы — UTC+5: 09:00 местного = 04:00 UTC.
+  storeTimeZoneIs("Asia/Almaty");
   const at = (iso: string) => new Date(iso);
 
   it("разбирает настройку и подставляет значения по умолчанию", () => {
@@ -213,6 +223,39 @@ describe("рабочее время", () => {
     // внутри одного рабочего дня
     expect(workMinutesBetween(at("2026-09-30T05:00:00Z"), at("2026-09-30T05:15:00Z"), hours)).toBe(15);
     expect(workMinutesBetween(at("2026-09-30T05:15:00Z"), at("2026-09-30T05:00:00Z"), hours)).toBe(0);
+  });
+
+  it("начало следующей смены — для «менеджер ответит завтра с 09:00»", () => {
+    // среда 10:00 — рабочее время: сейчас
+    expect(nextWorkStart(at("2026-09-30T05:00:00Z"), hours)).toEqual(at("2026-09-30T05:00:00Z"));
+    // среда 19:00 → четверг 09:00
+    expect(nextWorkStart(at("2026-09-30T14:00:00Z"), hours)).toEqual(at("2026-10-01T04:00:00Z"));
+    // среда 07:00 → среда 09:00
+    expect(nextWorkStart(at("2026-09-30T02:00:00Z"), hours)).toEqual(at("2026-09-30T04:00:00Z"));
+    // пятница 20:00 → понедельник 09:00
+    expect(nextWorkStart(at("2026-10-02T15:00:00Z"), hours)).toEqual(at("2026-10-05T04:00:00Z"));
+    // 00:50 17.10 (ночь после пятницы) при графике каждый день 09–21 → 09:00 того же дня
+    expect(nextWorkStart(at("2026-10-16T19:50:00Z"), parseWorkHours(null))).toEqual(at("2026-10-17T04:00:00Z"));
+    expect(nextWorkStart(at("2026-10-16T19:50:00Z"), { days: [], from: "09:00", to: "18:00" })).toBeNull();
+  });
+
+  it("срок через N рабочих минут: ночь и выходные не считаются, вне смены — от её начала", () => {
+    // среда 10:00 + 2 ч → среда 12:00
+    expect(addWorkMinutes(at("2026-09-30T05:00:00Z"), 120, hours)).toEqual(at("2026-09-30T07:00:00Z"));
+    // среда 17:30 + 2 ч → 30 мин в среду и 1,5 ч в четверг: 10:30
+    expect(addWorkMinutes(at("2026-09-30T12:30:00Z"), 120, hours)).toEqual(at("2026-10-01T05:30:00Z"));
+    // среда 23:00 + 15 мин → четверг 09:15 (пропущенный ночью звонок не просрочен к началу смены)
+    expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 15, hours)).toEqual(at("2026-10-01T04:15:00Z"));
+    // пятница 20:00 + 2 ч → понедельник 11:00
+    expect(addWorkMinutes(at("2026-10-02T15:00:00Z"), 120, hours)).toEqual(at("2026-10-05T06:00:00Z"));
+    // 0 минут — как nextWorkStart
+    expect(addWorkMinutes(at("2026-09-30T02:00:00Z"), 0, hours)).toEqual(at("2026-09-30T04:00:00Z"));
+    // смена через полночь 20:00–02:00: 01:00 + 2 ч → 1 ч до 02:00 и 1 ч с 20:00 → 21:00
+    const night = parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"20:00","to":"02:00"}');
+    expect(addWorkMinutes(at("2026-09-30T20:00:00Z"), 120, night)).toEqual(at("2026-10-01T16:00:00Z"));
+    // круглосуточно и без рабочих дней — календарные минуты
+    expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 90, parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"00:00","to":"00:00"}'))).toEqual(at("2026-09-30T19:30:00Z"));
+    expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 90, { days: [], from: "09:00", to: "18:00" })).toEqual(at("2026-09-30T19:30:00Z"));
   });
 });
 
@@ -242,6 +285,9 @@ describe("упоминания и воронка по действиям", () =>
 
   it("переменные повода и даты в шаблонах", () => {
     expect(fillTemplate("Годовщина: {повод}, {дата}", { occasion: "Свадьба", date: "12 ноября" })).toBe("Годовщина: Свадьба, 12 ноября");
+    // Кому дарили книгу (повторные продажи, contacts-16); не знаем — пусто.
+    expect(fillTemplate("Книга для {получатель} к {повод}", { recipient: " мамы ", occasion: "8 Марта" })).toBe("Книга для мамы к 8 Марта");
+    expect(fillTemplate("Подарок {получатель}!", {})).toBe("Подарок!");
   });
 });
 
@@ -302,9 +348,23 @@ describe("бот-квалификатор", () => {
     expect(matchOption("просто так", opts)).toBeNull();
   });
 
+  it("регрессы с прода: «8 марта» — не вариант 8, «др» — не «Другой повод», «4Ноябрь» и «21 окт» — даты, «15 мама» — не май", () => {
+    const occasions = ["Годовщина", "День рождения", "14 февраля", "8 марта", "Новый год", "Свадьба", "Юбилей родителей", "Выпускной", "Другой повод"];
+    expect(matchOption("8 марта", occasions)).toBe("8 марта");
+    expect(matchOption("др", occasions)).toBe("День рождения");
+    expect(matchOption("Туған күнге", occasions)).toBe("День рождения");
+    expect(parseDateAnswer("4Ноябрь", now)).toBe("2026-11-04");
+    expect(parseDateAnswer("21 окт", now)).toBe("2026-10-21");
+    expect(parseDateAnswer("15 қараша", now)).toBe("2026-11-15");
+    expect(parseDateAnswer("15 мама", now)).toBeNull();
+  });
+
   it("показывает варианты списка с номерами и терпит испорченную настройку", () => {
-    expect(questionText({ text: "Повод?", field: "occasion" }, ["А", "Б"])).toBe("Повод?\n1 — А\n2 — Б");
+    expect(questionText("Повод?", ["А", "Б"])).toBe("Повод?\n1 — А\n2 — Б");
     expect(parseBotConfig("{bad")).toEqual(defaultBotConfig);
-    expect(parseBotConfig(JSON.stringify({ greeting: "Привет", questions: [{ text: "", field: "x" }, { text: "Кому?", field: "recipient" }], finish: "" })).questions).toEqual([{ text: "Кому?", field: "recipient" }]);
+    // Старый формат с прода: пустой вопрос отбрасывается, текст становится русским, казахский — заводской для поля.
+    expect(parseBotConfig(JSON.stringify({ greeting: "Привет", questions: [{ text: "", field: "x" }, { text: "Кому?", field: "recipient" }], finish: "" })).questions).toEqual([
+      { field: "recipient", text: { ru: "Кому?", kk: "Кітап кімге арналады? Мысалы: анаңызға, күйеуіңізге, құрбыңызға." } },
+    ]);
   });
 });

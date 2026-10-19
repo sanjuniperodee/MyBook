@@ -16,7 +16,8 @@ export interface CallRepository {
 
 export interface StaffDirectory {
   byExtension(extension: string | null): Promise<string | null>;
-  displayName(userId: string): Promise<string | null>;
+  /** Сотрудник — для подписи в ленте клиента; null, если такого нет. */
+  byId(userId: string): Promise<{ name: string; email: string } | null>;
 }
 
 export interface SalesGateway {
@@ -24,6 +25,8 @@ export interface SalesGateway {
   findOpenDealId(opts: { clientId: string | null; phone: string }): Promise<string | null>;
   createCallDeal(input: { title: string; clientId: string | null; contactPhone: string; contactName: string }): Promise<{ id: string; clientId: string | null }>;
   dealOwner(dealId: string): Promise<{ assigneeId: string | null; contactName: string } | null>;
+  /** Менеджер связался с клиентом по телефону — неразобранная заявка принята в работу (how — как именно, в ленту сделки). */
+  acceptDeal(dealId: string, staffId: string, how: string): Promise<void>;
 }
 
 export interface CallTimeline {

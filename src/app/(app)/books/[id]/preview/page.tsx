@@ -3,17 +3,10 @@ import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { backContent } from "@/lib/book/cover-back";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
-import { buildBookContent, estimatePages } from "@/lib/book/layout";
-import { printablePageCount } from "@/lib/book/formats";
-import { site } from "@/config/site";
-import { splitParagraphs } from "@/lib/book/inline-photo";
-import type { FlipbookData } from "@/components/book3d/pages";
+import { flipbookData } from "@/components/book3d/flipbook-data";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.preview.meta };
@@ -25,42 +18,16 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const book = await getAccessibleBook(id, user);
   const [t, questions] = await Promise.all([getMessages().then((m) => m.books.preview), container().authoring.queries.questions(book.id)]);
 
-  // Листаемая книга строится из тех же данных, что и PDF (без фото: их точное место видно в PDF).
-  const content = buildBookContent(book, questions, []);
-  const backPhoto = book.backPhotoId ? (await container().authoring.queries.photos(book.id)).find((p) => p.id === book.backPhotoId) : undefined;
-  const names = coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover);
-  const photo = book.coverPhotoId ? photoUrl(book.coverPhotoId, "full") : undefined;
-  const flipbook: FlipbookData = {
-    cover: { template: book.coverTemplate, format: book.format, title: book.title, subtitle: book.subtitle, names, photoUrl: photo },
-    language: content.language,
-    formatId: content.format.id,
-    interiorId: content.interior.id,
-    title: content.title,
-    subtitle: content.subtitle,
-    author: content.authorName,
-    year: content.year,
-    dedication: content.dedication,
-    showToc: content.showToc,
-    model: {
-      pageCount: printablePageCount(estimatePages(content)),
-      brand: site.name.toUpperCase(),
-      back: backContent(book, backPhoto ? { width: backPhoto.width, height: backPhoto.height } : null, new Date()),
-      backPhotoUrl: backPhoto ? photoUrl(backPhoto.id, "full") : undefined,
-    },
-    chapters: content.chapters.map((c) => ({
-      number: c.number,
-      title: c.title,
-      epigraph: c.epigraph,
-      entries: c.items.flatMap((it) => {
-        const paragraphs = splitParagraphs(it.answer);
-        return paragraphs.length ? [{ heading: it.heading, paragraphs }] : [];
-      }),
-    })),
-  };
+  // Листаемая книга строится из тех же данных, что и PDF: ответы, фото в ответах, фотостраницы глав, галерея, письма.
+  const bundle = await container().authoring.queries.bundle(book.id);
+  const allPhotos = bundle?.photos ?? [];
+  const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], allPhotos, bundle?.letters ?? []);
+  const names = flipbook.cover.names;
+  const photos = flipbook.cover.photos;
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+        <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
         {book.status === "draft" ? (
           <Link href={`/books/${book.id}/checkout`} className="btn btn-primary">
             {t.order}
@@ -76,7 +43,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
               title={book.title}
               subtitle={book.subtitle}
               names={names}
-              photoUrl={photo}
+              photos={photos}
               className="rounded-[3px] shadow-book"
             />
             <Link href={`/books/${book.id}/cover`} className="mt-3 block text-center text-sm text-wine hover:underline">

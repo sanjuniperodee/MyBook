@@ -4,7 +4,7 @@ import { audit } from "@/server/access";
 import { container } from "@/server/container";
 import { toCsv } from "@/lib/csv";
 
-import { orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 
 export const GET = api(async (req) => {
   const staff = await apiStaff(req, "orders.view", "clients.export", "clients.contacts");
@@ -13,12 +13,12 @@ export const GET = api(async (req) => {
   await audit(staff, "export", "orders", null, params);
   const rows = await container().reporting.orderExport(params, admin.id);
   const csv = toCsv(
-    ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],
+    ["Номер", "Создан", "Оплачен", "Статус", "Тариф", "Кол-во", "Книги", "Скидка", "Промокод", "Доставка", "Итого", "Валюта", "Имя", "Телефон", "E-mail", "Способ доставки", "Страна", "Город", "Адрес", "Индекс", "Нужна к", "Трек-номер", "Комментарий"],
     rows.map((o) => [
       o.number,
       o.createdAt,
       o.paidAt,
-      orderStatusLabel(o.status),
+      orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan)),
       planName(o.plan),
       o.quantity,
       o.itemsAmount,
@@ -31,6 +31,7 @@ export const GET = api(async (req) => {
       o.contactPhone,
       o.contactEmail,
       o.deliveryMethod,
+      o.deliveryCountry,
       o.city,
       o.address,
       o.postalCode,

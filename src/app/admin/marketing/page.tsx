@@ -2,12 +2,14 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { can, requireStaff } from "@/server/access";
 import { conversion } from "@/modules/marketing";
-import { channelLabel } from "@/modules/marketing/domain/channels";
+import { channelLabel } from "@/shared/domain/channels";
 import { landings } from "@/lib/content/landings";
 import { env } from "@/config/env";
 import { formatPrice } from "@/config/site";
 import { BarList } from "@/components/admin/charts";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatPhone } from "@/shared/domain/phone";
+import { formatDate } from "@/lib/dates";
 import { LinkBuilder, LinkRowActions, WhatsappNumberForm } from "./MarketingControls";
 
 export const metadata = { title: "Ссылки и каналы" };
@@ -169,7 +171,13 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
           </table>
           {visibleLinks.length === 0 ? <p className="py-4 text-sm text-muted">{sp.archived === "1" ? "Архив пуст." : "Ссылок пока нет — создайте первую для шапки Instagram."}</p> : null}
         </div>
-        {can(staff, "promo.manage") ? <WhatsappNumberForm value={waNumber} /> : null}
+        {can(staff, "settings.manage") ? (
+          <WhatsappNumberForm value={waNumber} />
+        ) : (
+          <p className="mt-5 border-t border-line pt-4 text-xs text-muted">
+            Ссылки «Сразу в WhatsApp» ведут на номер магазина {formatPhone(waNumber)}. Он же — в реквизитах на сайте, поэтому его меняет руководитель в «Сайт» → «Реквизиты продавца».
+          </p>
+        )}
       </section>
 
       {showAnalytics && report.campaigns.length ? (

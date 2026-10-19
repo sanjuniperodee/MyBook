@@ -2,13 +2,14 @@ import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { Download, Kanban } from "lucide-react";
 import { container } from "@/server/container";
-import { ORDER_STATUSES as orderStatuses } from "@/modules/ordering/domain";
-import { requireStaff } from "@/server/access";
-import { formatPrice, plans } from "@/config/site";
-import { orderStatusLabel } from "@/modules/ordering/ui/status";
-import { adminLabel } from "@/modules/access/ui";
+import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
+import { contactView, requireStaff } from "@/server/access";
+import { formatPrice, getPlans } from "@/config/site";
+import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderMoney } from "@/modules/ordering/ui/money";
+import { staffLabel } from "@/shared/domain/staff";
 import type { OrderFilters } from "@/modules/reporting";
-import { formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/dates";
 import { OrdersTable, type OrderRow } from "./OrdersTable";
 
 export const metadata = { title: "Заказы" };
@@ -20,21 +21,27 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
   const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, admin.id, p, PAGE), container().access.queries.allStaff()]);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
-  const rows: OrderRow[] = list.map((o) => ({
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
+  const rows: OrderRow[] = list.map((o) => {
+    const contact = contactView(staff, { phone: o.contactPhone, email: o.contactEmail });
+    const money = orderMoney(o);
+    return {
     id: o.id,
     number: o.number,
     createdLabel: formatDate(o.createdAt, true),
     contactName: o.contactName,
-    contactLine: `${o.contactPhone} · ${o.contactEmail}`,
+    contactLine: [contact.phone, contact.email].filter(Boolean).join(" · "),
     planLabel: `${planName(o.plan)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
+    printed: isPrintedPlan(o.plan),
     desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
-    amountLabel: formatPrice(o.amount),
+    amountLabel: formatPrice(money.price),
+    money: money.debt > 0 ? { kind: "debt", label: `долг ${formatPrice(money.debt)}` } : money.paid > 0 ? { kind: "paid", label: `оплачено ${formatPrice(money.paid)}` } : null,
     status: o.status,
     claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
     assignee: o.assigneeId ? (names.get(o.assigneeId) ?? null) : null,
     promoCode: o.promoCode,
-  }));
+    };
+  });
   const qs = new URLSearchParams(Object.entries(params).filter(([k, v]) => v && k !== "page") as [string, string][]);
   const pageLink = (n: number) => `?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(n) })}`;
 
@@ -44,7 +51,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
         <div>
           <h1 className="text-2xl font-semibold">Заказы</h1>
           <p className="text-sm text-muted">
-            Найдено {n} · оплачено на {formatPrice(sum)}
+            Найдено {n} · получено {formatPrice(sum)} с предоплатами
           </p>
         </div>
         <div className="flex gap-2">
@@ -69,7 +76,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
         </select>
         <select name="plan" defaultValue={params.plan ?? ""} className="input h-10 text-sm">
           <option value="">Все тарифы</option>
-          {plans.map((pl) => (
+          {getPlans().map((pl) => (
             <option key={pl.id} value={pl.id}>
               {planName(pl.id)}
             </option>
@@ -81,7 +88,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
           <option value="none">Без ответственного</option>
           {admins.map((a) => (
             <option key={a.id} value={a.id}>
-              {adminLabel(a)}
+              {staffLabel(a)}
             </option>
           ))}
         </select>

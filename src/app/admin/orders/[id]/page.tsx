@@ -1,32 +1,63 @@
 import { addonName, coverName, deliveryName, formatName, interiorName, planName } from "@/i18n/labels";
-import { channelLabel, describeAttribution, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, describeAttribution, toAttribution } from "@/shared/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
-import { formatPrice, getPlan } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
+import { deliveryAddress } from "@/modules/ordering/ui/labels";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import { getTheme } from "@/lib/content/themes";
+import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
-import { cn, formatDate } from "@/lib/utils";
-import { DetailsForm, GenerateButton, LockButton, NoteForm, StatusForm } from "./OrderControls";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
+import { DetailsForm, GenerateButton, LockButton, NoteForm, OrderMoney, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { ClipboardList, UserRound } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
+import { formatPhone } from "@/shared/domain/phone";
+import { pageId } from "@/server/input";
+import { isPhoneEmail } from "@/modules/identity/domain";
+import type { OrderNoticeFacts } from "@/modules/ordering/ui/notice";
+
+/**
+ * Что получит клиент при смене статуса: настоящая ли почта, правила WhatsApp о заказе (о чём уже писали), переписка,
+ * стоп-лист, рабочее ли время и открыты ли окно и суточный лимит сообщений от правил.
+ */
+async function noticeFacts(order: { id: string; userId: string; contactEmail: string; contactPhone: string; trackingNumber: string | null }): Promise<OrderNoticeFacts> {
+  const n = await container().reporting.orderNotice(order);
+  const [noMarketing, pause, workTime] = await Promise.all([
+    container().messaging.chats.noMarketingFor({ dealId: n.dealId, clientId: order.userId, phones: [order.contactPhone] }),
+    n.rules.length ? container().messaging.chats.ruleSendPause() : null,
+    n.rules.some((r) => r.hours) ? container().workspace.schedule.isWorkTime(new Date()) : true,
+  ]);
+  return { realEmail: !isPhoneEmail(order.contactEmail), rules: n.rules, whatsappChat: n.whatsappChat, noMarketing, workTime, pause };
+}
+
+/** Статусы счетов Kaspi в карточке заказа. */
+const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("orders.view");
-  const { id } = await params;
+  const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
   if (!order) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }] = await Promise.all([container().authoring.queries.stats(book), container().access.queries.allStaff(), container().reporting.orderCrm(order)]);
+  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows] = await Promise.all([
+    container().authoring.queries.stats(book),
+    container().access.queries.allStaff(),
+    container().reporting.orderCrm(order),
+    container().ordering.queries.paymentInvoices("order", order.id),
+    container().ordering.payments.list(order.id),
+  ]);
   const adminOptions = staffOptions(admins);
-  const adminName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = new Date();
   const tasks: TaskItem[] = taskRows.map((t) => ({
     id: t.id,
@@ -48,6 +79,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const contact = contactView(staff, { phone: order.contactPhone, email: order.contactEmail });
   const accountEmail = contactView(staff, { email: order.user.email }).email;
   const canEdit = can(staff, "orders.edit");
+  const notice = canEdit ? await noticeFacts(order) : null;
   const canClients = can(staff, "clients.view");
   const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
 
@@ -56,7 +88,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       <Link href="/admin/orders" className="text-sm text-muted hover:text-ink">← Заказы</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Заказ №{order.number}</h1>
-        <span className={cn("rounded-full px-3 py-1 text-sm", orderStatusColors[order.status])}>{orderStatusLabel(order.status)}</span>
+        <span className={cn("rounded-full px-3 py-1 text-sm", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
         {order.paymentClaimedAt && order.status === "pending_payment" ? (
           <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Клиент сообщил об оплате {formatDate(order.paymentClaimedAt, true)}</span>
         ) : null}
@@ -105,9 +137,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[160px_1fr]">
               <dt className="text-muted">Название</dt><dd>{book.title}</dd>
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
-              <dt className="text-muted">Автор → адресат</dt><dd>{book.authorName} → {book.recipientName}</dd>
+              <dt className="text-muted">{bookKind(book.theme) === "autobiography" ? "Рассказчик" : "Автор → адресат"}</dt><dd>{book.authorName}{book.recipientName && bookKind(book.theme) !== "autobiography" ? ` → ${book.recipientName}` : ""}{book.recordedBy ? ` · записано: ${book.recordedBy}` : ""}</dd>
               <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · обложка «{coverName(book.coverTemplate)}» · страницы «{interiorName(book.interior)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
-              <dt className="text-muted">Наполнение</dt><dd>{stats.answered} ответов · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
+              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -129,8 +161,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               </dd>
               {plan?.printed ? (
                 <>
-                  <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}</dd>
-                  <dt className="text-muted">Адрес</dt><dd>{[order.postalCode, order.city, order.address].filter(Boolean).join(", ") || "—"}</dd>
+                  <dt className="text-muted">Доставка</dt><dd>{deliveryName(order.deliveryMethod)}{isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount ? <span className="ml-1.5 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">стоимость рассчитывается индивидуально — в сумму не входит</span> : null}</dd>
+                  <dt className="text-muted">Адрес</dt><dd>{deliveryAddress({ ...order, country: order.deliveryCountry }) || "—"}</dd>
                 </>
               ) : null}
               {order.customerComment ? (<><dt className="text-muted">Комментарий</dt><dd className="whitespace-pre-line">{order.customerComment}</dd></>) : null}
@@ -180,18 +212,59 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
           <Card title="Оплата">
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-muted">{planName(order.plan)} × {order.quantity}</dt><dd>{formatPrice(order.itemsAmount)}</dd></div>
-              {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>Промокод {order.promoCode}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
+              {order.discountAmount ? <div className="flex justify-between text-emerald-700"><dt>{order.promoCode ? `Промокод ${order.promoCode}` : "Договорённая цена"}</dt><dd>−{formatPrice(order.discountAmount)}</dd></div> : null}
               {order.addons.length ? <div className="flex justify-between"><dt className="text-muted">{order.addons.map((a) => addonName(a)).join(", ")}</dt><dd>{formatPrice(order.addonsAmount)}</dd></div> : null}
-              <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{formatPrice(order.deliveryAmount)}</dd></div>
-              <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Итого</dt><dd>{formatPrice(order.amount)}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Доставка</dt><dd>{isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount ? "рассчитывается индивидуально, отдельно" : formatPrice(order.deliveryAmount)}</dd></div>
+              {order.prepaidAmount ? <div className="flex justify-between text-emerald-700"><dt>Внесено ранее менеджеру (предоплата)</dt><dd>−{formatPrice(order.prepaidAmount)}</dd></div> : null}
+              <div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>{order.prepaidAmount ? "К оплате сейчас" : "Итого"}</dt><dd>{formatPrice(order.amount)}</dd></div>
               <div className="flex justify-between pt-2 text-xs text-muted"><dt>Способ</dt><dd>{order.paymentProvider}{order.paymentId ? ` · ${order.paymentId}` : ""}</dd></div>
               {order.paidAt ? <div className="flex justify-between text-xs text-muted"><dt>Оплачен</dt><dd>{formatDate(order.paidAt, true)}</dd></div> : null}
             </dl>
+            {kaspiInvoices.length ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="mb-1.5 text-xs text-muted">Счета Kaspi</div>
+                <ul className="space-y-1 text-xs">
+                  {kaspiInvoices.map((i) => (
+                    <li key={i.id} className="flex justify-between gap-2">
+                      <span>
+                        {i.method === "qr" ? "QR" : `счёт на ${formatPhone(i.phone) || i.phone}`} · №{i.externalId}
+                      </span>
+                      <span className={i.status === "paid" ? "text-emerald-700" : "text-muted"} title={i.providerStatus ?? undefined}>
+                        {invoiceStatusLabels[i.status]} {formatDate(i.paidAt ?? i.createdAt, true)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </Card>
-          {canEdit ? (
+          <Card title="Деньги по заказу" id="money">
+            <OrderMoney
+              orderId={order.id}
+              status={order.status}
+              due={order.amount}
+              received={order.receivedAmount}
+              postpay={order.postpay}
+              settled={!!order.paidAt}
+              canEdit={canEdit}
+              canReview={can(staff, "team.manage")}
+              rows={moneyRows.map((r) => ({
+                id: r.id,
+                amount: r.amount,
+                method: r.method,
+                ref: r.externalRef,
+                paidLabel: formatDate(r.paidAt),
+                note: r.note,
+                receipt: !!r.receipt,
+                reviewed: r.reviewedAt ? `${r.reviewedById ? (adminName.get(r.reviewedById) ?? "") : ""} ${formatDate(r.reviewedAt)}`.trim() : null,
+                by: r.createdById ? (adminName.get(r.createdById) ?? null) : null,
+              }))}
+            />
+          </Card>
+          {canEdit && notice ? (
             <>
               <Card title="Управление">
-                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} />
+                <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} printed={isPrintedPlan(order.plan)} notice={notice} />
               </Card>
               <Card title="Заметка">
                 <NoteForm orderId={order.id} note={order.adminNote} />
@@ -208,9 +281,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
+    <section id={id} className="rounded-2xl border border-line bg-white p-5">
       <h2 className="mb-4 font-semibold">{title}</h2>
       {children}
     </section>

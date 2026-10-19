@@ -2,13 +2,14 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/modules/sales/domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { BellRing, LoaderCircle, Plus, X } from "lucide-react";
 import { remindClientAction, updateClientTagsAction } from "../../actions";
-import { setClientFieldsAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { setClientChannelAction, setClientFieldsAction, setClientLocaleAction, setClientManagerAction, setClientPhonesAction } from "../../crm-actions";
+import { channels, manualChannels } from "@/shared/domain/channels";
 import { toast } from "@/components/ui/overlays";
 import { ManagerSelect } from "@/components/admin/ContactActions";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const suggested = ["vip", "блогер", "корпоратив", "повторный", "жалоба", "опт"];
 
@@ -88,6 +89,84 @@ export function ClientManager({ clientId, value, options, disabled }: { clientId
   return <ManagerSelect value={value} options={options} disabled={disabled} onChange={(v) => setClientManagerAction(clientId, v)} />;
 }
 
+/**
+ * Канал привлечения: откуда клиент пришёл. Выбранный вручную — «как есть»; если клиент пришёл по меткам (реклама, ссылка),
+ * они показаны подписью «по меткам», и выбор канала заменяет их для отчётов.
+ */
+/** Язык кабинета и писем клиента: меняется сразу, при ошибке возвращается прежний. */
+export function ClientLocale({ clientId, value }: { clientId: string; value: "ru" | "kk" }) {
+  const [pending, start] = useTransition();
+  const [current, setCurrent] = useState(value);
+  return (
+    <select
+      className="input h-8 w-32 text-xs"
+      value={current}
+      disabled={pending}
+      aria-label="Язык кабинета и писем"
+      data-testid="client-locale-select"
+      onChange={(e) => {
+        const next = e.target.value as "ru" | "kk";
+        const prev = current;
+        setCurrent(next);
+        start(async () => {
+          const r = await setClientLocaleAction(clientId, next);
+          if (r.ok) toast(r.message ?? "Язык сохранён", "success");
+          else {
+            setCurrent(prev);
+            toast(r.message, "error");
+          }
+        });
+      }}
+    >
+      <option value="ru">русский</option>
+      <option value="kk">казахский</option>
+    </select>
+  );
+}
+
+export function ClientChannel({ clientId, value, auto, disabled }: { clientId: string; value: string; auto?: string; disabled?: boolean }) {
+  const [pending, start] = useTransition();
+  const [current, setCurrent] = useState(value);
+  return (
+    <select
+      className="input h-9 text-sm"
+      value={current}
+      disabled={disabled || pending}
+      aria-label="Канал привлечения"
+      data-testid="client-channel-select"
+      onChange={(e) => {
+        const next = e.target.value;
+        const prev = current;
+        setCurrent(next);
+        start(async () => {
+          const r = await setClientChannelAction(clientId, next);
+          if (r.ok) toast(r.message ?? "Канал сохранён", "success");
+          else {
+            setCurrent(prev);
+            toast(r.message, "error");
+          }
+        });
+      }}
+    >
+      {value === "" ? (
+        <option value="" disabled>
+          Не указан
+        </option>
+      ) : null}
+      {auto ? (
+        <option value="auto" disabled>
+          {auto} (по меткам)
+        </option>
+      ) : null}
+      {manualChannels.map((k) => (
+        <option key={k} value={k}>
+          {channels[k]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function ExtraPhones({ clientId, value }: { clientId: string; value: string }) {
   const [text, setText] = useState(value);
   const [pending, start] = useTransition();
@@ -110,7 +189,7 @@ export function ExtraPhones({ clientId, value }: { clientId: string; value: stri
   );
 }
 
-export function ClientFields({ clientId, fields, values, disabled }: { clientId: string; fields: FieldDef[]; values: CustomValues; disabled: boolean }) {
+export function ClientFields({ clientId, fields, values, disabled }: { clientId: string; fields: FieldDef[]; values: CustomFieldValues; disabled: boolean }) {
   const [state, action] = useActionState(setClientFieldsAction, {});
   return (
     <form action={action} className="space-y-3">

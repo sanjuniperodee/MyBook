@@ -6,12 +6,14 @@ import { useState } from "react";
 import { Check, Copy, EyeOff, Link2, MessageCircle, Pencil, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { Alert } from "@/components/ui/Alert";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { useLocale, useMessages } from "@/i18n/client";
 import { localizePath, type Locale } from "@/i18n/config";
-import { messagesFor } from "@/i18n/messages";
+import { letterShareFor } from "@/i18n/messages/partial";
+import type { BookKind } from "@/lib/content/kinds";
 
-export interface ManagedLetter {
+interface ManagedLetter {
   id: string;
   authorName: string;
   relation: string;
@@ -27,7 +29,7 @@ export function LettersManager({
   initialToken,
   initialLetters,
   appUrl,
-  recipient,
+  invitation,
   bookLanguage,
   editable,
 }: {
@@ -35,7 +37,8 @@ export function LettersManager({
   initialToken: string | null;
   initialLetters: ManagedLetter[];
   appUrl: string;
-  recipient: string;
+  /** О какой книге просим письма: вид, автор, название, получатель (у автобиографии его нет). */
+  invitation: { kind: BookKind; author: string; title: string; recipient: string };
   bookLanguage: Locale;
   editable: boolean;
 }) {
@@ -51,7 +54,7 @@ export function LettersManager({
   const [editing, setEditing] = useState<string | null>(null);
   // Близкие пишут для книги — страница письма и текст приглашения на языке книги.
   const link = token ? `${appUrl}${localizePath(`/letters/${token}`, bookLanguage)}` : "";
-  const shareText = messagesFor(bookLanguage).books.letters.share(recipient, link);
+  const shareText = letterShareFor(bookLanguage)(invitation, link);
 
   const setInvite = async (enabled: boolean, regenerate = false) => {
     setBusy(true);
@@ -129,7 +132,7 @@ export function LettersManager({
                   {t.close}
                 </button>
               </div>
-              <p className="mt-4 text-xs text-muted">{t.privacy}</p>
+              <p className="mt-4 text-xs text-muted">{t.privacy(!!invitation.recipient.trim())}</p>
             </>
           ) : (
             <button className="btn btn-primary mt-5 w-full" onClick={() => setInvite(true)} disabled={busy || !editable}>

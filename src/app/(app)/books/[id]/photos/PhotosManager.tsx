@@ -12,19 +12,19 @@ import { Alert } from "@/components/ui/Alert";
 import { photoUrl } from "@/lib/urls";
 import { getFormat } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { PhotosArt } from "@/components/illustrations";
 
-export interface ManagedPhoto {
+interface ManagedPhoto {
   id: string;
   caption: string;
-  layout: "full" | "bleed" | "half";
+  layout: "full" | "bleed" | "half" | "grid";
   width: number;
   height: number;
   inAnswer?: string | null;
 }
 
-const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half"];
+const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half", "grid"];
 
 export function PhotosManager({ bookId, format, initial, editable }: { bookId: string; format: string; initial: ManagedPhoto[]; editable: boolean }) {
   const [photos, setPhotos] = useState(initial);
@@ -113,6 +113,18 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
     }
   };
 
+  /** Ручка перетаскивания и удаление. touch-none — чтобы жест на ручке тянул карточку, а не прокручивал страницу. */
+  const photoActions = (id: string, handle: Record<string, unknown>) => (
+    <>
+      <button {...handle} className="flex size-10 cursor-grab touch-none items-center justify-center rounded-full bg-white/90 shadow active:cursor-grabbing max-sm:border max-sm:border-line max-sm:shadow-none sm:size-9" aria-label={t.drag}>
+        <GripVertical className="size-4" />
+      </button>
+      <button onClick={() => remove(id)} className="flex size-10 items-center justify-center rounded-full bg-white/90 text-red-700 shadow max-sm:border max-sm:border-line max-sm:shadow-none sm:size-9" aria-label={t.delete}>
+        <Trash2 className="size-4" />
+      </button>
+    </>
+  );
+
   return (
     <div
       onDragOver={(e) => {
@@ -128,15 +140,15 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
         void upload([...e.dataTransfer.files]);
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
-          <p className="mt-2 text-muted">{photos.length ? t.reorder : t.intro}</p>
+          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
+          <p className="mt-2 text-sm text-muted sm:text-base">{photos.length ? t.reorder : t.intro}</p>
         </div>
         {editable ? (
           <>
             <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
-            <button className="btn btn-primary btn-lg" onClick={() => input.current?.click()} disabled={!!uploading}>
+            <button className="btn btn-primary btn-lg max-sm:w-full" onClick={() => input.current?.click()} disabled={!!uploading}>
               {uploading ? <LoaderCircle className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
               {uploading ? t.uploading(uploading.done, uploading.total) : t.add}
             </button>
@@ -169,42 +181,49 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
           </span>
         </button>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext id="photos-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={photos.map((p) => p.id)} strategy={rectSortingStrategy}>
-            <div className={cn("mt-8 grid gap-5 rounded-3xl sm:grid-cols-2 lg:grid-cols-3", dragOver && "outline-2 outline-offset-8 outline-wine outline-dashed")}>
+            <div className={cn("mt-6 grid gap-3 rounded-3xl sm:mt-8 sm:gap-5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-3", dragOver && "outline-2 outline-offset-8 outline-wine outline-dashed")}>
               {photos.map((p, i) => {
                 const fit = p.layout === "bleed" ? "cover" : "contain";
                 const dpi = effectiveDpi(p, photoAreaMm(fmt, p.layout), fit);
                 return (
                   <SortablePhoto key={p.id} id={p.id} disabled={!editable}>
                     {(handle) => (
-                      <div className="card overflow-hidden">
-                        <div className="relative aspect-[4/3] bg-cream">
+                      <div className="card min-w-0 overflow-hidden max-sm:flex">
+                        <div className="relative bg-cream max-sm:w-28 max-sm:shrink-0 sm:aspect-[4/3]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={photoUrl(p.id)} alt={p.caption} className="h-full w-full object-cover" loading="lazy" />
-                          <span className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-xs text-white">{i + 1}</span>
-                          {editable ? (
-                            <div className="absolute top-3 right-3 flex gap-1.5">
-                              <button {...handle} className="flex size-9 cursor-grab items-center justify-center rounded-full bg-white/90 shadow active:cursor-grabbing" aria-label={t.drag}>
-                                <GripVertical className="size-4" />
-                              </button>
-                              <button onClick={() => remove(p.id)} className="flex size-9 items-center justify-center rounded-full bg-white/90 text-red-700 shadow" aria-label={t.delete}>
-                                <Trash2 className="size-4" />
-                              </button>
-                            </div>
-                          ) : null}
+                          <img src={photoUrl(p.id)} alt={p.caption} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                          <span className="absolute top-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-xs text-white sm:top-3 sm:left-3 sm:px-2.5 sm:py-1">{i + 1}</span>
+                          {editable ? <div className="absolute top-3 right-3 flex gap-1.5 max-sm:hidden">{photoActions(p.id, handle)}</div> : null}
                           {p.inAnswer ? (
-                            <span className="absolute bottom-3 left-3 max-w-[70%] truncate rounded-full bg-wine/90 px-2.5 py-1 text-xs text-white" title={p.inAnswer}>
+                            <span className="absolute bottom-3 left-3 max-w-[70%] truncate rounded-full bg-wine/90 px-2.5 py-1 text-xs text-white max-sm:hidden" title={p.inAnswer}>
                               {t.inAnswer(p.inAnswer)}
                             </span>
                           ) : null}
                           {dpi < 150 ? (
-                            <span className="absolute inset-x-3 bottom-3 flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1.5 text-xs text-white" title={t.dpi(dpi)}>
+                            <span className="absolute inset-x-3 bottom-3 flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1.5 text-xs text-white max-sm:hidden" title={t.dpi(dpi)}>
                               <TriangleAlert className="size-3.5 shrink-0" /> {t.lowRes}
                             </span>
                           ) : null}
                         </div>
-                        <div className="space-y-3 p-4">
+                        <div className="min-w-0 flex-1 space-y-2.5 p-3 sm:space-y-3 sm:p-4">
+                          {/* Телефон: статус и действия — в колонке справа от миниатюры */}
+                          <div className="flex items-center gap-1.5 sm:hidden">
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                              {p.inAnswer ? (
+                                <span className="truncate rounded-full bg-wine/10 px-2 py-0.5 text-[11px] text-wine" title={p.inAnswer}>
+                                  {t.inAnswer(p.inAnswer)}
+                                </span>
+                              ) : null}
+                              {dpi < 150 ? (
+                                <span className="flex items-center gap-1 text-[11px] text-amber-700" title={t.dpi(dpi)}>
+                                  <TriangleAlert className="size-3 shrink-0" /> {t.lowRes}
+                                </span>
+                              ) : null}
+                            </div>
+                            {editable ? photoActions(p.id, handle) : null}
+                          </div>
                           <input
                             className="input h-10 text-sm"
                             placeholder={t.caption}
@@ -214,15 +233,15 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
                             disabled={!editable || p.layout === "bleed"}
                             title={p.layout === "bleed" ? t.noCaptionBleed : undefined}
                           />
-                          {p.inAnswer ? <p className="text-xs text-muted">{t.inAnswerNote}</p> : null}
-                          <div className={cn("grid grid-cols-3 gap-1 rounded-xl bg-cream/70 p-1", p.inAnswer && "hidden")}>
+                          {p.inAnswer ? <p className="text-xs text-muted max-sm:hidden">{t.inAnswerNote}</p> : null}
+                          <div className={cn("grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 sm:grid-cols-4", p.inAnswer && "hidden")}>
                             {layouts.map((l) => (
                               <button
                                 key={l}
                                 title={t.layouts[l].hint}
                                 disabled={!editable}
                                 onClick={() => update(p.id, { layout: l })}
-                                className={cn("rounded-lg py-1.5 text-xs font-medium transition", p.layout === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                                className={cn("rounded-lg py-2 text-xs font-medium transition sm:py-1.5", p.layout === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
                               >
                                 {t.layouts[l].label}
                               </button>
@@ -248,7 +267,7 @@ function SortablePhoto({ id, disabled, children }: { id: string; disabled: boole
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined }}
-      className={cn(isDragging && "opacity-80 shadow-lift")}
+      className={cn("min-w-0", isDragging && "opacity-80 shadow-lift")}
     >
       {children({ ...attributes, ...listeners })}
     </div>

@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { channelLabel, channels, toAttribution } from "@/modules/marketing/domain/channels";
-import { Download } from "lucide-react";
-import { clientSegments, type ClientSegment } from "@/modules/clients/domain/segments";
+import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
+import { Download, UserPlus } from "lucide-react";
+import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
 import type { ClientSort } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { can, contactView, requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { container } from "@/server/container";
 
 export const metadata = { title: "Клиенты" };
@@ -35,7 +36,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     container().reporting.segmentCounts(scopeManagerId),
     container().access.queries.allStaff(),
   ]);
-  const managerName = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const managerName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
     return `/admin/clients?${p}`;
@@ -49,11 +50,18 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-semibold">Клиенты</h1>
           <p className="text-sm text-muted">Найдено {total}{sp.tag ? ` · тег «${sp.tag}»` : ""}</p>
         </div>
-        {can(staff, "clients.export", "clients.contacts") ? (
-          <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
-            <Download className="size-4" /> CSV
-          </a>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {can(staff, "clients.export", "clients.contacts") ? (
+            <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
+              <Download className="size-4" /> CSV
+            </a>
+          ) : null}
+          {can(staff, "clients.create") ? (
+            <Link href="/admin/clients/new" className="btn btn-primary btn-sm">
+              <UserPlus className="size-4" /> Новый клиент
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -69,7 +77,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm" />
         <select name="ch" defaultValue={sp.ch ?? ""} className="input h-10 w-48 text-sm" aria-label="Канал">
           <option value="">Все каналы</option>
-          {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
+          {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "youtube", "vk", "call", "recommendation", "repeat", "offline", "other", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
             <option key={k} value={k}>
               {channels[k]}
             </option>
@@ -131,7 +139,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 <td className="px-3 py-3">
                   {r.booksCount ? (
                     <>
-                      {r.booksCount} · {r.bestAnswered} отв.
+                      {r.booksCount} · {r.bestAnswered} отв.{r.bestWords ? ` · ${r.bestWords} сл.` : ""}
                       <div className="text-xs text-muted">изм. {relative(r.lastBookUpdate)}</div>
                     </>
                   ) : (

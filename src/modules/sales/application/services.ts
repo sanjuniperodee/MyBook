@@ -1,6 +1,27 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
-import { BOOK_READY_ANSWERS, Deal, Funnel, SalesError, type CustomValues, type DealRepository, type DealSource, type FunnelRepository, type NoteKind, type StageMilestone } from "../domain";
-import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "./ports";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { bookKind, progressOf } from "@/lib/content/kinds";
+import { checkDealPrice, Deal, Funnel, SalesError, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
+import type { DealSource } from "@/shared/domain/dealSources";
+import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type SalesSettings, type StaffRouter } from "./ports";
+
+/** Почему сделку нельзя удалить: по ней приняты деньги или есть счёт из чата, по которому клиент заплатил или ещё может заплатить. */
+type DeleteBlocker = { code: "dealHasPayments" } | { code: "dealHasInvoice"; label: string; reason: "open" | "paid" | "kaspi" };
+
+const blockerError = (b: DeleteBlocker) => {
+  if (b.code === "dealHasPayments") return new SalesError("dealHasPayments", "По сделке приняты деньги — её нельзя удалить. Переведите её в «Проиграна» или слейте с другой сделкой: платежи и чеки перейдут туда.");
+  const text = {
+    open: `У сделки есть счёт ${b.label} — отмените его или объедините сделки`,
+    paid: `У сделки есть оплаченный счёт ${b.label} — её нельзя удалить. Переведите её в «Проиграна» или объедините сделки: счёт перейдёт туда.`,
+    kaspi: `По счёту ${b.label} ещё может прийти оплата Kaspi — удалить сделку можно после сверки. Переведите её в «Проиграна» или объедините сделки.`,
+  }[b.reason];
+  return new SalesError("dealHasInvoice", text);
+};
+
+/** То же коротко — для ленты заявки, которую не удалили, а закрыли «отказом». */
+const blockerNote = (b: DeleteBlocker) =>
+  b.code === "dealHasPayments" ? "по ней приняты деньги" : { open: `счёт ${b.label} ждёт оплаты (отменяется)`, paid: `оплачен счёт ${b.label}`, kaspi: `по счёту ${b.label} ещё может прийти оплата Kaspi` }[b.reason];
 
 export interface NewDeal {
   title: string;
@@ -17,9 +38,21 @@ export interface NewDeal {
   /** Заявка с нового контакта: попадёт в «Неразобранное» (если оно включено в настройках). */
   unsorted?: boolean;
   pipelineId?: string;
-  customFields?: CustomValues;
+  customFields?: CustomFieldValues;
   /** Откуда пришёл (UTM-метки, реферер, код ссылки). Для клиента с сайта берётся из его профиля, если не передано. */
   utm?: object | null;
+  /**
+   * Сделку заводит сотрудник с формы: сумма сделки «вручную» — цена продажи, она проверяется лимитом скидки (null — без
+   * лимита). Не передан — внутренний вызов, цену уже проверили (копии пакета, онбординг, счёт из чата).
+   */
+  maxDiscountPercent?: number | null;
+  /**
+   * Тариф договорённости из формы «Новая сделка»: бюджет сравнивается с его прайсом (без тарифа сделка «вручную» — с самым
+   * дорогим), тариф сохраняется в сделку, как из блока «Оплата».
+   */
+  agreedPlan?: string | null;
+  /** Сделку создало правило автоматизации — для его статистики. */
+  automationId?: string | null;
 }
 
 /** Снимок сделки для вызывающего кода (страницы, чаты, телефония). */
@@ -34,6 +67,10 @@ export class DealsService {
     private readonly router: StaffRouter,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    /** Счета из чата по сделке (контекст «Заказы»): слияние переносит их, удаление — учитывает. */
+    private readonly invoices: DealInvoicesPort = noDealInvoices,
+    /** Тариф договорённости сделки: с его прайсом сравнивается цена (лимит скидки). */
+    private readonly agreedPlans: AgreedPlans = noAgreedPlans,
   ) {}
 
   private async load(dealId: string) {
@@ -47,41 +84,60 @@ export class DealsService {
     return ((await this.deals.findById(deal.id)) ?? deal).snapshot();
   }
 
+  /**
+   * Новая сделка. Без ответственного: постоянный клиент — к своему менеджеру (если тот работает), иначе — по кругу
+   * (в рабочее время, под блокировкой круга: одновременные заявки расходятся). Никого нет — раздаст планировщик.
+   */
   async create(input: NewDeal): Promise<DealView> {
     const funnel = await this.funnels.load();
     const stage = input.stageId ? funnel.stage(input.stageId) : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
     if (!stage) throw new SalesError(input.stageId ? "stageNotFound" : "noOpenStage");
+    // Сделка «вручную» или с тарифом договорённости и суммой — уже договорённость (клиент купит по этой цене): лимит скидки до создания.
+    const plan = input.agreedPlan ?? null;
+    if (input.maxDiscountPercent !== undefined) checkDealPrice(plan, input.source, input.amount ?? 0, input.maxDiscountPercent);
     let clientId = input.clientId ?? null;
     if (!clientId && input.contactPhone) clientId = await this.clients.findByPhone(input.contactPhone);
     const profile = clientId ? await this.clients.profile(clientId) : null;
     const unsorted = !!input.unsorted && !clientId && (await this.settings.unsortedEnabled());
     const { id, number } = await this.deals.nextIdentity();
-    const deal = Deal.open(
-      id,
-      number,
-      {
-        title: input.title,
-        stageId: stage.id,
-        source: input.source,
-        clientId,
-        contactName: input.contactName ?? "",
-        contactPhone: input.contactPhone ?? null,
-        contactEmail: input.contactEmail ?? null,
-        amount: input.amount ?? 0,
-        // Ответственный клиента становится ответственным за сделку.
-        assigneeId: input.assigneeId ?? profile?.managerId ?? null,
-        createdById: input.createdById ?? null,
-        orderId: input.orderId ?? null,
-        unsorted,
-        customFields: input.customFields ?? {},
-        utm: (input.utm as Record<string, string> | null | undefined) ?? profile?.utm ?? null,
-      },
-      stage,
-      this.clock.now(),
-    );
-    await this.uow.run(async () => {
+    const deal = await this.uow.run(async () => {
+      let assigneeId = input.assigneeId ?? null;
+      let routed = false;
+      if (!assigneeId && profile?.managerId && (await this.router.isActive(profile.managerId))) assigneeId = profile.managerId;
+      if (!assigneeId && (await this.router.isWorkTime())) {
+        await this.router.lock();
+        assigneeId = await this.router.next([]);
+        routed = !!assigneeId;
+      }
+      const deal = Deal.open(
+        id,
+        number,
+        {
+          title: input.title,
+          stageId: stage.id,
+          source: input.source,
+          clientId,
+          contactName: input.contactName ?? "",
+          contactPhone: input.contactPhone ?? null,
+          contactEmail: input.contactEmail ?? null,
+          amount: input.amount ?? 0,
+          assigneeId,
+          routed,
+          createdById: input.createdById ?? null,
+          orderId: input.orderId ?? null,
+          unsorted,
+          customFields: input.customFields ?? {},
+          utm: (input.utm as Record<string, string> | null | undefined) ?? profile?.utm ?? null,
+          automationId: input.automationId ?? null,
+        },
+        stage,
+        this.clock.now(),
+      );
+      if (routed) deal.note("Ответственный назначен по кругу", null);
       await this.deals.add(deal);
+      if (plan) await this.agreedPlans.set(deal.id, plan);
       this.uow.track(deal);
+      return deal;
     });
     return this.fresh(deal);
   }
@@ -101,7 +157,7 @@ export class DealsService {
 
   async assign(dealId: string, assigneeId: string | null) {
     const deal = await this.load(dealId);
-    deal.assign(assigneeId);
+    deal.assign(assigneeId, this.clock.now());
     await this.uow.run(async () => {
       await this.deals.save(deal);
       if (deal.clientId && assigneeId) await this.clients.adoptManager(deal.clientId, assigneeId);
@@ -110,37 +166,108 @@ export class DealsService {
     return deal.snapshot();
   }
 
-  /** Слияние дублей: всё из source переносится в target, source удаляется. */
+  /**
+   * Слияние дублей: всё из source переносится в target, source удаляется. Деньги не теряются: платежи, чеки и счета из чата
+   * переходят в target. Открытый счёт — один на сделку: открыт у обеих — открытый счёт source отменяется; target закрыта
+   * или по ней заказ — открытые отменяются (платить по ним уже нельзя). До переноса чего-либо — отказ по mergeRefusal:
+   * закрытую source не вливаем (mergeClosed), в закрытую target — только заявку той же покупки, рядом с заказом
+   * (mergeIntoClosed, окно — настройка «crm.mergeClosedDays»). Возвращает снимки обеих сделок «до» — для журнала действий.
+   */
   async merge(targetId: string, sourceId: string, actorId: string | null) {
     if (targetId === sourceId) throw new SalesError("mergeSelf");
+    const [funnel, windowDays] = await Promise.all([this.funnels.load(), this.settings.mergeClosedDays()]);
+    const stages = (t: Deal, s: Deal) => ({ targetStage: funnel.stage(t.stageId), sourceStage: funnel.stage(s.stageId), windowDays });
     return this.uow.run(async () => {
+      // Отказ — до переноса счетов и блокировок (по прочитанному без блокировки).
+      const [early, earlySource] = await Promise.all([this.load(targetId), this.load(sourceId)]);
+      early.absorb(earlySource, stages(early, earlySource), actorId);
+      const kind = funnel.stage(early.stageId)?.kind;
+      // Счета — первыми (порядок блокировок: счета → сделки), затем обе сделки: платёж, пришедший в эту секунду, не пропадёт.
+      const { moved, cancelled } = await this.invoices.moveAll({ from: sourceId, to: targetId, closeOpen: !!early.orderId || (!!kind && kind !== "open") });
+      await this.deals.lock([targetId, sourceId]);
+      // Под блокировкой — заново по свежим данным: источник могли в эту секунду перевести в «Успех» или «Отказ» (тогда отказ,
+      // и перенос счетов откатится вместе с транзакцией), а цель — изменить (сохраняем её свежую, не затирая чужую правку).
       const [target, source] = await Promise.all([this.load(targetId), this.load(sourceId)]);
       const before = { target: target.snapshot(), source: source.snapshot() };
-      target.absorb(source, actorId);
+      target.absorb(source, stages(target, source), actorId);
+      const parts = [moved.length ? `из сделки №${source.number} перенесены ${moved.join(", ")}` : "", cancelled.length ? `отменены открытые ${cancelled.join(", ")} (сделки объединены)` : ""].filter(Boolean);
+      if (parts.length) target.note(`Счета из чата: ${parts.join("; ")}`, actorId);
       await this.deals.mergeInto(target, source);
       await this.deals.save(target);
       return before;
     });
   }
 
+  /** Окно слияния с успешной сделкой заказа, дней (настройка CRM): карточка показывает «Объединить сюда» по тому же правилу. */
+  mergeClosedDays() {
+    return this.settings.mergeClosedDays();
+  }
+
   note(deal: { id: string; clientId: string | null }, text: string, authorId: string | null, kind: NoteKind = "system") {
     return this.deals.addNote(deal, text, authorId, kind);
   }
 
-  async fillEmptyFields(dealId: string, values: CustomValues) {
+  async fillEmptyFields(dealId: string, values: CustomFieldValues) {
     const deal = await this.deals.findById(dealId);
     if (deal?.fillEmptyFields(values)) await this.deals.save(deal);
   }
 
-  /** Правка карточки сделки. */
-  async edit(dealId: string, patch: Parameters<Deal["edit"]>[0], actorId: string) {
+  /**
+   * Правка карточки сделки. Бюджет сделки с тарифом договорённости (или «вручную») — цена, по которой купит клиент: если
+   * он или источник меняются, цена проверяется лимитом скидки сотрудника (null — без лимита; сверх — DiscountError, ничего
+   * не сохраняется). Возвращает цену против прайса, если она менялась, — для журнала deal.discount; иначе null.
+   */
+  async edit(dealId: string, patch: Parameters<Deal["edit"]>[0], actorId: string, maxDiscountPercent: number | null): Promise<DealPrice | null> {
     const deal = await this.load(dealId);
+    const s = deal.snapshot();
+    // По сделке заказ — цену уже взяли в заказ, бюджет её не меняет.
+    const priced = !s.orderId && (patch.amount !== s.amount || patch.source !== s.source);
+    const price = priced ? checkDealPrice(await this.agreedPlans.get(deal.id), patch.source, patch.amount, maxDiscountPercent) : null;
     deal.edit(patch, actorId);
     await this.deals.save(deal);
+    return price;
   }
 
+  /**
+   * Сменить тариф договорённости (пока по сделке нет заказа): сумма сделки сравнивается с прайсом нового тарифа (без
+   * тарифа у сделки «вручную» — с самым дорогим), сверх лимита — DiscountError. null — не сохранено (по сделке заказ).
+   */
+  async changeAgreedPlan(dealId: string, plan: string | null, maxDiscountPercent: number | null): Promise<{ before: string | null; price: DealPrice | null } | null> {
+    const deal = (await this.load(dealId)).snapshot();
+    const before = await this.agreedPlans.get(deal.id);
+    const price = deal.orderId ? null : checkDealPrice(plan, deal.source, deal.amount, maxDiscountPercent);
+    if (!(await this.agreedPlans.set(deal.id, plan))) return null;
+    return { before, price };
+  }
+
+  /**
+   * Удалить сделку. Нельзя, если по ней приняты деньги (платежи и чеки удалились бы вместе с ней) или есть счёт из чата,
+   * который ждёт оплаты или оплачен (dealHasInvoice, 409 с понятным текстом). Отменённые и истёкшие счета удаляются вместе со сделкой.
+   */
   async delete(dealId: string) {
+    const blocker = await this.uow.run(() => this.removeIfFree(dealId));
+    if (blocker) throw blockerError(blocker);
+  }
+
+  /** В транзакции: счета блокируются первыми, затем сделка; что-то держит её — ничего не удаляется (возвращается причина). */
+  private async removeIfFree(dealId: string): Promise<DeleteBlocker | null> {
+    const invoice = await this.invoices.holdForDelete(dealId);
+    if (invoice) return { code: "dealHasInvoice", ...invoice };
+    await this.deals.lock([dealId]);
+    if (await this.deals.hasMoney(dealId)) return { code: "dealHasPayments" };
+    await this.invoices.purgeClosed(dealId);
     await this.deals.delete(dealId);
+    return null;
+  }
+
+  /** Договорённость по счёту из чата: цена книги — в сумму сделки (с записью в ленте, если изменилась). */
+  async setAgreedTotal(dealId: string, total: number, actorId: string | null) {
+    const deal = await this.load(dealId);
+    const before = deal.snapshot().amount;
+    if (before === total) return;
+    deal.setAmount(total);
+    deal.note(`Договорённость: цена книги ${before.toLocaleString("ru-RU")} → ${total.toLocaleString("ru-RU")} ₸ (счёт из чата)`, actorId);
+    await this.deals.save(deal);
   }
 
   async linkClient(dealId: string, clientId: string | null) {
@@ -159,7 +286,6 @@ export class DealsService {
   async acceptByStaff(dealId: string, staffId: string) {
     const deal = await this.load(dealId);
     if (!deal.accept(staffId)) return null;
-    deal.note("Заявка принята в работу", staffId);
     await this.uow.run(async () => {
       await this.deals.save(deal);
       this.uow.track(deal);
@@ -167,17 +293,46 @@ export class DealsService {
     return deal.snapshot();
   }
 
-  /** Отклонить неразобранную заявку: сделка удаляется, переписка и звонки остаются. */
-  async reject(dealId: string) {
+  /**
+   * Отклонить неразобранную заявку (решение руководителя): сделка удаляется, переписка и звонки остаются. Удалить нельзя —
+   * по ней деньги клиента или счёт из чата (те же правила, что у удаления), — заявка закрывается «отказом» с причиной:
+   * деньги и счета остаются видны, открытый счёт отменит подписчик события «сделка закрыта». kept — почему не удалена.
+   */
+  async reject(dealId: string, opts: { kind?: RejectionKind; reason?: string; actorId?: string | null } = {}): Promise<{ deal: DealView; deleted: boolean; kept: string | null }> {
     const deal = await this.load(dealId);
     if (!deal.isUnsorted) throw new SalesError("notUnsorted", "Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
-    await this.deals.delete(deal.id);
+    const blocker = await this.uow.run(() => this.removeIfFree(deal.id));
+    if (!blocker) return { deal: deal.snapshot(), deleted: true, kept: null };
+    const funnel = await this.funnels.load();
+    const lost = funnel.firstOfKind("lost", funnel.stage(deal.stageId)?.pipelineId ?? funnel.defaultPipelineId);
+    if (!lost) throw blockerError(blocker);
+    const kept = blockerNote(blocker);
+    deal.closeRejected(lost, opts.kind ?? "reject", opts.reason ?? "", kept, opts.actorId ?? null, this.clock.now());
+    await this.uow.run(async () => {
+      await this.deals.save(deal);
+      this.uow.track(deal);
+    });
+    return { deal: await this.fresh(deal), deleted: false, kept };
+  }
+
+  async requestRejection(dealId: string, kind: RejectionKind, actorId: string, reason: string) {
+    const deal = await this.load(dealId);
+    if (!deal.isUnsorted) throw new SalesError("notUnsorted", "Отклонить можно только неразобранную заявку — закройте сделку как «Отказ»");
+    deal.requestRejection(kind, actorId, reason);
+    await this.deals.save(deal);
     return deal.snapshot();
   }
 
-  async acceptUnsorted(dealId: string, authorId: string) {
+  async declineRejection(dealId: string, actorId: string) {
+    const deal = await this.load(dealId);
+    if (deal.declineRejection(actorId)) await this.deals.save(deal);
+    return deal.snapshot();
+  }
+
+  /** Менеджер связался с клиентом (чат, звонок, заметка о контакте) — заявка принята в работу; how — как именно, в ленту. */
+  async acceptUnsorted(dealId: string, authorId: string, how?: string) {
     const deal = await this.deals.findById(dealId);
-    if (deal?.accept(authorId)) await this.deals.save(deal);
+    if (deal?.accept(authorId, how)) await this.deals.save(deal);
   }
 
   async setUtmIfEmpty(dealId: string, utm: Record<string, string>) {
@@ -203,16 +358,23 @@ export class DealsService {
     return (await this.deals.findById(dealId))?.snapshot() ?? null;
   }
 
+  /** Сделки по списку id — одним запросом; порядок как в ids, ненайденных нет. */
+  async findByIds(ids: string[]) {
+    const found = new Map((await this.deals.findByIds(ids)).map((d) => [d.id, d.snapshot()]));
+    return ids.flatMap((id) => found.get(id) ?? []);
+  }
+
   async findOpen(opts: { clientId?: string | null; phone?: string | null }) {
     return (await this.deals.findOpen(opts))?.snapshot() ?? null;
   }
 
-  findClientByPhone(phone: string | null | undefined) {
-    return this.clients.findByPhone(phone);
+  /** Сделки, связанные с заказом (обычно одна). */
+  async byOrder(orderId: string) {
+    return (await this.deals.findByOrder(orderId)).map((d) => d.snapshot());
   }
 
-  nextRoundRobin() {
-    return this.router.nextRoundRobin();
+  findClientByPhone(phone: string | null | undefined) {
+    return this.clients.findByPhone(phone);
   }
 
   async defaultPipelineId() {
@@ -231,6 +393,14 @@ export class DealsService {
   }
 }
 
+/** Название сделки по книге: вид книги виден менеджеру в воронке с первого взгляда. */
+export function bookDealTitle(book: { title: string; recipientName: string; theme?: string; authorName?: string }): string {
+  const kind = bookKind(book.theme ?? "");
+  if (kind === "autobiography") return book.authorName?.trim() ? `Автобиография: ${book.authorName.trim()}` : "Автобиография";
+  if (kind === "blank") return book.title.trim() ? `Своя книга «${book.title.trim()}»` : "Своя книга";
+  return `Книга${book.recipientName ? ` для: ${book.recipientName}` : book.title ? ` «${book.title}»` : ""}`;
+}
+
 /**
  * Воронка по действиям клиента на сайте: регистрация, книга, заказ, оплата. Сделка идёт только вперёд;
  * сделку заводим сами, начиная с настройки «с какого действия». Ошибка CRM не ломает сценарий клиента.
@@ -247,12 +417,25 @@ export class SiteFunnelService {
     private readonly books: BookProgress,
     private readonly service: DealsService,
     private readonly logger: Logger,
+    /**
+     * Деньги клиента по сделке и действует ли по ней договорённость (то же правило, что у agreementForClient): сделка, которая
+     * держит деньги клиента, при отмене заказа возвращается в работу, а её сумма — цена договорённости — заказом не переписывается.
+     */
+    private readonly money: (dealId: string) => Promise<DealMoney> = async () => ({ paid: 0, agreement: false }),
   ) {}
 
-  async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomValues } = {}): Promise<{ id: string } | null> {
+  /** Сделка держит деньги клиента (договорённость с предоплатой): сколько. */
+  private async held(dealId: string) {
+    return heldMoney(await this.money(dealId));
+  }
+
+  async advance(clientId: string, milestone: StageMilestone, opts: { title?: string; orderId?: string | null; amount?: number; customFields?: CustomFieldValues; dealId?: string | null } = {}): Promise<{ id: string } | null> {
     try {
       const funnel = await this.funnels.load();
-      let deal = await this.deals.findOpen({ clientId });
+      // Заказ по договорённости — к её сделке (даже если её вручную перевели в «успех» до заказа; оформление уже могло
+      // привязать к ней этот заказ в своей транзакции), иначе — открытая сделка клиента.
+      const agreed = opts.dealId ? await this.deals.findById(opts.dealId) : null;
+      let deal = agreed && agreed.clientId === clientId && (!agreed.orderId || agreed.orderId === opts.orderId) ? agreed : await this.deals.findOpen({ clientId });
       // Этап-цель ищем в воронке сделки; новая сделка с сайта — в основной воронке.
       const pipelineId = deal ? (funnel.stage(deal.stageId)?.pipelineId ?? null) : funnel.defaultPipelineId;
       const target = funnel.milestoneStage(milestone, pipelineId);
@@ -275,7 +458,9 @@ export class SiteFunnelService {
         deal = await this.deals.findById(created.id);
         if (!deal) return null;
       } else if (opts.orderId || opts.amount) {
-        deal.attachOrder(opts.orderId ?? null, opts.amount);
+        // Сделка держит деньги клиента — её сумма остаётся ценой договорённости (иначе после отмены заказа договорённость
+        // вернулась бы с итогом заказа — с доставкой и допами, и они посчитались бы второй раз).
+        deal.attachOrder(opts.orderId ?? null, (await this.held(deal.id)) > 0 ? undefined : opts.amount);
         await this.deals.save(deal);
       }
       if (!target || !funnel.shouldAdvance(deal.stageId, target)) return { id: deal.id };
@@ -286,17 +471,21 @@ export class SiteFunnelService {
     }
   }
 
-  /** Прогресс книги → вехи «половина» и «почти готова». */
+  /**
+   * Прогресс книги → вехи «половина» и «почти готова» — по progressOf (у своей книги — по словам). Он монотонен:
+   * готовая книга — и на половине, поэтому у длинных банков (любимому: 172 вопроса) «половина» не пропадает.
+   */
   async bookProgressed(bookId: string, userId: string) {
     const seen = this.#reached.get(bookId) ?? new Set<StageMilestone>();
     if (seen.has("book_ready")) return;
     const p = await this.books.progress(bookId);
     if (!p) return;
-    if (!seen.has("book_half") && p.total && p.answered * 2 >= p.total) {
+    const progress = progressOf(bookKind(p.theme), p);
+    if (!seen.has("book_half") && progress.half) {
       seen.add("book_half");
       await this.advance(userId, "book_half");
     }
-    if (p.answered >= BOOK_READY_ANSWERS) {
+    if (progress.ready) {
       seen.add("book_ready");
       await this.advance(userId, "book_ready");
     }
@@ -304,20 +493,24 @@ export class SiteFunnelService {
     this.#reached.set(bookId, seen);
   }
 
-  /** Книга начата: сделка идёт по воронке, повод, дата и адресат попадают в её поля. */
-  async bookStarted(userId: string, book: { title: string; recipientName: string }, fields: CustomValues) {
-    const deal = await this.advance(userId, "book_started", { title: `Книга${book.recipientName ? ` для: ${book.recipientName}` : book.title ? ` «${book.title}»` : ""}`, customFields: fields });
+  /**
+   * Книга начата: сделка идёт по воронке, повод, дата и адресат попадают в её поля. Название сделки — по виду книги
+   * (lib/content/kinds): подарок «Книга для: …», автобиография «Автобиография: {рассказчик}», своя книга «Своя книга «…»».
+   */
+  async bookStarted(userId: string, book: { title: string; recipientName: string; theme?: string; authorName?: string }, fields: CustomFieldValues) {
+    const deal = await this.advance(userId, "book_started", { title: bookDealTitle(book), customFields: fields });
     if (deal) await this.service.fillEmptyFields(deal.id, fields);
   }
 
-  orderCreated(order: { id: string; userId: string; number: number; amount: number }) {
-    return this.advance(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount });
+  orderCreated(order: { id: string; userId: string; number: number; amount: number; dealId?: string | null }) {
+    return this.advance(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount, dealId: order.dealId });
   }
 
-  /** Оплата: сумма сделки — по заказу, сделка — на этап «оплачен». Возвращает сделку заказа. */
+  /** Оплата: сумма сделки — по заказу (кроме сделки, которая держит деньги клиента: там — цена договорённости), сделка — на этап «оплачен». Возвращает сделку заказа. */
   async orderPaid(order: { id: string; userId: string; amount: number }) {
     const deals = await this.deals.findByOrder(order.id);
     for (const d of deals) {
+      if ((await this.held(d.id)) > 0) continue;
       d.setAmount(order.amount);
       await this.deals.save(d);
     }
@@ -325,12 +518,30 @@ export class SiteFunnelService {
     return deals[0]?.id ?? null;
   }
 
-  /** Отмена заказа — связанные сделки в «отказ». */
-  async orderCancelled(orderId: string) {
+  /**
+   * Отмена заказа. Сделка, которая держит деньги клиента (договорённость с предоплатой — ручная или оплаченная по счёту
+   * из чата), отвязывается от заказа и возвращается в работу: договорённость снова действует (agreementForClient), по ней
+   * можно выставить счёт, а менеджер видит в ленте, что деньги остались и нужно решить — продолжать или вернуть.
+   * Остальные — в «отказ»; деньги без договорённости (не указан тариф) — менеджеру в ленту: новый заказ их не учтёт.
+   */
+  async orderCancelled(orderId: string, number?: number) {
     const funnel = await this.funnels.load();
     for (const d of await this.deals.findByOrder(orderId)) {
-      const lost = funnel.firstOfKind("lost", funnel.stage(d.stageId)?.pipelineId ?? null);
+      const pipelineId = funnel.stage(d.stageId)?.pipelineId ?? null;
+      const money = await this.money(d.id);
+      const held = heldMoney(money);
+      const reopen = held > 0 ? (["book_ready", "book_half", "book_started"] as const).map((m) => funnel.milestoneStage(m, pipelineId)).find(Boolean) ?? funnel.firstOfKind("open", pipelineId) : null;
+      if (reopen) {
+        d.detachOrder();
+        await this.deals.save(d);
+        await this.service.move(d.id, reopen.id, null);
+        await this.service.note(d, `Заказ${number ? ` №${number}` : ""} отменён. Предоплата ${held.toLocaleString("ru-RU")} ₸ осталась у нас — сделка снова в работе, клиент может оформить новый заказ по договорённости. Если он не продолжает — оформите возврат в блоке «Оплата».`, null);
+        continue;
+      }
+      const lost = funnel.firstOfKind("lost", pipelineId);
       if (lost) await this.service.move(d.id, lost.id, null, "Заказ отменён");
+      if (money.paid > 0 && !money.agreement)
+        await this.service.note(d, `Заказ${number ? ` №${number}` : ""} отменён. По сделке принято ${money.paid.toLocaleString("ru-RU")} ₸, но договорённость не оформлена (не указан тариф) — новый заказ эти деньги не учтёт. Укажите тариф договорённости и верните сделку в работу или оформите возврат.`, null);
     }
   }
 }

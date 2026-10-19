@@ -6,11 +6,14 @@ import { Gift } from "lucide-react";
 import { getCurrentUser } from "@/server/auth";
 import { invitedBy } from "@/server/invite";
 import { RegisterForm } from "./RegisterForm";
+import { registrationOpen, site } from "@/config/site";
+import { socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
+  const { meta: title, metaDescription: description } = m.auth.register;
   // ?theme=… и ?ref=… — те же страницы: каноническим остаётся адрес без параметров
-  return { title: m.auth.register.meta, alternates: alternates("/register", locale) };
+  return { title, description, alternates: alternates("/register", locale), ...socialMeta({ path: "/register", locale, title, description }), ...(registrationOpen() ? {} : { robots: { index: false, follow: false } }) };
 }
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {
@@ -18,6 +21,22 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   if (await getCurrentUser()) return lredirect(theme ? `/books/new?theme=${encodeURIComponent(theme)}` : "/books");
   const [m, invited] = await Promise.all([getMessages(), invitedBy()]);
   const t = m.auth.register;
+  // Регистрация закрыта в админке: объясняем и ведём к входу или в WhatsApp.
+  if (!registrationOpen())
+    return (
+      <div data-testid="registration-closed">
+        <h1 className="font-serif text-4xl font-medium">{t.closedTitle}</h1>
+        <p className="mt-3 mb-8 text-muted">{t.closedText}</p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link href="/login" className="btn btn-primary">
+            {t.toLogin}
+          </Link>
+          <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+            {t.closedWhatsapp}
+          </a>
+        </div>
+      </div>
+    );
   return (
     <>
       <h1 className="font-serif text-4xl font-medium">{t.title}</h1>

@@ -1,9 +1,10 @@
 import { planName } from "@/i18n/labels";
-import { nowMs } from "@/lib/utils";
+import { nowMs } from "@/lib/dates";
 import Link from "next/link";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
 
@@ -17,7 +18,7 @@ export default async function BoardPage() {
     container().reporting.productionBoard(monthAgo),
     container().access.queries.allStaff(),
   ]);
-  const byId = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const byId = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const cards: BoardCard[] = rows.map((o) => {

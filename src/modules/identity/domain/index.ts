@@ -1,6 +1,7 @@
 export * from "./Email";
 export * from "./errors";
 export * from "./events";
+export * from "./Login";
 export * from "./totp";
 export * from "./User";
 export type * from "./repositories";

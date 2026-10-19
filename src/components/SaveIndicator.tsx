@@ -3,7 +3,7 @@
 import { Check, CloudOff, LoaderCircle } from "lucide-react";
 import type { SaveStatus } from "@/hooks/useAutosave";
 import { useMessages } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 export function SaveIndicator({ status, error, className }: { status: SaveStatus; error?: string | null; className?: string }) {
   const a = useMessages().common.actions;

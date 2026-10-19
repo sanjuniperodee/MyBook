@@ -1,15 +1,17 @@
 import "server-only";
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
-import { crmFields, type CrmField, type CustomValues } from "@/shared/infrastructure/db/schema";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
+import { crmFields, type CrmField } from "@/shared/infrastructure/db/schema";
+import type { CustomFieldsReader } from "@/shared/application";
 
 export async function listFields(entity: "deal" | "client"): Promise<CrmField[]> {
   return db.select().from(crmFields).where(eq(crmFields.entity, entity)).orderBy(asc(crmFields.position), asc(crmFields.createdAt));
 }
 
 /** Значения своих полей из формы (поля с именем cf_<key>). Неизвестные ключи и мусор отбрасываются. */
-export function readFieldValues(fields: CrmField[], form: FormData, current: CustomValues = {}): CustomValues {
-  const out: CustomValues = { ...current };
+export function readFieldValues(fields: CrmField[], form: FormData, current: CustomFieldValues = {}): CustomFieldValues {
+  const out: CustomFieldValues = { ...current };
   for (const f of fields) {
     const name = `cf_${f.key}`;
     if (f.type === "checkbox") {
@@ -34,17 +36,7 @@ export function readFieldValues(fields: CrmField[], form: FormData, current: Cus
   return out;
 }
 
-/** «Для кого» → «бабушка Роза»: переменные своих полей для шаблонов ({Для кого}, {Дата события}). */
-export function fieldVars(fields: CrmField[], values: CustomValues | null | undefined): Record<string, string> {
-  const vars: Record<string, string> = {};
-  for (const f of fields) {
-    const v = values?.[f.key];
-    if (v === undefined || v === null || v === "") continue;
-    vars[f.label] = f.type === "date" && typeof v === "string" ? v.split("-").reverse().join(".") : f.type === "checkbox" ? (v ? "да" : "нет") : String(v);
-  }
-  return vars;
-}
-
-export async function fieldByKey(entity: "deal" | "client", key: string) {
-  return (await db.query.crmFields.findFirst({ where: and(eq(crmFields.entity, entity), eq(crmFields.key, key)) })) ?? null;
-}
+/** Порт своих полей для других модулей (src/shared/application): только чтение. */
+export const customFieldsReader: CustomFieldsReader = {
+  list: async (entity) => (await listFields(entity)).map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options })),
+};

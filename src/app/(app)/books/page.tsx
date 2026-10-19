@@ -4,14 +4,17 @@ import { CalendarHeart, Plus } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
+import { BLANK_READY_WORDS, bookKind } from "@/lib/content/kinds";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { OpenBookArt } from "@/components/illustrations";
 import { Morph } from "@/components/motion/PageTransition";
-import { coverNamesLine } from "@/lib/book/covers";
-import { photoUrl } from "@/lib/urls";
-import { formatDate, nowMs } from "@/lib/utils";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
+import { photoUrls } from "@/lib/urls";
+import { formatDate, nowMs } from "@/lib/dates";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
+import { AgreementCard } from "@/components/AgreementCard";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.list.meta };
@@ -19,14 +22,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BooksPage() {
   const user = await requireUser("/books");
-  const [rows, locale, m] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages()]);
+  const [rows, locale, m, agreement] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
+  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /> : null;
   const t = m.books.list;
   const now = new Date(nowMs());
   if (rows.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-14 text-center sm:px-6 sm:py-20">
+        {card ? <div className="mb-10 text-left">{card}</div> : null}
         <OpenBookArt className="enter mx-auto h-44 w-auto sm:h-52" />
-        <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-4xl font-medium sm:text-5xl">
+        <h1 style={{ "--i": 1 } as React.CSSProperties} className="enter mt-6 font-serif text-3xl font-medium sm:text-5xl">
           {t.hello(user.name)}
         </h1>
         <p style={{ "--i": 2 } as React.CSSProperties} className="enter mx-auto mt-4 max-w-lg text-lg text-muted">
@@ -45,9 +50,10 @@ export default async function BooksPage() {
   }
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      {card ? <div className="mb-8">{card}</div> : null}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
           <p className="mt-2 text-muted">{t.autosave}</p>
         </div>
         <Link href="/books/new" className="btn btn-primary">
@@ -55,9 +61,11 @@ export default async function BooksPage() {
         </Link>
       </div>
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map(({ book, answered, total, photos }) => {
+        {rows.map(({ book, answered, total, words, photos }) => {
           const theme = getTheme(book.theme, locale);
-          const progress = total ? Math.round((answered / total) * 100) : 0;
+          // Своя книга измеряется не ответами на вопросы, а объёмом: разделы и слова, полоса — путь к «почти готовой» книге.
+          const blank = bookKind(book.theme) === "blank";
+          const progress = blank ? Math.min(100, Math.round((words / BLANK_READY_WORDS) * 100)) : total ? Math.round((answered / total) * 100) : 0;
           return (
             <Link key={book.id} href={`/books/${book.id}`} className="card card-hover group flex gap-5 p-5">
               <div className="w-28 shrink-0">
@@ -67,8 +75,8 @@ export default async function BooksPage() {
                   format={book.format}
                   title={book.title}
                   subtitle={book.subtitle}
-                  names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-                  photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId, "thumb") : undefined}
+                  names={coverNames(book)}
+                  photos={photoUrls(coverPhotoIds(book), "thumb")}
                   lite
                   className="rounded-[3px] shadow-book"
                 />
@@ -93,7 +101,7 @@ export default async function BooksPage() {
                 })()}
                 <div className="mt-auto pt-4">
                   <div className="flex justify-between text-xs text-muted">
-                    <span>{t.answered(answered, total)}</span>
+                    <span>{blank ? t.blankProgress(total, words) : t.answered(answered, total)}</span>
                     <span>{t.photos(photos)}</span>
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">

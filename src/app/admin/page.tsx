@@ -1,14 +1,16 @@
 import { container } from "@/server/container";
-import { iso, localDay, SHOP_TZ } from "@/modules/reporting/time";
+import { iso, localDay } from "@/modules/reporting/time";
+import { storeTimeZone } from "@/shared/domain/time";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, CalendarClock, CheckSquare } from "lucide-react";
-import { formatPrice, plans } from "@/config/site";
+import { AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
+import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff } from "@/server/access";
 import { MyDay } from "./MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Обзор" };
 
@@ -17,7 +19,6 @@ const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur 
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const staff = await requireStaff();
-  const admin = staff.user;
   // Без доступа к аналитике — только рабочий стол сотрудника, без выручки магазина.
   if (!can(staff, "analytics.view"))
     return (
@@ -30,7 +31,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const period = periods.find((p) => String(p) === raw) ?? 30;
   const channelsReport = await container().marketing.service.report(period);
   const sources = { rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8) };
-  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, tasks, attention, events } = await container().reporting.dashboard(period, admin.id);
+  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events } = await container().reporting.dashboard(period);
 
   const byDay = new Map(daily.map((r) => [r.d, r]));
   const series: DayPoint[] = Array.from({ length: period }, (_, i) => {
@@ -59,7 +60,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} />
-        <StatTile label="Оплаченные заказы" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
+        <StatTile label="Оплаченные продажи" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
         <StatTile label="Средний чек" value={formatPrice(avg)} delta={change(avg, prevAvg)} />
         <StatTile label="Новые клиенты" value={newUsers.cur.toLocaleString("ru-RU")} delta={change(newUsers.cur, newUsers.prev)} />
       </div>
@@ -68,7 +69,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         <section className="rounded-2xl border border-line bg-white p-5">
           <div className="mb-5 flex items-baseline justify-between">
             <h2 className="font-semibold">Выручка по дням</h2>
-            <span className="text-xs text-muted">по дате оплаты, {SHOP_TZ}</span>
+            <span className="text-xs text-muted">по дате оплаты, {storeTimeZone()}: заказы и платежи менеджеров</span>
           </div>
           <RevenueColumns data={series} />
         </section>
@@ -79,7 +80,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             rows={[
               { label: "Зарегистрировались", value: f.registered },
               { label: "Создали книгу", value: f.with_book, note: pct(f.with_book, f.registered) },
-              { label: "Ответили на 10+ вопросов", value: f.engaged, note: pct(f.engaged, f.registered) },
+              { label: "Начали писать текст книги", value: f.engaged, note: pct(f.engaged, f.registered) },
               { label: "Оформили заказ", value: f.ordered, note: pct(f.ordered, f.registered) },
               { label: "Оплатили", value: f.paid, note: pct(f.paid, f.registered) },
             ]}
@@ -132,42 +133,42 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-line bg-white p-5">
           <h2 className="mb-5 font-semibold">Выручка по тарифам</h2>
           <BarList
             format={formatPrice}
-            rows={plans.map((p) => {
-              const r = byPlan.find((b) => b.plan === p.id);
-              return { label: planName(p.id), value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
-            })}
+            rows={[
+              ...getPlans().map((p) => {
+                const r = byPlan.find((b) => b.plan === p.id);
+                return { label: planName(p.id), value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
+              }),
+              // Деньги по ручным сделкам (предоплаты, доплаты, продажи в чате) — отдельной строкой, чтобы сумма сходилась с «Выручкой».
+              ...(byPlan.find((b) => b.plan === "manual") ? [{ label: "Продажи менеджеров", value: byPlan.find((b) => b.plan === "manual")!.sum, note: `${byPlan.find((b) => b.plan === "manual")!.n} шт.` }] : []),
+            ]}
           />
         </section>
 
         <Panel title="Дедлайны клиентов" icon={CalendarClock} href="/admin/board" empty="Ближайших дедлайнов нет">
-          {deadlines.map((o) => {
-            const days = Math.round((new Date(`${o.desiredDate}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000);
-            return (
-              <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
-                <span className="w-12 font-medium">№{o.number}</span>
-                <span className="min-w-0 flex-1 truncate">{o.contactName}</span>
-                <span className={cn("rounded-full px-2 py-0.5 text-xs", days < 0 ? "bg-red-100 text-red-700" : days <= 3 ? "bg-amber-100 text-amber-800" : "bg-cream text-ink-soft")}>
-                  {days < 0 ? `просрочен ${-days} дн.` : days === 0 ? "сегодня" : `через ${days} дн.`}
-                </span>
-              </Link>
-            );
-          })}
-        </Panel>
-
-        <Panel title="Мои задачи на сегодня" icon={CheckSquare} href="/admin/tasks" empty="Задач на сегодня нет">
-          {tasks.map((t) => (
-            <Link key={t.id} href="/admin/tasks" className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
-              <span className="min-w-0 flex-1 truncate">{t.title}</span>
-              {t.dueAt ? (
-                <span className={cn("text-xs", t.dueAt < localDay(0) ? "text-red-700" : "text-muted")}>{t.dueAt < localDay(0) ? "просрочена" : "сегодня"}</span>
-              ) : null}
-            </Link>
-          ))}
+          {[
+            ...deadlines.map((o) => ({ key: `o${o.id}`, href: `/admin/orders/${o.id}`, label: `№${o.number}`, name: o.contactName, due: o.desiredDate as string })),
+            // Сроки ручных сделок: «Д» + номер сделки; с пометкой, сколько уже получено.
+            ...dealDeadlines.map((d) => ({ key: `d${d.id}`, href: `/admin/deals/${d.id}`, label: `Д${d.number}`, name: `${d.contact_name || d.title}${d.paid ? ` · получено ${formatPrice(d.paid)}` : ""}`, due: d.due })),
+          ]
+            .sort((a, b) => a.due.localeCompare(b.due))
+            .slice(0, 8)
+            .map((o) => {
+              const days = Math.round((new Date(`${o.due}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000);
+              return (
+                <Link key={o.key} href={o.href} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
+                  <span className="w-12 font-medium">{o.label}</span>
+                  <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-xs", days < 0 ? "bg-red-100 text-red-700" : days <= 3 ? "bg-amber-100 text-amber-800" : "bg-cream text-ink-soft")}>
+                    {days < 0 ? `просрочен ${-days} дн.` : days === 0 ? "сегодня" : `через ${days} дн.`}
+                  </span>
+                </Link>
+              );
+            })}
         </Panel>
       </div>
 

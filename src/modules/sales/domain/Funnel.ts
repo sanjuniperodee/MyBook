@@ -1,4 +1,5 @@
-import { milestoneOrder, type StageMilestone } from "@/modules/sales/domain/meta";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { milestoneOrder } from "@/modules/sales/domain/meta";
 
 export type StageKind = "open" | "won" | "lost";
 

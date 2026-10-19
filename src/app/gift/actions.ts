@@ -4,11 +4,13 @@ import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { isLocale } from "@/i18n/config";
 import { z } from "zod";
 import { getCurrentUser } from "@/server/auth";
-import { clientIp, rateLimit } from "@/server/rateLimit";
+import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { toIsoDay } from "@/lib/occasions";
 import { queueEvent } from "@/server/track";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
+import { ensureCatalog } from "@/server/catalog";
+import { getVisiblePlans, type PlanId } from "@/config/site";
 
 export interface GiftFormState {
   error?: string;
@@ -17,7 +19,7 @@ export interface GiftFormState {
 type GiftErrors = Awaited<ReturnType<typeof getMessages>>["gift"]["form"]["errors"];
 const schema = (e: GiftErrors) =>
   z.object({
-    plan: z.enum(["digital", "hardcover", "premium"]),
+    plan: z.enum(getVisiblePlans().map((p) => p.id) as [PlanId, ...PlanId[]]),
     buyerName: z.string().trim().min(1, e.buyerName).max(60),
     buyerEmail: z.string().trim().toLowerCase().email(e.buyerEmail),
     buyerPhone: z.string().trim().max(30).optional().default(""),
@@ -31,8 +33,9 @@ const schema = (e: GiftErrors) =>
   });
 
 export async function createGiftAction(_: GiftFormState, form: FormData): Promise<GiftFormState> {
+  await ensureCatalog();
   const e = (await getMessages()).gift.form.errors;
-  if (!await rateLimit(`gift:${await clientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
+  if (!await rateLimit(`gift:${await trustedClientIp()}`, 10, 60 * 60_000)) return { error: e.tooMany };
   const parsed = schema(e).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -64,8 +67,13 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
 }
 
 /** Покупатель сообщил об оплате переводом. */
-export async function claimGiftPaymentAction(token: string) {
-  const gift = await container().ordering.gifts.claimPayment(token);
+export async function claimGiftPaymentAction(rawToken: string) {
+  // Кнопку «Я оплатил(а)» нажимают по ссылке из письма без входа: лимит не даёт перебирать токены.
+  if (!await rateLimit(`gift-claim:${await trustedClientIp()}`, 20, 600_000)) return;
+  // Токен сертификата — 24 знака base64url (randomBytes(18)); мусор до базы не доходит.
+  const token = z.string().regex(/^[\w-]{16,64}$/).safeParse(rawToken);
+  if (!token.success) return; // как и для неизвестного токена
+  const gift = await container().ordering.gifts.claimPayment(token.data);
   if (!gift) return;
   return lredirect(`/gift/${gift.token}`);
 }

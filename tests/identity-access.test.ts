@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Clock, UnitOfWork } from "@/shared/application";
+import { normalizePhone } from "@/shared/domain/phone";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
-import { User, totp, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
+import { User, isPhoneEmail, parseLoginId, phoneEmail, totp, type LinkPurpose, type PasswordResetRepository, type SessionRepository, type UserRepository } from "@/modules/identity/domain";
 import { AuthService } from "@/modules/identity/application/AuthService";
 import { AccountService } from "@/modules/identity/application/AccountService";
-import { Role, SecurityPolicy, StaffContext, StaffMember, allPermissions, type RoleRepository, type StaffRepository } from "@/modules/access/domain";
+import { Role, SecurityPolicy, StaffContext, StaffMember, type RoleRepository, type StaffRepository } from "@/modules/access/domain";
+import { allPermissions } from "@/shared/domain/permissions";
 import { RoleService, StaffResolver, TeamService } from "@/modules/access/application/services";
 
 // ─── двойники ──────────────────────────────────────────────────────────────
@@ -39,6 +41,9 @@ class MemUsers implements UserRepository {
     const u = [...this.rows.values()].find((x) => x.email === e.toLowerCase());
     return u ? this.findById(u.id) : null;
   }
+  async findClientsByPhone(phone: string) {
+    return [...this.rows.values()].filter((x) => x.role === "user" && normalizePhone(x.phone ?? "") === normalizePhone(phone));
+  }
   async add(u: User) {
     this.rows.set(u.id, u);
   }
@@ -66,16 +71,26 @@ class MemSessions implements SessionRepository {
 }
 
 class MemResets implements PasswordResetRepository {
-  rows = new Map<string, { userId: string; exp: Date; used: boolean }>();
-  async create(h: string, userId: string, exp: Date) {
-    this.rows.set(h, { userId, exp, used: false });
+  rows = new Map<string, { userId: string; exp: Date; used: boolean; purpose: LinkPurpose }>();
+  async create(h: string, userId: string, exp: Date, purpose: LinkPurpose = "reset") {
+    this.rows.set(h, { userId, exp, used: false, purpose });
   }
   async findValid(h: string, now: Date) {
     const r = this.rows.get(h);
-    return r && !r.used && r.exp > now ? { id: h, userId: r.userId } : null;
+    return r && !r.used && r.exp > now ? { id: h, userId: r.userId, purpose: r.purpose } : null;
   }
   async markUsed(id: string) {
-    this.rows.get(id)!.used = true;
+    const r = this.rows.get(id)!;
+    if (r.used) return false;
+    r.used = true;
+    return true;
+  }
+  async peek(h: string, now: Date) {
+    const r = this.rows.get(h);
+    return r ? { purpose: r.purpose, valid: !r.used && r.exp > now } : null;
+  }
+  async revokeUnused(userId: string, purpose: LinkPurpose) {
+    for (const r of this.rows.values()) if (r.userId === userId && r.purpose === purpose) r.used = true;
   }
 }
 
@@ -128,15 +143,75 @@ describe("Identity: регистрация и вход", () => {
   it("неверный пароль и незнакомый адрес — одна и та же ошибка", async () => {
     const { auth } = identity();
     await auth.register({ email: "a@b.kz", name: "А", password: "secret123", locale: "ru", source: null });
-    await expect(auth.login({ email: "a@b.kz", password: "wrong", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
-    await expect(auth.login({ email: "x@b.kz", password: "secret123", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    await expect(auth.login({ login: "a@b.kz", password: "wrong", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    await expect(auth.login({ login: "x@b.kz", password: "secret123", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
   });
 
   it("вход запоминает язык", async () => {
     const { auth, users } = identity();
     const { user } = await auth.register({ email: "a@b.kz", name: "А", password: "secret123", locale: "ru", source: null });
-    await auth.login({ email: "a@b.kz", password: "secret123", locale: "kk" });
+    await auth.login({ login: "a@b.kz", password: "secret123", locale: "kk" });
     expect((await users.findById(user.id))!.locale).toBe("kk");
+  });
+});
+
+describe("Identity: клиент, которого завёл менеджер", () => {
+  it("логин: почта или телефон в любом написании", () => {
+    expect(parseLoginId(" Aliya@Mail.KZ ")).toEqual({ kind: "email", value: "aliya@mail.kz" });
+    for (const raw of ["87758613077", "+7 775 861-30-77", "8 (775) 861 30 77", "7758613077"]) expect(parseLoginId(raw)).toEqual({ kind: "phone", value: "77758613077" });
+    expect(parseLoginId("")).toBeNull();
+    expect(parseLoginId("12345")).toBeNull();
+    expect(phoneEmail("87758613077")).toBe("77758613077@phone.invalid");
+    expect(isPhoneEmail("77758613077@phone.invalid")).toBe(true);
+    expect(isPhoneEmail("a@mail.kz")).toBe(false);
+  });
+
+  it("без почты: аккаунт с адресом-заглушкой, вход по телефону в любом написании", async () => {
+    const { accounts, auth, users } = identity();
+    const made = await accounts.provisionClient({ name: "Насиба", phone: "8 775 861-30-77", email: null, password: "Pass12345", locale: "ru" });
+    expect(made.login).toBe("77758613077");
+    const u = (await users.findById(made.id))!;
+    expect(u.email).toBe("77758613077@phone.invalid");
+    expect(u.phone).toBe("77758613077");
+    expect(u.role).toBe("user");
+    for (const login of ["87758613077", "+7 (775) 861-30-77", "77758613077@phone.invalid"]) {
+      const r = await auth.login({ login, password: "Pass12345", locale: "ru" });
+      expect(r.kind).toBe("session");
+    }
+    await expect(auth.login({ login: "87758613077", password: "wrong", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+  });
+
+  it("с почтой: логин — почта; дубликат по телефону или почте не создаётся", async () => {
+    const { accounts, auth } = identity();
+    const made = await accounts.provisionClient({ name: "Аян", phone: "+7 701 000 11 22", email: "Ayan@Mail.kz", password: "Pass12345", locale: "ru" });
+    expect(made.login).toBe("ayan@mail.kz");
+    expect((await auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" })).kind).toBe("session");
+    await expect(accounts.provisionClient({ name: "Другой", phone: "87010001122", email: null, password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "exists", existingId: made.id });
+    await expect(accounts.provisionClient({ name: "Другой", phone: "87770000000", email: "ayan@mail.kz", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "exists", existingId: made.id });
+    await expect(accounts.provisionClient({ name: "Х", phone: "123", email: null, password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "phone" });
+    await expect(accounts.provisionClient({ name: "Х", phone: "87770000000", email: null, password: "short", locale: "ru" })).rejects.toMatchObject({ code: "password" });
+  });
+
+  it("по телефону вход только при однозначном номере", async () => {
+    const { accounts, auth } = identity();
+    await accounts.provisionClient({ name: "А", phone: "87771112233", email: "a@mail.kz", password: "Pass12345", locale: "ru" });
+    // тот же номер у второго аккаунта (регистрация на сайте) — вход по телефону не угадывает, чей это аккаунт
+    const b = await auth.register({ email: "b@mail.kz", name: "Б", password: "Pass12345", locale: "ru", source: null });
+    await accounts.updateProfile(b.user.id, "Б", "87771112233");
+    await expect(auth.login({ login: "87771112233", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    expect((await auth.login({ login: "a@mail.kz", password: "Pass12345", locale: "ru" })).kind).toBe("session");
+  });
+
+  it("новый пароль клиенту: старый перестаёт работать, сессии завершены", async () => {
+    const { accounts, auth, sessions } = identity();
+    const made = await accounts.provisionClient({ name: "Аян", phone: "87010001122", email: null, password: "Pass12345", locale: "ru" });
+    const first = await auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" });
+    if (first.kind !== "session") throw new Error("ожидалась сессия");
+    const issued = await accounts.issueClientPassword(made.id, "Новый-пароль-77");
+    expect(issued.login).toBe("77010001122");
+    expect(await sessions.findUserId(`#${first.token}`, new Date())).toBeNull();
+    await expect(auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    expect((await auth.login({ login: "87010001122", password: "Новый-пароль-77", locale: "ru" })).kind).toBe("session");
   });
 });
 
@@ -155,7 +230,7 @@ describe("Identity: двухфакторный вход сотрудника", (
 
   it("после пароля нужен код; тот же код повторно не проходит", async () => {
     const { auth, userId, secret, clock } = await staffWith2fa();
-    const r = await auth.login({ email: "boss@b.kz", password: "secret123", locale: "ru" });
+    const r = await auth.login({ login: "boss@b.kz", password: "secret123", locale: "ru" });
     expect(r).toEqual({ kind: "second_factor", userId });
     clock.tick(30);
     const code = totp(secret, clock.now().getTime());
@@ -195,7 +270,7 @@ describe("Identity: двухфакторный вход сотрудника", (
   it("смена пароля из профиля: остальные устройства выходят, текущее остаётся", async () => {
     const { auth, accounts, sessions } = identity();
     const a = await auth.register({ email: "a@b.kz", name: "А", password: "secret123", locale: "ru", source: null });
-    const b = await auth.login({ email: "a@b.kz", password: "secret123", locale: "ru" });
+    const b = await auth.login({ login: "a@b.kz", password: "secret123", locale: "ru" });
     await expect(accounts.changePassword(a.user.id, "wrong", "newsecret1", a.token)).rejects.toMatchObject({ code: "credentials" });
     await accounts.changePassword(a.user.id, "secret123", "newsecret1", a.token);
     expect(await sessions.findUserId(`#${a.token}`, new Date())).toBe(a.user.id);
@@ -277,9 +352,80 @@ function access() {
     { generate: () => "GENERATED" },
     { record: async (e) => void audit.push(e.action) },
   );
-  const ctx = (userId: string, isOwner: boolean) => new StaffContext(userId, "", isOwner ? "owner" : "manager", isOwner ? "all" : "own", new Set(isOwner ? allPermissions : ["team.manage"] as const), isOwner);
+  const ctx = (userId: string, isOwner: boolean) => new StaffContext(userId, "", isOwner ? "owner" : "manager", isOwner ? "all" : "own", new Set(isOwner ? allPermissions : ["team.manage"] as const), isOwner, { isPhoneEmail });
   return { roles, staff, team, audit, ctx };
 }
+
+describe("Identity: ссылка доступа в кабинет после оплаты (purpose=access)", () => {
+  const phoneClient = async (accounts: AccountService) => (await accounts.provisionClient({ name: "Айгерим", phone: "87011234567", email: null, password: "Unknown123", locale: "ru" })).id;
+
+  it("выдаётся клиенту на ≤ 72 ч с назначением access; прежние неиспользованные ссылки доступа гаснут, сброс по почте — нет", async () => {
+    const { auth, accounts, resets, clock } = identity();
+    const id = await phoneClient(accounts);
+    await auth.requestPasswordReset(`77011234567@phone.invalid`, "ru"); // письмо-заглушка не уходит, но строка сброса есть
+    const first = await auth.issueAccessLink(id);
+    expect(first.login).toBe("77011234567");
+    expect(first.expiresAt.getTime() - clock.now().getTime()).toBe(72 * 3600_000);
+    expect(await auth.linkInfo(first.token)).toEqual({ purpose: "access", valid: true });
+    const second = await auth.issueAccessLink(id, 3600_000);
+    expect(await auth.linkInfo(first.token)).toEqual({ purpose: "access", valid: false });
+    expect(await auth.linkInfo(second.token)).toEqual({ purpose: "access", valid: true });
+    expect([...resets.rows.values()].filter((r) => r.purpose === "reset" && !r.used)).toHaveLength(1);
+    await expect(auth.issueAccessLink(id, 73 * 3600_000)).rejects.toBeInstanceOf(RangeError);
+  });
+
+  it("не выдаётся сотруднику и адресу из ADMIN_EMAILS", async () => {
+    const { auth, accounts, users } = identity(["owner@b.kz"]);
+    const owner = await accounts.provisionClient({ name: "Владелец", phone: "87770000001", email: "owner@b.kz", password: "Unknown123", locale: "ru" });
+    await expect(auth.issueAccessLink(owner.id)).rejects.toMatchObject({ code: "credentials" });
+    const staffId = await accounts.provision({ email: "m@b.kz", name: "Менеджер", password: "secret123" });
+    const staff = (await users.findById(staffId))!;
+    staff.promoteToAdmin();
+    await users.save(staff);
+    await expect(auth.issueAccessLink(staffId)).rejects.toMatchObject({ code: "credentials" });
+  });
+
+  it("GET (предпросмотр WhatsApp) ссылку не тратит; пароль задаётся один раз, сессии закрываются, вход по телефону", async () => {
+    const { auth, accounts, sessions } = identity();
+    const id = await phoneClient(accounts);
+    const old = await auth.login({ login: "87011234567", password: "Unknown123", locale: "ru" });
+    const { token } = await auth.issueAccessLink(id);
+    for (let i = 0; i < 3; i++) expect(await auth.linkInfo(token)).toEqual({ purpose: "access", valid: true });
+    const r = await auth.redeemAccessLink(token, "MyNewPass1");
+    expect(r.user.id).toBe(id);
+    expect(await sessions.findUserId(`#${r.token}`, new Date())).toBe(id);
+    expect(await sessions.findUserId(`#${(old as { token: string }).token}`, new Date())).toBeNull();
+    expect(await auth.linkInfo(token)).toEqual({ purpose: "access", valid: false });
+    await expect(auth.redeemAccessLink(token, "Another123")).rejects.toMatchObject({ code: "resetExpired" });
+    expect((await auth.login({ login: "+7 701 123 45 67", password: "MyNewPass1", locale: "ru" })).kind).toBe("session");
+  });
+
+  it("ссылка доступа не даёт прав администратора и не гасится путём сброса по почте (и наоборот)", async () => {
+    const { auth, accounts, users, resets, mails } = identity(["boss@b.kz"]);
+    const made = await accounts.provisionClient({ name: "Б", phone: "87770000002", email: "boss@b.kz", password: "Unknown123", locale: "ru" });
+    // Ссылку доступа на адрес из ADMIN_EMAILS не выдать; даже если она есть в базе — права администратора она не даёт.
+    await resets.create("#access-token", made.id, new Date(Date.UTC(2027, 0, 1)), "access");
+    await expect(auth.resetPassword("access-token", "newsecret1")).rejects.toMatchObject({ code: "resetExpired" });
+    await auth.redeemAccessLink("access-token", "newsecret1");
+    expect((await users.findById(made.id))!.role).toBe("user");
+    // ссылка сброса по почте через путь доступа не проходит
+    await auth.requestPasswordReset("boss@b.kz", "ru");
+    await expect(auth.redeemAccessLink(mails[0].token, "newsecret2")).rejects.toMatchObject({ code: "resetExpired" });
+    await auth.resetPassword(mails[0].token, "newsecret2");
+    expect((await users.findById(made.id))!.role).toBe("admin");
+  });
+
+  it("клиенты по телефону — только role=user", async () => {
+    const { accounts, users } = identity();
+    const id = await phoneClient(accounts);
+    expect((await accounts.clientsByPhone("+7 (701) 123-45-67")).map((u) => u.id)).toEqual([id]);
+    const u = (await users.findById(id))!;
+    u.promoteToAdmin();
+    await users.save(u);
+    expect(await accounts.clientsByPhone("87011234567")).toEqual([]);
+    expect(await accounts.clientsByPhone("123")).toEqual([]);
+  });
+});
 
 describe("Access: роли и команда", () => {
   it("руководитель всегда со всеми правами; свою роль нельзя лишить team.manage", () => {
@@ -328,14 +474,20 @@ describe("Access: роли и команда", () => {
 
   it("StaffResolver: роль «только свои», маскирование контактов, владелец без роли", async () => {
     const { roles } = access();
-    const resolver = new StaffResolver(roles, { load: async () => ({ allowlist: "", require2fa: false }), save: async () => {} });
+    const resolver = new StaffResolver(roles, { load: async () => ({ allowlist: "", require2fa: false }), save: async () => {} }, { isPhoneEmail });
     const anna = (await resolver.resolve({ id: "anna", role: "admin", staffDisabled: false, crmRoleId: "r-manager", twoFactorEnabled: false }))!;
     expect(anna.can("deals.view")).toBe(true);
     expect(anna.can("orders.view")).toBe(false);
     expect(anna.canSee("anna") && anna.canSee(null) && !anna.canSee("boss")).toBe(true);
+    // Неразобранные «только свои» видят, но себе не берут: работать можно только со своими.
+    expect([anna.canWork("anna"), anna.canWork(null), anna.canWork("boss")]).toEqual([true, false, false]);
     expect(anna.contacts({ phone: "+77011234567", email: "aliya@mail.kz" })).toEqual({ phone: "+7 701 ••• •• 67", email: "al•••@mail.kz", masked: true });
     const legacy = (await resolver.resolve({ id: "old", role: "admin", staffDisabled: false, crmRoleId: null, twoFactorEnabled: false }))!;
     expect(legacy.isOwner && legacy.can("team.manage")).toBe(true);
+    // Адрес-заглушка клиента без почты (формат логина — порт LoginFormat) не показывается контактом ни полностью, ни маской.
+    const placeholder = phoneEmail("87011234567");
+    expect(legacy.contacts({ phone: "+77011234567", email: placeholder })).toEqual({ phone: "+77011234567", email: "", masked: false });
+    expect(anna.contacts({ phone: "+77011234567", email: placeholder })).toEqual({ phone: "+7 701 ••• •• 67", email: "", masked: true });
     expect(await resolver.resolve({ id: "c", role: "user", staffDisabled: false, crmRoleId: null, twoFactorEnabled: false })).toBeNull();
     expect(await resolver.resolve({ id: "d", role: "admin", staffDisabled: true, crmRoleId: null, twoFactorEnabled: false })).toBeNull();
   });

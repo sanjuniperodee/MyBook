@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { GIFT_COOKIE } from "@/modules/ordering";
 import { INVITE_COOKIE } from "@/modules/referrals";
 import { container } from "@/server/container";
-import type { PlanId } from "@/config/site";
+import { getPlan, type PlanId } from "@/config/site";
 import type { PromoPreview } from "./actions";
 import { getOccasion } from "@/lib/occasions";
 import { Link } from "@/i18n/client";
@@ -13,22 +13,26 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { coverNamesLine } from "@/lib/book/covers";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
 import { coverName, interiorName } from "@/i18n/labels";
-import { photoUrl } from "@/lib/urls";
+import { coverPhotoRefs } from "@/lib/book/photo-refs";
 import { CheckoutForm } from "./CheckoutForm";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).checkout.meta };
 }
 
-export default async function CheckoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ promo?: string }> }) {
+export default async function CheckoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ promo?: string; upgrade?: string }> }) {
   const { id } = await params;
-  const { promo: promoParam } = await searchParams;
+  const { promo: promoParam, upgrade: upgradeParam } = await searchParams;
   const user = await requireUser(`/books/${id}/checkout`);
   const book = await getAccessibleBook(id, user);
-  if (book.status !== "draft") return lredirect(`/books/${book.id}`);
+  // Книга уже заказана — оформлять можно только печатную версию к оплаченной электронной (?upgrade=<номер заказа>).
+  const upgrade = upgradeParam && /^[0-9a-f-]{36}$/i.test(upgradeParam) ? await container().ordering.orders.upgradeOffer(upgradeParam, user.id) : null;
+  const upgradeOk = !!upgrade && upgrade.bookId === book.id;
+  if (book.status !== "draft" && !upgradeOk) return lredirect(`/books/${book.id}`);
   const [stats, photos, locale, m] = await Promise.all([container().authoring.queries.stats(book), container().authoring.queries.photos(book.id), getLocale(), getMessages()]);
   const t = m.checkout;
   const issues = checkReadiness(book, stats, photos, locale);
@@ -37,6 +41,10 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const jar = await cookies();
   const giftCode = jar.get(GIFT_COOKIE)?.value || (promoParam && /^[A-Za-z0-9-]{3,40}$/.test(promoParam) ? promoParam : undefined) || jar.get(INVITE_COOKIE)?.value;
   const ordering = container().ordering;
+  // Договорённость с менеджером (ручная сделка): клиент выбирает — продолжить по ней или оформить заказ с нуля.
+  // Смотрит сотрудник — договорённость берём у владельца книги, а не у сотрудника: он видит ровно то, что увидит клиент.
+  const agreement = upgradeOk ? null : await ordering.orders.agreementFor(book.userId);
+  const staffView = book.userId !== user.id;
   const giftCheck = giftCode ? await ordering.promos.check(giftCode, user.id) : null;
   const initialPromo: PromoPreview | null = giftCheck?.ok ? { ok: true, code: giftCheck.promo.code, kind: giftCheck.promo.kind, value: giftCheck.promo.value, label: giftCheck.promo.label } : null;
   // Сертификат на конкретный тариф — открываем заказ сразу с ним, чтобы номинал использовался полностью.
@@ -51,14 +59,14 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             format={book.format}
             title={book.title}
             subtitle={book.subtitle}
-            names={coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover)}
-            photoUrl={book.coverPhotoId ? photoUrl(book.coverPhotoId) : undefined}
+            names={coverNames(book)}
+            photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "thumb")}
             lite
             className="rounded-[3px] shadow-book"
           />
         </div>
         <div>
-          <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
           <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
           {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
           <p className="mt-1 text-sm text-muted">
@@ -74,6 +82,8 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           </p>
         </div>
       </div>
+
+      {staffView ? <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">{t.staffView}</p> : null}
 
       <div className="mt-8 rounded-2xl border border-line bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -107,6 +117,8 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
           blocked={blocked}
           initialPromo={initialPromo}
           initialPlan={giftPlan}
+          upgrade={upgradeOk ? { orderId: upgrade.orderId, number: upgrade.number, credit: upgrade.credit } : null}
+          agreement={agreement && { dealNumber: agreement.dealNumber, agreedTotal: agreement.agreedTotal, prepaid: agreement.prepaid, batch: agreement.batch && !agreement.batch.implicit ? { index: agreement.batch.index, size: agreement.batch.size } : null, plan: agreement.plan && getPlan(agreement.plan) ? (agreement.plan as PlanId) : null, gifts: agreement.gifts ?? [] }}
           defaults={{
             name: user.name,
             email: user.email,

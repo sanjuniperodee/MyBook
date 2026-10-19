@@ -1,13 +1,15 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
-import { channelLabel, toAttribution } from "@/modules/marketing/domain/channels";
+import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
-import { dealSourceLabels, dealSources } from "@/modules/sales";
+import { staffOptions } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
+import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { formatPrice } from "@/config/site";
-import { cn, formatDate, nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate, nowMs } from "@/lib/dates";
 import { DealsBoard, type DealCard } from "./DealsBoard";
 import { DealsTable, SavedViews } from "./DealsTable";
 
@@ -28,15 +30,16 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     container().access.queries.allStaff(),
     container().reporting.savedViews(staff.user.id),
   ]);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
+  const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const now = nowMs();
-  const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book }) => ({
+  const cards: DealCard[] = rows.map(({ deal, nextTask, unread, book, paid }) => ({
     id: deal.id,
     number: deal.number,
     title: deal.title,
     contactName: deal.contactName,
     stageId: deal.stageId,
     amount: deal.amount,
+    paid,
     source: deal.utm ? channelLabel(toAttribution(deal.utm), deal.source) : dealSourceLabels[deal.source],
     assigneeId: deal.assigneeId,
     assigneeLabel: deal.assigneeId ? (names.get(deal.assigneeId) ?? null) : null,
@@ -174,10 +177,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {view === "board" ? (
-        <DealsBoard stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} initial={cards} canEdit={can(staff, "deals.edit")} />
+        <DealsBoard stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} initial={cards} canEdit={can(staff, "deals.edit")} canDecide={can(staff, "deals.delete")} meId={staff.user.id} />
       ) : (
         <DealsTable
-          rows={rows.map(({ deal }) => {
+          rows={rows.map(({ deal, paid }) => {
             const st = stages.find((x) => x.id === deal.stageId);
             return {
               id: deal.id,
@@ -190,6 +193,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
               campaign: deal.utm?.campaign ?? null,
               assignee: deal.assigneeId ? (names.get(deal.assigneeId) ?? null) : null,
               amount: deal.amount ? formatPrice(deal.amount) : "—",
+              paid: paid ? formatPrice(paid) : null,
               created: formatDate(deal.createdAt),
             };
           })}

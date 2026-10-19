@@ -8,6 +8,7 @@ import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { getCurrentUser } from "@/server/auth";
 import { container } from "@/server/container";
+import { manualPaymentProps } from "@/server/requisites";
 import { isOnlinePayment, redeemUrl } from "@/modules/ordering";
 import { env } from "@/config/env";
 import { formatPrice, site } from "@/config/site";
@@ -15,6 +16,7 @@ import { parseDay } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
 import { planName } from "@/i18n/labels";
 import { messagesFor } from "@/i18n/messages";
+import { kaspiPaymentProps } from "@/app/api/payments/kaspi/view";
 import { GiftPayment } from "./GiftPayment";
 import { CopyLink } from "./CopyLink";
 
@@ -28,6 +30,7 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
   if (!gift) notFound();
   const t = m.gift.status;
   const paid = gift.status === "paid" && gift.promo;
+  const kaspi = gift.status === "pending_payment" ? await kaspiPaymentProps({ kind: "gift", id: gift.id }, gift.buyerPhone) : null;
   const redeemed = !!gift.promo && gift.promo.usedCount > 0;
 
   return (
@@ -58,8 +61,10 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
                 currency={gift.currency}
                 email={gift.buyerEmail}
                 online={isOnlinePayment() ? { publicId: env.cloudpayments.publicId } : null}
-                manual={m.common.manualPayment}
+                manual={await manualPaymentProps(m)}
+                unavailable={m.common.manualPayment.unavailable}
                 claimed={!!gift.paymentClaimedAt}
+                kaspi={kaspi}
               />
             ) : null}
 

@@ -37,7 +37,7 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
     !sections.clients
       ? none
       : db
-          .select({ id: books.id, title: books.title, authorName: books.authorName, recipientName: books.recipientName, userId: books.userId, updatedAt: books.updatedAt })
+          .select({ id: books.id, title: books.title, theme: books.theme, authorName: books.authorName, recipientName: books.recipientName, userId: books.userId, updatedAt: books.updatedAt })
           .from(books)
           .innerJoin(users, eq(users.id, books.userId))
           .where(and(or(ilike(books.title, like), ilike(books.authorName, like), ilike(books.recipientName, like)), visibleTo(viewer, users.managerId)))

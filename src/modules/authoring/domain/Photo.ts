@@ -10,7 +10,7 @@ export interface PhotoProps {
   width: number;
   height: number;
   caption: string;
-  layout: "full" | "bleed" | "half";
+  layout: "full" | "bleed" | "half" | "grid";
   questionId: string | null;
   inline: InlinePhotoStyle | null;
 }

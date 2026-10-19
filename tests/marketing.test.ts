@@ -1,9 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { buildChannelReport, conversion, isPreviewBot, linkTarget, type TrackedLink } from "@/modules/marketing/domain";
+import { channelOf, isManualChannel, manualAttribution, manualChannels } from "@/shared/domain/channels";
 import { MarketingService, type LinkRepository } from "@/modules/marketing/application";
 
 const now = new Date("2026-10-01T06:00:00Z");
 const link = (p: Partial<TrackedLink> = {}): TrackedLink => ({ id: "l1", slug: "insta-bio", kind: "site", targetPath: "/", waText: "", utmSource: "instagram", utmMedium: "social", utmCampaign: "mama", utmContent: "", archived: false, ...p });
+
+describe("канал, выбранный менеджером", () => {
+  it("каждый ручной канал читается как он сам, а не догадывается по тексту метки", () => {
+    for (const k of manualChannels) expect(channelOf(manualAttribution(k))).toBe(k);
+    expect(channelOf({ source: "recommendation", medium: "manual" })).toBe("recommendation");
+    // обычная метка с таким же текстом — не ручная
+    expect(channelOf({ source: "recommendation", medium: "social" })).toBe("other");
+    expect(isManualChannel("recommendation")).toBe(true);
+    expect(isManualChannel("hacker")).toBe(false);
+  });
+
+  it("продажа клиента, заведённого вручную, попадает в выбранный канал отчёта (клиент и его сделка)", () => {
+    const utm = manualAttribution("call");
+    const r = buildChannelReport([{ source: utm, started: false, paid: true, revenue: 10000 }], [{ utm, source: "manual", clientId: "c1", won: false, amount: 20000, hasOrder: false, paid: 10000 }], []);
+    const call = r.channels.find((c) => c.key === "call");
+    expect(call).toMatchObject({ registrations: 1, leads: 1, sales: 2 });
+    expect(r.channels.filter((c) => c.key !== "call")).toHaveLength(0);
+  });
+});
 
 describe("отчёт по каналам", () => {
   it("клиенты, заявки, продажи в чате и клики сводятся по каналу, кампании и ссылке", () => {
@@ -21,6 +41,28 @@ describe("отчёт по каналам", () => {
     expect(r.total).toMatchObject({ registrations: 2, sales: 2 });
     expect(conversion(insta)).toBe(1);
     expect(conversion({ clicks: 0, registrations: 0, startedBook: 0, leads: 0, sales: 0, revenue: 0 })).toBeNull();
+  });
+});
+
+describe("отчёт по каналам: деньги по ручным сделкам", () => {
+  const utm = { source: "instagram", medium: "social", campaign: "mama" };
+  const row = (p: { won?: boolean; amount?: number; hasOrder?: boolean; paid?: number }) => ({ utm, source: "manual", clientId: "c1", won: false, amount: 20000, hasOrder: false, ...p });
+  const sales = (deals: ReturnType<typeof row>[]) => buildChannelReport([], deals, []).total;
+
+  it("предоплата — уже продажа на сумму принятых денег, даже пока сделка не закрыта", () => {
+    expect(sales([row({ paid: 10000 })])).toMatchObject({ sales: 1, revenue: 10000 });
+  });
+  it("сделку с платежами закрыли — деньги не считаются второй раз", () => {
+    expect(sales([row({ won: true, paid: 10000 })])).toMatchObject({ sales: 1, revenue: 10000 });
+    expect(sales([row({ won: true, paid: 20000 })])).toMatchObject({ sales: 1, revenue: 20000 });
+  });
+  it("успешная сделка без платежей — по её сумме; открытая без денег — не продажа", () => {
+    expect(sales([row({ won: true })])).toMatchObject({ sales: 1, revenue: 20000 });
+    expect(sales([row({})])).toMatchObject({ sales: 0, revenue: 0 });
+  });
+  it("по сделке есть заказ на сайте: продажа и деньги заказа — в строке клиента, а предоплата добавляется к выручке без второй продажи", () => {
+    expect(sales([row({ hasOrder: true, paid: 10000, won: true })])).toMatchObject({ sales: 0, revenue: 10000 });
+    expect(sales([row({ hasOrder: true, won: true })])).toMatchObject({ sales: 0, revenue: 0 });
   });
 });
 

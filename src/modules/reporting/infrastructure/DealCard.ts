@@ -1,7 +1,8 @@
 import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
-import { bookQuestions, books, crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
+import { books, crmCalls, crmConversations, crmDeals, crmNotes, crmTasks, orders, photos, users } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 
 export async function dealById(id: string) {
@@ -19,17 +20,20 @@ export async function dealCard(deal: { id: string; clientId: string | null; orde
     sections.calls ? db.select().from(crmCalls).where(eq(crmCalls.dealId, deal.id)).orderBy(desc(crmCalls.startedAt)).limit(30) : Promise.resolve([]),
     sections.chats ? db.select().from(crmConversations).where(eq(crmConversations.dealId, deal.id)).orderBy(desc(crmConversations.lastMessageAt)) : Promise.resolve([]),
     deal.clientId ? db.select({ id: users.id, name: users.name, email: users.email, phone: users.phone, lastSeenAt: users.lastSeenAt }).from(users).where(eq(users.id, deal.clientId)).limit(1) : Promise.resolve([]),
-    deal.orderId ? db.select({ id: orders.id, number: orders.number, status: orders.status, amount: orders.amount }).from(orders).where(eq(orders.id, deal.orderId)).limit(1) : Promise.resolve([]),
+    deal.orderId ? db.select({ id: orders.id, number: orders.number, status: orders.status, amount: orders.amount, plan: orders.plan }).from(orders).where(eq(orders.id, deal.orderId)).limit(1) : Promise.resolve([]),
     deal.clientId
       ? db
           .select({
             id: books.id,
             title: books.title,
+            theme: books.theme,
+            authorName: books.authorName,
             recipientName: books.recipientName,
             status: books.status,
             updatedAt: books.updatedAt,
-            answered: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId} and length(trim(q.answer)) > 0)`,
-            total: sql<number>`(select count(*)::int from ${bookQuestions} q where q.book_id = ${booksId})`,
+            answered: answeredSql(booksId),
+            total: totalSql(booksId),
+            words: wordsSql(booksId),
             photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
           })
           .from(books)
@@ -41,8 +45,9 @@ export async function dealCard(deal: { id: string; clientId: string | null; orde
   return { noteRows, taskRows, callRows, convs, client: client ?? null, order: order ?? null, bookRows };
 }
 
-/** Клиент, которого предлагаем привязать к сделке (нашёлся по телефону). */
+/** Клиент коротко: кого предлагаем привязать к сделке (нашёлся по телефону), язык кабинета и роль — для счёта из чата. */
 export async function clientBrief(id: string) {
-  const [u] = await executor().select({ id: users.id, name: users.name, email: users.email }).from(users).where(eq(users.id, id)).limit(1);
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, phone: users.phone, locale: users.locale, role: users.role, managerId: users.managerId }).from(users).where(eq(users.id, id)).limit(1);
   return u ?? null;
 }

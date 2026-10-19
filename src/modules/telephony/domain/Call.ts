@@ -23,7 +23,7 @@ export interface CallProps {
   recordingRef: string | null;
 }
 
-export const callDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const callDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /**
  * Звонок из АТС. События провайдера приходят по одному и повторно: звонит → ответили → запись → завершён.
@@ -77,6 +77,18 @@ export class Call extends AggregateRoot<CallProps> {
   }
   get isMissed() {
     return this.props.direction === "in" && this.props.status === "missed";
+  }
+  /**
+   * Менеджер связался с клиентом: разговор состоялся (в любую сторону) или менеджер сам набрал номер (даже если не
+   * дозвонился — заявка у него в работе). Пропущенный или несостоявшийся входящий — нет.
+   */
+  get isContact() {
+    return this.props.status === "answered" || this.props.direction === "out";
+  }
+  /** Как связались — для ленты сделки. */
+  get contactLabel() {
+    if (this.props.direction === "out") return this.props.status === "answered" ? "исходящий звонок клиенту" : "менеджер набрал клиента";
+    return "входящий звонок принят";
   }
 
   /** Событие АТС. Возвращает, что сделать репозиторию: ничего, сохранить или завершить (атомарно). */

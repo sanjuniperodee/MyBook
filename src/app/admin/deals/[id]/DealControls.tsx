@@ -1,19 +1,24 @@
 "use client";
 
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
-import type { CustomValues } from "@/modules/sales/domain";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { useActionState, useState, useTransition } from "react";
 import { Check, Trash2 } from "lucide-react";
-import { ask, toastError } from "@/components/ui/overlays";
-import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, updateDealAction, type DealFormState } from "../actions";
+import { ask, toast, toastError } from "@/components/ui/overlays";
+import { revealContactAction } from "@/app/admin/crm-actions";
+import { AccessCard } from "@/app/admin/clients/new/NewClientForm";
+import { channels, manualChannels } from "@/shared/domain/channels";
+import { movePipelineAction, acceptDealAction, assignDealAction, deleteDealAction, linkDealClientAction, mergeDealAction, moveDealAction, rejectDealAction, declineRejectionAction, updateDealAction, createClientFromDealAction, type ClientFromDealState, type DealFormState } from "../actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, Inbox, Merge, UserRound } from "lucide-react";
 import { LostDialog } from "../DealsBoard";
 import { ManagerSelect } from "@/components/admin/ContactActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { dealSourceLabels, dealSources } from "@/modules/sales/domain/meta";
-import { cn } from "@/lib/utils";
+import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
+import { dealListPrice } from "@/modules/sales/domain/pricing";
+import { DiscountHint } from "@/components/admin/DiscountHint";
+import { cn } from "@/lib/class-names";
 
 interface Stage {
   id: string;
@@ -79,32 +84,67 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
   );
 }
 
+/** Что сотрудник набрал в поле и от какого значения с сервера начинал. */
+export interface FieldDraft {
+  from: string;
+  value: string;
+}
+
+/**
+ * Значение поля, которое может поменять не только форма (бюджет записал счёт из чата, затем router.refresh()): набранное —
+ * пока на сервере то же значение, от которого начинали; сервер его сменил — действует новое значение с сервера.
+ */
+export function draftValue(draft: FieldDraft | null, server: string): string {
+  return draft && draft.from === server ? draft.value : server;
+}
+
 export function DealFields({
   deal,
   masked,
+  canReveal = false,
   disabled,
   fields = [],
   values = {},
+  pricing = null,
 }: {
+  /** Кнопка «Показать номер» (право clients.reveal): открытие пишется в журнал. */
+  canReveal?: boolean;
   fields?: FieldDef[];
-  values?: CustomValues;
+  values?: CustomFieldValues;
   deal: { id: string; title: string; amount: number; source: string; contactName: string; contactPhone: string; contactEmail: string; extraPhones: string[]; tags: string[] };
   masked: { phone: string; email: string } | null;
   disabled: boolean;
+  /** Бюджет — цена продажи (по сделке ещё нет заказа): тариф договорённости и лимит скидки сотрудника (null — без лимита). */
+  pricing?: { plan: string | null; maxPercent: number | null } | null;
 }) {
   const [state, action] = useActionState<DealFormState, FormData>(updateDealAction, {});
+  // Бюджет и источник может поменять не эта форма: счёт из чата записывает сумму договорённости, затем router.refresh().
+  // Поля неуправляемые и пересоздаются по значению с сервера (key) — в форму уходит новая сумма, а не та, что была при
+  // открытии страницы. Набранное хранится только для подсказки «ниже прайса» и действует, пока на сервере то же значение.
+  const [amountDraft, setAmountDraft] = useState<FieldDraft | null>(null);
+  const [sourceDraft, setSourceDraft] = useState<FieldDraft | null>(null);
+  const serverAmount = String(deal.amount);
   return (
-    <form action={action} className="space-y-3">
+    <form
+      action={action}
+      // После действия React сбрасывает неуправляемые поля к значениям с сервера — черновик подсказки тоже.
+      onReset={() => {
+        setAmountDraft(null);
+        setSourceDraft(null);
+      }}
+      className="space-y-3"
+    >
       <input type="hidden" name="id" value={deal.id} />
       <Field label="Название">
         <input name="title" defaultValue={deal.title} required maxLength={200} disabled={disabled} className="input h-9 text-sm" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Бюджет, ₸">
-          <input name="amount" type="number" min={0} step={1000} defaultValue={deal.amount} disabled={disabled} className="input h-9 text-sm" />
+          <input key={`amount:${serverAmount}`} name="amount" type="number" min={0} step={1000} defaultValue={serverAmount} onChange={(e) => setAmountDraft({ from: serverAmount, value: e.target.value })} disabled={disabled} className="input h-9 text-sm" />
+          {pricing ? <DiscountHint list={dealListPrice(pricing.plan, draftValue(sourceDraft, deal.source))} price={Number(draftValue(amountDraft, serverAmount)) || 0} maxPercent={pricing.maxPercent} /> : null}
         </Field>
         <Field label="Источник">
-          <select name="source" defaultValue={deal.source} disabled={disabled} className="input h-9 text-sm">
+          <select key={`source:${deal.source}`} name="source" defaultValue={deal.source} onChange={(e) => setSourceDraft({ from: deal.source, value: e.target.value })} disabled={disabled} className="input h-9 text-sm">
             {dealSources.map((s) => (
               <option key={s} value={s}>
                 {dealSourceLabels[s]}
@@ -118,8 +158,7 @@ export function DealFields({
       </Field>
       {masked ? (
         <div className="space-y-1 text-sm text-ink-soft" title="Контакты скрыты настройками вашей роли" data-testid="masked-contacts">
-          <div className="tabular-nums">{masked.phone || "—"}</div>
-          <div>{masked.email || "—"}</div>
+          <RevealContact dealId={deal.id} masked={masked} canReveal={canReveal} />
           {/* Скрытые поля не отправляем: сервер сохранит прежние значения. */}
         </div>
       ) : (
@@ -175,7 +214,8 @@ export function DealDelete({ id, number }: { id: string; number: number }) {
         (await ask(`Удалить сделку №${number}? Задачи и история по ней тоже удалятся.`, true)) &&
         start(async () => {
           try {
-            await deleteDealAction(id);
+            const r = await deleteDealAction(id);
+            if (r?.error) toast(r.error, "error");
           } catch (e) {
             if ((e as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw e;
             toastError(e);
@@ -205,34 +245,90 @@ function useRun() {
   return { pending, run, router };
 }
 
-export function UnsortedBanner({ dealId, canEdit }: { dealId: string; canEdit: boolean }) {
+/**
+ * Неразобранная заявка. Руководитель (canDecide) отклоняет и отмечает спамом сразу; менеджер только предлагает —
+ * заявка остаётся у него с отметкой, руководитель подтверждает или оставляет в работе.
+ */
+export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId: string; canEdit: boolean; canDecide: boolean; request: "spam" | "reject" | null }) {
   const { pending, run, router } = useRun();
+  const reject = async (spam: boolean) => {
+    if (canDecide) {
+      // Заявку с деньгами или счётом клиента сервер не удаляет, а закрывает «отказом» — тогда остаёмся на ней.
+      if (await ask(spam ? "Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений." : "Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) {
+        let deleted = false;
+        run(
+          async () => {
+            const r = await rejectDealAction(dealId, spam);
+            toast(r.message);
+            deleted = r.deleted !== false;
+          },
+          () => (deleted ? router.push("/admin/deals") : router.refresh()),
+        );
+      }
+      return;
+    }
+    const reason = window.prompt(spam ? "Почему это спам? Руководитель увидит причину." : "Почему отклонить? Руководитель увидит причину.");
+    if (reason === null) return;
+    run(async () => toast((await rejectDealAction(dealId, spam, reason)).message));
+  };
   return (
     <section className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-dashed border-wine/30 bg-rose/30 p-4" data-testid="unsorted-banner">
       <Inbox className="size-5 text-wine" />
       <div className="min-w-0 flex-1">
         <div className="font-semibold">Неразобранная заявка</div>
-        <div className="text-sm text-muted">Новый номер. Примите в работу или отклоните; ответ клиенту в чате тоже принимает заявку.</div>
+        <div className="text-sm text-muted">
+          {request
+            ? `Менеджер предлагает ${request === "spam" ? "отметить спамом" : "отклонить"} — ${canDecide ? "подтвердите или оставьте в работе." : "ждёт решения руководителя."}`
+            : "Новый номер. Примите в работу или отклоните; ответ в чате, звонок или запись о контакте в ленте тоже принимают заявку."}
+        </div>
       </div>
       {canEdit ? (
         <div className="flex gap-2">
-          <button className="btn btn-sm" disabled={pending} onClick={() => run(() => acceptDealAction(dealId))}>
-            Принять
-          </button>
-          <button className="btn btn-outline btn-sm" disabled={pending} onClick={async () => (await ask("Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true)) && run(() => rejectDealAction(dealId, false), () => router.push("/admin/deals"))}>
-            Отклонить
-          </button>
-          <button className="btn btn-ghost btn-sm text-red-700" disabled={pending} onClick={async () => (await ask("Это спам? Сделка удалится, с номера больше не будет заявок и уведомлений.", true)) && run(() => rejectDealAction(dealId, true), () => router.push("/admin/deals"))}>
-            <Ban className="size-4" /> Спам
-          </button>
+          {request && canDecide ? (
+            <button className="btn btn-sm" disabled={pending} onClick={() => run(() => declineRejectionAction(dealId))}>
+              Оставить в работе
+            </button>
+          ) : (
+            <button className="btn btn-sm" disabled={pending} onClick={() => run(() => acceptDealAction(dealId))}>
+              Принять
+            </button>
+          )}
+          {request === "spam" && !canDecide ? null : (
+            <button className="btn btn-outline btn-sm" disabled={pending || (!!request && !canDecide)} onClick={() => reject(request === "spam")}>
+              {request && canDecide ? "Подтвердить" : "Отклонить"}
+            </button>
+          )}
+          {request ? null : (
+            <button className="btn btn-ghost btn-sm text-red-700" disabled={pending} onClick={() => reject(true)}>
+              <Ban className="size-4" /> Спам
+            </button>
+          )}
         </div>
       ) : null}
     </section>
   );
 }
 
-export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; canMerge: boolean }) {
+/**
+ * Подтверждение «Объединить сюда». В закрытую сделку — прямо: заявка уйдёт из работы, плана и воронки. Счета, которые слияние
+ * отменит (cancels, «P77 на 15 000 ₸»), — поимённо: ссылка на оплату у клиента перестанет работать.
+ */
+export function mergeQuestion(number: number, intoClosed: boolean, cancels: readonly string[]) {
+  const base = intoClosed
+    ? `Влить заявку №${number} в эту закрытую сделку? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится и уйдёт из работы — в план и воронку как новая продажа она не попадёт. Так делают, только если это та же покупка.`
+    : `Объединить сделку №${number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится.`;
+  if (!cancels.length) return base;
+  return cancels.length === 1
+    ? `${base} Будет отменён открытый счёт ${cancels[0]} — ссылка на оплату у клиента перестанет работать.`
+    : `${base} Будут отменены открытые счета ${cancels.join(", ")} — ссылки на оплату у клиента перестанут работать.`;
+}
+
+export function DuplicateRow({ targetId, intoClosed, other, merge }: { targetId: string; intoClosed: boolean; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; merge: { cancels: string[] } | null }) {
   const { pending, run } = useRun();
+  const doMerge = async () => {
+    const r = await mergeDealAction(targetId, other.id);
+    if (r?.error) throw new Error(r.error);
+  };
   return (
     <div className="flex flex-wrap items-center gap-3 py-2 text-sm">
       <Link href={`/admin/deals/${other.id}`} className="min-w-0 flex-1 truncate hover:text-wine">
@@ -241,12 +337,8 @@ export function DuplicateRow({ targetId, other, canMerge }: { targetId: string; 
       <span className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: other.color }}>
         {other.stage}
       </span>
-      {canMerge ? (
-        <button
-          className="btn btn-outline btn-sm h-8"
-          disabled={pending}
-          onClick={async () => (await ask(`Объединить сделку №${other.number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${other.number} удалится.`, true)) && run(() => mergeDealAction(targetId, other.id))}
-        >
+      {merge ? (
+        <button className="btn btn-outline btn-sm h-8" disabled={pending} onClick={async () => (await ask(mergeQuestion(other.number, intoClosed, merge.cancels), true)) && run(doMerge)}>
           <Merge className="size-3.5" /> Объединить сюда
         </button>
       ) : null}
@@ -282,5 +374,105 @@ export function PipelineSwitch({ dealId, value, pipelines, disabled }: { dealId:
         ))}
       </select>
     </label>
+  );
+}
+
+/** Скрытый контакт; «Показать» открывает его (на сервере — проверка, что сделка своя, и запись в журнал). */
+function RevealContact({ dealId, masked, canReveal }: { dealId: string; masked: { phone: string; email: string }; canReveal: boolean }) {
+  const [shown, setShown] = useState<{ phone: string; email: string } | null>(null);
+  const [pending, start] = useTransition();
+  const c = shown ?? masked;
+  return (
+    <>
+      <div className="flex items-center gap-2 tabular-nums">
+        {c.phone || "—"}
+        {canReveal && !shown && masked.phone ? (
+          <button
+            type="button"
+            className="text-xs text-wine underline"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const r = await revealContactAction({ dealId });
+                if (r.ok) setShown({ phone: r.phone, email: r.email });
+                else toastError(new Error(r.message));
+              })
+            }
+          >
+            показать (в журнал)
+          </button>
+        ) : null}
+      </div>
+      <div>{c.email || "—"}</div>
+    </>
+  );
+}
+
+/**
+ * Клиента ещё нет на сайте — завести аккаунт прямо из сделки: телефон берётся из сделки на сервере,
+ * менеджер выбирает имя, язык кабинета и канал. Пароль показывается один раз — его нужно отправить клиенту.
+ */
+export function CreateClientFromDeal({ dealId, name }: { dealId: string; name: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState<ClientFromDealState, FormData>(createClientFromDealAction.bind(null, dealId), {});
+  if (state.done) return <AccessCard login={state.done.loginText} password={state.done.password} message={state.done.message} title="Клиент заведён — отправьте ему доступ" />;
+  if (!open)
+    return (
+      <button type="button" className="btn btn-outline btn-sm w-full" onClick={() => setOpen(true)}>
+        <UserRound className="size-4" /> Создать клиента на сайте
+      </button>
+    );
+  return (
+    <form action={action} className="space-y-3 rounded-2xl border border-line bg-white p-4">
+      <div className="text-sm font-semibold">Новый клиент из сделки</div>
+      <p className="text-xs text-muted">Логин — телефон из сделки. Сделка и переписка привяжутся к клиенту.</p>
+      <Field label="Имя">
+        <input name="name" defaultValue={name} required maxLength={100} className="input h-9 text-sm" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Язык кабинета">
+          <select name="locale" defaultValue="ru" className="input h-9 text-sm">
+            <option value="ru">русский</option>
+            <option value="kk">қазақша</option>
+          </select>
+        </Field>
+        <Field label="Откуда пришёл">
+          <select name="channel" defaultValue="" required className="input h-9 text-sm">
+            <option value="" disabled>
+              выберите
+            </option>
+            {manualChannels.map((k) => (
+              <option key={k} value={k}>
+                {channels[k]}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <Field label="E-mail (необязательно)">
+        <input name="email" type="email" maxLength={200} className="input h-9 text-sm" />
+      </Field>
+      {state.error ? (
+        <p className="text-sm text-red-700">
+          {state.error}
+          {state.existingId ? (
+            <>
+              {" "}
+              <a href={`/admin/clients/${state.existingId}`} className="underline">
+                Открыть клиента
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <button className="btn btn-sm" disabled={pending}>
+          Создать
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
+          Отмена
+        </button>
+      </div>
+    </form>
   );
 }

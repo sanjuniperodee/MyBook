@@ -1,10 +1,12 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
-import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks } from "@/shared/infrastructure/db/schema";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, gt, lt, ne, or, sql, type SQL } from "drizzle-orm";
+import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks, crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
+import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage, type StageMilestone } from "../domain";
+import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { Deal, Funnel, REJECTION_TAGS, type DealRepository, type FunnelRepository, type NoteKind, type PlanProgress, type Stage } from "../domain";
 
 type Row = typeof crmDeals.$inferSelect;
 
@@ -25,6 +27,8 @@ function toDomain(r: Row): Deal {
     extraPhones: r.extraPhones,
     amount: r.amount,
     assigneeId: r.assigneeId,
+    assignedAt: r.assignedAt,
+    routeTried: r.routeTried,
     createdById: r.createdById,
     orderId: r.orderId,
     lostReason: r.lostReason,
@@ -34,6 +38,8 @@ function toDomain(r: Row): Deal {
     tags: r.tags,
     stageChangedAt: r.stageChangedAt,
     closedAt: r.closedAt,
+    createdAt: r.createdAt,
+    automationId: r.automationId,
   });
 }
 
@@ -49,8 +55,14 @@ export class DrizzleDealRepository implements DealRepository {
     return r ? toDomain(r) : null;
   }
 
+  async findByIds(ids: string[]) {
+    const list = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    return list.length ? (await executor().select().from(crmDeals).where(inArray(crmDeals.id, list))).map(toDomain) : [];
+  }
+
+  /** Сделки заказа по порядку создания (crm_deals_order_idx): первая — всегда одна и та же. */
   async findByOrder(orderId: string) {
-    return (await executor().select().from(crmDeals).where(eq(crmDeals.orderId, orderId))).map(toDomain);
+    return (await executor().select().from(crmDeals).where(eq(crmDeals.orderId, orderId)).orderBy(asc(crmDeals.createdAt), asc(crmDeals.id))).map(toDomain);
   }
 
   async findOpen(opts: { clientId?: string | null; phone?: string | null }) {
@@ -84,6 +96,8 @@ export class DrizzleDealRepository implements DealRepository {
       extraPhones: s.extraPhones,
       amount: s.amount,
       assigneeId: s.assigneeId,
+      assignedAt: s.assignedAt,
+      routeTried: s.routeTried,
       orderId: s.orderId,
       lostReason: s.lostReason,
       unsorted: s.unsorted,
@@ -104,8 +118,31 @@ export class DrizzleDealRepository implements DealRepository {
   async add(deal: Deal) {
     await executor()
       .insert(crmDeals)
-      .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, ...this.columns(deal) });
+      .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, automationId: deal.snapshot().automationId ?? null, ...this.columns(deal) });
     await this.writeJournal(deal);
+  }
+
+  async waitingForRoute(limit: number) {
+    const rows = await executor()
+      .select({ id: crmDeals.id })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      // Только свежие неразобранные заявки: давние сделки без ответственного и заявки, ждущие решения руководителя («спам/отклонить»), круг не трогает.
+      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNull(crmDeals.assigneeId), gt(crmDeals.createdAt, sql`now() - interval '7 days'`), sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`))
+      .orderBy(asc(crmDeals.createdAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  async notTakenSince(before: Date, limit: number) {
+    const rows = await executor()
+      .select({ id: crmDeals.id })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNotNull(crmDeals.assigneeId), lt(crmDeals.assignedAt, before), sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`))
+      .orderBy(asc(crmDeals.assignedAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
   }
 
   async save(deal: Deal) {
@@ -122,7 +159,26 @@ export class DrizzleDealRepository implements DealRepository {
     await db.update(crmCalls).set({ dealId: target.id }).where(eq(crmCalls.dealId, source.id));
     await db.update(crmTasks).set({ dealId: target.id }).where(eq(crmTasks.dealId, source.id));
     await db.update(crmNotes).set({ dealId: target.id }).where(eq(crmNotes.dealId, source.id));
+    // История этапов слитой сделки удалилась бы каскадом — и её путь по воронке пропал бы из аналитики.
+    await db.update(crmStageHistory).set({ dealId: target.id }).where(eq(crmStageHistory.dealId, source.id));
+    // Деньги и чеки переходят вместе со сделкой: удаление слитой сделки иначе удаляет их каскадом.
+    await db.update(crmPayments).set({ dealId: target.id }).where(eq(crmPayments.dealId, source.id));
+    await db.update(crmReceipts).set({ dealId: target.id }).where(eq(crmReceipts.dealId, source.id));
+    // С деньгами переходит и договорённость (тариф): иначе предоплата слитой сделки не вычтется при заказе.
+    await db.execute(sql`update crm_deals t set agreed_plan = s.agreed_plan from crm_deals s where t.id = ${target.id} and s.id = ${source.id} and t.agreed_plan is null and t.order_id is null`);
     await db.delete(crmDeals).where(eq(crmDeals.id, source.id));
+  }
+
+  async lock(dealIds: string[]) {
+    const ids = [...new Set(dealIds)].filter((id) => /^[0-9a-f-]{36}$/i.test(id)).sort();
+    if (ids.length) await executor().execute(sql`select id from crm_deals where id in (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)}) order by id for update`);
+  }
+
+  async hasMoney(dealId: string) {
+    const { rows } = await executor().execute<{ yes: boolean }>(
+      sql`select exists(select 1 from ${crmPayments} where ${crmPayments.dealId} = ${dealId}) or exists(select 1 from ${crmReceipts} where ${crmReceipts.dealId} = ${dealId}) as yes`,
+    );
+    return !!rows[0]?.yes;
   }
 
   async delete(dealId: string) {
@@ -167,7 +223,11 @@ export class DrizzleSalesQueries {
     return ids.length ? executor().select().from(crmDeals).where(inArray(crmDeals.id, ids)) : Promise.resolve([]);
   }
 
-  /** Другие сделки того же человека: по клиенту, телефону (включая доп. номера) или e-mail. */
+  /**
+   * Другие сделки того же человека: по клиенту, телефону (включая доп. номера) или e-mail. open — открытые, их можно
+   * объединить с этой («Похоже на дубль»); past — закрытые (успех или отказ): прошлые покупки, их не сливают.
+   * Открытые — первыми: у постоянного клиента много прошлых сделок, и новая заявка не должна выпасть за предел выборки.
+   */
   async duplicates(deal: Pick<Row, "id" | "clientId" | "contactEmail" | "contactPhone" | "extraPhones">) {
     const keys = [deal.contactPhone, ...deal.extraPhones].map(phoneKey).filter((k) => k.length >= 10);
     const conds = [
@@ -175,29 +235,42 @@ export class DrizzleSalesQueries {
       deal.contactEmail ? sql`lower(${crmDeals.contactEmail}) = ${deal.contactEmail.toLowerCase()}` : undefined,
       ...keys.flatMap((k) => [sql`${phoneDigits(crmDeals.contactPhone)} = ${k}`, inExtra(crmDeals.extraPhones, k)]),
     ].filter((c): c is SQL => !!c);
-    if (!conds.length) return [];
-    return executor()
+    if (!conds.length) return { open: [], past: [] };
+    const rows = await executor()
       .select({ deal: crmDeals, stage: crmStages })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
       .where(and(ne(crmDeals.id, deal.id), or(...conds)))
-      .orderBy(desc(crmDeals.createdAt))
-      .limit(10);
+      .orderBy(sql`${crmStages.kind} = 'open' desc`, desc(crmDeals.createdAt))
+      .limit(20);
+    return { open: rows.filter((r) => r.stage.kind === "open").slice(0, 10), past: rows.filter((r) => r.stage.kind !== "open").slice(0, 10) };
   }
 
-  /** План и факт за месяц (по Алматы) по сотрудникам. */
+  /** План и факт за месяц (по часовому поясу магазина) по сотрудникам. */
   async planProgress(month: string, userIds?: string[]): Promise<Map<string, PlanProgress>> {
+    const tz = storeTimeZone();
     const [plans, facts] = await Promise.all([
       executor()
         .select()
         .from(crmPlans)
         .where(and(eq(crmPlans.month, month), userIds ? inArray(crmPlans.userId, userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]) : undefined)),
       executor().execute<{ user_id: string; amount: number; deals: number }>(sql`
-        select d.assignee_id as user_id, coalesce(sum(d.amount), 0)::int as amount, count(*)::int as deals
-        from crm_deals d join crm_stages s on s.id = d.stage_id
-        where s.kind = 'won' and d.assignee_id is not null
-          and to_char(d.closed_at at time zone 'Asia/Almaty', 'YYYY-MM') = ${month}
-        group by d.assignee_id`),
+        select user_id, coalesce(sum(amount), 0)::int as amount, coalesce(sum(deals), 0)::int as deals from (
+          -- успешные сделки месяца (как раньше); сделки с принятыми платежами считаются по деньгам — ниже
+          select d.assignee_id as user_id, d.amount, 1 as deals
+          from crm_deals d join crm_stages s on s.id = d.stage_id
+          where s.kind = 'won' and d.assignee_id is not null
+            and to_char(d.closed_at at time zone ${tz}, 'YYYY-MM') = ${month}
+            and not exists (select 1 from crm_payments p where p.deal_id = d.id)
+          union all
+          -- деньги по сделкам с платежами (предоплата, доплаты, возвраты и оплата заказа по договорённости) — по дате получения;
+          -- сделка засчитывается, когда принят первый платёж по ней
+          select e.manager_id, e.amount,
+            case when e.kind = 'payment' and e.ref_id = (select p2.id from crm_payments p2 where p2.deal_id = e.deal_id and p2.kind <> 'refund' order by p2.paid_at, p2.created_at limit 1) then 1 else 0 end
+          from revenue_events e
+          where e.manager_id is not null and e.deal_id in (select deal_id from crm_payments)
+            and to_char(e.at at time zone ${tz}, 'YYYY-MM') = ${month}
+        ) x group by user_id`),
     ]);
     const out = new Map<string, PlanProgress>();
     const get = (id: string) => out.get(id) ?? out.set(id, { userId: id, planAmount: 0, planDeals: 0, factAmount: 0, factDeals: 0 }).get(id)!;

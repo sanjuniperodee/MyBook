@@ -1,0 +1,111 @@
+группа                                   файлов напрямую транзитивно
+app                                         249       21          26
+components                                  102        2          11
+config                                        2        2           2
+hooks                                         3        0           0
+i18n                                         56        6          56
+instrumentation                               1        0           0
+instrumentation-node                          1        0           0
+lib/access-password                           1        1           1
+lib/analytics-client                          1        0           1
+lib/book                                    140       27         138
+lib/class-names                               1        0           1
+lib/client-api                                1        0           1
+lib/color                                     1        1           1
+lib/content                                  33        4          30
+lib/csv                                       1        0           0
+lib/dates                                     1        1           1
+lib/lru                                       1        1           1
+lib/occasions                                 1        1           1
+lib/proofread                                 3        3           3
+lib/seo                                       1        1           1
+lib/urls                                      1        0           1
+modules/access/application                    3        1           2
+modules/access/domain                         9        3           8
+modules/access/index                          1        0           1
+modules/access/infrastructure                 2        2           2
+modules/access/ui                             1        0           0
+modules/assistant/application                 4        1           4
+modules/assistant/domain                      6        2           6
+modules/assistant/index                       1        0           1
+modules/assistant/infrastructure              5        3           5
+modules/authoring/application                 3        1           2
+modules/authoring/domain                     10        2           9
+modules/authoring/index                       1        0           1
+modules/authoring/infrastructure              6        1           6
+modules/automation/application                3        1           3
+modules/automation/domain                     3        2           3
+modules/automation/index                      1        0           1
+modules/automation/infrastructure             3        2           3
+modules/clients/application                   4        1           4
+modules/clients/domain                        3        1           3
+modules/clients/index                         1        0           1
+modules/clients/infrastructure                1        0           1
+modules/feedback/application                  3        1           3
+modules/feedback/domain                       6        1           6
+modules/feedback/index                        1        0           1
+modules/feedback/infrastructure               2        0           2
+modules/identity/application                  4        2           3
+modules/identity/domain                       9        3           8
+modules/identity/index                        1        0           1
+modules/identity/infrastructure               3        0           3
+modules/marketing/application                 3        1           3
+modules/marketing/domain                      4        2           4
+modules/marketing/index                       1        0           1
+modules/marketing/infrastructure              2        1           2
+modules/messaging/application                 3        1           3
+modules/messaging/domain                      7        5           7
+modules/messaging/index                       1        1           1
+modules/messaging/infrastructure              6        5           6
+modules/notifications/application             3        1           3
+modules/notifications/domain                  2        1           2
+modules/notifications/index                   1        0           1
+modules/notifications/infrastructure          3        1           3
+modules/ordering/application                  7        4           6
+modules/ordering/domain                      12        2          11
+modules/ordering/index                        1        0           1
+modules/ordering/infrastructure              10        5          10
+modules/ordering/ui                           3        1           2
+modules/production/application                1        0           1
+modules/production/index                      1        1           1
+modules/production/infrastructure            26        4          26
+modules/referrals/application                 3        1           3
+modules/referrals/domain                      3        1           3
+modules/referrals/index                       1        0           1
+modules/referrals/infrastructure              2        0           2
+modules/reporting/index                       1        0           1
+modules/reporting/infrastructure             18        0          17
+modules/reporting/time                        1        1           1
+modules/reporting/ui                          3        2           3
+modules/sales/application                     5        1           5
+modules/sales/domain                         11        2          11
+modules/sales/index                           1        1           1
+modules/sales/infrastructure                  7        4           7
+modules/telephony/application                 3        1           3
+modules/telephony/domain                      4        2           4
+modules/telephony/index                       1        0           1
+modules/telephony/infrastructure              3        2           3
+modules/workspace/application                 1        1           1
+modules/workspace/domain                      1        1           1
+modules/workspace/index                       1        1           1
+modules/workspace/infrastructure              9        0           9
+proxy                                         1        0           0
+server                                       20        8          16
+shared                                       65       18          62
+types                                         1        0           0
+
+Не достигнуты тестами (lib, domain, application):
+  lib/book/covers/meta.ts
+  lib/book/photo-refs.ts
+  lib/content/articles/types.ts
+  lib/content/landings/types.ts
+  lib/content/types.ts
+  lib/csv.ts
+  modules/access/application/ports.ts
+  modules/access/domain/repositories.ts
+  modules/authoring/application/ports.ts
+  modules/authoring/domain/repositories.ts
+  modules/identity/application/ports.ts
+  modules/identity/domain/repositories.ts
+  modules/ordering/application/ports.ts
+  modules/ordering/domain/repositories.ts

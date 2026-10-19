@@ -1,0 +1,35 @@
+import { revalidatePath } from "next/cache";
+import { NextResponse } from "next/server";
+import { api, apiStaff, HttpError } from "@/server/api";
+import { audit, can, canWork } from "@/server/access";
+import { container } from "@/server/container";
+import { formatPrice } from "@/config/site";
+import { idParams } from "@/server/input";
+
+/**
+ * Удалить ошибочный платёж: деньги пропадают из выручки, в сделке остаётся запись о том, кто и что удалил.
+ * Только руководитель (право удалять сделки): иначе менеджер мог бы принять деньги и «убрать» их. Онлайн-платёж
+ * (Kaspi, карта) не удаляется — его подтвердила платёжная система; ошибку исправляет возврат.
+ */
+export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+  const staff = await apiStaff(req, "deals.edit", "deals.delete");
+  const { id } = idParams(await params, "id");
+  const c = container();
+  const payment = await c.sales.payments.find(id);
+  if (!payment) throw new HttpError(404, "notFound");
+  const deal = await c.sales.deals.findById(payment.dealId);
+  if (!deal || !canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
+  if (payment.method !== "manual") return NextResponse.json({ error: "Онлайн-платёж не удаляется — оформите возврат" }, { status: 409 });
+  // Платёж закрыл счёт из чата (клиент, доступ и заметки уже выданы по нему) — удалением это не откатить, только возвратом.
+  if (payment.invoiceId) return NextResponse.json({ error: "Платёж по счёту из чата не удаляется — оформите возврат" }, { status: 409 });
+  // Деньги уже учтены в заказе по договорённости (предоплата вычтена из «к оплате») — удалять платёж нельзя.
+  if (deal.orderId) return NextResponse.json({ error: "По сделке оформлен заказ: платёж учтён в нём и не удаляется" }, { status: 409 });
+  await c.sales.payments.remove(payment.id);
+  const actor = { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") };
+  await c.clients.notes.add(actor, { kind: "note", text: `Платёж удалён: ${formatPrice(payment.amount)}`, dealId: deal.id, clientId: deal.clientId ?? undefined });
+  await audit(staff, "payment.remove", "deal", deal.id, { payment: payment.id, amount: payment.amount, paidAt: payment.paidAt });
+  revalidatePath(`/admin/deals/${deal.id}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/analytics");
+  return NextResponse.json({ ok: true });
+});

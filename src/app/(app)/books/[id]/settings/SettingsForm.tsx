@@ -7,16 +7,23 @@ import { Choice, FormSection as Section } from "@/components/ui/Choice";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { formats, type FormatId } from "@/lib/book/formats";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import { useRouter } from "next/navigation";
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
+import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
 import type { Gender } from "@/modules/authoring/domain";
 
-export interface SettingsState {
+interface SettingsState {
   format: FormatId;
+  /** Автобиография: имя рассказчика (на других видах имя автора правят на обложке). */
+  authorName: string;
   authorGender: Gender;
+  /** Автобиография: кто записал со слов рассказчика. */
+  recordedBy: string;
+  /** Своя книга: необязательный получатель. */
+  recipientName: string;
   recipientGender: Gender;
   occasion: string | null;
   occasionDate: string | null;
@@ -27,6 +34,7 @@ export function SettingsForm({ bookId, theme, initial, fixedRecipientGender, edi
   const [s, setS] = useState(initial);
   const m = useMessages();
   const t = m.books.settings;
+  const kind = bookKind(theme);
   const router = useRouter();
   const [switching, setSwitching] = useState(false);
 
@@ -34,7 +42,7 @@ export function SettingsForm({ bookId, theme, initial, fixedRecipientGender, edi
   const changeLanguage = async (language: Locale) => {
     if (!editable || language === s.language || switching) return;
     const label = localeMeta[language].label;
-    if (!(await confirmDialog({ title: t.languageConfirm(label), text: t.languageConfirmText }))) return;
+    if (!(await confirmDialog({ title: t.languageConfirm(label), text: kind === "blank" ? t.languageConfirmTextBlank : kind === "autobiography" ? t.languageConfirmTextAutobiography : t.languageConfirmText }))) return;
     setSwitching(true);
     try {
       await apiFetch(`/api/books/${bookId}`, { method: "PATCH", json: { language } });
@@ -76,7 +84,7 @@ export function SettingsForm({ bookId, theme, initial, fixedRecipientGender, edi
         <OccasionPicker theme={theme} defaultOccasion={s.occasion} defaultDate={s.occasionDate} disabled={!editable} onChange={(occasion, occasionDate) => update({ occasion, occasionDate })} />
       </Section>
 
-      <Section id="language" title={t.language} description={t.languageText}>
+      <Section id="language" title={t.language} description={kind === "blank" ? t.languageTextBlank : t.languageText}>
         <div className="grid max-w-md grid-cols-2 gap-3">
           {locales.map((l) => (
             <Choice key={l} active={s.language === l} onClick={() => changeLanguage(l)} disabled={!editable || switching}>
@@ -106,20 +114,49 @@ export function SettingsForm({ bookId, theme, initial, fixedRecipientGender, edi
         </div>
       </Section>
 
-      <Section title={t.wording} description={t.wordingText}>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <span className="label">{t.author}</span>
-            <Toggle value={s.authorGender} onChange={(g) => update({ authorGender: g })} labels={m.books.wizard.genders.author} disabled={!editable} />
-          </div>
-          {!fixedRecipientGender ? (
+      {kind === "autobiography" ? (
+        <Section id="narrator" title={t.narrator} description={t.narratorText}>
+          <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <span className="label">{t.recipientFor}</span>
-              <Toggle value={s.recipientGender} onChange={(g) => update({ recipientGender: g })} labels={m.books.wizard.genders.recipient} disabled={!editable} />
+              <label className="label" htmlFor="narratorName">{t.narratorName}</label>
+              <input className="input" id="narratorName" value={s.authorName} maxLength={60} onChange={(e) => update({ authorName: e.target.value })} disabled={!editable} />
             </div>
-          ) : null}
-        </div>
-      </Section>
+            <div>
+              <span className="label">{t.narratorAs}</span>
+              <Toggle value={s.authorGender} onChange={(g) => update({ authorGender: g })} labels={m.books.wizard.genders.author} disabled={!editable} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="recordedBy">{t.recordedBy}</label>
+              <input className="input" id="recordedBy" value={s.recordedBy} maxLength={RECORDED_BY_MAX} placeholder={t.recordedByPlaceholder} onChange={(e) => update({ recordedBy: e.target.value })} disabled={!editable} />
+              <p className="mt-2 text-sm text-muted">{t.recordedByHint}</p>
+            </div>
+          </div>
+        </Section>
+      ) : null}
+
+      {kind === "blank" ? (
+        <Section id="recipient" title={t.optionalRecipient} description={t.optionalRecipientText}>
+          <input className="input max-w-md" aria-label={t.optionalRecipient} value={s.recipientName} maxLength={60} placeholder={t.optionalRecipientPlaceholder} onChange={(e) => update({ recipientName: e.target.value })} disabled={!editable} />
+        </Section>
+      ) : null}
+
+      {kind === "gift" ? (
+        // Подарок: формулировки склоняются по роду автора и получателя. У автобиографии род рассказчика — выше, у своей книги склоняемых текстов нет.
+        <Section title={t.wording} description={t.wordingText}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <span className="label">{t.author}</span>
+              <Toggle value={s.authorGender} onChange={(g) => update({ authorGender: g })} labels={m.books.wizard.genders.author} disabled={!editable} />
+            </div>
+            {!fixedRecipientGender ? (
+              <div>
+                <span className="label">{t.recipientFor}</span>
+                <Toggle value={s.recipientGender} onChange={(g) => update({ recipientGender: g })} labels={m.books.wizard.genders.recipient} disabled={!editable} />
+              </div>
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
     </div>
   );
 }

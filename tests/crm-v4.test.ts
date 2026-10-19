@@ -35,8 +35,10 @@ describe("AI-помощник: промпты и разбор ответов", (
 
   it("контекст бизнеса берёт цены из конфига и базу знаний владельца", () => {
     const c = businessContext("Печать 5–7 дней");
-    expect(c).toContain("24 900 ₸".replace(/ /g, " ").length ? "Твёрдая обложка" : "");
-    expect(c).toMatch(/24\s900/);
+    expect(c).toContain("Твёрдая обложка");
+    expect(c).toMatch(/30\s000/);
+    // скрытый тариф помощник клиентам не предлагает
+    expect(c).not.toContain("Премиум (");
     expect(c).toContain("Печать 5–7 дней");
     expect(businessContext("")).not.toContain("Правила");
   });

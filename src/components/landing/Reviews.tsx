@@ -1,9 +1,9 @@
 import { Star } from "lucide-react";
 import type { Messages } from "@/i18n/messages";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Отзыв на витрине: только то, что автор разрешил показать. */
-export interface ShowcaseReview {
+interface ShowcaseReview {
   id: string;
   rating: number;
   text: string;
@@ -68,7 +68,7 @@ export function Reviews({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/reviews/photo/${r.id}`}
-                  alt=""
+                  alt={t.photoAlt(r.authorName)}
                   width={r.photo.width}
                   height={r.photo.height}
                   loading="lazy"

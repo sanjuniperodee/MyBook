@@ -4,7 +4,8 @@ import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { inviteUrl, REFERRAL } from "@/modules/referrals";
 import { getLocale, getMessages } from "@/i18n/server";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
 import { InviteShare } from "./InviteShare";
 
 export async function generateMetadata(): Promise<Metadata> {

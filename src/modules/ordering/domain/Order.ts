@@ -1,9 +1,10 @@
 import { AggregateRoot } from "@/shared/domain";
-import { getPlan, type DeliveryId, type PlanId } from "@/config/site";
-import { calculatePrice, type PriceBreakdown } from "./Pricing";
+import { formatPrice, getPlan, isAbroadDelivery, isQuotedDelivery, type DeliveryId, type PlanId } from "@/config/site";
+import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
-import type { OrderStatus } from "./OrderStatus";
+import { isPaid } from "./OrderStatus";
+import type { OrderPrintSpec, OrderStatus } from "@/shared/domain/orders";
 import type { PromoCode } from "./PromoCode";
 
 export interface OrderContact {
@@ -14,18 +15,11 @@ export interface OrderContact {
 
 export interface OrderDelivery {
   method: DeliveryId | null;
+  /** Страна — только для доставки в другую страну (стоимость считает менеджер); иначе Казахстан и null. */
+  country?: string | null;
   city: string | null;
   address: string | null;
   postalCode: string | null;
-}
-
-export interface OrderPrintSpec {
-  format: string;
-  pageCount: number;
-  spineMm: number;
-  coverWidthMm: number;
-  coverHeightMm: number;
-  generatedAt: string;
 }
 
 /** Запись журнала заказа (видна в CRM). */
@@ -60,8 +54,25 @@ export interface OrderProps {
   printSpec: OrderPrintSpec | null;
   assigneeId: string | null;
   paidAt: Date | null;
+  /** Постоплата: в печати без оплаты, выручка — когда деньги покроют «к оплате». */
+  postpay: boolean;
+  /** Сколько денег получено по заказу (журнал оплат) — учёт денег, не выручка. */
+  receivedAmount: number;
   createdAt: Date;
 }
+
+/** Деньги по заказу: перевод с чеком (сотрудник) или онлайн (платёжная система). */
+export interface OrderMoney {
+  paymentId: string;
+  amount: number;
+  method: "manual" | "kaspi" | "cloudpayments";
+  paidAt: Date;
+  /** Как записать в журнал заказа: «перевод, чек …», «Kaspi, операция …». */
+  label: string;
+  actor: string;
+}
+
+export const ORDER_MONEY_LABELS: Record<OrderMoney["method"], string> = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" };
 
 export interface PlaceOrderInput {
   id: string;
@@ -74,6 +85,12 @@ export interface PlaceOrderInput {
   addons: readonly string[];
   contact: OrderContact;
   promo: PromoCode | null;
+  /** Договорённая цена и внесённая предоплата по ручной сделке клиента (если есть). */
+  agreement?: Agreement | null;
+  /** Сделка этой договорённости — в событие «заказ оформлен», чтобы продажи привязали заказ к ней, а не завели новую. */
+  agreementDealId?: string | null;
+  /** Печатная версия к уже оплаченной электронной: её оплата засчитывается (в agreement — как аванс), здесь — для журнала. */
+  credit?: { orderNumber: number; amount: number } | null;
   currency: string;
   paymentProvider: string;
   customerComment?: string | null;
@@ -104,8 +121,9 @@ export class Order extends AggregateRoot<OrderProps> {
     const plan = getPlan(input.plan);
     if (!plan) throw new OrderingError("bookNotFound", `unknown plan ${input.plan}`);
     if (input.promo) input.promo.assertUsable(now);
-    const delivery: OrderDelivery = plan.printed ? input.delivery : { method: null, city: null, address: null, postalCode: null };
-    const price = calculatePrice(plan.id, input.quantity, delivery.method, input.promo?.discount ?? null, input.addons);
+    // Страна нужна только доставке в другую страну: у остальных способов это Казахстан.
+    const delivery: OrderDelivery = plan.printed ? { ...input.delivery, country: isAbroadDelivery(input.delivery.method) ? input.delivery.country?.trim() || null : null } : { method: null, country: null, city: null, address: null, postalCode: null };
+    const price = calculatePrice(plan.id, input.quantity, delivery.method, input.promo?.discount ?? null, input.addons, input.agreement ?? null);
     const order = new Order(input.id, {
       number: input.number,
       userId: input.userId,
@@ -130,12 +148,32 @@ export class Order extends AggregateRoot<OrderProps> {
       printSpec: null,
       assigneeId: null,
       paidAt: null,
+      postpay: false,
+      receivedAmount: 0,
       createdAt: now,
     });
     const promoNote = input.promo ? `, промокод ${input.promo.code} (${input.promo.describe(input.formatMoney)})` : "";
-    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}`, "customer", now);
-    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity }));
+    // Договорённость (итог зафиксирован) или аванс (обычная цена, внесённые деньги — в зачёт).
+    const agreed =
+      price.prepaidAmount === undefined
+        ? ""
+        : Number.isFinite(input.agreement?.agreedTotal)
+          ? `, по договорённости с менеджером: итог ${input.formatMoney(price.amount + price.prepaidAmount)}, предоплата ${input.formatMoney(price.prepaidAmount)} учтена`
+          : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
+    const credited = input.credit && input.credit.amount > 0 ? `, засчитана оплата электронной версии (заказ №${input.credit.orderNumber}): ${input.formatMoney(input.credit.amount)}` : input.credit ? `, печатная версия к электронной (заказ №${input.credit.orderNumber})` : "";
+    // Бесплатное по договорённости — в журнал заказа: в сумме его не видно (0 ₸), а производство и доставка должны знать.
+    const quoted = isQuotedDelivery(delivery.method, price.gifted);
+    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}${price.gifted?.length ? `; бесплатно по договорённости с менеджером: ${price.gifted.map((g) => (g === "giftwrap" ? "подарочная упаковка" : "доставка")).join(", ")}` : ""}${quoted ? `; доставка (${[delivery.country, delivery.city].filter(Boolean).join(", ") || "адрес не указан"}) — в сумму не входит, стоимость рассчитывается индивидуально` : ""}`, "customer", now);
+    // Внесено по договорённости больше итога (зачёт — не больше итога): разницу нужно вернуть клиенту.
+    const prepaidExcess = input.agreement && !input.credit ? Math.max(0, Math.round(input.agreement.prepaid) - (price.prepaidAmount ?? 0)) : 0;
+    if (prepaidExcess > 0) order.notePrepaidExcess(prepaidExcess, now);
+    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity, agreementDealId: input.agreement ? (input.agreementDealId ?? null) : null, prepaidExcess, ...(quoted ? { deliveryQuoted: { method: delivery.method!, country: delivery.country ?? null, city: delivery.city } } : {}) }));
     return order;
+  }
+
+  /** Переплата по договорённости при оформлении — в журнал заказа (задачу ответственному ставит подписчик события). */
+  private notePrepaidExcess(excess: number, now: Date) {
+    this.log(null, `Переплата ${formatPrice(excess)} по договорённости — нужен возврат`, "customer", now);
   }
 
   // ─── чтение ──────────────────────────────────────────────────────────────
@@ -173,6 +211,21 @@ export class Order extends AggregateRoot<OrderProps> {
   get assigneeId() {
     return this.props.assigneeId;
   }
+  /** Получено денег по заказу. */
+  get received() {
+    return this.props.receivedAmount;
+  }
+  /** Сколько ещё должен клиент по заказу (к оплате − получено). */
+  get outstanding() {
+    return Math.max(0, this.props.price.amount - this.props.receivedAmount);
+  }
+  get postpay() {
+    return this.props.postpay;
+  }
+  /** Выручка признана (оплачен или постоплата получена полностью). */
+  get isSettled() {
+    return !!this.props.paidAt && this.props.status !== "cancelled";
+  }
 
   /** Новые записи журнала — забирает репозиторий при сохранении. */
   pullHistory(): OrderHistoryEntry[] {
@@ -183,7 +236,7 @@ export class Order extends AggregateRoot<OrderProps> {
 
   ref(): OrderRef {
     const p = this.props;
-    return { orderId: this.id, number: p.number, userId: p.userId, bookId: p.bookId, plan: p.plan, amount: p.price.amount, contactName: p.contact.name, contactPhone: p.contact.phone, contactEmail: p.contact.email, promoCode: p.promoCode };
+    return { orderId: this.id, number: p.number, userId: p.userId, bookId: p.bookId, plan: p.plan, amount: p.price.amount, prepaid: p.price.prepaidAmount ?? 0, contactName: p.contact.name, contactPhone: p.contact.phone, contactEmail: p.contact.email, promoCode: p.promoCode };
   }
 
   /** Совпадает ли платёж платёжной системы с заказом (защита от подмены суммы). */
@@ -192,6 +245,53 @@ export class Order extends AggregateRoot<OrderProps> {
   }
 
   // ─── команды ─────────────────────────────────────────────────────────────
+
+  /** Платёж, которым заказ оплачен (id операции платёжной системы). */
+  get paymentId() {
+    return this.props.paymentId;
+  }
+
+  /**
+   * Деньги по заказу. Покрыли «к оплате»: ждущий оплаты — оплачен; на постоплате — выручка с даты этих денег.
+   * Больше, чем к оплате, или по отменённому заказу (онлайн-деньги пришли, их не вернуть автоматически) — событие
+   * «переплата»: нужен возврат или зачёт. Ручной перевод по отменённому заказу не принимается.
+   */
+  receiveMoney(m: OrderMoney): { settled: boolean; overpaid: number } {
+    const cancelled = this.props.status === "cancelled";
+    if (cancelled && m.method === "manual") throw new OrderingError("paymentRule", "Заказ отменён — оплату по нему не принять");
+    const before = this.props.receivedAmount;
+    this.props.receivedAmount = before + m.amount;
+    const due = this.props.price.amount;
+    this.log(null, `Оплата ${formatPrice(m.amount)} получена (${m.label})${cancelled ? " — заказ отменён, нужен возврат" : ""}`, m.actor, m.paidAt);
+    let settled = false;
+    if (!cancelled && this.props.receivedAmount >= due) {
+      if (this.props.status === "pending_payment") settled = this.markPaid(m.paymentId, m.actor, m.paidAt);
+      else if (!this.props.paidAt) {
+        // Постоплата: заказ уже в печати или доставлен — статус не меняется, выручка признаётся с даты денег.
+        this.props.paidAt = m.paidAt;
+        if (m.paymentId) this.props.paymentId = m.paymentId;
+        this.log(null, "Постоплата получена полностью", m.actor, m.paidAt);
+        this.record(OrderingEvents.orderPaid({ ...this.ref(), paymentId: m.paymentId, actor: m.actor, settled: true }));
+        settled = true;
+      }
+    }
+    const overpaid = cancelled ? m.amount : Math.max(0, this.props.receivedAmount - Math.max(due, before));
+    if (overpaid > 0) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid, method: m.method }));
+    return { settled, overpaid };
+  }
+
+  /**
+   * Постоплата: ждущий оплаты заказ — в печать без денег (договорились, что клиент заплатит после). В выручку не попадает,
+   * пока деньги не покроют «к оплате»; доставлен без полной оплаты — задача «получить постоплату».
+   */
+  startPostpay(reason: string, actor: string, now: Date) {
+    if (this.props.status !== "pending_payment") throw new OrderingError("paymentRule", "В печать с постоплатой — только заказ, который ждёт оплаты");
+    const from = this.props.status;
+    this.props.status = "in_production";
+    this.props.postpay = true;
+    this.log("in_production", `В печать с постоплатой: ждём ${formatPrice(this.outstanding)}${reason ? `. ${reason}` : ""}`, actor, now);
+    this.record(OrderingEvents.statusChanged({ ...this.ref(), from, to: "in_production", trackingNumber: this.props.trackingNumber, actor }));
+  }
 
   /** Подтверждение оплаты. Повторное уведомление платёжной системы — без последствий (false). */
   markPaid(paymentId: string | null, actor: string, now: Date): boolean {
@@ -222,10 +322,17 @@ export class Order extends AggregateRoot<OrderProps> {
       return none;
     }
     if (from === "cancelled" && to === "pending_payment") throw new OrderingError("invalidTransition", "cancelled order cannot wait for payment again");
+    // Отменённый неоплаченный заказ не оживает в обход оплаты (печать, «оплачен», «доставлен»); оплаченный — можно вернуть по ошибке отмены.
+    if (from === "cancelled" && !this.props.paidAt) throw new OrderingError("paymentRule", "Заказ отменён и не оплачен: оформите новый заказ или примите оплату по нему отдельно");
+    // Неоплаченный заказ не уходит в печать и дальше в обход: оплата или явная постоплата (иначе деньги «потеряются»).
+    if (from === "pending_payment" && to !== "paid") throw new OrderingError("paymentRule", "Заказ не оплачен: примите оплату или отправьте в печать с постоплатой");
     this.props.status = to;
     if (to === "paid" && !this.props.paidAt) this.props.paidAt = now;
     this.log(to, note, actor, now);
     this.record(OrderingEvents.statusChanged({ ...this.ref(), from, to, trackingNumber: this.props.trackingNumber, actor }));
+    // Отправлен с трек-номером: клиенту есть что отследить (трек вписали раньше или в той же форме).
+    if (to === "shipped" && this.props.trackingNumber) this.record(OrderingEvents.trackingAdded({ ...this.ref(), trackingNumber: this.props.trackingNumber, afterShipping: false, actor }));
+    if (to === "delivered" && this.props.postpay && !this.props.paidAt) this.record(OrderingEvents.postpayDue({ ...this.ref(), outstanding: this.outstanding }));
     return none;
   }
 
@@ -236,7 +343,7 @@ export class Order extends AggregateRoot<OrderProps> {
     this.props.status = "cancelled";
     const releasePromo = from === "pending_payment" && !!this.props.promoCode;
     this.log("cancelled", note, actor, now);
-    this.record(OrderingEvents.orderCancelled({ ...this.ref(), wasPaid: from !== "pending_payment", releasedPromo: releasePromo, actor }));
+    this.record(OrderingEvents.orderCancelled({ ...this.ref(), wasPaid: isPaid(from), releasedPromo: releasePromo, actor }));
     return { releasePromo };
   }
 
@@ -259,8 +366,17 @@ export class Order extends AggregateRoot<OrderProps> {
     this.log(null, `Неуспешная оплата: ${reason || "без причины"}`, actor, now);
   }
 
-  setTrackingNumber(value: string | null) {
-    this.props.trackingNumber = value?.trim() || null;
+  /**
+   * Трек-номер посылки. Новый трек у отправленного заказа — событие «трек-номер появился»: клиенту его сообщат письмо и
+   * правила CRM (automation-d12 — письмо «Книга в пути» ушло раньше, чем вписали трек). У заказа, который ещё не
+   * отправлен, событие будет при переводе в «Отправлен». Доставленному — без события: книга уже у клиента, трек вписали
+   * для истории. Тот же трек повторно — без события.
+   */
+  setTrackingNumber(value: string | null, actor = "system") {
+    const next = value?.trim() || null;
+    if (next === this.props.trackingNumber) return;
+    this.props.trackingNumber = next;
+    if (next && this.props.status === "shipped") this.record(OrderingEvents.trackingAdded({ ...this.ref(), trackingNumber: next, afterShipping: true, actor }));
   }
 
   addNote(note: string, actor: string, now: Date) {
@@ -278,7 +394,7 @@ export class Order extends AggregateRoot<OrderProps> {
 
   updateDetails(contact: OrderContact, delivery: OrderDelivery, extra: { desiredDate: string | null; giftNote: string | null }, actor: string, now: Date) {
     this.props.contact = contact;
-    this.props.delivery = delivery;
+    this.props.delivery = { ...delivery, country: isAbroadDelivery(delivery.method) ? delivery.country?.trim() || null : null };
     this.props.desiredDate = extra.desiredDate;
     this.props.giftNote = extra.giftNote;
     this.log(null, "Контакты и доставка изменены", actor, now);

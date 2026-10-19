@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { track } from "@/lib/analytics-client";
 
-export interface AnalyticsIds {
+interface AnalyticsIds {
   ym?: string;
   ga?: string;
   pixel?: string;
@@ -71,8 +71,8 @@ function flushQueuedEvents() {
   if (!m) return;
   document.cookie = "mb_ev=; Max-Age=0; path=/";
   try {
-    const list = JSON.parse(decodeURIComponent(m[1])) as { name: string; value?: number }[];
+    const list = JSON.parse(decodeURIComponent(m[1])) as { name: string; value?: number; props?: Record<string, string> }[];
     // Счётчики грузятся асинхронно — даём им секунду.
-    setTimeout(() => list.forEach((e) => track(e.name, e.value)), 1200);
+    setTimeout(() => list.forEach((e) => track(e.name, e.value, e.props)), 1200);
   } catch {}
 }

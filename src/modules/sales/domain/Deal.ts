@@ -1,11 +1,13 @@
 import { AggregateRoot } from "@/shared/domain";
-import { dealSourceLabels, type DealSource } from "@/modules/sales/domain/meta";
+import { dealSourceLabels, type DealSource } from "@/shared/domain/dealSources";
+import type { CustomFieldValues } from "@/shared/domain/customFields";
 import { formatPrice } from "@/config/site";
 import { normalizePhone, phoneKey } from "@/shared/domain/phone";
 import { SalesEvents } from "./events";
+import { SalesError } from "./errors";
 import type { Stage } from "./Funnel";
+import { mergeRefusal } from "./merge";
 
-export type CustomValues = Record<string, string | number | boolean | null>;
 export type NoteKind = "note" | "call" | "message" | "system";
 
 export interface DealProps {
@@ -20,15 +22,23 @@ export interface DealProps {
   extraPhones: string[];
   amount: number;
   assigneeId: string | null;
+  /** Когда назначен нынешний ответственный. */
+  assignedAt: Date | null;
+  /** Кому круг уже отдавал заявку. */
+  routeTried: string[];
   createdById: string | null;
   orderId: string | null;
   lostReason: string | null;
   unsorted: boolean;
-  customFields: CustomValues;
+  customFields: CustomFieldValues;
   utm: Record<string, string> | null;
   tags: string[];
   stageChangedAt: Date;
   closedAt: Date | null;
+  /** Когда заведена (в базе — по умолчанию now()): слияние в закрытую сделку заказа смотрит, пришла ли заявка рядом с ним. */
+  createdAt?: Date;
+  /** Правило автоматизации, которое создало сделку (повторная продажа): статистика правила «создано / выиграно / сумма». */
+  automationId?: string | null;
 }
 
 /** Запись в ленту сделки (история, звонки, сообщения, заметки менеджеров). */
@@ -47,6 +57,10 @@ export interface StageChange {
 
 const blank = (v: unknown) => v === null || v === undefined || v === "";
 
+/** Менеджер предложил отклонить заявку или отметить спамом — тег до решения руководителя (видно на доске и в фильтрах). */
+export const REJECTION_TAGS = { spam: "запрос: спам", reject: "запрос: отклонить" } as const;
+export type RejectionKind = keyof typeof REJECTION_TAGS;
+
 /** Сделка (лид): обращение, которое ведём по воронке до заказа. */
 export class Deal extends AggregateRoot<DealProps> {
   #notes: DealNote[] = [];
@@ -56,9 +70,13 @@ export class Deal extends AggregateRoot<DealProps> {
     return new Deal(id, props);
   }
 
-  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "lostReason" | "tags" | "extraPhones"> & { extraPhones?: string[] }, stage: Stage, now: Date) {
+  /** routed — ответственного выбрал круг (он попадает в routeTried). */
+  static open(id: string, number: number, input: Omit<DealProps, "number" | "stageChangedAt" | "closedAt" | "createdAt" | "lostReason" | "tags" | "extraPhones" | "assignedAt" | "routeTried"> & { extraPhones?: string[]; routed?: boolean }, stage: Stage, now: Date) {
+    const { routed, ...props } = input;
     const deal = new Deal(id, {
-      ...input,
+      ...props,
+      assignedAt: input.assigneeId ? now : null,
+      routeTried: routed && input.assigneeId ? [input.assigneeId] : [],
       number,
       title: input.title.slice(0, 200),
       contactName: input.contactName.slice(0, 120),
@@ -70,6 +88,7 @@ export class Deal extends AggregateRoot<DealProps> {
       tags: [],
       stageChangedAt: now,
       closedAt: stage.kind === "open" ? null : now,
+      createdAt: now,
     });
     deal.#stageChanges.push({ fromStageId: null, toStageId: stage.id, actorId: input.createdById });
     deal.note(`Создана сделка №${number} «${deal.props.title}» (${dealSourceLabels[input.source]})`, input.createdById);
@@ -127,13 +146,35 @@ export class Deal extends AggregateRoot<DealProps> {
     this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId });
     this.note(`Сделка №${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
     this.record(SalesEvents.dealStageChanged({ ...this.ref(), fromStageId: from, stageId: stage.id, source: this.props.source, at: now.toISOString() }));
+    // Закрыта (успех или отказ) — платить по ней больше нельзя: её открытые счета отменит подписчик заказов.
+    if (stage.kind !== "open") this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));
     return true;
   }
 
-  assign(assigneeId: string | null) {
+  get assignedAt() {
+    return this.props.assignedAt;
+  }
+  get routeTried(): readonly string[] {
+    return this.props.routeTried;
+  }
+
+  assign(assigneeId: string | null, now: Date) {
     if (assigneeId === this.props.assigneeId) return;
+    const from = this.props.assigneeId;
     this.props.assigneeId = assigneeId;
-    if (assigneeId) this.record(SalesEvents.dealAssigned({ ...this.ref(), title: this.props.title }));
+    this.props.assignedAt = assigneeId ? now : null;
+    if (assigneeId) this.record(SalesEvents.dealAssigned({ ...this.ref(), fromAssigneeId: from, title: this.props.title }));
+  }
+
+  /** Заявку некому передать: отсчёт «нет ответа» — заново, от сейчас. */
+  restartRouteTimer(now: Date) {
+    if (this.props.assigneeId) this.props.assignedAt = now;
+  }
+
+  /** Круг отдал заявку менеджеру: он ответственный, а второй раз по «нет ответа» она ему не придёт. */
+  route(assigneeId: string, now: Date) {
+    this.assign(assigneeId, now);
+    if (!this.props.routeTried.includes(assigneeId)) this.props.routeTried = [...this.props.routeTried, assigneeId];
   }
 
   /** Связать с заказом клиента (и обновить сумму). */
@@ -142,18 +183,27 @@ export class Deal extends AggregateRoot<DealProps> {
     if (amount) this.props.amount = amount;
   }
 
+  /** Заказ отменён, а сделка остаётся (деньги клиента у нас): отвязать заказ, чтобы клиент мог оформить новый. */
+  detachOrder() {
+    this.props.orderId = null;
+  }
+
   setAmount(amount: number) {
     this.props.amount = amount;
   }
 
   /**
-   * Менеджер ответил клиенту: заявка из «Неразобранного» принята и, если была ничья, — его.
+   * Менеджер связался с клиентом (ответил в чате, позвонил, записал контакт) или нажал «Принять»: заявка из
+   * «Неразобранного» принята и, если была ничья, — его. how — как именно, в ленту сделки.
    * Возвращает false, если сделка уже была разобрана.
    */
-  accept(authorId: string): boolean {
+  accept(authorId: string, how?: string): boolean {
     if (!this.props.unsorted) return false;
     this.props.unsorted = false;
+    // Взял в работу (связался с клиентом) — предложение отклонить снимается.
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
     this.props.assigneeId ??= authorId;
+    this.note(`Заявка принята в работу${how ? `: ${how}` : ""}`, authorId);
     return true;
   }
 
@@ -162,7 +212,7 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** Правка карточки (без этапа и ответственного — для них отдельные команды с историей). Смена бюджета — в ленту. */
-  edit(patch: { title: string; contactName: string; amount: number; source: DealSource; tags: string[]; customFields: CustomValues; contacts?: { phone: string | null; email: string | null; extraPhones: string[] } }, actorId: string | null) {
+  edit(patch: { title: string; contactName: string; amount: number; source: DealSource; tags: string[]; customFields: CustomFieldValues; contacts?: { phone: string | null; email: string | null; extraPhones: string[] } }, actorId: string | null) {
     const before = this.props.amount;
     this.props = {
       ...this.props,
@@ -179,6 +229,37 @@ export class Deal extends AggregateRoot<DealProps> {
 
   addTag(tag: string) {
     this.props.tags = [...new Set([...this.props.tags, tag])].slice(0, 12);
+  }
+
+  /** Что предложил менеджер: спам, отклонить или ничего. */
+  get rejectionRequest(): RejectionKind | null {
+    if (this.props.tags.includes(REJECTION_TAGS.spam)) return "spam";
+    if (this.props.tags.includes(REJECTION_TAGS.reject)) return "reject";
+    return null;
+  }
+
+  /** Менеджер не удаляет заявку сам: предлагает, руководитель подтверждает. Пока ждёт — круг её не передаёт. */
+  requestRejection(kind: RejectionKind, actorId: string, reason: string) {
+    this.props.tags = [...new Set([...this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject), REJECTION_TAGS[kind]])].slice(0, 12);
+    this.note(`${kind === "spam" ? "Предложено отметить спамом" : "Предложено отклонить заявку"} — ждёт решения руководителя${reason ? `. Причина: ${reason}` : ""}`, actorId);
+  }
+
+  /**
+   * Руководитель подтвердил отклонение (спам), а удалить заявку нельзя — по ней деньги или счёт клиента (why): она закрывается
+   * «отказом» с причиной, отметка-предложение снимается. Событие «сделка закрыта» отменит её открытые счета.
+   */
+  closeRejected(lost: Stage, kind: RejectionKind, reason: string, why: string, actorId: string | null, now: Date) {
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
+    this.moveTo(lost, actorId, now, `${kind === "spam" ? "Спам" : "Заявка отклонена"}${reason ? `: ${reason}` : ""}`);
+    this.note(`Заявка не удалена (${why}) — закрыта «отказом»`, actorId);
+  }
+
+  /** Руководитель оставил заявку в работе. */
+  declineRejection(actorId: string) {
+    if (!this.rejectionRequest) return false;
+    this.props.tags = this.props.tags.filter((t) => t !== REJECTION_TAGS.spam && t !== REJECTION_TAGS.reject);
+    this.note("Руководитель оставил заявку в работе", actorId);
+    return true;
   }
 
   linkClient(clientId: string | null) {
@@ -198,7 +279,7 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /** Заполнить пустые свои поля (не перетирая то, что менеджер уже ввёл). */
-  fillEmptyFields(values: CustomValues): boolean {
+  fillEmptyFields(values: CustomFieldValues): boolean {
     let changed = false;
     const next = { ...this.props.customFields };
     for (const [k, v] of Object.entries(values)) {
@@ -211,11 +292,18 @@ export class Deal extends AggregateRoot<DealProps> {
   }
 
   /**
-   * Слияние дубля: пустые поля заполняются из source, телефон source становится дополнительным,
-   * теги объединяются. Перенос переписки, звонков и задач делает репозиторий.
+   * Слияние дубля: пустые поля (и свои поля сделки, и метки, откуда пришёл) заполняются из source, телефон source
+   * становится дополнительным, теги объединяются. Перенос переписки, звонков, задач и истории этапов делает репозиторий.
+   * Кого с кем сливать нельзя — mergeRefusal: закрытую сделку не вливают (mergeClosed), а в закрытую вливают только заявку
+   * той же покупки — рядом с заказом успешной сделки, окно — windowDays (mergeIntoClosed: номер этой сделки и окно).
    */
-  absorb(source: Deal, actorId: string | null) {
+  absorb(source: Deal, ctx: { targetStage: Stage | null; sourceStage: Stage | null; windowDays: number }, actorId: string | null) {
+    const side = (d: Deal, stage: Stage | null) => ({ kind: stage?.kind ?? null, orderId: d.props.orderId, createdAt: d.props.createdAt ?? null, closedAt: d.props.closedAt });
+    const refusal = mergeRefusal(side(this, ctx.targetStage), side(source, ctx.sourceStage), ctx.windowDays);
+    if (refusal === "mergeClosed") throw new SalesError("mergeClosed", undefined, [source.number]);
+    if (refusal === "mergeIntoClosed") throw new SalesError("mergeIntoClosed", undefined, [this.props.number, ctx.windowDays]);
     const s = source.props;
+    this.fillEmptyFields(s.customFields);
     const phones = new Set([...this.props.extraPhones, ...s.extraPhones]);
     if (s.contactPhone && this.props.contactPhone && phoneKey(s.contactPhone) !== phoneKey(this.props.contactPhone)) phones.add(normalizePhone(s.contactPhone));
     if (this.props.contactPhone) phones.delete(normalizePhone(this.props.contactPhone));
@@ -228,6 +316,7 @@ export class Deal extends AggregateRoot<DealProps> {
       orderId: this.props.orderId ?? s.orderId,
       assigneeId: this.props.assigneeId ?? s.assigneeId,
       amount: this.props.amount || s.amount,
+      utm: this.props.utm ?? s.utm,
       tags: [...new Set([...this.props.tags, ...s.tags])],
       extraPhones: [...phones],
       unsorted: false,

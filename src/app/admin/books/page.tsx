@@ -1,14 +1,15 @@
 import { container } from "@/server/container";
-import { nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { formatDate, nowMs } from "@/lib/dates";
 import { getOccasion, parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 
 import Link from "next/link";
 import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/modules/reporting";
-import { cn, formatDate } from "@/lib/utils";
 import { RemindAll } from "./RemindAll";
 import { requireStaff } from "@/server/access";
+import { bookLine, progressRatio, progressShort, progressText } from "@/lib/content/crm-labels";
 
 const themes = getThemes("ru");
 
@@ -83,7 +84,8 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
                   <td className="px-4 py-3">
                     <div className="font-medium">{r.book.title}</div>
                     <div className="text-xs text-muted">
-                      {getTheme(r.book.theme).short} · для {r.book.recipientName || "—"}
+                      {bookLine({ theme: r.book.theme, themeShort: getTheme(r.book.theme).short, authorName: r.book.authorName, recipientName: r.book.recipientName })}
+                      {r.book.theme === "autobiography" && r.book.recordedBy ? ` · записано: ${r.book.recordedBy}` : ""}
                     </div>
                     {r.book.occasion && r.book.occasionDate ? (
                       <div className="mt-0.5 text-xs text-wine">
@@ -100,10 +102,10 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-cream">
-                        <div className="h-full rounded-full bg-wine" style={{ width: `${r.total ? (r.answered / r.total) * 100 : 0}%` }} />
+                        <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: r.book.theme, ...r }) * 100}%` }} />
                       </div>
-                      <span className="text-xs text-muted tabular-nums">
-                        {r.answered}/{r.total}
+                      <span className="text-xs text-muted tabular-nums" title={progressText({ theme: r.book.theme, ...r })}>
+                        {progressShort({ theme: r.book.theme, ...r })}
                       </span>
                     </div>
                     <div className="text-xs text-muted">{r.photos} фото</div>

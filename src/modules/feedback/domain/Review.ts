@@ -1,17 +1,9 @@
 import { AggregateRoot } from "@/shared/domain";
+import type { ReviewPhoto, ReviewStatus } from "@/shared/domain/reviews";
 import type { Locale } from "@/i18n/config";
 import { FeedbackError } from "./errors";
 import { FeedbackEvents } from "./events";
 import { CITY_MAX, LOW_RATING, NAME_MAX, PUBLIC_TEXT_MIN, RATING_MAX, RATING_MIN, TEXT_MAX } from "./rules";
-
-/** new — ждёт модерации, published — на сайте, hidden — только в CRM (в сводную оценку всё равно входит). */
-export type ReviewStatus = "new" | "published" | "hidden";
-
-export interface ReviewPhoto {
-  key: string;
-  width: number;
-  height: number;
-}
 
 export interface ReviewInput {
   rating: number;

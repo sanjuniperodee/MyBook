@@ -11,17 +11,17 @@ declare global {
 }
 
 /** Цели в счётчиках. Названия одинаковые для Метрики, GA4 и Meta Pixel (как custom event). */
-const pixelStandard: Record<string, string> = { sign_up: "CompleteRegistration", begin_checkout: "InitiateCheckout", purchase: "Purchase", gift_purchase: "Purchase" };
+const pixelStandard: Record<string, string> = { sign_up: "CompleteRegistration", begin_checkout: "InitiateCheckout", purchase: "Purchase", gift_purchase: "Purchase", contact: "Contact", lead: "Lead" };
 
-export function track(name: string, value?: number) {
+export function track(name: string, value?: number, props?: Record<string, string>) {
   try {
     const currency = "KZT";
-    if (window.ym && window.__mbYm) window.ym(window.__mbYm, "reachGoal", name, value ? { order_price: value, currency } : undefined);
-    window.gtag?.("event", name, value ? { value, currency } : {});
+    if (window.ym && window.__mbYm) window.ym(window.__mbYm, "reachGoal", name, value || props ? { ...(value ? { order_price: value, currency } : {}), ...props } : undefined);
+    window.gtag?.("event", name, { ...(value ? { value, currency } : {}), ...props });
     if (window.fbq) {
       const std = pixelStandard[name];
       if (std) window.fbq("track", std, value ? { value, currency } : {});
-      else window.fbq("trackCustom", name);
+      else window.fbq("trackCustom", name, props ?? {});
     }
   } catch {}
 }

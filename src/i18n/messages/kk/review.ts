@@ -2,6 +2,8 @@ import type { review as ru } from "../ru/review";
 import { kkCount } from "../../plural";
 
 export const review: typeof ru = {
+  /** Фото не прочиталось или больше 15 МБ — и в форме, и в ответе API (api.reviewPhotoInvalid). */
+  photoInvalid: "Фотоны оқу мүмкін болмады — 15 МБ-қа дейінгі JPG немесе PNG жүктеңіз",
   meta: "Кітап туралы пікір",
   order: (n: number) => `№${n} тапсырыс`,
   title: "Кітап ұнады ма?",
@@ -10,9 +12,12 @@ export const review: typeof ru = {
   ratings: ["Көңіл толмады", "Онша емес", "Жаман емес", "Жақсы", "Керемет"],
   textLabel: "Пікіріңіз",
   textHigh: "Сыйлау қалай өтті? Алушы не деді, өзіңіз не сезіндіңіз?",
+  textHighAutobiography: "Жақындарыңыз оқығанда не деді? Кітапты қолға алғанда не сезіндіңіз?",
+  textHighBlank: "Кітап қалай ұнады? Не жақсы шықты, басылған кітапты көргенде не сезіндіңіз?",
   textLow: "Не дұрыс болмады? Айтып беріңіз — сізбен байланысып, бәрін түзетеміз.",
   photo: "Кітаппен түскен фото",
   photoHint: "Міндетті емес. Сыйлау сәті немесе кітап қолда — мұндай фотолар ең әсерлі.",
+  photoHintOwn: "Міндетті емес. Кітап қолыңызда немесе жақындарыңыздың қолында — мұндай фотолар ең әсерлі.",
   photoChoose: "Фото таңдау",
   photoRemove: "Алып тастау",
   photoAttached: "Фото тіркелді",
@@ -44,9 +49,10 @@ export const review: typeof ru = {
     edit: "Пікірді өзгерту",
   },
   showcase: {
+    photoAlt: (name: string) => `Пікірдегі кітап фотосы: ${name}`,
     eyebrow: "Пікірлер",
     title: "Кітапты сыйлап үлгергендер не дейді",
     summary: (avg: string, count: number) => `5-тен ${avg} · ${kkCount(count, "пікір")}`,
-    theme: { love: "Сүйікті адамға кітап", mom: "Анаға кітап", dad: "Әкеге кітап", friend: "Досқа кітап" } as Record<string, string>,
+    theme: { love: "Сүйікті адамға кітап", mom: "Анаға кітап", dad: "Әкеге кітап", friend: "Досқа кітап", autobiography: "Өз өмірі туралы кітап", blank: "Өз кітабы" } as Record<string, string>,
   },
 };

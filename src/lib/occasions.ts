@@ -2,18 +2,18 @@
  * Поводы для подарка и расчёт «успеть к дате».
  * Модуль общий для сервера и браузера: без server-only и без обращений к базе.
  */
-import { deliveryOptions, productionWorkdays, type DeliveryId, type PlanId } from "@/config/site";
+import { getDeliveryOptions, productionWorkdays, type DeliveryId, type PlanId } from "@/config/site";
 
 export type OccasionId = "anniversary" | "birthday" | "valentine" | "march8" | "newyear" | "wedding" | "parents" | "graduation" | "other";
 
 /** Названия поводов на обоих языках — в словаре: common.occasions[id]. */
-export interface Occasion {
+interface Occasion {
   id: OccasionId;
   /** Фиксированная дата праздника (месяц 1–12, день). */
   fixed?: { month: number; day: number };
 }
 
-export const occasions: Occasion[] = [
+const occasions: Occasion[] = [
   { id: "anniversary" },
   { id: "birthday" },
   { id: "valentine", fixed: { month: 2, day: 14 } },
@@ -35,6 +35,8 @@ const themeOccasions: Record<string, OccasionId[]> = {
   mom: ["birthday", "march8", "parents", "graduation", "wedding", "newyear", "other"],
   dad: ["birthday", "parents", "newyear", "graduation", "wedding", "other"],
   friend: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
+  // Автобиография — к юбилею рассказчика, к празднику семьи; своя книга (blank) — любой повод.
+  autobiography: ["birthday", "parents", "newyear", "other"],
 };
 
 /** Праздник ближе этого — первым в списке: в феврале маме первым предлагаем «8 марта». */
@@ -81,7 +83,7 @@ export function nextFixedDate(o: Occasion, now: Date): string | null {
   return toIsoDay(d);
 }
 
-export function daysBetween(from: Date, to: Date) {
+function daysBetween(from: Date, to: Date) {
   return Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / DAY);
 }
 
@@ -99,16 +101,16 @@ export function subtractWorkdays(d: Date, n: number): Date {
 
 /** Последний день, когда нужно оформить заказ, чтобы книга приехала к дате. */
 export function orderByDate(target: string, plan: PlanId, delivery: DeliveryId): Date {
-  const deliveryDays = deliveryOptions.find((d) => d.id === delivery)?.maxDays ?? 7;
+  const deliveryDays = getDeliveryOptions().find((d) => d.id === delivery)?.maxDays ?? 7;
   const production = plan === "premium" ? productionWorkdays.premium : productionWorkdays.standard;
   // День запаса на проверку макета и передачу в печать.
   const shipped = new Date(parseDay(target).getTime() - deliveryDays * DAY);
   return subtractWorkdays(shipped, production + 1);
 }
 
-export type DeadlineState = "relaxed" | "soon" | "urgent" | "premium" | "digital" | "past";
+type DeadlineState = "relaxed" | "soon" | "urgent" | "premium" | "digital" | "past";
 
-export interface Deadline {
+interface Deadline {
   target: string;
   daysToTarget: number;
   /** Заказать до (обычная книга, курьер). */

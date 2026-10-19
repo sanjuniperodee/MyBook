@@ -3,15 +3,28 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, X } from "lucide-react";
+import { AlarmClock, AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, Volume2, VolumeX, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
+import { coalesce, liveChannel, soundFor } from "./liveRules";
+import { playSound, setSoundMuted, soundMuted, unlockAudio } from "./sound";
 import type { LiveState } from "@/modules/reporting";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const POLL_MS = 8_000;
 /** При живом SSE-соединении опрос нужен только как страховка. */
 const POLL_MS_LIVE = 45_000;
+/** События склеиваются: сообщение, статусы доставки и уведомление подряд — одно-два обновления, а не пять. */
+const REFRESH_GAP_MS = 400;
+/** Звук не чаще: серия сообщений клиента («Здравствуйте» / «Сколько стоит?» / фото) — один сигнал. */
+const SOUND_GAP_MS = 2_500;
+
+/** Где сотрудник сейчас: открытый на странице чатов диалог и видна ли вкладка. */
+function screen() {
+  const open = window.location.pathname === "/admin/chats" ? new URLSearchParams(window.location.search).get("c") : null;
+  return { focused: document.visibilityState === "visible" && document.hasFocus(), openConversation: open };
+}
+
 const LiveContext = createContext<{ live: LiveState; refresh: () => void } | null>(null);
 
 export function useLive() {
@@ -20,22 +33,28 @@ export function useLive() {
   return ctx;
 }
 
-/** Опрос /api/admin/live: бейджи меню, колокольчик и входящие звонки без перезагрузки страницы. */
+/**
+ * Живое состояние CRM: бейджи меню, колокольчик и входящие звонки без перезагрузки страницы. События приходят по SSE,
+ * опрос /api/admin/live — страховка. Свежее уведомление о сообщении клиента или упоминании — со звуком.
+ */
 export function CrmLiveProvider({ initial, children }: { initial: LiveState; children: React.ReactNode }) {
   const [live, setLive] = useState(initial);
   const seen = useRef(new Set(initial.notifications.map((n) => n.id)));
-  const busy = useRef(false);
+  const lastSound = useRef(0);
   const baseTitle = useRef<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
+  const load = useCallback(async () => {
     try {
       const next = await apiFetch<LiveState>("/api/admin/live", { cache: "no-store" });
       const fresh = next.notifications.filter((n) => !n.read && !seen.current.has(n.id));
       for (const n of next.notifications) seen.current.add(n.id);
+      const sound = soundFor(fresh, { muted: soundMuted(), ...screen() });
+      if (sound && (sound === "reminder" || Date.now() - lastSound.current > SOUND_GAP_MS)) {
+        lastSound.current = Date.now();
+        playSound(sound);
+      }
       if (fresh.length) {
-        const n = fresh[0];
+        const n = fresh.find((x) => x.kind === "reminder") ?? fresh[0];
         if (document.visibilityState === "visible") toast(fresh.length > 1 ? `${n.title} и ещё ${fresh.length - 1}` : n.title, "info");
         else if ("Notification" in window && Notification.permission === "granted") {
           const note = new Notification(n.title, { body: n.body, tag: n.id });
@@ -48,9 +67,27 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
       setLive(next);
     } catch {
       // сеть моргнула — следующий опрос повторит
-    } finally {
-      busy.current = false;
     }
+  }, []);
+  // Событие во время загрузки не теряется: после неё — ещё одна загрузка.
+  const coalesced = useRef<(() => Promise<void>) | null>(null);
+  useEffect(() => {
+    coalesced.current = coalesce(load, REFRESH_GAP_MS);
+  }, [load]);
+  const refresh = useCallback(() => void coalesced.current?.(), []);
+
+  // Браузер разрешает звук после первого действия на странице.
+  useEffect(() => {
+    const unlock = () => {
+      if (unlockAudio()) remove();
+    };
+    const remove = () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return remove;
   }, []);
 
   const [live$, setLive$] = useState(false);
@@ -58,8 +95,8 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
     // Мгновенные события: уведомления, сообщения, звонки. Переподключение — средствами EventSource.
     if (typeof EventSource === "undefined") return;
     const es = new EventSource("/api/admin/live/stream");
-    es.onopen = () => setLive$(true);
-    es.onerror = () => setLive$(false);
+    es.onopen = () => (setLive$(true), liveChannel.set(true));
+    es.onerror = () => (setLive$(false), liveChannel.set(false));
     es.onmessage = (msg) => {
       let data: { type?: string; conversationId?: string | null } = {};
       try {
@@ -68,7 +105,10 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
       void refresh();
       window.dispatchEvent(new CustomEvent("crm:live", { detail: data }));
     };
-    return () => es.close();
+    return () => {
+      es.close();
+      liveChannel.set(false);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -100,7 +140,7 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
   return <LiveContext.Provider value={{ live, refresh }}>{children}</LiveContext.Provider>;
 }
 
-const kindIcon = { message: MessageCircle, call: Phone, task: ListTodo, deal: Handshake, sla: TriangleAlert, system: Bell, mention: AtSign } as const;
+const kindIcon = { message: MessageCircle, call: Phone, task: ListTodo, reminder: AlarmClock, deal: Handshake, sla: TriangleAlert, system: Bell, mention: AtSign } as const;
 
 function ago(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -164,7 +204,7 @@ export function NotificationBell() {
                     if (n.link) router.push(n.link);
                   }}
                 >
-                  <Icon className={cn("mt-0.5 size-4 shrink-0", n.kind === "sla" || n.kind === "call" ? "text-red-600" : "text-wine")} />
+                  <Icon className={cn("mt-0.5 size-4 shrink-0", n.kind === "sla" || n.kind === "call" || n.kind === "reminder" ? "text-red-600" : "text-wine")} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{n.title}</span>
                     {n.body ? <span className="line-clamp-2 text-xs text-muted">{n.body}</span> : null}
@@ -174,10 +214,32 @@ export function NotificationBell() {
               );
             })}
           </div>
+          <SoundToggle />
           <PushToggle perm={perm} onPerm={setPerm} />
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Звук новых сообщений и напоминаний на этом устройстве: выключить и включить (с пробным сигналом). */
+function SoundToggle() {
+  // Меню открывается только по клику (после гидрации) — localStorage здесь доступен.
+  const [muted, setMuted] = useState(() => soundMuted());
+  const toggle = () => {
+    const next = !muted;
+    setSoundMuted(next);
+    setMuted(next);
+    if (!next) {
+      unlockAudio();
+      playSound("message");
+    }
+  };
+  return (
+    <button className="flex w-full items-center gap-2 border-t border-line px-4 py-2.5 text-left text-xs text-wine hover:bg-cream/50" onClick={toggle} data-testid="sound-toggle">
+      {muted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
+      {muted ? "Звук новых сообщений выключен · включить" : "Звук новых сообщений включён · выключить"}
+    </button>
   );
 }
 

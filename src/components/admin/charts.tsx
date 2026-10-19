@@ -1,5 +1,5 @@
 import { formatPrice } from "@/config/site";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** «Красивый» шаг шкалы: 1, 2, 2.5, 5 × 10ⁿ. */
 function niceStep(raw: number) {

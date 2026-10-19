@@ -1,6 +1,6 @@
 /**
  * Провайдеры языковых моделей для AI-помощника. Claude — через Anthropic API, остальные — через
- * OpenAI-совместимый Chat Completions API (ChatGPT, DeepSeek, а также OpenRouter, Qwen, локальные модели).
+ * OpenAI-совместимый Chat Completions API (ChatGPT, DeepSeek, OpenRouter, а также Qwen, локальные модели).
  */
 export const aiProviders = {
   anthropic: {
@@ -26,6 +26,23 @@ export const aiProviders = {
     defaultBaseUrl: "https://api.deepseek.com",
     keysUrl: "https://platform.deepseek.com/api_keys",
     keyPlaceholder: "sk-…",
+  },
+  openrouter: {
+    label: "OpenRouter",
+    title: "OpenRouter (в т. ч. бесплатные модели)",
+    // Роутер бесплатных моделей: сам выбирает доступную (отдельные бесплатные модели появляются и исчезают).
+    defaultModel: "openrouter/free",
+    defaultBaseUrl: "https://openrouter.ai/api/v1",
+    keysUrl: "https://openrouter.ai/settings/keys",
+    keyPlaceholder: "sk-or-…",
+  },
+  groq: {
+    label: "Groq",
+    title: "Groq (бесплатно: Whisper для голосовых)",
+    defaultModel: "llama-3.3-70b-versatile",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
+    keysUrl: "https://console.groq.com/keys",
+    keyPlaceholder: "gsk_…",
   },
   custom: {
     label: "AI",

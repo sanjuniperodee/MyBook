@@ -8,6 +8,9 @@ import { Order, type OrderRepository } from "../../domain";
 
 type Row = typeof orders.$inferSelect;
 
+/** Оплата прошла (paid_at) и заказ не отменён. Не isPaid(): заказ, переведённый в печать без оплаты, сюда не входит. */
+const paidAndNotCancelled = and(isNotNull(orders.paidAt), ne(orders.status, "cancelled"));
+
 function toDomain(r: Row): Order {
   return Order.restore(r.id, {
     number: r.number,
@@ -15,7 +18,7 @@ function toDomain(r: Row): Order {
     bookId: r.bookId,
     plan: r.plan as PlanId,
     quantity: r.quantity,
-    price: { itemsAmount: r.itemsAmount, discountAmount: r.discountAmount, deliveryAmount: r.deliveryAmount, addonsAmount: r.addonsAmount, addons: r.addons as never, amount: r.amount },
+    price: { itemsAmount: r.itemsAmount, discountAmount: r.discountAmount, deliveryAmount: r.deliveryAmount, addonsAmount: r.addonsAmount, addons: r.addons as never, ...(r.prepaidAmount ? { prepaidAmount: r.prepaidAmount } : {}), amount: r.amount },
     promoCode: r.promoCode,
     currency: r.currency,
     status: r.status,
@@ -23,7 +26,7 @@ function toDomain(r: Row): Order {
     paymentId: r.paymentId,
     paymentClaimedAt: r.paymentClaimedAt,
     contact: { name: r.contactName, phone: r.contactPhone, email: r.contactEmail },
-    delivery: { method: (r.deliveryMethod as DeliveryId | null) ?? null, city: r.city, address: r.address, postalCode: r.postalCode },
+    delivery: { method: (r.deliveryMethod as DeliveryId | null) ?? null, country: r.deliveryCountry, city: r.city, address: r.address, postalCode: r.postalCode },
     customerComment: r.customerComment,
     giftNote: r.giftNote,
     desiredDate: r.desiredDate,
@@ -33,6 +36,8 @@ function toDomain(r: Row): Order {
     printSpec: r.printSpec,
     assigneeId: r.assigneeId,
     paidAt: r.paidAt,
+    postpay: r.postpay,
+    receivedAmount: r.receivedAmount,
     createdAt: r.createdAt,
   });
 }
@@ -49,6 +54,7 @@ function toRow(order: Order) {
     deliveryAmount: s.price.deliveryAmount,
     addonsAmount: s.price.addonsAmount,
     addons: [...s.price.addons],
+    prepaidAmount: s.price.prepaidAmount ?? 0,
     amount: s.price.amount,
     promoCode: s.promoCode,
     currency: s.currency,
@@ -60,6 +66,7 @@ function toRow(order: Order) {
     contactPhone: s.contact.phone,
     contactEmail: s.contact.email,
     deliveryMethod: s.delivery.method,
+    deliveryCountry: s.delivery.country ?? null,
     city: s.delivery.city,
     address: s.delivery.address,
     postalCode: s.delivery.postalCode,
@@ -72,6 +79,8 @@ function toRow(order: Order) {
     printSpec: s.printSpec,
     assigneeId: s.assigneeId,
     paidAt: s.paidAt,
+    postpay: s.postpay,
+    receivedAmount: s.receivedAmount,
   };
 }
 
@@ -84,6 +93,12 @@ export class DrizzleOrderRepository implements OrderRepository {
   async findById(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [row] = await executor().select().from(orders).where(eq(orders.id, id)).limit(1);
+    return row ? toDomain(row) : null;
+  }
+
+  async lockById(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [row] = await executor().select().from(orders).where(eq(orders.id, id)).for("update").limit(1);
     return row ? toDomain(row) : null;
   }
 
@@ -112,7 +127,7 @@ export class DrizzleOrderRepository implements OrderRepository {
     const rows = await executor()
       .select({ id: orders.id })
       .from(orders)
-      .where(and(eq(orders.userId, userId), isNotNull(orders.paidAt), ne(orders.status, "cancelled")))
+      .where(and(eq(orders.userId, userId), paidAndNotCancelled))
       .limit(1);
     return rows.length > 0;
   }

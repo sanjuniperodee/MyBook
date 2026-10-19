@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
 import { bulkStatusAction } from "../actions";
-import { orderStatusColors, orderStatusLabels } from "@/modules/ordering/ui/status";
-import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/modules/ordering/domain";
-import { cn } from "@/lib/utils";
+import { orderStatusColors, orderStatusLabel, orderStatusLabels } from "@/modules/ordering/ui/status";
+import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
+import { cn } from "@/lib/class-names";
+import { useRowSelection } from "@/components/admin/useRowSelection";
 
 export interface OrderRow {
   id: string;
@@ -17,8 +18,13 @@ export interface OrderRow {
   contactName: string;
   contactLine: string;
   planLabel: string;
+  /** Печатный ли тариф: у электронной версии оплаченный заказ — «Выполнен», печати нет. */
+  printed: boolean;
   desiredLabel: string | null;
+  /** Полная цена книги (с предоплатой по сделке). */
   amountLabel: string;
+  /** «оплачено X» или «долг Y»; null — бесплатный заказ без денег. */
+  money: { kind: "paid" | "debt"; label: string } | null;
   status: OrderStatus;
   claimed: boolean;
   assignee: string | null;
@@ -26,27 +32,19 @@ export interface OrderRow {
 }
 
 export function OrdersTable({ rows }: { rows: OrderRow[] }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { selected, all, ids, toggle, toggleAll, clear } = useRowSelection(rows);
   const [status, setStatus] = useState<OrderStatus>("in_production");
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const all = rows.length > 0 && selected.size === rows.length;
-  const toggle = (id: string) =>
-    setSelected((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
 
   const apply = async () => {
     if (!(await ask(`Перевести ${selected.size} заказ(ов) в статус «${orderStatusLabels[status]}»? Клиенты получат письма.`))) return;
     start(async () => {
       try {
-        const res = await bulkStatusAction([...selected], status);
-        setMessage(`Обновлено заказов: ${res.count}`);
-        setSelected(new Set());
+        const res = await bulkStatusAction(ids(), status);
+        setMessage(`Обновлено заказов: ${res.count}${res.skipped ? `; пропущено ${res.skipped} — не оплачены (примите оплату или отправьте в печать с постоплатой)` : ""}`);
+        clear();
         router.refresh();
       } catch (e) {
         setMessage((e as Error).message);
@@ -69,7 +67,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
           <button className="btn btn-sm bg-white text-ink hover:bg-paper" onClick={apply} disabled={pending}>
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Применить
           </button>
-          <button className="ml-auto text-white/70 hover:text-white" onClick={() => setSelected(new Set())}>
+          <button className="ml-auto text-white/70 hover:text-white" onClick={clear}>
             Снять выделение
           </button>
         </div>
@@ -80,7 +78,7 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
           <thead className="border-b border-line text-left text-muted">
             <tr>
               <th className="w-10 px-4 py-3">
-                <input type="checkbox" className="accent-wine" checked={all} onChange={() => setSelected(all ? new Set() : new Set(rows.map((r) => r.id)))} aria-label="Выбрать все" />
+                <input type="checkbox" className="accent-wine" checked={all} onChange={toggleAll} aria-label="Выбрать все" />
               </th>
               <th className="px-3 py-3 font-medium">№</th>
               <th className="px-3 py-3 font-medium">Дата</th>
@@ -112,9 +110,12 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
                   {o.desiredLabel ? <div className="text-xs font-medium text-wine">к {o.desiredLabel}</div> : null}
                   {o.promoCode ? <div className="text-xs text-emerald-700">{o.promoCode}</div> : null}
                 </td>
-                <td className="px-3 py-3 text-right tabular-nums">{o.amountLabel}</td>
+                <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
+                  {o.amountLabel}
+                  {o.money ? <div className={cn("text-xs", o.money.kind === "debt" ? "font-medium text-red-700" : "text-emerald-700")}>{o.money.label}</div> : null}
+                </td>
                 <td className="px-3 py-3">
-                  <span className={cn("rounded-full px-2.5 py-1 text-xs whitespace-nowrap", orderStatusColors[o.status])}>{orderStatusLabels[o.status]}</span>
+                  <span className={cn("rounded-full px-2.5 py-1 text-xs whitespace-nowrap", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", o.printed)}</span>
                   {o.claimed ? <div className="mt-1 text-xs text-amber-700">сообщил об оплате</div> : null}
                 </td>
                 <td className="px-3 py-3 text-muted">{o.assignee ?? "—"}</td>

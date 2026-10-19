@@ -1,0 +1,1 @@
+ALTER TABLE "book_questions" ADD COLUMN "media" jsonb DEFAULT '[]'::jsonb NOT NULL;

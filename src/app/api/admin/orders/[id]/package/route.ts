@@ -2,13 +2,14 @@ import { ZipArchive } from "archiver";
 import { PassThrough, Readable } from "node:stream";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { container } from "@/server/container";
+import { idParams } from "@/server/input";
 
 export const maxDuration = 300;
 
 /** ZIP-пакет для типографии: блок, обложка и техзадание. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
   await apiStaff(req, "orders.files");
+  const { id } = idParams(await params, "id");
   const c = container();
   const order = await c.ordering.queries.orderDetails(id);
   if (!order) throw new HttpError(404, "orderNotFound");

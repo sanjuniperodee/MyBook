@@ -1,4 +1,4 @@
-export function csvEscape(v: unknown): string {
+function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return "";
   const s = v instanceof Date ? v.toISOString() : String(v);
   return /[",;\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

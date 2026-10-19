@@ -3,24 +3,31 @@ import { usersId } from "@/shared/infrastructure/db/refs";
 import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { users } from "@/shared/infrastructure/db/schema";
-import type { ClientSegment } from "@/modules/clients/domain/segments";
+import { answeredSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
+import type { ClientSegment } from "@/shared/domain/segments";
+import { isManualChannel, MANUAL_MEDIUM } from "@/shared/domain/channels";
 
 export const STALLED_DAYS = 14;
 
-const ltv = sql<number>`coalesce((select sum(o.amount) from orders o where o.user_id = ${usersId} and o.paid_at is not null and o.status <> 'cancelled'), 0)::int`;
+// Деньги клиента — из единого журнала revenue_events: оплаченные заказы и платежи по ручным сделкам.
+const ltv = sql<number>`coalesce((select sum(e.amount) from revenue_events e where e.client_id = ${usersId}), 0)::int`;
+// Заказы — все, кроме отменённых (неоплаченные тоже): это «оформил», а не «оплатил» (оплаты — в revenue_events).
 const ordersCount = sql<number>`(select count(*)::int from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
 const booksCount = sql<number>`(select count(*)::int from books b where b.user_id = ${usersId})`;
-const bestAnswered = sql<number>`coalesce((select max((select count(*) from book_questions q where q.book_id = b.id and length(trim(q.answer)) > 0)) from books b where b.user_id = ${usersId}), 0)::int`;
+// Ответы — как в progressOf (answeredSql); слова — только у своих книг (blank), где прогресс считается по словам.
+const bestAnswered = sql<number>`coalesce((select max(${answeredSql(sql`b.id`)}) from books b where b.user_id = ${usersId}), 0)::int`;
+const bestWords = sql<number>`coalesce((select max(${wordsSql(sql`b.id`)}) from books b where b.user_id = ${usersId} and b.theme = 'blank'), 0)::int`;
 const lastBookUpdate = sql<Date | null>`(select max(b.updated_at) from books b where b.user_id = ${usersId})`;
 const lastOrderAt = sql<Date | null>`(select max(o.created_at) from orders o where o.user_id = ${usersId})`;
 
-const hasPaid = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.paid_at is not null and o.status <> 'cancelled')`;
-const hasAnyOrder = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.status <> 'cancelled')`;
+const hasPaid = sql`exists (select 1 from revenue_events e where e.client_id = ${usersId})`;
+// «Оформил»: есть заказ или принятые деньги — такой клиент уже не «пишет книгу» и не «застрял».
+const hasAnyOrder = sql`(exists (select 1 from orders o where o.user_id = ${usersId} and o.status <> 'cancelled') or exists (select 1 from revenue_events e where e.client_id = ${usersId}))`;
 const hasPending = sql`exists (select 1 from orders o where o.user_id = ${usersId} and o.status = 'pending_payment')`;
 const draftRecent = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft' and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
 const draftStale = sql`exists (select 1 from books b where b.user_id = ${usersId} and b.status = 'draft') and not exists (select 1 from books b where b.user_id = ${usersId} and b.updated_at >= now() - interval '${sql.raw(String(STALLED_DAYS))} days')`;
 
-export function segmentWhere(segment: ClientSegment): SQL | undefined {
+function segmentWhere(segment: ClientSegment): SQL | undefined {
   switch (segment) {
     case "customers":
       return hasPaid;
@@ -47,9 +54,9 @@ function managerScope(managerId?: string | null, onlyMine?: boolean): SQL | unde
 }
 
 /**
- * Фильтр по каналу привлечения в SQL — те же правила, что channelOf() (marketing/domain/channels), для основных каналов.
+ * Фильтр по каналу привлечения в SQL — те же правила, что channelOf() (shared/domain/channels), для основных каналов.
  */
-export function channelWhere(ch: string | undefined): SQL | undefined {
+function channelWhere(ch: string | undefined): SQL | undefined {
   if (!ch) return undefined;
   const s = sql`lower(coalesce(${users.source}->>'source', ''))`;
   const m = sql`lower(coalesce(${users.source}->>'medium', ''))`;
@@ -80,7 +87,8 @@ export function channelWhere(ch: string | undefined): SQL | undefined {
     case "direct":
       return sql`(${s} = '' and ${m} = '' and ${r} = '')`;
     default:
-      return undefined;
+      // Остальные каналы выбирает менеджер вручную: метка {source: канал, medium: manual}.
+      return isManualChannel(ch) ? sql`(${m} = ${MANUAL_MEDIUM} and ${s} = ${ch})` : undefined;
   }
 }
 
@@ -112,7 +120,7 @@ export async function queryClients(opts: {
   const order = opts.sort === "ltv" ? desc(ltv) : opts.sort === "active" ? sql`${users.lastSeenAt} desc nulls last` : desc(users.createdAt);
   const [rows, [{ n }]] = await Promise.all([
     db
-      .select({ user: users, ltv, ordersCount, booksCount, bestAnswered, lastBookUpdate, lastOrderAt })
+      .select({ user: users, ltv, ordersCount, booksCount, bestAnswered, bestWords, lastBookUpdate, lastOrderAt })
       .from(users)
       .where(where)
       .orderBy(order)

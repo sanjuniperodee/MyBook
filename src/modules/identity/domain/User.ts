@@ -26,7 +26,7 @@ export interface UserProps {
   createdAt: Date;
 }
 
-export const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Учётная запись (контекст Identity): вход, пароль, профиль и второй фактор.
@@ -63,6 +63,22 @@ export class User extends AggregateRoot<UserProps> {
       passwordHash: input.passwordHash,
       role: "user",
       locale: "ru",
+      staffDisabled: false,
+      source: null,
+      twoFactor: { encryptedSecret: null, enabledAt: null, backupHashes: [] },
+      createdAt: now,
+    });
+  }
+
+  /** Клиент, которого завёл сотрудник по телефону (продажи): с паролем для входа, без события «зарегистрировался на сайте». */
+  static provisionClient(id: string, input: { email: Email; name: string; phone: string; passwordHash: string; locale: Locale }, now: Date) {
+    return new User(id, {
+      email: input.email.value,
+      name: input.name.trim().slice(0, 100),
+      phone: input.phone,
+      passwordHash: input.passwordHash,
+      role: "user",
+      locale: input.locale,
       staffDisabled: false,
       source: null,
       twoFactor: { encryptedSecret: null, enabledAt: null, backupHashes: [] },

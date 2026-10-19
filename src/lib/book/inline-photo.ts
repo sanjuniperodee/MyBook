@@ -33,6 +33,7 @@ export function normalizeStyle(s: Partial<InlinePhotoStyle> | null | undefined):
   v.width = Math.min(100, Math.max(25, Math.round(v.width)));
   v.focusX = Math.min(1, Math.max(0, v.focusX));
   v.focusY = Math.min(1, Math.max(0, v.focusY));
+  if (!v.page) delete v.page;
   return v;
 }
 
@@ -101,11 +102,6 @@ export function layoutInline<T extends { style: InlinePhotoStyle }>(photos: T[],
     result.set(a, rows);
   }
   return result;
-}
-
-/** Добавочная высота рамки (в единицах текста) — для оценки объёма. */
-export function frameExtra(style: InlinePhotoStyle, unit: number) {
-  return style.frame === "polaroid" ? unit * POLAROID_BOTTOM : 0;
 }
 
 /** Нижнее поле полароида — доля высоты текстовой области (там же подпись). */

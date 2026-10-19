@@ -1,7 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { LanguageModel } from "../application";
-import { AssistantError, type AiConnection } from "../domain";
+import { AssistantError, systemBlocks, type AiConnection } from "../domain";
+import type { MediaPart, MediaRecognition } from "../application/SellerModel";
 
 let cached: { sig: string; client: Anthropic } | null = null;
 
@@ -33,19 +34,26 @@ function toAssistantError(err: unknown): Error {
 /**
  * Claude через Anthropic SDK. Если основная модель откажется отвечать по соображениям безопасности,
  * сервер Anthropic сам повторит запрос на рекомендованной резервной модели (fallbacks: "default").
+ * Стабильное начало инструкции (cachePrefix: факты, правила и примеры продажника — одни на все беседы) уходит отдельным
+ * блоком с меткой кэша на час: повторные ходы читают его из кэша, а не платят за него заново.
  */
-export async function askClaude(c: AiConnection, { system, user, effort, schema }: Parameters<LanguageModel["ask"]>[0]) {
+export async function askClaude(c: AiConnection, { system, user, effort, schema, timeoutMs, cachePrefix }: Parameters<LanguageModel["ask"]>[0]) {
+  const blocks = systemBlocks(system, cachePrefix);
   let res;
   try {
-    res = await client(c).beta.messages.create({
-      model: c.model,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
-      system,
-      messages: [{ role: "user", content: user }],
-    });
+    res = await client(c).beta.messages.create(
+      {
+        model: c.model,
+        max_tokens: 16000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
+        system: blocks.some((b) => b.cached) ? blocks.map((b) => (b.cached ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const, ttl: "1h" as const } } : { type: "text" as const, text: b.text })) : system,
+        messages: [{ role: "user", content: user }],
+      },
+      // Быстрый запрос (бот в чате): свой таймаут и без повторов.
+      timeoutMs ? { timeout: timeoutMs, maxRetries: 0 } : undefined,
+    );
   } catch (err) {
     throw toAssistantError(err);
   }
@@ -57,4 +65,29 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema 
     .trim();
   if (!text) throw new AssistantError("badResponse", "Claude вернул пустой ответ — попробуйте ещё раз.");
   return { text, usage: { input: res.usage.input_tokens, output: res.usage.output_tokens } };
+}
+
+/** Claude видит картинки; аудио не принимает — «не умеет». */
+export async function askClaudeMedia(c: AiConnection, input: { system: string; parts: MediaPart[]; timeoutMs: number }): Promise<MediaRecognition | null> {
+  if (input.parts.some((p) => p.kind !== "image")) return { unsupported: true };
+  const mimeOf = (m: string): "image/jpeg" | "image/png" | "image/gif" | "image/webp" => (/png/i.test(m) ? "image/png" : /gif/i.test(m) ? "image/gif" : /webp/i.test(m) ? "image/webp" : "image/jpeg");
+  const res = await client(c)
+    .messages.create(
+      {
+        model: c.model,
+        max_tokens: 1500,
+        system: input.system,
+        messages: [{ role: "user", content: input.parts.map((p) => ({ type: "image" as const, source: { type: "base64" as const, media_type: mimeOf(p.mime), data: p.data } })) }],
+      },
+      { timeout: input.timeoutMs, maxRetries: 0 },
+    )
+    .catch((err: unknown) => (err instanceof Anthropic.BadRequestError ? ("unsupported" as const) : null));
+  if (res === "unsupported") return { unsupported: true };
+  if (!res) return null;
+  const text = res.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as { text: string }).text)
+    .join("")
+    .trim();
+  return text ? { text } : null;
 }

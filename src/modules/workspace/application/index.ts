@@ -1,4 +1,5 @@
-import { fieldKey, selectOptions, type CustomFieldType, type FieldEntity } from "../domain";
+import type { CustomFieldType } from "@/shared/domain/customFields";
+import { fieldKey, selectOptions, type FieldEntity } from "../domain";
 
 export interface FieldRepository {
   keys(entity: FieldEntity): Promise<string[]>;

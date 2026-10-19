@@ -7,8 +7,8 @@ import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, use
 import { CalendarClock, CircleDollarSign, Gift } from "lucide-react";
 import { moveOrderAction } from "../actions";
 import { orderStatusLabels } from "@/modules/ordering/ui/status";
-import type { OrderStatus } from "@/modules/ordering/domain";
-import { cn } from "@/lib/utils";
+import type { OrderStatus } from "@/shared/domain/orders";
+import { cn } from "@/lib/class-names";
 
 export interface BoardCard {
   id: string;
@@ -65,7 +65,11 @@ export function Board({ initial, admins, me }: { initial: BoardCard[]; admins: {
     setError(null);
     start(async () => {
       try {
-        await moveOrderAction(id, to);
+        const r = await moveOrderAction(id, to);
+        if (r.error) {
+          setCards(prev);
+          setError(r.error);
+        }
       } catch (err) {
         setCards(prev);
         setError((err as Error).message);

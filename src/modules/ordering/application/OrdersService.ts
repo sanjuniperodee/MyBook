@@ -1,10 +1,14 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
 import { NotFoundError } from "@/shared/domain";
+import type { OrderStatus } from "@/shared/domain/orders";
+import { staffLabel } from "@/shared/domain/staff";
 import type { DeliveryId, PlanId } from "@/config/site";
-import { formatPrice } from "@/config/site";
+import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
-import { Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type OrderStatus, type PromoCodeRepository } from "../domain";
-import type { BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
+import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
+import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
+import type { OrderPaymentsService } from "./OrderPaymentsService";
+import type { DealInvoiceLifecycle } from "./DealInvoiceLifecycle";
 
 export interface PlaceOrderCommand {
   userId: string;
@@ -21,6 +25,22 @@ export interface PlaceOrderCommand {
   giftNote?: string;
   desiredDate?: string;
   surprise?: boolean;
+  /**
+   * Что делать с договорённостью по ручной сделке (если она есть): agreed — договорённая цена и предоплата в зачёт (по умолчанию);
+   * advance — обычная цена по каталогу, предоплата засчитывается как аванс (заказ «с нуля»: другой тариф, другая книга).
+   */
+  agreementMode?: "agreed" | "advance";
+  /** Печатная версия к уже оплаченной электронной (заказ клиента): та оплата засчитывается, книга остаётся закрытой для правок. */
+  upgradeFromOrderId?: string;
+}
+
+/** Можно ли дозаказать печатную книгу к оплаченной электронной и сколько уже оплачено (зачёт). */
+export interface UpgradeOffer {
+  orderId: string;
+  number: number;
+  bookId: string;
+  /** Сколько клиент заплатил за электронную версию (₸), будет вычтено из печатной. */
+  credit: number;
 }
 
 export interface UpdateOrderCommand {
@@ -40,16 +60,40 @@ export class OrdersService {
     private readonly promos: PromoCodeRepository,
     private readonly books: BookGateway,
     private readonly people: PeopleGateway,
-    private readonly printFiles: PrintFiles,
+    private readonly printFiles: Pick<PrintFiles, "prepare">,
     private readonly payments: PaymentSettings,
+    private readonly agreements: AgreementGateway,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    /** Журнал денег заказа: онлайн-оплаты записываются туда (по операции) — он и подтверждает заказ. */
+    private readonly money?: Pick<OrderPaymentsService, "recordOnline">,
+    /** Счета из чата по сделке договорённости: заказ закрывает открытый счёт в своей транзакции. */
+    private readonly dealInvoices?: Pick<DealInvoiceLifecycle, "closeForOrder">,
   ) {}
+
+  /** Договорённая цена и предоплата клиента по ручной сделке (для страницы оформления и расчёта заказа). */
+  agreementFor(userId: string) {
+    return this.agreements.agreementFor(userId);
+  }
+
+  /**
+   * Предложение «заказать печатную книгу»: у клиента оплаченный заказ электронной версии (его заказ, не отменён), по этой книге нет других
+   * живых заказов — значит, печатный ещё не заказан. Оплата электронной версии засчитывается в печатную.
+   */
+  async upgradeOffer(orderId: string, userId: string): Promise<UpgradeOffer | null> {
+    const digital = await this.orders.findOwned(orderId, userId);
+    if (!digital || digital.isPrinted || digital.status !== "paid") return null;
+    if (await this.orders.hasOtherActiveOrders(digital.bookId, digital.id)) return null;
+    const price = digital.snapshot().price;
+    return { orderId: digital.id, number: digital.number, bookId: digital.bookId, credit: price.amount + (price.prepaidAmount ?? 0) };
+  }
 
   async place(cmd: PlaceOrderCommand): Promise<Order> {
     const book = await this.books.checkoutInfo(cmd.bookId, cmd.userId, cmd.locale);
     if (!book) throw new OrderingError("bookNotFound");
-    if (book.status !== "draft") throw new OrderingError("alreadyOrdered");
+    const upgrade = cmd.upgradeFromOrderId ? await this.upgradeOffer(cmd.upgradeFromOrderId, cmd.userId) : null;
+    if (cmd.upgradeFromOrderId && (!upgrade || upgrade.bookId !== cmd.bookId || !getPlan(cmd.plan)?.printed)) throw new OrderingError("upgradeUnavailable");
+    if (book.status !== "draft" && !upgrade) throw new OrderingError("alreadyOrdered");
     if (book.blockingIssue) throw new OrderingError("notReady", book.blockingIssue);
 
     const now = this.clock.now();
@@ -57,46 +101,92 @@ export class OrdersService {
     if (cmd.promoCode && !promo) throw new OrderingError("notFound");
     promo?.assertUsable(now, promo && { userId: cmd.userId, hasPaidOrders: promo.firstOrderOnly && (await this.orders.hasPaidOrders(cmd.userId)) });
 
+    // Дозаказ печатной версии к электронной — договорённость менеджера не ищем; тариф и цену определяет checkoutTerms (как форма).
+    const seen = upgrade ? null : await this.agreements.agreementFor(cmd.userId);
     const identity = await this.orders.nextIdentity();
-    const order = Order.place(
-      {
-        ...identity,
-        userId: cmd.userId,
-        bookId: cmd.bookId,
-        plan: cmd.plan,
-        quantity: cmd.quantity,
-        delivery: cmd.delivery,
-        addons: cmd.addons,
-        contact: cmd.contact,
-        promo,
-        currency: this.payments.currency(),
-        paymentProvider: this.payments.provider(),
-        customerComment: cmd.customerComment,
-        giftNote: cmd.giftNote,
-        desiredDate: cmd.desiredDate,
-        surprise: cmd.surprise,
-        estimatedPages: book.estimatedPages,
-        formatMoney: formatPrice,
-      },
-      now,
-    );
+    const build = (found: typeof seen) => {
+      // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
+      const { plan, agreement } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null, gifts: found.gifts }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
+      return Order.place(
+        {
+          ...identity,
+          agreement,
+          agreementDealId: found?.dealId ?? null,
+          credit: upgrade ? { orderNumber: upgrade.number, amount: upgrade.credit } : null,
+          userId: cmd.userId,
+          bookId: cmd.bookId,
+          plan,
+          quantity: cmd.quantity,
+          delivery: cmd.delivery,
+          addons: cmd.addons,
+          contact: cmd.contact,
+          promo,
+          currency: this.payments.currency(),
+          paymentProvider: this.payments.provider(),
+          customerComment: cmd.customerComment,
+          giftNote: cmd.giftNote,
+          desiredDate: cmd.desiredDate,
+          surprise: cmd.surprise,
+          estimatedPages: book.estimatedPages,
+          formatMoney: formatPrice,
+        },
+        now,
+      );
+    };
 
-    await this.uow.run(async () => {
+    let found = seen;
+    const order = await this.uow.run(async () => {
+      if (seen && this.dealInvoices) {
+        // Счета из чата — первыми (порядок блокировок: счета → … → сделки): открытый счёт сделки договорённости закрывается
+        // заказом, а договорённость перечитывается после блокировки — оплата, успевшая прийти по счёту, попадёт в предоплату.
+        await this.dealInvoices.closeForOrder(seen.dealId, identity.number);
+        found = await this.agreements.agreementFor(cmd.userId);
+        if (found && found.dealId !== seen.dealId) await this.dealInvoices.closeForOrder(found.dealId, identity.number);
+      }
+      const order = build(found);
       if (promo && !(await this.promos.tryReserve(promo.id, now))) throw new OrderingError("promoGone");
-      if (!(await this.books.lockForOrder(cmd.bookId))) throw new OrderingError("alreadyOrdered");
+      // Дозаказ печатной версии: книга уже закрыта электронным заказом — блокировать нечего.
+      if (!(upgrade && book.status === "ordered") && !(await this.books.lockForOrder(cmd.bookId))) throw new OrderingError("alreadyOrdered");
       await this.orders.add(order);
+      // Заказ — к сделке договорённости сразу: новый счёт по ней не выставить, оплата старого — «нужен возврат или зачёт».
+      if (found && this.agreements.attachOrder) await this.agreements.attachOrder(found.dealId, order.id);
       if (!cmd.userPhone) await this.people.rememberPhoneIfMissing(cmd.userId, cmd.contact.phone);
       this.uow.track(order);
+      return order;
     });
 
-    // Заказ полностью оплачен промокодом или сертификатом — сразу передаём в работу.
-    if (order.isFree) await this.confirmPayment({ orderId: order.id, paymentId: promo?.code ?? null }, { label: "promo" });
+    // Заказ полностью оплачен промокодом, сертификатом или предоплатой по договорённости — сразу передаём в работу.
+    if (order.isFree) await this.confirmPayment({ orderId: order.id, paymentId: promo?.code ?? (found ? `prepaid:${found.dealNumber}` : null) }, { label: found && !promo ? "prepaid" : "promo" });
     return order;
   }
 
   /** Оплата подтверждена (платёжная система или сотрудник). Повтор безопасен. */
   async confirmPayment(cmd: { orderId: string; paymentId: string | null }, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, (order, now) => order.markPaid(cmd.paymentId, actor.label, now));
+  }
+
+  /**
+   * Деньги от платёжной системы (Kaspi, CloudPayments) — одно правило: деньги записываются в журнал заказа по операции.
+   * Заказ ждёт оплаты — оплачен; та же операция повторно — ничего; другой платёж по оплаченному или отменённому
+   * заказу — заказ не трогаем, «переплата»: сотруднику заметка и задача «нужен возврат» (B13).
+   */
+  async acceptProviderPayment(cmd: { orderId: string; paymentId: string | null; provider: string; operationId: string; amount: number }, actor: Actor): Promise<"paid" | "duplicate" | "refundNeeded" | null> {
+    const order = await this.orders.findById(cmd.orderId);
+    if (!order) return null;
+    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
+    if (this.money) {
+      const method = cmd.provider.toLowerCase() === "kaspi" ? "kaspi" : "cloudpayments";
+      const r = await this.money.recordOnline({ orderId: order.id, amount: cmd.amount, method, externalRef: cmd.operationId, paymentId: cmd.paymentId, paidAt: this.clock.now() }, actor);
+      if (r.status === "notFound") return null;
+      if (r.status === "duplicate") return "duplicate";
+      return r.overpaid > 0 ? "refundNeeded" : "paid";
+    }
+    if (order.status === "pending_payment") {
+      await this.confirmPayment({ orderId: order.id, paymentId: cmd.paymentId }, actor);
+      return "paid";
+    }
+    await this.addNote(order.id, `${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor);
+    return "refundNeeded";
   }
 
   async changeStatus(cmd: { orderId: string; to: OrderStatus; note?: string }, actor: Actor): Promise<Order> {
@@ -109,7 +199,7 @@ export class OrdersService {
   /** Форма заказа в CRM: трек-номер, статус и комментарий одним действием. */
   async update(cmd: UpdateOrderCommand, actor: Actor): Promise<Order> {
     return this.mutate(cmd.orderId, async (order, now) => {
-      if (cmd.trackingNumber !== undefined) order.setTrackingNumber(cmd.trackingNumber);
+      if (cmd.trackingNumber !== undefined) order.setTrackingNumber(cmd.trackingNumber, actor.label);
       const r = order.changeStatus(cmd.status, actor.label, cmd.note ?? "", now);
       if (r.cancelled) await this.afterCancel(order, r.releasePromo);
     });
@@ -150,9 +240,9 @@ export class OrdersService {
   }
 
   async assign(orderId: string, assigneeId: string | null, actor: Actor) {
-    const label = assigneeId ? await this.people.staffLabel(assigneeId) : null;
-    if (assigneeId && !label) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
-    return this.mutate(orderId, (order, now) => order.assign(assigneeId, label ?? "", actor.label, now));
+    const staff = assigneeId ? await this.people.activeStaff(assigneeId) : null;
+    if (assigneeId && !staff) throw new OrderingError("staffNotFound", "Ответственным может быть только сотрудник CRM");
+    return this.mutate(orderId, (order, now) => order.assign(assigneeId, staff ? staffLabel(staff) : "", actor.label, now));
   }
 
   async updateDetails(cmd: { orderId: string; contact: OrderContact; delivery: OrderDelivery; desiredDate: string | null; giftNote: string | null }, actor: Actor) {

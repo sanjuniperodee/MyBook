@@ -2,14 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { uuid } from "@/server/input";
 import { container } from "@/server/container";
-import { customFieldTypes, WorkspaceError } from "@/modules/workspace";
+import { WorkspaceError } from "@/modules/workspace";
+import { customFieldTypes } from "@/shared/domain/customFields";
 import { assertStaff, audit } from "@/server/access";
 
 export type FieldState = { ok?: string; error?: string };
 
 const schema = z.object({
-  id: z.union([z.literal(""), z.string().uuid()]).default(""),
+  id: z.union([z.literal(""), uuid]).default(""),
   entity: z.enum(["deal", "client"]),
   label: z.string().trim().min(1, "Название поля").max(40),
   type: z.enum(customFieldTypes),
@@ -35,7 +37,7 @@ export async function saveFieldAction(_: FieldState, form: FormData): Promise<Fi
 /** Поле удаляется из настроек; уже записанные значения остаются в сделках, но больше не показываются. */
 export async function deleteFieldAction(id: string) {
   const staff = await assertStaff("settings.manage");
-  const f = await container().workspace.fields.delete(z.string().uuid().parse(id));
+  const f = await container().workspace.fields.delete(uuid.parse(id));
   if (f) await audit(staff, "settings.update", "field", id, { deleted: f.label });
   revalidatePath("/admin/deals/fields");
 }

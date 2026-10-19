@@ -1,6 +1,6 @@
-import type { Clock } from "@/shared/application";
+import type { Clock, SettingsReader } from "@/shared/application";
 import { MarketingService, type PromoIssuer } from "./application";
-import { crmMarketingSettings, personalPromoCode, siteLinks } from "./infrastructure/adapters";
+import { crmMarketingSettings, personalPromoCode, siteLinks, type MarketingSettingKey } from "./infrastructure/adapters";
 import { drizzleClientContext, drizzleLinks, sqlReportSource } from "./infrastructure/persistence";
 
 export { conversion, type ChatOffers, type OfferRequest, type Report } from "./domain";
@@ -10,7 +10,7 @@ export class MarketingModule {
   readonly service: MarketingService;
   readonly links = drizzleLinks;
 
-  constructor(deps: { clock: Clock; promos: PromoIssuer }) {
-    this.service = new MarketingService(sqlReportSource, drizzleLinks, drizzleClientContext, deps.promos, personalPromoCode, crmMarketingSettings, siteLinks, deps.clock);
+  constructor(deps: { clock: Clock; promos: PromoIssuer; settings: SettingsReader<MarketingSettingKey> }) {
+    this.service = new MarketingService(sqlReportSource, drizzleLinks, drizzleClientContext, deps.promos, personalPromoCode, crmMarketingSettings(deps.settings), siteLinks, deps.clock);
   }
 }

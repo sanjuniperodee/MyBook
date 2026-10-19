@@ -5,9 +5,10 @@ import { Check, Copy, Gift, ImagePlus, Star, X } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
 import { apiFetch } from "@/lib/client-api";
 import { toastError } from "@/components/ui/overlays";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import type { BookKind } from "@/lib/content/kinds";
 
-export interface ReviewDraft {
+interface ReviewDraft {
   rating: number;
   text: string;
   authorName: string;
@@ -31,12 +32,15 @@ export function ReviewForm({
   defaultName,
   initial,
   thankYou,
+  kind = "gift",
 }: {
   orderId: string;
   token: string | null;
   defaultName: string;
   initial: ReviewDraft | null;
   thankYou: { percent: number; validDays: number };
+  /** Вид книги: у автобиографии и своей книги подсказки без «вручения» и «получателя». */
+  kind?: BookKind;
 }) {
   const m = useMessages();
   const t = m.review;
@@ -59,7 +63,7 @@ export function ReviewForm({
   const choosePhoto = (file: File | null) => {
     if (file && file.size > PHOTO_MAX_BYTES) {
       if (fileInput.current) fileInput.current.value = "";
-      return toastError(new Error(m.api.reviewPhotoInvalid));
+      return toastError(new Error(m.review.photoInvalid));
     }
     setPhoto(file ? { file, url: URL.createObjectURL(file) } : null);
   };
@@ -131,7 +135,7 @@ export function ReviewForm({
           value={text}
           maxLength={TEXT_MAX}
           onChange={(e) => setText(e.target.value)}
-          placeholder={low ? t.textLow : t.textHigh}
+          placeholder={low ? t.textLow : kind === "autobiography" ? t.textHighAutobiography : kind === "blank" ? t.textHighBlank : t.textHigh}
         />
         <div className="mt-1 text-right text-xs text-muted tabular-nums">
           {text.length} / {TEXT_MAX}
@@ -140,7 +144,7 @@ export function ReviewForm({
 
       <div>
         <span className="label">{t.photo}</span>
-        <p className="-mt-1 mb-3 text-sm text-muted">{t.photoHint}</p>
+        <p className="-mt-1 mb-3 text-sm text-muted">{kind === "gift" ? t.photoHint : t.photoHintOwn}</p>
         {photo || hadPhoto ? (
           <div className="flex items-center gap-4">
             {photo ? (

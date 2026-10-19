@@ -2,6 +2,7 @@ export * from "./Book";
 export * from "./errors";
 export * from "./events";
 export * from "./Letter";
+export * from "./outline";
 export * from "./Photo";
 export * from "./Question";
 export * from "./readiness";

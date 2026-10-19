@@ -20,7 +20,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
   const t = (await getMessages()).books.settings;
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+      <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
       {/* Оформление страниц, посвящение и оглавление переехали во вкладку «Страницы» */}
       <Link href={`/books/${book.id}/pages`} className="group mt-6 flex items-center gap-4 rounded-2xl bg-cream/70 px-5 py-4 transition hover:bg-cream">
         <BookOpen className="size-5 shrink-0 text-wine" strokeWidth={1.8} />
@@ -37,7 +37,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           fixedRecipientGender={!!theme.recipientGender}
           initial={{
             format: getFormat(book.format).id,
+            authorName: book.authorName,
             authorGender: book.authorGender,
+            recordedBy: book.recordedBy,
+            recipientName: book.recipientName,
             recipientGender: book.recipientGender,
             occasion: book.occasion,
             occasionDate: book.occasionDate,

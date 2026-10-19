@@ -27,6 +27,25 @@ describe("поводы под тему книги", () => {
   });
 });
 
+describe("поводы под вид книги", () => {
+  const ids = (theme: string, selected?: string) => occasionsFor(theme, new Date("2026-06-10T10:00:00"), selected).map((o) => o.id);
+
+  it("автобиография — юбилей, семейный праздник, Новый год; без «Годовщины», «14 февраля» и «8 марта»", () => {
+    expect(ids("autobiography").sort()).toEqual(["birthday", "newyear", "other", "parents"]);
+    expect(ids("autobiography").at(-1)).toBe("other");
+  });
+
+  it("своя книга — любой повод, «Другой повод» последним", () => {
+    const own = ids("blank");
+    expect(own).toHaveLength(9);
+    expect(own.at(-1)).toBe("other");
+  });
+
+  it("выбранный повод остаётся в списке и у автобиографии", () => {
+    expect(ids("autobiography", "wedding")).toContain("wedding");
+  });
+});
+
 describe("occasions", () => {
   it("next fixed date rolls over to next year", () => {
     const v = getOccasion("valentine")!;
@@ -68,9 +87,9 @@ import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 
 describe("addons pricing", () => {
   it("adds addons only where available and never discounts them", () => {
-    const p = calculatePrice("hardcover", 1, "courier", { kind: "fixed", value: 24900 }, ["express", "giftwrap"]);
+    const p = calculatePrice("hardcover", 1, "courier", { kind: "fixed", value: 30000 }, ["express", "giftwrap"]);
     expect(p.addons).toEqual(["express", "giftwrap"]);
-    expect(p.discountAmount).toBe(24900);
+    expect(p.discountAmount).toBe(30000);
     expect(p.amount).toBe(p.deliveryAmount + p.addonsAmount);
     const prem = calculatePrice("premium", 1, "courier", null, ["express", "giftwrap"]);
     expect(prem.addons).toEqual([]);

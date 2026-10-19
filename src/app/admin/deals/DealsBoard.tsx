@@ -5,11 +5,12 @@ import { useState, useTransition } from "react";
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { BookOpen, CalendarClock, Check, Inbox, MessageCircle, Ban, X } from "lucide-react";
 import { formatPrice } from "@/config/site";
-import { toastError } from "@/components/ui/overlays";
+import { toast, toastError } from "@/components/ui/overlays";
 import { acceptDealAction, moveDealAction, rejectDealAction } from "./actions";
 import { ask } from "@/components/ui/overlays";
 import { lostReasons } from "@/modules/sales/domain/meta";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { progressRatio, progressShort, progressText } from "@/lib/content/crm-labels";
 
 export interface DealCard {
   id: string;
@@ -18,6 +19,8 @@ export interface DealCard {
   contactName: string;
   stageId: string;
   amount: number;
+  /** Принято денег по сделке, ₸. */
+  paid?: number;
   source: string;
   assigneeId: string | null;
   assigneeLabel: string | null;
@@ -26,7 +29,7 @@ export interface DealCard {
   unread: number;
   tags: string[];
   unsorted: boolean;
-  book: { answered: number; total: number } | null;
+  book: { theme: string; answered: number; total: number; words: number } | null;
   /** Дата события из своего поля «Дата события» (YYYY-MM-DD). */
   eventDate: string | null;
 }
@@ -39,7 +42,11 @@ interface Stage {
 }
 
 
-export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; initial: DealCard[]; canEdit: boolean }) {
+/**
+ * canDecide — руководитель: берёт и отклоняет любые заявки. Менеджер (meId) работает только со своими, а отклонить
+ * или отметить спамом лишь предлагает — заявка остаётся на доске с отметкой.
+ */
+export function DealsBoard({ stages, initial, canEdit, canDecide, meId }: { stages: Stage[]; initial: DealCard[]; canEdit: boolean; canDecide: boolean; meId: string }) {
   const [cards, setCards] = useState(initial);
   const [lost, setLost] = useState<{ id: string; stageId: string } | null>(null);
   const [, start] = useTransition();
@@ -87,7 +94,22 @@ export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; init
                   }
                 });
               }}
+              canWork={(c) => canDecide || c.assigneeId === meId}
               onReject={async (id, spam) => {
+                if (!canDecide) {
+                  const reason = window.prompt(spam ? "Почему это спам? Руководитель увидит причину." : "Почему отклонить? Руководитель увидит причину.");
+                  if (reason === null) return;
+                  start(async () => {
+                    try {
+                      toast((await rejectDealAction(id, spam, reason)).message);
+                      const tag = spam ? "запрос: спам" : "запрос: отклонить";
+                      setCards((cs) => cs.map((c) => (c.id === id ? { ...c, tags: [...c.tags, tag] } : c)));
+                    } catch (err) {
+                      toastError(err);
+                    }
+                  });
+                  return;
+                }
                 if (!(await ask(spam ? "Пометить как спам? Сделка удалится, с этого номера больше не будет заявок и уведомлений." : "Отклонить заявку? Сделка удалится, переписка и звонки останутся.", true))) return;
                 const prev = cards;
                 setCards((cs) => cs.filter((c) => c.id !== id));
@@ -120,7 +142,7 @@ export function DealsBoard({ stages, initial, canEdit }: { stages: Stage[]; init
   );
 }
 
-function UnsortedColumn({ cards, canEdit, onAccept, onReject }: { cards: DealCard[]; canEdit: boolean; onAccept: (id: string) => void; onReject: (id: string, spam: boolean) => void }) {
+function UnsortedColumn({ cards, canEdit, canWork, onAccept, onReject }: { cards: DealCard[]; canEdit: boolean; canWork: (c: DealCard) => boolean; onAccept: (id: string) => void; onReject: (id: string, spam: boolean) => void }) {
   return (
     <section className="flex w-72 shrink-0 flex-col rounded-2xl border-2 border-dashed border-wine/30 bg-rose/30 p-2" data-stage="Неразобранное">
       <header className="px-2 pt-1 pb-3">
@@ -130,13 +152,13 @@ function UnsortedColumn({ cards, canEdit, onAccept, onReject }: { cards: DealCar
           </h2>
           <span className="text-xs text-muted tabular-nums">{cards.length}</span>
         </div>
-        <div className="text-xs text-muted">новые номера — принять или отклонить</div>
+        <div className="text-xs text-muted">новые номера — ответственный принимает или отклоняет</div>
       </header>
       <div className="flex max-h-[calc(100dvh-17rem)] min-h-24 flex-col gap-2 overflow-y-auto pr-0.5">
         {cards.map((c) => (
           <div key={c.id} className="rounded-xl border border-line bg-white p-3 text-sm shadow-sm" data-deal={c.number} data-unsorted="1">
             <Card card={c} draggable={canEdit} bare />
-            {canEdit ? (
+            {canEdit && canWork(c) ? (
               <div className="mt-2 flex gap-1.5 border-t border-line pt-2">
                 <button className="btn btn-sm h-8 flex-1" onClick={() => onAccept(c.id)}>
                   <Check className="size-3.5" /> Принять
@@ -204,18 +226,23 @@ function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean
         {c.contactName ? ` · ${c.contactName}` : ""} · {c.source}
       </div>
       {c.book ? (
-        <div className="mt-2 flex items-center gap-1.5" title={`Книга: ${c.book.answered} из ${c.book.total} ответов`}>
+        <div className="mt-2 flex items-center gap-1.5" title={`Книга: ${progressText(c.book)}`}>
           <BookOpen className="size-3 text-muted" />
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-cream">
-            <div className="h-full rounded-full bg-wine" style={{ width: `${c.book.total ? Math.round((c.book.answered / c.book.total) * 100) : 0}%` }} />
+            <div className="h-full rounded-full bg-wine" style={{ width: `${Math.round(progressRatio(c.book) * 100)}%` }} />
           </div>
           <span className="text-[10px] text-muted tabular-nums">
-            {c.book.answered}/{c.book.total}
+            {progressShort(c.book)}
           </span>
         </div>
       ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c.amount ? <span className="text-xs font-medium tabular-nums">{formatPrice(c.amount)}</span> : null}
+        {c.paid ? (
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] text-emerald-800 tabular-nums" title="Получено платежами">
+            получено {formatPrice(c.paid)}
+          </span>
+        ) : null}
         {c.eventDate ? <EventChip date={c.eventDate} /> : null}
         {c.task ? (
           <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]", c.task.overdue ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>

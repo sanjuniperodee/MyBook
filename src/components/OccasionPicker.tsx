@@ -4,7 +4,8 @@ import { useState } from "react";
 import { CalendarHeart, Check } from "lucide-react";
 import { deadlineFor, getOccasion, nextFixedDate, occasionsFor, toIsoDay, type OccasionId } from "@/lib/occasions";
 import { useMessages } from "@/i18n/client";
-import { cn, nowMs } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
+import { nowMs } from "@/lib/dates";
 
 /**
  * Выбор повода и даты. Для праздников с фиксированной датой дата подставляется сама.

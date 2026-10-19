@@ -1,8 +1,8 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
-import { formatDate } from "@/lib/utils";
+import { staffLabel } from "@/shared/domain/staff";
+import { formatDate } from "@/lib/dates";
 
 export const metadata = { title: "Журнал действий" };
 
@@ -50,6 +50,29 @@ const actions: Record<string, string> = {
   "review.hide": "Скрыл отзыв",
   "review.feature": "Закрепил отзыв на главной",
   "review.unfeature": "Открепил отзыв",
+  "deal.assign": "Передал сделку",
+  "chat.assign": "Передал чат",
+  "chat.close": "Закрыл чат",
+  "chat.reopen": "Открыл чат снова",
+  "chat.bot_stop": "Остановил бота в чате",
+  "chat.bot_start": "Запустил бота в чате",
+  "deal.spam_request": "Предложил отметить заявку спамом",
+  "deal.reject_request": "Предложил отклонить заявку",
+  "deal.request_declined": "Отказал в отклонении заявки",
+  "client.contact_reveal": "Открыл номер клиента",
+  "client.no_marketing": "Изменил «не писать первым» у клиента",
+  "deal.no_marketing": "Изменил «не писать первым» в сделке",
+  "chat.sensitive": "Отправил номер или реквизиты в чат",
+  "chat.sensitive_echo": "С телефона компании ушли номер или реквизиты",
+  "deal.plan": "Сменил тариф договорённости",
+  "deal.discount": "Назначил цену ниже прайса",
+  "payment.add": "Принял оплату с чеком",
+  "receipt.add": "Приложил чек",
+  "email.send": "Отправил письмо клиенту",
+  "order.payment": "Принял оплату по заказу",
+  "order.postpay": "Отправил заказ в печать с постоплатой",
+  "order.payment_review": "Проверил оплату по заказу",
+  "receipt.view": "Открыл чек",
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {
@@ -80,7 +103,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               <td className="px-4 py-2.5">
                 {a.actorId ? (
                   <Link href={`/admin/team/audit?actor=${a.actorId}`} className="hover:text-wine">
-                    {adminLabel(actor?.email ? { name: actor.name ?? "", email: actor.email } : null)}
+                    {staffLabel(actor?.email ? { name: actor.name ?? "", email: actor.email } : null)}
                   </Link>
                 ) : (
                   <span className="text-muted">система</span>

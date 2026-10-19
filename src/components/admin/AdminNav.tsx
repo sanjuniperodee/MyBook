@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { setShiftAction } from "@/app/admin/crm-actions";
 import {
   BarChart3,
+  Coins,
+  Globe,
   BookOpen,
   CheckSquare,
   Gift,
@@ -23,15 +26,16 @@ import {
   Star,
   Tag,
   Users,
+  Wallet,
   Workflow,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
-import type { Permission } from "@/modules/access/domain/permissions";
+import type { Permission } from "@/shared/domain/permissions";
 import type { CrmCounters } from "@/modules/reporting";
 import { useLive } from "./CrmLive";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 interface Item {
   href: string;
@@ -71,6 +75,8 @@ const sections: { title?: string; items: Item[] }[] = [
     title: "Маркетинг",
     items: [
       { href: "/admin/analytics", label: "Аналитика продаж", icon: BarChart3, perm: ["analytics.view"] },
+      // Деньги: пришло, ожидается, переплаты; бейдж — ручные подтверждения без проверки (считаются только руководителю).
+      { href: "/admin/finance", label: "Финансы", icon: Wallet, badge: "finance", perm: ["analytics.view"] },
       { href: "/admin/marketing", label: "Ссылки и каналы", icon: Link2, perm: ["analytics.view", "promo.manage"] },
       { href: "/admin/promo", label: "Промокоды", icon: Tag, perm: ["promo.manage"] },
       { href: "/admin/gifts", label: "Сертификаты", icon: Gift, perm: ["gifts.manage"] },
@@ -82,6 +88,8 @@ const sections: { title?: string; items: Item[] }[] = [
     items: [
       { href: "/admin/automations", label: "Автоматизации", icon: Workflow, perm: ["settings.manage"] },
       { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
+      { href: "/admin/pricing", label: "Цены и тарифы", icon: Coins, perm: ["settings.manage"] },
+      { href: "/admin/site", label: "Сайт", icon: Globe, perm: ["settings.manage"] },
       { href: "/admin/settings", label: "Интеграции", icon: Settings, perm: ["settings.manage"] },
       { href: "/admin/security", label: "Безопасность", icon: LockKeyhole },
     ],
@@ -114,6 +122,23 @@ export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adm
   const pathname = usePathname();
   const { counters } = useLive().live;
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (variant !== "mobile" || !open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, variant]);
+
   const allowed = new Set(perms);
   const visible = sections.map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || it.perm.some((p) => allowed.has(p))) })).filter((s) => s.items.length);
   const nav = (
@@ -169,26 +194,48 @@ export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adm
     );
   return (
     <>
-      <button className="btn btn-ghost btn-sm size-9 px-0 lg:hidden" onClick={() => setOpen(true)} aria-label="Меню">
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm size-9 px-0 lg:hidden"
+        onClick={() => setOpen(true)}
+        aria-label="Открыть меню"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="admin-mobile-menu"
+      >
         <Menu className="size-5" />
       </button>
-      {open ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-ink/30" onClick={() => setOpen(false)} />
-          <div className="relative flex h-full w-72 flex-col gap-6 overflow-y-auto bg-[#f1ece4] p-4">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 font-semibold">
-                <LogoMark className="size-8" /> MyBooks CRM
-              </span>
-              <button onClick={() => setOpen(false)} aria-label="Закрыть">
-                <X className="size-5" />
-              </button>
-            </div>
-            {nav}
-            <div className="mt-auto">{footer}</div>
-          </div>
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <button
+                type="button"
+                className="absolute inset-0 cursor-default bg-ink/30"
+                onClick={() => setOpen(false)}
+                aria-label="Закрыть меню"
+              />
+              <div
+                id="admin-mobile-menu"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Навигация CRM"
+                className="relative flex h-dvh w-72 max-w-[calc(100vw-2rem)] flex-col gap-6 overflow-y-auto bg-[#f1ece4] p-4 shadow-lift"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 font-semibold">
+                    <LogoMark className="size-8" /> MyBooks CRM
+                  </span>
+                  <button type="button" onClick={() => setOpen(false)} aria-label="Закрыть">
+                    <X className="size-5" />
+                  </button>
+                </div>
+                {nav}
+                <div className="mt-auto">{footer}</div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

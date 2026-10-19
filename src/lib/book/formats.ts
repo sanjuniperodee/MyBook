@@ -45,7 +45,10 @@ export const print = {
   dpi: 300,
 };
 
+/** Перевод единиц: 1 pt = 1/72 дюйма = 25,4/72 мм. Единственное определение для PDF, HTML и раскладок. */
 export const MM_TO_PT = 72 / 25.4;
+export const PT_TO_MM = 25.4 / 72;
+/** Миллиметры → пункты (единица react-pdf). */
 export const mm = (v: number) => v * MM_TO_PT;
 
 /** Округляет количество страниц до печатного: не меньше минимума и кратно pageMultiple. */

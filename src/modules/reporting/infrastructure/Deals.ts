@@ -1,9 +1,12 @@
 import "server-only";
 import { and, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
-import { crmDeals, crmSavedViews, crmStages, dealSources, type DealSource } from "@/shared/infrastructure/db/schema";
+import { crmDeals, crmSavedViews, crmStages } from "@/shared/infrastructure/db/schema";
+import { dealSources, type DealSource } from "@/shared/domain/dealSources";
 import { crmDealsClientId, crmDealsId } from "@/shared/infrastructure/db/refs";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
+import { noOpenTask } from "./conditions";
 
 const CLOSED_DAYS = 30;
 
@@ -31,8 +34,9 @@ export async function dealList(
     const v = sp[`cf_${f.key}`];
     if (v && f.options.includes(v)) w.push(sql`${crmDeals.customFields}->>${f.key} = ${v}`);
   }
-  // Быстрые фильтры: без задачи, просроченная задача, застряла на этапе.
-  if (sp.task === "none") w.push(sql`not exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`);
+  // Быстрые фильтры: без задачи (открытые сделки без следующего шага — как плитка «Моего дня»), просроченная задача,
+  // застряла на этапе.
+  if (sp.task === "none") w.push(noOpenTask(), eq(crmStages.kind, "open"));
   if (sp.task === "overdue") w.push(sql`exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and t.due_at < now())`);
   const stale = Number(sp.stale);
   if (stale > 0) w.push(sql`${crmDeals.stageChangedAt} < now() - make_interval(days => ${Math.min(stale, 365)})`, eq(crmStages.kind, "open"));
@@ -57,12 +61,14 @@ export async function dealList(
         deal: crmDeals,
         stageKind: crmStages.kind,
         nextTask: sql<Date | null>`(select min(t.due_at) from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`,
+        // Принятые деньги по сделке (платежи менеджеров): на карточке видно, сколько уже получено.
+        paid: sql<number>`coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = ${crmDealsId}), 0)::int`,
         unread: sql<number>`coalesce((select sum(c.unread) from crm_conversations c where c.deal_id = ${crmDealsId}), 0)::int`,
-        // Прогресс лучшей книги клиента: сколько вопросов с ответом из скольких.
-        book: sql<{ answered: number; total: number } | null>`(
-          select json_build_object('answered', count(*) filter (where length(trim(q.answer)) > 0), 'total', count(*))
-          from book_questions q where q.book_id = (select b.id from books b where b.user_id = ${crmDealsClientId} order by b.updated_at desc limit 1)
-          having count(*) > 0)`,
+        // Прогресс последней книги клиента: вид книги, ответы (разделы с текстом) и слова — progressOf считает по ним.
+        book: sql<{ theme: string; answered: number; total: number; words: number } | null>`(
+          select json_build_object('theme', b.theme, 'answered', ${answeredSql(sql`b.id`)}, 'total', ${totalSql(sql`b.id`)}, 'words', ${wordsSql(sql`b.id`)})
+          from books b where b.user_id = ${crmDealsClientId} and exists (select 1 from book_questions q0 where q0.book_id = b.id)
+          order by b.updated_at desc limit 1)`,
       })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))

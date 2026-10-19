@@ -1,47 +1,92 @@
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { notFound } from "next/navigation";
-import { coverTemplates, cropSvg, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
-import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat } from "@/lib/book/formats";
+import sharp from "sharp";
+import { cropSvg, getCoverTemplate, isKnownCover, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
+import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, type BookFormat } from "@/lib/book/formats";
+import { coverPhotoDataUrl } from "@/modules/production";
+import { Lru } from "@/lib/lru";
 
 /**
- * Фон обложки (без текста) отдельным SVG-файлом: браузер кэширует его навсегда — версия в адресе
- * меняется вместе с кодом рисунков (COVER_ART_VERSION в next.config). Так одна и та же обложка
- * не встраивается в HTML страницы несколько раз по 200 КБ.
+ * Фон обложки (без текста) отдельным файлом: браузер кэширует его навсегда — версия в адресе
+ * меняется вместе с кодом рисунков (COVER_ART_VERSION в next.config) и с правками шаблона в CRM.
+ * Так одна и та же обложка не встраивается в HTML страницы несколько раз по 200 КБ.
  *
- * Сжимаем сами и держим готовые варианты в памяти: рисунки обложек — до 220 КБ SVG, а сжатие
- * Next к ответам обработчиков маршрутов из кэша не применяется.
+ * Рисованные обложки — SVG (сжимаем сами: сжатие Next к ответам из кэша не применяется).
+ * Обложки на снимках и с фото клиента (на снимках-примерах) — JPEG: картинка-SVG не может загрузить снимок,
+ * поэтому растрируем на сервере.
  */
-const FILE = /^([a-z]+)-([a-z0-9]+)(-lite)?(-back)?\.svg$/;
+const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.(svg|jpg|webp)$/;
 /** Толщина книги для фона задней крышки в редакторе: от неё зависит только стык узора с корешком. */
 const PREVIEW_PAGES = 120;
-const cache = new Map<string, { raw: string; br: Buffer; gzip: Buffer }>();
+type Entry = { type: string; raw: string | Buffer; br?: Buffer; gzip?: Buffer };
+/**
+ * Готовые фоны в памяти процесса. Вариантов много (шаблон × формат × миниатюра × сторона), а запись — до
+ * нескольких сотен КБ (SVG со сжатыми копиями или WebP): без предела кэш рос до всех вариантов (~1000 × ~0,3 МБ).
+ * 200 записей — рабочий набор: каталог миниатюр в одном формате и крупные превью ходовых обложек, до ~60 МБ;
+ * вытесненный фон собирается заново за 50–300 мс, а браузер и так кэширует его навсегда по версии в адресе.
+ */
+const cache = new Lru<string, Entry>(200);
 
-function art(file: string) {
-  const hit = cache.get(file);
-  if (hit) return hit;
+/** Ширина растра снимка-обложки: миниатюра в выборе и крупное превью. */
+const PHOTO_PX = { lite: 420, full: 1000 };
+
+async function photoArt(template: CoverTemplate, format: BookFormat, lite: boolean, back: boolean, plainBack: boolean, webp: boolean): Promise<Buffer> {
+  const px = lite ? PHOTO_PX.lite : PHOTO_PX.full;
+  // Снимок встраиваем уменьшенным: на холсте развёртки он примерно вдвое шире лица.
+  const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, lite ? 900 : 2400) : undefined;
+  // Обложка с фото клиента — на снимках-примерах: место под фото меньше лица, хватает меньшего размера.
+  const samples = new Map(await Promise.all((template.samples ?? []).map(async (k) => [k, await coverPhotoDataUrl(k, lite ? 700 : 1400)] as const)));
+  const g = back ? coverSpreadGeometry(format, PREVIEW_PAGES) : coverFrontGeometry(format);
+  const side = back ? g.back! : g.front;
+  let svg = renderCoverSvg(template, g, { uid: `${template.id}${format.id}`, imageHref, sampleHref: (k) => samples.get(k) ?? "" }, { plainBack });
+  if (back) svg = cropSvg(svg, side, { w: g.width, h: g.height });
+  // Единицы SVG — миллиметры; librsvg читает их как пиксели при 72 dpi.
+  const raster = sharp(Buffer.from(svg), { density: (72 * px) / side.w, limitInputPixels: false })
+    .resize(px, Math.round((px * side.h) / side.w), { fit: "fill" })
+    .flatten({ background: "#ffffff" });
+  // WebP вдвое легче JPEG при том же виде — по медленному каналу обложка появляется заметно раньше; .jpg оставлен для старых ссылок.
+  return (webp ? raster.webp({ quality: lite ? 72 : 78, effort: 5 }) : raster.jpeg({ quality: lite ? 78 : 86, mozjpeg: true })).toBuffer();
+}
+
+async function art(file: string): Promise<Entry | null> {
   const m = FILE.exec(file);
-  if (!m || !coverTemplates.some((t) => t.id === m[1]) || !(m[2] in formats)) return null;
+  if (!m || !isKnownCover(m[1]) || !(m[2] in formats)) return null;
   const template = getCoverTemplate(m[1]);
+  const raster = !!(template.photo || template.samples);
+  if ((m[5] !== "svg") !== raster) return null;
+  const key = `${file}@${template.rev ?? 0}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
   const format = getFormat(m[2]);
-  let raw: string;
-  if (m[4]) {
-    // Задняя крышка — кусок развёртки: так её узор и повтор композиции лица такие же, как в печати.
-    const g = coverSpreadGeometry(format, PREVIEW_PAGES);
-    raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!m[3] }), g.back!, { w: g.width, h: g.height });
-  } else raw = renderCoverSvg(template, coverFrontGeometry(format), { uid: `${template.id}${format.id}` }, { noTexture: !!m[3] });
-  const entry = { raw, br: brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }), gzip: gzipSync(raw, { level: 9 }) };
-  cache.set(file, entry);
+  // -backplain — оборот без повтора композиции лица: под карточками «Полароидов».
+  const plainBack = m[4] === "-backplain";
+  let entry: Entry;
+  if (raster) {
+    const webp = m[5] === "webp";
+    entry = { type: webp ? "image/webp" : "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack, webp) };
+  } else {
+    let raw: string;
+    if (m[4]) {
+      // Задняя крышка — кусок развёртки: так её узор и повтор композиции лица такие же, как в печати.
+      const g = coverSpreadGeometry(format, PREVIEW_PAGES);
+      raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!m[3], plainBack }), g.back!, { w: g.width, h: g.height });
+    } else raw = renderCoverSvg(template, coverFrontGeometry(format), { uid: `${template.id}${format.id}` }, { noTexture: !!m[3] });
+    entry = { type: "image/svg+xml; charset=utf-8", raw, br: brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }), gzip: gzipSync(raw, { level: 9 }) };
+  }
+  // Старые версии шаблона из CRM больше не запросят — не держим их в памяти.
+  for (const k of [...cache.keys()]) if (k.startsWith(`${file}@`)) cache.delete(k);
+  cache.set(key, entry);
   return entry;
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ file: string }> }) {
-  const entry = art((await params).file);
+  const entry = await art((await params).file);
   if (!entry) notFound();
   const accept = req.headers.get("accept-encoding") ?? "";
-  const [body, encoding] = /\bbr\b/.test(accept) ? [entry.br, "br"] : /\bgzip\b/.test(accept) ? [entry.gzip, "gzip"] : [entry.raw, null];
+  const [body, encoding] = entry.br && /\bbr\b/.test(accept) ? [entry.br, "br"] : entry.gzip && /\bgzip\b/.test(accept) ? [entry.gzip, "gzip"] : [entry.raw, null];
   return new Response(typeof body === "string" ? body : new Uint8Array(body), {
     headers: {
-      "Content-Type": "image/svg+xml; charset=utf-8",
+      "Content-Type": entry.type,
       "Cache-Control": "public, max-age=31536000, immutable",
       Vary: "Accept-Encoding",
       ...(encoding ? { "Content-Encoding": encoding } : {}),

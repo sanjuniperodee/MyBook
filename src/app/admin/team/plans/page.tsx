@@ -1,7 +1,7 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { requireStaff } from "@/server/access";
-import { adminLabel } from "@/modules/access/ui";
+import { staffLabel } from "@/shared/domain/staff";
 import { currentMonth, shiftMonth } from "@/modules/sales";
 import { formatPrice } from "@/config/site";
 import { PlanRow } from "./PlanRow";
@@ -32,7 +32,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
           {total.plan ? ` · ${Math.round((total.fact / total.plan) * 100)}%` : ""}
         </span>
       </div>
-      <p className="text-sm text-muted">Факт — сумма успешных сделок сотрудника, закрытых в этом месяце. Прогресс виден сотруднику в «Моём дне» и руководителю в аналитике.</p>
+      <p className="text-sm text-muted">Факт — сумма успешных сделок сотрудника, закрытых в этом месяце, и деньги, принятые по его ручным сделкам (предоплата засчитывается с первого платежа). Прогресс виден сотруднику в «Моём дне» и руководителю в аналитике.</p>
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full min-w-[760px] text-sm" data-testid="plans">
           <thead className="border-b border-line text-left text-muted">
@@ -52,7 +52,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                   key={s.id}
                   month={month}
                   userId={s.id}
-                  name={adminLabel(s)}
+                  name={staffLabel(s)}
                   planAmount={p?.planAmount ?? 0}
                   planDeals={p?.planDeals ?? 0}
                   fact={`${formatPrice(p?.factAmount ?? 0)} · ${p?.factDeals ?? 0} сд.`}

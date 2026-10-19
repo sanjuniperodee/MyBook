@@ -2,8 +2,11 @@ import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
-import { cn, formatDate } from "@/lib/utils";
+import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
+import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
+import { getTheme } from "@/lib/content/themes";
+import { bookLine } from "@/lib/content/crm-labels";
 import { can, contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
@@ -65,7 +68,7 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
               <span className="min-w-0 flex-1 truncate">
                 {o.contactName} · {mask({ phone: o.contactPhone }).phone} · {planName(o.plan)}
               </span>
-              <span className={cn("rounded-full px-2 py-0.5 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status)}</span>
+              <span className={cn("rounded-full px-2 py-0.5 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan))}</span>
               <span className="w-24 text-right tabular-nums">{formatPrice(o.amount)}</span>
             </Link>
           ))}
@@ -88,7 +91,7 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
           {bookRows.map((b) => (
             <Link key={b.id} href={`/admin/clients/${b.userId}`} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-cream/40">
               <span className="min-w-0 flex-1 truncate">
-                <span className="font-medium">{b.title}</span> <span className="text-muted">· {b.authorName} → {b.recipientName}</span>
+                <span className="font-medium">{b.title}</span> <span className="text-muted">· {bookLine({ theme: b.theme, themeShort: getTheme(b.theme).short, authorName: b.authorName, recipientName: b.recipientName })}</span>
               </span>
               <span className="text-xs text-muted">изм. {formatDate(b.updatedAt)}</span>
             </Link>

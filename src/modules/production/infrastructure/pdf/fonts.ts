@@ -1,6 +1,7 @@
 import "server-only";
 import path from "node:path";
-import { Font } from "@react-pdf/renderer";
+import type { ReactElement } from "react";
+import { Font, renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import hyphenRu from "hyphen/ru/index.js";
 import { fontFaces, type FontKey } from "@/lib/book/fonts";
 import { hyphenateKk, isKazakhWord } from "@/lib/book/hyphen-kk";
@@ -32,6 +33,18 @@ export function ensureFonts() {
     return parts;
   });
   registered = true;
+}
+
+let renderQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Собирает PDF строго по одному на процесс. Шрифты react-pdf общие для всех документов, и две сборки
+ * одновременно портят подмножество шрифта: из надписей пропадают буквы (заказ №14 — «ИТАЛИЙ» на титуле).
+ */
+export function renderPdf(document: ReactElement<DocumentProps>): Promise<Buffer> {
+  const run = renderQueue.then(() => renderToBuffer(document));
+  renderQueue = run.catch(() => undefined);
+  return run;
 }
 
 /** Подбирает ближайшее зарегистрированное начертание, чтобы react-pdf не падал на отсутствующем весе. */

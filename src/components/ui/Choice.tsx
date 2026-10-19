@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 /** Раздел страницы настроек книги: заголовок, пояснение и содержимое. */
 export function FormSection({ id, title, description, children }: { id?: string; title: string; description?: string; children: React.ReactNode }) {

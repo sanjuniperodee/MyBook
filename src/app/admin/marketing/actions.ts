@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { container } from "@/server/container";
 import { assertStaff, audit } from "@/server/access";
-import { saveSettings } from "@/modules/workspace";
+import { getSetting, saveSettings } from "@/modules/workspace";
+import { sanitizeSeller } from "@/config/site";
+import { admin } from "@/i18n/admin";
+import { BAD_FORM, textForm, uuid } from "@/server/input";
 
 export type LinkState = { ok?: string; error?: string; slug?: string };
 
@@ -46,16 +49,26 @@ export async function createLinkAction(_: LinkState, form: FormData): Promise<Li
 
 export async function archiveLinkAction(id: string, archived: boolean) {
   const staff = await assertStaff("promo.manage");
-  await container().marketing.service.archiveLink(z.string().uuid().parse(id), archived);
+  await container().marketing.service.archiveLink(uuid.parse(id), archived);
   await audit(staff, archived ? "link.archive" : "link.restore", "link", id);
   revalidatePath("/admin/marketing");
 }
 
+/**
+ * WhatsApp магазина — общий для рекламных ссылок и реквизитов на сайте (футер, /gift, /pay, /love), поэтому те же правила,
+ * что в «Сайт» → «Реквизиты»: право settings.manage, номер приводится к 77011234567 («8 701…» — тоже), заглушка не
+ * принимается, изменение — в журнал.
+ */
 export async function saveWhatsappNumberAction(_: LinkState, form: FormData): Promise<LinkState> {
-  const staff = await assertStaff("promo.manage");
-  const digits = String(form.get("number") ?? "").replace(/\D/g, "");
-  if (digits && (digits.length < 10 || digits.length > 15)) return { error: "Номер в международном формате, например 77001234567" };
-  await saveSettings({ "crm.whatsappNumber": digits }, staff.user.id);
+  const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
+  const raw = String(form.get("number") ?? "").trim();
+  const number = sanitizeSeller({ whatsapp: raw }).whatsapp ?? "";
+  if (raw && !number) return { error: admin.sellerWhatsappInvalid };
+  const before = await getSetting("crm.whatsappNumber");
+  await saveSettings({ "crm.whatsappNumber": number }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "crm.whatsappNumber", { from: before, to: number });
   revalidatePath("/admin/marketing");
+  revalidatePath("/", "layout");
   return { ok: "Сохранено" };
 }

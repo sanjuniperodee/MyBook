@@ -1,76 +1,137 @@
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { container } from "@/server/container";
-import { requireStaff } from "@/server/access";
-import { adminLabel, staffOptions } from "@/modules/access/ui";
-import { TaskList, type TaskItem } from "@/components/admin/CrmWidgets";
-import { cn, formatDate } from "@/lib/utils";
+import { can, requireStaff } from "@/server/access";
+import { staffOptions } from "@/modules/access/ui";
+import { TaskList, taskKinds } from "@/components/admin/CrmWidgets";
+import { cn } from "@/lib/class-names";
+import { TaskRows } from "./TaskRows";
+import { taskRow } from "./task-row";
 
 export const metadata = { title: "Задачи" };
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ who?: string; done?: string }> }) {
+type Sp = { who?: string; done?: string; kind?: string; q?: string };
+
+export default async function TasksPage({ searchParams }: { searchParams: Promise<Sp> }) {
   const staff = await requireStaff();
-  const admin = staff.user;
+  const me = staff.user;
   const sp = await searchParams;
-  const who = sp.who === "all" ? "all" : "mine";
+  const seesAll = staff.scope === "all";
+  const allTasks = can(staff, "tasks.all");
+  const who = sp.who && seesAll ? sp.who : "mine";
   const showDone = sp.done === "1";
-  const [rows, admins] = await Promise.all([container().reporting.taskList({ userId: admin.id, seesAll: staff.scope === "all" }, { who, done: showDone }), container().access.queries.allStaff()]);
-  const adminOptions = staffOptions(admins);
-  const names = new Map(admins.map((a) => [a.id, adminLabel(a)]));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today.getTime() + 86_400_000);
-  const toItem = (r: (typeof rows)[number]): TaskItem => ({
-    id: r.task.id,
-    title: r.task.title,
-    dueLabel: r.task.dueAt ? `до ${formatDate(r.task.dueAt)}` : null,
-    overdue: !!r.task.dueAt && r.task.dueAt < today,
-    done: !!r.task.doneAt,
-    assignee: r.task.assigneeId ? (names.get(r.task.assigneeId) ?? null) : null,
-    context: r.task.orderId
-      ? { label: `заказ №${r.orderNumber}`, href: `/admin/orders/${r.task.orderId}` }
-      : r.task.clientId
-        ? { label: r.clientName || r.clientEmail || "клиент", href: `/admin/clients/${r.task.clientId}` }
-        : null,
-  });
+  const kind = sp.kind && sp.kind in taskKinds ? sp.kind : "";
+  const q = (sp.q ?? "").trim().slice(0, 100);
+  const [rows, admins] = await Promise.all([
+    container().reporting.taskList({ userId: me.id, seesAll }, { who, done: showDone, kind, q }),
+    container().access.queries.allStaff(),
+  ]);
+  const staffList = staffOptions(admins);
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setHours(0, 0, 0, 0);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const toRow = (r: (typeof rows)[number]) => taskRow(r, { userId: me.id, allTasks }, now);
+
   const groups = showDone
-    ? [{ title: "Выполненные", items: rows }]
+    ? [{ key: "done", title: "Выполненные", tone: "", items: rows }]
     : [
-        { title: "Просрочено", items: rows.filter((r) => r.task.dueAt && r.task.dueAt < today) },
-        { title: "Сегодня", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= today && r.task.dueAt < tomorrow) },
-        { title: "Позже", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= tomorrow) },
-        { title: "Без срока", items: rows.filter((r) => !r.task.dueAt) },
+        { key: "overdue", title: "Просрочено", tone: "text-red-700", items: rows.filter((r) => r.task.dueAt && r.task.dueAt < now) },
+        { key: "today", title: "Сегодня", tone: "", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= now && r.task.dueAt < tomorrow) },
+        { key: "later", title: "Позже", tone: "", items: rows.filter((r) => r.task.dueAt && r.task.dueAt >= tomorrow) },
+        { key: "none", title: "Без срока", tone: "", items: rows.filter((r) => !r.task.dueAt) },
       ];
-  const tab = (label: string, href: string, active: boolean) => (
-    <Link href={href} className={cn("rounded-full px-3 py-1.5 text-sm", active ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
+
+  const href = (p: Partial<Sp>) => {
+    const next = { who: who === "mine" ? undefined : who, done: showDone ? "1" : undefined, kind: kind || undefined, q: q || undefined, ...p };
+    const qs = new URLSearchParams(Object.entries(next).filter((e): e is [string, string] => !!e[1]));
+    return `/admin/tasks${qs.size ? `?${qs}` : ""}`;
+  };
+  const chip = (label: string, to: string, active: boolean) => (
+    <Link href={to} className={cn("rounded-full px-3 py-1.5 text-sm", active ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
       {label}
     </Link>
   );
+  const person = who !== "mine" && who !== "all" ? who : "";
 
   return (
-    <div className="max-w-4xl space-y-5">
-      <h1 className="text-2xl font-semibold">Задачи</h1>
-      <div className="flex flex-wrap gap-1.5">
-        {tab("Мои", `/admin/tasks${showDone ? "?done=1" : ""}`, who === "mine")}
-        {tab("Все", `/admin/tasks?who=all${showDone ? "&done=1" : ""}`, who === "all")}
-        <span className="mx-2 w-px bg-line" />
-        {tab("Открытые", `/admin/tasks${who === "all" ? "?who=all" : ""}`, !showDone)}
-        {tab("Выполненные", `/admin/tasks?done=1${who === "all" ? "&who=all" : ""}`, showDone)}
+    <div className="max-w-5xl space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Задачи</h1>
+        {!showDone ? (
+          <div className="flex flex-wrap gap-2 text-sm">
+            {groups.map((g) => (
+              <a key={g.key} href={`#${g.key}`} className={cn("rounded-xl border border-line bg-white px-3 py-1.5", g.key === "overdue" && g.items.length && "border-red-200 bg-red-50 text-red-700")}>
+                {g.title} <b>{g.items.length}</b>
+              </a>
+            ))}
+          </div>
+        ) : null}
       </div>
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <h2 className="mb-1 text-sm font-semibold">Новая задача</h2>
-        <TaskList tasks={[]} admins={adminOptions} emptyText="" />
-      </section>
+
+      <div className="space-y-2 rounded-2xl border border-line bg-white p-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chip("Мои", href({ who: undefined }), who === "mine")}
+          {seesAll ? chip("Все", href({ who: "all" }), who === "all") : null}
+          {seesAll ? (
+            <form action="/admin/tasks" className="flex items-center gap-1.5">
+              {showDone ? <input type="hidden" name="done" value="1" /> : null}
+              {kind ? <input type="hidden" name="kind" value={kind} /> : null}
+              {q ? <input type="hidden" name="q" value={q} /> : null}
+              <select name="who" defaultValue={person} className={cn("input h-9 w-44 text-sm", person && "border-ink")} aria-label="Сотрудник">
+                <option value="" disabled>
+                  Сотрудник…
+                </option>
+                {staffList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn-outline btn-sm h-9">Показать</button>
+            </form>
+          ) : null}
+          <span className="mx-1 h-6 w-px bg-line" />
+          {chip("Открытые", href({ done: undefined }), !showDone)}
+          {chip("Выполненные", href({ done: "1" }), showDone)}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chip("Все типы", href({ kind: undefined }), !kind)}
+          {Object.entries(taskKinds).map(([k, v]) => (
+            <span key={k}>{chip(v, href({ kind: k }), kind === k)}</span>
+          ))}
+          <form action="/admin/tasks" className="ml-auto flex items-center gap-1.5">
+            {who !== "mine" ? <input type="hidden" name="who" value={who} /> : null}
+            {showDone ? <input type="hidden" name="done" value="1" /> : null}
+            {kind ? <input type="hidden" name="kind" value={kind} /> : null}
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted" />
+              <input name="q" defaultValue={q} placeholder="Задача, клиент, сделка" className="input h-9 w-64 pl-8 text-sm" />
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <details className="group rounded-2xl border border-line bg-white px-5 py-3" open={rows.length === 0 && !showDone && !q}>
+        <summary className="cursor-pointer text-sm font-semibold">+ Новая задача</summary>
+        <div className="mt-1">
+          <TaskList tasks={[]} admins={staffList} emptyText="" />
+        </div>
+      </details>
+
       {groups.map((g) =>
         g.items.length ? (
-          <section key={g.title} className="rounded-2xl border border-line bg-white px-5 py-3">
-            <h2 className={cn("pt-2 text-sm font-semibold", g.title === "Просрочено" && "text-red-700")}>
+          <section key={g.key} id={g.key} className="scroll-mt-4 rounded-2xl border border-line bg-white px-5 py-3">
+            <h2 className={cn("pt-1 text-sm font-semibold", g.tone)}>
               {g.title} · {g.items.length}
             </h2>
-            <TaskList tasks={g.items.map(toItem)} admins={adminOptions} showForm={false} />
+            <TaskRows tasks={g.items.map(toRow)} staff={staffList} canAssign={seesAll} />
           </section>
         ) : null,
       )}
-      {rows.length === 0 ? <p className="text-sm text-muted">{showDone ? "Выполненных задач пока нет." : "Открытых задач нет."}</p> : null}
+      {rows.length === 0 ? <p className="text-sm text-muted">{q || kind ? "По фильтру задач нет." : showDone ? "Выполненных задач пока нет." : "Открытых задач нет."}</p> : null}
+      {rows.length >= 300 ? <p className="text-xs text-muted">Показаны первые 300 задач — уточните фильтр.</p> : null}
     </div>
   );
 }

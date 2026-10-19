@@ -1,8 +1,10 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { admin } from "@/i18n/admin";
 import { trustedClientIp } from "@/server/rateLimit";
-import type { Permission, RoleScope, StaffContext, StaffGate } from "@/modules/access";
+import type { StaffContext, StaffGate } from "@/modules/access";
+import type { Permission, RoleScope } from "@/shared/domain/permissions";
 import { getCurrentUser, type User } from "./auth";
 import { container } from "./container";
 
@@ -22,11 +24,16 @@ export interface Staff {
   context: StaffContext;
 }
 
-export type { StaffGate };
+/** Метка общая для слоёв бандла Next.js: ForbiddenError.is() узнаёт ошибку, даже если класс загружен дважды. */
+const FORBIDDEN_ERROR = Symbol.for("mybook.forbidden-error");
 
 export class ForbiddenError extends Error {
+  readonly [FORBIDDEN_ERROR] = true;
   constructor(message = "Недостаточно прав для этого действия") {
     super(message);
+  }
+  static is(err: unknown): err is ForbiddenError {
+    return typeof err === "object" && err !== null && (err as Record<symbol, unknown>)[FORBIDDEN_ERROR] === true;
   }
 }
 
@@ -42,7 +49,7 @@ const loadStaff = cache(async (): Promise<Staff | null> => {
 });
 
 /** Что мешает сотруднику работать в CRM: вход не из разрешённой сети или не настроена обязательная 2FA. */
-export const staffGate = cache(async (): Promise<StaffGate> => {
+const staffGate = cache(async (): Promise<StaffGate> => {
   const staff = await loadStaff();
   if (!staff) return null;
   return container().access.resolver.gate(account(staff.user), await trustedClientIp());
@@ -111,6 +118,28 @@ export function assertVisible(staff: Staff, assigneeId: string | null | undefine
   if (!canSeeAssigned(staff, assigneeId)) throw new ForbiddenError();
 }
 
+/**
+ * Работать с записью (писать клиенту, двигать, принимать оплату) может её ответственный или роль «все записи».
+ * Роль «только свои» видит неразобранные, но не берёт их себе: заявки раздаёт круг или руководитель.
+ */
+export function canWork(staff: Staff, assigneeId: string | null | undefined) {
+  return staff.context.canWork(assigneeId);
+}
+
+/**
+ * Почему с записью работать нельзя — текст для сотрудника; null — можно. Для действий, которые отвечают отказом, а не
+ * исключением: «Позвонить» и «Открыть чат» показывают его всплывающим сообщением, и страница не падает.
+ */
+export function workRefusal(staff: Staff, assigneeId: string | null | undefined): string | null {
+  if (canWork(staff, assigneeId)) return null;
+  return assigneeId ? admin.recordNotYours : admin.recordUnsorted;
+}
+
+export function assertWorkable(staff: Staff, assigneeId: string | null | undefined) {
+  const refusal = workRefusal(staff, assigneeId);
+  if (refusal) throw new ForbiddenError(refusal);
+}
+
 export function contactView(staff: Staff, v: { phone?: string | null; email?: string | null }) {
   return staff.context.contacts(v);
 }
@@ -119,5 +148,3 @@ export function contactView(staff: Staff, v: { phone?: string | null; email?: st
 export async function audit(staff: Staff | null, action: string, entity: string, entityId?: string | null, details?: Record<string, unknown>) {
   await container().access.audit.record({ actorId: staff?.user.id ?? null, action, entity, entityId, details });
 }
-
-export const actorLabel = (staff: Staff) => `admin:${staff.user.email}`;

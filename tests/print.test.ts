@@ -1,9 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { useFixedDelivery } from "./doubles/delivery";
 import { coverSpreadGeometry, coverSpreadZones, formats, print, printablePageCount, spineWidthMm } from "@/lib/book/formats";
-import { buildBookContent, effectiveDpi, estimatePages, photoPages } from "@/lib/book/layout";
+import { estimatePages } from "@/lib/book/estimate";
+import { effectiveDpi, photoPages } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { calculatePrice, normalizePromoCode } from "@/modules/ordering/domain/Pricing";
 import { coverTemplates, renderCoverSvg } from "@/lib/book/covers";
 import { coverFrontGeometry } from "@/lib/book/formats";
+
+// Расчёт с платной доставкой: цены, вписанные владельцем (по умолчанию доставка рассчитывается индивидуально).
+beforeEach(useFixedDelivery);
 
 describe("печатные параметры", () => {
   it("объём блока не меньше минимума и кратен тетради", () => {
@@ -51,6 +57,7 @@ describe("вёрстка", () => {
     subtitle: "",
     authorName: "А",
     authorGender: "f" as const,
+    recordedBy: "",
     recipientName: "Б",
     recipientGender: "m" as const,
     dedication: "",
@@ -60,16 +67,16 @@ describe("вёрстка", () => {
     showToc: true,
     coverPhotoId: null,
   };
-  const q = (i: number, chapter: string, answer: string) => ({ id: String(i), chapter, position: i, title: "Когда я {понял|поняла}", displayText: null, hideHeading: false, answer });
+  const q = (i: number, chapter: string, answer: string) => ({ id: String(i), chapter, position: i, title: "Когда я {понял|поняла}", displayText: null, hideHeading: false, answer, questionKey: null });
 
   it("в книгу попадают только отвеченные вопросы, с учётом рода", () => {
-    const c = buildBookContent(book, [q(1, "intro", "да"), q(2, "intro", ""), q(3, "meet", "ок")], []);
+    const c = buildBookContent(book, [q(1, "intro", "да"), q(2, "intro", ""), q(3, "meet", "ок")], [], []);
     expect(c.chapters.map((x) => x.key)).toEqual(["intro", "meet"]);
     expect(c.chapters[0].items[0].heading).toBe("Когда я поняла");
   });
   it("оценка страниц растёт с длиной ответов", () => {
-    const short = estimatePages(buildBookContent(book, [q(1, "intro", "коротко")], []));
-    const long = estimatePages(buildBookContent(book, [q(1, "intro", "очень длинный ответ ".repeat(800))], []));
+    const short = estimatePages(buildBookContent(book, [q(1, "intro", "коротко")], [], []));
+    const long = estimatePages(buildBookContent(book, [q(1, "intro", "очень длинный ответ ".repeat(800))], [], []));
     expect(long).toBeGreaterThan(short + 5);
   });
   it("половинки фото объединяются по две на страницу", () => {
@@ -84,17 +91,17 @@ describe("вёрстка", () => {
 
 describe("цены", () => {
   it("считает доп. экземпляры и доставку", () => {
-    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 24900 + 17900, discountAmount: 0, deliveryAmount: 2000, addonsAmount: 0, addons: [], amount: 44800 });
+    expect(calculatePrice("hardcover", 2, "courier")).toEqual({ itemsAmount: 30000 + 17900, discountAmount: 0, deliveryAmount: 2000, addonsAmount: 0, addons: [], amount: 49900 });
   });
   it("у электронной версии нет доставки и количества", () => {
     expect(calculatePrice("digital", 5, "courier")).toEqual({ itemsAmount: 9900, discountAmount: 0, deliveryAmount: 0, addonsAmount: 0, addons: [], amount: 9900 });
   });
   it("промокод уменьшает стоимость книг, но не доставку", () => {
     const p = calculatePrice("hardcover", 1, "post", { kind: "percent", value: 10 });
-    expect(p.discountAmount).toBe(2490);
-    expect(p.amount).toBe(24900 - 2490 + 3500);
+    expect(p.discountAmount).toBe(3000);
+    expect(p.amount).toBe(30000 - 3000 + 3500);
     const fixed = calculatePrice("hardcover", 1, "post", { kind: "fixed", value: 100000 });
-    expect(fixed.discountAmount).toBe(24900);
+    expect(fixed.discountAmount).toBe(30000);
     expect(fixed.amount).toBe(3500);
     expect(calculatePrice("digital", 1, null, { kind: "percent", value: 100 }).amount).toBe(0);
   });

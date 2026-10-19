@@ -1,7 +1,7 @@
 import "server-only";
-import { Document, Page, Svg, Path, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, Svg, Path, Text, View } from "@react-pdf/renderer";
 import { mm } from "@/lib/book/formats";
-import { ensureFonts, face } from "@/modules/production/infrastructure/pdf/fonts";
+import { ensureFonts, face, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { formatPrice, site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
@@ -78,5 +78,5 @@ function GiftDocument({ d }: { d: GiftPdfData }) {
 
 export async function renderGiftPdf(d: GiftPdfData): Promise<Buffer> {
   ensureFonts();
-  return renderToBuffer(<GiftDocument d={d} />);
+  return renderPdf(<GiftDocument d={d} />);
 }

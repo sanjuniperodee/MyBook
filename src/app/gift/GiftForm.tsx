@@ -8,8 +8,9 @@ import { createGiftAction, type GiftFormState } from "./actions";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
-import { formatPrice, plans, type PlanId } from "@/config/site";
-import { cn, nowMs } from "@/lib/utils";
+import { formatPrice, getPlans, getVisiblePlans, type PlanId } from "@/config/site";
+import { cn } from "@/lib/class-names";
+import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 
 export function GiftForm({ defaults }: { defaults: { name: string; email: string; locale: Locale } }) {
@@ -34,7 +35,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
         <section>
           <h2 className="text-lg font-semibold">1. {t.step1}</h2>
           <div className="mt-3 grid gap-2.5">
-            {plans.map((p) => (
+            {getVisiblePlans().map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -155,7 +156,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
           </label>
           {state.error ? <Alert>{state.error}</Alert> : null}
           <SubmitButton className="btn-lg w-full sm:w-auto" pendingText={t.pending}>
-            {t.submit(formatPrice(plans.find((p) => p.id === plan)!.price))}
+            {t.submit(formatPrice(getPlans().find((p) => p.id === plan)!.price))}
           </SubmitButton>
         </section>
       </div>

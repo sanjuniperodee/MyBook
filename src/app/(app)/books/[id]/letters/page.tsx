@@ -3,6 +3,7 @@ import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { env } from "@/config/env";
+import { bookKind } from "@/lib/content/kinds";
 import { LettersManager } from "./LettersManager";
 import { getMessages } from "@/i18n/server";
 
@@ -18,12 +19,12 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
   const letters = await container().authoring.queries.letters(book.id);
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="mb-8 font-serif text-4xl font-medium sm:text-5xl">{m.books.letters.title}</h1>
+      <h1 className="mb-5 font-serif text-3xl font-medium sm:mb-8 sm:text-5xl">{m.books.letters.title}</h1>
       <LettersManager
         bookId={book.id}
         initialToken={book.inviteToken}
         appUrl={env.appUrl}
-        recipient={book.recipientName}
+        invitation={{ kind: bookKind(book.theme), author: book.authorName, title: book.title, recipient: book.recipientName }}
         bookLanguage={book.language}
         editable={book.status === "draft"}
         initialLetters={letters.map((l) => ({ id: l.id, authorName: l.authorName, relation: l.relation, text: l.text, status: l.status, createdAt: l.createdAt.toISOString() }))}

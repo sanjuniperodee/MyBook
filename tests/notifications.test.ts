@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Mailer } from "@/shared/application";
-import { ALMOST_READY_ANSWERS, canRemind, draftEmails, isSendingHour, type DraftProgress } from "@/modules/notifications/domain";
+import { BANK_READY, BLANK_READY_WORDS } from "@/lib/content/kinds";
+import { canRemind, draftEmails, isSendingHour, type DraftProgress } from "@/modules/notifications/domain";
+import { emailTemplates } from "@/modules/notifications/infrastructure/templates";
 import { BookRemindersService, LifecycleService, SubscriptionsService, type DraftCandidate, type EmailTemplates, type LifecycleSource, type OrderReminder, type Recipient, type RecipientRepository } from "@/modules/notifications/application";
+import { storeTimeZoneIs } from "./doubles/time";
 
 const DAY = 86_400_000;
 const now = new Date("2026-10-01T08:00:00Z"); // 13:00 в Алматы
+
+// Магазин в Алматы: часы автописем — по его поясу, что бы ни стояло в TZ машины.
+storeTimeZoneIs("Asia/Almaty");
 
 const book = (p: Partial<DraftProgress> = {}): DraftProgress => ({
   bookId: "b1",
@@ -12,8 +18,10 @@ const book = (p: Partial<DraftProgress> = {}): DraftProgress => ({
   occasion: null,
   occasionDate: null,
   updatedAt: new Date(now.getTime() - 10 * DAY),
+  theme: "love",
   answered: 0,
-  firstEmpty: 0,
+  words: 0,
+  firstEmpty: "q1",
   hasOrder: false,
   remindedAt: null,
   ...p,
@@ -28,7 +36,10 @@ describe("правила автописем", () => {
   it("не начали — советы; бросили — напоминание; почти готово — зовём к заказу", () => {
     expect(draftEmails(book(), now).map((e) => e.kind)).toEqual(["start"]);
     expect(draftEmails(book({ answered: 5 }), now).map((e) => e.kind)).toEqual(["nudge"]);
-    expect(draftEmails(book({ answered: ALMOST_READY_ANSWERS }), now).map((e) => e.kind)).toEqual(["almost"]);
+    expect(draftEmails(book({ answered: BANK_READY }), now).map((e) => e.kind)).toEqual(["almost"]);
+    // Своя книга — по словам: 30 разделов, но 900 слов — ещё не «почти готова»; 3000 слов в 3 разделах — готова.
+    expect(draftEmails(book({ theme: "blank", answered: 30, words: 900 }), now).map((e) => e.kind)).toEqual(["nudge"]);
+    expect(draftEmails(book({ theme: "blank", answered: 3, words: BLANK_READY_WORDS }), now).map((e) => e.kind)).toEqual(["almost"]);
   });
 
   it("напоминание дописать — не чаще раза в 3 дня и не раньше 5 дней тишины", () => {
@@ -53,7 +64,7 @@ describe("правила автописем", () => {
 // ─── сценарии ──────────────────────────────────────────────────────────────
 
 const recipient = (id: string): Recipient => ({ id, email: `${id}@test.local`, name: id, locale: "ru", remindedAt: null });
-const order = (id: string, r: Recipient): OrderReminder => ({ recipient: r, orderId: id, number: 1, amount: 1000, contactEmail: r.email });
+const order = (id: string, r: Recipient, theme = "love"): OrderReminder => ({ recipient: r, theme, orderId: id, number: 1, amount: 1000, contactEmail: r.email });
 
 const templates: EmailTemplates = {
   draft: (e, c) => ({ to: c.recipient.email, subject: e.kind, html: "", note: e.kind }),
@@ -73,7 +84,7 @@ function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; deli
     draftCandidates: async () => data.drafts ?? [],
     unpaidOrders: async () => data.unpaid ?? [],
     reviewDue: async () => data.delivered ?? [],
-    latestDraft: async (userId) => (userId === "u1" ? { bookId: "b1", title: "Книга", answered: 3, total: 50, firstEmpty: 3 } : null),
+    latestDraft: async (userId) => (userId === "u1" ? { bookId: "b1", title: "Книга", theme: "love", answered: 3, total: 50, words: 40, firstEmpty: "q3" } : null),
   };
   const recipients: RecipientRepository = {
     find: async (id) => people.get(id) ?? null,
@@ -150,5 +161,91 @@ describe("SubscriptionsService", () => {
     expect(await s.subscriptions.unsubscribe(id, "forged")).toBe(false);
     expect(await s.subscriptions.unsubscribe(id, `sig-${id}`)).toBe(true);
     expect(s.people.has(id)).toBe(false);
+  });
+});
+
+describe("письмо с просьбой об отзыве: ссылка и скидка — от порта ReviewLinks", () => {
+  it("кнопка ведёт по ссылке порта, скидка в тексте — из порта", () => {
+    const asked: [string, string][] = [];
+    const templates = emailTemplates({ url: (orderId, locale) => (asked.push([orderId, locale]), `https://reviews.test/${orderId}?l=${locale}`), thankYouPercent: 15 });
+    const mail = templates.review(order("o1", recipient("00000000-0000-4000-8000-000000000001")));
+    expect(asked).toEqual([["o1", "ru"]]);
+    expect(mail.html).toContain('href="https://reviews.test/o1?l=ru"');
+    expect(mail.html).toContain("промокод на 15%");
+    expect(mail.note).toBe("Автописьмо: просьба об отзыве по заказу №1");
+  });
+});
+
+// ─── письма по виду книги ───────────────────────────────────────────────────
+
+describe("автописьма по виду книги", () => {
+  const templates = emailTemplates({ url: (orderId, locale) => `https://reviews.test/${orderId}?l=${locale}`, thankYouPercent: 15 });
+  const user = (locale: "ru" | "kk" = "ru"): Recipient => ({ ...recipient("00000000-0000-4000-8000-000000000001"), locale });
+  // Числа в письмах с разделителем разрядов (неразрывный пробел) — в проверках приводим к обычному пробелу.
+  const plain = <T extends { html: string }>(m: T): T => ({ ...m, html: m.html.replace(/\s/g, " ") });
+  const draft = (email: ReturnType<typeof draftEmails>[number], b: Partial<DraftProgress>, locale: "ru" | "kk" = "ru") => plain(templates.draft(email, { recipient: user(locale), book: book(b) }));
+
+  it("ссылка ведёт на первый пустой раздел по id, а у книги без разделов — в корень редактора", () => {
+    const start = { kind: "start", key: "start:b1" } as const;
+    expect(draft(start, { firstEmpty: "0f3e2c1a-0000-4000-8000-000000000009" }).html).toContain("/books/b1/questions?s=0f3e2c1a-0000-4000-8000-000000000009");
+    const empty = draft(start, { theme: "blank", firstEmpty: null }).html;
+    expect(empty).toMatch(/\/books\/b1\/questions"/);
+    expect(empty).not.toContain("?s=");
+    expect(empty).not.toContain("?q=");
+  });
+
+  it("советы «как начать» — свои у автобиографии и своей книги, на обоих языках", () => {
+    const start = { kind: "start", key: "start:b1" } as const;
+    const ru = (theme: string) => draft(start, { theme }).html;
+    expect(ru("mom")).toContain("Как подруге за чаем");
+    expect(ru("autobiography")).toContain("Как рассказали бы внукам");
+    expect(ru("autobiography")).toContain("с ваших слов");
+    expect(ru("blank")).toContain("С любого раздела");
+    expect(ru("blank")).toContain("Написать первый раздел");
+    expect(draft(start, { theme: "autobiography" }, "kk").html).toContain("Немерелеріңізге айтып бергендей");
+    expect(draft(start, { theme: "blank" }, "kk").html).toContain("Бірінші бөлімді жазу");
+  });
+
+  it("у своей книги прогресс в письмах — в словах, у остальных — в ответах", () => {
+    const almost = { kind: "almost", key: "almost:b1" } as const;
+    const nudge = { kind: "nudge", key: "nudge:b1" } as const;
+    const own = draft(almost, { theme: "blank", answered: 4, words: 3120 });
+    expect(own.html).toContain("3 120 слов");
+    expect(own.html).not.toContain("ответов");
+    expect(own.note).toBe("Автописьмо: книга почти готова (3120 слов)");
+    expect(draft(almost, { theme: "autobiography", answered: 27 }).html).toContain("27 ответов");
+    expect(draft(nudge, { theme: "blank", answered: 2, words: 450 }).html).toContain("450 слов");
+    expect(draft(nudge, { theme: "blank", answered: 2, words: 450 }, "kk").html).toContain("450 сөз");
+    expect(draft(nudge, { theme: "dad", answered: 8 }).note).toContain("8 ответов");
+  });
+
+  it("письмо о дедлайне: готовность и подпись «коротко» — по виду книги", () => {
+    const deadline = { kind: "deadline", key: "deadline:b1:2026-10-15", occasion: "birthday", orderBy: new Date("2026-10-05T00:00:00Z"), daysToTarget: 14, premiumOnly: false } as const;
+    expect(draft(deadline, { theme: "blank", answered: 9, words: 1400 }).html).toContain("1 400 слов");
+    expect(draft(deadline, { theme: "blank", answered: 9, words: 400 }).html).toContain("тысячи слов");
+    // У подарка 9 ответов — ещё «коротко», 10 — уже можно смотреть макет.
+    expect(draft(deadline, { theme: "love", answered: 9 }).html).toContain("15–20 коротких ответов");
+    expect(draft(deadline, { theme: "love", answered: 10 }).html).toContain("10 ответов");
+  });
+
+  it("письмо с просьбой об отзыве: подарок — про вручение, автобиография и своя книга — без «подарка»", () => {
+    const mail = (theme: string, locale: "ru" | "kk" = "ru") => plain(templates.review(order("o1", user(locale), theme))).html;
+    expect(mail("mom")).toContain("вручение");
+    expect(mail("autobiography")).not.toMatch(/подарок|вручени/);
+    expect(mail("autobiography")).toContain("что сказали близкие");
+    expect(mail("blank")).not.toMatch(/подарок|вручени/);
+    expect(mail("blank")).toContain("как вам результат");
+    expect(mail("autobiography", "kk")).toContain("Жақындарыңыз оқығанда");
+    expect(mail("blank", "kk")).not.toContain("Сыйлау қалай");
+  });
+
+  it("ручное напоминание из CRM: своя книга — слова, ссылка по id", () => {
+    const own = plain(templates.reminder(user(), { bookId: "b9", title: "Записки", theme: "blank", answered: 2, total: 3, words: 640, firstEmpty: "sec-3" }));
+    expect(own.html).toContain("640 слов");
+    expect(own.html).toContain("/books/b9/questions?s=sec-3");
+    expect(own.note).toContain("640 слов");
+    const gift = templates.reminder(user(), { bookId: "b9", title: "Маме", theme: "mom", answered: 7, total: 40, words: 900, firstEmpty: null });
+    expect(gift.html).toContain("7 ответов из 40");
+    expect(gift.note).toContain("7/40");
   });
 });

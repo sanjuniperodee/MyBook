@@ -9,7 +9,7 @@ export const storageFileStore: FileStore = { exists: fileExists, get: getFile, p
 export const pdfRenderQueue: RenderQueue = { run: (key, task) => dedupe(key, () => withRenderSlot(task)) };
 
 /** Откуда рендер берёт содержимое книги (read-модель Authoring — подключается в корне композиции). */
-export type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
+type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
 
 /** Рендер через @react-pdf (тяжёлый модуль загружаем лениво). */
 export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
@@ -35,11 +35,11 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
       if (!bundle) return null;
       return (await pdf()).renderReadingPdf(bundle);
     },
-    async preview(bookId) {
+    async preview(bookId, opts) {
       const bundle = await load(bookId);
       if (!bundle) return null;
       const { contentFingerprint, renderInterior } = await pdf();
-      return { fingerprint: contentFingerprint(bundle), render: async () => (await renderInterior(bundle, "preview")).pdf };
+      return { fingerprint: contentFingerprint(bundle), render: async () => (await renderInterior(bundle, "preview", { watermark: opts?.watermark })).pdf };
     },
     async manuscript(bookId) {
       const bundle = await load(bookId);

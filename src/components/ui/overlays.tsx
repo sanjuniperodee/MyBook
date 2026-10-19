@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 
 /**

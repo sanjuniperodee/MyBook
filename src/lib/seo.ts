@@ -3,7 +3,7 @@
  * Модуль без обращений к базе — им пользуются страницы, sitemap и тесты.
  */
 import { env } from "@/config/env";
-import { plans, site } from "@/config/site";
+import { site, getVisiblePlans } from "@/config/site";
 import { localeMeta, localizePath, type Locale } from "@/i18n/config";
 
 type Json = Record<string, unknown>;
@@ -42,31 +42,41 @@ export function socialMeta(opts: { path: string; locale: Locale; title: string; 
 const ORG_ID = `${env.appUrl}/#organization`;
 const SITE_ID = `${env.appUrl}/#website`;
 
-/** Организация: бренд, логотип, контакты и профили в соцсетях. */
-export function organizationLd(description: string): Json {
+/** Номер-заглушка из конфига («+7 700 000 00 00») в разметку не попадает: поисковик показал бы его в карточке. */
+const isPlaceholderPhone = (phone: string) => /0{7}$/.test(phone.replace(/\D/g, ""));
+
+/**
+ * Организация: бренд, логотип, контакты и профили в соцсетях. alternateName — как ещё называют сервис (домен, перевод
+ * названия): поисковик связывает запросы с брендом; address — город и страна для локальных запросов.
+ */
+export function organizationLd(description: string, extra: { alternateName?: string[]; address?: { locality: string; country: string } } = {}): Json {
+  const phone = isPlaceholderPhone(site.contacts.phone) ? null : site.contacts.phone;
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": ORG_ID,
     name: site.name,
+    ...(extra.alternateName?.length ? { alternateName: extra.alternateName } : {}),
     url: env.appUrl,
     logo: { "@type": "ImageObject", url: `${env.appUrl}/logo.png`, width: 438, height: 312 },
     description,
     email: site.contacts.email,
-    telephone: site.contacts.phone,
+    ...(phone ? { telephone: phone } : {}),
+    ...(extra.address ? { address: { "@type": "PostalAddress", addressLocality: extra.address.locality, addressCountry: extra.address.country } } : {}),
     areaServed: { "@type": "Country", name: "KZ" },
-    contactPoint: [{ "@type": "ContactPoint", contactType: "customer support", email: site.contacts.email, telephone: site.contacts.phone, availableLanguage: ["ru", "kk"] }],
+    contactPoint: [{ "@type": "ContactPoint", contactType: "customer support", email: site.contacts.email, ...(phone ? { telephone: phone } : {}), availableLanguage: ["ru", "kk"] }],
     sameAs: [site.contacts.instagram, site.contacts.telegram],
   };
 }
 
-/** Сайт: название и языки — помогает поисковикам показывать название бренда в выдаче. */
-export function websiteLd(locale: Locale): Json {
+/** Сайт: название, другие написания бренда и язык — помогает поисковикам показывать название бренда в выдаче. */
+export function websiteLd(locale: Locale, alternateName: string[] = []): Json {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": SITE_ID,
     name: site.name,
+    ...(alternateName.length ? { alternateName } : {}),
     url: env.appUrl,
     inLanguage: localeMeta[locale].intl,
     publisher: { "@id": ORG_ID },
@@ -91,8 +101,8 @@ export function faqLd(items: [string, string][]): Json {
 }
 
 /** По одному предложению на каждый тариф: цена, валюта, наличие. */
-export function planOffers(names: Record<string, string>, url: string): Json[] {
-  return plans.map((p) => ({
+function planOffers(names: Record<string, string>, url: string): Json[] {
+  return getVisiblePlans().map((p) => ({
     "@type": "Offer",
     name: names[p.id] ?? p.id,
     price: p.price,
@@ -103,7 +113,7 @@ export function planOffers(names: Record<string, string>, url: string): Json[] {
   }));
 }
 
-export interface ReviewLdInput {
+interface ReviewLdInput {
   summary: { average: number; count: number } | null;
   reviews: { authorName: string; text: string; rating: number; publishedAt: Date | null }[];
 }
@@ -124,22 +134,23 @@ export function reviewsLd({ summary, reviews }: ReviewLdInput): Json {
 }
 
 export function productLd(opts: { name: string; description: string; url: string; image: string; locale: Locale; planNames: Record<string, string>; reviews?: ReviewLdInput }): Json {
-  const prices = plans.map((p) => p.price);
+  const prices = getVisiblePlans().map((p) => p.price);
   return {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${opts.url}#product`,
     name: opts.name,
     description: opts.description,
     image: `${env.appUrl}${opts.image}`,
     url: opts.url,
-    inLanguage: localeMeta[opts.locale].intl,
     brand: { "@type": "Brand", name: site.name },
+    manufacturer: { "@id": ORG_ID },
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: site.currency,
       lowPrice: Math.min(...prices),
       highPrice: Math.max(...prices),
-      offerCount: plans.length,
+      offerCount: getVisiblePlans().length,
       availability: "https://schema.org/InStock",
       url: opts.url,
       offers: planOffers(opts.planNames, opts.url),
@@ -152,14 +163,16 @@ export function articleLd(opts: { title: string; description: string; url: strin
   return {
     "@context": "https://schema.org",
     "@type": "Article",
+    "@id": `${opts.url}#article`,
     headline: opts.title,
     description: opts.description,
     image: `${env.appUrl}${opts.image}`,
-    mainEntityOfPage: opts.url,
+    url: opts.url,
+    mainEntityOfPage: { "@type": "WebPage", "@id": opts.url },
     inLanguage: localeMeta[opts.locale].intl,
     datePublished: opts.published,
     dateModified: opts.modified ?? opts.published,
-    author: { "@type": "Organization", name: site.name, url: env.appUrl },
-    publisher: { "@type": "Organization", name: site.name, url: env.appUrl, logo: { "@type": "ImageObject", url: `${env.appUrl}/logo.png` } },
+    author: { "@type": "Organization", "@id": ORG_ID, name: site.name, url: env.appUrl },
+    publisher: { "@type": "Organization", "@id": ORG_ID, name: site.name, url: env.appUrl, logo: { "@type": "ImageObject", url: `${env.appUrl}/logo.png` } },
   };
 }

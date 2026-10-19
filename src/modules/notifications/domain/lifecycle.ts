@@ -1,16 +1,15 @@
 import { deadlineFor, getOccasion } from "@/lib/occasions";
+import { bookKind, progressOf } from "@/lib/content/kinds";
+import { zonedParts } from "@/shared/domain/time";
 
 export const DAY = 86_400_000;
-/** Порог «книга почти готова» — ответов. */
-export const ALMOST_READY_ANSWERS = 25;
 /** Ручное напоминание из CRM — не чаще раза в столько дней. */
 export const REMINDER_COOLDOWN_DAYS = 3;
-const TZ = "Asia/Almaty";
 
-/** Автописьма уходят только днём по Алматы: с 10 до 20. */
+/** Автописьма уходят только днём по времени магазина (storeTimeZone): с 10 до 20. */
 export function isSendingHour(now: Date) {
-  const h = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: TZ }).format(now));
-  return h >= 10 && h < 20;
+  const { minutes } = zonedParts(now);
+  return minutes >= 10 * 60 && minutes < 20 * 60;
 }
 
 /** Ручное напоминание можно отправить, если прошлое было достаточно давно. */
@@ -25,9 +24,13 @@ export interface DraftProgress {
   occasion: string | null;
   occasionDate: string | null;
   updatedAt: Date;
+  /** Тема книги: по её виду — пороги прогресса (progressOf: ответы, у своей книги — слова). */
+  theme: string;
   answered: number;
-  /** Позиция первого вопроса без ответа (для ссылки «продолжить»). */
-  firstEmpty: number | null;
+  /** Слов во всех ответах книги. */
+  words: number;
+  /** Id первого раздела без текста (для ссылки «продолжить», ?s=<id>); у книги без разделов — null: ссылка на корень редактора. */
+  firstEmpty: string | null;
   hasOrder: boolean;
   /** Когда клиенту последний раз напоминали дописать книгу. */
   remindedAt: Date | null;
@@ -46,6 +49,8 @@ export type DraftEmail =
 export function draftEmails(c: DraftProgress, now: Date): DraftEmail[] {
   const out: DraftEmail[] = [];
   const idle = now.getTime() - c.updatedAt.getTime();
+  // Пороги — те же, что у хаба, готовности к заказу и воронки CRM (progressOf).
+  const progress = progressOf(bookKind(c.theme), { answered: c.answered, total: 0, words: c.words });
 
   // Дедлайн к празднику — самое важное.
   const occasion = getOccasion(c.occasion);
@@ -57,10 +62,10 @@ export function draftEmails(c: DraftProgress, now: Date): DraftEmail[] {
     }
   }
   // Книга почти готова — зовём посмотреть макет и оформить заказ.
-  if (!c.hasOrder && c.answered >= ALMOST_READY_ANSWERS && idle > 2 * DAY) out.push({ kind: "almost", key: `almost:${c.bookId}` });
+  if (!c.hasOrder && progress.ready && idle > 2 * DAY) out.push({ kind: "almost", key: `almost:${c.bookId}` });
   // Не начали писать через сутки — советы, как начать.
-  if (c.answered === 0) out.push({ kind: "start", key: `start:${c.bookId}` });
+  if (!progress.started) out.push({ kind: "start", key: `start:${c.bookId}` });
   // Начали и бросили — мягкое напоминание (не чаще раза в 3 дня).
-  if (c.answered > 0 && c.answered < ALMOST_READY_ANSWERS && idle > 5 * DAY && (!c.remindedAt || now.getTime() - c.remindedAt.getTime() > 3 * DAY)) out.push({ kind: "nudge", key: `nudge:${c.bookId}` });
+  if (progress.started && !progress.ready && idle > 5 * DAY && (!c.remindedAt || now.getTime() - c.remindedAt.getTime() > 3 * DAY)) out.push({ kind: "nudge", key: `nudge:${c.bookId}` });
   return out;
 }

@@ -7,6 +7,7 @@ import { contextError } from "@/shared/domain";
 export type OrderingErrorCode =
   | "bookNotFound"
   | "alreadyOrdered"
+  | "upgradeUnavailable"
   | "notReady"
   | "promoGone"
   | "empty"
@@ -21,7 +22,16 @@ export type OrderingErrorCode =
   | "giftNotFound"
   | "giftPastDate"
   | "giftNeedEmail"
-  | "staffNotFound";
+  | "staffNotFound"
+  | "notPayable"
+  | "phoneInvalid"
+  | "invoiceNotFound"
+  | "kaspiNotConnected"
+  | "kaspiSessionShared"
+  | "kaspiUnavailable"
+  | "invalidAmount"
+  | "receiptInvalid"
+  | "paymentRule";
 
 export const OrderingError = contextError<OrderingErrorCode>("ordering", "OrderingError");
 export type OrderingError = InstanceType<typeof OrderingError>;

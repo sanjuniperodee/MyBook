@@ -1,8 +1,14 @@
+export * from "./DealInvoice";
 export * from "./errors";
 export * from "./events";
+export * from "./fileAccess";
 export * from "./GiftCard";
+export * from "./kaspi";
+export * from "./kaspiWatch";
 export * from "./Order";
 export * from "./OrderStatus";
+export * from "./PaymentInvoice";
+export * from "./payLink";
 export * from "./Pricing";
 export * from "./PromoCode";
 export type * from "./repositories";

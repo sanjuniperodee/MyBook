@@ -37,8 +37,6 @@ export function safeEqual(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-export const hmacSha1Base64 = (secret: string, data: string) => createHmac("sha1", secret).update(data).digest("base64");
-
 function signKey() {
   const base = process.env.APP_SECRET || `mybook:${process.env.DATABASE_URL ?? ""}`;
   return createHash("sha256").update(`crm-sign:${base}`).digest();

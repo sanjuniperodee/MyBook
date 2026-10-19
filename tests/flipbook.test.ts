@@ -2,19 +2,38 @@ import { describe, expect, it } from "vitest";
 import { bookShift, clampPos, planFaces, planSheets, settle, visibleSpread } from "@/lib/book/flipbook";
 
 describe("planFaces", () => {
-  it("идёт в порядке PDF: титул, оборот, посвящение, оглавление, главы, финал", () => {
-    const { faces } = planFaces({ hasDedication: true, hasToc: true, textPages: [2] });
-    expect(faces.map((f) => f.kind)).toEqual(["title", "blank", "dedication", "toc", "opener", "text", "text", "end"]);
+  it("фотостраницы глав — после их текста, галерея — перед финалом; пустых полос между ними нет, как в PDF (B2)", () => {
+    const { faces } = planFaces({ hasDedication: false, hasToc: false, textPages: [1, 1], photoPages: [2, 0], galleryPages: 1 });
+    expect(faces.map((f) => (f.kind === "photos" ? `photos:${f.chapter}:${f.page}` : f.kind))).toEqual([
+      "title",
+      "colophon",
+      "opener",
+      "text",
+      "photos:0:0",
+      "photos:0:1",
+      "opener",
+      "text",
+      "galleryOpener",
+      "photos:-1:0",
+      "end",
+      "blank",
+    ]);
   });
 
-  it("начальная полоса главы всегда правая (нечётный номер)", () => {
+  it("идёт в порядке PDF: титул, оборот титула (колофон), посвящение, оглавление, главы, финал (B2)", () => {
+    const { faces } = planFaces({ hasDedication: true, hasToc: true, textPages: [2] });
+    expect(faces.map((f) => f.kind)).toEqual(["title", "colophon", "dedication", "toc", "opener", "text", "text", "end"]);
+  });
+
+  it("главы идут подряд: начальная полоса — сразу после предыдущей главы, на любой стороне, как в PDF (B2)", () => {
     for (const hasDedication of [true, false])
       for (const hasToc of [true, false]) {
-        const { faces, chapterStarts } = planFaces({ hasDedication, hasToc, textPages: [1, 2, 3, 1] });
-        chapterStarts.forEach((no) => {
-          expect(no % 2).toBe(1);
-          expect(faces[no - 1].kind).toBe("opener");
-        });
+        const textPages = [1, 2, 3, 1];
+        const { faces, chapterStarts } = planFaces({ hasDedication, hasToc, textPages });
+        const front = 2 + (hasDedication ? 1 : 0) + (hasToc ? 1 : 0);
+        expect(chapterStarts).toEqual(textPages.map((_, i) => front + 1 + textPages.slice(0, i).reduce((sum, n) => sum + 1 + n, 0)));
+        chapterStarts.forEach((no) => expect(faces[no - 1].kind).toBe("opener"));
+        expect(faces.slice(0, -1).filter((f) => f.kind === "blank")).toEqual([]);
       }
   });
 

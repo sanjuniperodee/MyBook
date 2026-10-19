@@ -4,10 +4,10 @@ import { ReviewsService, type StaffAlerts, type ThankYouPromos } from "./applica
 import { drizzleOrderLookup, storagePhotos, thankYouCode } from "./infrastructure/adapters";
 import { DrizzleFeedbackQueries, DrizzleReviewRepository } from "./infrastructure/persistence";
 
-export { FeedbackError, AGGREGATE_MIN_COUNT, LOW_RATING, PUBLIC_TEXT_MIN, RATING_MAX, TEXT_MAX, NAME_MAX, CITY_MAX, THANK_YOU, canReview, type ReviewStatus } from "./domain";
+export { FeedbackError, AGGREGATE_MIN_COUNT, LOW_RATING, PUBLIC_TEXT_MIN, RATING_MAX, TEXT_MAX, NAME_MAX, CITY_MAX, THANK_YOU, canReview } from "./domain";
 export type { ModerationAction, PhotoChange } from "./application";
 export type { PublicReview, StaffReview } from "./infrastructure/persistence";
-export { reviewToken, reviewUrl, verifyReviewToken } from "./infrastructure/adapters";
+export { reviewUrl, verifyReviewToken } from "./infrastructure/adapters";
 
 /** Публичный фасад контекста «Отзывы»: отзыв клиента о книге, благодарность автору, модерация и витрина. */
 export class FeedbackModule {

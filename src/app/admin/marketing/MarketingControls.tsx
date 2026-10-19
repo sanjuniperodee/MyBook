@@ -4,8 +4,9 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 import { Archive, ArchiveRestore, Copy, ExternalLink, Link2, MessageCircle, Globe } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { SubmitButton } from "@/components/ui/SubmitButton";
-import { normalizeSlug, sourcePresets } from "@/modules/marketing/domain/channels";
-import { cn } from "@/lib/utils";
+import { sourcePresets } from "@/modules/marketing/domain/links";
+import { normalizeSlug } from "@/shared/domain/slug";
+import { cn } from "@/lib/class-names";
 import { archiveLinkAction, createLinkAction, saveWhatsappNumberAction, type LinkState } from "./actions";
 
 const copy = (text: string) => navigator.clipboard.writeText(text).then(() => toast("Скопировано"));
@@ -162,7 +163,7 @@ export function WhatsappNumberForm({ value }: { value: string }) {
   return (
     <form action={action} className="mt-5 flex flex-wrap items-end gap-2 border-t border-line pt-4 text-sm">
       <label className="block">
-        <span className="mb-1 block text-xs text-muted">Номер WhatsApp для ссылок «Сразу в WhatsApp»</span>
+        <span className="mb-1 block text-xs text-muted">WhatsApp магазина: ссылки «Сразу в WhatsApp» и реквизиты на сайте</span>
         <input name="number" defaultValue={value} inputMode="tel" maxLength={20} className="input h-9 w-52 font-mono text-sm" />
       </label>
       <SubmitButton className="btn-outline btn-sm h-9">Сохранить</SubmitButton>

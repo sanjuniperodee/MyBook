@@ -12,3 +12,6 @@ storage/*
 npm-debug.log*
 .DS_Store
 coverage
+
+# Визуальные снимки и диффы (scripts/visual)
+tests/visual/out/

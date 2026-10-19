@@ -14,8 +14,8 @@ export function LoginForm({ next }: { next?: string }) {
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {state.error ? <Alert>{state.error}</Alert> : null}
       <div>
-        <label className="label" htmlFor="email">{f.email}</label>
-        <input className="input" id="email" name="email" type="email" autoComplete="email" required />
+        <label className="label" htmlFor="email">{f.login}</label>
+        <input className="input" id="email" name="email" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required />
       </div>
       <div>
         <div className="flex items-center justify-between">

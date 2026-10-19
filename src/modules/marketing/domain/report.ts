@@ -1,4 +1,4 @@
-import { channelOf, channels, toAttribution, type Attribution, type ChannelKey } from "@/modules/marketing/domain/channels";
+import { channelOf, channels, toAttribution, type Attribution, type ChannelKey } from "@/shared/domain/channels";
 
 export interface Metrics {
   clicks: number;
@@ -39,6 +39,8 @@ export interface DealRow {
   won: boolean;
   amount: number;
   hasOrder: boolean;
+  /** Принято денег по сделке (платежи менеджера), ₸. */
+  paid?: number;
 }
 export interface ClickRow {
   slug: string;
@@ -85,8 +87,13 @@ export function buildChannelReport(clients: ClientRow[], deals: DealRow[], click
     bump(toAttribution(d.utm), d.source, (m) => {
       m.leads++;
       if (!d.clientId) m.leadsWithoutClient++;
-      // Продажа без заказа на сайте (договорились в чате и оплатили переводом) — учитываем по сделке.
-      if (d.won && !d.hasOrder) {
+      // Продажа без заказа на сайте (договорились в чате и оплатили переводом) — учитываем по сделке: если приняты платежи
+      // (предоплата, доплата), продажа считается с первого платежа и на сумму принятых денег; иначе — успешная сделка на её сумму.
+      // Когда по сделке есть заказ, он хранит только «к оплате» — его деньги и продажа уже в строке клиента, а платежи добавляются к выручке.
+      if ((d.paid ?? 0) > 0) {
+        if (!d.hasOrder) m.sales++;
+        m.revenue += d.paid!;
+      } else if (d.won && !d.hasOrder) {
         m.sales++;
         m.revenue += d.amount;
       }

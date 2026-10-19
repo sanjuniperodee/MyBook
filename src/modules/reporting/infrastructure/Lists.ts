@@ -4,22 +4,31 @@ import { crmCalls, crmDeals, crmTasks, orders, users } from "@/shared/infrastruc
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 
-/** Список задач: мои (и ничьи) или все, открытые или выполненные. */
-export function taskList(viewer: Viewer, opts: { who: "mine" | "all"; done: boolean }) {
+/**
+ * Список задач: мои (и ничьи), все или одного сотрудника; открытые или выполненные; по типу и поиску по заголовку.
+ * «Только свои» видят только свои и ничьи, что бы ни пришло в фильтре.
+ */
+export function taskList(viewer: Viewer, opts: { who: "mine" | "all" | (string & {}); done: boolean; kind?: string | null; q?: string | null }) {
   const w: SQL[] = [];
-  if (opts.who === "mine") w.push(or(eq(crmTasks.assigneeId, viewer.userId), isNull(crmTasks.assigneeId))!);
+  const who = viewer.seesAll ? opts.who : "mine";
+  if (who === "mine") w.push(or(eq(crmTasks.assigneeId, viewer.userId), isNull(crmTasks.assigneeId))!);
+  else if (who !== "all") w.push(eq(crmTasks.assigneeId, who));
   w.push(opts.done ? isNotNull(crmTasks.doneAt) : isNull(crmTasks.doneAt));
+  if (opts.kind && ["task", "call", "message", "meeting"].includes(opts.kind)) w.push(eq(crmTasks.kind, opts.kind as "task"));
+  const q = opts.q?.trim().slice(0, 100);
+  if (q) w.push(or(sql`${crmTasks.title} ilike ${`%${q}%`}`, sql`${crmDeals.title} ilike ${`%${q}%`}`, sql`${crmDeals.contactName} ilike ${`%${q}%`}`, sql`${users.name} ilike ${`%${q}%`}`)!);
   return executor()
-    .select({ task: crmTasks, clientName: users.name, clientEmail: users.email, orderNumber: orders.number })
+    .select({ task: crmTasks, clientName: users.name, clientEmail: users.email, orderNumber: orders.number, dealTitle: crmDeals.title, dealContact: crmDeals.contactName, dealNumber: crmDeals.number })
     .from(crmTasks)
     .leftJoin(users, eq(crmTasks.clientId, users.id))
     .leftJoin(orders, eq(crmTasks.orderId, orders.id))
+    .leftJoin(crmDeals, eq(crmTasks.dealId, crmDeals.id))
     .where(and(...w))
     .orderBy(opts.done ? desc(crmTasks.doneAt) : sql`${crmTasks.dueAt} asc nulls last`, asc(crmTasks.createdAt))
     .limit(300);
 }
 
-export type CallFilter = "all" | "missed" | "in" | "out" | "mine";
+type CallFilter = "all" | "missed" | "in" | "out" | "mine";
 
 /** Журнал звонков за N дней с фильтром и сводкой (видимость «только свои»). */
 export async function callJournal(viewer: Viewer, f: CallFilter, days: number) {

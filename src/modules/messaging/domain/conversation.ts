@@ -1,4 +1,4 @@
-import { isPhoneLike, normalizePhone } from "@/shared/domain/phone";
+import { isPhoneLike, normalizePhone, phoneTail } from "@/shared/domain/phone";
 import { statusRank } from "@/modules/messaging/domain/wazzup";
 
 export type { WazzupIncoming as InboundMessage, WazzupStatus as DeliveryStatus } from "@/modules/messaging/domain/wazzup";
@@ -25,10 +25,16 @@ export interface Conversation {
   dealId: string | null;
   assigneeId: string | null;
   botStep: number | null;
+  /** С какого момента последнее сообщение клиента ждёт ответа человека; null — не ждёт. */
+  awaitingSince?: Date | null;
+  /** Время последнего сообщения диалога (в любую сторону). */
+  lastMessageAt?: Date | null;
+  /** Чат закрыт (менеджер закрыл, спам): бот сам туда не пишет (повторное сообщение по договорённости). */
+  status?: "open" | "closed";
   meta: ConversationMeta;
 }
 
-export const channelLabels: Record<string, string> = {
+const channelLabels: Record<string, string> = {
   whatsapp: "WhatsApp",
   wapi: "WhatsApp API",
   instagram: "Instagram",
@@ -42,8 +48,14 @@ export const channelLabels: Record<string, string> = {
 };
 export const channelLabel = (c: string) => channelLabels[c] ?? c;
 
-/** Строка для списка чатов. */
-export const preview = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, 160);
+/**
+ * Секреты в тексте сообщения: ссылка «задайте пароль» (/reset/<токен>) уходит клиенту целиком, а в CRM — переписка,
+ * превью диалога, история для помощника — хранится только с маской: кто читает чат, не войдёт в кабинет клиента.
+ */
+export const redactSecrets = (t: string) => t.replace(/(\/reset\/)[A-Za-z0-9_-]{8,}/g, "$1••••");
+
+/** Строка для списка чатов (без секретов). */
+export const preview = (t: string) => redactSecrets(t).replace(/\s+/g, " ").trim().slice(0, 160);
 
 /** Телефон собеседника: идентификатор чата (WhatsApp) или номер, который оставил посетитель. */
 export function contactPhone(c: Pick<Conversation, "chatId" | "meta">): string | null {
@@ -77,4 +89,9 @@ export function contactChanges(c: Conversation, m: { contactName: string; avatar
 /** «Доставлено» не откатывается до «отправлено», если вебхуки пришли не по порядку; ошибка — всегда. */
 export function shouldApplyStatus(current: string, next: string) {
   return next === "error" || (statusRank[next] ?? 0) > (statusRank[current] ?? 0);
+}
+
+/** Имя из канала, в котором клиент записал номер («+7 701 234 56 78», «Мама 87012345678»): номер скрыт до «…5678». */
+export function safeContactName(name: string) {
+  return name.replace(/\+?\d[\d\s().-]{8,}\d/g, (m) => phoneTail(m) || "…");
 }

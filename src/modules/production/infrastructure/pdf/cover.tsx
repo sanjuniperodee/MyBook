@@ -8,9 +8,12 @@ import type { BackDesign } from "@/lib/book/cover-back";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { site } from "@/config/site";
 import type { Locale } from "@/i18n/config";
+
+/** На обложке переносов нет: «кі-тапқа» на обороте или «навсе-гда» в названии выглядят как ошибка. */
+const noHyphens = (word: string) => [word];
 import { messagesFor } from "@/i18n/messages";
 
-function textStyle(s: CoverTextStyle, frontWmm: number) {
+function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"] = "center") {
   const size = mm(s.size * frontWmm);
   return {
     ...face(s.font, s.weight ?? 400, s.italic ?? false),
@@ -19,7 +22,7 @@ function textStyle(s: CoverTextStyle, frontWmm: number) {
     lineHeight: s.lineHeight ?? 1.2,
     letterSpacing: (s.tracking ?? 0) * size,
     textTransform: s.upper ? ("uppercase" as const) : ("none" as const),
-    textAlign: "center" as const,
+    textAlign: align,
   };
 }
 
@@ -59,8 +62,8 @@ export function CoverDocument({
   geometry: CoverGeometry;
   background: Buffer;
   text: CoverTextContent;
-  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и фото для варианта «Фото». */
-  back: { design: BackDesign; photo: Buffer | null };
+  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и её фото по порядку. */
+  back: { design: BackDesign; photos: (Buffer | null)[] };
   title: string;
   language: Locale;
 }) {
@@ -68,8 +71,19 @@ export function CoverDocument({
   const f = g.front;
   const ta = template.textArea;
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
-  const titleStyle = textStyle(template.title, f.w);
+  const align = template.align ?? "center";
+  const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  const titleStyle = textStyle(template.title, f.w, align);
   const ornamentSize = mm(f.w * 0.035);
+  const ornament =
+    template.ornament && text.names ? (
+      <View style={{ marginVertical: mm(f.w * 0.03), alignItems: items }}>
+        <CoverOrnament kind={template.ornament.kind} color={template.ornament.color} size={ornamentSize} />
+      </View>
+    ) : (
+      <View style={{ height: mm(f.w * 0.035) }} />
+    );
+  const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
   const spineText = spineParts(text.title, text.names);
@@ -93,19 +107,15 @@ export function CoverDocument({
             height: mm(ta.h * f.h),
             flexDirection: "column",
             justifyContent: justify,
-            alignItems: "center",
+            alignItems: items,
           }}
         >
-          <Text style={titleStyle}>{text.title}</Text>
-          {text.subtitle ? <Text style={{ ...textStyle(template.subtitle, f.w), marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
-          {template.ornament && text.names ? (
-            <View style={{ marginVertical: mm(f.w * 0.03), alignItems: "center" }}>
-              <CoverOrnament kind={template.ornament.kind} color={template.ornament.color} size={ornamentSize} />
-            </View>
-          ) : (
-            <View style={{ height: mm(f.w * 0.035) }} />
-          )}
-          {text.names ? <Text style={textStyle(template.names, f.w)}>{text.names}</Text> : null}
+          {template.namesFirst ? namesLine : null}
+          {template.namesFirst ? ornament : null}
+          <Text hyphenationCallback={noHyphens} style={{ ...titleStyle, alignSelf: "stretch" }}>{text.title}</Text>
+          {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.subtitle, f.w, align), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
+          {template.namesFirst ? null : ornament}
+          {template.namesFirst ? null : namesLine}
         </View>
 
         {/* Корешок: название в верхней половине, имена в нижней, читается сверху вниз */}
@@ -123,21 +133,21 @@ export function CoverDocument({
           >
             {spineText.map((s, i) => (
               <View key={i} style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text style={{ ...face(template.spine.font, 500), fontSize: spineFont, color: template.spine.color, textAlign: "center", width: "92%", maxLines: 1 }}>{s}</Text>
+                <Text hyphenationCallback={noHyphens} style={{ ...face(template.spine.font, 500), fontSize: spineFont, color: template.spine.color, textAlign: "center", width: "92%", maxLines: 1 }}>{s}</Text>
               </View>
             ))}
           </View>
         ) : null}
 
         {/* Задняя сторона */}
-        {g.back ? <BackSide rect={g.back} design={back.design} photo={back.photo} /> : null}
+        {g.back ? <BackSide rect={g.back} design={back.design} photos={back.photos} /> : null}
       </Page>
     </Document>
   );
 }
 
 /** Задняя крышка по раскладке из cover-back: те же блоки рисуют 3D-книга и превью в редакторе. */
-function BackSide({ rect, design, photo }: { rect: { x: number; y: number; w: number; h: number }; design: BackDesign; photo: Buffer | null }) {
+function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: number; h: number }; design: BackDesign; photos: (Buffer | null)[] }) {
   return (
     <>
       {design.blocks.map((b, i) => {
@@ -145,7 +155,7 @@ function BackSide({ rect, design, photo }: { rect: { x: number; y: number; w: nu
         if (b.kind === "text") {
           const size = mm(b.size);
           return (
-            <Text
+            <Text hyphenationCallback={noHyphens}
               key={i}
               style={{
                 ...box,
@@ -168,15 +178,34 @@ function BackSide({ rect, design, photo }: { rect: { x: number; y: number; w: nu
               <CoverOrnament kind={b.ornament} color={b.color} size={mm(b.w)} />
             </View>
           );
+        // Фото «во всю» и затемнение нарисованы в фоне развёртки (backArtSvg): здесь только карточки и текст.
+        if (b.kind === "shade" || b.frame === "bleed") return null;
+        const photo = photos[b.slot];
         if (!photo) return null;
+        // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt
+        const img = <Image src={{ data: photo, format: "jpg" }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+        const polaroid = b.frame === "polaroid";
         return (
-          <View key={i} style={{ ...box, height: mm(b.h), backgroundColor: "#FFFFFF", padding: mm(b.mat), borderWidth: 0.3, borderColor: "#00000022" }}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */}
-            <Image src={{ data: photo, format: "jpg" }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <View
+            key={i}
+            style={{
+              ...box,
+              height: mm(b.h),
+              backgroundColor: "#FFFFFF",
+              paddingTop: mm(b.mat),
+              paddingLeft: mm(b.mat),
+              paddingRight: mm(b.mat),
+              paddingBottom: mm(polaroid ? (b.matBottom ?? b.mat) : b.mat),
+              borderWidth: 0.3,
+              borderColor: "#00000022",
+              transform: b.rotate ? `rotate(${b.rotate}deg)` : undefined,
+            }}
+          >
+            {img}
           </View>
         );
       })}
-      <Text
+      <Text hyphenationCallback={noHyphens}
         style={{
           position: "absolute",
           left: mm(rect.x),

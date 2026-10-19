@@ -2,11 +2,13 @@ import { Logo } from "@/components/Logo";
 import { LostPageArt } from "@/components/illustrations";
 import { Link } from "@/i18n/client";
 import { getMessages } from "@/i18n/server";
+import { site } from "@/config/site";
 
 export default async function NotFound() {
   const { common: m } = await getMessages();
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-16 text-center">
+      <title>{`${m.notFound.title} · ${site.name}`}</title>
       <Logo />
       <LostPageArt className="enter mt-10 h-48 w-auto sm:h-56" label={m.notFound.art} />
       <div style={{ "--i": 1 } as React.CSSProperties} className="enter mt-2 font-serif text-sm tracking-[0.3em] text-wine uppercase">

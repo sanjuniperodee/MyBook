@@ -1,12 +1,15 @@
 import type { BackDesign } from "@/lib/book/cover-back";
+import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
+import { cssFrame } from "@/lib/book/photo-frame";
 import { cssFont } from "@/lib/book/fonts";
+import { hexAlpha } from "@/lib/color";
 import { Ornament } from "./CoverPreview";
 
 /**
  * Задняя сторона поверх фона — по той же раскладке, что и PDF (src/lib/book/cover-back.ts).
  * Контейнер — задняя крышка с container-type: inline-size; размеры — в % и cqw от её ширины.
  */
-export function CoverBackLayer({ design, widthMm, heightMm, photoUrl, brand }: { design: BackDesign; widthMm: number; heightMm: number; photoUrl?: string; brand: string }) {
+export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }: { design: BackDesign; widthMm: number; heightMm: number; photos?: (PhotoRef | undefined)[]; brand: string }) {
   const x = (v: number) => `${(v / widthMm) * 100}%`;
   const y = (v: number) => `${(v / heightMm) * 100}%`;
   const cq = (v: number) => `${(v / widthMm) * 100}cqw`;
@@ -43,14 +46,34 @@ export function CoverBackLayer({ design, widthMm, heightMm, photoUrl, brand }: {
               <Ornament kind={b.ornament} color={b.color} size={cq(b.w)} />
             </div>
           );
+        if (b.kind === "shade")
+          return <div key={i} style={{ ...box, height: y(b.h), background: `linear-gradient(to bottom, transparent ${b.from * 100}%, ${hexAlpha(b.color, b.opacity)})` }} />;
+        const ref = photos[b.slot];
+        const url = photoHref(ref);
+        const img = url ? (
+          // Обёртка обрезает увеличенный снимок по месту (масштаб кадра выходит за рамку).
+          <div data-photo-slot={b.slot} style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt="" draggable={false} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", ...cssFrame(typeof ref === "string" ? null : ref?.frame) }} />
+          </div>
+        ) : (
+          <div style={{ width: "100%", height: "100%", background: "#e9e4dc" }} />
+        );
+        if (b.frame === "bleed") return <div key={i} style={{ ...box, height: y(b.h) }}>{img}</div>;
+        const polaroid = b.frame === "polaroid";
         return (
-          <div key={i} style={{ ...box, height: y(b.h), padding: cq(b.mat), background: "#fff", boxShadow: "0 0.6cqw 1.6cqw rgba(0,0,0,.22)" }}>
-            {photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoUrl} alt="" draggable={false} style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", background: "#e9e4dc" }} />
-            )}
+          <div
+            key={i}
+            style={{
+              ...box,
+              height: y(b.h),
+              padding: polaroid ? `${cq(b.mat)} ${cq(b.mat)} ${cq(b.matBottom ?? b.mat)}` : cq(b.mat),
+              background: "#fff",
+              boxShadow: "0 0.6cqw 1.6cqw rgba(0,0,0,.22)",
+              transform: b.rotate ? `rotate(${b.rotate}deg)` : undefined,
+            }}
+          >
+            {img}
           </div>
         );
       })}

@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { promoCodes } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { PromoCode, normalizePromoCode, type PromoCodeRepository } from "../../domain";
@@ -32,6 +32,12 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
     if (!c) return null;
     const [row] = await executor().select().from(promoCodes).where(eq(promoCodes.code, c)).limit(1);
     return row ? toDomain(row) : null;
+  }
+
+  async findByCodes(codes: string[]) {
+    const list = [...new Set(codes.map(normalizePromoCode).filter(Boolean))];
+    if (!list.length) return [];
+    return (await executor().select().from(promoCodes).where(inArray(promoCodes.code, list))).map(toDomain);
   }
 
   async findById(id: string) {

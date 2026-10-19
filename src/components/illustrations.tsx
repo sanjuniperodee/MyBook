@@ -2,7 +2,7 @@
  * Иллюстрации в едином стиле: тонкая линия цвета чернил, акценты винным и золотым,
  * мягкое пятно фона. Штрихи «прорисовываются» при появлении (класс .draw в globals.css).
  */
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/class-names";
 
 const INK = "#3b332e";
 const WINE = "#7a1f2b";
