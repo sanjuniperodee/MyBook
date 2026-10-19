@@ -1,16 +1,18 @@
 import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
-import { mm, PT_TO_MM } from "@/lib/book/formats";
+import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
+import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
-import { CHAPTER_TAIL, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { bookMessagesFor } from "@/i18n/messages/partial";
+import { CHAPTER_TAIL, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { AnswerBlockView } from "./answer-block";
 import { InlineDrawing } from "./graphics";
 import { metricsOf, type PageKit } from "./kit";
-import { italicBody } from "./typography";
+import { italicBody, labelCss } from "./typography";
 
 /** Фото внутри ответа (как в PDF: после нужного абзаца, узкие — в ряд). */
 interface EntryPhoto {
@@ -22,11 +24,16 @@ interface EntryPhoto {
   inline?: InlinePhotoStyle | null;
 }
 
-/** Ответ в вёрстке страницы: заголовок, абзацы и фото. */
+/** Ответ в вёрстке страницы: заголовок, абзацы, фото и QR-коды видео и музыки. */
 export interface SampleEntry {
   heading: string | null;
   paragraphs: string[];
   photos?: EntryPhoto[];
+  media?: AnswerMedia[];
+  /** «С новой страницы»: перед историей — переход на следующую полосу. */
+  pageBreak?: boolean;
+  /** Продолжение истории после фото на всю страницу: без заголовка и разделителя. */
+  continued?: boolean;
 }
 
 /** Концовка главы — небольшая виньетка после последнего ответа, как в PDF. */
@@ -193,18 +200,91 @@ export function InlineRow<P extends EntryPhoto>({
   );
 }
 
-/** Ответ целиком: блоки набора и фото между ними, как в PDF. */
-export function EntryBody({ kit, entry, leadIn }: { kit: PageKit; entry: SampleEntry; leadIn: boolean }) {
+/**
+ * Карточка видео или музыки — как в PDF (media-card.tsx): QR-код, вид и площадка, подпись и подсказка «наведите
+ * камеру»; размеры — mediaCardBox. href — карточка ещё и ссылка (листаемая книга на сайте), атрибуты — на обёртку.
+ */
+export function MediaCard({ kit, media, href, ...rest }: { kit: PageKit; media: AnswerMedia; href?: string } & HTMLAttributes<HTMLDivElement>) {
+  const { design, sizes: S, u } = kit;
+  const { palette: P, type: typo } = design;
+  const scale = metricsOf(kit).scale;
+  const box = mediaCardBox(textArea(kit.format).w * MM_TO_PT, scale);
+  const t = bookMessagesFor(kit.language).media;
+  const source = mediaSource(media.url);
+  const card = (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        width: u.pt(box.width),
+        height: u.pt(box.height),
+        padding: u.pt(box.pad),
+        border: `${u.pt(box.border)} solid ${P.rule}`,
+        borderRadius: u.pt(box.radius),
+        boxSizing: "border-box",
+        color: P.ink,
+        textDecoration: "none",
+      }}
+    >
+      <InlineDrawing drawing={qrDrawing(media.url, box.qr, qrInk(P.ink))} u={u} />
+      <div style={{ width: u.pt(box.textWidth), marginLeft: u.pt(box.gap), minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: u.pt(4 * scale) }}>
+          <InlineDrawing drawing={mediaIcon(media.kind, S.label * MEDIA_CARD.icon, P.accent)} u={u} />
+          <span style={{ ...labelCss(kit, P.accent), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{source ? `${t[media.kind]} · ${source}` : t[media.kind]}</span>
+        </div>
+        {media.title ? (
+          <div
+            style={{
+              fontFamily: cssFont(typo.heading),
+              fontWeight: typo.headingWeight,
+              fontStyle: typo.headingItalic ? "italic" : "normal",
+              fontSize: u.pt(S.body * MEDIA_CARD.title.size),
+              lineHeight: MEDIA_CARD.title.lineHeight,
+              marginTop: u.pt(MEDIA_CARD.labelGap * scale),
+              display: "-webkit-box",
+              WebkitLineClamp: MEDIA_CARD.title.maxLines,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {media.title}
+          </div>
+        ) : null}
+        <div style={{ ...italicBody(kit, S.caption), lineHeight: 1.3, color: P.muted, marginTop: u.pt(MEDIA_CARD.noteGap * scale) }}>{t.scan[media.kind]}</div>
+      </div>
+    </div>
+  );
+  return (
+    <div {...rest} style={{ marginTop: u.pt(S.body * MEDIA_CARD.before), marginBottom: u.pt(S.body * MEDIA_CARD.after), breakInside: "avoid", display: "flow-root", ...rest.style }}>
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+          {card}
+        </a>
+      ) : (
+        card
+      )}
+    </div>
+  );
+}
+
+/** Ответ целиком: блоки набора, фото и QR-коды между ними, как в PDF (в одном месте — сначала фото). */
+export function EntryBody({ kit, entry, leadIn, links = false }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; links?: boolean }) {
   const blocks = answerBlocks(entry.paragraphs);
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
-  const rowsAt = (key: number) => (rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} />);
+  const media = rowsByBlock(blocks, layoutMedia(entry.media ?? [], entry.paragraphs.length));
+  const rowsAt = (key: number) => [
+    ...(rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} />),
+    ...(media.get(key) ?? []).map((m) => <MediaCard key={`${key}-m-${m.id}`} kit={kit} media={m} href={links ? m.url : undefined} />),
+  ];
   return (
     <>
       {blocks.length ? rowsAt(-1) : null}
       {blocks.map((b, j) => (
         <Fragment key={j}>
-          <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} />
+          {/* Под заголовком на той же полосе — не меньше трёх строк (как в PDF), иначе заголовок с абзацем — на следующую. */}
+          <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} style={j === 0 && entry.heading && !rows.get(-1)?.length ? { orphans: 3 } : undefined} />
           {j < blocks.length - 1 ? rowsAt(j) : null}
         </Fragment>
       ))}

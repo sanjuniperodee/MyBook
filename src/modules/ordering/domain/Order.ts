@@ -1,5 +1,5 @@
 import { AggregateRoot } from "@/shared/domain";
-import { formatPrice, getPlan, isQuotedDelivery, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getPlan, isAbroadDelivery, isQuotedDelivery, type DeliveryId, type PlanId } from "@/config/site";
 import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
@@ -122,7 +122,7 @@ export class Order extends AggregateRoot<OrderProps> {
     if (!plan) throw new OrderingError("bookNotFound", `unknown plan ${input.plan}`);
     if (input.promo) input.promo.assertUsable(now);
     // Страна нужна только доставке в другую страну: у остальных способов это Казахстан.
-    const delivery: OrderDelivery = plan.printed ? { ...input.delivery, country: isQuotedDelivery(input.delivery.method) ? input.delivery.country?.trim() || null : null } : { method: null, country: null, city: null, address: null, postalCode: null };
+    const delivery: OrderDelivery = plan.printed ? { ...input.delivery, country: isAbroadDelivery(input.delivery.method) ? input.delivery.country?.trim() || null : null } : { method: null, country: null, city: null, address: null, postalCode: null };
     const price = calculatePrice(plan.id, input.quantity, delivery.method, input.promo?.discount ?? null, input.addons, input.agreement ?? null);
     const order = new Order(input.id, {
       number: input.number,
@@ -162,11 +162,12 @@ export class Order extends AggregateRoot<OrderProps> {
           : `, предоплата ${input.formatMoney(price.prepaidAmount)} учтена как аванс`;
     const credited = input.credit && input.credit.amount > 0 ? `, засчитана оплата электронной версии (заказ №${input.credit.orderNumber}): ${input.formatMoney(input.credit.amount)}` : input.credit ? `, печатная версия к электронной (заказ №${input.credit.orderNumber})` : "";
     // Бесплатное по договорённости — в журнал заказа: в сумме его не видно (0 ₸), а производство и доставка должны знать.
-    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}${price.gifted?.length ? `; бесплатно по договорённости с менеджером: ${price.gifted.map((g) => (g === "giftwrap" ? "подарочная упаковка" : "доставка")).join(", ")}` : ""}${isQuotedDelivery(delivery.method) ? `; доставка в другую страну (${delivery.country ?? "страна не указана"}) — в сумму не входит, стоимость рассчитает менеджер` : ""}`, "customer", now);
+    const quoted = isQuotedDelivery(delivery.method, price.gifted);
+    order.log("pending_payment", `Заказ создан, ${input.estimatedPages} стр. (оценка)${promoNote}${input.credit ? credited : agreed}${price.gifted?.length ? `; бесплатно по договорённости с менеджером: ${price.gifted.map((g) => (g === "giftwrap" ? "подарочная упаковка" : "доставка")).join(", ")}` : ""}${quoted ? `; доставка (${[delivery.country, delivery.city].filter(Boolean).join(", ") || "адрес не указан"}) — в сумму не входит, стоимость рассчитывается индивидуально` : ""}`, "customer", now);
     // Внесено по договорённости больше итога (зачёт — не больше итога): разницу нужно вернуть клиенту.
     const prepaidExcess = input.agreement && !input.credit ? Math.max(0, Math.round(input.agreement.prepaid) - (price.prepaidAmount ?? 0)) : 0;
     if (prepaidExcess > 0) order.notePrepaidExcess(prepaidExcess, now);
-    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity, agreementDealId: input.agreement ? (input.agreementDealId ?? null) : null, prepaidExcess, ...(isQuotedDelivery(delivery.method) ? { deliveryAbroad: { country: delivery.country ?? null, city: delivery.city } } : {}) }));
+    order.record(OrderingEvents.orderPlaced({ ...order.ref(), estimatedPages: input.estimatedPages, quantity: order.props.quantity, agreementDealId: input.agreement ? (input.agreementDealId ?? null) : null, prepaidExcess, ...(quoted ? { deliveryQuoted: { method: delivery.method!, country: delivery.country ?? null, city: delivery.city } } : {}) }));
     return order;
   }
 
@@ -393,7 +394,7 @@ export class Order extends AggregateRoot<OrderProps> {
 
   updateDetails(contact: OrderContact, delivery: OrderDelivery, extra: { desiredDate: string | null; giftNote: string | null }, actor: string, now: Date) {
     this.props.contact = contact;
-    this.props.delivery = { ...delivery, country: isQuotedDelivery(delivery.method) ? delivery.country?.trim() || null : null };
+    this.props.delivery = { ...delivery, country: isAbroadDelivery(delivery.method) ? delivery.country?.trim() || null : null };
     this.props.desiredDate = extra.desiredDate;
     this.props.giftNote = extra.giftNote;
     this.log(null, "Контакты и доставка изменены", actor, now);

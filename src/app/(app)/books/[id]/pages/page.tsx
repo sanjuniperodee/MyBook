@@ -7,6 +7,7 @@ import { coverName } from "@/i18n/labels";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { bookSpreadSample } from "@/server/spreadSample";
+import { questionTexts } from "@/lib/book/layout";
 import { PagesEditor } from "./PagesEditor";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,6 +29,8 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const format = getFormat(book.format);
 
   const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos);
+  // Истории для блока «Главы книги»: заголовок по умолчанию (с подставленным родом), свой и скрыт ли он.
+  const stories = Object.fromEntries(questions.map((q) => [q.id, { title: questionTexts(q, book).title, displayText: q.displayText, hidden: q.hideHeading, pageBreak: q.pageBreak }]));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
@@ -37,9 +40,10 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         format={format.id}
         editable={book.status === "draft"}
         sample={spreadSample}
+        stories={stories}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
-        initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, photoPlacement: book.photoPlacement }}
+        initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}
       />
     </main>
   );

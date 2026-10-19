@@ -560,12 +560,12 @@ describe("Пока бот ждёт срока, сделку закрыли ил�
 
 describe("Бот пишет в последний день, чтобы успеть к дате (в чате)", () => {
   it("тёплый клиент с датой замолчал — вместо итога сообщение в последний день старта; потом итог", async () => {
-    const offer = ans({ stage: "offer", event_date: "2026-10-20", reply: "Успеваем 🙌 Оформляем?", asked_to_order: true });
+    const offer = ans({ stage: "offer", event_date: "2026-10-20", reply: "Успеваем 🙌 Ознакомьтесь, пожалуйста — какие остались вопросы?" });
     const { model, calls } = fakeModel([offer, offer, ans({ stage: "offer", reply: "Добрый день! 😊 Чтобы книга успела к 20 октября, начать писать лучше сегодня — оформим?" })]);
     const t = setup({ bot: "always", config: aiConfig({ lastStart: true, followUpHours: 0 }), seller: model });
     await t.service.ingest(inbound({ text: "Хочу книгу маме к 20 октября" }));
     await t.advance(8_000);
-    expect(said(t)).toEqual(["Успеваем 🙌 Оформляем?"]);
+    expect(said(t)).toEqual(["Успеваем 🙌 Ознакомьтесь, пожалуйста — какие остались вопросы?"]);
     await t.advance(31 * 60_000);
     await t.advance(12 * 3_600_000);
     // Итога ещё нет: бот напишет 12 октября (20-е − доставка 2 − изготовление 5 − «впритык» 1 день).

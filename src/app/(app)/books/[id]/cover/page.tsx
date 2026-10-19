@@ -45,6 +45,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           recordedBy: book.recordedBy,
           recipientName: book.recipientName,
           hideRecipientOnCover: book.hideRecipientOnCover,
+          namesOnCover: book.namesOnCover,
           backText: book.backText,
           backLayout: isBackLayout(book.backLayout) ? book.backLayout : DEFAULT_BACK_LAYOUT,
           backPhotoId: book.backPhotoId,

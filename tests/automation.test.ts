@@ -676,7 +676,7 @@ describe("Статус заказа и трек-номер для правил (
 });
 
 describe("Стартовые правила о статусе заказа и подпись в карточке заказа (chats-15, automation-d8)", () => {
-  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0052_order_status_rules.sql"), "utf8");
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0056_order_status_rules.sql"), "utf8");
   const seeded = [...sql.matchAll(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS \(SELECT 1 FROM "crm_automations" WHERE "trigger" = '([\w.]+)'\)/g)].map(
     ([, name, trigger, conditions, actions, active, guard]) => ({ name, trigger, conditions: JSON.parse(conditions) as Record<string, string>, actions: JSON.parse(actions) as RuleAction[], active: active === "true", guard }),
   );
@@ -808,7 +808,7 @@ describe("Стартовые правила о статусе заказа и п
 });
 
 describe("«Успеть к дате»: до даты события N дней (deals-28, automation-5)", () => {
-  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0053_event_date_rule.sql"), "utf8");
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0057_event_date_rule.sql"), "utf8");
   const [, name, trigger, conditions, actions, active] = sql.match(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS/)!;
   const starter = rule({ id: "soon", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
   // 19.10.2026 10:00 по Алматы — рабочее время.
@@ -895,7 +895,7 @@ describe("«Успеть к дате»: до даты события N дней 
 });
 
 describe("Забытая сделка: N дней без активности (automation-4, deals-21)", () => {
-  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0054_idle_deals.sql"), "utf8");
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0058_idle_deals.sql"), "utf8");
   const [, name, trigger, conditions, actions, active] = sql.match(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS/)!;
   const starter = rule({ id: "idle", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
   // 19.10.2026 10:00 по Алматы — рабочее время.
@@ -973,7 +973,7 @@ describe("Забытая сделка: N дней без активности (a
 });
 
 describe("Клиент молчит после нашего ответа (automation-6)", () => {
-  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0055_client_silent.sql"), "utf8");
+  const sql = readFileSync(path.resolve(import.meta.dirname, "../drizzle/0059_client_silent.sql"), "utf8");
   const [, name, trigger, conditions, actions, active] = sql.match(/SELECT '([^']+)', '([\w.]+)', '([^']*)'::jsonb,\s*'([\s\S]*?)'::jsonb,\s*(true|false)\s*WHERE NOT EXISTS/)!;
   const starter = rule({ id: "silent", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
   // 19.10.2026 10:00 по Алматы — рабочее время.

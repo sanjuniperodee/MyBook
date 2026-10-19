@@ -20,6 +20,9 @@ const pages: Entry[] = [
   { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
 ];
 
+/** Next.js вставляет адреса в XML как есть: «&» в адресе картинки ломает весь файл. */
+const xmlEscape = (s: string) => s.replace(/&/g, "&amp;");
+
 /** Обе языковые версии каждой публичной страницы, связанные через hreflang; картинка — та же, что для соцсетей. */
 export default function sitemap(): MetadataRoute.Sitemap {
   return pages.flatMap((p) =>
@@ -27,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: absoluteUrl(p.path, locale),
       changeFrequency: p.changeFrequency,
       priority: p.priority,
-      images: [absoluteUrl(ogImage(locale, p.image), "ru")],
+      images: [xmlEscape(absoluteUrl(ogImage(locale, p.image), "ru"))],
       ...(p.lastModified ? { lastModified: p.lastModified } : {}),
       alternates: { languages: { ru: absoluteUrl(p.path, "ru"), kk: absoluteUrl(p.path, "kk"), "x-default": absoluteUrl(p.path, "ru") } },
     })),

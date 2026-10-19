@@ -37,6 +37,7 @@ const section = (id: string, ch: string, answer = "", title = id): EditorQuestio
   displayText: null,
   hideHeading: false,
   answer,
+  media: [],
   isCustom: true,
 });
 

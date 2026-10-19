@@ -17,6 +17,7 @@ export type AuthoringErrorCode =
   | "unknownBackLayout"
   | "unknownFormat"
   | "unknownOccasion"
+  | "unknownTocMode"
   | "unknownLanguage"
   | "letterNotFound"
   | "letterInvalid"

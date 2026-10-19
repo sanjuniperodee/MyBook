@@ -1,6 +1,6 @@
 {
-  "id": "a3b535f0-28d5-4b95-afa6-ffc4f5fe09e3",
-  "prevId": "996bd822-7e9a-4cd4-9bd1-6ece4198140a",
+  "id": "a630b216-13af-47af-b976-8e4b115039df",
+  "prevId": "5d4aaf5f-8608-4205-b6fa-0202cb0e75e8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -471,12 +471,26 @@
           "notNull": true,
           "default": false
         },
+        "page_break": {
+          "name": "page_break",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "answer": {
           "name": "answer",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "media": {
+          "name": "media",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -616,6 +630,13 @@
           "notNull": true,
           "default": "'m'"
         },
+        "names_on_cover": {
+          "name": "names_on_cover",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "hide_recipient_on_cover": {
           "name": "hide_recipient_on_cover",
           "type": "boolean",
@@ -711,6 +732,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "toc_mode": {
+          "name": "toc_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'chapters'"
+        },
+        "toc_lines": {
+          "name": "toc_lines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "invite_token": {
           "name": "invite_token",
@@ -1363,22 +1398,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_tasks_open_deal_idx": {
-          "name": "crm_tasks_open_deal_idx",
-          "columns": [
-            {
-              "expression": "deal_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_tasks\".\"done_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2572,22 +2591,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "crm_conv_awaiting_idx": {
-          "name": "crm_conv_awaiting_idx",
-          "columns": [
-            {
-              "expression": "awaiting_since",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_conversations\".\"awaiting_since\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -2781,22 +2784,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_messages_rule_idx": {
-          "name": "crm_messages_rule_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_messages\".\"source\" = 'rule' and \"crm_messages\".\"internal\" = false",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3748,22 +3735,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "orders_paid_idx": {
-          "name": "orders_paid_idx",
-          "columns": [
-            {
-              "expression": "paid_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"orders\".\"paid_at\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -4611,22 +4582,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_deals_closed_idx": {
-          "name": "crm_deals_closed_idx",
-          "columns": [
-            {
-              "expression": "closed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_deals\".\"closed_at\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}

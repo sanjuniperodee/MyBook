@@ -263,10 +263,11 @@ function talk(turns: (string | BotInput)[][], e: BotEnv = env()) {
 }
 
 describe("бот: сценарии", () => {
-  it("«Хочу узнать стоимость» (45% первых сообщений): приветствие, цены «от» из тарифов и первый вопрос", () => {
+  it("«Хочу узнать стоимость» (45% первых сообщений): приветствие, цена печатной «от» из тарифов и первый вопрос", () => {
     const { replies, state } = talk([["Здравствуйте! Хочу узнать стоимость."]]);
     expect(replies[0]).toContain("Здравствуйте, Айгерим!");
-    expect(replies[0]).toMatch(/Электронная книга — от 9\s900 ₸\./u);
+    // Продаём печатную: электронную бот сам не предлагает.
+    expect(replies[0]).not.toContain("Электронная");
     expect(replies[0]).toMatch(/Печатная в твёрдой обложке — от 30\s000 ₸\./u);
     expect(replies[0]).toContain("Точную сумму с учётом акции и доставки менеджер назовёт");
     expect(replies[0]).toContain("Для кого будет книга?");
@@ -274,7 +275,7 @@ describe("бот: сценарии", () => {
     expect(replies[0]).toContain("6 — своя книга с нуля");
     // Только цены из тарифов: ни скидочных сумм, ни скрытого премиума.
     const amounts = [...replies[0]!.matchAll(/(\d[\d\s]*\d)\s₸/gu)].map((m) => Number(m[1].replace(/\D/g, "")));
-    expect(amounts).toEqual([9900, 30000]);
+    expect(amounts).toEqual([30000]);
     expect(state).toMatchObject({ phase: "active", asking: "recipient", faq: ["price"], lang: "ru" });
   });
 
@@ -551,10 +552,11 @@ describe("бот: режим «Продаёт»", () => {
     expect(state.reason).toBe("agreed");
   });
 
-  it("«дорого» — ответ про предоплату и электронную; второе возражение — менеджеру", () => {
+  it("«дорого» — дожимает печатную (предоплата, рассрочка), электронную не предлагает; второе возражение — менеджеру", () => {
     const { replies, state } = talk([...russian, ["дорого"], ["я подумаю"]], sell());
     expect(replies[5]).toMatch(/предоплата 10\s000 ₸/u);
-    expect(replies[5]).toMatch(/электронная версия — от 9\s900 ₸/u);
+    expect(replies[5]).toContain("рассрочка");
+    expect(replies[5]).not.toMatch(/электрон/iu);
     expect(state.outcome).toBe("handoff");
     expect(state.reason).toBe("objection");
   });

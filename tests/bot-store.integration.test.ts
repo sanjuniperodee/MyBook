@@ -33,7 +33,7 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         // След хода (0056): база разработки могла его ещё не видеть.
         const traced = await tx.execute<{ n: number }>(sql`select count(*)::int as n from information_schema.columns where table_name = 'crm_bot_events' and column_name = 'meta'`);
         if (!traced.rows[0].n) {
-          const ddl = readFileSync(path.join(__dirname, "..", "drizzle", "0056_bot_turn_trace.sql"), "utf8");
+          const ddl = readFileSync(path.join(__dirname, "..", "drizzle", "0060_bot_turn_trace.sql"), "utf8");
           for (const statement of ddl.split("--> statement-breakpoint")) if (statement.trim()) await tx.execute(sql.raw(statement));
         }
         const store = new DrizzleBotStore();

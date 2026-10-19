@@ -17,6 +17,24 @@ export interface InlinePhotoStyle {
   focusX: number;
   focusY: number;
   frame: "none" | "line" | "polaroid" | "round";
+  /** На всю страницу: история прерывается, снимок — отдельной страницей под обрез, текст продолжается после него. */
+  page?: boolean;
+}
+
+/**
+ * Видео или музыка к ответу — в книге печатается QR-кодом с подписью (lib/book/answer-media.ts):
+ * пожелание близких, записанное на видео, любимая песня, кюй. В электронной версии код ещё и ссылка.
+ */
+export interface AnswerMedia {
+  /** Ключ в списке ответа (создаётся в редакторе). */
+  id: string;
+  kind: "video" | "music";
+  /** Ссылка, которую кодирует QR (уже приведённая: youtu.be/… для YouTube). */
+  url: string;
+  /** Подпись в книге: «Пожелание от бабушки», «Кюй „Адай“». */
+  title: string;
+  /** После какого абзаца стоит карточка: -1 — перед текстом, null — в конце (как у фото в ответе). */
+  anchor: number | null;
 }
 
 export const books = pgTable(
@@ -37,6 +55,8 @@ export const books = pgTable(
     recordedBy: text("recorded_by").notNull().default(""),
     recipientName: text("recipient_name").notNull().default(""),
     recipientGender: text("recipient_gender").$type<Gender>().notNull().default("m"),
+    /** Своя строка имён на обложке (порядок, «мен», что угодно); пусто — «Автор & Получатель» (lib/book/cover-names). */
+    namesOnCover: text("names_on_cover").notNull().default(""),
     hideRecipientOnCover: boolean("hide_recipient_on_cover").notNull().default(false),
     coverTemplate: text("cover_template").notNull().default("linen"),
     coverPhotoId: uuid("cover_photo_id"),
@@ -57,6 +77,10 @@ export const books = pgTable(
     format: text("format").notNull().default("a5"),
     photoPlacement: text("photo_placement", { enum: ["chapters", "end"] }).notNull().default("chapters"),
     showToc: boolean("show_toc").notNull().default(true),
+    /** Оглавление: по главам, по заголовкам разделов или главы с разделами — src/lib/book/toc.ts. */
+    tocMode: text("toc_mode", { enum: ["chapters", "sections", "both"] }).notNull().default("chapters"),
+    /** Свои названия и скрытые строки оглавления по ключу строки (`c:<глава>`, `q:<раздел>`) — src/lib/book/toc.ts. */
+    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean }>>().notNull().default({}),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
@@ -92,7 +116,11 @@ export const bookQuestions = pgTable(
     /** Заголовок, отредактированный пользователем; null — берётся шаблон title. */
     displayText: text("display_text"),
     hideHeading: boolean("hide_heading").notNull().default(false),
+    /** «С новой страницы»: история в книге начинается с новой полосы. */
+    pageBreak: boolean("page_break").notNull().default(false),
     answer: text("answer").notNull().default(""),
+    /** QR-коды к видео и музыке в ответе — по порядку. */
+    media: jsonb("media").$type<AnswerMedia[]>().notNull().default([]),
     ...timestamps,
   },
   (t) => [index("book_questions_book_idx").on(t.bookId, t.position)],

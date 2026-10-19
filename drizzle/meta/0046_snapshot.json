@@ -1,6 +1,6 @@
 {
-  "id": "7c1afffc-9f68-4fb1-aa46-4c592502c474",
-  "prevId": "a630b216-13af-47af-b976-8e4b115039df",
+  "id": "7acaad67-cdee-4e69-b943-2d2f1592ee04",
+  "prevId": "265c31b8-b411-427b-b1ea-610a1014e290",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -478,6 +478,13 @@
           "notNull": true,
           "default": "''"
         },
+        "media": {
+          "name": "media",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -616,6 +623,13 @@
           "notNull": true,
           "default": "'m'"
         },
+        "names_on_cover": {
+          "name": "names_on_cover",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "hide_recipient_on_cover": {
           "name": "hide_recipient_on_cover",
           "type": "boolean",
@@ -711,6 +725,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "toc_mode": {
+          "name": "toc_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'chapters'"
+        },
+        "toc_lines": {
+          "name": "toc_lines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "invite_token": {
           "name": "invite_token",
@@ -2190,12 +2218,6 @@
           "notNull": true,
           "default": "'spam'"
         },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by_id": {
           "name": "created_by_id",
           "type": "uuid",
@@ -2229,12 +2251,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "crm_blocklist_reason_check": {
-          "name": "crm_blocklist_reason_check",
-          "value": "\"crm_blocklist\".\"reason\" in ('spam', 'no_marketing')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.crm_bot_events": {
@@ -2749,22 +2766,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_messages_rule_idx": {
-          "name": "crm_messages_rule_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_messages\".\"source\" = 'rule' and \"crm_messages\".\"internal\" = false",
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -200,7 +200,7 @@ export function DedicationPage({ kit, text, placeholder, className, style }: Pag
 }
 
 /** Оглавление. */
-export function TocPage({ kit, entries, className, style, muted }: PageProps & { entries: { title: string; number: number | null; page: number }[]; muted?: boolean }) {
+export function TocPage({ kit, entries, className, style, muted }: PageProps & { entries: { key?: string; title: string; number: number | null; level?: 0 | 1; page: number }[]; muted?: boolean }) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
   const scale = metricsOf(kit).scale;
@@ -211,8 +211,8 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
           {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
-          <div key={e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale) }}>
-            <span className="truncate" style={{ color: P.ink, maxWidth: TOC.entry.maxWidth }}>
+          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
+            <span className="truncate" style={{ color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.number ? `${e.number}. ` : ""}
               {e.title}
             </span>
@@ -275,13 +275,17 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
             columnWidth: u.mm(textW),
             columnGap: u.mm(side * 2),
             columnFill: "auto",
+            // Без переноса висячих строк: WebKit (Safari, браузеры на iPhone), перенося по widows две последние строки
+            // абзаца в следующую колонку, ставит следующий абзац на строку выше — строки налезают друг на друга.
+            widows: 1,
+            orphans: 1,
             transform: part ? `translateX(calc(${-part} * (${u.mm(textW)} + ${u.mm(side * 2)})))` : undefined,
           }}
         >
           {entries.map((e, i) => (
-            <div key={i} style={{ marginTop: i === 0 ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless) }}>
-              {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 ? <Divider kit={kit} /> : null}
-              <EntryBody kit={kit} entry={e} leadIn={leadIn && design.leadIn && i === 0} />
+            <div key={i} style={{ marginTop: i === 0 || e.pageBreak ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless), breakBefore: i > 0 && e.pageBreak ? "column" : undefined }}>
+              {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 && !e.continued ? <Divider kit={kit} /> : null}
+              <EntryBody kit={kit} entry={e} leadIn={leadIn && design.leadIn && i === 0 && !e.continued} />
             </div>
           ))}
           {tail ? <ChapterTail kit={kit} /> : null}

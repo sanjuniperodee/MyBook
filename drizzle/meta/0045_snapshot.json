@@ -1,6 +1,6 @@
 {
-  "id": "a630b216-13af-47af-b976-8e4b115039df",
-  "prevId": "5d4aaf5f-8608-4205-b6fa-0202cb0e75e8",
+  "id": "265c31b8-b411-427b-b1ea-610a1014e290",
+  "prevId": "e0feddb1-0445-4aae-82dd-ee850c7fb625",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -478,6 +478,13 @@
           "notNull": true,
           "default": "''"
         },
+        "media": {
+          "name": "media",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -711,6 +718,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "toc_mode": {
+          "name": "toc_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'chapters'"
+        },
+        "toc_lines": {
+          "name": "toc_lines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "invite_token": {
           "name": "invite_token",
@@ -2190,12 +2211,6 @@
           "notNull": true,
           "default": "'spam'"
         },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by_id": {
           "name": "created_by_id",
           "type": "uuid",
@@ -2229,12 +2244,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "crm_blocklist_reason_check": {
-          "name": "crm_blocklist_reason_check",
-          "value": "\"crm_blocklist\".\"reason\" in ('spam', 'no_marketing')"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.crm_bot_events": {

@@ -1,6 +1,6 @@
 {
-  "id": "55f34cd8-b068-4230-b43c-f401f94afe35",
-  "prevId": "2573e1ac-f4af-4d8c-b84f-726d0748dbfd",
+  "id": "a3b535f0-28d5-4b95-afa6-ffc4f5fe09e3",
+  "prevId": "996bd822-7e9a-4cd4-9bd1-6ece4198140a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -471,12 +471,26 @@
           "notNull": true,
           "default": false
         },
+        "page_break": {
+          "name": "page_break",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "answer": {
           "name": "answer",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "media": {
+          "name": "media",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -616,6 +630,13 @@
           "notNull": true,
           "default": "'m'"
         },
+        "names_on_cover": {
+          "name": "names_on_cover",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "hide_recipient_on_cover": {
           "name": "hide_recipient_on_cover",
           "type": "boolean",
@@ -711,6 +732,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "toc_mode": {
+          "name": "toc_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'chapters'"
+        },
+        "toc_lines": {
+          "name": "toc_lines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "invite_token": {
           "name": "invite_token",
@@ -2585,36 +2620,6 @@
           ],
           "isUnique": false,
           "where": "\"crm_conversations\".\"awaiting_since\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_conv_deal_idx": {
-          "name": "crm_conv_deal_idx",
-          "columns": [
-            {
-              "expression": "deal_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_conv_client_idx": {
-          "name": "crm_conv_client_idx",
-          "columns": [
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4556,12 +4561,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "automation_id": {
-          "name": "automation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "stage_changed_at": {
           "name": "stage_changed_at",
           "type": "timestamp with time zone",
@@ -4636,22 +4635,6 @@
           "method": "btree",
           "with": {}
         },
-        "crm_deals_order_idx": {
-          "name": "crm_deals_order_idx",
-          "columns": [
-            {
-              "expression": "order_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_deals\".\"order_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "crm_deals_assigned_idx": {
           "name": "crm_deals_assigned_idx",
           "columns": [
@@ -4679,38 +4662,6 @@
           ],
           "isUnique": false,
           "where": "\"crm_deals\".\"closed_at\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_deals_automation_idx": {
-          "name": "crm_deals_automation_idx",
-          "columns": [
-            {
-              "expression": "automation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_deals\".\"automation_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_deals_event_date_idx": {
-          "name": "crm_deals_event_date_idx",
-          "columns": [
-            {
-              "expression": "(\"custom_fields\"->>'event_date')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"crm_deals\".\"custom_fields\"->>'event_date') is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4775,19 +4726,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "crm_deals_automation_id_crm_automations_id_fk": {
-          "name": "crm_deals_automation_id_crm_automations_id_fk",
-          "tableFrom": "crm_deals",
-          "tableTo": "crm_automations",
-          "columnsFrom": [
-            "automation_id"
           ],
           "columnsTo": [
             "id"

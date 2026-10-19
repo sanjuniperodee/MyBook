@@ -13,11 +13,22 @@ describe("цены из админки", () => {
     expect(getPlan("hardcover")).toMatchObject({ price: 30000, extraCopyPrice: 17900 });
     expect(getVisiblePlans().map((p) => p.id)).toEqual(["digital", "hardcover"]);
     expect(getAddons().map((a) => [a.id, a.price])).toEqual([["express", 5000], ["giftwrap", 5000]]);
-    expect(getDeliveryOptions().map((d) => [d.id, d.price])).toEqual([["courier", 2000], ["post", 3500], ["pickup", 0], ["abroad", 0]]);
+    // Доставка не константа: курьер, по Казахстану и в другую страну — по расчёту, самовывоз бесплатный.
+    expect(getDeliveryOptions().map((d) => [d.id, d.price, !!d.quoted])).toEqual([["courier", 0, true], ["post", 0, true], ["pickup", 0, false], ["abroad", 0, true]]);
+  });
+
+  it("цена доставки из админки делает её фиксированной; старая сохранённая цена без отметки — нет", () => {
+    applyCatalog({ delivery: { courier: { price: 2500 }, post: { price: 3500 } } });
+    expect(getDeliveryOptions().find((d) => d.id === "courier")).toMatchObject({ price: 0, quoted: true });
+    expect(calculatePrice("hardcover", 1, "courier", null, []).deliveryAmount).toBe(0);
+    applyCatalog({ delivery: { courier: { price: 2500, fixed: true } } });
+    expect(getDeliveryOptions().find((d) => d.id === "courier")).toEqual({ id: "courier", price: 2500, maxDays: 2 });
+    expect(getDeliveryOptions().find((d) => d.id === "post")).toMatchObject({ quoted: true });
+    expect(calculatePrice("hardcover", 1, "courier", null, []).deliveryAmount).toBe(2500);
   });
 
   it("переопределения меняют цены, допы, доставку и видимость; расчёт заказа идёт по ним", () => {
-    applyCatalog({ plans: { hardcover: { price: 28000, extraCopyPrice: 15000 }, premium: { hidden: false } }, addons: { giftwrap: { price: 4000 } }, delivery: { courier: { price: 2500 } } });
+    applyCatalog({ plans: { hardcover: { price: 28000, extraCopyPrice: 15000 }, premium: { hidden: false } }, addons: { giftwrap: { price: 4000 } }, delivery: { courier: { price: 2500, fixed: true } } });
     expect(getPlan("hardcover")).toMatchObject({ price: 28000, extraCopyPrice: 15000 });
     expect(getVisiblePlans().map((p) => p.id)).toEqual(["digital", "hardcover", "premium"]);
     const p = calculatePrice("hardcover", 2, "courier", null, ["giftwrap"]);
@@ -39,7 +50,7 @@ describe("цены из админки", () => {
   });
 
   it("договорённая цена книги, доставка сверху и фиксированный тариф работают поверх новых цен", () => {
-    applyCatalog({ plans: { hardcover: { price: 28000 } }, delivery: { courier: { price: 3000 } } });
+    applyCatalog({ plans: { hardcover: { price: 28000 } }, delivery: { courier: { price: 3000, fixed: true } } });
     const p = calculatePrice("hardcover", 1, "courier", null, [], { agreedTotal: 20000, prepaid: 10000 });
     expect(p).toMatchObject({ itemsAmount: 28000, discountAmount: 8000, deliveryAmount: 3000, prepaidAmount: 10000, amount: 13000 });
     expect(availableAddons("premium")).toEqual([]);

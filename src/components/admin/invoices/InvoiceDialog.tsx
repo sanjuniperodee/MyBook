@@ -225,7 +225,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
                 <input type="checkbox" checked={chosenGifts.includes(g)} onChange={(e) => setGifts((l) => (e.target.checked ? [...l.filter((x) => x !== g), g] : l.filter((x) => x !== g)))} aria-label={g === "giftwrap" ? "Подарочная упаковка бесплатно" : "Доставка бесплатно"} />
                 <span>
                   {g === "giftwrap" ? "Подарочная упаковка" : "Доставка"}
-                  <span className="text-muted"> · {formatPrice(g === "giftwrap" ? info.giftPrices.giftwrap : info.giftPrices.delivery)}{g === "delivery" ? " и меньше" : ""}</span>
+                  <span className="text-muted"> · {g === "delivery" && !info.giftPrices.delivery ? "стоимость рассчитывается индивидуально" : `${formatPrice(g === "giftwrap" ? info.giftPrices.giftwrap : info.giftPrices.delivery)}${g === "delivery" ? " и меньше" : ""}`}</span>
                 </span>
               </label>
             ))}

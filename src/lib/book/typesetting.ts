@@ -140,6 +140,26 @@ export const DIVIDER = { before: 0.3, after: 0.2 } as const;
  */
 export const INLINE_ROW = { before: 0.5, after: 1, polaroidBorder: 0.5, lineBorder: 1, captionGap: 6, polaroidCaption: 0.22 } as const;
 
+/**
+ * Карточка видео или музыки в ответе (answer-media.ts): QR-код слева, справа — вид («Видео · YouTube»), подпись
+ * и подсказка «наведите камеру». Сторона кода (≈ 21 мм — уверенно читается с бумаги), поля, промежуток и скругление —
+ * pt × scale, рамка — pt; отбивки карточки — em; подпись — доля кегля основного текста, не длиннее двух строк;
+ * значок вида — доля кегля служебной надписи; отбивки внутри колонки текста — pt × scale.
+ */
+export const MEDIA_CARD = {
+  qr: 60,
+  pad: 7,
+  gap: 11,
+  radius: 5,
+  border: 0.5,
+  before: 0.5,
+  after: 1,
+  title: { size: 1.06, lineHeight: 1.25, maxLines: 2 },
+  icon: 1.15,
+  labelGap: 4,
+  noteGap: 3.5,
+} as const;
+
 /** Концовка главы: отбивка перед виньеткой — доля отбивки перед заголовком. */
 export const CHAPTER_TAIL = { before: 1.1 } as const;
 
@@ -219,7 +239,8 @@ export const FRONT = {
 /** Оглавление: отбивки заголовка и строк — pt × scale; отточие — толщина и поля, pt; наибольшая ширина названия главы. */
 export const TOC = {
   title: { before: 20, after: 26 },
-  entry: { after: 7, maxWidth: "82%" },
+  /** indent — отступ строки раздела под главой (режим «главы и заголовки»), pt. */
+  entry: { after: 7, maxWidth: "82%", indent: 14 },
   leader: { width: 0.6, side: 5, bottom: 3 },
 } as const;
 

@@ -25,7 +25,7 @@ export function AgreementGiftsField({ values = {} }: { values?: Record<string, s
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" name={giftFields.delivery} defaultChecked={values[giftFields.delivery] === "on"} />
-          Доставка <span className="text-muted">· до {formatPrice(delivery)}</span>
+          Доставка <span className="text-muted">· {delivery ? `до ${formatPrice(delivery)}` : "стоимость рассчитывается индивидуально"}</span>
         </label>
       </div>
       <p className="mt-1 text-xs text-muted">Не отмечено — клиент платит по прайсу. Отмеченное клиент выбирает при оформлении сам, и оно стоит 0 ₸. У электронной книги упаковки и доставки нет.</p>

@@ -172,5 +172,5 @@ export function chapterNumbers(groups: readonly ChapterGroup[], photos: readonly
 
 /** Раздел своей книги из ответа сервера (свежесозданный: текста ещё нет). */
 export function newSection(row: { id: string; chapter: string; prompt?: string; title?: string }, chapterTitle: string): EditorQuestion {
-  return { id: row.id, chapter: row.chapter, chapterTitle, prompt: row.prompt ?? "", hint: null, defaultTitle: row.title ?? "", displayText: null, hideHeading: false, answer: "", isCustom: true };
+  return { id: row.id, chapter: row.chapter, chapterTitle, prompt: row.prompt ?? "", hint: null, defaultTitle: row.title ?? "", displayText: null, hideHeading: false, answer: "", media: [], isCustom: true };
 }

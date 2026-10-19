@@ -5,7 +5,7 @@ import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { requireUser } from "@/server/auth";
-import { getDeliveryOptions, getPlan, getPlans, type DeliveryId } from "@/config/site";
+import { getDeliveryOptions, getPlan, getPlans, isAbroadDelivery, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
 import { actionError } from "@/server/errors";
@@ -52,13 +52,13 @@ const schema = (e: CheckoutErrors) =>
       if (!plan?.printed) return;
       const del = getDeliveryOptions().find((o) => o.id === d.delivery);
       if (!del) ctx.addIssue({ code: "custom", message: e.delivery });
-      if (del && del.quoted && (!d.country || d.country.length < 2)) ctx.addIssue({ code: "custom", message: e.country });
+      if (del && isAbroadDelivery(del.id) && (!d.country || d.country.length < 2)) ctx.addIssue({ code: "custom", message: e.country });
       if (del && del.id !== "pickup") {
         if (!d.city) ctx.addIssue({ code: "custom", message: e.city });
         if (!d.address || d.address.length < 5) ctx.addIssue({ code: "custom", message: e.address });
       }
       // За границу без индекса не отправить.
-      if (del && del.quoted && !d.postalCode) ctx.addIssue({ code: "custom", message: e.postalCode });
+      if (del && isAbroadDelivery(del.id) && !d.postalCode) ctx.addIssue({ code: "custom", message: e.postalCode });
     });
 
 export async function createOrderAction(_: CheckoutState, form: FormData): Promise<CheckoutState> {

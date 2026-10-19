@@ -4,11 +4,13 @@
 import type { Locale } from "@/i18n/config";
 import { applyGender } from "../content/gender";
 import { bookKind, type BookKind } from "../content/kinds";
-import type { Book, BookChapter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
-import { MAX_INLINE_HEIGHT_SHARE } from "./inline-photo";
+import type { AnswerMedia, Book, BookChapter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
+import { normalizeMedia } from "./answer-media";
+import { MAX_INLINE_HEIGHT_SHARE, splitParagraphs } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
+import { isCustomToc, type TocLines, type TocMode } from "./toc";
 
 export interface ContentItem {
   id: string;
@@ -16,6 +18,14 @@ export interface ContentItem {
   answer: string;
   /** Фото, вставленные в ответ (печатаются после текста). */
   photos?: PhotoItem[];
+  /** Видео и музыка — QR-коды с подписью (answer-media.ts); нет — ключа нет (отпечаток кэша прежних книг не меняется). */
+  media?: AnswerMedia[];
+  /** Автор просил начать историю с новой страницы; нет — ключа нет. */
+  pageBreak?: true;
+  /** Перед этой частью — фото на всю страницу (под обрез) из той же истории: текст до него — в предыдущей части. */
+  photoBefore?: PhotoItem;
+  /** Продолжение истории после фото на всю страницу: без заголовка и разделителя, в оглавление не идёт. */
+  continued?: true;
 }
 
 export interface PhotoItem {
@@ -39,6 +49,13 @@ export interface ContentChapter {
   photos: PhotoItem[];
   /** Снимок на начальной полосе главы — в оформлениях, где глава открывается фото (первое фото главы). */
   openerPhoto?: PhotoItem;
+  /** Название главы по книге, если автор переименовал её (title — новое); нет — не переименована. */
+  defaultTitle?: string;
+  /**
+   * Главы, которые автор убрал (toc.ts, скрытая строка главы): их истории идут дальше в этой главе с ответа at.
+   * Нужны редактору оглавления, чтобы главу можно было вернуть. Нет — ничего не убрано.
+   */
+  folded?: { key: string; title: string; at: number }[];
 }
 
 export interface BookContent {
@@ -57,6 +74,9 @@ export interface BookContent {
   recordedBy: string;
   dedication: string;
   showToc: boolean;
+  /** Оглавление не по умолчанию (toc.ts); по главам без своих строк — ключей нет (отпечаток кэша прежних книг не меняется). */
+  tocMode?: TocMode;
+  tocLines?: TocLines;
   chapters: ContentChapter[];
   /** Фото, вынесенные в отдельный раздел в конце книги. */
   galleryPhotos: PhotoItem[];
@@ -65,7 +85,11 @@ export interface BookContent {
   year: number;
 }
 
-export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey">;
+export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & {
+  media?: readonly Partial<AnswerMedia>[] | null;
+  /** «С новой страницы» (book_questions.page_break); нет — как раньше. */
+  pageBreak?: boolean | null;
+};
 export type BookLike = Pick<
   Book,
   | "theme"
@@ -83,7 +107,9 @@ export type BookLike = Pick<
   | "photoPlacement"
   | "showToc"
   | "coverPhotoId"
->;
+> &
+  /** Оглавление (toc.ts): нет — по главам, без своих строк. */
+  Partial<Pick<Book, "tocMode" | "tocLines">>;
 
 /** Глава своей книги (book_chapters) для сборки: порядок — порядок списка. У книг с банком список пуст. */
 export type ChapterLike = Pick<BookChapter, "key" | "title" | "epigraph">;
@@ -184,17 +210,22 @@ export function assembleBookContent(
   }
   for (const q of sorted) {
     const qPhotos = inline.get(q.id) ?? [];
-    if (!q.answer.trim() && !qPhotos.length) continue;
+    const media = normalizeMedia(q.media).map((m) => ({ ...m, title: printableText(m.title) }));
+    if (!q.answer.trim() && !qPhotos.length && !media.length) continue;
     if (!byChapter.has(q.chapter)) {
       byChapter.set(q.chapter, []);
       chapterOrder.push(q.chapter);
     }
-    byChapter.get(q.chapter)!.push({
-      id: q.id,
-      heading: q.hideHeading ? null : printableText(questionHeading(q, book)),
-      answer: printableText(q.answer.trim()),
-      photos: qPhotos,
-    });
+    byChapter.get(q.chapter)!.push(
+      ...splitAtPagePhotos({
+        id: q.id,
+        heading: q.hideHeading ? null : printableText(questionHeading(q, book)),
+        answer: printableText(q.answer.trim()),
+        photos: qPhotos,
+        ...(media.length ? { media } : {}),
+        ...(q.pageBreak ? { pageBreak: true as const } : {}),
+      }),
+    );
   }
 
   // Своя книга — главы в порядке оглавления автора (пустые не печатаются), главы вне него — в конце.
@@ -207,6 +238,8 @@ export function assembleBookContent(
     const epigraph = def?.own ? printableText(def.epigraph?.trim() ?? "") || undefined : def?.epigraph;
     return { key, number: i + 1, title, epigraph, items: byChapter.get(key)!, photos: [] };
   });
+  // Главы по-своему: переименованные и убранные автором (их истории — в предыдущей главе) — до раздачи фото по главам.
+  foldChapters(chapters, book.tocLines ?? {});
 
   // Фото обложки не дублируем внутри книги.
   const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
@@ -236,6 +269,7 @@ export function assembleBookContent(
       items: letterItems.map((l) => ({ id: l.id, heading: printableText(l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim()), answer: printableText(l.text.trim()) })),
       photos: [],
     });
+    foldChapters(chapters, book.tocLines ?? {}, LETTERS_CHAPTER);
   }
 
   const kind = bookKind(book.theme);
@@ -251,11 +285,122 @@ export function assembleBookContent(
     recordedBy: kind === "autobiography" ? printableText(book.recordedBy.trim()) : "",
     dedication: printableText(book.dedication.trim()),
     showToc: book.showToc,
+    ...tocSettings(book),
     chapters,
     galleryPhotos,
     galleryTitle: texts.galleryTitle,
     year,
   };
+}
+
+/**
+ * Главы по-своему (настройки строк глав, toc.ts): своё название — во всей книге (начальная полоса, колонтитул,
+ * оглавление); скрытая глава убирается, а её истории идут дальше в предыдущей. Первую главу убрать некуда — у неё
+ * скрытие действует только на оглавление. only — применить только к этой главе (письма добавляются позже остальных).
+ * Номера глав — заново по порядку.
+ */
+function foldChapters(chapters: ContentChapter[], lines: Readonly<Record<string, { title?: string; hidden?: boolean }>>, only?: string) {
+  for (let i = 0; i < chapters.length; i++) {
+    const ch = chapters[i];
+    if (only && ch.key !== only) continue;
+    const s = lines[`c:${ch.key}`];
+    const title = s?.title ? printableText(s.title.trim()) : "";
+    if (title && title !== ch.title) {
+      ch.defaultTitle = ch.title;
+      ch.title = title;
+    }
+    if (!s?.hidden || i === 0) continue;
+    const prev = chapters[i - 1];
+    prev.folded = [...(prev.folded ?? []), { key: ch.key, title: ch.defaultTitle ?? ch.title, at: prev.items.length }, ...(ch.folded ?? []).map((f) => ({ ...f, at: f.at + prev.items.length }))];
+    prev.items = [...prev.items, ...ch.items];
+    prev.photos = [...prev.photos, ...(ch.openerPhoto ? [ch.openerPhoto] : []), ...ch.photos];
+    chapters.splice(i, 1);
+    i -= 1;
+  }
+  chapters.forEach((ch, i) => (ch.number = i + 1));
+}
+
+/** Настройки оглавления для содержимого: только не по умолчанию; свои названия — без эмодзи, как весь текст книги. */
+function tocSettings(book: Pick<BookLike, "tocMode" | "tocLines">): Pick<BookContent, "tocMode" | "tocLines"> {
+  const mode = book.tocMode ?? "chapters";
+  const raw = book.tocLines ?? {};
+  if (!isCustomToc(mode, raw)) return {};
+  const lines: TocLines = {};
+  for (const [key, s] of Object.entries(raw)) {
+    const title = s.title ? printableText(s.title.trim()) : "";
+    if (title || s.hidden) lines[key] = { ...(title ? { title } : {}), ...(s.hidden ? { hidden: true } : {}) };
+  }
+  return { tocMode: mode, tocLines: lines };
+}
+
+/** Пустая часть истории: ни заголовка, ни текста, ни фото, ни QR — например, между двумя фото на всю страницу. */
+export const isEmptyItem = (it: ContentItem) => !it.heading && !it.answer && !it.photos?.length && !it.media?.length;
+
+/**
+ * Фото «на всю страницу» в истории (inline.page): история делится в месте фото. Часть до фото — как была (заголовок,
+ * абзацы, фото и QR до этого места), следующая — продолжение без заголовка (continued) с этим фото перед собой
+ * (photoBefore, под обрез). Фото перед текстом — страница с ним идёт перед историей (у первой части photoBefore).
+ * Места остальных фото и QR (anchor — номер абзаца) пересчитываются от начала своей части.
+ */
+function splitAtPagePhotos(item: ContentItem): ContentItem[] {
+  const pagePhotos = (item.photos ?? []).filter((p) => p.inline?.page);
+  if (!pagePhotos.length) return [item];
+  const paragraphs = splitParagraphs(item.answer);
+  const n = paragraphs.length;
+  // После какого абзаца стоит фото или QR: -1 — перед текстом, n − 1 — в конце (как в layoutInline).
+  const after = (anchor: number | null | undefined) => (anchor === null || anchor === undefined || anchor >= n - 1 ? n - 1 : Math.max(-1, anchor));
+  const cuts = [...pagePhotos].sort((a, b) => after(a.inline?.anchor) - after(b.inline?.anchor));
+  const photos = (item.photos ?? []).filter((p) => !p.inline?.page);
+  const media = item.media ?? [];
+  const parts: ContentItem[] = [];
+  let from = 0;
+  for (let i = 0; i <= cuts.length; i++) {
+    const end = i < cuts.length ? after(cuts[i].inline?.anchor) + 1 : n;
+    // Фото и QR этой части — после её абзацев (у первой — и перед текстом). Стоящие там же, где фото на всю
+    // страницу, — до него, в этой части. Место — от начала части.
+    const mine = (a: number) => a >= (i === 0 ? -1 : from) && a <= end - 1;
+    const shift = (a: number) => (a < from ? -1 : a - from);
+    const partPhotos = photos.filter((p) => mine(after(p.inline?.anchor))).map((p) => ({ ...p, inline: p.inline ? { ...p.inline, anchor: shift(after(p.inline.anchor)) } : p.inline }));
+    const partMedia = media.filter((m) => mine(after(m.anchor))).map((m) => ({ ...m, anchor: shift(after(m.anchor)) }));
+    const part: ContentItem = {
+      id: i === 0 ? item.id : `${item.id}-p${i}`,
+      heading: i === 0 ? item.heading : null,
+      answer: paragraphs.slice(from, end).join("\n"),
+      photos: partPhotos,
+      ...(partMedia.length ? { media: partMedia } : {}),
+      ...(i === 0 && item.pageBreak ? { pageBreak: true as const } : {}),
+      ...(i > 0 ? { photoBefore: { ...cuts[i - 1], layout: "bleed" as const }, continued: true as const } : {}),
+    };
+    parts.push(part);
+    from = end;
+  }
+  // Пустая первая часть (фото перед текстом): заголовок, id и «с новой страницы» — у следующей, страница фото — перед ней.
+  if (parts.length > 1 && isEmptyItem({ ...parts[0], heading: null })) {
+    const [head, next] = parts;
+    const merged: ContentItem = { ...next, id: head.id, heading: head.heading, ...(head.pageBreak ? { pageBreak: true as const } : {}) };
+    delete merged.continued;
+    parts.splice(0, 2, merged);
+  }
+  // Пустая последняя часть без фото перед собой не нужна.
+  return parts.filter((p, i) => i === 0 || !isEmptyItem(p) || p.photoBefore);
+}
+
+/**
+ * Глава по кускам сплошного текста: между ними — фото на всю страницу из историй (photoBefore следующей части).
+ * Кусок без единой непустой истории — только страница с фото (например, фото перед текстом первой истории главы).
+ */
+export function chapterRuns(items: readonly ContentItem[]): { items: ContentItem[]; photo?: PhotoItem }[] {
+  const runs: { items: ContentItem[]; photo?: PhotoItem }[] = [];
+  let current: ContentItem[] = [];
+  for (const it of items) {
+    if (it.photoBefore) {
+      runs.push({ items: current, photo: it.photoBefore });
+      current = [];
+    }
+    if (!isEmptyItem(it)) current.push(it);
+  }
+  runs.push({ items: current });
+  return runs.filter((r) => r.items.length || r.photo);
 }
 
 /** Сколько фото «сеткой» помещается на страницу. */

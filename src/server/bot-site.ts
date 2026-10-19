@@ -18,7 +18,7 @@ export const botSiteInfo: BotSiteInfo = {
     await ensureCatalog();
     return {
       plans: getPlans().map((p) => ({ id: p.id, price: p.price, extraCopyPrice: p.extraCopyPrice, hidden: p.hidden })),
-      delivery: getDeliveryOptions().map((d) => ({ id: d.id, price: d.price })),
+      delivery: getDeliveryOptions().map((d) => ({ id: d.id, price: d.price, quoted: d.quoted })),
       addons: getAddons().map((a) => ({ id: a.id, price: a.price })),
       productionDays,
     };

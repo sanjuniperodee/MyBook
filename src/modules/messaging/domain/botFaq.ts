@@ -8,7 +8,8 @@ import type { BotLang, FaqIntent } from "./botNlu";
 /** Что бот знает о ценах и сроках (адаптер берёт из действующего каталога). */
 export interface BotCatalog {
   plans: { id: string; price: number; extraCopyPrice?: number; hidden?: boolean }[];
-  delivery: { id: string; price: number }[];
+  /** quoted — стоимость рассчитывается индивидуально (менеджер считает по адресу), цены нет. */
+  delivery: { id: string; price: number; quoted?: boolean }[];
   addons: { id: string; price: number }[];
   productionDays: { standard: string; premium: string };
 }
@@ -42,17 +43,20 @@ export function catalogVars(c: BotCatalog, lang: BotLang): Record<string, string
   const delivery = (id: string) => c.delivery.find((d) => d.id === id);
   const addon = (id: string) => c.addons.find((a) => a.id === id);
   const v = (x: { price: number } | undefined) => (x ? money(x.price, lang) : "");
+  // Доставка не константа (город, перевозчик, InDriver): стоимость рассчитывается индивидуально — цены не называем.
+  const individually = lang === "kk" ? "құны жеке есептеледі" : "стоимость рассчитывается индивидуально";
+  const d = (x: { price: number; quoted?: boolean } | undefined) => (x?.quoted ? individually : v(x));
   const hardcover = plan("hardcover");
   return {
     "цена.электронная": v(plan("digital")),
     "цена.печатная": v(hardcover),
     "цена.премиум": v(plan("premium")),
     "экземпляр.печатная": hardcover?.extraCopyPrice ? money(hardcover.extraCopyPrice, lang) : "",
-    "доставка.курьер": v(delivery("courier")),
-    "доставка.почта": v(delivery("post")),
-    "доставка.самовывоз": v(delivery("pickup")),
-    // Стоимость доставки в другую страну считает менеджер — цены нет.
-    "доставка.заграница": delivery("abroad") ? (lang === "kk" ? "құнын менеджер бөлек есептейді" : "стоимость рассчитает менеджер отдельно") : "",
+    "доставка.курьер": d(delivery("courier")),
+    "доставка.почта": d(delivery("post")),
+    "доставка.самовывоз": d(delivery("pickup")),
+    // В другую страну — всегда по расчёту, даже если в каталоге (старом) нет отметки.
+    "доставка.заграница": delivery("abroad") ? individually : "",
     экспресс: v(addon("express")),
     упаковка: v(addon("giftwrap")),
     "срок.производства": c.productionDays.standard,

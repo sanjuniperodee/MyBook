@@ -423,7 +423,7 @@ export class AiSeller {
     // Представляется только в новом чате: если клиенту уже писали мы (бот или менеджер — подхват, запуск кнопкой), бот не
     // представляется, а продолжает от лица компании (владелец, 18.10: «не обязательно представляться при подхвате»).
     const intro = lastOurs ? null : { greet: true };
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro, materials };
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro, materials, materialsSeen: materialsAlreadySent(history) };
   }
 
   /**
@@ -489,7 +489,7 @@ export class AiSeller {
       knowledge: knowledge.trim() ? { all: !picked.filtered, titles: picked.titles } : null,
     };
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null });
+      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null, warm: paid || ai.priceQuoted || ai.warmedUp || materialsSent || priceMentioned(history) });
       let raw: string;
       try {
         const res = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });

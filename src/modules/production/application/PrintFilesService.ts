@@ -70,6 +70,8 @@ export class PrintFilesService {
       await this.files.put(keys.cover, pkg.cover);
       await this.files.put(keys.spec, pkg.spec);
       await this.files.put(this.key(job.orderId, "layout"), pkg.layout);
+      // Читательская версия собрана из той же книги: после пересборки пакета старую не отдаём, при запросе она соберётся заново.
+      await this.files.deletePrefix(this.key(job.orderId, "reading"));
       return pkg.printSpec;
     });
   }

@@ -12,9 +12,13 @@ export type Face =
   /** Оборот титула: копирайт и выходные данные. */
   | { kind: "colophon" }
   | { kind: "dedication" }
-  | { kind: "toc" }
+  /** part — полоса оглавления по счёту (длинное оглавление по разделам занимает несколько). */
+  | { kind: "toc"; part: number }
   | { kind: "opener"; chapter: number }
-  | { kind: "text"; chapter: number; part: number }
+  /** run — кусок главы между фото на всю страницу (нет — глава одним куском). */
+  | { kind: "text"; chapter: number; part: number; run?: number }
+  /** Фото на всю страницу из истории — после куска run главы. */
+  | { kind: "pagePhoto"; chapter: number; run: number }
   /** Фотостраница главы (как в PDF — после её текста); chapter = −1 — галерея в конце книги. */
   | { kind: "photos"; chapter: number; page: number }
   /** Начальная полоса галереи (фото, вынесенные в конец книги). */
@@ -24,8 +28,15 @@ export type Face =
 export interface FacePlanInput {
   hasDedication: boolean;
   hasToc: boolean;
+  /** Сколько полос занимает оглавление (по умолчанию одна). */
+  tocPages?: number;
   /** Сколько полос текста занимает каждая глава (0 — у главы нет текста). */
   textPages: number[];
+  /**
+   * Главы с фото на всю страницу в историях: куски текста по порядку (полос, есть ли после куска фото). Есть у главы —
+   * вместо textPages: полосы куска, страница фото, следующий кусок…
+   */
+  runs?: ({ pages: number; photo: boolean }[] | undefined)[];
   /** Сколько фотостраниц у каждой главы (после её текста). */
   photoPages?: number[];
   /** Фотостраницы галереи в конце книги (0 — галереи нет). */
@@ -41,15 +52,21 @@ export interface FacePlan {
   galleryStart: number | null;
 }
 
-export function planFaces({ hasDedication, hasToc, textPages, photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
+export function planFaces({ hasDedication, hasToc, tocPages = 1, textPages, runs = [], photoPages = [], galleryPages = 0 }: FacePlanInput): FacePlan {
   const faces: Face[] = [{ kind: "title" }, { kind: "colophon" }];
   if (hasDedication) faces.push({ kind: "dedication" });
-  if (hasToc && textPages.length) faces.push({ kind: "toc" });
+  if (hasToc && textPages.length) for (let part = 0; part < Math.max(1, tocPages); part++) faces.push({ kind: "toc", part });
   const chapterStarts: number[] = [];
   textPages.forEach((count, chapter) => {
     chapterStarts.push(faces.length + 1);
     faces.push({ kind: "opener", chapter });
-    for (let part = 0; part < count; part++) faces.push({ kind: "text", chapter, part });
+    const chapterRuns = runs[chapter];
+    if (chapterRuns)
+      chapterRuns.forEach((r, run) => {
+        for (let part = 0; part < r.pages; part++) faces.push({ kind: "text", chapter, part, run });
+        if (r.photo) faces.push({ kind: "pagePhoto", chapter, run });
+      });
+    else for (let part = 0; part < count; part++) faces.push({ kind: "text", chapter, part });
     for (let page = 0; page < (photoPages[chapter] ?? 0); page++) faces.push({ kind: "photos", chapter, page });
   });
   let galleryStart: number | null = null;

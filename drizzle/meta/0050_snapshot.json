@@ -1,6 +1,6 @@
 {
-  "id": "8c5fe144-3b79-4770-a347-36752e78e7f1",
-  "prevId": "a3b535f0-28d5-4b95-afa6-ffc4f5fe09e3",
+  "id": "7c1afffc-9f68-4fb1-aa46-4c592502c474",
+  "prevId": "a630b216-13af-47af-b976-8e4b115039df",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -471,12 +471,26 @@
           "notNull": true,
           "default": false
         },
+        "page_break": {
+          "name": "page_break",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "answer": {
           "name": "answer",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "media": {
+          "name": "media",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -616,6 +630,13 @@
           "notNull": true,
           "default": "'m'"
         },
+        "names_on_cover": {
+          "name": "names_on_cover",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "hide_recipient_on_cover": {
           "name": "hide_recipient_on_cover",
           "type": "boolean",
@@ -711,6 +732,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "toc_mode": {
+          "name": "toc_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'chapters'"
+        },
+        "toc_lines": {
+          "name": "toc_lines",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "invite_token": {
           "name": "invite_token",
@@ -1363,22 +1398,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_tasks_open_deal_idx": {
-          "name": "crm_tasks_open_deal_idx",
-          "columns": [
-            {
-              "expression": "deal_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_tasks\".\"done_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2572,22 +2591,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "crm_conv_awaiting_idx": {
-          "name": "crm_conv_awaiting_idx",
-          "columns": [
-            {
-              "expression": "awaiting_since",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_conversations\".\"awaiting_since\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -3748,22 +3751,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "orders_paid_idx": {
-          "name": "orders_paid_idx",
-          "columns": [
-            {
-              "expression": "paid_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"orders\".\"paid_at\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -4526,12 +4513,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "automation_id": {
-          "name": "automation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "stage_changed_at": {
           "name": "stage_changed_at",
           "type": "timestamp with time zone",
@@ -4620,38 +4601,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "crm_deals_closed_idx": {
-          "name": "crm_deals_closed_idx",
-          "columns": [
-            {
-              "expression": "closed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_deals\".\"closed_at\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "crm_deals_automation_idx": {
-          "name": "crm_deals_automation_idx",
-          "columns": [
-            {
-              "expression": "automation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"crm_deals\".\"automation_id\" is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -4713,19 +4662,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "crm_deals_automation_id_crm_automations_id_fk": {
-          "name": "crm_deals_automation_id_crm_automations_id_fk",
-          "tableFrom": "crm_deals",
-          "tableTo": "crm_automations",
-          "columnsFrom": [
-            "automation_id"
           ],
           "columnsTo": [
             "id"

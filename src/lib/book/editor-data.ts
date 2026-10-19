@@ -8,10 +8,11 @@ import { bookKind } from "@/lib/content/kinds";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import type { Book, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import type { EditorChapter, EditorPhoto, EditorQuestion } from "./editor-model";
+import { normalizeMedia } from "./answer-media";
 import { CUSTOM_KEY, questionTexts, type ChapterLike, type LetterLike } from "./layout";
 
 type ModelBook = Pick<Book, "theme" | "language" | "authorGender" | "recipientGender" | "coverPhotoId">;
-type ModelQuestion = Pick<BookQuestion, "id" | "chapter" | "prompt" | "hint" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey">;
+type ModelQuestion = Pick<BookQuestion, "id" | "chapter" | "prompt" | "hint" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & Partial<Pick<BookQuestion, "media">>;
 type ModelPhoto = Pick<Photo, "id" | "width" | "height" | "caption" | "layout" | "questionId" | "inline">;
 type ModelLetter = Pick<BookLetter, "id" | "authorName" | "relation" | "text">;
 
@@ -43,6 +44,7 @@ export function editorModel(book: ModelBook, rows: ModelQuestion[], chapters: re
       displayText: r.displayText,
       hideHeading: r.hideHeading,
       answer: r.answer,
+      media: normalizeMedia(r.media),
       isCustom: r.questionKey === CUSTOM_KEY,
     };
   });

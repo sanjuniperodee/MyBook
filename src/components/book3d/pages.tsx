@@ -25,7 +25,14 @@ export interface FlipbookChapter {
   openerPhoto?: string;
   /** Фотостраницы главы — после её текста, по той же группировке, что в PDF. */
   photoPages?: PagePhoto[][];
+  /** Фото на всю страницу в историях: текст главы кусками, после куска — страница с фото. Нет — глава одним куском. */
+  runs?: { entries: SampleEntry[]; photo?: PagePhoto }[];
 }
+
+/** Куски текста главы: с фото на всю страницу — runs, иначе весь текст одним куском. */
+const runsOf = (c: FlipbookChapter) => c.runs ?? [{ entries: c.entries }];
+/** Последний кусок с текстом — на нём концовка главы. */
+const lastTextRun = (c: FlipbookChapter) => runsOf(c).findLastIndex((r) => r.entries.length);
 
 /** Всё, что нужно книге, одними сериализуемыми данными (страница-сервер → клиентский компонент). */
 export interface FlipbookData {
@@ -41,6 +48,11 @@ export interface FlipbookData {
   year: number;
   dedication: string;
   showToc: boolean;
+  /**
+   * Оглавление не по умолчанию (по разделам, свои названия, скрытые строки): строки по полосам оглавления и где
+   * каждая начинается — глава (−1 — галерея) и доля текста главы перед разделом (у главы — null). Нет — по главам.
+   */
+  toc?: { pages: number; lines: { key: string; title: string; number: number | null; level: 0 | 1; part: number; chapter: number; share: number | null }[] };
   chapters: FlipbookChapter[];
   /** Галерея в конце книги (фото не по главам): подпись начальной полосы и фотостраницы. */
   gallery?: { title: string; pages: PagePhoto[][] };
@@ -58,6 +70,8 @@ export interface FaceContext {
   chapterStarts: number[];
   /** Полоса, с которой начинается галерея (для строки оглавления). */
   galleryStart: number | null;
+  /** Полос текста в каждой главе — для номеров страниц разделов в оглавлении. */
+  textPages?: number[];
 }
 
 export const faceBox = "absolute inset-0 size-full";
@@ -75,6 +89,22 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
     case "dedication":
       return <DedicationPage kit={kit} text={data.dedication} className={faceBox} />;
     case "toc":
+      if (data.toc)
+        return (
+          <TocPage
+            kit={kit}
+            className={faceBox}
+            entries={data.toc.lines
+              .filter((l) => l.part === face.part)
+              .map((l) => {
+                const start = l.chapter < 0 ? (galleryStart ?? 0) : (chapterStarts[l.chapter] ?? 0);
+                const text = ctx.textPages?.[l.chapter] ?? 0;
+                // Раздел — на полосе текста главы, куда приходится его доля текста (начальная полоса — первая).
+                const page = l.share === null || !text ? start : start + 1 + Math.min(text - 1, Math.floor(l.share * text));
+                return { key: l.key, title: l.title, number: l.number, level: l.level, page };
+              })}
+          />
+        );
       return (
         <TocPage
           kit={kit}
@@ -92,7 +122,13 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
     }
     case "text": {
       const ch = data.chapters[face.chapter];
-      return <TextPage kit={kit} entries={ch.entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0} part={face.part} tail className={faceBox} />;
+      const run = face.run ?? 0;
+      const entries = runsOf(ch)[run]?.entries ?? [];
+      return <TextPage kit={kit} entries={entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0 && run === 0} part={face.part} tail={run === lastTextRun(ch)} className={faceBox} />;
+    }
+    case "pagePhoto": {
+      const photo = data.chapters[face.chapter]?.runs?.[face.run]?.photo;
+      return photo ? <PhotoPage kit={kit} photos={[photo]} className={faceBox} /> : <div className={cn(faceBox, "bg-white")} />;
     }
     case "photos": {
       const pages = face.chapter < 0 ? data.gallery?.pages : data.chapters[face.chapter]?.photoPages;
@@ -132,7 +168,11 @@ export function usePagedBook(data: FlipbookData): PagedBook {
     const next = Array.from(el.querySelectorAll<HTMLElement>("[data-flow]"), (flow) => columnPages(flow.scrollWidth, flow.clientWidth, gapPx));
     setTextPages((prev) => (prev && prev.length === next.length && prev.every((n, i) => n === next[i]) ? prev : next));
   }, [format]);
-  const measured = useMemo(() => data.chapters.filter((c) => c.entries.length), [data.chapters]);
+  // Замеряем каждый кусок текста главы отдельно (с концовкой — только последний): так же они идут по полосам.
+  const measured = useMemo(
+    () => data.chapters.flatMap((c, chapter) => runsOf(c).flatMap((r, run) => (r.entries.length ? [{ key: `${chapter}-${run}`, entries: r.entries, tail: run === lastTextRun(c) }] : []))),
+    [data.chapters],
+  );
   useLayoutEffect(() => {
     measureNow();
     // Шрифты подгружаются после первой отрисовки и меняют разбивку.
@@ -145,22 +185,26 @@ export function usePagedBook(data: FlipbookData): PagedBook {
   const plan = useMemo(() => {
     if (!textPages) return null;
     let k = 0;
-    const perChapter = data.chapters.map((c) => (c.entries.length ? (textPages[k++] ?? 1) : 0));
-    return planFaces({
+    // Полос в каждом куске (в порядке замера); пустой кусок — только страница фото.
+    const runPages = data.chapters.map((c) => runsOf(c).map((r) => ({ pages: r.entries.length ? (textPages[k++] ?? 1) : 0, photo: !!r.photo })));
+    const perChapter = runPages.map((runs) => runs.reduce((sum, r) => sum + r.pages, 0));
+    return { ...planFaces({
       hasDedication: !!data.dedication,
       hasToc: data.showToc,
+      tocPages: data.toc?.pages,
       textPages: perChapter,
+      runs: data.chapters.map((c, i) => (c.runs ? runPages[i] : undefined)),
       photoPages: data.chapters.map((c) => c.photoPages?.length ?? 0),
       galleryPages: data.gallery?.pages.length ?? 0,
-    });
-  }, [textPages, data.chapters, data.dedication, data.showToc, data.gallery]);
+    }), textPages: perChapter };
+  }, [textPages, data.chapters, data.dedication, data.showToc, data.toc, data.gallery]);
   const sheets = useMemo(() => (plan ? planSheets(plan.faces) : []), [plan]);
-  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart } : null), [plan, data, kit]);
+  const ctx = useMemo<FaceContext | null>(() => (plan ? { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart, textPages: plan.textPages } : null), [plan, data, kit]);
 
   const measure = (
     <div ref={root} aria-hidden className="pointer-events-none invisible fixed top-0 -left-[10000px]" style={{ width: MEASURE_WIDTH }}>
-      {measured.map((c) => (
-        <TextPage key={c.number} kit={kit} entries={c.entries} folio={1} bookTitle="" chapterTitle="" recto={false} leadIn={false} tail style={{ width: MEASURE_WIDTH, aspectRatio: `${format.widthMm} / ${format.heightMm}` }} />
+      {measured.map((m) => (
+        <TextPage key={m.key} kit={kit} entries={m.entries} folio={1} bookTitle="" chapterTitle="" recto={false} leadIn={false} tail={m.tail} style={{ width: MEASURE_WIDTH, aspectRatio: `${format.widthMm} / ${format.heightMm}` }} />
       ))}
     </div>
   );

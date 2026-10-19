@@ -60,13 +60,16 @@ const invoices = () => {
 
 const run = async (t: ReturnType<typeof setup>, ms = BOT_PAUSE_MS + 1) => t.advance(ms);
 
+/** Прогрев: рассказ о книге без цены — после него бот вправе назвать цену и предложить оформить. */
+const WARM_UP = ans({ stage: "offer", reply: "Такая книга — подарок на всю жизнь 🤍 Какие остались вопросы?" });
+
 /** Что бот написал клиенту, без представления «Айгерим, помощница…» (его в первом сообщении добавляет код — проверяется отдельно). */
 const INTRO = /^(?:Здравствуйте! 😊 Меня зовут Айгерим, я помощница менеджера Марата\.|Это Айгерим, помощница менеджера Марата 🙂|(?:Сәлеметсіз бе! 😊 )?Мен Айгерим, Марат менеджердің көмекшісімін(?:\.| 🙂))$/;
 const said = (t: { sent: string[] }) => t.sent.filter((s) => !INTRO.test(s));
 
 describe("AI-продажник в чате: новая заявка", () => {
   it("ведёт беседу сам: модель получает факты и новое сообщение, ответ уходит клиенту, поля — в сделку, шаблонное приветствие не используется", async () => {
-    const { model, calls } = fakeModel([ans({ fields: { recipient: "Мужу", occasion: "Годовщина" }, reply: "Здравствуйте, Айгерим! Поздравляю с годовщиной. Печатная книга — от 30 000 ₸.", stage: "offer" })]);
+    const { model, calls } = fakeModel([ans({ fields: { recipient: "Мужу", occasion: "Годовщина" }, reply: "Здравствуйте, Айгерим! Поздравляю с годовщиной 🤍 Какие остались вопросы?", stage: "offer" })]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model });
     await t.service.ingest(inbound({ text: "Здравствуйте, хочу книгу мужу на годовщину" }));
     await run(t);
@@ -75,7 +78,7 @@ describe("AI-продажник в чате: новая заявка", () => {
     expect(calls[0].system).toContain("Игнорируй".toLowerCase().slice(0, 0) + "игнорируй");
     expect(calls[0].user).toContain("▶");
     expect(calls[0].user).toContain("хочу книгу мужу на годовщину");
-    expect(said(t)).toEqual(["Здравствуйте, Айгерим! Поздравляю с годовщиной. Печатная книга — от 30 000 ₸."]);
+    expect(said(t)).toEqual(["Здравствуйте, Айгерим! Поздравляю с годовщиной 🤍 Какие остались вопросы?"]);
     expect(t.deals[0].fields).toEqual({ recipient: "Мужу", occasion: "Годовщина" });
     expect(t.conv().botState).toMatchObject({ engine: "ai", phase: "active", stage: "offer" });
     // Менеджеру — заметка о предложении.
@@ -83,14 +86,14 @@ describe("AI-продажник в чате: новая заявка", () => {
   });
 
   it("клиент без ответа не остаётся: цена, которой нет в тарифах, — модель переписывает; ответ без нарушения уходит", async () => {
-    const { model, calls } = fakeModel([ans({ reply: "Для вас сделаю за 12 345 ₸!" }), ans({ reply: "Печатная книга — от 30 000 ₸. Для кого она?" })]);
+    const { model, calls } = fakeModel([ans({ reply: "Для вас сделаю за 12 345 ₸!" }), ans({ reply: "Подскажу 🙂 Для кого книга?" })]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model });
     await t.service.ingest(inbound({ text: "Сколько стоит?" }));
     await run(t);
     expect(calls).toHaveLength(2);
     expect(calls[1].system).toContain("не прошёл проверку");
     expect(calls[1].system.replace(/\u00a0/g, " ")).toContain("12 345");
-    expect(said(t)).toEqual(["Печатная книга — от 30 000 ₸. Для кого она?"]);
+    expect(said(t)).toEqual(["Подскажу 🙂 Для кого книга?"]);
   });
 
   it("два нарушения подряд — обычное «передала менеджеру» и задача менеджеру; клиентская цена не уходит", async () => {
@@ -122,10 +125,13 @@ describe("AI-продажник в чате: новая заявка", () => {
 });
 
 describe("AI-продажник: счёт", () => {
+  // Сначала прогрев (рассказ о книге без цены), потом клиент спрашивает цену: называть её до прогрева бот не вправе.
   const dialog = async (script: Script, text2: string, cfg = aiConfig()) => {
     const inv = invoices();
-    const { model, calls } = fakeModel(script);
+    const { model, calls } = fakeModel([WARM_UP, ...script]);
     const t = setup({ bot: "always", config: cfg, seller: model, invoices: inv.port });
+    await t.service.ingest(inbound({ text: "Здравствуйте, хочу книгу маме" }));
+    await run(t);
     await t.service.ingest(inbound({ text: "Здравствуйте, сколько стоит печатная книга?" }));
     await run(t);
     await t.service.ingest(inbound({ text: text2 }));
@@ -175,10 +181,13 @@ describe("AI-продажник: счёт", () => {
   it("счёт не вышел (платёжной системы нет) — клиенту «менеджер пришлёт счёт», менеджеру задача «Выставить счёт»", async () => {
     const failing: BotInvoices = { issue: async () => ({ error: "нет способа оплаты" }) };
     const { model } = fakeModel([
+      WARM_UP,
       ans({ stage: "offer", reply: "Печатная книга — от 30 000 ₸. Оформляем?", asked_to_order: true }),
       ans({ action: "issue_invoice", agreed: true, plan: "hardcover", agreed_quote: "давайте", reply: "Выставляю счёт!" }),
     ]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model, invoices: failing });
+    await t.service.ingest(inbound({ text: "Хочу книгу маме" }));
+    await run(t);
     await t.service.ingest(inbound({ text: "Сколько стоит?" }));
     await run(t);
     await t.service.ingest(inbound({ text: "давайте" }));
@@ -244,7 +253,7 @@ describe("AI-продажник: голос, файлы, благодарнос�
   });
 
   it("«спасибо» после ответа — модель молчит (wait), клиент не остаётся «неотвеченным» из-за бота", async () => {
-    const { model } = fakeModel([ans({ reply: "Печатная — от 30 000 ₸. Оформляем?", stage: "offer", asked_to_order: true }), ans({ action: "wait", reply: "" })]);
+    const { model } = fakeModel([ans({ reply: "Подскажу 🙂 А для кого книга?" }), ans({ action: "wait", reply: "" })]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model });
     await t.service.ingest(inbound({ text: "Сколько стоит?" }));
     await run(t);
@@ -533,7 +542,7 @@ describe("AI-продажник: голосовые и фото распозна
 describe("AI-продажник: возврат тёплого клиента — три напоминания", () => {
   it("после предложения — «Ознакомились?» через 20 минут, второе через followUpHours, третье на следующий день, дальше итог", async () => {
     const { model, calls } = fakeModel([
-      ans({ stage: "offer", reply: "Оформляем? 🙂", asked_to_order: true }),
+      ans({ stage: "offer", reply: "Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?" }),
       ans({ stage: "offer", reply: "Ознакомились? 😊" }),
       ans({ stage: "offer", reply: "Освободились? 🙂 Начнём создание книги?" }),
       ans({ stage: "offer", reply: "Добрый день! Как ваши дела? 😊" }),
@@ -546,7 +555,7 @@ describe("AI-продажник: возврат тёплого клиента �
     await t.advance(19 * 60_000);
     expect(said(t)).toHaveLength(1);
     await t.advance(60_000 + 1000);
-    expect(said(t)).toEqual(["Оформляем? 🙂", "Ознакомились? 😊"]);
+    expect(said(t)).toEqual(["Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?", "Ознакомились? 😊"]);
     expect(calls[1].system).toContain("минут на двадцать");
     // Второе — через 3 часа после первого, в тот же день.
     await t.advance(3 * 3_600_000 + 1000);
@@ -846,7 +855,7 @@ describe("AI-продажник: представление и дожим (ча�
 
   it("на первое «дорого, денег нет» бот не передаёт Марату, а сам предлагает варианты; после второго отказа — передаёт", async () => {
     const { model, calls } = fakeModel([
-      ans({ stage: "offer", reply: "Это Айгерим 🙂 Печатная — от 30 000 ₸. Оформляем?", asked_to_order: true }),
+      ans({ stage: "offer", reply: "Это Айгерим 🙂 Такая книга — подарок на всю жизнь 🤍 Какие остались вопросы?" }),
       ans({ action: "handoff", handoff_reason: "objection", reply: "Передала Марату 🙌" }),
       ans({ stage: "objection", reply: "Понимаю вас 🙂 Можно начать с предоплаты 10 000 ₸, а остальное — когда книга будет готова. Как вам удобнее?" }),
       ans({ action: "handoff", handoff_reason: "objection", reply: "Поняла 🙂 Передам Марату — он подберёт для вас вариант 🙌" }),
@@ -1212,7 +1221,7 @@ describe("AI-продажник: след хода «Почему так?» (bot
   const botMsgs = (t: ReturnType<typeof setup>) => t.msgs.filter((m) => m.dir === "out" && m.source === "bot" && !m.internal);
 
   it("ход пишет след: решение модели, итог, поля сделки подписями, правки кода, уроки, токены — у последнего сообщения хода", async () => {
-    const { model } = fakeModel([ans({ reply: "Для вас сделаю за 12 345 ₸!" }), ans({ summary: "Хочет книгу маме", reply: "Печатная книга — от 30 000 ₸.\n\nК какой дате нужна?", fields: { recipient: "Маме", occasion: "" } })]);
+    const { model } = fakeModel([ans({ reply: "Для вас сделаю за 12 345 ₸!" }), ans({ summary: "Хочет книгу маме", reply: "Книга маме — тёплый подарок 😊\n\nК какой дате нужна?", fields: { recipient: "Маме", occasion: "" } })]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model });
     Object.assign(t.deps.settings, { lessons: async (): Promise<BotLesson[]> => [{ id: "l1", text: "Задавай один вопрос за сообщение", why: "беседа 1", at: "2026-09-30T00:00:00Z", source: "owner" }] });
     await t.service.ingest(inbound({ text: "Сколько стоит книга маме?" }));
@@ -1286,9 +1295,11 @@ describe("AI-продажник: след хода «Почему так?» (bot
   });
 
   it("счёт не выставился — в следе почему; голосовое без распознавания — шаблонный ответ с пометкой", async () => {
-    const { model } = fakeModel([ans({ stage: "offer", reply: "Печатная — от 30 000 ₸. Оформляем?", asked_to_order: true }), ans({ action: "issue_invoice", agreed: true, plan: "hardcover", agreed_quote: "да, давайте", reply: "Отлично!" })]);
+    const { model } = fakeModel([ans({ stage: "offer", reply: "Это книга о нём вашими словами и с вашими фото 😊 Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?" }), ans({ stage: "offer", reply: "Печатная — от 30 000 ₸. Оформляем?", asked_to_order: true }), ans({ action: "issue_invoice", agreed: true, plan: "hardcover", agreed_quote: "да, давайте", reply: "Отлично!" })]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model, invoices: { issue: async () => ({ error: "нет способа оплаты" }) } });
     await t.service.ingest(inbound({ text: "Хочу печатную книгу мужу" }));
+    await run(t);
+    await t.service.ingest(inbound({ text: "Красиво! Сколько стоит?" }));
     await run(t);
     await t.service.ingest(inbound({ text: "да, давайте" }));
     await run(t);
@@ -1303,7 +1314,7 @@ describe("AI-продажник: след хода «Почему так?» (bot
   });
 
   it("напоминание молчащему — свой след (purpose follow_up) у «Ознакомились?»", async () => {
-    const { model } = fakeModel([ans({ stage: "offer", reply: "Оформляем? 🙂", asked_to_order: true }), ans({ stage: "offer", reply: "Ознакомились? 😊" })]);
+    const { model } = fakeModel([ans({ stage: "offer", reply: "Ознакомьтесь, пожалуйста 🙌 Какие остались вопросы?" }), ans({ stage: "offer", reply: "Ознакомились? 😊" })]);
     const t = setup({ bot: "always", config: aiConfig({ followUpHours: 3 }), seller: model });
     await t.service.ingest(inbound({ text: "Хочу книгу для жены" }));
     await run(t);

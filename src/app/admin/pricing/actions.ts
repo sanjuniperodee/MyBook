@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { factoryCatalog, getCatalogOverrides, MAX_PRICE, type CatalogOverrides } from "@/config/site";
+import { factoryCatalog, getCatalogOverrides, isAbroadDelivery, MAX_PRICE, type CatalogOverrides } from "@/config/site";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
@@ -41,8 +41,14 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
       };
     }
     for (const a of factoryCatalog.addons) next.addons![a.id] = { price: money(form, `addon_${a.id}_price`, addonLabels[a.id]) };
-    // Доставку в другую страну считает менеджер — цены у неё нет.
-    for (const d of factoryCatalog.delivery) if (!d.quoted) next.delivery![d.id] = { price: money(form, `delivery_${d.id}_price`, deliveryLabels[d.id]) };
+    // Доставку в другую страну считает менеджер — цены у неё нет. Курьер и по Казахстану: пустое поле — «рассчитывается
+    // индивидуально», вписанная цена — фиксированная.
+    for (const d of factoryCatalog.delivery) {
+      if (isAbroadDelivery(d.id)) continue;
+      if (d.quoted && !String(form.get(`delivery_${d.id}_price`) ?? "").trim()) continue;
+      const price = money(form, `delivery_${d.id}_price`, deliveryLabels[d.id]);
+      next.delivery![d.id] = d.quoted ? { price, fixed: true } : { price };
+    }
   } catch (err) {
     return { error: (err as Error).message };
   }

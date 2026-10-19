@@ -107,12 +107,12 @@ export function registerSubscriptions(c: Container) {
     },
     "crm.task.prepaid_excess",
   );
-  // Доставка в другую страну: стоимость в заказ не вошла — менеджер считает её и согласует с клиентом.
+  // Стоимость доставки рассчитывается индивидуально: в заказ она не вошла — менеджер считает её и согласует с клиентом.
   c.bus.subscribe<OrderPlaced>(
     "ordering.order_placed",
     async (e) => {
-      const abroad = e.payload.deliveryAbroad;
-      if (abroad) await orderTask(e.payload.orderId, `Рассчитать доставку в другую страну (${[abroad.country, abroad.city].filter(Boolean).join(", ") || "страна не указана"}) по заказу №${e.payload.number} и согласовать с клиентом стоимость и оплату`);
+      const d = e.payload.deliveryQuoted ?? (e.payload.deliveryAbroad ? { ...e.payload.deliveryAbroad, method: "abroad" } : null);
+      if (d) await orderTask(e.payload.orderId, `Рассчитать доставку (${d.method === "abroad" ? "другая страна: " : ""}${[d.country, d.city].filter(Boolean).join(", ") || "адрес не указан"}) по заказу №${e.payload.number} и согласовать с клиентом стоимость и оплату`);
     },
     "crm.task.delivery_abroad",
   );

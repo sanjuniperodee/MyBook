@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Eye, ImagePlus, ListTree, Maximize2, Minimize2, Plus, Trash2 } from "lucide-react";
+import { Eye, ImagePlus, ListTree, Maximize2, Minimize2, Plus, QrCode, Trash2 } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/class-names";
@@ -64,7 +64,7 @@ export function EditorTopBar({
   );
 }
 
-/** Под ответом: диктовка, фото в ответ, свой вопрос, удалить свой; справа — слов и доля полосы. */
+/** Под ответом: диктовка, фото в ответ, видео или музыка (QR-код), свой вопрос, удалить свой; справа — слов и доля полосы. */
 export function AnswerToolbar({
   dictation,
   editable,
@@ -73,6 +73,7 @@ export function AnswerToolbar({
   words,
   answerPages,
   onPhoto,
+  onMedia,
   onAdd,
   onRemove,
 }: {
@@ -86,6 +87,7 @@ export function AnswerToolbar({
   /** Сколько полос займёт ответ; 0 — ответа нет. */
   answerPages: number;
   onPhoto: () => void;
+  onMedia: () => void;
   onAdd: () => void;
   onRemove: () => void;
 }) {
@@ -96,6 +98,11 @@ export function AnswerToolbar({
       {editable ? (
         <button className="btn btn-ghost btn-sm text-muted max-lg:hidden" onClick={onPhoto}>
           <ImagePlus className="size-4" /> {t.photoInAnswer}
+        </button>
+      ) : null}
+      {editable ? (
+        <button className="btn btn-ghost btn-sm text-muted" onClick={onMedia} title={t.media.addTitle} data-testid="add-media">
+          <QrCode className="size-4" /> {t.media.add}
         </button>
       ) : null}
       {editable ? (

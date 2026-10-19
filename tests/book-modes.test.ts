@@ -131,6 +131,40 @@ function outlineSetup(themeOf: (lang: "ru" | "kk") => ReturnType<typeof blankThe
   return { books, book, store, photos, uow, service, questions };
 }
 
+describe("QuestionsService.moveStory: истории в книге с темой («Главы книги»)", () => {
+  const seeded = () => {
+    const ctx = outlineSetup(theme);
+    ctx.store.seed("b1", [
+      { key: "intro", sections: [{ key: "q.1", answer: "a" }, { key: "q.2", answer: "b" }] },
+      { key: "meet", sections: [{ key: "q.3", answer: "c" }, { key: "q.4" }] },
+    ]);
+    const order = async () => (await ctx.store.sections("b1")).map((x) => `${x.chapter}:${x.id}`);
+    return { ...ctx, order };
+  };
+
+  it("в другую главу — в её конец; перед историей — на её место; позиции подряд", async () => {
+    const { questions, order } = seeded();
+    await questions.moveStory("b1", owner, { id: "s1", chapter: "meet" });
+    expect(await order()).toEqual(["intro:s2", "meet:s3", "meet:s4", "meet:s1"]);
+    await questions.moveStory("b1", owner, { id: "s1", chapter: "meet", beforeId: "s3" });
+    expect(await order()).toEqual(["intro:s2", "meet:s1", "meet:s3", "meet:s4"]);
+    await questions.moveStory("b1", owner, { id: "s3", chapter: "intro", beforeId: "s2" });
+    expect(await order()).toEqual(["intro:s3", "intro:s2", "meet:s1", "meet:s4"]);
+  });
+
+  it("чужая глава, история не из той главы или своя книга — ошибка, порядок не меняется", async () => {
+    const { questions, order } = seeded();
+    const before = await order();
+    await rejectsWith(questions.moveStory("b1", owner, { id: "s1", chapter: "nowhere" }), "questionNotFound");
+    await rejectsWith(questions.moveStory("b1", owner, { id: "s1", chapter: "meet", beforeId: "s2" }), "outlineOutdated");
+    await rejectsWith(questions.moveStory("b1", owner, { id: "s1", chapter: "intro", beforeId: "s1" }), "outlineOutdated");
+    expect(await order()).toEqual(before);
+    const own = outlineSetup();
+    own.store.seed("b1", [{ key: "k1", sections: ["x"] }]);
+    await rejectsWith(own.questions.moveStory("b1", owner, { id: "s1", chapter: "k1" }), "outlineNotAllowed");
+  });
+});
+
 describe("BookOutlineService: главы своей книги", () => {
   it("в книгах с банком любые операции оглавления — outlineNotAllowed (и без изменений)", async () => {
     for (const t of [theme, autobiographyTheme]) {
@@ -388,6 +422,7 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   recipientName: "",
   recipientGender: "m",
   hideRecipientOnCover: false,
+  namesOnCover: "",
   coverTemplate: "linen",
   coverPhotoId: null,
   coverPhotoExtra: [],
@@ -401,6 +436,8 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,
+  tocMode: "chapters",
+  tocLines: {},
   inviteToken: null,
   language: "ru",
   occasion: null,
@@ -421,7 +458,9 @@ const section = (id: string, chapter: string, position: number, title: string, a
   hint: null,
   displayText: null,
   hideHeading: false,
+  pageBreak: false,
   answer,
+  media: [],
   createdAt: CREATED,
   updatedAt: CREATED,
 });
@@ -493,7 +532,7 @@ describe("редактор своей книги: главы и подписи",
   });
 
   it("подпись раздела никогда не пустая: заголовок, иначе подсказка, иначе «без заголовка»; у книг с банком — вопрос", () => {
-    const q = (p: Partial<EditorQuestion>) => ({ hideHeading: false, displayText: null, defaultTitle: "", prompt: "", ...p });
+    const q = (p: Partial<EditorQuestion>) => ({ hideHeading: false, pageBreak: false, displayText: null, defaultTitle: "", prompt: "", ...p });
     expect(sectionLabel(q({ defaultTitle: "Заголовок", prompt: "Подсказка" }), "blank", "Без заголовка")).toBe("Заголовок");
     expect(sectionLabel(q({ prompt: "Подсказка" }), "blank", "Без заголовка")).toBe("Подсказка");
     expect(sectionLabel(q({}), "blank", "Без заголовка")).toBe("Без заголовка");
@@ -509,6 +548,12 @@ describe("coverNames", () => {
     expect(coverNames(b("blank"))).toBe("Иван Петров & Детям и внукам");
     expect(coverNames(b("blank", ""))).toBe("Иван Петров");
     expect(coverNames(b("love", "Алия", true))).toBe("Иван Петров");
+  });
+
+  it("своя строка автора заменяет имена по умолчанию (порядок, «мен» — что угодно); пустая — как по умолчанию", () => {
+    expect(coverNames({ ...b("love", "Алия"), namesOnCover: " Алия & Иван Петров " })).toBe("Алия & Иван Петров");
+    expect(coverNames({ ...b("autobiography"), namesOnCover: "Иван Петрович" })).toBe("Иван Петрович");
+    expect(coverNames({ ...b("love", "Алия"), namesOnCover: "   " })).toBe("Иван Петров & Алия");
   });
 });
 

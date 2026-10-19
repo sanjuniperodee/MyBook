@@ -1,0 +1,1 @@
+ALTER TABLE "books" ADD COLUMN "names_on_cover" text DEFAULT '' NOT NULL;

@@ -62,6 +62,10 @@ if has kaspi; then
 fi
 
 if has whatsapp; then
+  # Видео шлюз готовит через ffmpeg: без него отправка видео падает с «ffmpeg not installed».
+  if ! command -v ffmpeg >/dev/null; then
+    sudo -n apt-get install -y -qq ffmpeg >/dev/null 2>&1 || echo "  ⚠ Нет ffmpeg — видео в WhatsApp уйдут файлом. Установите: sudo apt-get install -y ffmpeg"
+  fi
   echo "→ GOWA v$GOWA_VERSION"
   G="$DIR/gowa"
   case "$(uname -m)" in

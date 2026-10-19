@@ -463,9 +463,11 @@ export function sellPlan(state: BotState, env: Pick<BotEnv, "fields" | "dealValu
 
 function sellVars(ctx: Ctx): Record<string, string> {
   const { env, s } = ctx;
-  const { date } = sellFacts(ctx);
+  const { date, digital } = sellFacts(ctx);
   const plan = date ? deadlinePlan(date, env.now, env.tz, env.config.sell, env.catalog.productionDays) : null;
-  const prepay = env.config.sell.prepay;
+  // Электронную, которая не дороже предоплаты, оплачивают сразу целиком: строки про предоплату не выводим.
+  const digitalPrice = env.catalog.plans.find((p) => p.id === "digital")?.price || 0;
+  const prepay = digital && digitalPrice > 0 && digitalPrice <= env.config.sell.prepay ? 0 : env.config.sell.prepay;
   return {
     дата: date ? humanDate(date, s.lang) : "",
     заполнить_до: plan ? humanDate(plan.fillBy, s.lang) : "",

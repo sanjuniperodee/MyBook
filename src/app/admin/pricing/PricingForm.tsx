@@ -15,19 +15,20 @@ const addonNotes: Partial<Record<AddonId, string>> = { express: " (приори�
 interface Props {
   plans: { id: PlanId; printed: boolean; price: number; extraCopyPrice: number; visible: boolean }[];
   addons: { id: AddonId; price: number }[];
-  delivery: { id: DeliveryId; price: number }[];
+  /** price null — «рассчитывается индивидуально» (optional: поле можно оставить пустым). */
+  delivery: { id: DeliveryId; price: number | null; optional: boolean }[];
   factory: { plans: Record<string, { price: number; extraCopyPrice: number; visible: boolean }>; addons: Record<string, number>; delivery: Record<string, number> };
   changed: boolean;
 }
 
-function Price({ name, label, value, factory, hint }: { name: string; label: string; value: number; factory: number; hint?: string }) {
+function Price({ name, label, value, factory, hint, optional = false }: { name: string; label: string; value: number | null; factory: number; hint?: string; optional?: boolean }) {
   return (
     <div>
       <label className="label" htmlFor={name}>
         {label}
       </label>
       <div className="relative">
-        <input id={name} name={name} type="number" inputMode="numeric" min={0} step={100} required defaultValue={value} className="input h-11 pr-9" />
+        <input id={name} name={name} type="number" inputMode="numeric" min={0} step={100} required={!optional} defaultValue={value ?? ""} placeholder={optional ? "индивидуально" : undefined} className="input h-11 pr-9" />
         <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted">₸</span>
       </div>
       <p className="mt-1 text-xs text-muted">{hint ?? (factory === value ? "заводская цена" : `заводская: ${formatPrice(factory)}`)}</p>
@@ -81,9 +82,9 @@ export function PricingForm({ plans, addons, delivery, factory, changed }: Props
       <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-3">
         <h2 className="text-sm font-semibold sm:col-span-3">Доставка</h2>
         {delivery.map((d) => (
-          <Price key={d.id} name={`delivery_${d.id}_price`} label={deliveryLabels[d.id]} value={d.price} factory={factory.delivery[d.id]} />
+          <Price key={d.id} name={`delivery_${d.id}_price`} label={deliveryLabels[d.id]} value={d.price} factory={factory.delivery[d.id]} optional={d.optional} hint={d.optional ? (d.price === null ? "рассчитывается индивидуально" : "фиксированная цена; очистите поле — снова индивидуально") : undefined} />
         ))}
-        <p className="text-xs text-muted sm:col-span-3">Доставка в другую страну — без цены: в сумму заказа не входит, менеджер получает задачу рассчитать её и согласовать с клиентом.</p>
+        <p className="text-xs text-muted sm:col-span-3">Пустое поле — стоимость доставки рассчитывается индивидуально: в сумму заказа не входит, клиент видит «рассчитывается индивидуально», менеджер получает задачу рассчитать её и согласовать. Доставка в другую страну — всегда так.</p>
       </section>
 
       <div className="rounded-2xl bg-cream/70 p-4 text-xs leading-relaxed text-ink-soft">
