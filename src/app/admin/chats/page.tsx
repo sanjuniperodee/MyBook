@@ -9,7 +9,9 @@ import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/doma
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
+import { parseWorkHours } from "@/shared/domain/schedule";
 import { getSetting } from "@/modules/workspace";
+import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ChatsLive } from "@/components/admin/chat/ChatsLive";
@@ -25,9 +27,6 @@ export const metadata = { title: "Чаты" };
 const filters = CHAT_FILTERS;
 type Filter = ChatFilter;
 
-function waitMinutes(d: Date | null) {
-  return d ? Math.max(0, Math.round((Date.now() - d.getTime()) / 60_000)) : 0;
-}
 const shortTime = (d: Date | null) => {
   if (!d) return "";
   const today = new Date();
@@ -41,14 +40,18 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const q = sp.q?.trim();
 
   const selectedId = sp.c && /^[0-9a-f-]{36}$/.test(sp.c) ? sp.c : null;
-  const [list, admins, slaRaw, selected, phoneHolder] = await Promise.all([
+  const [list, admins, slaRaw, hoursRaw, selected, phoneHolder] = await Promise.all([
     container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, q),
     container().access.queries.allStaff(),
     getSetting("crm.slaMinutes"),
+    getSetting("crm.workHours"),
     selectedId ? container().messaging.queries.conversation(selectedId) : null,
     container().messaging.phoneHolder(),
   ]);
-  const sla = Number(slaRaw) || 15;
+  // Ожидание и норматив — в рабочих минутах, как в «Моём дне» и в правиле «нет ответа».
+  const sla = slaMinutes(slaRaw);
+  const hours = parseWorkHours(hoursRaw);
+  const now = new Date();
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const conv = selected && canSeeAssigned(staff, selected.assigneeId) ? selected : null;
   const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) =>
@@ -207,7 +210,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   }
 
   const items: ChatListItem[] = list.map((c) => {
-    const wait = c.awaitingSince ? waitMinutes(c.awaitingSince) : null;
+    const wait = c.awaitingSince ? responseWait(c.awaitingSince, now, hours, sla) : null;
     const phase = (c.botState as { phase?: string } | null)?.phase;
     return {
       id: c.id,
@@ -218,8 +221,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       preview: c.lastMessageText,
       unread: c.unread,
       assignee: c.assigneeId ? (names.get(c.assigneeId) ?? null) : null,
-      waitMinutes: wait,
-      overdue: wait !== null && wait >= sla,
+      waitMinutes: wait?.minutes ?? null,
+      overdue: !!wait?.overdue,
       bot: phase === "active" || phase === "waiting",
     };
   });
