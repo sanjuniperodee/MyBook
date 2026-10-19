@@ -89,8 +89,20 @@ export class GowaClient {
     return res.results?.message_id ?? null;
   }
 
-  /** Отправить файл: фото, видео, голосовое/аудио или документ (multipart, как в API шлюза). */
+  /**
+   * Отправить файл: фото, видео, голосовое/аудио или документ (multipart, как в API шлюза). Видео шлюз готовит через
+   * ffmpeg; если его на сервере нет («ffmpeg not installed»), видео уходит файлом — клиент всё равно его получит.
+   */
   async sendFile(chatId: string, file: { data: Uint8Array; name: string; mime: string; kind: "image" | "video" | "audio" | "document" }, opts: { caption?: string; forwarded?: boolean } = {}): Promise<string | null> {
+    try {
+      return await this.sendFileAs(chatId, file, opts);
+    } catch (err) {
+      if (file.kind !== "video" || !GowaError.is(err) || !/ffmpeg/i.test(err.message)) throw err;
+      return this.sendFileAs(chatId, { ...file, kind: "document" }, opts);
+    }
+  }
+
+  private async sendFileAs(chatId: string, file: { data: Uint8Array; name: string; mime: string; kind: "image" | "video" | "audio" | "document" }, opts: { caption?: string; forwarded?: boolean }): Promise<string | null> {
     const field = file.kind === "document" ? "file" : file.kind;
     const form = new FormData();
     form.set("phone", gowaJid(chatId));

@@ -191,6 +191,16 @@ warm_covers() {
 }
 warm_covers && echo "  обложки прогреты" || true
 
+# Видео в WhatsApp шлюз GOWA готовит через ffmpeg: без него «ffmpeg not installed» (сайт тогда шлёт видео файлом).
+# Ставим, если можно без пароля; нет — подсказываем команду. Выкатку это не ломает.
+if pm2 describe mybook-gowa >/dev/null 2>&1 && ! command -v ffmpeg >/dev/null; then
+  if sudo -n true 2>/dev/null && sudo -n apt-get install -y -qq ffmpeg >/dev/null 2>&1; then
+    echo "  ffmpeg установлен для шлюза WhatsApp"
+  else
+    echo "  ⚠ Нет ffmpeg: видео в WhatsApp уходят файлом. Установите: sudo apt-get install -y ffmpeg"
+  fi
+fi
+
 # Оставляем последние $KEEP релизов (текущий и предыдущий — всегда)
 ls -1dt "$RELEASES"/*/ 2>/dev/null | sed 's:/$::' | tail -n +"$((KEEP + 1))" | while read -r old; do
   [ "$old" = "$(readlink -f "$CURRENT")" ] || [ "$old" = "$PREV" ] || { rm -rf "$old" && echo "  удалён старый релиз $(basename "$old")"; }
