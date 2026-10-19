@@ -70,6 +70,7 @@ const questions: BookQuestion[] = Array.from({ length: 3 }, (_, i) => ({
   hint: null,
   displayText: null,
   hideHeading: false,
+  pageBreak: false,
   answer: "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег.",
   media: [],
   createdAt: now,

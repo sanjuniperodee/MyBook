@@ -11,7 +11,7 @@ import { MM_TO_PT, type BookFormat } from "./formats";
 import { framedBox, layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "./inline-photo";
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
-import { photoPages, type BookContent, type ContentChapter, type PhotoItem } from "./layout";
+import { chapterRuns, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { hasToc, bookToc } from "./toc";
 import { ANSWER, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, interiorSizes, MEDIA_CARD, TOC, type InteriorSizes } from "./typesetting";
@@ -122,11 +122,31 @@ function entryHeight(heading: string | null, answer: string, photos: RowPhoto[],
   return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0) + cards;
 }
 
-/** Полос в главе: начальная, текст (всё, что на полосе не помещается, переходит на следующую) и фотостраницы. */
+/**
+ * Высота куска текста главы с разрывами «с новой страницы», pt: перед такой историей занятое добивается до конца
+ * полосы. starts — где начинается каждая история (pt от начала куска).
+ */
+function runHeight(items: readonly ContentItem[], m: TextMetrics) {
+  const page = m.height - PAGE_RESERVE;
+  let used = 0;
+  const starts = items.map((it, i) => {
+    const breaks = i > 0 && !!it.pageBreak;
+    if (breaks) used = Math.ceil(used / page) * page;
+    const at = used;
+    used += entryHeight(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0 || breaks || !!it.continued, m);
+    return at;
+  });
+  return { height: used, starts, pages: items.length ? Math.max(1, Math.ceil(used / page)) : 0 };
+}
+
+/**
+ * Полос в главе: начальная, текст (всё, что на полосе не помещается, переходит на следующую) и фотостраницы.
+ * Текст — кусками между фото на всю страницу из историй (chapterRuns), каждое такое фото — своя полоса.
+ */
 export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics): number {
-  const height = ch.items.reduce((sum, it, i) => sum + entryHeight(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0, m), 0);
-  const textPages = ch.items.length ? Math.max(1, Math.ceil(height / (m.height - PAGE_RESERVE))) : 0;
-  return 1 /* начальная полоса */ + textPages + photoPages(ch.photos).length;
+  const runs = chapterRuns(ch.items);
+  const text = runs.reduce((sum, r) => sum + runHeight(r.items, m).pages + (r.photo ? 1 : 0), 0);
+  return 1 /* начальная полоса */ + text + photoPages(ch.photos).length;
 }
 
 /**
@@ -165,7 +185,17 @@ export function tocParts(content: BookContent, m: TextMetrics): number[] {
  * где книгу не верстают: по той же высоте ответов, что и объём главы.
  */
 export function sectionPageOffsets(ch: Pick<ContentChapter, "items">, m: TextMetrics): number[] {
-  return sectionStarts(ch, m).starts.map((used) => 1 + Math.floor(used / (m.height - PAGE_RESERVE)));
+  const page = m.height - PAGE_RESERVE;
+  const offsets = new Map<ContentItem, number>();
+  let base = 1; // начальная полоса главы
+  for (const run of chapterRuns(ch.items)) {
+    const r = runHeight(run.items, m);
+    run.items.forEach((it, i) => offsets.set(it, base + Math.floor(r.starts[i] / page)));
+    base += r.pages + (run.photo ? 1 : 0);
+  }
+  // Пустые части (только фото перед собой) — на полосе следующей непустой.
+  let next = base;
+  return [...ch.items].reverse().map((it) => (next = offsets.get(it) ?? next)).reverse();
 }
 
 /** Доля текста главы (0…1), после которой начинается каждый ответ: 3D-книга переводит её в полосу по своему замеру. */

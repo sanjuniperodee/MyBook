@@ -77,6 +77,8 @@ export function tocCandidates(content: Pick<BookContent, "chapters" | "galleryPh
         parent = tocKey.chapter(f.key);
         out.push({ key: parent, pageKey: f.key, kind: "chapter", number: null, label: f.title, folded: true });
       }
+      // Продолжение истории после фото на всю страницу — та же история, отдельной строкой её нет.
+      if (it.continued) return;
       const key = tocKey.section(it.id);
       out.push({ key, pageKey: key, kind: "section", number: null, label: it.heading ?? "", parent });
     });

@@ -12,6 +12,8 @@ export interface StoryInfo {
   title: string;
   displayText: string | null;
   hidden: boolean;
+  /** «С новой страницы» в книге. */
+  pageBreak: boolean;
 }
 
 /** Строка истории в главе: id ответа (book_questions) — ключ строки без «q:». */
@@ -50,7 +52,7 @@ export function StoryList({
   const [local, setLocal] = useState<Record<string, Partial<StoryInfo>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pending = useRef(new Map<string, Partial<Pick<StoryInfo, "displayText" | "hidden">>>());
+  const pending = useRef(new Map<string, Partial<Pick<StoryInfo, "displayText" | "hidden" | "pageBreak">>>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flush = async () => {
@@ -63,7 +65,11 @@ export function StoryList({
       for (const [id, patch] of batch)
         await apiFetch(`/api/books/${bookId}/questions/${id}`, {
           method: "PATCH",
-          json: { ...(patch.displayText !== undefined ? { displayText: patch.displayText } : {}), ...(patch.hidden !== undefined ? { hideHeading: patch.hidden } : {}) },
+          json: {
+            ...(patch.displayText !== undefined ? { displayText: patch.displayText } : {}),
+            ...(patch.hidden !== undefined ? { hideHeading: patch.hidden } : {}),
+            ...(patch.pageBreak !== undefined ? { pageBreak: patch.pageBreak } : {}),
+          },
         });
       setError(null);
       router.refresh();
@@ -74,7 +80,7 @@ export function StoryList({
   // Уходя со страницы — дописать несохранённое.
   useEffect(() => () => void flush(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const patch = (id: string, p: Partial<Pick<StoryInfo, "displayText" | "hidden">>) => {
+  const patch = (id: string, p: Partial<Pick<StoryInfo, "displayText" | "hidden" | "pageBreak">>) => {
     if (!editable) return;
     setLocal((s) => ({ ...s, [id]: { ...s[id], ...p } }));
     pending.current.set(id, { ...pending.current.get(id), ...p });
@@ -141,9 +147,14 @@ export function StoryList({
                 <ArrowDown className="size-4" />
               </IconButton>
             </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <label className="inline-flex items-center gap-1.5 text-xs text-muted">
+              <input type="checkbox" className="size-3.5 accent-wine" checked={cur.pageBreak} onChange={(e) => patch(row.id, { pageBreak: e.target.checked })} disabled={!editable || busy || i === 0} />
+              {t.storyPageBreak}
+            </label>
             {targets.length ? (
               <select
-                className="mt-1 h-8 max-w-full rounded-lg bg-transparent text-xs text-muted hover:text-ink disabled:opacity-50"
+                className="h-8 max-w-full rounded-lg bg-transparent text-xs text-muted hover:text-ink disabled:opacity-50"
                 value=""
                 aria-label={t.storyMoveAria(info.title)}
                 onChange={(e) => e.target.value && void move(row.id, e.target.value, null)}
@@ -157,6 +168,7 @@ export function StoryList({
                 ))}
               </select>
             ) : null}
+            </div>
           </div>
         );
       })}

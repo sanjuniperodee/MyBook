@@ -177,6 +177,7 @@ function questionRows(key: string, book: Book): BookQuestion[] {
     hint: null,
     displayText: i === DISPLAY_TEXT_AT ? t.displayText : null,
     hideHeading: q.hideHeading ?? false,
+    pageBreak: false,
     answer: t.answers[i],
     media: [],
     createdAt: CREATED,

@@ -458,6 +458,7 @@ const section = (id: string, chapter: string, position: number, title: string, a
   hint: null,
   displayText: null,
   hideHeading: false,
+  pageBreak: false,
   answer,
   media: [],
   createdAt: CREATED,
@@ -531,7 +532,7 @@ describe("редактор своей книги: главы и подписи",
   });
 
   it("подпись раздела никогда не пустая: заголовок, иначе подсказка, иначе «без заголовка»; у книг с банком — вопрос", () => {
-    const q = (p: Partial<EditorQuestion>) => ({ hideHeading: false, displayText: null, defaultTitle: "", prompt: "", ...p });
+    const q = (p: Partial<EditorQuestion>) => ({ hideHeading: false, pageBreak: false, displayText: null, defaultTitle: "", prompt: "", ...p });
     expect(sectionLabel(q({ defaultTitle: "Заголовок", prompt: "Подсказка" }), "blank", "Без заголовка")).toBe("Заголовок");
     expect(sectionLabel(q({ prompt: "Подсказка" }), "blank", "Без заголовка")).toBe("Подсказка");
     expect(sectionLabel(q({}), "blank", "Без заголовка")).toBe("Без заголовка");

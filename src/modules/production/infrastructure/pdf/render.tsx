@@ -58,7 +58,7 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
   const { dpi, source } = modeSettings[mode];
   const inlineIds = new Set(content.chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
   const all: PhotoItem[] = [
-    ...content.chapters.flatMap((c) => [...(c.openerPhoto ? [c.openerPhoto] : []), ...c.photos, ...c.items.flatMap((it) => it.photos ?? [])]),
+    ...content.chapters.flatMap((c) => [...(c.openerPhoto ? [c.openerPhoto] : []), ...c.photos, ...c.items.flatMap((it) => [...(it.photos ?? []), ...(it.photoBefore ? [it.photoBefore] : [])])]),
     ...content.galleryPhotos,
   ];
   const pxPerMm = dpi / 25.4;

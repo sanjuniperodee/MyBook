@@ -213,6 +213,7 @@ export const books: typeof ru = {
     storyHeadingReset: "Атауын қайтару",
     storyHeadingHide: "Кітапта атауын жасыру",
     storyHeadingShow: "Атауын көрсету",
+    storyPageBreak: "Жаңа беттен",
     storyUp: "Жоғары",
     storyDown: "Төмен",
     storyMoveTo: "Басқа тарауға ауыстыру…",

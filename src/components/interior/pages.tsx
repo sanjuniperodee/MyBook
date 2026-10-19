@@ -283,9 +283,9 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
           }}
         >
           {entries.map((e, i) => (
-            <div key={i} style={{ marginTop: i === 0 ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless) }}>
-              {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 ? <Divider kit={kit} /> : null}
-              <EntryBody kit={kit} entry={e} leadIn={leadIn && design.leadIn && i === 0} />
+            <div key={i} style={{ marginTop: i === 0 || e.pageBreak ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless), breakBefore: i > 0 && e.pageBreak ? "column" : undefined }}>
+              {e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 && !e.continued ? <Divider kit={kit} /> : null}
+              <EntryBody kit={kit} entry={e} leadIn={leadIn && design.leadIn && i === 0 && !e.continued} />
             </div>
           ))}
           {tail ? <ChapterTail kit={kit} /> : null}

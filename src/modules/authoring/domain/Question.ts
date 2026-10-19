@@ -24,6 +24,8 @@ export interface QuestionProps {
   media: AnswerMedia[];
   displayText: string | null;
   hideHeading: boolean;
+  /** «С новой страницы» в книге. */
+  pageBreak?: boolean;
 }
 
 /** Правка вопроса из редактора. title и prompt меняются только у разделов своей книги — это проверяет сервис. */
@@ -33,6 +35,7 @@ export interface QuestionPatch {
   media?: Partial<AnswerMedia>[];
   displayText?: string | null;
   hideHeading?: boolean;
+  pageBreak?: boolean;
   title?: string;
   prompt?: string;
 }
@@ -76,6 +79,7 @@ export class Question extends AggregateRoot<QuestionProps> {
     if (patch.media !== undefined) this.props.media = normalizeMedia(patch.media);
     if (patch.displayText !== undefined) this.props.displayText = patch.displayText?.trim() || null;
     if (patch.hideHeading !== undefined) this.props.hideHeading = patch.hideHeading;
+    if (patch.pageBreak !== undefined) this.props.pageBreak = patch.pageBreak;
     if (patch.title !== undefined) this.props.title = patch.title.trim().slice(0, SECTION_TITLE_MAX);
     if (patch.prompt !== undefined) this.props.prompt = patch.prompt.trim().slice(0, SECTION_PROMPT_MAX);
     if (wasAnswered !== this.isAnswered) this.record(AuthoringEvents.bookProgressed({ bookId: this.props.bookId, userId: this.props.userId }));

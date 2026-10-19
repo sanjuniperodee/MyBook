@@ -68,6 +68,7 @@ const questions: BookQuestion[] = [
   hint: null,
   displayText: null,
   hideHeading: false,
+  pageBreak: false,
   createdAt: now,
   updatedAt: now,
   ...q,

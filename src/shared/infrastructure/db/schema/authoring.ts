@@ -17,6 +17,8 @@ export interface InlinePhotoStyle {
   focusX: number;
   focusY: number;
   frame: "none" | "line" | "polaroid" | "round";
+  /** На всю страницу: история прерывается, снимок — отдельной страницей под обрез, текст продолжается после него. */
+  page?: boolean;
 }
 
 /**
@@ -114,6 +116,8 @@ export const bookQuestions = pgTable(
     /** Заголовок, отредактированный пользователем; null — берётся шаблон title. */
     displayText: text("display_text"),
     hideHeading: boolean("hide_heading").notNull().default(false),
+    /** «С новой страницы»: история в книге начинается с новой полосы. */
+    pageBreak: boolean("page_break").notNull().default(false),
     answer: text("answer").notNull().default(""),
     /** QR-коды к видео и музыке в ответе — по порядку. */
     media: jsonb("media").$type<AnswerMedia[]>().notNull().default([]),

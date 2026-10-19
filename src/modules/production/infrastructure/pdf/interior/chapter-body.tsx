@@ -1,6 +1,6 @@
 import "server-only";
 import { Page, View } from "@react-pdf/renderer";
-import type { ContentChapter } from "@/lib/book/layout";
+import type { ContentChapter, ContentItem } from "@/lib/book/layout";
 import { vignetteDrawing } from "@/lib/book/interior-art";
 import { CHAPTER_TAIL, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfDrawing } from "@/modules/production/infrastructure/pdf/art";
@@ -19,17 +19,20 @@ function ChapterTail({ kit, chapterKey }: { kit: PdfKit; chapterKey: string }) {
   );
 }
 
-/** Текст главы: ответы подряд на полосах с колонтитулом и колонцифрой; react-pdf сам переносит их с полосы на полосу. */
-export function ChapterBody({ kit, chapter }: { kit: PdfKit; chapter: ContentChapter }) {
+/**
+ * Текст главы: ответы подряд на полосах с колонтитулом и колонцифрой; react-pdf сам переносит их с полосы на полосу.
+ * items — кусок главы между фото на всю страницу (chapterRuns); first — первый кусок (капитель), tail — последний с текстом.
+ */
+export function ChapterBody({ kit, chapter, items = chapter.items, first = true, tail = true }: { kit: PdfKit; chapter: ContentChapter; items?: ContentItem[]; first?: boolean; tail?: boolean }) {
   return (
     <Page size={kit.pageSize} style={kit.pagePadding} wrap>
       <Watermark kit={kit} />
       <RunningHead kit={kit} chapterTitle={chapter.title} />
       <Folio kit={kit} />
-      {chapter.items.map((item, index) => (
-        <Entry key={item.id} kit={kit} item={item} index={index} />
+      {items.map((item, index) => (
+        <Entry key={item.id} kit={kit} item={item} index={index} leadIn={first && index === 0} />
       ))}
-      {kit.flow.noTail.has(chapter.key) ? null : <ChapterTail kit={kit} chapterKey={chapter.key} />}
+      {!tail || kit.flow.noTail.has(chapter.key) ? null : <ChapterTail kit={kit} chapterKey={chapter.key} />}
     </Page>
   );
 }

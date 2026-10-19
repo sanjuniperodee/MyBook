@@ -30,6 +30,10 @@ export interface SampleEntry {
   paragraphs: string[];
   photos?: EntryPhoto[];
   media?: AnswerMedia[];
+  /** «С новой страницы»: перед историей — переход на следующую полосу. */
+  pageBreak?: boolean;
+  /** Продолжение истории после фото на всю страницу: без заголовка и разделителя. */
+  continued?: boolean;
 }
 
 /** Концовка главы — небольшая виньетка после последнего ответа, как в PDF. */
@@ -279,7 +283,8 @@ export function EntryBody({ kit, entry, leadIn, links = false }: { kit: PageKit;
       {blocks.length ? rowsAt(-1) : null}
       {blocks.map((b, j) => (
         <Fragment key={j}>
-          <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} />
+          {/* Под заголовком на той же полосе — не меньше трёх строк (как в PDF), иначе заголовок с абзацем — на следующую. */}
+          <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} style={j === 0 && entry.heading && !rows.get(-1)?.length ? { orphans: 3 } : undefined} />
           {j < blocks.length - 1 ? rowsAt(j) : null}
         </Fragment>
       ))}

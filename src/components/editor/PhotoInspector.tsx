@@ -176,6 +176,15 @@ export function PhotoInspector({
       </p>
 
       <fieldset disabled={!editable} className="space-y-4">
+        {/* На всю страницу: история прерывается, снимок — отдельной страницей без полей, текст продолжается после. */}
+        <label className={cn("flex items-start gap-3 rounded-2xl border p-3 text-sm transition", style.page ? "border-ink bg-cream/60" : "border-line")}>
+          <input type="checkbox" className="mt-0.5 size-4 accent-wine" checked={!!style.page} onChange={(e) => onChange({ page: e.target.checked })} />
+          <span>
+            <span className="block font-medium">{t.fullPage}</span>
+            <span className="block text-xs text-muted">{t.fullPageHint}</span>
+          </span>
+        </label>
+        <fieldset disabled={!!style.page} className={cn("space-y-4", style.page && "opacity-40")}>
         <Field label={t.size} aside={<span className="tabular-nums">{t.width(style.width)}</span>}>
           <div className="flex items-center gap-3">
             <input
@@ -219,6 +228,7 @@ export function PhotoInspector({
           />
         </Field>
 
+        </fieldset>
         <Field
           label={t.place}
           aside={
@@ -263,6 +273,7 @@ export function PhotoInspector({
           </div>
         </Field>
 
+        <fieldset disabled={!!style.page} className={cn("space-y-4", style.page && "opacity-40")}>
         <Field label={t.aspect}>
           <Segmented label={t.aspect} value={style.aspect} onChange={(aspect) => onChange({ aspect })} options={aspects} />
         </Field>
@@ -292,6 +303,7 @@ export function PhotoInspector({
           </div>
         </Field>
 
+        </fieldset>
         <Field label={style.frame === "polaroid" ? t.captionPolaroid : t.caption}>
           <input
             value={photo.caption}
@@ -321,7 +333,7 @@ export function PhotoInspector({
           </button>
           <button
             type="button"
-            onClick={() => onChange({ width: 100, align: "center", aspect: "original", focusX: 0.5, focusY: 0.5, frame: "none" })}
+            onClick={() => onChange({ width: 100, align: "center", aspect: "original", focusX: 0.5, focusY: 0.5, frame: "none", page: false })}
             className="flex h-10 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
           >
             <RotateCcw className="size-4" />

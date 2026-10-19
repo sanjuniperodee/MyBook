@@ -53,6 +53,7 @@ const questions: BookQuestion[] = Array.from({ length: 30 }, (_, i) => ({
   hint: null,
   displayText: null,
   hideHeading: false,
+  pageBreak: false,
   answer: "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег. ".repeat(6 + (i % 5)),
   media: [],
   createdAt: now,

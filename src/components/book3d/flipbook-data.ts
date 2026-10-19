@@ -9,7 +9,7 @@ import { estimatePages, estimateTocPages, sectionShares, textMetrics, tocParts }
 import { bookToc, GALLERY_KEY, hasToc, tocKey } from "@/lib/book/toc";
 import { printablePageCount } from "@/lib/book/formats";
 import { splitParagraphs } from "@/lib/book/inline-photo";
-import { photoPages, toPhotoItem, type PhotoItem } from "@/lib/book/layout";
+import { chapterRuns, photoPages, toPhotoItem, type ContentItem, type PhotoItem } from "@/lib/book/layout";
 import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
 import { photoUrl } from "@/lib/urls";
 import type { Book, Photo } from "@/shared/infrastructure/db/schema";
@@ -26,6 +26,12 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
   const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
   const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout });
+  const entryOf = (it: ContentItem) => {
+    const paragraphs = splitParagraphs(it.answer);
+    const inline = (it.photos ?? []).map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
+    if (!paragraphs.length && !inline.length && !it.media?.length) return [];
+    return [{ heading: it.heading, paragraphs, photos: inline, media: it.media, ...(it.pageBreak ? { pageBreak: true } : {}), ...(it.continued ? { continued: true } : {}) }];
+  };
   return {
     // Название — как в PDF (с названием по умолчанию, если поле пустое), а не сырое поле книги.
     cover: { template: book.coverTemplate, format: book.format, title: content.title, subtitle: book.subtitle, names, photos },
@@ -51,11 +57,9 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
       title: c.title,
       epigraph: c.epigraph,
       openerPhoto: c.openerPhoto ? photoUrl(c.openerPhoto.id, "view") : undefined,
-      entries: c.items.flatMap((it) => {
-        const paragraphs = splitParagraphs(it.answer);
-        const inline = (it.photos ?? []).map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
-        return paragraphs.length || inline.length || it.media?.length ? [{ heading: it.heading, paragraphs, photos: inline, media: it.media }] : [];
-      }),
+      entries: c.items.flatMap(entryOf),
+      // Фото на всю страницу в историях — глава кусками: текст, страница фото, продолжение (как в PDF).
+      ...(c.items.some((it) => it.photoBefore) ? { runs: chapterRuns(c.items).map((r) => ({ entries: r.items.flatMap(entryOf), ...(r.photo ? { photo: pagePhoto(r.photo) } : {}) })) } : {}),
       photoPages: photoPages(c.photos).map((group) => group.map(pagePhoto)),
     })),
     gallery: content.galleryPhotos.length ? { title: content.galleryTitle, pages: photoPages(content.galleryPhotos).map((group) => group.map(pagePhoto)) } : undefined,

@@ -216,6 +216,7 @@ export const books = {
     storyHeadingReset: "Вернуть заголовок",
     storyHeadingHide: "Скрыть заголовок в книге",
     storyHeadingShow: "Показать заголовок",
+    storyPageBreak: "С новой страницы",
     storyUp: "Выше",
     storyDown: "Ниже",
     storyMoveTo: "Перенести в главу…",
