@@ -19,6 +19,7 @@ import {
   type Holiday,
   type RuleAction,
   type RuleSubject,
+  waitsForMessaging,
 } from "@/modules/automation/domain";
 import { findSensitive } from "@/modules/messaging/domain/sensitive";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
@@ -39,6 +40,10 @@ function setup(
     scheduled?: Partial<ScheduledSource>;
     active?: RuleRepository["active"];
     canMessage?: () => boolean;
+    /** Отправка после записи в лог — например, настоящий sendAutomated из botHarness. */
+    sendMessage?: AutomationEffects["sendMessage"];
+    /** Рабочих минут, сколько клиент ждёт ответа («клиенту не ответили»). */
+    workMinutes?: number;
     createTask?: AutomationEffects["createTask"];
     now?: Date;
     holidays?: Holiday[];
@@ -77,7 +82,10 @@ function setup(
       return true;
     },
     // Название правила уходит в отправку: текст с реквизитами не отправится, а в заметке будет видно, какое правило.
-    sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""}${o.transactional ? ", о заказе" : ""}${o.allow?.length ? `, можно: ${o.allow.join(" ")}` : ""})` : ""}`),
+    sendMessage: async (id, text, o) => {
+      log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""}${o.transactional ? ", о заказе" : ""}${o.allow?.length ? `, можно: ${o.allow.join(" ")}` : ""})` : ""}`);
+      await opts.sendMessage?.(id, text, o);
+    },
     canMessageNow: async () => (log.push("gate"), opts.canMessage?.() ?? true),
     assignConversation: async () => {},
     addNote: async (n) => void log.push(`note:${n.dealId}:${n.text}`),
@@ -96,7 +104,7 @@ function setup(
   const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], eventDates: async () => [], idleDeals: async () => [], silent: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
   const hours = parseWorkHours(null);
-  const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
+  const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => opts.workMinutes ?? 0, addWorkMinutes: async (from: Date, min: number) => addWorkMinutes(from, min, hours, "Asia/Almaty") };
   const errors: string[] = [];
   const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
   const holidays = { list: async () => opts.holidays ?? [...DEFAULT_HOLIDAYS] };
@@ -340,6 +348,65 @@ describe("AutomationEngine: окно и суточный лимит сообще
     expect(await engine.runScheduled({ force: true })).toBe(2);
     expect(log.filter((l) => l.startsWith("msg:") || l.startsWith("task:"))).toEqual(["task:Вернуть:null", "msg:conv1:Вы начали книгу (Правило)", "task:Вернуть:null", "msg:conv1:Вы начали книгу (Правило)"]);
     expect(log).not.toContain("notify:staff:Без сообщения");
+  });
+
+  it("«клиенту не ответили» с сообщением при исчерпанном лимите не ждёт: уведомление сразу, объект застолблен, сообщение решает sendAutomated", async () => {
+    const sla = rule({
+      id: "sla",
+      name: "Не ответили 15 минут",
+      trigger: "message.unanswered",
+      conditions: { minutes: 15 },
+      actions: [{ type: "notify", title: "Клиенту не ответили" }, { type: "create_task", title: "Ответить {имя}" }, { type: "send_message", text: "Минутку, менеджер скоро ответит" }],
+    });
+    const waiting = { conversationId: "conv1", dealId: "d1", clientId: "c1", channel: "whatsapp", awaitingSince: new Date("2026-10-01T05:40:00Z") };
+    const { engine, log } = setup([sla], { workMinutes: 20, canMessage: () => false, scheduled: { unanswered: async () => [waiting] } });
+    expect(await engine.runScheduled()).toBe(1);
+    expect(log).toEqual(["notify:staff:Клиенту не ответили", "task:Ответить Айгерим:null", "notify:staff:Задача: Ответить Айгерим", "msg:conv1:Минутку, менеджер скоро ответит (Не ответили 15 минут)", "run:sla"]);
+    // Застолблено: следующий проход то же ожидание не повторяет.
+    expect(await engine.runScheduled()).toBe(0);
+  });
+
+  it("лимит выбран автоответами — «не ответили» всё равно уведомляет, сообщение не уходит, в сделке заметка", async () => {
+    const chat = chatSetup({ ruleSending: { from: "09:00", to: "21:00", dailyLimit: 1 } });
+    await chat.service.ingest(inbound({ text: "Здравствуйте" }));
+    const id = chat.conv().id;
+    chat.setNow(new Date("2026-10-01T06:00:00Z")); // 11:00 по Алматы — окно открыто
+    expect(await chat.service.sendAutomated(id, "Ответим утром", { rule: "Автоответ", reply: true })).toMatchObject({ status: "sent" });
+    const sla = rule({ id: "sla", name: "Не ответили 15 минут", trigger: "message.unanswered", actions: [{ type: "notify", title: "Клиенту не ответили" }, { type: "send_message", text: "Минутку, менеджер скоро ответит" }] });
+    const waiting = { conversationId: id, dealId: chat.conv().dealId, clientId: null, channel: "whatsapp", awaitingSince: new Date("2026-10-01T05:40:00Z") };
+    const { engine, log } = setup([sla], {
+      workMinutes: 20,
+      canMessage: () => false,
+      subject: { conversation: { id, assigneeId: null, contactName: "Айгерим", lastMessageText: "Здравствуйте", clientId: null } },
+      sendMessage: async (convId, text, o) => void (await chat.service.sendAutomated(convId, text, o)),
+      scheduled: { unanswered: async () => [waiting] },
+    });
+    expect(await engine.runScheduled()).toBe(1);
+    expect(log).toContain("notify:staff:Клиенту не ответили");
+    expect(chat.sent).toEqual(["Ответим утром"]);
+    expect(chat.notes.at(-1)).toContain("Правило «Не ответили 15 минут» не отправило клиенту сообщение: лимит 1 сообщений от правил в сутки исчерпан.");
+  });
+
+  it("«дата события» с задачей и сообщением при закрытом окне: задача сразу, окно не спрашивается", async () => {
+    const soon = rule({ id: "soon", trigger: "deal.event_date_near", conditions: { daysBefore: 10 }, actions: [{ type: "create_task", title: "Успеть к {дата}" }, { type: "send_message", text: "{имя}, до {дата} немного" }] });
+    const row = { dealId: "d1", clientId: "c1", eventDate: "2026-10-05", occasion: "День рождения", date: "5 октября 2026 г.", client: { occasion: "День рождения", date: "5 октября 2026 г." } };
+    const { engine, log } = setup([soon], { canMessage: () => false, scheduled: { eventDates: async () => [row] } });
+    expect(await engine.runScheduled({ force: true })).toBe(1);
+    expect(log).not.toContain("gate");
+    expect(log.filter((l) => l.startsWith("task:") || l.startsWith("msg:"))).toEqual(["task:Успеть к 5 октября 2026 г.:null", "msg:conv1:Айгерим, до 5 октября 2026 г. немного (Правило)"]);
+  });
+
+  it("окна и лимита ждут только правила, где сообщение — суть: «забросил книгу», годовщина, праздник", async () => {
+    const msg: RuleAction[] = [{ type: "send_message", text: "Текст" }];
+    const triggers = ["client.inactive", "occasion.anniversary", "occasion.holiday", "message.unanswered", "deal.event_date_near", "deal.idle", "message.silent"];
+    expect(triggers.filter((trigger) => waitsForMessaging({ trigger, actions: msg }))).toEqual(["client.inactive", "occasion.anniversary", "occasion.holiday"]);
+    expect(waitsForMessaging({ trigger: "client.inactive", actions: [{ type: "create_task", title: "Вернуть" }] })).toBe(false);
+    const year = rule({ id: "year", trigger: "occasion.anniversary", actions: [{ type: "create_task", title: "Годовщина" }, { type: "send_message", text: "Скоро годовщина" }] });
+    const row = { orderId: "o1", dealId: null, clientId: "c1", occasion: "Годовщина", date: "15 октября 2026 г.", year: 2026, recipient: "", client: { occasion: "Годовщина", date: "15 октября 2026 г." } };
+    const closed = setup([year], { canMessage: () => false, scheduled: { anniversaries: async () => [row] } });
+    expect(await closed.engine.runScheduled({ force: true })).toBe(0);
+    expect(closed.log).toEqual(["gate"]);
+    expect([...closed.claimed]).toEqual([]);
   });
 
   it("событийные правила окно не спрашивают: автоответ на входящее помечен «ответ», остальные — нет", async () => {
@@ -638,8 +705,9 @@ describe("«Успеть к дате»: до даты события N дней 
     });
     const { engine, log } = setup([remind], { now: oct19, subject: { locale: "kk" }, scheduled: { eventDates: async () => [row("d1", "2026-10-25", "kk")] } });
     await engine.runScheduled({ force: true });
-    // Без пометки «о заказе»: sendAutomated не отправит его в диалог, который ведёт бот (у бота своё «впритык»).
-    expect(log).toEqual(["gate", "msg:conv1:Айгерим, 2026 жылғы 25 қазан жақын қалды (Правило)", "run:msg"]);
+    // Без пометки «о заказе»: sendAutomated не отправит его в диалог, который ведёт бот (у бота своё «впритык»). Окно и
+    // лимит правило не ждёт (сообщение проверит sendAutomated) — «gate» не спрашивается.
+    expect(log).toEqual(["msg:conv1:Айгерим, 2026 жылғы 25 қазан жақын қалды (Правило)", "run:msg"]);
   });
 
   it("условия редактора: дни — до 60, порог книги — 1…100% (иначе не проверяется), «не оплачено» — 1; чужие условия не сохраняются", () => {
