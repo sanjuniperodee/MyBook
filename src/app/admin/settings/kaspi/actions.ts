@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { OrderingError } from "@/modules/ordering";
+import { admin } from "@/i18n/admin";
+import { KASPI_ALERT_AFTER_MAX, OrderingError } from "@/modules/ordering";
 import { assertStaff, audit } from "@/server/access";
 import { container } from "@/server/container";
 
@@ -71,6 +72,17 @@ export async function saveKaspiApiUrlAction(apiUrl: string): Promise<Result<{ re
   await audit(staff, "settings.update", "settings", "kaspi", { apiUrl: input.data });
   revalidatePath("/admin/settings");
   return { ok: true, reachable };
+}
+
+/** Порог сигнала «кассир Kaspi отключён»: через сколько минут подряд без кассира сообщать руководителям (0 — сразу). */
+export async function saveKaspiAlertAfterAction(minutes: number): Promise<Result> {
+  const staff = await assertStaff("settings.manage");
+  const input = z.number().int().min(0).max(KASPI_ALERT_AFTER_MAX).safeParse(minutes);
+  if (!input.success) return { ok: false, error: admin.kaspiAlertAfterInvalid(KASPI_ALERT_AFTER_MAX) };
+  await container().ordering.kaspiWatch.setAlertAfterMinutes(input.data, staff.user.id);
+  await audit(staff, "settings.update", "settings", "kaspi", { alertAfterMinutes: input.data });
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
 
 /** Состояние для карточки: отвечает ли сервис, жива ли сессия кассира. */

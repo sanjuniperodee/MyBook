@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceProps } from "@/modules/ordering/domain";
 import { ForbiddenError } from "@/server/access";
-import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction } from "@/app/admin/invoices/actions";
+import { cancelInvoiceAction, invoiceAccountsAction, invoiceFormInfoAction, issueInvoiceAction, resendInvoiceAccessAction, resendInvoiceAction, type InvoiceFormInfo } from "@/app/admin/invoices/actions";
 import { anna, dina, fake, kira, lena, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -96,6 +96,7 @@ beforeEach(() => {
   };
   fake.ordering = {
     kaspi: { available: async () => true },
+    kaspiWatch: { warning: async () => null },
     invoices: {
       listFor: async () => invoices,
       byId: async (id: string) => invoices.find((i) => i.id === id) ?? null,
@@ -145,6 +146,12 @@ describe("invoiceFormInfoAction: данные формы счёта", () => {
     expect(info.methods).toEqual({ kaspi: true, card: false, transfer: true });
     expect(info.open).toEqual({ id: INV, label: "P12", amount: 15_000 });
     expect(info.preview.link.kk).toMatch(/\/kk\/pay\/…$/);
+    expect(info.kaspiWarning).toBeNull();
+    // Кассир Kaspi отключён (руководителям сообщили) — форма получает текст плашки; сбой чтения состояния форму не ломает.
+    fake.ordering.kaspiWatch = { warning: async () => "Кассир Kaspi отключён с 14:05" };
+    expect(((await invoiceFormInfoAction({ conversationId: CONV })) as { info: InvoiceFormInfo }).info.kaspiWarning).toBe("Кассир Kaspi отключён с 14:05");
+    fake.ordering.kaspiWatch = { warning: async () => Promise.reject(new Error("база")) };
+    expect(((await invoiceFormInfoAction({ conversationId: CONV })) as { info: InvoiceFormInfo }).info.kaspiWarning).toBeNull();
     signIn(owner);
     expect((await invoiceFormInfoAction({ dealId: DEAL })) as { info: { maxDiscountPercent: number | null } }).toMatchObject({ info: { maxDiscountPercent: null } });
   });

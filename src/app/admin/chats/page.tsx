@@ -75,7 +75,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
 
   if (conv) {
     const chat = container().messaging.view;
-    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot] = await Promise.all([
+    const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot, kaspiWarning] = await Promise.all([
       chat.messages(conv.id),
       chat.templates(),
       chat.vars(conv, staffLabel(staff.user)),
@@ -87,6 +87,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       Promise.all([container().assistant.service.configured(), container().assistant.seller.configured().catch(() => false)]).then(([a, s]) => a || s),
       conv.dealId && can(staff, "deals.view") ? container().ordering.invoices.listFor(conv.dealId) : Promise.resolve([]),
       container().messaging.botStatus(conv.id),
+      // Кассир Kaspi отключён — плашка над полем ввода (без запроса к Kaspi: сохранённое состояние проверки).
+      container().ordering.kaspiWatch.warning().catch(() => null),
     ]);
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     // Ничей диалог менеджер только читает: ответит тот, кому его отдаст круг (или назначит руководитель).
@@ -130,6 +132,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           templates={templates}
           vars={vars}
           sendDisabledReason={blocker}
+          paymentWarning={invoicePerms.send ? kaspiWarning : null}
           offers={canReply ? offers : null}
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
           ai={ai && canReply}

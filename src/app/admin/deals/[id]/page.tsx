@@ -64,7 +64,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const [messages, templates, vars, blocker, offers] = conv
     ? await Promise.all([chat.messages(conv.id), chat.templates(), chat.vars(conv, staffLabel(staff.user)), chat.sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
-  const ai = await container().assistant.service.configured();
+  const [ai, kaspiWarning] = await Promise.all([container().assistant.service.configured(), conv ? container().ordering.kaspiWatch.warning().catch(() => null) : null]);
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);
 
   const canEdit = can(staff, "deals.edit");
@@ -212,6 +212,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 templates={templates}
                 vars={vars}
                 sendDisabledReason={blocker}
+                paymentWarning={invoicePerms.send ? kaspiWarning : null}
                 offers={can(staff, "chats.send") && canWork(staff, deal.assigneeId) ? offers : null}
                 mentionables={mentionables}
                 ai={ai && can(staff, "chats.send") && canWork(staff, deal.assigneeId)}

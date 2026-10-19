@@ -371,6 +371,9 @@ export class Container {
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,
+      // Слежка за кассиром Kaspi: состояние и порог тревоги — в настройках, тревога — руководителям.
+      settings: this.workspace.settings,
+      notifier: this.workspace.notifier,
       // Счёт из чата читает сделку и пишет её деньги через порт продаж.
       invoiceSales: {
         deal: async (dealId) => {

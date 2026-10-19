@@ -32,8 +32,10 @@ vi.mock("@/server/container", () => ({
     assistant: { proofreadProvider: async () => ({ provider: "openrouter" }), sellerProvider: async () => ({ provider: "openrouter" }) },
     workspace: { templates: { add: async (t: unknown) => void w.saved.push({ template: JSON.stringify(t) }), update: async (id: string, t: unknown) => void w.saved.push({ [id]: JSON.stringify(t) }) } },
     messaging: { previewBot: async (input: { turns: unknown[] }) => ({ skipped: null, transcript: [], fields: [], intents: [], lang: "ru", done: false, summary: null, turns: input.turns.length }) },
+    ordering: { kaspiWatch: { setAlertAfterMinutes: async (minutes: number, actorId: string) => void w.saved.push({ "kaspi.alertAfterMinutes": String(minutes), actorId }) } },
   }),
 }));
+vi.mock("@/modules/ordering", () => ({ KASPI_ALERT_AFTER_MAX: 240, OrderingError: { is: () => false } }));
 vi.mock("@/server/bot-site", () => ({
   botSiteInfo: {
     catalog: async () => ({ plans: [{ id: "digital", price: 9900 }, { id: "hardcover", price: 30000 }], delivery: [{ id: "courier", price: 3500 }], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
@@ -46,6 +48,7 @@ const actions = {
   ...(await import("@/app/admin/settings/crm/actions")),
   ...(await import("@/app/admin/settings/mail/actions")),
   ...(await import("@/app/admin/settings/ai/actions")),
+  ...(await import("@/app/admin/settings/kaspi/actions")),
 };
 
 const form = (fields: Record<string, string | string[] | File>) => {
@@ -80,6 +83,20 @@ describe("Wazzup", () => {
     expect(await actions.saveWazzupAction({}, form({ baseUrl: "ftp://x" }))).toEqual({ error: "Адрес API должен начинаться с https://" });
     expect(await actions.saveWazzupAction({}, form({ apiKey: new File(["x"], "x.txt") }))).toEqual({ error: "Проверьте введённые данные" });
     expect(w.saved).toHaveLength(1);
+  });
+});
+
+describe("Kaspi: порог сигнала «кассир отключён»", () => {
+  it("целые минуты 0…240 сохраняются с журналом; дробное, отрицательное и больше 240 — понятная ошибка", async () => {
+    expect(await actions.saveKaspiAlertAfterAction(15)).toEqual({ ok: true });
+    expect(await actions.saveKaspiAlertAfterAction(0)).toEqual({ ok: true });
+    expect(w.saved).toEqual([
+      { "kaspi.alertAfterMinutes": "15", actorId: "boss" },
+      { "kaspi.alertAfterMinutes": "0", actorId: "boss" },
+    ]);
+    expect(w.audits[0]).toEqual(["settings.update", "settings", "kaspi", { alertAfterMinutes: 15 }]);
+    for (const bad of [2.5, -1, 241, Number.NaN]) expect(await actions.saveKaspiAlertAfterAction(bad)).toEqual({ ok: false, error: "Порог — целое число минут от 0 до 240" });
+    expect(w.saved).toHaveLength(2);
   });
 });
 

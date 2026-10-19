@@ -149,6 +149,10 @@ export const settingDefs = {
   "kaspi.enabled": { default: "off" },
   "kaspi.session": { secret: true },
   "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
+  /** Сигнал «кассир Kaspi отключён»: через сколько минут подряд без кассира сообщать руководителям (0 — сразу). */
+  "kaspi.alertAfterMinutes": { default: "5" },
+  /** Что показала последняя проверка кассира (JSON KaspiWatchState): пишет проход планировщика при смене состояния. */
+  "kaspi.watch": {},
   /**
    * WhatsApp: через Wazzup (по умолчанию) или свой шлюз GOWA (go-whatsapp-web-multidevice, номер привязывается по QR).
    * Для GOWA — адрес шлюза и логин:пароль его API (APP_BASIC_AUTH); вебхук устройства магазина сайт настраивает в шлюзе сам.

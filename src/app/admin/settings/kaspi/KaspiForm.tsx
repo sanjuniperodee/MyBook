@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
 import { CopyField } from "../ui";
 import { cn } from "@/lib/class-names";
-import { confirmKaspiCodeAction, disconnectKaspiAction, kaspiStatusAction, requestKaspiCodeAction, saveKaspiApiUrlAction, setKaspiEnabledAction } from "./actions";
+import { confirmKaspiCodeAction, disconnectKaspiAction, kaspiStatusAction, requestKaspiCodeAction, saveKaspiAlertAfterAction, saveKaspiApiUrlAction, setKaspiEnabledAction } from "./actions";
 
 interface KaspiStatusView {
   enabled: boolean;
@@ -24,6 +24,8 @@ interface KaspiFormProps extends KaspiStatusView {
   webhookUrl: string;
   /** Секрет для webhooks.json сервиса; null — задан переменной окружения KASPI_WEBHOOK_SECRET. */
   webhookSecret: string | null;
+  /** Сигнал «кассир Kaspi отключён»: через сколько минут подряд без кассира сообщать руководителям. */
+  alertAfterMinutes: number;
 }
 
 const badge = (s: KaspiStatusView) =>
@@ -42,6 +44,9 @@ export function KaspiForm(props: KaspiFormProps) {
   const [processId, setProcessId] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [alertAfter, setAlertAfter] = useState(String(props.alertAfterMinutes));
+  const [alertSaved, setAlertSaved] = useState(String(props.alertAfterMinutes));
+  const [alertMessage, setAlertMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const run = (work: () => Promise<{ ok: true } | { ok: false; error: string }>, done?: string) =>
     start(async () => {
@@ -99,6 +104,29 @@ export function KaspiForm(props: KaspiFormProps) {
             <input type="checkbox" className="accent-wine" checked={status.enabled} disabled={pending} onChange={(e) => run(() => setKaspiEnabledAction(e.target.checked))} />
             Принимать оплату через Kaspi
           </label>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted">Сообщать руководителям, если кассир не работает дольше, мин</span>
+              <input className="input h-10 w-24 text-sm" type="number" inputMode="numeric" min={0} max={240} step={1} value={alertAfter} onChange={(e) => setAlertAfter(e.target.value)} aria-label="Порог тревоги, минут" />
+            </label>
+            <button
+              className="btn btn-outline btn-sm h-10"
+              disabled={pending || !alertAfter.trim() || alertAfter.trim() === alertSaved}
+              onClick={() =>
+                start(async () => {
+                  const r = await saveKaspiAlertAfterAction(Number(alertAfter));
+                  if (r.ok) setAlertSaved(alertAfter.trim());
+                  setAlertMessage(r.ok ? { ok: true, text: "Порог сохранён" } : { ok: false, text: r.error });
+                })
+              }
+            >
+              Сохранить
+            </button>
+          </div>
+          <p className="text-[11px] text-muted">
+            Сайт проверяет кассира раз в 3 минуты. Уведомление в CRM и push приходит один раз, когда кассир отключился, и один раз, когда снова подключён; пока он отключён, менеджеры видят плашку в окне счёта и над полем ввода чата. 0 — сообщать сразу.
+          </p>
+          {alertMessage ? <p className={cn("text-xs", alertMessage.ok ? "text-emerald-700" : "text-red-700")}>{alertMessage.text}</p> : null}
         </div>
       ) : null}
 

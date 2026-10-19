@@ -18,7 +18,7 @@ const fake = {
   sales: { routing: { run: stepFn("routing", 0) } },
   messaging: { bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), coach: { run: stepFn("coach", null) } },
   invoiceAccess: { run: stepFn("access", { processed: 0, failed: 0 }), expire: stepFn("expire", 0) },
-  ordering: { deliverDueGifts: stepFn("gifts", 0) },
+  ordering: { deliverDueGifts: stepFn("gifts", 0), kaspiWatch: { check: stepFn("kaspi watch", null) } },
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
   outbox: { purge: stepFn("purge", undefined) },
 };
@@ -41,11 +41,19 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, почта и доступ по счетам всё равно выполняются", async () => {
+  it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, почта, доступ по счетам и проверка кассира Kaspi всё равно выполняются", async () => {
     failing.add("automations").add("routing");
     await crmTick();
-    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "imap", "access", "expire"]);
+    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "imap", "access", "expire", "kaspi watch"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "crm automations" failed', '[scheduler] step "lead routing" failed']);
+  });
+
+  it("минутный проход: проверка кассира Kaspi упала (kaspi-pos завис) — в логе её имя, остальные шаги уже выполнены", async () => {
+    failing.add("kaspi watch");
+    await crmTick();
+    expect(calls.at(-1)).toBe("kaspi watch");
+    expect(calls).toHaveLength(8);
+    expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 
   it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp и разбор бота выполняются", async () => {

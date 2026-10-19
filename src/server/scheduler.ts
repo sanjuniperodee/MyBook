@@ -48,7 +48,7 @@ export async function tick() {
   }
 }
 
-/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут», круг заявок, почта, доступ по оплаченным счетам. */
+/** Быстрый проход CRM раз в минуту: правила «клиенту не ответили N минут», круг заявок, почта, доступ по оплаченным счетам, кассир Kaspi. */
 const CRM_INTERVAL_MS = 60_000;
 const CRM_LOCK_ID = 7_310_452;
 
@@ -79,6 +79,10 @@ export async function crmTick() {
     if (access.processed || access.failed) console.log(`[scheduler] invoice access processed=${access.processed} failed=${access.failed}`);
     const expired = await step("invoice expiry", () => container().invoiceAccess.expire(), 0);
     if (expired) console.log(`[scheduler] invoices expired=${expired}`);
+    // Кассир Kaspi: запрос к Kaspi раз в 3 минуты, руководителям — только смена состояния («отключён» / «снова подключён»).
+    // Здесь, а не в сверке платежей: та выходит, пока нет сессии, и пропускает ход, когда занята пятисекундная сверка.
+    const kaspi = await step("kaspi watch", () => container().ordering.kaspiWatch.check(), null);
+    if (kaspi) console.warn(`[scheduler] kaspi cashier ${kaspi === "down" ? "disconnected" : "reconnected"}`);
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
   } finally {

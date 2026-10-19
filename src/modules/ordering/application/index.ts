@@ -1,6 +1,7 @@
 export * from "./GiftsService";
 export * from "./KaspiPaymentsService";
 export * from "./KaspiSetupService";
+export * from "./KaspiWatchService";
 export * from "./OrdersService";
 export type * from "./ports";
 export * from "./PromoService";

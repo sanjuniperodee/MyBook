@@ -30,4 +30,5 @@ export const admin = {
   sellerBinInvalid: "БИН — 12 цифр, не нули",
   sellerPhoneInvalid: "Телефон — 10–15 цифр в международном формате, не заглушка +7 700 000 00 00",
   sellerWhatsappInvalid: "WhatsApp — номер в международном формате, например 77001234567, не заглушка",
+  kaspiAlertAfterInvalid: (max: number) => `Порог — целое число минут от 0 до ${max}`,
 };

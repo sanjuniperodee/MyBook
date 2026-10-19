@@ -76,6 +76,8 @@ export interface InvoiceFormInfo {
   methods: { kaspi: boolean; card: boolean; transfer: boolean };
   /** Счёт Kaspi на номер чата возможен: Kaspi подключён и номер — казахстанский мобильный; номер — с маской. */
   kaspiPhoneMasked: string | null;
+  /** Кассир Kaspi отключён (руководителям уже сообщили) — жёлтая плашка над формой; null — всё в порядке. */
+  kaspiWarning?: string | null;
   /** null — без лимита (руководитель); иначе скидка от прайса тарифа не больше N %. */
   maxDiscountPercent: number | null;
   /** Для предпросмотра сообщения: срок счёта и вид ссылки на обоих языках (настоящая ссылка — при выпуске). */
@@ -100,7 +102,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
   const phone = conv?.channel === "whatsapp" && isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
   const clientId = deal?.clientId ?? conv?.clientId ?? null;
   const batchSize = deal ? (await c.sales.batch.money(deal.id)).size : null;
-  const [methods, plan, paid, open, maxDiscount, stage, client] = await Promise.all([
+  const [methods, plan, paid, open, maxDiscount, stage, client, kaspiWarning] = await Promise.all([
     availableMethods(),
     deal ? c.sales.agreedPlan.get(deal.id) : Promise.resolve(null),
     deal ? c.sales.batch.money(deal.id).then((b) => (b.size ? b.paid : c.sales.payments.paidTotal(deal.id))) : Promise.resolve(0),
@@ -108,6 +110,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
     getSetting("crm.maxDiscount"),
     deal ? c.sales.deals.stage(deal.stageId) : Promise.resolve(null),
     clientId ? c.reporting.clientBrief(clientId) : Promise.resolve(null),
+    c.ordering.kaspiWatch.warning().catch(() => null),
   ]);
   // Имя диалога бывает номером телефона: менеджер со скрытыми номерами его не видит и здесь.
   const name = deal?.contactName || conv?.contactName || "";
@@ -140,6 +143,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       giftPrices: { giftwrap: availableAddons("hardcover").find((a) => a.id === "giftwrap")?.price ?? 0, delivery: paidDelivery.length ? Math.max(...paidDelivery) : 0 },
       methods,
       kaspiPhoneMasked: methods.kaspi && isKzMobile(phone) ? maskPhone(phone) : null,
+      kaspiWarning,
       maxDiscountPercent: can(staff, "deals.delete") ? null : Number(maxDiscount) || 0,
       preview: { until: { ru: untilLabel(until, "ru"), kk: untilLabel(until, "kk") }, link: { ru: `${env.appUrl}/pay/…`, kk: `${env.appUrl}/kk/pay/…` } },
     },

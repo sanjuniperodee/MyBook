@@ -208,6 +208,19 @@ describe("форма счёта: разметка", () => {
     expect(out).toContain("Сәлеметсіз бе");
   });
 
+  it("кассир Kaspi отключён — жёлтая плашка над формой, счёт Kaspi на номер по умолчанию не отмечен", () => {
+    const warning = "Кассир Kaspi отключён с 14:05 — оплаты Kaspi не подтверждаются сами";
+    const out = html(<InvoiceForm info={info({ kaspiPhoneMasked: "+7 701 ••• •• 67", kaspiWarning: warning })} issueKey="k" onClose={() => {}} />);
+    expect(out).toContain('data-testid="invoice-kaspi-warning"');
+    expect(out).toContain(warning);
+    const push = out.split("<label").find((l) => l.includes("Счёт Kaspi на номер клиента"))!;
+    expect(push).not.toContain('checked=""');
+    // Кассир работает — плашки нет, счёт на номер отмечен.
+    const ok = html(<InvoiceForm info={info({ kaspiPhoneMasked: "+7 701 ••• •• 67" })} issueKey="k" onClose={() => {}} />);
+    expect(ok).not.toContain("invoice-kaspi-warning");
+    expect(ok.split("<label").find((l) => l.includes("Счёт Kaspi на номер клиента"))).toContain('checked=""');
+  });
+
   it("закрытая сделка — счёт не выставить", () => {
     expect(html(<InvoiceForm info={info({ closed: true })} issueKey="k" onClose={() => {}} />)).toContain("Сделка закрыта");
   });
