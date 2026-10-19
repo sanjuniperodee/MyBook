@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
-import { getCatalogOverrides, registrationOpen, site } from "@/config/site";
+import { getCatalogOverrides, getSellerOverrides, registrationOpen, site } from "@/config/site";
 import { env } from "@/config/env";
 import "./globals.css";
 import { Suspense } from "react";
@@ -52,7 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">
-        <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} />
+        <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>
           {children}
           <Overlays />

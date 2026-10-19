@@ -25,4 +25,8 @@ export const admin = {
   invalidTransition: "Такой переход статуса невозможен",
   staffNotFound: "Ответственным может быть только сотрудник CRM",
   promoExists: "Такой промокод уже есть",
+  sellerNameInvalid: "Юр. название — до 120 знаков",
+  sellerBinInvalid: "БИН — 12 цифр, не нули",
+  sellerPhoneInvalid: "Телефон — 10–15 цифр в международном формате, не заглушка +7 700 000 00 00",
+  sellerWhatsappInvalid: "WhatsApp — номер в международном формате, например 77001234567, не заглушка",
 };

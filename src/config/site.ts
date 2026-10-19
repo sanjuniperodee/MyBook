@@ -4,6 +4,7 @@
  */
 
 import { AGREEMENT_GIFTS, readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
+import { formatPhone, normalizePhone } from "@/shared/domain/phone";
 
 export const site = {
   name: "MyBooks",
@@ -11,15 +12,24 @@ export const site = {
   currencySign: "₸",
   contacts: {
     email: "hello@mybook.kz",
-    phone: "+7 700 000 00 00",
-    whatsapp: "https://wa.me/77000000000",
+    /** Телефон и WhatsApp магазина — из «Реквизитов продавца» в админке (applySeller), пока не заданы — заводские ниже. */
+    get phone() {
+      return formatPhone(seller().phone);
+    },
+    get whatsapp() {
+      return `https://wa.me/${seller().whatsapp}`;
+    },
     telegram: "https://t.me/mybook_support",
     instagram: "https://instagram.com/mybook",
   },
+  /** Реквизиты для оферты, футера и упаковочного листа — из «Реквизитов продавца» в админке. Адрес на двух языках — в словарях. */
   company: {
-    // Реквизиты для оферты и футера — заполните своими данными. Адрес и название на двух языках — в словарях.
-    legalName: "ИП «MyBooks»",
-    bin: "000000000000",
+    get legalName() {
+      return seller().legalName;
+    },
+    get bin() {
+      return seller().bin;
+    },
   },
   /** Отзывы на лендинге. Секция скрыта, пока список пуст — добавляйте только реальные отзывы клиентов. */
   testimonials: [] as { name: string; text: string; occasion?: string }[],
@@ -195,6 +205,61 @@ export function applySiteFlags(next: Partial<SiteFlags>) {
 
 /** Можно ли регистрироваться на сайте. Закрыто — страница регистрации объясняет это, ссылки на неё скрыты, новые аккаунты не создаются. */
 export const registrationOpen = (): boolean => flags().registration;
+
+/**
+ * Реквизиты продавца: юр. название, БИН, телефон и номер WhatsApp (цифры). Владелец вводит их в админке («Сайт»), значения
+ * хранятся в настройках CRM; пока значение не задано, действует заводское — заглушка ниже (сервер пишет предупреждение в лог).
+ * Живут в globalThis, как цены: общие для слоёв бандла; в браузер их передаёт CatalogSync.
+ */
+export interface SellerDetails {
+  legalName: string;
+  bin: string;
+  phone: string;
+  whatsapp: string;
+}
+export const SELLER_FIELDS = ["legalName", "bin", "phone", "whatsapp"] as const satisfies readonly (keyof SellerDetails)[];
+export const factorySeller: Readonly<SellerDetails> = { legalName: "ИП «MyBooks»", bin: "000000000000", phone: "77000000000", whatsapp: "77000000000" };
+export const SELLER_NAME_MAX = 120;
+
+/** Номер-заглушка вида 7 700 000 00 00: семь нулей в конце. */
+const placeholderPhone = (digits: string) => /0{7}$/.test(digits);
+const phoneOk = (digits: string) => digits.length >= 10 && digits.length <= 15 && !placeholderPhone(digits);
+
+/** Отбрасывает пустое и неверное (нулевой БИН, номер-заглушку): такое значение считается незаданным. */
+export function sanitizeSeller(raw: Partial<Record<keyof SellerDetails, string | null | undefined>>): Partial<SellerDetails> {
+  const out: Partial<SellerDetails> = {};
+  const name = String(raw.legalName ?? "").replace(/\s+/g, " ").trim();
+  if (name && name.length <= SELLER_NAME_MAX) out.legalName = name;
+  const bin = String(raw.bin ?? "").replace(/\D/g, "");
+  if (/^\d{12}$/.test(bin) && !/^0+$/.test(bin)) out.bin = bin;
+  const phone = normalizePhone(raw.phone);
+  if (phoneOk(phone)) out.phone = phone;
+  const whatsapp = normalizePhone(raw.whatsapp);
+  if (phoneOk(whatsapp)) out.whatsapp = whatsapp;
+  return out;
+}
+
+/** Какие реквизиты не заданы (на сайте — заглушка). */
+export const missingSeller = (overrides: Partial<SellerDetails>): (keyof SellerDetails)[] => SELLER_FIELDS.filter((k) => !overrides[k]);
+
+const sellerStore = globalThis as unknown as { __mybookSeller?: { json: string; overrides: Partial<SellerDetails>; value: SellerDetails } };
+function seller(): SellerDetails {
+  return (sellerStore.__mybookSeller ??= { json: "{}", overrides: {}, value: { ...factorySeller } }).value;
+}
+
+/** Применить реквизиты из настроек (неверные и пустые — заводские). Повторный вызов с тем же значением ничего не делает. */
+export function applySeller(raw: Partial<Record<keyof SellerDetails, string | null | undefined>> | null | undefined) {
+  const overrides = sanitizeSeller(raw ?? {});
+  const json = JSON.stringify(overrides);
+  if (sellerStore.__mybookSeller?.json === json) return;
+  sellerStore.__mybookSeller = { json, overrides, value: { ...factorySeller, ...overrides } };
+}
+
+/** Заданные в админке реквизиты (без заводских) — для CatalogSync и формы. */
+export const getSellerOverrides = (): Partial<SellerDetails> => {
+  seller();
+  return sellerStore.__mybookSeller!.overrides;
+};
 
 /** Все тарифы, включая скрытые (старые заказы и сертификаты читаются по ним). */
 export const getPlans = (): readonly Plan[] => current().plans;

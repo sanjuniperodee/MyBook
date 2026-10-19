@@ -46,7 +46,7 @@ export const settingDefs = {
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
   "crm.maxDiscount": { default: "15" },
-  /** Номер WhatsApp для рекламных ссылок «написать в WhatsApp» (по умолчанию — из контактов сайта). */
+  /** Номер WhatsApp магазина: рекламные ссылки «написать в WhatsApp» и контакты сайта (футер, сертификат, оплата); пусто — заглушка из config/site.ts. */
   "crm.whatsappNumber": {},
   /** Бот-автоответчик: off | fallback (если менеджер не ответил за N минут) | off_hours | always — по умолчанию (docs/features/bot-autoresponder.md). */
   "bot.mode": { default: "always" },
@@ -137,6 +137,10 @@ export const settingDefs = {
   "catalog.overrides": {},
   /** Регистрация новых клиентов на сайте: on | off (выключена — страница регистрации закрыта, ссылки скрыты). */
   "site.registration": { default: "on" },
+  /** Реквизиты продавца для оферты, футера и упаковочного листа (админка → «Сайт»); пусто — заглушка из config/site.ts. */
+  "site.legalName": {},
+  "site.bin": {},
+  "site.phone": {},
   /**
    * Оплата через Kaspi Pay (kaspi-pos-automation): адрес сервиса, включена ли оплата, сессия кассира (JSON после входа
    * по SMS-коду) и секрет подписи вебхуков — необязательный: без подписи уведомление лишь повод сверить счёт с Kaspi.
