@@ -39,7 +39,7 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
     createDeal: async () => ({ id: "d9", assigneeId: null }),
   };
   const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], ...opts.scheduled };
-  const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0 };
+  const schedule = { isWorkTime: async () => opts.workTime ?? true, workMinutesBetween: async () => 0, addWorkMinutes: async (from: Date, min: number) => new Date(from.getTime() + min * 60_000) };
   const errors: string[] = [];
   const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
   const engine = new AutomationEngine(repo, loader, effects, sales, schedule, scheduled, { url: "https://mybook.kz" }, { now: () => now }, quiet);

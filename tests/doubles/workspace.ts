@@ -99,7 +99,10 @@ export class MemFieldsReader implements CustomFieldsReader {
   }
 }
 
-/** График: рабочее ли время и сколько рабочих минут прошло — задаёт тест; asked — о каких моментах спрашивали. */
+/**
+ * График: рабочее ли время и сколько рабочих минут прошло — задаёт тест; asked — о каких моментах спрашивали. Срок через
+ * N рабочих минут — от shiftStart (начало смены), если не рабочее время, иначе от самого момента.
+ */
 export class FixedSchedule implements WorkSchedule {
   asked: Date[] = [];
   constructor(
@@ -112,5 +115,9 @@ export class FixedSchedule implements WorkSchedule {
   }
   async workMinutesBetween() {
     return this.minutes;
+  }
+  shiftStart: Date | null = null;
+  async addWorkMinutes(from: Date, minutes: number) {
+    return new Date((!this.working && this.shiftStart ? this.shiftStart : from).getTime() + minutes * 60_000);
   }
 }

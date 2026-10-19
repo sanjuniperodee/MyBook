@@ -41,11 +41,15 @@ export function registerSubscriptions(c: Container) {
     (e) => tellManager(e.payload.orderId, (n) => `Клиент оформил заказ №${e.payload.number} (сделка №${n})`, (t) => `${t}${e.payload.prepaid ? ` · предоплата ${e.payload.prepaid.toLocaleString("ru-RU")} ₸ учтена` : ""}`),
     "crm.notify.order_placed",
   );
-  // Деньги по заказу требуют решения: переплата (возврат или зачёт) и постоплата после доставки — задача ответственному сделки.
+  // Деньги по заказу требуют решения: переплата (возврат или зачёт) и постоплата после доставки — задача ответственному
+  // сделки со сроком «2 рабочих часа» (ночью — к 11:00 утра) и напоминанием. Ответственного нет — задача ничья: её видят
+  // все в «Просрочено» и в бейдже, напоминание — всем с deals.view (tasks-d4). Повтор события (outbox повторяет упавший
+  // подписчик) задачу не дублирует, а уведомление дойдёт.
+  const ORDER_TASK_WORK_MIN = 120;
   const orderTask = async (orderId: string, title: string) => {
     for (const d of await c.sales.deals.byOrder(orderId)) {
-      const actor = { userId: d.assigneeId ?? "", name: "CRM", seesAll: true, allTasks: true };
-      if (d.assigneeId) await c.clients.tasks.create(actor, { title, kind: "task", orderId, dealId: d.id, assigneeId: d.assigneeId });
+      const dueAt = await c.workspace.schedule.addWorkMinutes(c.clock.now(), ORDER_TASK_WORK_MIN);
+      await c.clients.tasks.createSystem({ title, kind: "task", dueAt, orderId, dealId: d.id, assigneeId: d.assigneeId, once: true });
       await (await notify()).staffNotifier.notifyOwnerOr(d.assigneeId, "orders.view", { kind: "task", title, body: d.title, link: `/admin/deals/${d.id}` });
     }
   };

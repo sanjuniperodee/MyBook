@@ -87,3 +87,34 @@ export function workMinutesBetween(a: Date, b: Date, hours: WorkHours, tz = stor
   }
   return Math.floor(total / 60_000);
 }
+
+/**
+ * Срок через N рабочих минут от date: ночь и выходные не считаются. Сейчас не рабочее время — отсчёт с начала ближайшей
+ * смены (N = 0 — само начало смены, как nextWorkStart). Пропущенный в 23:00 звонок со сроком «15 минут» — к 09:15, а не
+ * просрочен к началу смены. В графике нет рабочих дней (или срок дальше двух месяцев) — календарные минуты.
+ */
+export function addWorkMinutes(date: Date, minutes: number, hours: WorkHours, tz = storeTimeZone()): Date {
+  const start = date.getTime();
+  const total = Math.max(0, minutes) * 60_000;
+  if (!hours.days.length) return new Date(start + total);
+  const from = toMin(hours.from);
+  let to = toMin(hours.to);
+  if (to <= from) to += 24 * 60;
+  const span = (from === toMin(hours.to) ? 24 * 60 : to - from) * 60_000;
+  let left = total;
+  // Идём по местным дням, начиная с предыдущего (его ночная смена могла захватить date), как workMinutesBetween.
+  const first = zonedParts(date, tz);
+  const firstMidnight = Date.UTC(first.y, first.m - 1, first.d) - timeZoneOffset(date, tz) * 60_000;
+  for (let i = -1; i <= 62; i++) {
+    const noon = new Date(firstMidnight + i * 86_400_000 + 12 * 3_600_000);
+    const p = zonedParts(noon, tz);
+    if (!hours.days.includes(p.weekday)) continue;
+    const midnight = Date.UTC(p.y, p.m - 1, p.d) - timeZoneOffset(noon, tz) * 60_000;
+    const winStart = Math.max(start, midnight + from * 60_000);
+    const winEnd = midnight + from * 60_000 + span;
+    if (winEnd <= winStart) continue;
+    if (left <= winEnd - winStart) return new Date(winStart + left);
+    left -= winEnd - winStart;
+  }
+  return new Date(start + total);
+}

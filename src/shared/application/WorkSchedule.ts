@@ -6,4 +6,6 @@ export interface WorkSchedule {
   isWorkTime(at: Date): Promise<boolean>;
   /** Сколько рабочих минут прошло между from и to. */
   workMinutesBetween(from: Date, to: Date): Promise<number>;
+  /** Срок через minutes рабочих минут от from (ночь и выходные не считаются; вне смены — от её начала). */
+  addWorkMinutes(from: Date, minutes: number): Promise<Date>;
 }
