@@ -5,7 +5,7 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError } from "@/server/access";
+import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError, workRefusal } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
@@ -87,11 +87,16 @@ function resolveContact(target: Target) {
   return container().clients.contact({ callId: id(target.callId), dealId: id(target.dealId), orderId: id(target.orderId), clientId: id(target.clientId) });
 }
 
+/**
+ * Звонок через АТС. Чужая или неразобранная запись у роли «только свои» — отказ ответом (workRefusal), а не исключением:
+ * у кнопки («Мой день», карточки, «Звонки») всплывёт текст, а не экран ошибки вместо CRM. То же у чата и письма.
+ */
 export async function callAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("calls.make");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertWorkable(staff, c.assigneeId);
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
   try {
     await container().telephony.phone.clickToCall(staff.user.sipExtension, normalizePhone(c.phone));
   } catch (err) {
@@ -106,7 +111,8 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.phone || normalizePhone(c.phone).length < 10) return { ok: false, message: "У клиента нет номера телефона" };
-  assertWorkable(staff, c.assigneeId);
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
   // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
   const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
@@ -120,7 +126,8 @@ export async function sendEmailAction(target: Target, subject: string, text: str
   const staff = await assertStaff("chats.send");
   const c = await resolveContact(target);
   if (!c?.email) return { ok: false, message: "У клиента нет e-mail" };
-  assertWorkable(staff, c.assigneeId);
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
   const body = z.string().trim().min(1, "Напишите текст письма").max(20_000).parse(text);
   const title = z.string().max(200).parse(subject);
   // Как в чате: чужой номер, карта или реквизиты клиенту не уходят (номер клиента и магазина — можно).

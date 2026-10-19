@@ -2,9 +2,9 @@ import { container } from "@/server/container";
 import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
 import { CalendarX, CheckSquare, Handshake, Inbox, MessagesSquare, PhoneMissed } from "lucide-react";
-import { can, contactView, type Staff } from "@/server/access";
+import { can, canWork, contactView, type Staff } from "@/server/access";
 import { formatPrice } from "@/config/site";
-import { formatPhone, normalizePhone } from "@/shared/domain/phone";
+import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
@@ -12,7 +12,7 @@ import { getSetting } from "@/modules/workspace";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { responseWait, slaMinutes, waitTone } from "@/modules/reporting/ui/response-wait";
 import { TaskRows, type TaskRow } from "./tasks/TaskRows";
-import { taskRow } from "./tasks/task-row";
+import { taskContact, taskRow, type Reacher } from "./tasks/task-row";
 
 /**
  * «Мой день» — рабочий стол менеджера: что горит прямо сейчас. Числа на плитках — настоящие, как бейджи меню, а списки
@@ -33,15 +33,16 @@ export async function MyDay({ staff }: { staff: Staff }) {
   const now = new Date();
   const sla = slaMinutes(slaRaw);
   const hours = parseWorkHours(hoursRaw);
-  // Звонок через АТС — только с подключённой Zadarma и внутренним номером сотрудника; иначе «Позвонить» — ссылка tel:.
-  const reach = { pbx: provider === "zadarma" && !!staff.user.sipExtension, chat: can(staff, "chats.send") };
-  const today: TaskRow[] = tasks.map((r) => {
-    const t = r.task;
-    const target = t.dealId ? { dealId: t.dealId } : t.orderId ? { orderId: t.orderId } : t.clientId ? { clientId: t.clientId } : null;
-    // Номер для tel: и wa.me — только тому, кому видны контакты; звонок через АТС и чат найдут номер на сервере.
-    const digits = contactView(staff, { phone: r.phone }).masked ? "" : normalizePhone(r.phone);
-    return { ...taskRow(r, { userId: me, allTasks: can(staff, "tasks.all") }, now), contact: target ? { phone: digits.length >= 10 ? digits : null, target } : null };
-  });
+  // Звонок через АТС — только с подключённой Zadarma и внутренним номером сотрудника, и у каждой задачи — только если её
+  // сделку (заказ, клиента) ведёт этот сотрудник: «ничья» задача бота на неразобранной сделке у роли «только свои» — без
+  // АТС и «Открыть чат» (сервер откажет), «Позвонить» — ссылка tel:. Номер для tel: и wa.me — только тому, кому видны контакты.
+  const reacher: Reacher = {
+    phoneVisible: can(staff, "clients.contacts"),
+    works: (assigneeId) => canWork(staff, assigneeId),
+    pbx: provider === "zadarma" && !!staff.user.sipExtension,
+    chat: can(staff, "chats.send"),
+  };
+  const today: TaskRow[] = tasks.map((r) => ({ ...taskRow(r, { userId: me, allTasks: can(staff, "tasks.all") }, now), contact: taskContact(r, reacher) }));
   const tiles = [
     unsorted.n > 0 && { href: "/admin/deals", icon: Inbox, label: "Неразобранные заявки", value: String(unsorted.n), hot: true },
     { href: "/admin/tasks", icon: CheckSquare, label: counts.overdueTasks ? `Задачи на сегодня · просрочено ${counts.overdueTasks}` : "Задачи на сегодня", value: String(counts.tasks), hot: counts.overdueTasks > 0 },
@@ -93,7 +94,7 @@ export async function MyDay({ staff }: { staff: Staff }) {
             </Link>
           </div>
           <div className="px-4">
-            <TaskRows tasks={today} staff={[]} canAssign={false} compact reach={reach} />
+            <TaskRows tasks={today} staff={[]} canAssign={false} compact />
           </div>
           {counts.tasks > today.length ? (
             <p className="border-t border-line px-4 py-2 text-xs text-muted">

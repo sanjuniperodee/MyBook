@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { admin } from "@/i18n/admin";
 import { trustedClientIp } from "@/server/rateLimit";
 import type { StaffContext, StaffGate } from "@/modules/access";
 import type { Permission, RoleScope } from "@/shared/domain/permissions";
@@ -125,8 +126,18 @@ export function canWork(staff: Staff, assigneeId: string | null | undefined) {
   return staff.context.canWork(assigneeId);
 }
 
+/**
+ * Почему с записью работать нельзя — текст для сотрудника; null — можно. Для действий, которые отвечают отказом, а не
+ * исключением: «Позвонить» и «Открыть чат» показывают его всплывающим сообщением, и страница не падает.
+ */
+export function workRefusal(staff: Staff, assigneeId: string | null | undefined): string | null {
+  if (canWork(staff, assigneeId)) return null;
+  return assigneeId ? admin.recordNotYours : admin.recordUnsorted;
+}
+
 export function assertWorkable(staff: Staff, assigneeId: string | null | undefined) {
-  if (!canWork(staff, assigneeId)) throw new ForbiddenError(assigneeId ? "Недостаточно прав для этого действия" : "Заявку распределяет круг — её получит менеджер на смене. Назначить вручную может руководитель.");
+  const refusal = workRefusal(staff, assigneeId);
+  if (refusal) throw new ForbiddenError(refusal);
 }
 
 export function contactView(staff: Staff, v: { phone?: string | null; email?: string | null }) {

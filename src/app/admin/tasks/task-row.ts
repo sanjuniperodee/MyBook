@@ -1,5 +1,6 @@
 import { canManageTask } from "@/modules/clients/domain";
 import { formatDate } from "@/lib/dates";
+import { normalizePhone } from "@/shared/domain/phone";
 import type { TaskRow } from "./TaskRows";
 
 /** Срок для поля «дата и время» — по времени магазина (сервер работает в TZ=Asia/Almaty). */
@@ -58,4 +59,43 @@ export function taskRow(r: ListedTask, viewer: { userId: string; allTasks: boole
     fromBot: /\(бот\)\s*$/.test(t.title),
     editable: canManageTask(viewer, t),
   };
+}
+
+/** Задача «Моего дня» с номером и тем, кто ведёт сделку, заказ или клиента, к которым она (reporting.myDay). */
+export interface ReachableTask {
+  task: Pick<ListedTask["task"], "dealId" | "orderId" | "clientId">;
+  phone: string | null;
+  dealAssigneeId: string | null;
+  orderAssigneeId: string | null;
+  clientManagerId: string | null;
+}
+
+/** Кто связывается: виден ли ему номер, может ли он работать с записью (canWork), подключена ли АТС и есть ли право писать. */
+export interface Reacher {
+  phoneVisible: boolean;
+  works: (assigneeId: string | null) => boolean;
+  pbx: boolean;
+  chat: boolean;
+}
+
+/**
+ * С кем и чем связаться по задаче. Цель — сделка, иначе заказ, иначе клиент: в том же порядке её находит сервер у
+ * «Позвонить» и «Открыть чат», и он же разрешает их только тому, кто с целью работает (её ответственный или роль «все
+ * записи»). Поэтому у роли «только свои» на неразобранной («ничья» задача бота) или чужой сделке этих кнопок нет —
+ * «Позвонить» остаётся ссылкой tel:, а WhatsApp — wa.me, если номер сотруднику виден. null — задача ни к кому.
+ */
+export function taskContact(r: ReachableTask, who: Reacher): TaskRow["contact"] {
+  const t = r.task;
+  const to: [NonNullable<TaskRow["contact"]>["target"], string | null] | null = t.dealId
+    ? [{ dealId: t.dealId }, r.dealAssigneeId]
+    : t.orderId
+      ? [{ orderId: t.orderId }, r.orderAssigneeId]
+      : t.clientId
+        ? [{ clientId: t.clientId }, r.clientManagerId]
+        : null;
+  if (!to) return null;
+  const [target, assignee] = to;
+  const digits = who.phoneVisible ? normalizePhone(r.phone) : "";
+  const works = who.works(assignee);
+  return { phone: digits.length >= 10 ? digits : null, target, pbx: who.pbx && works, chat: who.chat && works };
 }

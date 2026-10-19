@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
 import { Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
-import { ask, toast } from "@/components/ui/overlays";
+import { ask, toast, toastError } from "@/components/ui/overlays";
 import { deleteTaskAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
 import { callAction, openChatAction } from "@/app/admin/crm-actions";
 import { taskKinds } from "@/components/admin/CrmWidgets";
@@ -31,15 +31,10 @@ export interface TaskRow {
   editable: boolean;
   /**
    * С кем связаться по задаче: phone — цифры номера для tel: и wa.me (только если сотруднику видны контакты), target —
-   * для звонка через АТС и «Открыть чат» (номер сервер найдёт сам). null — задача ни к кому.
+   * для звонка через АТС и «Открыть чат» (номер сервер найдёт сам). pbx и chat — есть ли у этой строки звонок через АТС
+   * и «Открыть чат»: свои у каждой задачи, их разрешает тот, кто ведёт сделку (taskContact). null — задача ни к кому.
    */
-  contact?: { phone: string | null; target: { dealId?: string; orderId?: string; clientId?: string } } | null;
-}
-
-/** Чем связаться с клиентом из строки задачи: звонок через АТС (Zadarma подключена) и чат WhatsApp в CRM. */
-export interface TaskReach {
-  pbx: boolean;
-  chat: boolean;
+  contact?: { phone: string | null; target: { dealId?: string; orderId?: string; clientId?: string }; pbx: boolean; chat: boolean } | null;
 }
 
 const reminders = [
@@ -62,19 +57,19 @@ const kindTone: Record<TaskRow["kind"], string> = {
  * Строки задач на странице «Задачи» и в «Моём дне»: всё правится на месте — выполнено, тип, заголовок, срок («+1 ч»,
  * «Завтра» или поле), ответственный; в «Подробнее» — напоминание, результат и удаление. Изменение сохраняется сразу,
  * ошибка — под строкой. compact — для телефона («Мой день»): срок подписью, без поля срока и выбора ответственного.
- * reach — у звонка «Позвонить» (через АТС, если она подключена, иначе tel:), у «Написать» — WhatsApp (wa.me) и «Открыть чат».
+ * contact — у звонка «Позвонить» (через АТС, если можно, иначе tel:), у «Написать» — WhatsApp (wa.me) и «Открыть чат».
  */
-export function TaskRows({ tasks, staff, canAssign, compact = false, reach = { pbx: false, chat: false } }: { tasks: TaskRow[]; staff: { id: string; label: string }[]; canAssign: boolean; compact?: boolean; reach?: TaskReach }) {
+export function TaskRows({ tasks, staff, canAssign, compact = false }: { tasks: TaskRow[]; staff: { id: string; label: string }[]; canAssign: boolean; compact?: boolean }) {
   return (
     <ul className="divide-y divide-line">
       {tasks.map((t) => (
-        <Row key={t.id} task={t} staff={staff} canAssign={canAssign} compact={compact} reach={reach} />
+        <Row key={t.id} task={t} staff={staff} canAssign={canAssign} compact={compact} />
       ))}
     </ul>
   );
 }
 
-function Row({ task, staff, canAssign, compact, reach }: { task: TaskRow; staff: { id: string; label: string }[]; canAssign: boolean; compact: boolean; reach: TaskReach }) {
+function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: string; label: string }[]; canAssign: boolean; compact: boolean }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -206,7 +201,7 @@ function Row({ task, staff, canAssign, compact, reach }: { task: TaskRow; staff:
           </button>
         </div>
       </div>
-      {!t.done && t.contact ? <Reach kind={t.kind} contact={t.contact} reach={reach} /> : null}
+      {!t.done && t.contact ? <Reach kind={t.kind} contact={t.contact} /> : null}
       {open ? (
         <div className="mt-2 ml-7 grid gap-2 rounded-xl bg-[#fbf9f5] p-3 sm:grid-cols-[180px_1fr_auto]">
           <label className="block text-xs text-muted">
@@ -256,18 +251,19 @@ function Row({ task, staff, canAssign, compact, reach }: { task: TaskRow; staff:
 }
 
 /**
- * Связаться по задаче: у звонка — «Позвонить» (через АТС, если Zadarma подключена; иначе tel: — звонит телефон, с
- * которого открыта CRM), у «Написать» — WhatsApp (wa.me открывает WhatsApp на этом телефоне — на телефоне магазина
- * сообщение уйдёт с номера магазина и попадёт в «Чаты») и «Открыть чат» в CRM.
+ * Связаться по задаче: у звонка — «Позвонить» (через АТС, если Zadarma подключена и сделку ведёт этот сотрудник; иначе
+ * tel: — звонит телефон, с которого открыта CRM), у «Написать» — WhatsApp (wa.me открывает WhatsApp на этом телефоне — на
+ * телефоне магазина сообщение уйдёт с номера магазина и попадёт в «Чаты») и «Открыть чат» в CRM. Отказ сервера — всплывающим
+ * сообщением; неожиданная ошибка — тоже, а не экраном ошибки вместо CRM.
  */
-function Reach({ kind, contact, reach }: { kind: TaskRow["kind"]; contact: NonNullable<TaskRow["contact"]>; reach: TaskReach }) {
+function Reach({ kind, contact }: { kind: TaskRow["kind"]; contact: NonNullable<TaskRow["contact"]> }) {
   const [calling, startCall] = useTransition();
   const [opening, startChat] = useTransition();
   const router = useRouter();
   const link = "btn btn-outline btn-sm h-8 px-2.5 text-xs";
   const buttons: React.ReactNode[] = [];
   if (kind === "call") {
-    if (reach.pbx)
+    if (contact.pbx)
       buttons.push(
         <button
           key="pbx"
@@ -276,8 +272,12 @@ function Reach({ kind, contact, reach }: { kind: TaskRow["kind"]; contact: NonNu
           disabled={calling}
           onClick={() =>
             startCall(async () => {
-              const r = await callAction(contact.target);
-              toast(r.message ?? "Звоним", r.ok ? "success" : "error");
+              try {
+                const r = await callAction(contact.target);
+                toast(r.message ?? "Звоним", r.ok ? "success" : "error");
+              } catch (err) {
+                toastError(err);
+              }
             })
           }
         >
@@ -298,7 +298,7 @@ function Reach({ kind, contact, reach }: { kind: TaskRow["kind"]; contact: NonNu
           <MessageCircle className="size-3.5" /> WhatsApp
         </a>,
       );
-    if (reach.chat)
+    if (contact.chat)
       buttons.push(
         <button
           key="chat"
@@ -307,9 +307,13 @@ function Reach({ kind, contact, reach }: { kind: TaskRow["kind"]; contact: NonNu
           disabled={opening}
           onClick={() =>
             startChat(async () => {
-              const r = await openChatAction(contact.target);
-              if (r.ok && r.id) router.push(`/admin/chats?c=${r.id}`);
-              else toast(r.ok ? "Готово" : r.message, r.ok ? "success" : "error");
+              try {
+                const r = await openChatAction(contact.target);
+                if (r.ok && r.id) router.push(`/admin/chats?c=${r.id}`);
+                else toast(r.ok ? "Готово" : r.message, r.ok ? "success" : "error");
+              } catch (err) {
+                toastError(err);
+              }
             })
           }
         >

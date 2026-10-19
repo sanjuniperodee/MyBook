@@ -11,7 +11,7 @@ export const MY_DAY_LIMITS = { tasks: 10, waiting: 6, missed: 6 } as const;
 
 /**
  * «Мой день»: задачи на сегодня (сколько, сколько просрочено и первые — просроченные сверху, с контактом для «Позвонить» и
- * «Написать»), клиенты ждут ответа, пропущенные звонки, мои сделки и сколько из них без следующего шага, неразобранное.
+ * «Написать» и тем, кто ведёт сделку, заказ или клиента), клиенты ждут ответа, пропущенные звонки, мои сделки и сколько из них без следующего шага, неразобранное.
  * Списки обрезаны (MY_DAY_LIMITS), числа считаются отдельно по тем же условиям, что бейджи меню и экраны по ссылкам
  * (tasks-d1, tasks-17).
  */
@@ -33,6 +33,10 @@ export async function myDay(viewer: Viewer, sections: { chats: boolean; calls: b
         clientEmail: users.email,
         // Номер для tel: и wa.me — как его находит «Позвонить» в карточке: контакт сделки, заказа, профиль клиента.
         phone: sql<string | null>`coalesce(nullif(${crmDeals.contactPhone}, ''), nullif(${orders.contactPhone}, ''), nullif(${users.phone}, ''))`,
+        // Кто ведёт то, к чему задача: звонок через АТС и «Открыть чат» сервер разрешает только ему (canWork).
+        dealAssigneeId: crmDeals.assigneeId,
+        orderAssigneeId: orders.assigneeId,
+        clientManagerId: users.managerId,
       })
       .from(crmTasks)
       .leftJoin(crmDeals, eq(crmDeals.id, crmTasks.dealId))

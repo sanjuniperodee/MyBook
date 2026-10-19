@@ -20,9 +20,9 @@ run("reporting: числа «Моего дня» и бейджи меню (Postg
   const one = async (query: ReturnType<typeof sql>) => (await q<{ id: string }>(query))[0].id;
   const ids: Record<string, string> = {};
   const viewer = () => ({ userId: ids.me, seesAll: false });
-  const task = (assignee: string, due: ReturnType<typeof sql>, done = false, dealId: string | null = null) =>
+  const task = (assignee: string | null, due: ReturnType<typeof sql>, done = false, dealId: string | null = null) =>
     q(sql`insert into crm_tasks (title, assignee_id, due_at, done_at, deal_id) values (${tag}, ${assignee}, ${due}, ${done ? sql`now()` : null}, ${dealId})`);
-  const deal = (stage: string, assignee: string, phone: string | null = null) =>
+  const deal = (stage: string, assignee: string | null, phone: string | null = null) =>
     one(sql`insert into crm_deals (title, stage_id, assignee_id, contact_phone) values (${tag}, ${stage}, ${assignee}, ${phone}) returning id`);
 
   beforeAll(async () => {
@@ -85,14 +85,18 @@ run("reporting: числа «Моего дня» и бейджи меню (Postg
     expect((await crmCounters({ userId: ids.me, scope: "own", can: () => true })).calls).toBe(after.counts.missed);
   });
 
-  it("«Сегодня»: первые 10, просроченные сверху; номер для «Позвонить» — из контакта сделки", async () => {
+  it("«Сегодня»: первые 10, просроченные сверху; номер для «Позвонить» — из контакта сделки, с её ответственным", async () => {
     const d = await deal(ids.open, ids.me, "8 701 555 44 33");
     await task(ids.me, sql`now() - interval '30 days'`, false, d);
+    // «Ничья» задача бота на неразобранной сделке: ответственного нет — у «только свои» без АТС и «Открыть чат».
+    const unsorted = await deal(ids.open, null, "8 701 555 44 34");
+    await task(null, sql`now() - interval '31 days'`, false, unsorted);
     const { tasks, counts } = await myDay(viewer(), sections);
     expect(tasks).toHaveLength(Math.min(MY_DAY_LIMITS.tasks, counts.tasks));
     const due = tasks.map((r) => r.task.dueAt!.getTime());
     expect(due).toEqual([...due].sort((a, b) => a - b));
-    expect(tasks.find((r) => r.task.dealId === d)).toMatchObject({ phone: "8 701 555 44 33", dealTitle: tag });
+    expect(tasks.find((r) => r.task.dealId === d)).toMatchObject({ phone: "8 701 555 44 33", dealTitle: tag, dealAssigneeId: ids.me, orderAssigneeId: null, clientManagerId: null });
+    expect(tasks.find((r) => r.task.dealId === unsorted)).toMatchObject({ phone: "8 701 555 44 34", dealAssigneeId: null });
   });
 
   it("сделки без следующего шага: открытые мои без открытой задачи — как фильтр «Без задачи»; выигранные и чужие — нет", async () => {
