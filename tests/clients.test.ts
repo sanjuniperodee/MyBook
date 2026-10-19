@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ClientsError } from "@/modules/clients/domain";
+import { TasksService } from "@/modules/clients/application";
 import { head, lead, manager, setup } from "./doubles/clients";
 
 describe("ClientsService: профиль клиента", () => {
@@ -260,5 +261,65 @@ describe("TasksService: напоминание о сроке задачи", () =
     expect(t.mem.tasks.last().remindBeforeMin).toBeNull();
     await t.tasks.create(manager, { title: "Без срока", kind: "task" });
     expect(t.mem.tasks.last().remindBeforeMin).toBeNull();
+  });
+});
+
+describe("TasksService: задачи от CRM (бот, правила, «Перезвоните мне») — tasks-d2", () => {
+  const at = (iso: string) => new Date(iso);
+
+  it("задача бота — с напоминанием за час до срока, автор — CRM; ответственному в CRM, а не молча", async () => {
+    const t = setup(); // сейчас 01.10 10:00 UTC
+    expect(await t.tasks.createSystem({ title: "Ответить: Айгерим — просит менеджера (бот)", kind: "message", dueAt: at("2026-10-02T04:15:00Z"), dealId: "deal-1", assigneeId: "m1" })).toBe(true);
+    expect(t.mem.tasks.last()).toMatchObject({ kind: "message", assigneeId: "m1", createdById: null, clientId: "client-2", dealId: "deal-1", remindBeforeMin: 60 });
+    // Уведомление о новой задаче шлёт тот, кто её ставит (бот, правило), — сервис не дублирует.
+    expect(t.notifier.sent).toEqual([]);
+    t.c.set("2026-10-02T03:10:00Z");
+    expect(await t.tasks.remindDue()).toBe(0);
+    t.c.set("2026-10-02T03:15:00Z"); // за час до срока
+    expect(await t.tasks.remindDue()).toBe(1);
+    expect(t.notifier.sent).toEqual([{ userIds: ["m1"], n: { kind: "reminder", title: "Через 1 ч срок задачи: Ответить: Айгерим — просит менеджера (бот)", body: "Срок: 02.10 09:15", link: "/admin/deals/deal-1" } }]);
+  });
+
+  it("до срока меньше часа («Перезвонить — заявка с сайта», +15 мин) — напоминание в сам срок, а не сразу вслед за уведомлением", async () => {
+    const t = setup();
+    await t.tasks.createSystem({ title: "Перезвонить Айгерим — заявка с сайта", kind: "call", dueAt: at("2026-10-01T10:15:00Z"), dealId: "deal-1", assigneeId: "m1" });
+    expect(t.mem.tasks.last()).toMatchObject({ remindBeforeMin: 0 });
+    t.c.set("2026-10-01T10:01:00Z");
+    expect(await t.tasks.remindDue()).toBe(0);
+    t.c.set("2026-10-01T10:15:00Z");
+    expect(await t.tasks.remindDue()).toBe(1);
+    expect(t.notifier.sent.at(-1)?.n.title).toBe("Срок задачи наступил: Перезвонить Айгерим — заявка с сайта");
+  });
+
+  it("ничья задача (ночь, круг ещё не раздал) — напоминание всем с deals.view, в WhatsApp — никому", async () => {
+    const t = setup();
+    const whatsapp: string[] = [];
+    const tasks = new TasksService(t.mem.tasks, { clientOfOrder: async () => null, clientOfDeal: async () => null, dealAssignee: async () => null }, t.notifier, t.c, t.staff, { send: async (id) => (whatsapp.push(id), true) });
+    await tasks.createSystem({ title: "Выставить счёт: Айгерим (бот)", kind: "task", dueAt: at("2026-10-01T10:05:00Z"), dealId: "deal-7", assigneeId: null });
+    expect(t.mem.tasks.last()).toMatchObject({ assigneeId: null, createdById: null, remindBeforeMin: 0 });
+    t.c.set("2026-10-01T10:05:00Z");
+    expect(await tasks.remindDue()).toBe(1);
+    expect(t.notifier.sent).toEqual([{ userIds: ["deals.view"], n: { kind: "reminder", title: "Срок задачи наступил: Выставить счёт: Айгерим (бот)", body: "Срок: 01.10 15:05 · задача ничья — возьмите её", link: "/admin/deals/deal-7" } }]);
+    expect(whatsapp).toEqual([]);
+    expect(await tasks.remindDue()).toBe(0); // один раз
+  });
+
+  it("ответственный отключён — задача ничья; once — одна открытая с этим заголовком на сделку", async () => {
+    const t = setup();
+    await t.tasks.createSystem({ title: "Позвонить", kind: "call", dueAt: at("2026-10-01T12:00:00Z"), dealId: "deal-1", assigneeId: "x1" });
+    expect(t.mem.tasks.last()).toMatchObject({ assigneeId: null });
+    expect(await t.tasks.createSystem({ title: "Позвонить", kind: "call", dueAt: at("2026-10-01T12:00:00Z"), dealId: "deal-1", assigneeId: "m1", once: true })).toBe(false);
+    expect(t.mem.tasks.rows.size).toBe(1);
+    // Без срока — без напоминания.
+    await t.tasks.createSystem({ title: "Проверить переплату", kind: "task", dueAt: null, orderId: "order-1", assigneeId: "m1" });
+    expect(t.mem.tasks.last()).toMatchObject({ remindBeforeMin: null, clientId: "client-1", orderId: "order-1" });
+  });
+
+  it("за проход — не больше 200 напоминаний, ранние сроки первыми; остальные — в следующем", async () => {
+    const t = setup();
+    for (let i = 0; i < 205; i++) t.mem.tasks.seed({ id: `t${i}`, assigneeId: "m1", dueAt: new Date(t.c.now().getTime() + (30 - (i % 30)) * 60_000) });
+    for (const [id, row] of t.mem.tasks.rows) t.mem.tasks.rows.set(id, { ...row, remindBeforeMin: 60 });
+    expect(await t.tasks.remindDue()).toBe(200);
+    expect(await t.tasks.remindDue()).toBe(5);
   });
 });

@@ -1,8 +1,8 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway } from "./application";
-import { channelTransport, crmBotSettings, crmNotifier, crmTasksAdapter, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
+import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
+import { channelTransport, crmBotSettings, crmNotifier, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
@@ -97,6 +97,8 @@ export class MessagingModule {
     private readonly deps: {
       clock: Clock;
       sales: SalesGateway;
+      /** Задачи менеджерам (бот, «Перезвоните мне») — сервис задач контекста Clients. */
+      tasks: Tasks;
       rules: IncomingRules;
       links: LinkAttribution;
       whatsapp: () => Promise<string>;
@@ -122,7 +124,7 @@ export class MessagingModule {
       crm: { ...deps.botCrm, priorChat: (conv, before) => this.priorChat(conv, before) },
       sales: deps.sales,
       notifier,
-      tasks: crmTasksAdapter,
+      tasks: deps.tasks,
       timers: processTimers(),
       clock: deps.clock,
       logger: consoleLogger("bot"),
@@ -170,7 +172,7 @@ export class MessagingModule {
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
-    this.site = new SiteChatService(this.chats, deps.sales, crmTasksAdapter, notifier, live, deps.clock, siteIds);
+    this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds);
   }
 
   /** Файл от сотрудника (фото, видео, аудио, документ): сохраняется у нас (чтобы открыть в CRM) и уходит клиенту. */

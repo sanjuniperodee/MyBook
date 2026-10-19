@@ -24,12 +24,14 @@ export interface ClientRepository {
 
 export interface TaskRepository {
   find(id: string): Promise<Task | null>;
-  add(t: { title: string; kind: TaskKind; dueAt: Date | null; clientId: string | null; orderId: string | null; dealId: string | null; assigneeId: string; createdById: string; remindBeforeMin: number | null }): Promise<void>;
+  /** assigneeId null — ничья задача (её видят все); createdById null — поставила CRM (бот, правило, заявка с сайта). */
+  add(t: { title: string; kind: TaskKind; dueAt: Date | null; clientId: string | null; orderId: string | null; dealId: string | null; assigneeId: string | null; createdById: string | null; remindBeforeMin: number | null }): Promise<void>;
   /**
    * Забрать напоминания, время которых пришло (открытая задача со сроком, напоминание ещё не уходило): помечает их
    * отправленными, поэтому параллельный проход не продублирует. Задачи, просроченные больше чем на staleMin, пропускаются.
+   * Ничьи задачи — тоже (assigneeId null). Не больше limit за раз, самые ранние сроки первыми.
    */
-  claimDueReminders(now: Date, staleMin: number): Promise<{ id: string; title: string; kind: TaskKind; dueAt: Date; assigneeId: string; dealId: string | null; orderId: string | null }[]>;
+  claimDueReminders(now: Date, staleMin: number, limit: number): Promise<{ id: string; title: string; kind: TaskKind; dueAt: Date; assigneeId: string | null; dealId: string | null; orderId: string | null }[]>;
   /** Есть ли открытая задача с таким заголовком по сделке (служебные задачи CRM не дублируются при повторе). */
   existsOpen(t: { dealId: string; title: string }): Promise<boolean>;
   /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
@@ -77,6 +79,8 @@ export interface DealContacts {
 
 export interface StaffNotifier {
   notify(userIds: string[], n: { kind: "task" | "reminder" | "mention"; title: string; body: string; link: string | null }): Promise<void>;
+  /** Всем, кто видит сделки (право deals.view): напоминание о ничьей задаче. */
+  dealsTeam(n: { kind: "task" | "reminder"; title: string; body: string; link: string | null }): Promise<void>;
 }
 
 /** Чем пользовался клиент на сайте: заходил ли, книги, заказы (новый ли это аккаунт). */

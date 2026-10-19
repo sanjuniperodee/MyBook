@@ -74,6 +74,8 @@ export class Container {
       notifier: this.workspace.notifier,
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
+      // Задача из правила — через сервис задач: с напоминанием о сроке, без ответственного — ничья (видят все).
+      createTask: (t) => this.clients.tasks.createSystem(t),
       // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд); текст с
       // реквизитами не уходит — заметка в сделку и руководителю. Первым правило пишет только в окне и в пределах
       // суточного лимита («Интеграции» → «Мессенджеры»).
@@ -100,6 +102,8 @@ export class Container {
       fields: this.workspace.fieldsReader,
       smtpConfig,
       smtp: this.smtp,
+      // Задачи бота и «Перезвоните мне» — через сервис задач: с напоминанием о сроке, без ответственного — ничья.
+      tasks: { create: (t) => this.clients.tasks.createSystem(t) },
       rules: {
         messageIncoming: async (ctx) => {
           await this.automation.engine.run("message.incoming", ctx);

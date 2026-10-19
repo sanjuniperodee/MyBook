@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { books, crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
@@ -37,23 +37,31 @@ export const drizzleTasks: TaskRepository = {
       .returning({ id: crmTasks.id });
     return rows.length;
   },
-  async claimDueReminders(now, staleMin) {
-    const rows = await executor()
-      .update(crmTasks)
-      .set({ remindedAt: now })
+  async claimDueReminders(now, staleMin, limit) {
+    const db = executor();
+    // Открытые задачи со сроком — по индексу crm_tasks_due_idx (done_at, due_at): срок не дальше недели вперёд (раньше
+    // напомнить нельзя — предел remindBeforeMin) и не старше staleMin; ничьи — тоже. Ранние сроки первыми, не больше limit.
+    const due = db
+      .select({ id: crmTasks.id })
+      .from(crmTasks)
       .where(
         and(
           isNull(crmTasks.doneAt),
           isNull(crmTasks.remindedAt),
-          isNotNull(crmTasks.dueAt),
-          isNotNull(crmTasks.assigneeId),
           isNotNull(crmTasks.remindBeforeMin),
-          sql`${crmTasks.dueAt} - ${crmTasks.remindBeforeMin} * interval '1 minute' <= ${now}`,
+          sql`${crmTasks.dueAt} <= ${now}::timestamptz + interval '7 days'`,
           sql`${crmTasks.dueAt} > ${now}::timestamptz - ${staleMin} * interval '1 minute'`,
+          sql`${crmTasks.dueAt} - ${crmTasks.remindBeforeMin} * interval '1 minute' <= ${now}`,
         ),
       )
+      .orderBy(asc(crmTasks.dueAt))
+      .limit(limit);
+    const rows = await db
+      .update(crmTasks)
+      .set({ remindedAt: now })
+      .where(and(inArray(crmTasks.id, due), isNull(crmTasks.remindedAt), isNull(crmTasks.doneAt)))
       .returning({ id: crmTasks.id, title: crmTasks.title, kind: crmTasks.kind, dueAt: crmTasks.dueAt, assigneeId: crmTasks.assigneeId, dealId: crmTasks.dealId, orderId: crmTasks.orderId });
-    return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date, assigneeId: r.assigneeId as string }));
+    return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date })).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
   async update(id, patch) {

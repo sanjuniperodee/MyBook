@@ -13,11 +13,11 @@ export class AutomationModule {
   readonly engine: AutomationEngine;
   readonly rules = rulesAdmin;
 
-  /** Уведомления сотрудникам, график работы и свои поля сделки (переменные шаблонов) — порты рабочего пространства. */
+  /** Задачи — сервис задач Clients; уведомления сотрудникам, график работы и свои поля сделки — порты рабочего пространства. */
   constructor(
-    deps: { clock: Clock; sales: SalesGateway; sendMessage: AutomationEffects["sendMessage"]; canMessageNow: AutomationEffects["canMessageNow"]; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
+    deps: { clock: Clock; sales: SalesGateway; createTask: AutomationEffects["createTask"]; sendMessage: AutomationEffects["sendMessage"]; canMessageNow: AutomationEffects["canMessageNow"]; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
   ) {
-    const effects = crmEffects(deps.sendMessage, deps.canMessageNow, deps.notifier);
+    const effects = crmEffects(deps.createTask, deps.sendMessage, deps.canMessageNow, deps.notifier);
     this.engine = new AutomationEngine(new DrizzleRuleRepository(), new DrizzleSubjectLoader(deps.fields), effects, deps.sales, deps.schedule, new SqlScheduledSource(), appInfo, deps.clock, consoleLogger("automations"));
   }
 }

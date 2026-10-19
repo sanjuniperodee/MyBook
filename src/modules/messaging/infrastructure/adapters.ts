@@ -2,12 +2,10 @@ import { site } from "@/config/site";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { CustomFieldsReader, LiveFeed, SettingsReader, StaffNotifier as StaffNotifierPort, WorkSchedule } from "@/shared/application";
-import { crmTasks } from "@/shared/infrastructure/db/schema";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
-import { executor } from "@/shared/infrastructure/database";
 import { nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { storeTimeZone } from "@/shared/domain/time";
-import type { BotSettings, BotTimers, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier, Tasks } from "../application";
+import type { BotSettings, BotTimers, ChannelTransport, LiveUpdates, MediaGateway, StaffNotifier } from "../application";
 import { DEFAULT_BOT_MODE, GOWA_CHANNEL, isBotMode, parseLessons, type BotCatalog, type Conversation } from "../domain";
 import type { EmailChannel } from "./email";
 import { GowaError, type GowaClient } from "./gowa";
@@ -160,12 +158,6 @@ export function processTimers(maxDelayMs = 15 * 60_000): BotTimers {
     },
   };
 }
-
-export const crmTasksAdapter: Tasks = {
-  async create(t) {
-    await executor().insert(crmTasks).values(t);
-  },
-};
 
 /** Что показывает виджет на сайте: кнопка WhatsApp, онлайн-чат. */
 export async function widgetSettings(settings: SettingsReader<"widget.enabled" | "widget.chat">, whatsapp: () => Promise<string>) {

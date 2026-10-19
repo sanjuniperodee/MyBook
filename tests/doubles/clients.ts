@@ -58,13 +58,14 @@ class MemTasks implements TaskRepository {
     const id = `task-${++this.seq}`;
     this.rows.set(id, { id, doneAt: null, ...t });
   }
-  async claimDueReminders(now: Date, staleMin: number) {
+  async claimDueReminders(now: Date, staleMin: number, limit: number) {
     const out: Awaited<ReturnType<TaskRepository["claimDueReminders"]>> = [];
-    for (const [id, t] of this.rows) {
-      if (t.doneAt || t.remindedAt || !t.dueAt || !t.assigneeId || t.remindBeforeMin == null) continue;
-      if (t.dueAt.getTime() - t.remindBeforeMin * 60_000 > now.getTime() || t.dueAt.getTime() <= now.getTime() - staleMin * 60_000) continue;
+    const open = [...this.rows].filter(([, t]) => !t.doneAt && !t.remindedAt && t.dueAt && t.remindBeforeMin != null).sort(([, a], [, b]) => a.dueAt!.getTime() - b.dueAt!.getTime());
+    for (const [id, t] of open) {
+      if (out.length >= limit) break;
+      if (t.dueAt!.getTime() - t.remindBeforeMin! * 60_000 > now.getTime() || t.dueAt!.getTime() <= now.getTime() - staleMin * 60_000) continue;
       this.rows.set(id, { ...t, remindedAt: now });
-      out.push({ id, title: t.title, kind: t.kind, dueAt: t.dueAt, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
+      out.push({ id, title: t.title, kind: t.kind, dueAt: t.dueAt!, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
     }
     return out;
   }
@@ -134,10 +135,14 @@ class FakeStaff implements StaffDirectory {
   }
 }
 
+/** Уведомления: адресатам — userIds, всем с deals.view (ничья задача) — userIds ["deals.view"]. */
 class SpyNotifier implements StaffNotifier {
   sent: { userIds: string[]; n: Parameters<StaffNotifier["notify"]>[1] }[] = [];
   async notify(userIds: string[], n: Parameters<StaffNotifier["notify"]>[1]) {
     this.sent.push({ userIds, n });
+  }
+  async dealsTeam(n: Parameters<StaffNotifier["dealsTeam"]>[0]) {
+    this.sent.push({ userIds: ["deals.view"], n });
   }
 }
 

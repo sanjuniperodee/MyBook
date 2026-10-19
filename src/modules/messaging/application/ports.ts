@@ -298,8 +298,12 @@ export interface BotTimers {
   schedule(key: string, at: Date, run: () => void): void;
 }
 
+/**
+ * Задачи менеджерам (контекст Clients, сервис задач): с напоминанием о сроке, автор — CRM; без ответственного — ничья,
+ * её видят и о ней напоминают всем, кто видит сделки.
+ */
 export interface Tasks {
-  create(task: { title: string; kind: "call" | "message"; dueAt: Date; dealId: string; clientId: string | null; assigneeId: string | null }): Promise<void>;
+  create(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; dealId: string; clientId: string | null; assigneeId: string | null }): Promise<unknown>;
 }
 
 /** Вложение сообщения — то, что нужно, чтобы открыть его файл в CRM. */
