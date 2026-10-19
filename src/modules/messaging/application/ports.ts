@@ -35,6 +35,8 @@ export interface ConversationRepository {
   assignByDeal(dealId: string, userId: string): Promise<void>;
   /** Идентификаторы собеседников в диалогах сделки. */
   chatIdsByDeal(dealId: string): Promise<string[]>;
+  /** Идентификаторы собеседников в диалогах клиента (не больше нескольких десятков). */
+  chatIdsByClient(clientId: string): Promise<string[]>;
   setAssignee(id: string, userId: string | null): Promise<void>;
   /** Закрытый диалог больше не «ждёт ответа». */
   setStatus(id: string, status: "open" | "closed"): Promise<void>;
@@ -112,10 +114,22 @@ export interface MessageRepository {
   byExternalId(externalId: string): Promise<{ id: string; status: string; conversationId: string } | null>;
 }
 
+/** Почему номер в стоп-листе: спам или «не писать первым». */
+export type BlockReason = "spam" | "no_marketing";
+
+/** Стоп-лист номеров и собеседников (crm_blocklist). */
 export interface Blocklist {
+  /** Спам: по номеру не заводятся заявки и не приходят уведомления. «Не писать первым» сюда не относится. */
   isBlocked(...values: (string | null | undefined)[]): Promise<boolean>;
-  add(values: string[], byUserId: string): Promise<void>;
-  remove(value: string): Promise<void>;
+  /** Первым писать нельзя: «не писать первым» или спам. */
+  noMarketing(...values: (string | null | undefined)[]): Promise<boolean>;
+  /**
+   * В стоп-лист (byUserId null — CRM сама). Спам заменяет «не писать первым» у того же номера; «не писать первым»
+   * спам и прежнюю отметку не трогает.
+   */
+  add(values: string[], byUserId: string | null, opts?: { reason?: BlockReason; note?: string | null }): Promise<void>;
+  /** Убрать из стоп-листа; reason — только эту отметку («можно писать первым» спам не снимает). */
+  remove(values: string[], reason?: BlockReason): Promise<void>;
 }
 
 /** Канал доставки исходящих: Wazzup, почта или виджет на сайте. */

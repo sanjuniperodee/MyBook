@@ -60,6 +60,8 @@ const actions: Record<string, string> = {
   "deal.reject_request": "Предложил отклонить заявку",
   "deal.request_declined": "Отказал в отклонении заявки",
   "client.contact_reveal": "Открыл номер клиента",
+  "client.no_marketing": "Изменил «не писать первым» у клиента",
+  "deal.no_marketing": "Изменил «не писать первым» в сделке",
   "chat.sensitive": "Отправил номер или реквизиты в чат",
   "chat.sensitive_echo": "С телефона компании ушли номер или реквизиты",
   "deal.plan": "Сменил тариф договорённости",

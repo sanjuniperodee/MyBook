@@ -14,7 +14,7 @@ import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLesso
 import { getFile, putFile } from "@/shared/infrastructure/storage";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import type { Conversation, HistoryMessage, InboundMessage } from "./domain";
+import { contactPhone, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
 export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, sensitiveWhat, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
@@ -23,7 +23,7 @@ export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
 export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
 export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
-export type { Attachment, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
+export type { Attachment, BlockReason, ContactsTarget, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
 export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
@@ -137,6 +137,8 @@ export class MessagingModule {
       // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
       transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
       changed: (conversationId) => live.chatChanged(conversationId),
+      // Стоп-лист «Не писать первым»: бот отвечает клиенту, но не напоминает о себе.
+      noMarketing: (conv) => this.chats.noMarketing(conv.chatId, contactPhone(conv)),
       materials: {
         list: () => this.materials(),
         send: async (conversationId, m) => {

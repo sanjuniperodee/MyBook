@@ -68,6 +68,8 @@ export function setup(
     materials?: BotMaterial[];
     /** Номер WhatsApp магазина (его в сообщениях писать можно). */
     shopPhone?: string;
+    /** Стоп-лист «Не писать первым»: номера, которые там уже есть. */
+    noMarketing?: string[];
   } = {},
 ) {
   let now = start;
@@ -84,6 +86,8 @@ export function setup(
   const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
   const events: (BotEvent & { conv: string })[] = [];
   let seq = 0;
+  /** Стоп-лист: номер → отметка и примечание (spam — от opts.blocked: любой номер). */
+  const blocklist = new Map<string, { reason: "spam" | "no_marketing"; note: string | null; by: string | null }>((opts.noMarketing ?? []).map((v) => [v, { reason: "no_marketing", note: null, by: "m1" }]));
   const settings = { mode: opts.bot ?? "off", workTime: opts.workTime ?? true, config: opts.config ?? BOT_CONFIG };
   const conversations: ConversationRepository = {
     linkClientByDeal: async () => {},
@@ -128,7 +132,8 @@ export function setup(
     },
     latestWhatsapp: async (chatId) => [...convs.values()].filter((c) => c.channel === "whatsapp" && c.chatId === chatId).at(-1) ?? null,
     assignByDeal: async () => {},
-    chatIdsByDeal: async () => [],
+    chatIdsByDeal: async (dealId) => [...convs.values()].filter((c) => c.dealId === dealId).map((c) => c.chatId),
+    chatIdsByClient: async (clientId) => [...convs.values()].filter((c) => c.clientId === clientId).map((c) => c.chatId),
     closeByDeal: async () => {},
     setAssignee: async () => {},
     setStatus: async () => {},
@@ -236,7 +241,17 @@ export function setup(
   const service: MessagingService = new MessagingService(
     conversations,
     messages,
-    { isBlocked: async () => !!opts.blocked, add: async () => {}, remove: async () => {} },
+    {
+      isBlocked: async (...v) => !!opts.blocked || v.some((x) => !!x && blocklist.get(x)?.reason === "spam"),
+      noMarketing: async (...v) => !!opts.blocked || v.some((x) => !!x && blocklist.has(x)),
+      add: async (values, by, o = {}) => {
+        for (const v of values) {
+          const had = blocklist.get(v);
+          if (!had || (o.reason ?? "spam") === "spam") blocklist.set(v, { reason: o.reason ?? "spam", note: o.note ?? had?.note ?? null, by: had?.by ?? by });
+        }
+      },
+      remove: async (values, reason) => values.forEach((v) => (!reason || blocklist.get(v)?.reason === reason) && blocklist.delete(v)),
+    },
     {
       send: async (_c, _id, text, o) => (sent.push(text), sendOpts.push(o ?? {}), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }),
       sendFile: async (_c, file, o) => (files.push({ name: file.name, kind: file.kind, caption: o.caption, forwarded: !!o.forwarded, replyTo: o.replyTo ?? null }), { ok: true, externalId: `wzf-${files.length}` }),
@@ -289,6 +304,7 @@ export function setup(
     invoices: opts.invoices ?? null,
     media: opts.mediaFiles ? async (id: string) => opts.mediaFiles!(id) : null,
     transcript: async (id: string, text: string) => void Object.assign(msgs.find((m) => m.id === id) ?? {}, { transcript: text }),
+    noMarketing: (c: Conversation) => service.noMarketing(c.chatId, c.meta.phone),
     materials: opts.materials
       ? { list: async () => opts.materials!, send: (id: string, m: BotMaterial) => service.sendBotFile(id, { data: new Uint8Array([1]), name: m.name, mime: m.mime, kind: m.kind }, m.caption, `store:${m.key}`) }
       : null,
@@ -318,7 +334,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

@@ -3,6 +3,7 @@ import { getSetting } from "@/modules/workspace";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { templateVars } from "@/shared/domain/templates";
 import { formatPhone } from "@/shared/domain/phone";
+import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
 import { CrmSettingsForm } from "../crm/CrmSettingsForm";
 import { Blocklist } from "../crm/Blocklist";
@@ -25,7 +26,16 @@ export async function CrmTab() {
     <>
       <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
 
-      <Blocklist items={blocked.map((b) => ({ value: b.value, label: /^\d{10,15}$/.test(b.value) ? formatPhone(b.value) : b.value, date: formatDate(b.createdAt) }))} />
+      <Blocklist
+        items={blocked.map((b) => ({
+          value: b.value,
+          label: /^\d{10,15}$/.test(b.value) ? formatPhone(b.value) : b.value,
+          date: formatDate(b.createdAt),
+          reason: b.reason,
+          note: b.note,
+          by: b.byEmail ? staffLabel({ name: b.byName ?? "", email: b.byEmail }) : null,
+        }))}
+      />
 
       <section className="rounded-2xl border border-line bg-white p-5">
         <h2 className="font-semibold">Шаблоны быстрых ответов</h2>

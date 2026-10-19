@@ -128,6 +128,11 @@ export class DrizzleConversationRepository implements ConversationRepository {
     return (await executor().select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.dealId, dealId))).map((c) => c.chatId);
   }
 
+  async chatIdsByClient(clientId: string) {
+    const rows = await executor().select({ chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.clientId, clientId)).orderBy(desc(crmConversations.lastMessageAt)).limit(50);
+    return rows.map((c) => c.chatId);
+  }
+
   async setAssignee(id: string, userId: string | null) {
     await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.id, id));
   }
@@ -447,18 +452,37 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
   };
 }
 
+/** Есть ли в стоп-листе один из номеров (spam — только спам; без reason — любая отметка). Поиск по первичному ключу. */
+async function listed(values: (string | null | undefined)[], reason?: "spam") {
+  const list = [...new Set(values.filter((v): v is string => !!v))];
+  if (!list.length) return false;
+  const rows = await executor()
+    .select({ v: crmBlocklist.value })
+    .from(crmBlocklist)
+    .where(and(inArray(crmBlocklist.value, list), reason ? eq(crmBlocklist.reason, reason) : undefined))
+    .limit(1);
+  return rows.length > 0;
+}
+
 export const drizzleBlocklist: Blocklist = {
-  async isBlocked(...values) {
-    const list = values.filter((v): v is string => !!v);
-    if (!list.length) return false;
-    const rows = await executor().select({ v: crmBlocklist.value }).from(crmBlocklist).where(inArray(crmBlocklist.value, list)).limit(1);
-    return rows.length > 0;
+  isBlocked: (...values) => listed(values, "spam"),
+  noMarketing: (...values) => listed(values),
+  async add(values, byUserId, opts = {}) {
+    const list = [...new Set(values.filter(Boolean))];
+    if (!list.length) return;
+    const reason = opts.reason ?? "spam";
+    const insert = executor()
+      .insert(crmBlocklist)
+      .values(list.map((value) => ({ value, reason, note: opts.note?.slice(0, 300) || null, createdById: byUserId })));
+    // Спам сильнее «не писать первым»: номер, который просил не писать, а потом прислал спам, — уже спам.
+    if (reason === "spam") await insert.onConflictDoUpdate({ target: crmBlocklist.value, set: { reason: "spam", note: sql`coalesce(excluded.note, ${crmBlocklist.note})` }, setWhere: sql`${crmBlocklist.reason} <> 'spam'` });
+    else await insert.onConflictDoNothing();
   },
-  async add(values, byUserId) {
-    await executor().insert(crmBlocklist).values(values.map((value) => ({ value, createdById: byUserId }))).onConflictDoNothing();
-  },
-  async remove(value) {
-    await executor().delete(crmBlocklist).where(eq(crmBlocklist.value, value));
+  async remove(values, reason) {
+    if (!values.length) return;
+    await executor()
+      .delete(crmBlocklist)
+      .where(and(inArray(crmBlocklist.value, values), reason ? eq(crmBlocklist.reason, reason) : undefined));
   },
 };
 
@@ -529,9 +553,14 @@ export class DrizzleMessagingQueries {
     return botMetrics(days);
   }
 
-  /** Номера в спаме (настройки). */
+  /** Стоп-лист для настроек: спам и «не писать первым», кто добавил (null — CRM сама). */
   blocklist() {
-    return executor().select().from(crmBlocklist).orderBy(desc(crmBlocklist.createdAt)).limit(200);
+    return executor()
+      .select({ value: crmBlocklist.value, reason: crmBlocklist.reason, note: crmBlocklist.note, createdAt: crmBlocklist.createdAt, byName: users.name, byEmail: users.email })
+      .from(crmBlocklist)
+      .leftJoin(users, eq(users.id, crmBlocklist.createdById))
+      .orderBy(desc(crmBlocklist.createdAt))
+      .limit(200);
   }
 
   async staffName(id: string | null) {

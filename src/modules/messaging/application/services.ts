@@ -1,6 +1,7 @@
 import type { Clock, Logger } from "@/shared/application";
 import { normalizePhone, phoneTail } from "@/shared/domain/phone";
 import {
+  asksNoMessages,
   channelLabel,
   contactChanges,
   contactEmail,
@@ -18,7 +19,7 @@ import {
   type InboundMessage,
 } from "../domain";
 import type { QualifierBot } from "./bot";
-import type { Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffNotifier, StoredMessage, Tasks } from "./ports";
+import type { BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffNotifier, StoredMessage, Tasks } from "./ports";
 
 /** WhatsApp даёт изменить отправленное 15 минут, удалить «для всех» — около двух суток. */
 export const EDIT_WINDOW_MS = 15 * 60_000;
@@ -49,6 +50,17 @@ export interface IngestExtra {
    */
   anyWhatsappChannel?: boolean;
 }
+
+/** Карточка клиента или сделки: её телефоны и (по id) идентификаторы собеседников её диалогов. */
+export interface ContactsTarget {
+  dealId?: string | null;
+  clientId?: string | null;
+  phones: readonly (string | null | undefined)[];
+}
+
+/** Заметка в чате, когда клиент сам попросил не писать (номер — в стоп-лист «Не писать первым»). */
+const NO_MESSAGES_NOTE =
+  "🔕 Клиент попросил больше не писать — номер в стоп-листе «Не писать первым»: бот не напоминает о себе, правила автоматизаций не пишут. Отвечать на его сообщения можно. Если это ошибка — «Писать первым: можно» в карточке клиента или сделки.";
 
 /** Бот в инбоксе: входящие, ответ человека, автоответ правил. */
 type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
@@ -174,6 +186,8 @@ export class MessagingService {
     // Любое сообщение клиента открывает «ждёт ответа»; нужен ли ответ на «Аха» или «спасибо», решает AI (бот снимает
     // ожидание сам), а не словарь.
     await this.conversations.recordIncoming(conv.id, preview(m.text), m.at);
+    // «Не пишите мне» — номер в стоп-лист «Не писать первым» (до бота и правил: напоминание и сообщение правила уже не уйдут).
+    if (asksNoMessages(m.text)) await this.optOut(conv, m.text).catch((err) => this.logger.error("no marketing", err));
     // Сообщение уже в базе — открытые вкладки CRM показывают его сразу, не дожидаясь бота, уведомлений и правил.
     this.live.chatChanged(conv.id);
     const fresh = (await this.conversations.findById(conv.id)) ?? conv;
@@ -189,6 +203,14 @@ export class MessagingService {
     // Бот мог взять диалог (плашка «ведёт бот») — ещё раз.
     this.live.chatChanged(conv.id);
     await this.rules.messageIncoming({ subject: `${conv.id}:${m.at.toISOString().slice(0, 10)}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
+  }
+
+  /** Клиент написал «не пишите мне»: его номер — в «Не писать первым» (один раз), менеджеру — заметка в чате. */
+  private async optOut(conv: Conversation, text: string) {
+    const values = [conv.chatId, contactPhone(conv)].filter((v): v is string => !!v);
+    if (await this.blocklist.noMarketing(...values)) return;
+    await this.blocklist.add(values, null, { reason: "no_marketing", note: `Клиент написал: «${preview(text)}»` });
+    await this.addInternalNote(conv.id, NO_MESSAGES_NOTE, null, "rule");
   }
 
   /**
@@ -385,14 +407,19 @@ export class MessagingService {
 
   /**
    * Сообщение правила автоматизации. Если диалог ведёт бот, правило-автоответ молчит: иначе клиент получит два
-   * автоответа подряд (бот и «ответим утром»). В тексте чужой номер, карта, IBAN или ссылка на перевод Kaspi (шаблон
-   * правила или подставленное поле) — не уходит: заметка в сделку и уведомление руководителю (chats-d4). Номер самого
-   * клиента и магазина — можно. null — не отправлено.
+   * автоответа подряд (бот и «ответим утром»). Номер в стоп-листе («не писать первым» или спам) — не уходит (contacts-18).
+   * В тексте чужой номер, карта, IBAN или ссылка на перевод Kaspi (шаблон правила или подставленное поле) — не уходит:
+   * заметка в сделку и уведомление руководителю (chats-d4). Номер самого клиента и магазина — можно. null — не отправлено.
    */
   async sendAutomated(conversationId: string, text: string, opts: { rule?: string } = {}) {
     if (await this.bot.isActive(conversationId)) return null;
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
+    // Клиент просил не писать первым (или номер в спаме) — правила ему не пишут, даже автоответом.
+    if (await this.blocklist.noMarketing(conv.chatId, contactPhone(conv))) {
+      this.logger.info(`${opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации"}: диалог ${conv.id} — «не писать первым», сообщение не отправлено`);
+      return null;
+    }
     const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.shopPhone()]);
     if (found.length) {
       const what = sensitiveWhat(found);
@@ -447,6 +474,44 @@ export class MessagingService {
     return this.blocklist.isBlocked(...values);
   }
 
+  /** Первым писать нельзя: клиент просил («не писать первым») или номер в спаме. */
+  noMarketing(...values: (string | null | undefined)[]) {
+    return this.blocklist.noMarketing(...values);
+  }
+
+  /** Номера карточки: телефоны (нормализованные) и собеседники её диалогов — без повторов. */
+  private async contactsOf(target: ContactsTarget) {
+    const phones = target.phones.map((p) => normalizePhone(p)).filter((p) => p.length >= 10);
+    const [byDeal, byClient] = await Promise.all([target.dealId ? this.conversations.chatIdsByDeal(target.dealId) : [], target.clientId ? this.conversations.chatIdsByClient(target.clientId) : []]);
+    return [...new Set([...phones, ...byDeal, ...byClient].filter(Boolean))];
+  }
+
+  /** «Не писать первым» у карточки клиента или сделки: хотя бы один её номер или собеседник в стоп-листе. */
+  async noMarketingFor(target: ContactsTarget) {
+    const values = await this.contactsOf(target);
+    return values.length ? this.blocklist.noMarketing(...values) : false;
+  }
+
+  /**
+   * Кнопка «Не писать первым» в карточке клиента или сделки: on — все её номера и собеседники в стоп-лист, off — снять
+   * эту отметку (спам так не снимается). Возвращает номера, которых это коснулось.
+   */
+  async setNoMarketing(target: ContactsTarget, on: boolean, byUserId: string, note?: string | null) {
+    const values = await this.contactsOf(target);
+    if (!values.length) throw new MessageActionError("У клиента нет ни номера телефона, ни переписки");
+    if (on) await this.blocklist.add(values, byUserId, { reason: "no_marketing", note: note ?? null });
+    else await this.blocklist.remove(values, "no_marketing");
+    return values;
+  }
+
+  /** Номер в стоп-лист вручную («Интеграции» → CRM → «Стоп-лист»): спам или «не писать первым». */
+  async blockPhone(raw: string, reason: BlockReason, byUserId: string, note: string | null) {
+    const phone = normalizePhone(raw);
+    if (phone.length < 10 || phone.length > 15) throw new MessageActionError("Номер телефона — 10–15 цифр");
+    await this.blocklist.add([phone], byUserId, { reason, note });
+    return phone;
+  }
+
   assign(conversationId: string, userId: string | null) {
     return this.conversations.setAssignee(conversationId, userId);
   }
@@ -485,9 +550,9 @@ export class MessagingService {
     await this.conversations.closeByDeal(dealId);
   }
 
-  /** Снять номер со спама (ошибочно отклонили). */
+  /** Убрать номер из стоп-листа (ошибочно отклонили как спам или клиент снова согласен на сообщения). */
   unblock(value: string) {
-    return this.blocklist.remove(value);
+    return this.blocklist.remove([value]);
   }
 
   /** Диалог с клиентом по телефону (кнопка «Написать» в карточке): существующий WhatsApp или новый. */

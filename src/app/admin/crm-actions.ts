@@ -10,7 +10,8 @@ import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
-import { findSensitive, sensitiveWhat } from "@/modules/messaging";
+import { findSensitive, MessageActionError, sensitiveWhat, type ContactsTarget } from "@/modules/messaging";
+import { admin } from "@/i18n/admin";
 import { channelOf, channels, isManualChannel, manualAttribution, toAttribution } from "@/shared/domain/channels";
 
 type Target = ContactTarget;
@@ -153,6 +154,50 @@ export async function setClientPhonesAction(clientId: string, raw: string): Prom
   await audit(staff, "client.phones", "client", client.id, { count: phones.length });
   revalidatePath(`/admin/clients/${client.id}`);
   return { ok: true, message: phones.length ? `Сохранено номеров: ${phones.length}` : "Дополнительные номера удалены" };
+}
+
+/** «Не писать первым» по всем номерам и диалогам карточки (или снять отметку); нет ни номера, ни переписки — текст сотруднику. */
+async function markNoMarketing(target: ContactsTarget, on: boolean, byUserId: string, where: string) {
+  try {
+    return await container().messaging.chats.setNoMarketing(target, on, byUserId, where);
+  } catch (err) {
+    if (MessageActionError.is(err)) return null;
+    throw err;
+  }
+}
+
+const noMarketingDone = (on: boolean) => (on ? "Не пишем первыми: бот не напоминает, правила не пишут" : "Снова можно писать первыми");
+
+/**
+ * Клиент просил не писать первым (кнопка в карточке клиента): его номера и диалоги — в стоп-лист «Не писать первым».
+ * Входящие и ответы как обычно; бот не напоминает о себе, правила автоматизаций не пишут.
+ */
+export async function setClientNoMarketingAction(clientId: string, on: boolean): Promise<ActionResult> {
+  const staff = await assertStaff("clients.edit");
+  const next = z.boolean().parse(on);
+  const client = await container().reporting.clientById(uuid.parse(clientId));
+  if (!client) return { ok: false, message: "Клиент не найден" };
+  assertVisible(staff, client.managerId);
+  const values = await markNoMarketing({ clientId: client.id, phones: [client.phone, ...client.extraPhones] }, next, staff.user.id, "Карточка клиента");
+  if (!values) return { ok: false, message: admin.noMarketingNoContacts };
+  await audit(staff, "client.no_marketing", "client", client.id, { on: next, numbers: values.length });
+  revalidatePath(`/admin/clients/${client.id}`);
+  return { ok: true, message: noMarketingDone(next) };
+}
+
+/** То же из карточки сделки: номера сделки, её диалоги и диалоги её клиента. */
+export async function setDealNoMarketingAction(dealId: string, on: boolean): Promise<ActionResult> {
+  const staff = await assertStaff("deals.edit");
+  const next = z.boolean().parse(on);
+  const deal = await container().sales.deals.findById(uuid.parse(dealId));
+  if (!deal) return { ok: false, message: admin.dealNotFound };
+  assertWorkable(staff, deal.assigneeId);
+  const values = await markNoMarketing({ dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] }, next, staff.user.id, `Сделка №${deal.number}`);
+  if (!values) return { ok: false, message: admin.noMarketingNoContacts };
+  await audit(staff, "deal.no_marketing", "deal", deal.id, { on: next, numbers: values.length });
+  revalidatePath(`/admin/deals/${deal.id}`);
+  if (deal.clientId) revalidatePath(`/admin/clients/${deal.clientId}`);
+  return { ok: true, message: noMarketingDone(next) };
 }
 
 /** «На смене» — получать новые заявки по кругу. */

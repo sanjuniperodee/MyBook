@@ -25,6 +25,7 @@ import { generateAccessPassword } from "@/lib/access-password";
 import { accessMessage, staffLogin } from "@/app/admin/clients/new/access-message";
 import { IdentityError } from "@/modules/identity/domain";
 import { isManualChannel, type ManualChannel } from "@/shared/domain/channels";
+import { admin } from "@/i18n/admin";
 
 export interface DealFormState {
   error?: string;
@@ -337,12 +338,28 @@ export async function mergeDealAction(targetId: string, sourceId: string): Promi
   revalidateDeal(target.id, target.clientId);
 }
 
-/** Снять номер со спама (ошибочно отклонили). */
+/** Убрать номер из стоп-листа (ошибочно отклонили как спам или клиент снова согласен на сообщения). */
 export async function unblockAction(value: string) {
   const staff = await assertStaff("settings.manage");
   await container().messaging.chats.unblock(z.string().min(1).max(100).parse(value));
   await audit(staff, "settings.update", "blocklist", value, { removed: true });
   revalidatePath("/admin/settings");
+}
+
+const blocklistInput = z.object({ phone: z.string().max(40), reason: z.enum(["spam", "no_marketing"]), note: z.string().trim().max(300).default("") });
+
+/** Номер в стоп-лист вручную («Интеграции» → CRM): спам или «не писать первым», с причиной. */
+export async function addBlocklistAction(input: z.input<typeof blocklistInput>): Promise<{ ok: boolean; message: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = blocklistInput.safeParse(input);
+  if (!parsed.success) return { ok: false, message: admin.badForm };
+  const { reason, note } = parsed.data;
+  const phone = normalizePhone(parsed.data.phone);
+  if (phone.length < 10 || phone.length > 15) return { ok: false, message: admin.blocklistPhoneInvalid };
+  await container().messaging.chats.blockPhone(phone, reason, staff.user.id, note || null);
+  await audit(staff, "settings.update", "blocklist", phone, { added: reason, ...(note ? { note } : {}) });
+  revalidatePath("/admin/settings");
+  return { ok: true, message: reason === "spam" ? "Номер в спаме" : "Номер в стоп-листе: первыми не пишем" };
 }
 
 // ─── воронки ───────────────────────────────────────────────────────────────

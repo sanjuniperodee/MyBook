@@ -76,6 +76,8 @@ export interface QualifierBotDeps {
   changed?: ((conversationId: string) => void) | null;
   /** Подборка материалов владельца (фото, видео, пример книги) и отправка файла клиенту от имени бота. */
   materials?: BotMaterialsPort | null;
+  /** Клиент просил не писать первым (стоп-лист): на его сообщения бот отвечает, но сам не напоминает о себе. */
+  noMarketing?: ((conv: Conversation) => Promise<boolean>) | null;
 }
 
 /** Материалы для клиента: список из настроек и отправка одного файла (false — не ушёл). */
@@ -571,20 +573,22 @@ export class QualifierBot {
    * (followUpDelayMs): тёплому клиенту через 20 минут «Ознакомились?», через N часов «Освободились?», на следующий день
    * «Как ваши дела?»; остальным — через N часов и на следующий день (всё в рабочее время). Если холодный клиент замолчал
    * ещё на знакомстве — через полчаса менеджер узнаёт об этом (может ответить сам — бот замолчит). Дальше 12 часов
-   * тишины — итог менеджеру.
+   * тишины — итог менеджеру. Клиенту из стоп-листа «Не писать первым» бот не напоминает — только итог.
    */
   private async offerIdle(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean> {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
     const ai = readSellerAi(state.ai);
     const aiEngine = state.engine === "ai";
     // AI-продажник: тёплому клиенту — чаще (20 минут, несколько часов, следующий день), остальным — как раньше.
-    const wait = aiEngine
+    let wait = aiEngine
       ? ai.followUps < SELLER_MAX_FOLLOW_UPS
         ? followUpDelayMs(ai, config.sell.followUpHours, BOT_NEXT_DAY_FOLLOW_UP_MS)
         : null
       : config.sell.followUpHours > 0 && !state.followedUp
         ? config.sell.followUpHours * 3_600_000
         : null;
+    // Клиент просил не писать первым — напоминаний нет: после 12 часов тишины только итог менеджеру.
+    if (wait !== null && (await this.noMarketing(conv))) wait = null;
     if (wait !== null) {
       const at = new Date(last + wait);
       // Ночью не пишем: напоминание — с началом рабочего дня.
@@ -619,6 +623,12 @@ export class QualifierBot {
     await this.d.store.log(conv.id, conv.dealId, next.lang, events);
     await this.finish(conv, next, fields);
     return false;
+  }
+
+  /** В стоп-листе «Не писать первым» (или спам); сбой проверки — не пишем: лишнее напоминание хуже пропущенного. */
+  private async noMarketing(conv: Conversation) {
+    if (!this.d.noMarketing) return false;
+    return this.d.noMarketing(conv).catch((err) => (this.d.logger.error("bot no marketing", err), true));
   }
 
   /** Клиент замолчал на знакомстве: менеджеру заметка и уведомление (что известно и когда бот напомнит), бот ждёт дальше. */

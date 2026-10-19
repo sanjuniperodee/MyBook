@@ -16,6 +16,7 @@ import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { REJECTION_TAGS } from "@/modules/sales/domain";
 import { ContactActions } from "@/components/admin/ContactActions";
+import { NoMarketingToggle } from "@/components/admin/NoMarketingToggle";
 import { formatDate } from "@/lib/dates";
 import { formatPrice } from "@/config/site";
 import { invoiceViews } from "@/app/admin/invoices/view";
@@ -54,12 +55,13 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   ]);
   const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
   const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.map((r) => ({ id: r.id, amount: r.amount, method: methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
-  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount] = await Promise.all([
+  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount, noMarketing] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
     listFields("deal"),
     container().sales.agreedPlan.get(deal.id),
     discountLimit(staff),
+    container().messaging.chats.noMarketingFor({ dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] }),
   ]);
   const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
@@ -145,6 +147,10 @@ export default async function DealPage({ params, searchParams }: { params: Promi
               <DealAssignee dealId={deal.id} value={deal.assigneeId} options={options} disabled={!canEdit} />
             </div>
             <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
+            <div className="flex items-center justify-between gap-3 text-xs text-muted">
+              <span title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</span>
+              <NoMarketingToggle target={{ dealId: deal.id }} on={noMarketing} disabled={!canEdit || !works} />
+            </div>
           </section>
           {batch.length > 1 ? (
             <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm" data-testid="deal-batch">

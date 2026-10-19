@@ -1,6 +1,7 @@
 /** Переписка: диалоги, сообщения и чёрный список номеров (модуль messaging). */
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -127,10 +128,20 @@ export const crmBotEvents = pgTable(
   (t) => [index("crm_bot_events_at_idx").on(t.createdAt), index("crm_bot_events_conv_idx").on(t.conversationId)],
 );
 
-/** Номера и чаты, помеченные как спам: по ним не создаются заявки и не приходят уведомления. */
-export const crmBlocklist = pgTable("crm_blocklist", {
-  value: text("value").primaryKey(),
-  reason: text("reason").notNull().default("spam"),
-  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/**
+ * Стоп-лист номеров и чатов. spam — по ним не создаются заявки и не приходят уведомления, писать им нельзя;
+ * no_marketing — «не писать первым»: входящие и ответы как обычно, но бот не напоминает о себе и правила не пишут.
+ */
+export const crmBlocklist = pgTable(
+  "crm_blocklist",
+  {
+    value: text("value").primaryKey(),
+    reason: text("reason", { enum: ["spam", "no_marketing"] }).notNull().default("spam"),
+    /** Почему в стоп-листе: слова сотрудника или фраза клиента, по которой номер попал сюда сам. */
+    note: text("note"),
+    /** Кто добавил; null — CRM сама (клиент написал «не пишите мне»). */
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("crm_blocklist_reason_check", sql`${t.reason} in ('spam', 'no_marketing')`)],
+);
