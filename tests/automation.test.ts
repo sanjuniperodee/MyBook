@@ -123,6 +123,30 @@ describe("AutomationEngine: правила по времени не обрыва
   });
 });
 
+describe("AutomationEngine: выборки правил по времени (automation-d4)", () => {
+  it("выборка — своя у каждого правила: источник получает id правила, чтобы исключить объекты, где оно уже сработало", async () => {
+    const asked: string[] = [];
+    const lastSeen = new Date("2026-09-20T00:00:00Z");
+    const { engine } = setup(
+      [
+        rule({ id: "sla", trigger: "message.unanswered", conditions: { minutes: 30 }, actions: [{ type: "notify" }] }),
+        rule({ id: "back-5", trigger: "client.inactive", conditions: { days: 5 }, actions: [{ type: "notify" }] }),
+        rule({ id: "back-10", trigger: "client.inactive", conditions: { days: 10 }, actions: [{ type: "notify" }] }),
+        rule({ id: "year", trigger: "occasion.anniversary", conditions: { daysBefore: 30 }, actions: [{ type: "notify" }] }),
+      ],
+      {
+        scheduled: {
+          unanswered: async (ruleId, since) => (asked.push(`unanswered:${ruleId}:${since.toISOString()}`), []),
+          inactiveClients: async (ruleId, days) => (asked.push(`inactive:${ruleId}:${days}`), [{ dealId: "d1", clientId: "c1", lastSeen }]),
+          anniversaries: async (ruleId, daysBefore) => (asked.push(`anniversary:${ruleId}:${daysBefore}`), []),
+        },
+      },
+    );
+    expect(await engine.runScheduled({ force: true })).toBe(2);
+    expect(asked).toEqual(["unanswered:sla:2026-10-01T05:30:00.000Z", "inactive:back-5:5", "inactive:back-10:10", "anniversary:year:30"]);
+  });
+});
+
 describe("AutomationEngine: окно и суточный лимит сообщений от правил (automation-15)", () => {
   const lastSeen = new Date("2026-09-20T00:00:00Z");
   const two = { inactiveClients: async () => [{ dealId: "d1", clientId: "c1", lastSeen }, { dealId: "d2", clientId: "c2", lastSeen }] };

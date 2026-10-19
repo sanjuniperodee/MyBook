@@ -192,7 +192,7 @@ export class AutomationEngine {
 
     await each("message.unanswered", async (rule) => {
       const minutes = conditionNumber(rule, "minutes", 15);
-      for (const c of await this.scheduled.unanswered(new Date(now.getTime() - minutes * 60_000))) {
+      for (const c of await this.scheduled.unanswered(rule.id, new Date(now.getTime() - minutes * 60_000))) {
         // Ночь и выходные не считаем: норматив — в рабочих минутах.
         if ((await this.schedule.workMinutesBetween(c.awaitingSince, now)) < minutes) continue;
         await fire(rule, { subject: `${c.conversationId}:${c.awaitingSince.toISOString()}`, conversationId: c.conversationId, dealId: c.dealId, clientId: c.clientId, channel: c.channel, workTime });
@@ -203,12 +203,12 @@ export class AutomationEngine {
     this.#lastSlowRun = now.getTime();
 
     await each("client.inactive", async (rule) => {
-      for (const r of await this.scheduled.inactiveClients(conditionNumber(rule, "days", 5))) {
+      for (const r of await this.scheduled.inactiveClients(rule.id, conditionNumber(rule, "days", 5))) {
         await fire(rule, { subject: `${r.dealId}:${r.lastSeen.toISOString()}`, dealId: r.dealId, clientId: r.clientId, workTime });
       }
     });
     await each("occasion.anniversary", async (rule) => {
-      for (const r of await this.scheduled.anniversaries(conditionNumber(rule, "daysBefore", 30, 120))) {
+      for (const r of await this.scheduled.anniversaries(rule.id, conditionNumber(rule, "daysBefore", 30, 120))) {
         await fire(rule, { subject: `${r.orderId}:${r.year}`, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date });
       }
     });

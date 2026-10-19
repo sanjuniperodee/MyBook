@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { crmAutomationRuns, crmAutomations, crmCalls, crmConversations, crmDeals, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
@@ -80,18 +80,42 @@ export class DrizzleSubjectLoader implements SubjectLoader {
   }
 }
 
+/** Сколько объектов правило по времени берёт за проход. */
+const LIMIT = 200;
+
+/** Момент как в Date.toISOString() (2026-10-01T06:00:00.000Z) — так он записан в subject срабатывания. */
+const isoText = (at: unknown) => sql`to_char(${at} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+
+/**
+ * Правило ещё не срабатывало для этого объекта (subject — тот же, что в TriggerContext): обработанные не занимают
+ * место в выборке, и новые объекты не теряются за лимитом. Поиск по уникальному индексу (automation_id, subject).
+ */
+const notFired = (ruleId: string, subject: ReturnType<typeof sql>) => sql`not exists (select 1 from crm_automation_runs r where r.automation_id = ${ruleId}::uuid and r.subject = ${subject})`;
+
 export class SqlScheduledSource implements ScheduledSource {
-  async unanswered(awaitingSince: Date) {
+  /** Дольше всех ждущие — первыми; диалог, по которому правило уже сработало за это ожидание, не выбирается. */
+  async unanswered(ruleId: string, awaitingSince: Date) {
     const rows = await executor()
       .select({ conversationId: crmConversations.id, dealId: crmConversations.dealId, clientId: crmConversations.clientId, channel: crmConversations.channel, awaitingSince: crmConversations.awaitingSince })
       .from(crmConversations)
-      .where(and(eq(crmConversations.status, "open"), isNotNull(crmConversations.awaitingSince), lte(crmConversations.awaitingSince, awaitingSince)))
-      .limit(200);
+      .where(
+        and(
+          eq(crmConversations.status, "open"),
+          isNotNull(crmConversations.awaitingSince),
+          lte(crmConversations.awaitingSince, awaitingSince),
+          notFired(ruleId, sql`${crmConversations.id}::text || ':' || ${isoText(crmConversations.awaitingSince)}`),
+        ),
+      )
+      .orderBy(asc(crmConversations.awaitingSince), asc(crmConversations.id))
+      .limit(LIMIT);
     return rows.map((r) => ({ ...r, awaitingSince: r.awaitingSince! }));
   }
 
-  /** Открытая сделка, черновик книги, клиент давно не заходил и не заказывал после этого. */
-  async inactiveClients(days: number) {
+  /**
+   * Открытая сделка, черновик книги, клиент давно не заходил и не заказывал после этого. Недавно ушедшие — первыми (их
+   * ещё можно вернуть); сделка, по которой правило уже сработало за этот уход, не выбирается.
+   */
+  async inactiveClients(ruleId: string, days: number) {
     const { rows } = await executor().execute<{ deal_id: string; client_id: string; last_seen: Date | string }>(sql`
       select d.id as deal_id, d.client_id, coalesce(u.last_seen_at, u.created_at) as last_seen
       from crm_deals d
@@ -100,12 +124,17 @@ export class SqlScheduledSource implements ScheduledSource {
       where coalesce(u.last_seen_at, u.created_at) < now() - make_interval(days => ${days})
         and exists (select 1 from books b where b.user_id = u.id and b.status = 'draft')
         and not exists (select 1 from orders o where o.user_id = u.id and ${notCancelled} and o.created_at > coalesce(u.last_seen_at, u.created_at))
-      limit 200`);
+        and ${notFired(ruleId, sql`d.id::text || ':' || ${isoText(sql`coalesce(u.last_seen_at, u.created_at)`)}`)}
+      order by last_seen desc, d.id
+      limit ${LIMIT}`);
     return rows.map((r) => ({ dealId: r.deal_id, clientId: r.client_id, lastSeen: new Date(r.last_seen) }));
   }
 
-  /** Ближайшая годовщина даты повода (или желаемой даты заказа), до которой осталось не больше N дней. */
-  async anniversaries(daysBefore: number) {
+  /**
+   * Ближайшая годовщина даты повода (или желаемой даты заказа), до которой осталось не больше N дней. Ближайшие — первыми;
+   * заказ, по которому правило уже сработало в этом году, не выбирается.
+   */
+  async anniversaries(ruleId: string, daysBefore: number) {
     const { rows } = await executor().execute<{ order_id: string; client_id: string; occasion: string | null; next_date: string; year: number }>(sql`
       with base as (
         select o.id as order_id, o.user_id as client_id, b.occasion, coalesce(b.occasion_date, o.desired_date)::date as d
@@ -119,7 +148,9 @@ export class SqlScheduledSource implements ScheduledSource {
       )
       select order_id, client_id, occasion, to_char(next_date, 'YYYY-MM-DD') as next_date, extract(year from next_date)::int as year
       from nxt2 where next_date > d and next_date - current_date between 0 and ${daysBefore}
-      limit 200`);
+        and ${notFired(ruleId, sql`order_id::text || ':' || extract(year from next_date)::int::text`)}
+      order by next_date, order_id
+      limit ${LIMIT}`);
     const labels = messagesFor("ru").common.occasions as Record<string, { label: string }>;
     return rows.map((r) => ({ orderId: r.order_id, clientId: r.client_id, occasion: (r.occasion && labels[r.occasion]?.label) || "памятная дата", date: formatDate(r.next_date), year: r.year }));
   }

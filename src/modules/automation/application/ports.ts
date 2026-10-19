@@ -46,11 +46,14 @@ export interface SalesGateway {
   createDeal(input: { title: string; source: "repeat" | "manual"; clientId: string; contactName: string; contactPhone: string | null; contactEmail: string; assigneeId: string | null }): Promise<{ id: string; assigneeId: string | null }>;
 }
 
-/** Кандидаты для правил по времени. */
+/**
+ * Кандидаты для правил по времени — до 200 за проход, по порядку важности; объекты, для которых правило ruleId уже
+ * сработало (тот же subject), в выборку не попадают.
+ */
 export interface ScheduledSource {
-  unanswered(awaitingSince: Date): Promise<{ conversationId: string; dealId: string | null; clientId: string | null; channel: string; awaitingSince: Date }[]>;
-  inactiveClients(days: number): Promise<{ dealId: string; clientId: string; lastSeen: Date }[]>;
-  anniversaries(daysBefore: number): Promise<{ orderId: string; clientId: string; occasion: string; date: string; year: number }[]>;
+  unanswered(ruleId: string, awaitingSince: Date): Promise<{ conversationId: string; dealId: string | null; clientId: string | null; channel: string; awaitingSince: Date }[]>;
+  inactiveClients(ruleId: string, days: number): Promise<{ dealId: string; clientId: string; lastSeen: Date }[]>;
+  anniversaries(ruleId: string, daysBefore: number): Promise<{ orderId: string; clientId: string; occasion: string; date: string; year: number }[]>;
 }
 
 export interface AppInfo {

@@ -64,6 +64,8 @@ export const crmConversations = pgTable(
     uniqueIndex("crm_conv_chat_idx").on(t.channel, t.channelId, t.chatId),
     index("crm_conv_last_idx").on(t.lastMessageAt),
     index("crm_conv_bot_due_idx").on(t.botDueAt).where(sql`${t.botDueAt} is not null`),
+    // Правило «клиенту не ответили N минут» (каждую минуту): ждущие ответа, дольше всех ждущие — первыми.
+    index("crm_conv_awaiting_idx").on(t.awaitingSince).where(sql`${t.awaitingSince} is not null`),
   ],
 );
 
