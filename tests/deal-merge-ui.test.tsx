@@ -7,7 +7,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {}, push() {} 
 vi.mock("@/app/admin/deals/actions", () => ({}));
 vi.mock("@/app/admin/crm-actions", () => ({}));
 
-const { Duplicates } = await import("@/app/admin/deals/[id]/sections");
+const { Duplicates, PastDeals } = await import("@/app/admin/deals/[id]/sections");
 const { mergeQuestion } = await import("@/app/admin/deals/[id]/DealControls");
 
 const created = new Date("2026-10-19T10:00:00Z");
@@ -53,5 +53,23 @@ describe("Подтверждение «Объединить сюда»", () => {
   it("открытая сделка — без лишних предупреждений; счета, которые отменятся, — списком", () => {
     expect(mergeQuestion(8, false, [])).toBe("Объединить сделку №8 с этой? Переписка, звонки, задачи и история перейдут сюда, №8 удалится.");
     expect(mergeQuestion(8, false, ["P3 на 5 000 ₸", "P4 на 7 000 ₸"])).toContain("Будут отменены открытые счета P3 на 5 000 ₸, P4 на 7 000 ₸ — ссылки на оплату у клиента перестанут работать.");
+  });
+});
+
+describe("Прошлые сделки контакта на карточке", () => {
+  const past = (number: number, assigneeId: string | null, amount: number) => ({
+    deal: { id: `p${number}`, number, title: `Покупка ${number}`, amount, createdAt: created, closedAt: created, assigneeId },
+    stage: { name: "Успех", color: "#0a0" },
+  });
+
+  it("роль «только свои» не видит название и сумму чужой прошлой сделки; нечего показать — блока нет", () => {
+    const deals = [past(10, "m1", 30_000), past(11, "m2", 45_000)];
+    const own = renderToStaticMarkup(<PastDeals deals={deals} canSee={(a) => a === "m1"} />);
+    expect(own).toContain("№10");
+    expect(own).not.toContain("№11");
+    expect(own).not.toContain("45");
+    expect(renderToStaticMarkup(<PastDeals deals={[past(11, "m2", 45_000)]} canSee={(a) => a === "m1"} />)).toBe("");
+    const all = renderToStaticMarkup(<PastDeals deals={deals} canSee={() => true} />);
+    expect(all).toContain("№11");
   });
 });

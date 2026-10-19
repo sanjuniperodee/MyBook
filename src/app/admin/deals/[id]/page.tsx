@@ -212,7 +212,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
             can={(p) => can(staff, p)}
             emailOf={(email) => contactView(staff, { email }).email}
           />
-          {duplicates.past.length ? <PastDeals deals={duplicates.past} /> : null}
+          {duplicates.past.length ? <PastDeals deals={duplicates.past} canSee={(assigneeId) => canSeeAssigned(staff, assigneeId)} /> : null}
           {!deal.clientId && !suggested && deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId) ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
         </aside>
 

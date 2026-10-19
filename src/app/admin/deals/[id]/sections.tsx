@@ -50,13 +50,19 @@ export function Duplicates({ dealId, closed, duplicates }: { dealId: string; clo
   );
 }
 
-/** Закрытые сделки того же контакта (успех или отказ): прошлые покупки — для контекста, их не сливают. */
-export function PastDeals({ deals }: { deals: RelatedDeal[] }) {
+/**
+ * Закрытые сделки того же контакта (успех или отказ): прошлые покупки — для контекста, их не сливают. Только те, что
+ * сотрудник видит (canSee — его ответственность или «все сделки»): у роли «только свои» название и сумма чужой сделки
+ * не показываются, как и сама сделка по ссылке.
+ */
+export function PastDeals({ deals, canSee }: { deals: RelatedDeal[]; canSee: (assigneeId: string | null) => boolean }) {
+  const visible = deals.filter((r) => canSee(r.deal.assigneeId));
+  if (!visible.length) return null;
   return (
     <section className="rounded-2xl border border-line bg-white p-5 text-sm" data-testid="past-deals">
       <h2 className="font-semibold">Прошлые сделки контакта</h2>
       <div className="mt-2 divide-y divide-line">
-        {deals.map(({ deal: d, stage: st }) => (
+        {visible.map(({ deal: d, stage: st }) => (
           <Link key={d.id} href={`/admin/deals/${d.id}`} className="flex items-center gap-2 py-2 hover:text-wine">
             <span className="min-w-0 flex-1">
               <span className="block truncate">
