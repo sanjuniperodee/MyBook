@@ -471,18 +471,23 @@ export class MessagingService {
    * (шаблон правила или подставленное поле) — не уходит: заметка в сделку и уведомление руководителю (chats-d4). Номер
    * самого клиента и магазина, значения allow (трек-номер) — можно. Вне окна по Алматы или сверх суточного лимита
    * сообщений от правил — не уходит, заметка в сделку (automation-15); автоответ на сообщение клиента (reply) окно и
-   * лимит не держат. null — не отправлено.
+   * лимит не держат. Заметка о пропуске — в noteDealId (сделка заказа: диалог мог остаться привязан к прошлой сделке
+   * клиента или ни к какой), без него — в сделку диалога. null — не отправлено.
    */
-  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean; transactional?: boolean; allow?: readonly string[] } = {}) {
+  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean; transactional?: boolean; allow?: readonly string[]; noteDealId?: string | null } = {}) {
     if (!opts.transactional && (await this.bot.isActive(conversationId))) return null;
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
     const rule = opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации";
+    const note = async (body: string) => {
+      const dealId = opts.noteDealId || conv.dealId;
+      const deal = dealId ? await this.sales.deal(dealId) : null;
+      if (deal) await this.sales.note(deal, body);
+    };
     // Клиент просил не писать первым (или номер в спаме) — правила ему не пишут, даже автоответом.
     if (await this.blocklist.noMarketing(conv.chatId, contactPhone(conv))) {
       this.logger.info(`${rule}: диалог ${conv.id} — «не писать первым», сообщение не отправлено`);
-      const deal = opts.transactional && conv.dealId ? await this.sales.deal(conv.dealId) : null;
-      if (deal) await this.sales.note(deal, `${rule} не отправило клиенту сообщение о заказе: клиент просил не писать первым (стоп-лист). Если нужно — напишите клиенту сами.`);
+      if (opts.transactional) await note(`${rule} не отправило клиенту сообщение о заказе: клиент просил не писать первым (стоп-лист). Если нужно — напишите клиенту сами.`);
       return null;
     }
     const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.shopPhone(), ...(opts.allow ?? [])]);
@@ -490,8 +495,7 @@ export class MessagingService {
       const what = sensitiveWhat(found);
       const values = found.map((f) => f.value).join(", ");
       this.logger.warn(`${rule}: сообщение в диалог ${conv.id} не отправлено — ${what}`);
-      const deal = conv.dealId ? await this.sales.deal(conv.dealId) : null;
-      if (deal) await this.sales.note(deal, `${rule} не отправило клиенту сообщение: в тексте ${what} (${values}). Оплата — только через счёт из CRM; проверьте текст правила в «Автоматизациях».`);
+      await note(`${rule} не отправило клиенту сообщение: в тексте ${what} (${values}). Оплата — только через счёт из CRM; проверьте текст правила в «Автоматизациях».`);
       await this.notifier.managers?.({ kind: "system", title: `${rule} не отправило сообщение: в тексте ${what}`, body: `${conv.contactName || phoneTail(conv.chatId) || "клиенту"}: ${values}`, link: `/admin/chats?c=${conv.id}` });
       return null;
     }
@@ -502,8 +506,7 @@ export class MessagingService {
       if (block) {
         const why = ruleSendBlockText(block, policy);
         this.logger.warn(`${rule}: сообщение в диалог ${conv.id} не отправлено — ${why}`);
-        const deal = conv.dealId ? await this.sales.deal(conv.dealId) : null;
-        if (deal) await this.sales.note(deal, `${rule} не отправило клиенту сообщение: ${why}. Если нужно — напишите клиенту сами. Окно и лимит — «Интеграции» → «Мессенджеры».`);
+        await note(`${rule} не отправило клиенту сообщение: ${why}. Если нужно — напишите клиенту сами. Окно и лимит — «Интеграции» → «Мессенджеры».`);
         return null;
       }
     }
@@ -519,13 +522,27 @@ export class MessagingService {
     return (await this.ruleGate()).block;
   }
 
-  /** Окно и лимит на сейчас; сколько ушло за сутки, считаем только в окне. Лимит исчерпан — руководителям раз в сутки. */
-  private async ruleGate(): Promise<{ block: RuleSendBlock | null; policy: RuleSendingPolicy }> {
+  /**
+   * Почему правило сейчас не напишет клиенту первым — для подписи в карточке заказа: «вне окна 09:00–21:00 (Алматы)»,
+   * «лимит 40 сообщений от правил в сутки исчерпан»; null — напишет. Руководителям о лимите не сообщает.
+   */
+  async ruleSendPause(): Promise<string | null> {
+    const { block, policy } = await this.ruleBlockNow();
+    return block ? ruleSendBlockText(block, policy) : null;
+  }
+
+  /** Окно и лимит на сейчас; сколько ушло за сутки, считаем только в окне. */
+  private async ruleBlockNow(): Promise<{ block: RuleSendBlock | null; policy: RuleSendingPolicy; now: Date }> {
     const policy = await this.ruleSending();
     const now = this.clock.now();
-    if (!inRuleWindow(now, policy)) return { block: "window", policy };
+    if (!inRuleWindow(now, policy)) return { block: "window", policy, now };
     const sent = policy.dailyLimit > 0 ? await this.messages.countRuleSince(localDayStart(now), policy.dailyLimit) : 0;
-    const block = ruleSendBlock(policy, now, sent);
+    return { block: ruleSendBlock(policy, now, sent), policy, now };
+  }
+
+  /** Окно и лимит перед отправкой правила. Лимит исчерпан — руководителям раз в сутки. */
+  private async ruleGate(): Promise<{ block: RuleSendBlock | null; policy: RuleSendingPolicy }> {
+    const { block, policy, now } = await this.ruleBlockNow();
     if (block === "limit" && policy.dailyLimit > 0) await this.limitAlert(policy, now).catch((err) => this.logger.error("rule limit alert", err));
     return { block, policy };
   }

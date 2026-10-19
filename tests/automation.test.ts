@@ -25,6 +25,7 @@ import {
 } from "@/modules/automation/domain";
 import { findSensitive } from "@/modules/messaging/domain/sensitive";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
+import { orderRuleSubject, type OrderStatus } from "@/shared/domain/orders";
 import { addWorkMinutes, nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import { inbound, setup as chatSetup } from "./doubles/botHarness";
@@ -570,6 +571,8 @@ describe("Статус заказа и трек-номер для правил (
       ["order.status_changed", { subject: `order:status:${t.id}:shipped`, orderId: t.id, clientId: "user-1", dealId: "deal-7", orderStatus: "shipped" }],
       ["order.tracking_added", { subject: `order:track:${t.id}:RR123456789KZ`, orderId: t.id, clientId: "user-1", dealId: "deal-7" }],
     ]);
+    // Тот же формат читает подпись в карточке заказа (reporting.orderNotice): о чём правило уже писало.
+    expect(runs.map(([, ctx]) => (ctx as { subject: string }).subject)).toEqual([orderRuleSubject.status(t.id, "shipped"), orderRuleSubject.track(t.id, "RR123456789KZ")]);
   });
 
   it("условие «статус»: правило на «Отправлен» не срабатывает на «В печати»; откат и повторный перевод клиенту не повторяются", async () => {
@@ -598,6 +601,27 @@ describe("Статус заказа и трек-номер для правил (
     const noDeal = setup([track], { whatsapp: null, subject: { deal: null } });
     await noDeal.engine.run("order.tracking_added", { subject: "x" });
     expect(noDeal.log.filter((l) => l.startsWith("note:") || l.startsWith("msg:"))).toEqual([]);
+  });
+
+  it("пропуск сообщения о заказе — заметкой в сделку заказа, а не в прошлую сделку, к которой привязана переписка", async () => {
+    // Повторный клиент: переписка привязана к прошлогодней выигранной сделке, новый заказ завёл новую сделку.
+    const chat = chatSetup();
+    await chat.service.ingest(inbound());
+    const conv = chat.conv();
+    const oldDeal = conv.dealId!;
+    chat.deals.push({ id: "deal-200", title: "Заказ №42", unsorted: false, fields: {}, tags: [] });
+    chat.setNow(new Date("2026-10-01T21:30:00+05:00")); // 21:30 по Алматы — окно 09–21 закрыто
+    const print = rule({ id: "print", name: "Книга в печати", trigger: "order.status_changed", conditions: { orderStatus: "in_production" }, actions: [{ type: "send_message", text: "Ваша книга в печати" }] });
+    const sends: Parameters<AutomationEffects["sendMessage"]>[2][] = [];
+    const { engine } = setup([print], {
+      whatsapp: conv.id,
+      sendMessage: async (convId, text, o) => void (sends.push(o), await chat.service.sendAutomated(convId, text, o)),
+    });
+    await engine.run("order.status_changed", { subject: "order:status:o1:in_production", orderId: "o1", dealId: "deal-200", orderStatus: "in_production" });
+    expect(sends).toEqual([expect.objectContaining({ transactional: true, noteDealId: "deal-200" })]);
+    expect(chat.sent).toEqual([]);
+    expect(chat.dealNotes).toEqual([{ dealId: "deal-200", text: expect.stringContaining("Правило «Книга в печати» не отправило клиенту сообщение: вне окна 09:00–21:00 (Алматы).") }]);
+    expect(chat.dealNotes.some((n) => n.dealId === oldDeal)).toBe(false);
   });
 
   it("{трек}, {ссылка_на_заказ}, {ссылка_на_книгу}, {ссылка_на_оплату}; {ссылка} — заказ, иначе книга, иначе сайт", async () => {
@@ -662,23 +686,89 @@ describe("Стартовые правила о статусе заказа и п
     rules: seeded.map((r) => ({ trigger: r.trigger, orderStatus: r.conditions.orderStatus ?? null })),
     whatsappChat: true,
     noMarketing: false,
+    workTime: true,
+    pause: null,
     ...p,
   });
+  const change = (from: OrderStatus, to: OrderStatus, track: string | null = null, savedTrack: string | null = null) => ({ from, to, track, savedTrack });
 
   it("подпись: что реально уйдёт — письмо, если почта настоящая, и WhatsApp, если правило включено и есть переписка", () => {
-    expect(orderNotice(facts(), "paid", "in_production")).toEqual({ text: "Клиент получит письмо и сообщение в WhatsApp («В производстве»).", warn: false });
-    expect(orderNotice(facts({ realEmail: false }), "in_production", "shipped")).toEqual({ text: "Клиент получит сообщение в WhatsApp (трек-номер, если он вписан). Письма не будет — у клиента нет почты.", warn: false });
-    expect(orderNotice(facts({ whatsappChat: false }), "paid", "in_production")).toEqual({ text: "Клиент получит письмо. В WhatsApp не уйдёт: с клиентом нет переписки в WhatsApp, а первым CRM не пишет.", warn: false });
+    expect(orderNotice(facts(), change("paid", "in_production"))).toEqual({ text: "Клиент получит письмо и сообщение в WhatsApp («В производстве»).", warn: false });
+    expect(orderNotice(facts({ realEmail: false }), change("in_production", "shipped", "RR123456789KZ"))).toEqual({ text: "Клиент получит сообщение в WhatsApp (трек-номер). Письма не будет — у клиента нет почты.", warn: false });
+    expect(orderNotice(facts({ whatsappChat: false }), change("paid", "in_production"))).toEqual({ text: "Клиент получит письмо. В WhatsApp не уйдёт: с клиентом нет переписки в WhatsApp, а первым CRM не пишет.", warn: false });
     // Клиент из WhatsApp без почты, правила выключены — не узнает ничего: менеджеру написать самому.
-    expect(orderNotice(facts({ realEmail: false, rules: [] }), "paid", "in_production")).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — правило о таком статусе выключено («Автоматизации»). Напишите ему сами.", warn: true });
-    expect(orderNotice(facts({ realEmail: false, noMarketing: true }), "in_production", "shipped")).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — клиент просил не писать первым. Напишите ему сами.", warn: true });
-    expect(orderNotice(facts({ realEmail: false }), "shipped", "cancelled")).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — об отмене правила не пишут. Напишите ему сами.", warn: true });
+    expect(orderNotice(facts({ realEmail: false, rules: [] }), change("paid", "in_production"))).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — правило о таком статусе выключено («Автоматизации»). Напишите ему сами.", warn: true });
+    expect(orderNotice(facts({ realEmail: false, noMarketing: true }), change("in_production", "shipped", "RR123456789KZ"))).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — клиент просил не писать первым. Напишите ему сами.", warn: true });
+    expect(orderNotice(facts({ realEmail: false }), change("shipped", "cancelled"))).toEqual({ text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — об отмене правила не пишут. Напишите ему сами.", warn: true });
+    expect(orderNotice(facts({ realEmail: false }), change("in_production", "pending_payment"))).toEqual({ text: "Клиенту ничего не уйдёт.", warn: false });
   });
 
-  it("подпись: статус тот же — ничего; у отправленного — куда уйдёт новый трек-номер", () => {
-    expect(orderNotice(facts(), "in_production", "in_production")).toEqual({ text: "Статус тот же — клиенту ничего не уйдёт.", warn: false });
-    expect(orderNotice(facts(), "shipped", "shipped")).toEqual({ text: "Новый трек-номер клиент получит письмом и в WhatsApp.", warn: false });
-    expect(orderNotice(facts({ realEmail: false, whatsappChat: false }), "shipped", "shipped").warn).toBe(true);
+  it("подпись: «Отправлен» без трек-номера в поле формы — правило о треке не напишет; без почты — жёлтая", () => {
+    // Курьер или самовывоз: трек не вписан, клиент из WhatsApp с почтой-заглушкой не узнает ничего.
+    expect(orderNotice(facts({ realEmail: false }), change("in_production", "shipped"))).toEqual({
+      text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — трек-номер не вписан, а без него правило о трек-номере не пишет. Напишите ему сами.",
+      warn: true,
+    });
+    // Трек стёрли в поле — сохранённый не в счёт: форма сотрёт его.
+    expect(orderNotice(facts({ realEmail: false }), change("in_production", "shipped", "  ", "RR123456789KZ")).warn).toBe(true);
+    // Вписан раньше и остался в поле — уйдёт.
+    expect(orderNotice(facts({ realEmail: false }), change("in_production", "shipped", "RR123456789KZ", "RR123456789KZ")).warn).toBe(false);
+    // С почтой — письмо «Книга в пути» уйдёт, а в WhatsApp — нет, и это видно.
+    expect(orderNotice(facts(), change("in_production", "shipped"))).toEqual({ text: "Клиент получит письмо. В WhatsApp не уйдёт: трек-номер не вписан, а без него правило о трек-номере не пишет.", warn: false });
+  });
+
+  it("подпись: вне окна или сверх суточного лимита — жёлтая «в WhatsApp не уйдёт», даже если уйдёт письмо", () => {
+    const night = facts({ pause: "вне окна 09:00–21:00 (Алматы)" });
+    expect(orderNotice(night, change("paid", "in_production"))).toEqual({
+      text: "Клиент получит письмо. В WhatsApp не уйдёт: сейчас вне окна 09:00–21:00 (Алматы), правило сработает без сообщения и повторно его не отправит. Напишите ему сами или сохраните статус позже.",
+      warn: true,
+    });
+    expect(orderNotice(facts({ realEmail: false, pause: "лимит 40 сообщений от правил в сутки исчерпан" }), change("in_production", "shipped", "RR123456789KZ"))).toEqual({
+      text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — сейчас лимит 40 сообщений от правил в сутки исчерпан, правило сработает без сообщения и повторно его не отправит. Напишите ему сами или сохраните статус позже.",
+      warn: true,
+    });
+    // Правилу и так нечего писать (статус без правила) — окно не упоминается.
+    expect(orderNotice(night, change("shipped", "delivered"))).toEqual({ text: "Клиент получит письмо.", warn: false });
+    // Стоп-лист важнее окна: позже тоже не уйдёт.
+    expect(orderNotice(facts({ realEmail: false, noMarketing: true, pause: "вне окна 09:00–21:00 (Алматы)" }), change("paid", "in_production")).text).toContain("в WhatsApp — клиент просил не писать первым. Напишите ему сами.");
+  });
+
+  it("подпись: правило уже писало об этом статусе или треке (откат и повторный перевод) — не обещает; новый трек — обещает", () => {
+    const [print, track] = facts().rules;
+    const done = facts({ realEmail: false, rules: [{ ...print, done: ["in_production"] }, { ...track, done: ["RR123456789KZ"] }] });
+    expect(orderNotice(done, change("shipped", "in_production", "RR123456789KZ", "RR123456789KZ"))).toEqual({
+      text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — правило уже писало клиенту о статусе «В производстве» и повторно не отправит. Напишите ему сами.",
+      warn: true,
+    });
+    expect(orderNotice(done, change("in_production", "shipped", "RR123456789KZ", "RR123456789KZ")).text).toContain("в WhatsApp — правило уже писало клиенту об этом трек-номере и повторно не отправит");
+    // Исправили опечатку в треке — новый номер правило ещё не отправляло.
+    expect(orderNotice(done, change("shipped", "shipped", "RR123456780KZ", "RR123456789KZ"))).toEqual({ text: "Клиент получит сообщение в WhatsApp (трек-номер). Письма не будет — у клиента нет почты.", warn: false });
+    // Другое правило на тот же статус ещё не писало — уйдёт.
+    const another = facts({ rules: [{ ...print, done: ["in_production"] }, { trigger: "order.status_changed", orderStatus: null }] });
+    expect(orderNotice(another, change("shipped", "in_production")).text).toBe("Клиент получит письмо и сообщение в WhatsApp («В производстве»).");
+    // «Заказ оплачен» уже писал этому заказу.
+    const paid = facts({ realEmail: false, rules: [{ trigger: "order.paid", orderStatus: null, done: ["paid"] }] });
+    expect(orderNotice(paid, change("pending_payment", "paid")).text).toContain("правило уже писало клиенту об оплате");
+  });
+
+  it("подпись: условие правила «только в рабочее время» вне рабочего — не обещает", () => {
+    const [print] = facts().rules;
+    const work = facts({ realEmail: false, rules: [{ ...print, hours: "work" }], workTime: false });
+    expect(orderNotice(work, change("paid", "in_production"))).toEqual({
+      text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — правило о статусе «В производстве» пишет только в рабочее время. Напишите ему сами.",
+      warn: true,
+    });
+    expect(orderNotice({ ...work, workTime: true }, change("paid", "in_production")).warn).toBe(false);
+    expect(orderNotice(facts({ realEmail: false, rules: [{ ...print, hours: "off" }] }), change("paid", "in_production")).text).toContain("пишет только вне рабочего времени");
+  });
+
+  it("подпись: статус тот же — ничего; у отправленного — уйдёт ли новый трек-номер из поля формы", () => {
+    expect(orderNotice(facts(), change("in_production", "in_production", "RR123456789KZ"))).toEqual({ text: "Статус тот же — клиенту ничего не уйдёт.", warn: false });
+    expect(orderNotice(facts(), change("shipped", "shipped", "RR123456789KZ", "RR123456789KZ"))).toEqual({ text: "Статус тот же — клиенту ничего не уйдёт.", warn: false });
+    expect(orderNotice(facts(), change("shipped", "shipped", "RR123456789KZ"))).toEqual({ text: "Клиент получит письмо и сообщение в WhatsApp (трек-номер).", warn: false });
+    expect(orderNotice(facts({ realEmail: false, whatsappChat: false }), change("shipped", "shipped", "RR123456789KZ")).warn).toBe(true);
+    // Доставленному вписали трек — письма нет (OrderingMailer), правило о треке — напишет.
+    expect(orderNotice(facts(), change("delivered", "delivered", "RR123456789KZ"))).toEqual({ text: "Клиент получит сообщение в WhatsApp (трек-номер).", warn: false });
   });
 });
 

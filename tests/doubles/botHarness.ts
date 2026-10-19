@@ -95,6 +95,8 @@ export function setup(
   const revokes: string[] = [];
   const claims: { dealId: string; userId: string }[] = [];
   const notes: string[] = [];
+  /** Те же заметки — с id сделки, в которую записаны. */
+  const dealNotes: { dealId: string; text: string }[] = [];
   const tasks: { title: string; kind: string; assigneeId: string | null }[] = [];
   const events: (BotEvent & { conv: string })[] = [];
   let seq = 0;
@@ -198,7 +200,7 @@ export function setup(
     },
     setUtmIfEmpty: async () => {},
     acceptUnsorted: async (dealId) => void (deals.find((d) => d.id === dealId) && (deals.find((d) => d.id === dealId)!.unsorted = false)),
-    note: async (_d, text) => void notes.push(text),
+    note: async (d, text) => void (notes.push(text), dealNotes.push({ dealId: d.id, text })),
     setField: async (dealId, k, v) => void (deals.find((d) => d.id === dealId)!.fields[k] = v),
     deal: async (id) => {
       const d = deals.find((x) => x.id === id) ?? (opts.openDeal?.id === id ? { id, title: "Сделка", fields: {} } : null);
@@ -354,7 +356,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, dealNotes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

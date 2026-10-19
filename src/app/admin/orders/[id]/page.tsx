@@ -25,11 +25,18 @@ import { pageId } from "@/server/input";
 import { isPhoneEmail } from "@/modules/identity/domain";
 import type { OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 
-/** Что получит клиент при смене статуса: настоящая ли почта, правила WhatsApp о заказе, переписка и стоп-лист. */
-async function noticeFacts(order: { id: string; userId: string; contactEmail: string; contactPhone: string }): Promise<OrderNoticeFacts> {
+/**
+ * Что получит клиент при смене статуса: настоящая ли почта, правила WhatsApp о заказе (о чём уже писали), переписка,
+ * стоп-лист, рабочее ли время и открыты ли окно и суточный лимит сообщений от правил.
+ */
+async function noticeFacts(order: { id: string; userId: string; contactEmail: string; contactPhone: string; trackingNumber: string | null }): Promise<OrderNoticeFacts> {
   const n = await container().reporting.orderNotice(order);
-  const noMarketing = await container().messaging.chats.noMarketingFor({ dealId: n.dealId, clientId: order.userId, phones: [order.contactPhone] });
-  return { realEmail: !isPhoneEmail(order.contactEmail), rules: n.rules, whatsappChat: n.whatsappChat, noMarketing };
+  const [noMarketing, pause, workTime] = await Promise.all([
+    container().messaging.chats.noMarketingFor({ dealId: n.dealId, clientId: order.userId, phones: [order.contactPhone] }),
+    n.rules.length ? container().messaging.chats.ruleSendPause() : null,
+    n.rules.some((r) => r.hours) ? container().workspace.schedule.isWorkTime(new Date()) : true,
+  ]);
+  return { realEmail: !isPhoneEmail(order.contactEmail), rules: n.rules, whatsappChat: n.whatsappChat, noMarketing, workTime, pause };
 }
 
 /** Статусы счетов Kaspi в карточке заказа. */

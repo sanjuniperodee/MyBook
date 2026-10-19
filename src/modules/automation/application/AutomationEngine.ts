@@ -201,10 +201,12 @@ export class AutomationEngine {
   /**
    * Сообщение о заказе (chats-15, chats-d5): в существующую переписку клиента в WhatsApp, и когда её ведёт бот. Переписки
    * нет — не уходит (первым на новый номер CRM не пишет), а в сделку — заметка, чтобы менеджер знал и написал сам.
+   * Пропуск при отправке (стоп-лист, реквизиты, окно, лимит) — тоже заметкой в сделку заказа: переписка, найденная по
+   * клиенту, может быть привязана к его прошлой сделке или ни к какой.
    */
   private async sendTransactional(rule: AutomationRule, text: string, s: RuleSubject) {
     const convId = await this.subjects.latestWhatsapp(s.deal?.id ?? null, s.clientId);
-    if (convId) return this.effects.sendMessage(convId, text, { rule: rule.name, transactional: true, allow: s.trackingNumber ? [s.trackingNumber] : [] });
+    if (convId) return this.effects.sendMessage(convId, text, { rule: rule.name, transactional: true, allow: s.trackingNumber ? [s.trackingNumber] : [], noteDealId: s.deal?.id ?? null });
     if (s.deal) await this.effects.addNote({ dealId: s.deal.id, clientId: s.clientId, text: noWhatsappNote(rule.name) });
     else this.logger.info(`«${rule.name}»: нет ни переписки в WhatsApp, ни сделки — сообщение о заказе не отправлено`);
   }

@@ -19,6 +19,7 @@ import type { BookProgressed, BookStarted } from "@/modules/authoring";
 import type { DealAssigned, DealClosed, DealCreated, DealStageChanged } from "@/modules/sales";
 import { messagesFor } from "@/i18n/messages";
 import { recipientPolicy } from "@/lib/content/kinds";
+import { orderRuleSubject } from "@/shared/domain/orders";
 import { runInBackground } from "@/shared/infrastructure/background";
 import type { Container } from "./container";
 
@@ -47,7 +48,7 @@ export function registerSubscriptions(c: Container) {
     "ordering.order_status_changed",
     async (e) => {
       const p = e.payload;
-      await rules().run("order.status_changed", { subject: `order:status:${p.orderId}:${p.to}`, orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId), orderStatus: p.to });
+      await rules().run("order.status_changed", { subject: orderRuleSubject.status(p.orderId, p.to), orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId), orderStatus: p.to });
     },
     "crm.automation.order_status_changed",
   );
@@ -55,7 +56,7 @@ export function registerSubscriptions(c: Container) {
     "ordering.tracking_added",
     async (e) => {
       const p = e.payload;
-      await rules().run("order.tracking_added", { subject: `order:track:${p.orderId}:${p.trackingNumber}`, orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId) });
+      await rules().run("order.tracking_added", { subject: orderRuleSubject.track(p.orderId, p.trackingNumber), orderId: p.orderId, clientId: p.userId, dealId: await orderDeal(p.orderId) });
     },
     "crm.automation.order_tracking_added",
   );

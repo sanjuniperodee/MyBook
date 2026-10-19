@@ -90,6 +90,18 @@ describe("сообщение правила (sendAutomated)", () => {
     expect(t.sent).toEqual(["Первое", "Второе", "Ответим утром", "Пятое"]);
   });
 
+  it("почему правило сейчас не напишет — для подписи в карточке заказа: окно, лимит; руководителям не сообщает", async () => {
+    const t = setup({ ruleSending: { from: "09:00", to: "21:00", dailyLimit: 1 } });
+    await t.service.ingest(inbound());
+    t.setNow(almaty("12:00"));
+    expect(await t.service.ruleSendPause()).toBeNull();
+    expect(await t.service.sendAutomated(t.conv().id, "Первое", { rule: "Годовщина" })).toMatchObject({ status: "sent" });
+    expect(await t.service.ruleSendPause()).toBe("лимит 1 сообщений от правил в сутки исчерпан");
+    expect(t.alerts).toEqual([]);
+    t.setNow(almaty("21:15"));
+    expect(await t.service.ruleSendPause()).toBe("вне окна 09:00–21:00 (Алматы)");
+  });
+
   it("лимит 0 — правила первыми не пишут, без тревоги руководителям", async () => {
     const t = setup({ ruleSending: { from: "09:00", to: "21:00", dailyLimit: 0 } });
     await t.service.ingest(inbound());

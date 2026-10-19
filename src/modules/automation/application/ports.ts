@@ -30,9 +30,10 @@ export interface AutomationEffects {
   /**
    * Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). reply — ответ на только что
    * пришедшее сообщение клиента (автоответ): окно и суточный лимит его не держат. transactional — сообщение о заказе:
-   * уходит и в диалог, который ведёт бот; allow — значения, которые в тексте не реквизиты (трек-номер из цифр).
+   * уходит и в диалог, который ведёт бот; allow — значения, которые в тексте не реквизиты (трек-номер из цифр);
+   * noteDealId — куда заметка, если сообщение не ушло (сделка заказа), без него — в сделку диалога.
    */
-  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean; transactional?: boolean; allow?: string[] }): Promise<void>;
+  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean; transactional?: boolean; allow?: string[]; noteDealId?: string | null }): Promise<void>;
   /** Можно ли сейчас написать клиенту первым: окно и суточный лимит сообщений от правил (automation-15). */
   canMessageNow(): Promise<boolean>;
   assignConversation(conversationId: string, userId: string): Promise<void>;
