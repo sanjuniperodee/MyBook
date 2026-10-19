@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceStatus, type OrderPlaced } from "@/modules/ordering/domain";
 import { DEAL_INVOICE_CLOSE_REASONS, DealInvoiceLifecycle, OrdersService, type DealInvoiceLifecycleStore } from "@/modules/ordering/application";
-import type { DealClosed } from "@/modules/sales";
+import type { DealAssigned, DealClosed } from "@/modules/sales";
 import type { DomainEvent } from "@/shared/domain";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
 import { FakeUow, setup as orderingSetup } from "./doubles/ordering";
@@ -172,15 +172,21 @@ describe("Подписчики жизни сделки", () => {
       sales: {
         funnel: { orderCreated: async () => null },
         deals: {
-          // deal-9 — проиграна, deal-0 — успешна, deal-5 — уже снова в работе (повтор события из outbox)
-          findById: async (id: string) => ({ id, stageId: { "deal-9": "lost", "deal-0": "won", "deal-5": "open" }[id] }),
+          // deal-9 — проиграна, deal-0 — успешна, deal-5 — уже снова в работе (повтор события из outbox); deal-3 — у m2
+          findById: async (id: string) => ({ id, stageId: { "deal-9": "lost", "deal-0": "won", "deal-5": "open" }[id], assigneeId: id === "deal-3" ? "m2" : null }),
           stage: async (id: string) => ({ id, kind: id }),
           byOrder: async () => [{ id: "deal-9", number: 9, title: "Книга", assigneeId: "m1" }],
           note: async (deal: { id: string }, text: string) => void calls.push(`note:${deal.id}:${text}`),
         },
       },
       ordering: { invoices: { cancelOpenFor: async (dealId: string, reason: string) => (calls.push(`cancel:${dealId}:${reason}`), dealId === "deal-9" ? cancelled : null) } },
-      clients: { tasks: { create: async (_a: unknown, t: { title: string; assigneeId: string }) => void calls.push(`task:${t.assigneeId}:${t.title}`) } },
+      clients: {
+        tasks: {
+          create: async (_a: unknown, t: { title: string; assigneeId: string }) => void calls.push(`task:${t.assigneeId}:${t.title}`),
+          followDeal: async (t: { dealId: string; from: string | null; to: string }) => (calls.push(`follow:${t.dealId}:${t.from}>${t.to}`), 1),
+        },
+      },
+      messaging: { chats: { assignDealConversations: async (dealId: string, to: string) => void calls.push(`chats:${dealId}>${to}`) } },
     };
     registerSubscriptions(c as never);
     return { bus, calls, cancelled };
@@ -207,5 +213,14 @@ describe("Подписчики жизни сделки", () => {
     expect(calls.filter((c) => c.startsWith("task:"))).toEqual([]);
     await bus.publish([placed(30000)]);
     expect(calls.filter((c) => c.startsWith("task:"))).toEqual([expect.stringMatching(/^task:m1:Переплата 30\s000 ₸ по договорённости \(заказ №12\) — оформите возврат$/)]);
+  });
+
+  it("сделку передали — её чаты и открытые задачи идут новому; повтор старого события после следующей передачи задачи не уводит", async () => {
+    const { bus, calls } = await wire();
+    const assigned = (dealId: string, from: string | null, to: string): DealAssigned => ({ type: "sales.deal_assigned", occurredAt: now, payload: { dealId, number: 3, clientId: null, assigneeId: to, fromAssigneeId: from, title: "Книга" } });
+    await bus.publish([assigned("deal-3", "m1", "m2")]);
+    // deal-4 сейчас ни у кого: событие «m1 → m3» устарело (повтор из outbox) — задачи не трогаются.
+    await bus.publish([assigned("deal-4", "m1", "m3")]);
+    expect(calls).toEqual(["chats:deal-3>m2", "follow:deal-3:m1>m2", "chats:deal-4>m3"]);
   });
 });

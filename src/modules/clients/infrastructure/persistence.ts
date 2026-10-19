@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { books, crmCalls, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { staffLabel } from "@/shared/domain/staff";
 import { executor } from "@/shared/infrastructure/database";
@@ -64,8 +64,17 @@ export const drizzleTasks: TaskRepository = {
     return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date })).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   },
   setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
+  // По частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки).
+  async reassignOpenOfDeal({ dealId, from, to }) {
+    const rows = await executor()
+      .update(crmTasks)
+      .set({ assigneeId: to, remindedAt: null })
+      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), from ? or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, from)) : isNull(crmTasks.assigneeId)))
+      .returning({ id: crmTasks.id });
+    return rows.length;
+  },
   async update(id, patch) {
-    const rearm = "dueAt" in patch || "remindBeforeMin" in patch;
+    const rearm = "dueAt" in patch || "remindBeforeMin" in patch || "assigneeId" in patch;
     await executor()
       .update(crmTasks)
       .set({ ...patch, ...(rearm ? { remindedAt: null } : {}) })

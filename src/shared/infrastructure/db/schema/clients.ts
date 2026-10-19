@@ -1,4 +1,5 @@
 /** CRM-профиль клиента: заметки и задачи менеджеров (модуль clients). */
+import { sql } from "drizzle-orm";
 import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 import { orders } from "./ordering";
@@ -44,5 +45,9 @@ export const crmTasks = pgTable(
     remindedAt: timestamp("reminded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_tasks_due_idx").on(t.doneAt, t.dueAt)],
+  (t) => [
+    index("crm_tasks_due_idx").on(t.doneAt, t.dueAt),
+    // Открытые задачи сделки: переходят к новому ответственному, служебные не дублируются.
+    index("crm_tasks_open_deal_idx").on(t.dealId).where(sql`${t.doneAt} is null`),
+  ],
 );

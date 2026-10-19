@@ -88,9 +88,18 @@ class MemTasks implements TaskRepository {
   async delete(id: string) {
     this.rows.delete(id);
   }
+  async reassignOpenOfDeal({ dealId, from, to }: { dealId: string; from: string | null; to: string }) {
+    let n = 0;
+    for (const [id, t] of this.rows) {
+      if (t.dealId !== dealId || t.doneAt || (t.assigneeId !== null && t.assigneeId !== from)) continue;
+      this.rows.set(id, { ...t, assigneeId: to, remindedAt: null });
+      n++;
+    }
+    return n;
+  }
   async update(id: string, patch: Parameters<TaskRepository["update"]>[1]) {
     const t = this.rows.get(id);
-    if (t) this.rows.set(id, { ...t, ...patch, ...("dueAt" in patch || "remindBeforeMin" in patch ? { remindedAt: null } : {}) });
+    if (t) this.rows.set(id, { ...t, ...patch, ...("dueAt" in patch || "remindBeforeMin" in patch || "assigneeId" in patch ? { remindedAt: null } : {}) });
   }
   /** Готовая задача: по умолчанию ничья и открытая. */
   seed(p: Partial<Task> & { id: string }) {

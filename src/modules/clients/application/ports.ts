@@ -37,7 +37,12 @@ export interface TaskRepository {
   /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
   closeOpenByPrefix(t: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }): Promise<number>;
   setDone(id: string, doneAt: Date | null): Promise<void>;
-  /** Правка задачи; смена срока или напоминания снимает отметку «напоминание ушло» — придёт новое. */
+  /**
+   * Сделка перешла к другому: её открытые задачи прежнего ответственного (from) и ничьи — новому (to), напоминание
+   * взводится заново. Задачи, поставленные на третьих сотрудников, не трогаются. Сколько задач перешло.
+   */
+  reassignOpenOfDeal(t: { dealId: string; from: string | null; to: string }): Promise<number>;
+  /** Правка задачи; смена срока, напоминания или ответственного снимает отметку «напоминание ушло» — придёт новое. */
   update(id: string, patch: Partial<{ title: string; kind: TaskKind; dueAt: Date | null; remindBeforeMin: number | null; assigneeId: string; result: string | null }>): Promise<void>;
   delete(id: string): Promise<void>;
 }

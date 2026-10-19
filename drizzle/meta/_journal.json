@@ -330,6 +330,13 @@
       "when": 1792399604804,
       "tag": "0046_rule_sending",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792400743336,
+      "tag": "0047_task_follow_deal",
+      "breakpoints": true
     }
   ]
 }

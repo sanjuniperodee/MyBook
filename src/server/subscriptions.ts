@@ -126,6 +126,17 @@ export function registerSubscriptions(c: Container) {
     },
     "crm.chats.follow_deal",
   );
+  // Задачи идут за сделкой: открытые задачи прежнего ответственного и ничьи (ночная задача бота) — новому, напоминание
+  // ему заново. Повтор из outbox после следующей передачи не уводит задачи к тому, у кого сделки уже нет.
+  c.bus.subscribe<DealAssigned>(
+    "sales.deal_assigned",
+    async (e) => {
+      const p = e.payload;
+      if (!p.assigneeId || (await c.sales.deals.findById(p.dealId))?.assigneeId !== p.assigneeId) return;
+      await c.clients.tasks.followDeal({ dealId: p.dealId, from: p.fromAssigneeId, to: p.assigneeId });
+    },
+    "crm.tasks.follow_deal",
+  );
   // Сделка закрыта (успех, отказ, отклонена) — её открытый счёт из чата отменяется: платить по закрытой сделке нельзя.
   // Счёт Kaspi на номер по нему закроет сверка платежей.
   c.bus.subscribe<DealClosed>(

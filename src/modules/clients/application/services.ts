@@ -155,6 +155,16 @@ export class TasksService {
     return true;
   }
 
+  /**
+   * Задачи идут за сделкой: сменился ответственный (вручную, круг, ответ с телефона магазина) — открытые задачи сделки,
+   * что были у прежнего ответственного или ничьи (ночная задача бота), переходят новому, напоминание взводится заново.
+   * Отключённому сотруднику задачи не переходят. Сколько задач перешло.
+   */
+  async followDeal(input: { dealId: string; from: string | null; to: string }): Promise<number> {
+    if (input.from === input.to || !(await this.staff.isActiveStaff(input.to))) return 0;
+    return this.tasks.reassignOpenOfDeal(input);
+  }
+
   /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */
   closeOpenByPrefix(input: { dealId: string; prefix: string; keepTitle?: string | null }) {
     return this.tasks.closeOpenByPrefix({ ...input, at: new Date() });

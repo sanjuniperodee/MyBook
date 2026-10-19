@@ -323,3 +323,49 @@ describe("TasksService: задачи от CRM (бот, правила, «Пер�
     expect(await t.tasks.remindDue()).toBe(5);
   });
 });
+
+describe("TasksService: задачи идут за сделкой — tasks-d3", () => {
+  const at = (iso: string) => new Date(iso);
+
+  it("сделку передали по кругу — открытые задачи прежнего и ничьи у нового, напоминание взведено заново; чужие и готовые не трогаются", async () => {
+    const t = setup(); // сейчас 01.10 10:00 UTC
+    const due = at("2026-10-01T10:30:00Z");
+    t.mem.tasks.seed({ id: "own", dealId: "deal-1", assigneeId: "m1", dueAt: due });
+    t.mem.tasks.seed({ id: "night", dealId: "deal-1", assigneeId: null, dueAt: due, title: "Ответить: Айгерим (бот)" });
+    t.mem.tasks.seed({ id: "colleague", dealId: "deal-1", assigneeId: "h1", dueAt: due });
+    t.mem.tasks.seed({ id: "done", dealId: "deal-1", assigneeId: "m1", doneAt: at("2026-10-01T09:00:00Z") });
+    t.mem.tasks.seed({ id: "other", dealId: "deal-2", assigneeId: "m1", dueAt: due });
+    for (const [id, row] of t.mem.tasks.rows) t.mem.tasks.rows.set(id, { ...row, remindBeforeMin: 60 });
+    // Прежнему ответственному напоминания уже ушли.
+    expect(await t.tasks.remindDue()).toBe(4);
+    t.notifier.sent.length = 0;
+
+    expect(await t.tasks.followDeal({ dealId: "deal-1", from: "m1", to: "m2" })).toBe(2);
+    const row = (id: string) => t.mem.tasks.rows.get(id)!;
+    expect([row("own").assigneeId, row("night").assigneeId, row("colleague").assigneeId, row("done").assigneeId, row("other").assigneeId]).toEqual(["m2", "m2", "h1", "m1", "m1"]);
+    // Новый ответственный получает напоминание сам — прежнему повторно не шлётся.
+    expect(await t.tasks.remindDue()).toBe(2);
+    expect(t.notifier.sent.map((s) => s.userIds)).toEqual([["m2"], ["m2"]]);
+  });
+
+  it("сделки не было ни у кого — новому переходят только ничьи; тот же или отключённый сотрудник — ничего не меняется", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "night", dealId: "deal-1", assigneeId: null });
+    t.mem.tasks.seed({ id: "colleague", dealId: "deal-1", assigneeId: "h1" });
+    expect(await t.tasks.followDeal({ dealId: "deal-1", from: "m1", to: "m1" })).toBe(0);
+    expect(await t.tasks.followDeal({ dealId: "deal-1", from: null, to: "x1" })).toBe(0);
+    expect(t.mem.tasks.rows.get("night")?.assigneeId).toBeNull();
+    expect(await t.tasks.followDeal({ dealId: "deal-1", from: null, to: "m2" })).toBe(1);
+    expect([t.mem.tasks.rows.get("night")?.assigneeId, t.mem.tasks.rows.get("colleague")?.assigneeId]).toEqual(["m2", "h1"]);
+  });
+
+  it("передали задачу вручную — напоминание взводится заново и придёт новому ответственному", async () => {
+    const t = setup();
+    t.mem.tasks.seed({ id: "t1", dealId: "deal-1", assigneeId: "m1", dueAt: at("2026-10-01T10:30:00Z") });
+    t.mem.tasks.rows.set("t1", { ...t.mem.tasks.rows.get("t1")!, remindBeforeMin: 60, remindedAt: at("2026-10-01T09:30:00Z") });
+    await t.tasks.update(head, "t1", { assigneeId: "m2" });
+    expect(t.mem.tasks.rows.get("t1")?.remindedAt).toBeNull();
+    expect(await t.tasks.remindDue()).toBe(1);
+    expect(t.notifier.sent.at(-1)).toMatchObject({ userIds: ["m2"], n: { kind: "reminder" } });
+  });
+});
