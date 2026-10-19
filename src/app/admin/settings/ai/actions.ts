@@ -10,6 +10,7 @@ import { z } from "zod";
 import { BAD_FORM, formText, textForm } from "@/server/input";
 import type { SettingsState } from "../state";
 import { apiUrl, modelName, parseForm, secretValue, unlessEnv } from "../form-kit";
+import { botPriceDrift, botPriceWarning } from "@/server/bot-prices";
 
 // ─── AI-помощник ───────────────────────────────────────────────────────────
 
@@ -46,7 +47,9 @@ export async function saveAiAction(_: SettingsState, form: FormData): Promise<Se
   );
   await audit(staff, "settings.update", "settings", "ai", { provider: p, model: model || null, enabled: form.get("enabled") === "on", knowledge: knowledge.length });
   revalidatePath("/admin/settings");
-  return { ok: "Сохранено" };
+  // Сумма из базы знаний — разрешённая для бота: старая цена ушла бы клиенту (deals-d13). Сохраняем, но предупреждаем.
+  const warning = botPriceWarning(await botPriceDrift({ knowledge, faq: false }).catch(() => [])) ?? undefined;
+  return { ok: "Сохранено", ...(warning ? { warning } : {}) };
 }
 
 export async function testAiAction(): Promise<{ ok: boolean; message: string }> {

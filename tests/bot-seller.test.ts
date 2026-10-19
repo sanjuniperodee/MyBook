@@ -29,6 +29,7 @@ import {
   sellerTranscript,
   sellerUserPrompt,
   splitReply,
+  staleAmounts,
   withMediaText,
   type ReplyRules,
   type SellerDecision,
@@ -178,7 +179,7 @@ describe("AI-продажник: суммы, проценты, ссылки, н�
   });
 
   it("allowedAmounts: тарифы, доставка, допы, предоплата, остаток, книга+доставка; скрытый тариф и случайные числа — нет", () => {
-    const a = allowedAmounts(catalog, defaultBotConfig.sell && { prepay: 10000, prices: { hardcover: 0, digital: 0 } }, ["Сегодня скидка, итого 25 000"]);
+    const a = allowedAmounts(catalog, { prepay: 10000 }, ["Сегодня скидка, итого 25 000"]);
     for (const n of [9900, 30000, 17900, 3500, 5000, 10000, 20000, 33500, 38500, 25000]) expect(a.has(n), String(n)).toBe(true);
     expect(a.has(41000)).toBe(false); // скрытый премиум
     expect(a.has(15000)).toBe(false);
@@ -222,10 +223,13 @@ describe("AI-продажник: право выставить счёт", () => 
     expect(invoiceBlocker(agreed({ agreedQuote: "оформляйте пожалуйста" }), { ...ai, closeAsked: false, priceQuoted: false }, "оформляйте пожалуйста", true)).toBeNull();
   });
 
-  it("sellerInvoice: цена владельца или тариф, предоплата не больше цены, премиум и неизвестный — нет", () => {
+  it("sellerInvoice: цена тарифа из «Цен и тарифов», предоплата не больше цены, премиум и неизвестный — нет", () => {
     expect(sellerInvoice("hardcover", env())).toEqual({ plan: "hardcover", total: 30000, amount: 10000 });
     expect(sellerInvoice("digital", env())).toEqual({ plan: "digital", total: 9900, amount: 9900 });
-    expect(sellerInvoice("hardcover", env({ config: sellConfig({ prices: { hardcover: 25000, digital: 0 }, prepay: 0 }) }))).toEqual({ plan: "hardcover", total: 25000, amount: 25000 });
+    expect(sellerInvoice("hardcover", env({ config: sellConfig({ prepay: 0 }) }))).toEqual({ plan: "hardcover", total: 30000, amount: 30000 });
+    // Прежняя «цена в счёте бота» из сохранённых настроек больше не читается (deals-d13).
+    const legacy = parseBotConfig(JSON.stringify({ sell: { on: true, prepay: 0, invoice: true, hidePrices: false, prices: { hardcover: 25000, digital: 5000 } } }));
+    expect(sellerInvoice("hardcover", env({ config: legacy }))).toEqual({ plan: "hardcover", total: 30000, amount: 30000 });
     expect(sellerInvoice("premium", env())).toBeNull();
     expect(sellerInvoice("unknown", env())).toBeNull();
   });
@@ -288,6 +292,21 @@ describe("AI-продажник: ход (resolveSellerTurn)", () => {
     expect(fake.invoice).toBeNull();
     expect(fake.done).toBe(false);
     expect(fake.events.some((x) => x.kind === "blocked" && /quote_not_from_client/.test(x.reason ?? ""))).toBe(true);
+  });
+
+  it("подняли прайс в «Ценах и тарифах» — счёт бота по новой цене, старую сумму бот назвать не может", () => {
+    const raised = env({ catalog: { ...catalog, plans: catalog.plans.map((p) => (p.id === "hardcover" ? { ...p, price: 36000 } : p)) } });
+    const state = { ...newBotState(day, true), ai: { ...newSellerAiState(), closeAsked: true, priceQuoted: true } };
+    const r = turn(state, decision({ action: "issue_invoice", agreed: true, plan: "hardcover", agreedQuote: "да давайте", reply: "Отлично, выставляю счёт на предоплату!" }), [msg("да давайте")], { e: raised });
+    expect(r.invoice).toEqual({ plan: "hardcover", total: 36000, amount: 10000 });
+    expect(checkSellerReply("Печатная — 30 000 ₸", rulesFor(raised)).map((p) => p.kind)).toEqual(["price"]);
+    expect(checkSellerReply("Печатная — 36 000 ₸", rulesFor(raised))).toEqual([]);
+  });
+
+  it("суммы в базе знаний, которых нет в «Ценах и тарифах», — находка (после смены прайса бот назвал бы старую цену)", () => {
+    const text = "Печатная стоит 29 000 ₸, электронная 9 900 тг, с доставкой 33 500 ₸, упаковка 5к; скидка 7 тыс. До 200 фото, 1500 знаков, 2026 год.";
+    expect(staleAmounts(text, catalog, { prepay: 10000 })).toEqual([7000, 29000]);
+    expect(staleAmounts("Печатная — 30 000 ₸, предоплата 10 000 ₸, остаток 20 000 ₸", catalog, { prepay: 10000 })).toEqual([]);
   });
 
   it("счёт выключен в настройках: согласие → менеджеру «Выставить счёт», клиенту — текст «пришлёт менеджер»", () => {

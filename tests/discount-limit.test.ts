@@ -7,6 +7,7 @@ import { ClientOnboardingService, type OnboardingSales } from "@/modules/clients
 import { staffActionError } from "@/server/errors";
 import { createDealAction, setDealAgreedPlanAction, updateDealAction } from "@/app/admin/deals/actions";
 import { createClientDealsAction } from "@/app/admin/clients/new/actions";
+import { botInvoices } from "@/server/deal-invoices";
 import { Redirect, fake, kira, lena, owner, resetContainer, resetRequest, rita, signIn } from "./doubles/web";
 import { setup as clientsSetup } from "./doubles/clients";
 
@@ -19,6 +20,7 @@ const settings: Record<string, string> = {};
 vi.mock("@/modules/workspace", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/workspace")>()),
   getSetting: async (key: string) => settings[key] ?? "",
+  getSettings: async (keys: string[]) => Object.fromEntries(keys.map((k) => [k, settings[k] ?? ""])),
   listFields: async () => [],
 }));
 
@@ -191,5 +193,28 @@ describe("точки продажи: лимит сотрудника и журн
       expect(created).toHaveLength(2);
       expect(discounts()).toEqual([{ via: "client_deals", percent: 33.3, listPrice: 30_000, price: 20_000, plan: "hardcover", limit: null, deals: [41, 42] }]);
     });
+  });
+});
+
+describe("счёт бота — тоже точка продажи", () => {
+  beforeEach(() => {
+    resetRequest();
+    resetContainer();
+    for (const k of Object.keys(settings)) delete settings[k];
+    settings["crm.maxDiscount"] = "15";
+    settings["pay.transferPhone"] = "+7 700 111 22 33";
+  });
+
+  it("цену бот берёт из «Цен и тарифов», лимит — общий; прайс подняли между ходом и счётом сверх лимита — ошибка текстом, счёт выставит менеджер", async () => {
+    const limits: unknown[] = [];
+    fake.messaging = { queries: { conversation: async () => ({ id: "c1", channel: "whatsapp", chatId: "77011234567" }) } };
+    fake.ordering = {
+      kaspi: { available: async () => false },
+      // Прайс твёрдой уже 36 000, а ход бота считался по 30 000.
+      invoices: { issue: async (input: { agreedTotal: number; maxDiscountPercent: number | null }) => (limits.push(input.maxDiscountPercent), DiscountPolicy.check({ listPrice: 36_000, price: input.agreedTotal, maxPercent: input.maxDiscountPercent }), expect.unreachable()) },
+    };
+    const r = await botInvoices.issue({ conversationId: "c1", dealId: DEAL, plan: "hardcover", agreedTotal: 30_000, amount: 10_000, locale: "ru", clientName: "Айгерим", key: "bot:c1:3" });
+    expect(limits).toEqual([15]);
+    expect(r).toEqual({ error: `Цена ниже прайса (${formatPrice(36_000)}) больше чем на 15% — согласуйте с руководителем` });
   });
 });

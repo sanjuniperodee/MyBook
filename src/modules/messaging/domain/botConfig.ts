@@ -120,10 +120,11 @@ export interface BotSell {
   deliveryDays: number;
   /** Напомнить через столько часов тишины после предложения (в рабочее время); 0 — не напоминать. */
   followUpHours: number;
-  /** На «да» бот сам выставляет счёт (ссылка /pay и счёт Kaspi на номер WhatsApp). Не вышло — счёт выставит менеджер. */
+  /**
+   * На «да» бот сам выставляет счёт (ссылка /pay и счёт Kaspi на номер WhatsApp) по цене тарифа из «Цен и тарифов» —
+   * своей цены у бота нет (deals-d13: после подъёма прайса счёт не уходит по старой цене). Не вышло — счёт выставит менеджер.
+   */
   invoice: boolean;
-  /** Цена книги по договорённости для счёта бота, ₸; 0 — цена тарифа из «Цен и тарифов». */
-  prices: { hardcover: number; digital: number };
   /**
    * Кто ведёт продающую беседу: "ai" — модель (понимает свободную речь, сама отвечает; цены, сроки и счёт — под
    * контролем кода), "template" — тексты из настроек. Без подключённого AI продажник работает по шаблонам.
@@ -357,7 +358,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, prices: { hardcover: 0, digital: 0 }, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -453,8 +454,8 @@ function parseSell(raw: unknown): BotSell {
     writeDays: int(r.writeDays, 0, 30, d.writeDays),
     deliveryDays: int(r.deliveryDays, 0, 30, d.deliveryDays),
     followUpHours: int(r.followUpHours, 0, 72, d.followUpHours),
+    // Прежняя «цена в счёте бота» (sell.prices) не читается: счёт бота — по «Ценам и тарифам».
     invoice: r.invoice === true,
-    prices: { hardcover: int(record(r.prices).hardcover, 0, 10_000_000, 0), digital: int(record(r.prices).digital, 0, 10_000_000, 0) },
     engine: r.engine === "template" ? "template" : "ai",
     takeover: typeof r.takeover === "boolean" ? r.takeover : d.takeover,
     persona: typeof r.persona === "string" ? r.persona.slice(0, 1500) : d.persona,

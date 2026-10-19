@@ -46,6 +46,11 @@ export function PricingForm({ plans, addons, delivery, factory, changed }: Props
           {state.ok}
         </p>
       ) : null}
+      {state.warning ? (
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900" role="status" data-testid="pricing-bot-drift">
+          {state.warning}
+        </p>
+      ) : null}
 
       <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
         <h2 className="text-sm font-semibold">Тарифы</h2>

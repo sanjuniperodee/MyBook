@@ -35,6 +35,10 @@ export const admin = {
   kaspiAlertAfterInvalid: (max: number) => `Порог — целое число минут от 0 до ${max}`,
   /** Подпись к файлу с чужим номером, картой или реквизитами (chats-d4): файлы не отправлены. */
   sensitiveCaption: (what: string) => `В подписи ${what}. Оплата — только через счёт или ссылку из CRM, контакты клиента — через CRM. Уберите это из подписи; если номер действительно нужен (например, курьера) — отправьте его сообщением с причиной.`,
+  /** Суммы у бота не из «Цен и тарифов» (deals-d13): места и предупреждение владельцу при сохранении прайса и базы знаний. */
+  botPriceDriftKnowledge: (amounts: string) => `в базе знаний AI — ${amounts}`,
+  botPriceDriftFaq: (label: string, lang: string, amounts: string) => `в ответе бота «${label}» (${lang}) — ${amounts}`,
+  botPriceDrift: (places: string) => `Суммы, которых нет в «Ценах и тарифах»: ${places}. Бот может назвать их клиенту — поправьте, если это старая цена.`,
   /** Лимит скидки (DiscountPolicy): без тарифа цена действует на любой тариф — сравнивали с самым дорогим. */
   discountOverLimit: (max: number, listPrice: number, planless: boolean) =>
     planless

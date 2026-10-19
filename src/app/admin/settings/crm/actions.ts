@@ -9,7 +9,7 @@ import { saveSettings } from "@/modules/workspace";
 import { isValidTime } from "@/shared/domain/schedule";
 import { findSensitive, sensitiveLabels, type BotPreviewResult } from "@/modules/messaging";
 import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
-import { pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
+import { faqIntentLabels, pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
 import { FAQ_INTENTS, type FaqIntent } from "@/modules/messaging/domain/botNlu";
 import { BOT_MODES } from "@/modules/messaging/domain/bot";
 import { LESSON_MAX, MAX_LESSONS, lessonProblems } from "@/modules/messaging/domain/botCoach";
@@ -98,7 +98,6 @@ const botConfigSchema = z.object({
     deliveryDays: z.number().int().min(0).max(30, "Доставка — до 30 дней"),
     followUpHours: z.number().int().min(0).max(72, "Напоминание — не позже 72 часов"),
     invoice: z.boolean(),
-    prices: z.object({ hardcover: z.number().int().min(0).max(10_000_000), digital: z.number().int().min(0).max(10_000_000) }),
     engine: z.enum(["ai", "template"]),
     takeover: z.boolean(),
     persona: z.string().trim().max(1500, "Указания продажнику — до 1500 знаков"),
@@ -115,7 +114,7 @@ const botConfigSchema = z.object({
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });
 
-const faqLabels: Record<FaqIntent, string> = { price: "Цена", how: "Как это работает", timing: "Сроки", delivery: "Доставка", payment: "Оплата", examples: "Примеры", language: "Язык книги" };
+const faqLabels = faqIntentLabels;
 
 /** Тексты бота: цифры цен — только переменными из «Цен и тарифов», номеров и реквизитов — нет (бот их всё равно не отправит). */
 async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise<string | null> {
@@ -131,9 +130,9 @@ async function botTextsProblem(config: z.infer<typeof botConfigSchema>): Promise
     const prices = pricesOutsideCatalog(text, catalog);
     if (prices.length) return `В ${where} число «${prices[0]}» не из «Цен и тарифов» — подставьте переменную, например {цена.печатная}, а скидку напишите процентом в строке «Акция»`;
   }
-  // Счёт от бота: предоплата не больше цены печатной (электронную дешевле предоплаты бот выставит целиком).
+  // Счёт от бота (по «Ценам и тарифам»): предоплата не больше цены печатной (электронную дешевле предоплаты бот выставит целиком).
   if (config.sell.on && config.sell.invoice) {
-    const price = config.sell.prices.hardcover || catalog.plans.find((p) => p.id === "hardcover" && !p.hidden)?.price || 0;
+    const price = catalog.plans.find((p) => p.id === "hardcover" && !p.hidden)?.price || 0;
     if (price && config.sell.prepay > price) return `Предоплата больше цены печатной книги (${price.toLocaleString("ru-RU")} ₸)`;
   }
   const personaFound = findSensitive(config.sell.persona);

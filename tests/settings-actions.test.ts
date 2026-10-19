@@ -20,6 +20,7 @@ vi.mock("@/server/access", () => ({
   audit: async (_s: unknown, ...rest: unknown[]) => void w.audits.push(rest),
 }));
 vi.mock("@/modules/workspace", () => ({
+  getSetting: async (k: string) => w.stored[k] ?? "",
   fromEnv: (k: string) => w.env.has(k),
   getSettings: async (keys: string[]) => Object.fromEntries(keys.map((k) => [k, w.stored[k] ?? ""])),
   saveSettings: async (values: Record<string, string>) => void w.saved.push(values),
@@ -42,7 +43,10 @@ vi.mock("@/server/bot-site", () => ({
   },
 }));
 
+vi.mock("@/server/catalog", () => ({ ensureCatalog: async () => {}, saveCatalog: async (next: unknown) => void w.saved.push({ catalog: JSON.stringify(next) }) }));
+
 const actions = {
+  ...(await import("@/app/admin/pricing/actions")),
   ...(await import("@/app/admin/settings/wazzup/actions")),
   ...(await import("@/app/admin/settings/telephony/actions")),
   ...(await import("@/app/admin/settings/crm/actions")),
@@ -167,6 +171,16 @@ describe("AI-помощник и корректор", () => {
     expect(w.saved).toHaveLength(1);
   });
 
+  it("база знаний: суммы не из «Цен и тарифов» — сохраняется, но с предупреждением (бот назвал бы старую цену)", async () => {
+    const ok = { provider: "openrouter", aiModel: "", knowledge: "" };
+    expect(await actions.saveAiAction({}, form({ ...ok, knowledge: "Печатная — 30 000 ₸, электронная 9 900 тг, до 200 фото" }))).toEqual({ ok: "Сохранено" });
+    const r = await actions.saveAiAction({}, form({ ...ok, knowledge: "Печатная — 29 000 ₸, по акции 25 тыс." }));
+    expect(r).toEqual({ ok: "Сохранено", warning: expect.any(String) });
+    expect(r.warning?.replace(/\s/g, " ")).toContain("в базе знаний AI — 25 000 ₸, 29 000 ₸");
+    expect(r.warning).toContain("Бот может назвать их клиенту");
+    expect(w.saved).toHaveLength(2);
+  });
+
   it("помощник: провайдер из окружения не сохраняется, берётся сохранённый", async () => {
     w.env = new Set(["ai.provider"]);
     w.stored = { "ai.provider": "anthropic" };
@@ -214,11 +228,12 @@ describe("Шаблоны ответов и бот", () => {
     expect(w.audits).toEqual([["settings.update", "settings", "bot", { mode: "fallback", channels: ["whatsapp", "site"], questions: 1, faq: ["price", "how", "timing", "delivery", "payment", "examples", "language"], ai: false, sell: false, engine: "ai", takeover: true, invoice: false }]]);
   });
 
-  it("бот продаёт: предоплата не больше цены печатной в счёте бота", async () => {
+  it("бот продаёт: предоплата не больше цены печатной из «Цен и тарифов» (своей цены в счёте у бота нет)", async () => {
     const sell = (p: Partial<BotConfig["sell"]>) => ({ mode: "always" as const, ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: true, invoice: true, ...p } });
     expect(await actions.saveBotAction(sell({ prepay: 10000 }))).toEqual({ ok: "Сохранено" });
     expect(await actions.saveBotAction(sell({ prepay: 35000 }))).toEqual({ error: expect.stringMatching(/^Предоплата больше цены печатной книги \(30\s000 ₸\)$/u) });
-    expect(await actions.saveBotAction(sell({ prepay: 35000, prices: { hardcover: 40000, digital: 0 } }))).toEqual({ ok: "Сохранено" });
+    // Прежнее поле «цена в счёте бота» из старой формы не сохраняется и не поднимает потолок предоплаты.
+    expect(await actions.saveBotAction({ ...sell({ prepay: 35000 }), sell: { ...sell({ prepay: 35000 }).sell, prices: { hardcover: 40000, digital: 0 } } } as never)).toEqual({ error: expect.stringMatching(/^Предоплата больше цены печатной книги/u) });
   });
 
   it("бот-продажник на AI: вопросы не обязательны; потолок беседы и указания проверяются; номер в указаниях — нет", async () => {
@@ -261,5 +276,19 @@ describe("Шаблоны ответов и бот", () => {
     expect(await actions.previewBotAction({ config: defaultBotConfig, turns: [], workTime: true, client: "new", name: "" })).toEqual({ error: "Напишите сообщение клиента" });
     expect(await actions.previewBotAction({ config: defaultBotConfig, turns: [[{ text: "Здравствуйте", type: "text" }]], workTime: false, client: "order", name: "Айгерим" })).toMatchObject({ result: { turns: 1 } });
     expect(w.saved).toEqual([]);
+  });
+});
+
+describe("Цены и тарифы", () => {
+  const prices = (hardcover: string) =>
+    form({ plan_digital_price: "9900", plan_digital_visible: "on", plan_hardcover_price: hardcover, plan_hardcover_extra: "17900", plan_hardcover_visible: "on", plan_premium_price: "35000", plan_premium_extra: "24900", addon_express_price: "5000", addon_giftwrap_price: "5000", delivery_courier_price: "2000", delivery_post_price: "3500", delivery_pickup_price: "0" });
+
+  it("после сохранения — предупреждение, если в базе знаний или включённом ответе бота остались суммы не из цен", async () => {
+    expect(await actions.savePricingAction({}, prices("30000"))).toEqual({ ok: expect.stringContaining("в счетах бота") });
+    w.stored = { "ai.knowledge": "Печатная — 29 000 ₸", "bot.config": JSON.stringify({ ...defaultBotConfig, faq: { ...defaultBotConfig.faq, price: { on: true, text: { ru: "Печатная — 28 000 ₸", kk: "" } } } }) };
+    const r = await actions.savePricingAction({}, prices("30000"));
+    expect(r.ok).toContain("Сохранено");
+    expect(r.warning?.replace(/\s/g, " ")).toContain("в базе знаний AI — 29 000 ₸");
+    expect(r.warning?.replace(/\s/g, " ")).toContain("в ответе бота «Цена» (RU) — 28 000 ₸");
   });
 });

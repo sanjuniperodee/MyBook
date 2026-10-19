@@ -7,6 +7,7 @@ import {
   botSellText,
   offerExpired,
   sellPlan,
+  sellerInvoice,
   channelLabel,
   preview,
   botChannelOf,
@@ -535,18 +536,18 @@ export class QualifierBot {
   }
 
   /**
-   * Клиент согласен: в режиме «Продаёт» со счётом бот выпускает счёт сам (цена — из настроек бота или тарифа, сумма —
+   * Клиент согласен: в режиме «Продаёт» со счётом бот выпускает счёт сам (цена — тариф из «Цен и тарифов», сумма —
    * предоплата) и отправляет его. Не вышло — уже отправлен текст «менеджер пришлёт счёт», задачу поставит finish.
    */
   private async invoice(conv: Conversation, state: BotState, env: BotEnv): Promise<BotState | null> {
     const sell = env.config.sell;
     if (!sell.on || !sell.invoice || !this.d.invoices) return null;
     const plan = sellPlan(state, env);
-    const total = sell.prices[plan] || env.catalog.plans.find((p) => p.id === plan && !p.hidden)?.price || 0;
-    if (!total) return null;
+    const priced = sellerInvoice(plan, env);
+    if (!priced) return null;
+    const { total, amount } = priced;
     // Человек ответил, пока бот думал, — счёт не выставляем.
     if ((await this.d.store.load(conv.id))?.state?.version !== state.version) return null;
-    const amount = sell.prepay > 0 ? Math.min(sell.prepay, total) : total;
     const deal = await this.d.sales.deal(conv.dealId!);
     const result = await this.d.invoices
       .issue({ conversationId: conv.id, dealId: conv.dealId!, plan, agreedTotal: total, amount, locale: state.lang, clientName: env.name || deal?.contactName || "", key: `bot:${conv.id}:${state.version}` })

@@ -444,28 +444,10 @@ export function BotForm({
                 Бот сам выставляет счёт
                 <span className="block text-xs text-muted">
                   На «да» бот выставляет счёт на предоплату (или на всю сумму, если предоплата 0): ссылка на оплату и счёт Kaspi на номер WhatsApp. После оплаты кабинет открывается сам. Не вышло (нет способа
-                  оплаты, сделка закрыта) — менеджеру срочная задача «Выставить счёт». Тариф — электронная, если клиент её выбрал, иначе печатная.
+                  оплаты, сделка закрыта) — менеджеру срочная задача «Выставить счёт». Тариф — электронная, если клиент её выбрал, иначе печатная; цена — из «Цен и тарифов».
                 </span>
               </span>
             </label>
-            {cfg.sell.invoice ? (
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
-                {(["hardcover", "digital"] as const).map((plan) => (
-                  <label key={plan} className="block">
-                    <span className="mb-1 block text-xs text-muted">Цена книги в счёте бота — {plan === "hardcover" ? "печатная" : "электронная"}, ₸ (пусто — из «Цен и тарифов»)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={cfg.sell.prices[plan] || ""}
-                      placeholder={vars.find((v) => v.key === (plan === "hardcover" ? "{цена.печатная}" : "{цена.электронная}"))?.value || ""}
-                      onChange={(e) => setSell({ prices: { ...cfg.sell.prices, [plan]: Math.max(0, Math.floor(Number(e.target.value) || 0)) } })}
-                      className="input h-9 w-full text-sm"
-                      aria-label={`Цена в счёте бота: ${plan === "hardcover" ? "печатная" : "электронная"}`}
-                    />
-                  </label>
-                ))}
-              </div>
-            ) : null}
             {cfg.sell.engine === "ai" ? (
               <div className="space-y-3 rounded-xl border border-line p-3">
                 <fieldset className="space-y-1.5 text-sm">

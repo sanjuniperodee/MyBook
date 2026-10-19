@@ -169,13 +169,13 @@ export function percentsIn(text: string): number[] {
 }
 
 /**
- * Какие суммы бот вправе назвать: цены тарифов, доставка, допы, предоплата, цена по договорённости из настроек, остаток
- * после предоплаты и «книга + доставка / доп / оба»; плюс суммы из текстов, которые написал владелец (акция, база знаний).
+ * Какие суммы бот вправе назвать: цены тарифов из «Цен и тарифов», доставка, допы, предоплата, остаток после предоплаты и
+ * «книга + доставка / доп / оба»; плюс суммы из текстов, которые написал владелец (акция, база знаний).
  */
-export function allowedAmounts(catalog: BotCatalog, sell: Pick<BotSell, "prepay" | "prices">, ownerTexts: string[] = []): Set<number> {
+export function allowedAmounts(catalog: BotCatalog, sell: Pick<BotSell, "prepay">, ownerTexts: string[] = []): Set<number> {
   const out = new Set<number>();
   const plans = catalog.plans.filter((p) => !p.hidden);
-  const bases = [...plans.map((p) => p.price), sell.prices.hardcover, sell.prices.digital].filter((n) => n > 0);
+  const bases = plans.map((p) => p.price).filter((n) => n > 0);
   const delivery = catalog.delivery.map((d) => d.price).filter((n) => n > 0);
   const addons = catalog.addons.map((a) => a.price).filter((n) => n > 0);
   for (const p of plans) if (p.extraCopyPrice) out.add(p.extraCopyPrice);
@@ -188,6 +188,26 @@ export function allowedAmounts(catalog: BotCatalog, sell: Pick<BotSell, "prepay"
   }
   for (const t of ownerTexts) for (const n of amountsIn(t)) out.add(n);
   return out;
+}
+
+const THOUSANDS = /(\d+(?:[.,]\d+)?)\s*(?:к|k|тыс\.?|тысяч\w*|мың\w*)(?![\p{L}\p{N}])/giu;
+
+/** Суммы с валютой: «29 000 ₸», «29000 тг», «29 тыс», «29к» (числа без валюты — не суммы: «200 фото», «1500 знаков»). */
+function moneyAmounts(text: string): number[] {
+  const out: number[] = [];
+  for (const m of text.matchAll(THOUSANDS)) out.push(Math.round(Number(m[1].replace(",", ".")) * 1000));
+  for (const m of text.replace(THOUSANDS, " ").matchAll(/(\d[\d \u00a0\u202f]*\d|\d)[ \u00a0\u202f]*(?:₸|тг(?![\p{L}])|тенге|теңге)/giu)) out.push(Number(m[1].replace(/\D/g, "")));
+  return [...new Set(out.filter((n) => n > 0))];
+}
+
+/**
+ * Суммы с валютой в тексте владельца (база знаний, ответы на частые вопросы), которых нет среди сумм из «Цен и тарифов»
+ * (allowedAmounts без текстов владельца). Бот вправе назвать сумму из базы знаний — после смены прайса он назвал бы
+ * старую цену (deals-d13): владельцу — предупреждение при сохранении базы знаний и прайса.
+ */
+export function staleAmounts(text: string, catalog: BotCatalog, sell: Pick<BotSell, "prepay">): number[] {
+  const known = allowedAmounts(catalog, sell);
+  return moneyAmounts(text).filter((n) => !known.has(n));
 }
 
 /** Проценты, которые владелец сам написал (акция, база знаний, ответы на частые вопросы): другие бот не называет. */
@@ -258,11 +278,14 @@ export interface SellerInvoice {
   amount: number;
 }
 
-/** Сумма счёта по плану: цена владельца из настроек бота, иначе тариф; предоплата не больше цены. null — цены нет. */
+/**
+ * Сумма счёта по плану: цена тарифа из «Цен и тарифов» (своей цены у бота нет — после подъёма прайса счёт не уйдёт по
+ * старой), предоплата не больше цены. null — тариф не продаётся или цены нет.
+ */
 export function sellerInvoice(plan: SellerPlan, env: Pick<BotEnv, "config" | "catalog">): SellerInvoice | null {
   if (plan !== "hardcover" && plan !== "digital") return null;
   const sell = env.config.sell;
-  const total = sell.prices[plan] || env.catalog.plans.find((p) => p.id === plan && !p.hidden)?.price || 0;
+  const total = env.catalog.plans.find((p) => p.id === plan && !p.hidden)?.price || 0;
   if (!total) return null;
   return { plan, total, amount: sell.prepay > 0 ? Math.min(sell.prepay, total) : total };
 }

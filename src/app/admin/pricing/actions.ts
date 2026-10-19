@@ -6,10 +6,13 @@ import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 import { BAD_FORM, textForm } from "@/server/input";
+import { botPriceDrift, botPriceWarning } from "@/server/bot-prices";
 
 export interface PricingState {
   error?: string;
   ok?: string;
+  /** Сохранено, но у бота остались суммы не из новых цен (база знаний, ответы на частые вопросы). */
+  warning?: string;
 }
 
 /** Цена из поля формы: целое число тенге от 0 до MAX_PRICE. */
@@ -21,8 +24,9 @@ function money(form: FormData, name: string, label: string, min = 0): number {
 }
 
 /**
- * Цены и видимость тарифов. Действуют сразу на витрине, в оформлении, сертификатах и в ответах помощника;
- * уже оформленные заказы хранят свою сумму и не меняются, а договорённая менеджером цена книги в сделке остаётся как указана.
+ * Цены и видимость тарифов. Действуют сразу на витрине, в оформлении, сертификатах, в ответах помощника и бота, в счёте
+ * бота и в лимите скидки менеджеров; уже оформленные заказы хранят свою сумму и не меняются, а договорённая менеджером цена
+ * книги в сделке остаётся как указана. Если в базе знаний AI или ответах бота остались суммы не из новых цен — предупреждение.
  */
 export async function savePricingAction(_: PricingState, form: FormData): Promise<PricingState> {
   const staff = await assertStaff("settings.manage");
@@ -50,7 +54,8 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
   // Страницы с ценами (витрина, /kniga, сертификат) пересоберутся при следующем заходе.
   revalidatePath("/", "layout");
   revalidatePath("/admin/pricing");
-  return { ok: "Сохранено. Новые цены уже действуют на сайте; оформленные заказы не меняются." };
+  const warning = botPriceWarning(await botPriceDrift().catch(() => [])) ?? undefined;
+  return { ok: "Сохранено. Новые цены уже действуют на сайте и в счетах бота; оформленные заказы не меняются.", ...(warning ? { warning } : {}) };
 }
 
 /** Вернуть заводские цены и тарифы из кода. */
@@ -61,5 +66,7 @@ export async function resetPricingAction(): Promise<PricingState> {
   await audit(staff, "pricing.reset", "settings", "catalog", { before });
   revalidatePath("/", "layout");
   revalidatePath("/admin/pricing");
-  return { ok: "Возвращены заводские цены." };
+  await ensureCatalog();
+  const warning = botPriceWarning(await botPriceDrift().catch(() => [])) ?? undefined;
+  return { ok: "Возвращены заводские цены.", ...(warning ? { warning } : {}) };
 }

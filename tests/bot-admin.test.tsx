@@ -76,7 +76,9 @@ describe("настройки бота: режим «Продаёт»", () => {
         initialTab="sell"
       />,
     );
-    for (const s of ["Бот продаёт", "Предоплата, ₸", "Бот сам выставляет счёт", "Цена книги в счёте бота — печатная", 'placeholder="30 000 ₸"', "Тексты продаж", "«Дорого», «денег нет»"]) expect(html).toContain(s);
+    for (const s of ["Бот продаёт", "Предоплата, ₸", "Бот сам выставляет счёт", "цена — из «Цен и тарифов»", "Тексты продаж", "«Дорого», «денег нет»"]) expect(html).toContain(s);
+    // Своей цены в счёте у бота нет (deals-d13): поля «Цена книги в счёте бота» больше нет.
+    expect(html).not.toContain("Цена книги в счёте бота");
     const off = renderToStaticMarkup(
       <BotForm mode="always" config={{ ...defaultBotConfig, sell: { ...defaultBotConfig.sell, on: false } }} fields={fields} defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }} vars={[]} autoReplyRules={[]} aiModel={null} seller={null} stats={null} initialTab="sell" />,
     );
@@ -100,7 +102,10 @@ describe("настройки бота: режим «Продаёт»", () => {
   it("старые настройки без sell — режим выключен; мусор в sell — заводские значения", () => {
     expect(parseBotConfig(JSON.stringify({ texts: {} })).sell).toEqual(defaultBotConfig.sell);
     expect(defaultBotConfig.sell).toMatchObject({ on: false, engine: "ai", takeover: true });
-    expect(parseBotConfig(JSON.stringify({ texts: {}, sell: { on: true, prepay: -5, followUpHours: "x", invoice: true, prices: { hardcover: 25000 } } })).sell).toMatchObject({ on: true, prepay: 0, followUpHours: 3, invoice: true, prices: { hardcover: 25000, digital: 0 } });
+    const legacy = parseBotConfig(JSON.stringify({ texts: {}, sell: { on: true, prepay: -5, followUpHours: "x", invoice: true, prices: { hardcover: 25000 } } })).sell;
+    expect(legacy).toMatchObject({ on: true, prepay: 0, followUpHours: 3, invoice: true });
+    // Прежняя «цена в счёте бота» не читается: счёт бота — по «Ценам и тарифам».
+    expect(legacy).not.toHaveProperty("prices");
   });
 });
 
