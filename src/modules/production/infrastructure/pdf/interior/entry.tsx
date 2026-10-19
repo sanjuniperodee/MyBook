@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
+import { layoutMedia } from "@/lib/book/answer-media";
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { ContentItem } from "@/lib/book/layout";
 import { dividerDrawing } from "@/lib/book/interior-art";
@@ -10,6 +11,7 @@ import { DIVIDER, HEADING, KEEP_WITH_NEXT } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { PdfDrawing } from "@/modules/production/infrastructure/pdf/art";
 import { InlineRows } from "./inline-rows";
+import { MediaCards } from "./media-card";
 import { mark, noHyphens, type PdfKit } from "./kit";
 import { TextBlock } from "./text-block";
 
@@ -61,7 +63,7 @@ function Divider({ kit, id }: { kit: PdfKit; id: string }) {
   );
 }
 
-/** Ответ целиком: блоки набора и ряды фото между ними (leadIn — капитель в начале первого блока). */
+/** Ответ целиком: блоки набора, ряды фото и карточки QR-кодов между ними (leadIn — капитель в начале первого блока). */
 function EntryBody({ kit, item, leadIn }: { kit: PdfKit; item: ContentItem; leadIn: boolean }) {
   const paragraphs = splitParagraphs(item.answer);
   const blocks = answerBlocks(paragraphs);
@@ -73,7 +75,14 @@ function EntryBody({ kit, item, leadIn }: { kit: PdfKit; item: ContentItem; lead
       paragraphs.length,
     ),
   );
-  const rowsAt = (at: number) => <InlineRows kit={kit} itemId={item.id} at={at} rows={rows.get(at)} />;
+  const media = rowsByBlock(blocks, layoutMedia(item.media ?? [], paragraphs.length));
+  // В одном месте текста сначала фото, потом QR-коды.
+  const rowsAt = (at: number) => (
+    <>
+      <InlineRows kit={kit} itemId={item.id} at={at} rows={rows.get(at)} />
+      <MediaCards kit={kit} itemId={item.id} at={at} media={media.get(at)} />
+    </>
+  );
   return (
     <>
       {blocks.length ? rowsAt(-1) : null}

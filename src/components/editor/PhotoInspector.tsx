@@ -26,7 +26,7 @@ const sizes = [
   { w: 100, label: "XL" },
 ];
 
-function Segmented<T extends string | number>({
+export function Segmented<T extends string | number>({
   value,
   options,
   onChange,
@@ -62,7 +62,7 @@ function Segmented<T extends string | number>({
   );
 }
 
-function Field({ label, children, aside }: { label: string; children: React.ReactNode; aside?: React.ReactNode }) {
+export function Field({ label, children, aside }: { label: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-muted">

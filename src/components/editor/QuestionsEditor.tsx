@@ -14,6 +14,7 @@ import { MobileBar } from "./questions/MobileBar";
 import { PhotoPicker } from "./questions/PhotoPicker";
 import { DictationControl, DictationStatus } from "./questions/DictationControl";
 import { HeadingField } from "./questions/HeadingField";
+import { MediaStrip } from "./questions/MediaStrip";
 import { PhotoStrip } from "./questions/PhotoStrip";
 import { BlankProgress, ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { SectionFields } from "./questions/SectionFields";
@@ -35,6 +36,7 @@ import { cssFont } from "@/lib/book/fonts";
 import { groupByChapter, sectionLabel, type EditorBook, type EditorChapter, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { countWords, type LetterLike } from "@/lib/book/layout";
+import type { AnswerMedia } from "@/lib/book/answer-media";
 import { cn } from "@/lib/class-names";
 
 const NO_EPIGRAPHS: Record<string, string> = {};
@@ -122,6 +124,7 @@ function EditorBody({
   const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos });
   const { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, editCaption, detachQuestions } = inlinePhotos;
   const [picker, setPicker] = useState(false);
+  const [addingMedia, setAddingMedia] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(() => {
     const byId = resumeId ? initialQuestions.find((x) => x.id === resumeId) : undefined;
     return (byId ?? initialQuestions[Math.min(Math.max(initialIndex, 0), initialQuestions.length - 1)])?.id ?? null;
@@ -189,6 +192,7 @@ function EditorBody({
       dictation.stop();
       setCurrentId(id);
       setAdding(false);
+      setAddingMedia(false);
       setDrawer(false);
       setShowTips(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -283,6 +287,13 @@ function EditorBody({
 
   // ── оглавление своей книги ──
   const { actions: outline, busy } = useOutline({ bookId: book.id, stateRef: draft.stateRef, setState: draft.setState, flush, forget: draft.forget, detachPhotos: detachQuestions, onResync: resync });
+
+  /** QR-коды раздела: правка от актуального списка (название ролика приходит позже, раздел к тому времени мог смениться). */
+  const { stateRef } = draft;
+  const updateMedia = (id: string, fn: (media: AnswerMedia[]) => AnswerMedia[]) => {
+    const cur = stateRef.current.questions.find((x) => x.id === id);
+    if (cur) patchQuestion(id, { media: fn(cur.media) });
+  };
 
   const focusTitle = () => setTimeout(() => titleField.current?.focus(), 80);
 
@@ -536,6 +547,16 @@ function EditorBody({
                 />
               ) : null}
 
+              <MediaStrip
+                key={`media-${q.id}`}
+                media={q.media}
+                answer={q.answer}
+                editable={editable}
+                adding={addingMedia}
+                onAdding={setAddingMedia}
+                update={(fn) => updateMedia(q.id, fn)}
+              />
+
               <AnswerToolbar
                 dictation={dictateControl("max-lg:hidden", false)}
                 editable={editable}
@@ -544,6 +565,7 @@ function EditorBody({
                 words={words}
                 answerPages={answerPages}
                 onPhoto={() => setPicker(true)}
+                onMedia={() => setAddingMedia((v) => !v)}
                 onAdd={() => (blank ? void addSection(q.chapter, q.id) : setAdding((v) => !v))}
                 onRemove={removeQuestion}
               />

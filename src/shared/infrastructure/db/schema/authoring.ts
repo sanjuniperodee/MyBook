@@ -19,6 +19,22 @@ export interface InlinePhotoStyle {
   frame: "none" | "line" | "polaroid" | "round";
 }
 
+/**
+ * Видео или музыка к ответу — в книге печатается QR-кодом с подписью (lib/book/answer-media.ts):
+ * пожелание близких, записанное на видео, любимая песня, кюй. В электронной версии код ещё и ссылка.
+ */
+export interface AnswerMedia {
+  /** Ключ в списке ответа (создаётся в редакторе). */
+  id: string;
+  kind: "video" | "music";
+  /** Ссылка, которую кодирует QR (уже приведённая: youtu.be/… для YouTube). */
+  url: string;
+  /** Подпись в книге: «Пожелание от бабушки», «Кюй „Адай“». */
+  title: string;
+  /** После какого абзаца стоит карточка: -1 — перед текстом, null — в конце (как у фото в ответе). */
+  anchor: number | null;
+}
+
 export const books = pgTable(
   "books",
   {
@@ -93,6 +109,8 @@ export const bookQuestions = pgTable(
     displayText: text("display_text"),
     hideHeading: boolean("hide_heading").notNull().default(false),
     answer: text("answer").notNull().default(""),
+    /** QR-коды к видео и музыке в ответе — по порядку. */
+    media: jsonb("media").$type<AnswerMedia[]>().notNull().default([]),
     ...timestamps,
   },
   (t) => [index("book_questions_book_idx").on(t.bookId, t.position)],

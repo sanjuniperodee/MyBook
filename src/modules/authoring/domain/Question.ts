@@ -1,4 +1,5 @@
 import { AggregateRoot } from "@/shared/domain";
+import { normalizeMedia, type AnswerMedia } from "@/lib/book/answer-media";
 import { countWords, CUSTOM_KEY } from "@/lib/book/layout";
 import { SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
 import { AuthoringEvents } from "./events";
@@ -19,6 +20,8 @@ export interface QuestionProps {
   title: string;
   hint: string | null;
   answer: string;
+  /** Видео и музыка — QR-коды в ответе (lib/book/answer-media.ts). */
+  media: AnswerMedia[];
   displayText: string | null;
   hideHeading: boolean;
 }
@@ -26,6 +29,8 @@ export interface QuestionProps {
 /** Правка вопроса из редактора. title и prompt меняются только у разделов своей книги — это проверяет сервис. */
 export interface QuestionPatch {
   answer?: string;
+  /** Список QR-кодов ответа целиком: битые ссылки и лишнее сверх MAX_MEDIA отбрасываются. */
+  media?: Partial<AnswerMedia>[];
   displayText?: string | null;
   hideHeading?: boolean;
   title?: string;
@@ -68,6 +73,7 @@ export class Question extends AggregateRoot<QuestionProps> {
   edit(patch: QuestionPatch) {
     const wasAnswered = this.isAnswered;
     if (patch.answer !== undefined) this.props.answer = patch.answer.slice(0, MAX_ANSWER_LENGTH);
+    if (patch.media !== undefined) this.props.media = normalizeMedia(patch.media);
     if (patch.displayText !== undefined) this.props.displayText = patch.displayText?.trim() || null;
     if (patch.hideHeading !== undefined) this.props.hideHeading = patch.hideHeading;
     if (patch.title !== undefined) this.props.title = patch.title.trim().slice(0, SECTION_TITLE_MAX);

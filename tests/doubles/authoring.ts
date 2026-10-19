@@ -1,5 +1,6 @@
 import { expect } from "vitest";
 import type { UnitOfWork } from "@/shared/application";
+import type { AnswerMedia } from "@/shared/infrastructure/db/schema";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import { countWords } from "@/lib/book/layout";
 import {
@@ -153,6 +154,7 @@ export interface MemQuestionRow {
   answer: string;
   displayText: string | null;
   hideHeading: boolean;
+  media: AnswerMedia[];
 }
 
 /** Строка book_chapters в памяти. */
@@ -198,6 +200,7 @@ export class MemOutline implements QuestionRepository, ChapterRepository {
           answer: o.answer ?? "",
           displayText: null,
           hideHeading: false,
+          media: [],
         });
       }
     });
@@ -212,7 +215,7 @@ export class MemOutline implements QuestionRepository, ChapterRepository {
   // ─── QuestionRepository ──────────────────────────────────────────────────
   findInBook = async (bookId: string, id: string) => {
     const r = this.questions.find((q) => q.id === id && q.bookId === bookId);
-    return r ? Question.restore(r.id, { bookId, userId: this.userId, position: r.position, chapter: r.chapter, key: r.key, prompt: r.prompt, title: r.title, hint: r.hint, answer: r.answer, displayText: r.displayText, hideHeading: r.hideHeading }) : null;
+    return r ? Question.restore(r.id, { bookId, userId: this.userId, position: r.position, chapter: r.chapter, key: r.key, prompt: r.prompt, title: r.title, hint: r.hint, answer: r.answer, displayText: r.displayText, hideHeading: r.hideHeading, media: r.media }) : null;
   };
   count = async (bookId: string) => this.questions.filter((q) => q.bookId === bookId).length;
   private shiftAfter(after: Question) {
@@ -220,7 +223,7 @@ export class MemOutline implements QuestionRepository, ChapterRepository {
   }
   private insert(bookId: string, chapter: string, position: number, texts: { title: string; prompt: string }) {
     const id = `s${++this.qid}`;
-    this.questions.push({ id, bookId, chapter, key: CUSTOM_QUESTION, position, seq: this.seq++, prompt: texts.prompt, title: texts.title, hint: null, answer: "", displayText: null, hideHeading: false });
+    this.questions.push({ id, bookId, chapter, key: CUSTOM_QUESTION, position, seq: this.seq++, prompt: texts.prompt, title: texts.title, hint: null, answer: "", displayText: null, hideHeading: false, media: [] });
     return id;
   }
   insertAfter = async (after: Question, prompt: string) => {
@@ -259,7 +262,7 @@ export class MemOutline implements QuestionRepository, ChapterRepository {
   save = async (question: Question) => {
     const s = question.snapshot();
     const q = this.questions.find((x) => x.id === question.id);
-    if (q) Object.assign(q, { answer: s.answer, displayText: s.displayText, hideHeading: s.hideHeading, prompt: s.prompt, title: s.title });
+    if (q) Object.assign(q, { answer: s.answer, media: s.media, displayText: s.displayText, hideHeading: s.hideHeading, prompt: s.prompt, title: s.title });
   };
   deleteCustom = async (bookId: string, id: string) => {
     const before = this.questions.length;

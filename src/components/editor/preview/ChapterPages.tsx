@@ -4,13 +4,14 @@ import { Fragment, memo, useEffect, useMemo, type MouseEvent, type RefObject } f
 import type { Messages } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
+import { layoutMedia, type AnswerMedia } from "@/lib/book/answer-media";
 import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { PT_TO_MM } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
-import { Divider, InlineRow, QuestionHeading } from "@/components/interior/entry";
+import { Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
 import { Folio, RunningHead } from "@/components/interior/folio";
 import type { PageKit } from "@/components/interior/kit";
 import { OpenerPage } from "@/components/interior/pages";
@@ -24,11 +25,11 @@ const PAGE_SHADOW = "shadow-[0_1px_3px_rgba(0,0,0,.06),0_20px_40px_-20px_rgba(0,
 type Item = { p: PreviewPhoto; style: InlinePhotoStyle };
 
 /**
- * Содержимое главы для сравнения: заголовки, ответы и фото с их видом. Глава превью перерисовывается и
+ * Содержимое главы для сравнения: заголовки, ответы, фото с их видом и QR-коды. Глава превью перерисовывается и
  * перемеряется, только когда оно меняется (или когда в ней текущий ответ).
  */
 export function chapterContentKey(ch: PreviewChapter) {
-  return [ch.key, ch.number, ch.title, ch.epigraph ?? "", ...ch.entries.map((e) => `${e.id}:${e.heading}:${e.answer}:` + e.photos.map((p) => `${p.id}:${p.url}:${p.caption}:` + JSON.stringify(normalizeStyle(p.inline))).join(","))].join("|");
+  return [ch.key, ch.number, ch.title, ch.epigraph ?? "", ...ch.entries.map((e) => `${e.id}:${e.heading}:${e.answer}:` + e.photos.map((p) => `${p.id}:${p.url}:${p.caption}:` + JSON.stringify(normalizeStyle(p.inline))).join(",") + `:${JSON.stringify(e.media)}`)].join("|");
 }
 
 export interface ChapterPagesProps {
@@ -76,7 +77,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
 
   // Ряды фото по блокам набора (answer-blocks): −1 — перед текстом, i — после блока i, END — в конце.
   const info = useMemo(() => {
-    const out = new Map<string, { paragraphs: string[]; blocks: AnswerBlock[]; layout: Map<number, Item[][]> }>();
+    const out = new Map<string, { paragraphs: string[]; blocks: AnswerBlock[]; layout: Map<number, Item[][]>; media: Map<number, AnswerMedia[]> }>();
     for (const e of ch.entries) {
       const paragraphs = splitParagraphs(e.answer);
       const items = e.photos.map((p) => {
@@ -85,7 +86,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
         return { p, style };
       });
       const blocks = answerBlocks(paragraphs);
-      out.set(e.id, { paragraphs, blocks, layout: rowsByBlock(blocks, layoutInline(items, paragraphs.length)) });
+      out.set(e.id, { paragraphs, blocks, layout: rowsByBlock(blocks, layoutInline(items, paragraphs.length)), media: rowsByBlock(blocks, layoutMedia(e.media, paragraphs.length)) });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- содержимое главы описывает contentKey
@@ -105,7 +106,11 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     const anchor = key === END || key < 0 ? key : d.blocks[key].to;
     // Ряд и фото рисует вёрстка книги (InlineRow — как в PDF и на разворотах), превью добавляет поверх только интерактивность.
     const layer = previewPhotoLayer({ t, kit, live: entry.id === currentId && interactive && !!drag, isMeasure, measure: measureThis, selectedId, drag: drag!, onChange });
-    return (d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />);
+    return [
+      ...(d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />),
+      // QR-коды — после фото того же места; в превью без ссылки (клик по странице выбирает ответ).
+      ...(d.media.get(key) ?? []).map((m) => <MediaCard key={`${anchor}-m-${m.id}`} kit={kit} media={m} data-entry={entry.id} data-media={m.id} />),
+    ];
   };
 
   const renderEntry = (entry: PreviewEntry, first: boolean, isMeasure: boolean) => {
@@ -146,7 +151,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
               {i < d.blocks.length - 1 ? renderRows(entry, i, isMeasure) : null}
             </Fragment>
           ))
-        ) : entry.photos.length ? null : (
+        ) : entry.photos.length || entry.media.length ? null : (
           <p style={{ fontFamily: cssFont(design.type.body), fontSize: bodyPx, lineHeight: design.type.lineHeight, color: P.rule, fontStyle: "italic" }}>{t.empty}</p>
         )}
         {renderRows(entry, END, isMeasure)}

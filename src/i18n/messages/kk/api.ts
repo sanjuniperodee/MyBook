@@ -30,6 +30,7 @@ export const api: typeof ru = {
   questionsLimit: "Сұрақтар санының шегіне жеттіңіз",
   questionEmpty: "Сұрақты жазыңыз",
   answerTooLong: "Жауап тым ұзын",
+  tooManyMedia: "Бір жауапқа 8 QR-кодтан артық емес",
   unknownCover: "Белгісіз мұқаба",
   unknownInterior: "Беттердің белгісіз безендірілуі",
   unknownBackLayout: "Артқы беттің белгісіз нұсқасы",

@@ -33,7 +33,7 @@ export function editorEstimate(book: EditorBook, questions: EditorQuestion[], ph
     // Подзаголовок, имена и обложка на число полос не влияют; фото обложки в списке редактора уже нет.
     { ...book, subtitle: "", authorName: "", recordedBy: "", recipientName: "", coverPhotoId: null },
     // Заголовок по умолчанию в редакторе уже в роде автора и адресата, свой текст (custom) — как у автора.
-    questions.map((q, position) => ({ id: q.id, chapter: q.chapter, position, title: q.defaultTitle, displayText: q.displayText, hideHeading: q.hideHeading, answer: q.answer, questionKey: q.isCustom ? CUSTOM_KEY : null })),
+    questions.map((q, position) => ({ id: q.id, chapter: q.chapter, position, title: q.defaultTitle, displayText: q.displayText, hideHeading: q.hideHeading, answer: q.answer, media: q.media, questionKey: q.isCustom ? CUSTOM_KEY : null })),
     photos.map((p) => toPhotoItem({ ...p, inline: p.inline ?? null, storageKey: "", thumbKey: "" })),
     editorTexts(questions, chapters, book.kind === "blank"),
     undefined,

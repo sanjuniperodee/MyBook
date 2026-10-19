@@ -117,6 +117,7 @@ export function useQuestionsDraft({
       displayText: null,
       hideHeading: false,
       answer: "",
+      media: [],
       isCustom: true,
     };
     const at = questions.findIndex((x) => x.id === after.id) + 1;
