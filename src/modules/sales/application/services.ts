@@ -46,6 +46,8 @@ export interface NewDeal {
    * лимита). Не передан — внутренний вызов, цену уже проверили (копии пакета, онбординг, счёт из чата).
    */
   maxDiscountPercent?: number | null;
+  /** Сделку создало правило автоматизации — для его статистики. */
+  automationId?: string | null;
 }
 
 /** Снимок сделки для вызывающего кода (страницы, чаты, телефония). */
@@ -120,6 +122,7 @@ export class DealsService {
           unsorted,
           customFields: input.customFields ?? {},
           utm: (input.utm as Record<string, string> | null | undefined) ?? profile?.utm ?? null,
+          automationId: input.automationId ?? null,
         },
         stage,
         this.clock.now(),

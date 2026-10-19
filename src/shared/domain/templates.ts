@@ -1,9 +1,9 @@
 /** Переменные в текстах автоматизаций и шаблонов. Общие для правил автоматизаций, бота в чатах, быстрых ответов и настроек. */
-export const templateVars = ["{имя}", "{заказ}", "{ссылка}", "{менеджер}", "{повод}", "{дата}", "{Название своего поля}"] as const;
+export const templateVars = ["{имя}", "{заказ}", "{ссылка}", "{менеджер}", "{повод}", "{дата}", "{получатель}", "{Название своего поля}"] as const;
 
 export function fillTemplate(
   text: string,
-  vars: { name?: string | null; order?: string | number | null; link?: string | null; manager?: string | null; occasion?: string | null; date?: string | null; fields?: Record<string, string> },
+  vars: { name?: string | null; order?: string | number | null; link?: string | null; manager?: string | null; occasion?: string | null; date?: string | null; recipient?: string | null; fields?: Record<string, string> },
 ) {
   // Свои поля сделки: {Для кого}, {Дата события}… (незаполненные — пустая строка).
   let out = text;
@@ -15,6 +15,8 @@ export function fillTemplate(
     .replaceAll("{менеджер}", vars.manager ?? "")
     .replaceAll("{повод}", vars.occasion ?? "")
     .replaceAll("{дата}", vars.date ?? "")
+    // Кому дарили книгу: поле сделки «Для кого» или получатель из покупки (повторные продажи).
+    .replaceAll("{получатель}", (vars.recipient ?? "").trim())
     .replace(/[ \t]+([,.!?])/g, "$1")
     .replace(/,([!?.])/g, "$1")
     .replace(/[ \t]{2,}/g, " ")

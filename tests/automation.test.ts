@@ -65,7 +65,7 @@ function setup(
       await opts.onMove?.(d, s);
     },
     findOpenDealId: async () => null,
-    createDeal: async (input) => (log.push(`deal:${input.source}:${input.title}`), { id: "d9", assigneeId: null }),
+    createDeal: async (input) => (log.push(`deal:${input.source}:${input.title}:${input.automationId}`), { id: "d9", assigneeId: null }),
   };
   const scheduled: ScheduledSource = { unanswered: async () => [], inactiveClients: async () => [], anniversaries: async () => [], holidayBuyers: async () => [], firedOn: async () => 0, ...opts.scheduled };
   // График по умолчанию — каждый день 09:00–21:00 по Алматы (UTC+5).
@@ -179,7 +179,7 @@ describe("Годовщины: сделки, проданные в чате, и �
       { type: "send_message", text: "{имя}, скоро {повод} ({дата})", textKk: "{имя}, жақында {повод} ({дата})" },
     ],
   });
-  const kk = { orderId: null, dealId: "won-1", clientId: "c1", occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, client: { occasion: "Жылдық", date: "2026 жылғы 15 қараша" } };
+  const kk = { orderId: null, dealId: "won-1", clientId: "c1", occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, recipient: "Ержан", client: { occasion: "Жылдық", date: "2026 жылғы 15 қараша" } };
 
   it("сделка из чата: объект — `deal:<id>:<год>`, выигранная сделка не становится сделкой правила — повторная продажа создаётся новой", async () => {
     const { engine, claimed, loaded, log } = setup([year], { subject: { deal: null }, scheduled: { anniversaries: async () => [kk] } });
@@ -240,7 +240,7 @@ describe("Праздник через N дней: повторная прода�
     expect(asked).toEqual([{ ruleId: "ny", holiday: DEFAULT_HOLIDAYS[0], date: "2026-12-31", from: "2025-12-01", to: "2025-12-31", seasonFrom: "2026-11-01", limit: 30 }]);
     expect([...claimed]).toEqual(["ny:holiday:newyear:2026:c1"]);
     expect(log).toEqual([
-      "deal:repeat:Повторная продажа: Новый год",
+      "deal:repeat:Повторная продажа: Новый год:ny",
       "note:d9:Текст клиенту — отправьте сами (правило «Праздник → повторная продажа»):\nАйгерим, Жаңа жыл — 2026 жылғы 31 желтоқсан, жаңа кітап дайындайық па?",
       "task:Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим:null",
       "notify:staff:Задача: Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим",
@@ -277,6 +277,19 @@ describe("Праздник через N дней: повторная прода�
     const ru = setup([holiday], { now: dec1, subject: { deal: null, locale: "ru" }, scheduled: { holidayBuyers: async () => [buyer("c1")] } });
     await ru.engine.runScheduled({ force: true });
     expect(ru.log.filter((l) => l.startsWith("note:"))).toEqual(["note:d9:Текст клиенту — отправьте сами (правило «Праздник → повторная продажа»):\nАйгерим, Новый год — 31 декабря 2026 г., подготовим новую книгу?"]);
+  });
+});
+
+describe("Статистика повторных продаж и {получатель} (contacts-16)", () => {
+  it("сделка правила помнит его id; {получатель} — из покупки, к которой годовщина, иначе поле сделки «Для кого»", async () => {
+    const year = rule({ id: "year", trigger: "occasion.anniversary", actions: [{ type: "create_deal", title: "Годовщина: книга для {получатель}" }, { type: "create_task", title: "Предложить книгу для {получатель}" }] });
+    const row = { orderId: "o1", dealId: null, clientId: "c1", occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, recipient: "мамы", client: { occasion: "Годовщина", date: "15 ноября 2026 г." } };
+    const { engine, log } = setup([year], { subject: { deal: null }, scheduled: { anniversaries: async () => [row] } });
+    await engine.runScheduled({ force: true });
+    expect(log.filter((l) => l.startsWith("deal:") || l.startsWith("task:"))).toEqual(["deal:repeat:Годовщина: книга для мамы:year", "task:Предложить книгу для мамы:null"]);
+    const field = setup([rule({ actions: [{ type: "create_task", title: "Книга для {получатель}" }] })], { subject: { deal: { id: "d1", number: 5, title: "Заявка", assigneeId: null, orderId: null, clientId: "c1", customFields: { recipient: "папы" } } } });
+    await field.engine.run("deal.created", { subject: "d1" });
+    expect(field.log[0]).toBe("task:Книга для папы:null");
   });
 });
 

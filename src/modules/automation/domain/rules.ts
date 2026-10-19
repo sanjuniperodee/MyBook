@@ -68,6 +68,8 @@ export interface TriggerContext {
   date?: string | null;
   /** Они же на языке клиента — для казахского текста клиенту (textKk). */
   clientVars?: { occasion?: string | null; date?: string | null } | null;
+  /** Кому дарили книгу (повторные продажи): {получатель}. */
+  recipient?: string | null;
 }
 
 /** Условия: этап, источник, канал, рабочее время. Пустое условие — подходит всё. */

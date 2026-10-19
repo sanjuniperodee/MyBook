@@ -15,6 +15,7 @@ import { crmCounters } from "./infrastructure/Counters";
 import { getLive } from "./infrastructure/Live";
 import { queryClients, segmentCounts } from "./infrastructure/Clients";
 import { financeReport } from "./infrastructure/Finance";
+import { automationStats } from "./infrastructure/Automations";
 
 /**
  * Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц
@@ -26,6 +27,7 @@ export type { OrderFilters } from "./infrastructure/Orders";
 export type { CrmCounters } from "./infrastructure/Counters";
 export type { LiveState } from "./infrastructure/Live";
 export { STALLED_DAYS, type ClientSort } from "./infrastructure/Clients";
+export { RULE_STATS_DAYS, type RuleSalesStats } from "./infrastructure/Automations";
 
 export class ReportingModule {
   readonly salesAnalytics = salesAnalytics;
@@ -57,4 +59,6 @@ export class ReportingModule {
   readonly segmentCounts = segmentCounts;
   /** «Финансы»: деньги за период, ожидаемые доплаты, переплаты и ручные подтверждения без проверки. */
   readonly finance = financeReport;
+  /** «Автоматизации»: повторные продажи правила — создано, выиграно, оплачено за 90 дней. */
+  readonly automationStats = automationStats;
 }

@@ -19,6 +19,7 @@ import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { timestamps } from "./columns";
 import { users } from "./identity";
 import { orders } from "./ordering";
+import { crmAutomations } from "./automation";
 
 /** Воронка продаж: «Продажи», «Корпоративные», «Партнёры»… У каждой свои этапы. */
 export const crmPipelines = pgTable("crm_pipelines", {
@@ -85,6 +86,8 @@ export const crmDeals = pgTable(
     /** Последнее AI-резюме сделки: ситуация, следующий шаг, «температура». */
     aiSummary: jsonb("ai_summary").$type<{ summary: string; nextStep: string; dueDays: number; temperature: "hot" | "warm" | "cold"; risks: string; at: string }>(),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    /** Правило автоматизации, которое создало сделку (повторная продажа): «создано / выиграно / сумма» в «Автоматизациях». */
+    automationId: uuid("automation_id").references(() => crmAutomations.id, { onDelete: "set null" }),
     stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     ...timestamps,
@@ -96,6 +99,8 @@ export const crmDeals = pgTable(
     index("crm_deals_assigned_idx").on(t.assignedAt),
     // Выигранные сделки за период (вьюха revenue_events): правило «праздник» — кто покупал к празднику год назад.
     index("crm_deals_closed_idx").on(t.closedAt).where(sql`${t.closedAt} is not null`),
+    // Статистика правил: сделки, созданные правилом.
+    index("crm_deals_automation_idx").on(t.automationId).where(sql`${t.automationId} is not null`),
   ],
 );
 

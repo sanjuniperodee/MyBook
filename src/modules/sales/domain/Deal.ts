@@ -34,6 +34,8 @@ export interface DealProps {
   tags: string[];
   stageChangedAt: Date;
   closedAt: Date | null;
+  /** Правило автоматизации, которое создало сделку (повторная продажа): статистика правила «создано / выиграно / сумма». */
+  automationId?: string | null;
 }
 
 /** Запись в ленту сделки (история, звонки, сообщения, заметки менеджеров). */

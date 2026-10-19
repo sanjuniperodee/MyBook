@@ -351,6 +351,13 @@
       "when": 1792404977009,
       "tag": "0049_holiday_rule",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792405594209,
+      "tag": "0050_deal_automation",
+      "breakpoints": true
     }
   ]
 }

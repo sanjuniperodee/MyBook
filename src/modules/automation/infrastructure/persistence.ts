@@ -192,15 +192,15 @@ export class SqlScheduledSource implements ScheduledSource {
    */
   async anniversaries(ruleId: string, today: string, daysBefore: number) {
     const tz = storeTimeZone();
-    const { rows } = await executor().execute<{ order_id: string | null; deal_id: string | null; client_id: string; code: string | null; label: string | null; locale: string; next_date: string; year: number }>(sql`
+    const { rows } = await executor().execute<{ order_id: string | null; deal_id: string | null; client_id: string; code: string | null; label: string | null; recipient: string | null; locale: string; next_date: string; year: number }>(sql`
       with base as (
         select o.id as order_id, null::uuid as deal_id, o.user_id as client_id, b.occasion as code, null::text as label,
-          coalesce(b.occasion_date, o.desired_date)::date as d
+          nullif(b.recipient_name, '') as recipient, coalesce(b.occasion_date, o.desired_date)::date as d
         from orders o join books b on b.id = o.book_id
         where ${paidAndNotCancelled} and coalesce(b.occasion_date, o.desired_date) is not null
           and coalesce(b.occasion, '') <> 'graduation'
         union all
-        select null, d.id, d.client_id, null, nullif(d.custom_fields->>'occasion', ''), ${safeDate(sql`d.custom_fields->>'event_date'`)}
+        select null, d.id, d.client_id, null, nullif(d.custom_fields->>'occasion', ''), nullif(d.custom_fields->>'recipient', ''), ${safeDate(sql`d.custom_fields->>'event_date'`)}
         from crm_deals d join crm_stages s on s.id = d.stage_id and s.kind = 'won'
         where d.client_id is not null and coalesce(d.custom_fields->>'occasion', '') <> ${GRADUATION_LABEL}
           and not exists (select 1 from orders o where o.id = d.order_id and ${paidAndNotCancelled})
@@ -209,7 +209,7 @@ export class SqlScheduledSource implements ScheduledSource {
       ), nxt2 as (
         select *, case when this_year < ${today}::date then (this_year + interval '1 year')::date else this_year end as next_date from nxt
       )
-      select n.order_id, n.deal_id, n.client_id, n.code, n.label, u.locale, to_char(n.next_date, 'YYYY-MM-DD') as next_date, extract(year from n.next_date)::int as year
+      select n.order_id, n.deal_id, n.client_id, n.code, n.label, n.recipient, u.locale, to_char(n.next_date, 'YYYY-MM-DD') as next_date, extract(year from n.next_date)::int as year
       from nxt2 n join users u on u.id = n.client_id
       where n.next_date > n.d and n.next_date - ${today}::date between 0 and ${daysBefore}
         and ${notFired(ruleId, sql`case when n.order_id is not null then n.order_id::text else 'deal:' || n.deal_id::text end || ':' || extract(year from n.next_date)::int::text`)}
@@ -226,6 +226,7 @@ export class SqlScheduledSource implements ScheduledSource {
         occasion: occasionLabel(r.code, r.label, "ru"),
         date: formatDate(r.next_date),
         year: r.year,
+        recipient: r.recipient?.trim() || null,
         client: { occasion: occasionLabel(r.code, r.label, locale), date: formatDate(r.next_date, false, locale) },
       };
     });

@@ -45,7 +45,8 @@ export interface SalesGateway {
   assign(dealId: string, userId: string): Promise<void>;
   move(dealId: string, stageId: string): Promise<void>;
   findOpenDealId(clientId: string): Promise<string | null>;
-  createDeal(input: { title: string; source: "repeat" | "manual"; clientId: string; contactName: string; contactPhone: string | null; contactEmail: string; assigneeId: string | null }): Promise<{ id: string; assigneeId: string | null }>;
+  /** automationId — правило, которое создаёт сделку: по нему считается его статистика. */
+  createDeal(input: { title: string; source: "repeat" | "manual"; clientId: string; contactName: string; contactPhone: string | null; contactEmail: string; assigneeId: string | null; automationId: string }): Promise<{ id: string; assigneeId: string | null }>;
 }
 
 /**
@@ -57,13 +58,14 @@ export interface ScheduledSource {
   inactiveClients(ruleId: string, days: number): Promise<{ dealId: string; clientId: string; lastSeen: Date }[]>;
   /**
    * Годовщины покупок к поводу через 0…daysBefore дней от today (ГГГГ-ММ-ДД по поясу магазина): заказ сайта (orderId)
-   * или выигранная сделка из чата (dealId). occasion и date — по-русски (задачи, сделки), client — на языке клиента.
+   * или выигранная сделка из чата (dealId). occasion и date — по-русски (задачи, сделки), client — на языке клиента;
+   * recipient — кому дарили (получатель книги или поле сделки «Для кого»).
    */
   anniversaries(
     ruleId: string,
     today: string,
     daysBefore: number,
-  ): Promise<{ orderId: string | null; dealId: string | null; clientId: string; occasion: string; date: string; year: number; client: { occasion: string; date: string } }[]>;
+  ): Promise<{ orderId: string | null; dealId: string | null; clientId: string; occasion: string; date: string; year: number; recipient: string | null; client: { occasion: string; date: string } }[]>;
   /**
    * Покупатели к празднику прошлого года: оплата или выигранная сделка в днях from…to (ГГГГ-ММ-ДД по поясу магазина).
    * Без открытой сделки, без покупки с seasonFrom (уже купили в этом сезоне), не из стоп-листа; клиент, для которого

@@ -43,7 +43,7 @@ function describe(r: Rule, ctx: Ctx) {
   return { trigger: t + cond, actions: r.actions.map((a) => automationActions[a.type]).join(", ") };
 }
 
-export function AutomationCard({ rule, stats, ctx }: { rule: Rule | null; stats: { runs: number; last: string | null } | null; ctx: Ctx }) {
+export function AutomationCard({ rule, stats, ctx }: { rule: Rule | null; stats: { runs: number; last: string | null; sales?: string | null } | null; ctx: Ctx }) {
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   if (!rule && !editing)
@@ -69,6 +69,11 @@ export function AutomationCard({ rule, stats, ctx }: { rule: Rule | null; stats:
         {stats ? (
           <div className="mt-1 text-[11px] text-muted">
             сработало {stats.runs} раз{stats.last ? ` · последний ${stats.last}` : ""}
+          </div>
+        ) : null}
+        {stats?.sales ? (
+          <div className="mt-0.5 text-[11px] text-emerald-800" data-testid="automation-sales">
+            {stats.sales}
           </div>
         ) : null}
       </div>

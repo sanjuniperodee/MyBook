@@ -88,6 +88,8 @@ export class AutomationEngine {
       manager: await this.subjects.managerName(s.assigneeId),
       occasion: ctx.occasion ?? "",
       date: ctx.date ?? "",
+      // Кому дарили: из покупки, к которой годовщина, иначе — поле сделки «Для кого».
+      recipient: ctx.recipient || String(s.deal?.customFields?.recipient ?? ""),
       fields: s.deal ? await this.subjects.dealFieldVars(s.deal.customFields) : {},
     };
   }
@@ -150,6 +152,7 @@ export class AutomationEngine {
           contactPhone: client.phone,
           contactEmail: client.email,
           assigneeId: a.userId || client.managerId || null,
+          automationId: rule.id,
         });
         s.deal = (await this.subjects.load({ subject: "", dealId: deal.id })).deal;
         s.assigneeId = s.assigneeId ?? deal.assigneeId;
@@ -245,7 +248,7 @@ export class AutomationEngine {
       for (const r of await this.scheduled.anniversaries(rule.id, zonedDay(now), conditionNumber(rule, "daysBefore", 30, 120))) {
         // Сделка из чата — не объект правила: она выиграна, повторная продажа — новая сделка («Создать сделку»).
         const subject = r.orderId ? `${r.orderId}:${r.year}` : `deal:${r.dealId}:${r.year}`;
-        await fire(rule, { subject, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client });
+        await fire(rule, { subject, orderId: r.orderId, clientId: r.clientId, workTime, occasion: r.occasion, date: r.date, clientVars: r.client, recipient: r.recipient });
       }
     });
     await this.holidayRules(rules, now, workTime, fire);

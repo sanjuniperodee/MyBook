@@ -127,7 +127,8 @@ export class ChatView {
       conv.dealId ? db.query.crmDeals.findFirst({ where: eq(crmDeals.id, conv.dealId), columns: { customFields: true } }) : null,
       this.deps.fields.list("deal"),
     ]);
-    return { name: conv.contactName.split(" ")[0] ?? "", order: lastOrder?.number ?? null, link: env.appUrl, manager: managerName, fields: fieldVars(fields, deal?.customFields) };
+    const recipient = deal?.customFields?.recipient;
+    return { name: conv.contactName.split(" ")[0] ?? "", order: lastOrder?.number ?? null, link: env.appUrl, manager: managerName, recipient: typeof recipient === "string" ? recipient : "", fields: fieldVars(fields, deal?.customFields) };
   }
 
   /** Почему отправка сейчас не сработает (показываем над полем ввода). */

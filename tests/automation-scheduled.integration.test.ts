@@ -39,7 +39,7 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     ids.order = await order(ids.buyer, { occasion: "birthday", date: "2025-11-20", paidAt: "2025-10-25T10:00:00Z" });
     // Сделки, проданные в чате (выиграны, без оплаченного заказа), — повод и дата в своих полях сделки.
     ids.kk = await user("kk", { locale: "kk" });
-    ids["deal-kk"] = await wonDeal(ids.kk, { event_date: "2025-11-15", occasion: "Годовщина" });
+    ids["deal-kk"] = await wonDeal(ids.kk, { event_date: "2025-11-15", occasion: "Годовщина", recipient: "Ержан" });
     // Купил снова после повода: оплаченный заказ весной — годовщины нет; выигранная сделка весной — тоже.
     ids.again = await user("again");
     ids["deal-again"] = await wonDeal(ids.again, { event_date: "2025-11-10", occasion: "Годовщина" });
@@ -85,7 +85,7 @@ run("automation: выборки правил по времени (PostgreSQL)", 
   const user = (key: string, o: { locale?: string; phone?: string } = {}) =>
     one(sql`insert into users (email, password_hash, name, locale, phone) values (${`${tag}-${key}@test.kz`}, 'x', ${tag}, ${o.locale ?? "ru"}, ${o.phone ?? null}) returning id`);
   const order = async (userId: string, o: { occasion: string; date: string; paidAt: string }) => {
-    const book = await one(sql`insert into books (user_id, theme, occasion, occasion_date) values (${userId}, 'mom', ${o.occasion}, ${o.date}) returning id`);
+    const book = await one(sql`insert into books (user_id, theme, occasion, occasion_date, recipient_name) values (${userId}, 'mom', ${o.occasion}, ${o.date}, 'Мама') returning id`);
     return one(sql`
       insert into orders (user_id, book_id, plan, items_amount, amount, currency, payment_provider, contact_name, contact_email, contact_phone, status, paid_at)
       values (${userId}, ${book}, 'hardcover', 20000, 20000, 'KZT', 'cloudpayments', ${tag}, ${`${tag}@test.kz`}, '77010000000', 'paid', ${o.paidAt})
@@ -127,8 +127,8 @@ run("automation: выборки правил по времени (PostgreSQL)", 
 
   it("годовщины: заказ сайта и сделка из чата; ближайшие первыми; повод и дата клиенту — на его языке (contacts-16, automation-d6)", async () => {
     expect(await anniversaries()).toEqual([
-      { orderId: null, dealId: ids["deal-kk"], clientId: ids.kk, occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, client: { occasion: "Жылдық", date: expect.stringContaining("2026") } },
-      { orderId: ids.order, dealId: null, clientId: ids.buyer, occasion: "День рождения", date: "20 ноября 2026 г.", year: 2026, client: { occasion: "День рождения", date: "20 ноября 2026 г." } },
+      { orderId: null, dealId: ids["deal-kk"], clientId: ids.kk, occasion: "Годовщина", date: "15 ноября 2026 г.", year: 2026, recipient: "Ержан", client: { occasion: "Жылдық", date: expect.stringContaining("2026") } },
+      { orderId: ids.order, dealId: null, clientId: ids.buyer, occasion: "День рождения", date: "20 ноября 2026 г.", year: 2026, recipient: "Мама", client: { occasion: "День рождения", date: "20 ноября 2026 г." } },
     ]);
   });
 

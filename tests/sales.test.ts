@@ -214,6 +214,12 @@ describe("Круг: распределение заявок", () => {
     expect(router.locks).toBe(1);
   });
 
+  it("сделка, созданная правилом, помнит правило (статистика повторных продаж, contacts-16); обычная — нет", async () => {
+    const { service } = setup();
+    expect((await service.create({ title: "Повторная продажа: Новый год", source: "repeat", clientId: "c1", automationId: "rule-1" })).automationId).toBe("rule-1");
+    expect((await service.create(lead)).automationId).toBeNull();
+  });
+
   it("постоянный клиент — к своему менеджеру, если тот работает; отключён — по кругу", async () => {
     const { service, router } = setup();
     router.queue = ["m2"];

@@ -38,6 +38,7 @@ function toDomain(r: Row): Deal {
     tags: r.tags,
     stageChangedAt: r.stageChangedAt,
     closedAt: r.closedAt,
+    automationId: r.automationId,
   });
 }
 
@@ -115,7 +116,7 @@ export class DrizzleDealRepository implements DealRepository {
   async add(deal: Deal) {
     await executor()
       .insert(crmDeals)
-      .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, ...this.columns(deal) });
+      .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, automationId: deal.snapshot().automationId ?? null, ...this.columns(deal) });
     await this.writeJournal(deal);
   }
 
