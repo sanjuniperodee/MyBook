@@ -25,7 +25,8 @@ interface Rule {
   active: boolean;
 }
 interface Ctx {
-  stages: { id: string; name: string }[];
+  /** open — этап в работе (не «успех» и не «отказ»): «Сделка без активности» берёт только такие. */
+  stages: { id: string; name: string; open?: boolean }[];
   staff: { id: string; label: string }[];
   /** Праздники из «Интеграции» → CRM — для правила «Приближается праздник». */
   holidays: { id: string; label: string }[];
@@ -237,7 +238,7 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
               </label>
               <select className="input h-9 text-sm" value={String(conditions.stageId ?? "")} onChange={(e) => setConditions({ ...conditions, stageId: e.target.value || null })} aria-label="Этап сделки">
                 <option value="">на любом открытом этапе</option>
-                {ctx.stages.map((s) => (
+                {ctx.stages.filter((s) => s.open !== false).map((s) => (
                   <option key={s.id} value={s.id}>
                     на этапе «{s.name}»
                   </option>

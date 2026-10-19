@@ -362,7 +362,7 @@ export class SqlScheduledSource implements ScheduledSource {
   /**
    * Открытые сделки, по которым с before ничего не происходило. Кандидаты — по индексу crm_deals_stage_idx (этап, смена
    * этапа): этап открытый и не менялся с before, сделка не «неразобранная», открытой задачи нет (crm_tasks_open_deal_idx),
-   * клиент и собеседники её чатов не в стоп-листе, ни один её чат не ведёт бот (как isActive бота и silent(): состояние не
+   * клиент, телефон и доп. телефоны сделки (и без клиента) и собеседники её чатов не в стоп-листе, ни один её чат не ведёт бот (как isActive бота и silent(): состояние не
    * «done» и бот не остановлен кнопкой; чаты сделки — по crm_conv_deal_idx) — AI-продажник может ждать дня, который назвал
    * клиент (bots-5), и задача «связаться» раньше срока нарушила бы договорённость. У кандидата последняя активность —
    * самое позднее из: смены этапа; последнего сообщения в каждом чате сделки, кроме сообщений правил (входящее, ответ из
@@ -394,6 +394,7 @@ export class SqlScheduledSource implements ScheduledSource {
           and not d.unsorted
           and not exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null)
           and not exists (select 1 from crm_conversations bc join crm_blocklist bl on bl.value = bc.chat_id where bc.deal_id = d.id)
+          and not exists (select 1 from crm_blocklist bl where bl.value = any (array(select ${normalizedPhone(sql`p`)} from unnest(array[d.contact_phone] || d.extra_phones) as p)))
           and not exists (select 1 from crm_conversations bc where bc.deal_id = d.id and coalesce(bc.bot_state->>'phase', 'done') <> 'done' and coalesce(bc.bot_step, 0) <> -1)
           and (u.id is null or not ${noMarketing(sql`u`)})
       )

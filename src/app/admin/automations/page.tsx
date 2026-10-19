@@ -29,7 +29,7 @@ export default async function AutomationsPage() {
   const pipelines = await container().sales.queries.listPipelines();
   const pname = new Map(pipelines.map((p) => [p.id, p.name]));
   const ctx = {
-    stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name })),
+    stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name, open: s.kind === "open" })),
     staff: staffOptions(admins),
     holidays: parseHolidays(holidays).map((h) => ({ id: h.id, label: `${h.ru} (${h.date.slice(3)}.${h.date.slice(0, 2)})` })),
   };

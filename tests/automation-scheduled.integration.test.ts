@@ -278,7 +278,7 @@ run("automation: выборки правил по времени (PostgreSQL)", 
   describe("забытые сделки", () => {
     const idle: Record<string, string> = {};
     const ago = (days: number) => sql`now() - make_interval(hours => ${Math.round(days * 24)})`;
-    const idleKeys = ["quiet", "echo", "rule", "taskOpen", "taskDone", "taskOld", "call", "note", "system", "unsorted", "lost", "blocked", "chatBlocked", "botActive", "botDone"];
+    const idleKeys = ["quiet", "echo", "rule", "taskOpen", "taskDone", "taskOld", "call", "note", "system", "unsorted", "lost", "blocked", "chatBlocked", "phoneBlocked", "extraBlocked", "botActive", "botDone"];
     const idleDeals = async (o: { stageId?: string | null; limit?: number } = {}, ruleId = ids.rule) =>
       (await source.idleDeals(ruleId, { before: new Date(Date.now() - 3 * 86_400_000), stageId: o.stageId ?? null, limit: o.limit ?? 200 }))
         .filter((r) => idleKeys.some((k) => idle[k] === r.dealId))
@@ -315,6 +315,10 @@ run("automation: выборки правил по времени (PostgreSQL)", 
       await deal("blocked", { client: idle.blockedUser });
       await conv(await deal("chatBlocked"), `${tag}-idle-blocked`);
       await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550033', 'no_marketing', ${tag}), (${`${tag}-idle-blocked`}, 'no_marketing', ${tag})`);
+      // Сделка без клиента (заявка с сайта, звонок): её телефон или доп. телефон в «Не писать первым» — тоже не выбирается.
+      await q(sql`update crm_deals set contact_phone = '8 701 555 00 44' where id = ${await deal("phoneBlocked")}`);
+      await q(sql`update crm_deals set contact_phone = '+7 701 555 00 45', extra_phones = '{"+7 701 555 00 46"}' where id = ${await deal("extraBlocked")}`);
+      await q(sql`insert into crm_blocklist (value, reason, note) values ('77015550044', 'no_marketing', ${tag}), ('77015550046', 'spam', ${tag})`);
       // Бот ведёт чат сделки: AI-продажник ждёт дня, который назвал клиент (bots-5), — последнее его сообщение 10 дней назад,
       // но сделка не забыта. Бот закончил (или остановлен кнопкой) — его сообщение просто активность 11 дней назад.
       const botConv = async (key: string, state: { phase: string; step: number; dueDays: number | null }, days: number) => {
