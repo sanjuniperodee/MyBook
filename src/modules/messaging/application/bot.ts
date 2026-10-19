@@ -1,5 +1,6 @@
 import type { Clock, Logger } from "@/shared/application";
 import { phoneTail } from "@/shared/domain/phone";
+import { zonedDay } from "@/shared/domain/time";
 import {
   BOT_DONE,
   abandonBot,
@@ -22,6 +23,8 @@ import {
   SELLER_MAX_FOLLOW_UPS,
   followUpDelayMs,
   isWarmLead,
+  lastStartFor,
+  sellerEventDate,
   safeName,
   startBlocker,
   themeLabel,
@@ -35,9 +38,10 @@ import {
   type BotTurn,
   type Conversation,
   type InboundMessage,
+  type SellerRemind,
 } from "../domain";
 import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
-import { AiSeller, type CopilotSuggestion } from "./botSeller";
+import { AiSeller, workStartOn, type CopilotSuggestion } from "./botSeller";
 
 export { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
 import { BOT_ABANDON_MS, BOT_AI_TIMEOUT_MS, BOT_MANAGER_ACTIVE_MS, BOT_NEXT_DAY_FOLLOW_UP_MS, BOT_OFFER_IDLE_MS, BOT_PAUSE_MS } from "./botTiming";
@@ -579,6 +583,8 @@ export class QualifierBot {
     const last = new Date(state.lastBotAt ?? state.offeredAt ?? state.since).getTime();
     const ai = readSellerAi(state.ai);
     const aiEngine = state.engine === "ai";
+    // Договорились написать в названный день (или в последний день старта): лестница напоминаний не нужна — пишем в срок.
+    if (aiEngine && ai.remind) return this.remindTouch(conv, state, config, fields, now, ai.remind);
     // AI-продажник: тёплому клиенту — чаще (20 минут, несколько часов, следующий день), остальным — как раньше.
     let wait = aiEngine
       ? ai.followUps < SELLER_MAX_FOLLOW_UPS
@@ -617,11 +623,84 @@ export class QualifierBot {
       await this.d.store.setDue(conv.id, new Date(last + BOT_OFFER_IDLE_MS));
       return false;
     }
+    // Тёплый клиент с датой так и не оформил — вместо итога одно сообщение в последний день, когда ещё можно успеть.
+    if (aiEngine) {
+      const planned = await this.planLastStart(conv, state, config, fields, now);
+      if (planned !== null) return planned;
+    }
     // Итог: после предложения — «клиент молчит после предложения», на знакомстве — «не ответил боту».
     const { state: next, events } = state.stage === "offer" ? offerExpired(state) : abandonBot(state);
     if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }))) return true;
     await this.d.store.log(conv.id, conv.dealId, next.lang, events);
     await this.finish(conv, next, fields);
+    return false;
+  }
+
+  /**
+   * Срок повторного сообщения (bots-5). На момент отправки ещё раз: правило не выключили, лимит за беседу, клиент не
+   * просил не писать первым, дата события не прошла, сейчас рабочее время. Нельзя — договорённость снимается, дальше как
+   * обычно (12 часов тишины — итог менеджеру); в журнал — почему.
+   */
+  private async remindTouch(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date, remind: SellerRemind): Promise<boolean> {
+    const due = new Date(remind.at);
+    if (now.getTime() < due.getTime()) {
+      await this.later(conv.id, due);
+      return false;
+    }
+    const ai = readSellerAi(state.ai);
+    const sell = config.sell;
+    const tz = this.d.settings.timeZone();
+    const deal = await this.d.crm.deal(conv.dealId!);
+    const eventDate = sellerEventDate(state, { fields, dealValues: deal?.customFields ?? {} });
+    const today = zonedDay(now, tz);
+    let skip: string | null = !(remind.kind === "promised" ? sell.remind : sell.lastStart) ? "off" : ai.touches >= sell.remindTouches ? "limit" : eventDate && today > eventDate ? "after_event" : null;
+    if (!skip && (await this.noMarketing(conv))) skip = "no_marketing";
+    if (!skip && !(await this.d.settings.isWorkTime(now))) {
+      // Проход опоздал за конец смены: пишем с началом следующей, если она не позже даты события.
+      const next = await this.d.settings.nextWorkStart(now);
+      if (next && (!eventDate || zonedDay(next, tz) <= eventDate)) {
+        await this.later(conv.id, next);
+        return false;
+      }
+      skip = "off_hours";
+    }
+    if (skip) {
+      // Лестница напоминаний не возобновляется: «Ознакомились?» спустя дни после разговора было бы странно.
+      const next: BotState = { ...state, ai: { ...ai, remind: null, followUps: SELLER_MAX_FOLLOW_UPS }, version: state.version + 1 };
+      if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: now }))) return true;
+      await this.d.store.log(conv.id, conv.dealId, state.lang, [{ kind: "blocked", reason: `remind: ${skip}` }]);
+      return false;
+    }
+    return this.#seller.followUp(conv, state, config, fields, now, remind);
+  }
+
+  /**
+   * Клиент замолчал насовсем (напоминания кончились, 12 часов тишины), но он тёплый, не платил и назвал дату: вместо
+   * итога — одно сообщение в последний день старта (lastStartDay), если он ещё впереди, в рабочее время и в пределах
+   * remindMaxDays. Последний день нерабочий — ближайший рабочий день до него. null — не нужно, итог как раньше.
+   */
+  private async planLastStart(conv: Conversation, state: BotState, config: BotEnv["config"], fields: BotEnv["fields"], now: Date): Promise<boolean | null> {
+    const ai = readSellerAi(state.ai);
+    const sell = config.sell;
+    if (!sell.lastStart || ai.touches >= sell.remindTouches || !isWarmLead(ai)) return null;
+    const env = await this.env(conv, config, fields, now);
+    const eventDate = sellerEventDate(state, env);
+    if (!eventDate || env.paid) return null;
+    const today = zonedDay(now, env.tz);
+    const lastDay = lastStartFor(eventDate, env, ai.city);
+    if (!lastDay || lastDay <= today || (Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000 > sell.remindMaxDays) return null;
+    if (await this.noMarketing(conv)) return null;
+    let due: Date | null = null;
+    for (let back = 0; back < 7 && !due; back++) {
+      const day = new Date(Date.parse(`${lastDay}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10);
+      if (day <= today) break;
+      due = await workStartOn(this.d.settings, day, env.tz);
+    }
+    if (!due) return null;
+    const remind: SellerRemind = { kind: "last_start", at: due.toISOString(), why: eventDate };
+    const next: BotState = { ...state, ai: { ...ai, remind }, version: state.version + 1 };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: due }))) return true;
+    await this.#seller.remindNote(conv, remind, ai.summary);
     return false;
   }
 

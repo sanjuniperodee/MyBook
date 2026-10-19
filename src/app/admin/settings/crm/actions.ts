@@ -147,6 +147,10 @@ const botConfigSchema = z.object({
     facts: z.string().trim().max(2000, "Факты для продажника — до 2000 знаков"),
     productionDays: z.number().int().min(1, "Срок изготовления — от 1 дня").max(30, "Срок изготовления — до 30 дней"),
     selfImprove: z.boolean(),
+    remind: z.boolean(),
+    lastStart: z.boolean(),
+    remindMaxDays: z.number().int().min(1, "Повторное сообщение — от 1 до 180 дней вперёд").max(180, "Повторное сообщение — от 1 до 180 дней вперёд"),
+    remindTouches: z.number().int().min(1, "Повторных сообщений — от 1").max(5, "Повторных сообщений — не больше 5 за беседу"),
   }),
 });
 const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });

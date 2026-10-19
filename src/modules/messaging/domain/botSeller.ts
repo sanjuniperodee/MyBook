@@ -4,10 +4,10 @@
  * код: цены, сроки, сумма счёта, право выставить счёт, номера и ссылки в тексте. Модель только предлагает — этот модуль
  * проверяет и превращает предложение в ход (ответ, поля сделки, события, итог). Без сети и БД: целиком покрыт тестами.
  */
-import { zonedDay } from "@/shared/domain/time";
+import { fromZonedTime, zonedDay } from "@/shared/domain/time";
 import { fillFaqLines, catalogVars, type BotCatalog } from "./botFaq";
 import { faqFor, promoFor, type BotSell } from "./botConfig";
-import { botSellText, deadlinePlan, isRecipientField, type BotEnv, type BotEvent, type BotInput, type BotState } from "./botEngine";
+import { botSellText, deadlinePlan, isRecipientField, lastStartDay, type BotEnv, type BotEvent, type BotInput, type BotState } from "./botEngine";
 import { FAQ_INTENTS, faqIntents, handoffIntent, hasOrderIntent, isDecline, isHedged, objectionKind, type BotLang } from "./botNlu";
 import { findSensitive } from "./sensitive";
 import { lessonsBlock, type BotLesson } from "./botCoach";
@@ -18,8 +18,8 @@ import type { TraceDeadline, TraceNote } from "./botTrace";
 
 // ─── состояние AI-беседы ────────────────────────────────────────────────────
 
-export { SELLER_MAX_FOLLOW_UPS, SELLER_STAGES, WARM_FIRST_FOLLOW_UP_MS, followUpDelayMs, isWarmLead, newSellerAiState, readSellerAi, type SellerAiState, type SellerStage } from "./botSellerState";
-import { SELLER_STAGES, isWarmLead, readSellerAi, type SellerAiState, type SellerStage } from "./botSellerState";
+export { SELLER_MAX_FOLLOW_UPS, SELLER_STAGES, WARM_FIRST_FOLLOW_UP_MS, followUpDelayMs, isWarmLead, newSellerAiState, readSellerAi, type SellerAiState, type SellerRemind, type SellerStage } from "./botSellerState";
+import { SELLER_STAGES, isWarmLead, readSellerAi, type SellerAiState, type SellerRemind, type SellerStage } from "./botSellerState";
 export const SELLER_ACTIONS = ["reply", "wait", "issue_invoice", "handoff", "close_lost"] as const;
 export type SellerAction = (typeof SELLER_ACTIONS)[number];
 export const SELLER_HANDOFFS = ["none", "human_request", "call_request", "price_request", "paid_claim", "payment_issue", "complaint", "custom_request", "file_received", "objection", "unsure"] as const;
@@ -51,12 +51,22 @@ export interface SellerDecision {
   city: string;
   /** Отправить вместе с ответом подборку материалов (фото, видео, пример книги). */
   sendMaterials: boolean;
+  /**
+   * Клиент сам назвал, когда ему написать: «ГГГГ-ММ-ДД» или «ГГГГ-ММ-ДДTЧЧ:ММ» (как написала модель — проверяет код),
+   * «cancel» — договорённость отменена; null — не называл (или повторное сообщение выключено).
+   */
+  remindAt: string | null;
+  /** Повод словами клиента («после зарплаты») — менеджеру и модели в день сообщения. */
+  remindWhy: string;
 }
 
 const hasValue = (v: unknown) => v !== undefined && v !== null && v !== "";
 
-/** JSON-схема ответа модели: поля сделки — строки (пусто = не названо), списки — только из вариантов. */
-export function sellerSchema(fields: DealField[]) {
+/**
+ * JSON-схема ответа модели: поля сделки — строки (пусто = не названо), списки — только из вариантов. remind — с полями
+ * повторного сообщения в названное клиентом время (remind_at, remind_why; п.7б инструкции).
+ */
+export function sellerSchema(fields: DealField[], opts: { remind?: boolean } = {}) {
   const props: Record<string, unknown> = {};
   for (const f of fields.filter((x) => x.type !== "checkbox")) props[f.key] = f.type === "select" && f.options.length ? { type: "string", enum: [...f.options, ""] } : { type: "string" };
   const properties = {
@@ -74,6 +84,7 @@ export function sellerSchema(fields: DealField[]) {
     agreed_quote: { type: "string" },
     city: { type: "string" },
     send_materials: { type: "boolean" },
+    ...(opts.remind ? { remind_at: { type: "string" }, remind_why: { type: "string" } } : {}),
   };
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false } as const;
 }
@@ -145,7 +156,76 @@ export function parseSellerDecision(raw: unknown, fields: DealField[], today: Da
     agreedQuote: text(r.agreed_quote, 300),
     city: text(r.city, 60),
     sendMaterials: r.send_materials === true,
+    remindAt: text(r.remind_at, 40) || null,
+    // Повод уходит в заметку менеджеру и след хода: номера и почта — закрытыми, как в переписке для модели.
+    remindWhy: redactForModel(text(r.remind_why, 120)),
   };
+}
+
+// ─── повторное сообщение в названное клиентом время (bots-5) ────────────────
+
+/**
+ * Почему код не принял дату повторного сообщения: не дата (format), уже прошла (past), дальше remindMaxDays (too_far),
+ * позже даты события (after_event), нерабочий день или час (off_hours), лимит таких сообщений за беседу (limit), клиент
+ * просил не писать первым (no_marketing), клиент уже платил (paid).
+ */
+export const REMIND_REJECTS = ["format", "past", "too_far", "after_event", "off_hours", "limit", "no_marketing", "paid"] as const;
+export type RemindReject = (typeof REMIND_REJECTS)[number];
+
+/** Итог проверки remind_at для хода: принять (set), отменить договорённость (cancel) или отказать — модель переписывает ответ. */
+export type RemindCheck = { set: SellerRemind } | { cancel: true } | { rejected: RemindReject; problem: ReplyProblem };
+
+/** remind_at модели → день и, если клиент назвал время, момент по поясу магазина; null — не дата. */
+export function parseRemindAt(raw: string, tz: string): { day: string; at: Date | null } | null {
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}):(\d{2})(?::\d{2})?)?$/.exec(raw.trim());
+  if (!m || !validDay(m[1])) return null;
+  if (m[2] === undefined) return { day: m[1], at: null };
+  if (Number(m[2]) > 23 || Number(m[3]) > 59) return null;
+  return { day: m[1], at: fromZonedTime(`${m[1]}T${m[2]}:${m[3]}:00`, tz) };
+}
+
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
+/**
+ * Можно ли написать клиенту повторно в этот день: due — момент в рабочее время этого дня (null — в этот день или час мы
+ * не работаем), посчитанный по графику. Не дальше maxDays, не позже даты события, не тому, кто просил не писать первым
+ * или уже платил, и не больше maxTouches таких сообщений за беседу. null — можно.
+ */
+export function remindVerdict(i: { day: string; due: Date | null; now: Date; tz: string; eventDate: string | null; maxDays: number; touches: number; maxTouches: number; paid: boolean; noMarketing: boolean }): RemindReject | null {
+  if (i.noMarketing) return "no_marketing";
+  if (i.paid) return "paid";
+  if (i.touches >= i.maxTouches) return "limit";
+  const today = zonedDay(i.now, i.tz);
+  if (i.day < today) return "past";
+  if (daysBetween(today, i.day) > i.maxDays) return "too_far";
+  if (i.eventDate && i.day > i.eventDate) return "after_event";
+  if (!i.due) return "off_hours";
+  if (i.due.getTime() <= i.now.getTime()) return "past";
+  return null;
+}
+
+/** Замечание модели, почему дата не подошла и что сделать вместо неё (ответ переписывается один раз). */
+export function remindProblem(reason: RemindReject, i: { maxDays: number; eventDate: string | null }): ReplyProblem {
+  const never = "сам писать этому клиенту позже нельзя — не обещай написать ему в какой-то день: скажи, что он может написать, когда будет удобно; remind_at — пустая строка";
+  const detail: Record<RemindReject, string> = {
+    format: "remind_at — только дата ГГГГ-ММ-ДД или ГГГГ-ММ-ДДTЧЧ:ММ: срок словами переведи в конкретный день (или уточни его у клиента и оставь remind_at пустым)",
+    past: "remind_at уже прошёл: нужен день позже сегодняшнего, а если клиент просит написать сегодня — время (ГГГГ-ММ-ДДTЧЧ:ММ)",
+    too_far: `remind_at дальше ${i.maxDays} дней — так далеко вперёд не договаривайся: скажи, что клиент может написать, когда будет удобно; remind_at — пустая строка`,
+    after_event: `remind_at позже ${i.eventDate ? humanDate(i.eventDate, "ru") : "даты события"} — даты, к которой нужна книга: тогда уже поздно. Честно скажи, что лучше раньше, и предложи день до этой даты (его и поставь в remind_at) или оставь remind_at пустым`,
+    off_hours: "в этот день или час мы не работаем — назови клиенту ближайший рабочий день (можно без времени, ГГГГ-ММ-ДД) и поставь его в remind_at",
+    limit: never,
+    no_marketing: never,
+    paid: never,
+  };
+  return { kind: "rule", detail: detail[reason] };
+}
+
+/** «10 ноября, 09:00 — после зарплаты»: когда и почему бот напишет повторно (заметка менеджеру и след хода). */
+export function remindLabel(r: Pick<SellerRemind, "at" | "why" | "kind">, tz: string): string {
+  const at = new Date(r.at);
+  const when = `${humanDate(zonedDay(at, tz), "ru")}, ${new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(at)}`;
+  const why = r.kind === "last_start" ? (/^\d{4}-\d{2}-\d{2}$/.test(r.why) ? `последний день, чтобы успеть к ${humanDate(r.why, "ru")}` : "") : r.why;
+  return why ? `${when} — ${why}` : when;
 }
 
 // ─── цены: что бот вправе назвать ───────────────────────────────────────────
@@ -349,6 +429,8 @@ export interface SellerTurnContext {
   intro?: { greet: boolean } | null;
   /** Подборка материалов есть и ещё не уходила клиенту (ни от бота, ни от менеджера). */
   materials?: boolean;
+  /** Модель назвала, когда написать клиенту повторно (remind_at), — итог проверки кодом (график, лимиты, стоп-лист). */
+  remind?: RemindCheck | null;
 }
 
 const HANDOFF_REASON: Record<Exclude<SellerHandoff, "none">, string> = {
@@ -433,8 +515,11 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   // Ответ клиенту: проверка до отправки. Бот уже здоровался сегодня — повторное «Здравствуйте» в начале ответа убираем.
   let reply: string | null = (ctx.greeted ? withoutGreeting(d.reply) : d.reply) || null;
   if (ctx.greeted && reply !== (d.reply || null)) notes.push({ code: "greeting_removed" });
+  // Дата повторного сообщения не подошла, а ответ уже обещает написать в неё: модель переписывает ответ один раз; со второго
+  // раза ответ уходит, а дата отбрасывается (след хода покажет почему).
+  const remindBad = !ctx.second && d.action === "reply" && ctx.remind && "rejected" in ctx.remind ? [ctx.remind.problem] : [];
   if (reply) {
-    const problems = [...checkSellerReply(reply, ctx.rules), ...personaProblems(reply, env.config.sell)];
+    const problems = [...checkSellerReply(reply, ctx.rules), ...personaProblems(reply, env.config.sell), ...remindBad];
     if (problems.length) {
       ai.blocked += 1;
       events.push({ kind: "blocked", reason: `ai_reply: ${problemsText(problems)}`.slice(0, 200) });
@@ -465,6 +550,19 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
     return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: null });
   }
 
+  // Повторное сообщение в названное клиентом время: принятая кодом дата — в состояние беседы (по ней квалификатор и напишет).
+  const applyRemind = () => {
+    const r = ctx.remind;
+    if (!r) return;
+    if ("set" in r) {
+      ai.remind = r.set;
+      notes.push({ code: "remind_set", detail: remindLabel(r.set, env.tz) });
+    } else if ("cancel" in r) {
+      if (ai.remind) notes.push({ code: "remind_cancelled" });
+      ai.remind = null;
+    } else notes.push({ code: "remind_rejected", detail: r.rejected });
+  };
+
   // Клиент уже платил — он наш клиент, а не лид: бот помогает, но не продаёт (без «предложения», напоминаний и счёта).
   const stageOf = (st: SellerStage): SellerStage => (env.paid && funnelStage(st) === "offer" ? "discovery" : st);
 
@@ -487,6 +585,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
     }
     s.stage = stage === "offer" || s.stage === "offer" ? "offer" : "ask";
     if (reply) events.push({ kind: "answer", intent: "ai" });
+    applyRemind();
     // Третье возражение подряд — не продавать дальше, а позвать менеджера.
     if (ai.objections >= 3) {
       events.push({ kind: "handoff", reason: "objection" });
@@ -515,6 +614,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
         return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: botSellText({ ...s, lang: d.lang }, env, "handoff") || null });
       }
       ai.stage = d.stage;
+      applyRemind();
       return finish({});
     }
     case "close_lost":
@@ -621,6 +721,19 @@ export function deadlineCheck(eventIso: string, env: BotEnv, city = ""): TraceDe
   const plan = deadlinePlan(eventIso, env.now, env.tz, { ...sell, deliveryDays: isAlmaty(city) ? 0 : sell.deliveryDays }, env.catalog.productionDays);
   if (!plan) return null;
   return { date: eventIso, kind: plan.kind, fillBy: plan.fillBy, ...(plan.expressFillBy ? { expressFillBy: plan.expressFillBy } : {}), ...(city ? { city: city.slice(0, 40) } : {}) };
+}
+
+/** Дата события беседы: поле-дата сделки (ответ боту или карточка), иначе — та, что модель запомнила в состоянии. */
+export function sellerEventDate(state: Pick<BotState, "filled" | "ai">, env: Pick<BotEnv, "fields" | "dealValues">): string | null {
+  const key = env.fields.find((f) => f.type === "date")?.key;
+  const day = (v: unknown) => (typeof v === "string" && validDay(v) ? v : null);
+  return (key ? (day(state.filled[key]) ?? day(env.dealValues[key])) : null) ?? day(readSellerAi(state.ai).eventDate);
+}
+
+/** Последний день старта (lastStartDay) с доставкой по городу клиента: в Алматы — в день готовности. */
+export function lastStartFor(eventIso: string, env: Pick<BotEnv, "config" | "catalog">, city = ""): string | null {
+  const sell = env.config.sell;
+  return lastStartDay(eventIso, { ...sell, deliveryDays: isAlmaty(city) ? 0 : sell.deliveryDays }, env.catalog.productionDays);
 }
 
 /** Вердикт по сроку к дате — считает код, модель его только пересказывает. Город известен — доставка по нему. */
@@ -805,6 +918,13 @@ export interface SellerPromptInput {
   lessons?: BotLesson[];
   /** Черновик для менеджера: AI пишет от его лица, цены из фактов называть можно (их называет менеджер). */
   voice?: PromptVoice | null;
+  /**
+   * Повторное сообщение в названное клиентом время (п.7б; включено в настройках): о чём уже договорились (pending) и
+   * почему с этим клиентом договариваться нельзя (blocked: стоп-лист, лимит, уже платил); null — правила нет.
+   */
+  remind?: { pending: SellerRemind | null; blocked: RemindReject | null } | null;
+  /** Напоминание (purpose follow_up) — по договорённости или в последний день старта, а не обычное «Ознакомились?». */
+  touch?: SellerRemind | null;
 }
 
 /** Инструкция в двух частях: stable — одинакова для всех бесед при тех же настройках (кэш провайдера), dynamic — про этот ход. */
@@ -864,11 +984,14 @@ export function sellerSystemPromptParts(i: SellerPromptInput): SellerPromptParts
     : sell.hidePrices
       ? `6. Клиент готов («давайте», «хочу заказать», «как оплатить?») — action=issue_invoice, agreed=true, plan=формат (если известен), в agreed_quote дословная фраза клиента; в reply — коротко и радостно, ${self ? "что пришлёшь счёт на предоплату и откроешь доступ к сайту" : `что передаёшь ${dat}: он пришлёт счёт на предоплату и откроет доступ к сайту`}. Сумм не пиши. Сомневаешься, согласился ли клиент, — переспроси «Оформляем?» (asked_to_order=true).`
       : `6. Продажу закрываешь ты: ${self ? "счёт на предоплату выставляешь сразу — не откладывай его «на потом» и не обещай прислать позже." : `счёт на предоплату выставляешь сама, ${mgr} для этого не нужен — не пиши, что он «свяжется», «назовёт сумму» или «пришлёт счёт».`} Клиент согласился («давайте», «оформляйте», «беру», «как оплатить?») — убедись, что известен формат (печатная или электронная) и цена названа; формата не знаешь — спроси. Когда всё ясно — action=issue_invoice, agreed=true, plan=формат, в agreed_quote дословная фраза клиента; в reply — короткий тёплый текст перед счётом (без ссылок; суммы только из фактов), ссылку добавит система. Сомневаешься, согласился ли клиент, — переспроси «Оформляем?» (asked_to_order=true) и не выставляй счёт.`;
+  // Повторное сообщение в названное клиентом время (bots-5): правило в инструкции — только когда оно включено.
+  const remindOn = !voice && sell.remind;
+  const laterRemind = remindOn ? " Клиент сам называет, когда к нему вернуться, — договорись о дне (п.7б)." : "";
   const objections = voice
     ? "7. Возражения — не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции) и предложи варианты из фактов: начать с предоплаты (остальное — когда книга готова), рассрочка или Kaspi Red (если есть в фактах), электронная версия дешевле; акция — если есть. Закончи вопросом («Какой вариант вам удобнее?» / «Оформляем с предоплатой?»). Скидок и особых условий в черновике не обещай — это решает менеджер. «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение."
     : sell.hidePrices
-      ? `7. Возражения — дожимай${sama}, не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции), предложи то, что есть в фактах (рассрочка 0-0-12, Kaspi Red, предоплата, электронная версия) и задай вопрос, чтобы продолжить («Какой вариант вам удобнее?»). «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию. Передавай ${dat} (action=handoff, handoff_reason=objection), только если клиент просит скидку или особые условия, или отказывается снова уже после твоих вариантов. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение.`
-      : `7. Возражения — дожимай${sama}, не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции) и предложи варианты из фактов: начать с предоплаты (остальное — когда книга готова), рассрочка 0-0-12 или Kaspi Red, электронная версия дешевле; акция — если есть. Закончи вопросом («Какой вариант вам удобнее?» / «Оформляем с предоплатой?»). «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию. Передавай ${dat} (action=handoff, handoff_reason=objection), только если клиент просит скидку или торгуется (скидку даёт только он) или отказывается снова уже после твоих вариантов. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение.`;
+      ? `7. Возражения — дожимай${sama}, не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции), предложи то, что есть в фактах (рассрочка 0-0-12, Kaspi Red, предоплата, электронная версия) и задай вопрос, чтобы продолжить («Какой вариант вам удобнее?»). «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию.${laterRemind} Передавай ${dat} (action=handoff, handoff_reason=objection), только если клиент просит скидку или особые условия, или отказывается снова уже после твоих вариантов. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение.`
+      : `7. Возражения — дожимай${sama}, не сдавайся на первом «нет». «Дорого» / «денег нет»: «Понимаю вас 🙂», напомни ценность (книга на всю жизнь, эмоции) и предложи варианты из фактов: начать с предоплаты (остальное — когда книга готова), рассрочка 0-0-12 или Kaspi Red, электронная версия дешевле; акция — если есть. Закончи вопросом («Какой вариант вам удобнее?» / «Оформляем с предоплатой?»). «Подумаю / позже / напишу сама»: без давления, уточни, что смущает, напомни про дату и акцию.${laterRemind} Передавай ${dat} (action=handoff, handoff_reason=objection), только если клиент просит скидку или торгуется (скидку даёт только он) или отказывается снова уже после твоих вариантов. Несколько слов возражения в одном сообщении («дорого, денег нет») — это одно возражение.`;
   const salesPath = i.paid && i.paidClaimOnly
     ? [
         "## Клиент говорит, что оплатил",
@@ -895,6 +1018,7 @@ export function sellerSystemPromptParts(i: SellerPromptInput): SellerPromptParts
         price,
         close,
         objections,
+        ...(remindOn ? [remindRule(sell.remindMaxDays)] : []),
         DOUBTS_BLOCK,
       ];
   const handoffRules = voice
@@ -976,7 +1100,7 @@ export function sellerSystemPromptParts(i: SellerPromptInput): SellerPromptParts
   const allKnown = !i.paid && !questions.length;
   const format = voice
     ? "Верни JSON по схеме. summary — 1–2 предложения по-русски для менеджера: чего хочет клиент, на каком вы этапе и что важно учесть (срок, сомнение, что обещано). language — язык reply. stage — этап беседы. action — reply (клиенту нужен ответ, черновик готов) или wait (отвечать сейчас не нужно, см. п.9: клиент только принял информацию, поблагодарил или попрощался, а вопроса и начатого шага нет); handoff, issue_invoice и close_lost не используй. reply — черновик сообщения клиенту. fields — значения полей сделки, которые клиент ПРЯМО назвал (иначе пустая строка). event_date — дата, к которой нужна книга, ГГГГ-ММ-ДД (относительные даты считай от сегодняшней; иначе пустая строка). city — город клиента, если он его назвал (иначе пустая строка). plan — формат, который выбрал клиент (hardcover — печатная, digital — электронная, premium, иначе unknown). asked_to_order — true, только если reply прямо предлагает оформить. agreed/agreed_quote — согласился ли клиент оформить и его дословные слова (иначе false и пустая строка). send_materials — false."
-    : "Верни JSON по схеме. summary — 1–2 предложения по-русски для менеджера: чего хочет клиент и на каком вы этапе. language — язык reply. stage — этап беседы. action — reply (ответить), wait (молчать), issue_invoice (клиент готов оформить, см. п.6), handoff (позвать менеджера), close_lost (отказ). fields — значения полей сделки, которые клиент ПРЯМО назвал (иначе пустая строка). event_date — дата, к которой нужна книга, ГГГГ-ММ-ДД (относительные даты считай от сегодняшней; иначе пустая строка). city — город клиента, если он его назвал (иначе пустая строка). plan — формат, который выбрал клиент (hardcover — печатная, digital — электронная, premium, иначе unknown). asked_to_order — true, только если твой reply прямо предлагает оформить. agreed/agreed_quote — только как в п.6. send_materials — отправить подборку материалов (п.3б), иначе false.";
+    : "Верни JSON по схеме. summary — 1–2 предложения по-русски для менеджера: чего хочет клиент и на каком вы этапе. language — язык reply. stage — этап беседы. action — reply (ответить), wait (молчать), issue_invoice (клиент готов оформить, см. п.6), handoff (позвать менеджера), close_lost (отказ). fields — значения полей сделки, которые клиент ПРЯМО назвал (иначе пустая строка). event_date — дата, к которой нужна книга, ГГГГ-ММ-ДД (относительные даты считай от сегодняшней; иначе пустая строка). city — город клиента, если он его назвал (иначе пустая строка). plan — формат, который выбрал клиент (hardcover — печатная, digital — электронная, premium, иначе unknown). asked_to_order — true, только если твой reply прямо предлагает оформить. agreed/agreed_quote — только как в п.6. send_materials — отправить подборку материалов (п.3б), иначе false." + (remindOn ? " remind_at, remind_why — только по п.7б, иначе пустые строки." : "");
 
   const dynamic = [
     "## Сейчас",
@@ -996,11 +1120,12 @@ export function sellerSystemPromptParts(i: SellerPromptInput): SellerPromptParts
     i.deadline ? `\nСрок (посчитан системой, не пересчитывай): ${i.deadline}` : "",
     i.materials?.sent && !voice ? "\nПодборка материалов (фото, видео, пример книги) клиенту уже отправлена — send_materials=false; можно спросить, удалось ли посмотреть." : "",
     i.extraFact ? `\nДополнительный факт: ${i.extraFact}` : "",
+    i.purpose === "reply" ? remindNow(i, env.tz) : "",
     knowledge.text && knowledge.filtered ? `\nИз базы знаний владельца — по теме разговора (остальное не показано):\n${knowledge.text}` : "",
     i.takeoverMinutes !== null && !voice
       ? `\n## Режим: продолжение начатой переписки\nКлиенту уже писал${i.chatManager ? ` менеджер ${i.chatManager}` : " менеджер"}, последнее сообщение клиента без ответа ${i.takeoverMinutes} мин. Прочитай всю переписку и сначала реши, ждёт ли клиент ответа вообще (п.9): если менеджер ответил на вопрос клиента, а клиент только подтвердил («Аха», «Понятно», «Иә түсінікті», «Спасибо») — action=wait, reply пустой, ничего не придумывай. Если ответ нужен — не представляйся и не здоровайся заново: продолжай ровно с того места, где остановились, от лица компании, в том же тоне и на том же языке. Ждал давно — коротко извинись («Простите за ожидание»), не больше одного раза. Не противоречь тому, что уже сказал менеджер, не повторяй его вопросов и не называй других цен и условий.${i.chatManager ? ` Если нужно передать вопрос, пиши «уточню у коллеги» или «передам менеджеру» — без имён: с клиентом говорил(а) ${i.chatManager}.` : ""}`
       : "",
-    i.purpose === "follow_up" ? followUpRules(i.followUps, mgr, self, isWarmLead(ai)) : "",
+    i.purpose === "follow_up" ? (i.touch ? touchRules(i.touch, mgr, self) : followUpRules(i.followUps, mgr, self, isWarmLead(ai))) : "",
     i.purpose === "copilot" ? "\n## Режим: черновик для менеджера\nМенеджер попросил подсказать ответ. Прочитай всю переписку — в том числе то, что менеджер уже писал сам: не противоречь ему, не повторяй его вопросов и не называй других условий. Продолжи ровно с того места, где остановились. Если последнее сообщение — от менеджера, напиши уместное продолжение (напоминание или следующий шаг)." : "",
     i.retry?.length ? `\n## Исправление\nТвой предыдущий ответ не прошёл проверку: ${problemsText(i.retry)}. Если это правило (rule) — сделай, как в нём сказано. Эти значения (суммы, проценты, ссылки, номера) нельзя использовать, их нет в фактах. Перепиши ответ без них.` : "",
     "",
@@ -1028,6 +1153,30 @@ function materialsRule(i: SellerPromptInput, voice: PromptVoice | null): string 
   ].join("\n");
 }
 
+/**
+ * п.7б: клиент сам назвал, когда к нему вернуться («после зарплаты», «в пятницу»), — бот договаривается о конкретном
+ * дне, а написать в этот день ему напомнит система (remind_at). Дату проверяет код: рабочее время, не дальше maxDays,
+ * не позже даты события; не подошла — модель переписывает ответ.
+ */
+function remindRule(maxDays: number): string {
+  return [
+    "7б. Клиент сам называет, когда к нему вернуться («после зарплаты», «в пятницу», «ближе к празднику», «через неделю», «напишите в понедельник»), — не дави и не уговаривай прямо сейчас: тепло согласись, назови конкретный день («Хорошо, тогда напишу вам в пятницу, 24 октября 😊», по-казахски «Жақсы, онда жұма күні, 24 қазанда жазамын 😊») и поставь remind_at — этот день (ГГГГ-ММ-ДД; если клиент назвал время — ГГГГ-ММ-ДДTЧЧ:ММ по времени магазина), remind_why — коротко его словами («после зарплаты»). День непонятен («после зарплаты», «когда освобожусь») — уточни, какого числа удобно, и remind_at поставь, когда клиент ответит.",
+    `Не дальше чем через ${maxDays} дней и не позже даты, к которой нужна книга: если названный срок позже или впритык — честно скажи, что тогда можно не успеть, и предложи день раньше. Только рабочие дни и часы. Написать в этот день тебе напомнит система — ничего другого не обещай. Просто «подумаю» без срока — remind_at пустой (напомнить о себе система может и сама). Клиент передумал или напишет сам — remind_at=cancel. В остальных случаях remind_at и remind_why — пустые строки.`,
+  ].join("\n");
+}
+
+const REMIND_BLOCKED: Partial<Record<RemindReject, string>> = { no_marketing: "клиент просил не писать ему первым", limit: "повторно по договорённости уже писали", paid: "клиент уже платил" };
+
+/** Блок «Сейчас»: о каком дне уже договорились (п.7б) или почему договариваться нельзя. */
+function remindNow(i: SellerPromptInput, tz: string): string {
+  const r = i.remind;
+  if (!r) return "";
+  if (r.blocked) return `\nПовторное сообщение (п.7б): с этим клиентом не договаривайся (${REMIND_BLOCKED[r.blocked] ?? r.blocked}) — не обещай написать ему в какой-то день, скажи, что он может написать, когда будет удобно; remind_at — пустая строка.`;
+  if (r.pending?.kind !== "promised") return "";
+  const day = humanDate(zonedDay(new Date(r.pending.at), tz), "ru");
+  return `\nДоговорённость (п.7б): клиент просил написать ему ${day}${r.pending.why ? ` («${r.pending.why.replace(/\s+/g, " ").slice(0, 80)}», слова клиента)` : ""} — система напишет сама. Клиент просит перенести — новый remind_at; передумал или напишет сам — remind_at=cancel; иначе remind_at — пустая строка.`;
+}
+
 /** Системная инструкция целиком (stable + dynamic). */
 export function sellerSystemPrompt(i: SellerPromptInput): string {
   const p = sellerSystemPromptParts(i);
@@ -1051,6 +1200,19 @@ function followUpRules(sent: number, mgr: string, self = false, warm = false): s
           ? "\n## Режим: второе напоминание (в тот же день)\nКлиент так и не ответил на «Ознакомились?». Напиши ОДНО короткое сообщение с новым поводом, не повторяя прошлое: «Освободились? 🙂 Начнём создание книги?»; если есть дата и срок впритык (блок «Срок») — «чтобы успеть к …, лучше начать сегодня». Можно одну сильную мысль о ценности («многие плачут, когда читают»)."
           : `\n## Режим: последнее напоминание (на следующий день)\nЭто последнее напоминание. Начни с приветствия по времени суток и «Как ваши дела? 😊», затем один шаг: остались ли вопросы, или — если есть дата — что, чтобы успеть к ней, лучше начать в ближайшие дни. ${offerPick} Не повторяй прошлые напоминания.`;
   return `${head}\nБез давления, без «вы ещё с нами?», без выдуманных скидок и сроков. Клиент обещал написать сам — напомнить мягко нормально («Освободились? 😊»). Клиент попрощался, отказался или уже оплатил — action=wait.`;
+}
+
+/**
+ * Повторное сообщение не по лестнице напоминаний: клиент сам просил написать сегодня (promised) или сегодня последний
+ * день, когда можно начать книгу и успеть к дате (last_start, один раз). Одно короткое сообщение, как у менеджера.
+ */
+function touchRules(t: SellerRemind, mgr: string, self: boolean): string {
+  const offerPick = self ? "Можно предложить подобрать вариант." : `Можно предложить, чтобы ${mgr} подобрал вариант.`;
+  const head =
+    t.kind === "promised"
+      ? `\n## Режим: сообщение по договорённости\nКлиент сам просил написать ему сегодня${t.why ? ` («${t.why.replace(/\s+/g, " ").slice(0, 80)}», слова клиента)` : ""}. Напиши ОДНО короткое тёплое сообщение, как менеджер: поздоровайся по времени суток, напомни, что договаривались («Добрый день! 😊 Как и договаривались, пишу вам», по-казахски «Сәлеметсіз бе! 😊 Келіскеніміздей жазып отырмын»), и один шаг — продолжи с того места, где остановились (вопрос или «Начнём?»); если есть дата — по блоку «Срок». ${offerPick}`
+      : `\n## Режим: последний день, чтобы успеть к дате\nКлиент давно не отвечает, а по блоку «Срок» сегодня последний день, когда можно начать писать книгу и успеть к ${/^\d{4}-\d{2}-\d{2}$/.test(t.why) ? humanDate(t.why, "ru") : "его дате"} обычным сроком. Напиши ОДНО короткое тёплое сообщение: поздоровайся по времени суток и честно, без паники, скажи, что чтобы книга была у него вовремя, начать лучше сегодня («Добрый день! 😊 Чтобы книга успела к 25 октября, начать писать лучше сегодня — оформим?», по-казахски «Сәлеметсіз бе! 😊 Кітап 25 қазанға үлгеру үшін бүгін бастаған дұрыс — рәсімдейміз бе?»). Если в блоке «Срок» есть экспресс-печать — можно коротко упомянуть её как запас. Это единственное такое сообщение.`;
+  return `${head}\nБез давления, без «вы ещё с нами?», без выдуманных скидок и сроков. Клиент попрощался, отказался или уже оплатил — action=wait.`;
 }
 
 export interface HistoryMessage {
@@ -1139,7 +1301,9 @@ export function sellerTranscript(history: HistoryMessage[], unseenCount: number,
 }
 
 /** Запрос к модели: переписка и что от неё нужно. */
-export function sellerUserPrompt(transcript: string, purpose: "reply" | "follow_up" | "copilot", hasNew = true): string {
+export function sellerUserPrompt(transcript: string, purpose: "reply" | "follow_up" | "copilot", hasNew = true, touch: SellerRemind["kind"] | null = null): string {
+  if (purpose === "follow_up" && touch === "promised") return `Переписка (старые сверху):\n${transcript}\n\nСегодня тот день, когда клиент просил написать ему. Напиши сообщение (или action=wait, если клиент попрощался, отказался или уже оплатил) и верни JSON.`;
+  if (purpose === "follow_up" && touch === "last_start") return `Переписка (старые сверху):\n${transcript}\n\nКлиент молчит, а сегодня последний день, чтобы начать книгу и успеть к его дате. Реши, нужно ли сообщение, и верни JSON.`;
   if (purpose === "copilot") return `Переписка (старые сверху):\n${transcript}\n\nНапиши черновик следующего сообщения менеджера клиенту (или action=wait, если отвечать нечего) и верни JSON.`;
   if (purpose === "reply" && !hasNew) return `Переписка (старые сверху):\n${transcript}\n\nМенеджер запустил тебя вручную: продолжи беседу с того места, где остановились (если клиенту уже писал менеджер — не представляйся и не здоровайся заново, продолжай от лица компании; если нам здесь ещё никто не писал — начни с представления и сразу к делу). Правила могли поменяться с прошлого раза — веди беседу по нынешним из инструкции, а не по тому, что обещала раньше: если раньше ты передавала беседу менеджеру или говорила, что цену назовёт он, а теперь цену вправе называть ты, — не повторяй «менеджер свяжется», а сама ответь на последний вопрос клиента и сделай следующий шаг к оформлению. Верни JSON.`;
   return purpose === "follow_up"

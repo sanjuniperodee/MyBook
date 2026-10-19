@@ -405,8 +405,7 @@ export function deadlinePlan(
   const today = dayMs(zonedDay(now, tz));
   const event = dayMs(eventIso);
   if (!Number.isFinite(event) || event < today) return null;
-  // Срок владельца для бота («книга готовится до 5 дней», календарных) важнее рабочих дней с витрины сайта.
-  const standard = event - (sell.deliveryDays + (sell.productionDays || calendarDays(production.standard))) * DAY;
+  const standard = standardFillBy(event, sell, production);
   // Экспресс — рабочие дни (пн–пт), по верхней границе «3–4»: это платное обещание, запас важнее.
   const express = workdaysBefore(event - sell.deliveryDays * DAY, Math.max(...(production.premium.match(/\d+/g) ?? ["0"]).map(Number)));
   if (standard >= today + sell.writeDays * DAY) return { kind: "ok", fillBy: isoDay(standard) };
@@ -414,6 +413,24 @@ export function deadlinePlan(
     return express > standard ? { kind: "tight", fillBy: isoDay(standard), expressFillBy: isoDay(express) } : { kind: "tight", fillBy: isoDay(standard) };
   if (express >= today + DAY) return { kind: "express", fillBy: isoDay(express) };
   return { kind: "late", fillBy: isoDay(event) };
+}
+
+/** Последний день, чтобы дописать обычным сроком: срок владельца для бота («книга готовится до 5 дней», календарных) важнее рабочих дней с витрины. */
+function standardFillBy(event: number, sell: { deliveryDays: number; productionDays?: number }, production: { standard: string }): number {
+  return event - (sell.deliveryDays + (sell.productionDays || calendarDays(production.standard))) * DAY;
+}
+
+/**
+ * Последний день старта (bots-5): позже него deadlinePlan уже не «успеваем» и не «впритык» — только экспресс или поздно.
+ * В этот день тёплому клиенту, который так и не оформил, бот пишет один раз: «чтобы успеть к …, начать нужно сегодня».
+ * null — дата не та.
+ */
+export function lastStartDay(eventIso: string, sell: { writeDays: number; deliveryDays: number; productionDays?: number }, production: { standard: string }): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventIso)) return null;
+  const event = dayMs(eventIso);
+  if (!Number.isFinite(event)) return null;
+  // ok — пока standard ≥ день + writeDays, tight — пока standard ≥ день + max(1, writeDays − 1): последний — меньший запас.
+  return isoDay(standardFillBy(event, sell, production) - Math.min(sell.writeDays, Math.max(1, sell.writeDays - 1)) * DAY);
 }
 
 /** Последний день, чтобы дописать: печать — n рабочих дней (пн–пт) после него, книга готова к ready. */

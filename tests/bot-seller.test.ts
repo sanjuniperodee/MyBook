@@ -97,6 +97,8 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   agreedQuote: "",
   city: "",
   sendMaterials: false,
+  remindAt: null,
+  remindWhy: "",
   ...p,
 });
 const rulesFor = (e = env()): ReplyRules => ({ amounts: allowedAmounts(e.catalog, e.config.sell), percents: new Set(), urls: [e.site.url], phones: ["77010000000"] });

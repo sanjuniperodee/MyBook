@@ -1,4 +1,5 @@
 import { phoneTail } from "@/shared/domain/phone";
+import { fromZonedTime, zonedDay } from "@/shared/domain/time";
 import {
   BOT_DONE,
   allowedAmounts,
@@ -38,6 +39,11 @@ import {
   deadlineCheck,
   selectKnowledge,
   turnTrace,
+  parseRemindAt,
+  remindLabel,
+  remindProblem,
+  remindVerdict,
+  sellerEventDate,
   type BotLang,
   withMediaText,
   SELLER_MAX_FOLLOW_UPS,
@@ -56,10 +62,14 @@ import {
   type SellerTurn,
   type TraceContext,
   type TraceNote,
+  type RemindCheck,
+  type RemindReject,
+  type SellerRemind,
 } from "../domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS } from "./botTiming";
 import type { BotPreviewInput, BotPreviewResult } from "./botPreview";
 import type { QualifierBotDeps } from "./bot";
+import type { BotSettings } from "./ports";
 
 /** Сколько модель думает над одним ответом: клиент ждёт в чате. */
 export const SELLER_TIMEOUT_MS = 30_000;
@@ -117,7 +127,15 @@ const parseJson = (text: string): unknown => {
 /** Записанные поля сделки для следа хода — подписями, как в карточке сделки. */
 const fieldLabels = (values: Record<string, string | number>, fields: DealField[]) => Object.fromEntries(Object.entries(values).map(([k, v]) => [fields.find((f) => f.key === k)?.label ?? k, v]));
 
-const dayValue = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+/**
+ * Начало рабочего времени в этот день (с 09:00 по поясу магазина или позже, если смена начинается позже); null — день
+ * нерабочий. Сюда бот пишет повторно, если клиент назвал только день.
+ */
+export async function workStartOn(settings: Pick<BotSettings, "isWorkTime" | "nextWorkStart">, day: string, tz: string): Promise<Date | null> {
+  const from = fromZonedTime(`${day}T09:00:00`, tz);
+  const start = (await settings.isWorkTime(from)) ? from : await settings.nextWorkStart(from);
+  return start && zonedDay(start, tz) === day ? start : null;
+}
 
 /**
  * AI-продажник: ведёт беседу целиком. Модель — только «голова»: понимает клиента и предлагает ответ и действие. Всё, что
@@ -246,7 +264,7 @@ export class AiSeller {
    * следующий день — «Как ваши дела?»). Клиент уже платил или модель решила промолчать — больше не напоминаем.
    * Следующий шаг (второе напоминание или итог менеджеру) считает квалификатор по lastBotAt.
    */
-  async followUp(conv: Conversation, state: BotState, config: BotConfig, fields: DealField[], now: Date): Promise<boolean> {
+  async followUp(conv: Conversation, state: BotState, config: BotConfig, fields: DealField[], now: Date, touch: SellerRemind | null = null): Promise<boolean> {
     const history = await this.d.history!(conv.id, HISTORY_LIMIT);
     const ai = readSellerAi(state.ai);
     const base = await this.hooks.env(conv, config, fields, now);
@@ -255,7 +273,7 @@ export class AiSeller {
     // След напоминания («Почему так?»): решение модели, правки кода, токены; клиенту, который уже платил, модель не спрашиваем.
     let why: { decision: SellerDecision | null; context: TraceContext | null; notes: TraceNote[]; error?: string } | null = null;
     if (!env.paid) {
-      const decided = await this.decide({ conv, base: state, env, config, fields, history, fresh: [], purpose: "follow_up" });
+      const decided = await this.decide({ conv, base: state, env, config, fields, history, fresh: [], purpose: "follow_up", touch });
       // Напоминание — необязательная любезность: ошибка модели или спорный текст = молчим, не зовём менеджера.
       const decision = "turn" in decided ? decided.decision : null;
       why = "turn" in decided ? { decision, context: decided.trace, notes: [] } : { decision: null, context: null, notes: [{ code: "ai_error" }], error: decided.error };
@@ -266,11 +284,16 @@ export class AiSeller {
         else if (turn.retry) why.notes.push({ code: "follow_up_skipped", detail: problemsText(turn.retry) });
       }
     }
+    // Повторное сообщение (по договорённости или в последний день старта): считается в лимит беседы, лестница напоминаний
+    // после него не продолжается — дальше клиент отвечает сам или через 12 часов итог менеджеру.
+    if (touch && reply && why) why.notes.push({ code: touch.kind === "promised" ? "remind_touch" : "last_start", detail: remindLabel(touch, env.tz) });
     const next: BotState = {
       ...state,
       followedUp: true,
       lastBotAt: reply ? now.toISOString() : state.lastBotAt,
-      ai: { ...ai, closeAsked: reply ? false : ai.closeAsked, followUps: reply ? ai.followUps + 1 : SELLER_MAX_FOLLOW_UPS },
+      ai: touch
+        ? { ...ai, closeAsked: reply ? false : ai.closeAsked, remind: null, touches: reply ? ai.touches + 1 : ai.touches, followUps: SELLER_MAX_FOLLOW_UPS }
+        : { ...ai, closeAsked: reply ? false : ai.closeAsked, followUps: reply ? ai.followUps + 1 : SELLER_MAX_FOLLOW_UPS },
       version: state.version + 1,
     };
     if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: new Date(now.getTime() + 60_000) }))) return true;
@@ -280,7 +303,7 @@ export class AiSeller {
       if (current?.state?.outcome !== "stopped_by_manager") sent.push(...(await this.say(conv, reply)));
       else sent.push({ blocked: "stopped" });
     }
-    const events: BotEvent[] = reply ? [{ kind: "follow_up" }] : [];
+    const events: BotEvent[] = reply ? [{ kind: "follow_up", ...(touch ? { reason: touch.kind } : {}) }] : [];
     if (why) events.push(this.traceEvent("follow_up", why.decision, why.context, next, events, sent, { notes: why.notes, error: why.error }));
     await this.d.store.log(conv.id, conv.dealId, next.lang, events);
     return false;
@@ -406,7 +429,7 @@ export class AiSeller {
    * дату или город — срок считает код и ответ переписывается с этим фактом. Возвращает решение модели и «спросить ещё
    * раз» (с правками после проверки) или ошибку модели. voice — черновик для менеджера, а не ответ бота.
    */
-  private async consult(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" | "copilot"; voice?: { manager: string } | null; quick?: boolean }) {
+  private async consult(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" | "copilot"; voice?: { manager: string } | null; quick?: boolean; touch?: SellerRemind | null }) {
     const { conv, base, config, fields, fresh, purpose } = a;
     const voice = a.voice ?? null;
     const [knowledge, lessons, materialList] = await Promise.all([
@@ -415,7 +438,9 @@ export class AiSeller {
       voice ? [] : (this.d.materials?.list().catch(() => []) ?? []),
     ]);
     const schemaFields = fields.filter((f) => base.questions.includes(f.key));
-    const schema = sellerSchema(schemaFields);
+    // Повторное сообщение в названное клиентом время (п.7б) — только у бота и только если включено в настройках.
+    const remindOn = !voice && config.sell.remind;
+    const schema = sellerSchema(schemaFields, { remind: remindOn });
     const ai = readSellerAi(base.ai);
     // Распознанные голосовые и фото — словами клиента, а не «[голосовое сообщение]» (и в старых сообщениях тоже).
     const history = withMediaText(a.history, ai.media);
@@ -428,8 +453,7 @@ export class AiSeller {
     const rules = await this.rules(conv, env, config, { manager: !!voice });
     // Кто из менеджеров писал клиенту (подпись в CRM): при подхвате бот не называет других имён.
     const chatManager = [...history].reverse().find((m) => m.from === "manager" && m.author)?.author ?? null;
-    const dateKey = fields.find((f) => f.type === "date")?.key;
-    const knownDate = (dateKey ? dayValue(base.filled[dateKey]) ?? dayValue(env.dealValues[dateKey]) : null) ?? dayValue(ai.eventDate);
+    const knownDate = sellerEventDate(base, { fields, dealValues: env.dealValues });
     const known = fields
       .filter((f) => f.type !== "checkbox")
       .map((f) => ({ label: f.label, value: base.filled[f.key] ?? env.dealValues[f.key] }))
@@ -439,7 +463,12 @@ export class AiSeller {
     const materialsSent = ai.materialsSent || materialsAlreadySent(history);
     const materials = materialsFor(materialList, base.lang).length ? { summary: materialsSummary(materialList), sent: materialsSent } : null;
     const transcript = sellerTranscript(history, fresh.length, env.tz);
-    const user = sellerUserPrompt(transcript, purpose, fresh.length > 0);
+    const user = sellerUserPrompt(transcript, purpose, fresh.length > 0, a.touch?.kind ?? null);
+    // С кем договариваться о повторном сообщении нельзя: просил не писать первым, уже платил, лимит таких сообщений.
+    const asksRemind = remindOn && purpose === "reply";
+    const noMarketing = asksRemind ? await this.noMarketing(conv) : false;
+    const remindBlocked: RemindReject | null = !asksRemind ? null : noMarketing ? "no_marketing" : paid ? "paid" : ai.touches >= config.sell.remindTouches ? "limit" : null;
+    const remind = asksRemind ? { pending: ai.remind, blocked: remindBlocked } : null;
     // Тема разговора для выбора кусков базы знаний: последние сообщения клиента.
     const knowledgeQuery = history
       .filter((m) => m.from === "client")
@@ -458,7 +487,7 @@ export class AiSeller {
       knowledge: knowledge.trim() ? { all: !picked.filtered, titles: picked.titles } : null,
     };
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
-      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials });
+      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null });
       let raw: string;
       try {
         const res = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
@@ -495,26 +524,48 @@ export class AiSeller {
       }
     }
     const rewrite = (problems: ReplyProblem[]) => ask(null, problems, deadline);
-    return { decision, env, rules, history, rewrite, materials: !!materials && !materials.sent && purpose === "reply", trace };
+    // Дата повторного сообщения из ответа модели — проверка кодом: график, срок, дата события, стоп-лист, лимит.
+    const remindCheck = (d: SellerDecision): Promise<RemindCheck | null> => (asksRemind ? this.remindCheck(d, { env, ai, eventDate: d.eventDate ?? knownDate, noMarketing, sell: config.sell }) : Promise.resolve(null));
+    return { decision, env, rules, history, rewrite, remindCheck, materials: !!materials && !materials.sent && purpose === "reply", trace };
+  }
+
+  /** remind_at модели → принять (момент в рабочее время), отменить договорённость или отказать с замечанием модели. */
+  private async remindCheck(d: SellerDecision, i: { env: BotEnv; ai: SellerAiState; eventDate: string | null; noMarketing: boolean; sell: BotConfig["sell"] }): Promise<RemindCheck | null> {
+    if (!d.remindAt) return null;
+    if (d.remindAt.trim().toLowerCase() === "cancel") return { cancel: true };
+    const reject = (r: RemindReject): RemindCheck => ({ rejected: r, problem: remindProblem(r, { maxDays: i.sell.remindMaxDays, eventDate: i.eventDate }) });
+    const parsed = parseRemindAt(d.remindAt, i.env.tz);
+    if (!parsed) return reject("format");
+    // Только день — с начала рабочего дня; день и час — если это рабочее время.
+    const due = parsed.at ? ((await this.d.settings.isWorkTime(parsed.at)) ? parsed.at : null) : await workStartOn(this.d.settings, parsed.day, i.env.tz);
+    const verdict = remindVerdict({ day: parsed.day, due, now: i.env.now, tz: i.env.tz, eventDate: i.eventDate, maxDays: i.sell.remindMaxDays, touches: i.ai.touches, maxTouches: i.sell.remindTouches, paid: !!i.env.paid, noMarketing: i.noMarketing });
+    if (verdict || !due) return reject(verdict ?? "off_hours");
+    return { set: { kind: "promised", at: due.toISOString(), why: d.remindWhy } };
+  }
+
+  /** Клиент в стоп-листе «Не писать первым»; сбой проверки — как будто да: лишнее сообщение хуже пропущенного. */
+  private async noMarketing(conv: Conversation): Promise<boolean> {
+    if (!this.d.noMarketing) return false;
+    return this.d.noMarketing(conv).catch((err) => (this.d.logger.error("bot no marketing", err), true));
   }
 
   /**
    * Ход бота: решение модели → проверка кодом (суммы, ссылки, номера, право на счёт); нарушение — один раз просим
    * переписать. Возвращает ход или ошибку модели.
    */
-  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision; trace: TraceContext } | { error: string }> {
+  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up"; touch?: SellerRemind | null }): Promise<{ turn: SellerTurn; decision: SellerDecision; trace: TraceContext } | { error: string }> {
     const c = await this.consult(a);
     if ("error" in c) return c;
     const { conv, base, config, fresh: inputs } = a;
     let decision = c.decision;
-    let turn = resolveSellerTurn(base, decision, c.env, this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials));
+    let turn = resolveSellerTurn(base, decision, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials), remind: await c.remindCheck(decision) });
     if (turn.retry) {
       // Первый ответ не прошёл проверку — в следе, что именно код вернул модели на переписывание.
       c.trace.notes.push({ code: "rewrite", detail: problemsText(turn.retry) });
       const rewritten = await c.rewrite(turn.retry);
       if ("error" in rewritten) return rewritten;
       decision = rewritten;
-      turn = resolveSellerTurn(base, rewritten, c.env, this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials));
+      turn = resolveSellerTurn(base, rewritten, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials), remind: await c.remindCheck(rewritten) });
     }
     return { turn, decision, trace: c.trace };
   }
@@ -589,8 +640,29 @@ export class AiSeller {
     // След хода («Почему так?»): у последнего сообщения клиенту в этом ходе.
     if (why) events.push(this.traceEvent("reply", why.decision, why.context, final, events, sent, { fields: fieldLabels(result.fields, fields), notes, materials: files }));
     await this.d.store.log(conv.id, dealId, final.lang, events);
+    // Договорились написать в названный день — менеджер видит это в чате и сделке (может написать раньше сам — бот замолчит).
+    const remind = readSellerAi(final.ai).remind;
+    if (remind && final.phase !== "done" && notes.some((n) => n.code === "remind_set")) await this.remindNote(conv, remind, final.ai.summary);
     if (final.stage === "offer" && before.stage !== "offer") await this.hooks.offered(conv, final, fields);
     if (result.done) await this.hooks.finish(conv, final, fields);
+  }
+
+  /**
+   * Бот напишет клиенту повторно: заметка в чате и в сделке и уведомление ответственному — когда и почему. Ответит
+   * менеджер сам — бот замолчит, и повторного сообщения не будет.
+   */
+  async remindNote(conv: Conversation, remind: SellerRemind, summary = "") {
+    const label = remindLabel(remind, this.d.settings.timeZone());
+    const text =
+      remind.kind === "promised"
+        ? `🤖 Клиент просил написать ему ${label}. Бот напишет сам — ответьте раньше, и бот замолчит.`
+        : `🤖 Клиент молчит. Бот напишет ему один раз: ${label}. Ответьте сами — бот замолчит.${summary ? `\nЗаметка бота: ${summary}` : ""}`;
+    await this.d.note(conv.id, text).catch((err) => this.d.logger.error("bot note", err));
+    const deal = await this.d.sales.deal(conv.dealId!);
+    if (!deal) return;
+    await this.d.sales.note(deal, text).catch((err) => this.d.logger.error("bot deal note", err));
+    const who = deal.contactName || conv.contactName || phoneTail(conv.chatId) || "клиент";
+    await this.d.notifier.notify(deal.assigneeId ?? conv.assigneeId, "chats.view", { kind: "message", title: `${remind.kind === "promised" ? "Бот напишет по договорённости" : "Бот напишет в последний день"}: ${who}`, body: label.slice(0, 300), link: `/admin/chats?c=${conv.id}` });
   }
 
   /** Ответ модели — как пишет человек в WhatsApp: абзацы через пустую строку уходят отдельными сообщениями (до трёх). */

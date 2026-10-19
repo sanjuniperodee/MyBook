@@ -19,7 +19,9 @@ export const BOT_TRACE_KEEP_DAYS = 90;
  * N-е возражение (objections), счёт не по правилам (invoice_blocked), счёт не выставился (invoice_failed), клиент уже
  * платил (already_paid), срок пересчитан по названной дате (deadline_recheck), в тексте номер или карта — не отправлен
  * (sensitive), менеджер ответил посреди хода (stopped), модель не ответила (ai_error), голосовое или файл без распознавания
- * (voice, media), модель не ответила на напоминание (follow_up_skipped).
+ * (voice, media), модель не ответила на напоминание (follow_up_skipped); повторное сообщение (bots-5): договорились
+ * написать в названный день (remind_set), дату отбросил код (remind_rejected — причина RemindReject), договорённость
+ * отменена (remind_cancelled), написал по договорённости (remind_touch) или в последний день старта (last_start).
  */
 export const TRACE_NOTE_CODES = [
   "rewrite",
@@ -41,6 +43,11 @@ export const TRACE_NOTE_CODES = [
   "voice",
   "media",
   "follow_up_skipped",
+  "remind_set",
+  "remind_rejected",
+  "remind_cancelled",
+  "remind_touch",
+  "last_start",
 ] as const;
 export type TraceNoteCode = (typeof TRACE_NOTE_CODES)[number];
 export interface TraceNote {

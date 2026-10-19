@@ -155,6 +155,17 @@ export interface BotSell {
   productionDays: number;
   /** Работа над ошибками: раз в сутки модель разбирает беседы бота и обновляет уроки в его инструкции. */
   selfImprove: boolean;
+  /**
+   * AI-продажник пишет повторно в названное клиентом время («после зарплаты», «в пятницу», «ближе к празднику»): дату
+   * предлагает модель, код проверяет (рабочее время, не дальше remindMaxDays, не позже даты события, не «не писать первым»).
+   */
+  remind: boolean;
+  /** Тёплому неоплатившему с датой события — одно сообщение в последний день, когда ещё можно начать и успеть. */
+  lastStart: boolean;
+  /** Повторное сообщение — не дальше стольких дней от сегодня. */
+  remindMaxDays: number;
+  /** Повторных сообщений (по договорённости и в последний день) — не больше стольких за беседу. */
+  remindTouches: number;
 }
 
 /** Факты владельца по умолчанию (решение 18.10 и переписки менеджера): сроки, доставка, как пишется книга, оплата. */
@@ -358,7 +369,7 @@ export const defaultBotConfig: BotConfig = {
   optionLabels: {},
   sendLink: true,
   ai: false,
-  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true },
+  sell: { on: false, prepay: 0, writeDays: 2, deliveryDays: 2, followUpHours: 3, invoice: false, engine: "ai", takeover: true, persona: "", maxTurns: 40, hidePrices: true, media: true, speaksAs: "manager", botName: "Айгерим", managerName: "Марат", facts: DEFAULT_SELL_FACTS, productionDays: 5, selfImprove: true, remind: false, lastStart: false, remindMaxDays: 60, remindTouches: 2 },
 };
 
 const LIMIT = { text: 500, question: 400, faq: 1000, promo: 300 };
@@ -468,6 +479,11 @@ function parseSell(raw: unknown): BotSell {
     facts: typeof r.facts === "string" ? r.facts.slice(0, 2000) : d.facts,
     productionDays: int(r.productionDays, 1, 30, d.productionDays),
     selfImprove: typeof r.selfImprove === "boolean" ? r.selfImprove : d.selfImprove,
+    // Пишет клиенту сам — приезжает выключенным (решение владельца по P0).
+    remind: r.remind === true,
+    lastStart: r.lastStart === true,
+    remindMaxDays: int(r.remindMaxDays, 1, 180, d.remindMaxDays),
+    remindTouches: int(r.remindTouches, 1, 5, d.remindTouches),
   };
 }
 

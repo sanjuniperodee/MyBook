@@ -428,6 +428,42 @@ export function BotForm({
                     <input type="number" min={4} max={100} value={cfg.sell.maxTurns} onChange={(e) => setSell({ maxTurns: Math.max(4, Math.min(100, Math.floor(Number(e.target.value) || 4))) })} className="input h-9 w-20 text-sm" aria-label="Потолок беседы" />
                     ответов, дальше — менеджер
                   </label>
+                  <div className="space-y-2 border-t border-line pt-3">
+                    <label className="flex items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.remind} onChange={(e) => setSell({ remind: e.target.checked })} aria-label="Писать повторно в названное клиентом время" />
+                      <span>
+                        Писать повторно в названное клиентом время
+                        <span className="block text-xs text-muted">
+                          Клиент пишет «после зарплаты», «в пятницу», «ближе к празднику» — бот договаривается о конкретном дне и пишет в этот день сам, в рабочее время. Дату проверяет код: не дальше
+                          указанного срока, не позже даты, к которой нужна книга, не тем, кто просил не писать первым. Менеджер видит договорённость в чате и сделке; ответит сам — бот замолчит.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.lastStart} onChange={(e) => setSell({ lastStart: e.target.checked })} aria-label="Написать в последний день, чтобы успеть к дате" />
+                      <span>
+                        Написать в последний день, чтобы успеть к дате
+                        <span className="block text-xs text-muted">
+                          Тёплый клиент назвал дату, но так и не оформил и замолчал — бот пишет ему один раз в последний день, когда ещё можно начать книгу и успеть обычным сроком (по «Сколько дней пишут»,
+                          «Книга готовится» и доставке).
+                        </span>
+                      </span>
+                    </label>
+                    {cfg.sell.remind || cfg.sell.lastStart ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        <label className="flex items-center gap-2">
+                          Не дальше
+                          <input type="number" min={1} max={180} value={cfg.sell.remindMaxDays} onChange={(e) => setSell({ remindMaxDays: Math.max(1, Math.min(180, Math.floor(Number(e.target.value) || 1))) })} className="input h-9 w-20 text-sm" aria-label="Не дальше, дней" />
+                          дней вперёд
+                        </label>
+                        <label className="flex items-center gap-2">
+                          Не больше
+                          <input type="number" min={1} max={5} value={cfg.sell.remindTouches} onChange={(e) => setSell({ remindTouches: Math.max(1, Math.min(5, Math.floor(Number(e.target.value) || 1))) })} className="input h-9 w-16 text-sm" aria-label="Не больше повторных сообщений за беседу" />
+                          таких сообщений за беседу
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
 

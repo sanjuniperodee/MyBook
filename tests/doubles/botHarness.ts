@@ -1,4 +1,5 @@
 import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
+import { isWorkTime, nextWorkStart, type WorkHours } from "@/shared/domain/schedule";
 import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway, type StaffLine, type AnsweredTasks } from "@/modules/messaging/application";
 
 export const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
@@ -79,6 +80,8 @@ export function setup(
     staffLine?: StaffLine;
     /** Задачи «ответить», которые закрывает ответ клиенту. */
     answeredTasks?: AnsweredTasks;
+    /** Настоящий график (по Алматы) вместо «всегда рабочее время» / «всегда нерабочее» (workTime). */
+    hours?: WorkHours;
   } = {},
 ) {
   let now = start;
@@ -292,8 +295,8 @@ export function setup(
     settings: {
       mode: async () => settings.mode,
       config: async () => settings.config,
-      isWorkTime: async () => settings.workTime,
-      nextWorkStart: async () => (settings.workTime ? now : new Date("2026-10-02T04:00:00Z")),
+      isWorkTime: async (at: Date) => (opts.hours ? isWorkTime(at, opts.hours, "Asia/Almaty") : settings.workTime),
+      nextWorkStart: async (at: Date) => (opts.hours ? nextWorkStart(at, opts.hours, "Asia/Almaty") : settings.workTime ? now : new Date("2026-10-02T04:00:00Z")),
       dealFields: async () => DEAL_FIELDS,
       catalog: async () => ({ plans: [{ id: "hardcover", price: 30000 }], delivery: [], addons: [], productionDays: { standard: "5–7", premium: "3–4" } }),
       site: async () => ({ url: "https://mybook.kz", registrationOpen: false, themes: ["love", "mom", "dad", "friend"], landings: [] }),

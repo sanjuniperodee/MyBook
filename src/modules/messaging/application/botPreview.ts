@@ -1,5 +1,8 @@
+import { storeTimeZone } from "@/shared/domain/time";
 import {
   BOT_DONE,
+  readSellerAi,
+  remindLabel,
   botSummary,
   botTurn,
   mediaCaption,
@@ -125,6 +128,9 @@ export function botStatus(rec: BotRecord | null, fields: DealField[]): BotStatus
   }
   if (s.phase === "waiting" && rec?.botStep !== BOT_DONE && s.reason === "takeover") return { label: "Менеджер не отвечает — бот подхватит переписку", tone: "waiting", canStop: true, canStart: false };
   if (s.phase === "active" && rec?.botStep !== BOT_DONE && s.engine === "ai") {
+    // Договорились написать повторно (bots-5): до этого дня бот молчит, менеджеру видно когда и почему.
+    const remind = readSellerAi(s.ai).remind;
+    if (remind) return { label: `Бот напишет клиенту ${remindLabel(remind, storeTimeZone())}`, tone: "waiting", canStop: true, canStart: false };
     const stage = s.ai.stage === "offer" || s.ai.stage === "closing" ? ", предложение сделано" : s.ai.stage === "objection" ? ", снимает возражение" : "";
     return { label: `${s.ai.takeover ? "Бот подхватил переписку" : "AI-продажник ведёт диалог"}${stage}`, tone: "active", canStop: true, canStart: false };
   }
