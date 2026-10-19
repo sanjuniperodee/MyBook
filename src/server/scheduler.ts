@@ -21,7 +21,7 @@ async function step<T>(name: string, run: () => Promise<T>, fallback: T): Promis
   }
 }
 
-/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, ночной разбор бота. Экспорт — для тестов. */
+/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, ночной разбор бота, чистка следов бота. Экспорт — для тестов. */
 export async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
@@ -40,6 +40,9 @@ export async function tick() {
     // Работа над ошибками AI-продажника: раз в сутки ночью разбор бесед за день → уроки в его инструкции.
     const coach = await step("bot coach", () => container().messaging.coach.run(), null);
     if (coach) console.log(`[scheduler] bot coach reviewed=${coach.reviewed} added=${coach.added.length} removed=${coach.removed.length}${coach.error ? ` error=${coach.error}` : ""}`);
+    // След ходов бота («Почему так?») хранится 90 дней: старые записи — порциями по частичному индексу.
+    const traces = await step("bot traces purge", () => container().messaging.purgeBotTraces(), 0);
+    if (traces) console.log(`[scheduler] bot traces purged=${traces}`);
   } catch (err) {
     console.error("[scheduler] tick failed", err);
   } finally {

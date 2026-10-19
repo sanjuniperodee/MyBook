@@ -35,6 +35,9 @@ import {
   WARM_FIRST_FOLLOW_UP_MS,
   materialsFor,
   materialsSummary,
+  deadlineCheck,
+  selectKnowledge,
+  turnTrace,
   type BotLang,
   withMediaText,
   SELLER_MAX_FOLLOW_UPS,
@@ -51,6 +54,8 @@ import {
   type SellerAiState,
   type SellerStage,
   type SellerTurn,
+  type TraceContext,
+  type TraceNote,
 } from "../domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS } from "./botTiming";
 import type { BotPreviewInput, BotPreviewResult } from "./botPreview";
@@ -82,6 +87,9 @@ const KNOWLEDGE_QUERY_MESSAGES = 3;
 /** Черновик ответа для менеджера («Подсказать ответ» в чате): текст, заметка о клиенте и этап — или почему не вышло. */
 export type CopilotSuggestion = { text: string; summary: string; stage: SellerStage } | { error: string };
 
+/** Что вышло с отправкой клиенту: id сообщения — или почему не ушло (менеджер ответил посреди хода, номер или карта в тексте). */
+type Sent = { id: string | null } | { blocked: "stopped" | "sensitive" };
+
 /** То, что AI-продажнику нужно от квалификатора: окружение хода, итог менеджеру, «предложение сделано», таймер. */
 export interface SellerHooks {
   env(conv: Conversation, config: BotConfig, fields: DealField[], now: Date): Promise<BotEnv>;
@@ -105,6 +113,9 @@ const parseJson = (text: string): unknown => {
     return null;
   }
 };
+
+/** Записанные поля сделки для следа хода — подписями, как в карточке сделки. */
+const fieldLabels = (values: Record<string, string | number>, fields: DealField[]) => Object.fromEntries(Object.entries(values).map(([k, v]) => [fields.find((f) => f.key === k)?.label ?? k, v]));
 
 const dayValue = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
@@ -187,7 +198,7 @@ export class AiSeller {
     const idle = isWarmLead(next.ai) && config.sell.followUpHours > 0 ? Math.min(WARM_FIRST_FOLLOW_UP_MS, BOT_ABANDON_MS) : BOT_ABANDON_MS;
     const saved = await this.d.store.save(conv.id, state.version, { botStep: result.done ? BOT_DONE : 0, state: next, dueAt: result.done ? null : new Date(now.getTime() + idle) });
     if (!saved) return true;
-    await this.apply(conv, state, result, fields, env, opening(next.lang));
+    await this.apply(conv, state, result, fields, env, opening(next.lang), { decision: decided.decision, context: decided.trace });
     if (!result.done) {
       // Клиент написал, пока бот отвечал: следующий ход после обычной паузы, а не через полчаса.
       const unseen = (await this.d.store.incoming(conv.id, new Date(next.since))).filter((i) => !next.seen.includes(i.id));
@@ -241,13 +252,18 @@ export class AiSeller {
     const base = await this.hooks.env(conv, config, fields, now);
     const env: BotEnv = { ...base, paid: base.paid || clientSaysPaid(history, ai.media) };
     let reply: string | null = null;
+    // След напоминания («Почему так?»): решение модели, правки кода, токены; клиенту, который уже платил, модель не спрашиваем.
+    let why: { decision: SellerDecision | null; context: TraceContext | null; notes: TraceNote[]; error?: string } | null = null;
     if (!env.paid) {
       const decided = await this.decide({ conv, base: state, env, config, fields, history, fresh: [], purpose: "follow_up" });
       // Напоминание — необязательная любезность: ошибка модели или спорный текст = молчим, не зовём менеджера.
       const decision = "turn" in decided ? decided.decision : null;
+      why = "turn" in decided ? { decision, context: decided.trace, notes: [] } : { decision: null, context: null, notes: [{ code: "ai_error" }], error: decided.error };
       if (decision && decision.action !== "wait" && decision.reply) {
         const turn = resolveSellerTurn(state, { ...decision, action: "reply", agreed: false, handoff: "none" }, env, this.ctx(conv, env, config, [], history, false, await this.rules(conv, env, config)));
+        why.notes.push(...(turn.notes ?? []));
         if (!turn.retry && turn.reply) reply = turn.reply;
+        else if (turn.retry) why.notes.push({ code: "follow_up_skipped", detail: problemsText(turn.retry) });
       }
     }
     const next: BotState = {
@@ -258,11 +274,15 @@ export class AiSeller {
       version: state.version + 1,
     };
     if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: new Date(now.getTime() + 60_000) }))) return true;
+    const sent: Sent[] = [];
     if (reply) {
       const current = await this.d.store.load(conv.id);
-      if (current?.state?.outcome !== "stopped_by_manager") await this.say(conv, reply);
+      if (current?.state?.outcome !== "stopped_by_manager") sent.push(...(await this.say(conv, reply)));
+      else sent.push({ blocked: "stopped" });
     }
-    await this.d.store.log(conv.id, conv.dealId, next.lang, reply ? [{ kind: "follow_up" }] : []);
+    const events: BotEvent[] = reply ? [{ kind: "follow_up" }] : [];
+    if (why) events.push(this.traceEvent("follow_up", why.decision, why.context, next, events, sent, { notes: why.notes, error: why.error }));
+    await this.d.store.log(conv.id, conv.dealId, next.lang, events);
     return false;
   }
 
@@ -297,7 +317,7 @@ export class AiSeller {
         const key = c.media ? "media" : "voice";
         const reply = botSellText(state, env, key);
         if (reply) {
-          transcript.push({ from: "bot", text: reply });
+          transcript.push({ from: "bot", text: reply, trace: turnTrace({ purpose: "reply", decision: null, context: null, state: c.media ? { phase: "done", outcome: "handoff" } : state, events: c.media ? [{ kind: "handoff", reason: "media" }] : [], notes: [{ code: key }] }) });
           history.push({ from: "bot", text: reply, at: ctx.now });
         }
         if (c.media) {
@@ -308,11 +328,12 @@ export class AiSeller {
       }
       const decided = await this.decide({ conv, base: { ...state, seen: [] }, env, config, fields: ctx.fields, history, fresh, purpose: "reply" });
       if ("error" in decided) {
-        transcript.push({ from: "bot", text: `⚠️ Модель не ответила: ${decided.error}. В чате клиент получил бы «передала менеджеру».` });
         state = { ...state, phase: "done", outcome: "handoff", reason: "question" };
+        transcript.push({ from: "bot", text: `⚠️ Модель не ответила: ${decided.error}. В чате клиент получил бы «передала менеджеру».`, trace: turnTrace({ purpose: "reply", decision: null, context: null, state, events: [{ kind: "handoff", reason: "ai_error" }], notes: [{ code: "ai_error" }], error: decided.error }) });
         break;
       }
       state = decided.turn.state;
+      const turnLength = transcript.length;
       if (decided.turn.invoice) {
         const inv = decided.turn.invoice;
         const lead = decided.turn.reply ? `${decided.turn.reply}\n\n` : "";
@@ -329,6 +350,11 @@ export class AiSeller {
         transcript.push({ from: "bot", text: decided.turn.reply });
         history.push({ from: "bot", text: decided.turn.reply, at: ctx.now });
       }
+      // Тот же след, что у ответа в чате, — под ответом бота (или отдельной строкой, если бот промолчал).
+      const t = decided.turn;
+      const trace = turnTrace({ purpose: "reply", decision: decided.decision, context: decided.trace, state: t.state, events: t.events, fields: fieldLabels(t.fields, ctx.fields), notes: t.notes, materials: t.reply && t.materials ? materialsFor((await this.d.materials?.list().catch(() => [])) ?? [], state.lang).length : null });
+      if (transcript.length > turnLength) transcript[transcript.length - 1] = { ...transcript[transcript.length - 1], trace };
+      else transcript.push({ from: "bot", text: "", trace });
       if (decided.turn.done) break;
     }
     const byKey = new Map(ctx.fields.map((f) => [f.key, f]));
@@ -422,11 +448,24 @@ export class AiSeller {
       .join("\n")
       .slice(0, 1500);
 
+    // След хода: токены всех запросов, вердикт по сроку, правки кода, уроки и база знаний в инструкции.
+    const picked = selectKnowledge(knowledge, knowledgeQuery);
+    const trace: TraceContext = {
+      tokens: { input: 0, output: 0, calls: 0 },
+      deadline: null,
+      notes: [],
+      lessons: lessons.map((l) => ({ id: l.id, text: l.text })),
+      knowledge: knowledge.trim() ? { all: !picked.filtered, titles: picked.titles } : null,
+    };
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
       const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials });
       let raw: string;
       try {
-        raw = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
+        const res = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
+        raw = res.text;
+        trace.tokens.calls += 1;
+        trace.tokens.input += res.usage?.input ?? 0;
+        trace.tokens.output += res.usage?.output ?? 0;
       } catch (err) {
         return { error: err instanceof Error ? err.message : String(err) };
       }
@@ -435,6 +474,7 @@ export class AiSeller {
     };
 
     let deadline = knownDate ? deadlineFact(knownDate, env, ai.city) : null;
+    trace.deadline = knownDate ? deadlineCheck(knownDate, env, ai.city) : null;
     let first = await ask(null, null, deadline);
     // Одна повторная попытка на случай неверного JSON: клиент ждёт, но пустой ход хуже.
     if ("error" in first) first = await ask(null, null, deadline);
@@ -448,31 +488,35 @@ export class AiSeller {
       const fact = deadlineFact(date, env, decision.city || ai.city);
       if (fact) {
         deadline = fact;
+        trace.deadline = deadlineCheck(date, env, decision.city || ai.city);
+        trace.notes.push({ code: "deadline_recheck" });
         const again = await ask(null, null, fact);
         if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, city: again.city || decision.city, fields: { ...decision.fields, ...again.fields } };
       }
     }
     const rewrite = (problems: ReplyProblem[]) => ask(null, problems, deadline);
-    return { decision, env, rules, history, rewrite, materials: !!materials && !materials.sent && purpose === "reply" };
+    return { decision, env, rules, history, rewrite, materials: !!materials && !materials.sent && purpose === "reply", trace };
   }
 
   /**
    * Ход бота: решение модели → проверка кодом (суммы, ссылки, номера, право на счёт); нарушение — один раз просим
    * переписать. Возвращает ход или ошибку модели.
    */
-  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision } | { error: string }> {
+  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up" }): Promise<{ turn: SellerTurn; decision: SellerDecision; trace: TraceContext } | { error: string }> {
     const c = await this.consult(a);
     if ("error" in c) return c;
     const { conv, base, config, fresh: inputs } = a;
     let decision = c.decision;
     let turn = resolveSellerTurn(base, decision, c.env, this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials));
     if (turn.retry) {
+      // Первый ответ не прошёл проверку — в следе, что именно код вернул модели на переписывание.
+      c.trace.notes.push({ code: "rewrite", detail: problemsText(turn.retry) });
       const rewritten = await c.rewrite(turn.retry);
       if ("error" in rewritten) return rewritten;
       decision = rewritten;
       turn = resolveSellerTurn(base, rewritten, c.env, this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials));
     }
-    return { turn, decision };
+    return { turn, decision, trace: c.trace };
   }
 
   /**
@@ -510,76 +554,100 @@ export class AiSeller {
 
   // ─── последствия хода ──────────────────────────────────────────────────────
 
-  private async apply(conv: Conversation, before: BotState, result: SellerTurn, fields: DealField[], env: BotEnv, opening: BotEvent[] = []) {
+  private async apply(conv: Conversation, before: BotState, result: SellerTurn, fields: DealField[], env: BotEnv, opening: BotEvent[] = [], why?: { decision: SellerDecision; context: TraceContext }) {
     const dealId = conv.dealId!;
     for (const [key, value] of Object.entries(result.fields)) await this.d.sales.setField(dealId, key, value);
     const events: BotEvent[] = [...opening, ...result.events];
     let final = result.state;
+    const sent: Sent[] = [];
+    const notes: TraceNote[] = [...(result.notes ?? [])];
+    let files: number | null = null;
 
     if (result.state.ai.takeover && result.state.ai.turns === 1) await this.announceTakeover(conv, result.state);
 
     if (result.invoice && result.done) {
       const invoiced = await this.invoice(conv, result);
-      if (invoiced) {
+      if ("state" in invoiced) {
         final = invoiced.state;
+        sent.push(...invoiced.sent);
         events.push({ kind: "invoiced", reason: invoiced.label });
       } else {
         // Счёт не вышел: клиенту — «менеджер пришлёт», менеджеру — срочная задача (finish).
+        notes.push({ code: "invoice_failed", detail: invoiced.error });
         const text = botSellText(result.state, env, "agreedLater");
-        if (text) await this.send(conv, text);
+        if (text) sent.push(await this.send(conv, text));
         events.push({ kind: "blocked", reason: "invoice: не выставлен" });
       }
     } else if (result.reply && result.materials) {
-      await this.sayWithMaterials(conv, result.reply, final.lang, result.materialsAfter ?? 1);
+      const r = await this.sayWithMaterials(conv, result.reply, final.lang, result.materialsAfter ?? 1);
+      sent.push(...r.sent);
+      files = r.files;
     } else if (result.reply) {
-      await this.say(conv, result.reply);
+      sent.push(...(await this.say(conv, result.reply)));
     }
 
+    // След хода («Почему так?»): у последнего сообщения клиенту в этом ходе.
+    if (why) events.push(this.traceEvent("reply", why.decision, why.context, final, events, sent, { fields: fieldLabels(result.fields, fields), notes, materials: files }));
     await this.d.store.log(conv.id, dealId, final.lang, events);
     if (final.stage === "offer" && before.stage !== "offer") await this.hooks.offered(conv, final, fields);
     if (result.done) await this.hooks.finish(conv, final, fields);
   }
 
   /** Ответ модели — как пишет человек в WhatsApp: абзацы через пустую строку уходят отдельными сообщениями (до трёх). */
-  private async say(conv: Conversation, text: string) {
-    for (const part of splitReply(text)) await this.send(conv, part);
+  private async say(conv: Conversation, text: string): Promise<Sent[]> {
+    const out: Sent[] = [];
+    for (const part of splitReply(text)) out.push(await this.send(conv, part));
+    return out;
+  }
+
+  /**
+   * Запись следа хода: решение модели, правки кода, итог и что ушло клиенту. Сообщение, у которого в чате «Почему так?», —
+   * последнее отправленное в этом ходе; не ушло ничего — след без сообщения (виден в журнале).
+   */
+  private traceEvent(purpose: "reply" | "follow_up", decision: SellerDecision | null, context: TraceContext | null, state: BotState, events: BotEvent[], sent: Sent[], extra: { fields?: Record<string, string | number>; notes?: TraceNote[]; materials?: number | null; error?: string } = {}): BotEvent {
+    const notes: TraceNote[] = [...(extra.notes ?? []), ...sent.flatMap((s): TraceNote[] => ("blocked" in s ? [{ code: s.blocked }] : []))];
+    const ids = sent.flatMap((s) => ("id" in s && s.id ? [s.id] : []));
+    return { kind: "turn", meta: turnTrace({ purpose, decision, context, state, events, fields: extra.fields, notes, materials: extra.materials, error: extra.error }), messageId: ids.at(-1) ?? null };
   }
 
   /**
    * Ответ с подборкой — как у менеджера: подводка → фото (WhatsApp склеивает их в альбом) → видео → пример книги →
    * остальное (срок, цена, вопрос). Ответил человек посреди подборки — дальше не шлём.
    */
-  private async sayWithMaterials(conv: Conversation, text: string, lang: BotLang, after: number) {
+  private async sayWithMaterials(conv: Conversation, text: string, lang: BotLang, after: number): Promise<{ sent: Sent[]; files: number }> {
     const parts = splitReply(text);
-    for (const part of parts.slice(0, after)) await this.send(conv, part);
+    const out: Sent[] = [];
+    for (const part of parts.slice(0, after)) out.push(await this.send(conv, part));
     const rest = parts.slice(after);
     const list = materialsFor((await this.d.materials?.list().catch(() => [])) ?? [], lang);
-    let sent = 0;
+    let files = 0;
     for (const m of list) {
       const current = await this.d.store.load(conv.id);
-      if (current?.state?.outcome === "stopped_by_manager") return;
-      if (await this.d.materials!.send(conv.id, m).catch(() => false)) sent++;
+      if (current?.state?.outcome === "stopped_by_manager") return { sent: [...out, { blocked: "stopped" }], files };
+      if (await this.d.materials!.send(conv.id, m).catch(() => false)) files++;
     }
-    if (list.length && !sent) this.d.logger.error("bot materials", `не ушёл ни один файл из ${list.length}`);
-    for (const part of rest) await this.send(conv, part);
+    if (list.length && !files) this.d.logger.error("bot materials", `не ушёл ни один файл из ${list.length}`);
+    for (const part of rest) out.push(await this.send(conv, part));
+    return { sent: out, files };
   }
 
   /** Отправить клиенту, если человек не вмешался, пока бот думал. */
-  private async send(conv: Conversation, text: string) {
+  private async send(conv: Conversation, text: string): Promise<Sent> {
     const current = await this.d.store.load(conv.id);
-    if (current?.state?.outcome === "stopped_by_manager") return;
+    if (current?.state?.outcome === "stopped_by_manager") return { blocked: "stopped" };
     const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.d.shopPhone()]);
     if (found.length) {
       this.d.logger.error("bot reply blocked", found.map((f) => f.kind).join(","));
-      return;
+      return { blocked: "sensitive" };
     }
-    await this.d.send(conv.id, text);
+    const msg = await this.d.send(conv.id, text);
+    return { id: msg?.id ?? null };
   }
 
-  /** Счёт на сумму, посчитанную кодом: сначала текст модели перед счётом, потом счёт. null — не вышло. */
-  private async invoice(conv: Conversation, result: SellerTurn): Promise<{ state: BotState; label: string } | null> {
+  /** Счёт на сумму, посчитанную кодом: сначала текст модели перед счётом, потом счёт. error — почему не вышло. */
+  private async invoice(conv: Conversation, result: SellerTurn): Promise<{ state: BotState; label: string; sent: Sent[] } | { error: string }> {
     const inv = result.invoice;
-    if (!inv || !this.d.invoices) return null;
+    if (!inv || !this.d.invoices) return { error: "счета от бота не подключены" };
     const state = result.state;
     const deal = await this.d.sales.deal(conv.dealId!);
     const env = { name: deal?.contactName ?? "" };
@@ -589,13 +657,13 @@ export class AiSeller {
     if ("error" in res) {
       this.d.logger.warn("bot invoice", { error: res.error });
       await this.d.store.log(conv.id, conv.dealId, state.lang, [{ kind: "blocked", reason: `invoice: ${res.error}`.slice(0, 200) }]);
-      return null;
+      return { error: res.error };
     }
     const next: BotState = { ...state, outcome: "invoiced", reason: res.label, version: state.version + 1 };
-    if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }, { restart: true }))) return null;
-    if (result.reply) await this.say(conv, result.reply);
-    await this.send(conv, res.text);
-    return { state: next, label: res.label };
+    if (!(await this.d.store.save(conv.id, state.version, { botStep: BOT_DONE, state: next, dueAt: null }, { restart: true }))) return { error: "беседа изменилась, пока выставлялся счёт" };
+    const sent = result.reply ? await this.say(conv, result.reply) : [];
+    sent.push(await this.send(conv, res.text));
+    return { state: next, label: res.label, sent };
   }
 
   /** Бот подхватил переписку: менеджер видит это сразу и может ответить сам — тогда бот замолчит. */
@@ -647,7 +715,7 @@ export class AiSeller {
     }
     if (reply) s.lastBotAt = now.toISOString();
     if (!(await this.d.store.save(conv.id, prev.version, { botStep: done ? BOT_DONE : 0, state: s, dueAt: done ? null : new Date(now.getTime() + BOT_ABANDON_MS) }))) return true;
-    if (reply) await this.send(conv, reply);
+    if (reply) events.push(this.traceEvent("reply", null, null, s, events, [await this.send(conv, reply)], { notes: [{ code: c.media ? "media" : "voice" }] }));
     await this.d.store.log(conv.id, conv.dealId, s.lang, events);
     if (done) await this.hooks.finish(conv, s, fields);
     return false;
@@ -669,8 +737,10 @@ export class AiSeller {
     const s: BotState = { ...base, ai, phase: "done", outcome: "handoff", reason: "question", asking: null, version: prev.version + 1 };
     if (!(await this.d.store.save(conv.id, prev.version, { botStep: BOT_DONE, state: s, dueAt: null }))) return true;
     const text = botSellText(s, env, "handoff");
-    if (text) await this.send(conv, text);
-    await this.d.store.log(conv.id, conv.dealId, s.lang, [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }, { kind: "handoff", reason: "ai_error" }]);
+    const sent = text ? [await this.send(conv, text)] : [];
+    const events: BotEvent[] = [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }, { kind: "handoff", reason: "ai_error" }];
+    events.push(this.traceEvent("reply", null, null, s, events, sent, { notes: [{ code: "ai_error" }], error: why }));
+    await this.d.store.log(conv.id, conv.dealId, s.lang, events);
     await this.hooks.finish(conv, s, fields);
     return false;
   }

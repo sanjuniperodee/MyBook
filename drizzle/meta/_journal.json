@@ -393,6 +393,13 @@
       "when": 1792411181953,
       "tag": "0055_client_silent",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792412870708,
+      "tag": "0056_bot_turn_trace",
+      "breakpoints": true
     }
   ]
 }

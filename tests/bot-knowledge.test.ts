@@ -9,7 +9,7 @@ const filler = (n: number) => `Правило ${n}\n${"Текст о работ�
 describe("База знаний продажника: целиком или по теме", () => {
   it("короткая база уходит целиком и считается стабильной частью инструкции", () => {
     const r = selectKnowledge(`${delivery}\n\n${payment}`, "сколько идёт доставка");
-    expect(r).toEqual({ text: `${delivery}\n\n${payment}`, filtered: false });
+    expect(r).toEqual({ text: `${delivery}\n\n${payment}`, filtered: false, titles: [] });
   });
 
   it("длинная база: выбираются куски по словам клиента, порядок исходный, лимит соблюдён", () => {
@@ -24,6 +24,9 @@ describe("База знаний продажника: целиком или по
     expect(r.text.indexOf("Доставка")).toBeLessThan(r.text.indexOf("Оплата"));
     // Куски без общих слов добираются по порядку, пока есть место, но не вытесняют подходящие.
     expect(r.text.indexOf("По Астане")).toBeGreaterThanOrEqual(0);
+    // Заголовки выбранных кусков — для следа хода («Почему так?»), в исходном порядке.
+    expect(r.titles).toEqual(expect.arrayContaining(["Доставка", "Оплата"]));
+    expect(r.titles.indexOf("Доставка")).toBeLessThan(r.titles.indexOf("Оплата"));
   });
 
   it("база без пустых строк — не теряется: начало текста в пределах лимита", () => {

@@ -1,7 +1,7 @@
 import "server-only";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
-import { crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
+import { crmBotEvents, crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
 import { staffLabel } from "@/shared/domain/staff";
 import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
@@ -39,6 +39,8 @@ export interface ChatMessage {
   deleted?: boolean;
   /** Расшифровка голосового. */
   transcript?: string | null;
+  /** У ответа AI-продажника есть след хода — в чате «Почему так?». */
+  trace?: boolean;
 }
 
 /** Кто отправил исходящее без сотрудника: бот, правило автоматизации, телефон магазина (эхо) или старая запись. */
@@ -68,6 +70,16 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
         .where(inArray(crmMessages.id, replyIds))
     : [];
   const byId = new Map(quoted.map((q) => [q.id, q]));
+  // Ответы продажника со следом хода («Почему так?») — одним запросом по частичному индексу message_id.
+  const botIds = rows.filter((r) => r.m.source === "bot" && !r.m.internal && !r.m.deletedAt).map((r) => r.m.id);
+  const traced = botIds.length
+    ? new Set(
+        (await db
+          .select({ id: crmBotEvents.messageId })
+          .from(crmBotEvents)
+          .where(and(inArray(crmBotEvents.messageId, botIds), eq(crmBotEvents.kind, "turn")))).map((r) => r.id),
+      )
+    : new Set<string | null>();
   return rows.reverse().map(({ m, author }) => {
     const viaGateway = gateway(m);
     const q = m.replyToId ? byId.get(m.replyToId) : undefined;
@@ -91,6 +103,7 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
       forwarded: m.forwarded,
       edited: !!m.editedAt,
       transcript: m.transcript,
+      ...(traced.has(m.id) ? { trace: true } : {}),
     };
   });
 }

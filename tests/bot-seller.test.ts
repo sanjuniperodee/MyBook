@@ -11,6 +11,7 @@ import {
   checkSellerReply,
   cleanSellerReply,
   clientSaysPaid,
+  deadlineCheck,
   deadlineFact,
   invoiceBlocker,
   withoutGreeting,
@@ -625,5 +626,44 @@ describe("AI-продажник: не здоровается второй раз
   it("только приветствие — «Здравствуйте!», «Добрый вечер», «Сәлеметсіз бе»; с вопросом или ответом — нет", () => {
     for (const t of ["Здравствуйте!", "Добрый вечер", "Сәлеметсіз бе", "привет)"]) expect(isGreetingOnly(t)).toBe(true);
     for (const t of ["Здравствуйте, сколько стоит?", "Девушке", "Здравствуйте, хочу книгу маме"]) expect(isGreetingOnly(t)).toBe(false);
+  });
+});
+
+describe("AI-продажник: что код поправил или остановил — в следе хода (bots-1)", () => {
+  it("потолок беседы, петля, третье возражение, молчание на вопрос — каждое со своей пометкой", () => {
+    const e = env({ config: sellConfig({ maxTurns: 4 }) });
+    const capped = newBotState(day, true);
+    expect(turn({ ...capped, ai: { ...capped.ai, turns: 4 } }, decision(), [msg("ещё вопрос")], { e }).notes).toEqual([{ code: "limit", detail: "4" }]);
+
+    const dup = decision({ reply: "Здравствуйте! Для кого будет книга?" });
+    expect(resolveSellerTurn(newBotState(day, true), dup, env(), { ...ctxFor([msg("Здравствуйте")]), lastBotText: "Здравствуйте! Для кого будет книга?" }).notes).toEqual([{ code: "loop" }]);
+
+    let s = newBotState(day, true);
+    for (let i = 0; i < 2; i++) s = turn(s, decision({ stage: "objection", reply: "Понимаю вас." }), [msg("дорого")]).state;
+    expect(turn(s, decision({ stage: "objection", reply: "Понимаю вас." }), [msg("всё равно дорого")]).notes).toEqual([{ code: "objections", detail: "3" }]);
+
+    expect(turn(undefined, decision({ action: "wait", reply: "" }), [msg("А доставка в Астану есть?")]).notes).toEqual([{ code: "unanswered" }]);
+  });
+
+  it("убрал повторное приветствие, добавил представление; счёт не по правилам — с причиной", () => {
+    const greeted = resolveSellerTurn(newBotState(day, true), decision({ reply: "Здравствуйте! К какой дате нужна книга?" }), env(), { ...ctxFor([msg("Маме")]), greeted: true });
+    expect(greeted.notes).toEqual([{ code: "greeting_removed" }]);
+    const intro = resolveSellerTurn(newBotState(day, true), decision({ reply: "Для кого будет книга?" }), env(), { ...ctxFor([msg("Здравствуйте")]), intro: { greet: true } });
+    expect(intro.notes).toEqual([{ code: "intro_added" }]);
+    const invoice = turn(undefined, decision({ action: "issue_invoice", agreed: false, plan: "hardcover", reply: "Отлично! Подскажите формат?" }), [msg("а сколько стоит?")]);
+    expect(invoice.notes).toEqual([{ code: "invoice_blocked", detail: "client_not_agreed" }]);
+    // Обычный ход без вмешательства кода — без пометок.
+    expect(turn().notes).toEqual([]);
+  });
+
+  it("вердикт по сроку для следа — тот же расчёт, что и факт для модели", () => {
+    const e = env();
+    expect(deadlineCheck("2026-11-24", e)).toMatchObject({ date: "2026-11-24", kind: "ok" });
+    expect(deadlineCheck("2026-11-24", e, "Алматы")).toMatchObject({ city: "Алматы" });
+    expect(deadlineFact("2026-11-24", e)).toContain("УСПЕВАЕМ");
+    // Завтра: печатную не успеть — и в следе, и в факте для модели.
+    expect(deadlineCheck("2026-10-18", e)?.kind).toBe("late");
+    expect(deadlineFact("2026-10-18", e)).toContain("НЕ успеть");
+    expect(deadlineCheck("2026-10-01", e)).toBeNull();
   });
 });

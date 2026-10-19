@@ -14,6 +14,7 @@ import { lessonsBlock, type BotLesson } from "./botCoach";
 import { humanDate, type DealField } from "./bot";
 import { selectKnowledge } from "./botKnowledge";
 import { paymentFactsText } from "./botPayments";
+import type { TraceDeadline, TraceNote } from "./botTrace";
 
 // ─── состояние AI-беседы ────────────────────────────────────────────────────
 
@@ -326,6 +327,8 @@ export interface SellerTurn {
   materials?: boolean;
   /** Сколько первых абзацев ответа уходит до подборки (2 — если код добавил представление). */
   materialsAfter?: number;
+  /** Что код поправил или остановил в этом ходе — для следа «Почему так?». */
+  notes?: TraceNote[];
 }
 
 export interface SellerTurnContext {
@@ -378,6 +381,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   const s: BotState = JSON.parse(JSON.stringify(prev));
   const ai = readSellerAi(s.ai);
   const events: BotEvent[] = [];
+  const notes: TraceNote[] = [];
   s.seen = [...s.seen, ...ctx.inputs.map((i) => i.id)].slice(-200);
   s.lang = d.lang;
   ai.turns += 1;
@@ -416,17 +420,19 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       events.push({ kind: "answer", intent: "materials" });
     }
     const state: BotState = { ...s, ...patch, ai: { ...ai }, version: prev.version + 1 };
-    return { state, reply: null, fields, events, done: state.phase === "done", invoice: null, retry: null, ...extra, materials, materialsAfter: introAdded ? 2 : 1 };
+    return { state, reply: null, fields, events, done: state.phase === "done", invoice: null, retry: null, ...extra, materials, materialsAfter: introAdded ? 2 : 1, notes };
   };
 
   // Потолок беседы: дальше разговаривает человек.
   if (ai.turns > env.config.sell.maxTurns && d.action !== "handoff") {
     events.push({ kind: "handoff", reason: "limit" });
+    notes.push({ code: "limit", detail: String(env.config.sell.maxTurns) });
     return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null, lastBotAt: env.now.toISOString() });
   }
 
   // Ответ клиенту: проверка до отправки. Бот уже здоровался сегодня — повторное «Здравствуйте» в начале ответа убираем.
   let reply: string | null = (ctx.greeted ? withoutGreeting(d.reply) : d.reply) || null;
+  if (ctx.greeted && reply !== (d.reply || null)) notes.push({ code: "greeting_removed" });
   if (reply) {
     const problems = [...checkSellerReply(reply, ctx.rules), ...personaProblems(reply, env.config.sell)];
     if (problems.length) {
@@ -436,6 +442,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       reply = null;
       // Второй раз подряд — человек: бот не знает, как сказать, не нарушая правил.
       events.push({ kind: "handoff", reason: "ai_blocked" });
+      notes.push({ code: "blocked_twice", detail: problemsText(problems) });
       return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: botSellText({ ...s, lang: d.lang }, env, "handoff") || null });
     }
   }
@@ -446,6 +453,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   if (reply && ctx.intro && d.action !== "wait" && !reply.toLowerCase().includes(introName.toLowerCase())) {
     reply = `${introLine(env.config.sell, d.lang, ctx.intro.greet)}\n\n${withoutGreeting(reply)}`;
     introAdded = true;
+    notes.push({ code: "intro_added" });
   }
 
   // Бот повторил своё прошлое сообщение слово в слово: диалог ходит по кругу (чужой автоответчик, непонимание) — человек.
@@ -453,6 +461,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   const repeats = (a: string, b: string) => !!squash(a) && (squash(a) === squash(b) || (squash(a).length > 12 && squash(b).endsWith(squash(a))));
   if (reply && ctx.lastBotText && (repeats(reply, ctx.lastBotText) || repeats(d.reply, ctx.lastBotText)) && d.action === "reply") {
     events.push({ kind: "handoff", reason: "loop" });
+    notes.push({ code: "loop" });
     return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: null });
   }
 
@@ -481,6 +490,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
     // Третье возражение подряд — не продавать дальше, а позвать менеджера.
     if (ai.objections >= 3) {
       events.push({ kind: "handoff", reason: "objection" });
+      notes.push({ code: "objections", detail: String(ai.objections) });
       return finish({ phase: "done", outcome: "handoff", reason: "objection", asking: null }, { reply });
     }
     return finish({ lastBotAt: s.lastBotAt }, { reply });
@@ -489,6 +499,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
   // Цену клиент спрашивает уже в третий раз, а модель всё уводит в сторону — не водим по кругу, зовём менеджера.
   if (askedPrice && ai.priceAsks >= PRICE_ASKS_HANDOFF && (d.action === "reply" || d.action === "wait")) {
     events.push({ kind: "handoff", reason: "price_request" });
+    notes.push({ code: "price_asks", detail: String(ai.priceAsks) });
     ai.stage = "handoff";
     s.lastBotAt = reply ? env.now.toISOString() : s.lastBotAt;
     return finish({ phase: "done", outcome: "handoff", reason: "price", asking: null }, { reply: reply ?? (botSellText({ ...s, lang: d.lang }, env, "handoff") || null) });
@@ -500,6 +511,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       // клиента (знак вопроса, вопрос о цене, сроках, доставке, просьба позвать человека) без ответа бот не оставляет.
       if (ctx.inputs.some(asksSomething)) {
         events.push({ kind: "handoff", reason: "unanswered" });
+        notes.push({ code: "unanswered" });
         return finish({ phase: "done", outcome: "handoff", reason: "question", asking: null }, { reply: botSellText({ ...s, lang: d.lang }, env, "handoff") || null });
       }
       ai.stage = d.stage;
@@ -527,6 +539,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       // Клиент уже платил: «давайте» — это про доплату или детали заказа, счёт и сумму решает менеджер.
       if (env.paid) {
         events.push({ kind: "blocked", reason: "invoice: already_paid" }, { kind: "handoff", reason: "pay" });
+        notes.push({ code: "already_paid" });
         ai.stage = "handoff";
         s.lastBotAt = reply ? env.now.toISOString() : s.lastBotAt;
         return finish({ phase: "done", outcome: "handoff", reason: "pay", asking: null }, { reply: reply ?? (botSellText({ ...s, lang: d.lang }, env, "handoff") || null) });
@@ -537,6 +550,7 @@ export function resolveSellerTurn(prev: BotState, d: SellerDecision, env: BotEnv
       if (!invoice) {
         // Не по правилам (или счёт выключен): беседа идёт дальше; если клиент и правда согласен, а счёт нельзя — менеджеру.
         events.push({ kind: "blocked", reason: `invoice: ${blocked ?? "no_price"}` });
+        notes.push({ code: "invoice_blocked", detail: blocked ?? "no_price" });
         if (d.agreed && (blocked === "invoice_off" || blocked === "no_price" || blocked === "prices_hidden" || blocked === "price_not_quoted")) {
           events.push({ kind: "agreed" });
           ai.stage = "agreed";
@@ -601,11 +615,18 @@ export function ruCase(name: string, c: "gen" | "dat"): string {
 /** Алматы: доставка в день готовности (по Казахстану — sell.deliveryDays). */
 export const isAlmaty = (city: string | null | undefined) => !!city && /алмат|almat|алма-ат/i.test(city);
 
+/** Вердикт по сроку к дате (для следа хода): тот же расчёт, что в deadlineFact. Город известен — доставка по нему. */
+export function deadlineCheck(eventIso: string, env: BotEnv, city = ""): TraceDeadline | null {
+  const sell = env.config.sell;
+  const plan = deadlinePlan(eventIso, env.now, env.tz, { ...sell, deliveryDays: isAlmaty(city) ? 0 : sell.deliveryDays }, env.catalog.productionDays);
+  if (!plan) return null;
+  return { date: eventIso, kind: plan.kind, fillBy: plan.fillBy, ...(plan.expressFillBy ? { expressFillBy: plan.expressFillBy } : {}), ...(city ? { city: city.slice(0, 40) } : {}) };
+}
+
 /** Вердикт по сроку к дате — считает код, модель его только пересказывает. Город известен — доставка по нему. */
 export function deadlineFact(eventIso: string, env: BotEnv, city = ""): string | null {
-  const sell = env.config.sell;
   const almaty = isAlmaty(city);
-  const plan = deadlinePlan(eventIso, env.now, env.tz, { ...sell, deliveryDays: almaty ? 0 : sell.deliveryDays }, env.catalog.productionDays);
+  const plan = deadlineCheck(eventIso, env, city);
   if (!plan) return null;
   const when = `${humanDate(eventIso, "ru")} (${weekdayOf(eventIso)})`;
   const fill = `${humanDate(plan.fillBy, "ru")} (${weekdayOf(plan.fillBy)})`;

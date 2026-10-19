@@ -16,7 +16,7 @@ const fake = {
   automation: { engine: { runScheduled: stepFn("automations", 0) } },
   clients: { tasks: { remindDue: stepFn("reminders", 0) } },
   sales: { routing: { run: stepFn("routing", 0) } },
-  messaging: { bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), coach: { run: stepFn("coach", null) } },
+  messaging: { bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), coach: { run: stepFn("coach", null) }, purgeBotTraces: stepFn("traces", 0) },
   invoiceAccess: { run: stepFn("access", { processed: 0, failed: 0 }), expire: stepFn("expire", 0) },
   ordering: { deliverDueGifts: stepFn("gifts", 0), kaspiWatch: { check: stepFn("kaspi watch", null) } },
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
@@ -56,10 +56,17 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 
-  it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp и разбор бота выполняются", async () => {
+  it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp, разбор бота и чистка его следов выполняются", async () => {
     failing.add("gifts").add("purge");
     await tick();
-    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach"]);
+    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "traces"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
+  });
+
+  it("медленный проход: разбор бота упал — следы бота старше 90 дней всё равно чистятся", async () => {
+    failing.add("coach");
+    await tick();
+    expect(calls.at(-1)).toBe("traces");
+    expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "bot coach" failed']);
   });
 });

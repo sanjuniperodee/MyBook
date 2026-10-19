@@ -56,8 +56,8 @@ export interface QualifierBotDeps {
   timers: BotTimers;
   clock: Clock;
   logger: Logger;
-  /** Отправить клиенту от имени бота. */
-  send(conversationId: string, text: string): Promise<unknown>;
+  /** Отправить клиенту от имени бота; id — записанное сообщение (к нему след хода «Почему так?»). */
+  send(conversationId: string, text: string): Promise<{ id: string } | void>;
   /** Внутренняя заметка в чате (итог бота) — клиент её не видит. */
   note(conversationId: string, text: string): Promise<unknown>;
   /** Номер магазина: его бот писать может, остальные номера, карты и реквизиты — нет. */

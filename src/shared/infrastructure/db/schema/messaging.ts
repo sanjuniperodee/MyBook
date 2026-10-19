@@ -139,9 +139,20 @@ export const crmBotEvents = pgTable(
     intent: text("intent"),
     lang: text("lang"),
     reason: text("reason"),
+    /** След хода AI-продажника (kind = turn): что решила модель и что сделал код — «Почему так?» у ответа бота. */
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    /** Последнее сообщение клиенту в этом ходе — у него в чате «Почему так?». */
+    messageId: uuid("message_id").references(() => crmMessages.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_bot_events_at_idx").on(t.createdAt), index("crm_bot_events_conv_idx").on(t.conversationId)],
+  (t) => [
+    index("crm_bot_events_at_idx").on(t.createdAt),
+    index("crm_bot_events_conv_idx").on(t.conversationId),
+    // «Почему так?» в чате: след по id сообщения (есть только у ходов продажника).
+    index("crm_bot_events_message_idx").on(t.messageId).where(sql`${t.messageId} is not null`),
+    // Чистка следов старше 90 дней в проходе планировщика — по своим строкам, без обхода остального журнала.
+    index("crm_bot_events_turn_at_idx").on(t.createdAt).where(sql`${t.kind} = 'turn'`),
+  ],
 );
 
 /**

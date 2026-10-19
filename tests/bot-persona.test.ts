@@ -35,7 +35,7 @@ function fakeModel(script: Record<string, unknown>[]) {
       calls.push(req);
       const next = script.shift();
       if (!next) throw new Error("модель: сценарий кончился");
-      return JSON.stringify(next);
+      return { text: JSON.stringify(next) };
     },
   };
   return { model, calls };

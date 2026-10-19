@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizz
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { readBotState, splitHandoffs, type BotEvent, type BotState, type Conversation, type InboundMessage } from "../domain";
+import { BOT_TRACE_KEEP_DAYS, readBotState, readBotTrace, splitHandoffs, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
@@ -408,8 +408,23 @@ export class DrizzleBotStore implements BotStore {
     if (!events.length) return;
     await executor()
       .insert(crmBotEvents)
-      .values(events.map((e) => ({ conversationId, dealId, kind: e.kind, field: e.field ?? null, intent: e.intent ?? null, lang, reason: e.reason?.slice(0, 200) ?? null })));
+      .values(events.map((e) => ({ conversationId, dealId, kind: e.kind, field: e.field ?? null, intent: e.intent ?? null, lang, reason: e.reason?.slice(0, 200) ?? null, meta: (e.meta as unknown as Record<string, unknown>) ?? null, messageId: e.messageId ?? null })));
   }
+}
+
+/** Сколько старых следов удаляется за проход: чистка идёт порциями, без долгой блокировки журнала. */
+const TRACE_PURGE_BATCH = 2000;
+
+/**
+ * Чистка следов ходов бота старше keepDays (по частичному индексу crm_bot_events_turn_at_idx): за проход — не больше
+ * TRACE_PURGE_BATCH самых старых. Остальной журнал (статистика) не трогается. Возвращает, сколько удалено.
+ */
+export async function purgeBotTraces(keepDays = BOT_TRACE_KEEP_DAYS): Promise<number> {
+  const res = await executor().execute(sql`
+    delete from crm_bot_events where id in (
+      select id from crm_bot_events where kind = 'turn' and created_at < now() - make_interval(days => ${keepDays})
+      order by created_at limit ${TRACE_PURGE_BATCH})`);
+  return res.rowCount ?? 0;
 }
 
 /** Метрики бота за период (настройки бота). */
@@ -577,6 +592,17 @@ export class DrizzleMessagingQueries {
   /** Метрики бота за 30 дней (настройки бота): по журналу событий, а не по bot_step. */
   botMetrics(days = 30) {
     return botMetrics(days);
+  }
+
+  /** След хода продажника у сообщения бота («Почему так?»); null — следа нет (шаблонный бот, старое сообщение). */
+  async botTrace(messageId: string): Promise<BotTurnTrace | null> {
+    const [row] = await executor()
+      .select({ meta: crmBotEvents.meta })
+      .from(crmBotEvents)
+      .where(and(eq(crmBotEvents.messageId, messageId), eq(crmBotEvents.kind, "turn")))
+      .orderBy(desc(crmBotEvents.createdAt))
+      .limit(1);
+    return row ? readBotTrace(row.meta) : null;
   }
 
   /** Стоп-лист для настроек: спам и «не писать первым», кто добавил (null — CRM сама). */

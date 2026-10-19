@@ -164,7 +164,7 @@ export async function testSellerAction(): Promise<{ ok: boolean; message: string
       name: "Айгерим",
     });
     const took = ((Date.now() - t0) / 1000).toFixed(1);
-    const reply = result.transcript.find((m) => m.from === "bot")?.text;
+    const reply = result.transcript.find((m) => m.from === "bot" && m.text)?.text;
     if (result.engine !== "ai") return { ok: false, message: "Продажник не запустился на модели (проверьте ключ и модель)." };
     if (!reply || reply.startsWith("⚠️")) return { ok: false, message: reply ?? "Модель не ответила по схеме — попробуйте другую модель (нужна поддержка JSON-ответа)." };
     return { ok: true, message: `${label === "AI" ? model : `${label} · ${model}`} ответила за ${took} с: «${reply.slice(0, 280)}»` };

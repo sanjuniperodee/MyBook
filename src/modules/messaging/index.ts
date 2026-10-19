@@ -13,13 +13,14 @@ import { chatFiles } from "./infrastructure/chatFiles";
 import { staffLine } from "./infrastructure/staffLine";
 import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
-import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist } from "./infrastructure/persistence";
+import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist, purgeBotTraces } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
 import { contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
 import { normalizePhone } from "@/shared/domain/phone";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
 export { DEFAULT_RULE_SENDING, RULE_DAILY_LIMIT_MAX, type RuleSendingPolicy } from "./domain";
+export type { BotTurnTrace } from "./domain";
 export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, sensitiveWhat, type Conversation, type InboundMessage, type SensitiveFinding } from "./domain";
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
@@ -418,6 +419,16 @@ export class MessagingModule {
   /** Метрики бота для настроек. */
   botMetrics(days = 30) {
     return this.queries.botMetrics(days);
+  }
+
+  /** След хода продажника у сообщения бота («Почему так?» в чате); null — следа нет. */
+  botTrace(messageId: string) {
+    return this.queries.botTrace(messageId);
+  }
+
+  /** Медленный проход планировщика: следы ходов бота старше 90 дней удаляются порциями. */
+  purgeBotTraces() {
+    return purgeBotTraces();
   }
 
   /**

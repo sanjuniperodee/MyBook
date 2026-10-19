@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, assertVisible, assertWorkable, audit, can, canAssignOthers, canWork, contactView, ForbiddenError, type Staff } from "@/server/access";
-import { channelLabel, MessageActionError } from "@/modules/messaging";
+import { channelLabel, MessageActionError, type BotTurnTrace } from "@/modules/messaging";
+import { admin } from "@/i18n/admin";
 import { sensitiveFor, sensitiveWhat } from "@/server/sensitive";
 import type { OfferRequest } from "@/modules/marketing";
 import { notifyMentions, staffNotifier } from "@/modules/workspace";
@@ -237,6 +238,16 @@ export async function transcribeMessageAction(conversationId: string, messageId:
   if (owner !== conv.id) return { error: "Сообщение не найдено" };
   const r = await messageAction(() => container().messaging.transcribe(messageId));
   return typeof r === "string" ? { text: r } : r;
+}
+
+/** «Почему так?» у ответа бота: след хода AI-продажника — что решила модель, что сделал код, срок, уроки, токены. */
+export async function botTraceAction(conversationId: string, messageId: string): Promise<{ trace?: BotTurnTrace; error?: string }> {
+  const staff = await assertStaff("chats.view");
+  const conv = await loadConv(staff, conversationId);
+  const id = uuid.parse(messageId);
+  if ((await container().messaging.queries.messageConversation(id)) !== conv.id) return { error: admin.chatMessageNotFound };
+  const trace = await container().messaging.botTrace(id);
+  return trace ? { trace } : { error: admin.botTraceMissing };
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   type BotLang,
   type BotSkipReason,
   type BotState,
+  type BotTurnTrace,
   type DealField,
   type HistoryMessage,
 } from "../domain";
@@ -33,7 +34,8 @@ export interface BotPreviewInput {
 
 export interface BotPreviewResult {
   skipped: string | null;
-  transcript: { from: "client" | "bot"; text: string }[];
+  /** Реплики теста; у ответов AI-продажника — след хода («Почему так?»); пустой text у бота — бот промолчал. */
+  transcript: { from: "client" | "bot"; text: string; trace?: BotTurnTrace }[];
   fields: { label: string; value: string }[];
   intents: string[];
   lang: BotLang;

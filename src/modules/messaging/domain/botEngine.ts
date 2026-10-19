@@ -14,6 +14,7 @@ import { detectLang, faqIntents, handoffIntent, isAck, isAgree, isBareNo, isWill
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
 import { newSellerAiState, type SellerAiState } from "./botSellerState";
+import type { BotTurnTrace } from "./botTrace";
 
 /** offered — бот сделал предложение, клиент замолчал; invoiced — бот сам выставил счёт. */
 export type BotOutcome = "finished" | "handoff" | "stopped_by_manager" | "abandoned" | "declined" | "skipped" | "disabled" | "offered" | "invoiced";
@@ -37,13 +38,19 @@ export type BotEventKind =
   | "agreed"
   | "follow_up"
   | "invoiced"
-  | "offered";
+  | "offered"
+  /** След хода AI-продажника («Почему так?»): meta — что решила модель и что сделал код. */
+  | "turn";
 
 export interface BotEvent {
   kind: BotEventKind;
   field?: string | null;
   intent?: string | null;
   reason?: string | null;
+  /** След хода (kind = turn). */
+  meta?: BotTurnTrace | null;
+  /** Последнее сообщение клиенту в этом ходе — у него в чате «Почему так?». */
+  messageId?: string | null;
 }
 
 /** Состояние бота в диалоге (crm_conversations.bot_state). */
