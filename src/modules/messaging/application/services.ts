@@ -9,15 +9,23 @@ import {
   contactTitle,
   safeContactName,
   findSensitive,
+  DEFAULT_RULE_SENDING,
+  inRuleWindow,
+  localDayStart,
   preview,
   redactSecrets,
   sensitiveWhat,
+  ruleSendBlock,
+  ruleSendBlockText,
   shouldApplyStatus,
   type Conversation,
   type ConversationMeta,
   type DeliveryStatus,
   type InboundMessage,
+  type RuleSendBlock,
+  type RuleSendingPolicy,
 } from "../domain";
+import { zonedDay } from "@/shared/domain/time";
 import type { QualifierBot } from "./bot";
 import type { BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffNotifier, StoredMessage, Tasks } from "./ports";
 
@@ -58,6 +66,9 @@ export interface ContactsTarget {
   phones: readonly (string | null | undefined)[];
 }
 
+/** До скольких считать отправленные за сутки для экрана настроек (лимит правил не больше этого). */
+const RULE_SENDING_COUNT_CAP = 1000;
+
 /** Заметка в чате, когда клиент сам попросил не писать (номер — в стоп-лист «Не писать первым»). */
 const NO_MESSAGES_NOTE =
   "🔕 Клиент попросил больше не писать — номер в стоп-листе «Не писать первым»: бот не напоминает о себе, правила автоматизаций не пишут. Отвечать на его сообщения можно. Если это ошибка — «Писать первым: можно» в карточке клиента или сделки.";
@@ -67,6 +78,9 @@ type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
 
 /** Единый инбокс: входящие из всех каналов, отправка ответов, статусы доставки. */
 export class MessagingService {
+  /** День, за который руководители уже узнали, что лимит сообщений от правил исчерпан (одно уведомление в сутки). */
+  #limitAlertDay = "";
+
   constructor(
     private readonly conversations: ConversationRepository,
     private readonly messages: MessageRepository,
@@ -84,6 +98,8 @@ export class MessagingService {
     private readonly shopPhone: () => Promise<string> = async () => "",
     /** Кто сейчас держит телефон WhatsApp магазина (настройка в «Чатах»); null — не указано. */
     private readonly phoneHolder: () => Promise<{ id: string; name: string } | null> = async () => null,
+    /** Окно и суточный лимит сообщений от правил («Интеграции» → «Мессенджеры»). */
+    private readonly ruleSending: () => Promise<RuleSendingPolicy> = async () => DEFAULT_RULE_SENDING,
   ) {}
 
   /**
@@ -409,21 +425,23 @@ export class MessagingService {
    * Сообщение правила автоматизации. Если диалог ведёт бот, правило-автоответ молчит: иначе клиент получит два
    * автоответа подряд (бот и «ответим утром»). Номер в стоп-листе («не писать первым» или спам) — не уходит (contacts-18).
    * В тексте чужой номер, карта, IBAN или ссылка на перевод Kaspi (шаблон правила или подставленное поле) — не уходит:
-   * заметка в сделку и уведомление руководителю (chats-d4). Номер самого клиента и магазина — можно. null — не отправлено.
+   * заметка в сделку и уведомление руководителю (chats-d4). Номер самого клиента и магазина — можно. Вне окна по Алматы
+   * или сверх суточного лимита сообщений от правил — не уходит, заметка в сделку (automation-15); автоответ на сообщение
+   * клиента (reply) окно и лимит не держат. null — не отправлено.
    */
-  async sendAutomated(conversationId: string, text: string, opts: { rule?: string } = {}) {
+  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean } = {}) {
     if (await this.bot.isActive(conversationId)) return null;
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
+    const rule = opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации";
     // Клиент просил не писать первым (или номер в спаме) — правила ему не пишут, даже автоответом.
     if (await this.blocklist.noMarketing(conv.chatId, contactPhone(conv))) {
-      this.logger.info(`${opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации"}: диалог ${conv.id} — «не писать первым», сообщение не отправлено`);
+      this.logger.info(`${rule}: диалог ${conv.id} — «не писать первым», сообщение не отправлено`);
       return null;
     }
     const found = findSensitive(text, [conv.chatId, conv.meta.phone, await this.shopPhone()]);
     if (found.length) {
       const what = sensitiveWhat(found);
-      const rule = opts.rule ? `Правило «${opts.rule}»` : "Правило автоматизации";
       const values = found.map((f) => f.value).join(", ");
       this.logger.warn(`${rule}: сообщение в диалог ${conv.id} не отправлено — ${what}`);
       const deal = conv.dealId ? await this.sales.deal(conv.dealId) : null;
@@ -431,7 +449,56 @@ export class MessagingService {
       await this.notifier.managers?.({ kind: "system", title: `${rule} не отправило сообщение: в тексте ${what}`, body: `${conv.contactName || phoneTail(conv.chatId) || "клиенту"}: ${values}`, link: `/admin/chats?c=${conv.id}` });
       return null;
     }
+    // Правило пишет первым — только в окне и в пределах суточного лимита (automation-15). Автоответ на только что
+    // пришедшее сообщение клиента (reply) уходит в любое время, но в счёт лимита идёт.
+    if (!opts.reply) {
+      const { block, policy } = await this.ruleGate();
+      if (block) {
+        const why = ruleSendBlockText(block, policy);
+        this.logger.warn(`${rule}: сообщение в диалог ${conv.id} не отправлено — ${why}`);
+        const deal = conv.dealId ? await this.sales.deal(conv.dealId) : null;
+        if (deal) await this.sales.note(deal, `${rule} не отправило клиенту сообщение: ${why}. Если нужно — напишите клиенту сами. Окно и лимит — «Интеграции» → «Мессенджеры».`);
+        return null;
+      }
+    }
     return this.send(conversationId, text, null, "rule");
+  }
+
+  /**
+   * Может ли правило сейчас написать клиенту первым: окно по Алматы и суточный лимит сообщений от правил. null —
+   * можно; правила по времени вне окна и сверх лимита не застолбляют объект и сработают в следующем проходе.
+   */
+  async ruleSendBlock(): Promise<RuleSendBlock | null> {
+    return (await this.ruleGate()).block;
+  }
+
+  /** Окно и лимит на сейчас; сколько ушло за сутки, считаем только в окне. Лимит исчерпан — руководителям раз в сутки. */
+  private async ruleGate(): Promise<{ block: RuleSendBlock | null; policy: RuleSendingPolicy }> {
+    const policy = await this.ruleSending();
+    const now = this.clock.now();
+    if (!inRuleWindow(now, policy)) return { block: "window", policy };
+    const sent = policy.dailyLimit > 0 ? await this.messages.countRuleSince(localDayStart(now), policy.dailyLimit) : 0;
+    const block = ruleSendBlock(policy, now, sent);
+    if (block === "limit" && policy.dailyLimit > 0) await this.limitAlert(policy, now).catch((err) => this.logger.error("rule limit alert", err));
+    return { block, policy };
+  }
+
+  private async limitAlert(policy: RuleSendingPolicy, now: Date) {
+    const day = zonedDay(now);
+    if (this.#limitAlertDay === day) return;
+    this.#limitAlertDay = day;
+    await this.notifier.managers?.({
+      kind: "system",
+      title: `Сообщения от правил на сегодня закончились: ${policy.dailyLimit} в сутки`,
+      body: "До завтра правила автоматизаций клиентам первыми не пишут — бережём номер WhatsApp. Автоответы уходят. Лимит — «Интеграции» → «Мессенджеры».",
+      link: "/admin/settings?tab=messengers",
+    });
+  }
+
+  /** Окно, лимит и сколько сообщений от правил ушло сегодня — для настроек. */
+  async ruleSendingToday() {
+    const policy = await this.ruleSending();
+    return { policy, sent: await this.messages.countRuleSince(localDayStart(this.clock.now()), RULE_SENDING_COUNT_CAP) };
   }
 
   /**

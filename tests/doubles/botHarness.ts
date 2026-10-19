@@ -1,4 +1,4 @@
-import { defaultBotConfig, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
+import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
 import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway } from "@/modules/messaging/application";
 
 export const start = new Date("2026-10-01T06:00:00Z"); // 11:00 по Алматы, рабочее время
@@ -70,6 +70,8 @@ export function setup(
     shopPhone?: string;
     /** Стоп-лист «Не писать первым»: номера, которые там уже есть. */
     noMarketing?: string[];
+    /** Окно и суточный лимит сообщений от правил (по умолчанию 09:00–21:00 и 40). */
+    ruleSending?: RuleSendingPolicy;
   } = {},
 ) {
   let now = start;
@@ -170,6 +172,7 @@ export function setup(
       const m = msgs.find((x) => x.externalId === e);
       return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
     },
+    countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since).length),
   };
   const sales: SalesGateway = {
     findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,
@@ -268,6 +271,7 @@ export function setup(
     quiet,
     async () => opts.shopPhone ?? "",
     async () => opts.phoneHolder ?? null,
+    async () => opts.ruleSending ?? DEFAULT_RULE_SENDING,
   );
   const deps = {
     conversations,

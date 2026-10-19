@@ -21,8 +21,13 @@ export interface SubjectLoader {
 /** Действия правил в других частях CRM. */
 export interface AutomationEffects {
   createTask(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null }): Promise<void>;
-  /** Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). */
-  sendMessage(conversationId: string, text: string, opts?: { rule: string }): Promise<void>;
+  /**
+   * Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). reply — ответ на только что
+   * пришедшее сообщение клиента (автоответ): окно и суточный лимит его не держат.
+   */
+  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean }): Promise<void>;
+  /** Можно ли сейчас написать клиенту первым: окно и суточный лимит сообщений от правил (automation-15). */
+  canMessageNow(): Promise<boolean>;
   assignConversation(conversationId: string, userId: string): Promise<void>;
   /** Уведомить сотрудников; без адресатов — всех с правом deals.view. */
   notify(userIds: string[] | "staff", n: { kind: "task" | "sla" | "system"; title: string; body: string; link: string | null }): Promise<void>;

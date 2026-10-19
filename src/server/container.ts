@@ -75,8 +75,10 @@ export class Container {
       schedule: this.workspace.schedule,
       fields: this.workspace.fieldsReader,
       // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд); текст с
-      // реквизитами не уходит — заметка в сделку и руководителю.
+      // реквизитами не уходит — заметка в сделку и руководителю. Первым правило пишет только в окне и в пределах
+      // суточного лимита («Интеграции» → «Мессенджеры»).
       sendMessage: async (conversationId, text, opts) => void (await this.messaging.chats.sendAutomated(conversationId, text, opts)),
+      canMessageNow: async () => !(await this.messaging.chats.ruleSendBlock()),
       sales: {
         nextRoundRobin: () => this.sales.routing.next(),
         assign: async (dealId, userId) => void (await this.sales.deals.assign(dealId, userId)),

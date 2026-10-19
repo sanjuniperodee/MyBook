@@ -15,9 +15,9 @@ export class AutomationModule {
 
   /** Уведомления сотрудникам, график работы и свои поля сделки (переменные шаблонов) — порты рабочего пространства. */
   constructor(
-    deps: { clock: Clock; sales: SalesGateway; sendMessage: AutomationEffects["sendMessage"]; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
+    deps: { clock: Clock; sales: SalesGateway; sendMessage: AutomationEffects["sendMessage"]; canMessageNow: AutomationEffects["canMessageNow"]; notifier: StaffNotifier<"deals.view">; schedule: WorkSchedule; fields: CustomFieldsReader },
   ) {
-    const effects = crmEffects(deps.sendMessage, deps.notifier);
+    const effects = crmEffects(deps.sendMessage, deps.canMessageNow, deps.notifier);
     this.engine = new AutomationEngine(new DrizzleRuleRepository(), new DrizzleSubjectLoader(deps.fields), effects, deps.sales, deps.schedule, new SqlScheduledSource(), appInfo, deps.clock, consoleLogger("automations"));
   }
 }

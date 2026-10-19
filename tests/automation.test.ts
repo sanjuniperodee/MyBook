@@ -4,7 +4,7 @@ import type { AutomationRule, RuleSubject } from "@/modules/automation/domain";
 
 const now = new Date("2026-10-01T06:00:00Z");
 
-function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Partial<RuleSubject>; onMove?: (dealId: string, stageId: string) => Promise<void>; scheduled?: Partial<ScheduledSource>; active?: RuleRepository["active"] } = {}) {
+function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Partial<RuleSubject>; onMove?: (dealId: string, stageId: string) => Promise<void>; scheduled?: Partial<ScheduledSource>; active?: RuleRepository["active"]; canMessage?: () => boolean } = {}) {
   const claimed = new Set<string>();
   const log: string[] = [];
   const repo: RuleRepository = {
@@ -23,7 +23,8 @@ function setup(rules: AutomationRule[], opts: { workTime?: boolean; subject?: Pa
   const effects: AutomationEffects = {
     createTask: async (t) => void log.push(`task:${t.title}:${t.assigneeId}`),
     // Название правила уходит в отправку: текст с реквизитами не отправится, а в заметке будет видно, какое правило.
-    sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule})` : ""}`),
+    sendMessage: async (id, text, o) => void log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""})` : ""}`),
+    canMessageNow: async () => (log.push("gate"), opts.canMessage?.() ?? true),
     assignConversation: async () => {},
     notify: async (to, n) => void log.push(`notify:${Array.isArray(to) ? to.join(",") : to}:${n.title}`),
   };
@@ -108,5 +109,39 @@ describe("AutomationEngine: правила по времени не обрыва
     await expect(engine.runScheduled({ force: true })).resolves.toBe(1);
     expect(log).toEqual(["notify:staff:Вернуть", "run:inactive"]);
     expect(errors).toEqual(["«SLA»: выборка правила по времени", "«Годовщина»: выборка правила по времени"]);
+  });
+});
+
+describe("AutomationEngine: окно и суточный лимит сообщений от правил (automation-15)", () => {
+  const lastSeen = new Date("2026-09-20T00:00:00Z");
+  const two = { inactiveClients: async () => [{ dealId: "d1", clientId: "c1", lastSeen }, { dealId: "d2", clientId: "c2", lastSeen }] };
+
+  it("правило по времени с сообщением вне окна не застолбляет объект: в следующем проходе срабатывает целиком; без сообщения — сразу", async () => {
+    let open = false;
+    const { engine, log } = setup(
+      [
+        rule({ id: "back", trigger: "client.inactive", actions: [{ type: "create_task", title: "Вернуть" }, { type: "send_message", text: "Вы начали книгу" }] }),
+        rule({ id: "staff", trigger: "client.inactive", actions: [{ type: "notify", title: "Без сообщения" }] }),
+      ],
+      { scheduled: two, canMessage: () => open },
+    );
+    expect(await engine.runScheduled({ force: true })).toBe(2);
+    // Окно проверено один раз за проход; правило без сообщения клиенту окно не держит.
+    expect(log).toEqual(["gate", "notify:staff:Без сообщения", "run:staff", "notify:staff:Без сообщения", "run:staff"]);
+    open = true;
+    log.length = 0;
+    expect(await engine.runScheduled({ force: true })).toBe(2);
+    expect(log.filter((l) => l.startsWith("msg:") || l.startsWith("task:"))).toEqual(["task:Вернуть:null", "msg:conv1:Вы начали книгу (Правило)", "task:Вернуть:null", "msg:conv1:Вы начали книгу (Правило)"]);
+    expect(log).not.toContain("notify:staff:Без сообщения");
+  });
+
+  it("событийные правила окно не спрашивают: автоответ на входящее помечен «ответ», остальные — нет", async () => {
+    const { engine, log } = setup(
+      [rule({ id: "auto", trigger: "message.incoming", actions: [{ type: "send_message", text: "Ответим утром" }] }), rule({ id: "hi", trigger: "deal.created", actions: [{ type: "send_message", text: "Здравствуйте" }] })],
+      { canMessage: () => false },
+    );
+    await engine.run("message.incoming", { subject: "conv1:2026-10-01", conversationId: "conv1" });
+    await engine.run("deal.created", { subject: "d1" });
+    expect(log).toEqual(["msg:conv1:Ответим утром (Правило, ответ)", "run:auto", "msg:conv1:Здравствуйте (Правило)", "run:hi"]);
   });
 });

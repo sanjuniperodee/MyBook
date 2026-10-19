@@ -314,6 +314,18 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
       .limit(1);
     return r ?? null;
   }
+
+  /** Суточный лимит правил: по частичному индексу crm_messages_rule_idx, не больше cap строк. */
+  async countRuleSince(since: Date, cap: number) {
+    const { rows } = await executor().execute<{ n: number }>(sql`
+      select count(*)::int as n from (
+        select 1 from crm_messages
+        where source = 'rule' and internal = false and created_at >= ${since}
+        order by created_at
+        limit ${cap}
+      ) t`);
+    return Number(rows[0]?.n ?? 0);
+  }
 }
 
 /** Бот не остановлен человеком: bot_step null (ещё не начал) или номер вопроса. */

@@ -53,6 +53,7 @@ const actions = {
   ...(await import("@/app/admin/settings/mail/actions")),
   ...(await import("@/app/admin/settings/ai/actions")),
   ...(await import("@/app/admin/settings/kaspi/actions")),
+  ...(await import("@/app/admin/settings/whatsapp/actions")),
 };
 
 const form = (fields: Record<string, string | string[] | File>) => {
@@ -100,6 +101,18 @@ describe("Kaspi: порог сигнала «кассир отключён»", (
     ]);
     expect(w.audits[0]).toEqual(["settings.update", "settings", "kaspi", { alertAfterMinutes: 15 }]);
     for (const bad of [2.5, -1, 241, Number.NaN]) expect(await actions.saveKaspiAlertAfterAction(bad)).toEqual({ ok: false, error: "Порог — целое число минут от 0 до 240" });
+    expect(w.saved).toHaveLength(2);
+  });
+});
+
+describe("WhatsApp: окно и суточный лимит сообщений от правил", () => {
+  it("окно ЧЧ:ММ и лимит 0…300 сохраняются с журналом; кривое время и лимит — понятная ошибка, ничего не сохраняется", async () => {
+    expect(await actions.saveRuleSendingAction({ from: "10:00", to: "20:30", dailyLimit: 25 })).toEqual({ ok: true });
+    expect(w.saved).toEqual([{ "whatsapp.rulesWindow": '{"from":"10:00","to":"20:30"}', "whatsapp.rulesDailyLimit": "25" }]);
+    expect(w.audits[0]).toEqual(["settings.update", "settings", "whatsapp", { rulesWindow: "10:00–20:30", rulesDailyLimit: 25 }]);
+    expect(await actions.saveRuleSendingAction({ from: "9:00", to: "21:00", dailyLimit: 40 })).toEqual({ ok: false, error: "Время окна — в формате ЧЧ:ММ, например 09:00 и 21:00" });
+    for (const bad of [-1, 2.5, 301, Number.NaN]) expect(await actions.saveRuleSendingAction({ from: "09:00", to: "21:00", dailyLimit: bad })).toEqual({ ok: false, error: "Сообщений в сутки — целое число от 0 до 300" });
+    expect(await actions.saveRuleSendingAction({ from: "09:00", to: "21:00", dailyLimit: 0 })).toEqual({ ok: true });
     expect(w.saved).toHaveLength(2);
   });
 });

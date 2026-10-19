@@ -64,6 +64,12 @@ export function relevantConditions(trigger: string, c: { stageId?: string | null
   return out;
 }
 
+/** Правило пишет клиенту (действие «Отправить сообщение» с текстом): его держат окно и суточный лимит. */
+export const sendsMessage = (rule: Pick<AutomationRule, "actions">) => (rule.actions ?? []).some((a) => a.type === "send_message" && !!a.text?.trim());
+
+/** Ответ на только что пришедшее сообщение клиента (автоответ): окно и лимит его не держат, «не писать первым» — держит. */
+export const isReplyTrigger = (trigger: string) => trigger === "message.incoming";
+
 /** Нужно ли правилу знать, рабочее ли сейчас время. */
 export const needsWorkTime = (rules: readonly Pick<AutomationRule, "conditions">[]) => rules.some((r) => r.conditions?.hours === "work" || r.conditions?.hours === "off");
 

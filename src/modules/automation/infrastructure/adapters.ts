@@ -7,11 +7,12 @@ import { executor } from "@/shared/infrastructure/database";
 import type { AppInfo, AutomationEffects } from "../application";
 
 /** Сообщение клиенту отправляет контекст переписки, уведомления — рабочее пространство; их подключает корень композиции. */
-export const crmEffects = (sendMessage: AutomationEffects["sendMessage"], notifier: StaffNotifier<"deals.view">): AutomationEffects => ({
+export const crmEffects = (sendMessage: AutomationEffects["sendMessage"], canMessageNow: AutomationEffects["canMessageNow"], notifier: StaffNotifier<"deals.view">): AutomationEffects => ({
   async createTask(t) {
     await executor().insert(crmTasks).values(t);
   },
   sendMessage,
+  canMessageNow,
   async assignConversation(conversationId, userId) {
     await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.id, conversationId));
   },

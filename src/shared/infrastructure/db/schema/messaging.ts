@@ -102,7 +102,11 @@ export const crmMessages = pgTable(
     transcript: text("transcript"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_messages_conv_idx").on(t.conversationId, t.createdAt)],
+  (t) => [
+    index("crm_messages_conv_idx").on(t.conversationId, t.createdAt),
+    // Суточный лимит сообщений клиентам от правил (automation-15): счёт за сегодня — по этому индексу, без обхода переписки.
+    index("crm_messages_rule_idx").on(t.createdAt).where(sql`${t.source} = 'rule' and ${t.internal} = false`),
+  ],
 );
 
 /**

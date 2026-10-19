@@ -112,6 +112,8 @@ export interface MessageRepository {
   /** Эхо-вебхук мог прийти раньше ответа API и создать копию — оставляем исходное сообщение. */
   attachExternalId(id: string, externalId: string | null): Promise<void>;
   byExternalId(externalId: string): Promise<{ id: string; status: string; conversationId: string } | null>;
+  /** Сколько сообщений правил ушло клиентам начиная с since (заметки не в счёт); дальше cap не считаем. */
+  countRuleSince(since: Date, cap: number): Promise<number>;
 }
 
 /** Почему номер в стоп-листе: спам или «не писать первым». */

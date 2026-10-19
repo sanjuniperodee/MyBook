@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Clock, Logger, WorkSchedule } from "@/shared/application";
-import { conditionNumber, linkFor, matches, needsWorkTime, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
+import { conditionNumber, isReplyTrigger, linkFor, matches, needsWorkTime, sendsMessage, triggerLabel, type AutomationRule, type AutomationTrigger, type RuleAction, type RuleSubject, type TriggerContext } from "../domain";
 import { fillTemplate } from "@/shared/domain/templates";
 import type { AppInfo, AutomationEffects, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader } from "./ports";
 
@@ -89,7 +89,7 @@ export class AutomationEngine {
         const text = fillTemplate(a.text ?? "", vars);
         if (!text) return;
         const convId = s.conversation?.id ?? (await this.subjects.latestConversation(s.deal?.id ?? null, s.clientId));
-        if (convId) await this.effects.sendMessage(convId, text, { rule: rule.name });
+        if (convId) await this.effects.sendMessage(convId, text, { rule: rule.name, reply: isReplyTrigger(rule.trigger) });
         return;
       }
       case "assign": {
@@ -142,7 +142,8 @@ export class AutomationEngine {
 
   /**
    * Правила по времени. «Клиенту не ответили N минут» — каждый проход, считая только рабочее время;
-   * «клиент забросил книгу» и «годовщина повода» — раз в 30 минут (force — сразу, для scheduler:once).
+   * «клиент забросил книгу» и «годовщина повода» — раз в 30 минут (force — сразу, для scheduler:once). Правило с
+   * сообщением клиенту вне окна или сверх суточного лимита пропускается без отметки и сработает позже.
    * Не бросает: сбой загрузки правил или выборки одного правила пишется в лог, остальные правила и шаги минутного
    * прохода (напоминания, круг заявок, бот, почта, доступ по оплаченным счетам) идут дальше.
    */
@@ -165,8 +166,17 @@ export class AutomationEngine {
         await body(rule).catch((err) => this.logger.error(`«${rule.name}»: выборка правила по времени`, err));
       }
     };
+    /** Окно и лимит сообщений от правил: false — закрыто до конца прохода (за проход окно не откроется, лимит не вырастет). */
+    let messaging: boolean | null = null;
     const fire = async (rule: AutomationRule, ctx: TriggerContext) => {
       if (!matches(rule, ctx)) return;
+      // Правило с сообщением клиенту вне окна или сверх суточного лимита объект не застолбляет: сработает в следующем
+      // проходе (утром, завтра) целиком — с задачей и уведомлением, а не без сообщения.
+      if (sendsMessage(rule)) {
+        if (messaging === false) return;
+        messaging = await this.effects.canMessageNow().catch((err) => (this.logger.error("правила по времени: окно и лимит сообщений", err), false));
+        if (!messaging) return;
+      }
       const ok = await this.#depth
         .run(1, () => this.execute(rule, ctx))
         .catch((err) => {
