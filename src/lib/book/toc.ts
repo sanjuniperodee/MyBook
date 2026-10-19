@@ -97,13 +97,25 @@ export function inMode(c: Pick<TocCandidate, "kind" | "pageKey">, mode: TocMode)
  * автор не дал названия) не печатается. В режиме «по заголовкам» номеров нет: нумеруются только главы.
  */
 export function selectToc(candidates: readonly TocCandidate[], mode: TocMode, lines: TocLines): TocLine[] {
+  // Номера глав — подряд по оставшимся главам: убранная глава номер не занимает (в редакторе видно сразу, до сохранения).
+  let chapterNo = 0;
   return candidates.flatMap((c): TocLine[] => {
     const s = lines[c.key];
-    if (!inMode(c, mode) || s?.hidden || c.folded) return [];
+    if (isRemovedChapter(c, lines)) return [];
+    const number = c.kind === "chapter" && c.pageKey !== GALLERY_KEY ? ++chapterNo : null;
+    if (!inMode(c, mode) || s?.hidden) return [];
     const label = s?.title?.trim() || c.label;
     if (!label) return [];
-    return [{ key: c.key, pageKey: c.pageKey, level: mode === "both" && c.kind === "section" ? 1 : 0, number: mode === "sections" ? null : c.number, label }];
+    return [{ key: c.key, pageKey: c.pageKey, level: mode === "both" && c.kind === "section" ? 1 : 0, number: mode === "sections" ? null : number, label }];
   });
+}
+
+/**
+ * Глава убрана из книги: автор скрыл её строку (кроме первой и галереи — их убрать некуда). По текущим настройкам, а не
+ * по folded: вернул главу в редакторе — она сразу на месте, хотя образец собран ещё с убранной.
+ */
+export function isRemovedChapter(c: Pick<TocCandidate, "kind" | "key" | "pageKey" | "first">, lines: TocLines) {
+  return c.kind === "chapter" && !!lines[c.key]?.hidden && !c.first && c.pageKey !== GALLERY_KEY;
 }
 
 /** Оглавление книги по её настройкам. */

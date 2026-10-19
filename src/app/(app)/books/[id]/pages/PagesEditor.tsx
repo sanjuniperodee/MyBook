@@ -14,6 +14,7 @@ import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, typ
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
+import { ChaptersEditor } from "./ChaptersEditor";
 import { TocEditor } from "./TocEditor";
 
 interface PagesState {
@@ -203,6 +204,21 @@ export function PagesEditor({
             disabled={!editable}
           />
         </FormSection>
+
+        {/* Главы своей книги автор называет и собирает в редакторе вопросов; здесь — главы темы. */}
+        {kind !== "blank" && sample.tocAll ? (
+          <FormSection title={t.chapters} description={t.chaptersText}>
+            <ChaptersEditor
+              candidates={sample.tocAll}
+              lines={state.tocLines}
+              editable={editable}
+              onChange={(tocLines) => {
+                update({ tocLines });
+                if (state.showToc) setSpread("toc");
+              }}
+            />
+          </FormSection>
+        ) : null}
 
         <FormSection title={t.toc}>
           <label className="flex items-center gap-3">
