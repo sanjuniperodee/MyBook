@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DealInvoice, type DealInvoiceStatus, type OrderPlaced } from "@/modules/ordering/domain";
-import { DEAL_INVOICE_CLOSE_REASONS, DealInvoiceLifecycle, OrdersService, type DealInvoiceLifecycleStore } from "@/modules/ordering/application";
+import { DEAL_INVOICE_CLOSE_REASONS, DealInvoiceLifecycle, OrdersService, mergeCancels, type DealInvoiceLifecycleStore } from "@/modules/ordering/application";
 import type { DealAssigned, DealClosed } from "@/modules/sales";
 import type { DomainEvent } from "@/shared/domain";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
@@ -87,6 +87,24 @@ describe("Слияние сделок: счета переходят в целе
     expect((await b.svc.moveAll({ from: "src", to: "tgt", closeOpen: true })).cancelled.sort()).toEqual([x.label, y.label].sort());
     expect([b.store.get(x.id).status, b.store.get(y.id).status]).toEqual(["cancelled", "cancelled"]);
     expect(b.store.get(y.id).closedReason).toBe(DEAL_INVOICE_CLOSE_REASONS.mergedIntoClosed);
+  });
+
+  it("mergeCancels — то, что карточка называет в подтверждении, совпадает с тем, что отменит перенос", async () => {
+    const cases: [DealInvoice[], boolean][] = [
+      [[invoice("src"), invoice("src", "paid")], false],
+      [[invoice("src"), invoice("tgt")], false],
+      [[invoice("src"), invoice("src", "cancelled")], true],
+      [[invoice("src"), invoice("tgt"), invoice("tgt", "paid")], true],
+      [[invoice("src", "expired")], true],
+    ];
+    const expected = [[], [0], [0], [0, 1], []];
+    for (const [i, [list, closeOpen]] of cases.entries()) {
+      const named = mergeCancels(list, "src", closeOpen).map((x) => x.label);
+      expect(named).toEqual(expected[i].map((k) => list[k].label));
+      const { store, svc } = lifecycle();
+      store.put(...list);
+      expect((await svc.moveAll({ from: "src", to: "tgt", closeOpen })).cancelled.sort()).toEqual([...named].sort());
+    }
   });
 });
 

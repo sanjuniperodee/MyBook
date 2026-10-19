@@ -14,7 +14,8 @@ import { storeTimeZone } from "@/shared/domain/time";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { dealScreen } from "@/modules/reporting/ui/deal-screen";
 import { ChatPanel } from "@/components/admin/ChatPanel";
-import { REJECTION_TAGS } from "@/modules/sales/domain";
+import { REJECTION_TAGS, mergeRefusal } from "@/modules/sales/domain";
+import { mergeCancels } from "@/modules/ordering";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { NoMarketingToggle } from "@/components/admin/NoMarketingToggle";
 import { formatDate } from "@/lib/dates";
@@ -55,13 +56,14 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   ]);
   const methodName = { manual: "перевод", kaspi: "Kaspi", cloudpayments: "карта" } as const;
   const orderMoneyView = orderMoney ? { due: orderMoney.due, received: orderMoney.received, postpay: orderMoney.postpay, rows: orderMoney.rows.map((r) => ({ id: r.id, amount: r.amount, method: methodName[r.method], dateLabel: formatDate(r.paidAt), receipt: !!r.receipt })) } : null;
-  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount, noMarketing] = await Promise.all([
+  const [duplicates, suggestedClientId, dealFields, agreedPlan, maxDiscount, noMarketing, mergeDays] = await Promise.all([
     container().sales.queries.duplicates(deal),
     !deal.clientId && deal.contactPhone ? container().sales.deals.findClientByPhone(deal.contactPhone) : null,
     listFields("deal"),
     container().sales.agreedPlan.get(deal.id),
     discountLimit(staff),
     container().messaging.chats.noMarketingFor({ dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] }),
+    container().sales.deals.mergeClosedDays(),
   ]);
   const suggested = suggestedClientId ? await container().reporting.clientBrief(suggestedClientId) : null;
   const clientSeen = client?.lastSeenAt ?? null;
@@ -95,6 +97,19 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const payments = screen.payments.map((p) => ({ ...p, invoice: invoiceOf.get(p.id) ?? null }));
   const { pipelineId, stages, stage, tasks, notes } = screen;
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === deal.assigneeId);
+  // Другие открытые сделки контакта: «Объединить сюда» — по правилу продаж (в закрытую — только заявку той же покупки), а в
+  // подтверждении — счета, которые слияние отменит (то же правило, что у переноса счетов: mergeCancels).
+  const closed = !!stage && stage.kind !== "open";
+  const closeOpen = !!deal.orderId || closed;
+  const targetSide = { kind: stage?.kind ?? null, orderId: deal.orderId, createdAt: deal.createdAt, closedAt: deal.closedAt };
+  const openDeals = await Promise.all(
+    duplicates.open.map(async (r) => {
+      const allowed = can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, r.deal.assigneeId) && !mergeRefusal(targetSide, { kind: r.stage.kind, orderId: r.deal.orderId, createdAt: r.deal.createdAt, closedAt: r.deal.closedAt }, mergeDays);
+      if (!allowed) return { ...r, merge: null };
+      const theirs = closeOpen || openInvoice ? await container().ordering.invoices.listFor(r.deal.id) : [];
+      return { ...r, merge: { cancels: mergeCancels([...invoiceRows, ...theirs], r.deal.id, closeOpen).map((i) => `${i.label} на ${formatPrice(i.snapshot().amount)}`) } };
+    }),
+  );
 
   return (
     <div className="space-y-5">
@@ -118,7 +133,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
       {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
-      {duplicates.open.length ? <Duplicates dealId={deal.id} closed={!!stage && stage.kind !== "open"} duplicates={duplicates.open} canMerge={(assigneeId) => can(staff, "deals.edit", "deals.delete") && canSeeAssigned(staff, assigneeId)} /> : null}
+      {openDeals.length ? <Duplicates dealId={deal.id} closed={closed} duplicates={openDeals} /> : null}
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 

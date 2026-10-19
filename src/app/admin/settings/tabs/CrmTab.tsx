@@ -12,7 +12,7 @@ import { HolidaysForm } from "../crm/HolidaysForm";
 import { DEFAULT_HOLIDAYS, HOLIDAYS_MAX, parseHolidays } from "@/modules/automation/domain";
 
 export async function CrmTab() {
-  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays] = await Promise.all([
+  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays, mergeDays] = await Promise.all([
     getSetting("crm.slaMinutes"),
     container().workspace.templates.list(),
     getSetting("crm.workHours"),
@@ -24,10 +24,11 @@ export async function CrmTab() {
     getSetting("widget.chat"),
     getSetting("crm.reassignMinutes"),
     getSetting("automation.holidays"),
+    container().sales.deals.mergeClosedDays(),
   ]);
   return (
     <>
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
+      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
 
       <Blocklist
         items={blocked.map((b) => ({

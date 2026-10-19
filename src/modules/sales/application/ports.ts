@@ -16,6 +16,8 @@ export interface SalesSettings {
   autoDealFrom(): Promise<StageMilestone | "off">;
   /** Через сколько минут не взятая заявка переходит следующему по кругу; 0 — не передавать. */
   reassignMinutes(): Promise<number>;
+  /** Окно в днях от закрытия успешной сделки заказа, в которое заявку можно влить в неё (mergeRefusal); 0 — нельзя. */
+  mergeClosedDays(): Promise<number>;
 }
 
 /** Распределение заявок между менеджерами (круг). */

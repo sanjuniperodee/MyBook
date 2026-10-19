@@ -24,7 +24,7 @@ export type { InvoiceOwner, KaspiConfigStore, KaspiSession, KaspiWatchSettingKey
 export type { OrderDetailsView, GiftView } from "./infrastructure/persistence/DrizzleOrderingQueries";
 export { isOnlinePayment } from "./infrastructure/payments/CloudPayments";
 export { redeemUrl } from "./infrastructure/notifications/OrderingMailer";
-export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote } from "./application/DealInvoiceLifecycle";
+export { DEAL_INVOICE_CLOSE_REASONS, dealInvoiceCancelledNote, mergeCancels } from "./application/DealInvoiceLifecycle";
 export { KASPI_ALERT_AFTER_MAX } from "./application/KaspiWatchService";
 
 /** Cookie с кодом активированного сертификата — подставляется в оформление заказа. */

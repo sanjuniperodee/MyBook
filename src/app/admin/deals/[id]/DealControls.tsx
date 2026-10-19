@@ -283,10 +283,23 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
   );
 }
 
-export function DuplicateRow({ targetId, intoClosed, other, canMerge }: { targetId: string; intoClosed: boolean; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; canMerge: boolean }) {
+/**
+ * Подтверждение «Объединить сюда». В закрытую сделку — прямо: заявка уйдёт из работы, плана и воронки. Счета, которые слияние
+ * отменит (cancels, «P77 на 15 000 ₸»), — поимённо: ссылка на оплату у клиента перестанет работать.
+ */
+export function mergeQuestion(number: number, intoClosed: boolean, cancels: readonly string[]) {
+  const base = intoClosed
+    ? `Влить заявку №${number} в эту закрытую сделку? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится и уйдёт из работы — в план и воронку как новая продажа она не попадёт. Так делают, только если это та же покупка.`
+    : `Объединить сделку №${number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится.`;
+  if (!cancels.length) return base;
+  return cancels.length === 1
+    ? `${base} Будет отменён открытый счёт ${cancels[0]} — ссылка на оплату у клиента перестанет работать.`
+    : `${base} Будут отменены открытые счета ${cancels.join(", ")} — ссылки на оплату у клиента перестанут работать.`;
+}
+
+export function DuplicateRow({ targetId, intoClosed, other, merge }: { targetId: string; intoClosed: boolean; other: { id: string; number: number; title: string; stage: string; color: string; created: string }; merge: { cancels: string[] } | null }) {
   const { pending, run } = useRun();
-  const question = `Объединить сделку №${other.number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${other.number} удалится.${intoClosed ? " Эта сделка закрыта — заявка уйдёт из работы." : ""}`;
-  const merge = async () => {
+  const doMerge = async () => {
     const r = await mergeDealAction(targetId, other.id);
     if (r?.error) throw new Error(r.error);
   };
@@ -298,12 +311,8 @@ export function DuplicateRow({ targetId, intoClosed, other, canMerge }: { target
       <span className="rounded-full px-2 py-0.5 text-[11px] text-white" style={{ background: other.color }}>
         {other.stage}
       </span>
-      {canMerge ? (
-        <button
-          className="btn btn-outline btn-sm h-8"
-          disabled={pending}
-          onClick={async () => (await ask(question, true)) && run(merge)}
-        >
+      {merge ? (
+        <button className="btn btn-outline btn-sm h-8" disabled={pending} onClick={async () => (await ask(mergeQuestion(other.number, intoClosed, merge.cancels), true)) && run(doMerge)}>
           <Merge className="size-3.5" /> Объединить сюда
         </button>
       ) : null}

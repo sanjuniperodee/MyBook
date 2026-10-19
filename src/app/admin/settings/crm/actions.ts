@@ -17,6 +17,7 @@ import { botSiteInfo } from "@/server/bot-site";
 import type { SettingsState } from "../state";
 import { HOLIDAYS_MAX, holidayIdFor, holidaysError, type Holiday } from "@/modules/automation/domain";
 import { admin } from "@/i18n/admin";
+import { DEFAULT_MERGE_CLOSED_DAYS, MERGE_CLOSED_DAYS_MAX } from "@/modules/sales/domain";
 
 export async function saveCrmSettingsAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
@@ -28,6 +29,12 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       to: z.string().refine(isValidTime, "Время окончания в формате ЧЧ:ММ"),
       autoDealFrom: z.enum(["off", "registered", "book_started", "book_half", "book_ready"]),
       maxDiscount: z.coerce.number().int().min(0).max(50, "Лимит скидки — не больше 50%"),
+      mergeClosedDays: z.coerce
+        .number()
+        .int(admin.mergeClosedDaysInvalid(MERGE_CLOSED_DAYS_MAX))
+        .min(0, admin.mergeClosedDaysInvalid(MERGE_CLOSED_DAYS_MAX))
+        .max(MERGE_CLOSED_DAYS_MAX, admin.mergeClosedDaysInvalid(MERGE_CLOSED_DAYS_MAX))
+        .default(DEFAULT_MERGE_CLOSED_DAYS),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -42,6 +49,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
       "crm.maxDiscount": String(d.maxDiscount),
+      "crm.mergeClosedDays": String(d.mergeClosedDays),
       "widget.enabled": form.get("widgetEnabled") === "on" ? "on" : "off",
       "widget.chat": form.get("widgetChat") === "on" ? "on" : "off",
     },

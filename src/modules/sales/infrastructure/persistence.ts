@@ -38,6 +38,7 @@ function toDomain(r: Row): Deal {
     tags: r.tags,
     stageChangedAt: r.stageChangedAt,
     closedAt: r.closedAt,
+    createdAt: r.createdAt,
     automationId: r.automationId,
   });
 }

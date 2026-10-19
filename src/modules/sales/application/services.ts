@@ -162,16 +162,17 @@ export class DealsService {
   /**
    * Слияние дублей: всё из source переносится в target, source удаляется. Деньги не теряются: платежи, чеки и счета из чата
    * переходят в target. Открытый счёт — один на сделку: открыт у обеих — открытый счёт source отменяется; target закрыта
-   * или по ней заказ — открытые отменяются (платить по ним уже нельзя). Закрытую source не вливаем (mergeClosed) — до
-   * переноса чего-либо. Возвращает снимки обеих сделок «до» — для журнала действий.
+   * или по ней заказ — открытые отменяются (платить по ним уже нельзя). До переноса чего-либо — отказ по mergeRefusal:
+   * закрытую source не вливаем (mergeClosed), в закрытую target — только заявку той же покупки, рядом с заказом
+   * (mergeIntoClosed, окно — настройка «crm.mergeClosedDays»). Возвращает снимки обеих сделок «до» — для журнала действий.
    */
   async merge(targetId: string, sourceId: string, actorId: string | null) {
     if (targetId === sourceId) throw new SalesError("mergeSelf");
-    const funnel = await this.funnels.load();
+    const [funnel, windowDays] = await Promise.all([this.funnels.load(), this.settings.mergeClosedDays()]);
     return this.uow.run(async () => {
       const [target, source] = await Promise.all([this.load(targetId), this.load(sourceId)]);
       const before = { target: target.snapshot(), source: source.snapshot() };
-      target.absorb(source, funnel.stage(source.stageId), actorId);
+      target.absorb(source, { targetStage: funnel.stage(target.stageId), sourceStage: funnel.stage(source.stageId), windowDays }, actorId);
       const kind = funnel.stage(target.stageId)?.kind;
       // Счета — первыми (порядок блокировок: счета → сделки), затем обе сделки: платёж, пришедший в эту секунду, не пропадёт.
       const { moved, cancelled } = await this.invoices.moveAll({ from: source.id, to: target.id, closeOpen: !!target.orderId || (!!kind && kind !== "open") });
@@ -182,6 +183,11 @@ export class DealsService {
       await this.deals.save(target);
       return before;
     });
+  }
+
+  /** Окно слияния с успешной сделкой заказа, дней (настройка CRM): карточка показывает «Объединить сюда» по тому же правилу. */
+  mergeClosedDays() {
+    return this.settings.mergeClosedDays();
   }
 
   note(deal: { id: string; clientId: string | null }, text: string, authorId: string | null, kind: NoteKind = "system") {

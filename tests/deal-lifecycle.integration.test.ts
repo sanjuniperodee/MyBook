@@ -42,7 +42,7 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
   const funnels = new DrizzleFunnelRepository();
   const lifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), uow);
   const port: DealInvoicesPort = { moveAll: (i) => lifecycle.moveAll(i), holdForDelete: (id) => lifecycle.holdForDelete(id), purgeClosed: (id) => lifecycle.purgeClosed(id) };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => "off" as const, reassignMinutes: async () => 15 };
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => "off" as const, reassignMinutes: async () => 15, mergeClosedDays: async () => 14 };
   const router = { isWorkTime: async () => false, lock: async () => {}, next: async () => null, isActive: async () => false };
   const deals = new DealsService(repo, funnels, drizzleClients, settings, router, uow, systemClock, port);
   const site = new SiteFunnelService(repo, funnels, drizzleClients, settings, { progress: async () => null }, deals, { info: () => {}, warn: () => {}, error: () => {} }, dealMoney);
@@ -144,12 +144,33 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
     expect(notes.map((n) => n.text)).toContainEqual(expect.stringContaining(`отменены открытые ${sOpen.label} (сделки объединены)`));
   });
 
-  it("слияние в успешную сделку — открытый счёт дубля отменяется, а не висит у закрытой", async () => {
+  /** Заказ клиента c2 (вставкой: книга остаётся черновиком) — к успешной сделке. */
+  const withOrder = async (dealId: string) => {
+    const [o] = await q<{ id: string }>(sql`
+      insert into orders (user_id, book_id, plan, items_amount, amount, currency, payment_provider, contact_name, contact_email, contact_phone, status, paid_at)
+      values (${ids.c2}, ${ids.book_c2}, 'hardcover', 20000, 20000, 'KZT', 'cloudpayments', ${tag}, ${`${tag}@test.kz`}, '77010000000', 'paid', now())
+      returning id`);
+    await q(sql`update crm_deals set order_id = ${o.id} where id = ${dealId}`);
+  };
+
+  it("слияние в успешную сделку заказа (заявка той же покупки) — открытый счёт дубля отменяется, а не висит у закрытой", async () => {
     const target = await deal("wonT", { stage: "won" });
+    await withOrder(target);
     const source = await deal("wonS");
     const open = await bill(source);
     await deals.merge(target, source, ids.mgr);
     expect(await invoiceRow(open.id)).toMatchObject({ deal_id: target, status: "cancelled", closed_reason: "сделки объединены, а сделка закрыта или по ней заказ" });
+  });
+
+  it("новую заявку в прошлогоднюю успешную сделку не вливают (deals-d6): заявка, её счёт и этап на месте", async () => {
+    const lastYear = await deal("oldWon", { stage: "won" });
+    await withOrder(lastYear);
+    await q(sql`update crm_deals set closed_at = now() - interval '365 days', created_at = now() - interval '370 days' where id = ${lastYear}`);
+    const fresh = await deal("newLead");
+    const open = await bill(fresh);
+    await expect(deals.merge(lastYear, fresh, ids.mgr)).rejects.toMatchObject({ code: "mergeIntoClosed" });
+    expect(await dealRow(fresh)).toMatchObject({ stage_id: stages.open });
+    expect(await invoiceRow(open.id)).toMatchObject({ deal_id: fresh, status: "pending_payment" });
   });
 
   it("слияние переносит историю этапов дубля в целевую; выигранный дубль не вливается — его счёт и этап на месте", async () => {

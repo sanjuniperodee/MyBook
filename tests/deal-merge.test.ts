@@ -38,6 +38,16 @@ describe("mergeDealAction", () => {
     expect(audits).toEqual([]);
   });
 
+  it("новая заявка в закрытую сделку (устаревшая страница): текст «ведите её отдельно», без совета влить; в журнал ничего", async () => {
+    merge = async () => {
+      throw new SalesError("mergeIntoClosed", undefined, [7, 14]);
+    };
+    const r = await mergeDealAction(TARGET, SOURCE);
+    expect(r).toEqual({ error: expect.stringContaining("Сделка №7 закрыта. В неё вливают только заявку той же покупки") });
+    expect(r?.error).toContain("ведите её отдельно");
+    expect(audits).toEqual([]);
+  });
+
   it("слияние: в журнале deal.merge — номер дубля и снимки обеих сделок «до» без телефонов и e-mail", async () => {
     expect(await mergeDealAction(TARGET, SOURCE)).toBeUndefined();
     expect(audits).toHaveLength(1);

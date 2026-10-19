@@ -159,12 +159,21 @@ describe("Отдел продаж", () => {
     const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["5", "1", "1", "9"], unsorted: "on", widgetChat: "on" };
     expect(await actions.saveCrmSettingsAction({}, form(ok))).toEqual({ ok: "Сохранено" });
     expect(w.saved).toEqual([
-      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.maxDiscount": "10", "widget.enabled": "off", "widget.chat": "on" },
+      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.maxDiscount": "10", "crm.mergeClosedDays": "14", "widget.enabled": "off", "widget.chat": "on" },
     ]);
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, slaMinutes: "0" }))).toEqual({ error: "Норматив ответа — от 1 минуты" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, from: "9" }))).toEqual({ error: "Время начала в формате ЧЧ:ММ" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, maxDiscount: "60" }))).toEqual({ error: "Лимит скидки — не больше 50%" });
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, days: ["8"] }))).toEqual({ error: "Выберите хотя бы один рабочий день" });
+  });
+
+  it("окно слияния с закрытой сделкой заказа (deals-d6): 0 — нельзя, до 90 дней; вне пределов — текст словаря", async () => {
+    const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["1"] };
+    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, mergeClosedDays: "0" }))).toEqual({ ok: "Сохранено" });
+    expect(await actions.saveCrmSettingsAction({}, form({ ...ok, mergeClosedDays: "30" }))).toEqual({ ok: "Сохранено" });
+    expect(w.saved.map((v) => v["crm.mergeClosedDays"])).toEqual(["0", "30"]);
+    for (const bad of ["91", "-1", "2.5"]) expect(await actions.saveCrmSettingsAction({}, form({ ...ok, mergeClosedDays: bad }))).toEqual({ error: "Окно слияния с закрытой сделкой заказа — целое число дней от 0 до 90" });
+    expect(w.saved).toHaveLength(2);
   });
 });
 

@@ -18,26 +18,34 @@ type Screen = ReturnType<typeof dealScreen>;
 const callIcons = { out: PhoneOutgoing, missed: PhoneMissed, in: PhoneIncoming };
 
 type RelatedDeal = { deal: { id: string; number: number; title: string; amount: number; createdAt: Date; closedAt: Date | null; assigneeId: string | null }; stage: { name: string; color: string } };
+/** merge — «Объединить сюда» доступно (null — нет: права или правило слияния); cancels — счета, которые слияние отменит. */
+type OpenDeal = RelatedDeal & { merge: { cancels: string[] } | null };
 
 /**
- * Другие открытые сделки того же контакта — объединить, если это дубль. closed — эта сделка уже закрыта: открытая заявка,
- * влитая сюда, уйдёт из работы (так сливают, например, переписку из WhatsApp в сделку оплаченного заказа с сайта).
+ * Другие открытые сделки того же контакта. Эта сделка открыта — «Похоже на дубль»: объединить, если это дубль. Закрыта —
+ * «Текущие заявки контакта»: это новые продажи, их ведут отдельно, а не вливают в прошлую покупку (иначе заявка уйдёт из
+ * работы, плана и воронки). «Объединить сюда» здесь — только у заявки той же покупки (успешная сделка с заказом, заявка
+ * пришла рядом с ним — mergeRefusal), например переписки из WhatsApp о заказе с сайта.
  */
-export function Duplicates({ dealId, closed, duplicates, canMerge }: { dealId: string; closed: boolean; duplicates: RelatedDeal[]; canMerge: (assigneeId: string | null) => boolean }) {
+export function Duplicates({ dealId, closed, duplicates }: { dealId: string; closed: boolean; duplicates: OpenDeal[] }) {
+  const rows = duplicates.map(({ deal: d, stage: st, merge }) => (
+    <DuplicateRow key={d.id} targetId={dealId} intoClosed={closed} other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }} merge={merge} />
+  ));
+  if (closed)
+    return (
+      <section className="rounded-2xl border border-line bg-white p-4" data-testid="current-deals">
+        <h2 className="text-sm font-semibold">Текущие заявки контакта</h2>
+        <p className="mt-1 text-xs text-muted">
+          Эта сделка закрыта. Новые заявки — новые продажи: ведите их отдельно.
+          {duplicates.some((d) => d.merge) ? " Объединить можно только заявку той же покупки — пришедшую рядом с заказом этой сделки." : ""}
+        </p>
+        <div className="mt-2 divide-y divide-line">{rows}</div>
+      </section>
+    );
   return (
     <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="duplicates">
       <h2 className="text-sm font-semibold text-amber-900">Похоже на дубль: у этого контакта есть другие открытые сделки</h2>
-      <div className="mt-2 divide-y divide-amber-200/70">
-        {duplicates.map(({ deal: d, stage: st }) => (
-          <DuplicateRow
-            key={d.id}
-            targetId={dealId}
-            intoClosed={closed}
-            other={{ id: d.id, number: d.number, title: d.title, stage: st.name, color: st.color, created: formatDate(d.createdAt) }}
-            canMerge={canMerge(d.assigneeId)}
-          />
-        ))}
-      </div>
+      <div className="mt-2 divide-y divide-amber-200/70">{rows}</div>
     </section>
   );
 }

@@ -150,7 +150,12 @@ describe("staffActionError(): действия сотрудника CRM — вс
 
   it("код без message у остальных контекстов — текст словаря admin по коду (с параметрами); покупателю — по-прежнему null", async () => {
     expect(staffActionError(new SalesError("dealNotFound"), SalesError)).toBe("Сделка не найдена");
-    expect(staffActionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBe("Сделка №41 закрыта — это прошлая покупка или отказ, её не вливают в другую. Если это дубль, откройте №41 и объедините в неё эту.");
+    // закрытую не вливают — и не советуем влить в неё открытую заявку (deals-d6)
+    expect(staffActionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBe("Сделка №41 закрыта — это прошлая покупка или отказ, её не вливают в другую. Если это дубль, закройте лишнюю отказом.");
+    const intoClosed = staffActionError(new SalesError("mergeIntoClosed", undefined, [120, 14]), SalesError);
+    expect(intoClosed).toMatch(/^Сделка №120 закрыта\. В неё вливают только заявку той же покупки: .+ не дальше 14 дн\. от её закрытия\. Эта заявка — новая продажа: ведите её отдельно/);
+    expect(intoClosed).not.toContain("объедините");
+    expect(staffActionError(new SalesError("mergeIntoClosed", undefined, [120, 0]), SalesError)).toContain("слияние с закрытыми сделками выключено в настройках CRM");
     // message — готовый текст — важнее словаря
     expect(staffActionError(new SalesError("dealNotFound", "Сделку уже удалили"), SalesError)).toBe("Сделку уже удалили");
     expect(await actionError(new SalesError("mergeClosed", undefined, [41]), SalesError)).toBeNull();

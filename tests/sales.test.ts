@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import type { UnitOfWork } from "@/shared/application";
-import { Deal, Funnel, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
+import { Deal, Funnel, mergeRefusal, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
 import { DealsService, LeadRoutingService, SiteFunnelService, type AgreedPlans, type ClientDirectory, type DealInvoicesPort, type DealMoney } from "@/modules/sales/application";
 
 const now = new Date("2026-10-01T10:00:00Z");
@@ -16,6 +16,9 @@ const stages: Stage[] = [
 ];
 const funnel = new Funnel(stages);
 const stage = (id: string) => funnel.stage(id)!;
+/** Слияние source (этап) в target (этап) с окном в днях — контекст absorb. */
+const into = (source: string, target = "new", windowDays = 14) => ({ targetStage: stage(target), sourceStage: stage(source), windowDays });
+const DAY = 24 * 60 * 60 * 1000;
 
 const openDeal = (p: Partial<Parameters<typeof Deal.open>[2]> = {}, at = "new") =>
   Deal.open("d1", 7, { title: "Заявка", stageId: at, source: "site", clientId: "c1", contactName: "Айгерим", contactPhone: "77011234567", contactEmail: null, amount: 0, assigneeId: null, createdById: null, orderId: null, unsorted: false, customFields: {}, utm: null, ...p }, stage(at), now);
@@ -71,7 +74,7 @@ describe("Deal", () => {
   it("слияние: пустые поля из дубля, его телефон — дополнительный, теги объединяются", () => {
     const target = openDeal({ contactEmail: null });
     const source = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, contactPhone: "87079998877", contactEmail: "a@b.kz", amount: 15000, tags: ["vip"], extraPhones: [] });
-    target.absorb(source, stage("book"), "m1");
+    target.absorb(source, into("book"), "m1");
     const s = target.snapshot();
     expect(s.contactEmail).toBe("a@b.kz");
     expect(s.amount).toBe(15000);
@@ -82,10 +85,10 @@ describe("Deal", () => {
   it("слияние: свои поля дубля заполняют только пустые, метки «откуда пришёл» — если своих нет", () => {
     const target = openDeal({ customFields: { recipient: "Мама", occasion: "" }, utm: null });
     const source = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, customFields: { recipient: "Папа", occasion: "Юбилей", event_date: "2026-12-01" }, utm: { source: "instagram" } });
-    target.absorb(source, stage("new"), "m1");
+    target.absorb(source, into("new"), "m1");
     expect(target.snapshot()).toMatchObject({ customFields: { recipient: "Мама", occasion: "Юбилей", event_date: "2026-12-01" }, utm: { source: "instagram" } });
     const tagged = openDeal({ utm: { source: "google" } });
-    tagged.absorb(source, stage("new"), "m1");
+    tagged.absorb(source, into("new"), "m1");
     expect(tagged.snapshot().utm).toEqual({ source: "google" });
   });
 
@@ -93,10 +96,58 @@ describe("Deal", () => {
     const target = openDeal({ contactEmail: null });
     const source = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, contactEmail: "a@b.kz", orderId: "o-old" });
     for (const closed of ["won", "lost"]) {
-      expect(() => target.absorb(source, stage(closed), "m1")).toThrow(expect.objectContaining({ code: "mergeClosed", params: [8] }));
+      expect(() => target.absorb(source, into(closed), "m1")).toThrow(expect.objectContaining({ code: "mergeClosed", params: [8] }));
     }
     expect(target.snapshot()).toMatchObject({ contactEmail: null, orderId: null });
     expect(target.pullJournal().notes.map((n) => n.text)).not.toContainEqual(expect.stringContaining("Объединена"));
+  });
+
+  it("в закрытую сделку новую заявку не вливают (deals-d6): mergeIntoClosed с номером цели и окном, цель не меняется", () => {
+    const lastYear = new Date(now.getTime() - 365 * DAY);
+    const won = Deal.restore("d1", { ...openDeal({ orderId: "o-old" }, "won").snapshot(), contactEmail: null, closedAt: lastYear, createdAt: lastYear });
+    const fresh = Deal.restore("d2", { ...openDeal().snapshot(), number: 8, contactEmail: "a@b.kz", createdAt: now });
+    expect(() => won.absorb(fresh, into("new", "won", 14), "m1")).toThrow(expect.objectContaining({ code: "mergeIntoClosed", params: [7, 14] }));
+    expect(won.snapshot()).toMatchObject({ contactEmail: null, stageId: "won" });
+    won.pullJournal();
+    // та же покупка: заявка пришла за 3 дня до заказа — вливается
+    const chat = Deal.restore("d3", { ...openDeal().snapshot(), number: 9, contactEmail: "a@b.kz", createdAt: new Date(lastYear.getTime() - 3 * DAY) });
+    won.absorb(chat, into("new", "won", 14), "m1");
+    expect(won.snapshot()).toMatchObject({ contactEmail: "a@b.kz", stageId: "won", orderId: "o-old" });
+    expect(won.pullJournal().notes.map((n) => n.text)).toContain("Объединена со сделкой №9 «Заявка»");
+  });
+});
+
+describe("mergeRefusal: кого с кем можно слить", () => {
+  const closedAt = new Date("2026-09-01T10:00:00Z");
+  const order = { kind: "won" as const, orderId: "o1", createdAt: closedAt, closedAt };
+  const lead = (createdAt: Date | null) => ({ kind: "open" as const, orderId: null, createdAt, closedAt: null });
+  const at = (days: number) => new Date(closedAt.getTime() + days * DAY);
+
+  it("открытая цель — любую открытую заявку; закрытый источник — никогда (mergeClosed)", () => {
+    const open = { kind: "open" as const, orderId: null, createdAt: at(-400), closedAt: null };
+    expect(mergeRefusal(open, lead(at(10)), 14)).toBeNull();
+    expect(mergeRefusal({ ...open, kind: null }, lead(at(10)), 0)).toBeNull();
+    expect(mergeRefusal(open, { ...order, kind: "won" }, 14)).toBe("mergeClosed");
+    expect(mergeRefusal(order, { ...order, kind: "lost" }, 14)).toBe("mergeClosed");
+  });
+
+  it("успешная цель с заказом — только заявку той же покупки: пришла не дальше окна до или после закрытия", () => {
+    expect(mergeRefusal(order, lead(at(-14)), 14)).toBeNull();
+    expect(mergeRefusal(order, lead(at(3)), 14)).toBeNull();
+    expect(mergeRefusal(order, lead(at(14)), 14)).toBeNull();
+    expect(mergeRefusal(order, lead(at(15)), 14)).toBe("mergeIntoClosed");
+    expect(mergeRefusal(order, lead(at(-15)), 14)).toBe("mergeIntoClosed");
+    expect(mergeRefusal(order, lead(at(365)), 14)).toBe("mergeIntoClosed");
+    expect(mergeRefusal(order, lead(at(60)), 90)).toBeNull();
+    // дата закрытия не записана (старые сделки) — от даты создания; даты заявки нет — нельзя
+    expect(mergeRefusal({ ...order, closedAt: null }, lead(at(2)), 14)).toBeNull();
+    expect(mergeRefusal(order, lead(null), 14)).toBe("mergeIntoClosed");
+  });
+
+  it("без заказа, проигранная или окно 0 — в закрытую не вливают", () => {
+    expect(mergeRefusal({ ...order, orderId: null }, lead(at(1)), 14)).toBe("mergeIntoClosed");
+    expect(mergeRefusal({ ...order, kind: "lost" }, lead(at(1)), 14)).toBe("mergeIntoClosed");
+    expect(mergeRefusal(order, lead(at(0)), 0)).toBe("mergeIntoClosed");
   });
 });
 
@@ -184,7 +235,8 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
     profile: async (id) => (id === "c1" ? { name: "Айгерим", email: "a@test.kz", phone: "77011234567", managerId: "m1", utm: { source: "instagram" } } : null),
     adoptManager: async () => {},
   };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15 };
+  const mergeWindow = { days: 14 };
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15, mergeClosedDays: async () => mergeWindow.days };
   const router = new MemRouter();
   const clock = { at: now, now: () => clock.at };
   const invoices = new MemInvoices();
@@ -200,7 +252,7 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow };
 }
 
 describe("Круг: распределение заявок", () => {
@@ -538,9 +590,9 @@ describe("Жизнь сделки: деньги и счета из чата не
     expect(await service.findById(fresh.id)).toMatchObject({ orderId: null });
   });
 
-  it("слияние в закрытую сделку или в сделку с заказом — открытые счета отменяются (платить по ним уже нельзя)", async () => {
+  it("слияние в закрытую сделку заказа или в сделку с заказом — открытые счета отменяются (платить по ним уже нельзя)", async () => {
     const { service, invoices } = setup();
-    const won = await service.create({ title: "Успех", source: "manual", clientId: "c1" });
+    const won = await service.create({ title: "Заказ №5", source: "site", clientId: "c1", orderId: "o0" });
     await service.move(won.id, "won", "m1");
     const a = await service.create({ title: "Дубль 1", source: "whatsapp", clientId: "c1" });
     await service.merge(won.id, a.id, "m1");
@@ -552,6 +604,38 @@ describe("Жизнь сделки: деньги и счета из чата не
     const c = await service.create({ title: "Дубль с заказом", source: "site", clientId: "c1", orderId: "o2" });
     await service.merge(open.id, c.id, "m1");
     expect(invoices.calls).toEqual([`move:${a.id}>${won.id}:true`, `move:${b.id}>${withOrder.id}:true`, `move:${c.id}>${open.id}:true`]);
+  });
+
+  it("новую заявку в прошлогоднюю успешную сделку не вливают (deals-d6) — отказ до переноса счетов и блокировок, заявка в работе", async () => {
+    const { service, invoices, deals, clock, mergeWindow } = setup();
+    const lastYear = await service.create({ title: "Заказ №120", source: "site", clientId: "c1", orderId: "o-old" });
+    await service.move(lastYear.id, "won", "m1");
+    clock.at = new Date(now.getTime() + 365 * DAY);
+    const fresh = await service.create({ title: "WhatsApp", source: "whatsapp", clientId: "c1" });
+    await expect(service.merge(lastYear.id, fresh.id, "m1")).rejects.toMatchObject({ code: "mergeIntoClosed", params: [lastYear.number, 14] });
+    // проигранная и успешная без заказа — тоже нет, даже сразу
+    const lost = await service.create({ title: "Отказ", source: "whatsapp", clientId: "c1" });
+    await service.move(lost.id, "lost", "m1", "Дорого");
+    const manual = await service.create({ title: "Продажа в чате", source: "whatsapp", clientId: "c1" });
+    await service.move(manual.id, "won", "m1");
+    const next = await service.create({ title: "Ещё заявка", source: "whatsapp", clientId: "c1" });
+    await expect(service.merge(lost.id, next.id, "m1")).rejects.toMatchObject({ code: "mergeIntoClosed" });
+    await expect(service.merge(manual.id, next.id, "m1")).rejects.toMatchObject({ code: "mergeIntoClosed" });
+    expect(invoices.calls).toEqual([]);
+    expect(deals.locked).toEqual([]);
+    expect(await service.findById(fresh.id)).toMatchObject({ stageId: "new" });
+    expect(await service.findById(next.id)).toMatchObject({ stageId: "new" });
+
+    // окно — настройка: свежий заказ и заявка рядом с ним сливаются, окно 0 — нет
+    const order = await service.create({ title: "Заказ №455", source: "site", clientId: "c2", orderId: "o-new" });
+    await service.move(order.id, "won", "m1");
+    const chat = await service.create({ title: "WhatsApp о заказе", source: "whatsapp", clientId: "c2" });
+    mergeWindow.days = 0;
+    await expect(service.merge(order.id, chat.id, "m1")).rejects.toMatchObject({ code: "mergeIntoClosed", params: [order.number, 0] });
+    mergeWindow.days = 14;
+    await service.merge(order.id, chat.id, "m1");
+    expect(invoices.calls).toEqual([`move:${chat.id}>${order.id}:true`]);
+    expect(await service.findById(chat.id)).toBeNull();
   });
 
   it("перевод в «успех» или «отказ» — событие «сделка закрыта» с причиной (по нему отменяются счета); возврат в работу — нет", async () => {
