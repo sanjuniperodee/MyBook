@@ -275,6 +275,10 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
             columnWidth: u.mm(textW),
             columnGap: u.mm(side * 2),
             columnFill: "auto",
+            // Без переноса висячих строк: WebKit (Safari, браузеры на iPhone), перенося по widows две последние строки
+            // абзаца в следующую колонку, ставит следующий абзац на строку выше — строки налезают друг на друга.
+            widows: 1,
+            orphans: 1,
             transform: part ? `translateX(calc(${-part} * (${u.mm(textW)} + ${u.mm(side * 2)})))` : undefined,
           }}
         >
