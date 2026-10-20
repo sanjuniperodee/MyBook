@@ -114,8 +114,9 @@ export function sellerModel(
         if (left < MIN_CALL_MS) throw failure(last, attempts);
         const t0 = clock.now();
         try {
-          const res = await c.model.ask({ system: input.system, user: input.user, effort: "medium", schema: input.schema, timeoutMs: Math.min(input.timeoutMs, left), cachePrefix: input.cachePrefix });
-          const usage = { input: res.usage.input, output: res.usage.output, cacheRead: res.usage.cacheRead ?? 0, cacheWrite: res.usage.cacheWrite ?? 0 };
+          // Глубина рассуждения — по уровню из настроек (запасной провайдер и режим off — medium, как раньше).
+          const res = await c.model.ask({ system: input.system, user: input.user, effort: c.tier ? policy.effort[c.tier] : "medium", schema: input.schema, timeoutMs: Math.min(input.timeoutMs, left), cachePrefix: input.cachePrefix });
+          const usage = { input: res.usage.input, output: res.usage.output, cacheRead: res.usage.cacheRead ?? 0, cacheWrite: res.usage.cacheWrite ?? 0, thinking: res.usage.thinking ?? 0 };
           const model = res.usage.model || who.model;
           const served: SellerServed = { mode: policy.mode, provider: who.provider, model, tier: c.tier, wanted, fallback: c.fallback, usage, costUsd: costUsd(usage, model, policy.prices), ms: clock.now() - t0, attempts };
           return { text: res.text, usage: { input: usage.input, output: usage.output }, served };

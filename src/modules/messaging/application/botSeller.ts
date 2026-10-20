@@ -76,6 +76,8 @@ import {
   sniffMedia,
   oggDurationSec,
   type TraceMedia,
+  explicitDate,
+  isAlmaty,
 } from "../domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS } from "./botTiming";
 import type { BotPreviewInput, BotPreviewResult } from "./botPreview";
@@ -616,7 +618,7 @@ export class AiSeller {
       route.costUsd = Math.round((route.costUsd + (call.costUsd ?? 0)) * 1e8) / 1e8;
       if (served) route.final = served.tier;
       // Метрики вызова — в лог сервера, без текстов и номеров: уровень, модель, токены, стоимость, задержка, сбои.
-      this.d.logger.info("llm call", { conversation: conv.id, purpose, why, tier: call.tier, provider: call.provider, model: call.model, input: call.input, output: call.output, cacheRead: call.cacheRead, cacheWrite: call.cacheWrite, costUsd: call.costUsd, ms: call.ms, fallback: call.fallback, retries: call.retries, ...(call.failed ? { failed: call.failed } : {}) });
+      this.d.logger.info("llm call", { conversation: conv.id, purpose, why, tier: call.tier, provider: call.provider, model: call.model, input: call.input, output: call.output, cacheRead: call.cacheRead, cacheWrite: call.cacheWrite, thinking: call.thinking ?? 0, costUsd: call.costUsd, ms: call.ms, fallback: call.fallback, retries: call.retries, ...(call.failed ? { failed: call.failed } : {}) });
     };
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null, why: TraceRouteCall["why"] = "first"): Promise<SellerDecision | { error: string; context?: boolean }> => {
       const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null, warm: paid || ai.priceQuoted || ai.warmedUp || materialsSent || priceMentioned(history) });
@@ -637,7 +639,13 @@ export class AiSeller {
       return decision ?? { error: NOT_BY_SCHEMA };
     };
 
-    let deadline = knownDate ? deadlineFact(knownDate, env, ai.city) : null;
+    // Срок к дате — сразу в первый запрос: известная дата беседы или явная дата в новых сообщениях клиента («к 20
+    // ноября»). Тогда второй запрос «с пересчитанным сроком» почти никогда не нужен (экономия целого запроса).
+    const guessed = !knownDate && purpose === "reply" ? (fresh.map((i) => explicitDate(i.text, env.now, env.tz)).find(Boolean) ?? null) : null;
+    const guessCity = guessed && fresh.some((i) => isAlmaty(i.text)) ? "Алматы" : ai.city;
+    const firstDate = knownDate ?? guessed;
+    let deadline = firstDate ? deadlineFact(firstDate, env, firstDate === knownDate ? ai.city : guessCity) : null;
+    let used = firstDate ? deadlineCheck(firstDate, env, firstDate === knownDate ? ai.city : guessCity) : null;
     let first = await ask(null, null, deadline);
     if ("error" in first) {
       if (first.context) {
@@ -662,10 +670,16 @@ export class AiSeller {
     const date = decision.eventDate ?? knownDate;
     const newInfo = (decision.eventDate && decision.eventDate !== knownDate) || (decision.city && decision.city !== ai.city);
     if (date && newInfo && purpose !== "follow_up" && !a.quick) {
+      const check = deadlineCheck(date, env, decision.city || ai.city);
       const fact = deadlineFact(date, env, decision.city || ai.city);
-      if (fact) {
+      // Вердикт тот же, что был в первом запросе (подпись города не в счёт), — второй запрос не нужен. Модель назвала
+      // другую дату или город, меняющий срок (Алматы), — пересчёт, как раньше.
+      const same = !!check && !!used && check.kind === used.kind && check.fillBy === used.fillBy && check.expressFillBy === used.expressFillBy && check.date === used.date;
+      if (same) trace.deadline = check;
+      else if (fact) {
         deadline = fact;
-        trace.deadline = deadlineCheck(date, env, decision.city || ai.city);
+        used = check;
+        trace.deadline = check;
         trace.notes.push({ code: "deadline_recheck" });
         const again = await ask(null, null, fact, "deadline");
         if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, city: again.city || decision.city, fields: { ...decision.fields, ...again.fields } };

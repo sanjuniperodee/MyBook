@@ -134,6 +134,9 @@ const dollars = formText.transform((v) => v.trim().replace(",", ".")).refine((v)
 const routingForm = z.object({
   mode: z.enum(["on", "shadow", "off"]).default("on"),
   defaultTier: z.enum(["haiku", "sonnet", "opus"]).default("haiku"),
+  effort_haiku: z.enum(["low", "medium"]).default("medium"),
+  effort_sonnet: z.enum(["low", "medium"]).default("medium"),
+  effort_opus: z.enum(["low", "medium"]).default("medium"),
   model_haiku: modelName,
   model_sonnet: modelName,
   model_opus: modelName,
@@ -168,6 +171,9 @@ export async function saveRoutingAction(_: SettingsState, form: FormData): Promi
       // Флажки: снятый — уровень выключен (экономия токенов), ход идёт на ближайший включённый ниже.
       ...unlessEnv("seller.route.sonnetEnabled", form.get("sonnetEnabled") === "on" ? "on" : "off"),
       ...unlessEnv("seller.route.opusEnabled", form.get("opusEnabled") === "on" ? "on" : "off"),
+      ...unlessEnv("seller.route.effort.haiku", d.effort_haiku),
+      ...unlessEnv("seller.route.effort.sonnet", d.effort_sonnet),
+      ...unlessEnv("seller.route.effort.opus", d.effort_opus),
       ...unlessEnv("seller.route.haiku", d.model_haiku),
       ...unlessEnv("seller.route.sonnet", d.model_sonnet),
       ...unlessEnv("seller.route.opus", d.model_opus),

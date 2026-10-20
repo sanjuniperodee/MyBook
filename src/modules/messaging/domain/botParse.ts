@@ -116,6 +116,18 @@ export function parseDateAnswer(text: string, now = new Date(), tz = storeTimeZo
   return null;
 }
 
+/**
+ * Явная дата в свободном тексте клиента — число с месяцем словом или «ДД.ММ» («к 20 ноября», «20.11», «қарашаның 20-сы»).
+ * Относительные («завтра», «в субботу») не берутся: в переписке они чаще о другом («напишу завтра»). Для заранее
+ * посчитанного срока — чтобы не спрашивать модель второй раз; ошибётся — модель назовёт свою дату, и срок пересчитается.
+ */
+export function explicitDate(text: string, now = new Date(), tz = storeTimeZone()): string | null {
+  const t = norm(text);
+  const numeric = /(?<![\d.,])\d{1,2}[./-]\d{1,2}(?:[./-](?:\d{4}|\d{2}))?(?![\d]|[.,]\d)/.test(t);
+  const worded = [...t.matchAll(/[\p{L}]+/gu)].some((w) => monthOf(w[0]) !== null) && /\d/.test(t);
+  return numeric || worded ? parseDateAnswer(t, now, tz) : null;
+}
+
 /** Ответ — номер варианта: «2», «№2», «2)». */
 const NUMBER_ANSWER = /^\s*(?:№|номер|вариант)?\s*(\d{1,2})\s*[.)]?\s*$/u;
 /** «Родители» — слабая примета: «родителям на годовщину» — это годовщина, а не «юбилей родителей». */

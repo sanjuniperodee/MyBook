@@ -44,7 +44,9 @@ function LlmStats({ llm }: { llm: NonNullable<BotMetrics["llm"]> }) {
       <div>{`Ходов: ${llm.turns}, ответили: ${share(llm.answered)}`}</div>
       {Object.keys(llm.chosen).length ? <div className="text-muted">{`Выбрал маршрут: ${share(llm.chosen)}`}</div> : null}
       <div>{`Эскалаций: ${llm.escalations}; расходы: ${usd(llm.costUsd)}${llm.costPer1000 !== null ? `, на 1 000 ходов — ${usd(llm.costPer1000)}` : ""}`}</div>
-      <div className="text-muted">{`Токены: вход ${llm.tokens.input}, из кэша ${llm.tokens.cacheRead}, в кэш ${llm.tokens.cacheWrite}, выход ${llm.tokens.output}`}</div>
+      <div className="text-muted">{`Токены: вход ${llm.tokens.input}, из кэша ${llm.tokens.cacheRead}, в кэш ${llm.tokens.cacheWrite}, выход ${llm.tokens.output}${llm.tokens.thinking ? ` (из них рассуждение ${llm.tokens.thinking})` : ""}`}</div>
+      {llm.cacheShare !== null ? <div className={llm.cacheShare < 0.8 ? "text-amber-800" : "text-muted"}>{`Из кэша — ${Math.round(llm.cacheShare * 100)}% входа${llm.cacheShare < 0.8 ? " (меньше 80% — кэш что-то сбивает)" : ""}${llm.thinkingShare ? `; рассуждение — ${Math.round(llm.thinkingShare * 100)}% выхода` : ""}`}</div> : null}
+      {Object.keys(llm.costByTier).length > 1 ? <div className="text-muted">{`Расходы по уровням: ${TIERS.filter(([k]) => llm.costByTier[k]).map(([k, label]) => `${label} ${usd(llm.costByTier[k])}`).join(" · ")}`}</div> : null}
       {llm.failed || llm.fallback || llm.retries ? <div className="text-amber-800">{`Сбои запросов: ${llm.failed}, повторы: ${llm.retries}, ответила запасная: ${llm.fallback}`}</div> : null}
     </div>
   );

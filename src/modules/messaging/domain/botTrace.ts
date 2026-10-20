@@ -75,6 +75,8 @@ export interface TraceRouteCall {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** Из output — токены рассуждения (тарифицируются как выход). */
+  thinking?: number;
   costUsd: number | null;
   ms: number;
   fallback: boolean;

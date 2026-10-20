@@ -79,7 +79,7 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
   // (после серверного резерва — резервная модель).
   return {
     text,
-    usage: { input: res.usage.input_tokens, output: res.usage.output_tokens, cacheRead: res.usage.cache_read_input_tokens ?? 0, cacheWrite: res.usage.cache_creation_input_tokens ?? 0, model: res.model || c.model },
+    usage: { input: res.usage.input_tokens, output: res.usage.output_tokens, cacheRead: res.usage.cache_read_input_tokens ?? 0, cacheWrite: res.usage.cache_creation_input_tokens ?? 0, thinking: res.usage.output_tokens_details?.thinking_tokens ?? 0, model: res.model || c.model },
   };
 }
 
@@ -105,5 +105,5 @@ export async function askClaudeMedia(c: AiConnection, input: { system: string; p
     .map((b) => (b as { text: string }).text)
     .join("")
     .trim();
-  return text ? { text, usage: { input: res.usage.input_tokens, output: res.usage.output_tokens, cacheRead: res.usage.cache_read_input_tokens ?? 0, cacheWrite: res.usage.cache_creation_input_tokens ?? 0, model: res.model || c.model } } : null;
+  return text ? { text, usage: { input: res.usage.input_tokens, output: res.usage.output_tokens, cacheRead: res.usage.cache_read_input_tokens ?? 0, cacheWrite: res.usage.cache_creation_input_tokens ?? 0, thinking: res.usage.output_tokens_details?.thinking_tokens ?? 0, model: res.model || c.model } } : null;
 }

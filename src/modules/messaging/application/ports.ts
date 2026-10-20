@@ -324,7 +324,8 @@ export interface RouteServed {
   tier: RouteTier | null;
   wanted: RouteTier | null;
   fallback: boolean;
-  usage: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  /** output — вместе с рассуждением; thinking — из него токены рассуждения (если провайдер сообщил). */
+  usage: { input: number; output: number; cacheRead: number; cacheWrite: number; thinking?: number };
   costUsd: number | null;
   ms: number;
   attempts: { provider: string; model: string; tier: RouteTier | null; kind: string; ms: number }[];

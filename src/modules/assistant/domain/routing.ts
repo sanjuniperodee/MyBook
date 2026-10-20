@@ -26,22 +26,26 @@ export interface ModelPrice {
 }
 
 /**
- * Прайс по умолчанию — Anthropic API, октябрь 2026 (Haiku 5.5 — до 100K токенов запроса, а у продажника запрос в разы
- * меньше). Запись в кэш на час — 2× входа (продажник кэширует стабильную часть инструкции на час). Единственное место с
- * ценами в коде: актуальные значения задаются настройкой seller.route.prices (JSON), она перекрывает эти.
+ * Прайс по умолчанию — страница Pricing Anthropic API (сверено 20.10.2026; Haiku 5.5 — до 100K токенов запроса, а у
+ * продажника запрос в разы меньше). Чтение кэша: 0.1× входа у Haiku, 0.05× у Sonnet 5.5 и Opus 5.5. Запись в кэш на
+ * час — 2× входа (продажник кэширует стабильную часть инструкции на час). Единственное место с ценами в коде: актуальные
+ * значения задаются настройкой seller.route.prices (JSON), она перекрывает эти.
  */
 export const DEFAULT_PRICES: Record<string, ModelPrice> = {
   "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.2 },
-  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 4 },
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 4 },
   "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 8 },
 };
 
 /** Токены одного запроса: input — без кэша (у Anthropic input_tokens — только некэшированный остаток). */
 export interface TokenUsage {
   input: number;
+  /** Выход вместе с рассуждением (рассуждение тарифицируется как выход). */
   output: number;
   cacheRead?: number;
   cacheWrite?: number;
+  /** Из output — токены рассуждения (adaptive thinking); 0 — не рассуждала или провайдер не сообщил. */
+  thinking?: number;
 }
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
@@ -95,6 +99,11 @@ export interface RoutePolicy {
   defaultTier: SellerTier;
   /** Какие старшие уровни включены: Sonnet и Opus можно выключить ради экономии — ход тогда идёт на ближайший уровень ниже. */
   tiers: { sonnet: boolean; opus: boolean };
+  /**
+   * Глубина рассуждения по уровням (output_config.effort): рассуждение тарифицируется как выход (5× входа). medium —
+   * по умолчанию; low — дешевле и быстрее, но это обмен качества на цену: включать после проверки на своих беседах.
+   */
+  effort: Record<SellerTier, SellerEffort>;
   /** Порог очков сложности для Sonnet и для Opus (признаки — messaging/domain/botRoute.ts). */
   sonnetAt: number;
   opusAt: number;
@@ -118,6 +127,9 @@ export const ROUTE_SETTING_KEYS = [
   "seller.route.default",
   "seller.route.sonnetEnabled",
   "seller.route.opusEnabled",
+  "seller.route.effort.haiku",
+  "seller.route.effort.sonnet",
+  "seller.route.effort.opus",
   "seller.route.sonnetAt",
   "seller.route.opusAt",
   "seller.route.maxExtra",
@@ -154,6 +166,7 @@ export function readRoutePolicy(v: Partial<Record<RouteSettingKey, string>>): Ro
     },
     defaultTier: def,
     tiers,
+    effort: { haiku: effortOf(v["seller.route.effort.haiku"]), sonnet: effortOf(v["seller.route.effort.sonnet"]), opus: effortOf(v["seller.route.effort.opus"]) },
     sonnetAt,
     opusAt: Math.max(sonnetAt + 1, int(v["seller.route.opusAt"], 6, 2, 30)),
     maxExtra: int(v["seller.route.maxExtra"], 2, 0, 4),
@@ -180,6 +193,10 @@ export function backoffMs(attempt: number, retryAfterSec: number | null = null):
   if (retryAfterSec !== null) return retryAfterSec <= 3 ? Math.max(250, retryAfterSec * 1000) : null;
   return Math.min(3000, 1000 * 2 ** attempt);
 }
+
+/** Глубина рассуждения: low | medium (по умолчанию). */
+export type SellerEffort = "low" | "medium";
+const effortOf = (v: string | undefined): SellerEffort => (v === "low" ? "low" : "medium");
 
 /** Уровень с учётом выключенных: выключенный старший уровень заменяется ближайшим включённым ниже (Haiku включён всегда). */
 export function allowedTier(tier: SellerTier, tiers: { sonnet: boolean; opus: boolean }): SellerTier {

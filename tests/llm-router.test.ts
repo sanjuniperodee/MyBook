@@ -262,7 +262,7 @@ describe("Claude через Anthropic SDK: уровни маршрута", () =>
     const res = await askClaude(conn("claude-haiku-5-5"), { system: sys, user: "u", effort: "medium", schema: { type: "object" }, timeoutMs: 5000, cachePrefix: sys });
     expect(bodies[0].model).toBe("claude-haiku-5-5");
     expect(bodies[0]).not.toHaveProperty("fallbacks");
-    expect(res.usage).toEqual({ input: 120, output: 30, cacheRead: 4000, cacheWrite: 0, model: "claude-haiku-5-5" });
+    expect(res.usage).toEqual({ input: 120, output: 30, cacheRead: 4000, cacheWrite: 0, thinking: 0, model: "claude-haiku-5-5" });
   });
 
   it("Sonnet и Opus — с серверным резервом на отказ (fallbacks: default)", async () => {

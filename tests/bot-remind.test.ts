@@ -358,7 +358,9 @@ describe("Бот пишет в названное клиентом время (�
 
   it("дата позже события: модель дважды настаивает — ответ уходит, дата отброшена, обещание — менеджеру задачей, «Ознакомились?» нет", async () => {
     const first = ans({ stage: "objection", event_date: "2026-10-20", reply: "Хорошо 😊 Напишу 25 октября", remind_at: "2026-10-25", remind_why: "после отпуска" });
-    const { model, calls } = fakeModel([first, first, first]);
+    // Срок к 20 октября код посчитал заранее (дата есть в сообщении) — второй запрос «с пересчитанным сроком» не нужен:
+    // первый ответ и переписывание после проверки.
+    const { model, calls } = fakeModel([first, first]);
     const t = setup({ bot: "always", config: aiConfig({ remind: true }), seller: model });
     await t.service.ingest(inbound({ text: "Книга нужна к 20 октября, но напишите после отпуска, 25-го" }));
     await t.advance(8_000);
@@ -377,7 +379,7 @@ describe("Бот пишет в названное клиентом время (�
     // Лестница «Ознакомились?» после «напишу 25-го» не идёт: модель больше не спрашивают, через 12 часов — итог.
     await t.advance(21 * 60_000);
     await t.advance(4 * 3_600_000);
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(2);
     expect(said(t)).toHaveLength(1);
     await t.advance(8 * 3_600_000);
     expect(t.conv().botState).toMatchObject({ phase: "done" });
@@ -562,7 +564,8 @@ describe("Пока бот ждёт срока, сделку закрыли ил�
 describe("Бот пишет в последний день, чтобы успеть к дате (в чате)", () => {
   it("тёплый клиент с датой замолчал — вместо итога сообщение в последний день старта; потом итог", async () => {
     const offer = ans({ stage: "offer", event_date: "2026-10-20", reply: "Успеваем 🙌 Ознакомьтесь, пожалуйста — какие остались вопросы?" });
-    const { model, calls } = fakeModel([offer, offer, ans({ stage: "offer", reply: "Добрый день! 😊 Чтобы книга успела к 20 октября, начать писать лучше сегодня — оформим?" })]);
+    // Срок к 20 октября посчитан заранее — первый ход одним запросом.
+    const { model, calls } = fakeModel([offer, ans({ stage: "offer", reply: "Добрый день! 😊 Чтобы книга успела к 20 октября, начать писать лучше сегодня — оформим?" })]);
     const t = setup({ bot: "always", config: aiConfig({ lastStart: true, followUpHours: 0 }), seller: model });
     await t.service.ingest(inbound({ text: "Хочу книгу маме к 20 октября" }));
     await t.advance(8_000);
@@ -575,8 +578,8 @@ describe("Бот пишет в последний день, чтобы успе�
     expect(t.notified.some((n) => n.title.startsWith("Бот напишет в последний день"))).toBe(true);
     await until(t, "2026-10-12T04:00:30Z");
     expect(said(t).at(-1)).toBe("Добрый день! 😊 Чтобы книга успела к 20 октября, начать писать лучше сегодня — оформим?");
-    expect(calls[2].system).toContain("Режим: последний день, чтобы успеть к дате");
-    expect(calls[2].system).toContain("впритык");
+    expect(calls[1].system).toContain("Режим: последний день, чтобы успеть к дате");
+    expect(calls[1].system).toContain("впритык");
     expect(traces(t).at(-1)?.notes).toContainEqual({ code: "last_start", detail: "12 октября, 09:00 — последний день, чтобы успеть к 20 октября" });
     await t.advance(12 * 3_600_000 + 60_000);
     expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "offered", ai: expect.objectContaining({ touches: 1 }) });

@@ -43,6 +43,7 @@ import {
   autoReplyAllowed,
   pausedNow,
   type BotControl,
+  obviouslyNeedsReply,
 } from "../domain";
 import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
 import { AiSeller, workStartOn, type CopilotSuggestion } from "./botSeller";
@@ -150,7 +151,8 @@ export class QualifierBot {
     const r = await this.incoming(conv, m, opts);
     // Бот этот диалог не ведёт и не подхватит (заказ у клиента, подхват выключен, бот остановлен кнопкой…): ждёт ли
     // клиент ответа на «Аха» или «спасибо», через пару минут решит AI — и снимет «ждёт ответа», если нет.
-    if (!r.handled && !opts.created && conv.dealId) this.d.timers.schedule(`triage:${conv.id}`, new Date(this.d.clock.now().getTime() + TRIAGE_DELAY_MS), () => void this.triage(conv.id).catch((err) => this.d.logger.error("bot triage", err)));
+    // Вопрос или просьба — ответ нужен заведомо: AI не спрашиваем (экономия токенов); спрашиваем про короткие реакции.
+    if (!r.handled && !opts.created && conv.dealId && m.type === "text" && !obviouslyNeedsReply(m.text)) this.d.timers.schedule(`triage:${conv.id}`, new Date(this.d.clock.now().getTime() + TRIAGE_DELAY_MS), () => void this.triage(conv.id).catch((err) => this.d.logger.error("bot triage", err)));
     return { quiet: r.quiet };
   }
 

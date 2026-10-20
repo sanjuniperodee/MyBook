@@ -73,6 +73,8 @@ export interface LlmCallRow {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** Токены рассуждения (входят в выход). */
+  thinking?: number;
   costUsd: number;
   avgMs: number | null;
 }
@@ -102,7 +104,13 @@ export interface LlmMetrics {
   failed: number;
   fallback: number;
   retries: number;
-  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; thinking: number };
+  /** Доля входа, прочитанная из кэша (здоровый уровень — от 80%); null — входа не было. */
+  cacheShare: number | null;
+  /** Доля выхода, которая ушла на рассуждение; null — выхода не было. */
+  thinkingShare: number | null;
+  /** Расходы по уровням (кто ответил): haiku / sonnet / opus / fallback. */
+  costByTier: Record<string, number>;
   /** По моделям: запросы, токены, стоимость, средняя задержка — по убыванию стоимости. */
   models: { model: string; provider: string; tier: string | null; calls: number; failed: number; costUsd: number; avgMs: number | null }[];
 }
@@ -124,7 +132,10 @@ export function llmMetrics(turns: LlmTurnRow[], calls: LlmCallRow[]): LlmMetrics
     answered[who] = (answered[who] ?? 0) + t.turns;
     if (t.chosen) chosen[t.chosen] = (chosen[t.chosen] ?? 0) + t.turns;
   }
-  const sum = (k: "calls" | "failed" | "fallback" | "retries" | "input" | "output" | "cacheRead" | "cacheWrite") => calls.reduce((s, c) => s + c[k], 0);
+  const sum = (k: "calls" | "failed" | "fallback" | "retries" | "input" | "output" | "cacheRead" | "cacheWrite" | "thinking") => calls.reduce((s, c) => s + (c[k] ?? 0), 0);
+  const costByTier: Record<string, number> = {};
+  for (const c of calls) costByTier[c.tier ?? "fallback"] = r6((costByTier[c.tier ?? "fallback"] ?? 0) + c.costUsd);
+  const allInput = sum("input") + sum("cacheRead") + sum("cacheWrite");
   const models = calls
     .filter((c) => c.model)
     .map((c) => ({ model: c.model!, provider: c.provider ?? "", tier: c.tier, calls: c.calls, failed: c.failed, costUsd: r6(c.costUsd), avgMs: c.avgMs === null ? null : Math.round(c.avgMs) }))
@@ -140,7 +151,10 @@ export function llmMetrics(turns: LlmTurnRow[], calls: LlmCallRow[]): LlmMetrics
     failed: sum("failed"),
     fallback: sum("fallback"),
     retries: sum("retries"),
-    tokens: { input: sum("input"), output: sum("output"), cacheRead: sum("cacheRead"), cacheWrite: sum("cacheWrite") },
+    tokens: { input: sum("input"), output: sum("output"), cacheRead: sum("cacheRead"), cacheWrite: sum("cacheWrite"), thinking: sum("thinking") },
+    cacheShare: allInput ? Math.round((sum("cacheRead") / allInput) * 1000) / 1000 : null,
+    thinkingShare: sum("output") ? Math.round((sum("thinking") / sum("output")) * 1000) / 1000 : null,
+    costByTier,
     models,
   };
 }

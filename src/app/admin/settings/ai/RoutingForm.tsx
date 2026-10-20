@@ -22,6 +22,8 @@ export interface RoutingSaved {
   defaultTier: SellerTier;
   /** Включены ли Sonnet и Opus (выключаются ради экономии токенов). */
   tiers: { sonnet: boolean; opus: boolean };
+  /** Глубина рассуждения по уровням. */
+  effort: Record<SellerTier, "low" | "medium">;
   models: Record<SellerTier, string>;
   fallbacks: string;
   sonnetAt: string;
@@ -107,6 +109,18 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
         </div>
         <details className="text-sm">
           <summary className="cursor-pointer text-xs text-muted">Пороги, лимиты и прайс</summary>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {SELLER_TIERS.map((t) => (
+              <label key={t} className="block">
+                <span className="mb-1 block text-xs text-muted">Рассуждение {TIER_LABELS[t]}</span>
+                <select name={`effort_${t}`} defaultValue={saved.effort[t]} disabled={env(`seller.route.effort.${t}`)} className="input h-10 text-sm">
+                  <option value="medium">обычное (medium)</option>
+                  <option value="low">короткое (low) — дешевле</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted">Рассуждение оплачивается как ответ модели (в 5 раз дороже входа). «Короткое» дешевле и быстрее, но может чаще ошибаться: включайте по одному уровню и смотрите в статистике бота, не выросли ли эскалации и «передал менеджеру».</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             <NumberField name="sonnetAt" label="Очков сложности для Sonnet" value={saved.sonnetAt} placeholder="2" disabled={env("seller.route.sonnetAt")} />
             <NumberField name="opusAt" label="Очков сложности для Opus" value={saved.opusAt} placeholder="6" disabled={env("seller.route.opusAt")} />

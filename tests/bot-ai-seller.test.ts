@@ -1255,18 +1255,33 @@ describe("AI-продажник: след хода «Почему так?» (bot
     expect(JSON.stringify(turn.meta)).not.toMatch(/30 000|77011234567/);
   });
 
-  it("клиент назвал дату — вердикт кода по сроку и пересчёт в следе; база знаний — заголовки выбранных кусков", async () => {
-    const { model } = fakeModel([ans({ event_date: "2026-11-20", reply: "Отлично!" }), ans({ event_date: "2026-11-20", reply: "Успеваем, если допишете до 13 ноября 🙌" })]);
+  it("клиент назвал дату — срок посчитан кодом заранее и уже в первом запросе (второго запроса нет); база знаний — заголовки выбранных кусков", async () => {
+    const { model, calls } = fakeModel([ans({ event_date: "2026-11-20", reply: "Успеваем, если допишете до 13 ноября 🙌" })]);
     const t = setup({ bot: "always", config: aiConfig(), seller: model });
     const filler = (n: number) => `Правило ${n}\n${"Текст о работе редакции, который к вопросу не относится. ".repeat(20)}`;
     t.deps.settings.knowledge = async () => [filler(1), "Доставка\nПо Астане курьер привозит за 1–2 дня.", ...Array.from({ length: 8 }, (_, i) => filler(i + 2))].join("\n\n");
     await t.service.ingest(inbound({ text: "Нужна книга к 20 ноября, доставка в Астану" }));
     await run(t);
     const [turn] = turns(t);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].system).toContain("УСПЕВАЕМ");
     expect(turn.meta!.deadline).toMatchObject({ date: "2026-11-20", kind: "ok" });
-    expect(turn.meta!.notes).toEqual(expect.arrayContaining([{ code: "deadline_recheck" }]));
-    expect(turn.meta!.tokens).toMatchObject({ calls: 2 });
+    expect(turn.meta!.notes.some((n) => n.code === "deadline_recheck")).toBe(false);
+    expect(turn.meta!.tokens).toMatchObject({ calls: 1 });
     expect(turn.meta!.knowledge).toMatchObject({ all: false, titles: expect.arrayContaining(["Доставка"]) });
+  });
+
+  it("дату назвала только модель (в тексте её нет: «к юбилею в пятницу») — срок пересчитан кодом, ответ переписан с вердиктом", async () => {
+    const { model, calls } = fakeModel([ans({ event_date: "2026-11-20", reply: "Отлично!" }), ans({ event_date: "2026-11-20", reply: "Успеваем, если допишете до 13 ноября 🙌" })]);
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await t.service.ingest(inbound({ text: "Нужна книга маме к юбилею в пятницу через месяц" }));
+    await run(t);
+    const [turn] = turns(t);
+    expect(calls).toHaveLength(2);
+    expect(calls[0].system).not.toContain("УСПЕВАЕМ");
+    expect(calls[1].system).toContain("УСПЕВАЕМ");
+    expect(turn.meta!.notes).toEqual(expect.arrayContaining([{ code: "deadline_recheck" }]));
+    expect(said(t).at(-1)).toBe("Успеваем, если допишете до 13 ноября 🙌");
   });
 
   it("модель передала менеджеру — причина в следе; повтор прошлого сообщения — что код остановил, без сообщения", async () => {

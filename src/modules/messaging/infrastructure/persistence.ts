@@ -461,13 +461,14 @@ export async function llmStats(days = 30): Promise<LlmMetrics> {
         coalesce(sum((meta->'route'->>'costUsd')::numeric), 0) as cost
       from crm_bot_events where kind = 'turn' and created_at >= ${since} and meta ? 'route' and jsonb_typeof(meta->'route') = 'object'
       group by 1, 2, 3`),
-    executor().execute<{ tier: string | null; provider: string | null; model: string | null; calls: number; failed: number; fallback: number; retries: number; input: string | number; output: string | number; cache_read: string | number; cache_write: string | number; cost: string | number; ms: string | number | null }>(sql`
+    executor().execute<{ tier: string | null; provider: string | null; model: string | null; calls: number; failed: number; fallback: number; retries: number; input: string | number; output: string | number; cache_read: string | number; cache_write: string | number; thinking: string | number; cost: string | number; ms: string | number | null }>(sql`
       select c->>'tier' as tier, c->>'provider' as provider, c->>'model' as model, count(*)::int as calls,
         count(*) filter (where c ? 'failed')::int as failed,
         count(*) filter (where (c->>'fallback')::boolean)::int as fallback,
         coalesce(sum((c->>'retries')::int), 0)::int as retries,
         coalesce(sum((c->>'input')::numeric), 0) as input, coalesce(sum((c->>'output')::numeric), 0) as output,
         coalesce(sum((c->>'cacheRead')::numeric), 0) as cache_read, coalesce(sum((c->>'cacheWrite')::numeric), 0) as cache_write,
+        coalesce(sum((c->>'thinking')::numeric), 0) as thinking,
         coalesce(sum((c->>'costUsd')::numeric), 0) as cost, avg((c->>'ms')::numeric) as ms
       from crm_bot_events e cross join lateral jsonb_array_elements(case when jsonb_typeof(e.meta->'route'->'calls') = 'array' then e.meta->'route'->'calls' else '[]'::jsonb end) c
       where e.kind = 'turn' and e.created_at >= ${since} and e.meta ? 'route'
@@ -475,7 +476,7 @@ export async function llmStats(days = 30): Promise<LlmMetrics> {
   ]);
   return llmMetrics(
     turns.rows.map((t) => ({ chosen: t.chosen, final: t.final, mode: t.mode, turns: Number(t.turns), escalations: Number(t.escalations), costUsd: Number(t.cost ?? 0) })),
-    calls.rows.map((c) => ({ tier: c.tier, provider: c.provider, model: c.model, calls: Number(c.calls), failed: Number(c.failed), fallback: Number(c.fallback), retries: Number(c.retries), input: Number(c.input), output: Number(c.output), cacheRead: Number(c.cache_read), cacheWrite: Number(c.cache_write), costUsd: Number(c.cost), avgMs: c.ms === null ? null : Number(c.ms) })),
+    calls.rows.map((c) => ({ tier: c.tier, provider: c.provider, model: c.model, calls: Number(c.calls), failed: Number(c.failed), fallback: Number(c.fallback), retries: Number(c.retries), input: Number(c.input), output: Number(c.output), cacheRead: Number(c.cache_read), cacheWrite: Number(c.cache_write), thinking: Number(c.thinking), costUsd: Number(c.cost), avgMs: c.ms === null ? null : Number(c.ms) })),
   );
 }
 

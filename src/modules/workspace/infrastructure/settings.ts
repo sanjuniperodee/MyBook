@@ -129,6 +129,10 @@ export const settingDefs = {
   /** Sonnet и Opus можно выключить ради экономии токенов: ход тогда идёт на ближайший включённый уровень ниже (on | off). */
   "seller.route.sonnetEnabled": { env: "AI_ROUTE_SONNET_ENABLED", default: "on" },
   "seller.route.opusEnabled": { env: "AI_ROUTE_OPUS_ENABLED", default: "on" },
+  /** Глубина рассуждения по уровням: medium (по умолчанию) | low — дешевле, но обмен качества на цену. */
+  "seller.route.effort.haiku": { env: "AI_ROUTE_EFFORT_HAIKU", default: "medium" },
+  "seller.route.effort.sonnet": { env: "AI_ROUTE_EFFORT_SONNET", default: "medium" },
+  "seller.route.effort.opus": { env: "AI_ROUTE_EFFORT_OPUS", default: "medium" },
   /** Пороги очков сложности хода для Sonnet и Opus. */
   "seller.route.sonnetAt": { env: "AI_ROUTE_SONNET_AT", default: "2" },
   "seller.route.opusAt": { env: "AI_ROUTE_OPUS_AT", default: "6" },
