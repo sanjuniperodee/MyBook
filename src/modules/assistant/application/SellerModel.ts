@@ -1,4 +1,4 @@
-import { backoffMs, costUsd, failureKindOf, isTransient, type AiConnection, type AiProvider, type FailureKind, type RouteMode, type RoutePolicy, type SellerTier } from "../domain";
+import { allowedTier, backoffMs, costUsd, failureKindOf, isTransient, type AiConnection, type AiProvider, type FailureKind, type RouteMode, type RoutePolicy, type SellerTier } from "../domain";
 import type { LanguageModel, Usage } from "./ports";
 
 /** Вложение для распознавания: картинка или аудио в base64. */
@@ -87,7 +87,8 @@ export function sellerModel(
     const policy = await route.policy();
     const started = clock.now();
     const deadline = started + input.timeoutMs * 1.5;
-    const wanted = policy.mode === "off" ? null : (input.tier ?? policy.defaultTier);
+    // Выключенный в настройках уровень (Sonnet, Opus) не вызывается: запрос идёт на ближайший включённый ниже.
+    const wanted = policy.mode === "off" ? null : allowedTier(input.tier ?? policy.defaultTier, policy.tiers);
     const queue = await candidates(policy, policy.mode === "on" ? wanted! : policy.defaultTier);
     const attempts: SellerAttempt[] = [];
     let last: unknown = null;
@@ -121,10 +122,12 @@ export function sellerModel(
               continue;
             }
           }
-          // Haiku отказался (у него нет серверного резерва) — один раз тот же запрос на Sonnet, до запасных провайдеров.
-          if (kind === "refused" && c.tier === "haiku" && policy.mode === "on" && !escalated) {
+          // Haiku отказался (у него нет серверного резерва) — один раз тот же запрос на Sonnet (или Opus, если Sonnet
+          // выключен), до запасных провайдеров.
+          const up = policy.tiers.sonnet ? "sonnet" : policy.tiers.opus ? "opus" : null;
+          if (kind === "refused" && c.tier === "haiku" && up && policy.mode === "on" && !escalated) {
             escalated = true;
-            queue.splice(i + 1, 0, { model: route.claude(policy.models.sonnet), tier: "sonnet", fallback: false });
+            queue.splice(i + 1, 0, { model: route.claude(policy.models[up]), tier: up, fallback: false });
           }
           break;
         }

@@ -10,6 +10,8 @@ import { MediaForm } from "../ai/MediaForm";
 const ROUTE_KEYS = [
   "seller.route",
   "seller.route.default",
+  "seller.route.sonnetEnabled",
+  "seller.route.opusEnabled",
   "seller.route.haiku",
   "seller.route.sonnet",
   "seller.route.opus",
@@ -51,6 +53,7 @@ export async function AiTab() {
         saved={{
           mode: (["on", "shadow", "off"].includes(route["seller.route"]) ? route["seller.route"] : "on") as RouteMode,
           defaultTier: isSellerTier(route["seller.route.default"]) ? route["seller.route.default"] : "haiku",
+          tiers: { sonnet: route["seller.route.sonnetEnabled"] !== "off", opus: route["seller.route.opusEnabled"] !== "off" },
           models: { haiku: route["seller.route.haiku"], sonnet: route["seller.route.sonnet"], opus: route["seller.route.opus"] },
           fallbacks: route["seller.fallbacks"],
           sonnetAt: route["seller.route.sonnetAt"],

@@ -77,6 +77,19 @@ describe("маршрут модели: выбор уровня по призна
     expect(escalateTier("haiku", capped, "rejected", POLICY)).toBeNull();
   });
 
+  it("Sonnet или Opus выключены ради экономии — ход на ближайший включённый уровень ниже, эскалация их пропускает", () => {
+    const hardText = "Нужна печатная премиум книга подешевле, но при этом к 25 октября, доставка в Шымкент, оплата в рассрочку Kaspi, две книги на казахском";
+    expect(route(hardText, { deadline: "late", policy: { ...POLICY, tiers: { sonnet: true, opus: false } } }).tier).toBe("sonnet");
+    expect(route(hardText, { deadline: "late", policy: { ...POLICY, tiers: { sonnet: false, opus: false } } }).tier).toBe("haiku");
+    expect(route("Дорого", { policy: { ...POLICY, tiers: { sonnet: false, opus: true } } }).tier).toBe("haiku");
+    const plain = route("Дорого");
+    const hard = route(hardText, { deadline: "late" });
+    expect(escalateTier("haiku", plain, "invalid", { ...POLICY, tiers: { sonnet: false, opus: true } })).toBeNull();
+    expect(escalateTier("haiku", hard, "rejected", { ...POLICY, tiers: { sonnet: false, opus: true } })).toBe("opus");
+    expect(escalateTier("haiku", plain, "invalid", { ...POLICY, tiers: { sonnet: false, opus: false } })).toBeNull();
+    expect(escalateTier("sonnet", hard, "rejected", { ...POLICY, tiers: { sonnet: true, opus: false } })).toBeNull();
+  });
+
   it("уровень по умолчанию — нижняя граница", () => {
     expect(route("Здравствуйте", { policy: { ...POLICY, defaultTier: "sonnet" } }).tier).toBe("sonnet");
   });
@@ -251,6 +264,16 @@ describe("AI-продажник с маршрутизацией Claude", () => {
     expect(said(t)).toEqual(["Да, можно на казахском языке 😊 Для кого будет книга?"]);
     expect(t.conv().botState).toMatchObject({ phase: "active" });
     expect(routeOf(t).escalations).toEqual([{ from: "haiku", to: "sonnet", cause: "unsure" }]);
+  });
+
+  it("Sonnet выключен: возражение и неудачный ответ остаются на Haiku — экономия токенов", async () => {
+    const { model, calls } = routedModel([OPEN, ans({ stage: "objection", reply: "Скидка 50%!" }), ans({ stage: "objection", reply: "Понимаю вас 🙂 Какой вариант удобнее?" })], { tiers: { sonnet: false, opus: false } });
+    const t = setup({ bot: "always", config: aiConfig(), seller: model });
+    await opened(t, calls);
+    await t.service.ingest(inbound({ text: "Дорого" }));
+    await run(t);
+    expect(calls.map((c) => c.tier)).toEqual(["haiku", "haiku"]);
+    expect(routeOf(t).escalations).toEqual([]);
   });
 
   it("лимит эскалаций за ход: maxExtra = 0 — без повышения уровня; запросов не больше прежнего", async () => {

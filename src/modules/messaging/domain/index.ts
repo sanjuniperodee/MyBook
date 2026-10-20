@@ -17,3 +17,4 @@ export * from "./ruleSending";
 export * from "./botStats";
 export * from "./botTrace";
 export * from "./botRoute";
+export * from "./botControl";

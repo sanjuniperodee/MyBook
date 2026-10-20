@@ -1,4 +1,4 @@
-import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts, RouteTier } from "../domain";
+import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts, RouteTier, BotControl } from "../domain";
 
 /**
  * Диалоги. Счётчики (непрочитанные, «ждёт ответа», шаг бота) меняются параллельными вебхуками,
@@ -208,6 +208,10 @@ export interface BotSettings {
   brand(): string;
   /** Уроки работы над ошибками (разбор бесед раз в сутки и правки владельца) — блок в инструкции продажника. */
   lessons?(): Promise<BotLesson[]>;
+  /** Ночью отвечать и в чатах, которые днём перехватил менеджер (по умолчанию да). */
+  humanNight?(): Promise<boolean>;
+  /** Днём держать чат за менеджером, пока AI не возобновят вручную (по умолчанию да); нет — как раньше, подхват через N минут. */
+  humanHold?(): Promise<boolean>;
 }
 
 /** Беседы бота для ежедневного разбора ошибок. */
@@ -227,6 +231,8 @@ export interface BotRecord {
   botStep: number | null;
   state: BotState | null;
   dueAt: Date | null;
+  /** Режим AI в этом чате (перехват менеджером, пауза, ручное отключение); нет — по общим правилам. */
+  control?: BotControl | null;
 }
 
 export interface BotStore {
@@ -246,6 +252,13 @@ export interface BotStore {
   incoming(conversationId: string, since: Date): Promise<BotInput[]>;
   /** Журнал бота (метрики в настройках). */
   log(conversationId: string, dealId: string | null, lang: string | null, events: BotEvent[]): Promise<void>;
+  /**
+   * Режим AI в чате — атомарно. enable — снять прежнюю остановку кнопкой (bot_step = -1); dueAt — когда проснуться
+   * (конец паузы). expectMode — записать, только если режим сейчас такой (undefined — без проверки; null — записи нет).
+   */
+  setControl?(conversationId: string, control: BotControl | null, opts?: { enable?: boolean; dueAt?: Date | null; expectMode?: BotControl["mode"] | null }): Promise<boolean>;
+  /** Менеджер написал клиенту: режим human, если чат не отключён вручную и ещё не у менеджера. true — режим сменился. */
+  markHuman?(conversationId: string, control: BotControl): Promise<boolean>;
   /** Сколько долларов ушло на запросы продажника с момента since (по следам ходов) — суточный потолок расходов. */
   llmSpentSince?(since: Date): Promise<number>;
 }
@@ -294,6 +307,8 @@ export interface RoutePolicyView {
   /** on — уровни по сложности; shadow — отвечает уровень по умолчанию, выбор только записывается; off — одна прежняя модель. */
   mode: "on" | "shadow" | "off";
   defaultTier: RouteTier;
+  /** Включены ли старшие уровни (их можно выключить ради экономии); нет — включены оба. */
+  tiers?: { sonnet: boolean; opus: boolean };
   sonnetAt: number;
   opusAt: number;
   maxExtra: number;
@@ -334,6 +349,8 @@ export interface BotInvoices {
 /** Отложенный ход бота в этом процессе (пауза после сообщения клиента). Если процесс перезапустится — подберёт планировщик. */
 export interface BotTimers {
   schedule(key: string, at: Date, run: () => void): void;
+  /** Снять отложенный ход (менеджер перехватил чат, пауза, отключение). */
+  cancel?(key: string): void;
 }
 
 /**

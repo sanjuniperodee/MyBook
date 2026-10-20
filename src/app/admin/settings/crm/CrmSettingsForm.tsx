@@ -13,6 +13,7 @@ export function CrmSettingsForm({
   slaMinutes,
   reassignMinutes,
   workHours,
+  timeZone,
   autoDealFrom,
   unsorted,
   maxDiscount,
@@ -21,7 +22,9 @@ export function CrmSettingsForm({
 }: {
   slaMinutes: number;
   reassignMinutes: number;
-  workHours: { days: number[]; from: string; to: string };
+  workHours: { days: number[]; from: string; to: string; holidays?: string[] };
+  /** Пояс магазина (с сервера: в браузере его нет). */
+  timeZone: string;
   autoDealFrom: string;
   unsorted: boolean;
   maxDiscount: number;
@@ -33,7 +36,7 @@ export function CrmSettingsForm({
     <Section title="Отдел продаж">
       <form action={action} className="space-y-5">
         <div>
-          <span className="mb-1.5 block text-xs text-muted">Рабочее время (Алматы)</span>
+          <span className="mb-1.5 block text-xs text-muted">Рабочее время (по поясу магазина {timeZone}, не по часам в браузере)</span>
           <div className="flex flex-wrap items-center gap-2">
             {weekdays.map((d, i) => (
               <label key={d} className="flex cursor-pointer items-center gap-1 rounded-lg border border-line px-2 py-1.5 text-sm has-checked:border-wine/40 has-checked:bg-rose/40">
@@ -45,7 +48,11 @@ export function CrmSettingsForm({
             <span className="text-muted">—</span>
             <input name="to" type="time" defaultValue={workHours.to} className="input h-9 w-28 text-sm" aria-label="До" />
           </div>
-          <p className="mt-1 text-xs text-muted">Новые заявки сразу получает менеджер на смене, у которого меньше всего заявок за сегодня. Вне рабочего времени заявки ждут и утром раздаются по кругу; норматив ответа не идёт, можно включить автоответ в «Автоматизациях».</p>
+          <label className="mt-2 block">
+            <span className="mb-1 block text-xs text-muted">Праздники и нерабочие дни (ГГГГ-ММ-ДД через запятую или с новой строки): смена, начинающаяся в этот день, не работает — бот отвечает как ночью</span>
+            <textarea name="holidays" defaultValue={(workHours.holidays ?? []).join(", ")} rows={2} className="input text-sm" placeholder="2026-12-16, 2026-12-17" maxLength={3000} />
+          </label>
+          <p className="mt-1 text-xs text-muted">Конец раньше начала — смена через полночь. Новые заявки сразу получает менеджер на смене, у которого меньше всего заявок за сегодня. Вне рабочего времени заявки ждут и утром раздаются по кругу; норматив ответа не идёт, можно включить автоответ в «Автоматизациях».</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-4">
           <label className="block">

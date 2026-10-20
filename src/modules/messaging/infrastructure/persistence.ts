@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizz
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { BOT_TRACE_KEEP_DAYS, llmMetrics, readBotState, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
+import { BOT_TRACE_KEEP_DAYS, llmMetrics, readBotControl, readBotState, type BotControl, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
@@ -345,11 +345,11 @@ const botAlive = () => or(isNull(crmConversations.botStep), gte(crmConversations
 export class DrizzleBotStore implements BotStore {
   async load(conversationId: string): Promise<BotRecord | null> {
     const [r] = await executor()
-      .select({ botStep: crmConversations.botStep, botState: crmConversations.botState, botDueAt: crmConversations.botDueAt })
+      .select({ botStep: crmConversations.botStep, botState: crmConversations.botState, botDueAt: crmConversations.botDueAt, botControl: crmConversations.botControl })
       .from(crmConversations)
       .where(eq(crmConversations.id, conversationId))
       .limit(1);
-    return r ? { botStep: r.botStep, state: readBotState(r.botState), dueAt: r.botDueAt } : null;
+    return r ? { botStep: r.botStep, state: readBotState(r.botState), dueAt: r.botDueAt, control: readBotControl(r.botControl) } : null;
   }
 
   async save(conversationId: string, expectedVersion: number | null, next: { botStep: number | null; state: BotState; dueAt: Date | null }, opts: { restart?: boolean } = {}) {
@@ -388,6 +388,31 @@ export class DrizzleBotStore implements BotStore {
       .where(and(eq(crmConversations.id, conversationId), botAlive(), opts.soft ? sql`(coalesce(${crmConversations.botState}->>'phase', 'done') <> 'done' or ${crmConversations.botDueAt} is not null)` : undefined))
       .returning({ outcome: sql<string | null>`${crmConversations.botState}->>'outcome'`, reason: sql<string | null>`${crmConversations.botState}->>'reason'` });
     return rows.some((r) => r.outcome === "stopped_by_manager" && r.reason === reason);
+  }
+
+  async setControl(conversationId: string, control: BotControl | null, opts: { enable?: boolean; dueAt?: Date | null; expectMode?: BotControl["mode"] | null } = {}) {
+    // Одним UPDATE: режим, снятие остановки кнопкой и срок пробуждения — параллельный ответ менеджера не потеряется.
+    const expect = opts.expectMode === undefined ? undefined : opts.expectMode === null ? isNull(crmConversations.botControl) : sql`${crmConversations.botControl}->>'mode' = ${opts.expectMode}`;
+    const rows = await executor()
+      .update(crmConversations)
+      .set({
+        botControl: control as unknown as Record<string, unknown> | null,
+        ...(opts.enable ? { botStep: sql`case when ${crmConversations.botStep} = -1 then null else ${crmConversations.botStep} end` } : {}),
+        ...(opts.dueAt !== undefined ? { botDueAt: opts.dueAt } : {}),
+      })
+      .where(and(eq(crmConversations.id, conversationId), expect))
+      .returning({ id: crmConversations.id });
+    return rows.length > 0;
+  }
+
+  async markHuman(conversationId: string, control: BotControl) {
+    // Ручное отключение остаётся ручным, уже перехваченный чат — без изменений (время перехвата — первое).
+    const rows = await executor()
+      .update(crmConversations)
+      .set({ botControl: control as unknown as Record<string, unknown> })
+      .where(and(eq(crmConversations.id, conversationId), sql`coalesce(${crmConversations.botControl}->>'mode', '') not in ('disabled', 'human')`))
+      .returning({ id: crmConversations.id });
+    return rows.length > 0;
   }
 
   async due(now: Date, limit: number) {

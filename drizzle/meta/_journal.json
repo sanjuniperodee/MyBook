@@ -442,6 +442,13 @@
       "when": 1792492610630,
       "tag": "0062_photo_chapter",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792502193802,
+      "tag": "0063_bot_control",
+      "breakpoints": true
     }
   ]
 }

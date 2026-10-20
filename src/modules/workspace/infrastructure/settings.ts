@@ -52,6 +52,12 @@ export const settingDefs = {
   "crm.whatsappNumber": {},
   /** Бот-автоответчик: off | fallback (если менеджер не ответил за N минут) | off_hours | always — по умолчанию (docs/features/bot-autoresponder.md). */
   "bot.mode": { default: "always" },
+  /**
+   * Менеджер написал клиенту — чат за ним: днём AI здесь не отвечает, пока его не возобновят вручную (on); off — как
+   * раньше: менеджер замолчал на N минут — бот подхватывает. humanNight — ночью AI отвечает и в таких чатах.
+   */
+  "bot.humanHold": { env: "BOT_HUMAN_HOLD", default: "on" },
+  "bot.humanNight": { env: "BOT_HUMAN_NIGHT", default: "on" },
   /** Настройки бота: JSON BotConfig (каналы, вопросы и тексты ru/kk, частые вопросы, акция); старый { greeting, questions: [{ text, field }], finish } тоже читается. */
   "bot.config": {},
   /** Уроки AI-продажника (работа над ошибками): JSON [{ id, text, why, at, source }] — пишет ночной разбор и владелец. */
@@ -120,6 +126,9 @@ export const settingDefs = {
   "seller.route.opus": { env: "AI_MODEL_OPUS" },
   /** Уровень по умолчанию: haiku | sonnet | opus. */
   "seller.route.default": { env: "AI_ROUTE_DEFAULT_TIER", default: "haiku" },
+  /** Sonnet и Opus можно выключить ради экономии токенов: ход тогда идёт на ближайший включённый уровень ниже (on | off). */
+  "seller.route.sonnetEnabled": { env: "AI_ROUTE_SONNET_ENABLED", default: "on" },
+  "seller.route.opusEnabled": { env: "AI_ROUTE_OPUS_ENABLED", default: "on" },
   /** Пороги очков сложности хода для Sonnet и Opus. */
   "seller.route.sonnetAt": { env: "AI_ROUTE_SONNET_AT", default: "2" },
   "seller.route.opusAt": { env: "AI_ROUTE_OPUS_AT", default: "6" },

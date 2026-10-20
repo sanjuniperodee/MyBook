@@ -33,7 +33,7 @@ export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.humanHold" | "bot.humanNight" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -395,8 +395,16 @@ export class MessagingModule {
 
   /** Состояние бота в диалоге — для шапки чата («Бот: вопрос 2 из 4», «Бот передал менеджеру»). */
   async botStatus(conversationId: string) {
-    const [rec, fields] = await Promise.all([this.botStore.load(conversationId), this.deps.fields.list("deal")]);
-    return botStatus(rec, fields);
+    const now = this.deps.clock.now();
+    const [rec, fields, workTime, humanNight, humanHold, mode] = await Promise.all([
+      this.botStore.load(conversationId),
+      this.deps.fields.list("deal"),
+      this.botSettings.isWorkTime(now),
+      this.botSettings.humanNight?.() ?? true,
+      this.botSettings.humanHold?.() ?? true,
+      this.botSettings.mode(),
+    ]);
+    return botStatus(rec, fields, now, { workTime, humanNight, humanHold, botOff: mode === "off" });
   }
 
   /** Тест-режим в настройках: прогнать диалог с несохранёнными настройками — без базы и без отправки клиенту. */

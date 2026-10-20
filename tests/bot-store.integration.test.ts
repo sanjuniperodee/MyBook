@@ -89,6 +89,23 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         expect(await store.stop(soft.id, "crm", { soft: true })).toBe(false);
         expect(await store.save(soft.id, 1, { botStep: null, state: { ...waiting, version: 2 }, dueAt: null }, { restart: true })).toBe(true);
 
+        // Режим AI в чате (0063): перехват менеджером не перезаписывает ручное отключение, возобновление снимает кнопку.
+        const at = new Date().toISOString();
+        expect(await store.markHuman(id, { mode: "human", until: null, by: null, at, reason: "phone" })).toBe(true);
+        expect(await store.markHuman(id, { mode: "human", until: null, by: null, at, reason: "crm" })).toBe(false);
+        expect((await store.load(id))?.control).toMatchObject({ mode: "human", reason: "phone" });
+        expect(await store.setControl(id, { mode: "disabled", until: null, by: null, at, reason: "button" }, { expectMode: "human" })).toBe(true);
+        expect(await store.markHuman(id, { mode: "human", until: null, by: null, at, reason: "crm" })).toBe(false);
+        expect(await store.setControl(id, null, { expectMode: "paused" })).toBe(false);
+        await tx.execute(sql`update crm_conversations set bot_step = -1 where id = ${id}`);
+        expect(await store.setControl(id, { mode: "active", until: null, by: null, at, reason: "resume" }, { enable: true, dueAt: null })).toBe(true);
+        expect(await store.load(id)).toMatchObject({ botStep: null, control: { mode: "active" } });
+        const until = new Date(Date.now() + 3_600_000);
+        await store.setControl(id, { mode: "paused", until: until.toISOString(), by: null, at, reason: "pause" }, { dueAt: until });
+        expect(await store.load(id)).toMatchObject({ dueAt: until, control: { mode: "paused", until: until.toISOString() } });
+        await store.setControl(id, null, { dueAt: null });
+        await store.save(id, 1, { botStep: 0, state: { ...active, version: 1 }, dueAt: null }, { restart: true });
+
         // Журнал → метрики.
         await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }, { kind: "takeover" }, { kind: "answer", field: "recipient" }, { kind: "faq", intent: "price" }, { kind: "skipped", reason: "prior_chat" }, { kind: "handoff", reason: "call_request" }, { kind: "handoff", reason: "loop" }]);
         const m = await botMetrics(30);

@@ -11,7 +11,7 @@ import { BotLessons } from "../crm/BotLessons";
 import { BotMaterials } from "../crm/BotMaterials";
 
 export async function BotTab({ section }: { section?: BotFormTab }) {
-  const [botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel, sellerModel, coach, materials] = await Promise.all([
+  const [botMode, botConfig, dealFields, botMetrics, rules, botCatalog, aiModel, sellerModel, coach, materials, humanHold, humanNight] = await Promise.all([
     getSetting("bot.mode"),
     getSetting("bot.config"),
     listFields("deal"),
@@ -28,6 +28,8 @@ export async function BotTab({ section }: { section?: BotFormTab }) {
       .catch(() => null),
     container().messaging.lessons(),
     container().messaging.materials(),
+    getSetting("bot.humanHold"),
+    getSetting("bot.humanNight"),
   ]);
   const botFields = dealFields.filter((f) => f.type !== "checkbox").map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options ?? [] }));
   const parsedBot = parseBotConfig(botConfig);
@@ -36,6 +38,7 @@ export async function BotTab({ section }: { section?: BotFormTab }) {
   return (
     <BotForm
       mode={botMode}
+      human={{ hold: humanHold !== "off", night: humanNight !== "off" }}
       config={parsedBot}
       fields={botFields}
       defaults={{ texts: defaultBotConfig.texts, faq: defaultBotConfig.faq, optionLabels: defaultOptionLabels }}

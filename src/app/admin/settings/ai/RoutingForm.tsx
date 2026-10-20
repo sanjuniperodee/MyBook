@@ -20,6 +20,8 @@ const TIER_LABELS: Record<SellerTier, string> = { haiku: "Haiku", sonnet: "Sonne
 export interface RoutingSaved {
   mode: RouteMode;
   defaultTier: SellerTier;
+  /** Включены ли Sonnet и Opus (выключаются ради экономии токенов). */
+  tiers: { sonnet: boolean; opus: boolean };
   models: Record<SellerTier, string>;
   fallbacks: string;
   sonnetAt: string;
@@ -70,6 +72,15 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
               <input name={`model_${t}`} defaultValue={saved.models[t]} placeholder={DEFAULT_TIER_MODELS[t]} disabled={env(`seller.route.${t}`)} className="input h-10 text-sm" maxLength={100} />
             </label>
           ))}
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm">
+          {(["sonnet", "opus"] as const).map((t) => (
+            <label key={t} className="flex items-center gap-2">
+              <input type="checkbox" name={`${t}Enabled`} defaultChecked={saved.tiers[t]} disabled={env(`seller.route.${t}Enabled`)} className="accent-wine" />
+              {TIER_LABELS[t]} включён
+            </label>
+          ))}
+          <span className="text-xs text-muted">Выключенный уровень не вызывается: ход идёт на ближайший включённый ниже — так экономятся токены.</span>
         </div>
         <label className="block max-w-xs">
           <span className="mb-1 block text-xs text-muted">Уровень по умолчанию (и в режиме наблюдения)</span>

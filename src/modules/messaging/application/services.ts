@@ -350,7 +350,7 @@ export class MessagingService {
     const body = text.trim().slice(0, 4000);
     if (!body) throw new Error("Пустое сообщение");
     // Ответил менеджер — бот замолкает (до записи ответа: она тоже помечает бота остановленным).
-    if (authorId) await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
+    if (authorId) await this.bot.stopByHuman(conversationId, "crm", authorId).catch((err) => this.logger.error("bot stop", err));
     const reply = await this.replyTarget(conversationId, opts.replyToId);
     // Клиенту уходит текст целиком, в CRM — с маской секретов (ссылка «задайте пароль»).
     const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId, false, authorId ? undefined : source, { replyToId: reply?.id ?? null, forwarded: opts.forwarded });
@@ -377,7 +377,7 @@ export class MessagingService {
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
     if (!this.transport.sendFile) throw new MessageActionError("Отправка файлов в этом канале недоступна");
-    await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
+    await this.bot.stopByHuman(conversationId, "crm", authorId).catch((err) => this.logger.error("bot stop", err));
     const reply = await this.replyTarget(conversationId, opts.replyToId);
     const text = caption.trim().slice(0, 1000);
     const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(text), authorId, false, undefined, { type: file.kind, mediaUrl: opts.mediaUrl, replyToId: reply?.id ?? null, forwarded: opts.forwarded });

@@ -1,0 +1,1 @@
+ALTER TABLE "crm_conversations" ADD COLUMN "bot_control" jsonb;

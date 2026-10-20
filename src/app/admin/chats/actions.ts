@@ -90,11 +90,35 @@ export async function setConversationStatusAction(conversationId: string, status
   revalidatePath("/admin/chats");
 }
 
-/** «Остановить бота»: бот больше не пишет в этот диалог (менеджер ведёт сам). */
+/** «Отключить AI»: бот больше не пишет в этот диалог ни днём, ни ночью, пока AI не возобновят (менеджер ведёт сам). */
 export async function stopBotAction(conversationId: string) {
   const staff = await assertStaff("chats.view", "chats.send");
   const conv = await loadOwnConv(staff, conversationId);
-  if (await container().messaging.bot.stopByHuman(conv.id, "button")) await audit(staff, "chat.bot_stop", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
+  await container().messaging.bot.disable(conv.id, staff.user.id);
+  await audit(staff, "chat.bot_stop", "conversation", conv.id, { contact: conv.contactName || conv.chatId });
+  revalidatePath("/admin/chats");
+}
+
+/**
+ * «Возобновить AI» после перехвата менеджером, паузы или ручного отключения: права и видимость диалога проверяются здесь,
+ * режим меняется одним запросом; клиент ждёт ответа — бот отвечает на накопленные сообщения (уже отвеченные не повторяет).
+ */
+export async function resumeBotAction(conversationId: string) {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  const answered = await container().messaging.bot.resume(conv.id, staff.user.id);
+  await audit(staff, "chat.bot_resume", "conversation", conv.id, { contact: conv.contactName || conv.chatId, answered });
+  revalidatePath("/admin/chats");
+}
+
+/** «Пауза AI» на N минут (15 минут — сутки): потом бот снова по общим правилам и ответит, если клиент ждёт. */
+export async function pauseBotAction(conversationId: string, minutes: number) {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  const m = z.number().int().min(15).max(24 * 60).parse(minutes);
+  const until = new Date(Date.now() + m * 60_000);
+  await container().messaging.bot.pause(conv.id, until, staff.user.id);
+  await audit(staff, "chat.bot_pause", "conversation", conv.id, { contact: conv.contactName || conv.chatId, minutes: m });
   revalidatePath("/admin/chats");
 }
 

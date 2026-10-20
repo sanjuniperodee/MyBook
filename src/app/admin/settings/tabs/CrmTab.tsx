@@ -1,3 +1,4 @@
+import { storeTimeZone } from "@/shared/domain/time";
 import { container } from "@/server/container";
 import { getSetting } from "@/modules/workspace";
 import { parseWorkHours } from "@/shared/domain/schedule";
@@ -28,7 +29,7 @@ export async function CrmTab() {
   ]);
   return (
     <>
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
+      <CrmSettingsForm timeZone={storeTimeZone()} slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off" }} />
 
       <Blocklist
         items={blocked.map((b) => ({

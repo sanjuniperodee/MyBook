@@ -39,6 +39,10 @@ import {
   type Conversation,
   type InboundMessage,
   type SellerRemind,
+  afterManagerReply,
+  autoReplyAllowed,
+  pausedNow,
+  type BotControl,
 } from "../domain";
 import type { BotBrain, BotCrm, BotHistory, BotInvoices, BotMediaReader, BotSellerModel, BotSettings, BotStore, BotTimers, ConversationRepository, SalesGateway, StaffNotifier, Tasks } from "./ports";
 import { AiSeller, workStartOn, type CopilotSuggestion } from "./botSeller";
@@ -178,6 +182,12 @@ export class QualifierBot {
     const now = this.d.clock.now();
     const rec = await this.d.store.load(conv.id);
     const state = rec?.state ?? null;
+    // Режим чата: менеджер перехватил (днём бот молчит), пауза, отключено вручную — сообщение остаётся в истории, бот не
+    // отвечает и закрывает начатую беседу (ночью начатая беседа в перехваченном чате дальше не идёт днём).
+    if (!(await this.allowed(rec?.control ?? null, now))) {
+      if (state && state.phase !== "done") await this.d.store.stop(conv.id, "human_takeover", { soft: true });
+      return no;
+    }
     if (state?.phase === "active") {
       await this.later(conv.id, new Date(now.getTime() + BOT_PAUSE_MS));
       return { quiet: true, handled: true };
@@ -237,12 +247,14 @@ export class QualifierBot {
     if (!channel || !config.channels.includes(channel)) return none;
     // Менеджер уже ответил (или закрыл чат) — подхватывать нечего. Нужен ли ответ на «Аха» или «спасибо», решит модель.
     if (!conv.awaitingSince) return none;
-    if (mode === "off_hours" && workTime) return none;
+    // AI возобновили в этом чате вручную — отвечает и днём, не дожидаясь менеджера (и в режиме «только вне рабочего времени»).
+    const resumed = (await this.d.store.load(conv.id))?.control?.mode === "active";
+    if (mode === "off_hours" && workTime && !resumed) return none;
     const [deal, client] = await Promise.all([this.d.crm.deal(conv.dealId!), conv.clientId ? this.d.crm.client(conv.clientId) : null]);
     if (this.takeoverBlocker(deal, client)) return none;
     const awaiting = new Date(conv.awaitingSince);
     // Ночью бот подхватывает сразу — но не когда менеджер сейчас в чате (писал только что): тогда ждёт, как днём.
-    const waitHuman = workTime || (await this.managerActive(conv.id, now));
+    const waitHuman = !resumed && (workTime || (await this.managerActive(conv.id, now)));
     const due = new Date(Math.max(now.getTime() + BOT_PAUSE_MS, waitHuman ? awaiting.getTime() + config.waitMinutes * 60_000 : 0));
     const next: BotState = {
       ...newBotState(new Date(awaiting.getTime() - 1000), false),
@@ -285,12 +297,75 @@ export class QualifierBot {
     return !!rec?.state && rec.state.phase !== "done" && rec.botStep !== BOT_DONE;
   }
 
-  /** Человек ответил клиенту (с телефона или из CRM) или нажал «Остановить бота»: бот больше не пишет. */
-  async stopByHuman(conversationId: string, reason = "reply") {
-    // Кнопка «Остановить бота» — окончательно; ответ менеджера (из CRM или с телефона) — до его следующего молчания.
+  /**
+   * Человек ответил клиенту (с телефона или из CRM) или нажал «Отключить AI»: бот больше не пишет. Ответ менеджера
+   * переводит чат в «менеджер ведёт диалог» (human): днём бот здесь не отвечает, пока AI не возобновят вручную; кнопка —
+   * «отключено вручную» (disabled): не отвечает и ночью. Начатая генерация ответа не уйдёт: состояние закрыто, а отправка
+   * проверяет его перед каждым сообщением.
+   */
+  async stopByHuman(conversationId: string, reason = "reply", by: string | null = null) {
+    const now = this.d.clock.now();
     const stopped = await this.d.store.stop(conversationId, reason, { soft: reason !== "button" });
+    if (reason === "button") await this.d.store.setControl?.(conversationId, { mode: "disabled", until: null, by, at: now.toISOString(), reason });
+    else {
+      const next = afterManagerReply(null, now, by, reason);
+      if (next) await this.d.store.markHuman?.(conversationId, next);
+    }
+    // Запланированный ход снимается сразу (срок в базе снят остановкой выше).
+    this.d.timers.cancel?.(conversationId);
     if (stopped) await this.d.store.log(conversationId, null, null, [{ kind: "stopped_by_manager", reason }]).catch((err) => this.d.logger.error("bot log", err));
     return stopped;
+  }
+
+  /** Может ли бот сейчас отвечать в чате с таким режимом (рабочее время — по поясу магазина). */
+  private async allowed(control: BotControl | null, now: Date) {
+    if (!control) return true;
+    const [workTime, humanNight, humanHold] = await Promise.all([this.d.settings.isWorkTime(now), this.d.settings.humanNight?.() ?? true, this.d.settings.humanHold?.() ?? true]);
+    return autoReplyAllowed(control, now, { workTime, humanNight, humanHold });
+  }
+
+  /**
+   * «Возобновить AI»: режим active (снимается и остановка кнопкой), старые сроки — сбрасываются. Клиент ждёт ответа —
+   * бот сразу отвечает на накопленные сообщения (только на те, что после последнего ответа: уже отвеченные не повторяет),
+   * читая всю переписку. false — AI-продажник не подключён (режим всё равно включён — ответит, когда подключат).
+   */
+  async resume(conversationId: string, by: string | null) {
+    const now = this.d.clock.now();
+    if (!(await this.d.store.setControl?.(conversationId, { mode: "active", until: null, by, at: now.toISOString(), reason: "resume" }, { enable: true, dueAt: null }))) throw new Error("Диалог не найден");
+    await this.d.store.log(conversationId, null, null, [{ kind: "skipped", reason: "ai_resumed" }]).catch((err) => this.d.logger.error("bot log", err));
+    return this.answerPending(conversationId, now);
+  }
+
+  /** Клиент ждёт ответа — беседа на накопленные сообщения сразу (после паузы BOT_PAUSE_MS не ждём: менеджер сам включил AI). */
+  private async answerPending(conversationId: string, now: Date, run = true): Promise<boolean> {
+    const conv = await this.d.conversations.findById(conversationId);
+    if (!conv?.dealId || !conv.awaitingSince || (await this.d.settings.mode()) === "off") return false;
+    const config = await this.d.settings.config();
+    if (!(await this.aiEngine(config))) return false;
+    const channel = botChannelOf(conv.channel);
+    if (!channel || !config.channels.includes(channel)) return false;
+    const rec = await this.d.store.load(conversationId);
+    if (rec?.state && rec.state.phase !== "done") return false;
+    const awaiting = new Date(conv.awaitingSince);
+    const next: BotState = { ...newBotState(new Date(awaiting.getTime() - 1000), false), engine: "ai", waitHuman: false, reason: "takeover", ai: { ...newSellerAiState(), takeover: true }, version: (rec?.state?.version ?? -1) + 1 };
+    if (!(await this.d.store.save(conversationId, rec?.state?.version ?? null, { botStep: null, state: next, dueAt: now }, { restart: true }))) return false;
+    if (run) await this.process(conversationId);
+    return true;
+  }
+
+  /** «Пауза AI» до момента until: начатая беседа закрывается, в until бот проснётся (сроком планировщика) и ответит, если клиент ждёт. */
+  async pause(conversationId: string, until: Date, by: string | null) {
+    const now = this.d.clock.now();
+    if (until.getTime() <= now.getTime()) throw new Error("Пауза должна закончиться в будущем");
+    await this.d.store.stop(conversationId, "pause", { soft: true });
+    await this.d.store.setControl?.(conversationId, { mode: "paused", until: until.toISOString(), by, at: now.toISOString(), reason: "pause" }, { dueAt: until });
+    this.d.timers.schedule(conversationId, until, () => void this.process(conversationId));
+    await this.d.store.log(conversationId, null, null, [{ kind: "skipped", reason: "ai_paused" }]).catch((err) => this.d.logger.error("bot log", err));
+  }
+
+  /** «Отключить AI» вручную: не отвечает ни днём, ни ночью, пока не возобновят. */
+  disable(conversationId: string, by: string | null) {
+    return this.stopByHuman(conversationId, "button", by);
   }
 
   /** Запустить бота вручную (кнопка в чате): поздоровается и спросит недостающее. */
@@ -344,7 +419,17 @@ export class QualifierBot {
     const now = this.d.clock.now();
     const rec = await this.d.store.load(conversationId);
     const state = rec?.state;
+    // Пауза кончилась (срок планировщика): режим — снова по общим правилам; клиент ждёт ответа — бот отвечает.
+    if (rec?.control?.mode === "paused" && !pausedNow(rec.control, now)) {
+      // Ход уже идёт (process): новая беседа начнётся на следующем круге этого же прохода.
+      return (await this.d.store.setControl?.(conversationId, null, { dueAt: null, expectMode: "paused" })) ? this.answerPending(conversationId, now, false) : false;
+    }
     if (!rec || !state || state.phase === "done" || rec.botStep === BOT_DONE) return false;
+    // Режим чата сменился, пока ход ждал (менеджер перехватил днём, пауза, отключение) — беседа закрывается без ответа.
+    if (!(await this.allowed(rec.control ?? null, now))) {
+      await this.d.store.stop(conversationId, "human_takeover", { soft: true });
+      return false;
+    }
     if (rec.dueAt && rec.dueAt.getTime() > now.getTime() + 500) {
       this.d.timers.schedule(conversationId, rec.dueAt, () => void this.process(conversationId));
       return false;

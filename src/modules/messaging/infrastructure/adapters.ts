@@ -120,7 +120,7 @@ export interface BotSiteInfo {
  * Бот-квалификатор: режим и вопросы — из настроек CRM, рабочее время и свои поля сделки — из рабочего пространства,
  * цены и темы книг — с сайта (порт контейнера).
  */
-export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config" | "crm.workHours" | "ai.knowledge" | "bot.lessons">; schedule: WorkSchedule; fields: CustomFieldsReader; site: BotSiteInfo }): BotSettings => ({
+export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bot.config" | "crm.workHours" | "ai.knowledge" | "bot.lessons" | "bot.humanHold" | "bot.humanNight">; schedule: WorkSchedule; fields: CustomFieldsReader; site: BotSiteInfo }): BotSettings => ({
   mode: async () => {
     const v = await deps.settings.get("bot.mode");
     // Не задан — режим по умолчанию («всегда»); испорчен — выключен, чтобы бот не писал клиентам по ошибке.
@@ -136,6 +136,8 @@ export const crmBotSettings = (deps: { settings: SettingsReader<"bot.mode" | "bo
   timeZone: () => storeTimeZone(),
   knowledge: async () => (await deps.settings.get("ai.knowledge")) ?? "",
   lessons: async () => parseLessons(await deps.settings.get("bot.lessons")),
+  humanHold: async () => (await deps.settings.get("bot.humanHold")) !== "off",
+  humanNight: async () => (await deps.settings.get("bot.humanNight")) !== "off",
   brand: () => site.name,
 });
 
@@ -155,6 +157,11 @@ export function processTimers(maxDelayMs = 15 * 60_000): BotTimers {
       }, delay + 50);
       t.unref?.();
       timers.set(key, t);
+    },
+    cancel(key) {
+      const prev = timers.get(key);
+      if (prev) clearTimeout(prev);
+      timers.delete(key);
     },
   };
 }

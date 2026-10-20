@@ -138,11 +138,11 @@ describe("настройки бота: режим «Продаёт»", () => {
 });
 
 describe("бот в чате", () => {
-  it("полоса: вопрос N из M с кнопкой «Остановить»; бот не работал — полосы нет", () => {
+  it("полоса: вопрос N из M с кнопкой «Отключить AI»; бот не работал — полосы нет", () => {
     const state = { ...newBotState(new Date(), true), phase: "active" as const, questions: ["recipient", "occasion"], asking: "occasion" };
     const active = botStatus({ botStep: 1, state, dueAt: null }, fields);
     expect(active).toMatchObject({ label: "Бот: вопрос 2 из 2 (Повод)", canStop: true, canStart: false });
-    expect(renderToStaticMarkup(<BotBanner conversationId="c1" status={active} canControl hasDeal />)).toContain("Остановить бота");
+    expect(renderToStaticMarkup(<BotBanner conversationId="c1" status={active} canControl hasDeal />)).toContain("Отключить AI");
     const none = botStatus(null, fields);
     expect(none).toEqual({ label: null, tone: "none", canStop: false, canStart: true });
     expect(renderToStaticMarkup(<BotBanner conversationId="c1" status={none} canControl hasDeal />)).toBe("");

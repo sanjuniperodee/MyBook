@@ -10,11 +10,17 @@ export interface WorkHours {
   /** «09:00» — начало, «21:00» — конец. Если конец раньше начала — смена через полночь. */
   from: string;
   to: string;
+  /** Праздники и другие нерабочие даты «ГГГГ-ММ-ДД» (по поясу магазина): смена, которая начинается в этот день, не работает. */
+  holidays?: string[];
 }
 
 const defaultWorkHours: WorkHours = { days: [1, 2, 3, 4, 5, 6, 7], from: "09:00", to: "21:00" };
 
 const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+const dayRe = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+const ymd = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
+/** Работает ли смена, которая начинается в этот местный день: день недели в графике и дата не праздник. */
+const shiftDay = (hours: WorkHours, weekday: number, y: number, m: number, d: number) => hours.days.includes(weekday) && !hours.holidays?.includes(ymd(y, m, d));
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 export function parseWorkHours(raw: string | null | undefined): WorkHours {
@@ -23,7 +29,8 @@ export function parseWorkHours(raw: string | null | undefined): WorkHours {
     const days = Array.isArray(v.days) ? [...new Set(v.days.map(Number).filter((d) => d >= 1 && d <= 7))].sort() : defaultWorkHours.days;
     const from = typeof v.from === "string" && timeRe.test(v.from) ? v.from : defaultWorkHours.from;
     const to = typeof v.to === "string" && timeRe.test(v.to) ? v.to : defaultWorkHours.to;
-    return { days, from, to };
+    const holidays = Array.isArray(v.holidays) ? [...new Set(v.holidays.filter((d): d is string => typeof d === "string" && dayRe.test(d)))].sort().slice(0, 200) : [];
+    return holidays.length ? { days, from, to, holidays } : { days, from, to };
   } catch {
     return defaultWorkHours;
   }
@@ -35,11 +42,12 @@ export function isWorkTime(date: Date, hours: WorkHours, tz = storeTimeZone()) {
   const p = zonedParts(date, tz);
   const from = toMin(hours.from);
   const to = toMin(hours.to);
-  if (from === to) return hours.days.includes(p.weekday); // круглосуточно в рабочие дни
-  if (from < to) return hours.days.includes(p.weekday) && p.minutes >= from && p.minutes < to;
-  // Через полночь: вечер относится к текущему дню, ночь — к предыдущему.
-  if (p.minutes >= from) return hours.days.includes(p.weekday);
-  if (p.minutes < to) return hours.days.includes(p.weekday === 1 ? 7 : p.weekday - 1);
+  const today = shiftDay(hours, p.weekday, p.y, p.m, p.d);
+  if (from === to) return today; // круглосуточно в рабочие дни
+  if (from < to) return today && p.minutes >= from && p.minutes < to;
+  // Через полночь: вечер относится к текущему дню, ночь — к предыдущему (и праздник — по дню начала смены).
+  if (p.minutes >= from) return today;
+  if (p.minutes < to) return shiftDay(hours, p.weekday === 1 ? 7 : p.weekday - 1, p.y, p.m, p.d - 1);
   return false;
 }
 
@@ -52,11 +60,12 @@ export function nextWorkStart(date: Date, hours: WorkHours, tz = storeTimeZone()
   if (isWorkTime(date, hours, tz)) return date;
   const p = zonedParts(date, tz);
   const from = toMin(hours.from);
-  for (let i = 0; i <= 8; i++) {
+  // Неделя плюс праздники подряд (новогодние): ищем вперёд с запасом.
+  for (let i = 0; i <= 8 + (hours.holidays?.length ?? 0); i++) {
     // Полдень местного дня i — от него берём дату и смещение пояса (переход на летнее время не сдвигает день).
     const noon = new Date(Date.UTC(p.y, p.m - 1, p.d + i, 12) - timeZoneOffset(date, tz) * 60_000);
     const day = zonedParts(noon, tz);
-    if (!hours.days.includes(day.weekday)) continue;
+    if (!shiftDay(hours, day.weekday, day.y, day.m, day.d)) continue;
     const start = new Date(Date.UTC(day.y, day.m - 1, day.d, Math.floor(from / 60), from % 60) - timeZoneOffset(noon, tz) * 60_000);
     if (start.getTime() > date.getTime()) return start;
   }
@@ -80,7 +89,7 @@ export function workMinutesBetween(a: Date, b: Date, hours: WorkHours, tz = stor
     const p = zonedParts(noon, tz);
     const midnight = Date.UTC(p.y, p.m - 1, p.d) - timeZoneOffset(noon, tz) * 60_000;
     if (midnight > end) break;
-    if (!hours.days.includes(p.weekday)) continue;
+    if (!shiftDay(hours, p.weekday, p.y, p.m, p.d)) continue;
     const winStart = midnight + from * 60_000;
     const winEnd = midnight + (from === toMin(hours.to) ? from + 24 * 60 : to) * 60_000;
     total += Math.max(0, Math.min(end, winEnd) - Math.max(start, winStart));
@@ -108,7 +117,7 @@ export function addWorkMinutes(date: Date, minutes: number, hours: WorkHours, tz
   for (let i = -1; i <= 62; i++) {
     const noon = new Date(firstMidnight + i * 86_400_000 + 12 * 3_600_000);
     const p = zonedParts(noon, tz);
-    if (!hours.days.includes(p.weekday)) continue;
+    if (!shiftDay(hours, p.weekday, p.y, p.m, p.d)) continue;
     const midnight = Date.UTC(p.y, p.m - 1, p.d) - timeZoneOffset(noon, tz) * 60_000;
     const winStart = Math.max(start, midnight + from * 60_000);
     const winEnd = midnight + from * 60_000 + span;

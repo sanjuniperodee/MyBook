@@ -93,6 +93,8 @@ export interface RoutePolicy {
   models: Record<SellerTier, string>;
   /** Уровень, когда бот его не назвал (и всегда — в режиме shadow). */
   defaultTier: SellerTier;
+  /** Какие старшие уровни включены: Sonnet и Opus можно выключить ради экономии — ход тогда идёт на ближайший уровень ниже. */
+  tiers: { sonnet: boolean; opus: boolean };
   /** Порог очков сложности для Sonnet и для Opus (признаки — messaging/domain/botRoute.ts). */
   sonnetAt: number;
   opusAt: number;
@@ -114,6 +116,8 @@ export const ROUTE_SETTING_KEYS = [
   "seller.route.sonnet",
   "seller.route.opus",
   "seller.route.default",
+  "seller.route.sonnetEnabled",
+  "seller.route.opusEnabled",
   "seller.route.sonnetAt",
   "seller.route.opusAt",
   "seller.route.maxExtra",
@@ -138,7 +142,8 @@ export const DEFAULT_DIALOG_BUDGET_USD = 0.5;
 
 export function readRoutePolicy(v: Partial<Record<RouteSettingKey, string>>): RoutePolicy {
   const mode = v["seller.route"];
-  const def = v["seller.route.default"];
+  const tiers = { sonnet: v["seller.route.sonnetEnabled"] !== "off", opus: v["seller.route.opusEnabled"] !== "off" };
+  const def = allowedTier(isSellerTier(v["seller.route.default"]) ? v["seller.route.default"] : "haiku", tiers);
   const sonnetAt = int(v["seller.route.sonnetAt"], 2, 1, 20);
   return {
     mode: mode === "off" || mode === "shadow" ? mode : "on",
@@ -147,7 +152,8 @@ export function readRoutePolicy(v: Partial<Record<RouteSettingKey, string>>): Ro
       sonnet: v["seller.route.sonnet"]?.trim() || DEFAULT_TIER_MODELS.sonnet,
       opus: v["seller.route.opus"]?.trim() || DEFAULT_TIER_MODELS.opus,
     },
-    defaultTier: isSellerTier(def) ? def : "haiku",
+    defaultTier: def,
+    tiers,
     sonnetAt,
     opusAt: Math.max(sonnetAt + 1, int(v["seller.route.opusAt"], 6, 2, 30)),
     maxExtra: int(v["seller.route.maxExtra"], 2, 0, 4),
@@ -173,6 +179,13 @@ export const isTransient = (k: FailureKind) => k === "rate_limit" || k === "over
 export function backoffMs(attempt: number, retryAfterSec: number | null = null): number | null {
   if (retryAfterSec !== null) return retryAfterSec <= 3 ? Math.max(250, retryAfterSec * 1000) : null;
   return Math.min(3000, 1000 * 2 ** attempt);
+}
+
+/** Уровень с учётом выключенных: выключенный старший уровень заменяется ближайшим включённым ниже (Haiku включён всегда). */
+export function allowedTier(tier: SellerTier, tiers: { sonnet: boolean; opus: boolean }): SellerTier {
+  if (tier === "opus" && !tiers.opus) return tiers.sonnet ? "sonnet" : "haiku";
+  if (tier === "sonnet" && !tiers.sonnet) return "haiku";
+  return tier;
 }
 
 /** Модели Claude, у которых есть серверный резерв на случай отказа (fallbacks: "default"); у Haiku 5.5 его нет. */

@@ -179,6 +179,18 @@ describe("маршрутизатор продажника: Claude основно
     expect(haiku.asked).toHaveLength(2);
   });
 
+  it("выключенный уровень не вызывается: запрос Opus при выключенном Opus — Sonnet, при выключенных обоих — Haiku; отказ Haiku без Sonnet — Opus", async () => {
+    const sonnet = fakeLm("anthropic", "claude-sonnet-5-5", [{ text: "{}" }]);
+    const haiku = fakeLm("anthropic", "claude-haiku-5-5", [{ text: "{}" }, err("refused")]);
+    const opus = fakeLm("anthropic", "claude-opus-5-5", [{ text: "{}" }]);
+    const a = router({ policy: { tiers: { sonnet: true, opus: false } }, claude: { "claude-sonnet-5-5": sonnet } });
+    expect((await a.model.complete({ ...REQ, tier: "opus" })).served).toMatchObject({ tier: "sonnet", wanted: "sonnet" });
+    const b = router({ policy: { tiers: { sonnet: false, opus: true } }, claude: { "claude-haiku-5-5": haiku, "claude-opus-5-5": opus } });
+    expect((await b.model.complete({ ...REQ, tier: "sonnet" })).served).toMatchObject({ tier: "haiku" });
+    expect((await b.model.complete(REQ)).served).toMatchObject({ tier: "opus" });
+    expect(readRoutePolicy({ "seller.route.sonnetEnabled": "off", "seller.route.opusEnabled": "off", "seller.route.default": "opus" })).toMatchObject({ tiers: { sonnet: false, opus: false }, defaultTier: "haiku" });
+  });
+
   it("режим shadow: отвечает уровень по умолчанию, уровень бота только записан", async () => {
     const haiku = fakeLm("anthropic", "claude-haiku-5-5", [{ text: "{}" }]);
     const { model } = router({ policy: { mode: "shadow" }, claude: { "claude-haiku-5-5": haiku } });

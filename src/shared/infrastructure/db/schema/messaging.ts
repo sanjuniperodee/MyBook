@@ -61,6 +61,12 @@ export const crmConversations = pgTable(
     botState: jsonb("bot_state").$type<Record<string, unknown>>(),
     /** Когда бот должен сделать следующий ход: пауза после сообщения клиента, ожидание менеджера, проверка «клиент замолчал». */
     botDueAt: timestamp("bot_due_at", { withTimezone: true }),
+    /**
+     * Управление AI в этом чате (BotControl в modules/messaging/domain/botControl.ts): менеджер перехватил диалог (human),
+     * пауза до времени (paused), отключено вручную (disabled), возобновлено вручную (active); null — по общим правилам.
+     * Отдельно от bot_state: состояние беседы бот переписывает на каждом ходе, а режим чата меняет только человек.
+     */
+    botControl: jsonb("bot_control").$type<Record<string, unknown>>(),
     /** Служебные данные канала: для чата с сайта — страница и контакты посетителя, для почты — тема письма. */
     meta: jsonb("meta").$type<ConversationMeta>().notNull().default({}),
     ...timestamps,

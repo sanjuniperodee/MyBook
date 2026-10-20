@@ -165,6 +165,9 @@ export async function saveRoutingAction(_: SettingsState, form: FormData): Promi
     {
       ...unlessEnv("seller.route", d.mode),
       ...unlessEnv("seller.route.default", d.defaultTier),
+      // Флажки: снятый — уровень выключен (экономия токенов), ход идёт на ближайший включённый ниже.
+      ...unlessEnv("seller.route.sonnetEnabled", form.get("sonnetEnabled") === "on" ? "on" : "off"),
+      ...unlessEnv("seller.route.opusEnabled", form.get("opusEnabled") === "on" ? "on" : "off"),
       ...unlessEnv("seller.route.haiku", d.model_haiku),
       ...unlessEnv("seller.route.sonnet", d.model_sonnet),
       ...unlessEnv("seller.route.opus", d.model_opus),
@@ -178,7 +181,7 @@ export async function saveRoutingAction(_: SettingsState, form: FormData): Promi
     },
     staff.user.id,
   );
-  await audit(staff, "settings.update", "settings", "seller.route", { mode: d.mode, defaultTier: d.defaultTier, fallbacks });
+  await audit(staff, "settings.update", "settings", "seller.route", { mode: d.mode, defaultTier: d.defaultTier, sonnet: form.get("sonnetEnabled") === "on", opus: form.get("opusEnabled") === "on", fallbacks });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }

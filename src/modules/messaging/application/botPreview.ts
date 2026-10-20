@@ -21,6 +21,9 @@ import {
   type BotTurnTrace,
   type DealField,
   type HistoryMessage,
+  controlAt,
+  controlLabel,
+  type ChatAiMode,
 } from "../domain";
 import type { BotRecord } from "./ports";
 
@@ -114,12 +117,26 @@ export function botPreview(
   };
 }
 
-/** Состояние бота для шапки чата и кнопок «Остановить» / «Запустить». */
+/** Состояние бота для шапки чата и кнопок «Отключить AI» / «Пауза» / «Возобновить AI» / «Запустить». */
 export interface BotStatus {
   label: string | null;
   tone: "active" | "waiting" | "done" | "none";
+  /** Режим AI в чате: включён, ждёт паузу перед ответом, менеджер ведёт диалог, пауза, отключён вручную. */
+  mode?: ChatAiMode;
+  /** «Отключить AI» (и «Пауза»): бот ведёт диалог или может ответить в этом чате. */
   canStop: boolean;
   canStart: boolean;
+  /** «Возобновить AI»: менеджер перехватил чат, пауза или ручное отключение. */
+  canResume?: boolean;
+}
+
+/** Рабочее время сейчас и настройки перехвата — для подписи режима чата. */
+export interface BotStatusContext {
+  workTime: boolean;
+  humanNight: boolean;
+  humanHold: boolean;
+  /** Бот выключен в настройках CRM — режимы чата не показываем. */
+  botOff?: boolean;
 }
 
 /** Время для статуса: сегодня — «10:00», другой день — «21 октября в 10:00» (по часовому поясу магазина). */
@@ -129,7 +146,35 @@ function statusTime(at: Date, now: Date, tz: string): string {
   return day === zonedDay(now, tz) ? `в ${time}` : `${humanDate(day, "ru")} в ${time}`;
 }
 
-export function botStatus(rec: BotRecord | null, fields: DealField[], now = new Date()): BotStatus {
+/**
+ * Статус для полосы бота: сначала режим чата (перехват, пауза, отключение — его меняет только человек), затем что бот
+ * делает в беседе. Беседа идёт — WAITING_TO_REPLY (ждёт паузу или менеджера) или AI_ACTIVE.
+ */
+export function botStatus(rec: BotRecord | null, fields: DealField[], now = new Date(), ctx: BotStatusContext | null = null): BotStatus {
+  const control = controlAt(rec?.control ?? null, now);
+  const legacyButton = !control && rec?.botStep === BOT_DONE && rec.state?.reason === "button";
+  if (ctx && !ctx.botOff && (legacyButton || (control && control.mode !== "active"))) {
+    const c = control ?? { mode: "disabled" as const, until: null, by: null, at: "", reason: "button" };
+    const tz = storeTimeZone();
+    const untilLabel = c.until ? statusTime(new Date(c.until), now, tz).replace(/^в /, "") : undefined;
+    const mode: ChatAiMode = c.mode === "paused" ? "AI_PAUSED" : c.mode === "human" ? "HUMAN_TAKEOVER" : "DISABLED";
+    // Перехваченный чат ночью (или при прежнем подхвате) бот ещё может вести — тогда видна и беседа.
+    const running = !!rec?.state && rec.state.phase !== "done" && rec.botStep !== BOT_DONE;
+    const label = controlLabel(c, { ...ctx, untilLabel });
+    if (!running) return { label, tone: "done", mode, canStop: c.mode === "human", canStart: false, canResume: true };
+    const inner = botStatus(rec ? { ...rec, control: null } : rec, fields, now, null);
+    return { ...inner, label: `${label} · ${inner.label}`, mode, canResume: true };
+  }
+  const base = statusOf(rec, fields, now);
+  if (!ctx || ctx.botOff) return base;
+  // Ждёт паузу перед ответом (или ответа менеджера) на неотвеченное сообщение — WAITING_TO_REPLY; иначе AI включён.
+  const mode: ChatAiMode = rec?.state?.phase === "waiting" && rec.botStep !== BOT_DONE ? "WAITING_TO_REPLY" : "AI_ACTIVE";
+  // Беседы нет — AI в чате включён и ответит на следующее сообщение по общим правилам.
+  if (base.tone === "done" || base.tone === "none") return { ...base, label: base.label ? `AI включён · ${base.label}` : control?.mode === "active" ? "AI включён вручную — ответит на сообщения клиента" : "AI включён", mode, canStop: true };
+  return { ...base, mode };
+}
+
+function statusOf(rec: BotRecord | null, fields: DealField[], now: Date): BotStatus {
   const s = rec?.state;
   if (!s) {
     if (rec?.botStep != null && rec.botStep >= 0) return { label: `Бот (прежняя версия): вопрос ${rec.botStep + 1}`, tone: "active", canStop: true, canStart: false };

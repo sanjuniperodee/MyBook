@@ -277,7 +277,7 @@ describe("AI-продажник: подхват начатой переписк�
   /** Менеджер уже писал клиенту; клиент ответил, менеджер молчит. */
   async function started(script: Script, cfg = aiConfig(), mode: "fallback" | "always" = "fallback") {
     const { model, calls } = fakeModel(script);
-    const t = setup({ bot: mode, config: cfg, seller: model });
+    const t = setup({ bot: mode, config: cfg, seller: model, humanHold: false });
     await t.service.ingest(inbound({ text: "Здравствуйте, интересует книга" }));
     // Менеджер ответил из CRM до бота: бот остановился (до следующего молчания менеджера).
     await t.service.send(t.conv().id, "Добрый день! Я Margo, расскажу подробнее. Для кого книга?", "manager-1");
@@ -367,7 +367,7 @@ describe("AI-продажник: подхват — переписка нача�
   /** Бот был выключен (или переписка шла до него), потом включили: клиент пишет в давний диалог. */
   async function lateStart(opts: { orders?: number }) {
     const { model, calls } = fakeModel([ans({ reply: "Здравствуйте! Продолжим: для кого книга?" })]);
-    const t = setup({ bot: "off", config: aiConfig(), seller: model, clientOrders: opts.orders ?? 0, clients: opts.orders ? { "77011234567": "client-1" } : {} });
+    const t = setup({ bot: "off", config: aiConfig(), seller: model, humanHold: false, clientOrders: opts.orders ?? 0, clients: opts.orders ? { "77011234567": "client-1" } : {} });
     await t.service.ingest(inbound({ text: "Добрый день" }));
     await t.service.send(t.conv().id, "Здравствуйте, это Margo", "manager-1");
     t.settings.mode = "fallback";
@@ -943,7 +943,7 @@ describe("Короткая реакция клиента — нужен ли о�
   /** Менеджер Margo ведёт переписку с телефона на казахском, отвечает на вопрос клиентки; та пишет «Аха». */
   async function margoChat(script: Script, cfg = aiConfig()) {
     const { model, calls } = fakeModel(script);
-    const t = setup({ bot: "fallback", config: cfg, seller: model });
+    const t = setup({ bot: "fallback", config: cfg, seller: model, humanHold: false });
     await t.service.ingest(inbound({ text: "Кітапты отбасының яғни балаларының атынан" }));
     await t.service.ingest(inbound({ text: "Деп өзгертуге бола ма" }));
     await t.service.send(t.conv().id, "Иә болады", "manager-1");
@@ -1185,7 +1185,7 @@ describe("AI-продажник: журнал для статистики (bots-
 
   it("подхват начатой переписки — «начал беседу» и отдельное событие «подхватил»", async () => {
     const { model } = fakeModel([ans({ reply: "Подскажите, к какой дате нужна книга?" })]);
-    const t = setup({ bot: "fallback", config: aiConfig(), seller: model });
+    const t = setup({ bot: "fallback", config: aiConfig(), seller: model, humanHold: false });
     await t.service.ingest(inbound({ text: "Здравствуйте, интересует книга" }));
     await t.service.send(t.conv().id, "Добрый день! Для кого книга?", "manager-1");
     expect(kinds(t, "started")).toHaveLength(0);

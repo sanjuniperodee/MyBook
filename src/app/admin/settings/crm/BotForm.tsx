@@ -76,6 +76,7 @@ const area = "w-full rounded-xl border border-line bg-[#fbf9f5] px-3 py-2 text-s
 
 export function BotForm({
   mode: initialMode,
+  human = { hold: true, night: true },
   config,
   fields,
   defaults,
@@ -89,6 +90,8 @@ export function BotForm({
   initialTab = "mode",
 }: {
   mode: string;
+  /** Чат, куда написал менеджер: днём держать за ним до «Возобновить AI»; ночью — отвечать и там. */
+  human?: { hold: boolean; night: boolean };
   config: BotConfig;
   fields: BotFormField[];
   /** Заводские тексты и подписи — плейсхолдеры пустых полей. */
@@ -111,6 +114,8 @@ export function BotForm({
 }) {
   const [tab, setTab] = useState<BotFormTab>(initialTab);
   const [mode, setMode] = useState<Mode>((["off", "fallback", "off_hours", "always"] as const).find((m) => m === initialMode) ?? "off");
+  const [hold, setHold] = useState(human.hold);
+  const [night, setNight] = useState(human.night);
   // Тексты и ответы — голосом того, от чьего имени пишет бот: заводские тексты другого голоса заменены (см. revoiceConfig).
   const [cfg, setCfg] = useState<BotConfig>(() => revoiceConfig({ ...config, questions: config.questions.filter((q) => fields.some((f) => f.key === q.field)) }, config.sell.speaksAs));
   const [lang, setLang] = useState<BotLang>("ru");
@@ -187,6 +192,24 @@ export function BotForm({
           минут
         </label>
       ) : null}
+
+      <fieldset className="space-y-1.5 text-sm">
+        <legend className="mb-1.5 text-xs text-muted">Когда менеджер написал клиенту сам</legend>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" checked={hold} onChange={(e) => setHold(e.target.checked)} className="mt-0.5 accent-wine" />
+          <span>
+            Чат переходит к менеджеру: в рабочее время бот в нём не отвечает, пока не нажмут «Возобновить AI» в чате
+            <span className="block text-xs text-muted">Выключено — как раньше: менеджер замолчал на время ожидания — бот подхватит переписку.</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" checked={night} onChange={(e) => setNight(e.target.checked)} className="mt-0.5 accent-wine" />
+          <span>
+            Ночью (вне рабочего времени) бот отвечает и в таких чатах
+            <span className="block text-xs text-muted">Отключённые кнопкой «Отключить AI» и поставленные на паузу чаты бот не трогает никогда.</span>
+          </span>
+        </label>
+      </fieldset>
 
       <fieldset>
         <legend className="mb-1.5 text-xs text-muted">Где работает бот (в почте — никогда)</legend>
@@ -603,7 +626,7 @@ export function BotForm({
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await saveBotAction({ mode, ...cfg });
+            const r = await saveBotAction({ mode, humanHold: hold, humanNight: night, ...cfg });
             toast(r.error ?? r.ok ?? "Сохранено", r.error ? "error" : "success");
           })
         }

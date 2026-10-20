@@ -1,4 +1,4 @@
-import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
+import { DEFAULT_RULE_SENDING, defaultBotConfig, type BotControl, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
 import { isWorkTime, nextWorkStart, type WorkHours } from "@/shared/domain/schedule";
 import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway, type StaffLine, type AnsweredTasks } from "@/modules/messaging/application";
 
@@ -18,7 +18,7 @@ export const BOT_CONFIG: BotConfig = {
   ],
 };
 
-export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null; lastOutgoingAt?: Date | null };
+export type Conv = Conversation & { unread: number; awaiting: Date | null; closed?: boolean; lastText?: string; lastAt?: Date; botState?: BotState | null; botDueAt?: Date | null; lastOutgoingAt?: Date | null; botControl?: BotControl | null };
 
 /** Последний ответ человека не двигается назад (как greatest в DrizzleConversationRepository). */
 const later = (prev: Date | null | undefined, at: Date) => (prev && prev > at ? prev : at);
@@ -76,6 +76,10 @@ export function setup(
     noMarketing?: string[];
     /** Окно и суточный лимит сообщений от правил (по умолчанию 09:00–21:00 и 40). */
     ruleSending?: RuleSendingPolicy;
+    /** Днём держать чат за менеджером, пока AI не возобновят (по умолчанию да); false — прежний подхват через N минут. */
+    humanHold?: boolean;
+    /** Ночью отвечать и в чатах, которые днём вёл менеджер (по умолчанию да). */
+    humanNight?: boolean;
     /** Номера сотрудников и служебные сообщения им (напоминания о задачах). */
     staffLine?: StaffLine;
     /** Задачи «ответить», которые закрывает ответ клиенту. */
@@ -102,7 +106,7 @@ export function setup(
   let seq = 0;
   /** Стоп-лист: номер → отметка и примечание (spam — от opts.blocked: любой номер). */
   const blocklist = new Map<string, { reason: "spam" | "no_marketing"; note: string | null; by: string | null }>((opts.noMarketing ?? []).map((v) => [v, { reason: "no_marketing", note: null, by: "m1" }]));
-  const settings = { mode: opts.bot ?? "off", workTime: opts.workTime ?? true, config: opts.config ?? BOT_CONFIG };
+  const settings = { mode: opts.bot ?? "off", workTime: opts.workTime ?? true, config: opts.config ?? BOT_CONFIG, humanHold: opts.humanHold ?? true, humanNight: opts.humanNight ?? true };
   const conversations: ConversationRepository = {
     linkClientByDeal: async () => {},
     findById: async (id) => convs.get(id) ?? null,
@@ -212,7 +216,7 @@ export function setup(
   const store: BotStore = {
     load: async (id) => {
       const c = convs.get(id);
-      return c ? { botStep: c.botStep, state: c.botState ? structuredClone(c.botState) : null, dueAt: c.botDueAt ?? null } : null;
+      return c ? { botStep: c.botStep, state: c.botState ? structuredClone(c.botState) : null, dueAt: c.botDueAt ?? null, control: c.botControl ? { ...c.botControl } : null } : null;
     },
     save: async (id, expected, next, o) => {
       const c = convs.get(id)!;
@@ -236,6 +240,20 @@ export function setup(
     due: async (at) => [...convs.values()].filter((c) => c.botDueAt && c.botDueAt < at && c.botStep !== -1).map((c) => c.id),
     incoming: async (id, since) => msgs.filter((m) => m.conv === id && m.dir === "in" && m.at >= since).map((m) => ({ id: m.id, text: m.text, type: m.type, at: m.at, mediaUrl: m.mediaUrl })),
     log: async (id, _deal, _lang, list) => void events.push(...list.map((e) => ({ ...e, conv: id }))),
+    setControl: async (id, control, o) => {
+      const c = convs.get(id)!;
+      if (o?.expectMode !== undefined && (c.botControl?.mode ?? null) !== o.expectMode) return false;
+      c.botControl = control ? { ...control } : null;
+      if (o?.enable && c.botStep === -1) c.botStep = null;
+      if (o?.dueAt !== undefined) c.botDueAt = o.dueAt;
+      return true;
+    },
+    markHuman: async (id, control) => {
+      const c = convs.get(id)!;
+      if (c.botControl?.mode === "disabled" || c.botControl?.mode === "human") return false;
+      c.botControl = { ...control };
+      return true;
+    },
   };
   /** Что CRM знает о сделке и клиенте сейчас: тест закрывает сделку или оформляет клиенту заказ посреди беседы. */
   const crmState = { closed: false, clientOrders: opts.clientOrders ?? 0 };
@@ -307,6 +325,9 @@ export function setup(
       timeZone: () => "Asia/Almaty",
       knowledge: async () => "",
       brand: () => "MyBooks",
+      // Чат, куда написал менеджер: днём держать за ним (новое правило) и ночью отвечать — по умолчанию; прежние тесты подхвата — humanHold: false.
+      humanHold: async () => settings.humanHold,
+      humanNight: async () => settings.humanNight,
     },
     crm,
     sales,

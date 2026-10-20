@@ -2,20 +2,22 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Archive, Bot, Handshake, Inbox, LoaderCircle, Play, Square } from "lucide-react";
+import { Archive, Bot, Handshake, Inbox, LoaderCircle, Play, Square, UserRound } from "lucide-react";
 import { toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import type { BotStatus } from "@/modules/messaging";
-import { assignConversationAction, createDealFromChatAction, setConversationStatusAction, startBotAction, stopBotAction } from "./actions";
+import { assignConversationAction, createDealFromChatAction, pauseBotAction, resumeBotAction, setConversationStatusAction, startBotAction, stopBotAction } from "./actions";
 
 /**
- * Полоса бота над перепиской: что он делает сейчас («Бот: вопрос 2 из 4», «Бот передал менеджеру») и кнопки
- * «Остановить» / «Запустить». Бот, который ни разу не работал, — только кнопка запуска.
+ * Полоса бота над перепиской: режим AI в этом чате и что бот делает сейчас («AI включён», «Менеджер ведёт диалог», «AI на
+ * паузе до 15:30», «AI-продажник ведёт диалог») и кнопки «Отключить AI», «Пауза», «Возобновить AI», «Запустить бота».
+ * Режим хранится на сервере; права проверяют действия.
  */
 export function BotBanner({ conversationId, status, canControl, hasDeal }: { conversationId: string; status: BotStatus; canControl: boolean; hasDeal: boolean }) {
   const [pending, start] = useTransition();
   const router = useRouter();
-  if (!status.label) return null;
+  // Без сделки бот в диалоге не работает — «AI включён» было бы неправдой.
+  if (!status.label || (!hasDeal && status.tone === "none")) return null;
   const run = (fn: () => Promise<unknown>) =>
     start(async () => {
       try {
@@ -25,20 +27,46 @@ export function BotBanner({ conversationId, status, canControl, hasDeal }: { con
         toastError(e);
       }
     });
+  const manager = status.mode === "HUMAN_TAKEOVER";
+  const off = status.mode === "DISABLED" || status.mode === "AI_PAUSED";
   return (
     <div
       className={cn(
-        "flex items-center gap-2 border-b border-line px-4 py-1.5 text-xs",
-        status.tone === "active" || status.tone === "waiting" ? "bg-emerald-50 text-emerald-900" : "bg-cream/40 text-muted",
+        "flex flex-wrap items-center gap-2 border-b border-line px-4 py-1.5 text-xs",
+        manager ? "bg-amber-50 text-amber-900" : off ? "bg-cream/60 text-ink-soft" : status.tone === "active" || status.tone === "waiting" ? "bg-emerald-50 text-emerald-900" : "bg-cream/40 text-muted",
       )}
       data-testid="bot-banner"
+      data-mode={status.mode ?? ""}
     >
-      <Bot className="size-3.5 shrink-0" />
+      {manager ? <UserRound className="size-3.5 shrink-0" /> : <Bot className="size-3.5 shrink-0" />}
       <span className="min-w-0 flex-1 truncate">{status.label}</span>
-      {canControl && status.canStop ? (
-        <button className="btn btn-ghost btn-sm h-7 px-2 text-xs" disabled={pending} onClick={() => run(() => stopBotAction(conversationId))}>
-          {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Square className="size-3.5" />} Остановить бота
+      {canControl && status.canResume ? (
+        <button className="btn btn-ghost btn-sm h-7 px-2 text-xs font-medium" disabled={pending} onClick={() => run(() => resumeBotAction(conversationId))} title="Бот снова отвечает в этом чате; на сообщения без ответа ответит сразу">
+          {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Возобновить AI
         </button>
+      ) : null}
+      {canControl && status.canStop && status.mode !== "AI_PAUSED" && status.mode !== "DISABLED" ? (
+        <>
+          <select
+            className="h-7 rounded-md border border-line bg-white px-1 text-xs"
+            aria-label="Пауза AI"
+            value=""
+            disabled={pending}
+            onChange={(e) => {
+              const minutes = Number(e.target.value);
+              if (minutes) run(() => pauseBotAction(conversationId, minutes));
+            }}
+          >
+            <option value="">Пауза…</option>
+            <option value="30">на 30 минут</option>
+            <option value="60">на 1 час</option>
+            <option value="180">на 3 часа</option>
+            <option value="1440">на сутки</option>
+          </select>
+          <button className="btn btn-ghost btn-sm h-7 px-2 text-xs" disabled={pending} onClick={() => run(() => stopBotAction(conversationId))} title="Бот не отвечает в этом чате ни днём, ни ночью, пока AI не возобновят">
+            {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Square className="size-3.5" />} Отключить AI
+          </button>
+        </>
       ) : null}
       {canControl && hasDeal && status.canStart ? (
         <button className="btn btn-ghost btn-sm h-7 px-2 text-xs" disabled={pending} onClick={() => run(() => startBotAction(conversationId))} title="Бот поздоровается и спросит то, чего ещё нет в сделке">

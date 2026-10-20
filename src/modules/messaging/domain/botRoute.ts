@@ -17,6 +17,18 @@ export const isRouteTier = (v: unknown): v is RouteTier => typeof v === "string"
 const rank = (t: RouteTier) => ROUTE_TIERS.indexOf(t);
 export const maxTier = (a: RouteTier, b: RouteTier): RouteTier => (rank(a) >= rank(b) ? a : b);
 
+/** Какие старшие уровни включены (Sonnet и Opus выключаются ради экономии); Haiku — всегда. */
+export type RouteTiers = { sonnet: boolean; opus: boolean };
+const ALL_TIERS: RouteTiers = { sonnet: true, opus: true };
+const enabled = (t: RouteTier, tiers: RouteTiers) => t === "haiku" || tiers[t];
+
+/** Выключенный уровень → ближайший включённый ниже. */
+export function capTier(t: RouteTier, tiers: RouteTiers = ALL_TIERS): RouteTier {
+  if (t === "opus" && !tiers.opus) return tiers.sonnet ? "sonnet" : "haiku";
+  if (t === "sonnet" && !tiers.sonnet) return "haiku";
+  return t;
+}
+
 /** Признак сложности хода (код — в след и метрики, без слов клиента). */
 export const ROUTE_REASONS = [
   "price_objection",
@@ -57,7 +69,7 @@ export interface RouteInput {
   ai: { objections: number; stage: SellerStage; blocked: number; failures: number; lastTier?: RouteTier | null };
   /** Вердикт кода по сроку к дате события. */
   deadline: DeadlineKind | null;
-  policy: { defaultTier: RouteTier; sonnetAt: number; opusAt: number };
+  policy: { defaultTier: RouteTier; sonnetAt: number; opusAt: number; tiers?: RouteTiers };
   overBudget?: boolean;
 }
 
@@ -145,7 +157,7 @@ export function chooseSellerTier(i: RouteInput): RouteChoice {
 
   const hard = contradictions > 0 || constraints >= 4 || (unresolved && !!i.ai.lastTier && i.ai.lastTier !== "haiku");
   const tier: RouteTier = score >= i.policy.opusAt && hard ? "opus" : score >= i.policy.sonnetAt ? "sonnet" : "haiku";
-  return { tier: maxTier(tier, base), score, reasons, hard, capped: false };
+  return { tier: capTier(maxTier(tier, base), i.policy.tiers), score, reasons, hard, capped: false };
 }
 
 /** Почему ход поднимают на уровень выше: ответ не по схеме, не прошёл проверку кода, модель не уверена, модель не ответила. */
@@ -155,9 +167,12 @@ export type EscalationCause = "invalid" | "rejected" | "unsure" | "error";
  * Следующий уровень после неудачи: Haiku → Sonnet всегда; Sonnet → Opus — только для подходящих ходов (тяжёлый признак
  * или сложность у порога Opus) и не из-за сбоя API (сбой — не признак сложности задачи); выше Opus — некуда.
  */
-export function escalateTier(current: RouteTier, choice: RouteChoice, cause: EscalationCause, policy: { opusAt: number }): RouteTier | null {
+export function escalateTier(current: RouteTier, choice: RouteChoice, cause: EscalationCause, policy: { opusAt: number; tiers?: RouteTiers }): RouteTier | null {
   if (choice.capped) return null;
-  if (current === "haiku") return "sonnet";
-  if (current === "sonnet" && cause !== "error" && (choice.hard || choice.score >= policy.opusAt - 2)) return "opus";
+  const tiers = policy.tiers ?? ALL_TIERS;
+  const opusFits = cause !== "error" && (choice.hard || choice.score >= policy.opusAt - 2);
+  // Выключенный уровень пропускается: без Sonnet Haiku поднимается сразу на Opus — но только там, где Opus уместен.
+  if (current === "haiku") return enabled("sonnet", tiers) ? "sonnet" : enabled("opus", tiers) && opusFits ? "opus" : null;
+  if (current === "sonnet" && opusFits && enabled("opus", tiers)) return "opus";
   return null;
 }

@@ -7,6 +7,7 @@ import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
 import { isValidTime } from "@/shared/domain/schedule";
+import { unlessEnv } from "../form-kit";
 import { findSensitive, sensitiveLabels, type BotPreviewResult } from "@/modules/messaging";
 import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, REMIND_TOUCHES_MAX, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
 import { faqIntentLabels, pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
@@ -40,12 +41,17 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const days = form.getAll("days").map(Number).filter((d) => d >= 1 && d <= 7);
   if (!days.length) return { error: "Выберите хотя бы один рабочий день" };
+  // Нерабочие даты: только ГГГГ-ММ-ДД, без повторов, не больше 200.
+  const holidayItems = String(form.get("holidays") ?? "").split(/[\s,;]+/).filter(Boolean);
+  const bad = holidayItems.find((h) => !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(h));
+  if (bad) return { error: `Нерабочий день «${bad.slice(0, 20)}» — нужна дата ГГГГ-ММ-ДД` };
+  const holidays = [...new Set(holidayItems)].sort().slice(0, 200);
   const d = parsed.data;
   await saveSettings(
     {
       "crm.slaMinutes": String(d.slaMinutes),
       "crm.reassignMinutes": String(d.reassignMinutes),
-      "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to }),
+      "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to, ...(holidays.length ? { holidays } : {}) }),
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
       "crm.maxDiscount": String(d.maxDiscount),
@@ -161,7 +167,7 @@ const botConfigSchema = z.object({
     remindTouches: z.number().int().min(1, admin.remindTouchesInvalid(REMIND_TOUCHES_MAX)).max(REMIND_TOUCHES_MAX, admin.remindTouchesInvalid(REMIND_TOUCHES_MAX)),
   }),
 });
-const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES) });
+const botSchema = botConfigSchema.extend({ mode: z.enum(BOT_MODES), humanHold: z.boolean().default(true), humanNight: z.boolean().default(true) });
 
 const faqLabels = faqIntentLabels;
 
@@ -200,14 +206,14 @@ export async function saveBotAction(input: z.input<typeof botSchema>): Promise<S
   const staff = await assertStaff("settings.manage");
   const parsed = botSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { mode, ...config } = parsed.data;
+  const { mode, humanHold, humanNight, ...config } = parsed.data;
   // Продажнику на AI вопросы не обязательны: он выясняет нужное сам; квалификатору и шаблонному продажнику они нужны.
   const aiSeller = config.sell.on && config.sell.engine === "ai";
   if (mode !== "off" && !config.questions.length && !aiSeller) return { error: "Добавьте хотя бы один вопрос" };
   if (mode !== "off" && !config.channels.length) return { error: "Выберите хотя бы один канал" };
   const problem = await botTextsProblem(config);
   if (problem) return { error: problem };
-  await saveSettings({ "bot.mode": mode, "bot.config": JSON.stringify(config) }, staff.user.id);
+  await saveSettings({ "bot.mode": mode, "bot.config": JSON.stringify(config), ...unlessEnv("bot.humanHold", humanHold ? "on" : "off"), ...unlessEnv("bot.humanNight", humanNight ? "on" : "off") }, staff.user.id);
   await audit(staff, "settings.update", "settings", "bot", { mode, channels: config.channels, questions: config.questions.length, faq: FAQ_INTENTS.filter((i) => config.faq[i].on), ai: config.ai, sell: config.sell.on, engine: config.sell.engine, takeover: config.sell.takeover, invoice: config.sell.on && config.sell.invoice });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
