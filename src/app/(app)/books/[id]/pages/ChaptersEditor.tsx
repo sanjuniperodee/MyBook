@@ -6,10 +6,9 @@ import { useMessages } from "@/i18n/client";
 import { GALLERY_KEY, isRemovedChapter, TOC_EPIGRAPH_MAX, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
 import { cn } from "@/lib/class-names";
 import { StoryList, type StoryInfo } from "./StoryList";
-import { useRouter } from "next/navigation";
-import { CropDialog } from "@/components/editor/CropDialog";
-import { apiFetch } from "@/lib/client-api";
-import type { PhotoCrop } from "@/lib/book/photo-crop";
+import type { FrameShape } from "@/components/editor/PanFrame";
+import { photoUrl } from "@/lib/urls";
+import { ChapterPhotosDialog, type PickPhoto } from "./ChapterPhotosDialog";
 
 const LETTERS = "c:__letters";
 
@@ -18,16 +17,16 @@ const LETTERS = "c:__letters";
  * с её названием не будет, истории перейдут в предыдущую главу. Видно всегда, даже без страницы «Содержание».
  * Настройки — те же строки глав (toc.ts, ключ `c:<глава>`), сборку книги делает layout.ts (foldChapters).
  */
-/** Фото начала главы: id, размеры и кадр автора. */
-export interface ChapterOpener {
-  id: string;
-  width: number;
-  height: number;
-  crop: PhotoCrop | null;
+/** Фото книги по главам: форма снимка начала главы в оформлении, все фото и что сейчас в каждой главе. */
+export interface ChapterPhotoPlan {
+  shape: FrameShape | null;
+  photos: PickPhoto[];
+  /** По ключу главы: фото в ней сейчас (вместе с попавшими по правилу книги) и снимок начала. */
+  byChapter: Record<string, { ids: string[]; opener: string | null }>;
 }
 
 export function ChaptersEditor({
-  openers = {},
+  photoPlan,
   bookId,
   candidates,
   lines,
@@ -35,8 +34,8 @@ export function ChaptersEditor({
   editable,
   onChange,
 }: {
-  /** Фото начала главы по ключу главы (оформления с фото в начале главы). */
-  openers?: Readonly<Record<string, ChapterOpener>>;
+  /** Фото по главам — кнопка «Фото главы» в карточке. */
+  photoPlan?: ChapterPhotoPlan;
   bookId: string;
   /** Истории книги по id ответа — для правки заголовков внутри глав. */
   stories: Readonly<Record<string, StoryInfo>>;
@@ -48,8 +47,7 @@ export function ChaptersEditor({
 }) {
   const t = useMessages().books.pages;
   const [open, setOpen] = useState<string | null>(null);
-  const [cropping, setCropping] = useState<ChapterOpener | null>(null);
-  const router = useRouter();
+  const [picking, setPicking] = useState<string | null>(null);
   const chapters = candidates.filter((c) => c.kind === "chapter" && c.pageKey !== GALLERY_KEY);
   const storiesOf = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key);
   if (!chapters.length || chapters.every((c) => c.key.startsWith("c:planned-"))) return <p className="text-sm text-muted">{t.chaptersLater}</p>;
@@ -124,10 +122,15 @@ export function ChaptersEditor({
               )}
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-9 text-xs text-muted">
                 <span>{removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}</span>
-                {openers[c.pageKey] && !removed ? (
-                  <button type="button" className="inline-flex items-center gap-1 font-medium text-wine hover:underline disabled:opacity-50" onClick={() => setCropping(openers[c.pageKey])} disabled={!editable}>
-                    {t.chapterPhotoCrop}
-                    {openers[c.pageKey].crop ? " ✓" : ""}
+                {photoPlan && !removed && c.key !== LETTERS ? (
+                  <button type="button" className="inline-flex items-center gap-1.5 font-medium text-wine hover:underline" onClick={() => setPicking(c.pageKey)}>
+                    <span className="flex -space-x-1.5">
+                      {(photoPlan.byChapter[c.pageKey]?.ids ?? []).slice(0, 3).map((id) => (
+                        // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
+                        <img key={id} src={photoUrl(id)} alt="" className="size-5 rounded-full object-cover ring-2 ring-white" />
+                      ))}
+                    </span>
+                    {t.chapterPhotosButton(photoPlan.byChapter[c.pageKey]?.ids.length ?? 0)}
                   </button>
                 ) : null}
                 {count ? (
@@ -150,16 +153,18 @@ export function ChaptersEditor({
           );
         })}
       </ul>
-      {cropping ? (
-        <CropDialog
-          photo={cropping}
-          crop={cropping.crop}
-          onClose={() => setCropping(null)}
-          onSave={async (crop) => {
-            setCropping(null);
-            await apiFetch(`/api/books/${bookId}/photos/${cropping.id}`, { method: "PATCH", json: { crop } }).catch(() => null);
-            router.refresh();
-          }}
+      {picking && photoPlan ? (
+        <ChapterPhotosDialog
+          bookId={bookId}
+          chapterKey={picking}
+          chapterTitle={rows.find((r) => r.c.pageKey === picking)?.c.label ?? ""}
+          shape={photoPlan.shape}
+          photos={photoPlan.photos}
+          auto={photoPlan.byChapter[picking]?.ids ?? []}
+          autoOpener={photoPlan.byChapter[picking]?.opener ?? null}
+          chapterTitles={Object.fromEntries(rows.map((r) => [r.c.pageKey, lines[r.c.key]?.title?.trim() || r.c.label]))}
+          editable={editable}
+          onClose={() => setPicking(null)}
         />
       ) : null}
     </div>

@@ -65,3 +65,37 @@ describe.skipIf(rasterless)("PDF: кадр снимка начала главы 
     expect(diff / a.length).toBeGreaterThan(1);
   }, 120_000);
 });
+
+describe("фото по главам: выбор автора", () => {
+  const photo = () => Photo.restore("p1", { bookId: "b", position: 0, storageKey: "k", thumbKey: "t", width: 400, height: 300, caption: "", layout: "full", questionId: null, inline: null, crop: null, chapter: null, opener: false });
+
+  it("домен: снимок начала — только у фото с главой; убрали главу или вставили в ответ — отметки нет", () => {
+    const p = photo();
+    p.update({ opener: true });
+    expect(p.snapshot().opener).toBe(false);
+    p.update({ chapter: "intro", opener: true });
+    expect(p.snapshot()).toMatchObject({ chapter: "intro", opener: true });
+    p.update({ chapter: null });
+    expect(p.snapshot()).toMatchObject({ chapter: null, opener: false });
+    p.update({ chapter: "meet", opener: true });
+    p.update({ questionId: "q1" });
+    expect(p.snapshot()).toMatchObject({ chapter: null, opener: false });
+    p.update({ questionId: null, chapter: "bad key!" });
+    expect(p.snapshot().chapter).toBeNull();
+  });
+
+  it("сборка: выбранное фото — в своей главе и снимком её начала; остальные — по правилу книги", () => {
+    const fb = fixtureBook("luna", "a5", "ru");
+    const base = buildBookContent(fb.bundle.book, fb.bundle.questions, fb.bundle.photos.map(toPhotoItem), [], 2026, fb.bundle.letters);
+    const last = base.chapters.filter((c) => c.key !== "__letters").at(-1)!;
+    const free = fb.bundle.photos.filter((p) => !p.questionId && p.id !== fb.bundle.book.coverPhotoId);
+    const pick = free[0];
+    const photos = fb.bundle.photos.map((p) => (p.id === pick.id ? { ...p, chapter: last.key, opener: true } : p));
+    const c = buildBookContent(fb.bundle.book, fb.bundle.questions, photos.map(toPhotoItem), [], 2026, fb.bundle.letters);
+    const ch = c.chapters.find((x) => x.key === last.key)!;
+    expect(ch.openerPhoto?.id).toBe(pick.id);
+    const all = c.chapters.flatMap((x) => [...(x.openerPhoto ? [x.openerPhoto.id] : []), ...x.photos.map((p) => p.id)]);
+    expect(all.filter((id) => id === pick.id)).toHaveLength(1);
+    expect(all.length).toBe(base.chapters.flatMap((x) => [...(x.openerPhoto ? [x.openerPhoto.id] : []), ...x.photos.map((p) => p.id)]).length);
+  });
+});

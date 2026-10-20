@@ -30,12 +30,19 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const format = getFormat(book.format);
 
   const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos);
-  // Фото начала каждой главы (в оформлениях, где глава открывается снимком) — кнопка «Кадр» в её карточке.
-  const openers = Object.fromEntries(
-    buildBookContent(book, questions, photos.map(toPhotoItem), chapters).chapters.flatMap((c) =>
-      c.openerPhoto ? [[c.key, { id: c.openerPhoto.id, width: c.openerPhoto.width, height: c.openerPhoto.height, crop: c.openerPhoto.crop ?? null }] as const] : [],
+  // Фото по главам для блока «Главы книги»: что сейчас в каждой главе (с попавшими туда по правилу) и снимок начала.
+  const built = buildBookContent(book, questions, photos.map(toPhotoItem), chapters);
+  const openerKind = getInteriorDesign(book.interior).opener.photo;
+  const photoPlan = {
+    shape: !openerKind ? null : openerKind === "circle" ? ("circle" as const) : openerKind === "arch" ? ("arch" as const) : openerKind === "bleed" || openerKind === "full" ? ("page" as const) : ("square" as const),
+    photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, crop: p.crop ?? null, chapter: p.chapter ?? null, opener: p.opener ?? false, inAnswer: !!p.questionId })),
+    byChapter: Object.fromEntries(
+      built.chapters.flatMap((c) => {
+        const entry = { ids: [...(c.openerPhoto ? [c.openerPhoto.id] : []), ...c.photos.map((p) => p.id)], opener: c.openerPhoto?.id ?? null };
+        return [c.key, ...(c.folded ?? []).map((f) => f.key)].map((key) => [key, entry] as const);
+      }),
     ),
-  );
+  };
   // Истории для блока «Главы книги»: заголовок по умолчанию (с подставленным родом), свой и скрыт ли он.
   const stories = Object.fromEntries(questions.map((q) => [q.id, { title: questionTexts(q, book).title, displayText: q.displayText, hidden: q.hideHeading, pageBreak: q.pageBreak }]));
 
@@ -48,7 +55,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         editable={book.status === "draft"}
         sample={spreadSample}
         stories={stories}
-        openers={openers}
+        photoPlan={photoPlan}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
         initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}

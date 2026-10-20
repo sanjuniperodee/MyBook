@@ -201,6 +201,8 @@ function photoRows(key: string, book: Book, questions: BookQuestion[]): Photo[] 
     questionId: p.question === undefined ? null : questions[p.question].id,
     inline: p.style ?? null,
     crop: null,
+    chapter: null,
+    opener: false,
     createdAt: CREATED,
     updatedAt: UPDATED,
   }));

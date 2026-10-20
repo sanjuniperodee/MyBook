@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { bookChapters, bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
 import { wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
@@ -246,7 +246,7 @@ export class DrizzleChapterRepository implements ChapterRepository {
 }
 
 const photoToDomain = (r: typeof photos.$inferSelect) =>
-  Photo.restore(r.id, { bookId: r.bookId, position: r.position, storageKey: r.storageKey, thumbKey: r.thumbKey, width: r.width, height: r.height, caption: r.caption, layout: r.layout, questionId: r.questionId, inline: r.inline, crop: r.crop ?? null });
+  Photo.restore(r.id, { bookId: r.bookId, position: r.position, storageKey: r.storageKey, thumbKey: r.thumbKey, width: r.width, height: r.height, caption: r.caption, layout: r.layout, questionId: r.questionId, inline: r.inline, crop: r.crop ?? null, chapter: r.chapter ?? null, opener: r.opener ?? false });
 
 export class DrizzlePhotoRepository implements PhotoRepository {
   async findInBook(bookId: string, photoId: string) {
@@ -280,6 +280,12 @@ export class DrizzlePhotoRepository implements PhotoRepository {
   }
   async reorder(_bookId: string, ids: string[]) {
     for (let i = 0; i < ids.length; i++) await executor().update(photos).set({ position: i }).where(eq(photos.id, ids[i]));
+  }
+  async clearOpeners(bookId: string, chapter: string, exceptId: string) {
+    await executor()
+      .update(photos)
+      .set({ opener: false, updatedAt: new Date() })
+      .where(and(eq(photos.bookId, bookId), eq(photos.chapter, chapter), eq(photos.opener, true), ne(photos.id, exceptId)));
   }
   async detachFromQuestions(bookId: string, questionIds: readonly string[]) {
     if (!questionIds.length) return;

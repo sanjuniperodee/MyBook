@@ -41,6 +41,10 @@ export interface PhotoItem {
   inline?: InlinePhotoStyle | null;
   /** Кадр автора (photo-crop.ts); нет — ключа нет (отпечаток кэша прежних книг не меняется). */
   crop?: PhotoCrop;
+  /** Глава, выбранная автором для фото вне историй; нет — по правилу книги. */
+  chapter?: string;
+  /** Снимок начала этой главы. */
+  opener?: true;
 }
 
 export interface ContentChapter {
@@ -153,7 +157,7 @@ export function printableText(text: string) {
     .trim();
 }
 
-export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline"> & { crop?: PhotoCrop | null }): PhotoItem {
+export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline"> & { crop?: PhotoCrop | null; chapter?: string | null; opener?: boolean }): PhotoItem {
   return {
     id: p.id,
     caption: printableText(p.caption),
@@ -165,6 +169,8 @@ export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width"
     questionId: p.questionId,
     inline: p.inline,
     ...(p.crop ? { crop: p.crop } : {}),
+    ...(p.chapter && !p.questionId ? { chapter: p.chapter } : {}),
+    ...(p.opener && p.chapter && !p.questionId ? { opener: true as const } : {}),
   };
 }
 
@@ -249,7 +255,12 @@ export function assembleBookContent(
 
   // Фото обложки не дублируем внутри книги.
   const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
-  const innerPhotos = photos.filter((p) => p.id !== book.coverPhotoId && !placedInAnswers.has(p.id));
+  // Фото, которым автор выбрал главу, — в ней (глава убрана — в той, куда влиты её истории), даже снимок обложки.
+  const hostOf = new Map<string, ContentChapter>();
+  for (const ch of chapters) for (const key of [ch.key, ...(ch.folded ?? []).map((f) => f.key)]) hostOf.set(key, ch);
+  const chosen = photos.filter((p) => p.chapter && hostOf.has(p.chapter) && !placedInAnswers.has(p.id));
+  for (const p of chosen) hostOf.get(p.chapter!)!.photos.push(p);
+  const innerPhotos = photos.filter((p) => p.id !== book.coverPhotoId && !placedInAnswers.has(p.id) && !chosen.includes(p));
   let galleryPhotos: PhotoItem[] = [];
   // «Не печатать» (none): фото вне историй в книгу не идут — ни по главам, ни в конце (у обложки свои снимки).
   if (book.photoPlacement === "none") galleryPhotos = [];
@@ -262,9 +273,13 @@ export function assembleBookContent(
     });
   }
 
-  // Оформление, где глава открывается фото: первое фото главы переезжает на её начальную полосу.
+  // Оформление, где глава открывается фото: снимок, отмеченный автором, иначе первое фото главы — на начальную полосу.
   const interior = getInteriorDesign(book.interior);
-  if (interior.opener.photo) for (const ch of chapters) ch.openerPhoto = ch.photos.shift();
+  if (interior.opener.photo)
+    for (const ch of chapters) {
+      const marked = ch.photos.findIndex((p) => p.opener && p.chapter === ch.key);
+      ch.openerPhoto = marked >= 0 ? ch.photos.splice(marked, 1)[0] : ch.photos.shift();
+    }
 
   // Письма близких — последняя глава, после распределения фото.
   const letterItems = letters.filter((l) => l.text.trim());

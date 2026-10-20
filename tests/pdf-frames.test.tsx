@@ -33,7 +33,7 @@ beforeAll(async () => {
   for (let i = 0; i < 4; i++) {
     writeFileSync(path.join(dir, `photos/b/${i}.jpg`), jpg);
     writeFileSync(path.join(dir, `photos/b/${i}_t.jpg`), jpg);
-    photos.push({ id: `00000000-0000-0000-0000-0000000000${10 + i}`, bookId: "b", position: i, storageKey: `photos/b/${i}.jpg`, thumbKey: `photos/b/${i}_t.jpg`, width: 2000, height: 1000, caption: "", layout: "full", questionId: null, inline: null, crop: null, createdAt: now, updatedAt: now });
+    photos.push({ id: `00000000-0000-0000-0000-0000000000${10 + i}`, bookId: "b", position: i, storageKey: `photos/b/${i}.jpg`, thumbKey: `photos/b/${i}_t.jpg`, width: 2000, height: 1000, caption: "", layout: "full", questionId: null, inline: null, crop: null, chapter: null, opener: false, createdAt: now, updatedAt: now });
   }
 });
 

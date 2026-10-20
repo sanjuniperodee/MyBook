@@ -172,6 +172,10 @@ export const photos = pgTable(
     inline: jsonb("inline").$type<InlinePhotoStyle>(),
     /** Кадр, выбранный автором: точка и приближение (lib/book/photo-crop); null — по правилу места. */
     crop: jsonb("crop").$type<{ x: number; y: number; zoom: number }>(),
+    /** Глава, которую автор выбрал для фото вне историй (ключ главы); null — раскладка по правилу книги. */
+    chapter: text("chapter"),
+    /** Снимок начала этой главы (в оформлениях, где глава открывается фото). */
+    opener: boolean("opener").notNull().default(false),
     ...timestamps,
   },
   (t) => [index("photos_book_idx").on(t.bookId, t.position)],

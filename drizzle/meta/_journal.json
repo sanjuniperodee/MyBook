@@ -435,6 +435,13 @@
       "when": 1792491424608,
       "tag": "0061_photo_crop",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792492610630,
+      "tag": "0062_photo_chapter",
+      "breakpoints": true
     }
   ]
 }

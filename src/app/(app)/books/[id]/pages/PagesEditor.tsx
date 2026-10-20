@@ -14,7 +14,7 @@ import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, typ
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
-import { ChaptersEditor, type ChapterOpener } from "./ChaptersEditor";
+import { ChaptersEditor, type ChapterPhotoPlan } from "./ChaptersEditor";
 import type { StoryInfo } from "./StoryList";
 import { TocEditor } from "./TocEditor";
 
@@ -45,7 +45,7 @@ export function PagesEditor({
   theme,
   editable,
   stories,
-  openers = {},
+  photoPlan,
 }: {
   bookId: string;
   /** Тема книги — подсказка посвящения зависит от вида книги. */
@@ -58,8 +58,8 @@ export function PagesEditor({
   editable: boolean;
   /** Истории книги по id ответа: заголовок по умолчанию, свой и скрыт ли — для блока «Главы книги». */
   stories: Record<string, StoryInfo>;
-  /** Фото начала главы по ключу главы — кнопка «Кадр» в карточке главы. */
-  openers?: Record<string, ChapterOpener>;
+  /** Фото по главам — кнопка «Фото главы» в карточке главы. */
+  photoPlan?: ChapterPhotoPlan;
 }) {
   const [state, setState] = useState(initial);
   const [filter, setFilter] = useState<Filter>("all");
@@ -218,7 +218,7 @@ export function PagesEditor({
             <ChaptersEditor
               bookId={bookId}
               stories={stories}
-              openers={openers}
+              photoPlan={photoPlan}
               candidates={sample.tocAll}
               lines={state.tocLines}
               editable={editable}

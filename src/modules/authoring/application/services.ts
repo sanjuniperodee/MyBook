@@ -445,6 +445,7 @@ export class PhotosService {
     if (!photo) throw new AuthoringError("photoNotFound");
     photo.update(patch);
     await this.photos.save(photo);
+    if (patch.opener && photo.snapshot().opener && photo.chapter) await this.photos.clearOpeners(book.id, photo.chapter, photo.id);
     await this.books.touch(book.id);
     return photo;
   }

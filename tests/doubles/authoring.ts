@@ -324,6 +324,9 @@ export class MemPhotos implements PhotoRepository {
       if (q && questionIds.includes(q)) p.update({ questionId: null, inline: null });
     }
   };
+  clearOpeners = async (_b: string, chapter: string, exceptId: string) => {
+    for (const p of this.rows) if (p.id !== exceptId && p.chapter === chapter) p.update({ opener: false });
+  };
 }
 
 export class MemLetters implements LetterRepository {

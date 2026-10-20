@@ -26,6 +26,8 @@ const schema = z
       .strict()
       .nullable(),
     // Кадр автора: точка (доли снимка) и приближение; пределы приводит домен (normalizeCrop).
+    chapter: z.string().regex(/^[\w-]{1,80}$/).nullable(),
+    opener: z.boolean(),
     crop: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), zoom: z.number().min(1).max(CROP_ZOOM_MAX) }).strict().nullable(),
   })
   .partial()
