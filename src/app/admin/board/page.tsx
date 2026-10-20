@@ -2,7 +2,7 @@ import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/dates";
 import Link from "next/link";
 import { container } from "@/server/container";
-import { requireStaff } from "@/server/access";
+import { requireStaff, staffViewer } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPrice, getPlan } from "@/config/site";
@@ -15,7 +15,7 @@ export default async function BoardPage() {
   const admin = staff.user;
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
   const [rows, admins] = await Promise.all([
-    container().reporting.productionBoard(monthAgo),
+    container().reporting.productionBoard(monthAgo, staffViewer(staff)),
     container().access.queries.allStaff(),
   ]);
   const byId = new Map(admins.map((a) => [a.id, staffLabel(a)]));

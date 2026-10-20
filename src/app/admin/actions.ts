@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, audit, can, ForbiddenError, type Staff } from "@/server/access";
+import { assertOrderVisible, assertStaff, assertVisible, audit, can, canSeeOrder, ForbiddenError, type Staff } from "@/server/access";
 import { normalizePromoCode, OrderingError } from "@/modules/ordering";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { ClientsError, type Actor as CrmActor } from "@/modules/clients";
@@ -71,6 +71,7 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { orderId, status, trackingNumber, note } = parsed.data;
+  await assertOrderVisible(staff, orderId);
   const failed = await orderCommand(() => container().ordering.orders.update({ orderId, status, trackingNumber, note }, staffActor(staff)));
   if (failed) return failed;
   revalidatePath(`/admin/orders/${orderId}`);
@@ -78,8 +79,9 @@ export async function updateOrderAction(_: AdminState, form: FormData): Promise<
 }
 
 export async function saveAdminNoteAction(_: AdminState, form: FormData): Promise<AdminState> {
-  await assertStaff("orders.edit");
+  const staff = await assertStaff("orders.edit");
   const orderId = uuid.parse(form.get("orderId"));
+  await assertOrderVisible(staff, orderId);
   await container().ordering.orders.saveAdminNote(orderId, String(form.get("adminNote") ?? ""));
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Заметка сохранена" };
@@ -87,6 +89,7 @@ export async function saveAdminNoteAction(_: AdminState, form: FormData): Promis
 
 export async function generateFilesAction(orderId: string) {
   const staff = await assertStaff("orders.files");
+  await assertOrderVisible(staff, uuid.parse(orderId));
   await container().ordering.orders.regeneratePrintFiles(uuid.parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
@@ -94,6 +97,7 @@ export async function generateFilesAction(orderId: string) {
 /** Временно открыть книгу для правок клиентом (например, по просьбе исправить опечатку). */
 export async function toggleBookLockAction(orderId: string) {
   const staff = await assertStaff("orders.edit");
+  await assertOrderVisible(staff, uuid.parse(orderId));
   await container().ordering.orders.toggleBookEditing(uuid.parse(orderId), staffActor(staff));
   revalidatePath(`/admin/orders/${orderId}`);
 }
@@ -133,6 +137,7 @@ export async function togglePromoAction(id: string) {
 /** Перенос заказа на доске. Нарушение правила (неоплаченный — в печать) — текст ошибки, а не исключение. */
 export async function moveOrderAction(orderId: string, status: string): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
+  await assertOrderVisible(staff, uuid.parse(orderId));
   const failed = await orderCommand(() => container().ordering.orders.changeStatus({ orderId: uuid.parse(orderId), to: z.enum(orderStatuses).parse(status) }, staffActor(staff)));
   if (failed) return failed;
   revalidatePath("/admin/board");
@@ -146,6 +151,7 @@ export async function startPostpayAction(orderId: string, reason: string): Promi
   const why = z.string().trim().min(3, "Укажите, о чём договорились с клиентом").max(200).safeParse(reason);
   if (!why.success) return { error: why.error.issues[0].message };
   const id = uuid.parse(orderId);
+  await assertOrderVisible(staff, id);
   const failed = await orderCommand(() => container().ordering.payments.startPostpay(id, why.data, staffActor(staff)));
   if (failed) return failed;
   await audit(staff, "order.postpay", "order", id, { reason: why.data });
@@ -171,7 +177,8 @@ export async function bulkStatusAction(orderIds: string[], status: string) {
   const ids = z.array(uuid).max(200).parse(orderIds);
   // Неоплаченные не уходят в печать массово (правило денег) — их пропускаем и считаем.
   let skipped = 0;
-  for (const id of ids) if (await orderCommand(() => container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff)))) skipped++;
+  // Роль «только свои» меняет только заказы своих клиентов — чужие пропускаются.
+  for (const id of ids) if (!(await canSeeOrder(staff, id)) || (await orderCommand(() => container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff))))) skipped++;
   await audit(staff, "order.bulk_status", "order", null, { count: ids.length - skipped, status: s });
   revalidatePath("/admin/orders");
   revalidatePath("/admin/board");
@@ -181,6 +188,7 @@ export async function bulkStatusAction(orderIds: string[], status: string) {
 export async function assignOrderAction(orderId: string, assigneeId: string | null) {
   const staff = await assertStaff("orders.edit");
   const id = uuid.parse(orderId);
+  await assertOrderVisible(staff, id);
   const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? uuid.parse(assigneeId) : null, staffActor(staff)));
   if (failed) throw new Error(failed.error);
   revalidatePath(`/admin/orders/${id}`);
@@ -206,6 +214,7 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { orderId, ...d } = parsed.data;
+  await assertOrderVisible(staff, orderId);
   const failed = await orderCommand(() =>
     container().ordering.orders.updateDetails(
       {
@@ -260,6 +269,7 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
+  if (d.orderId) await assertOrderVisible(staff, d.orderId);
   let clientId: string | null;
   try {
     ({ clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d)));
@@ -345,6 +355,7 @@ export async function addNoteAction(_: AdminState, form: FormData): Promise<Admi
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   if (parsed.data.clientId) await guardClient(staff, parsed.data.clientId);
   if (parsed.data.dealId) await guardDeal(staff, parsed.data.dealId);
+  if (parsed.data.orderId) await assertOrderVisible(staff, parsed.data.orderId);
   await container().clients.notes.add(crmActor(staff), parsed.data);
   revalidateCrm(parsed.data.clientId, parsed.data.orderId, parsed.data.dealId);
   return { ok: "Заметка сохранена" };

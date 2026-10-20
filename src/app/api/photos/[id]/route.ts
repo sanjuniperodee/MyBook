@@ -5,7 +5,7 @@ import { idParams } from "@/server/input";
 
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, await container().authoring.queries.photoBookId(id));
   const photo = await container().authoring.queries.photoFor(id, viewer);
   if (!photo) throw new HttpError(404, "notFound");
   const param = new URL(req.url).searchParams.get("size");

@@ -1,6 +1,6 @@
 import { planName, deliveryName } from "@/i18n/labels";
 import { notFound } from "next/navigation";
-import { requireStaff } from "@/server/access";
+import { canSeeOrder, requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { site } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
@@ -12,10 +12,10 @@ export const metadata = { title: "Упаковочный лист", robots: { in
 
 /** Упаковочный лист / накладная для курьера. Печатается на A4 (две одинаковые половины — одна в коробку, одна курьеру). */
 export default async function PackingSlip({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff("orders.view");
+  const staff = await requireStaff("orders.view");
   const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
-  if (!order) notFound();
+  if (!order || !(await canSeeOrder(staff, order.id))) notFound();
 
   const half = (copy: string) => (
     <section className="flex h-[138mm] flex-col border-b border-dashed border-ink/30 p-[10mm] last:border-b-0">

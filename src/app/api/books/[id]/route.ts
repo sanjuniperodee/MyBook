@@ -50,7 +50,7 @@ const patchSchema = z
 /** Настройки книги из редактора. Каталоги обложек, оформлений и поводов проверяет домен. */
 export const PATCH = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const { language, ...rest } = patchSchema.parse(await req.json());
   const authoring = container().authoring;
   await authoring.books.updateSettings(id, viewer, { ...rest, language: language && isLocale(language) ? language : undefined }, authoring.photoRepository);
@@ -59,7 +59,7 @@ export const PATCH = api(async (req, { params }: { params: Promise<{ id: string 
 
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   await container().authoring.books.delete(id, viewer);
   return NextResponse.json({ ok: true });
 });

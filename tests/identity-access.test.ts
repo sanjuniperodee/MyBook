@@ -481,9 +481,12 @@ describe("Access: роли и команда", () => {
     expect(anna.canSee("anna") && anna.canSee(null) && !anna.canSee("boss")).toBe(true);
     // Неразобранные «только свои» видят, но себе не берут: работать можно только со своими.
     expect([anna.canWork("anna"), anna.canWork(null), anna.canWork("boss")]).toEqual([true, false, false]);
+    // Книги и заказы — только своих клиентов (без неразобранных); заказ — ещё и где она ответственная.
+    expect([anna.ownsClient("anna"), anna.ownsClient(null), anna.ownsClient("boss"), anna.ownsClient("boss", "anna"), anna.ownsClient(null, "boss")]).toEqual([true, false, false, true, false]);
     expect(anna.contacts({ phone: "+77011234567", email: "aliya@mail.kz" })).toEqual({ phone: "+7 701 ••• •• 67", email: "al•••@mail.kz", masked: true });
     const legacy = (await resolver.resolve({ id: "old", role: "admin", staffDisabled: false, crmRoleId: null, twoFactorEnabled: false }))!;
     expect(legacy.isOwner && legacy.can("team.manage")).toBe(true);
+    expect(legacy.ownsClient(null) && legacy.ownsClient("anna")).toBe(true);
     // Адрес-заглушка клиента без почты (формат логина — порт LoginFormat) не показывается контактом ни полностью, ни маской.
     const placeholder = phoneEmail("87011234567");
     expect(legacy.contacts({ phone: "+77011234567", email: placeholder })).toEqual({ phone: "+77011234567", email: "", masked: false });

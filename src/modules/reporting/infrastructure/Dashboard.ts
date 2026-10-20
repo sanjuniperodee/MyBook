@@ -5,12 +5,15 @@ import { executor } from "@/shared/infrastructure/database";
 import { progressCols, textStepSql } from "@/shared/infrastructure/db/bookProgress";
 import { storeTimeZone } from "@/shared/domain/time";
 import { iso, localDay } from "./time";
+import { ownClientOrders, type Viewer } from "./conditions";
 
 /**
  * Обзор магазина за период: выручка по дням, сравнение с прошлым периодом, воронка когорты, дедлайны, внимание. Задачи
  * сотрудника на сегодня — в «Моём дне» над обзором (myDay).
  */
-export async function dashboard(period: number) {
+export async function dashboard(period: number, viewer: Viewer) {
+  // Строки заказов (сроки, внимание, события) — роли «только свои» только по своим клиентам; суммы магазина — общие.
+  const own = ownClientOrders(viewer);
   const db = executor();
   // Границы периода в часовом поясе магазина (пояс — параметром запроса)
   const tz = storeTimeZone();
@@ -50,7 +53,7 @@ export async function dashboard(period: number) {
     db
       .select()
       .from(orders)
-      .where(and(isNotNull(orders.desiredDate), lte(orders.desiredDate, iso(localDay(14))), inArray(orders.status, ["pending_payment", "paid", "in_production"])))
+      .where(and(isNotNull(orders.desiredDate), lte(orders.desiredDate, iso(localDay(14))), inArray(orders.status, ["pending_payment", "paid", "in_production"]), own))
       .orderBy(asc(orders.desiredDate))
       .limit(8),
     // Сроки ручных сделок (без заказа на сайте): дата в поле «Дата события», открытые, с деньгами и без.
@@ -64,14 +67,14 @@ export async function dashboard(period: number) {
     db
       .select()
       .from(orders)
-      .where(or(and(eq(orders.status, "paid"), ne(orders.plan, "digital")), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
+      .where(and(or(and(eq(orders.status, "paid"), ne(orders.plan, "digital")), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))), own))
       .orderBy(asc(orders.createdAt))
       .limit(10),
     db
       .select({ e: orderEvents, number: orders.number, orderId: orders.id })
       .from(orderEvents)
       .innerJoin(orders, eq(orderEvents.orderId, orders.id))
-      .where(gte(orderEvents.createdAt, localDay(-14)))
+      .where(and(gte(orderEvents.createdAt, localDay(-14)), own))
       .orderBy(desc(orderEvents.createdAt))
       .limit(10),
   ]);

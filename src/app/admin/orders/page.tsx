@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Download, Kanban } from "lucide-react";
 import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
-import { contactView, requireStaff } from "@/server/access";
+import { contactView, requireStaff, staffViewer } from "@/server/access";
 import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderMoney } from "@/modules/ordering/ui/money";
@@ -17,10 +17,9 @@ const PAGE = 50;
 
 export default async function AdminOrders({ searchParams }: { searchParams: Promise<OrderFilters & { page?: string }> }) {
   const staff = await requireStaff("orders.view");
-  const admin = staff.user;
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
-  const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, admin.id, p, PAGE), container().access.queries.allStaff()]);
+  const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, staffViewer(staff), p, PAGE), container().access.queries.allStaff()]);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const rows: OrderRow[] = list.map((o) => {
     const contact = contactView(staff, { phone: o.contactPhone, email: o.contactEmail });

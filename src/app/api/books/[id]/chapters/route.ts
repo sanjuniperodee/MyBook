@@ -15,7 +15,7 @@ const schema = z
 /** Своя книга: новая глава (после afterKey или в конец) с пустым разделом. Ответ — ключ главы, id раздела и оглавление. */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const input = schema.parse(await req.json());
   return NextResponse.json(await container().authoring.outline.addChapter(id, viewer, input));
 });

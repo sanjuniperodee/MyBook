@@ -20,7 +20,7 @@ type Ctx = { params: Promise<{ id: string; key: string }> };
 /** Название и эпиграф главы своей книги. Ответ — актуальное оглавление. */
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, key } = idParams(await params, "id", "key");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const outline = await container().authoring.outline.renameChapter(id, viewer, key, schema.parse(await req.json()));
   return NextResponse.json({ outline });
 });
@@ -28,7 +28,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
 /** Глава удаляется вместе с разделами; фото разделов остаются в книге среди общих. Ответ — актуальное оглавление. */
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, key } = idParams(await params, "id", "key");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const outline = await container().authoring.outline.deleteChapter(id, viewer, key);
   return NextResponse.json({ outline });
 });

@@ -27,7 +27,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   ]);
   const model = editorModel(book, rows, chapters, photos, letters);
   // Править можно черновик, и сотруднику — только с правом правки (с правом просмотра он лишь читает: сервер ответил бы 404).
-  const editable = book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user));
+  const editable = book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user, book.id));
   return (
     <QuestionsEditor
       epigraphs={model.epigraphs}

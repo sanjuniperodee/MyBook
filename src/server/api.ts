@@ -92,7 +92,7 @@ export async function apiUser(req: Request): Promise<User> {
 
 export async function apiBook(req: Request, bookId: string, opts: { editable?: boolean } = {}): Promise<{ user: User; book: BookRow; viewer: BookViewer }> {
   const user = await apiUser(req);
-  const viewer = await viewerOf(user);
+  const viewer = await viewerOf(user, bookId);
   const book = await container().authoring.queries.visibleBook(bookId, viewer);
   // Для правки: книгу, которую сотруднику менять нельзя (нет clients.edit), — как будто её нет.
   if (!book || (opts.editable && !isBookEditableBy(book.userId, viewer))) throw new HttpError(404, "bookNotFound");
@@ -100,10 +100,10 @@ export async function apiBook(req: Request, bookId: string, opts: { editable?: b
   return { user, book, viewer };
 }
 
-/** Пользователь API как читатель книг (владелец или сотрудник). */
-export async function apiViewer(req: Request): Promise<{ user: User; viewer: BookViewer }> {
+/** Пользователь API как читатель книги bookId (владелец или сотрудник; роль «только свои» — книги своих клиентов). */
+export async function apiViewer(req: Request, bookId: string | null): Promise<{ user: User; viewer: BookViewer }> {
   const user = await apiUser(req);
-  return { user, viewer: await viewerOf(user) };
+  return { user, viewer: await viewerOf(user, bookId) };
 }
 
 /** Сотрудник CRM с нужными правами (для API). */

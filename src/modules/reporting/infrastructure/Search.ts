@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
+import { ownClientBooks, ownClientOrders } from "./conditions";
 
 /** Поиск по CRM: заказы, клиенты, книги, сделки, переписка — с учётом видимости «только свои». */
 export async function search(term: string, viewer: Viewer, sections: { orders: boolean; clients: boolean; deals: boolean; chats: boolean }) {
@@ -17,12 +18,16 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
       .select()
       .from(orders)
       .where(
-        or(
-          ilike(orders.contactName, like),
-          ilike(orders.contactEmail, like),
-          ilike(orders.address, like),
-          digits.length >= 4 ? sql`regexp_replace(${orders.contactPhone}, '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined,
-          num && term.length < 8 ? eq(orders.number, num) : undefined,
+        and(
+          or(
+            ilike(orders.contactName, like),
+            ilike(orders.contactEmail, like),
+            ilike(orders.address, like),
+            digits.length >= 4 ? sql`regexp_replace(${orders.contactPhone}, '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined,
+            num && term.length < 8 ? eq(orders.number, num) : undefined,
+          ),
+          // Роль «только свои» — заказы только своих клиентов.
+          ownClientOrders(viewer),
         ),
       )
       .orderBy(desc(orders.createdAt))
@@ -40,7 +45,7 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
           .select({ id: books.id, title: books.title, theme: books.theme, authorName: books.authorName, recipientName: books.recipientName, userId: books.userId, updatedAt: books.updatedAt })
           .from(books)
           .innerJoin(users, eq(users.id, books.userId))
-          .where(and(or(ilike(books.title, like), ilike(books.authorName, like), ilike(books.recipientName, like)), visibleTo(viewer, users.managerId)))
+          .where(and(or(ilike(books.title, like), ilike(books.authorName, like), ilike(books.recipientName, like)), ownClientBooks(viewer)))
           .orderBy(desc(books.updatedAt))
           .limit(20),
     !sections.deals

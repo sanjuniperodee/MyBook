@@ -1,6 +1,7 @@
 import { ZipArchive } from "archiver";
 import { PassThrough, Readable } from "node:stream";
 import { api, apiStaff, HttpError } from "@/server/api";
+import { canSeeOrder } from "@/server/access";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 
@@ -8,11 +9,11 @@ export const maxDuration = 300;
 
 /** ZIP-пакет для типографии: блок, обложка и техзадание. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
-  await apiStaff(req, "orders.files");
+  const staff = await apiStaff(req, "orders.files");
   const { id } = idParams(await params, "id");
   const c = container();
   const order = await c.ordering.queries.orderDetails(id);
-  if (!order) throw new HttpError(404, "orderNotFound");
+  if (!order || !(await canSeeOrder(staff, order.id))) throw new HttpError(404, "orderNotFound");
   const job = { orderId: order.id, bookId: order.bookId, number: order.number };
   await c.printFiles.prepare(job);
   const [block, cover, layout, spec] = await Promise.all([c.printFiles.getFile(job, "block"), c.printFiles.getFile(job, "cover"), c.printFiles.getFile(job, "layout"), c.printFiles.getFile(job, "spec")]);

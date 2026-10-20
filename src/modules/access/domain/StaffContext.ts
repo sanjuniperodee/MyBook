@@ -35,6 +35,14 @@ export class StaffContext {
     return this.scope === "all" || (!!assigneeId && assigneeId === this.userId);
   }
 
+  /**
+   * Книги и заказы клиента: роль «только свои» — только своих клиентов (менеджер клиента — я), заказ — ещё и если я его
+   * ответственный. Неразобранных клиентов не видит (в отличие от canSee для сделок и чатов).
+   */
+  ownsClient(managerId: string | null | undefined, orderAssigneeId?: string | null) {
+    return this.scope === "all" || (!!managerId && managerId === this.userId) || (!!orderAssigneeId && orderAssigneeId === this.userId);
+  }
+
   get canAssignOthers() {
     return this.scope === "all";
   }

@@ -7,7 +7,7 @@ import { idParams } from "@/server/input";
 
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { user, viewer } = await apiViewer(req);
+  const { user, viewer } = await apiViewer(req, id);
   if (!(await rateLimit(`upload:${user.id}`, 60, 3600_000))) throw new HttpError(429, "photosRate");
   const form = await req.formData();
   const files = form

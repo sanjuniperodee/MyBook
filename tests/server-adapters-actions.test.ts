@@ -37,6 +37,8 @@ const thrown = (p: Promise<unknown>) => p.then(() => undefined, (e: unknown) => 
 beforeEach(() => {
   resetRequest();
   resetContainer();
+  // Заказы — клиента Анны: роль «только свои» работает только с ними.
+  fake.reporting = { orderOwnership: async () => ({ managerId: anna.id, assigneeId: null }) };
 });
 
 describe("admin/actions.ts: ошибки заказов и промокодов", () => {
@@ -57,6 +59,20 @@ describe("admin/actions.ts: ошибки заказов и промокодов"
     expect(await update(new OrderingError("notPayable"))).toEqual({ error: "Этот заказ уже не ждёт оплаты — обновите страницу" });
     expect(await update(new OrderingError("notFound"))).toEqual({ error: "Такого промокода нет" });
     expect(await thrown(update(new AccessError("forbidden", "нет")))).toMatchObject({ code: "forbidden" });
+  });
+
+  it("роль «только свои»: заказ чужого или неразобранного клиента — отказ, заказ, где она ответственная, — можно", async () => {
+    signIn(anna);
+    for (const own of [{ managerId: "someone-else", assigneeId: null }, { managerId: null, assigneeId: null }]) {
+      fake.reporting = { orderOwnership: async () => own };
+      expect(await thrown(update())).toBeInstanceOf(ForbiddenError);
+    }
+    fake.reporting = { orderOwnership: async () => ({ managerId: "someone-else", assigneeId: anna.id }) };
+    expect(await update()).toEqual({ ok: "Сохранено" });
+    // Руководитель видит все заказы — без проверки.
+    fake.reporting = {};
+    signIn(owner);
+    expect(await update()).toEqual({ ok: "Сохранено" });
   });
 
   it("язык сайта в cookie (kk) на тексты CRM не влияет: в /admin proxy заголовок x-mb-locale не ставит, сотрудник читает по-русски", async () => {

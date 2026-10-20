@@ -1,5 +1,5 @@
 import { api, apiUser, HttpError } from "@/server/api";
-import { can, getStaff } from "@/server/access";
+import { can, canSeeOrder, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import type { PrintFileKind as OrderFileKind } from "@/modules/production";
 import { canDownloadFile, type OrderFile } from "@/modules/ordering/domain";
@@ -24,7 +24,9 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   const order = await c.ordering.queries.orderDetails(id);
   if (!order) throw new HttpError(404, "orderNotFound");
   const staff = await getStaff();
-  const access = canDownloadFile(order, getPlan(order.plan), kind as OrderFile, { userId: user.id, can: (p) => can(staff, p) });
+  // Роль «только свои» качает файлы только заказов своих клиентов; свой заказ покупатель качает как обычно.
+  const staffSees = !!staff && (can(staff, "orders.view") || can(staff, "orders.files")) && (await canSeeOrder(staff, order.id));
+  const access = canDownloadFile(order, getPlan(order.plan), kind as OrderFile, { userId: user.id, can: (p) => staffSees && can(staff, p) });
   if (access === "notFound") throw new HttpError(404, "orderNotFound");
   if (access === "notReady") throw new HttpError(403, "fileNotReady");
   const force = access === "staff" && new URL(req.url).searchParams.get("regenerate") === "1";

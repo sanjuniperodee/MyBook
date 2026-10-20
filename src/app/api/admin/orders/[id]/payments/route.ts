@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
-import { audit } from "@/server/access";
+import { audit, canSeeOrder } from "@/server/access";
 import { container } from "@/server/container";
 import { formText, idParams } from "@/server/input";
 import { RECEIPT_MAX_BYTES, receiptProblem } from "@/shared/domain/receipt";
@@ -23,6 +23,7 @@ const paymentForm = z.object({ note: formText, amount: formText, paidAt: formTex
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "orders.edit");
   const { id } = idParams(await params, "id");
+  if (!(await canSeeOrder(staff, id))) throw new HttpError(404, "orderNotFound");
   const form = await req.formData();
   const fields = paymentForm.parse({ note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined });
   const file = form.get("file");

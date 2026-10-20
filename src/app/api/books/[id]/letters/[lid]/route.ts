@@ -18,7 +18,7 @@ const schema = z
 
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, lid } = idParams(await params, "id", "lid");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const authoring = container().authoring;
   await authoring.letters.edit(id, viewer, lid, schema.parse(await req.json()));
   return NextResponse.json({ letter: (await authoring.queries.letters(id)).find((l) => l.id === lid) });
@@ -26,7 +26,7 @@ export const PATCH = api(async (req, { params }: Ctx) => {
 
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, lid } = idParams(await params, "id", "lid");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   await container().authoring.letters.delete(id, viewer, lid);
   return NextResponse.json({ ok: true });
 });

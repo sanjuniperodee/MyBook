@@ -32,14 +32,14 @@ const row = async (bookId: string, photoId: string) => (await container().author
 
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, pid } = idParams(await params, "id", "pid");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   await container().authoring.photos.update(id, viewer, pid, schema.parse(await req.json()));
   return NextResponse.json({ photo: await row(id, pid) });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, pid } = idParams(await params, "id", "pid");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   await container().authoring.photos.delete(id, viewer, pid);
   return NextResponse.json({ ok: true });
 });

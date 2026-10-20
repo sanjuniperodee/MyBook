@@ -6,7 +6,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
-import { can, requireStaff } from "@/server/access";
+import { can, requireStaff, staffViewer } from "@/server/access";
 import { MyDay } from "./MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
@@ -31,7 +31,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const period = periods.find((p) => String(p) === raw) ?? 30;
   const channelsReport = await container().marketing.service.report(period);
   const sources = { rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8) };
-  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events } = await container().reporting.dashboard(period);
+  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events } = await container().reporting.dashboard(period, staffViewer(staff));
 
   const byDay = new Map(daily.map((r) => [r.d, r]));
   const series: DayPoint[] = Array.from({ length: period }, (_, i) => {

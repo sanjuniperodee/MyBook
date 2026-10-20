@@ -1,9 +1,10 @@
 import "server-only";
 import { and, desc, eq, gte, ilike, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { ORDER_STATUSES, orderRuleSubject } from "@/shared/domain/orders";
-import { crmAutomationRuns, crmAutomations, crmConversations, crmDeals, crmNotes, crmTasks, orders } from "@/shared/infrastructure/db/schema";
+import { books, crmAutomationRuns, crmAutomations, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { getPlans } from "@/config/site";
+import { ownClientOrders, type Viewer } from "./conditions";
 
 export interface OrderFilters {
   status?: string;
@@ -14,9 +15,12 @@ export interface OrderFilters {
   to?: string;
 }
 
-/** Условия выборки заказов — общие для таблицы и CSV-выгрузки. */
-function orderWhere(f: OrderFilters, adminId: string): SQL | undefined {
+/** Условия выборки заказов — общие для таблицы и CSV-выгрузки. Роль «только свои» — заказы своих клиентов. */
+function orderWhere(f: OrderFilters, viewer: Viewer): SQL | undefined {
+  const adminId = viewer.userId;
   const w: SQL[] = [];
+  const own = ownClientOrders(viewer);
+  if (own) w.push(own);
   if (f.status && (ORDER_STATUSES as readonly string[]).includes(f.status)) w.push(eq(orders.status, f.status as never));
   if (f.plan && getPlans().some((p) => p.id === f.plan)) w.push(eq(orders.plan, f.plan));
   if (f.assignee === "me") w.push(eq(orders.assigneeId, adminId));
@@ -34,9 +38,9 @@ function orderWhere(f: OrderFilters, adminId: string): SQL | undefined {
 }
 
 /** Страница таблицы заказов и итоги по фильтру. */
-export async function orderList(f: OrderFilters, viewerId: string, page: number, pageSize: number) {
+export async function orderList(f: OrderFilters, viewer: Viewer, page: number, pageSize: number) {
   const db = executor();
-  const where = orderWhere(f, viewerId);
+  const where = orderWhere(f, viewer);
   const [list, [totals]] = await Promise.all([
     db.select().from(orders).where(where).orderBy(desc(orders.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ n: sql<number>`count(*)::int`, sum: sql<number>`coalesce(sum(${orders.prepaidAmount} + case when ${orders.paidAt} is not null then greatest(${orders.receivedAmount}, ${orders.amount}) else ${orders.receivedAmount} end) filter (where ${orders.status} <> 'cancelled'),0)::int` }).from(orders).where(where),
@@ -45,16 +49,16 @@ export async function orderList(f: OrderFilters, viewerId: string, page: number,
 }
 
 /** Выгрузка заказов в CSV по тем же фильтрам. */
-export function orderExport(f: OrderFilters, viewerId: string) {
-  return executor().select().from(orders).where(orderWhere(f, viewerId)).orderBy(desc(orders.createdAt)).limit(20_000);
+export function orderExport(f: OrderFilters, viewer: Viewer) {
+  return executor().select().from(orders).where(orderWhere(f, viewer)).orderBy(desc(orders.createdAt)).limit(20_000);
 }
 
 /** Канбан производства: не отменённые, доставленные — только за последний месяц. Электронные версии печати не требуют — их здесь нет. */
-export function productionBoard(deliveredSince: Date) {
+export function productionBoard(deliveredSince: Date, viewer: Viewer) {
   return executor()
     .select()
     .from(orders)
-    .where(and(ne(orders.status, "cancelled"), ne(orders.plan, "digital"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, deliveredSince))))
+    .where(and(ne(orders.status, "cancelled"), ne(orders.plan, "digital"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, deliveredSince)), ownClientOrders(viewer)))
     .orderBy(sql`${orders.desiredDate} asc nulls last`, desc(orders.createdAt))
     .limit(500);
 }
@@ -118,4 +122,21 @@ export async function orderNotice(order: { id: string; userId: string; trackingN
       done: runs.filter((x) => x.automationId === r.id && (x.subject !== order.id || r.trigger === "order.paid")).map((x) => about.get(x.subject)!),
     })),
   };
+}
+
+/** Чей клиент у заказа (менеджер клиента) и ответственный заказа — для проверки «только свои» на карточке, файлах, действиях. */
+export async function orderOwnership(orderId: string): Promise<{ managerId: string | null; assigneeId: string | null } | null> {
+  const [row] = await executor()
+    .select({ managerId: users.managerId, assigneeId: orders.assigneeId })
+    .from(orders)
+    .innerJoin(users, eq(users.id, orders.userId))
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Менеджер клиента — владельца книги: для проверки «только свои» в редакторе и превью книги. */
+export async function bookOwnership(bookId: string): Promise<{ managerId: string | null } | null> {
+  const [row] = await executor().select({ managerId: users.managerId }).from(books).innerJoin(users, eq(users.id, books.userId)).where(eq(books.id, bookId)).limit(1);
+  return row ?? null;
 }

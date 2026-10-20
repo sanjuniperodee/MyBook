@@ -18,7 +18,7 @@ import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem }
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { ClipboardList, UserRound } from "lucide-react";
-import { can, contactView, requireStaff } from "@/server/access";
+import { can, canSeeOrder, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
 import { pageId } from "@/server/input";
@@ -46,7 +46,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const staff = await requireStaff("orders.view");
   const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
-  if (!order) notFound();
+  // Чужой заказ у роли «только свои» — как будто его нет.
+  if (!order || !(await canSeeOrder(staff, order.id))) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
   const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows] = await Promise.all([

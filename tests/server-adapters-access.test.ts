@@ -12,7 +12,7 @@ import { trustedClientIp } from "@/server/rateLimit";
 import { PATCH as patchQuestion } from "@/app/api/books/[id]/questions/[qid]/route";
 import { GET as getPhoto } from "@/app/api/photos/[id]/route";
 import { loginAction } from "@/app/(auth)/actions";
-import { anna, client, egor, fake, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, vera, withTwoFactor } from "./doubles/web";
+import { anna, client, egor, fake, kira, NotFound, owner, person, Redirect, request, resetContainer, resetRequest, security, signIn, vera, withTwoFactor } from "./doubles/web";
 
 /** База с одной книгой клиента u1 и одним её фото: запросы DrizzleAuthoringQueries настоящие, условия where не разбираются. */
 const db = vi.hoisted(() => ({ book: undefined as BookRow | undefined, photo: undefined as { photo: PhotoRow; ownerId: string } | undefined }));
@@ -23,7 +23,7 @@ vi.mock("@/server/container", async () => (await import("./doubles/web")).contai
 vi.mock("@/shared/infrastructure/database", () => ({
   rootDb: {
     query: { books: { findFirst: async () => db.book } },
-    select: () => ({ from: () => ({ innerJoin: () => ({ where: async () => (db.photo ? [db.photo] : []) }) }) }),
+    select: () => ({ from: () => ({ innerJoin: () => ({ where: async () => (db.photo ? [db.photo] : []) }), where: async () => (db.photo ? [{ bookId: db.photo.photo.bookId }] : []) }) }),
   },
 }));
 
@@ -203,7 +203,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
     const photo = () => getPhoto(new Request(`http://localhost/api/photos/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) });
     const blocked = async (u: User) => {
       signIn(u);
-      expect(await respond(async (r) => (await apiViewer(r)).viewer)).toEqual({ status: 200, body: { userId: u.id, isStaff: false, staffEdits: false } });
+      expect(await respond(async (r) => (await apiViewer(r, BOOK)).viewer)).toEqual({ status: 200, body: { userId: u.id, isStaff: false, staffEdits: false } });
       expect(await bookOf()).toEqual({ status: 404, body: { error: "Книга не найдена", code: "bookNotFound" } });
       await expect(getAccessibleBook(BOOK, u)).rejects.toBeInstanceOf(NotFound);
       expect((await photo()).status).toBe(404);
@@ -217,6 +217,23 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
     request.headers.set("x-real-ip", "10.1.2.5");
     security.require2fa = true;
     await blocked(vera);
+  });
+
+  it("роль «только свои» с clients.view — книги и фото только своих клиентов; чужого или неразобранного — 404", async () => {
+    fake.authoring.photoFile = async (key: string) => Buffer.from(key);
+    const photo = () => getPhoto(new Request(`http://localhost/api/photos/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) });
+    let managerId: string | null = kira.id;
+    fake.reporting = { bookOwnership: async () => ({ managerId }) };
+    signIn(kira);
+    expect(await bookOf()).toEqual({ status: 200, body: BOOK });
+    expect(await getAccessibleBook(BOOK, kira)).toBe(db.book);
+    expect((await photo()).status).toBe(200);
+    for (const other of ["someone-else", null]) {
+      managerId = other;
+      expect(await bookOf()).toEqual({ status: 404, body: { error: "Книга не найдена", code: "bookNotFound" } });
+      await expect(getAccessibleBook(BOOK, kira)).rejects.toBeInstanceOf(NotFound);
+      expect((await photo()).status).toBe(404);
+    }
   });
 
   it("clients.view — читает книгу и фото клиента, но не меняет (404); clients.edit — меняет", async () => {

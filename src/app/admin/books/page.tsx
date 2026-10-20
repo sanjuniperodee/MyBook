@@ -8,7 +8,7 @@ import Link from "next/link";
 import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/modules/reporting";
 import { RemindAll } from "./RemindAll";
-import { requireStaff } from "@/server/access";
+import { requireStaff, staffViewer } from "@/server/access";
 import { bookLine, progressRatio, progressShort, progressText } from "@/lib/content/crm-labels";
 
 const themes = getThemes("ru");
@@ -27,10 +27,10 @@ const filters = {
 type Filter = keyof typeof filters;
 
 export default async function AdminBooks({ searchParams }: { searchParams: Promise<{ f?: string; q?: string; theme?: string }> }) {
-  await requireStaff("clients.view");
+  const staff = await requireStaff("clients.view");
   const sp = await searchParams;
   const f = (sp.f && sp.f in filters ? sp.f : "all") as Filter;
-  const rows = await container().reporting.bookList(f, { q: sp.q, theme: sp.theme && themes.some((t) => t.id === sp.theme) ? sp.theme : undefined, staleDays: STALLED_DAYS, now: nowMs() });
+  const rows = await container().reporting.bookList(f, { q: sp.q, theme: sp.theme && themes.some((t) => t.id === sp.theme) ? sp.theme : undefined, staleDays: STALLED_DAYS, now: nowMs(), viewer: staffViewer(staff) });
   const remindable = [...new Set(rows.filter((r) => r.book.status === "draft" && !r.hasOrder).map((r) => r.owner.id))];
   const link = (patch: Record<string, string | undefined>) =>
     `/admin/books?${new URLSearchParams(Object.entries({ f, q: sp.q, theme: sp.theme, ...patch }).filter(([, v]) => v && v !== "all") as [string, string][])}`;

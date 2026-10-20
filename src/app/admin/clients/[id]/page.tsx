@@ -12,7 +12,7 @@ import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile }
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff, canSeeClientRecords } from "@/server/access";
 import { pageId } from "@/server/input";
 
 export const metadata = { title: "Клиент" };
@@ -31,7 +31,9 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   ]);
 
   const adminOptions = staffOptions(admins);
-  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders: orderRows, books: bookRows, money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
+  // Неразобранный клиент виден роли «только свои», но его книги и заказы — только своим клиентам.
+  const ownRecords = canSeeClientRecords(staff, client.managerId);
+  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders: ownRecords ? orderRows : [], books: ownRecords ? bookRows : [], money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
   const { tasks, notes } = screen;
   const contact = contactView(staff, { phone: screen.rawPhone, email: client.email });
   const canEdit = can(staff, "clients.edit");

@@ -109,6 +109,38 @@ export function canSeeAssigned(staff: Staff, assigneeId: string | null | undefin
   return staff.context.canSee(assigneeId);
 }
 
+/** Кто смотрит отчёт (для выборок reporting): id и видит ли чужие записи. */
+export function staffViewer(staff: Staff) {
+  return { userId: staff.user.id, seesAll: staff.scope === "all" };
+}
+
+/**
+ * Книги и заказы клиента: роль «только свои» — только своих клиентов (менеджер клиента — сотрудник), заказ — ещё и если
+ * сотрудник его ответственный. Неразобранных клиентов роль не видит.
+ */
+export function canSeeClientRecords(staff: Staff, managerId: string | null | undefined, orderAssigneeId?: string | null) {
+  return staff.context.ownsClient(managerId, orderAssigneeId);
+}
+
+/** Заказ виден сотруднику (см. canSeeClientRecords); нет заказа — false. */
+export async function canSeeOrder(staff: Staff, orderId: string) {
+  if (staff.scope === "all") return true;
+  const own = await container().reporting.orderOwnership(orderId);
+  return !!own && canSeeClientRecords(staff, own.managerId, own.assigneeId);
+}
+
+/** Для server actions и API: чужой заказ у роли «только свои» — как будто его нет. */
+export async function assertOrderVisible(staff: Staff, orderId: string) {
+  if (!(await canSeeOrder(staff, orderId))) throw new ForbiddenError();
+}
+
+/** Книга видна сотруднику: роль «только свои» — книги своих клиентов. */
+export async function canSeeBook(staff: Staff, bookId: string) {
+  if (staff.scope === "all") return true;
+  const own = await container().reporting.bookOwnership(bookId);
+  return !!own && canSeeClientRecords(staff, own.managerId);
+}
+
 export function canAssignOthers(staff: Staff) {
   return staff.context.canAssignOthers;
 }

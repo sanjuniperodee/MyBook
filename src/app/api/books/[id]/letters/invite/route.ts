@@ -7,7 +7,7 @@ import { idParams } from "@/server/input";
 /** Включает/выключает приём писем от близких по публичной ссылке. */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const { enabled, regenerate } = z.object({ enabled: z.boolean(), regenerate: z.boolean().optional() }).parse(await req.json());
   return NextResponse.json({ token: await container().authoring.books.setLetterInvite(id, viewer, enabled, !!regenerate) });
 });
