@@ -200,7 +200,7 @@ export async function saveMediaAction(_: SettingsState, form: FormData): Promise
   const { provider, model } = parsed.data;
   if (provider === "deepseek") return { error: "DeepSeek не понимает голосовые и фото — выберите OpenRouter, Claude или OpenAI." };
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.mediaProvider()).provider;
-  await saveSettings({ "media.provider": provider, "media.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
+  await saveSettings({ "media.provider": provider, "media.model": model, ...unlessEnv("media.vision", form.get("vision") === "on" ? "claude" : "media"), ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "media", { provider: provider || "seller", model: model || null });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };

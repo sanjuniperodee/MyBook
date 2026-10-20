@@ -29,8 +29,12 @@ export interface SellerAiState {
   stage: SellerStage;
   /** Сколько напоминаний молчащему клиенту уже отправлено (максимум SELLER_MAX_FOLLOW_UPS). */
   followUps: number;
-  /** Модель распознавания не умеет вложения (нет vision/аудио) — в этой беседе больше не пробуем. */
+  /** Модель распознавания не умеет вложения (нет vision/аудио) — в этой беседе больше не пробуем (прежняя запись: все виды). */
   mediaFailed: boolean;
+  /** Виды вложений, которые подключение не умеет (audio, image, pdf…): только их больше не пробуем. */
+  mediaOff: string[];
+  /** Сколько вложений распознано в этой беседе (потолок — расходы на распознавание). */
+  mediaCount: number;
   /** Город клиента (для срока: по Алматы доставка в день готовности). */
   city: string;
   /** Сколько раз клиент спрашивал цену, пока её называет только менеджер: на повторе — менеджеру. */
@@ -111,6 +115,8 @@ export const newSellerAiState = (): SellerAiState => ({
   stage: "greeting",
   followUps: 0,
   mediaFailed: false,
+  mediaOff: [],
+  mediaCount: 0,
   city: "",
   priceAsks: 0,
   media: {},

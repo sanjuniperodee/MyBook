@@ -3,6 +3,10 @@ import { defaultBotConfig, factsPaid, type BotConfig, type BotLesson, type BotMa
 import { BOT_PAUSE_MS, type BotInvoices, type BotSellerModel } from "@/modules/messaging/application";
 import { BOT_CONFIG, inbound, setup } from "./doubles/botHarness";
 
+/** Голосовое и фото с настоящими сигнатурами формата: тип файла бот определяет по содержимому, а не по MIME канала. */
+const OGG = new Uint8Array([0x4f, 0x67, 0x67, 0x53, 0, 2, ...Array(22).fill(0), ...new TextEncoder().encode("OpusHead"), 1, 1, 0, 0]);
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0]);
+
 /** Ответ модели целиком (как по схеме); переопределяем только нужное. */
 const ans = (p: Record<string, unknown> = {}) => ({
   summary: "",
@@ -500,7 +504,7 @@ describe("AI-продажник: голосовые и фото распозна
   it("голосовое распознано — бот отвечает на транскрипцию, как на текст", async () => {
     const { model, calls } = fakeModel([ans({ reply: "Конечно! Для кого делаем книгу? 🙂" })]);
     const m = mediaModel(["Здравствуйте, хочу книгу для мамы"]);
-    const t = setup({ bot: "always", config: aiConfig(), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: new TextEncoder().encode("x"), mime: "audio/ogg" }) });
+    const t = setup({ bot: "always", config: aiConfig(), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: OGG, mime: "audio/ogg" }) });
     await t.service.ingest(inbound({ type: "audio", text: "", mediaUrl: "https://wz/file" }));
     await run(t);
     expect(calls).toHaveLength(1);
@@ -511,7 +515,7 @@ describe("AI-продажник: голосовые и фото распозна
   it("фото чека — модель передаёт менеджеру с причиной оплаты", async () => {
     const { model } = fakeModel([ans({ action: "handoff", handoff_reason: "paid_claim", reply: "Спасибо! Передала чек менеджеру Марату 🙌" })]);
     const m = mediaModel(["Чек об оплате, сумма 10 000 тенге"]);
-    const t = setup({ bot: "always", config: aiConfig(), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: new TextEncoder().encode("x"), mime: "image/jpeg" }) });
+    const t = setup({ bot: "always", config: aiConfig(), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: JPEG, mime: "image/jpeg" }) });
     await t.service.ingest(inbound({ type: "image", text: "", mediaUrl: "https://wz/file" }));
     await run(t);
     expect(said(t)).toEqual(["Спасибо! Передала чек менеджеру Марату 🙌"]);
@@ -521,7 +525,7 @@ describe("AI-продажник: голосовые и фото распозна
   it("модель не умеет вложения (null) — как раньше: голосовое просит текстом, фото — менеджеру", async () => {
     const { model, calls } = fakeModel([ans()]);
     const m = mediaModel([]); // null
-    const t = setup({ bot: "always", config: aiConfig(), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: new TextEncoder().encode("x"), mime: "audio/ogg" }) });
+    const t = setup({ bot: "always", config: aiConfig(), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: OGG, mime: "audio/ogg" }) });
     await t.service.ingest(inbound({ type: "audio", text: "", mediaUrl: "https://wz/file" }));
     await run(t);
     expect(calls).toHaveLength(0);
@@ -531,7 +535,7 @@ describe("AI-продажник: голосовые и фото распозна
   it("распознавание выключено в настройках — вложения не распознаются", async () => {
     const { model, calls } = fakeModel([ans()]);
     const m = mediaModel(["Здравствуйте"]);
-    const t = setup({ bot: "always", config: aiConfig({ media: false }), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: new TextEncoder().encode("x"), mime: "audio/ogg" }) });
+    const t = setup({ bot: "always", config: aiConfig({ media: false }), seller: { ...model, media: m.media }, mediaFiles: () => ({ data: OGG, mime: "audio/ogg" }) });
     await t.service.ingest(inbound({ type: "audio", text: "", mediaUrl: "https://wz/file" }));
     await run(t);
     expect(calls).toHaveLength(0);
@@ -639,7 +643,7 @@ describe("AI-продажник, волна 2: ночной подхват не 
 });
 
 describe("AI-продажник, волна 2: голосовые и фото", () => {
-  const audio = () => ({ data: new TextEncoder().encode("x"), mime: "audio/ogg; codecs=opus" });
+  const audio = () => ({ data: OGG, mime: "audio/ogg; codecs=opus" });
 
   it("голосовое вместе с текстом — тоже расшифровано; в следующем ходе модель видит расшифровку, а не «[голосовое]»", async () => {
     const { model, calls } = fakeModel([ans({ reply: "Поздравляю! 😊 К какой дате нужна книга?" }), ans({ reply: "Успеваем 🙌" })]);
@@ -649,7 +653,8 @@ describe("AI-продажник, волна 2: голосовые и фото", 
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
     await t.service.ingest(inbound({ type: "audio", text: "", mediaUrl: "https://wz/1" }));
     await run(t);
-    expect(recognized).toEqual(["audio/ogg; codecs=opus"]);
+    // MIME — по содержимому файла (OGG), а не тот, что прислал канал.
+    expect(recognized).toEqual(["audio/ogg"]);
     expect(calls[0].user).toContain("Здравствуйте");
     expect(calls[0].user).toContain("[Голосовое клиента: это для мамы на юбилей]");
     await t.service.ingest(inbound({ text: "к 20 ноября" }));
@@ -659,7 +664,7 @@ describe("AI-продажник, волна 2: голосовые и фото", 
     expect(calls[1].user).not.toContain("[голосовое сообщение]");
   });
 
-  it("модель распознавания не умеет — больше не пробуем в этой беседе; временный сбой — пробуем снова", async () => {
+  it("модель распознавания не умеет — этот вид больше не пробуем в этой беседе; временный сбой — пробуем снова", async () => {
     let n = 0;
     const { model } = fakeModel([]);
     const unsupported: BotSellerModel = { ...model, media: async () => (n++, { unsupported: true }) };
@@ -669,7 +674,8 @@ describe("AI-продажник, волна 2: голосовые и фото", 
     await t.service.ingest(inbound({ type: "audio", text: "", mediaUrl: "https://wz/2" }));
     await run(t);
     expect(n).toBe(1);
-    expect(t.conv().botState?.ai).toMatchObject({ mediaFailed: true });
+    // «Не умеет» — по виду вложения: голосовые больше не пробуем, фото и документы — по-прежнему.
+    expect(t.conv().botState?.ai).toMatchObject({ mediaOff: ["audio"] });
 
     let m = 0;
     const flaky: BotSellerModel = { ...model, media: async () => (m++, null) };
@@ -879,7 +885,7 @@ describe("AI-продажник: голосовое до запуска бота
     const { model, calls } = fakeModel([ans({ reply: "Конечно 🙂 Для кого хотите сделать книгу?" })]);
     const heard: string[] = [];
     const seller: BotSellerModel = { ...model, media: async () => (heard.push("x"), { text: "Здравствуйте, я бы хотел узнать стоимость" }) };
-    const t = setup({ bot: "off", config: aiConfig(), seller, mediaFiles: () => ({ data: new TextEncoder().encode("x"), mime: "audio/ogg" }) });
+    const t = setup({ bot: "off", config: aiConfig(), seller, mediaFiles: () => ({ data: OGG, mime: "audio/ogg" }) });
     await t.service.ingest(inbound({ type: "audio", text: "🎤 Голосовое сообщение", mediaUrl: "https://wz/1" }));
     t.settings.mode = "always";
     if (!t.conv().dealId) t.conv().dealId = t.deals[0]?.id ?? "deal-x";

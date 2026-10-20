@@ -31,7 +31,7 @@ export async function AiTab() {
     getSetting("ai.knowledge"),
     getSettings(["proofread.provider", "proofread.model", "proofread.enabled"]),
     getSettings(["seller.provider", "seller.model"]),
-    getSettings(["media.provider", "media.model"]),
+    getSettings(["media.provider", "media.model", "media.vision"]),
     getSettings([...ROUTE_KEYS]),
   ]);
   const aiSaved = Object.fromEntries(
@@ -73,6 +73,7 @@ export async function AiTab() {
         sellerProvider={isAiProvider(sellerSettings["seller.provider"]) ? sellerSettings["seller.provider"] : assistant}
         sellerModel={sellerSettings["seller.model"]}
         model={media["media.model"]}
+        vision={media["media.vision"] !== "media"}
         providers={aiSaved}
       />
       <ProofreadForm

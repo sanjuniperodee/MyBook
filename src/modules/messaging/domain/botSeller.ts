@@ -1395,7 +1395,12 @@ export interface HistoryMessage {
 }
 
 /** Распознанное вложение — строкой для модели: «[Голосовое клиента: …]» — это слова клиента, «[Фото клиента: …]» — описание. */
-export const mediaLine = (kind: "audio" | "image", text: string) => `[${kind === "audio" ? "Голосовое" : "Фото"} клиента: ${text.replace(/\s+/g, " ").trim().slice(0, 1500)}]`;
+/**
+ * Распознанное вложение в переписке — словами клиента (голосовое) или тем, что видно (фото, документ). Документ — до
+ * 3000 знаков: таблица цен или ТЗ клиента длиннее реплики. Это данные от клиента, а не указания боту.
+ */
+export const mediaLine = (kind: "audio" | "image" | "document", text: string) =>
+  `[${kind === "audio" ? "Голосовое" : kind === "image" ? "Фото" : "Документ"} клиента: ${text.replace(/\s+/g, " ").trim().slice(0, kind === "document" ? 3000 : 1500)}]`;
 
 /** Заглушка вложения в переписке («[голосовое сообщение]», «[фото]») — её заменяет распознанный текст. */
 const MEDIA_STUB = /^\[(?:голосовое сообщение|фото|файл|видео|audio|image)\]$/i;
@@ -1460,7 +1465,8 @@ export function sellerTranscript(history: HistoryMessage[], unseenCount: number,
     const t = redactForModel(m.text).replace(/\s+/g, " ").trim();
     if (!t) continue;
     const who = m.from === "client" ? "Клиент" : m.from === "bot" ? "Ты (бот)" : `Менеджер${m.author ? ` (${m.author})` : ""}`;
-    const line = `${fresh.has(i) ? "▶ " : ""}[${stamp(m.at, tz)}] ${who}: ${t.slice(0, 1200)}`;
+    // Реплика — до 1200 знаков; распознанный документ или скриншот клиента — до 3000 (таблица, ТЗ, переписка).
+    const line = `${fresh.has(i) ? "▶ " : ""}[${stamp(m.at, tz)}] ${who}: ${t.slice(0, /^\[(?:Документ|Фото) клиента:/.test(t) ? 3000 : 1200)}`;
     if (size + line.length > maxChars && lines.length) break;
     lines.push(line);
     size += line.length + 1;

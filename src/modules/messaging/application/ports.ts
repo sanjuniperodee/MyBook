@@ -299,7 +299,7 @@ export interface BotSellerModel {
    * Распознать вложение (голосовое → расшифровка, фото → описание). { unsupported } — модель распознавания такое не умеет
    * (больше не пробовать в этой беседе); null — временный сбой.
    */
-  media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<{ text: string } | { unsupported: true; reason?: string } | null>;
+  media?(input: { system: string; parts: { kind: "image" | "audio" | "pdf" | "document"; data: string; mime: string }[]; timeoutMs: number }): Promise<{ text: string; pages?: number; costUsd?: number | null } | { unsupported: true; reason?: string; bad?: boolean } | null>;
 }
 
 /** Что бот знает о маршрутизации из настроек модели продажника. */

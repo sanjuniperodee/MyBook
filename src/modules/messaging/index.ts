@@ -15,7 +15,8 @@ import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLesso
 import { getFile, putFile } from "@/shared/infrastructure/storage";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist, purgeBotTraces } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import { contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
+import { MEDIA_HOSTS, contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
+import { env } from "@/config/env";
 import { normalizePhone } from "@/shared/domain/phone";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
@@ -147,6 +148,7 @@ export class MessagingModule {
       media: (messageId) => this.media.bytes(messageId).catch(() => null),
       // Расшифровки голосовых, сделанные продажником, видны и менеджеру в чате.
       transcript: (messageId, text) => this.messages.setTranscript(messageId, text),
+      recognized: async (messageId) => (await this.messages.findOne(messageId))?.transcript ?? null,
       changed: (conversationId) => live.chatChanged(conversationId),
       // Стоп-лист «Не писать первым»: бот отвечает клиенту, но не напоминает о себе.
       noMarketing: (conv) => this.chats.noMarketing(conv.chatId, contactPhone(conv)),
@@ -179,7 +181,7 @@ export class MessagingModule {
     // Окно и суточный лимит сообщений от правил — настройки «Интеграции» → «Мессенджеры» (кэш настроек — 10 секунд).
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks);
-    this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
+    this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles, [...MEDIA_HOSTS, ...env.chatMediaHosts]);
     this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds, deps.schedule);
   }
 
@@ -330,8 +332,8 @@ export class MessagingModule {
         from: m.direction === "in" ? ("client" as const) : m.author === "бот" ? ("bot" as const) : ("manager" as const),
         // Голосовое уже расшифровано (кнопкой в чате или ботом) — модель видит слова клиента, а не заглушку.
         text:
-          m.type === "audio" && m.transcript
-            ? mediaLine("audio", m.transcript)
+          m.transcript && (m.type === "audio" || m.type === "image" || m.type === "document")
+            ? mediaLine(m.type === "document" ? "document" : m.type, m.transcript)
             : m.text && !/^(?:🎤 Голосовое сообщение|📷 Фото|🎬 Видео|📎 Файл)$/.test(m.text.trim())
               ? m.text
               : m.mediaUrl || m.gateway || m.type !== "text"

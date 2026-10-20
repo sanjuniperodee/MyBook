@@ -1,4 +1,4 @@
-import { gowaDownloadable, gowaMediaPath, gowaMediaType, gowaMediaUrl, type Conversation } from "../domain";
+import { MEDIA_HOSTS, gowaDownloadable, gowaMediaPath, gowaMediaType, gowaMediaUrl, mediaUrlAllowed, type Conversation } from "../domain";
 import type { ChatFileStore, ConversationRepository, MediaFile, MediaGateway, MessageMedia, MessageMediaStore } from "./ports";
 
 /** Вложение и его диалог: по ответственному диалога роут проверяет, видит ли его сотрудник. */
@@ -58,6 +58,8 @@ export class ChatMediaService {
     private readonly now: () => number = Date.now,
     /** Файлы, отправленные из CRM (store:…), — из хранилища сайта. */
     private readonly files: ChatFileStore | null = null,
+    /** С каких хостов сервер скачивает вложения по ссылке канала (Wazzup и CHAT_MEDIA_HOSTS) — защита от SSRF. */
+    private readonly mediaHosts: readonly string[] = MEDIA_HOSTS,
   ) {}
 
   /** Файл из хранилища сайта целиком (Range не нужен: файлы небольшие). */
@@ -126,8 +128,11 @@ export class ChatMediaService {
         return data ? { data, mime: this.typed(message, file).contentType ?? "" } : null;
       }
     }
-    if (message.mediaUrl && /^https?:/i.test(message.mediaUrl)) {
-      const res = await fetch(message.mediaUrl, { signal: AbortSignal.timeout(20_000) }).catch(() => null);
+    // Ссылка канала скачивается сервером, только если это https на разрешённый хост, и без переадресаций: иначе
+    // присланная ссылка увела бы запрос во внутреннюю сеть (SSRF). Размер — не больше maxSize (обрыв при превышении).
+    if (message.mediaUrl && mediaUrlAllowed(message.mediaUrl, this.mediaHosts)) {
+      const res = await fetch(message.mediaUrl, { signal: AbortSignal.timeout(20_000), redirect: "error" }).catch(() => null);
+      if (res?.ok && Number(res.headers.get("content-length") ?? 0) > maxSize) return null;
       if (res?.ok && res.body) {
         const data = await readAll(res.body, maxSize).catch(() => null);
         return data ? { data, mime: res.headers.get("content-type") ?? "" } : null;

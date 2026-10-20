@@ -1,15 +1,24 @@
 import { allowedTier, backoffMs, costUsd, failureKindOf, isTransient, type AiConnection, type AiProvider, type FailureKind, type RouteMode, type RoutePolicy, type SellerTier } from "../domain";
 import type { LanguageModel, Usage } from "./ports";
 
-/** Вложение для распознавания: картинка или аудио в base64. */
+/**
+ * Вложение для распознавания (base64): голосовое, картинка, PDF или документ Word/Excel/текст. kind и mime — по
+ * фактическому содержимому файла (сигнатуре), а не по имени или расширению.
+ */
 export interface MediaPart {
-  kind: "image" | "audio";
+  kind: "image" | "audio" | "pdf" | "document";
   data: string;
   mime: string;
 }
 
-/** Итог распознавания: текст; «не умеет» (модель без vision/аудио — больше не пробовать); null — временный сбой. */
-export type MediaRecognition = { text: string } | { unsupported: true; reason?: string };
+/**
+ * Итог распознавания: текст (и токены модели, если она считала, — в расходы беседы); «не умеет» (модель без vision или
+ * аудио — больше не пробовать; файл не разобрать); null — временный сбой.
+ */
+export type MediaRecognition = { text: string; usage?: Usage; pages?: number; costUsd?: number | null } | { unsupported: true; reason?: string; bad?: boolean };
+
+/** Какое подключение распознаёт вложение: голосовые — модель «Голосовые и фото», фото и PDF — Claude Vision (если включён). */
+export type MediaConnectionFor = (kind: MediaPart["kind"]) => Promise<AiConnection & { enabled?: boolean }>;
 
 /** Неудачная попытка запроса (для метрик: ошибки, повторы, переход к запасной модели). Без текста запроса и ответа. */
 export interface SellerAttempt {
@@ -74,7 +83,7 @@ type Request = { system: string; user: string; schema: Record<string, unknown>; 
  */
 export function sellerModel(
   route: SellerRoute,
-  mediaConnection: () => Promise<AiConnection & { enabled?: boolean }>,
+  mediaConnection: MediaConnectionFor,
   media: (c: AiConnection & { enabled?: boolean }, input: { system: string; parts: MediaPart[]; timeoutMs: number }) => Promise<MediaRecognition | null>,
   clock: Clock = realClock,
 ) {
@@ -159,8 +168,12 @@ export function sellerModel(
     policy: () => route.policy(),
     /** Текст ответа, токены и кто ответил (они идут в след хода бота: «Почему так?», и в метрики расходов). */
     complete,
+    /** Распознать вложение; стоимость запроса к модели (если она сообщила токены) — по прайсу маршрутизации. */
     async media(input: { system: string; parts: MediaPart[]; timeoutMs: number }): Promise<MediaRecognition | null> {
-      return media(await mediaConnection(), input);
+      const res = await media(await mediaConnection(input.parts[0]?.kind ?? "image"), input);
+      if (!res || !("text" in res) || !res.usage) return res;
+      const usage = { input: res.usage.input, output: res.usage.output, cacheRead: res.usage.cacheRead ?? 0, cacheWrite: res.usage.cacheWrite ?? 0 };
+      return { ...res, costUsd: res.usage.model ? costUsd(usage, res.usage.model, (await route.policy()).prices) : null };
     },
   };
 }

@@ -82,6 +82,19 @@ export interface TraceRouteCall {
   failed?: string;
 }
 
+/**
+ * Вложение клиента в этом ходе: что это по содержимому, чем кончилось распознавание и сколько стоило; messageId —
+ * исходное сообщение (связь файла, расшифровки в сообщении и ответа бота). Без самого текста.
+ */
+export interface TraceMedia {
+  messageId: string;
+  kind: string;
+  status: "ok" | "cached" | "unsupported" | "rejected" | "failed" | "limit" | "too_long";
+  chars: number;
+  pages?: number;
+  costUsd?: number | null;
+}
+
 /** Маршрут хода: какой уровень выбран и почему (коды признаков), эскалации, запросы и их стоимость. */
 export interface TraceRoute {
   mode: "on" | "shadow" | "off";
@@ -128,6 +141,8 @@ export interface BotTurnTrace {
   tokens: { input: number; output: number; calls: number } | null;
   /** Маршрут модели: уровень Claude, эскалации, кто ответил, стоимость (старые записи — без него). */
   route?: TraceRoute | null;
+  /** Вложения клиента, распознанные (или нет) перед этим ходом. */
+  media?: TraceMedia[];
   /** Ошибка модели (таймаут, ответ не по схеме). */
   error?: string;
 }
@@ -145,6 +160,7 @@ export function compactTrace(t: BotTurnTrace): BotTurnTrace {
     notes: notes.slice(0, 12),
     lessons: t.lessons.slice(0, 12).map((l) => ({ id: l.id, text: cut(l.text, 80) })),
     knowledge: t.knowledge ? { all: t.knowledge.all, titles: t.knowledge.titles.slice(0, 12).map((x) => cut(x, 80)) } : null,
+    ...(t.media?.length ? { media: t.media.slice(0, 6) } : {}),
     ...(t.route ? { route: { ...t.route, calls: t.route.calls.slice(0, 8).map((c) => ({ ...c, model: cut(c.model, 80) })), escalations: t.route.escalations.slice(0, 4) } } : {}),
     ...(t.error ? { error: cut(t.error, 200) } : {}),
   };
@@ -168,6 +184,7 @@ export function readBotTrace(raw: unknown): BotTurnTrace | null {
     lessons: Array.isArray(r.lessons) ? r.lessons.filter(isObj) : [],
     knowledge: isObj(r.knowledge) ? { all: !!r.knowledge.all, titles: Array.isArray(r.knowledge.titles) ? r.knowledge.titles.map(String) : [] } : null,
     tokens: isObj(r.tokens) ? r.tokens : null,
+    ...(Array.isArray(r.media) ? { media: r.media.filter(isObj) } : {}),
     ...(isObj(r.route) && Array.isArray(r.route.calls) ? { route: { ...r.route, reasons: Array.isArray(r.route.reasons) ? r.route.reasons : [], escalations: Array.isArray(r.route.escalations) ? r.route.escalations : [], calls: r.route.calls.filter(isObj) } } : {}),
     ...(typeof r.error === "string" ? { error: r.error } : {}),
   };
@@ -177,6 +194,7 @@ export function readBotTrace(raw: unknown): BotTurnTrace | null {
 export interface TraceContext {
   tokens: { input: number; output: number; calls: number };
   route?: TraceRoute | null;
+  media?: TraceMedia[];
   deadline: TraceDeadline | null;
   notes: TraceNote[];
   lessons: { id: string; text: string }[];
@@ -213,6 +231,7 @@ export function turnTrace(i: {
     knowledge: i.context?.knowledge ?? null,
     tokens: i.context ? i.context.tokens : null,
     ...(i.context?.route ? { route: i.context.route } : {}),
+    ...(i.context?.media?.length ? { media: i.context.media } : {}),
     ...(i.error ? { error: i.error } : {}),
   });
 }

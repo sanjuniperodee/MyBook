@@ -1,6 +1,6 @@
 import "server-only";
 import type { SettingsReader } from "@/shared/application";
-import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
+import { DEFAULT_TIER_MODELS, ROUTE_SETTING_KEYS, aiProviders, connectionReady, isAiProvider, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
 
 const keys = {
   anthropic: { apiKey: "ai.apiKey", baseUrl: "ai.baseUrl", model: "ai.anthropic.model" },
@@ -20,7 +20,7 @@ export const MEDIA_GROQ_MODEL = "whisper-large-v3";
 export const providerSettingKeys = keys;
 
 /** Настройки CRM, которые читает AI-помощник: провайдеры, база знаний и AI-корректор. */
-export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "seller.fallbacks" | "media.provider" | "media.model" | RouteSettingKey;
+export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "seller.fallbacks" | "media.provider" | "media.model" | "media.vision" | "media.vision.model" | RouteSettingKey;
 
 /** Подключение к модели: пустые модель и адрес заменены значениями по умолчанию. */
 export type Connection = () => Promise<AiConnection & { enabled: boolean }>;
@@ -123,5 +123,19 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return order.map((provider) => ({ provider, connection: () => connectionOf(provider, provider === legacy.provider ? model : "") }));
   }
 
-  return { active, proofread, proofreadProvider, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider };
+  /**
+   * Фото, скриншоты и PDF клиента: Claude Vision (media.vision = claude, по умолчанию), если подключён ключ Claude —
+   * модель media.vision.model или Haiku маршрута; иначе — модель «Голосовые и фото». Голосовые Claude не слушает —
+   * их всегда распознаёт media.
+   */
+  const vision: Connection = async () => {
+    const [mode, model, haiku] = await Promise.all([settings.get("media.vision"), settings.get("media.vision.model"), settings.get("seller.route.haiku")]);
+    if (mode !== "media") {
+      const c = await connectionOf("anthropic", model || haiku || DEFAULT_TIER_MODELS.haiku);
+      if (c.enabled && connectionReady(c)) return c;
+    }
+    return media();
+  };
+
+  return { active, proofread, proofreadProvider, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider, vision };
 }

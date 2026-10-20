@@ -143,8 +143,26 @@ export function traceRows(t: BotTurnTrace): TraceRow[] {
   if (t.lessons.length) rows.push({ label: `Уроки в инструкции (${t.lessons.length})`, lines: t.lessons.map((l) => l.text) });
   if (t.knowledge) rows.push({ label: "База знаний", lines: t.knowledge.all ? ["целиком"] : t.knowledge.titles.length ? t.knowledge.titles : ["начало базы (по теме ничего не нашлось)"] });
   if (t.tokens) rows.push({ label: "Токены", lines: [`${t.tokens.input} на входе, ${t.tokens.output} в ответе · запросов к модели: ${t.tokens.calls}`] });
+  if (t.media?.length) rows.push(mediaRow(t.media));
   if (t.route) rows.push(routeRow(t.route));
   return rows;
+}
+
+const MEDIA_KINDS: Record<string, string> = { audio: "голосовое", image: "фото", pdf: "PDF", document: "документ", text: "текст", video: "видео", executable: "исполняемый файл", unknown: "непонятный файл" };
+const MEDIA_STATUS: Record<string, string> = {
+  ok: "распознано",
+  cached: "уже было распознано — без нового запроса",
+  unsupported: "модель такое не умеет",
+  rejected: "не разбирали (файл не тот, за что себя выдаёт, или повреждён)",
+  failed: "не распозналось (сбой или неразборчиво)",
+  limit: "лимит на распознавание в беседе",
+  too_long: "слишком большой или длинный файл",
+};
+
+/** Вложения хода: что это по содержимому и чем кончилось распознавание. */
+function mediaRow(media: NonNullable<BotTurnTrace["media"]>): TraceRow {
+  const lines = media.map((m) => `${MEDIA_KINDS[m.kind] ?? m.kind}: ${MEDIA_STATUS[m.status] ?? m.status}${m.status === "ok" ? ` (${m.chars} знаков${m.pages ? `, ${m.pages} стр.` : ""}${m.costUsd ? `, $${m.costUsd.toFixed(5)}` : ""})` : ""}`);
+  return { label: "Вложения клиента", lines, warn: media.some((m) => m.status !== "ok" && m.status !== "cached") };
 }
 
 const TIER_LABELS: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };

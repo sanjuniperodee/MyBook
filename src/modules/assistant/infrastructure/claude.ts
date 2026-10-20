@@ -83,27 +83,27 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
   };
 }
 
-/** Claude видит картинки; аудио не принимает — «не умеет». */
+/**
+ * Claude видит картинки (несколько полос длинного скриншота — одним запросом) и PDF (документ целиком: текст, таблицы,
+ * сканы); аудио не принимает — «не умеет». Токены — в ответе: стоимость распознавания идёт в расходы беседы.
+ */
 export async function askClaudeMedia(c: AiConnection, input: { system: string; parts: MediaPart[]; timeoutMs: number }): Promise<MediaRecognition | null> {
-  if (input.parts.some((p) => p.kind !== "image")) return { unsupported: true };
+  if (input.parts.some((p) => p.kind !== "image" && p.kind !== "pdf")) return { unsupported: true };
   const mimeOf = (m: string): "image/jpeg" | "image/png" | "image/gif" | "image/webp" => (/png/i.test(m) ? "image/png" : /gif/i.test(m) ? "image/gif" : /webp/i.test(m) ? "image/webp" : "image/jpeg");
+  const content = input.parts.map((p) =>
+    p.kind === "pdf"
+      ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: p.data } }
+      : { type: "image" as const, source: { type: "base64" as const, media_type: mimeOf(p.mime), data: p.data } },
+  );
   const res = await client(c)
-    .messages.create(
-      {
-        model: c.model,
-        max_tokens: 1500,
-        system: input.system,
-        messages: [{ role: "user", content: input.parts.map((p) => ({ type: "image" as const, source: { type: "base64" as const, media_type: mimeOf(p.mime), data: p.data } })) }],
-      },
-      { timeout: input.timeoutMs, maxRetries: 0 },
-    )
+    .messages.create({ model: c.model, max_tokens: 2000, system: input.system, messages: [{ role: "user", content }] }, { timeout: input.timeoutMs, maxRetries: 1 })
     .catch((err: unknown) => (err instanceof Anthropic.BadRequestError ? ("unsupported" as const) : null));
   if (res === "unsupported") return { unsupported: true };
-  if (!res) return null;
+  if (!res || res.stop_reason === "refusal") return res ? { unsupported: true, reason: "Claude отказался разбирать вложение" } : null;
   const text = res.content
     .filter((b) => b.type === "text")
     .map((b) => (b as { text: string }).text)
     .join("")
     .trim();
-  return text ? { text } : null;
+  return text ? { text, usage: { input: res.usage.input_tokens, output: res.usage.output_tokens, cacheRead: res.usage.cache_read_input_tokens ?? 0, cacheWrite: res.usage.cache_creation_input_tokens ?? 0, model: res.model || c.model } } : null;
 }

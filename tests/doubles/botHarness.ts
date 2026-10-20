@@ -349,6 +349,7 @@ export function setup(
     invoices: opts.invoices ?? null,
     media: opts.mediaFiles ? async (id: string) => opts.mediaFiles!(id) : null,
     transcript: async (id: string, text: string) => void Object.assign(msgs.find((m) => m.id === id) ?? {}, { transcript: text }),
+    recognized: async (id: string) => msgs.find((m) => m.id === id)?.transcript ?? null,
     noMarketing: (c: Conversation) => service.noMarketing(c.chatId, c.meta.phone),
     materials: opts.materials
       ? { list: async () => opts.materials!, send: (id: string, m: BotMaterial) => service.sendBotFile(id, { data: new Uint8Array([1]), name: m.name, mime: m.mime, kind: m.kind }, m.caption, `store:${m.key}`) }

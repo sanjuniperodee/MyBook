@@ -301,6 +301,13 @@ export function MessageBubble({
           <>
             <div className={m.type !== "text" ? "pt-1" : undefined}>
               <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />
+              {/* Что бот прочитал в фото или документе клиента (у голосового расшифровка — в плеере). */}
+              {m.transcript && (m.type === "image" || m.type === "document") ? (
+                <details className="mb-1 text-[12px] text-muted" data-testid="media-recognized">
+                  <summary className="cursor-pointer">Бот прочитал</summary>
+                  <p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap italic">{m.transcript}</p>
+                </details>
+              ) : null}
             </div>
             {hasCaption(m) ? (
               <p className="break-words whitespace-pre-wrap">

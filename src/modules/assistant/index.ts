@@ -30,7 +30,8 @@ export class AssistantModule {
         fallbacks: async () => (await this.#ai.sellerFallbacks()).map((f) => modelOf(f.connection)),
         legacy: modelOf(this.#ai.seller),
       },
-      this.#ai.media,
+      // Голосовые — модель «Голосовые и фото» (Claude не слушает аудио); фото, скриншоты и PDF — Claude Vision, если включён.
+      (kind) => (kind === "audio" ? this.#ai.media() : this.#ai.vision()),
       askMedia,
     );
   }

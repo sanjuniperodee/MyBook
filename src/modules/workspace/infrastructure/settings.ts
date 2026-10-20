@@ -144,6 +144,10 @@ export const settingDefs = {
   /** Распознавание голосовых и фото клиента для AI-продажника: свой провайдер и модель или (пусто) — как у продажника. */
   "media.provider": {},
   "media.model": {},
+  /** Фото, скриншоты и PDF клиента: claude — Claude Vision при ключе Claude (по умолчанию); media — модель «Голосовые и фото». */
+  "media.vision": { env: "MEDIA_VISION", default: "claude" },
+  /** Модель Claude для фото и PDF (пусто — Haiku маршрута продажника). */
+  "media.vision.model": { env: "MEDIA_VISION_MODEL" },
   /** Любой OpenAI-совместимый сервер: Qwen, локальная модель и т. п. */
   "ai.custom.apiKey": { secret: true },
   "ai.custom.baseUrl": {},

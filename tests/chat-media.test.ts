@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { gowaDownloadable, gowaDownloadPhone, gowaMediaPath, gowaMediaType, gowaMediaUrl, isGowaMediaPath, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
 import { ChatMediaService, MEDIA_RETRY_MS, type MediaFile, type MediaGateway, type MessageMedia } from "@/modules/messaging/application";
@@ -223,6 +223,28 @@ describe("ChatMediaService: файл открывается по id сообще
     expect(await switched.service.open((await switched.service.find("m1"))!)).not.toBeNull();
     expect(await setup(voice()).service.find("m2")).toBeNull();
     expect(await setup(voice({ conversationId: "c9" })).service.find("m1")).toBeNull();
+  });
+});
+
+describe("ChatMediaService: скачивание вложения по ссылке канала (для распознавания)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const service = (mediaUrl: string, hosts?: string[]) =>
+    new ChatMediaService({ findById: async () => conv({ channelId: "wz-channel" }) }, { media: async () => voice({ mediaUrl }), saveMediaUrl: async () => {} }, { download: async () => "x", file: async () => null }, async () => false, Date.now, null, hosts);
+
+  it("Wazzup по https — качается, без переадресаций; внутренний адрес, http, чужой хост — нет (SSRF)", async () => {
+    const fetched: { url: string; redirect?: string }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => (fetched.push({ url, redirect: init.redirect }), new Response("OggS", { headers: { "content-type": "audio/ogg" } }))));
+    expect(await service("https://store.wazzup24.com/a.ogg").bytes("m1")).toMatchObject({ mime: "audio/ogg" });
+    expect(fetched).toEqual([{ url: "https://store.wazzup24.com/a.ogg", redirect: "error" }]);
+    for (const bad of ["http://store.wazzup24.com/a.ogg", "https://169.254.169.254/latest/meta-data/", "https://intranet.local/a", "https://store.wazzup24.com.attacker.io/a"]) expect(await service(bad).bytes("m1")).toBeNull();
+    expect(fetched).toHaveLength(1);
+    // Свой хост — только если его разрешили (CHAT_MEDIA_HOSTS).
+    expect(await service("https://files.example.org/a.ogg", ["example.org"]).bytes("m1")).not.toBeNull();
+  });
+
+  it("файл больше лимита — не читается целиком", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("x".repeat(100), { headers: { "content-length": "100" } })));
+    expect(await service("https://store.wazzup24.com/a.ogg").bytes("m1", 10)).toBeNull();
   });
 });
 

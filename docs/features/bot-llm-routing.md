@@ -68,6 +68,7 @@ Haiku. Напоминание молчащему клиенту и оценка 
 | `seller.route` | `AI_SELLER_ROUTING` | `on` | `on` — уровни по сложности; `shadow` — отвечает уровень по умолчанию, выбор только в следе и статистике; `off` — как раньше |
 | `seller.route.haiku` / `.sonnet` / `.opus` | `AI_MODEL_HAIKU` / `AI_MODEL_SONNET` / `AI_MODEL_OPUS` | `claude-haiku-5-5` / `claude-sonnet-5-5` / `claude-opus-5-5` | модели уровней |
 | `seller.route.default` | `AI_ROUTE_DEFAULT_TIER` | `haiku` | уровень по умолчанию (нижняя граница) |
+| `seller.route.sonnetEnabled` / `.opusEnabled` | `AI_ROUTE_SONNET_ENABLED` / `AI_ROUTE_OPUS_ENABLED` | `on` | выключить Sonnet или Opus ради экономии токенов: ход идёт на ближайший включённый уровень ниже, эскалация выключенный уровень пропускает (без Sonnet Haiku поднимается сразу на Opus — только там, где Opus уместен) |
 | `seller.route.sonnetAt` / `.opusAt` | `AI_ROUTE_SONNET_AT` / `AI_ROUTE_OPUS_AT` | `2` / `6` | пороги очков |
 | `seller.route.maxExtra` | `AI_ROUTE_MAX_EXTRA` | `2` | повышений уровня за одно сообщение клиента (0–4) |
 | `seller.route.budget` | `AI_ROUTE_BUDGET_USD` | `0.5` | потолок расходов на беседу, $ (`0` — без потолка): защита от клиента, который пишет «сложно» ради Opus |

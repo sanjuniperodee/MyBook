@@ -121,15 +121,15 @@ describe("перехват менеджером: бот замолкает в э
   });
 
   it("ответ, генерация которого началась до вмешательства менеджера, клиенту не уходит", async () => {
-    let t: T;
+    const box: { t?: T } = {};
     const { m } = model([
       async () => {
         // Пока модель думает, менеджер пишет клиенту сам.
-        await t.service.send(t.conv().id, "Сейчас всё расскажу", "u1");
+        await box.t!.service.send(box.t!.conv().id, "Сейчас всё расскажу", "u1");
         return ans("Для кого будет книга?");
       },
     ]);
-    t = setup({ bot: "always", config: aiConfig(), seller: m });
+    const t = (box.t = setup({ bot: "always", config: aiConfig(), seller: m }));
     await client(t, "Здравствуйте, хочу книгу маме");
     await run(t);
     expect(said(t)).toEqual(["Сейчас всё расскажу"]);

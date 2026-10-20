@@ -11,6 +11,11 @@ export const env = {
     apiSecret: process.env.CLOUDPAYMENTS_API_SECRET ?? "",
   },
   ordersNotifyEmail: process.env.ORDERS_NOTIFY_EMAIL ?? "",
+  /** Дополнительные хосты, с которых сервер вправе скачивать вложения чатов по ссылке канала (к Wazzup), через запятую. */
+  chatMediaHosts: (process.env.CHAT_MEDIA_HOSTS ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter((h) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h)),
 };
 
 export const isSecureCookie = env.appUrl.startsWith("https://");

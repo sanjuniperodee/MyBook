@@ -22,6 +22,7 @@ export function MediaForm({
   sellerModel,
   model,
   providers,
+  vision = true,
 }: {
   /** "" — как у продажника. */
   provider: AiProvider | "";
@@ -29,6 +30,8 @@ export function MediaForm({
   sellerModel: string;
   model: string;
   providers: Record<AiProvider, AiProviderSaved>;
+  /** Фото, скриншоты и PDF — через Claude Vision (при ключе Claude), а не этой моделью. */
+  vision?: boolean;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveMediaAction, {});
   const [p, setP] = useState<AiProvider | "">(provider);
@@ -70,6 +73,13 @@ export function MediaForm({
             <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input h-10 text-sm" maxLength={100} />
           </label>
         </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="vision" defaultChecked={vision} className="mt-0.5 accent-wine" />
+          <span>
+            Фото, скриншоты и PDF читает Claude (Vision), если подключён ключ Claude
+            <span className="block text-xs text-muted">Видимый текст, таблицы и сканы; голосовые — всегда моделью выше (Claude их не слушает). Word, Excel и текстовые файлы читаются на сервере, никуда не отправляясь. Видео бот не разбирает.</span>
+          </span>
+        </label>
         <div className="flex flex-wrap items-center gap-2">
           <SubmitButton className="btn-sm">Сохранить</SubmitButton>
           <Result state={state} />
