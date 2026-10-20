@@ -14,6 +14,8 @@ import { getFormat } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
 import { cn } from "@/lib/class-names";
 import { PhotosArt } from "@/components/illustrations";
+import { CropDialog } from "@/components/editor/CropDialog";
+import type { PhotoCrop } from "@/lib/book/photo-crop";
 
 interface ManagedPhoto {
   id: string;
@@ -22,6 +24,8 @@ interface ManagedPhoto {
   width: number;
   height: number;
   inAnswer?: string | null;
+  /** Кадр автора: точка и приближение (photo-crop.ts); null — по правилу места. */
+  crop?: PhotoCrop | null;
 }
 
 const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half", "grid"];
@@ -32,6 +36,8 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [cropping, setCropping] = useState<ManagedPhoto | null>(null);
+  const tc = useMessages().editor.crop;
   const input = useRef<HTMLInputElement>(null);
   const captionTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const fmt = getFormat(format);
@@ -234,6 +240,13 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
                             title={p.layout === "bleed" ? t.noCaptionBleed : undefined}
                           />
                           {p.inAnswer ? <p className="text-xs text-muted max-sm:hidden">{t.inAnswerNote}</p> : null}
+                          {/* Кадр — у фото на страницах и в начале главы; у фото в ответе он задаётся в редакторе ответа. */}
+                          {p.inAnswer ? null : (
+                            <button type="button" disabled={!editable} onClick={() => setCropping(p)} className="h-9 w-full rounded-xl border border-line text-xs font-medium text-ink-soft hover:bg-cream disabled:opacity-50">
+                              {tc.edit}
+                              {p.crop ? " ✓" : ""}
+                            </button>
+                          )}
                           <div className={cn("grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 sm:grid-cols-4", p.inAnswer && "hidden")}>
                             {layouts.map((l) => (
                               <button
@@ -257,6 +270,17 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
           </SortableContext>
         </DndContext>
       )}
+      {cropping ? (
+        <CropDialog
+          photo={cropping}
+          crop={cropping.crop ?? null}
+          onClose={() => setCropping(null)}
+          onSave={(crop) => {
+            void update(cropping.id, { crop });
+            setCropping(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

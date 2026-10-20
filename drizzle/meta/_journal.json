@@ -428,6 +428,13 @@
       "when": 1792427030575,
       "tag": "0060_bot_turn_trace",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792491424608,
+      "tag": "0061_photo_crop",
+      "breakpoints": true
     }
   ]
 }

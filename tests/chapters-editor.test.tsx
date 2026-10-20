@@ -1,11 +1,13 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ChaptersEditor } from "@/app/(app)/books/[id]/pages/ChaptersEditor";
 import { MessagesContext } from "@/i18n/context";
 import { kk } from "@/i18n/messages/kk";
 import { ru } from "@/i18n/messages/ru";
 import { sampleToc, type SampleTocCandidate, type TocLines } from "@/lib/book/toc";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }), usePathname: () => "/", useSearchParams: () => new URLSearchParams() }));
 
 // Блок «Главы книги» на вкладке «Страницы»: что видит автор, когда убирает или переименовывает главу.
 

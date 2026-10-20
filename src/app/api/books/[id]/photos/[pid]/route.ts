@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { CROP_ZOOM_MAX } from "@/lib/book/photo-crop";
 import { z } from "zod";
 import { idParams, uuid } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
@@ -24,6 +25,8 @@ const schema = z
       })
       .strict()
       .nullable(),
+    // Кадр автора: точка (доли снимка) и приближение; пределы приводит домен (normalizeCrop).
+    crop: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), zoom: z.number().min(1).max(CROP_ZOOM_MAX) }).strict().nullable(),
   })
   .partial()
   .strict();

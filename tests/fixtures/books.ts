@@ -200,6 +200,7 @@ function photoRows(key: string, book: Book, questions: BookQuestion[]): Photo[] 
     layout: p.layout,
     questionId: p.question === undefined ? null : questions[p.question].id,
     inline: p.style ?? null,
+    crop: null,
     createdAt: CREATED,
     updatedAt: UPDATED,
   }));

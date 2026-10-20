@@ -246,7 +246,7 @@ export class DrizzleChapterRepository implements ChapterRepository {
 }
 
 const photoToDomain = (r: typeof photos.$inferSelect) =>
-  Photo.restore(r.id, { bookId: r.bookId, position: r.position, storageKey: r.storageKey, thumbKey: r.thumbKey, width: r.width, height: r.height, caption: r.caption, layout: r.layout, questionId: r.questionId, inline: r.inline });
+  Photo.restore(r.id, { bookId: r.bookId, position: r.position, storageKey: r.storageKey, thumbKey: r.thumbKey, width: r.width, height: r.height, caption: r.caption, layout: r.layout, questionId: r.questionId, inline: r.inline, crop: r.crop ?? null });
 
 export class DrizzlePhotoRepository implements PhotoRepository {
   async findInBook(bookId: string, photoId: string) {

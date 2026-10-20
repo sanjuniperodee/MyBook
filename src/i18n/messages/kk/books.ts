@@ -212,6 +212,7 @@ export const books: typeof ru = {
     chapterMovedInto: (n: number, into: string) => (n ? `${n} әңгіме «${into}» тарауына ауысады` : "тарау алынды — онда әңгіме жоқ"),
     chapterRemovedNoHost: "тарау алынды",
     storiesToggle: (n: number) => `Әңгімелер (${n})`,
+    chapterPhotoCrop: "Тарау суретінің кадры",
     storyHeadingAria: (name: string) => `«${name}» әңгімесінің атауы`,
     storyHeadingReset: "Атауын қайтару",
     storyHeadingHide: "Кітапта атауын жасыру",

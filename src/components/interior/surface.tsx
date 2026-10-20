@@ -42,10 +42,19 @@ export function Placed({ top, align = "center", children }: { top: number; align
 }
 
 /** Снимок на странице (мм обрезного формата): фото клиента или снимок-пример из коллекции. */
-export function PageImage({ kit, rect, url, scene, mask, focus }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; mask?: "arch" | "circle"; /** Точка кадра, доли (как в PDF); нет — центр. */ focus?: { x: number; y: number } }) {
+export function PageImage({ kit, rect, url, scene, mask, focus }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; mask?: "arch" | "circle"; /** Кадр: точка (доли) и приближение — как в PDF (photo-crop.ts); нет — центр. */ focus?: { x: number; y: number; zoom?: number } }) {
   const { u } = kit;
   // Форма снимка: арка — скруглённый верх радиусом в половину ширины, круг — 50%.
   const radius = mask === "circle" ? "50%" : mask === "arch" ? `${u.mm(rect.w / 2)} ${u.mm(rect.w / 2)} 0 0` : undefined;
+  if (focus?.zoom && focus.zoom > 1) {
+    const origin = `${focus.x * 100}% ${focus.y * 100}%`;
+    return (
+      <div className="absolute overflow-hidden" style={{ left: u.mm(rect.x), top: u.mm(rect.y), width: u.mm(rect.w), height: u.mm(rect.h), borderRadius: radius }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента: next/image здесь не нужен */}
+        <img src={url ?? samplePageUrl(scene)} alt="" draggable={false} className="block size-full object-cover" style={{ maxWidth: "none", objectPosition: origin, transform: `scale(${focus.zoom})`, transformOrigin: origin }} />
+      </div>
+    );
+  }
   return (
     // eslint-disable-next-line @next/next/no-img-element -- фото клиента и снимки-примеры: next/image здесь не нужен
     <img

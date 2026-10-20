@@ -170,6 +170,8 @@ export const photos = pgTable(
     questionId: uuid("question_id").references(() => bookQuestions.id, { onDelete: "set null" }),
     /** Оформление фото внутри ответа: размер, выравнивание, место в тексте, кадр, рамка. */
     inline: jsonb("inline").$type<InlinePhotoStyle>(),
+    /** Кадр, выбранный автором: точка и приближение (lib/book/photo-crop); null — по правилу места. */
+    crop: jsonb("crop").$type<{ x: number; y: number; zoom: number }>(),
     ...timestamps,
   },
   (t) => [index("photos_book_idx").on(t.bookId, t.position)],

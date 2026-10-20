@@ -11,6 +11,7 @@ import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
 import { isCustomToc, type TocLines, type TocMode } from "./toc";
+import type { PhotoCrop } from "./photo-crop";
 
 export interface ContentItem {
   id: string;
@@ -38,6 +39,8 @@ export interface PhotoItem {
   thumbKey: string;
   questionId?: string | null;
   inline?: InlinePhotoStyle | null;
+  /** Кадр автора (photo-crop.ts); нет — ключа нет (отпечаток кэша прежних книг не меняется). */
+  crop?: PhotoCrop;
 }
 
 export interface ContentChapter {
@@ -150,7 +153,7 @@ export function printableText(text: string) {
     .trim();
 }
 
-export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline">): PhotoItem {
+export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline"> & { crop?: PhotoCrop | null }): PhotoItem {
   return {
     id: p.id,
     caption: printableText(p.caption),
@@ -161,6 +164,7 @@ export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width"
     thumbKey: p.thumbKey,
     questionId: p.questionId,
     inline: p.inline,
+    ...(p.crop ? { crop: p.crop } : {}),
   };
 }
 

@@ -25,7 +25,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
-  const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout });
+  const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout, ...(p.crop ? { crop: p.crop } : {}) });
   const entryOf = (it: ContentItem) => {
     const paragraphs = splitParagraphs(it.answer);
     const inline = (it.photos ?? []).map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));
@@ -57,6 +57,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
       title: c.title,
       epigraph: c.epigraph,
       openerPhoto: c.openerPhoto ? photoUrl(c.openerPhoto.id, "view") : undefined,
+      ...(c.openerPhoto?.crop ? { openerCrop: c.openerPhoto.crop } : {}),
       entries: c.items.flatMap(entryOf),
       // Фото на всю страницу в историях — глава кусками: текст, страница фото, продолжение (как в PDF).
       ...(c.items.some((it) => it.photoBefore) ? { runs: chapterRuns(c.items).map((r) => ({ entries: r.items.flatMap(entryOf), ...(r.photo ? { photo: pagePhoto(r.photo) } : {}) })) } : {}),

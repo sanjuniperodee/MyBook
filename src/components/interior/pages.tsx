@@ -14,6 +14,7 @@ import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/inte
 import { openerArtShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
+import { cropOr, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
@@ -27,7 +28,7 @@ import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surf
 import { faceCss, italicBody, labelCss } from "./typography";
 
 /** Снимок на начальной полосе: карточка с поворотом или снимок под обрез, затемнение внизу и графика поверх. */
-function OpenerShot({ kit, shot, url, scene }: { kit: PageKit; shot: OpenerPhotoPlan; url?: string; scene: number }) {
+function OpenerShot({ kit, shot, url, scene, crop }: { kit: PageKit; shot: OpenerPhotoPlan; url?: string; scene: number; crop?: PhotoCrop }) {
   const { format, u } = kit;
   return (
     <>
@@ -44,10 +45,10 @@ function OpenerShot({ kit, shot, url, scene }: { kit: PageKit; shot: OpenerPhoto
             transform: `rotate(${shot.card.rotate}deg)`,
           }}
         >
-          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={url} scene={scene} focus={OPENER_FOCUS} />
+          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={url} scene={scene} focus={cropOr(crop, OPENER_FOCUS)} />
         </div>
       ) : (
-        <PageImage kit={kit} rect={shot.img} url={url} scene={scene} mask={shot.mask} focus={OPENER_FOCUS} />
+        <PageImage kit={kit} rect={shot.img} url={url} scene={scene} mask={shot.mask} focus={cropOr(crop, OPENER_FOCUS)} />
       )}
       {shot.shade ? (
         <div
@@ -81,7 +82,7 @@ function ChapterMark({ kit, colors, number }: { kit: PageKit; colors: InteriorPa
  * Начальная полоса главы: номер, название, виньетка, эпиграф и рисунок дизайна. photo — снимок главы
  * в оформлениях, где глава открывается фото (без url — пейзаж-заглушка для примеров).
  */
-export function OpenerPage({ kit, number, title, epigraph, photo, className, style }: PageProps & { number: number | null; title: string; epigraph?: string; photo?: { url?: string } }) {
+export function OpenerPage({ kit, number, title, epigraph, photo, className, style }: PageProps & { number: number | null; title: string; epigraph?: string; photo?: { url?: string; crop?: PhotoCrop } }) {
   const { design, format, sizes: S, u } = kit;
   const { fill, align, art } = design.opener;
   const colors = fill ?? design.palette;
@@ -95,7 +96,7 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
   ];
   return (
     <PageSurface kit={kit} paper={fill?.paper} shapes={shapes} className={className} style={style}>
-      {shot ? <OpenerShot kit={kit} shot={shot} url={photo?.url} scene={number ?? 0} /> : null}
+      {shot ? <OpenerShot kit={kit} shot={shot} url={photo?.url} scene={number ?? 0} crop={photo?.crop} /> : null}
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           <ChapterMark kit={kit} colors={colors} number={number} />
@@ -116,6 +117,8 @@ export interface PagePhoto {
   height: number;
   caption: string;
   layout: "full" | "bleed" | "half" | "grid";
+  /** Кадр автора (photo-crop.ts); нет — по центру. */
+  crop?: PhotoCrop;
 }
 
 /** Фотостраница: снимки, рамки и подписи по раскладке photo-pages — как в PDF. */
@@ -129,7 +132,7 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
     <PageSurface kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {
         const p = photos.find((x) => x.id === c.id)!;
-        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} />;
+        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} focus={p.crop} />;
       })}
       <PageLayer shapes={plan.over} format={format} />
       {plan.cells.map((c) =>

@@ -24,7 +24,7 @@ export default async function PhotosPage({ params }: { params: Promise<{ id: str
           bookId={book.id}
           format={book.format}
           editable={book.status === "draft"}
-          initial={photos.map((p) => ({ id: p.id, caption: p.caption, layout: p.layout, width: p.width, height: p.height, inAnswer: p.questionId ? titles.get(p.questionId) || m.books.photos.answer : null }))}
+          initial={photos.map((p) => ({ id: p.id, caption: p.caption, layout: p.layout, width: p.width, height: p.height, crop: p.crop, inAnswer: p.questionId ? titles.get(p.questionId) || m.books.photos.answer : null }))}
         />
       </div>
     </main>

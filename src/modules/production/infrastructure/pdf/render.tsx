@@ -24,6 +24,7 @@ import { emptyFlow } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
+import { cropOr } from "@/lib/book/photo-crop";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
 import { bakeFrame } from "./frame";
@@ -82,7 +83,7 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
         // поиск главного на портретах пар выбирал одежду и срезал головы.
         const w = Math.round(openerShot.img.w * pxPerMm);
         const h = Math.round(openerShot.img.h * pxPerMm);
-        img = await coverAt(input, w, h, OPENER_FOCUS);
+        img = await coverAt(input, w, h, cropOr(p.crop, OPENER_FOCUS));
         // «Во всю полосу»: затемнение снизу под светлое название — прямо в снимке (как градиент в превью).
         const sh = openerShot.shade;
         if (sh) {
@@ -92,7 +93,8 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
       } else if (p.layout === "bleed" && !inlineIds.has(p.id)) {
         const w = Math.round((content.format.widthMm + bleedMm * 2) * pxPerMm);
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);
-        img = img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
+        // Кадр автора — его точкой и приближением, иначе — «по содержимому», как раньше.
+        img = p.crop ? await coverAt(input, w, h, p.crop) : img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
       } else if (inlineIds.has(p.id)) {
         // Кадрируем так же, как в превью (пропорции + точка фокуса), и ужимаем до ширины блока.
         const style = normalizeStyle(p.inline);
@@ -103,7 +105,9 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
         img = sharp(input).extract(cropRect(src, style)).resize(Math.round(box.w * pxPerMm), Math.round(box.h * pxPerMm), { fit: "fill", withoutEnlargement: true });
       } else if (cell) {
         // Сетка — кадр по месту с учётом содержимого снимка; целиком — те же пропорции, просто нужный размер.
-        img = img.resize(Math.max(1, Math.round(cell.img.w * pxPerMm)), Math.max(1, Math.round(cell.img.h * pxPerMm)), { fit: "cover", position: cell.fit === "cover" ? sharp.strategy.attention : "centre" });
+        const cw = Math.max(1, Math.round(cell.img.w * pxPerMm));
+        const ch = Math.max(1, Math.round(cell.img.h * pxPerMm));
+        img = p.crop && cell.fit === "cover" ? await coverAt(input, cw, ch, p.crop) : img.resize(cw, ch, { fit: "cover", position: cell.fit === "cover" ? sharp.strategy.attention : "centre" });
       } else {
         const a = photoAreaMm(content.format, "full");
         img = img.resize(Math.round(a.w * pxPerMm), Math.round(a.h * pxPerMm), { fit: "inside", withoutEnlargement: true });
@@ -174,11 +178,12 @@ const MAX_FLOW_PASSES = 12;
  * Кадр «заполнить место» с точкой кадра focus (доли), как object-fit: cover + object-position в превью: снимок
  * масштабируется до покрытия места, лишнее срезается так, чтобы точка focus снимка встала в ту же долю места.
  */
-async function coverAt(input: Buffer, w: number, h: number, focus: { x: number; y: number }) {
+async function coverAt(input: Buffer, w: number, h: number, focus: { x: number; y: number; zoom?: number }) {
   const meta = await sharp(input).rotate().metadata();
   const srcW = (meta.autoOrient?.width ?? meta.width) || w;
   const srcH = (meta.autoOrient?.height ?? meta.height) || h;
-  const scale = Math.max(w / srcW, h / srcH);
+  // Приближение — как scale с центром в точке кадра в превью (photo-crop.ts).
+  const scale = Math.max(w / srcW, h / srcH) * (focus.zoom ?? 1);
   const sw = Math.max(w, Math.round(srcW * scale));
   const sh = Math.max(h, Math.round(srcH * scale));
   const left = Math.round((sw - w) * focus.x);

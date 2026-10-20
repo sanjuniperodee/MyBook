@@ -11,6 +11,7 @@ import { pageKit, type PageKit } from "@/components/interior/kit";
 import { ColophonPage, DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "@/components/interior/pages";
 import { cqwUnits } from "@/components/interior/units";
 import { VisiblePhotos } from "@/components/interior/entry";
+import type { PhotoCrop } from "@/lib/book/photo-crop";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { columnPages, pageSide } from "@/lib/book/page-geometry";
@@ -24,6 +25,8 @@ export interface FlipbookChapter {
   entries: SampleEntry[];
   /** Снимок на начальной полосе — в оформлениях, где глава открывается фото. */
   openerPhoto?: string;
+  /** Кадр этого снимка, выбранный автором. */
+  openerCrop?: PhotoCrop;
   /** Фотостраницы главы — после её текста, по той же группировке, что в PDF. */
   photoPages?: PagePhoto[][];
   /** Фото на всю страницу в историях: текст главы кусками, после куска — страница с фото. Нет — глава одним куском. */
@@ -121,7 +124,7 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       );
     case "opener": {
       const ch = data.chapters[face.chapter];
-      return <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto ? { url: ch.openerPhoto } : undefined} className={faceBox} />;
+      return <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto ? { url: ch.openerPhoto, crop: ch.openerCrop } : undefined} className={faceBox} />;
     }
     case "text": {
       const ch = data.chapters[face.chapter];

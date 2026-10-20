@@ -215,6 +215,7 @@ export const books = {
     chapterMovedInto: (n: number, into: string) => (n ? `${ruCount(n, "история перейдёт", "истории перейдут", "историй перейдут")} в главу «${into}»` : `глава убрана — историй в ней нет`),
     chapterRemovedNoHost: "глава убрана",
     storiesToggle: (n: number) => `Истории (${n})`,
+    chapterPhotoCrop: "Кадр фото главы",
     storyHeadingAria: (name: string) => `Заголовок истории «${name}»`,
     storyHeadingReset: "Вернуть заголовок",
     storyHeadingHide: "Скрыть заголовок в книге",

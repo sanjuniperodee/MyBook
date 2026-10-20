@@ -7,7 +7,8 @@ import { coverName } from "@/i18n/labels";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { bookSpreadSample } from "@/server/spreadSample";
-import { questionTexts } from "@/lib/book/layout";
+import { questionTexts, toPhotoItem } from "@/lib/book/layout";
+import { buildBookContent } from "@/lib/book/book-content";
 import { PagesEditor } from "./PagesEditor";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,6 +30,12 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const format = getFormat(book.format);
 
   const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos);
+  // Фото начала каждой главы (в оформлениях, где глава открывается снимком) — кнопка «Кадр» в её карточке.
+  const openers = Object.fromEntries(
+    buildBookContent(book, questions, photos.map(toPhotoItem), chapters).chapters.flatMap((c) =>
+      c.openerPhoto ? [[c.key, { id: c.openerPhoto.id, width: c.openerPhoto.width, height: c.openerPhoto.height, crop: c.openerPhoto.crop ?? null }] as const] : [],
+    ),
+  );
   // Истории для блока «Главы книги»: заголовок по умолчанию (с подставленным родом), свой и скрыт ли он.
   const stories = Object.fromEntries(questions.map((q) => [q.id, { title: questionTexts(q, book).title, displayText: q.displayText, hidden: q.hideHeading, pageBreak: q.pageBreak }]));
 
@@ -41,6 +48,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         editable={book.status === "draft"}
         sample={spreadSample}
         stories={stories}
+        openers={openers}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
         initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}
