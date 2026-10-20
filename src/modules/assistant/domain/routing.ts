@@ -17,13 +17,18 @@ export const DEFAULT_TIER_MODELS: Record<SellerTier, string> = {
   opus: "claude-opus-5-5",
 };
 
-/** Цена модели в долларах за миллион токенов: обычный вход, выход, чтение из кэша и запись в кэш (TTL 1 час). */
+/** Цена модели в долларах за миллион токенов: обычный вход, выход, чтение из кэша и запись в кэш (на час и на 5 минут). */
 export interface ModelPrice {
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** Запись в кэш на 5 минут (1.25× входа); нет — считается от входа. */
+  cacheWrite5m?: number;
 }
+
+/** Срок кэша стабильной инструкции: 1h — запись 2× входа, держится час; 5m — запись 1.25×, держится 5 минут с последнего чтения. */
+export type CacheTtl = "5m" | "1h";
 
 /**
  * Прайс по умолчанию — страница Pricing Anthropic API (сверено 20.10.2026; Haiku 5.5 — до 100K токенов запроса, а у
@@ -69,7 +74,7 @@ export function parsePrices(raw: string | null | undefined): Record<string, Mode
     if (input === null || output === null) continue;
     // Без цен кэша — по обычным множителям Anthropic: чтение 0.1× входа, запись на час 2×.
     const round = (n: number) => Math.round(n * 1e6) / 1e6;
-    out[model] = { input, output, cacheRead: num(r.cacheRead) ?? round(input * 0.1), cacheWrite: num(r.cacheWrite) ?? round(input * 2) };
+    out[model] = { input, output, cacheRead: num(r.cacheRead) ?? round(input * 0.1), cacheWrite: num(r.cacheWrite) ?? round(input * 2), cacheWrite5m: num(r.cacheWrite5m) ?? round(input * 1.25) };
   }
   return out;
 }
@@ -78,10 +83,11 @@ export function parsePrices(raw: string | null | undefined): Record<string, Mode
  * Стоимость запроса в долларах по прайсу; null — модели нет в прайсе (запасной провайдер без цены): такие запросы
  * считаются в метриках по токенам, но не в деньгах.
  */
-export function costUsd(usage: TokenUsage, model: string, prices: Record<string, ModelPrice>): number | null {
+export function costUsd(usage: TokenUsage, model: string, prices: Record<string, ModelPrice>, ttl: CacheTtl = "1h"): number | null {
   const p = prices[model];
   if (!p) return null;
-  const usd = (usage.input * p.input + usage.output * p.output + (usage.cacheRead ?? 0) * p.cacheRead + (usage.cacheWrite ?? 0) * p.cacheWrite) / 1_000_000;
+  const write = ttl === "5m" ? (p.cacheWrite5m ?? p.input * 1.25) : p.cacheWrite;
+  const usd = (usage.input * p.input + usage.output * p.output + (usage.cacheRead ?? 0) * p.cacheRead + (usage.cacheWrite ?? 0) * write) / 1_000_000;
   return Math.round(usd * 1e8) / 1e8;
 }
 
@@ -104,6 +110,13 @@ export interface RoutePolicy {
    * по умолчанию; low — дешевле и быстрее, но это обмен качества на цену: включать после проверки на своих беседах.
    */
   effort: Record<SellerTier, SellerEffort>;
+  /** Срок кэша стабильной инструкции по уровням (кэш у каждой модели свой). */
+  cacheTtl: Record<SellerTier, CacheTtl>;
+  /**
+   * Ответ не прошёл проверку кода: same — сначала переписывает тот же уровень по списку замечаний (дёшево, кэш тёплый),
+   * не помогло — уровень выше; up — сразу уровень выше.
+   */
+  rewrite: "same" | "up";
   /** Порог очков сложности для Sonnet и для Opus (признаки — messaging/domain/botRoute.ts). */
   sonnetAt: number;
   opusAt: number;
@@ -130,6 +143,10 @@ export const ROUTE_SETTING_KEYS = [
   "seller.route.effort.haiku",
   "seller.route.effort.sonnet",
   "seller.route.effort.opus",
+  "seller.route.cacheTtl.haiku",
+  "seller.route.cacheTtl.sonnet",
+  "seller.route.cacheTtl.opus",
+  "seller.route.rewrite",
   "seller.route.sonnetAt",
   "seller.route.opusAt",
   "seller.route.maxExtra",
@@ -167,6 +184,8 @@ export function readRoutePolicy(v: Partial<Record<RouteSettingKey, string>>): Ro
     defaultTier: def,
     tiers,
     effort: { haiku: effortOf(v["seller.route.effort.haiku"]), sonnet: effortOf(v["seller.route.effort.sonnet"]), opus: effortOf(v["seller.route.effort.opus"]) },
+    cacheTtl: { haiku: ttlOf(v["seller.route.cacheTtl.haiku"]), sonnet: ttlOf(v["seller.route.cacheTtl.sonnet"]), opus: ttlOf(v["seller.route.cacheTtl.opus"]) },
+    rewrite: v["seller.route.rewrite"] === "up" ? "up" : "same",
     sonnetAt,
     opusAt: Math.max(sonnetAt + 1, int(v["seller.route.opusAt"], 6, 2, 30)),
     maxExtra: int(v["seller.route.maxExtra"], 2, 0, 4),
@@ -197,6 +216,7 @@ export function backoffMs(attempt: number, retryAfterSec: number | null = null):
 /** Глубина рассуждения: low | medium (по умолчанию). */
 export type SellerEffort = "low" | "medium";
 const effortOf = (v: string | undefined): SellerEffort => (v === "low" ? "low" : "medium");
+const ttlOf = (v: string | undefined): CacheTtl => (v === "5m" ? "5m" : "1h");
 
 /** Уровень с учётом выключенных: выключенный старший уровень заменяется ближайшим включённым ниже (Haiku включён всегда). */
 export function allowedTier(tier: SellerTier, tiers: { sonnet: boolean; opus: boolean }): SellerTier {

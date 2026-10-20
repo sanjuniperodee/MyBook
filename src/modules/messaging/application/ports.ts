@@ -309,6 +309,8 @@ export interface RoutePolicyView {
   defaultTier: RouteTier;
   /** Включены ли старшие уровни (их можно выключить ради экономии); нет — включены оба. */
   tiers?: { sonnet: boolean; opus: boolean };
+  /** Ответ не прошёл проверку: same — сначала переписывает тот же уровень, потом выше; up — сразу выше (нет — up). */
+  rewrite?: "same" | "up";
   sonnetAt: number;
   opusAt: number;
   maxExtra: number;

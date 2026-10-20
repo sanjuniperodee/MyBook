@@ -49,7 +49,7 @@ function toAssistantError(err: unknown): Error {
  * Стабильное начало инструкции (cachePrefix: факты, правила и примеры продажника — одни на все беседы) уходит отдельным
  * блоком с меткой кэша на час: повторные ходы читают его из кэша, а не платят за него заново.
  */
-export async function askClaude(c: AiConnection, { system, user, effort, schema, timeoutMs, cachePrefix }: Parameters<LanguageModel["ask"]>[0]) {
+export async function askClaude(c: AiConnection, { system, user, effort, schema, timeoutMs, cachePrefix, cacheTtl = "1h" }: Parameters<LanguageModel["ask"]>[0]) {
   const blocks = systemBlocks(system, cachePrefix);
   let res;
   try {
@@ -59,7 +59,7 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
         max_tokens: 16000,
         ...(supportsServerFallback(c.model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
         output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
-        system: blocks.some((b) => b.cached) ? blocks.map((b) => (b.cached ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const, ttl: "1h" as const } } : { type: "text" as const, text: b.text })) : system,
+        system: blocks.some((b) => b.cached) ? blocks.map((b) => (b.cached ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const, ttl: cacheTtl } } : { type: "text" as const, text: b.text })) : system,
         messages: [{ role: "user", content: user }],
       },
       // Быстрый запрос (бот в чате): свой таймаут и без повторов.

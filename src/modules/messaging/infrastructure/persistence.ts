@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizz
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { BOT_TRACE_KEEP_DAYS, llmMetrics, readBotControl, readBotState, type BotControl, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
+import { BOT_TRACE_KEEP_DAYS, cacheTtlAdvice, llmMetrics, readBotControl, readBotState, type BotControl, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
@@ -454,7 +454,7 @@ export class DrizzleBotStore implements BotStore {
 /** Метрики модели продажника за период: по следам ходов (kind = turn, meta.route) — уровни, токены, стоимость, сбои. */
 export async function llmStats(days = 30): Promise<LlmMetrics> {
   const since = sql`now() - make_interval(days => ${days})`;
-  const [turns, calls] = await Promise.all([
+  const [turns, calls, causes, moments] = await Promise.all([
     executor().execute<{ chosen: string | null; final: string | null; mode: string | null; turns: number; escalations: number; cost: string | number | null }>(sql`
       select meta->'route'->>'chosen' as chosen, meta->'route'->>'final' as final, meta->'route'->>'mode' as mode, count(*)::int as turns,
         coalesce(sum(case when jsonb_typeof(meta->'route'->'escalations') = 'array' then jsonb_array_length(meta->'route'->'escalations') else 0 end), 0)::int as escalations,
@@ -473,11 +473,29 @@ export async function llmStats(days = 30): Promise<LlmMetrics> {
       from crm_bot_events e cross join lateral jsonb_array_elements(case when jsonb_typeof(e.meta->'route'->'calls') = 'array' then e.meta->'route'->'calls' else '[]'::jsonb end) c
       where e.kind = 'turn' and e.created_at >= ${since} and e.meta ? 'route'
       group by 1, 2, 3`),
+    executor().execute<{ cause: string | null; n: number }>(sql`
+      select concat(x->>'cause', ':', x->>'from', '>', x->>'to') as cause, count(*)::int as n
+      from crm_bot_events e cross join lateral jsonb_array_elements(case when jsonb_typeof(e.meta->'route'->'escalations') = 'array' then e.meta->'route'->'escalations' else '[]'::jsonb end) x
+      where e.kind = 'turn' and e.created_at >= ${since} and e.meta ? 'route'
+      group by 1`),
+    // Моменты удачных запросов к уровням Claude (последние 5000) — для прогона сроков кэша.
+    executor().execute<{ tier: string; at: Date | string }>(sql`
+      select c->>'tier' as tier, e.created_at as at
+      from crm_bot_events e cross join lateral jsonb_array_elements(case when jsonb_typeof(e.meta->'route'->'calls') = 'array' then e.meta->'route'->'calls' else '[]'::jsonb end) c
+      where e.kind = 'turn' and e.created_at >= ${since} and e.meta ? 'route' and c->>'tier' is not null and not (c ? 'failed')
+      order by e.created_at desc limit 5000`),
   ]);
-  return llmMetrics(
+  const byTier = new Map<string, number[]>();
+  for (const r of moments.rows) byTier.set(r.tier, [...(byTier.get(r.tier) ?? []), new Date(r.at).getTime()]);
+  const base = llmMetrics(
     turns.rows.map((t) => ({ chosen: t.chosen, final: t.final, mode: t.mode, turns: Number(t.turns), escalations: Number(t.escalations), costUsd: Number(t.cost ?? 0) })),
     calls.rows.map((c) => ({ tier: c.tier, provider: c.provider, model: c.model, calls: Number(c.calls), failed: Number(c.failed), fallback: Number(c.fallback), retries: Number(c.retries), input: Number(c.input), output: Number(c.output), cacheRead: Number(c.cache_read), cacheWrite: Number(c.cache_write), thinking: Number(c.thinking), costUsd: Number(c.cost), avgMs: c.ms === null ? null : Number(c.ms) })),
   );
+  return {
+    ...base,
+    escalationCauses: Object.fromEntries(causes.rows.filter((r) => r.cause).map((r) => [r.cause!, Number(r.n)])),
+    cacheTtl: Object.fromEntries([...byTier].map(([tier, times]) => [tier, cacheTtlAdvice(times, tier)])),
+  };
 }
 
 /** Сколько старых следов удаляется за проход: чистка идёт порциями, без долгой блокировки журнала. */

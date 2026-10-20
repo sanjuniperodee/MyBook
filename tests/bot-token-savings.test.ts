@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { defaultBotConfig, explicitDate, llmMetrics, obviouslyNeedsReply, type BotConfig } from "@/modules/messaging/domain";
-import { BOT_PAUSE_MS, TRIAGE_DELAY_MS, type BotSellerModel } from "@/modules/messaging/application";
-import { DEFAULT_PRICES, readRoutePolicy } from "@/modules/assistant/domain";
+import { cacheTtlAdvice, defaultBotConfig, explicitDate, llmMetrics, obviouslyNeedsReply, readBotTrace, type BotConfig } from "@/modules/messaging/domain";
+import { BOT_PAUSE_MS, TRIAGE_DELAY_MS, type BotSellerModel, type RoutePolicyView } from "@/modules/messaging/application";
+import { DEFAULT_PRICES, costUsd, readRoutePolicy } from "@/modules/assistant/domain";
 import { sellerModel } from "@/modules/assistant/application/SellerModel";
 import type { LanguageModel } from "@/modules/assistant/application";
 import { BOT_CONFIG, inbound, setup } from "./doubles/botHarness";
@@ -79,5 +79,95 @@ describe("глубина рассуждения по уровням и учёт 
     expect(m.cacheShare).toBe(0.8);
     expect(m.thinkingShare).toBe(0.75);
     expect(m.costByTier).toEqual({ haiku: 0.004, sonnet: 0.006 });
+  });
+});
+
+// ─── переписывание и кэш ────────────────────────────────────────────────────
+
+const answer = (p: Record<string, unknown> = {}) => JSON.stringify({ summary: "", language: "ru", stage: "discovery", action: "reply", reply: "Подскажу 🙂 Для кого книга?", handoff_reason: "none", fields: {}, event_date: "", plan: "unknown", asked_to_order: false, agreed: false, agreed_quote: "", ...p });
+const BAD = answer({ reply: "Для вас сделаю за 12 345 ₸!" });
+function routed(script: string[], policy: Partial<RoutePolicyView> = {}) {
+  const tiers: (string | undefined)[] = [];
+  const m: BotSellerModel = {
+    configured: async () => true,
+    policy: async () => ({ mode: "on", defaultTier: "haiku", sonnetAt: 2, opusAt: 6, maxExtra: 2, budgetUsd: null, dailyBudgetUsd: null, rewrite: "same", ...policy }),
+    complete: async (r) => {
+      if (r.user.includes("черновик следующего сообщения менеджера")) return { text: answer(), usage: { input: 1, output: 1 } };
+      tiers.push(r.tier);
+      return { text: script.shift() ?? answer(), usage: { input: 1, output: 1 } };
+    },
+  };
+  return { m, tiers };
+}
+const sellConfig = (): BotConfig => ({ ...BOT_CONFIG, sell: { ...defaultBotConfig.sell, on: true, engine: "ai", hidePrices: false, speaksAs: "assistant" } });
+async function oneTurn(m: BotSellerModel, text = "Сколько стоит?") {
+  const t = setup({ bot: "always", config: sellConfig(), seller: m });
+  await t.service.ingest(inbound({ text, at: t.deps.clock.now() }));
+  await t.advance(BOT_PAUSE_MS + 1);
+  return t;
+}
+
+describe("ответ не прошёл проверку — сначала переписывает тот же уровень (кэш тёплый), потом выше", () => {
+  it("Haiku исправился сам — Sonnet не вызывается", async () => {
+    const { m, tiers } = routed([BAD, answer()]);
+    const t = await oneTurn(m);
+    expect(tiers).toEqual(["haiku", "haiku"]);
+    expect(t.sent.filter((x) => !/помощница/.test(x))).toEqual(["Подскажу 🙂 Для кого книга?"]);
+  });
+
+  it("Haiku не исправился — переписывает Sonnet; клиенту уходит только исправленный ответ", async () => {
+    const { m, tiers } = routed([BAD, BAD, answer({ reply: "Расскажу о книге 🙂 Для кого она?" })]);
+    const t = await oneTurn(m);
+    expect(tiers).toEqual(["haiku", "haiku", "sonnet"]);
+    expect(t.sent.some((x) => x.includes("12 345"))).toBe(false);
+    expect(t.sent.at(-1)).toBe("Расскажу о книге 🙂 Для кого она?");
+    const route = readBotTrace(t.events.filter((e) => e.kind === "turn").at(-1)?.meta)?.route;
+    expect(route?.escalations).toEqual([{ from: "haiku", to: "sonnet", cause: "rejected" }]);
+  });
+
+  it("подняться некуда (лимит эскалаций) — лишнего запроса нет, дважды не прошло — менеджеру", async () => {
+    const { m, tiers } = routed([BAD, BAD], { maxExtra: 0 });
+    const t = await oneTurn(m);
+    expect(tiers).toEqual(["haiku", "haiku"]);
+    expect(t.conv().botState).toMatchObject({ phase: "done", outcome: "handoff" });
+  });
+
+  it("режим «сразу выше» — как раньше: переписывает Sonnet", async () => {
+    const { m, tiers } = routed([BAD, answer()], { rewrite: "up" });
+    await oneTurn(m);
+    expect(tiers).toEqual(["haiku", "sonnet"]);
+  });
+
+  it("ответ не по схеме — сначала повтор тем же уровнем, не вышло — уровнем выше", async () => {
+    const { m, tiers } = routed(["не JSON", "не JSON", answer()]);
+    await oneTurn(m, "Здравствуйте, хочу книгу маме");
+    expect(tiers).toEqual(["haiku", "haiku", "sonnet"]);
+  });
+});
+
+describe("срок кэша по уровням", () => {
+  it("политика: час по умолчанию, 5 минут — по настройке; уходит модели и в стоимость записи", async () => {
+    expect(readRoutePolicy({}).cacheTtl).toEqual({ haiku: "1h", sonnet: "1h", opus: "1h" });
+    const policy = readRoutePolicy({ "seller.route.cacheTtl.sonnet": "5m" });
+    const asked: (string | undefined)[] = [];
+    const lm = (model: string): LanguageModel => ({ configured: async () => true, describe: async () => ({ provider: "anthropic", label: "Claude", model }), ask: async (r) => (asked.push(r.cacheTtl), { text: "{}", usage: { input: 0, output: 0, cacheWrite: 1_000_000, model } }) });
+    const m = sellerModel({ policy: async () => policy, claude: lm, fallbacks: async () => [], legacy: lm("x") }, async () => ({ provider: "anthropic", apiKey: "", model: "", baseUrl: "" }), async () => null);
+    const a = await m.complete({ system: "s", user: "u", schema: {}, timeoutMs: 5000 });
+    const b = await m.complete({ system: "s", user: "u", schema: {}, timeoutMs: 5000, tier: "sonnet" });
+    expect(asked).toEqual(["1h", "5m"]);
+    // Запись 1M токенов: Haiku на час — $0.20, Sonnet на 5 минут — $2.50 (1.25× входа), а не $4.
+    expect(a.served.costUsd).toBeCloseTo(0.2, 8);
+    expect(b.served.costUsd).toBeCloseTo(2.5, 8);
+    expect(costUsd({ input: 0, output: 0, cacheWrite: 1_000_000 }, "claude-sonnet-5-5", DEFAULT_PRICES)).toBeCloseTo(4, 8);
+  });
+
+  it("прогон по моментам запросов: редкие вызовы — дешевле 5 минут, частые с паузами до часа — дешевле час", () => {
+    const min = 60_000;
+    const rare = Array.from({ length: 30 }, (_, i) => i * 3 * 60 * min);
+    expect(cacheTtlAdvice(rare, "sonnet")).toMatchObject({ calls: 30, cost5m: 37.5, cost1h: 60, ratio: 0.63 });
+    const everyTwenty = Array.from({ length: 30 }, (_, i) => i * 20 * min);
+    expect(cacheTtlAdvice(everyTwenty, "sonnet").ratio).toBeGreaterThan(1.15);
+    const burst = Array.from({ length: 30 }, (_, i) => i * min);
+    expect(cacheTtlAdvice(burst, "haiku").ratio).toBeLessThan(1);
   });
 });

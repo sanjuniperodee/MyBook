@@ -115,10 +115,10 @@ export function sellerModel(
         const t0 = clock.now();
         try {
           // Глубина рассуждения — по уровню из настроек (запасной провайдер и режим off — medium, как раньше).
-          const res = await c.model.ask({ system: input.system, user: input.user, effort: c.tier ? policy.effort[c.tier] : "medium", schema: input.schema, timeoutMs: Math.min(input.timeoutMs, left), cachePrefix: input.cachePrefix });
+          const res = await c.model.ask({ system: input.system, user: input.user, effort: c.tier ? policy.effort[c.tier] : "medium", ...(c.tier ? { cacheTtl: policy.cacheTtl[c.tier] } : {}), schema: input.schema, timeoutMs: Math.min(input.timeoutMs, left), cachePrefix: input.cachePrefix });
           const usage = { input: res.usage.input, output: res.usage.output, cacheRead: res.usage.cacheRead ?? 0, cacheWrite: res.usage.cacheWrite ?? 0, thinking: res.usage.thinking ?? 0 };
           const model = res.usage.model || who.model;
-          const served: SellerServed = { mode: policy.mode, provider: who.provider, model, tier: c.tier, wanted, fallback: c.fallback, usage, costUsd: costUsd(usage, model, policy.prices), ms: clock.now() - t0, attempts };
+          const served: SellerServed = { mode: policy.mode, provider: who.provider, model, tier: c.tier, wanted, fallback: c.fallback, usage, costUsd: costUsd(usage, model, policy.prices, c.tier ? policy.cacheTtl[c.tier] : "1h"), ms: clock.now() - t0, attempts };
           return { text: res.text, usage: { input: usage.input, output: usage.output }, served };
         } catch (err) {
           last = err;

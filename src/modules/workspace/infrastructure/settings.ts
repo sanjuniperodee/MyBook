@@ -133,6 +133,12 @@ export const settingDefs = {
   "seller.route.effort.haiku": { env: "AI_ROUTE_EFFORT_HAIKU", default: "medium" },
   "seller.route.effort.sonnet": { env: "AI_ROUTE_EFFORT_SONNET", default: "medium" },
   "seller.route.effort.opus": { env: "AI_ROUTE_EFFORT_OPUS", default: "medium" },
+  /** Срок кэша стабильной инструкции по уровням: 1h (по умолчанию) | 5m — дешевле запись, если уровень вызывается редко. */
+  "seller.route.cacheTtl.haiku": { env: "AI_ROUTE_CACHE_TTL_HAIKU", default: "1h" },
+  "seller.route.cacheTtl.sonnet": { env: "AI_ROUTE_CACHE_TTL_SONNET", default: "1h" },
+  "seller.route.cacheTtl.opus": { env: "AI_ROUTE_CACHE_TTL_OPUS", default: "1h" },
+  /** Ответ не прошёл проверку: same — сначала переписывает тот же уровень, потом выше (по умолчанию); up — сразу выше. */
+  "seller.route.rewrite": { env: "AI_ROUTE_REWRITE", default: "same" },
   /** Пороги очков сложности хода для Sonnet и Opus. */
   "seller.route.sonnetAt": { env: "AI_ROUTE_SONNET_AT", default: "2" },
   "seller.route.opusAt": { env: "AI_ROUTE_OPUS_AT", default: "6" },

@@ -34,7 +34,7 @@ describe("маршрутизация: прайс и политика из нас
 
   it("прайс из настройки: новые модели и новые цены поверх значений по умолчанию; испорченный JSON — по умолчанию", () => {
     const prices = parsePrices('{"claude-haiku-5-5": {"input": 0.2, "output": 1}, "deepseek-chat": {"input": 0.27, "output": 1.1, "cacheRead": 0.07}}');
-    expect(prices["claude-haiku-5-5"]).toEqual({ input: 0.2, output: 1, cacheRead: 0.02, cacheWrite: 0.4 });
+    expect(prices["claude-haiku-5-5"]).toEqual({ input: 0.2, output: 1, cacheRead: 0.02, cacheWrite: 0.4, cacheWrite5m: 0.25 });
     expect(prices["deepseek-chat"]).toMatchObject({ input: 0.27, cacheRead: 0.07 });
     expect(prices["claude-opus-5-5"]).toEqual(DEFAULT_PRICES["claude-opus-5-5"]);
     expect(parsePrices("{сломано")).toEqual(DEFAULT_PRICES);

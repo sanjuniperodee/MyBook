@@ -596,6 +596,8 @@ export class AiSeller {
     let tier: RouteTier = choice.tier;
     // Эскалации — только в режиме on (в shadow и off ответ дал бы та же модель) и не больше maxExtra за ход.
     const maxExtra = p.mode === "on" && !choice.capped ? p.maxExtra : 0;
+    /** Неудачу сначала исправляет тот же уровень (кэш тёплый, замечания конкретные), потом — выше; прежние подключения — сразу выше. */
+    const rewriteSameFirst = p.mode === "on" && p.rewrite === "same";
     const route: TraceRoute = { mode: p.mode, chosen: choice.tier, score: choice.score, reasons: choice.reasons, final: null, escalations: [], calls: [], costUsd: 0, capped: choice.capped };
     if (policy) trace.route = route;
     const raise = (cause: EscalationCause): boolean => {
@@ -653,9 +655,14 @@ export class AiSeller {
         short = true;
         first = await ask(null, null, deadline, "context");
       } else {
-        // Одна повторная попытка: неверный JSON или сбой — на уровень выше, если можно (клиент ждёт, но пустой ход хуже).
-        raise(first.error === NOT_BY_SCHEMA ? "invalid" : "error");
+        // Повторная попытка: неверный JSON или сбой. Сначала тем же уровнем (если так настроено), не вышло — уровнем
+        // выше, если можно (клиент ждёт, но пустой ход хуже).
+        // Сбой API (маршрут уже повторил и перебрал запасных) — сразу уровнем выше: у другой модели свои лимиты.
+        const cause = first.error === NOT_BY_SCHEMA ? "invalid" : "error";
+        const same = rewriteSameFirst && cause === "invalid";
+        if (!same) raise(cause);
         first = await ask(null, null, deadline, "retry");
+        if ("error" in first && same && raise(cause)) first = await ask(null, null, deadline, "retry");
       }
     }
     if ("error" in first) return { error: first.error, trace };
@@ -685,14 +692,22 @@ export class AiSeller {
         if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, city: again.city || decision.city, fields: { ...decision.fields, ...again.fields } };
       }
     }
-    // Ответ не прошёл проверку кода — переписывает уровень выше (если можно): Haiku → Sonnet, Sonnet → Opus для сложных ходов.
-    const rewrite = (problems: ReplyProblem[]) => {
-      raise("rejected");
-      return ask(null, problems, deadline, "rewrite");
+    /**
+     * Ответ не прошёл проверку кода — переписать по списку замечаний. up: на уровне выше (если можно): Haiku → Sonnet,
+     * Sonnet → Opus для сложных ходов; same — тем же уровнем (замечания конкретные, а кэш у той же модели тёплый —
+     * в разы дешевле холодного старта старшей модели). escalated — переписывал ли уровень выше.
+     */
+    const rewrite = async (problems: ReplyProblem[], up: boolean | "only" = true) => {
+      const escalated = up !== false && raise("rejected");
+      // «only» — только уровнем выше: подняться нельзя (лимит, уровень выключен) — запроса нет.
+      if (up === "only" && !escalated) return null;
+      const res = await ask(null, problems, deadline, "rewrite");
+      return Object.assign(res, { escalated });
     };
+
     // Дата повторного сообщения из ответа модели — проверка кодом: график, срок, дата события, стоп-лист, лимит.
     const remindCheck = (d: SellerDecision): Promise<RemindCheck | null> => (asksRemind ? this.remindCheck(d, { env, ai, eventDate: d.eventDate ?? knownDate, noMarketing, sell: config.sell }) : Promise.resolve(null));
-    return { decision, env, rules, history, rewrite, remindCheck, materials: !!materials && !materials.sent && purpose === "reply", trace };
+    return { decision, env, rules, history, rewrite, rewriteSameFirst, remindCheck, materials: !!materials && !materials.sent && purpose === "reply", trace };
   }
 
   /** remind_at модели → принять (момент в рабочее время), отменить договорённость или отказать с замечанием модели. */
@@ -729,10 +744,21 @@ export class AiSeller {
     if (turn.retry) {
       // Первый ответ не прошёл проверку — в следе, что именно код вернул модели на переписывание.
       c.trace.notes.push({ code: "rewrite", detail: problemsText(turn.retry) });
-      const rewritten = await c.rewrite(turn.retry);
-      if ("error" in rewritten) return rewritten;
-      decision = rewritten;
-      turn = resolveSellerTurn(base, rewritten, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials), remind: await c.remindCheck(rewritten) });
+      let rewritten = (await c.rewrite(turn.retry, !c.rewriteSameFirst))!;
+      if ("error" in rewritten) return { error: rewritten.error, trace: c.trace };
+      // Тот же уровень переписал, но снова не прошло — ещё раз уровнем выше (если можно), прежде чем звать менеджера.
+      if (c.rewriteSameFirst && !rewritten.escalated) {
+        const again = resolveSellerTurn(base, rewritten, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials), remind: await c.remindCheck(rewritten) });
+        if (again.retry) {
+          const up = await c.rewrite(again.retry, "only");
+          if (up && !("error" in up)) {
+            c.trace.notes.push({ code: "rewrite", detail: problemsText(again.retry) });
+            rewritten = up;
+          }
+        }
+      }
+      decision = rewritten as SellerDecision;
+      turn = resolveSellerTurn(base, decision, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials), remind: await c.remindCheck(decision) });
     }
     return { turn, decision, trace: c.trace };
   }
@@ -761,10 +787,18 @@ export class AiSeller {
     const check = (d: SellerDecision) => (d.reply ? checkSellerReply(d.reply, c.rules) : []);
     let problems = check(decision);
     if (problems.length) {
-      const again = await c.rewrite(problems);
-      if ("error" in again) return again;
+      const again = (await c.rewrite(problems, !c.rewriteSameFirst))!;
+      if ("error" in again) return { error: again.error };
       decision = again;
       problems = check(decision);
+      // Тот же уровень не справился — ещё раз уровнем выше.
+      if (problems.length && c.rewriteSameFirst && !again.escalated) {
+        const up = await c.rewrite(problems, "only");
+        if (up && !("error" in up)) {
+          decision = up;
+          problems = check(decision);
+        }
+      }
     }
     if (problems.length) return { error: `Подсказка не прошла проверку (${problemsText(problems)}) — ответьте сами.` };
     return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };

@@ -24,6 +24,10 @@ export interface RoutingSaved {
   tiers: { sonnet: boolean; opus: boolean };
   /** Глубина рассуждения по уровням. */
   effort: Record<SellerTier, "low" | "medium">;
+  /** Срок кэша стабильной инструкции по уровням. */
+  cacheTtl: Record<SellerTier, "5m" | "1h">;
+  /** Ответ не прошёл проверку: сначала тот же уровень или сразу выше. */
+  rewrite: "same" | "up";
   models: Record<SellerTier, string>;
   fallbacks: string;
   sonnetAt: string;
@@ -120,7 +124,25 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
               </label>
             ))}
           </div>
-          <p className="mt-1 text-xs text-muted">Рассуждение оплачивается как ответ модели (в 5 раз дороже входа). «Короткое» дешевле и быстрее, но может чаще ошибаться: включайте по одному уровню и смотрите в статистике бота, не выросли ли эскалации и «передал менеджеру».</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {SELLER_TIERS.map((t) => (
+              <label key={t} className="block">
+                <span className="mb-1 block text-xs text-muted">Кэш инструкции {TIER_LABELS[t]}</span>
+                <select name={`ttl_${t}`} defaultValue={saved.cacheTtl[t]} disabled={env(`seller.route.cacheTtl.${t}`)} className="input h-10 text-sm">
+                  <option value="1h">на час (запись 2×)</option>
+                  <option value="5m">на 5 минут (запись 1.25×)</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <label className="mt-2 block max-w-md">
+            <span className="mb-1 block text-xs text-muted">Ответ не прошёл проверку</span>
+            <select name="rewrite" defaultValue={saved.rewrite} disabled={env("seller.route.rewrite")} className="input h-10 text-sm">
+              <option value="same">сначала переписывает тот же уровень, не вышло — выше (дешевле)</option>
+              <option value="up">сразу переписывает уровень выше</option>
+            </select>
+          </label>
+          <p className="mt-1 text-xs text-muted">Какой срок кэша дешевле на вашем трафике, статистика бота считает по моментам запросов. Рассуждение оплачивается как ответ модели (в 5 раз дороже входа). «Короткое» дешевле и быстрее, но может чаще ошибаться: включайте по одному уровню и смотрите в статистике бота, не выросли ли эскалации и «передал менеджеру».</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             <NumberField name="sonnetAt" label="Очков сложности для Sonnet" value={saved.sonnetAt} placeholder="2" disabled={env("seller.route.sonnetAt")} />
             <NumberField name="opusAt" label="Очков сложности для Opus" value={saved.opusAt} placeholder="6" disabled={env("seller.route.opusAt")} />

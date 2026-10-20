@@ -111,6 +111,10 @@ export interface LlmMetrics {
   thinkingShare: number | null;
   /** Расходы по уровням (кто ответил): haiku / sonnet / opus / fallback. */
   costByTier: Record<string, number>;
+  /** Эскалации по причинам (invalid — не по схеме, rejected — не прошёл проверку, unsure — не уверен, error — сбой) и куда. */
+  escalationCauses?: Record<string, number>;
+  /** Срок кэша по уровням: прогон по моментам вызовов (см. cacheTtlAdvice). */
+  cacheTtl?: Record<string, { calls: number; cost5m: number; cost1h: number; ratio: number | null }>;
   /** По моделям: запросы, токены, стоимость, средняя задержка — по убыванию стоимости. */
   models: { model: string; provider: string; tier: string | null; calls: number; failed: number; costUsd: number; avgMs: number | null }[];
 }
@@ -157,4 +161,29 @@ export function llmMetrics(turns: LlmTurnRow[], calls: LlmCallRow[]): LlmMetrics
     costByTier,
     models,
   };
+}
+
+/** Стоимость кэша стабильной инструкции в «префиксах»: запись на 5 минут — 1.25, на час — 2; чтение — доля входа уровня. */
+const CACHE_READ: Record<string, number> = { haiku: 0.1, sonnet: 0.05, opus: 0.05 };
+
+/**
+ * Какой срок кэша дешевле на этом трафике: прогон по реальным моментам вызовов уровня (обращение в пределах срока —
+ * чтение и продление, иначе — новая запись). Варианты стабильной части не различаются — это оценка. ratio — во сколько
+ * раз кэш на 5 минут дороже часового (меньше 1 — дешевле).
+ */
+export function cacheTtlAdvice(times: number[], tier: string): { calls: number; cost5m: number; cost1h: number; ratio: number | null } {
+  const read = CACHE_READ[tier] ?? 0.1;
+  const sorted = [...times].sort((a, b) => a - b);
+  const walk = (ttlMs: number, write: number) => {
+    let last = -Infinity;
+    let cost = 0;
+    for (const t of sorted) {
+      cost += t - last <= ttlMs ? read : write;
+      last = t;
+    }
+    return cost;
+  };
+  const cost5m = walk(5 * 60_000, 1.25);
+  const cost1h = walk(60 * 60_000, 2);
+  return { calls: sorted.length, cost5m: Math.round(cost5m * 100) / 100, cost1h: Math.round(cost1h * 100) / 100, ratio: cost1h ? Math.round((cost5m / cost1h) * 100) / 100 : null };
 }
