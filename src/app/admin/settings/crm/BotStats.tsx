@@ -23,6 +23,33 @@ const INTENTS: Record<string, string> = {
   language: "язык книги",
 };
 
+const TIERS: [string, string][] = [
+  ["haiku", "Haiku"],
+  ["sonnet", "Sonnet"],
+  ["opus", "Opus"],
+  ["fallback", "запасная модель"],
+];
+const pct = (n: number, of: number) => `${Math.round((n / of) * 100)}%`;
+const usd = (n: number) => `$${n < 1 ? n.toFixed(4) : n.toFixed(2)}`;
+
+/** Модель продажника: доли уровней (ответили / выбрал код), эскалации, расходы на 1 000 ходов, кэш, сбои и запасные. */
+function LlmStats({ llm }: { llm: NonNullable<BotMetrics["llm"]> }) {
+  const share = (rec: Record<string, number>) =>
+    TIERS.filter(([k]) => rec[k])
+      .map(([k, label]) => `${label} ${pct(rec[k], llm.turns)}`)
+      .join(" · ");
+  return (
+    <div data-testid="bot-llm">
+      <div className="mb-1 text-muted">Модель продажника</div>
+      <div>{`Ходов: ${llm.turns}, ответили: ${share(llm.answered)}`}</div>
+      {Object.keys(llm.chosen).length ? <div className="text-muted">{`Выбрал маршрут: ${share(llm.chosen)}`}</div> : null}
+      <div>{`Эскалаций: ${llm.escalations}; расходы: ${usd(llm.costUsd)}${llm.costPer1000 !== null ? `, на 1 000 ходов — ${usd(llm.costPer1000)}` : ""}`}</div>
+      <div className="text-muted">{`Токены: вход ${llm.tokens.input}, из кэша ${llm.tokens.cacheRead}, в кэш ${llm.tokens.cacheWrite}, выход ${llm.tokens.output}`}</div>
+      {llm.failed || llm.fallback || llm.retries ? <div className="text-amber-800">{`Сбои запросов: ${llm.failed}, повторы: ${llm.retries}, ответила запасная: ${llm.fallback}`}</div> : null}
+    </div>
+  );
+}
+
 /**
  * Метрики бота за 30 дней — по журналу событий: запуски и пропуски, итоги, воронка по вопросам, вопросы клиентов,
  * почему беседа ушла менеджеру и — отдельно — сбои самого бота (модель не ответила, петля, потолок беседы).
@@ -79,6 +106,7 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
             ))}
           </div>
         ) : null}
+        {m.llm?.turns ? <LlmStats llm={m.llm} /> : null}
         {failures.length ? (
           <div data-testid="bot-failures">
             <div className="mb-1 text-red-700">Сбои</div>

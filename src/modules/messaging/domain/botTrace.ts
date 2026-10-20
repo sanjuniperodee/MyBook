@@ -8,6 +8,7 @@ import type { BotLang } from "./botNlu";
 import type { BotEvent, BotOutcome, BotState, DeadlineKind } from "./botEngine";
 import type { SellerAction, SellerHandoff } from "./botSeller";
 import type { SellerStage } from "./botSellerState";
+import type { EscalationCause, RouteReason, RouteTier } from "./botRoute";
 
 /** Сколько дней хранится след хода: дальше записи чистит медленный проход планировщика. */
 export const BOT_TRACE_KEEP_DAYS = 90;
@@ -60,6 +61,42 @@ export interface TraceNote {
   detail?: string;
 }
 
+/**
+ * Один запрос хода к модели: зачем (первый, повтор, пересчёт срока, переписать, неуверенный ответ, короче переписка),
+ * кто ответил, токены с кэшем, стоимость по прайсу, задержка; failed — вид сбоя, если запрос не удался; retries —
+ * неудачные попытки внутри маршрута (пауза и повтор, запасной провайдер). Без текстов запроса и ответа.
+ */
+export interface TraceRouteCall {
+  why: "first" | "retry" | "deadline" | "rewrite" | "unsure" | "context";
+  tier: RouteTier | null;
+  provider: string;
+  model: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  costUsd: number | null;
+  ms: number;
+  fallback: boolean;
+  retries: number;
+  failed?: string;
+}
+
+/** Маршрут хода: какой уровень выбран и почему (коды признаков), эскалации, запросы и их стоимость. */
+export interface TraceRoute {
+  mode: "on" | "shadow" | "off";
+  chosen: RouteTier;
+  score: number;
+  reasons: RouteReason[];
+  /** Уровень последнего удачного запроса; null — ответил запасной провайдер или режим off. */
+  final: RouteTier | null;
+  escalations: { from: RouteTier; to: RouteTier; cause: EscalationCause }[];
+  calls: TraceRouteCall[];
+  costUsd: number;
+  /** Потолок расходов: только Haiku, без эскалаций. */
+  capped: boolean;
+}
+
 /** Вердикт кода по сроку к дате события (deadlinePlan): модель его только пересказывает. */
 export interface TraceDeadline {
   date: string;
@@ -89,6 +126,8 @@ export interface BotTurnTrace {
   knowledge: { all: boolean; titles: string[] } | null;
   /** Токены всех запросов хода к модели (повтор, пересчёт срока, переписывание); null — модель не спрашивали. */
   tokens: { input: number; output: number; calls: number } | null;
+  /** Маршрут модели: уровень Claude, эскалации, кто ответил, стоимость (старые записи — без него). */
+  route?: TraceRoute | null;
   /** Ошибка модели (таймаут, ответ не по схеме). */
   error?: string;
 }
@@ -106,6 +145,7 @@ export function compactTrace(t: BotTurnTrace): BotTurnTrace {
     notes: notes.slice(0, 12),
     lessons: t.lessons.slice(0, 12).map((l) => ({ id: l.id, text: cut(l.text, 80) })),
     knowledge: t.knowledge ? { all: t.knowledge.all, titles: t.knowledge.titles.slice(0, 12).map((x) => cut(x, 80)) } : null,
+    ...(t.route ? { route: { ...t.route, calls: t.route.calls.slice(0, 8).map((c) => ({ ...c, model: cut(c.model, 80) })), escalations: t.route.escalations.slice(0, 4) } } : {}),
     ...(t.error ? { error: cut(t.error, 200) } : {}),
   };
 }
@@ -128,6 +168,7 @@ export function readBotTrace(raw: unknown): BotTurnTrace | null {
     lessons: Array.isArray(r.lessons) ? r.lessons.filter(isObj) : [],
     knowledge: isObj(r.knowledge) ? { all: !!r.knowledge.all, titles: Array.isArray(r.knowledge.titles) ? r.knowledge.titles.map(String) : [] } : null,
     tokens: isObj(r.tokens) ? r.tokens : null,
+    ...(isObj(r.route) && Array.isArray(r.route.calls) ? { route: { ...r.route, reasons: Array.isArray(r.route.reasons) ? r.route.reasons : [], escalations: Array.isArray(r.route.escalations) ? r.route.escalations : [], calls: r.route.calls.filter(isObj) } } : {}),
     ...(typeof r.error === "string" ? { error: r.error } : {}),
   };
 }
@@ -135,6 +176,7 @@ export function readBotTrace(raw: unknown): BotTurnTrace | null {
 /** Что о ходе знает запрос к модели: токены, вердикт по сроку, правки кода до ответа, уроки и база знаний в инструкции. */
 export interface TraceContext {
   tokens: { input: number; output: number; calls: number };
+  route?: TraceRoute | null;
   deadline: TraceDeadline | null;
   notes: TraceNote[];
   lessons: { id: string; text: string }[];
@@ -170,6 +212,7 @@ export function turnTrace(i: {
     lessons: i.context?.lessons ?? [],
     knowledge: i.context?.knowledge ?? null,
     tokens: i.context ? i.context.tokens : null,
+    ...(i.context?.route ? { route: i.context.route } : {}),
     ...(i.error ? { error: i.error } : {}),
   });
 }

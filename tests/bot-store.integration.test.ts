@@ -6,7 +6,7 @@ import { TransactionRollbackError } from "drizzle-orm/errors";
 import { pool } from "@/shared/infrastructure/db";
 import { rootDb, txStorage } from "@/shared/infrastructure/database";
 import { newBotState } from "@/modules/messaging/domain/botEngine";
-import { DrizzleBotStore, DrizzleMessageRepository, DrizzleMessagingQueries, botMetrics, purgeBotTraces } from "@/modules/messaging/infrastructure/persistence";
+import { DrizzleBotStore, DrizzleMessageRepository, DrizzleMessagingQueries, botMetrics, llmStats, purgeBotTraces } from "@/modules/messaging/infrastructure/persistence";
 import { turnTrace } from "@/modules/messaging/domain/botTrace";
 
 /**
@@ -115,6 +115,31 @@ run("бот: хранилище состояния (PostgreSQL)", () => {
         // Продажник подхватил тот же диалог ещё раз (новый started) — языки считаются по беседам, а не по строкам журнала.
         await store.log(id, null, "kk", [{ kind: "started", reason: "kk" }]);
         expect((await botMetrics(30)).langs.kk).toBe(m.langs.kk);
+
+        // Маршрут модели в следах ходов → доли уровней, эскалации, токены, стоимость; суточный расход — для потолка.
+        const before = await llmStats(30);
+        const spentBefore = await store.llmSpentSince(new Date(Date.now() - 3_600_000));
+        const call = (p: Record<string, unknown>) => ({ why: "first", tier: "haiku", provider: "anthropic", model: "claude-haiku-5-5", input: 1000, output: 100, cacheRead: 3000, cacheWrite: 0, costUsd: 0.00018, ms: 800, fallback: false, retries: 0, ...p });
+        const routed = (route: Record<string, unknown>) => ({ ...trace, route: { mode: "on", score: 0, reasons: [], escalations: [], capped: false, ...route } });
+        await store.log(id, null, "ru", [
+          { kind: "turn", meta: routed({ chosen: "haiku", final: "haiku", calls: [call({})], costUsd: 0.00018 }) as never },
+          { kind: "turn", meta: routed({ chosen: "haiku", final: "sonnet", escalations: [{ from: "haiku", to: "sonnet", cause: "invalid" }], calls: [call({ failed: "timeout", input: 0, output: 0, cacheRead: 0, costUsd: 0, retries: 1 }), call({ why: "retry", tier: "sonnet", model: "claude-sonnet-5-5", costUsd: 0.0036 })], costUsd: 0.0036 }) as never },
+          { kind: "turn", meta: routed({ chosen: "haiku", final: null, calls: [call({ tier: null, provider: "deepseek", model: "deepseek-chat", fallback: true, costUsd: null })], costUsd: 0 }) as never },
+        ]);
+        const after = await llmStats(30);
+        expect(after.turns - before.turns).toBe(3);
+        expect((after.answered.haiku ?? 0) - (before.answered.haiku ?? 0)).toBe(1);
+        expect((after.answered.sonnet ?? 0) - (before.answered.sonnet ?? 0)).toBe(1);
+        expect((after.answered.fallback ?? 0) - (before.answered.fallback ?? 0)).toBe(1);
+        expect(after.escalations - before.escalations).toBe(1);
+        expect(after.calls - before.calls).toBe(4);
+        expect(after.failed - before.failed).toBe(1);
+        expect(after.fallback - before.fallback).toBe(1);
+        expect(after.tokens.cacheRead - before.tokens.cacheRead).toBe(9000);
+        expect(after.costUsd - before.costUsd).toBeCloseTo(0.00378, 8);
+        expect(after.models.find((x) => x.model === "deepseek-chat")).toMatchObject({ provider: "deepseek", calls: expect.any(Number) });
+        expect((await store.llmSpentSince(new Date(Date.now() - 3_600_000))) - spentBefore).toBeCloseTo(0.00378, 8);
+        expect((await botMetrics(30)).llm?.turns).toBe(after.turns);
       });
       tx.rollback();
     });

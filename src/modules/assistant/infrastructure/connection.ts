@@ -1,6 +1,6 @@
 import "server-only";
 import type { SettingsReader } from "@/shared/application";
-import { aiProviders, isAiProvider, type AiConnection, type AiProvider } from "../domain";
+import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
 
 const keys = {
   anthropic: { apiKey: "ai.apiKey", baseUrl: "ai.baseUrl", model: "ai.anthropic.model" },
@@ -20,7 +20,7 @@ export const MEDIA_GROQ_MODEL = "whisper-large-v3";
 export const providerSettingKeys = keys;
 
 /** Настройки CRM, которые читает AI-помощник: провайдеры, база знаний и AI-корректор. */
-export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "media.provider" | "media.model";
+export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "seller.fallbacks" | "media.provider" | "media.model" | RouteSettingKey;
 
 /** Подключение к модели: пустые модель и адрес заменены значениями по умолчанию. */
 export type Connection = () => Promise<AiConnection & { enabled: boolean }>;
@@ -96,5 +96,32 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return connectionOf(provider, model || fallback);
   };
 
-  return { active, proofread, proofreadProvider, seller, sellerProvider, media, mediaProvider };
+  /** Политика маршрутизации продажника: режим, модели уровней Claude, пороги, лимиты и прайс. */
+  async function sellerPolicy() {
+    return readRoutePolicy(await settings.getMany([...ROUTE_SETTING_KEYS]));
+  }
+
+  /** Claude с заданной моделью: ключ и адрес Anthropic из «Интеграций». */
+  const claude =
+    (model: string): Connection =>
+    async () =>
+      connectionOf("anthropic", model);
+
+  /**
+   * Запасные провайдеры продажника по порядку (seller.fallbacks: «openai,deepseek»), Anthropic среди них не бывает — он
+   * основной. Пусто — провайдер, который был выбран для продажника раньше (seller.provider или провайдер помощника), если
+   * это не Claude: данные клиентов уходят только туда, куда уходили и раньше. У прежнего провайдера — прежняя модель
+   * (seller.model), у остальных — модель провайдера.
+   */
+  async function sellerFallbacks(): Promise<{ provider: AiProvider; connection: Connection }[]> {
+    const [raw, legacy, model] = await Promise.all([settings.get("seller.fallbacks"), sellerProvider(), settings.get("seller.model")]);
+    const listed = (raw ?? "")
+      .split(/[\s,;]+/)
+      .filter(isAiProvider)
+      .filter((p, i, all) => p !== "anthropic" && all.indexOf(p) === i);
+    const order = raw?.trim() ? listed : legacy.provider !== "anthropic" ? [legacy.provider] : [];
+    return order.map((provider) => ({ provider, connection: () => connectionOf(provider, provider === legacy.provider ? model : "") }));
+  }
+
+  return { active, proofread, proofreadProvider, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider };
 }

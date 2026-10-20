@@ -203,7 +203,13 @@ export class Container {
       },
       botSite: botSiteInfo,
       // Режим «Продаёт» с движком AI: отдельная модель продажника («Интеграции» → AI → «Модель продажника»).
-      sellerModel: { configured: () => this.assistant.seller.configured(), complete: (input) => this.assistant.seller.complete(input), media: (input) => this.assistant.seller.media(input) },
+      // Claude — основная модель по уровням (Haiku / Sonnet / Opus), остальные провайдеры — запасные.
+      sellerModel: {
+        configured: () => this.assistant.seller.configured(),
+        complete: (input) => this.assistant.seller.complete(input),
+        policy: () => this.assistant.seller.policy(),
+        media: (input) => this.assistant.seller.media(input),
+      },
       // Квалификатор: AI только понимает ответ, который бот не разобрал сам; тексты клиенту — шаблоны из настроек.
       brain: {
         understand: async (input) => {

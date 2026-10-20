@@ -4,7 +4,7 @@
  * и тест-режима в настройках бота. Чистые функции — можно в клиентских компонентах.
  */
 import { handoffReasonLabels, failureReasonLabels } from "../domain/botStats";
-import type { BotTurnTrace, TraceDeadline, TraceNote, TraceNoteCode } from "../domain/botTrace";
+import type { BotTurnTrace, TraceDeadline, TraceNote, TraceNoteCode, TraceRoute } from "../domain/botTrace";
 
 const ACTIONS: Record<string, string> = {
   reply: "ответить",
@@ -143,5 +143,44 @@ export function traceRows(t: BotTurnTrace): TraceRow[] {
   if (t.lessons.length) rows.push({ label: `Уроки в инструкции (${t.lessons.length})`, lines: t.lessons.map((l) => l.text) });
   if (t.knowledge) rows.push({ label: "База знаний", lines: t.knowledge.all ? ["целиком"] : t.knowledge.titles.length ? t.knowledge.titles : ["начало базы (по теме ничего не нашлось)"] });
   if (t.tokens) rows.push({ label: "Токены", lines: [`${t.tokens.input} на входе, ${t.tokens.output} в ответе · запросов к модели: ${t.tokens.calls}`] });
+  if (t.route) rows.push(routeRow(t.route));
   return rows;
+}
+
+const TIER_LABELS: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
+const ROUTE_REASONS: Record<string, string> = {
+  price_objection: "возражение по цене",
+  later_objection: "«подумаю / позже»",
+  repeat_objection: "повторное возражение",
+  discount: "просит скидку",
+  compare: "сравнение вариантов",
+  constraints: "несколько условий сразу",
+  contradiction: "противоречивые условия",
+  unresolved: "вопрос не решён",
+  ambiguous: "много вопросов сразу",
+  deadline: "срок впритык или не успеть",
+  stakes: "счёт и оплата",
+  prior_failure: "сбои в этой беседе",
+  negotiation: "переговоры продолжаются",
+  budget: "потолок расходов",
+};
+const CAUSES: Record<string, string> = { invalid: "ответ не по схеме", rejected: "ответ не прошёл проверку", unsure: "модель не уверена", error: "модель не ответила" };
+const CALLS: Record<string, string> = { first: "ответ", retry: "повтор", deadline: "пересчёт срока", rewrite: "переписать", unsure: "уровнем выше", context: "короче переписка" };
+const tierLabel = (t: string | null) => (t ? (TIER_LABELS[t] ?? t) : "запасная");
+const money = (n: number) => `$${n.toFixed(n < 0.01 ? 5 : 4)}`;
+
+/** Маршрут модели: выбранный уровень и почему, эскалации, каждый запрос (кто ответил, кэш, стоимость, сбой). */
+function routeRow(r: TraceRoute): TraceRow {
+  const mode = r.mode === "shadow" ? " (наблюдение: ответила модель по умолчанию)" : r.mode === "off" ? " (маршрутизация выключена)" : "";
+  const why = r.reasons.length ? ` · ${r.reasons.map((x) => ROUTE_REASONS[x] ?? x).join(", ")}` : " · обычный ход";
+  const lines = [`выбран ${tierLabel(r.chosen)}${why}${mode}`];
+  for (const e of r.escalations) lines.push(`${tierLabel(e.from)} → ${tierLabel(e.to)}: ${CAUSES[e.cause] ?? e.cause}`);
+  for (const c of r.calls) {
+    const who = `${c.fallback ? "запасная " : ""}${c.model || c.provider || tierLabel(c.tier)}`;
+    const cache = c.cacheRead || c.cacheWrite ? `, кэш ${c.cacheRead}/${c.cacheWrite}` : "";
+    const retries = c.retries ? ` · неудачных попыток: ${c.retries}` : "";
+    lines.push(c.failed ? `${CALLS[c.why] ?? c.why}: ${who} — сбой (${c.failed})${retries}` : `${CALLS[c.why] ?? c.why}: ${who} · ${c.input}+${c.output} ток.${cache} · ${c.costUsd === null ? "цены нет в прайсе" : money(c.costUsd)} · ${(c.ms / 1000).toFixed(1)} с${retries}`);
+  }
+  lines.push(`итого за ход: ${money(r.costUsd)}${r.capped ? " · потолок расходов: только Haiku" : ""}`);
+  return { label: "Маршрут модели", lines, warn: r.escalations.length > 0 || r.calls.some((c) => c.failed || c.fallback) };
 }

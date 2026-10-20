@@ -1,7 +1,10 @@
 import type { AiField, AiMessage, AiProvider, AiSummary, DealDossier } from "../domain";
 
-/** Расход токенов запроса (пишется в журнал действий). */
-export type Usage = { input: number; output: number };
+/**
+ * Расход токенов запроса (пишется в журнал действий). input — без кэша; cacheRead / cacheWrite — чтение и запись кэша
+ * префикса (Claude); model — модель, которая фактически ответила (после серверного резерва может отличаться).
+ */
+export type Usage = { input: number; output: number; cacheRead?: number; cacheWrite?: number; model?: string };
 
 /**
  * Языковая модель (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер — выбирается в «Интеграциях»).

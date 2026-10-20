@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizz
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { BOT_TRACE_KEEP_DAYS, readBotState, readBotTrace, splitHandoffs, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
+import { BOT_TRACE_KEEP_DAYS, llmMetrics, readBotState, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
@@ -416,6 +416,42 @@ export class DrizzleBotStore implements BotStore {
       .insert(crmBotEvents)
       .values(events.map((e) => ({ conversationId, dealId, kind: e.kind, field: e.field ?? null, intent: e.intent ?? null, lang, reason: e.reason?.slice(0, 200) ?? null, meta: (e.meta as unknown as Record<string, unknown>) ?? null, messageId: e.messageId ?? null })));
   }
+
+  /** Расходы на модель продажника с момента since — сумма стоимости маршрутов в следах ходов (суточный потолок). */
+  async llmSpentSince(since: Date): Promise<number> {
+    const res = await executor().execute<{ usd: string | number | null }>(
+      sql`select coalesce(sum((meta->'route'->>'costUsd')::numeric), 0) as usd from crm_bot_events where kind = 'turn' and created_at >= ${since} and meta ? 'route'`,
+    );
+    return Number(res.rows[0]?.usd ?? 0);
+  }
+}
+
+/** Метрики модели продажника за период: по следам ходов (kind = turn, meta.route) — уровни, токены, стоимость, сбои. */
+export async function llmStats(days = 30): Promise<LlmMetrics> {
+  const since = sql`now() - make_interval(days => ${days})`;
+  const [turns, calls] = await Promise.all([
+    executor().execute<{ chosen: string | null; final: string | null; mode: string | null; turns: number; escalations: number; cost: string | number | null }>(sql`
+      select meta->'route'->>'chosen' as chosen, meta->'route'->>'final' as final, meta->'route'->>'mode' as mode, count(*)::int as turns,
+        coalesce(sum(case when jsonb_typeof(meta->'route'->'escalations') = 'array' then jsonb_array_length(meta->'route'->'escalations') else 0 end), 0)::int as escalations,
+        coalesce(sum((meta->'route'->>'costUsd')::numeric), 0) as cost
+      from crm_bot_events where kind = 'turn' and created_at >= ${since} and meta ? 'route' and jsonb_typeof(meta->'route') = 'object'
+      group by 1, 2, 3`),
+    executor().execute<{ tier: string | null; provider: string | null; model: string | null; calls: number; failed: number; fallback: number; retries: number; input: string | number; output: string | number; cache_read: string | number; cache_write: string | number; cost: string | number; ms: string | number | null }>(sql`
+      select c->>'tier' as tier, c->>'provider' as provider, c->>'model' as model, count(*)::int as calls,
+        count(*) filter (where c ? 'failed')::int as failed,
+        count(*) filter (where (c->>'fallback')::boolean)::int as fallback,
+        coalesce(sum((c->>'retries')::int), 0)::int as retries,
+        coalesce(sum((c->>'input')::numeric), 0) as input, coalesce(sum((c->>'output')::numeric), 0) as output,
+        coalesce(sum((c->>'cacheRead')::numeric), 0) as cache_read, coalesce(sum((c->>'cacheWrite')::numeric), 0) as cache_write,
+        coalesce(sum((c->>'costUsd')::numeric), 0) as cost, avg((c->>'ms')::numeric) as ms
+      from crm_bot_events e cross join lateral jsonb_array_elements(case when jsonb_typeof(e.meta->'route'->'calls') = 'array' then e.meta->'route'->'calls' else '[]'::jsonb end) c
+      where e.kind = 'turn' and e.created_at >= ${since} and e.meta ? 'route'
+      group by 1, 2, 3`),
+  ]);
+  return llmMetrics(
+    turns.rows.map((t) => ({ chosen: t.chosen, final: t.final, mode: t.mode, turns: Number(t.turns), escalations: Number(t.escalations), costUsd: Number(t.cost ?? 0) })),
+    calls.rows.map((c) => ({ tier: c.tier, provider: c.provider, model: c.model, calls: Number(c.calls), failed: Number(c.failed), fallback: Number(c.fallback), retries: Number(c.retries), input: Number(c.input), output: Number(c.output), cacheRead: Number(c.cache_read), cacheWrite: Number(c.cache_write), costUsd: Number(c.cost), avgMs: c.ms === null ? null : Number(c.ms) })),
+  );
 }
 
 /** Сколько старых следов удаляется за проход: чистка идёт порциями, без долгой блокировки журнала. */
@@ -452,6 +488,8 @@ export interface BotMetrics {
   replyMinutes: number | null;
   /** Сделки после бота, где есть договорённость или оплата. */
   converted: number;
+  /** Модель продажника: доли Haiku / Sonnet / Opus, эскалации, токены, стоимость на 1 000 ходов. */
+  llm?: LlmMetrics;
 }
 
 const tally = (rows: { key: string | null; n: number }[]) => Object.fromEntries(rows.filter((r) => r.key).map((r) => [r.key!, Number(r.n)]));
@@ -462,7 +500,7 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     executor().execute<{ key: string | null; n: number }>(
       sql`select ${sql.raw(column)} as key, count(${sql.raw(distinct ? "distinct conversation_id" : "*")})::int as n from crm_bot_events where kind = ${kind} and created_at >= ${since} group by 1`,
     );
-  const [skipped, answered, unrecognized, faq, handoff, langs, outcomes, reply, converted] = await Promise.all([
+  const [skipped, answered, unrecognized, faq, handoff, langs, outcomes, reply, converted, llm] = await Promise.all([
     by("skipped", "reason"),
     by("answer", "field", true),
     by("unrecognized", "field", true),
@@ -482,6 +520,7 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
       select count(distinct e.deal_id)::int as n from crm_bot_events e join crm_deals d on d.id = e.deal_id
       where e.kind = 'started' and e.created_at >= ${since}
         and (d.agreed_plan is not null or d.order_id is not null or exists (select 1 from crm_payments p where p.deal_id = d.id))`),
+    llmStats(days),
   ]);
   const o = tally(outcomes.rows);
   const { handoffs, failures } = splitHandoffs(tally(handoff.rows));
@@ -497,6 +536,7 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     langs: tally(langs.rows),
     replyMinutes: reply.rows[0]?.m == null ? null : Math.round(Number(reply.rows[0].m)),
     converted: Number(converted.rows[0]?.n ?? 0),
+    llm,
   };
 }
 

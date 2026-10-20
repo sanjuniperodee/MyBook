@@ -37,9 +37,10 @@ export function SellerForm({
   const shownModel = model || providers[provider || assistantProvider].model || aiProviders[provider || assistantProvider].defaultModel;
   const weak = /free/i.test(shownModel);
   return (
-    <Section title="Модель AI-продажника (бот)" badge={<Status on={connected && !weak} label={!connected ? "не подключена — продажник на шаблонах" : weak ? "бесплатная модель — ненадёжно" : `${aiProviders[provider || assistantProvider].label} · ${shownModel}`} />}>
+    <Section title="Прежняя модель продажника (запасная)" badge={<Status on={connected && !weak} label={!connected ? "не подключена — продажник на шаблонах" : weak ? "бесплатная модель — ненадёжно" : `${aiProviders[provider || assistantProvider].label} · ${shownModel}`} />}>
       <p className="mb-3 text-sm text-ink-soft">
-        На этой модели бот-продажник ведёт беседу с клиентом (Бот → Продажи → «AI-продажник»). Нужна сильная модель: Claude (Sonnet или Opus) или GPT — она надёжнее держит правила, лучше пишет по-казахски и реже ошибается в
+        Основная модель продажника — Claude по уровням (блок «Маршрутизация» выше). Эта модель — запасная, если не Claude: на неё бот переключится, когда Claude недоступен (если в маршрутизации не отмечены другие запасные), и на ней
+        бот работает при выключенной маршрутизации (Бот → Продажи → «AI-продажник»). Нужна сильная модель: Claude (Sonnet или Opus) или GPT — она надёжнее держит правила, лучше пишет по-казахски и реже ошибается в
         сроках. Бесплатные модели (<code className="rounded bg-cream px-1">openrouter/free</code>) для продаж не рекомендуются: они нестабильны и могут не вернуть нужный JSON — тогда клиент получит «передала менеджеру».
       </p>
       <form action={action} className="space-y-3">

@@ -6,7 +6,7 @@ import { crmAssistantData } from "./infrastructure/data";
 import { askMedia } from "./infrastructure/media";
 import { sellerModel } from "./application/SellerModel";
 
-export { AssistantError, rewriteModes, type RewriteMode, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
+export { AssistantError, SELLER_TIERS, DEFAULT_TIER_MODELS, DEFAULT_PRICES, type SellerTier, type RoutePolicy, rewriteModes, type RewriteMode, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
 export { MEDIA_OPENROUTER_MODEL, providerSettingKeys } from "./infrastructure/connection";
 
 /** Публичный фасад контекста «AI-помощник» (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). */
@@ -22,10 +22,20 @@ export class AssistantModule {
     this.#ai = aiConnections(deps.settings);
     this.service = new AssistantService(modelOf(this.#ai.active), crmAssistantData(deps.settings, deps.fields, deps.conversations), deps.clock);
     this.proofreader = new ProofreadService(modelOf(this.#ai.proofread));
-    this.seller = sellerModel(modelOf(this.#ai.seller), this.#ai.media, askMedia);
+    // Продажник: Claude по уровням (Haiku / Sonnet / Opus) — основной, остальные провайдеры — запасные; режим off — прежняя одна модель.
+    this.seller = sellerModel(
+      {
+        policy: () => this.#ai.sellerPolicy(),
+        claude: (model) => modelOf(this.#ai.claude(model)),
+        fallbacks: async () => (await this.#ai.sellerFallbacks()).map((f) => modelOf(f.connection)),
+        legacy: modelOf(this.#ai.seller),
+      },
+      this.#ai.media,
+      askMedia,
+    );
   }
 
-  /** Модель AI-продажника бота («Интеграции» → AI → «Модель продажника»). */
+  /** Модель AI-продажника бота («Интеграции» → AI → «Модель продажника»): маршрутизация Claude и запасные провайдеры. */
   readonly seller: ReturnType<typeof sellerModel>;
 
   /** Провайдер AI-корректора: свой или (пусто) — как у помощника. */
@@ -36,6 +46,11 @@ export class AssistantModule {
   /** Провайдер AI-продажника: свой или (пусто) — как у помощника. */
   sellerProvider() {
     return this.#ai.sellerProvider();
+  }
+
+  /** Запасные провайдеры продажника по порядку (для формы в «Интеграциях»). */
+  async sellerFallbacks() {
+    return (await this.#ai.sellerFallbacks()).map((f) => f.provider);
   }
 
   /** Провайдер распознавания голосовых и фото: свой или (пусто) — как у продажника. */

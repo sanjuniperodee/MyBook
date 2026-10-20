@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { LanguageModel } from "../application";
-import { AssistantError, systemBlocks, type AiConnection } from "../domain";
+import { AssistantError, supportsServerFallback, systemBlocks, type AiConnection } from "../domain";
 import type { MediaPart, MediaRecognition } from "../application/SellerModel";
 
 let cached: { sig: string; client: Anthropic } | null = null;
@@ -12,28 +12,40 @@ function client(c: AiConnection) {
   return cached.client;
 }
 
+/** retry-after из ответа (секунды); нет заголовка — null. */
+function retryAfter(err: InstanceType<typeof Anthropic.APIError>): number | null {
+  const v = err.headers?.get("retry-after");
+  const n = v ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Ошибка SDK → AssistantError с текстом для менеджера и видом сбоя (params: [вид, retry-after]) для маршрутизации продажника. */
 function toAssistantError(err: unknown): Error {
   if (AssistantError.is(err)) return err;
-  if (err instanceof Anthropic.AuthenticationError) return new AssistantError("notConfigured", "Ключ Claude API неверный или отозван — проверьте его в «Интеграциях».");
-  if (err instanceof Anthropic.PermissionDeniedError) return new AssistantError("notConfigured", "У ключа Claude API нет доступа к модели.");
-  if (err instanceof Anthropic.NotFoundError) return new AssistantError("notConfigured", "Модель Claude не найдена — проверьте её название в «Интеграциях».");
-  if (err instanceof Anthropic.RateLimitError) return new AssistantError("unavailable", "Слишком много запросов к Claude — попробуйте через минуту.");
-  if (err instanceof Anthropic.APIConnectionError) return new AssistantError("unavailable", "Нет связи с Claude API. Попробуйте позже.");
+  if (err instanceof Anthropic.AuthenticationError) return new AssistantError("notConfigured", "Ключ Claude API неверный или отозван — проверьте его в «Интеграциях».", ["auth"]);
+  if (err instanceof Anthropic.PermissionDeniedError) return new AssistantError("notConfigured", "У ключа Claude API нет доступа к модели.", ["auth"]);
+  if (err instanceof Anthropic.NotFoundError) return new AssistantError("notConfigured", "Модель Claude не найдена — проверьте её название в «Интеграциях».", ["not_found"]);
+  if (err instanceof Anthropic.RateLimitError) return new AssistantError("unavailable", "Слишком много запросов к Claude — попробуйте через минуту.", ["rate_limit", retryAfter(err)]);
+  if (err instanceof Anthropic.APIConnectionTimeoutError) return new AssistantError("unavailable", "Claude не ответил вовремя. Попробуйте позже.", ["timeout"]);
+  if (err instanceof Anthropic.APIConnectionError) return new AssistantError("unavailable", "Нет связи с Claude API. Попробуйте позже.", ["connection"]);
   if (err instanceof Anthropic.BadRequestError) {
     console.error("[ai] bad request", err.message);
-    return new AssistantError("unavailable", "Claude API отклонил запрос. Подробности — в логах сервера.");
+    // Запрос длиннее окна контекста модели: бот повторит с сокращённой перепиской.
+    const context = /prompt is too long|context (?:window|length)|too many tokens/i.test(err.message);
+    return new AssistantError("unavailable", context ? "Переписка слишком длинная для модели Claude." : "Claude API отклонил запрос. Подробности — в логах сервера.", [context ? "context" : "bad_request"]);
   }
   if (err instanceof Anthropic.APIError) {
     console.error("[ai]", err.status, err.message);
-    return new AssistantError("unavailable", `Claude API временно недоступен (${err.status ?? "ошибка"}). Попробуйте позже.`);
+    return new AssistantError("unavailable", `Claude API временно недоступен (${err.status ?? "ошибка"}). Попробуйте позже.`, [err.status === 529 ? "overloaded" : "server", retryAfter(err)]);
   }
   console.error("[ai]", err);
-  return new AssistantError("unavailable", "Не удалось получить ответ AI-помощника.");
+  return new AssistantError("unavailable", "Не удалось получить ответ AI-помощника.", ["server"]);
 }
 
 /**
  * Claude через Anthropic SDK. Если основная модель откажется отвечать по соображениям безопасности,
- * сервер Anthropic сам повторит запрос на рекомендованной резервной модели (fallbacks: "default").
+ * сервер Anthropic сам повторит запрос на рекомендованной резервной модели (fallbacks: "default") — у моделей, где он
+ * есть (у Haiku 5.5 серверного резерва нет: отказ Haiku поднимает ход на Sonnet маршрутизатор продажника).
  * Стабильное начало инструкции (cachePrefix: факты, правила и примеры продажника — одни на все беседы) уходит отдельным
  * блоком с меткой кэша на час: повторные ходы читают его из кэша, а не платят за него заново.
  */
@@ -45,8 +57,7 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
       {
         model: c.model,
         max_tokens: 16000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
+        ...(supportsServerFallback(c.model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
         output_config: schema ? { effort, format: { type: "json_schema", schema } } : { effort },
         system: blocks.some((b) => b.cached) ? blocks.map((b) => (b.cached ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const, ttl: "1h" as const } } : { type: "text" as const, text: b.text })) : system,
         messages: [{ role: "user", content: user }],
@@ -57,14 +68,19 @@ export async function askClaude(c: AiConnection, { system, user, effort, schema,
   } catch (err) {
     throw toAssistantError(err);
   }
-  if (res.stop_reason === "refusal") throw new AssistantError("refused", "Claude отказался отвечать на этот запрос. Попробуйте переформулировать или ответьте вручную.");
+  if (res.stop_reason === "refusal") throw new AssistantError("refused", "Claude отказался отвечать на этот запрос. Попробуйте переформулировать или ответьте вручную.", ["refused"]);
   const text = res.content
     .filter((b) => b.type === "text")
     .map((b) => (b as { text: string }).text)
     .join("")
     .trim();
-  if (!text) throw new AssistantError("badResponse", "Claude вернул пустой ответ — попробуйте ещё раз.");
-  return { text, usage: { input: res.usage.input_tokens, output: res.usage.output_tokens } };
+  if (!text) throw new AssistantError("badResponse", "Claude вернул пустой ответ — попробуйте ещё раз.", ["empty"]);
+  // input_tokens — только некэшированный остаток; чтение и запись кэша тарифицируются отдельно. model — кто ответил
+  // (после серверного резерва — резервная модель).
+  return {
+    text,
+    usage: { input: res.usage.input_tokens, output: res.usage.output_tokens, cacheRead: res.usage.cache_read_input_tokens ?? 0, cacheWrite: res.usage.cache_creation_input_tokens ?? 0, model: res.model || c.model },
+  };
 }
 
 /** Claude видит картинки; аудио не принимает — «не умеет». */
