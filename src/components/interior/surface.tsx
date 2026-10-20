@@ -42,7 +42,7 @@ export function Placed({ top, align = "center", children }: { top: number; align
 }
 
 /** Снимок на странице (мм обрезного формата): фото клиента или снимок-пример из коллекции. */
-export function PageImage({ kit, rect, url, scene, mask }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; mask?: "arch" | "circle" }) {
+export function PageImage({ kit, rect, url, scene, mask, focus }: { kit: PageKit; rect: { x: number; y: number; w: number; h: number }; url?: string; scene: number; mask?: "arch" | "circle"; /** Точка кадра, доли (как в PDF); нет — центр. */ focus?: { x: number; y: number } }) {
   const { u } = kit;
   // Форма снимка: арка — скруглённый верх радиусом в половину ширины, круг — 50%.
   const radius = mask === "circle" ? "50%" : mask === "arch" ? `${u.mm(rect.w / 2)} ${u.mm(rect.w / 2)} 0 0` : undefined;
@@ -54,7 +54,7 @@ export function PageImage({ kit, rect, url, scene, mask }: { kit: PageKit; rect:
       draggable={false}
       className="absolute block object-cover"
       // max-width: none — снимок под обрез шире страницы, а базовые стили ограничивают картинки шириной родителя.
-      style={{ left: u.mm(rect.x), top: u.mm(rect.y), width: u.mm(rect.w), height: u.mm(rect.h), maxWidth: "none", borderRadius: radius }}
+      style={{ left: u.mm(rect.x), top: u.mm(rect.y), width: u.mm(rect.w), height: u.mm(rect.h), maxWidth: "none", borderRadius: radius, objectPosition: focus ? `${focus.x * 100}% ${focus.y * 100}%` : undefined }}
     />
   );
 }

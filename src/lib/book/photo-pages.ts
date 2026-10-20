@@ -244,6 +244,12 @@ export interface OpenerPhotoPlan {
 export const OPENER_POLAROID_RATIO = 1.15;
 
 /** Где на начальной полосе лежит снимок главы и с какой высоты пойдёт название. */
+/**
+ * Кадр снимка начальной полосы: по горизонтали — центр, по вертикали — точка на 30% от верха (лица обычно в верхней
+ * части кадра). Одно правило для PDF (render.tsx) и превью (object-position), чтобы снимок сел одинаково.
+ */
+export const OPENER_FOCUS = { x: 0.5, y: 0.3 } as const;
+
 export function openerPhotoPlan(format: BookFormat, design: InteriorDesign): OpenerPhotoPlan | null {
   const kind = design.opener.photo;
   if (!kind) return null;

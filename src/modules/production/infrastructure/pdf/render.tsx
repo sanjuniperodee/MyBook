@@ -23,7 +23,7 @@ import { buildBookContent } from "@/lib/book/book-content";
 import { emptyFlow } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";
-import { openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
+import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
 import { bakeFrame } from "./frame";
@@ -78,10 +78,11 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
       let img = sharp(input);
       const cell = cells.get(p.id);
       if (openerShot && openerIds.has(p.id)) {
-        // Снимок начальной полосы: кадр по месту с учётом содержимого.
+        // Снимок начальной полосы: кадр по месту — той же точкой, что в превью (OPENER_FOCUS), а не «по содержимому»:
+        // поиск главного на портретах пар выбирал одежду и срезал головы.
         const w = Math.round(openerShot.img.w * pxPerMm);
         const h = Math.round(openerShot.img.h * pxPerMm);
-        img = img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
+        img = await coverAt(input, w, h, OPENER_FOCUS);
         // «Во всю полосу»: затемнение снизу под светлое название — прямо в снимке (как градиент в превью).
         const sh = openerShot.shade;
         if (sh) {
@@ -168,6 +169,22 @@ export interface InteriorResult {
 
 /** Сколько раз собираем блок, доводя вёрстку (обычно хватает 2–4). */
 const MAX_FLOW_PASSES = 12;
+
+/**
+ * Кадр «заполнить место» с точкой кадра focus (доли), как object-fit: cover + object-position в превью: снимок
+ * масштабируется до покрытия места, лишнее срезается так, чтобы точка focus снимка встала в ту же долю места.
+ */
+async function coverAt(input: Buffer, w: number, h: number, focus: { x: number; y: number }) {
+  const meta = await sharp(input).rotate().metadata();
+  const srcW = (meta.autoOrient?.width ?? meta.width) || w;
+  const srcH = (meta.autoOrient?.height ?? meta.height) || h;
+  const scale = Math.max(w / srcW, h / srcH);
+  const sw = Math.max(w, Math.round(srcW * scale));
+  const sh = Math.max(h, Math.round(srcH * scale));
+  const left = Math.round((sw - w) * focus.x);
+  const top = Math.round((sh - h) * focus.y);
+  return sharp(await sharp(input).rotate().resize(sw, sh, { fit: "fill" }).toBuffer()).extract({ left, top, width: w, height: h });
+}
 
 let placeholderJpeg: Promise<Buffer> | undefined;
 /** Крошечный снимок-заглушка: на раскладку влияют только заданные размеры фото, а не сами пиксели. */

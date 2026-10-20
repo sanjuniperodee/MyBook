@@ -14,7 +14,7 @@ import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/inte
 import { openerArtShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
-import { openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
+import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
@@ -44,10 +44,10 @@ function OpenerShot({ kit, shot, url, scene }: { kit: PageKit; shot: OpenerPhoto
             transform: `rotate(${shot.card.rotate}deg)`,
           }}
         >
-          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={url} scene={scene} />
+          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={url} scene={scene} focus={OPENER_FOCUS} />
         </div>
       ) : (
-        <PageImage kit={kit} rect={shot.img} url={url} scene={scene} mask={shot.mask} />
+        <PageImage kit={kit} rect={shot.img} url={url} scene={scene} mask={shot.mask} focus={OPENER_FOCUS} />
       )}
       {shot.shade ? (
         <div
