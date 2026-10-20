@@ -64,7 +64,9 @@ const salesLead = Role.restore("r-sales-lead", { name: "Старший мене�
 const salesHead = Role.restore("r-sales-head", { name: "Старший продавец", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "clients.view", "clients.create", "prices.discount_unlimited"], key: null });
 /** Менеджер продаж «только свои» со звонками через АТС (calls.make) и полными номерами (clients.contacts). */
 const salesCaller = Role.restore("r-sales-caller", { name: "Менеджер со звонками", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.make", "clients.contacts"], key: "manager" });
-const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent, salesLead, salesHead, salesCaller];
+/** Менеджер «только свои» с выгрузкой клиентов (clients.view + export + contacts). */
+const clientExporter = Role.restore("r-client-export", { name: "Менеджер с выгрузкой", scope: "own", permissions: ["clients.view", "clients.export", "clients.contacts"], key: null });
+const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent, salesLead, salesHead, salesCaller, clientExporter];
 
 const roles: RoleRepository = {
   nextId: () => "r-new",
@@ -105,6 +107,8 @@ export const kira = person("kira", { role: "admin", crmRoleId: salesLead.id });
 export const rita = person("rita", { role: "admin", crmRoleId: salesHead.id });
 /** Менеджер «только свои» с внутренним номером АТС: звонит через Zadarma и пишет клиентам своих сделок. */
 export const timur = person("timur", { role: "admin", crmRoleId: salesCaller.id, sipExtension: "101" });
+/** Менеджер «только свои», которому можно выгружать клиентов в CSV. */
+export const nadia = person("nadia", { role: "admin", crmRoleId: clientExporter.id });
 export const withTwoFactor = { totpEnabledAt: new Date(), totpSecret: "secret" };
 
 const sessions = new Map<string, User>();
