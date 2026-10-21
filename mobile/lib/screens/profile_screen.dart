@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/layouts.dart';
 import '../core/notifier.dart';
 import '../core/theme_controller.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
+import 'home_screen.dart' show SectionPage;
 import 'my_templates_screen.dart';
 
 /// Профиль сотрудника: кто вошёл, уведомления, сервер и выход.
@@ -35,7 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            child: Text('Профиль', style: AppText.largeTitle(context)),
+            child: Text(layoutFor(staff).profileLabel == 'Ещё' ? 'Ещё' : 'Профиль', style: AppText.largeTitle(context)),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
@@ -57,6 +59,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(staff.name, style: AppText.title(context)),
                         const SizedBox(height: 2),
                         Text(staff.role, style: AppText.sub(context)),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 2),
+                          child: Tag('Раскладка: ${layoutTitles[staff.layout] ?? staff.layout}', fg: c.brandDeep, bg: c.brandDeep.withValues(alpha: 0.12), icon: LucideIcons.layoutDashboard),
+                        ),
                         Text(staff.email, style: AppText.caption(context)),
                       ],
                     ),
@@ -65,6 +71,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
+          // Разделы, которых нет на нижней панели у этой роли, но которые разрешены по правам.
+          if (extraSections(staff).isNotEmpty)
+            GroupCard(
+              title: 'Разделы',
+              children: [
+                for (final sec in extraSections(staff))
+                  GroupTile(
+                    icon: sec.icon,
+                    title: sec.label,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SectionPage(section: sec))),
+                  ),
+              ],
+            ),
           GroupCard(
             title: 'Уведомления',
             children: [

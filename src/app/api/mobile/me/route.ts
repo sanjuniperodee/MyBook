@@ -3,6 +3,8 @@ import { api, apiStaff } from "@/server/api";
 import { container } from "@/server/container";
 import { staffLabel } from "@/shared/domain/staff";
 import { autoShiftOnVisit } from "@/server/shift";
+import { mobileLayout } from "@/server/mobile-layout";
+import { can } from "@/server/access";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,8 @@ export const GET = api(async (req) => {
     isOwner: staff.isOwner,
     scope: staff.scope,
     onShift,
+    // Раскладка приложения по правам: набор вкладок и главная (см. server/mobile-layout).
+    layout: mobileLayout((p) => can(staff, p), staff.isOwner),
     permissions: [...staff.permissions],
     counters: live.counters,
     unread: live.unread,

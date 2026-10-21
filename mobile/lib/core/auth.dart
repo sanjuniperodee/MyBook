@@ -12,11 +12,14 @@ const _devToken = String.fromEnvironment('DEV_TOKEN');
 
 /// Кто вошёл: имя, роль, права и счётчики для бейджей.
 class Staff {
-  Staff({required this.id, required this.name, required this.email, required this.role, required this.permissions, required this.onShift, required this.unread});
+  Staff({required this.id, required this.name, required this.email, required this.role, required this.permissions, required this.onShift, required this.unread, this.layout = 'sales'});
   final String id;
   final String name;
   final String email;
   final String role;
+
+  /// Раскладка приложения по правам (сервер решает): leader | sales | production | analyst | support | basic.
+  final String layout;
   final Set<String> permissions;
   bool onShift;
   int unread;
@@ -28,6 +31,7 @@ class Staff {
         name: (j['name'] as String?) ?? '',
         email: (j['email'] as String?) ?? '',
         role: (j['role'] as String?) ?? '',
+        layout: (j['layout'] as String?) ?? 'sales',
         permissions: {for (final p in (j['permissions'] as List)) p as String},
         onShift: j['onShift'] == true,
         unread: (j['unread'] as num?)?.toInt() ?? 0,
