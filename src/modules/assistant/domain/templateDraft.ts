@@ -52,7 +52,10 @@ export function titleFromText(text: string): string {
   // Первая «живая» фраза: приветствие из двух слов («добрый день!») название не делает.
   const parts = clean.split(/[.!?\n]+/).map((x) => x.replace(/^[\s,:;—-]+/, "").replace(/\s+/g, " ").trim()).filter(Boolean);
   const phrase = parts.find((x) => x.split(" ").length >= 3) ?? parts[0] ?? "";
-  const t = phrase.split(" ").slice(0, 4).join(" ");
+  // Только слова (без тире и цифр цены), без коротких предлогов на конце: «Печатная книга — от 29 000» → «Печатная книга».
+  const words = phrase.split(" ").filter((w) => /\p{L}/u.test(w)).slice(0, 4);
+  while (words.length > 1 && words[words.length - 1].replace(/[^\p{L}]/gu, "").length <= 2) words.pop();
+  const t = words.join(" ");
   return t.length > 40 ? `${t.slice(0, 39)}…` : t || "Шаблон";
 }
 

@@ -10,6 +10,8 @@ import 'core/nav.dart';
 import 'core/notifications_store.dart';
 import 'core/notifier.dart';
 import 'core/tasks_store.dart';
+import 'core/templates_store.dart';
+import 'core/theme_controller.dart';
 import 'screens/chat_screen.dart';
 import 'screens/client_screen.dart';
 import 'screens/deal_screen.dart';
@@ -24,7 +26,17 @@ Future<void> main() async {
   await initializeDateFormatting('ru');
   final auth = AuthState();
   await auth.restore();
-  runApp(ChangeNotifierProvider.value(value: auth, child: const SellerApp()));
+  final theme = ThemeController();
+  await theme.restore();
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: auth),
+        ChangeNotifierProvider.value(value: theme),
+      ],
+      child: const SellerApp(),
+    ),
+  );
 }
 
 class SellerApp extends StatelessWidget {
@@ -38,7 +50,7 @@ class SellerApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
+      themeMode: context.watch<ThemeController>().mode,
       locale: const Locale('ru'),
       supportedLocales: const [Locale('ru')],
       localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
@@ -56,7 +68,10 @@ class _Root extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (context.watch<AuthState>().status) {
       case AuthStatus.loading:
-        return Scaffold(backgroundColor: context.c.bg, body: const Center(child: CircularProgressIndicator()));
+        return Scaffold(
+          backgroundColor: context.c.bg,
+          body: const Center(child: CircularProgressIndicator()),
+        );
       case AuthStatus.loggedOut:
         return const LoginScreen();
       case AuthStatus.loggedIn:
@@ -80,6 +95,7 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
   Notifier? _notifier;
   TasksStore? _tasks;
   NotificationsStore? _inbox;
+  TemplatesStore? _templates;
 
   void _sync(AuthState auth) {
     final loggedIn = auth.status == AuthStatus.loggedIn;
@@ -95,6 +111,7 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
       _notifier = notifier;
       _tasks = tasks;
       _inbox = inbox;
+      _templates = TemplatesStore(auth.api)..load();
     } else if (!loggedIn && _live != null) {
       _teardown();
     }
@@ -116,6 +133,7 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
     _notifier?.dispose();
     _tasks?.dispose();
     _inbox?.dispose();
+    _templates?.dispose();
     _chats?.dispose();
     _live?.stop();
     _live = null;
@@ -123,6 +141,7 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
     _notifier = null;
     _tasks = null;
     _inbox = null;
+    _templates = null;
   }
 
   @override
@@ -143,6 +162,7 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
         ChangeNotifierProvider<ChatsStore>.value(value: _chats!),
         ChangeNotifierProvider<TasksStore>.value(value: _tasks!),
         ChangeNotifierProvider<NotificationsStore>.value(value: _inbox!),
+        ChangeNotifierProvider<TemplatesStore>.value(value: _templates!),
       ],
       child: widget.child,
     );

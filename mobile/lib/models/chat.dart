@@ -14,6 +14,7 @@ class ChatSummary {
     required this.waitLabel,
     required this.overdue,
     required this.bot,
+    this.pinned = false,
   });
 
   final String id;
@@ -30,21 +31,25 @@ class ChatSummary {
   final bool overdue;
   final bool bot;
 
+  /// Закреплён у этого сотрудника (личное закрепление): стоит вверху списка.
+  final bool pinned;
+
   factory ChatSummary.fromJson(Map<String, dynamic> j) => ChatSummary(
-        id: j['id'] as String,
-        title: (j['title'] as String?) ?? '',
-        channel: (j['channel'] as String?) ?? '',
-        channelLabel: (j['channelLabel'] as String?) ?? '',
-        avatarUrl: j['avatarUrl'] as String?,
-        lastMessageAt: j['lastMessageAt'] == null ? null : DateTime.parse(j['lastMessageAt'] as String).toLocal(),
-        preview: (j['preview'] as String?) ?? '',
-        unread: (j['unread'] as num?)?.toInt() ?? 0,
-        status: (j['status'] as String?) ?? 'open',
-        assignee: j['assignee'] as String?,
-        waitLabel: j['waitLabel'] as String?,
-        overdue: j['overdue'] == true,
-        bot: j['bot'] == true,
-      );
+    id: j['id'] as String,
+    title: (j['title'] as String?) ?? '',
+    channel: (j['channel'] as String?) ?? '',
+    channelLabel: (j['channelLabel'] as String?) ?? '',
+    avatarUrl: j['avatarUrl'] as String?,
+    lastMessageAt: j['lastMessageAt'] == null ? null : DateTime.parse(j['lastMessageAt'] as String).toLocal(),
+    preview: (j['preview'] as String?) ?? '',
+    unread: (j['unread'] as num?)?.toInt() ?? 0,
+    status: (j['status'] as String?) ?? 'open',
+    assignee: j['assignee'] as String?,
+    waitLabel: j['waitLabel'] as String?,
+    overdue: j['overdue'] == true,
+    bot: j['bot'] == true,
+    pinned: j['pinned'] == true,
+  );
 }
 
 /// Сообщение диалога.
@@ -125,21 +130,19 @@ class ReplyQuote {
   final bool outgoing;
   final String? author;
 
-  factory ReplyQuote.fromJson(Map<String, dynamic> j) => ReplyQuote(
-        id: j['id'] as String,
-        text: (j['text'] as String?) ?? '',
-        type: (j['type'] as String?) ?? 'text',
-        outgoing: j['direction'] == 'out',
-        author: j['author'] as String?,
-      );
+  factory ReplyQuote.fromJson(Map<String, dynamic> j) =>
+      ReplyQuote(id: j['id'] as String, text: (j['text'] as String?) ?? '', type: (j['type'] as String?) ?? 'text', outgoing: j['direction'] == 'out', author: j['author'] as String?);
 }
 
 class Template {
-  Template({required this.id, required this.title, required this.text});
+  Template({required this.id, required this.title, required this.text, this.own = false});
   final String id;
   final String title;
   final String text;
-  factory Template.fromJson(Map<String, dynamic> j) => Template(id: j['id'] as String, title: j['title'] as String, text: j['text'] as String);
+
+  /// Личный шаблон сотрудника (общие компании — false).
+  final bool own;
+  factory Template.fromJson(Map<String, dynamic> j) => Template(id: j['id'] as String, title: j['title'] as String, text: j['text'] as String, own: j['own'] == true);
 }
 
 class DealBrief {
@@ -174,13 +177,8 @@ class ChatPerms {
   final bool canCreateDeal;
   final bool mine;
 
-  factory ChatPerms.fromJson(Map<String, dynamic> j) => ChatPerms(
-        canReply: j['canReply'] == true,
-        canNote: j['canNote'] == true,
-        canInvoice: j['canInvoice'] == true,
-        canCreateDeal: j['canCreateDeal'] == true,
-        mine: j['mine'] == true,
-      );
+  factory ChatPerms.fromJson(Map<String, dynamic> j) =>
+      ChatPerms(canReply: j['canReply'] == true, canNote: j['canNote'] == true, canInvoice: j['canInvoice'] == true, canCreateDeal: j['canCreateDeal'] == true, mine: j['mine'] == true);
 }
 
 /// Счёт сделки в чате.
@@ -198,15 +196,15 @@ class InvoiceBrief {
   bool get payable => status == 'pending_payment' && !overdue;
 
   factory InvoiceBrief.fromJson(Map<String, dynamic> j) => InvoiceBrief(
-        id: j['id'] as String,
-        label: (j['label'] as String?) ?? '',
-        amount: (j['amount'] as num).toInt(),
-        status: (j['status'] as String?) ?? '',
-        overdue: j['overdue'] == true,
-        expiresLabel: (j['expiresLabel'] as String?) ?? '',
-        paidLabel: j['paidLabel'] as String?,
-        link: j['link'] as String?,
-      );
+    id: j['id'] as String,
+    label: (j['label'] as String?) ?? '',
+    amount: (j['amount'] as num).toInt(),
+    status: (j['status'] as String?) ?? '',
+    overdue: j['overdue'] == true,
+    expiresLabel: (j['expiresLabel'] as String?) ?? '',
+    paidLabel: j['paidLabel'] as String?,
+    link: j['link'] as String?,
+  );
 }
 
 /// Диалог целиком.
@@ -226,11 +224,13 @@ class ChatDetail {
     required this.botLabel,
     required this.templates,
     required this.invoices,
+    this.pinned = false,
   });
 
   final String id;
   final String title;
   final String channelLabel;
+  final bool pinned;
   final String? avatarUrl;
   final String status;
   final String? assignee;
@@ -247,6 +247,7 @@ class ChatDetail {
     final c = j['conversation'] as Map<String, dynamic>;
     return ChatDetail(
       id: c['id'] as String,
+      pinned: c['pinned'] == true,
       title: (c['title'] as String?) ?? '',
       channelLabel: (c['channelLabel'] as String?) ?? '',
       avatarUrl: c['avatarUrl'] as String?,

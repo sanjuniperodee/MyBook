@@ -16,9 +16,31 @@ class SendResult {
   bool get ok => blocked == null && error == null;
 }
 
+/// Куда можно переслать: диалог сотрудника (id, имя, канал, последнее сообщение).
+class ForwardTarget {
+  ForwardTarget({required this.id, required this.title, required this.channel, required this.last});
+  final String id;
+  final String title;
+  final String channel;
+  final String last;
+  factory ForwardTarget.fromJson(Map<String, dynamic> j) =>
+      ForwardTarget(id: j['id'] as String, title: (j['title'] as String?) ?? '', channel: (j['channel'] as String?) ?? '', last: (j['last'] as String?) ?? '');
+}
+
+/// Черновик шаблона из сообщения: текст с подстановками, название и что именно заменено.
+class TemplateDraft {
+  TemplateDraft({required this.title, required this.text, required this.replaced});
+  final String title;
+  final String text;
+  final List<(String, String)> replaced;
+}
+
+/// Окно WhatsApp для «удалить у всех» — двое суток.
+const _deleteWindow = Duration(hours: 48);
+
 /// Один диалог: сообщения, права, шаблоны, счета и отправка (текст, голосовое, файлы) с мгновенным показом.
 class ChatController extends ChangeNotifier {
-  ChatController({required this.api, required this.live, required this.chatId}) {
+  ChatController({required this.api, required this.live, required this.chatId, this.myId}) {
     _sub = live.events.listen((e) {
       if (e.type == 'tick' || (e.type == 'chat' && (e.conversationId == null || e.conversationId == chatId))) _soon();
     });
@@ -27,6 +49,9 @@ class ChatController extends ChangeNotifier {
   final ApiClient api;
   final LiveService live;
   final String chatId;
+
+  /// Текущий сотрудник: своё сообщение можно удалить.
+  final String? myId;
 
   ChatDetail? detail;
   String? error;
@@ -42,6 +67,100 @@ class ChatController extends ChangeNotifier {
     final all = [...?detail?.messages, ..._local];
     all.sort((a, b) => a.at.compareTo(b.at));
     return all;
+  }
+
+  // ─── выбор сообщений (как в WhatsApp): отмеченные — для пересылки, удаления и шаблона ──────────────────────────
+
+  /// Отмеченные сообщения; null — обычная лента.
+  Set<String>? selected;
+
+  bool get selecting => selected != null;
+
+  bool isSelectable(Message m) => !m.deleted && !m.id.startsWith('local-');
+
+  void startSelect(Message m) {
+    if (!isSelectable(m)) return;
+    selected = {m.id};
+    notifyListeners();
+  }
+
+  void toggleSelect(Message m) {
+    if (selected == null || !isSelectable(m)) return;
+    selected!.contains(m.id) ? selected!.remove(m.id) : selected!.add(m.id);
+    notifyListeners();
+  }
+
+  void clearSelect() {
+    selected = null;
+    notifyListeners();
+  }
+
+  /// Отмеченные в порядке ленты.
+  List<Message> get picked => selected == null ? const [] : messages.where((m) => selected!.contains(m.id) && isSelectable(m)).toList();
+
+  bool canForward(Message m) => (detail?.perms.canReply ?? false) && isSelectable(m) && !m.internal && (m.text.isNotEmpty || m.type != 'text');
+
+  bool canRemove(Message m) => isSelectable(m) && m.outgoing && m.authorId != null && m.authorId == myId && (m.internal || m.isFailed || DateTime.now().difference(m.at) < _deleteWindow);
+
+  /// Текст отмеченных сообщений клиентов и менеджеров (не заметок) — для шаблона.
+  String get pickedText => picked.where((m) => !m.internal && m.type == 'text' && m.text.trim().isNotEmpty).map((m) => m.text.trim()).join('\n');
+
+  /// Диалоги, куда можно переслать (поиск по имени и номеру).
+  Future<List<ForwardTarget>> forwardTargets(String q) async {
+    final r = await api.get('/api/mobile/chats/targets', query: {'q': q}) as Map<String, dynamic>;
+    return [for (final t in (r['targets'] as List)) ForwardTarget.fromJson(t as Map<String, dynamic>)];
+  }
+
+  /// Переслать отмеченные сообщения. Возвращает текст итога для уведомления и признак успеха.
+  Future<(bool, String)> forwardPicked(List<String> targetIds) async {
+    final ids = picked.map((m) => m.id).toList();
+    try {
+      final r = await api.post('/api/mobile/chats/$chatId/forward', body: {'messageIds': ids, 'targetIds': targetIds}) as Map<String, dynamic>;
+      final failed = ((r['failed'] as List?) ?? const []).cast<String>();
+      clearSelect();
+      if (failed.isNotEmpty) return (true, 'Переслано: ${r['forwarded']} из ${r['total']}. Не ушло: ${failed.join('; ')}');
+      return (true, ids.length == 1 ? (targetIds.length == 1 ? 'Переслано' : 'Переслано в ${targetIds.length} диалога') : 'Переслано сообщений: ${ids.length}');
+    } on ApiException catch (e) {
+      return (false, e.message);
+    }
+  }
+
+  /// Удалить отмеченные (у всех, где это возможно). Возвращает текст ошибки.
+  Future<String?> removePicked() async {
+    final list = picked;
+    final errors = <String>{};
+    for (final m in list) {
+      try {
+        await api.delete('/api/mobile/chats/$chatId/messages/${m.id}');
+      } on ApiException catch (e) {
+        errors.add(e.message);
+      }
+    }
+    clearSelect();
+    await load(silent: true);
+    return errors.isEmpty ? null : errors.join('; ');
+  }
+
+  /// Закрепить или открепить этот чат (личное закрепление).
+  Future<String?> setPinned(bool pinned) async {
+    try {
+      await api.post('/api/mobile/chats/$chatId/pin', body: {'pinned': pinned});
+      await load(silent: true);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
+  /// Шаблон из сообщения: код и ИИ заменяют данные клиента подстановками. Ошибка — текст.
+  Future<(TemplateDraft?, String?)> draftTemplate(Message m) async {
+    try {
+      final r = await api.post('/api/mobile/templates/draft', body: {'chatId': chatId, 'messageId': m.id}) as Map<String, dynamic>;
+      final replaced = [for (final x in ((r['replaced'] as List?) ?? const [])) ((x as Map<String, dynamic>)['was'] as String? ?? '', x['with'] as String? ?? '')];
+      return (TemplateDraft(title: (r['title'] as String?) ?? '', text: (r['text'] as String?) ?? '', replaced: replaced), null);
+    } on ApiException catch (e) {
+      return (null, e.message);
+    }
   }
 
   bool get canReply => (detail?.perms.canReply ?? false) && detail?.sendBlocker == null;
@@ -88,7 +207,20 @@ class ChatController extends ChangeNotifier {
   }
 
   Message _pending({required String type, String text = '', String? localPath, int? durationMs}) {
-    final m = Message(id: 'local-${++_seq}', outgoing: true, type: type, text: text, media: null, status: 'sending', error: null, author: null, at: DateTime.now(), replyTo: replyTo == null ? null : ReplyQuote(id: replyTo!.id, text: replyTo!.text, type: replyTo!.type, outgoing: replyTo!.outgoing, author: replyTo!.author), localPath: localPath, durationMs: durationMs);
+    final m = Message(
+      id: 'local-${++_seq}',
+      outgoing: true,
+      type: type,
+      text: text,
+      media: null,
+      status: 'sending',
+      error: null,
+      author: null,
+      at: DateTime.now(),
+      replyTo: replyTo == null ? null : ReplyQuote(id: replyTo!.id, text: replyTo!.text, type: replyTo!.type, outgoing: replyTo!.outgoing, author: replyTo!.author),
+      localPath: localPath,
+      durationMs: durationMs,
+    );
     _local.add(m);
     return m;
   }
@@ -156,11 +288,19 @@ class ChatController extends ChangeNotifier {
       final f = files[i];
       final name = f.uri.pathSegments.last;
       final mimeType = lookupMimeType(f.path) ?? 'application/octet-stream';
-      final type = mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : mimeType.startsWith('audio/') ? 'audio' : 'document';
+      final type = mimeType.startsWith('image/')
+          ? 'image'
+          : mimeType.startsWith('video/')
+          ? 'video'
+          : mimeType.startsWith('audio/')
+          ? 'audio'
+          : 'document';
       final local = _pending(type: type, text: type == 'document' ? name : (i == 0 ? caption : ''), localPath: f.path);
       notifyListeners();
       try {
-        final r = await api.upload('/api/admin/chats/$chatId/files', field: 'files', file: f, filename: name, contentType: mimeType, fields: {if (i == 0 && caption.isNotEmpty) 'caption': caption}) as Map<String, dynamic>;
+        final r =
+            await api.upload('/api/admin/chats/$chatId/files', field: 'files', file: f, filename: name, contentType: mimeType, fields: {if (i == 0 && caption.isNotEmpty) 'caption': caption})
+                as Map<String, dynamic>;
         final results = (r['results'] as List?) ?? const [];
         final err = results.isNotEmpty ? (results.first as Map<String, dynamic>)['error'] as String? : null;
         if (err != null) {

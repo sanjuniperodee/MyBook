@@ -95,8 +95,10 @@ export async function mobileChatDetail(staff: Staff, id: string, limit = 120) {
   const invoiceSend = canReply && can(staff, "deals.edit") && dealWork;
   const invoiceRows = conv.dealId && can(staff, "deals.view") ? await c.ordering.invoices.listFor(conv.dealId) : [];
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
+  const pinned = await c.workspace.pinnedChats.isPinned(staff.user.id, conv.id);
   return {
     conversation: {
+      pinned,
       id: conv.id,
       title: convTitle(staff, conv),
       channel: conv.channel,
@@ -125,7 +127,7 @@ export async function mobileChatDetail(staff: Staff, id: string, limit = 120) {
     sendBlocker: blocker,
     bot: { label: bot.label ?? null, canStart: !!bot.canStart },
     // Шаблоны с подстановкой имени, заказа, менеджера и полей сделки — приложение вставляет готовый текст.
-    templates: templates.map((t) => ({ id: t.id, title: t.title, text: fillTemplate(t.text, vars) })),
+    templates: templates.map((t) => ({ id: t.id, title: t.title, own: t.own, text: fillTemplate(t.text, vars) })),
     invoices: invoiceViews(invoiceRows, { now: new Date(), withLink: invoiceEdit }),
   };
 }

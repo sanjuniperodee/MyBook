@@ -15,6 +15,7 @@ import '../core/chats_store.dart';
 import '../core/format.dart';
 import '../core/live.dart';
 import '../core/notifier.dart';
+import '../core/template_text.dart';
 import '../models/chat.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
@@ -22,8 +23,11 @@ import '../ui/tokens.dart';
 import '../ui/wallpaper.dart';
 import '../widgets/composer.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/forward_sheet.dart';
 import 'deal_screen.dart';
 import 'invoice_sheet.dart';
+import 'my_templates_screen.dart';
+import 'template_editor_screen.dart';
 import 'templates_sheet.dart';
 
 /// Переписка: обои, пузыри с хвостиками, голосовые с волной, файлы, ответы на сообщения. Сверху — сделка диалога и счета,
@@ -54,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     final auth = context.read<AuthState>();
     _notifier = context.read<Notifier>()..openChatId = widget.chatId;
-    ctrl = ChatController(api: auth.api, live: context.read<LiveService>(), chatId: widget.chatId);
+    ctrl = ChatController(api: auth.api, live: context.read<LiveService>(), chatId: widget.chatId, myId: auth.staff?.id);
     ctrl.load().then((_) async {
       await ctrl.markRead();
       if (mounted) context.read<ChatsStore>().markRead(widget.chatId);
@@ -125,16 +129,25 @@ class _ChatScreenState extends State<ChatScreen> {
                     Navigator.pop(sheet);
                     it.action();
                   },
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Container(
-                      width: 62,
-                      height: 62,
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), gradient: LinearGradient(colors: it.colors, begin: Alignment.topLeft, end: Alignment.bottomRight)),
-                      child: Icon(it.icon, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(it.label, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: context.c.text)),
-                  ]),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 62,
+                        height: 62,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(colors: it.colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        ),
+                        child: Icon(it.icon, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        it.label,
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: context.c.text),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -145,7 +158,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _pickDocuments() async {
     final picked = await FilePicker.pickFiles();
-    final files = [for (final f in picked) if (f.path != null) File(f.path!)];
+    final files = [
+      for (final f in picked)
+        if (f.path != null) File(f.path!),
+    ];
     if (files.isEmpty) return;
     _toast(await ctrl.sendFiles(files));
   }
@@ -167,7 +183,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _templates() async {
     final d = ctrl.detail;
     if (d == null) return;
-    final t = await pickTemplate(context, d.templates);
+    final t = await pickTemplate(context, d.templates, onManage: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MyTemplatesScreen())));
     if (t != null) _composer.currentState?.insert(t.text);
   }
 
@@ -196,10 +212,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (m.isFailed) {
         final r = await showAppSheet<String>(
           context,
-          builder: (sheet) => GroupCard(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
-            GroupTile(title: 'Отправить ещё раз', icon: LucideIcons.rotateCw, onTap: () => Navigator.pop(sheet, 'retry')),
-            GroupTile(title: 'Удалить', icon: LucideIcons.trash2, destructive: true, onTap: () => Navigator.pop(sheet, 'drop')),
-          ]),
+          builder: (sheet) => GroupCard(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              GroupTile(title: 'Отправить ещё раз', icon: LucideIcons.rotateCw, onTap: () => Navigator.pop(sheet, 'retry')),
+              GroupTile(title: 'Удалить', icon: LucideIcons.trash2, destructive: true, onTap: () => Navigator.pop(sheet, 'drop')),
+            ],
+          ),
         );
         if (r == 'retry') _retry(m);
         if (r == 'drop') ctrl.discard(m);
@@ -212,13 +231,26 @@ class _ChatScreenState extends State<ChatScreen> {
     final action = await showAppSheet<String>(
       context,
       builder: (sheet) => SingleChildScrollView(
-        child: GroupCard(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
-          if (d.perms.canReply && !m.deleted && !m.internal) GroupTile(title: 'Ответить', icon: LucideIcons.reply, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'reply')),
-          if (m.text.isNotEmpty) GroupTile(title: 'Копировать', icon: LucideIcons.copy, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'copy')),
-          if (m.type == 'audio' && !m.deleted) GroupTile(title: m.transcript == null ? 'Расшифровать голосовое' : 'Обновить расшифровку', icon: LucideIcons.captions, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'transcribe')),
-          if (mine && m.type == 'text' && recent && !m.deleted) GroupTile(title: 'Изменить', icon: LucideIcons.pencil, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'edit')),
-          if (mine && !m.deleted) GroupTile(title: 'Удалить у всех', icon: LucideIcons.trash2, destructive: true, onTap: () => Navigator.pop(sheet, 'delete')),
-        ]),
+        child: GroupCard(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            if (d.perms.canReply && !m.deleted && !m.internal) GroupTile(title: 'Ответить', icon: LucideIcons.reply, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'reply')),
+            if (ctrl.canForward(m)) GroupTile(title: 'Переслать', icon: LucideIcons.forward, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'forward')),
+            if (m.text.isNotEmpty) GroupTile(title: 'Копировать', icon: LucideIcons.copy, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'copy')),
+            if (!m.deleted && !m.internal && m.type == 'text' && m.text.trim().isNotEmpty)
+              GroupTile(title: 'Создать шаблон (/)', icon: LucideIcons.zap, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'template')),
+            if (m.type == 'audio' && !m.deleted)
+              GroupTile(
+                title: m.transcript == null ? 'Расшифровать голосовое' : 'Обновить расшифровку',
+                icon: LucideIcons.captions,
+                trailing: const SizedBox.shrink(),
+                onTap: () => Navigator.pop(sheet, 'transcribe'),
+              ),
+            if (mine && m.type == 'text' && recent && !m.deleted) GroupTile(title: 'Изменить', icon: LucideIcons.pencil, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'edit')),
+            if (ctrl.canRemove(m)) GroupTile(title: m.internal || m.isFailed ? 'Удалить' : 'Удалить у всех', icon: LucideIcons.trash2, destructive: true, onTap: () => Navigator.pop(sheet, 'delete')),
+            if (ctrl.isSelectable(m)) GroupTile(title: 'Выбрать', icon: LucideIcons.squareCheck, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'select')),
+          ],
+        ),
       ),
     );
     switch (action) {
@@ -233,11 +265,75 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!mounted) return;
         final text = await promptText(context, title: 'Изменить сообщение', initial: m.text, lines: 4);
         if (text != null && text != m.text) _toast(await ctrl.edit(m, text));
-      case 'delete':
-        if (!mounted) return;
-        final yes = await confirm(context, title: 'Удалить у всех?', message: 'Клиент увидит «Сообщение удалено».', ok: 'Удалить', destructive: true);
-        if (yes) _toast(await ctrl.remove(m));
+      case 'forward' || 'delete' || 'select':
+        // Как в WhatsApp: «Переслать» и «Удалить» включают выбор — можно отметить ещё сообщения и нажать кнопку сверху.
+        ctrl.startSelect(m);
+      case 'template':
+        await _templateFromMessage(m);
     }
+  }
+
+  // ─── выбор нескольких сообщений ─────────────────────────────────────────────
+
+  Future<void> _forward() async {
+    final list = ctrl.picked;
+    if (list.isEmpty) return;
+    final preview = list.length == 1 ? (list.first.text.isEmpty ? '[${list.first.type}]' : list.first.text) : 'Сообщений: ${list.length}';
+    final targets = await pickForwardTargets(context, ctrl, preview: preview);
+    if (targets == null || targets.isEmpty || !mounted) return;
+    final (ok, text) = await ctrl.forwardPicked(targets);
+    _toast(text);
+    if (!ok) return;
+  }
+
+  Future<void> _deletePicked() async {
+    final list = ctrl.picked;
+    if (list.isEmpty) return;
+    final one = list.length == 1 ? list.first : null;
+    final title = one == null
+        ? 'Удалить сообщения (${list.length})?'
+        : (one.internal
+              ? 'Удалить заметку?'
+              : one.isFailed
+              ? 'Удалить неотправленное сообщение?'
+              : 'Удалить сообщение у всех?');
+    final yes = await confirm(context, title: title, message: one != null && (one.internal || one.isFailed) ? null : 'Клиент увидит «Сообщение удалено».', ok: 'Удалить', destructive: true);
+    if (yes) _toast(await ctrl.removePicked());
+  }
+
+  /// Шаблон из выбранных сообщений: тексты склеиваются в черновик.
+  Future<void> _templateFromPicked() async {
+    final text = ctrl.pickedText;
+    if (text.isEmpty) return;
+    final list = ctrl.picked.where((m) => !m.internal && m.type == 'text').toList();
+    if (list.length == 1) return _templateFromMessage(list.first);
+    ctrl.clearSelect();
+    await Navigator.of(context).push(
+      CupertinoPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (_) => TemplateEditorScreen(initialTitle: titleFromText(text), initialText: text.length > 2000 ? text.substring(0, 2000) : text),
+      ),
+    );
+  }
+
+  /// «Создать шаблон (/)» из сообщения: сервер (код и ИИ) заменяет данные клиента подстановками — открывается редактор.
+  Future<void> _templateFromMessage(Message m) async {
+    ctrl.clearSelect();
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    final (draft, err) = await ctrl.draftTemplate(m);
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    if (draft == null) return _toast(err);
+    await Navigator.of(context).push(
+      CupertinoPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (_) => TemplateEditorScreen(initialTitle: draft.title, initialText: draft.text, replaced: draft.replaced),
+      ),
+    );
   }
 
   Future<void> _retry(Message m) async {
@@ -269,14 +365,18 @@ class _ChatScreenState extends State<ChatScreen> {
     final r = await showAppSheet<String>(
       context,
       builder: (sheet) => SingleChildScrollView(
-        child: GroupCard(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
-          if (d.dealId == null && d.perms.canCreateDeal) GroupTile(title: 'Завести сделку', icon: LucideIcons.handshake, onTap: () => Navigator.pop(sheet, 'deal')),
-          if (d.perms.canNote) GroupTile(title: 'Заметка для коллег', icon: LucideIcons.stickyNote, onTap: () => Navigator.pop(sheet, 'note')),
-          if (d.status == 'open' && d.perms.canReply) GroupTile(title: 'Закрыть диалог', icon: LucideIcons.circleCheck, onTap: () => Navigator.pop(sheet, 'close')),
-          if (d.status == 'closed' && d.perms.canReply) GroupTile(title: 'Открыть снова', icon: LucideIcons.rotateCcw, onTap: () => Navigator.pop(sheet, 'open')),
-          if (d.perms.canReply) GroupTile(title: 'Передать коллеге', icon: LucideIcons.userRoundPlus, onTap: () => Navigator.pop(sheet, 'assign')),
-          GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
-        ]),
+        child: GroupCard(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            if (d.dealId == null && d.perms.canCreateDeal) GroupTile(title: 'Завести сделку', icon: LucideIcons.handshake, onTap: () => Navigator.pop(sheet, 'deal')),
+            if (d.perms.canNote) GroupTile(title: 'Заметка для коллег', icon: LucideIcons.stickyNote, onTap: () => Navigator.pop(sheet, 'note')),
+            if (d.status == 'open' && d.perms.canReply) GroupTile(title: 'Закрыть диалог', icon: LucideIcons.circleCheck, onTap: () => Navigator.pop(sheet, 'close')),
+            if (d.status == 'closed' && d.perms.canReply) GroupTile(title: 'Открыть снова', icon: LucideIcons.rotateCcw, onTap: () => Navigator.pop(sheet, 'open')),
+            if (d.perms.canReply) GroupTile(title: 'Передать коллеге', icon: LucideIcons.userRoundPlus, onTap: () => Navigator.pop(sheet, 'assign')),
+            GroupTile(title: d.pinned ? 'Открепить чат' : 'Закрепить чат', icon: d.pinned ? LucideIcons.pinOff : LucideIcons.pin, onTap: () => Navigator.pop(sheet, d.pinned ? 'unpin' : 'pin')),
+            GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
+          ],
+        ),
       ),
     );
     switch (r) {
@@ -290,6 +390,9 @@ class _ChatScreenState extends State<ChatScreen> {
         _toast(await ctrl.setStatus('open'));
       case 'assign':
         await _assign();
+      case 'pin' || 'unpin':
+        _toast(await ctrl.setPinned(r == 'pin') ?? (r == 'pin' ? 'Чат закреплён вверху списка' : 'Чат откреплён'));
+        if (mounted) context.read<ChatsStore>().load();
       case 'refresh':
         await ctrl.load();
     }
@@ -312,10 +415,13 @@ class _ChatScreenState extends State<ChatScreen> {
       title: 'Передать диалог',
       icon: LucideIcons.userRoundPlus,
       builder: (sheet) => SingleChildScrollView(
-        child: GroupCard(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
-          for (final p in people) GroupTile(title: p['name'] as String, icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, p['id'] as String)),
-          GroupTile(title: 'Снять ответственного', icon: LucideIcons.userX, iconColor: sheet.c.textMuted, onTap: () => Navigator.pop(sheet, '')),
-        ]),
+        child: GroupCard(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          children: [
+            for (final p in people) GroupTile(title: p['name'] as String, icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, p['id'] as String)),
+            GroupTile(title: 'Снять ответственного', icon: LucideIcons.userX, iconColor: sheet.c.textMuted, onTap: () => Navigator.pop(sheet, '')),
+          ],
+        ),
       ),
     );
     if (picked == null) return;
@@ -339,22 +445,42 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Consumer<ChatController>(
         builder: (context, ctl, _) {
           final d = ctl.detail;
-          return Scaffold(
-            backgroundColor: c.bg,
-            body: Column(children: [
-              _header(context, d),
-              if (d != null) _topBars(context, d),
-              Expanded(
-                child: ChatWallpaper(
-                  child: Stack(children: [
-                    Positioned.fill(child: _messages(context, ctl, auth)),
-                    Positioned(right: 14, bottom: 12, child: AnimatedScale(scale: _showDown ? 1 : 0, duration: const Duration(milliseconds: 160), child: _DownButton(onTap: () => _scroll.animateTo(0, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic)))),
-                  ]),
-                ),
+          return PopScope(
+            canPop: !ctl.selecting,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) ctl.clearSelect();
+            },
+            child: Scaffold(
+              backgroundColor: c.bg,
+              body: Column(
+                children: [
+                  ctl.selecting ? _selectHeader(context, ctl) : _header(context, d),
+                  if (d != null) _topBars(context, d),
+                  Expanded(
+                    child: ChatWallpaper(
+                      child: Stack(
+                        children: [
+                          Positioned.fill(child: _messages(context, ctl, auth)),
+                          Positioned(
+                            right: 14,
+                            bottom: 12,
+                            child: AnimatedScale(
+                              scale: _showDown ? 1 : 0,
+                              duration: const Duration(milliseconds: 160),
+                              child: _DownButton(
+                                onTap: () => _scroll.animateTo(0, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (ctl.replyTo != null && !ctl.selecting) _replyBar(context, ctl),
+                  if (d != null && !ctl.selecting) _bottom(context, ctl, d),
+                ],
               ),
-              if (ctl.replyTo != null) _replyBar(context, ctl),
-              if (d != null) _bottom(context, ctl, d),
-            ]),
+            ),
           );
         },
       ),
@@ -367,25 +493,85 @@ class _ChatScreenState extends State<ChatScreen> {
     final parts = d == null ? <String>[] : [d.channelLabel, if (d.assignee != null) d.assignee!, if (d.status == 'closed') 'закрыт'];
     final subtitle = d?.botLabel != null && d!.botLabel!.contains('ведёт') ? 'бот ведёт диалог' : parts.join(' · ');
     return Container(
-      decoration: BoxDecoration(color: c.bg, border: Border(bottom: BorderSide(color: c.border, width: 0.6))),
+      decoration: BoxDecoration(
+        color: c.bg,
+        border: Border(bottom: BorderSide(color: c.border, width: 0.6)),
+      ),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
           height: 60,
-          child: Row(children: [
-            RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
-            AppAvatar(name: title, url: d?.avatarUrl ?? widget.avatarUrl, size: 38, channel: widget.channel),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context)),
-                if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(context).copyWith(fontSize: 13)),
-              ]),
-            ),
-            if (d?.deal != null) RoundIconButton(icon: LucideIcons.handshake, size: 42, color: c.text, tooltip: 'Сделка', onTap: () => _openDeal(d!)),
-            RoundIconButton(icon: LucideIcons.ellipsis, size: 42, color: c.text, tooltip: 'Ещё', onTap: _menu),
-            const SizedBox(width: 4),
-          ]),
+          child: Row(
+            children: [
+              RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
+              AppAvatar(name: title, url: d?.avatarUrl ?? widget.avatarUrl, size: 38, channel: widget.channel),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context)),
+                    if (subtitle.isNotEmpty) Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.caption(context).copyWith(fontSize: 13)),
+                  ],
+                ),
+              ),
+              if (d?.deal != null) RoundIconButton(icon: LucideIcons.handshake, size: 42, color: c.text, tooltip: 'Сделка', onTap: () => _openDeal(d!)),
+              RoundIconButton(icon: LucideIcons.ellipsis, size: 42, color: c.text, tooltip: 'Ещё', onTap: _menu),
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Шапка режима выбора: закрыть, сколько выбрано, «в шаблон», переслать, удалить.
+  Widget _selectHeader(BuildContext context, ChatController ctl) {
+    final c = context.c;
+    final list = ctl.picked;
+    final canForward = list.isNotEmpty && list.every(ctl.canForward);
+    final canRemove = list.isNotEmpty && list.every(ctl.canRemove);
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bg,
+        border: Border(bottom: BorderSide(color: c.border, width: 0.6)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            children: [
+              RoundIconButton(icon: LucideIcons.x, size: 44, iconSize: 24, color: c.text, tooltip: 'Отменить выбор', onTap: ctl.clearSelect),
+              Expanded(child: Text(list.isEmpty ? 'Выберите сообщения' : 'Выбрано: ${list.length}', style: AppText.headline(context))),
+              RoundIconButton(
+                icon: LucideIcons.zap,
+                size: 44,
+                iconSize: 22,
+                color: ctl.pickedText.isNotEmpty ? c.text : c.textFaint,
+                tooltip: 'В шаблон',
+                onTap: ctl.pickedText.isNotEmpty ? _templateFromPicked : () => _toast('В выбранных нет текста'),
+              ),
+              RoundIconButton(
+                icon: LucideIcons.forward,
+                size: 44,
+                iconSize: 22,
+                color: canForward ? c.text : c.textFaint,
+                tooltip: 'Переслать',
+                onTap: canForward ? _forward : () => _toast(list.isEmpty ? null : 'Заметки пересылать нельзя'),
+              ),
+              RoundIconButton(
+                icon: LucideIcons.trash2,
+                size: 44,
+                iconSize: 22,
+                color: canRemove ? c.danger : c.textFaint,
+                tooltip: 'Удалить',
+                onTap: canRemove ? _deletePicked : () => _toast(list.isEmpty ? null : 'Удалить можно только свои сообщения за последние двое суток'),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
         ),
       ),
     );
@@ -399,37 +585,63 @@ class _ChatScreenState extends State<ChatScreen> {
     return Container(
       color: c.bg,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Column(children: [
-        if (d.deal != null)
-          GestureDetector(
-            onTap: () => _openDeal(d),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-              decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(12)),
-              child: Row(children: [
-                Container(width: 9, height: 9, decoration: BoxDecoration(color: _hex(d.deal!.stageColor), shape: BoxShape.circle)),
-                const SizedBox(width: 10),
-                Expanded(child: Text('№${d.deal!.number} · ${d.deal!.stageName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.text))),
-                if (d.deal!.amount > 0) Text(money(d.deal!.amount), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.text)),
-                const SizedBox(width: 4),
-                Icon(LucideIcons.chevronRight, size: 17, color: c.textFaint),
-              ]),
+      child: Column(
+        children: [
+          if (d.deal != null)
+            GestureDetector(
+              onTap: () => _openDeal(d),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(color: _hex(d.deal!.stageColor), shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '№${d.deal!.number} · ${d.deal!.stageName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.text),
+                      ),
+                    ),
+                    if (d.deal!.amount > 0)
+                      Text(
+                        money(d.deal!.amount),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.text),
+                      ),
+                    const SizedBox(width: 4),
+                    Icon(LucideIcons.chevronRight, size: 17, color: c.textFaint),
+                  ],
+                ),
+              ),
             ),
-          ),
-        for (final i in payable)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              decoration: BoxDecoration(color: c.warnBg, borderRadius: BorderRadius.circular(12)),
-              child: Row(children: [
-                Icon(LucideIcons.receipt, size: 16, color: c.warn),
-                const SizedBox(width: 9),
-                Expanded(child: Text('Счёт ${i.label} · ${money(i.amount)} — ждёт оплаты до ${i.expiresLabel}', style: TextStyle(fontSize: 13.5, color: c.warn, fontWeight: FontWeight.w600))),
-              ]),
+          for (final i in payable)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(color: c.warnBg, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.receipt, size: 16, color: c.warn),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Счёт ${i.label} · ${money(i.amount)} — ждёт оплаты до ${i.expiresLabel}',
+                        style: TextStyle(fontSize: 13.5, color: c.warn, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -458,8 +670,23 @@ class _ChatScreenState extends State<ChatScreen> {
         // «Хвостик» — у первого сообщения серии: сменился отправитель, день или прошло больше пяти минут.
         final tail = newDay || older.outgoing != m.outgoing || older.internal || m.internal || m.at.difference(older.at).inMinutes >= 5;
         final key = _keys.putIfAbsent(m.id, () => GlobalKey());
-        final bubble = KeyedSubtree(key: key, child: MessageBubble(message: m, api: auth.api, tail: tail, onLongPress: () => _messageMenu(m), onRetry: () => _retry(m), onQuoteTap: _scrollTo));
-        return newDay ? Column(children: [_DayChip(label: dayLabel(m.at)), bubble]) : bubble;
+        Widget bubble = MessageBubble(message: m, api: auth.api, tail: tail, onLongPress: () => c.selecting ? c.toggleSelect(m) : _messageMenu(m), onRetry: () => _retry(m), onQuoteTap: _scrollTo);
+        // Идёт выбор: тап по любому месту сообщения отмечает его, плеер и ссылки внутри не срабатывают.
+        if (c.selecting && c.isSelectable(m))
+          bubble = _SelectRow(
+            selected: c.selected!.contains(m.id),
+            onTap: () => c.toggleSelect(m),
+            child: AbsorbPointer(child: bubble),
+          );
+        bubble = KeyedSubtree(key: key, child: bubble);
+        return newDay
+            ? Column(
+                children: [
+                  _DayChip(label: dayLabel(m.at)),
+                  bubble,
+                ],
+              )
+            : bubble;
       },
     );
   }
@@ -472,16 +699,33 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(14, 8, 6, 0),
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
-        decoration: BoxDecoration(color: t.surface, borderRadius: BorderRadius.circular(12), border: Border(left: BorderSide(color: t.brandDeep, width: 4))),
-        child: Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(r.outgoing ? (r.author ?? 'Вы') : 'Клиент', style: TextStyle(fontWeight: FontWeight.w700, color: t.brandDeep, fontSize: 13)),
-              Text(r.text.isEmpty ? '[${r.type}]' : r.text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.textMuted, fontSize: 14.5)),
-            ]),
-          ),
-          RoundIconButton(icon: LucideIcons.x, size: 36, iconSize: 18, color: t.textMuted, onTap: () => c.setReply(null)),
-        ]),
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border(left: BorderSide(color: t.brandDeep, width: 4)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    r.outgoing ? (r.author ?? 'Вы') : 'Клиент',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: t.brandDeep, fontSize: 13),
+                  ),
+                  Text(
+                    r.text.isEmpty ? '[${r.type}]' : r.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textMuted, fontSize: 14.5),
+                  ),
+                ],
+              ),
+            ),
+            RoundIconButton(icon: LucideIcons.x, size: 36, iconSize: 18, color: t.textMuted, onTap: () => c.setReply(null)),
+          ],
+        ),
       ),
     );
   }
@@ -492,14 +736,71 @@ class _ChatScreenState extends State<ChatScreen> {
       final text = d.sendBlocker ?? (d.perms.mine ? 'Ответ недоступен' : 'Заявку распределяет круг — ответит менеджер, которому она достанется.');
       return Container(
         width: double.infinity,
-        decoration: BoxDecoration(color: t.warnBg, border: Border(top: BorderSide(color: t.border, width: 0.6))),
+        decoration: BoxDecoration(
+          color: t.warnBg,
+          border: Border(top: BorderSide(color: t.border, width: 0.6)),
+        ),
         child: SafeArea(
           top: false,
-          child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [Icon(LucideIcons.info, size: 18, color: t.warn), const SizedBox(width: 10), Expanded(child: Text(text, style: TextStyle(fontSize: 14, color: t.warn, height: 1.3, fontWeight: FontWeight.w500)))])),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Icon(LucideIcons.info, size: 18, color: t.warn),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: TextStyle(fontSize: 14, color: t.warn, height: 1.3, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
-    return Composer(key: _composer, controller: c, onTemplates: _templates, onAttach: _attach, onCamera: _camera, onBlocked: _askReason);
+    return Composer(key: _composer, controller: c, templates: d.templates, onTemplates: _templates, onAttach: _attach, onCamera: _camera, onBlocked: _askReason);
+  }
+}
+
+/// Строка ленты в режиме выбора: кружок слева и подсветка отмеченного.
+class _SelectRow extends StatelessWidget {
+  const _SelectRow({required this.selected, required this.onTap, required this.child});
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        color: selected ? c.brandDeep.withValues(alpha: 0.18) : Colors.transparent,
+        child: Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            Padding(padding: const EdgeInsets.only(left: 34), child: child),
+            Positioned(
+              left: 10,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? c.brandDeep : c.bg.withValues(alpha: 0.85),
+                  border: Border.all(color: selected ? c.brandDeep : c.textFaint, width: 1.6),
+                ),
+                child: selected ? const Icon(LucideIcons.check, size: 14, color: Colors.white) : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -522,8 +823,15 @@ class _DayChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(color: c.surfaceRaised.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1))]),
-        child: Text(label, style: TextStyle(fontSize: 12.5, color: c.textMuted, fontWeight: FontWeight.w600)),
+        decoration: BoxDecoration(
+          color: c.surfaceRaised.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1))],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 12.5, color: c.textMuted, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -541,7 +849,11 @@ class _DownButton extends StatelessWidget {
       child: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(color: c.surfaceRaised, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 10, offset: const Offset(0, 3))]),
+        decoration: BoxDecoration(
+          color: c.surfaceRaised,
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
         child: Icon(LucideIcons.chevronDown, size: 22, color: c.textMuted),
       ),
     );
@@ -561,7 +873,13 @@ class _MessagesSkeleton extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         children: [
           for (final r in rows)
-            Align(alignment: r.$1 ? Alignment.centerRight : Alignment.centerLeft, child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: SkeletonBox(width: r.$2, height: 38, radius: 14))),
+            Align(
+              alignment: r.$1 ? Alignment.centerRight : Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: SkeletonBox(width: r.$2, height: 38, radius: 14),
+              ),
+            ),
         ],
       ),
     );

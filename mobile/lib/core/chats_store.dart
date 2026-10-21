@@ -82,8 +82,49 @@ class ChatsStore extends ChangeNotifier {
       waitLabel: c.waitLabel,
       overdue: c.overdue,
       bot: c.bot,
+      pinned: c.pinned,
     );
     notifyListeners();
+  }
+
+  /// Закрепить или открепить чат (личное закрепление): список перестраивается сразу, сервер подтверждает следом.
+  Future<String?> pin(String id, bool pinned) async {
+    final i = items.indexWhere((c) => c.id == id);
+    if (i >= 0) {
+      final c = items.removeAt(i);
+      final moved = ChatSummary(
+        id: c.id,
+        title: c.title,
+        channel: c.channel,
+        channelLabel: c.channelLabel,
+        avatarUrl: c.avatarUrl,
+        lastMessageAt: c.lastMessageAt,
+        preview: c.preview,
+        unread: c.unread,
+        status: c.status,
+        assignee: c.assignee,
+        waitLabel: c.waitLabel,
+        overdue: c.overdue,
+        bot: c.bot,
+        pinned: pinned,
+      );
+      // Закреплённые — сверху, остальные — по времени, как отдаёт сервер.
+      final firstFree = items.indexWhere((x) => !x.pinned);
+      if (pinned) {
+        items.insert(firstFree < 0 ? items.length : firstFree, moved);
+      } else {
+        final at = items.indexWhere((x) => !x.pinned && (x.lastMessageAt ?? DateTime(0)).isBefore(c.lastMessageAt ?? DateTime(0)));
+        items.insert(at < 0 ? items.length : at, moved);
+      }
+      notifyListeners();
+    }
+    try {
+      await api.post('/api/mobile/chats/$id/pin', body: {'pinned': pinned});
+      return null;
+    } on ApiException catch (e) {
+      await load();
+      return e.message;
+    }
   }
 
   @override

@@ -85,6 +85,7 @@ export const admin = {
   recordNotYours: "Недостаточно прав для этого действия",
   /** Мобильное приложение продажника. */
   mobileEmptyRecording: "Пустая запись",
+  mobileForwardFailed: "Не переслалось",
   mobileTooManyLogins: "Слишком много попыток входа. Подождите 15 минут.",
   mobileSiteVisitor: "Посетитель сайта",
   recordUnsorted: "Заявку распределяет круг — её получит менеджер на смене. Назначить вручную может руководитель.",
