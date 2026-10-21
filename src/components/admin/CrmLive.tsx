@@ -115,6 +115,14 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/crm-sw.js", { scope: "/admin" }).catch(() => {});
   }, []);
 
+  // Иконка установленного приложения показывает число чатов с новыми сообщениями (iOS 16.4+, Android, десктоп Chrome).
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (count: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    const chats = live.counters.chats;
+    const badge = chats > 0 ? nav.setAppBadge?.(chats) : nav.clearAppBadge?.();
+    badge?.catch(() => {});
+  }, [live.counters.chats]);
+
   useEffect(() => {
     const tick = () => document.visibilityState === "visible" && void refresh();
     const id = window.setInterval(tick, live$ ? POLL_MS_LIVE : POLL_MS);

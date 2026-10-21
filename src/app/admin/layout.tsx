@@ -16,6 +16,8 @@ export const metadata = {
   // Установка CRM на телефон как приложения (PWA) и push-уведомления.
   manifest: "/crm.webmanifest",
   appleWebApp: { capable: true, title: "MyBooks CRM", statusBarStyle: "default" as const },
+  // Иконка на экране «Домой» на iPhone: Safari берёт apple-touch-icon.
+  icons: { apple: "/crm-icon-192.png" },
 };
 
 export const viewport = { themeColor: "#7a1f2b" };
