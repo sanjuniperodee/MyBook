@@ -103,6 +103,14 @@ npm run create-admin -- admin@example.com 'надёжный-пароль'
 npm run sample-book -- ./sample-out [обложка] [оформление]  # например: blossom romance
 ```
 
+Все обложки из выбора — картинками для сторис Instagram (PNG 1080×1920, обложка по центру, верх и низ по 250 px свободны под интерфейс и логотип) в папку `./stories-covers`. Нужны Chromium из Playwright и `npm ci`; около 7 минут:
+
+```bash
+npm run stories-covers                         # фон — размытая копия обложки
+npm run stories-covers -- --bg brand           # фирменный бордовый (--bg paper — светлая «бумага»)
+npm run stories-covers -- --only peony,oyu     # только эти обложки; --all — вместе с убранными из выбора; --no-text — без надписей
+```
+
 ## Продакшен (Docker)
 
 ```bash

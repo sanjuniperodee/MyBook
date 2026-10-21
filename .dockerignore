@@ -7,3 +7,4 @@ storage
 !.env.example
 *.log
 mobile
+stories-covers
