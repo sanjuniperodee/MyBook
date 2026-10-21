@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { GraduationCap, LoaderCircle, Plus, Trash2 } from "lucide-react";
-import type { BotLesson, CoachRun } from "@/modules/messaging/domain/botCoach";
+import { MAX_LESSONS, type BotLesson, type CoachRun } from "@/modules/messaging/domain/botCoach";
 import { addBotLessonAction, deleteBotLessonAction, runBotCoachAction } from "./actions";
 import { cn } from "@/lib/class-names";
 
@@ -17,6 +17,7 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [draft, setDraft] = useState("");
   const last = log[0];
+  const full = lessons.length >= MAX_LESSONS;
 
   return (
     <section className="space-y-3 rounded-xl border border-line p-3">
@@ -63,25 +64,43 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
       ) : (
         <p className="text-sm text-muted">Уроков пока нет — первые появятся после ночного разбора.</p>
       )}
-      <div className="flex gap-2">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={220} placeholder="Свой урок: например, «на «дорого» сначала спроси, к какой дате нужна книга»" className="input h-9 flex-1 text-sm" aria-label="Свой урок" />
-        <button
-          type="button"
-          className="btn btn-outline btn-sm h-9"
-          disabled={pending || draft.trim().length < 10}
-          onClick={() =>
-            start(async () => {
-              const r = await addBotLessonAction(draft);
-              if (r.error) setMsg({ ok: false, text: r.error });
-              else {
-                setDraft("");
-                setMsg(null);
-              }
-            })
-          }
-        >
-          <Plus className="size-4" /> Добавить
-        </button>
+      <div className="space-y-1.5">
+        <div className="flex gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            maxLength={220}
+            disabled={full}
+            placeholder={full ? `Все ${MAX_LESSONS} мест заняты — удалите урок, чтобы добавить свой` : "Свой урок: например, «на «дорого» сначала спроси, к какой дате нужна книга»"}
+            className="input h-9 flex-1 text-sm"
+            aria-label="Свой урок"
+          />
+          <button
+            type="button"
+            className="btn btn-outline btn-sm h-9"
+            disabled={pending || full || draft.trim().length < 10}
+            onClick={() =>
+              start(async () => {
+                try {
+                  const r = await addBotLessonAction(draft);
+                  if (r.error) setMsg({ ok: false, text: r.error });
+                  else {
+                    setDraft("");
+                    setMsg(null);
+                  }
+                } catch {
+                  setMsg({ ok: false, text: "Не сохранилось: обновите страницу и попробуйте ещё раз." });
+                }
+              })
+            }
+          >
+            <Plus className="size-4" /> Добавить
+          </button>
+        </div>
+        <p className={cn("text-xs", full ? "text-red-700" : "text-muted")}>
+          Уроков {lessons.length} из {MAX_LESSONS}.{" "}
+          {full ? "Чтобы добавить свой, удалите один из списка выше." : draft.trim().length < 10 && draft.length > 0 ? "Урок — не короче 10 знаков." : "Свой урок попадёт в инструкцию со следующего ответа бота."}
+        </p>
       </div>
       {last ? (
         <details className="text-xs">

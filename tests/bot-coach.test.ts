@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCoach, coachPrompt, defaultBotConfig, lessonProblems, lessonsBlock, parseLessons, type BotLesson, type CoachConversation, type CoachRun } from "@/modules/messaging/domain";
 import { BotCoach, type BotSellerModel, type BotSettings } from "@/modules/messaging/application";
+import { MAX_LESSONS } from "@/modules/messaging/domain/botCoach";
 
 const lesson = (p: Partial<BotLesson> = {}): BotLesson => ({ id: "l1", text: "Отвечай сначала на вопрос клиента, потом спрашивай своё", why: "", at: "2026-10-17T00:00:00Z", source: "auto", ...p });
 
@@ -37,9 +38,9 @@ describe("Работа над ошибками: уроки", () => {
     expect(r.added).toEqual(["Не задавай два вопроса в одном сообщении"]);
     expect(r.rejected).toHaveLength(1);
 
-    const many = Array.from({ length: 15 }, (_, i) => lesson({ id: `a${i}`, text: `Правило номер ${"абвгдежзийклмноп"[i]} про тон беседы ${i ? "x".repeat(i) : ""}` }));
+    const many = Array.from({ length: MAX_LESSONS }, (_, i) => lesson({ id: `a${i}`, text: `Правило номер ${"абвгдежзийклмноп"[i]} про тон беседы ${i ? "x".repeat(i) : ""}` }));
     const capped = applyCoach(many, { summary: "", add: [{ text: "Совершенно новое правило о казахском языке", why: "" }], remove: [] }, new Date(), () => "new");
-    expect(capped.lessons).toHaveLength(15);
+    expect(capped.lessons).toHaveLength(MAX_LESSONS);
     expect(capped.lessons.at(-1)?.id).toBe("new");
     expect(capped.lessons.some((l) => l.id === "a0")).toBe(false);
   });

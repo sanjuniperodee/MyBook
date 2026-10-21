@@ -28,7 +28,7 @@ export interface CoachRun {
   error?: string;
 }
 
-export const MAX_LESSONS = 15;
+export const MAX_LESSONS = 30;
 export const LESSON_MAX = 220;
 /** Сколько последних запусков помним (журнал в настройках). */
 export const COACH_LOG = 14;
