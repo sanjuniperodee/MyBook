@@ -73,7 +73,40 @@ export function OrdersTable({ rows }: { rows: OrderRow[] }) {
         </div>
       ) : null}
       {message ? <p className="text-sm text-muted">{message}</p> : null}
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      {/* Телефон — карточки, как «Заказы» в приложении; таблица с выбором и массовой сменой статуса — на больших экранах. */}
+      <ul className="space-y-2.5 lg:hidden" data-testid="orders-cards">
+        {rows.map((o) => (
+          <li key={o.id}>
+            <Link href={`/admin/orders/${o.id}`} className="block rounded-2xl border border-line bg-white p-3.5 shadow-soft active:scale-[0.99]">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[16px] font-semibold">
+                    №{o.number} · {o.contactName}
+                  </div>
+                  <div className="truncate text-sm text-muted">
+                    {o.planLabel}
+                    {o.printed ? "" : " · электронная"}
+                  </div>
+                  {o.contactLine ? <div className="truncate text-xs text-muted">{o.contactLine}</div> : null}
+                </div>
+                <div className="text-right">
+                  <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{o.amountLabel}</div>
+                  {o.money ? <div className={cn("text-xs", o.money.kind === "debt" ? "font-medium text-red-700" : "text-emerald-700")}>{o.money.label}</div> : null}
+                </div>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
+                <span className={cn("rounded-full px-2.5 py-1 font-medium whitespace-nowrap", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", o.printed)}</span>
+                {o.claimed ? <span className="rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-800">сообщил об оплате</span> : null}
+                {o.desiredLabel ? <span className="rounded-md bg-red-50 px-2 py-1 font-medium text-red-700">к {o.desiredLabel}</span> : null}
+                {o.promoCode ? <span className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">{o.promoCode}</span> : null}
+                <span className="ml-auto text-muted">{o.createdLabel}</span>
+              </div>
+            </Link>
+          </li>
+        ))}
+        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Ничего не найдено</li> : null}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="border-b border-line text-left text-muted">
             <tr>

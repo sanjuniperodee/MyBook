@@ -19,6 +19,6 @@
   "shortcuts": [
     { "name": "Чаты", "url": "/admin/chats", "icons": [{ "src": "/crm-icon-192.png", "sizes": "192x192" }] },
     { "name": "Задачи", "url": "/admin/tasks", "icons": [{ "src": "/crm-icon-192.png", "sizes": "192x192" }] },
-    { "name": "Заказы", "url": "/admin/board", "icons": [{ "src": "/crm-icon-192.png", "sizes": "192x192" }] }
+    { "name": "Заказы", "url": "/admin/orders", "icons": [{ "src": "/crm-icon-192.png", "sizes": "192x192" }] }
   ]
 }

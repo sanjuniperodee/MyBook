@@ -32,7 +32,7 @@ function Delta({ value, light = false }: { value: number | null; light?: boolean
 }
 
 /** Куда ведёт первая вкладка нижней панели каждой роли — туда установленная CRM открывается при запуске с иконки (как главная вкладка приложения). */
-const LAUNCH: Record<string, string> = { chats: "/admin/chats", tasks: "/admin/tasks", deals: "/admin/deals", clients: "/admin/clients", orders: "/admin/board", calls: "/admin/calls" };
+const LAUNCH: Record<string, string> = { chats: "/admin/chats", tasks: "/admin/tasks", deals: "/admin/deals", clients: "/admin/clients", orders: "/admin/orders", calls: "/admin/calls" };
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string; source?: string }> }) {
   const staff = await requireStaff();

@@ -17,7 +17,8 @@ const DOT: Record<string, string> = { pending_payment: "bg-amber-500", paid: "bg
  * (доска) остаётся на больших экранах.
  */
 export function OrdersMobile({ cards }: { cards: BoardCard[] }) {
-  const [status, setStatus] = useState<OrderStatus>("paid");
+  // Открываем первый статус, где есть заказы: пустой «Оплачен» по умолчанию выглядел как «заказов нет».
+  const [status, setStatus] = useState<OrderStatus>(() => (["paid", "in_production", "pending_payment", "shipped", "delivered"] as OrderStatus[]).find((s) => cards.some((c) => c.status === s)) ?? "paid");
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
   const list = cards.filter((c) => c.status === status && (!needle || `${c.number} ${c.contactName}`.toLowerCase().includes(needle)));

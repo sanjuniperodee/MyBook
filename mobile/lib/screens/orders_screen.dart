@@ -53,6 +53,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
       setState(() {
         _orders = [for (final o in (r['orders'] as List)) o as Map<String, dynamic>];
         _statuses = [for (final s in (r['statuses'] as List)) s as Map<String, dynamic>];
+        // Первый раз открываем статус, где есть заказы: пустой «Оплачен» выглядел как «заказов нет».
+        if (!_loaded && _count(_status) == 0) {
+          final first = ['paid', 'in_production', 'pending_payment', 'shipped', 'delivered'].where((s) => _count(s) > 0);
+          if (first.isNotEmpty) _status = first.first;
+        }
         _loaded = true;
         _error = null;
       });

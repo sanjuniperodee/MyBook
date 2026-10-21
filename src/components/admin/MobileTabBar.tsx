@@ -14,7 +14,7 @@ const TABS: Record<MobileTabKey, { label: string; href: string; icon: LucideIcon
   tasks: { label: "Задачи", href: "/admin/tasks", icon: CheckSquare, badge: "tasks" },
   deals: { label: "Сделки", href: "/admin/deals", icon: Handshake, badge: "deals" },
   clients: { label: "Клиенты", href: "/admin/clients", icon: Users },
-  orders: { label: "Заказы", href: "/admin/board", icon: Package, badge: "attention" },
+  orders: { label: "Заказы", href: "/admin/orders", icon: Package, badge: "attention" },
   calls: { label: "Звонки", href: "/admin/calls", icon: PhoneCall, badge: "calls" },
 };
 
@@ -55,7 +55,8 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
     ...tabs.map((k) => ({ key: k, ...TABS[k] })),
     { key: "more", label: profileLabel, href: "/admin/more", icon: profileLabel === "Ещё" ? Ellipsis : User, badge: undefined },
   ];
-  const active = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
+  // «Заказы» — и список, и доска производства.
+  const active = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href) || (href === "/admin/orders" && pathname.startsWith("/admin/board")));
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Разделы CRM" data-testid="mobile-tabbar">
       <ul className="mx-auto flex h-[3.6rem] max-w-xl">

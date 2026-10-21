@@ -64,6 +64,19 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
+      {/* Телефон: статусы одним нажатием (как «пилюли» в приложении); подробные фильтры — за кнопкой ниже. */}
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:hidden" data-no-ptr>
+        {[{ key: "", label: "Все" }, ...orderStatuses.map((s) => ({ key: s, label: orderStatusLabel(s) }))].map((s) => {
+          const on = (params.status ?? "") === s.key;
+          const q = new URLSearchParams(Object.entries(params).filter(([k, v]) => v && k !== "page" && k !== "status") as [string, string][]);
+          if (s.key) q.set("status", s.key);
+          return (
+            <Link key={s.key || "all"} href={`/admin/orders${q.size ? `?${q}` : ""}`} className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-medium ${on ? "bg-wine/10 text-wine" : "bg-cream/70 text-ink-soft"}`}>
+              {s.label}
+            </Link>
+          );
+        })}
+      </div>
       <MobileFilters active={!!qs.toString()}>
       <form className="grid gap-2 rounded-2xl border border-line bg-white p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]">
         <input name="q" defaultValue={params.q} placeholder="№, имя, телефон, e-mail, город" className="input h-10 text-sm" />
