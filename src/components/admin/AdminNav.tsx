@@ -39,7 +39,7 @@ import type { CrmCounters } from "@/modules/reporting";
 import { useLive } from "./CrmLive";
 import { cn } from "@/lib/class-names";
 
-interface Item {
+export interface Item {
   href: string;
   label: string;
   icon: LucideIcon;
@@ -49,7 +49,7 @@ interface Item {
   perm?: Permission[];
 }
 
-const sections: { title?: string; items: Item[] }[] = [
+export const navSections: { title?: string; items: Item[] }[] = [
   {
     items: [
       { href: "/admin", label: "Обзор", icon: LayoutDashboard, exact: true },
@@ -118,7 +118,7 @@ function NavIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) 
   );
 }
 
-function ShiftToggle({ initial }: { initial: boolean }) {
+export function ShiftToggle({ initial }: { initial: boolean }) {
   const [on, setOn] = useState(initial);
   const [pending, start] = useTransition();
   return (
@@ -162,7 +162,7 @@ export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adm
   }, [open, variant]);
 
   const allowed = new Set(perms);
-  const visible = sections.map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || it.perm.some((p) => allowed.has(p))) })).filter((s) => s.items.length);
+  const visible = navSections.map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || it.perm.some((p) => allowed.has(p))) })).filter((s) => s.items.length);
   const nav = (
     <nav className="flex flex-col gap-4">
       {visible.map((s, i) => (

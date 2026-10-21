@@ -1,5 +1,6 @@
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
+import { MobileFilters } from "@/components/admin/MobileFilters";
 import { Download, Kanban } from "lucide-react";
 import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
@@ -63,6 +64,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
+      <MobileFilters active={!!qs.toString()}>
       <form className="grid gap-2 rounded-2xl border border-line bg-white p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]">
         <input name="q" defaultValue={params.q} placeholder="№, имя, телефон, e-mail, город" className="input h-10 text-sm" />
         <select name="status" defaultValue={params.status ?? ""} className="input h-10 text-sm">
@@ -102,6 +104,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
           ) : null}
         </div>
       </form>
+      </MobileFilters>
 
       <OrdersTable rows={rows} />
 

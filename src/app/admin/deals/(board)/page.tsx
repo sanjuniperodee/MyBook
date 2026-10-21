@@ -2,6 +2,7 @@ import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
+import { MobileFilters } from "@/components/admin/MobileFilters";
 import { Plus, Settings2 } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
@@ -119,6 +120,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                 </Link>
               ))
           : null}
+        <MobileFilters className="ml-auto w-full lg:w-auto">
         <form className="ml-auto flex items-center gap-2" action="/admin/deals">
           {sp.p ? <input type="hidden" name="p" value={sp.p} /> : null}
           {sp.mine ? <input type="hidden" name="mine" value={sp.mine} /> : null}
@@ -145,6 +147,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           <input name="q" defaultValue={q} placeholder="Имя, телефон, №" className="input h-9 w-44 text-sm" />
           <button className="btn btn-outline btn-sm h-9">Найти</button>
         </form>
+        </MobileFilters>
         <div className="flex rounded-xl border border-line bg-white p-0.5 text-sm">
           <Link href={params({ view: undefined })} className={cn("rounded-lg px-3 py-1", view === "board" ? "bg-ink text-white" : "text-ink-soft")}>
             Воронка

@@ -231,7 +231,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   });
   const href = (p: { f?: Filter; c?: string }) => `/admin/chats?f=${p.f ?? f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p.c ? `&c=${p.c}` : ""}`;
   return (
-    <ChatNavProvider className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] overflow-hidden bg-white sm:-mx-6 lg:-my-8">
+    <ChatNavProvider className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-8 lg:h-[calc(100dvh-3.5rem)]" data-chat-root>
       <ChatsLive />
       <ChatListPane
         items={items}

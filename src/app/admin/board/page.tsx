@@ -7,6 +7,7 @@ import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
+import { OrdersMobile } from "./OrdersMobile";
 
 export const metadata = { title: "Производство" };
 
@@ -49,13 +50,16 @@ export default async function BoardPage() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Производство</h1>
-          <p className="text-sm text-muted">Перетаскивайте карточки между колонками — клиент получит письмо о смене статуса.</p>
+          <p className="hidden text-sm text-muted lg:block">Перетаскивайте карточки между колонками — клиент получит письмо о смене статуса.</p>
         </div>
         <Link href="/admin/orders" className="btn btn-outline btn-sm">
           Таблица заказов
         </Link>
       </div>
-      <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />
+      <OrdersMobile cards={cards} />
+      <div className="hidden lg:block">
+        <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />
+      </div>
     </div>
   );
 }

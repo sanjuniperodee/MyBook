@@ -7,6 +7,8 @@ import { AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff, staffViewer } from "@/server/access";
+import { redirect } from "next/navigation";
+import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 import { MyDay } from "../MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
@@ -17,8 +19,28 @@ export const metadata = { title: "Обзор" };
 const periods = [7, 30, 90] as const;
 const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur ? null : 0);
 
-export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
+/** Изменение к прошлому периоду на плитке телефона: ▲ 12 % зелёным, ▼ 8 % красным (на цветной карточке — белым). */
+function Delta({ value, light = false }: { value: number | null; light?: boolean }) {
+  if (value === null) return <span className="font-semibold">новое</span>;
+  if (value === 0) return null;
+  const up = value > 0;
+  return (
+    <span className={cn("font-semibold", light ? "text-white" : up ? "text-emerald-600" : "text-red-600")}>
+      {up ? "▲" : "▼"} {Math.abs(Math.round(value * 100))}%
+    </span>
+  );
+}
+
+/** Куда ведёт первая вкладка нижней панели каждой роли — туда установленная CRM открывается при запуске с иконки (как главная вкладка приложения). */
+const LAUNCH: Record<string, string> = { chats: "/admin/chats", tasks: "/admin/tasks", deals: "/admin/deals", clients: "/admin/clients", orders: "/admin/board", calls: "/admin/calls" };
+
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string; source?: string }> }) {
   const staff = await requireStaff();
+  const launch = (await searchParams).source === "pwa";
+  if (launch) {
+    const first = layoutTabs(mobileLayout((p) => can(staff, p), staff.isOwner), (p) => can(staff, p))[0];
+    if (LAUNCH[first]) redirect(LAUNCH[first]);
+  }
   // Без доступа к аналитике — только рабочий стол сотрудника, без выручки магазина.
   if (!can(staff, "analytics.view"))
     return (
@@ -45,8 +67,8 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const prevAvg = prev.n ? Math.round(prev.sum / prev.n) : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-6">
+      <div className="order-[-2] flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Обзор</h1>
         <div className="flex rounded-xl border border-line bg-white p-1 text-sm">
           {periods.map((p) => (
@@ -58,7 +80,41 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       </div>
       <MyDay staff={staff} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Телефон — как «Обзор» в приложении: карточка выручки с графиком и три плитки. */}
+      <div className="order-[-1] space-y-3 lg:hidden" data-testid="overview-mobile">
+        <div className="rounded-3xl bg-gradient-to-br from-wine to-wine-dark p-4 text-white shadow-lift">
+          <div className="flex items-center justify-between text-sm text-white/75">
+            <span className="font-medium">Выручка</span>
+            <Delta value={change(cur.sum, prev.sum)} light />
+          </div>
+          <div className="mt-1 text-[2rem] leading-tight font-extrabold tracking-tight tabular-nums">{formatPrice(cur.sum)}</div>
+          <div className="text-xs text-white/70">
+            за {period} дней · прошлые {period} — {formatPrice(prev.sum)}
+          </div>
+          <div className="mt-3 flex h-16 items-end gap-[2px]" aria-hidden>
+            {series.map((p) => {
+              const max = Math.max(1, ...series.map((x) => x.value));
+              return <span key={p.date} className={cn("flex-1 rounded-sm", p.value ? "bg-white/90" : "bg-white/20")} style={{ height: `${Math.max(5, (p.value / max) * 100)}%` }} />;
+            })}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          {[
+            { label: "Продажи", value: cur.n.toLocaleString("ru-RU"), d: change(cur.n, prev.n) },
+            { label: "Средний чек", value: formatPrice(avg), d: change(avg, prevAvg) },
+            { label: "Клиенты", value: newUsers.cur.toLocaleString("ru-RU"), d: change(newUsers.cur, newUsers.prev) },
+          ].map((t) => (
+            <div key={t.label} className="flex flex-col rounded-2xl border border-line bg-white p-3">
+              <div className="text-[1.05rem] leading-tight font-extrabold tabular-nums">{t.value}</div>
+              <div className="mt-0.5 text-xs text-muted">{t.label}</div>
+              <div className="mt-1 text-xs">
+                <Delta value={t.d} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden gap-4 sm:grid-cols-2 lg:grid xl:grid-cols-4">
         <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} />
         <StatTile label="Оплаченные продажи" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
         <StatTile label="Средний чек" value={formatPrice(avg)} delta={change(avg, prevAvg)} />

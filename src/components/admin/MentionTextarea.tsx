@@ -10,13 +10,15 @@ type Props = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "
   mentionables?: string[];
   /** Шаблоны для «/»: text уже с подставленными именем, заказом и ссылкой. Нет — «/» обычный символ. */
   slashItems?: { id: string; title: string; text: string; own?: boolean }[];
+  /** Классы обёртки (на телефоне поле идёт отдельной строкой над кнопками). */
+  wrapperClassName?: string;
 };
 
 /**
  * Поле ввода с подсказками: коллеги по «@» и шаблоны ответов по «/» (в начале строки или после пробела; дальше можно
  * набрать часть названия или текста). Стрелки — выбор, Enter/Tab — вставить, Esc — закрыть.
  */
-export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionTextarea({ value, onValueChange, mentionables = [], slashItems, onKeyDown, className, ...rest }, ref) {
+export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionTextarea({ value, onValueChange, mentionables = [], slashItems, wrapperClassName, onKeyDown, className, ...rest }, ref) {
   const inner = useRef<HTMLTextAreaElement>(null);
   useImperativeHandle(ref, () => inner.current!);
   const [query, setQuery] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
   };
 
   return (
-    <div className="relative min-w-0 flex-1">
+    <div className={cn("relative min-w-0 flex-1", wrapperClassName)}>
       <textarea
         {...rest}
         ref={inner}

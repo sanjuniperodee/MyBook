@@ -297,3 +297,50 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .marquee { animation: none; }
 }
+
+/*
+ * Телефон и установленная CRM (PWA): приложение, а не сайт. Нижняя панель разделов (MobileTabBar), чат на весь экран,
+ * отступы под «домашнюю» полоску iPhone, без задержки нажатия и случайного масштаба, без «резинки» страницы вверх.
+ */
+@media (max-width: 1023.98px) {
+  :root {
+    --tabbar-h: calc(3.6rem + env(safe-area-inset-bottom));
+  }
+  .crm-main {
+    padding-bottom: calc(var(--tabbar-h) + 1.25rem);
+  }
+  /* Чат: высота экрана минус шапка и панель; открытый диалог — весь экран без шапки и панели. */
+  .crm-chat-root {
+    height: calc(100dvh - 3.5rem - var(--tabbar-h));
+  }
+  html[data-chat-open] .crm-topbar {
+    display: none;
+  }
+  html[data-chat-open] .crm-main {
+    padding-bottom: 0;
+  }
+  html[data-chat-open] .crm-chat-root {
+    height: 100dvh;
+  }
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+@media (pointer: coarse) {
+  a,
+  button,
+  summary,
+  [role="button"],
+  select,
+  label {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Палец крупнее курсора: основные кнопки не ниже 40 пикселей. */
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  .input {
+    min-height: 2.75rem;
+  }
+}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MobileFilters } from "@/components/admin/MobileFilters";
 import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
 import { Download, UserPlus } from "lucide-react";
 import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
@@ -72,6 +73,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         ))}
       </div>
 
+      <MobileFilters>
       <form className="flex flex-wrap gap-2">
         <input type="hidden" name="segment" value={segment} />
         <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm" />
@@ -93,6 +95,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         </label>
         <button className="btn btn-dark btn-sm h-10">Найти</button>
       </form>
+      </MobileFilters>
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full min-w-[900px] text-sm">

@@ -69,15 +69,15 @@ export async function MyDay({ staff }: { staff: Staff }) {
           </div>
         </div>
       ) : null}
-      <div className={cn("grid gap-3 sm:grid-cols-2", tiles.length > 5 ? "lg:grid-cols-3" : tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
+      <div className={cn("grid grid-cols-2 gap-2.5 sm:gap-3", tiles.length > 5 ? "lg:grid-cols-3" : tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
         {tiles.map((t) => (
-          <Link key={t.href} href={t.href} className={cn("flex items-center gap-3 rounded-2xl border bg-white p-4 transition hover:shadow-soft", t.hot ? "border-wine/30" : "border-line")}>
-            <span className={cn("flex size-10 items-center justify-center rounded-xl", t.hot ? "bg-rose text-wine" : "bg-cream text-ink-soft")}>
+          <Link key={t.href} href={t.href} className={cn("flex items-center gap-2.5 rounded-2xl border bg-white p-3 transition hover:shadow-soft sm:gap-3 sm:p-4", t.hot ? "border-wine/30" : "border-line")}>
+            <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl sm:size-10", t.hot ? "bg-rose text-wine" : "bg-cream text-ink-soft")}>
               <t.icon className="size-5" />
             </span>
             <span>
               <span className="block text-lg font-semibold tabular-nums">{t.value}</span>
-              <span className="text-xs text-muted">{t.label}</span>
+              <span className="text-[11px] leading-tight text-muted sm:text-xs">{t.label}</span>
             </span>
           </Link>
         ))}

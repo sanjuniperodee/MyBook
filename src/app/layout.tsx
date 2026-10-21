@@ -52,6 +52,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} suppressHydrationWarning className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">
+        {/* Открыто как установленное приложение (иконка на экране «Домой») — сразу в CRM, а не на лендинг; без входа CRM сама отправит на экран входа. */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if((matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)&&(location.pathname==="/"||location.pathname==="/kk"))location.replace("/admin")}catch(e){}` }} />
         <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>
           {children}

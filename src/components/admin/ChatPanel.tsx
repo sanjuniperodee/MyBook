@@ -114,6 +114,9 @@ export function ChatPanel({
   const [tplDraft, setTplDraft] = useState<{ loading: true } | { loading: false; title: string; text: string; replaced: { was: string; with: string }[]; ai: boolean } | null>(null);
   // Микрофон есть не везде (и не на http): узнаём после монтирования, чтобы разметка сервера и клиента совпала.
   const [micOk, setMicOk] = useState(false);
+  // Узкий экран: короткая подсказка в поле ввода (длинная переносилась на три строки).
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => setNarrow(window.matchMedia("(max-width: 639px)").matches), []);
   useEffect(() => setMicOk(canRecordVoice()), []);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -652,7 +655,7 @@ export function ChatPanel({
           </button>
         </div>
       ) : null}
-      <div className={cn("relative border-t px-3 pt-2.5 pb-3 sm:px-4", selected && "hidden", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
+      <div className={cn("relative border-t px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4", selected && "hidden", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
         {showTemplates && mode === "client" ? (
           <div className="absolute right-3 bottom-full left-3 z-20 mb-2 flex max-h-72 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-xl">
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -785,7 +788,7 @@ export function ChatPanel({
           </div>
         ) : null}
         <div className={cn("flex items-end gap-2", recording && "hidden")}>
-          <div className={cn("flex min-w-0 flex-1 items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
+          <div className={cn("flex min-w-0 flex-1 flex-wrap items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2 sm:flex-nowrap", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
           {mode === "client" && !editing ? (
             <>
               <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => (e.target.files?.length && addFiles(e.target.files), (e.target.value = ""))} />
@@ -818,6 +821,7 @@ export function ChatPanel({
             ref={input}
             value={text}
             onValueChange={setText}
+            wrapperClassName="order-first basis-full sm:order-none sm:basis-auto"
             mentionables={mentionables}
             slashItems={mode === "client" && !editing && canSend ? slashItems : undefined}
             onKeyDown={(e) => {
@@ -845,7 +849,7 @@ export function ChatPanel({
             }}
             rows={1}
             maxLength={4000}
-            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : "Написать сообщение… (/ — шаблоны)"}
+            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : narrow ? "Сообщение…" : "Написать сообщение… (/ — шаблоны)"}
             className="max-h-40 min-h-9 w-full resize-none border-0 bg-transparent px-2 py-2 text-[14px] outline-none field-sizing-content placeholder:text-muted/80"
             aria-label="Текст сообщения"
           />

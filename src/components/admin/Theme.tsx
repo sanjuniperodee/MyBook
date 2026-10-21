@@ -75,3 +75,34 @@ export function ThemeToggle() {
     </button>
   );
 }
+
+/** Выбор темы тремя кнопками (страница «Ещё» на телефоне): светлая, тёмная, как в системе. */
+export function ThemeSwitch() {
+  const pref = useSyncExternalStore(subscribe, read, () => "light" as ThemePref);
+  const opts: { key: ThemePref; label: string; icon: typeof Sun }[] = [
+    { key: "system", label: "Авто", icon: Monitor },
+    { key: "light", label: "Светлая", icon: Sun },
+    { key: "dark", label: "Тёмная", icon: Moon },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-1 rounded-xl bg-cream/70 p-1" role="radiogroup" aria-label="Тема">
+      {opts.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          role="radio"
+          aria-checked={pref === o.key}
+          onClick={() => {
+            try {
+              localStorage.setItem(KEY, o.key);
+            } catch {}
+            window.dispatchEvent(new Event(EVENT));
+          }}
+          className={pref === o.key ? "flex items-center justify-center gap-1.5 rounded-lg bg-white py-2 text-sm font-medium shadow-sm" : "flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm text-muted"}
+        >
+          <o.icon className="size-4" /> {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}

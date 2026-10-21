@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MobileFilters } from "@/components/admin/MobileFilters";
 import { Search } from "lucide-react";
 import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
@@ -70,6 +71,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         ) : null}
       </div>
 
+      <MobileFilters active={!!q || who === "all" || showDone}>
       <div className="space-y-2 rounded-2xl border border-line bg-white p-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {chip("Мои", href({ who: undefined }), who === "mine")}
@@ -112,6 +114,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           </form>
         </div>
       </div>
+      </MobileFilters>
 
       <details className="group rounded-2xl border border-line bg-white px-5 py-3" open={rows.length === 0 && !showDone && !q}>
         <summary className="cursor-pointer text-sm font-semibold">+ Новая задача</summary>
