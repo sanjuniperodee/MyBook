@@ -13,4 +13,21 @@ export const stageMilestones: Record<StageMilestone, string> = {
 };
 export const milestoneOrder: readonly StageMilestone[] = STAGE_MILESTONES;
 
+/** Откуда приходит заявка → группа настройки «куда падает новая заявка»: подписи для воронки и разбор в продажах. */
+export const entryGroups = {
+  messenger: "Сообщение клиента (WhatsApp, Instagram, Telegram, почта)",
+  call: "Звонок с нового номера",
+  site: "Заявка с сайта («Перезвоните мне»)",
+  repeat: "Повторная продажа (автоматизация)",
+} as const;
+export type EntryGroup = keyof typeof entryGroups;
+
+export function entryGroup(source: string): EntryGroup | null {
+  if (source === "whatsapp" || source === "instagram" || source === "telegram" || source === "email") return "messenger";
+  if (source === "call") return "call";
+  if (source === "site") return "site";
+  if (source === "repeat") return "repeat";
+  return null;
+}
+
 export const lostReasons = ["Дорого", "Передумал", "Не успеваем к дате", "Выбрал другой подарок", "Не отвечает", "Спам / ошибка"];

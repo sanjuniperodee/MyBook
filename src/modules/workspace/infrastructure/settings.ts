@@ -42,6 +42,8 @@ export const settingDefs = {
   "pay.transferName": { env: "TRANSFER_NAME" },
   /** Через сколько минут не взятая заявка переходит следующему менеджеру по кругу; 0 — не передавать. */
   "crm.reassignMinutes": { default: "15" },
+  /** Куда падает новая заявка по источнику: JSON { messenger | call | site | repeat: id этапа }; нет записи — первый этап воронки. */
+  "crm.entryStages": { default: "{}" },
   /** В успешную сделку заказа можно влить заявку того же контакта, пришедшую не дальше N дней от её закрытия; 0 — нельзя (sales mergeRefusal). */
   "crm.mergeClosedDays": { default: "14" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */

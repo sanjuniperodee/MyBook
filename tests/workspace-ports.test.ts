@@ -62,7 +62,7 @@ describe("access: правила безопасности в настройка�
 
 describe("sales: настройки и график", () => {
   it("«Неразобранное» включено, пока не off; с какого действия заводить сделку — как в настройке", async () => {
-    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays">({ "crm.autoDealFrom": "book_half" });
+    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays" | "crm.entryStages">({ "crm.autoDealFrom": "book_half" });
     const s = crmSalesSettings(settings);
     expect([await s.unsortedEnabled(), await s.autoDealFrom()]).toEqual([true, "book_half"]);
     settings.values.set("crm.unsorted", "off");
@@ -70,7 +70,7 @@ describe("sales: настройки и график", () => {
   });
 
   it("передача не взятой заявки: по умолчанию 15 минут, 0 — выключено, мусор — по умолчанию", async () => {
-    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays">();
+    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays" | "crm.entryStages">();
     const s = crmSalesSettings(settings);
     expect(await s.reassignMinutes()).toBe(15);
     settings.values.set("crm.reassignMinutes", "0");
@@ -80,7 +80,7 @@ describe("sales: настройки и график", () => {
   });
 
   it("окно слияния с закрытой сделкой заказа: по умолчанию 14 дней, 0 — нельзя, больше 90 — 90, мусор — по умолчанию", async () => {
-    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays">();
+    const settings = new MemSettings<"crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays" | "crm.entryStages">();
     const s = crmSalesSettings(settings);
     expect(await s.mergeClosedDays()).toBe(14);
     settings.values.set("crm.mergeClosedDays", "0");

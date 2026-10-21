@@ -9,6 +9,7 @@ import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/book
 import type { BookProgress, ClientDirectory, SalesSettings, StaffRouter } from "../application";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { DEFAULT_MERGE_CLOSED_DAYS, MERGE_CLOSED_DAYS_MAX } from "../domain";
+import { entryGroup } from "../domain/meta";
 import { inExtra, phoneDigits } from "./persistence";
 
 export const drizzleClients: ClientDirectory = {
@@ -35,7 +36,7 @@ export const drizzleClients: ClientDirectory = {
 };
 
 /** Настройки CRM, которые читают продажи: «Неразобранное», с какого действия клиента заводить сделку, круг и слияние. */
-export type SalesSettingKey = "crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays";
+export type SalesSettingKey = "crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays" | "crm.entryStages";
 
 /** По умолчанию не взятая заявка уходит следующему через 15 минут. */
 export const DEFAULT_REASSIGN_MINUTES = 15;
@@ -47,6 +48,16 @@ export const crmSalesSettings = (settings: SettingsReader<SalesSettingKey>): Sal
     const raw = await settings.get("crm.reassignMinutes");
     const n = raw === null || raw === undefined || raw === "" ? DEFAULT_REASSIGN_MINUTES : Number(raw);
     return Number.isFinite(n) && n >= 0 ? Math.min(Math.floor(n), 24 * 60) : DEFAULT_REASSIGN_MINUTES;
+  },
+  async entryStageId(source) {
+    const group = entryGroup(source);
+    if (!group) return null;
+    try {
+      const map = JSON.parse((await settings.get("crm.entryStages")) || "{}") as Record<string, unknown>;
+      return typeof map[group] === "string" && map[group] ? (map[group] as string) : null;
+    } catch {
+      return null;
+    }
   },
   async mergeClosedDays() {
     const raw = await settings.get("crm.mergeClosedDays");

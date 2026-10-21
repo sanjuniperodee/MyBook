@@ -3,7 +3,8 @@
 import { container } from "@/server/container";
 import { readGifts } from "@/shared/domain/agreementGifts";
 import { giftsForPlan } from "@/config/site";
-import { listFields, readFieldValues } from "@/modules/workspace";
+import { getSetting, listFields, readFieldValues, saveSettings } from "@/modules/workspace";
+import { entryGroups } from "@/modules/sales/domain/meta";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -254,6 +255,32 @@ export async function saveStageAction(_: DealFormState, form: FormData): Promise
   revalidatePath("/admin/deals");
   revalidatePath("/admin/deals/stages");
   return { ok: "Сохранено" };
+}
+
+/**
+ * Куда падает новая заявка из этого источника (мессенджер, звонок, сайт, повторная продажа): этап «в работе» основной
+ * воронки; пустой — первый этап. Настройка «crm.entryStages».
+ */
+export async function saveEntryStageAction(group: string, stageId: string): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  if (!(group in entryGroups)) return { error: "Неизвестный источник заявок" };
+  if (stageId) {
+    const first = (await container().sales.queries.listPipelines())[0];
+    const stage = (await container().sales.queries.listStages(first.id)).find((s) => s.id === stageId);
+    if (!stage || stage.kind !== "open") return { error: "Заявка может падать только на этап «в работе» основной воронки" };
+  }
+  let map: Record<string, string> = {};
+  try {
+    map = JSON.parse((await getSetting("crm.entryStages")) || "{}") as Record<string, string>;
+  } catch {
+    map = {};
+  }
+  if (stageId) map[group] = stageId;
+  else delete map[group];
+  await saveSettings({ "crm.entryStages": JSON.stringify(map) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "crm.entryStages", { group, stageId });
+  revalidatePath("/admin/deals/stages");
+  return { ok: true };
 }
 
 export async function moveStageAction(id: string, dir: -1 | 1) {

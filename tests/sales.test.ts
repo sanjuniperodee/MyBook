@@ -245,7 +245,8 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
     adoptManager: async () => {},
   };
   const mergeWindow = { days: 14 };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15, mergeClosedDays: async () => mergeWindow.days };
+  const entryStages: Record<string, string> = {};
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15, mergeClosedDays: async () => mergeWindow.days, entryStageId: async (source: string) => entryStages[source] ?? null };
   const router = new MemRouter();
   const clock = { at: now, now: () => clock.at };
   const invoices = new MemInvoices();
@@ -261,7 +262,7 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow, entryStages };
 }
 
 describe("Круг: распределение заявок", () => {
@@ -429,6 +430,27 @@ describe("SiteFunnelService: книга после выигранного зак
     await site.bookStarted("c1", { title: "Ты — моё всё", recipientName: "Марат" }, { recipient: "Марат" });
     expect(deals.rows.size).toBe(1);
     expect(deals.rows.get(won.id)).toMatchObject({ stageId: "won", customFields: { recipient: "Марат" } });
+  });
+});
+
+describe("DealsService: куда падает новая заявка (настройка воронки)", () => {
+  it("по источнику: сообщение мессенджера и звонок — на выбранные этапы, остальные — на первый", async () => {
+    const { service, entryStages } = setup();
+    entryStages.whatsapp = "book";
+    entryStages.call = "ready";
+    expect((await service.create({ title: "WA", source: "whatsapp", contactPhone: "77001112233" })).stageId).toBe("book");
+    expect((await service.create({ title: "Звонок", source: "call", contactPhone: "77001112244" })).stageId).toBe("ready");
+    expect((await service.create({ title: "Вручную", source: "manual", clientId: "c1" })).stageId).toBe("new");
+  });
+
+  it("этап задан явно — настройка не вмешивается; закрывающий или чужой этап в настройке игнорируется", async () => {
+    const { service, entryStages } = setup();
+    entryStages.whatsapp = "won";
+    expect((await service.create({ title: "WA", source: "whatsapp", contactPhone: "77001112233" })).stageId).toBe("new");
+    entryStages.whatsapp = "book";
+    expect((await service.create({ title: "WA2", source: "whatsapp", contactPhone: "77001112255", stageId: "ready" })).stageId).toBe("ready");
+    entryStages.whatsapp = "нет-такого";
+    expect((await service.create({ title: "WA3", source: "whatsapp", contactPhone: "77001112266" })).stageId).toBe("new");
   });
 });
 

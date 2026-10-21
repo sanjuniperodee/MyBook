@@ -90,7 +90,10 @@ export class DealsService {
    */
   async create(input: NewDeal): Promise<DealView> {
     const funnel = await this.funnels.load();
-    const stage = input.stageId ? funnel.stage(input.stageId) : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
+    // Куда падает новая заявка этого источника — по настройке воронки (этап должен быть «в работе» в основной воронке).
+    const entryId = !input.stageId && !input.pipelineId ? await this.settings.entryStageId(input.source) : null;
+    const entry = entryId ? funnel.stage(entryId) : null;
+    const stage = input.stageId ? funnel.stage(input.stageId) : entry && entry.kind === "open" && entry.pipelineId === funnel.defaultPipelineId ? entry : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
     if (!stage) throw new SalesError(input.stageId ? "stageNotFound" : "noOpenStage");
     // Сделка «вручную» или с тарифом договорённости и суммой — уже договорённость (клиент купит по этой цене): лимит скидки до создания.
     const plan = input.agreedPlan ?? null;
