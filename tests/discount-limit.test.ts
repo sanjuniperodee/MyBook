@@ -101,6 +101,7 @@ describe("точки продажи: лимит сотрудника и журн
         changeAgreedPlan: async (_id: string, plan: string | null, limit: number | null) => (log.limits.push(limit), { before: "digital", price: checkDealPrice(plan, "manual", deal.amount, limit) }),
         create: async (input: { source: string; amount: number; maxDiscountPercent: number | null; agreedPlan: string | null }) => (log.limits.push(input.maxDiscountPercent), log.plans.push(input.agreedPlan), checkDealPrice(input.agreedPlan, input.source, input.amount, input.maxDiscountPercent), { id: DEAL, number: 8, clientId: null }),
         note: async (_d: unknown, text: string) => void log.notes.push(text),
+        absorbRequests: async () => [],
       },
     };
   });
@@ -191,6 +192,8 @@ describe("точки продажи: лимит сотрудника и журн
         tagDeal: async () => {},
         addPayment: async () => ({ id: "pay-1" }),
         linkClient: async () => {},
+        absorbRequests: async () => [],
+        linkRequests: async () => {},
       };
       fake.clients = {
         clients: { find: async (id: string) => (id === CLIENT ? { id: CLIENT, name: "Айжан", email: "a@b.kz", phone: "77011234567", managerId: null } : null) },

@@ -112,15 +112,19 @@ export async function createDealFromChatAction(conversationId: string) {
   const conv = await loadOwnConv(staff, conversationId);
   if (conv.dealId) return { id: conv.dealId };
   const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
-  const deal = await container().sales.deals.create({
-    title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`,
-    source: sourceFromChannel(conv.channel),
-    clientId: conv.clientId,
-    contactName: conv.contactName,
-    contactPhone: phone,
-    assigneeId: conv.assigneeId ?? staff.user.id,
-    createdById: staff.user.id,
-  });
+  // У клиента уже есть открытая сделка — диалог привязывается к ней, а не заводится вторая.
+  const open = await container().sales.deals.findOpen({ clientId: conv.clientId, phone });
+  const deal =
+    open ??
+    (await container().sales.deals.create({
+      title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`,
+      source: sourceFromChannel(conv.channel),
+      clientId: conv.clientId,
+      contactName: conv.contactName,
+      contactPhone: phone,
+      assigneeId: conv.assigneeId ?? staff.user.id,
+      createdById: staff.user.id,
+    }));
   await container().messaging.chats.linkCreatedDeal(conv.id, deal);
   revalidatePath("/admin/chats");
   return { id: deal.id };

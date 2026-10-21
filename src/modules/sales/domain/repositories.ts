@@ -9,6 +9,15 @@ export interface DealRepository {
   findByOrder(orderId: string): Promise<Deal[]>;
   /** Открытая сделка клиента или номера — чтобы не плодить дубли. */
   findOpen(opts: { clientId?: string | null; phone?: string | null }): Promise<Deal | null>;
+  /**
+   * «Пустые» заявки клиента или номера: открытые, без заказа, денег, тарифа и суммы договорённости. Их можно влить в
+   * настоящую сделку клиента (excludeId — сама эта сделка), чтобы один клиент не жил в двух карточках.
+   */
+  findRequests(opts: { clientId?: string | null; phone?: string | null }, excludeId?: string): Promise<Deal[]>;
+  /** Открытые сделки номера, не привязанные к клиенту (клиента завели позже, чем пришла заявка). */
+  findUnlinked(phone: string): Promise<Deal[]>;
+  /** Последняя выигранная сделка клиента с заказом, закрытая не раньше since: новое действие по той же покупке не плодит сделку. */
+  findRecentWon(clientId: string, since: Date): Promise<Deal | null>;
   add(deal: Deal): Promise<void>;
   /** Сохраняет поля, ленту и историю этапов. */
   save(deal: Deal): Promise<void>;

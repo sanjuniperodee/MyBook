@@ -95,6 +95,8 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
     throw err;
   }
   await auditDiscount(staff, { entity: "deal", id: deal.id }, dealPrice(plan, d.source, d.amount), limit, "deal", { number: deal.number });
+  // У клиента уже была «пустая» заявка (из чата, звонка, сайта) — она вливается в эту сделку, а не остаётся дублем.
+  if (d.amount > 0 || plan) await container().sales.deals.absorbRequests(deal.id, staff.user.id).catch((err) => console.error("[deals] absorb", err));
   revalidateDeal(deal.id, deal.clientId);
   redirect(`/admin/deals/${deal.id}`);
 }

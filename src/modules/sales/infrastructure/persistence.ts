@@ -83,6 +83,57 @@ export class DrizzleDealRepository implements DealRepository {
     return row ? toDomain(row.deal) : null;
   }
 
+  async findRequests(opts: { clientId?: string | null; phone?: string | null }, excludeId?: string) {
+    const key = phoneKey(opts.phone);
+    const conds = [
+      opts.clientId ? eq(crmDeals.clientId, opts.clientId) : undefined,
+      key.length >= 10 ? sql`${phoneDigits(crmDeals.contactPhone)} = ${key}` : undefined,
+      key.length >= 10 ? inExtra(crmDeals.extraPhones, key) : undefined,
+    ].filter((c): c is SQL => !!c);
+    if (!conds.length) return [];
+    const rows = await executor()
+      .select({ deal: crmDeals })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(
+        and(
+          eq(crmStages.kind, "open"),
+          or(...conds),
+          isNull(crmDeals.orderId),
+          isNull(crmDeals.agreedPlan),
+          eq(crmDeals.amount, 0),
+          excludeId ? ne(crmDeals.id, excludeId) : undefined,
+          sql`not exists (select 1 from crm_payments pay where pay.deal_id = crm_deals.id)`,
+          sql`not exists (select 1 from crm_receipts rec where rec.deal_id = crm_deals.id)`,
+        ),
+      )
+      .orderBy(asc(crmDeals.createdAt));
+    return rows.map((r) => toDomain(r.deal));
+  }
+
+  async findUnlinked(phone: string) {
+    const key = phoneKey(phone);
+    if (key.length < 10) return [];
+    const rows = await executor()
+      .select({ deal: crmDeals })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "open"), isNull(crmDeals.clientId), or(sql`${phoneDigits(crmDeals.contactPhone)} = ${key}`, inExtra(crmDeals.extraPhones, key))))
+      .orderBy(asc(crmDeals.createdAt));
+    return rows.map((r) => toDomain(r.deal));
+  }
+
+  async findRecentWon(clientId: string, since: Date) {
+    const [row] = await executor()
+      .select({ deal: crmDeals })
+      .from(crmDeals)
+      .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+      .where(and(eq(crmStages.kind, "won"), eq(crmDeals.clientId, clientId), isNotNull(crmDeals.orderId), gt(sql`coalesce(${crmDeals.closedAt}, ${crmDeals.createdAt})`, since)))
+      .orderBy(desc(crmDeals.createdAt))
+      .limit(1);
+    return row ? toDomain(row.deal) : null;
+  }
+
   private columns(deal: Deal) {
     const s = deal.snapshot();
     return {

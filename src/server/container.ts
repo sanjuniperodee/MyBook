@@ -296,6 +296,10 @@ export class Container {
           await this.sales.deals.linkClient(dealId, clientId);
           await this.messaging.chats.linkDealClient(dealId, clientId);
         },
+        absorbRequests: (dealId, actorId) => this.sales.deals.absorbRequests(dealId, actorId),
+        linkRequests: async (clientId, phone) => {
+          for (const id of await this.sales.deals.linkRequests(clientId, phone)) await this.messaging.chats.linkDealClient(id, clientId);
+        },
       },
       // Заметка «звонок/сообщение/письмо» в сделке — менеджер связался с клиентом: заявка принята в работу.
       deals: { accept: (dealId, staffId, how) => this.sales.deals.acceptUnsorted(dealId, staffId, how) },

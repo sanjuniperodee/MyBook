@@ -134,6 +134,8 @@ describe("заведение клиента", () => {
       tagDeal: async () => {},
       addPayment: async () => ({ id: "pay-1" }),
       linkClient: async () => {},
+      absorbRequests: async () => [],
+      linkRequests: async () => {},
     };
     const service = new ClientOnboardingService({ provisionClient: async () => ({ id: "new-client", login: "77011234567" }) }, sales, t.clients, t.notes, t.tasks);
     const onboard = (plan: string, gifts: ("giftwrap" | "delivery")[]) =>

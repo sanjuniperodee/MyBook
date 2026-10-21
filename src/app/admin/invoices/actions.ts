@@ -181,7 +181,9 @@ export async function issueInvoiceAction(raw: z.input<typeof schema>): Promise<I
   if (!dealId && conv) {
     // Диалог без сделки — заводим её, как «Создать сделку» из чата.
     const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
-    const deal = await c.sales.deals.create({ title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`, source: sourceFromChannel(conv.channel), clientId: conv.clientId, contactName: conv.contactName, contactPhone: phone, assigneeId: conv.assigneeId ?? staff.user.id, createdById: staff.user.id });
+    // Есть открытая сделка клиента или номера — счёт выставляется в неё, вторая не заводится.
+    const open = await c.sales.deals.findOpen({ clientId: conv.clientId, phone });
+    const deal = open ?? (await c.sales.deals.create({ title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`, source: sourceFromChannel(conv.channel), clientId: conv.clientId, contactName: conv.contactName, contactPhone: phone, assigneeId: conv.assigneeId ?? staff.user.id, createdById: staff.user.id }));
     await c.messaging.chats.linkCreatedDeal(conv.id, deal);
     dealId = deal.id;
   }
