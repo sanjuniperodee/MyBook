@@ -108,6 +108,7 @@ npm run sample-book -- ./sample-out [обложка] [оформление]  # �
 ```bash
 npm run stories-covers                         # фон — размытая копия обложки
 npm run stories-covers -- --bg brand           # фирменный бордовый (--bg paper — светлая «бумага»)
+npm run stories-covers -- --lang ru            # язык надписей: по умолчанию mix (каждая третья обложка на казахском), kk — все
 npm run stories-covers -- --only peony,oyu     # только эти обложки; --all — вместе с убранными из выбора; --no-text — без надписей
 ```
 

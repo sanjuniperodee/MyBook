@@ -9,6 +9,7 @@
  *   --bg blur|brand|paper  фон: размытая копия обложки (по умолчанию), фирменный бордовый, светлая «бумага»
  *   --only id,id           только эти обложки (номера в именах файлов остаются как в полном списке)
  *   --all                  вместе с убранными из выбора
+ *   --lang ru|kk|mix       язык надписей: mix (по умолчанию) — каждая третья обложка на казахском (≈ 32 %)
  *   --no-text              без надписей на обложке
  *   --guides               показать безопасные зоны (для проверки, не для публикации)
  */
@@ -22,6 +23,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
 import { CoverFace } from "@/components/cover/CoverFace";
 import { catalog } from "@/i18n/messages/ru/catalog";
+import { landing as landingKk } from "@/i18n/messages/kk/landing";
 import { landing } from "@/i18n/messages/ru/landing";
 import { allCoverTemplates, coverTemplates, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
@@ -42,28 +44,57 @@ const { values: opts, positionals } = parseArgs({
     bg: { type: "string", default: "blur" },
     only: { type: "string" },
     all: { type: "boolean", default: false },
+    lang: { type: "string", default: "mix" },
     "no-text": { type: "boolean", default: false },
     guides: { type: "boolean", default: false },
   },
 });
 const bg = opts.bg as "blur" | "brand" | "paper";
 if (!["blur", "brand", "paper"].includes(bg)) throw new Error(`--bg: blur, brand или paper, а не «${bg}»`);
+const lang = opts.lang as "ru" | "kk" | "mix";
+if (!["ru", "kk", "mix"].includes(lang)) throw new Error(`--lang: ru, kk или mix, а не «${lang}»`);
 const out = path.resolve(positionals[0] ?? "stories-covers");
 
 /**
  * Надписи — как на обложках-примерах лендинга; у обложек с фото клиента их там нет — подбираем по снимку-примеру.
  */
-const bySample: Record<string, { title: string; names: string }> = {
-  family: { title: "Наша семья", names: "Бабушке от внуков" },
-  familydusk: { title: "Наша семья", names: "Бабушке от внуков" },
-  mamahug: { title: "Мама, это для тебя", names: "Твоя Айгерим" },
-  daddy: { title: "Папа, спасибо", names: "от Арнура" },
-  friends: { title: "Друзья навсегда", names: "Мадина & Жанель" },
-  laughter: { title: "Друзья навсегда", names: "Мадина & Жанель" },
-  newborn: { title: "Наш малыш", names: "Мама и папа" },
+const bySample: Record<"ru" | "kk", Record<string, { title: string; names: string }>> = {
+  ru: {
+    family: { title: "Наша семья", names: "Бабушке от внуков" },
+    familydusk: { title: "Наша семья", names: "Бабушке от внуков" },
+    mamahug: { title: "Мама, это для тебя", names: "Твоя Айгерим" },
+    daddy: { title: "Папа, спасибо", names: "от Арнура" },
+    friends: { title: "Друзья навсегда", names: "Мадина & Жанель" },
+    laughter: { title: "Друзья навсегда", names: "Мадина & Жанель" },
+    newborn: { title: "Наш малыш", names: "Мама и папа" },
+  },
+  kk: {
+    family: { title: "Біздің отбасы", names: "Әжеге немерелерінен" },
+    familydusk: { title: "Біздің отбасы", names: "Әжеге немерелерінен" },
+    mamahug: { title: "Анашым, бұл саған", names: "Айгеріміңнен" },
+    daddy: { title: "Әке, рахмет", names: "Арнұрдан" },
+    friends: { title: "Мәңгі достар", names: "Мадина & Жанель" },
+    laughter: { title: "Мәңгі достар", names: "Мадина & Жанель" },
+    newborn: { title: "Біздің бүлдіршін", names: "Ана мен әке" },
+  },
 };
-const fallbackText = { title: "Наша история", names: "Дана & Тимур" };
-const coverText = (t: CoverTemplate) => landing.coverSamples[t.id] ?? bySample[t.samples?.[0] ?? ""] ?? fallbackText;
+const fallbackText = { ru: { title: "Наша история", names: "Дана & Тимур" }, kk: { title: "Біздің тарихымыз", names: "Дана & Тимур" } };
+/** Надписи по языку; в режиме mix на казахском — каждая третья обложка списка, чтобы он был не реже 30 %. */
+const kazakh = (no: number) => lang === "kk" || (lang === "mix" && no % 3 === 0);
+const coverText = (t: CoverTemplate, no: number) => {
+  const l = kazakh(no) ? "kk" : "ru";
+  return (l === "kk" ? landingKk : landing).coverSamples[t.id] ?? bySample[l][t.samples?.[0] ?? ""] ?? fallbackText[l];
+};
+
+/**
+ * Надпись не должна ложиться на лица: у этих обложек область текста сдвинута вниз, под снимок
+ * (только в выгрузке для сторис, шаблоны на сайте не меняются).
+ */
+const textAreaFix: Record<string, Partial<Pick<CoverTemplate, "textArea" | "justify">>> = {
+  magazine: { textArea: { x: 0.08, y: 0.78, w: 0.84, h: 0.18 }, justify: "end" },
+  duotone: { textArea: { x: 0.09, y: 0.8, w: 0.82, h: 0.17 }, justify: "end" },
+  glow: { textArea: { x: 0.1, y: 0.79, w: 0.8, h: 0.18 }, justify: "end" },
+};
 
 const TRANSLIT: Record<string, string> = {
   а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o",
@@ -78,12 +109,13 @@ const slug = (s: string) =>
     .replace(/^-|-$/g, "");
 
 /** Обложка с надписями: разметка CoverFace, фон — встроенный SVG со снимками в полном размере. */
-async function coverMarkup(t: CoverTemplate) {
+async function coverMarkup(source: CoverTemplate, no: number) {
+  const t = { ...source, ...textAreaFix[source.id] };
   const format = getFormat("a5");
   const imageHref = t.photo ? await coverPhotoDataUrl(t.photo.photo.key) : undefined;
   const samples = new Map(await Promise.all((t.samples ?? []).map(async (k) => [k, await coverPhotoDataUrl(k)] as const)));
   const svg = renderCoverSvg(t, coverFrontGeometry(format), { uid: `st${t.id}`, imageHref, sampleHref: (k) => samples.get(k) ?? "" });
-  const text = opts["no-text"] ? { title: "", names: undefined } : coverText(t);
+  const text = opts["no-text"] ? { title: "", names: undefined } : coverText(t, no);
   return renderToStaticMarkup(createElement(CoverFace, { template: t, format: format.id, svg, title: text.title, names: text.names, titlePlaceholder: "" }));
 }
 
@@ -166,7 +198,7 @@ async function main() {
 
     const written: string[] = [];
     for (const { t, no } of todo) {
-      const markup = await coverMarkup(t);
+      const markup = await coverMarkup(t, no);
       await page.evaluate(async (html) => {
         const root = document.getElementById("c")!;
         root.innerHTML = html;
@@ -181,7 +213,7 @@ async function main() {
       const file = fileName(t, no);
       await writeFile(path.join(out, file), await story(cover));
       written.push(file);
-      console.log(`${file}  ← ${t.id}`);
+      console.log(`${file}  ← ${t.id}${opts["no-text"] ? "" : kazakh(no) ? "  [kk]" : ""}`);
     }
     console.log(`\n${written.length} файлов в ${path.relative(process.cwd(), out) || "."}/ (фон: ${bg})`);
   } finally {
