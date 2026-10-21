@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { crmFields, crmNotifications, crmPushSubscriptions, crmTemplates } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { FieldRepository, StaffInbox, TemplateRepository } from "../application";
