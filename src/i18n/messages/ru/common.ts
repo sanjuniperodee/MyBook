@@ -16,6 +16,10 @@ export const common = {
     switchTo: "Қазақша",
     label: "Язык",
   },
+  theme: {
+    dark: "Тёмная тема",
+    light: "Светлая тема",
+  },
   nav: {
     how: "Как это работает",
     sample: "Пример книги",

@@ -1,5 +1,5 @@
-/* Тёмная тема CRM (класс .dark на <html>, ставится только в админке — см. ThemeScript). Сгенерирована: палитра Tailwind зеркалится (50↔950, 100↔900…), поэтому «светлые» плашки статусов становятся тёмными, а их тёмный текст — светлым. */
-.dark {
+/* Тёмная тема: класс .dark (CRM, только в админке) или .shop-dark (витрина, кнопка в шапке) на <html>. Сгенерирована: палитра Tailwind зеркалится (50↔950, 100↔900…), поэтому «светлые» плашки статусов становятся тёмными, а их тёмный текст — светлым. */
+:is(.dark, .shop-dark) {
   --color-red-50: oklch(25.8% 0.092 26.042);
   --color-red-100: oklch(39.6% 0.141 25.723);
   --color-red-200: oklch(44.4% 0.177 26.899);
@@ -289,7 +289,7 @@
 }
 
 /* Основа: поверхности, текст, акцент. Белое — это «карточка», поэтому тоже переопределено; белый текст на цветных плашках возвращён ниже. */
-.dark {
+:is(.dark, .shop-dark) {
   color-scheme: dark;
   --color-white: #1e1a17;
   --color-paper: #14110f;
@@ -308,51 +308,62 @@
 }
 
 /* Белый текст остаётся белым (на винных и тёмных плашках), хотя --color-white теперь тёмный. */
-.dark .text-white,
-.dark .hover\:text-white:hover,
-.dark .group-hover\:text-white {
+:is(.dark, .shop-dark) .text-white,
+:is(.dark, .shop-dark) .hover\:text-white:hover,
+:is(.dark, .shop-dark) .group-hover\:text-white {
   color: #fff;
 }
-.dark [class*="text-white/"] {
+:is(.dark, .shop-dark) [class*="text-white/"] {
   color: rgb(255 255 255 / 0.75);
 }
 /* Полупрозрачные белые подсветки на цветных плашках. */
-.dark .bg-white\/10,
-.dark .hover\:bg-white\/10:hover { background-color: rgb(255 255 255 / 0.1); }
-.dark .bg-white\/15,
-.dark .hover\:bg-white\/15:hover { background-color: rgb(255 255 255 / 0.15); }
-.dark .bg-white\/20 { background-color: rgb(255 255 255 / 0.2); }
-.dark .border-white\/40 { border-color: rgb(255 255 255 / 0.4); }
+:is(.dark, .shop-dark) .bg-white\/10,
+:is(.dark, .shop-dark) .hover\:bg-white\/10:hover { background-color: rgb(255 255 255 / 0.1); }
+:is(.dark, .shop-dark) .bg-white\/15,
+:is(.dark, .shop-dark) .hover\:bg-white\/15:hover { background-color: rgb(255 255 255 / 0.15); }
+:is(.dark, .shop-dark) .bg-white\/20 { background-color: rgb(255 255 255 / 0.2); }
+:is(.dark, .shop-dark) .border-white\/40 { border-color: rgb(255 255 255 / 0.4); }
 
 /* «Чернильные» плашки (активный чип, подсказка): светлые на тёмном, текст на них — тёмный. */
-.dark .bg-ink { background-color: #e9e1d7; }
-.dark .bg-ink.text-white,
-.dark .bg-ink .text-white { color: #17130f; }
-.dark .hover\:bg-ink\/85:hover { background-color: rgb(233 225 215 / 0.85); }
-.dark .bg-ink\/30 { background-color: rgb(0 0 0 / 0.55); }
-.dark .btn-dark { background-color: #e9e1d7; color: #17130f; }
-.dark .btn-dark:hover { background-color: #fff; }
-.dark .btn-outline:hover { background-color: rgb(255 255 255 / 0.05); }
-.dark .skeleton { background-image: linear-gradient(90deg, var(--color-cream) 25%, #342c25 50%, var(--color-cream) 75%); }
-.dark ::selection { background: rgb(201 75 95 / 0.35); }
-.dark .btn-primary { box-shadow: none; }
+:is(.dark, .shop-dark) .bg-ink { background-color: #e9e1d7; }
+:is(.dark, .shop-dark) .bg-ink.text-white,
+:is(.dark, .shop-dark) .bg-ink .text-white { color: #17130f; }
+:is(.dark, .shop-dark) .hover\:bg-ink\/85:hover { background-color: rgb(233 225 215 / 0.85); }
+:is(.dark, .shop-dark) .bg-ink\/30 { background-color: rgb(0 0 0 / 0.55); }
+:is(.dark, .shop-dark) .btn-dark { background-color: #e9e1d7; color: #17130f; }
+:is(.dark, .shop-dark) .btn-dark:hover { background-color: #fff; }
+:is(.dark, .shop-dark) .btn-outline:hover { background-color: rgb(255 255 255 / 0.05); }
+:is(.dark, .shop-dark) .skeleton { background-image: linear-gradient(90deg, var(--color-cream) 25%, #342c25 50%, var(--color-cream) 75%); }
+:is(.dark, .shop-dark) ::selection { background: rgb(201 75 95 / 0.35); }
+:is(.dark, .shop-dark) .btn-primary { box-shadow: none; }
 
 /* Цвета, заданные кодом (#hex) в разметке админки. */
-.dark [class~="bg-[#fbf9f5]"] { background-color: #1a1613; }
-.dark [class~="bg-[#f3efe9]"] { background-color: #2a241f; }
-.dark [class~="hover:bg-[#f3efe9]"]:hover { background-color: #342c25; }
-.dark [class~="bg-[#f7f4ef]"] { background-color: #14110f; }
-.dark [class~="bg-[#faf8f5]"] { background-color: #191512; }
-.dark [class~="hover:bg-[#faf8f5]"]:hover { background-color: #26201b; }
-.dark [class~="bg-[#f5f1eb]"] { background-color: #171310; }
-.dark [class~="bg-[#f4efe7]"] { background-color: #15110e; background-image: radial-gradient(rgba(201, 75, 95, 0.07) 1px, transparent 1px) !important; }
-.dark [class~="bg-[#f1ece4]"] { background-color: #191512; }
-.dark [class~="bg-[#efe9df]"] { background-color: #2a241f; }
-.dark [class~="bg-[#fff8e6]"] { background-color: #2c2413; }
-.dark [class~="bg-[#f7ecee]"] { background-color: #2d1b20; }
-.dark [class~="bg-[#f7e4e7]"] { background-color: #43232b; }
-.dark [class~="bg-[#f6f2ec]"] { background-color: #28221d; }
-.dark [class~="bg-[#ece8fa]"] { background-color: #2a2540; }
+:is(.dark, .shop-dark) [class~="bg-[#fbf9f5]"] { background-color: #1a1613; }
+:is(.dark, .shop-dark) [class~="bg-[#f3efe9]"] { background-color: #2a241f; }
+:is(.dark, .shop-dark) [class~="hover:bg-[#f3efe9]"]:hover { background-color: #342c25; }
+:is(.dark, .shop-dark) [class~="bg-[#f7f4ef]"] { background-color: #14110f; }
+:is(.dark, .shop-dark) [class~="bg-[#faf8f5]"] { background-color: #191512; }
+:is(.dark, .shop-dark) [class~="hover:bg-[#faf8f5]"]:hover { background-color: #26201b; }
+:is(.dark, .shop-dark) [class~="bg-[#f5f1eb]"] { background-color: #171310; }
+:is(.dark, .shop-dark) [class~="bg-[#f4efe7]"] { background-color: #15110e; background-image: radial-gradient(rgba(201, 75, 95, 0.07) 1px, transparent 1px) !important; }
+:is(.dark, .shop-dark) [class~="bg-[#f1ece4]"] { background-color: #191512; }
+:is(.dark, .shop-dark) [class~="bg-[#efe9df]"] { background-color: #2a241f; }
+:is(.dark, .shop-dark) [class~="bg-[#fff8e6]"] { background-color: #2c2413; }
+:is(.dark, .shop-dark) [class~="bg-[#f7ecee]"] { background-color: #2d1b20; }
+:is(.dark, .shop-dark) [class~="bg-[#f7e4e7]"] { background-color: #43232b; }
+:is(.dark, .shop-dark) [class~="bg-[#f6f2ec]"] { background-color: #28221d; }
+:is(.dark, .shop-dark) [class~="bg-[#ece8fa]"] { background-color: #2a2540; }
 
 /* Фото и видео не затемняем; прозрачные PNG-логотипы на светлом фоне остаются как есть. */
-.dark img, .dark video { color-scheme: normal; }
+:is(.dark, .shop-dark) img, :is(.dark, .shop-dark) video { color-scheme: normal; }
+
+/* Витрина: цвета, заданные кодом в разметке, которых нет в блоке админки выше. */
+:is(.dark, .shop-dark) [class~="text-[#1f1a17]"] { color: #f2ece4; }
+:is(.dark, .shop-dark) [class~="text-[#3b332e]"] { color: #d7cdc2; }
+:is(.dark, .shop-dark) [class~="text-[#7a7068]"] { color: #a2978c; }
+:is(.dark, .shop-dark) [class~="text-[#9a8f86]"] { color: #8f857b; }
+:is(.dark, .shop-dark) [class~="text-[#b4a99e]"] { color: #6f655c; }
+:is(.dark, .shop-dark) [class~="text-[#7a1f2b]"] { color: #e8a0ab; }
+:is(.dark, .shop-dark) [class~="border-[#d9c9bc]"] { border-color: #3a322b; }
+:is(.dark, .shop-dark) [class~="bg-[#e9e4dc]"] { background-color: #28221d; }
+:is(.dark, .shop-dark) [class~="bg-[#fbf8f2]"] { background-color: #1a1613; }

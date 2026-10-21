@@ -2,13 +2,17 @@ import { Logo } from "@/components/Logo";
 import { AppNav } from "@/components/AppNav";
 import type { User } from "@/server/auth";
 import { isStaff } from "@/server/auth";
+import { ShopThemeToggle } from "@/components/ShopTheme";
 
 export function AppHeader({ user }: { user: User }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
         <Logo href="/books" />
-        <AppNav name={user.name} email={user.email} isAdmin={isStaff(user)} />
+        <div className="flex items-center gap-2">
+          <ShopThemeToggle />
+          <AppNav name={user.name} email={user.email} isAdmin={isStaff(user)} />
+        </div>
       </div>
     </header>
   );

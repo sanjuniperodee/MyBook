@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { ShopThemeToggle } from "@/components/ShopTheme";
 import { Link, useLocalizePath, useMessages } from "@/i18n/client";
 import { cn } from "@/lib/class-names";
 import { registrationOpen } from "@/config/site";
@@ -50,6 +51,7 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
           ))}
         </nav>
         <div className="hidden items-center gap-2 sm:flex">
+          <ShopThemeToggle />
           <LanguageSwitch className="mr-1" />
           {loggedIn ? (
             <Link href="/books" className="btn btn-primary btn-sm">
@@ -68,6 +70,7 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
             </>
           )}
         </div>
+        <ShopThemeToggle className="sm:hidden" />
         <button className="btn btn-ghost btn-sm -mr-2 px-2 lg:hidden sm:ml-0" onClick={() => setOpen((v) => !v)} aria-label={m.menu} aria-expanded={open}>
           {open ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>

@@ -22,6 +22,10 @@ export const common: Messages["common"] = {
     switchTo: "Русский",
     label: "Тіл",
   },
+  theme: {
+    dark: "Қараңғы тема",
+    light: "Жарық тема",
+  },
   nav: {
     how: "Қалай жұмыс істейді",
     sample: "Кітап үлгісі",
