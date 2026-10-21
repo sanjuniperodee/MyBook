@@ -175,6 +175,10 @@ fi
 echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"
 # Основная версия отвечает — запасная больше не нужна.
 kill "$SMOKE_PID" 2>/dev/null || true
+# Next при SIGTERM ждёт открытые соединения (например, поток событий CRM) — не дольше 10 секунд, потом добиваем:
+# иначе выкатка висит на wait, хотя сайт уже переключён (21.10: 10 минут).
+for _ in $(seq 1 10); do kill -0 "$SMOKE_PID" 2>/dev/null || break; sleep 1; done
+kill -9 "$SMOKE_PID" 2>/dev/null || true
 wait "$SMOKE_PID" 2>/dev/null || true
 SMOKE_PID=""
 rm -f "$REL/smoke.log"
