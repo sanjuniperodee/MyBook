@@ -1,7 +1,9 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { formatDate } from "@/lib/dates";
-import { StaffForm, StaffRow } from "./TeamControls";
+import { Intro } from "@/components/admin/Intro";
+import { Section } from "@/components/admin/Section";
+import { StaffForm, StaffRow } from "../TeamControls";
 
 export const metadata = { title: "Команда" };
 
@@ -13,14 +15,6 @@ export default async function AdminTeam() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <h2 className="mb-4 font-semibold">Добавить сотрудника</h2>
-        <StaffForm roles={roleOptions} />
-        <p className="mt-3 text-xs text-muted">
-          Если e-mail уже зарегистрирован, аккаунт получит доступ к CRM с выбранной ролью. Пустой пароль — сгенерируем и покажем один раз. Внутренний номер — добавочный в АТС: по нему звонки из CRM
-          идут с телефона сотрудника, а входящие привязываются к нему.
-        </p>
-      </section>
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full min-w-[860px] text-sm">
           <thead className="border-b border-line text-left text-muted">
@@ -58,6 +52,13 @@ export default async function AdminTeam() {
           </tbody>
         </table>
       </div>
+      <Section title="Добавить сотрудника" defaultOpen={false}>
+        <StaffForm roles={roleOptions} />
+        <Intro small className="mt-3">
+          Если e-mail уже зарегистрирован, аккаунт получит доступ к CRM с выбранной ролью. Пустой пароль — сгенерируем и покажем один раз. Внутренний номер — добавочный в АТС: по нему звонки из CRM идут с
+          телефона сотрудника, а входящие привязываются к нему.
+        </Intro>
+      </Section>
     </div>
   );
 }

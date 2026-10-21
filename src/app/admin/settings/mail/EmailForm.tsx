@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { LoaderCircle, PlugZap } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, CopyField, SecretInput, CheckMessage, rotateToken } from "../ui";
 import type { SettingsState } from "../state";
 import { saveEmailAction, testImapAction } from "./actions";
@@ -13,11 +14,11 @@ export function EmailForm({ smtp, saved, env, webhookUrl }: { smtp: boolean; sav
   const [pending, start] = useTransition();
   const inbound = !!(saved.imapHost && saved.imapUser && (saved.imapPassword || env.imapPassword));
   return (
-    <Section title="Почта — e-mail как канал" badge={<Status on={inbound} label={inbound ? "входящие подключены" : "только исходящие"} />}>
-      <p className="mb-3 text-sm text-ink-soft">
+    <Section defaultOpen={false} title="Почта — e-mail как канал" badge={<Status on={inbound} label={inbound ? "входящие подключены" : "только исходящие"} />}>
+      <Intro className="mb-4">
         Менеджеры пишут клиентам из карточек сделки, клиента и заказа, а ответы приходят в «Чаты» рядом с WhatsApp. Исходящие уходят через SMTP —{" "}
         {smtp ? <span className="text-emerald-700">настроен</span> : <span className="text-red-700">не настроен — заполните блок «Почта для отправки» выше</span>}.
-      </p>
+      </Intro>
       <form action={action} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
           <label className="block">

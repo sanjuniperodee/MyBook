@@ -1,4 +1,5 @@
 import { requireStaff } from "@/server/access";
+import { PageHeader } from "@/components/admin/PageHeader";
 import { BOT_FORM_TABS } from "./crm/botTabs";
 import { SettingsNav } from "./SettingsNav";
 import { SETTINGS_TABS, parseTab } from "./tabs";
@@ -20,11 +21,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const current = SETTINGS_TABS.find((t) => t.id === tab)!;
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Интеграции и настройки</h1>
-        <p className="mt-1 text-sm text-muted">Ключи хранятся в базе в зашифрованном виде и не показываются целиком. Значения из переменных окружения сервера имеют приоритет и здесь только для чтения.</p>
-      </div>
-      <div className="grid gap-6 md:grid-cols-[14rem_minmax(0,1fr)]">
+      <PageHeader title="Интеграции и настройки">Ключи хранятся в базе в зашифрованном виде и не показываются целиком. Значения из переменных окружения сервера имеют приоритет и здесь только для чтения.</PageHeader>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[14rem_minmax(0,1fr)]">
         <SettingsNav active={tab} />
         <div className="min-w-0 space-y-6" data-testid={`settings-tab-${tab}`}>
           <h2 className="sr-only">{current.label}</h2>

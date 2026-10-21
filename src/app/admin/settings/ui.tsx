@@ -1,21 +1,35 @@
 "use client";
 
 import { CheckCircle2, Copy, RefreshCw, XCircle } from "lucide-react";
+import { Intro } from "@/components/admin/Intro";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import type { SettingsState } from "./state";
 import { rotateTokenAction } from "./actions";
 
-/** Карточка интеграции: заголовок, значок состояния, содержимое. */
-export function Section({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+export { Section } from "@/components/admin/Section";
+
+/** Блок формы с подзаголовком: связанные поля вместе, пояснение — две строки и «Подробнее». */
+export function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <h2 className="font-semibold">{title}</h2>
-        {badge}
-      </div>
+    <fieldset className="min-w-0">
+      <legend className="mb-2 text-sm font-semibold">{title}</legend>
+      {hint ? <Intro small className="mb-3">{hint}</Intro> : null}
       {children}
-    </section>
+    </fieldset>
+  );
+}
+
+/** Поле с подписью сверху и необязательной подсказкой снизу (длинная сворачивается). */
+export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="block">
+      <label className="block">
+        <span className="mb-1 block text-xs text-muted">{label}</span>
+        {children}
+      </label>
+      {hint ? <Intro small className="mt-1">{hint}</Intro> : null}
+    </div>
   );
 }
 

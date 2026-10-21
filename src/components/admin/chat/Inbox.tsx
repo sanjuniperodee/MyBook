@@ -1,3 +1,4 @@
+import { ChatListLink } from "./ChatNav";
 import Link from "next/link";
 import { ArrowLeft, Bot, Camera, Globe, Handshake, Mail, MessageCircle, MessagesSquare, Search, Send } from "lucide-react";
 import { cn } from "@/lib/class-names";
@@ -117,8 +118,7 @@ export function ChatListPane({
         {items.map((c) => {
           const active = c.id === selectedId;
           return (
-            <Link key={c.id} href={href({ c: c.id })} className={cn("relative flex gap-3 px-4 py-3 transition", active ? "bg-[#f7ecee]" : "hover:bg-[#faf8f5]")} aria-current={active ? "true" : undefined}>
-              {active ? <span className="absolute inset-y-0 left-0 w-[3px] bg-wine" /> : null}
+            <ChatListLink key={c.id} id={c.id} href={href({ c: c.id })} active={active}>
               <ChatAvatar name={c.title} url={c.avatarUrl} channel={c.channel} />
               <div className="min-w-0 flex-1 border-b border-line/0">
                 <div className="flex items-baseline gap-2">
@@ -143,7 +143,7 @@ export function ChatListPane({
                   <div className="mt-1 truncate text-[11px] text-muted">{c.assignee}</div>
                 )}
               </div>
-            </Link>
+            </ChatListLink>
           );
         })}
       </div>

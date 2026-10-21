@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
+import { Intro } from "@/components/admin/Intro";
 import { Section } from "../ui";
 import { saveHolidaysAction } from "./actions";
 
@@ -31,10 +32,10 @@ export function HolidaysForm({ holidays, defaults, max }: { holidays: { id: stri
       toast(r.ok ? "Сохранено" : r.error, r.ok ? "success" : "error");
     });
   return (
-    <Section title="Праздники для повторных продаж">
-      <p className="mb-4 text-sm text-muted">
+    <Section defaultOpen={false} title="Праздники для повторных продаж">
+      <Intro className="mb-4">
         Правило «Приближается праздник» (раздел «Автоматизации») за N дней до праздника берёт клиентов, которые покупали к нему в прошлом году: создаёт сделку «Повторная продажа», кладёт в неё готовый текст на языке клиента и ставит задачу менеджеру. Клиенту CRM сама не пишет. Название на русском видят сотрудники и клиенты с русским языком, на казахском — клиенты с казахским.
-      </p>
+      </Intro>
       <form
         className="space-y-2"
         onSubmit={(e) => {

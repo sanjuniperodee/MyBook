@@ -1,5 +1,7 @@
 "use client";
 
+import { Intro } from "@/components/admin/Intro";
+import { Section } from "../ui";
 import { useEffect, useState, useTransition } from "react";
 import { LoaderCircle, QrCode, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/class-names";
@@ -99,14 +101,10 @@ export function GowaForm(props: GowaFormProps) {
     });
 
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <h2 className="font-semibold">WhatsApp — свой шлюз</h2>
-        <span className={cn("rounded-full px-2.5 py-0.5 text-xs", status.loggedIn ? "bg-emerald-100 text-emerald-800" : status.reachable ? "bg-amber-100 text-amber-900" : "bg-cream text-muted")}>{statusLabel(status)}</span>
-      </div>
-      <p className="text-sm text-muted">
+    <Section title="WhatsApp — свой шлюз" badge={<span className={cn("rounded-full px-2.5 py-0.5 text-xs", status.loggedIn ? "bg-emerald-100 text-emerald-800" : status.reachable ? "bg-amber-100 text-amber-900" : "bg-cream text-muted")}>{statusLabel(status)}</span>}>
+      <Intro>
         Вместо Wazzup — бесплатный шлюз GOWA на вашем сервере: номер магазина привязывается по QR как «связанное устройство», входящие и ответы с телефона приходят в инбокс сразу, менеджеры отвечают из CRM. Instagram и Telegram по-прежнему идут через Wazzup.
-      </p>
+      </Intro>
 
       <fieldset className="mt-4 space-y-2">
         <legend className="mb-1 text-xs text-muted">WhatsApp работает через</legend>
@@ -182,6 +180,6 @@ export function GowaForm(props: GowaFormProps) {
         {status.problem ? <p className="text-xs text-red-700">{status.problem}</p> : null}
         {message ? <p className={cn("text-xs", message.ok ? "text-emerald-700" : "text-red-700")}>{message.text}</p> : null}
       </div>
-    </section>
+    </Section>
   );
 }

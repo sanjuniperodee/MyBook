@@ -10,8 +10,8 @@ import { dealSourceLabels, dealSources } from "@/shared/domain/dealSources";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { formatDate, nowMs } from "@/lib/dates";
-import { DealsBoard, type DealCard } from "./DealsBoard";
-import { DealsTable, SavedViews } from "./DealsTable";
+import { DealsBoard, type DealCard } from "../DealsBoard";
+import { DealsTable, SavedViews } from "../DealsTable";
 
 export const metadata = { title: "Сделки" };
 

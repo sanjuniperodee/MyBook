@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { DEFAULT_TIER_MODELS, SELLER_TIERS, type RouteMode, type SellerTier } from "@/modules/assistant/domain/routing";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, Choice } from "../ui";
 import type { SettingsState } from "../state";
 import { saveRoutingAction } from "./actions";
@@ -44,14 +45,14 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
   const env = (k: string) => saved.env.includes(k);
   const others = aiProviderIds.filter((p) => p !== "anthropic");
   return (
-    <Section
+    <Section defaultOpen={false}
       title="Маршрутизация модели продажника"
       badge={<Status on={mode !== "off" && claudeReady} label={mode === "off" ? "выключена — одна модель" : !claudeReady ? "нет ключа Claude — отвечают запасные" : mode === "shadow" ? "наблюдение" : "Claude Haiku / Sonnet / Opus"} />}
     >
-      <p className="mb-3 text-sm text-ink-soft">
+      <Intro className="mb-4">
         Основная модель бота — Claude: уровень выбирается под каждое сообщение клиента по признакам сложности (возражение, торг, сравнение вариантов, несколько условий, противоречия, повтор нерешённого вопроса), без лишнего запроса к модели. Если ответ не прошёл проверку или
         модель не уверена — ход переписывает уровень выше. Другие провайдеры — только запасные: на них бот переключается, если Claude недоступен.
-      </p>
+      </Intro>
       <form action={action} className="space-y-3">
         <div className="space-y-1.5 text-sm">
           {MODES.map(([id, label, hint]) => (

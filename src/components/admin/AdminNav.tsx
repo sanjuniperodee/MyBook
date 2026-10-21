@@ -85,13 +85,18 @@ const sections: { title?: string; items: Item[] }[] = [
     ],
   },
   {
-    title: "Управление",
+    title: "Настройки",
     items: [
       { href: "/admin/automations", label: "Автоматизации", icon: Workflow, perm: ["settings.manage"] },
-      { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
       { href: "/admin/pricing", label: "Цены и тарифы", icon: Coins, perm: ["settings.manage"] },
       { href: "/admin/site", label: "Сайт", icon: Globe, perm: ["settings.manage"] },
       { href: "/admin/settings", label: "Интеграции", icon: Settings, perm: ["settings.manage"] },
+    ],
+  },
+  {
+    title: "Доступ",
+    items: [
+      { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
       { href: "/admin/security", label: "Безопасность", icon: LockKeyhole },
     ],
   },

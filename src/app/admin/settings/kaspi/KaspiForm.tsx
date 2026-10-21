@@ -1,5 +1,7 @@
 "use client";
 
+import { Intro } from "@/components/admin/Intro";
+import { Section } from "../ui";
 import { useState, useTransition } from "react";
 import { LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
 import { CopyField } from "../ui";
@@ -65,14 +67,10 @@ export function KaspiForm(props: KaspiFormProps) {
 
   const b = badge(status);
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <div className="mb-4 flex items-center gap-3">
-        <h2 className="font-semibold">Kaspi Pay — оплата заказов</h2>
-        <span className={cn("rounded-full px-2.5 py-0.5 text-xs", b.tone)}>{b.text}</span>
-      </div>
-      <p className="text-sm text-muted">
+    <Section title="Kaspi Pay — оплата заказов" badge={<span className={cn("rounded-full px-2.5 py-0.5 text-xs", b.tone)}>{b.text}</span>}>
+      <Intro>
         Клиент получает счёт в приложение Kaspi по номеру телефона или платит по QR, заказ и сертификат подтверждаются сами — менять статус вручную не нужно. Работает через сервис kaspi-pos-automation на вашем сервере и аккаунт кассира Kaspi Pay.
-      </p>
+      </Intro>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <label className="block min-w-0 flex-1">
@@ -201,6 +199,6 @@ export function KaspiForm(props: KaspiFormProps) {
           Отключить кассира
         </button>
       ) : null}
-    </section>
+    </Section>
   );
 }

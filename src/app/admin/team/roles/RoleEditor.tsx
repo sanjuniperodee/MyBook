@@ -1,8 +1,9 @@
 "use client";
 
 import { ask, toastError } from "@/components/ui/overlays";
-import { useActionState, useState, useTransition } from "react";
-import { Lock, Plus, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { Lock, Trash2 } from "lucide-react";
 import { deleteRoleAction, saveRoleAction, type TeamState } from "../actions";
 import { permissionGroups, type Permission } from "@/shared/domain/permissions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -18,24 +19,21 @@ interface RoleData {
   members: number;
 }
 
-/** Карточка роли с матрицей прав. role = null — форма новой роли (свёрнута до клика). */
+/** Редактор одной роли с матрицей прав. role = null — форма новой роли. */
 export function RoleEditor({ role, isOwnRole }: { role: RoleData | null; isOwnRole: boolean }) {
   const [state, action] = useActionState<TeamState, FormData>(saveRoleAction, {});
-  const [open, setOpen] = useState(!!role);
   const [perms, setPerms] = useState<Set<string>>(new Set(role?.permissions ?? ["deals.view", "chats.view", "clients.view"]));
   const [pending, start] = useTransition();
   const disabled = !!role?.locked;
-
-  if (!open)
-    return (
-      <button onClick={() => setOpen(true)} className="flex min-h-40 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line text-sm text-muted hover:border-wine/40 hover:text-wine">
-        <Plus className="size-4" /> Новая роль
-      </button>
-    );
+  const router = useRouter();
+  // Новая роль создана — форма больше не нужна: вторая отправка создала бы дубль. Возвращаемся к списку.
+  useEffect(() => {
+    if (!role && state.ok) router.replace("/admin/team/roles");
+  }, [role, state.ok, router]);
 
   const toggle = (p: string) => setPerms((s) => (s.has(p) ? new Set([...s].filter((x) => x !== p)) : new Set([...s, p])));
   return (
-    <form action={action} className="rounded-2xl border border-line bg-white p-5">
+    <form action={action} className="rounded-2xl border border-line bg-white p-5 sm:p-6">
       {role ? <input type="hidden" name="id" value={role.id} /> : null}
       {[...perms].map((p) => (
         <input key={p} type="hidden" name="permissions" value={p} />
@@ -77,10 +75,15 @@ export function RoleEditor({ role, isOwnRole }: { role: RoleData | null; isOwnRo
           </label>
         ))}
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid gap-x-8 gap-y-6 border-t border-line pt-5 sm:grid-cols-2">
         {permissionGroups.map((g) => (
           <fieldset key={g.label}>
-            <legend className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">{g.label}</legend>
+            <legend className="mb-1.5 flex w-full items-baseline justify-between text-xs font-semibold tracking-wide text-muted uppercase">
+              {g.label}
+              <span className="font-normal tracking-normal normal-case tabular-nums">
+                {g.items.filter(([p]) => perms.has(p)).length} из {g.items.length}
+              </span>
+            </legend>
             <div className="space-y-1">
               {g.items.map(([p, label]) => (
                 <label key={p} className={cn("flex items-start gap-2 text-sm", disabled ? "text-muted" : "cursor-pointer")}>
@@ -97,11 +100,6 @@ export function RoleEditor({ role, isOwnRole }: { role: RoleData | null; isOwnRo
       ) : (
         <div className="mt-5 flex items-center gap-3">
           <SubmitButton className="btn-sm">{role ? "Сохранить" : "Создать роль"}</SubmitButton>
-          {!role ? (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
-              Отмена
-            </button>
-          ) : null}
           {isOwnRole ? <span className="text-xs text-muted">Это ваша роль</span> : null}
           {state.error ? <span className="text-xs text-red-700">{state.error}</span> : null}
           {state.ok ? <span className="text-xs text-emerald-700">{state.ok}</span> : null}

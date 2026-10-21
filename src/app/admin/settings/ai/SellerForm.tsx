@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { CheckCircle2, LoaderCircle, MessagesSquare } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, SecretInput, CheckMessage, Choice } from "../ui";
 import type { SettingsState } from "../state";
 import { saveSellerAction, testSellerAction } from "./actions";
@@ -37,12 +38,12 @@ export function SellerForm({
   const shownModel = model || providers[provider || assistantProvider].model || aiProviders[provider || assistantProvider].defaultModel;
   const weak = /free/i.test(shownModel);
   return (
-    <Section title="Прежняя модель продажника (запасная)" badge={<Status on={connected && !weak} label={!connected ? "не подключена — продажник на шаблонах" : weak ? "бесплатная модель — ненадёжно" : `${aiProviders[provider || assistantProvider].label} · ${shownModel}`} />}>
-      <p className="mb-3 text-sm text-ink-soft">
+    <Section defaultOpen={false} title="Прежняя модель продажника (запасная)" badge={<Status on={connected && !weak} label={!connected ? "не подключена — продажник на шаблонах" : weak ? "бесплатная модель — ненадёжно" : `${aiProviders[provider || assistantProvider].label} · ${shownModel}`} />}>
+      <Intro className="mb-4">
         Основная модель продажника — Claude по уровням (блок «Маршрутизация» выше). Эта модель — запасная, если не Claude: на неё бот переключится, когда Claude недоступен (если в маршрутизации не отмечены другие запасные), и на ней
         бот работает при выключенной маршрутизации (Бот → Продажи → «AI-продажник»). Нужна сильная модель: Claude (Sonnet или Opus) или GPT — она надёжнее держит правила, лучше пишет по-казахски и реже ошибается в
         сроках. Бесплатные модели (<code className="rounded bg-cream px-1">openrouter/free</code>) для продаж не рекомендуются: они нестабильны и могут не вернуть нужный JSON — тогда клиент получит «передала менеджеру».
-      </p>
+      </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
           <Choice active={p === ""}>

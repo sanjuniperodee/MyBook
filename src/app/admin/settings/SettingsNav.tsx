@@ -9,7 +9,7 @@ import { SETTINGS_TABS, type SettingsTabId } from "./tabs";
 export function SettingsNav({ active }: { active: SettingsTabId }) {
   const groups = [...new Set(SETTINGS_TABS.map((t) => t.group))];
   return (
-    <nav aria-label="Разделы интеграций">
+    <nav aria-label="Разделы интеграций" className="min-w-0">
       <ul className="flex gap-1 overflow-x-auto pb-1 md:hidden">
         {SETTINGS_TABS.map((t) => (
           <li key={t.id} className="shrink-0">

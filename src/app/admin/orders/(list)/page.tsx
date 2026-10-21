@@ -10,7 +10,7 @@ import { orderMoney } from "@/modules/ordering/ui/money";
 import { staffLabel } from "@/shared/domain/staff";
 import type { OrderFilters } from "@/modules/reporting";
 import { formatDate } from "@/lib/dates";
-import { OrdersTable, type OrderRow } from "./OrdersTable";
+import { OrdersTable, type OrderRow } from "../OrdersTable";
 
 export const metadata = { title: "Заказы" };
 const PAGE = 50;

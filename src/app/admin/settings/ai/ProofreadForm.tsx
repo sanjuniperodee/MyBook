@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { CheckCircle2, LoaderCircle, SpellCheck } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, SecretInput, CheckMessage, Choice } from "../ui";
 import type { SettingsState } from "../state";
 import { saveProofreadAction, testProofreadAction } from "./actions";
@@ -37,11 +38,11 @@ export function ProofreadForm({
   const ready = (id: AiProvider) => providerReady(providers, id);
   const connected = ready(provider || assistantProvider);
   return (
-    <Section title="Проверка текста в редакторе" badge={<Status on={connected && enabled} label={!connected ? "AI не подключён — работают словарь и правила" : enabled ? `${aiProviders[provider || assistantProvider].label} · включена` : "AI выключен"} />}>
-      <p className="mb-3 text-sm text-ink-soft">
+    <Section defaultOpen={false} title="Проверка текста в редакторе" badge={<Status on={connected && enabled} label={!connected ? "AI не подключён — работают словарь и правила" : enabled ? `${aiProviders[provider || assistantProvider].label} · включена` : "AI выключен"} />}>
+      <Intro className="mb-4">
         Клиенты видят ошибки прямо в тексте ответа, как в Grammarly. Орфография по словарю и правила оформления (пробелы, тире, кавычки, эмодзи) работают всегда и бесплатно. Кнопка «Проверить грамотность» —
         AI-корректор: запятые, согласование, опечатки. Ему можно дать отдельную, например бесплатную, модель: OpenRouter → <code className="rounded bg-cream px-1">openrouter/free</code> сам выбирает доступную бесплатную модель.
-      </p>
+      </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
           <Choice active={p === ""}>

@@ -7,7 +7,7 @@ import { AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
 import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff, staffViewer } from "@/server/access";
-import { MyDay } from "./MyDay";
+import { MyDay } from "../MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";

@@ -91,7 +91,7 @@ export function PricingForm({ plans, addons, delivery, factory, changed }: Props
         Уже оформленные заказы и сертификаты не пересчитываются. Цена книги, о которой менеджер договорился с клиентом, остаётся в сделке как указана; доставка и допы по договорённости считаются сверху по ценам отсюда.
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white/90 p-3 shadow-soft backdrop-blur">
         <SubmitButton className="btn btn-primary">Сохранить цены</SubmitButton>
         {changed ? (
           <button

@@ -1,4 +1,5 @@
 import { factoryCatalog, getAddons, getDeliveryOptions, getPlans } from "@/config/site";
+import { PageHeader } from "@/components/admin/PageHeader";
 import { requireStaff } from "@/server/access";
 import { ensureCatalog } from "@/server/catalog";
 import { PricingForm } from "./PricingForm";
@@ -17,11 +18,11 @@ export default async function PricingPage() {
   const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => a.price), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]) }) !==
     JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => a.price), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]) });
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Цены и тарифы</h1>
-        <p className="mt-1 text-sm text-muted">Цены, доставка, допы и то, какие тарифы продаются. Изменения сразу попадают на витрину, в оформление заказа, сертификаты, ответы AI-помощника и бота, счёт бота и лимит скидки менеджеров. Суммы, которые вы сами написали в базе знаний AI, бот может назвать как есть — после смены цен проверьте их.</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title="Цены и тарифы">
+        Цены, доставка, допы и то, какие тарифы продаются. Изменения сразу попадают на витрину, в оформление заказа, сертификаты, ответы AI-помощника и бота, счёт бота и лимит скидки менеджеров. Суммы, которые вы сами
+        написали в базе знаний AI, бот может назвать как есть — после смены цен проверьте их.
+      </PageHeader>
       <PricingForm
         plans={plans}
         addons={getAddons().map((a) => ({ id: a.id, price: a.price }))}
