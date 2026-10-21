@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, BadgePercent, BookOpen, Check, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
+import { ArrowDown, BadgePercent, BookOpen, Check, Mic, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { deleteMessageAction, editMessageAction, markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { ask } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
 import { ForwardDialog } from "./chat/ForwardDialog";
 import { TemplateDialog } from "./chat/TemplateDialog";
+import { VoiceRecorder, canRecordVoice } from "./chat/VoiceRecorder";
 import { MediaViewer, type ViewerItem } from "./chat/MediaViewer";
 import { MessageBubble, hasCaption, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
 import { MentionTextarea } from "./MentionTextarea";
@@ -106,6 +107,11 @@ export function ChatPanel({
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [forwarding, setForwarding] = useState(false);
   const [templating, setTemplating] = useState(false);
+  /** Идёт запись голосового. */
+  const [recording, setRecording] = useState(false);
+  // Микрофон есть не везде (и не на http): узнаём после монтирования, чтобы разметка сервера и клиента совпала.
+  const [micOk, setMicOk] = useState(false);
+  useEffect(() => setMicOk(canRecordVoice()), []);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [dragging, setDragging] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -362,6 +368,33 @@ export function ChatPanel({
         router.refresh();
       } catch (err) {
         setLocal((l) => l.map((m) => (temps.some((t) => t.id === m.id) ? { ...m, status: "error", error: (err as Error).message } : m)));
+        toastError(err);
+      }
+    });
+  };
+
+  /** Голосовое: запись браузера уходит на сервер, тот перекодирует её в формат голосовых WhatsApp. Сразу показываем своё, со звуком. */
+  const sendVoice = ({ blob, mime, ms }: { blob: Blob; mime: string; ms: number }) => {
+    const reply = replyTo;
+    setRecording(false);
+    setReplyTo(null);
+    const url = URL.createObjectURL(blob);
+    const tempId = `tmp-${Date.now()}`;
+    setLocal((l) => [...l, { id: tempId, direction: "out", type: "audio", text: "", mediaUrl: null, localSrc: url, status: "pending", error: null, author: vars.manager || "Вы", at: new Date().toISOString(), authorId: me, replyTo: reply ? { id: reply.id, text: reply.text, type: reply.type, direction: reply.direction, author: reply.author } : null }]);
+    start(async () => {
+      const form = new FormData();
+      form.set("voice", blob, `voice.${/mp4|aac/.test(mime) ? "m4a" : /ogg/.test(mime) ? "ogg" : "webm"}`);
+      form.set("durationMs", String(ms));
+      if (reply) form.set("replyToId", reply.id);
+      try {
+        const res = await fetch(`/api/admin/chats/${conversationId}/voice`, { method: "POST", body: form });
+        const data = (await res.json().catch(() => ({}))) as { error?: string | null };
+        if (!res.ok) throw new Error(data.error ?? "Голосовое не отправилось");
+        if (data.error) toast(data.error, "error");
+        setLocal((l) => l.filter((m) => m.id !== tempId));
+        router.refresh();
+      } catch (err) {
+        setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, status: "error", error: (err as Error).message } : m)));
         toastError(err);
       }
     });
@@ -694,7 +727,12 @@ export function ChatPanel({
           </div>
           <span className="ml-auto hidden truncate text-[11px] text-muted 2xl:inline">Enter — отправить · Shift+Enter — новая строка</span>
         </div>
-        <div className="flex items-end gap-2">
+        {recording ? (
+          <div className="flex items-center gap-2">
+            <VoiceRecorder onSend={sendVoice} onCancel={() => setRecording(false)} />
+          </div>
+        ) : null}
+        <div className={cn("flex items-end gap-2", recording && "hidden")}>
           <div className={cn("flex min-w-0 flex-1 items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
           {mode === "client" && !editing ? (
             <>
@@ -759,15 +797,21 @@ export function ChatPanel({
             aria-label="Текст сообщения"
           />
           </div>
-          <button
-            type="button"
-            className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow-md transition disabled:opacity-40 disabled:shadow-none", mode === "note" ? "bg-amber-500 hover:bg-amber-600" : "bg-wine hover:bg-wine-dark")}
-            disabled={(!text.trim() && !(drafts.length && mode === "client")) || sending}
-            onClick={send}
-            aria-label={editing ? "Сохранить" : "Отправить"}
-          >
-            {sending ? <LoaderCircle className="size-5 animate-spin" /> : editing ? <Pencil className="size-5" /> : <SendHorizontal className="ml-0.5 size-5" />}
-          </button>
+          {canSend && micOk && mode === "client" && !editing && !text.trim() && !drafts.length ? (
+            <button type="button" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-wine text-white shadow-md transition hover:bg-wine-dark disabled:opacity-40" disabled={sending} onClick={() => setRecording(true)} aria-label="Записать голосовое" title="Записать голосовое сообщение">
+              <Mic className="size-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow-md transition disabled:opacity-40 disabled:shadow-none", mode === "note" ? "bg-amber-500 hover:bg-amber-600" : "bg-wine hover:bg-wine-dark")}
+              disabled={(!text.trim() && !(drafts.length && mode === "client")) || sending}
+              onClick={send}
+              aria-label={editing ? "Сохранить" : "Отправить"}
+            >
+              {sending ? <LoaderCircle className="size-5 animate-spin" /> : editing ? <Pencil className="size-5" /> : <SendHorizontal className="ml-0.5 size-5" />}
+            </button>
+          )}
         </div>
       </div>
     </div>
