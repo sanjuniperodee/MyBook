@@ -1,34 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Copy, LoaderCircle, MessageSquareQuote, Pencil, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, LoaderCircle, MessageSquareQuote, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { ask, toast } from "@/components/ui/overlays";
-import { fillTemplate } from "@/shared/domain/templates";
-import { cn } from "@/lib/class-names";
-import { deleteMyTemplateAction, duplicateTemplateAction, reorderMyTemplatesAction, saveMyTemplateAction } from "./actions";
-
-interface Tpl {
-  id: string;
-  title: string;
-  text: string;
-}
-
-/** Подстановки, которые CRM заполняет по диалогу, и пример значения для предпросмотра. */
-const VARS: { key: string; hint: string }[] = [
-  { key: "{имя}", hint: "Имя клиента" },
-  { key: "{заказ}", hint: "Номер последнего заказа" },
-  { key: "{ссылка}", hint: "Ссылка на заказ или книгу" },
-  { key: "{менеджер}", hint: "Ваше имя" },
-  { key: "{повод}", hint: "Повод из сделки" },
-  { key: "{дата}", hint: "Дата события из сделки" },
-  { key: "{получатель}", hint: "Кому дарят книгу" },
-];
-
-const SAMPLE = { name: "Айдана", order: 1042, link: "https://mybooks.kz/pay/…", occasion: "День рождения", date: "14 ноября", recipient: "маме" };
-
-const previewText = (text: string, manager: string) => fillTemplate(text, { ...SAMPLE, manager });
+import { deleteMyTemplateAction, duplicateTemplateAction, reorderMyTemplatesAction } from "./actions";
+import { TemplateEditor, type Tpl } from "./TemplateEditor";
 
 /** Личные шаблоны: карточки с поиском, порядок, копия, правка в окне с предпросмотром. Общие — только для чтения и копирования. */
 export function TemplatesManager({ mine, shared, manager }: { mine: Tpl[]; shared: Tpl[]; manager: string }) {
@@ -152,7 +129,7 @@ export function TemplatesManager({ mine, shared, manager }: { mine: Tpl[]; share
       ) : null}
 
       {editing ? (
-        <Editor
+        <TemplateEditor
           key={editing === "new" ? "new" : editing.id}
           tpl={editing === "new" ? null : editing}
           manager={manager}
@@ -164,107 +141,5 @@ export function TemplatesManager({ mine, shared, manager }: { mine: Tpl[]; share
         />
       ) : null}
     </>
-  );
-}
-
-/** Окно шаблона: название, текст со вставкой подстановок по клику и предпросмотр «как увидит клиент». */
-function Editor({ tpl, manager, onClose, onSaved }: { tpl: Tpl | null; manager: string; onClose: () => void; onSaved: () => void }) {
-  const [title, setTitle] = useState(tpl?.title ?? "");
-  const [text, setText] = useState(tpl?.text ?? "");
-  const [saving, start] = useTransition();
-  const area = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const insert = (v: string) => {
-    const el = area.current;
-    const a = el?.selectionStart ?? text.length;
-    const b = el?.selectionEnd ?? text.length;
-    setText((t) => t.slice(0, a) + v + t.slice(b));
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(a + v.length, a + v.length);
-    });
-  };
-
-  const valid = !!title.trim() && !!text.trim();
-  const save = () =>
-    valid &&
-    start(async () => {
-      const r = await saveMyTemplateAction(tpl?.id ?? "", title, text);
-      if (r.error) return toast(r.error, "error");
-      toast(tpl ? "Шаблон сохранён" : "Шаблон создан", "success");
-      onSaved();
-    });
-
-  return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex max-h-[92dvh] w-full max-w-3xl flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" role="dialog" aria-modal="true" aria-label={tpl ? "Изменить шаблон" : "Новый шаблон"}>
-        <div className="flex items-center gap-2 border-b border-line px-5 py-3.5">
-          <MessageSquareQuote className="size-5 text-wine" />
-          <h2 className="flex-1 font-semibold">{tpl ? "Изменить шаблон" : "Новый шаблон"}</h2>
-          <button type="button" onClick={onClose} className="rounded-full p-1 text-muted hover:bg-cream" aria-label="Закрыть">
-            <X className="size-5" />
-          </button>
-        </div>
-        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[1fr_16rem]">
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-1.5 flex justify-between text-sm font-medium text-ink-soft">
-                Название <span className="font-normal text-muted tabular-nums">{title.length}/60</span>
-              </span>
-              <input autoFocus={!tpl} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} placeholder="Например, «Как оплатить»" className="input !h-11" />
-            </label>
-            <div>
-              <span className="mb-1.5 flex justify-between text-sm font-medium text-ink-soft">
-                Текст <span className="font-normal text-muted tabular-nums">{text.length}/2000</span>
-              </span>
-              <textarea
-                ref={area}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && (e.preventDefault(), save())}
-                maxLength={2000}
-                rows={9}
-                placeholder="Здравствуйте, {имя}! …"
-                className="input fs-keep"
-              />
-              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Подстановки">
-                {VARS.map((v) => (
-                  <button key={v.key} type="button" onClick={() => insert(v.key)} title={v.hint} className="rounded-full border border-line bg-cream/60 px-2.5 py-1 text-xs text-ink-soft transition hover:border-wine/40 hover:text-wine">
-                    {v.key}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="min-w-0">
-            <span className="mb-1.5 block text-sm font-medium text-ink-soft">Как увидит клиент</span>
-            <div className="rounded-xl bg-[#f4efe7] p-3">
-              {text.trim() ? (
-                <div className={cn("ml-auto max-w-full rounded-2xl rounded-br-sm bg-[#f7e4e7] px-3 py-2 text-[13.5px] leading-snug break-words whitespace-pre-wrap text-ink shadow-sm")}>{previewText(text, manager)}</div>
-              ) : (
-                <p className="py-6 text-center text-xs text-muted">Начните писать — здесь появится сообщение</p>
-              )}
-            </div>
-            <p className="mt-2 text-[11px] leading-snug text-muted">В примере подставлены условные данные. В чате вместо них будут имя клиента, номер заказа и ссылка из диалога.</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
-          <span className="mr-auto hidden text-[11px] text-muted sm:inline">Ctrl/⌘ + Enter — сохранить</span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>
-            Отмена
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={!valid || saving} onClick={save}>
-            {saving ? <LoaderCircle className="size-4 animate-spin" /> : null} Сохранить
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
   );
 }
