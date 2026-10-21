@@ -104,6 +104,33 @@ describe("GOWA: клиент шлюза", () => {
     expect(await down.status()).toMatchObject({ reachable: false, registered: false, loggedIn: false, phone: "" });
   });
 
+  it("кэш состояния: повторные вызовы в пределах срока не ходят в шлюз; недоступный шлюз не кэшируется; свежее status() кэш не использует", async () => {
+    let hits = 0;
+    let down = false;
+    let t = 0;
+    const client = new GowaClient(config, async () => {
+      hits++;
+      if (down) throw new TypeError("fetch failed");
+      return json({ results: { is_connected: true, is_logged_in: true, jid: "77001112233:5@s.whatsapp.net" } });
+    });
+    const [a, b] = await Promise.all([client.cachedStatus(10_000, () => t), client.cachedStatus(10_000, () => t)]);
+    expect(a).toBe(b);
+    t = 5_000;
+    await client.cachedStatus(10_000, () => t);
+    expect(hits).toBe(1);
+    await client.status();
+    expect(hits).toBe(2);
+    t = 11_000;
+    await client.cachedStatus(10_000, () => t);
+    expect(hits).toBe(3);
+    down = true;
+    t = 30_000;
+    expect((await client.cachedStatus(10_000, () => t)).reachable).toBe(false);
+    await new Promise((r) => setTimeout(r));
+    await client.cachedStatus(10_000, () => t);
+    expect(hits).toBe(5);
+  });
+
   it("подключение: сайт сам заводит устройство магазина с вебхуком, повторно — обновляет вебхук", async () => {
     const calls: { method: string; path: string; body: unknown }[] = [];
     let devices: { id: string }[] = [];

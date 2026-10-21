@@ -115,7 +115,7 @@ export class ChatView {
       fields: CustomFieldsReader;
       settings: SettingsReader<"wazzup.channelId">;
       wazzup: WazzupClient;
-      gowa: Pick<GowaClient, "status">;
+      gowa: Pick<GowaClient, "cachedStatus">;
       /** Через что сейчас работает WhatsApp. */
       whatsappProvider: () => Promise<"wazzup" | "gowa">;
       smtp: Pick<MailTransport, "configured">;
@@ -149,7 +149,7 @@ export class ChatView {
     if (conv.channel === "site") return null;
     if (conv.channel === "email") return (await this.deps.smtp.configured()) || process.env.NODE_ENV !== "production" ? null : "Почта (SMTP) не настроена — укажите сервер в «Интеграциях», иначе письма не уйдут клиенту.";
     if (conv.channel === "whatsapp" && (conv.channelId === GOWA_CHANNEL || (await this.deps.whatsappProvider()) === "gowa")) {
-      const s = await this.deps.gowa.status();
+      const s = await this.deps.gowa.cachedStatus();
       if (!s.reachable) return "Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.";
       if (s.problem) return `${s.problem} — сообщения не уйдут клиенту. Проверьте настройки в «Интеграциях».`;
       return s.loggedIn ? null : "Номер WhatsApp не привязан — отсканируйте QR в разделе «Интеграции».";

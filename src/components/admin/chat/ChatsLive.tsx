@@ -13,15 +13,27 @@ const GAP_MS = 1_000;
 /**
  * Страница чатов обновляется сама по событию о любом диалоге: новый чат и счётчик в списке появляются сразу, даже
  * когда диалог не открыт, открытая переписка — тоже. Список и переписка рисуются на сервере, поэтому обновление —
- * router.refresh(), склеенное по времени.
+ * router.refresh(), склеенное по времени. Скрытая вкладка не перерисовывается: событие запоминается, и экран
+ * обновляется один раз, когда вкладку открывают, — а не на каждое сообщение и статус доставки в фоне.
  */
 export function ChatsLive() {
   const router = useRouter();
   useEffect(() => {
-    const refresh = coalesce(() => router.refresh(), GAP_MS);
+    let stale = false;
+    const refresh = coalesce(() => {
+      if (document.visibilityState !== "visible") {
+        stale = true;
+        return;
+      }
+      stale = false;
+      router.refresh();
+    }, GAP_MS);
     const onLive = (e: Event) => {
       const d = (e as CustomEvent<{ type?: string }>).detail;
       if (d?.type === "chat") void refresh();
+    };
+    const onVisible = () => {
+      if (stale && document.visibilityState === "visible") void refresh();
     };
     let lastPoll = Date.now();
     const poll = () => {
@@ -30,9 +42,11 @@ export function ChatsLive() {
       void refresh();
     };
     window.addEventListener("crm:live", onLive);
+    document.addEventListener("visibilitychange", onVisible);
     const id = window.setInterval(poll, 5_000);
     return () => {
       window.removeEventListener("crm:live", onLive);
+      document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(id);
     };
   }, [router]);

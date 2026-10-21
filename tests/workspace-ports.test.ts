@@ -28,7 +28,7 @@ const chatView = (settings: MemSettings<"wazzup.apiKey" | "wazzup.baseUrl" | "wa
     fields: new MemFieldsReader(),
     settings,
     wazzup: new WazzupClient(settings),
-    gowa: { status: async () => ({ reachable: false, registered: false, connected: false, loggedIn: false, phone: "", problem: null }) },
+    gowa: { cachedStatus: async () => ({ reachable: false, registered: false, connected: false, loggedIn: false, phone: "", problem: null }) },
     whatsappProvider: async () => "wazzup",
     smtp: { configured: async () => true },
     ...ports,
@@ -276,7 +276,7 @@ describe("messaging: настройки, уведомления, живое об
 
   it("почему отправка не сработает: WhatsApp через шлюз GOWA — недоступен, ошибка, номер не привязан, готов", async () => {
     const status: GowaStatus = { reachable: false, registered: false, connected: false, loggedIn: false, phone: "", problem: null };
-    const view = chatView(new MemSettings(), { gowa: { status: async () => status }, whatsappProvider: async () => "gowa" });
+    const view = chatView(new MemSettings(), { gowa: { cachedStatus: async () => status }, whatsappProvider: async () => "gowa" });
     const conv = { channel: "whatsapp", channelId: "wazzup-channel" };
     expect(await view.sendBlocker(conv)).toBe("Шлюз WhatsApp (GOWA) недоступен — сообщения не уйдут клиенту. Проверьте, что сервис запущен.");
     Object.assign(status, { reachable: true, problem: "WhatsApp: неверный пароль" });
@@ -286,7 +286,7 @@ describe("messaging: настройки, уведомления, живое об
     Object.assign(status, { loggedIn: true });
     expect(await view.sendBlocker(conv)).toBeNull();
     // Диалог шлюза идёт через него и при Wazzup в настройках.
-    expect(await chatView(new MemSettings(), { gowa: { status: async () => status } }).sendBlocker({ channel: "whatsapp", channelId: "gowa" })).toBeNull();
+    expect(await chatView(new MemSettings(), { gowa: { cachedStatus: async () => status } }).sendBlocker({ channel: "whatsapp", channelId: "gowa" })).toBeNull();
   });
 
   it("ответ в почтовый диалог уходит через EmailChannel.reply; ошибка отправки — текстом в статус", async () => {

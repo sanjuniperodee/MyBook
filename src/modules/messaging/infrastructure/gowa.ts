@@ -125,6 +125,26 @@ export class GowaClient {
     await this.json("POST", `/message/${encodeURIComponent(messageId)}/revoke`, { phone: gowaJid(chatId) });
   }
 
+  /**
+   * Состояние шлюза для экрана чата: открытие чата и каждое его обновление спрашивали шлюз заново, а он обрабатывает
+   * события номера по очереди (история, медиа) и может отвечать долго. Ответ живёт maxAgeMs, параллельные вызовы
+   * ждут один общий запрос. Настройки и проверки после действий берут свежее status().
+   */
+  cachedStatus(maxAgeMs = 10_000, now: () => number = Date.now): Promise<GowaStatus> {
+    const hit = this.statusCache;
+    if (hit && now() - hit.at < maxAgeMs) return hit.value;
+    const value = this.status();
+    const entry = { at: now(), value };
+    this.statusCache = entry;
+    // Ответ, который не дошёл до шлюза, не держим — следующий вызов спросит снова.
+    void value.then((s) => {
+      if (!s.reachable && this.statusCache === entry) this.statusCache = null;
+    });
+    return value;
+  }
+
+  private statusCache: { at: number; value: Promise<GowaStatus> } | null = null;
+
   async status(): Promise<GowaStatus> {
     const off = { registered: false, connected: false, loggedIn: false, phone: "" };
     try {
@@ -159,6 +179,7 @@ export class GowaClient {
 
   /** Отвязать номер: сессия WhatsApp удаляется, устройство и его вебхук остаются — номер можно привязать заново. */
   async logout() {
+    this.statusCache = null;
     await this.json("POST", `/devices/${GOWA_DEVICE}/logout`);
   }
 
