@@ -11,6 +11,7 @@ import '../models/deal.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 import 'deal_screen.dart';
+import 'new_deal_sheet.dart';
 
 Color hexColor(String s) {
   final h = s.replaceAll('#', '');
@@ -107,7 +108,20 @@ class _DealsScreenState extends State<DealsScreen> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Expanded(child: Text('Сделки', style: AppText.largeTitle(context))),
-                  if (data?.pipelineName.isNotEmpty == true) Text(data!.pipelineName, style: AppText.sub(context)),
+                  if (data?.pipelineName.isNotEmpty == true) Flexible(child: Text(data!.pipelineName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.sub(context))),
+                  if (context.read<AuthState>().staff!.can('deals.edit'))
+                    RoundIconButton(
+                      icon: LucideIcons.plus,
+                      size: 44,
+                      color: c.brandDeep,
+                      tooltip: 'Новая сделка',
+                      onTap: () async {
+                        final id = await showNewDealSheet(context, api: context.read<AuthState>().api);
+                        if (id == null || !context.mounted) return;
+                        await Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => DealScreen(dealId: id)));
+                        _load(silent: true);
+                      },
+                    ),
                 ]),
                 const SizedBox(height: 12),
                 AppSearchField(

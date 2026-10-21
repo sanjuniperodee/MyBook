@@ -6,6 +6,7 @@ import 'package:mybooks_seller/core/format.dart';
 import 'package:mybooks_seller/core/notifier.dart';
 import 'package:mybooks_seller/models/chat.dart';
 import 'package:mybooks_seller/models/deal.dart';
+import 'package:mybooks_seller/models/work.dart';
 import 'package:mybooks_seller/widgets/message_bubble.dart';
 
 void main() {
@@ -14,11 +15,18 @@ void main() {
   group('ссылки уведомлений', () {
     test('диалог и сделка из ссылки CRM', () {
       final chat = NotificationTarget.parse('/admin/chats?c=20bc2e0b-885b-4d12-a10c-c984d0d5630b');
-      expect(chat?.chatId, '20bc2e0b-885b-4d12-a10c-c984d0d5630b');
+      expect(chat.chatId, '20bc2e0b-885b-4d12-a10c-c984d0d5630b');
       final deal = NotificationTarget.parse('/admin/deals/b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
-      expect(deal?.dealId, 'b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
-      expect(NotificationTarget.parse('/admin/finance'), isNull);
-      expect(NotificationTarget.parse(null), isNull);
+      expect(deal.dealId, 'b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
+      expect(NotificationTarget.parse('/admin/finance').isEmpty, isTrue);
+      expect(NotificationTarget.parse(null).isEmpty, isTrue);
+    });
+
+    test('клиент и вкладки приложения', () {
+      expect(NotificationTarget.parse('/admin/clients/b70f2c02-9eb4-4150-ae9d-ae02d1aa485b').clientId, 'b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
+      expect(NotificationTarget.parse('/admin/tasks').tab, 'tasks');
+      expect(NotificationTarget.parse('/admin/deals').tab, 'deals');
+      expect(NotificationTarget.parse('/admin/deals/b70f2c02-9eb4-4150-ae9d-ae02d1aa485b').tab, isNull);
     });
   });
 
@@ -110,5 +118,60 @@ void main() {
     expect(tailed.width, closeTo(100 + BubbleBorder.tailWidth, 0.5));
     final incoming = const BubbleBorder(outgoing: false, tail: true).getOuterPath(rect).getBounds();
     expect(incoming.left, closeTo(-BubbleBorder.tailWidth, 0.5));
+  });
+
+  group('задачи и «Мой день»', () {
+    test('задача: срок, просрочка, контекст и цель', () {
+      final t = CrmTask.fromJson({
+        'id': 't1',
+        'title': 'Перезвонить',
+        'kind': 'call',
+        'dueAt': '2026-10-21T08:00:00.000Z',
+        'overdue': true,
+        'done': false,
+        'remindBeforeMin': 60,
+        'fromBot': false,
+        'editable': true,
+        'assigneeId': 'u1',
+        'context': {'type': 'deal', 'id': 'd1', 'label': 'Книга · Айгерим'},
+        'target': {'dealId': 'd1', 'orderId': null, 'clientId': null},
+        'contact': {'phone': null, 'pbx': true, 'chat': true},
+      });
+      expect(t.kind, 'call');
+      expect(t.overdue, isTrue);
+      expect(t.dueAt!.toUtc().hour, 8);
+      expect(t.context!.type, 'deal');
+      expect(t.target.toJson(), {'dealId': 'd1'});
+      expect(t.contact!.pbx, isTrue);
+      expect(t.contact!.phone, isNull);
+    });
+
+    test('«Мой день»: счётчики, план и пропущенные звонки', () {
+      final d = TodayData.fromJson({
+        'counts': {'tasks': 3, 'overdueTasks': 1, 'waiting': 2, 'missed': 1, 'unsorted': 0, 'openDeals': 7, 'openDealsSum': 250000, 'noNextStep': 2},
+        'plan': {'planAmount': 1000000, 'factAmount': 250000, 'planDeals': 10, 'factDeals': 3},
+        'tasks': <dynamic>[],
+        'waiting': [
+          {'id': 'c1', 'title': 'Айгерим', 'channel': 'whatsapp', 'channelLabel': 'WhatsApp', 'preview': 'Сколько стоит?', 'waitLabel': '12 мин', 'overdue': false},
+        ],
+        'missed': [
+          {'id': 'k1', 'phone': '+7 700 000 00 00', 'at': '2026-10-21T05:00:00.000Z', 'dealId': null, 'clientId': 'u9'},
+        ],
+      });
+      expect(d.counts.overdue, 1);
+      expect(d.plan!.ratio, 0.25);
+      expect(d.waiting.single.waitLabel, '12 мин');
+      expect(d.missed.single.missedIncoming, isTrue);
+      expect(d.missed.single.clientId, 'u9');
+    });
+
+    test('уведомление и клиент из списков', () {
+      final n = AppNotification.fromJson({'id': 'n1', 'kind': 'reminder', 'title': 'Через 15 мин', 'body': '', 'link': '/admin/tasks', 'read': false, 'at': '2026-10-21T05:00:00.000Z'});
+      expect(n.read, isFalse);
+      expect(n.link, '/admin/tasks');
+      final c = ClientRow.fromJson({'id': 'u1', 'name': 'Айгерим', 'phone': null, 'ltv': 150000, 'orders': 2, 'books': 1, 'lastSeenAt': null, 'tags': ['vip']});
+      expect(c.phone, isNull);
+      expect(c.tags, ['vip']);
+    });
   });
 }

@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../ui/tokens.dart';
 import 'api.dart';
@@ -16,19 +18,28 @@ import 'live.dart';
 /// Среда APNs этого запуска: из Xcode/flutter run — sandbox, из TestFlight и App Store — production.
 const apnsEnvironment = String.fromEnvironment('APNS_ENV', defaultValue: kReleaseMode ? 'production' : 'sandbox');
 
-/// Ссылка уведомления CRM → что открыть: диалог (/admin/chats?c=…) или сделку (/admin/deals/…).
+/// Ссылка уведомления CRM → что открыть: диалог (/admin/chats?c=…), сделку, клиента или вкладку («Задачи», «Сделки»).
 class NotificationTarget {
-  NotificationTarget({this.chatId, this.dealId});
+  NotificationTarget({this.chatId, this.dealId, this.clientId, this.tab});
   final String? chatId;
   final String? dealId;
+  final String? clientId;
+  final String? tab;
 
-  static NotificationTarget? parse(String? link) {
-    if (link == null) return null;
+  bool get isEmpty => chatId == null && dealId == null && clientId == null && tab == null;
+
+  static NotificationTarget parse(String? link) {
+    if (link == null) return NotificationTarget();
     final chat = RegExp(r'[?&]c=([0-9a-f-]{36})').firstMatch(link);
     if (chat != null) return NotificationTarget(chatId: chat.group(1));
     final deal = RegExp(r'/admin/deals/([0-9a-f-]{36})').firstMatch(link);
     if (deal != null) return NotificationTarget(dealId: deal.group(1));
-    return null;
+    final client = RegExp(r'/admin/clients/([0-9a-f-]{36})').firstMatch(link);
+    if (client != null) return NotificationTarget(clientId: client.group(1));
+    if (link.startsWith('/admin/tasks') || link.startsWith('/admin/today') || link == '/admin') return NotificationTarget(tab: 'tasks');
+    if (link.startsWith('/admin/deals')) return NotificationTarget(tab: 'deals');
+    if (link.startsWith('/admin/chats')) return NotificationTarget(tab: 'chats');
+    return NotificationTarget();
   }
 }
 
@@ -51,6 +62,9 @@ class Notifier with WidgetsBindingObserver {
   bool _foreground = true;
   bool enabled = true;
 
+  /// Сервер умеет слать push на этот телефон (ключ APNs задан) — тогда напоминания по задачам приходят с сервера, а не из расписания на телефоне.
+  bool serverPush = false;
+
   /// Диалог, открытый на экране прямо сейчас: сообщения из него не показываем — они и так на виду.
   String? openChatId;
   int unread = 0;
@@ -65,10 +79,10 @@ class Notifier with WidgetsBindingObserver {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: (r) {
-        final t = NotificationTarget.parse(r.payload);
-        if (t != null) onOpen(t);
+        open(NotificationTarget.parse(r.payload));
       },
     );
+    tzdata.initializeTimeZones();
     WidgetsBinding.instance.addObserver(this);
     _sub = live.events.listen((e) {
       if (e.type == 'chat' || e.type == 'notify' || e.type == 'tick') _soon();
@@ -95,7 +109,8 @@ class Notifier with WidgetsBindingObserver {
 
   Future<void> _sendToken(String token) async {
     try {
-      await api.post('/api/mobile/push', body: {'token': token, 'platform': 'ios', 'environment': apnsEnvironment});
+      final r = await api.post('/api/mobile/push', body: {'token': token, 'platform': 'ios', 'environment': apnsEnvironment}) as Map<String, dynamic>;
+      serverPush = r['serverReady'] == true;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('push_token', token);
     } on ApiException {
@@ -163,8 +178,10 @@ class Notifier with WidgetsBindingObserver {
       for (final n in fresh) {
         const loud = {'message', 'mention', 'reminder', 'sla', 'call', 'task', 'deal'};
         if (!loud.contains(n['kind'])) continue;
+        // Напоминания о сроках задач без push с сервера ставятся на телефоне заранее (TasksStore) — второй раз не показываем.
+        if (n['kind'] == 'reminder' && !serverPush) continue;
         final target = NotificationTarget.parse(n['link'] as String?);
-        if (target?.chatId != null && target!.chatId == openChatId && _foreground) continue;
+        if (target.chatId != null && target.chatId == openChatId && _foreground) continue;
         await _show(n['title'] as String? ?? 'MyBooks', (n['body'] as String?) ?? '', n['link'] as String?, n['kind'] as String? ?? 'message');
       }
     } on ApiException {
@@ -191,6 +208,37 @@ class Notifier with WidgetsBindingObserver {
     );
   }
 
+  void open(NotificationTarget target) {
+    if (!target.isEmpty) onOpen(target);
+  }
+
+  /// Напоминание на телефоне на конкретное время: сработает и при закрытом приложении, без сервера и push.
+  Future<void> scheduleReminder({required int id, required DateTime at, required String title, required String body, String? payload}) async {
+    if (!enabled || at.isBefore(DateTime.now().add(const Duration(seconds: 5)))) return;
+    try {
+      await _plugin.zonedSchedule(
+        id: id,
+        title: title,
+        body: body.isEmpty ? null : body,
+        scheduledDate: tz.TZDateTime.from(at, tz.UTC),
+        notificationDetails: NotificationDetails(
+          iOS: const DarwinNotificationDetails(presentAlert: true, presentBadge: false, presentSound: true),
+          android: AndroidNotificationDetails('tasks', 'Задачи', channelDescription: 'Напоминания о сроках задач', importance: Importance.high, priority: Priority.high),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: payload,
+      );
+    } catch (_) {
+      // Платформа не дала запланировать — напоминание придёт с сервера.
+    }
+  }
+
+  Future<void> cancelReminder(int id) async {
+    try {
+      await _plugin.cancel(id: id);
+    } catch (_) {}
+  }
+
   void _setBadge(int n) {
     try {
       AppBadgePlus.updateBadge(n);
@@ -215,8 +263,7 @@ class Notifier with WidgetsBindingObserver {
         onTap: () {
           entry.remove();
           _entry = null;
-          final t = NotificationTarget.parse(link);
-          if (t != null) onOpen(t);
+          open(NotificationTarget.parse(link));
         },
         onDismiss: () {
           if (_entry == entry) {

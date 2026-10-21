@@ -6,14 +6,17 @@ import 'package:provider/provider.dart';
 
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/contact_actions.dart';
 import '../core/format.dart';
 import '../models/chat.dart';
 import '../models/deal.dart';
+import '../models/work.dart' show TaskTarget;
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 import 'chat_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'invoice_sheet.dart';
+import 'task_editor.dart';
 
 /// Карточка сделки: этап (меняется в один тап), чат и счёт, задачи, заметки, платежи и счета.
 class DealScreen extends StatefulWidget {
@@ -77,49 +80,27 @@ class _DealScreenState extends State<DealScreen> {
   }
 
   Future<void> _addTask() async {
-    final title = TextEditingController();
-    DateTime? due;
-    final ok = await showAppSheet<bool>(
-      context,
-      title: 'Новая задача',
-      icon: LucideIcons.listPlus,
-      builder: (sheet) => StatefulBuilder(
-        builder: (context, setLocal) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: title, autofocus: true, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(hintText: 'Что нужно сделать')),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () async {
-                final date = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now().subtract(const Duration(days: 1)), lastDate: DateTime.now().add(const Duration(days: 730)));
-                if (date == null || !context.mounted) return;
-                final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 12, minute: 0));
-                setLocal(() => due = DateTime(date.year, date.month, date.day, time?.hour ?? 0, time?.minute ?? 0));
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(color: context.c.surface, borderRadius: BorderRadius.circular(12)),
-                child: Row(children: [
-                  Icon(LucideIcons.calendar, size: 19, color: context.c.textMuted),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(due == null ? 'Срок не задан' : '${two(due!.day)}.${two(due!.month)}.${due!.year}${due!.hour != 0 ? ' · ${hhmm(due!)}' : ''}', style: TextStyle(fontSize: 16, color: due == null ? context.c.textFaint : context.c.text))),
-                  Icon(LucideIcons.chevronRight, size: 18, color: context.c.textFaint),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 18),
-            PrimaryButton(label: 'Добавить задачу', onPressed: () => Navigator.pop(sheet, true)),
-          ]),
-        ),
-      ),
-    );
-    if (ok != true || title.text.trim().length < 2) return;
+    final label = _d?['title'] as String?;
+    if (await showTaskEditor(context, target: TaskTarget(dealId: widget.dealId), contextLabel: label)) await _load();
+  }
+
+  Future<void> _accept() async {
     try {
-      await _api.c.post('/api/mobile/deals/${widget.dealId}/tasks', body: {
-        'title': title.text.trim(),
-        if (due != null) 'dueAt': '${due!.year}-${two(due!.month)}-${two(due!.day)}',
-        if (due != null && due!.hour != 0) 'dueTime': hhmm(due!),
-      });
+      await _api.c.post('/api/mobile/deals/${widget.dealId}/accept');
+      HapticFeedback.mediumImpact();
+      _toast('Заявка принята в работу');
+      await _load();
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  Future<void> _reject() async {
+    final reason = await promptText(context, title: 'Почему отклоняете заявку?', hint: 'Например: спам, нет бюджета', ok: 'Отклонить');
+    if (reason == null) return;
+    try {
+      final r = await _api.c.post('/api/mobile/deals/${widget.dealId}/reject', body: {'reason': reason, 'spam': false});
+      _toast((r is Map && r['message'] is String) ? r['message'] as String : 'Заявка отклонена');
       await _load();
     } on ApiException catch (e) {
       _toast(e.message);
@@ -197,6 +178,8 @@ class _DealScreenState extends State<DealScreen> {
           final ok = await showInvoiceSheet(context, api: api, dealId: widget.dealId, conversationId: chatId);
           if (ok) _load();
         }),
+      if (d['phone'] != null || (context.read<AuthState>().staff!.can('calls.make') && perms['canEdit'] == true))
+        _ActionItem(LucideIcons.phone, 'Позвонить', () => ContactActions(context).call(phone: d['phone'] as String?, target: TaskTarget(dealId: widget.dealId))),
       if (perms['canEdit'] == true) _ActionItem(LucideIcons.listPlus, 'Задача', _addTask),
       if (perms['canEdit'] == true) _ActionItem(LucideIcons.stickyNote, 'Заметка', _addNote),
     ];
@@ -228,7 +211,21 @@ class _DealScreenState extends State<DealScreen> {
       if (d['unsorted'] == true)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: c.warnBg, borderRadius: BorderRadius.circular(12)), child: Row(children: [Icon(LucideIcons.circleAlert, size: 18, color: c.warn), const SizedBox(width: 10), Expanded(child: Text('Неразобранная заявка — примите её в CRM.', style: TextStyle(color: c.warn, fontWeight: FontWeight.w600)))])),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: c.warnBg, borderRadius: BorderRadius.circular(Rd.md)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [Icon(LucideIcons.inbox, size: 18, color: c.warn), const SizedBox(width: 10), Expanded(child: Text('Новая заявка — ещё ничья', style: TextStyle(color: c.warn, fontWeight: FontWeight.w700, fontSize: 15.5)))]),
+              if (context.read<AuthState>().staff!.can('deals.edit')) ...[
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: PrimaryButton(label: 'Принять', icon: LucideIcons.check, onPressed: _accept)),
+                  const SizedBox(width: 10),
+                  Expanded(child: SizedBox(height: 52, child: OutlinedButton(onPressed: _reject, style: OutlinedButton.styleFrom(foregroundColor: c.danger, side: BorderSide(color: c.danger.withValues(alpha: 0.5)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: const Text('Отклонить', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600))))),
+                ]),
+              ],
+            ]),
+          ),
         ),
       if (actions.isNotEmpty)
         Padding(

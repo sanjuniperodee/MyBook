@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/chat_controller.dart';
 import '../core/chats_store.dart';
@@ -273,6 +274,7 @@ class _ChatScreenState extends State<ChatScreen> {
           if (d.perms.canNote) GroupTile(title: 'Заметка для коллег', icon: LucideIcons.stickyNote, onTap: () => Navigator.pop(sheet, 'note')),
           if (d.status == 'open' && d.perms.canReply) GroupTile(title: 'Закрыть диалог', icon: LucideIcons.circleCheck, onTap: () => Navigator.pop(sheet, 'close')),
           if (d.status == 'closed' && d.perms.canReply) GroupTile(title: 'Открыть снова', icon: LucideIcons.rotateCcw, onTap: () => Navigator.pop(sheet, 'open')),
+          if (d.perms.canReply) GroupTile(title: 'Передать коллеге', icon: LucideIcons.userRoundPlus, onTap: () => Navigator.pop(sheet, 'assign')),
           GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
         ]),
       ),
@@ -286,8 +288,43 @@ class _ChatScreenState extends State<ChatScreen> {
         _toast(await ctrl.setStatus('closed'));
       case 'open':
         _toast(await ctrl.setStatus('open'));
+      case 'assign':
+        await _assign();
       case 'refresh':
         await ctrl.load();
+    }
+  }
+
+  /// Передать диалог другому сотруднику (или снять ответственного): список сотрудников отдаёт сервер с учётом прав.
+  Future<void> _assign() async {
+    final api = context.read<AuthState>().api;
+    List<Map<String, dynamic>> people;
+    try {
+      final r = await api.get('/api/mobile/staff') as Map<String, dynamic>;
+      people = (r['staff'] as List).cast<Map<String, dynamic>>();
+    } on ApiException catch (e) {
+      _toast(e.message);
+      return;
+    }
+    if (!mounted) return;
+    final picked = await showAppSheet<String>(
+      context,
+      title: 'Передать диалог',
+      icon: LucideIcons.userRoundPlus,
+      builder: (sheet) => SingleChildScrollView(
+        child: GroupCard(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          for (final p in people) GroupTile(title: p['name'] as String, icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, p['id'] as String)),
+          GroupTile(title: 'Снять ответственного', icon: LucideIcons.userX, iconColor: sheet.c.textMuted, onTap: () => Navigator.pop(sheet, '')),
+        ]),
+      ),
+    );
+    if (picked == null) return;
+    try {
+      await api.post('/api/mobile/chats/${widget.chatId}/assign', body: {'userId': picked.isEmpty ? null : picked});
+      _toast(picked.isEmpty ? 'Ответственный снят' : 'Диалог передан');
+      await ctrl.load();
+    } on ApiException catch (e) {
+      _toast(e.message);
     }
   }
 

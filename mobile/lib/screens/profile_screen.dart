@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/notifier.dart';
 import '../ui/avatar.dart';
@@ -54,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             GroupTile(
               icon: LucideIcons.bellRing,
               title: 'Сообщения и напоминания',
-              subtitle: 'Плашка со звуком, пока приложение открыто',
+              subtitle: 'Сообщения, сроки задач, новые заявки',
               trailing: Switch.adaptive(
                 value: notifier.enabled,
                 activeTrackColor: c.brand,
@@ -67,7 +68,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             GroupTile(icon: LucideIcons.smartphone, title: 'Непрочитанных в CRM', trailing: ValueListenableBuilder<int>(valueListenable: notifier.unreadListenable, builder: (_, n, _) => Text('$n', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.textMuted)))),
           ]),
           GroupCard(title: 'Работа', children: [
-            GroupTile(icon: staff.onShift ? LucideIcons.briefcase : LucideIcons.briefcaseBusiness, title: 'Смена', subtitle: staff.onShift ? 'На смене — новые заявки распределяются вам' : 'Не на смене', trailing: Tag(staff.onShift ? 'на смене' : 'не на смене', fg: staff.onShift ? c.success : c.textMuted, bg: staff.onShift ? c.success.withValues(alpha: 0.14) : c.surface)),
+            GroupTile(
+              icon: staff.onShift ? LucideIcons.briefcase : LucideIcons.briefcaseBusiness,
+              title: 'На смене',
+              subtitle: staff.onShift ? 'Новые заявки распределяются вам' : 'Заявки вам не приходят',
+              trailing: Switch.adaptive(
+                value: staff.onShift,
+                activeTrackColor: c.brand,
+                onChanged: (v) async {
+                  setState(() => staff.onShift = v);
+                  try {
+                    await auth.api.post('/api/mobile/me/shift', body: {'onShift': v});
+                  } on ApiException catch (e) {
+                    setState(() => staff.onShift = !v);
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+                  }
+                },
+              ),
+            ),
             GroupTile(icon: LucideIcons.server, iconColor: c.textMuted, title: 'Сервер', subtitle: auth.server),
           ]),
           GroupCard(children: [
