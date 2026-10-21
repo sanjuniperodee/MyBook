@@ -16,6 +16,7 @@ import '../ui/tokens.dart';
 import 'calls_screen.dart';
 import 'chat_screen.dart';
 import 'notifications_screen.dart';
+import 'task_detail_screen.dart';
 import 'task_editor.dart';
 
 enum _Seg { today, all, done }
@@ -350,7 +351,12 @@ class TaskTile extends StatelessWidget {
     final canCall = contact != null && (contact.phone != null || contact.pbx);
     final canChat = contact != null && contact.chat;
     return InkWell(
-      onTap: () => showTaskActions(context, t),
+      // Нажатие — карточка задачи (сделка, клиент, заказ, записи); долгое — быстрые действия.
+      onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => TaskDetailScreen(taskId: t.id, title: t.title))),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        showTaskActions(context, t);
+      },
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

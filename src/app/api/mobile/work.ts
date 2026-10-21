@@ -19,7 +19,7 @@ import { parseWorkHours } from "@/shared/domain/schedule";
 type ListedTask = Awaited<ReturnType<ReturnType<typeof container>["reporting"]["taskList"]>>[number];
 
 /** Задача с подписью того, к чему она (сделка, заказ, клиент): приложение открывает нужный экран и звонит/пишет по ней. */
-function taskJson(r: ListedTask, staff: Staff, now: Date) {
+export function taskJson(r: ListedTask, staff: Staff, now: Date) {
   const t = r.task;
   // Подписи, просрочка и права — те же, что у строки задачи в CRM.
   const row = taskRow(r, { userId: staff.user.id, allTasks: can(staff, "tasks.all") }, now);

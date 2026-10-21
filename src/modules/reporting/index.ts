@@ -5,7 +5,7 @@ import { search } from "./infrastructure/Search";
 import { clientBrief, dealById, dealCard } from "./infrastructure/DealCard";
 import { clientById, clientCard } from "./infrastructure/ClientCard";
 import { conversationContext, inbox } from "./infrastructure/Inbox";
-import { callJournal, taskList } from "./infrastructure/Lists";
+import { callJournal, taskById, taskList } from "./infrastructure/Lists";
 import { bookOwnership, orderCrm, orderExport, orderList, orderNotice, orderOwnership, productionBoard } from "./infrastructure/Orders";
 import { dealList, savedViews, stageCounts } from "./infrastructure/Deals";
 import { duplicateGroups } from "./infrastructure/Duplicates";
@@ -43,6 +43,7 @@ export class ReportingModule {
   readonly inbox = inbox;
   readonly conversationContext = conversationContext;
   readonly taskList = taskList;
+  readonly taskById = taskById;
   readonly callJournal = callJournal;
   readonly orderList = orderList;
   readonly orderExport = orderExport;

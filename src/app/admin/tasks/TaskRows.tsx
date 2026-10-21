@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
-import { Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
+import { ArrowUpRight, Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { deleteTaskAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
 import { callAction, openChatAction } from "@/app/admin/crm-actions";
@@ -196,6 +196,9 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
               </select>
             </>
           )}
+          <Link href={`/admin/tasks/${t.id}`} className="rounded-lg p-1 text-muted hover:bg-cream hover:text-wine" aria-label="Открыть карточку задачи" title="Карточка задачи: сделка, клиент, заказ, записи">
+            <ArrowUpRight className="size-4" />
+          </Link>
           <button type="button" onClick={() => setOpen((v) => !v)} className="rounded-lg p-1 text-muted hover:bg-cream hover:text-ink" aria-label="Подробнее" aria-expanded={open}>
             <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
           </button>
