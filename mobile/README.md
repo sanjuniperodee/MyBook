@@ -1,0 +1,66 @@
+# MyBooks CRM — приложение продажника (Flutter)
+
+Чаты как в WhatsApp (текст, голосовые, фото, файлы, ответы на сообщения) плюс то, ради чего оно сделано: быстрые ответы
+(шаблоны CRM), счета на оплату из чата, сделки и задачи, уведомления. Приложение ходит в тот же сервер CRM, что и веб:
+права, видимость «только свои», защита от чужих реквизитов в сообщениях — всё проверяет сервер.
+
+## Запуск
+
+```bash
+cd mobile
+flutter pub get
+# на сервер mybooks.kz:
+flutter run
+# на локальный сервер (симулятор видит localhost; токен для отладки — необязательно):
+flutter run --dart-define=SERVER_URL=http://localhost:3000
+```
+
+На экране входа адрес сервера можно поменять («Адрес сервера»). Вход — e-mail и пароль сотрудника, при включённой 2FA —
+код из приложения-аутентификатора. Клиентским аккаунтам вход закрыт.
+
+Если `pod install` падает на «Unicode Normalization»: `export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`.
+
+## Как устроено
+
+- API — `src/app/api/mobile/*` на сервере (токен сессии в `Authorization: Bearer`, те же сессии, что у веба). Действия
+  (отправить, перенести сделку, выставить счёт) — те же server actions, что в CRM; ничего не дублируется.
+- Живые обновления — SSE `/api/admin/live/stream`; список чатов и открытый диалог обновляются сразу.
+- Голосовые: запись m4a → сервер перекодирует в Ogg Opus (формат голосовых WhatsApp) через ffmpeg; входящие Ogg Opus
+  сервер отдаёт приложению в AAC, потому что iPhone Opus не играет (`/api/mobile/chats/messages/<id>/audio`).
+- Дизайн — `lib/ui`: токены (`tokens.dart`), общие элементы (`kit.dart`), значки Lucide (как в веб-CRM).
+
+## Уведомления
+
+| Когда | Что приходит | Нужно |
+| --- | --- | --- |
+| Приложение открыто | плашка сверху со звуком и вибрацией | ничего |
+| Свёрнуто или закрыто (iPhone) | системное push-уведомление, число на значке, по нажатию открывается диалог или сделка | ключ APNs на сервере (ниже) |
+
+Push на iPhone идут напрямую через APNs, без Firebase:
+
+1. developer.apple.com → Certificates, Identifiers & Profiles → **Keys** → «+» → включить *Apple Push Notifications
+   service (APNs)* → скачать файл `AuthKey_XXXXXXXXXX.p8` (скачивается один раз). Запишите **Key ID** и свой **Team ID**.
+2. В Xcode (`mobile/ios/Runner.xcworkspace`) → Runner → Signing & Capabilities: выберите Team; capability
+   *Push Notifications* и *Background Modes → Remote notifications* уже прописаны в `Runner.entitlements` и `Info.plist`.
+3. На сервере в `.env` рядом с остальными переменными:
+
+   ```
+   APNS_KEY_ID=XXXXXXXXXX
+   APNS_TEAM_ID=YYYYYYYYYY
+   APNS_KEY_FILE=/home/…/AuthKey_XXXXXXXXXX.p8      # или APNS_KEY_P8 — текст ключа (переводы строк как \n)
+   APNS_TOPIC=kz.mybooks.mybooksSeller              # идентификатор приложения; по умолчанию он же
+   ```
+
+4. Перезапустить сайт. Телефон сам регистрирует токен при входе; тестовые сборки (из Xcode) шлют на sandbox APNs,
+   сборки TestFlight и App Store — на production (определяется автоматически, можно задать `--dart-define=APNS_ENV=…`).
+
+Без ключа всё остальное работает, push не отправляются. Проверка без сервера: `xcrun simctl push booted
+kz.mybooks.mybooksSeller payload.json` (пример тела — `apnsBody` в `src/modules/workspace/infrastructure/apns.ts`).
+
+Android: плашки при открытом приложении работают; push при свёрнутом потребуют Firebase (FCM) — пока не подключён.
+
+## Проверки
+
+```bash
+flutter analyze && flutter test
+```
