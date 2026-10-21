@@ -265,6 +265,9 @@ export function ChatPanel({
     requestAnimationFrame(() => input.current?.focus());
   };
 
+  // Шаблоны для «/» в поле ввода — с уже подставленными данными диалога.
+  const slashItems = useMemo(() => templates.map((t) => ({ id: t.id, title: t.title, own: t.own, text: fillTemplate(t.text, vars) })), [templates, vars]);
+
   const toggleSelected = (id: string) =>
     setSelected((s) => {
       if (!s) return s;
@@ -767,6 +770,7 @@ export function ChatPanel({
             value={text}
             onValueChange={setText}
             mentionables={mentionables}
+            slashItems={mode === "client" && !editing && canSend ? slashItems : undefined}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -792,7 +796,7 @@ export function ChatPanel({
             }}
             rows={1}
             maxLength={4000}
-            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : "Написать сообщение…"}
+            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : "Написать сообщение… (/ — шаблоны)"}
             className="max-h-40 min-h-9 w-full resize-none border-0 bg-transparent px-2 py-2 text-[14px] outline-none field-sizing-content placeholder:text-muted/80"
             aria-label="Текст сообщения"
           />
