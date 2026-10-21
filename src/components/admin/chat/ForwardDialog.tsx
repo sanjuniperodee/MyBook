@@ -10,10 +10,11 @@ import { cn } from "@/lib/class-names";
 type Target = Awaited<ReturnType<typeof forwardTargetsAction>>[number];
 
 /**
- * «Переслать»: поиск по диалогам, которые сотрудник ведёт, выбор до 10, отправка. Вложение уходит тем же файлом,
- * в WhatsApp — с пометкой «Пересланное». Итог — уведомлением (куда не ушло и почему).
+ * «Переслать»: поиск по диалогам, которые сотрудник ведёт, выбор до 10, отправка одного или нескольких сообщений
+ * (по порядку, как в ленте). Вложение уходит тем же файлом, в WhatsApp — с пометкой «Пересланное». Итог — уведомлением
+ * (куда не ушло и почему).
  */
-export function ForwardDialog({ conversationId, messageId, preview, onClose }: { conversationId: string; messageId: string; preview: string; onClose: () => void }) {
+export function ForwardDialog({ conversationId, messageIds, preview, onClose, onDone }: { conversationId: string; messageIds: string[]; preview: string; onClose: () => void; onDone: () => void }) {
   const [q, setQ] = useState("");
   const [list, setList] = useState<Target[] | null>(null);
   const [picked, setPicked] = useState<Map<string, Target>>(new Map());
@@ -46,16 +47,26 @@ export function ForwardDialog({ conversationId, messageId, preview, onClose }: {
 
   const send = () =>
     start(async () => {
-      const r = await forwardMessageAction(conversationId, messageId, [...picked.keys()]);
-      if (r.error) return toast(r.error, "error");
-      if (r.failed?.length) toast(`Переслано: ${r.sent}. Не ушло: ${r.failed.map((f) => `${f.title} — ${f.error}`).join("; ")}`, "error");
-      else toast(r.sent === 1 ? "Переслано" : `Переслано в ${r.sent} диалога`, "success");
-      onClose();
+      const failed = new Set<string>();
+      let ok = 0;
+      for (const id of messageIds) {
+        const r = await forwardMessageAction(conversationId, id, [...picked.keys()]);
+        if (r.error) {
+          failed.add(r.error);
+          continue;
+        }
+        ok++;
+        r.failed?.forEach((f) => failed.add(`${f.title} — ${f.error}`));
+      }
+      if (!ok) return toast([...failed].join("; ") || "Не переслалось", "error");
+      if (failed.size) toast(`Переслано: ${ok} из ${messageIds.length}. Не ушло: ${[...failed].join("; ")}`, "error");
+      else toast(messageIds.length === 1 ? (picked.size === 1 ? "Переслано" : `Переслано в ${picked.size} диалога`) : `Переслано сообщений: ${messageIds.length}`, "success");
+      onDone();
     });
 
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" role="dialog" aria-modal="true" aria-label="Переслать сообщение">
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" role="dialog" aria-modal="true" aria-label="Переслать сообщения">
         <div className="flex items-center gap-2 border-b border-line px-4 py-3">
           <Forward className="size-5 text-wine" />
           <h2 className="flex-1 font-semibold">Переслать</h2>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Ban, Bot, Check, CheckCheck, ChevronDown, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
+import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
@@ -108,11 +108,21 @@ function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conve
   return file;
 }
 
+/** Сообщение можно выбрать для пересылки или удаления (не удалённое и не ещё отправляемое). */
+export const selectable = (m: Msg) => !m.deleted && !isTemp(m);
+
+/** Можно переслать: не заметка, есть текст или вложение. */
+export const canForward = (m: Msg) => selectable(m) && !m.internal && (!!m.text || m.type !== "text");
+
+/** Можно удалить: своё, в окне WhatsApp (заметка и неотправленное — всегда). */
+export const canRemove = (m: Msg, me: string, now: number) => selectable(m) && m.direction === "out" && !!m.authorId && m.authorId === me && (m.internal || m.status === "error" || now - new Date(m.at).getTime() < DELETE_MS);
+
 export interface BubbleActions {
   reply?: () => void;
   forward?: () => void;
   edit?: () => void;
   remove?: () => void;
+  select?: () => void;
 }
 
 /**
@@ -130,6 +140,7 @@ export function MessageBubble({
   conversationId,
   canSend,
   highlighted,
+  selecting = false,
   onAction,
   onOpenMedia,
   onJump,
@@ -146,6 +157,8 @@ export function MessageBubble({
   conversationId: string;
   canSend: boolean;
   highlighted: boolean;
+  /** Идёт выбор сообщений: меню не нужно, клик отмечает сообщение (обрабатывает лента). */
+  selecting?: boolean;
   onAction: (kind: keyof BubbleActions | "copy", m: Msg) => void;
   onOpenMedia: (id: string) => void;
   onJump: (id: string) => void;
@@ -166,12 +179,13 @@ export function MessageBubble({
   const age = now - new Date(m.at).getTime();
   const temp = isTemp(m);
   const items: { key: keyof BubbleActions | "copy"; label: string; icon: typeof Reply; danger?: boolean }[] = [];
-  if (!m.deleted && !temp) {
+  if (!m.deleted && !temp && !selecting) {
     if (canSend && !m.internal) items.push({ key: "reply", label: "Ответить", icon: Reply });
-    if (canSend && !m.internal && (m.text || m.type !== "text")) items.push({ key: "forward", label: "Переслать", icon: Forward });
+    if (canSend && canForward(m)) items.push({ key: "forward", label: "Переслать", icon: Forward });
     if (m.text) items.push({ key: "copy", label: "Копировать текст", icon: Copy });
     if (own && m.type === "text" && m.status !== "error" && (m.internal || age < EDIT_MS)) items.push({ key: "edit", label: "Изменить", icon: Pencil });
-    if (own && (m.internal || m.status === "error" || age < DELETE_MS)) items.push({ key: "remove", label: m.internal || m.status === "error" ? "Удалить" : "Удалить у всех", icon: Trash2, danger: true });
+    if (canRemove(m, me, now)) items.push({ key: "remove", label: m.internal || m.status === "error" ? "Удалить" : "Удалить у всех", icon: Trash2, danger: true });
+    items.push({ key: "select", label: "Выбрать", icon: CheckSquare });
   }
 
   useEffect(() => {

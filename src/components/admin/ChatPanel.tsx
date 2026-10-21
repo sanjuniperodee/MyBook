@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, BadgePercent, BookOpen, FileText, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
+import { ArrowDown, BadgePercent, BookOpen, Check, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
 import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
 import { deleteMessageAction, editMessageAction, markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { ask } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
 import { ForwardDialog } from "./chat/ForwardDialog";
 import { MediaViewer, type ViewerItem } from "./chat/MediaViewer";
-import { MessageBubble, isTemp, mediaSrc, snippet, time, type Msg } from "./chat/MessageBubble";
+import { MessageBubble, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
 import { MentionTextarea } from "./MentionTextarea";
 import { InvoiceDialog } from "./invoices/InvoiceDialog";
 import { newIssueKey } from "./invoices/model";
@@ -100,7 +100,9 @@ export function ChatPanel({
   const [invoiceKey, setInvoiceKey] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   const [editing, setEditing] = useState<Msg | null>(null);
-  const [forwarding, setForwarding] = useState<Msg | null>(null);
+  /** Режим выбора (как в WhatsApp): отмеченные сообщения для пересылки и удаления; null — обычная лента. */
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const [forwarding, setForwarding] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [dragging, setDragging] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -254,24 +256,59 @@ export function ChatPanel({
     requestAnimationFrame(() => input.current?.focus());
   };
 
-  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy", m: Msg) => {
-    if (kind === "reply") {
+  const toggleSelected = (id: string) =>
+    setSelected((s) => {
+      if (!s) return s;
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const stopSelecting = useCallback(() => {
+    setSelected(null);
+    setForwarding(false);
+  }, []);
+
+  // Отмеченные сообщения в порядке ленты (удалённые и пропавшие отсеиваются).
+  const picked = useMemo(() => (selected ? all.filter((m) => selected.has(m.id) && selectable(m)) : []), [all, selected]);
+  const canForwardPicked = canSend && picked.length > 0 && picked.every(canForward);
+  const canRemovePicked = canSend && picked.length > 0 && picked.every((m) => canRemove(m, me, now));
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !forwarding && stopSelecting();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, forwarding, stopSelecting]);
+
+  const removePicked = () =>
+    void (async () => {
+      const list = picked;
+      const one = list.length === 1 ? list[0] : null;
+      const question = one ? (one.internal ? "Удалить заметку?" : one.status === "error" ? "Удалить неотправленное сообщение?" : "Удалить сообщение у всех? Клиент увидит «Сообщение удалено».") : `Удалить сообщения (${list.length})? Клиент увидит «Сообщение удалено».`;
+      if (!(await ask(question, true))) return;
+      start(async () => {
+        const errors = new Set<string>();
+        for (const m of list) {
+          const r = await deleteMessageAction(conversationId, m.id);
+          if (r.error) errors.add(r.error);
+        }
+        if (errors.size) toast([...errors].join("; "), "error");
+        stopSelecting();
+        router.refresh();
+      });
+    })();
+
+  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy" | "select", m: Msg) => {
+    if (kind === "forward" || kind === "remove" || kind === "select") setSelected(new Set([m.id]));
+    else if (kind === "reply") {
       setEditing(null);
       setReplyTo(m);
       setMode("client");
       input.current?.focus();
-    } else if (kind === "forward") setForwarding(m);
-    else if (kind === "copy") void navigator.clipboard?.writeText(m.text).then(() => toast("Скопировано", "success"));
+    } else if (kind === "copy") void navigator.clipboard?.writeText(m.text).then(() => toast("Скопировано", "success"));
     else if (kind === "edit") startEdit(m);
-    else if (kind === "remove")
-      void (async () => {
-        if (!(await ask(m.internal ? "Удалить заметку?" : m.status === "error" ? "Удалить неотправленное сообщение?" : "Удалить сообщение у всех? Клиент увидит «Сообщение удалено».", true))) return;
-        start(async () => {
-          const r = await deleteMessageAction(conversationId, m.id);
-          if (r.error) toast(r.error, "error");
-          router.refresh();
-        });
-      })();
   };
 
   /** Голосовое закончилось — следующее голосовое подряд (как в мессенджере). */
@@ -447,7 +484,25 @@ export function ChatPanel({
             const first = sep || !same(prev, m);
             const last = !same(m, next);
             return (
-              <div key={m.id} className={first ? "mt-3" : "mt-0.5"}>
+              <div
+                key={m.id}
+                className={cn(first ? "mt-3" : "mt-0.5", selected && selectable(m) && "relative -mx-3 cursor-pointer py-0.5 pr-3 pl-10 transition-colors sm:-mx-6 sm:pr-6", selected?.has(m.id) && "bg-wine/10")}
+                // Идёт выбор: клик в любом месте сообщения отмечает его, а не открывает фото или ссылку.
+                onClickCapture={
+                  selected && selectable(m)
+                    ? (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleSelected(m.id);
+                      }
+                    : undefined
+                }
+              >
+                {selected && selectable(m) ? (
+                  <span aria-hidden className={cn("absolute top-1/2 left-3 flex size-5 -translate-y-1/2 items-center justify-center rounded-full border sm:left-6", selected.has(m.id) ? "border-wine bg-wine text-white" : "border-line bg-white")}>
+                    {selected.has(m.id) ? <Check className="size-3.5" /> : null}
+                  </span>
+                ) : null}
                 {sep ? (
                   <div className="sticky top-1 z-10 mb-3 text-center">
                     <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-ink-soft shadow-sm ring-1 ring-line">{day}</span>
@@ -463,6 +518,7 @@ export function ChatPanel({
                   conversationId={conversationId}
                   canSend={canSend}
                   highlighted={highlight === m.id}
+                  selecting={!!selected}
                   onAction={onAction}
                   onOpenMedia={(id) => setViewer(Math.max(0, gallery.findIndex((g) => g.id === id)))}
                   onJump={jump}
@@ -480,9 +536,23 @@ export function ChatPanel({
         </button>
       ) : null}
       {viewer !== null && gallery.length ? <MediaViewer items={gallery} index={Math.min(viewer, gallery.length - 1)} onIndex={setViewer} onClose={() => setViewer(null)} /> : null}
-      {forwarding ? <ForwardDialog conversationId={conversationId} messageId={forwarding.id} preview={snippet(forwarding)} onClose={() => setForwarding(null)} /> : null}
+      {forwarding && picked.length ? <ForwardDialog conversationId={conversationId} messageIds={picked.map((m) => m.id)} preview={picked.length === 1 ? snippet(picked[0]) : `Сообщений: ${picked.length}`} onClose={() => setForwarding(false)} onDone={stopSelecting} /> : null}
       {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
-      <div className={cn("relative border-t px-3 pt-2.5 pb-3 sm:px-4", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
+      {selected ? (
+        <div className="flex items-center gap-2 border-t border-line bg-white px-3 py-3 sm:px-4" data-testid="chat-selection-bar">
+          <button type="button" onClick={stopSelecting} className="rounded-full p-2 text-muted hover:bg-cream hover:text-ink" aria-label="Отменить выбор">
+            <X className="size-5" />
+          </button>
+          <span className="flex-1 text-sm font-medium">{picked.length ? `Выбрано: ${picked.length}` : "Выберите сообщения"}</span>
+          <button type="button" className="btn btn-sm" disabled={!canForwardPicked || sending} onClick={() => setForwarding(true)} title={canForwardPicked || !picked.length ? undefined : "Заметки пересылать нельзя"}>
+            <Forward className="size-4" /> Переслать
+          </button>
+          <button type="button" className="btn btn-sm text-red-700" disabled={!canRemovePicked || sending} onClick={removePicked} title={canRemovePicked || !picked.length ? undefined : "Удалить можно только свои сообщения за последние двое суток"}>
+            <Trash2 className="size-4" /> Удалить
+          </button>
+        </div>
+      ) : null}
+      <div className={cn("relative border-t px-3 pt-2.5 pb-3 sm:px-4", selected && "hidden", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
         {showTemplates && templates.length && mode === "client" ? (
           <div className="absolute right-3 bottom-full left-3 z-20 mb-2 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
             {templates.map((t) => (
