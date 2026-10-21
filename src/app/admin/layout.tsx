@@ -7,6 +7,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
+import { autoShiftOnVisit } from "@/server/shift";
 import { THEME_SCRIPT, ThemeSync, ThemeToggle } from "@/components/admin/Theme";
 
 export const metadata = {
@@ -37,8 +38,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
+  // Зашёл в рабочее время — сразу «в сети».
+  const onShift = await autoShiftOnVisit(staff);
   const [live, phone] = await Promise.all([container().reporting.live(staff.context), can(staff, "calls.make") ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false]);
-  const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift: staff.user.onShift };
+  const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift };
   return (
     <CrmLiveProvider initial={live}>
       <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
