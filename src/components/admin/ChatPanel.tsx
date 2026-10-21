@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowDown, BadgePercent, BookOpen, Check, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
@@ -71,7 +72,7 @@ export function ChatPanel({
   conversationId: string;
   messages: Msg[];
   canSend: boolean;
-  templates: { id: string; title: string; text: string }[];
+  templates: { id: string; title: string; text: string; own?: boolean }[];
   vars: { name: string; order: number | null; link: string; manager: string; fields?: Record<string, string> };
   sendDisabledReason?: string | null;
   /** Оплата сейчас не работает (кассир Kaspi отключён) — жёлтая плашка над полем ввода; сообщения при этом уходят. */
@@ -567,23 +568,32 @@ export function ChatPanel({
         </div>
       ) : null}
       <div className={cn("relative border-t px-3 pt-2.5 pb-3 sm:px-4", selected && "hidden", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
-        {showTemplates && templates.length && mode === "client" ? (
-          <div className="absolute right-3 bottom-full left-3 z-20 mb-2 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
-            {templates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="block w-full px-4 py-2.5 text-left hover:bg-cream/60"
-                onClick={() => {
-                  setText(fillTemplate(t.text, vars));
-                  setShowTemplates(false);
-                  input.current?.focus();
-                }}
-              >
-                <span className="block text-sm font-medium">{t.title}</span>
-                <span className="line-clamp-1 text-xs text-muted">{t.text}</span>
-              </button>
-            ))}
+        {showTemplates && mode === "client" ? (
+          <div className="absolute right-3 bottom-full left-3 z-20 mb-2 flex max-h-72 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-xl">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {templates.length === 0 ? <p className="px-4 py-5 text-center text-sm text-muted">Шаблонов пока нет</p> : null}
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="block w-full px-4 py-2.5 text-left hover:bg-cream/60"
+                  onClick={() => {
+                    setText(fillTemplate(t.text, vars));
+                    setShowTemplates(false);
+                    input.current?.focus();
+                  }}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    {t.title}
+                    {t.own ? <span className="rounded-full bg-rose px-1.5 py-px text-[10px] font-medium text-wine">мой</span> : null}
+                  </span>
+                  <span className="line-clamp-1 text-xs text-muted">{t.text}</span>
+                </button>
+              ))}
+            </div>
+            <Link href="/admin/templates" className="flex items-center gap-2 border-t border-line bg-cream/40 px-4 py-2 text-xs font-medium text-wine hover:bg-cream">
+              <Pencil className="size-3.5" /> Мои шаблоны — создать и изменить
+            </Link>
           </div>
         ) : null}
         {showOffers && offers ? (

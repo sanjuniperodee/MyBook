@@ -1,5 +1,5 @@
 import { CustomFieldsService } from "./application";
-import { drizzleFields, drizzleInbox, drizzleTemplates } from "./infrastructure/persistence";
+import { drizzleFields, drizzleInbox, drizzleTemplates, personalTemplates } from "./infrastructure/persistence";
 import { pinnedChats } from "./infrastructure/pinnedChats";
 import { settingsStore } from "./infrastructure/settings";
 import { customFieldsReader } from "./infrastructure/fields";
@@ -23,6 +23,7 @@ export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 export class WorkspaceModule {
   readonly fields = new CustomFieldsService(drizzleFields);
   readonly templates = drizzleTemplates;
+  readonly personalTemplates = personalTemplates;
   readonly inbox = drizzleInbox;
   readonly pinnedChats = pinnedChats;
 

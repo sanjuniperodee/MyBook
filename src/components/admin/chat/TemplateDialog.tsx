@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/overlays";
 
 /**
  * «В шаблон»: быстрый ответ из выбранных сообщений. Текст можно поправить, подстановки {имя}, {заказ}, {ссылка} —
- * как в настройках. Шаблоны общие: появятся в «Шаблонах» у всех, кто отвечает клиентам.
+ * как в настройках. Шаблон личный: виден только вам, править его можно на странице «Шаблоны».
  */
 export function TemplateDialog({ initialText, onClose, onDone }: { initialText: string; onClose: () => void; onDone: () => void }) {
   const [title, setTitle] = useState(() => initialText.replace(/\s+/g, " ").trim().slice(0, 40));
@@ -48,7 +48,7 @@ export function TemplateDialog({ initialText, onClose, onDone }: { initialText: 
             Текст
             <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} rows={8} className="input mt-1 w-full text-sm" />
           </label>
-          <p className="text-[11px] text-muted">Подстановки: {"{имя}"}, {"{заказ}"}, {"{ссылка}"}. Шаблон увидят все сотрудники, которые отвечают клиентам.</p>
+          <p className="text-[11px] text-muted">Подстановки: {"{имя}"}, {"{заказ}"}, {"{ссылка}"}. Шаблон будет только у вас — править его можно на странице «Шаблоны».</p>
         </div>
         <div className="border-t border-line p-3">
           <button type="button" className="btn w-full" disabled={!title.trim() || !text.trim() || saving} onClick={save}>

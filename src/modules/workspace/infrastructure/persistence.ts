@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { crmFields, crmNotifications, crmPushSubscriptions, crmTemplates } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { FieldRepository, StaffInbox, TemplateRepository } from "../application";
@@ -17,14 +17,39 @@ export const drizzleFields: FieldRepository = {
   },
 };
 
+const shared = isNull(crmTemplates.ownerId);
+
+/** Общие шаблоны (настройки CRM, видны всем). Личные сотрудников сюда не попадают. */
 export const drizzleTemplates: TemplateRepository & { list(): Promise<(typeof crmTemplates.$inferSelect)[]> } = {
-  list: () => executor().select().from(crmTemplates).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt)),
+  list: () => executor().select().from(crmTemplates).where(shared).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt)),
   async add(t) {
-    const [{ pos }] = await executor().select({ pos: sql<number>`coalesce(max(${crmTemplates.position}), 0)::int` }).from(crmTemplates);
+    const [{ pos }] = await executor().select({ pos: sql<number>`coalesce(max(${crmTemplates.position}), 0)::int` }).from(crmTemplates).where(shared);
     await executor().insert(crmTemplates).values({ ...t, position: pos + 1 });
   },
-  update: async (id, t) => void (await executor().update(crmTemplates).set({ ...t, updatedAt: new Date() }).where(eq(crmTemplates.id, id))),
-  delete: async (id) => void (await executor().delete(crmTemplates).where(eq(crmTemplates.id, id))),
+  update: async (id, t) => void (await executor().update(crmTemplates).set({ ...t, updatedAt: new Date() }).where(and(eq(crmTemplates.id, id), shared))),
+  delete: async (id) => void (await executor().delete(crmTemplates).where(and(eq(crmTemplates.id, id), shared))),
+};
+
+/** Личные шаблоны сотрудника: видит и меняет только он сам (чужие и общие не трогаем). */
+export const personalTemplates = {
+  list: (userId: string) => executor().select().from(crmTemplates).where(eq(crmTemplates.ownerId, userId)).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt)),
+  async add(userId: string, t: { title: string; text: string }) {
+    const [{ pos }] = await executor().select({ pos: sql<number>`coalesce(max(${crmTemplates.position}), 0)::int` }).from(crmTemplates).where(eq(crmTemplates.ownerId, userId));
+    const [row] = await executor().insert(crmTemplates).values({ ...t, ownerId: userId, position: pos + 1 }).returning({ id: crmTemplates.id });
+    return row.id;
+  },
+  async update(userId: string, id: string, t: { title: string; text: string }) {
+    const r = await executor().update(crmTemplates).set({ ...t, updatedAt: new Date() }).where(and(eq(crmTemplates.id, id), eq(crmTemplates.ownerId, userId))).returning({ id: crmTemplates.id });
+    return r.length > 0;
+  },
+  async remove(userId: string, id: string) {
+    const r = await executor().delete(crmTemplates).where(and(eq(crmTemplates.id, id), eq(crmTemplates.ownerId, userId))).returning({ id: crmTemplates.id });
+    return r.length > 0;
+  },
+  /** Новый порядок: id по порядку; чужие id игнорируются. */
+  async reorder(userId: string, ids: string[]) {
+    await Promise.all(ids.map((id, i) => executor().update(crmTemplates).set({ position: i + 1 }).where(and(eq(crmTemplates.id, id), eq(crmTemplates.ownerId, userId)))));
+  },
 };
 
 export const drizzleInbox: StaffInbox = {

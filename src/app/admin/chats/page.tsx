@@ -81,7 +81,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     const chat = container().messaging.view;
     const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot, kaspiWarning] = await Promise.all([
       chat.messages(conv.id),
-      chat.templates(),
+      chat.templates(staff.user.id),
       chat.vars(conv, staffLabel(staff.user)),
       chat.sendBlocker(conv),
       container().reporting.conversationContext(conv),

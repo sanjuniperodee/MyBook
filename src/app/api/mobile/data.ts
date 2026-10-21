@@ -81,7 +81,7 @@ export async function mobileChatDetail(staff: Staff, id: string, limit = 120) {
   const chat = c.messaging.view;
   const [messages, templates, vars, blocker, { dealRow, client }, admins, bot] = await Promise.all([
     chat.messages(conv.id, limit),
-    chat.templates(),
+    chat.templates(staff.user.id),
     chat.vars(conv, staffLabel(staff.user)),
     chat.sendBlocker(conv),
     c.reporting.conversationContext(conv),

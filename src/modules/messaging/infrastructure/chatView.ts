@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmBotEvents, crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
@@ -129,8 +129,15 @@ export class ChatView {
     return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || (m.mediaUrl?.startsWith("store:") ?? false) || gowaDownloadable(conv, viaGowa, m)));
   }
 
-  templates() {
-    return db.select({ id: crmTemplates.id, title: crmTemplates.title, text: crmTemplates.text }).from(crmTemplates).orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt));
+  /** Быстрые ответы для сотрудника: его личные сверху, затем общие. */
+  async templates(userId: string) {
+    const rows = await db
+      .select({ id: crmTemplates.id, title: crmTemplates.title, text: crmTemplates.text, ownerId: crmTemplates.ownerId })
+      .from(crmTemplates)
+      .where(or(isNull(crmTemplates.ownerId), eq(crmTemplates.ownerId, userId)))
+      .orderBy(asc(crmTemplates.position), asc(crmTemplates.createdAt));
+    const mine = rows.filter((r) => r.ownerId === userId);
+    return [...mine, ...rows.filter((r) => r.ownerId !== userId)].map((r) => ({ id: r.id, title: r.title, text: r.text, own: r.ownerId === userId }));
   }
 
   /** Переменные шаблонов для конкретного диалога. */

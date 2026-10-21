@@ -456,6 +456,13 @@
       "when": 1792590122524,
       "tag": "0064_chat_pins",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792591033116,
+      "tag": "0065_personal_templates",
+      "breakpoints": true
     }
   ]
 }

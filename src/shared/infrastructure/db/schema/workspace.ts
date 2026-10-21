@@ -30,6 +30,8 @@ export const crmTemplates = pgTable("crm_templates", {
   title: text("title").notNull(),
   text: text("text").notNull(),
   position: integer("position").notNull().default(0),
+  /** Чей личный шаблон; null — общий (его ведёт руководитель в настройках), виден всем. */
+  ownerId: uuid("owner_id").references(() => users.id, { onDelete: "cascade" }),
   ...timestamps,
 });
 

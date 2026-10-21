@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./dark.css";
 
 @theme {
   --color-paper: #faf7f2;

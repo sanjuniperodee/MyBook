@@ -207,15 +207,14 @@ export async function pinChatAction(conversationId: string, pinned: boolean): Pr
   return { ok: true };
 }
 
-/** Шаблон быстрого ответа из выбранных сообщений. Шаблоны общие — их увидят все, кто отвечает клиентам. */
+/** Личный шаблон быстрого ответа из выбранных сообщений: виден только создателю (правка — на странице «Шаблоны»). */
 export async function createTemplateAction(title: string, text: string): Promise<{ ok?: true; error?: string }> {
-  const staff = await assertStaff("chats.view", "chats.send");
+  const staff = await assertStaff("chats.view");
   const parsed = z.object({ title: z.string().trim().min(1, "Название шаблона").max(60), text: z.string().trim().min(1, "Текст шаблона").max(2000, "Текст шаблона — не больше 2000 знаков") }).safeParse({ title, text });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  await container().workspace.templates.add(parsed.data);
-  await audit(staff, "chat.template.create", "template", staff.user.id, { title: parsed.data.title });
+  await container().workspace.personalTemplates.add(staff.user.id, parsed.data);
   revalidatePath("/admin/chats");
-  revalidatePath("/admin/settings");
+  revalidatePath("/admin/templates");
   return { ok: true };
 }
 

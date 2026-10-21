@@ -69,7 +69,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   const clientSeen = client?.lastSeenAt ?? null;
   const chat = container().messaging.view;
   const [messages, templates, vars, blocker, offers] = conv
-    ? await Promise.all([chat.messages(conv.id), chat.templates(), chat.vars(conv, staffLabel(staff.user)), chat.sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
+    ? await Promise.all([chat.messages(conv.id), chat.templates(staff.user.id), chat.vars(conv, staffLabel(staff.user)), chat.sendBlocker(conv), container().marketing.service.chatOffers(conv.clientId, can(staff, "promo.give"))])
     : [[], [], null, null, null];
   const [ai, kaspiWarning] = await Promise.all([container().assistant.service.configured(), conv ? container().ordering.kaspiWatch.warning().catch(() => null) : null]);
   const mentionables = (await mentionableStaff()).filter((m) => m.id !== staff.user.id).map((m) => m.label);

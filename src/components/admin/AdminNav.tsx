@@ -19,6 +19,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   Menu,
+  MessageSquareQuote,
   MessagesSquare,
   Package,
   PhoneCall,
@@ -60,6 +61,7 @@ const sections: { title?: string; items: Item[] }[] = [
     items: [
       { href: "/admin/deals", label: "Сделки", icon: Handshake, badge: "deals", perm: ["deals.view"] },
       { href: "/admin/chats", label: "Чаты", icon: MessagesSquare, badge: "chats", perm: ["chats.view"] },
+      { href: "/admin/templates", label: "Шаблоны", icon: MessageSquareQuote, perm: ["chats.view"] },
       { href: "/admin/calls", label: "Звонки", icon: PhoneCall, badge: "calls", perm: ["calls.view"] },
       { href: "/admin/clients", label: "Клиенты", icon: Users, perm: ["clients.view"] },
     ],

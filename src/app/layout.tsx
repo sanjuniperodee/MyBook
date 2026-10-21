@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   await ensureCatalog();
   return (
-    <html lang={locale} className={fontVariables} data-scroll-behavior="smooth">
+    <html lang={locale} suppressHydrationWarning className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">
         <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>

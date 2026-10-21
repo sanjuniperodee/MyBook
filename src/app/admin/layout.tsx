@@ -7,6 +7,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
+import { THEME_SCRIPT, ThemeSync, ThemeToggle } from "@/components/admin/Theme";
 
 export const metadata = {
   title: { default: "CRM", template: "%s · CRM" },
@@ -24,6 +25,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // Владелец включил обязательную 2FA: пока сотрудник её не настроит, доступна только страница «Безопасность».
     return (
       <div className="min-h-dvh bg-[#f7f4ef]">
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <ThemeSync />
         <header className="flex h-14 items-center justify-between border-b border-line bg-white px-4 sm:px-6">
           <span className="font-semibold">MyBooks CRM</span>
           <form action={logoutAction}>
@@ -38,6 +41,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift: staff.user.onShift };
   return (
     <CrmLiveProvider initial={live}>
+      <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      <ThemeSync />
       <div className="flex min-h-dvh bg-[#f7f4ef]">
         <AdminNav variant="sidebar" {...nav} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -48,6 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <input name="q" placeholder="Поиск: сделка, заказ, имя, телефон, книга" className="h-9 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40 focus:bg-white" />
             </form>
             <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle />
               {phone ? <Webphone /> : null}
               <NotificationBell />
             </div>
