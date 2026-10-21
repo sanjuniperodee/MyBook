@@ -84,3 +84,7 @@ flutter analyze && flutter test
 `/api/mobile/chats/targets`. Версия 1.1.0+2.
 
 Сборка APK: `flutter build apk --release` (подпись — `android/key.properties`), готовый файл кладём в `build/MyBooks-CRM.apk`.
+
+## Раскладки по ролям (v1.2.0)
+
+Набор вкладок зависит от прав роли (сервер отдаёт `layout` в `/api/mobile/me`, логика — `src/shared/domain/mobileLayout.ts`, в приложении — `lib/core/layouts.dart`): руководитель — «Обзор», чаты, сделки, заказы, «Ещё»; продажи — чаты, задачи, сделки, клиенты; производство — заказы и задачи; аналитика — «Обзор» и заказы; поддержка — переписка. Разделы, которых нет во вкладках, — в «Профиле» / «Ещё». Новые экраны: «Обзор» (`/api/mobile/overview`), «Заказы» и карточка заказа со сменой статуса (`/api/mobile/orders*`). Та же раскладка в установленной CRM (PWA) — `docs/features/pwa-mobile.md`.
