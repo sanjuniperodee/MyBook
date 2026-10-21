@@ -226,6 +226,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       waitLabel: wait?.label ?? null,
       overdue: !!wait?.overdue,
       bot: phase === "active" || phase === "waiting",
+      pinned: !!c.pinnedAt,
     };
   });
   const href = (p: { f?: Filter; c?: string }) => `/admin/chats?f=${p.f ?? f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p.c ? `&c=${p.c}` : ""}`;

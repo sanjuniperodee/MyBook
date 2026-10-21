@@ -64,6 +64,7 @@ export async function mobileChatList(staff: Staff, filter: ChatFilterId, q?: str
       waitLabel: wait?.label ?? null,
       overdue: !!wait?.overdue,
       bot: phase === "active" || phase === "waiting",
+      pinned: !!c.pinnedAt,
     };
   });
 }

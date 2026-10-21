@@ -449,6 +449,13 @@
       "when": 1792556970408,
       "tag": "0063_mobile_devices",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1792590122524,
+      "tag": "0064_chat_pins",
+      "breakpoints": true
     }
   ]
 }

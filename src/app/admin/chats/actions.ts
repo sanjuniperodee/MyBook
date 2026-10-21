@@ -198,6 +198,27 @@ export async function deleteMessageAction(conversationId: string, messageId: str
   return r && typeof r === "object" && "error" in r ? r : { ok: true };
 }
 
+/** Закрепить чат вверху списка или открепить: закрепление личное, у каждого сотрудника своё. */
+export async function pinChatAction(conversationId: string, pinned: boolean): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view");
+  const conv = await loadConv(staff, uuid.parse(conversationId));
+  await container().workspace.pinnedChats.set(staff.user.id, conv.id, !!pinned);
+  revalidatePath("/admin/chats");
+  return { ok: true };
+}
+
+/** Шаблон быстрого ответа из выбранных сообщений. Шаблоны общие — их увидят все, кто отвечает клиентам. */
+export async function createTemplateAction(title: string, text: string): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const parsed = z.object({ title: z.string().trim().min(1, "Название шаблона").max(60), text: z.string().trim().min(1, "Текст шаблона").max(2000, "Текст шаблона — не больше 2000 знаков") }).safeParse({ title, text });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  await container().workspace.templates.add(parsed.data);
+  await audit(staff, "chat.template.create", "template", staff.user.id, { title: parsed.data.title });
+  revalidatePath("/admin/chats");
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
 /** Куда переслать: диалоги, которые сотрудник ведёт (поиск по имени и номеру). */
 export async function forwardTargetsAction(query: string): Promise<{ id: string; title: string; channel: string; last: string }[]> {
   const staff = await assertStaff("chats.view", "chats.send");

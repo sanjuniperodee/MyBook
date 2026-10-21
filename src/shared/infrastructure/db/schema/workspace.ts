@@ -4,6 +4,7 @@ import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "dri
 import { customFieldTypes } from "@/shared/domain/customFields";
 import { timestamps } from "./columns";
 import { users } from "./identity";
+import { crmConversations } from "./messaging";
 
 /** Уведомления сотрудникам: новые сообщения, пропущенные звонки, назначенные задачи. */
 export const crmNotifications = pgTable(
@@ -67,6 +68,21 @@ export const crmMobileDevices = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("crm_mobile_devices_user_idx").on(t.userId)],
+);
+
+/** Закреплённые чаты: у каждого сотрудника свои, поднимаются вверх его списка «Чатов». */
+export const crmPinnedChats = pgTable(
+  "crm_pinned_chats",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => crmConversations.id, { onDelete: "cascade" }),
+    pinnedAt: timestamp("pinned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("crm_pinned_chats_pk").on(t.userId, t.conversationId)],
 );
 
 /** Подписки браузеров сотрудников на push-уведомления (Web Push). */

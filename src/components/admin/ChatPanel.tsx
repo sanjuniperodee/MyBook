@@ -8,8 +8,9 @@ import { deleteMessageAction, editMessageAction, markReadAction, sendInternalNot
 import { ask } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
 import { ForwardDialog } from "./chat/ForwardDialog";
+import { TemplateDialog } from "./chat/TemplateDialog";
 import { MediaViewer, type ViewerItem } from "./chat/MediaViewer";
-import { MessageBubble, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
+import { MessageBubble, hasCaption, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
 import { MentionTextarea } from "./MentionTextarea";
 import { InvoiceDialog } from "./invoices/InvoiceDialog";
 import { newIssueKey } from "./invoices/model";
@@ -103,6 +104,7 @@ export function ChatPanel({
   /** Режим выбора (как в WhatsApp): отмеченные сообщения для пересылки и удаления; null — обычная лента. */
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [forwarding, setForwarding] = useState(false);
+  const [templating, setTemplating] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [dragging, setDragging] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -268,19 +270,25 @@ export function ChatPanel({
   const stopSelecting = useCallback(() => {
     setSelected(null);
     setForwarding(false);
+    setTemplating(false);
   }, []);
 
   // Отмеченные сообщения в порядке ленты (удалённые и пропавшие отсеиваются).
   const picked = useMemo(() => (selected ? all.filter((m) => selected.has(m.id) && selectable(m)) : []), [all, selected]);
   const canForwardPicked = canSend && picked.length > 0 && picked.every(canForward);
+  // Текст для шаблона: тексты отмеченных сообщений клиентов и менеджеров (не заметок) по порядку, без заглушек вложений.
+  const templateText = picked
+    .filter((m) => !m.internal && hasCaption(m))
+    .map((m) => m.text.trim())
+    .join("\n");
   const canRemovePicked = canSend && picked.length > 0 && picked.every((m) => canRemove(m, me, now));
 
   useEffect(() => {
     if (!selected) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !forwarding && stopSelecting();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !forwarding && !templating && stopSelecting();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, forwarding, stopSelecting]);
+  }, [selected, forwarding, templating, stopSelecting]);
 
   const removePicked = () =>
     void (async () => {
@@ -537,6 +545,7 @@ export function ChatPanel({
       ) : null}
       {viewer !== null && gallery.length ? <MediaViewer items={gallery} index={Math.min(viewer, gallery.length - 1)} onIndex={setViewer} onClose={() => setViewer(null)} /> : null}
       {forwarding && picked.length ? <ForwardDialog conversationId={conversationId} messageIds={picked.map((m) => m.id)} preview={picked.length === 1 ? snippet(picked[0]) : `Сообщений: ${picked.length}`} onClose={() => setForwarding(false)} onDone={stopSelecting} /> : null}
+      {templating && templateText ? <TemplateDialog initialText={templateText.slice(0, 2000)} onClose={() => setTemplating(false)} onDone={stopSelecting} /> : null}
       {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
       {selected ? (
         <div className="flex items-center gap-2 border-t border-line bg-white px-3 py-3 sm:px-4" data-testid="chat-selection-bar">
@@ -544,6 +553,11 @@ export function ChatPanel({
             <X className="size-5" />
           </button>
           <span className="flex-1 text-sm font-medium">{picked.length ? `Выбрано: ${picked.length}` : "Выберите сообщения"}</span>
+          {canSend ? (
+            <button type="button" className="btn btn-sm btn-outline" disabled={!templateText || sending} onClick={() => setTemplating(true)} title={templateText ? "Сохранить текст выбранных сообщений как шаблон быстрого ответа" : "В выбранных нет текста"}>
+              <MessageSquareQuote className="size-4" /> В шаблон
+            </button>
+          ) : null}
           <button type="button" className="btn btn-sm" disabled={!canForwardPicked || sending} onClick={() => setForwarding(true)} title={canForwardPicked || !picked.length ? undefined : "Заметки пересылать нельзя"}>
             <Forward className="size-4" /> Переслать
           </button>

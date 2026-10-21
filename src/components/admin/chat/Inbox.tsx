@@ -63,6 +63,8 @@ export interface ChatListItem {
   /** Норматив ответа вышел. */
   overdue: boolean;
   bot: boolean;
+  /** Закреплён у текущего сотрудника — стоит вверху списка. */
+  pinned: boolean;
 }
 
 /** Колонка списка: заголовок, поиск, вкладки фильтров, диалоги. */
@@ -118,7 +120,7 @@ export function ChatListPane({
         {items.map((c) => {
           const active = c.id === selectedId;
           return (
-            <ChatListLink key={c.id} id={c.id} href={href({ c: c.id })} active={active}>
+            <ChatListLink key={c.id} id={c.id} href={href({ c: c.id })} active={active} pinned={c.pinned}>
               <ChatAvatar name={c.title} url={c.avatarUrl} channel={c.channel} />
               <div className="min-w-0 flex-1 border-b border-line/0">
                 <div className="flex items-baseline gap-2">

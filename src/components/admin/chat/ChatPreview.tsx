@@ -12,11 +12,11 @@ export function ChatPreview({ empty }: { empty: boolean }) {
   const sp = { empty };
   const t = (h: number, m: number) => new Date(Date.UTC(2026, 9, 18, h - 5, m)).toISOString();
   const items: ChatListItem[] = [
-    { id: "a", title: "Айдана", avatarUrl: null, channel: "whatsapp", time: "08:29", preview: "Рахмет көрдім бағасы қымбат", unread: 2, assignee: "Марат", waitMinutes: 34, overdue: true, bot: false },
-    { id: "b", title: "Алишер", avatarUrl: null, channel: "whatsapp", time: "07:36", preview: "Конечно, подскажу 🙂 Печатная книга — от 29 000 ₸", unread: 0, assignee: "Марат", waitMinutes: null, overdue: false, bot: true },
-    { id: "c", title: "Гульдана", avatarUrl: null, channel: "instagram", time: "вчера", preview: "📷 Фото", unread: 0, assignee: null, waitMinutes: 6, overdue: false, bot: false },
-    { id: "d", title: "+7 705 ••• •• 57", avatarUrl: null, channel: "telegram", time: "16 окт.", preview: "Спасибо большое!", unread: 0, assignee: "Айгерим С.", waitMinutes: null, overdue: false, bot: false },
-    { id: "e", title: "Посетитель сайта", avatarUrl: null, channel: "site", time: "15 окт.", preview: "А доставка в Астану есть?", unread: 1, assignee: null, waitMinutes: 120, overdue: true, bot: false },
+    { id: "a", title: "Айдана", avatarUrl: null, channel: "whatsapp", time: "08:29", preview: "Рахмет көрдім бағасы қымбат", unread: 2, assignee: "Марат", waitMinutes: 34, overdue: true, bot: false, pinned: false },
+    { id: "b", title: "Алишер", avatarUrl: null, channel: "whatsapp", time: "07:36", preview: "Конечно, подскажу 🙂 Печатная книга — от 29 000 ₸", unread: 0, assignee: "Марат", waitMinutes: null, overdue: false, bot: true, pinned: false },
+    { id: "c", title: "Гульдана", avatarUrl: null, channel: "instagram", time: "вчера", preview: "📷 Фото", unread: 0, assignee: null, waitMinutes: 6, overdue: false, bot: false, pinned: false },
+    { id: "d", title: "+7 705 ••• •• 57", avatarUrl: null, channel: "telegram", time: "16 окт.", preview: "Спасибо большое!", unread: 0, assignee: "Айгерим С.", waitMinutes: null, overdue: false, bot: false, pinned: false },
+    { id: "e", title: "Посетитель сайта", avatarUrl: null, channel: "site", time: "15 окт.", preview: "А доставка в Астану есть?", unread: 1, assignee: null, waitMinutes: 120, overdue: true, bot: false, pinned: false },
   ];
   const m = (p: Partial<Msg> & { id: string; at: string }): Msg => ({ direction: "in", type: "text", text: "", mediaUrl: null, status: "received", error: null, author: null, ...p });
   const messages: Msg[] = sp.empty

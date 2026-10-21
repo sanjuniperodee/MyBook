@@ -1,12 +1,12 @@
 import "server-only";
-import { and, eq, gt, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
-import { crmConversations, crmDeals, crmStages, users } from "@/shared/infrastructure/db/schema";
+import { and, eq, getTableColumns, gt, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
+import { crmConversations, crmDeals, crmPinnedChats, crmStages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 
 type InboxFilter = "open" | "mine" | "unread" | "waiting" | "closed";
 
-/** Список диалогов единого инбокса по фильтру и поиску (видимость «только свои»). */
+/** Список диалогов единого инбокса по фильтру и поиску (видимость «только свои»). Закреплённые сотрудником — сверху. */
 export async function inbox(viewer: Viewer, f: InboxFilter, q: string | undefined) {
   const w: SQL[] = [];
   const scope = visibleTo(viewer, crmConversations.assigneeId);
@@ -18,10 +18,11 @@ export async function inbox(viewer: Viewer, f: InboxFilter, q: string | undefine
   if (f === "waiting") w.push(isNotNull(crmConversations.awaitingSince));
   if (q) w.push(or(ilike(crmConversations.contactName, `%${q}%`), ilike(crmConversations.chatId, `%${q.replace(/\D/g, "") || q}%`), ilike(crmConversations.lastMessageText, `%${q}%`))!);
   return executor()
-    .select()
+    .select({ ...getTableColumns(crmConversations), pinnedAt: crmPinnedChats.pinnedAt })
     .from(crmConversations)
+    .leftJoin(crmPinnedChats, and(eq(crmPinnedChats.conversationId, crmConversations.id), eq(crmPinnedChats.userId, viewer.userId)))
     .where(and(...w))
-    .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`)
+    .orderBy(sql`${crmPinnedChats.pinnedAt} desc nulls last`, sql`${crmConversations.lastMessageAt} desc nulls last`)
     .limit(150);
 }
 
