@@ -442,6 +442,13 @@
       "when": 1792492610630,
       "tag": "0062_photo_chapter",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792556970408,
+      "tag": "0063_mobile_devices",
+      "breakpoints": true
     }
   ]
 }

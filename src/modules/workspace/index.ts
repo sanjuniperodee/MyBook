@@ -13,6 +13,7 @@ export { notify, staffNotifier } from "./infrastructure/notify";
 export { subscribe, type LiveEvent } from "./infrastructure/realtime";
 export { mentionableStaff, notifyMentions } from "./infrastructure/mentions";
 export { vapidKeys } from "./infrastructure/push";
+export { mobileDevices } from "./infrastructure/mobileDevices";
 export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 
 /** Публичный фасад «Рабочего пространства CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */

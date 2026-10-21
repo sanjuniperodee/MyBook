@@ -51,6 +51,24 @@ export const crmFields = pgTable(
 
 export type CrmField = typeof crmFields.$inferSelect;
 
+/** Телефоны сотрудников с мобильным приложением: токен устройства для push (APNs у iPhone). Один токен — одно устройство. */
+export const crmMobileDevices = pgTable(
+  "crm_mobile_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    platform: text("platform").notNull(),
+    /** APNs: токены тестовых сборок (sandbox) и магазина (production) — разные адреса отправки. */
+    environment: text("environment").notNull().default("production"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_mobile_devices_user_idx").on(t.userId)],
+);
+
 /** Подписки браузеров сотрудников на push-уведомления (Web Push). */
 export const crmPushSubscriptions = pgTable(
   "crm_push_subscriptions",
