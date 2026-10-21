@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Bold, Check, Italic, LoaderCircle, MessageSquareQuote, Sparkles, Strikethrough, X } from "lucide-react";
 import { ask, toast } from "@/components/ui/overlays";
 import { fillTemplate } from "@/shared/domain/templates";
+import { titleFromText } from "@/modules/assistant/domain/templateDraft";
 import { cn } from "@/lib/class-names";
 import { saveMyTemplateAction } from "./actions";
 
@@ -73,24 +74,21 @@ function Wa({ text }: { text: string }) {
 }
 
 /** Название по умолчанию — первые слова текста: человеку не обязательно придумывать его самому. */
-const suggest = (text: string) => {
-  const words = text.replace(/\{[^{}]*\}/g, "").replace(/[*_~]/g, "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-  const t = words.slice(0, 4).join(" ");
-  return t.length > 40 ? `${t.slice(0, 39)}…` : t;
-};
+const suggest = (text: string) => (text.trim() ? titleFromText(text) : "");
 
 /**
  * Окно шаблона. Слева — название и текст: подстановки подсвечиваются, кнопки вставляют их по клику, есть жирный/курсив
  * и смайлы; для нового шаблона — готовые заготовки. Справа — как увидит клиент (разметка и подстановки применены).
  */
-export function TemplateEditor({ tpl, manager, onClose, onSaved }: { tpl: Tpl | null; manager: string; onClose: () => void; onSaved: () => void }) {
-  const [title, setTitle] = useState(tpl?.title ?? "");
-  const [text, setText] = useState(tpl?.text ?? "");
+export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved }: { tpl: Tpl | null; /** Черновик для нового шаблона (например, из сообщения чата). */ initial?: { title: string; text: string }; /** Пояснение над формой: что и почему подставлено. */ notice?: React.ReactNode; manager: string; onClose: () => void; onSaved: () => void }) {
+  const base = tpl ?? initial ?? { title: "", text: "" };
+  const [title, setTitle] = useState(base.title);
+  const [text, setText] = useState(base.text);
   const [saving, start] = useTransition();
   const area = useRef<HTMLTextAreaElement>(null);
   const back = useRef<HTMLDivElement>(null);
 
-  const dirty = title !== (tpl?.title ?? "") || text !== (tpl?.text ?? "");
+  const dirty = title !== base.title || text !== base.text;
   const autoTitle = suggest(text);
   const finalTitle = title.trim() || autoTitle;
   const valid = !!text.trim() && !!finalTitle;
@@ -162,6 +160,7 @@ export function TemplateEditor({ tpl, manager, onClose, onSaved }: { tpl: Tpl | 
 
         <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-5 md:grid-cols-[minmax(0,1fr)_17rem]">
           <div className="min-w-0 space-y-4">
+            {notice}
             {!tpl && !text.trim() ? (
               <div>
                 <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-ink-soft">
@@ -231,7 +230,7 @@ export function TemplateEditor({ tpl, manager, onClose, onSaved }: { tpl: Tpl | 
                       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "i") return e.preventDefault(), wrap("_");
                     }}
                     maxLength={2000}
-                    autoFocus={!!tpl}
+                    autoFocus={!!tpl || !!initial}
                     placeholder="Здравствуйте, {имя}! …"
                     className="fs-keep relative block w-full resize-none overflow-hidden bg-transparent px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-muted/70"
                   />

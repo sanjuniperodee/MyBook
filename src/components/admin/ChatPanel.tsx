@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowDown, BadgePercent, BookOpen, Check, Mic, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
-import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
+import { aiSuggestReplyAction, aiTemplateDraftAction } from "@/app/admin/ai-actions";
+import { TemplateEditor } from "@/app/admin/templates/TemplateEditor";
 import { deleteMessageAction, editMessageAction, markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { ask } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
@@ -109,6 +110,8 @@ export function ChatPanel({
   const [templating, setTemplating] = useState(false);
   /** Идёт запись голосового. */
   const [recording, setRecording] = useState(false);
+  /** «Создать шаблон» из сообщения: ИИ готовит черновик (loading), потом открывается редактор. */
+  const [tplDraft, setTplDraft] = useState<{ loading: true } | { loading: false; title: string; text: string; replaced: { was: string; with: string }[]; ai: boolean } | null>(null);
   // Микрофон есть не везде (и не на http): узнаём после монтирования, чтобы разметка сервера и клиента совпала.
   const [micOk, setMicOk] = useState(false);
   useEffect(() => setMicOk(canRecordVoice()), []);
@@ -318,8 +321,22 @@ export function ChatPanel({
       });
     })();
 
-  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy" | "select", m: Msg) => {
-    if (kind === "forward" || kind === "remove" || kind === "select") setSelected(new Set([m.id]));
+  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy" | "select" | "template", m: Msg) => {
+    if (kind === "template") {
+      setTplDraft({ loading: true });
+      void aiTemplateDraftAction(conversationId, m.id)
+        .then((r) => {
+          if (!r.ok) {
+            toast(r.message, "error");
+            return setTplDraft(null);
+          }
+          setTplDraft({ loading: false, title: r.title, text: r.text, replaced: r.replaced, ai: r.ai });
+        })
+        .catch((err) => {
+          toastError(err);
+          setTplDraft(null);
+        });
+    } else if (kind === "forward" || kind === "remove" || kind === "select") setSelected(new Set([m.id]));
     else if (kind === "reply") {
       setEditing(null);
       setReplyTo(m);
@@ -583,6 +600,38 @@ export function ChatPanel({
       {viewer !== null && gallery.length ? <MediaViewer items={gallery} index={Math.min(viewer, gallery.length - 1)} onIndex={setViewer} onClose={() => setViewer(null)} /> : null}
       {forwarding && picked.length ? <ForwardDialog conversationId={conversationId} messageIds={picked.map((m) => m.id)} preview={picked.length === 1 ? snippet(picked[0]) : `Сообщений: ${picked.length}`} onClose={() => setForwarding(false)} onDone={stopSelecting} /> : null}
       {templating && templateText ? <TemplateDialog initialText={templateText.slice(0, 2000)} onClose={() => setTemplating(false)} onDone={stopSelecting} /> : null}
+      {tplDraft?.loading ? (
+        <div className="fixed inset-x-0 bottom-24 z-[90] flex justify-center" role="status">
+          <div className="flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm text-white shadow-xl">
+            <Sparkles className="size-4 animate-pulse" /> Готовлю шаблон…
+          </div>
+        </div>
+      ) : null}
+      {tplDraft && !tplDraft.loading ? (
+        <TemplateEditor
+          tpl={null}
+          initial={{ title: tplDraft.title, text: tplDraft.text }}
+          manager={vars.manager}
+          onClose={() => setTplDraft(null)}
+          onSaved={() => {
+            setTplDraft(null);
+            router.refresh();
+          }}
+          notice={
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2.5 text-sm text-violet-900">
+              <p className="flex items-center gap-1.5 font-medium">
+                <Sparkles className="size-4" /> {tplDraft.replaced.length ? "Данные клиента заменены подстановками" : "Подстановки не понадобились"}
+              </p>
+              {tplDraft.replaced.length ? (
+                <p className="mt-1 text-xs">{tplDraft.replaced.map((r) => `«${r.was}» → ${r.with}`).join(" · ")}</p>
+              ) : (
+                <p className="mt-1 text-xs">В этом сообщении нет данных конкретного клиента — шаблон получился обычным текстом. Подстановки можно добавить кнопками ниже.</p>
+              )}
+              <p className="mt-1 text-xs opacity-80">Проверьте текст и название — потом нажмите «Создать шаблон». В чате он будет по «/».</p>
+            </div>
+          }
+        />
+      ) : null}
       {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
       {selected ? (
         <div className="flex items-center gap-2 border-t border-line bg-white px-3 py-3 sm:px-4" data-testid="chat-selection-bar">

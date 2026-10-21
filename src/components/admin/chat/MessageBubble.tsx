@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
+import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
@@ -123,6 +123,7 @@ export interface BubbleActions {
   edit?: () => void;
   remove?: () => void;
   select?: () => void;
+  template?: () => void;
 }
 
 /**
@@ -183,6 +184,7 @@ export function MessageBubble({
     if (canSend && !m.internal) items.push({ key: "reply", label: "Ответить", icon: Reply });
     if (canSend && canForward(m)) items.push({ key: "forward", label: "Переслать", icon: Forward });
     if (m.text) items.push({ key: "copy", label: "Копировать текст", icon: Copy });
+    if (!m.internal && hasCaption(m)) items.push({ key: "template", label: "Создать шаблон (/)", icon: Slash });
     if (own && m.type === "text" && m.status !== "error" && (m.internal || age < EDIT_MS)) items.push({ key: "edit", label: "Изменить", icon: Pencil });
     if (canRemove(m, me, now)) items.push({ key: "remove", label: m.internal || m.status === "error" ? "Удалить" : "Удалить у всех", icon: Trash2, danger: true });
     items.push({ key: "select", label: "Выбрать", icon: CheckSquare });
