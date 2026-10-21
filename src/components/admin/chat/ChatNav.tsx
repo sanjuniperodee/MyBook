@@ -2,8 +2,9 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Pin } from "lucide-react";
-import { createContext, useContext, useEffect, useOptimistic, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
+import { LoaderCircle, Pin, PinOff } from "lucide-react";
+import { createContext, useContext, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { pinChatAction } from "@/app/admin/chats/actions";
 import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
@@ -36,14 +37,19 @@ function Reporter({ id }: { id: string }) {
   return null;
 }
 
-/** Строка списка диалогов: ссылка, которая подсвечивается сразу при нажатии, и кнопка закрепления (у каждого сотрудника своя). */
+/**
+ * Строка списка диалогов: ссылка, которая подсвечивается сразу при нажатии. Закрепление (у каждого сотрудника своё) — в меню
+ * по правому клику или долгому нажатию; у закреплённого чата в строке виден значок булавки.
+ */
 export function ChatListLink({ id, href, active, pinned = false, children }: { id: string; href: string; active: boolean; pinned?: boolean; children: React.ReactNode }) {
   const { pending } = useContext(PendingContext);
   const going = pending === id;
   const router = useRouter();
-  const [busy, start] = useTransition();
-  // Пока идёт запрос — показываем ожидаемое состояние, чтобы кнопка не дёргалась.
+  const [, start] = useTransition();
+  // Пока идёт запрос — показываем ожидаемое состояние, чтобы значок не дёргался.
   const [on, setOn] = useOptimistic(pinned);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const press = useRef<number | null>(null);
   const toggle = () =>
     start(async () => {
       setOn(!on);
@@ -55,25 +61,62 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
         toast(e instanceof Error ? e.message : "Не удалось", "error");
       }
     });
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [menu]);
+
   return (
-    <div className="group relative">
+    <div
+      className="relative"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setMenu({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 70) });
+      }}
+      onPointerDown={(e) => {
+        if (e.pointerType !== "touch") return;
+        const { clientX: x, clientY: y } = e;
+        press.current = window.setTimeout(() => setMenu({ x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 70) }), 500);
+      }}
+      onPointerUp={() => press.current && window.clearTimeout(press.current)}
+      onPointerMove={() => press.current && window.clearTimeout(press.current)}
+      onPointerCancel={() => press.current && window.clearTimeout(press.current)}
+    >
       <Link href={href} className={cn("relative flex gap-3 px-4 py-3 transition", active || going ? "bg-[#f7ecee]" : "hover:bg-[#faf8f5]", going && "opacity-80")} aria-current={active ? "true" : undefined} aria-busy={going || undefined}>
         {active || going ? <span className={cn("absolute inset-y-0 left-0 w-[3px] bg-wine", going && "animate-pulse")} /> : null}
         <Reporter id={id} />
         {children}
+        {on ? <Pin className="pointer-events-none absolute right-4 bottom-3 size-3.5 text-wine" fill="currentColor" aria-label="Закреплён" /> : null}
         {going ? <LoaderCircle className="absolute right-10 bottom-3 size-4 animate-spin text-wine" aria-label="Открываем диалог" /> : null}
       </Link>
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={busy}
-        title={on ? "Открепить чат" : "Закрепить чат вверху списка"}
-        aria-label={on ? "Открепить чат" : "Закрепить чат"}
-        aria-pressed={on}
-        className={cn("absolute right-3 bottom-2.5 rounded-full p-1 transition hover:bg-black/5 focus:opacity-100", on ? "text-wine opacity-100" : "text-muted opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-50")}
-      >
-        <Pin className="size-3.5" fill={on ? "currentColor" : "none"} />
-      </button>
+      {menu
+        ? createPortal(
+            <div className="fixed z-[80] w-52 overflow-hidden rounded-xl border border-line bg-white py-1 text-sm text-ink shadow-xl" style={{ left: menu.x, top: menu.y }} role="menu" onPointerDown={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-cream/60"
+                onClick={() => {
+                  setMenu(null);
+                  toggle();
+                }}
+              >
+                {on ? <PinOff className="size-4" /> : <Pin className="size-4" />} {on ? "Открепить чат" : "Закрепить чат"}
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
