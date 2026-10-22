@@ -122,6 +122,14 @@ pm2_apply() {
   pm2 save
 }
 
+# Кэш предпросмотров при откате удаляем (пересоберётся по запросу): с 22.10 cache/preview/<книга>/<отпечаток>.pdf — сборка
+# без водяного знака, а код до этого отдаёт тот же файл как предпросмотр со знаком — неоплаченным книгам ушёл бы чистый PDF.
+purge_previews() {
+  local dir
+  dir="$({ sed -n 's/^STORAGE_DIR=//p' "$ROOT/.env" 2>/dev/null || true; } | tail -n 1 | tr -d "\"'\r")"
+  case "$dir" in /*) rm -rf "$dir/cache/preview" "$dir/cache/pages" && echo "  кэш предпросмотров удалён" ;; esac
+}
+
 # Ждём, пока по адресу пройдут все проверки; 0 — всё хорошо.
 check_app() {
   local port="$1" timeout="${2:-40}" i body
@@ -167,7 +175,10 @@ if ! check_app "$PORT" 30; then
   if [ -n "$PREV" ] && [ -d "$PREV" ]; then
     echo "→ Откат на $(basename "$PREV")"
     ln -sfn "$PREV" "$CURRENT"
+    purge_previews
     pm2_apply
+    # и после перезапуска: новая версия могла дописать сборку, пока останавливалась
+    purge_previews
   fi
   echo "Логи: pm2 logs mybook --nostream --lines 100"
   exit 1

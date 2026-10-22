@@ -18,7 +18,8 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const book = await getAccessibleBook(id, user);
   const [t, questions] = await Promise.all([getMessages().then((m) => m.books.preview), container().authoring.queries.questions(book.id)]);
 
-  // Листаемая книга строится из тех же данных, что и PDF: ответы, фото в ответах, фотостраницы глав, галерея, письма.
+  // Переплёт 3D-книги — из того же содержимого, что PDF (название по умолчанию, имена, фото обложки и оборота);
+  // страницы книга берёт из экранной сборки.
   const bundle = await container().authoring.queries.bundle(book.id);
   const allPhotos = bundle?.photos ?? [];
   const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], allPhotos, bundle?.letters ?? []);
@@ -51,7 +52,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
             </Link>
           </div>
         </div>
-        <PreviewTabs bookId={book.id} initialVersion={book.updatedAt.getTime()} flipbook={flipbook} />
+        <PreviewTabs bookId={book.id} flipbook={flipbook} />
       </div>
     </main>
   );

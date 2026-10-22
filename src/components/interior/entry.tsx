@@ -1,14 +1,14 @@
-import { createContext, Fragment, useContext, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
+import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
+import { dividerDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
 import { bookMessagesFor } from "@/i18n/messages/partial";
-import { CHAPTER_TAIL, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD } from "@/lib/book/typesetting";
 import { AnswerBlockView } from "./answer-block";
 import { InlineDrawing } from "./graphics";
 import { metricsOf, type PageKit } from "./kit";
@@ -34,15 +34,6 @@ export interface SampleEntry {
   pageBreak?: boolean;
   /** Продолжение истории после фото на всю страницу: без заголовка и разделителя. */
   continued?: boolean;
-}
-
-/** Концовка главы — небольшая виньетка после последнего ответа, как в PDF. */
-export function ChapterTail({ kit }: { kit: PageKit }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "center", breakBefore: "avoid", breakInside: "avoid", marginTop: kit.u.pt(kit.sizes.beforeHeading * CHAPTER_TAIL.before) }}>
-      <InlineDrawing drawing={vignetteDrawing(kit.design.ornament, VIGNETTE_RULE.end, kit.design.palette)} u={kit.u} />
-    </div>
-  );
 }
 
 /** Заголовок вопроса в тексте главы (с акцентной линейкой, если она есть в дизайне). */
@@ -106,13 +97,6 @@ export interface RowPhotoLayer {
   overlay?: ReactNode;
 }
 
-/**
- * Какие фото рисовать картинкой: в листаемой 3D-книге каждая полоса держит весь текст главы (колонки со сдвигом), и
- * без отбора каждая хранила бы все снимки главы — Safari на iPhone, упираясь в память под 3D-слои, перестаёт их рисовать
- * (пустые страницы). Нет провайдера — рисуются все; невидимое фото — пустое место того же размера (вёрстка та же).
- */
-export const VisiblePhotos = createContext<((id: string) => boolean) | null>(null);
-
 /** Фото в ряду: рамка или поляроид со своей подписью, размеры — как в PDF (inline-photo.ts). */
 function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
   const { design, sizes: S, u } = kit;
@@ -122,8 +106,6 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
   const extra = layer?.(item, b);
-  const visible = useContext(VisiblePhotos);
-  const shown = !visible || visible(p.id);
   return (
     <figure {...extra?.figure} style={{ width: u.mm(b.outerW), margin: 0, flex: "none", ...extra?.figure?.style }}>
       <div
@@ -141,19 +123,14 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
           ...extra?.frame,
         }}
       >
-        {shown ? (
-          // eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы
-          <img
-            alt=""
-            {...extra?.img}
-            src={p.url}
-            data-photo-id={p.id}
-            draggable={false}
-            style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
-          />
-        ) : (
-          <div data-photo-id={p.id} style={{ width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM) }} />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы */}
+        <img
+          alt=""
+          {...extra?.img}
+          src={p.url}
+          draggable={false}
+          style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
+        />
         {polaroid && p.caption ? (
           <div
             style={{

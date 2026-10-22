@@ -22,6 +22,7 @@ const fake = {
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
   outbox: { purge: stepFn("purge", undefined) },
   telephony: { whatsapp: { sweep: stepFn("whatsapp calls", 0) } },
+  previews: { sweep: stepFn("previews", 0) },
 };
 
 vi.mock("@/server/container", () => ({ container: () => fake }));
@@ -57,17 +58,24 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 
-  it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp, разбор бота и чистка его следов выполняются", async () => {
+  it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp, разбор бота, чистка его следов и кэша предпросмотров выполняются", async () => {
     failing.add("gifts").add("purge");
     await tick();
-    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "traces"]);
+    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "traces", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
   });
 
   it("медленный проход: разбор бота упал — следы бота старше 90 дней всё равно чистятся", async () => {
     failing.add("coach");
     await tick();
-    expect(calls.at(-1)).toBe("traces");
+    expect(calls.slice(-2)).toEqual(["traces", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "bot coach" failed']);
+  });
+
+  it("медленный проход: уборка кэша предпросмотров упала — в логе её имя, проход не оборван", async () => {
+    failing.add("previews");
+    await tick();
+    expect(calls.at(-1)).toBe("previews");
+    expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "preview cache sweep" failed']);
   });
 });

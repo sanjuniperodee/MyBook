@@ -1,17 +1,16 @@
 import "server-only";
 import { Page, Text } from "@react-pdf/renderer";
 import { DISPLAY_TOP, FRONT, VIGNETTE_RULE } from "@/lib/book/typesetting";
-import { labelStyle, noHyphens, textFace, type PdfKit } from "./kit";
-import { Frame, Placed, Vignette, Watermark } from "./parts";
+import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
+import { Frame, Placed, Vignette } from "./parts";
 
 /** Титульный лист. */
 export function TitlePage({ kit }: { kit: PdfKit }) {
   const { content, design, sizes: S, italicBody } = kit;
   const P = design.palette;
   return (
-    <Page size={kit.pageSize} style={kit.pagePadding}>
+    <Page {...pageMark("front")} size={kit.pageSize} style={kit.pagePadding}>
       <Frame kit={kit} colors={P} />
-      <Watermark kit={kit} />
       <Placed top={DISPLAY_TOP.title}>
         <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, S.title), lineHeight: FRONT.title.lineHeight, textAlign: "center", color: P.ink }}>{content.title}</Text>
         {content.subtitle ? (

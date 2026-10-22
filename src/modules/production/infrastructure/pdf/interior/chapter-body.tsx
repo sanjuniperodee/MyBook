@@ -6,8 +6,7 @@ import { CHAPTER_TAIL, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfDrawing } from "@/modules/production/infrastructure/pdf/art";
 import { Entry } from "./entry";
 import { Folio } from "./folio";
-import { mark, type PdfKit } from "./kit";
-import { Watermark } from "./parts";
+import { mark, pageMark, type PdfKit } from "./kit";
 import { RunningHead } from "./running-head";
 
 /** Концовка главы — небольшая виньетка: последняя полоса главы не выглядит оборванной. */
@@ -25,8 +24,7 @@ function ChapterTail({ kit, chapterKey }: { kit: PdfKit; chapterKey: string }) {
  */
 export function ChapterBody({ kit, chapter, items = chapter.items, first = true, tail = true }: { kit: PdfKit; chapter: ContentChapter; items?: ContentItem[]; first?: boolean; tail?: boolean }) {
   return (
-    <Page size={kit.pageSize} style={kit.pagePadding} wrap>
-      <Watermark kit={kit} />
+    <Page {...pageMark("text", chapter.key)} size={kit.pageSize} style={kit.pagePadding} wrap>
       <RunningHead kit={kit} chapterTitle={chapter.title} />
       <Folio kit={kit} />
       {items.map((item, index) => (

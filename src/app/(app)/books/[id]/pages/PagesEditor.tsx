@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { useMessages } from "@/i18n/client";
+import { Link, useMessages } from "@/i18n/client";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
 import { Choice, FormSection } from "@/components/ui/Choice";
@@ -41,6 +41,7 @@ export function PagesEditor({
   format: formatId,
   initial,
   sample,
+  exactPages = null,
   cover,
   theme,
   editable,
@@ -53,6 +54,8 @@ export function PagesEditor({
   format: string;
   initial: PagesState;
   sample: SpreadSample;
+  /** Номера страниц готового макета (сохранённое оформление): по ним оглавление на развороте — точное. */
+  exactPages?: Record<string, number> | null;
   /** Обложка книги и дизайны, которые с ней в паре. */
   cover: { name: string; pairs: InteriorId[] };
   editable: boolean;
@@ -95,6 +98,19 @@ export function PagesEditor({
     () => ({ ...sample, dedication: state.dedication.trim(), showToc: state.showToc, toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc }),
     [sample, state.dedication, state.showToc, state.tocMode, state.tocLines],
   );
+  // Номера в оглавлении точные, пока оформление то, по которому собран макет (правки меняют разбивку), и у каждой
+  // строки номер из макета; иначе под разворотом — что они примерные.
+  const tocExact = useMemo(() => {
+    if (!exactPages) return false;
+    const changed =
+      state.interior !== initial.interior ||
+      state.showToc !== initial.showToc ||
+      state.tocMode !== initial.tocMode ||
+      !!state.dedication.trim() !== !!initial.dedication.trim() ||
+      JSON.stringify(state.tocLines ?? {}) !== JSON.stringify(initial.tocLines ?? {});
+    const pageKeys = new Map<string, string>((sample.tocAll ?? []).map((c) => [c.key, c.pageKey]));
+    return !changed && live.toc.every((l) => (pageKeys.get(l.key ?? "") ?? "") in exactPages);
+  }, [exactPages, initial, state, sample.tocAll, live.toc]);
   const paired = new Set(cover.pairs);
   const filters: Filter[] = ["all", ...(paired.size ? (["cover"] as const) : []), ...interiorMoods];
   const shown = interiorDesigns.filter((d) => filter === "all" || d.id === state.interior || (filter === "cover" ? paired.has(d.id) : d.mood === filter));
@@ -134,6 +150,14 @@ export function PagesEditor({
               ))}
             </div>
           </div>
+          {spread === "toc" && state.showToc && !tocExact ? (
+            <p className="mx-auto mt-3 max-w-md text-center text-xs text-muted">
+              {t.tocApprox}{" "}
+              <Link href={`/books/${bookId}/preview`} className="text-wine hover:underline">
+                {t.tocApproxLink}
+              </Link>
+            </p>
+          ) : null}
           <div className="mt-4 text-center">
             <div className="flex items-center justify-center gap-3 text-sm text-muted">
               <span className="font-medium text-ink">{names[design.id].name}</span>·<SaveIndicator status={status} error={error} />

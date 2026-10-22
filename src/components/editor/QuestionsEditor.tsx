@@ -89,6 +89,21 @@ export function QuestionsEditor(props: QuestionsEditorProps) {
   return <EditorBody key={generation} {...props} resumeId={resumeId} onResync={onResync} />;
 }
 
+/**
+ * Подпись над превью главы: оно свёрстано в браузере (колонки CSS) и меняется на каждый символ, а переносы и номера
+ * страниц книги — только у макета (растр PDF), туда и ссылка; перед переходом сохраняем ответ.
+ */
+function PreviewHeading({ bookId, title, exact, onLeave }: { bookId: string; title: string; exact: string; onLeave: () => void }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="text-xs font-medium tracking-wider text-muted uppercase">{title}</div>
+      <Link href={`/books/${bookId}/preview`} onClick={onLeave} className="inline-flex items-center gap-1 text-xs text-wine hover:underline">
+        {exact} <ArrowRight className="size-3" />
+      </Link>
+    </div>
+  );
+}
+
 function EditorBody({
   book,
   epigraphs = NO_EPIGRAPHS,
@@ -596,7 +611,8 @@ function EditorBody({
           ) : null}
 
           {previewProps && showPreview && !focus ? (
-            <div className="mt-6 xl:hidden">
+            <div className="mt-6 space-y-2 xl:hidden">
+              <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
               <PreviewPane {...previewProps} className="max-h-[75dvh] overflow-y-auto rounded-3xl bg-cream/60 p-4" />
             </div>
           ) : null}
@@ -608,7 +624,7 @@ function EditorBody({
             <div className="sticky top-20 space-y-4">
               {previewProps ? (
                 <>
-                  <div className="text-xs font-medium tracking-wider text-muted uppercase">{t.inBook}</div>
+                  <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
                   <PreviewPane {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
                 </>
               ) : null}

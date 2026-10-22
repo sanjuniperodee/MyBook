@@ -9,8 +9,8 @@ import { openerFit } from "@/lib/book/opener-fit";
 import { openerPhotoPlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { OPENER, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
-import { labelStyle, noHyphens, textFace, type PdfKit } from "./kit";
-import { Placed, Vignette, Watermark } from "./parts";
+import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
+import { Placed, Vignette } from "./parts";
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -79,10 +79,9 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
   // Длинное название и эпиграф своей книги не должны выталкивать начальную полосу на вторую (то же правило — в HTML).
   const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   return (
-    <Page size={kit.pageSize} style={{ ...kit.pagePadding, backgroundColor: fill?.paper ?? PAPER }}>
+    <Page {...pageMark("opener", chapterKey)} size={kit.pageSize} style={{ ...kit.pagePadding, backgroundColor: fill?.paper ?? PAPER }}>
       <PdfPageLayer shapes={[...artShapes, ...frameShapes(design.frame, box, colors)]} box={box} />
       {shot && image ? <OpenerPhoto kit={kit} shot={shot} image={image.data} /> : null}
-      <Watermark kit={kit} />
       <Text
         style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? PAPER }}
         render={({ pageNumber }) => {

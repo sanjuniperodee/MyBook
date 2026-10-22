@@ -1,81 +1,61 @@
 import { describe, expect, it } from "vitest";
-import { bookShift, clampPos, planFaces, planSheets, settle, visibleSpread } from "@/lib/book/flipbook";
+import { bookShift, clampPos, leafCount, leafPages, pageLeaf, pagesNear, settle, sheetCount, visibleSpread } from "@/lib/book/flipbook";
 
-describe("planFaces", () => {
-  it("фотостраницы глав — после их текста, галерея — перед финалом; пустых полос между ними нет, как в PDF (B2)", () => {
-    const { faces } = planFaces({ hasDedication: false, hasToc: false, textPages: [1, 1], photoPages: [2, 0], galleryPages: 1 });
-    expect(faces.map((f) => (f.kind === "photos" ? `photos:${f.chapter}:${f.page}` : f.kind))).toEqual([
-      "title",
-      "colophon",
-      "opener",
-      "text",
-      "photos:0:0",
-      "photos:0:1",
-      "opener",
-      "text",
-      "galleryOpener",
-      "photos:-1:0",
-      "end",
-      "blank",
-    ]);
+// Листы 3D-книги — полосы экранной сборки (того же PDF, что для типографии) по две: своей раскладки у книги нет.
+
+describe("листы из полос сборки", () => {
+  it("печатный объём — листы по две полосы между обложкой и задней крышкой", () => {
+    expect([leafCount(24), sheetCount(24)]).toEqual([12, 14]);
+    expect([leafCount(196), sheetCount(196)]).toEqual([98, 100]);
+    // Нечётного объёма в печати нет; если бы был — последняя полоса легла бы на лицо листа без пары.
+    expect(leafCount(25)).toBe(13);
+    expect(leafCount(0)).toBe(1);
   });
 
-  it("идёт в порядке PDF: титул, оборот титула (колофон), посвящение, оглавление, главы, финал (B2)", () => {
-    const { faces } = planFaces({ hasDedication: true, hasToc: true, textPages: [2] });
-    expect(faces.map((f) => f.kind)).toEqual(["title", "colophon", "dedication", "toc", "opener", "text", "text", "end"]);
-  });
-
-  it("главы идут подряд: начальная полоса — сразу после предыдущей главы, на любой стороне, как в PDF (B2)", () => {
-    for (const hasDedication of [true, false])
-      for (const hasToc of [true, false]) {
-        const textPages = [1, 2, 3, 1];
-        const { faces, chapterStarts } = planFaces({ hasDedication, hasToc, textPages });
-        const front = 2 + (hasDedication ? 1 : 0) + (hasToc ? 1 : 0);
-        expect(chapterStarts).toEqual(textPages.map((_, i) => front + 1 + textPages.slice(0, i).reduce((sum, n) => sum + 1 + n, 0)));
-        chapterStarts.forEach((no) => expect(faces[no - 1].kind).toBe("opener"));
-        expect(faces.slice(0, -1).filter((f) => f.kind === "blank")).toEqual([]);
-      }
-  });
-
-  it("оглавление не рисуется без глав, глава без текста — одна начальная полоса", () => {
-    expect(planFaces({ hasDedication: false, hasToc: true, textPages: [] }).faces.some((f) => f.kind === "toc")).toBe(false);
-    const { faces } = planFaces({ hasDedication: false, hasToc: false, textPages: [0, 1] });
-    expect(faces.filter((f) => f.kind === "opener")).toHaveLength(2);
-    expect(faces.filter((f) => f.kind === "text")).toHaveLength(1);
-  });
-
-  it("число полос чётное, последняя — «Конец» либо пустая пара к ней", () => {
-    for (const n of [0, 1, 2, 5]) {
-      const { faces } = planFaces({ hasDedication: n % 2 === 0, hasToc: false, textPages: Array.from({ length: n }, () => 1) });
-      expect(faces.length % 2).toBe(0);
-      expect(faces.map((f) => f.kind)).toContain("end");
+  it("лицо листа i — полоса 2i−1, оборот — 2i; каждая полоса ровно на одной стороне", () => {
+    expect(leafPages(1)).toEqual({ front: 1, back: 2 });
+    expect(leafPages(12)).toEqual({ front: 23, back: 24 });
+    for (let n = 1; n <= 24; n++) {
+      const { leaf, side } = pageLeaf(n);
+      expect(side === "f" ? leafPages(leaf).front : leafPages(leaf).back).toBe(n);
     }
+  });
+
+  it("visibleSpread: слева — оборот предыдущего листа, справа — лицо текущего; у обложек — форзацы", () => {
+    const sheets = sheetCount(24);
+    const last = sheets - 1;
+    for (let r = 2; r < last; r++) expect(visibleSpread(r, sheets)).toEqual({ left: leafPages(r - 1).back, right: leafPages(r).front });
+    expect(visibleSpread(0, sheets)).toEqual({ left: null, right: null });
+    expect(visibleSpread(1, sheets)).toEqual({ left: null, right: 1 });
+    expect(visibleSpread(last, sheets)).toEqual({ left: 24, right: null });
   });
 });
 
-describe("planSheets", () => {
-  it("обложка, листы по две полосы, задняя обложка", () => {
-    const { faces } = planFaces({ hasDedication: false, hasToc: false, textPages: [1] });
-    const sheets = planSheets(faces);
-    expect(sheets[0].kind).toBe("cover");
-    expect(sheets.at(-1)?.kind).toBe("back");
-    expect(sheets).toHaveLength(faces.length / 2 + 2);
-    const pages = sheets.filter((s) => s.kind === "pages");
-    expect(pages.map((s) => (s.kind === "pages" ? [s.frontNo, s.backNo] : []))[0]).toEqual([1, 2]);
+describe("pagesNear: какие полосы держать загруженными", () => {
+  it("сначала видимый разворот, потом следующий, предыдущий, через один", () => {
+    expect(pagesNear(5, 24, 2)).toEqual([8, 9, 10, 11, 6, 7, 12, 13, 4, 5]);
+    expect(pagesNear(5, 24, 0)).toEqual([8, 9]);
   });
 
-  it("visibleSpread согласуется с номерами на листах", () => {
-    const sheets = planSheets(planFaces({ hasDedication: true, hasToc: true, textPages: [2, 2] }).faces);
-    const last = sheets.length - 1;
-    for (let r = 1; r < last; r++) {
-      const left = sheets[r - 1];
-      const right = sheets[r];
-      const v = visibleSpread(r, sheets.length);
-      expect(v.left).toBe(left.kind === "pages" ? left.backNo : null);
-      expect(v.right).toBe(right.kind === "pages" ? right.frontNo : null);
-    }
-    expect(visibleSpread(0, sheets.length)).toEqual({ left: null, right: null });
-    expect(visibleSpread(last, sheets.length).right).toBeNull();
+  it("закрытая книга готовит первые полосы — открыть её можно сразу", () => {
+    expect(pagesNear(0, 24, 2)).toEqual([1, 2, 3]);
+  });
+
+  it("у задней обложки — только последние полосы; за концом книги ничего", () => {
+    const last = sheetCount(24) - 1;
+    expect(pagesNear(last, 24, 2)).toEqual([24, 22, 23, 20, 21]);
+  });
+
+  it("без повторов и только полосы книги — в любой позиции; не больше двух полос на разворот окна", () => {
+    for (const pageCount of [24, 28, 196])
+      for (let slot = 0; slot < sheetCount(pageCount); slot++) {
+        const near = pagesNear(slot, pageCount, 2);
+        expect(new Set(near).size).toBe(near.length);
+        expect(near.every((n) => n >= 1 && n <= pageCount)).toBe(true);
+        expect(near.length).toBeLessThanOrEqual(10);
+        const { left, right } = visibleSpread(slot, sheetCount(pageCount));
+        expect(near.slice(0, [left, right].filter(Boolean).length)).toEqual([left, right].filter(Boolean));
+      }
   });
 });
 

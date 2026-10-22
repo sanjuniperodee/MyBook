@@ -21,6 +21,8 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     STORAGE_DIR=/data/storage \
     TZ=Asia/Almaty
+# poppler-utils (pdftoppm): картинки полос книги — растр PDF экранной сборки (/api/books/[id]/pages)
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 RUN groupadd -g 1001 app && useradd -u 1001 -g app -m app && mkdir -p /data/storage && chown -R app:app /data
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static

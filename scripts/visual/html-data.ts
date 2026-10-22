@@ -1,4 +1,3 @@
-import type { FlipbookData } from "@/components/book3d/pages";
 import type { SpreadKind, SpreadSample } from "@/components/interior/InteriorSpread";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
@@ -7,22 +6,21 @@ import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { editorModel } from "@/lib/book/editor-data";
 import { groupByChapter, previewChapters, type PreviewChapter } from "@/lib/book/editor-model";
 import { backPhotoRefs } from "@/lib/book/photo-refs";
-import { flipbookData } from "@/components/book3d/flipbook-data";
 import { bookSpreadSample } from "@/server/spreadSample";
 import type { FixtureBook } from "../../tests/fixtures/books";
 
 /**
  * Данные стенда html-snapshot — так же, как их готовят страницы сайта: развороты InteriorSpread —
  * bookSpreadSample (books/[id]/pages), превью PagePreview — editorPreview (те же editorModel и previewChapters
- * из lib/book/editor-model, что у books/[id]/questions и QuestionsEditor), полосы 3D-книги — flipbookData
- * (общий с books/[id]/preview, server/flipbookData), оборот CoverBackPreview — backData (как редактор обложки books/[id]/cover).
+ * из lib/book/editor-model, что у books/[id]/questions и QuestionsEditor), оборот CoverBackPreview — backData
+ * (как редактор обложки books/[id]/cover). Полос 3D-книги здесь нет: это картинки PDF, их сверяет pdf-snapshot.
  * Строятся в Node (время заморожено — год на развороте и обороте), в браузер уходят JSON.
  */
 
 /** Все виды разворота: TypeScript требует перечислить каждый SpreadKind. */
 const spreadKinds = Object.keys({ chapter: true, front: true, toc: true, photos: true } satisfies Record<SpreadKind, true>) as SpreadKind[];
 
-/** Ширина стенда, px: разворот (две полосы); полоса превью и 3D-книги, оборот обложки. */
+/** Ширина стенда, px: разворот (две полосы); полоса превью, оборот обложки. */
 const SPREAD_WIDTH = 960;
 const PAGE_WIDTH = 480;
 
@@ -50,7 +48,7 @@ export interface BackData {
 }
 
 export type StandView = ViewBase &
-  ({ kind: SpreadKind; sample: SpreadSample } | { kind: "preview"; preview: PreviewData } | { kind: "flipbook"; flipbook: FlipbookData } | { kind: "back"; back: BackData });
+  ({ kind: SpreadKind; sample: SpreadSample } | { kind: "preview"; preview: PreviewData } | { kind: "back"; back: BackData });
 
 /** Превью редактора: вопросы и главы — тем же кодом, что страница books/[id]/questions и QuestionsEditor (lib/book/editor-model). */
 function editorPreview({ book, questions, chapters: ownChapters, photos }: FixtureBook["bundle"]): PreviewData {
@@ -75,7 +73,6 @@ export function standViews(fixture: FixtureBook): StandView[] {
   return [
     ...spreadKinds.map((kind) => ({ ...view(kind), width: SPREAD_WIDTH, kind, sample })),
     { ...view("preview"), kind: "preview" as const, preview: editorPreview(fixture.bundle) },
-    { ...view("flipbook"), kind: "flipbook" as const, flipbook: flipbookData(fixture.bundle.book, fixture.bundle.questions, fixture.bundle.chapters, fixture.bundle.photos, fixture.bundle.letters ?? []) },
     { ...view("back"), kind: "back" as const, back: backData(fixture.bundle) },
   ];
 }

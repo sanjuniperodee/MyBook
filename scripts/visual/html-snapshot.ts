@@ -1,9 +1,9 @@
 /**
- * Снимки HTML (S4): развороты InteriorSpread (все SpreadKind), превью PagePreview, полосы 3D-книги и оборот
- * CoverBackPreview на книгах набора в Chromium (Playwright): окно фиксированного размера, deviceScaleFactor 1,
- * анимации выключены, время зафиксировано. Ключи — html:<вид>:<книга>, вид — chapter, front, toc, photos
- * (разворот целиком), preview и flipbook (полосы по одной) или back (оборот целиком). Формат снимка тот же,
- * что у pdf-snapshot; сверка — compare.ts, с эталонным коммитом — check.sh.
+ * Снимки HTML (S4): развороты InteriorSpread (все SpreadKind), превью PagePreview и оборот CoverBackPreview на
+ * книгах набора в Chromium (Playwright): окно фиксированного размера, deviceScaleFactor 1, анимации выключены,
+ * время зафиксировано. Ключи — html:<вид>:<книга>, вид — chapter, front, toc, photos (разворот целиком), preview
+ * (полосы по одной) или back (оборот целиком). 3D-книга показывает картинки полос PDF — её сверяет pdf-snapshot.
+ * Формат снимка тот же, что у pdf-snapshot; сверка — compare.ts, с эталонным коммитом — check.sh.
  *
  * Запуск из корня репозитория:
  *   npx tsx --import ./scripts/preload.mjs scripts/visual/html-snapshot.ts --out <каталог> [--filter <подстрока ключа>] [--quick] [--jobs N]
@@ -22,10 +22,10 @@ import { entryFor, errorEntry, failSnapshot, freshKeyDir, pagePath, prepareOut, 
 
 const VIEWPORT = { width: 1280, height: 900 };
 /**
- * Что снимать: разворот или оборот целиком, каждую полосу превью (начальные полосы и полосы текста, без скрытых
- * копий для замера) или каждую полосу 3D-книги.
+ * Что снимать: разворот или оборот целиком либо каждую полосу превью (начальные полосы и полосы текста, без скрытых
+ * копий для замера).
  */
-const TARGETS: Partial<Record<StandView["kind"], string>> = { preview: "#stand > div > div > :not([aria-hidden])", flipbook: "#stand > [data-face]" };
+const TARGETS: Partial<Record<StandView["kind"], string>> = { preview: "#stand > div > div > :not([aria-hidden])" };
 const WHOLE = "#stand > div";
 const CHROMIUM = process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 

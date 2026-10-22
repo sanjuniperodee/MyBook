@@ -3,8 +3,7 @@ import { Page, Text, View } from "@react-pdf/renderer";
 import { bookToc } from "@/lib/book/toc";
 import { TOC } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
-import { noHyphens, textFace, type PdfKit } from "./kit";
-import { Watermark } from "./parts";
+import { noHyphens, pageMark, textFace, type PdfKit } from "./kit";
 
 /** Оглавление: строки по настройкам автора (lib/book/toc), номера полос — из чернового прохода (tocPages). */
 export function Toc({ kit }: { kit: PdfKit }) {
@@ -13,8 +12,7 @@ export function Toc({ kit }: { kit: PdfKit }) {
   const bodyFace = face(design.type.body, 400);
   const entries = bookToc(content);
   return (
-    <Page size={kit.pageSize} style={kit.pagePadding} wrap>
-      <Watermark kit={kit} />
+    <Page {...pageMark("toc")} size={kit.pageSize} style={kit.pagePadding} wrap>
       <Text
         hyphenationCallback={noHyphens}
         style={{

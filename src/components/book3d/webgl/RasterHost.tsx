@@ -3,14 +3,14 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { toCanvas } from "html-to-image";
 
-/** Что нужно превратить в картинку: вёрстка страницы в пикселях заданного размера. */
+/** Что нужно превратить в картинку: вёрстка стороны переплёта в пикселях заданного размера. */
 export interface RasterJob {
   key: string;
   /** Версия содержимого: сменилась (например, догрузились фото) — задание снимается заново, хотя ключ тот же. */
   version?: string;
   width: number;
   height: number;
-  /** Плотность пикселей именно для этого задания (обложке нужна выше, чем странице); по умолчанию — общая. */
+  /** Плотность пикселей именно для этого задания (корешку нужна выше, чем лицу обложки); по умолчанию — общая. */
   pixelRatio?: number;
   node: ReactNode;
 }
@@ -123,9 +123,9 @@ async function loadFontsUsedBy(root: HTMLElement) {
 }
 
 /**
- * Невидимая «типография»: вёрстка страниц рисуется HTML-компонентами проекта (те же шрифты и оформление, что в PDF),
- * а затем по очереди превращается в холст — из холстов делаются текстуры WebGL.
- * Задания обрабатываются по одному в порядке списка: сначала то, что ближе к читаемой странице.
+ * Невидимая «типография» обложки: лицо, оборот и корешок рисуются HTML-компонентами переплёта (те же шрифты и
+ * оформление, что в PDF обложки), а затем по очереди превращаются в холст — из холстов делаются текстуры WebGL.
+ * Страниц блока здесь нет: это картинки полос экранной сборки. Задания обрабатываются по одному в порядке списка.
  */
 export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: RasterJob[]; pixelRatio?: number; onDone: (key: string, canvas: HTMLCanvasElement, version?: string) => void; onError?: (key: string, error: unknown) => void }) {
   const root = useRef<HTMLDivElement>(null);
@@ -167,7 +167,7 @@ export function RasterHost({ jobs, pixelRatio = 1, onDone, onError }: { jobs: Ra
               st.failed.add(jobId(job));
               fail?.(job.key, e);
             }
-            // Отдаём браузеру кадр между страницами: интерфейс не должен замирать.
+            // Отдаём браузеру кадр между заданиями: интерфейс не должен замирать.
             await new Promise<void>((resolve) => setTimeout(resolve, 0));
           }
         } while (st.again && st.mounted);

@@ -1,5 +1,8 @@
 import "server-only";
-import { deletePrefix, fileExists, getFile, putFile } from "@/shared/infrastructure/storage";
+import { randomBytes } from "node:crypto";
+import { mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { deletePrefix, fileExists, getFile, storagePath } from "@/shared/infrastructure/storage";
 import { dedupe, withRenderSlot } from "@/modules/production/infrastructure/pdf/queue";
 import type { BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import { inPdfThread } from "@/modules/production/infrastructure/pdf/pool";
@@ -8,7 +11,32 @@ import type { BookRenderer, FileStore, PrintSpec, RenderQueue } from "../applica
 /** Из потока PDF буферы приходят как Uint8Array — оборачиваем без копирования. */
 const buf = (u: Uint8Array) => Buffer.from(u.buffer, u.byteOffset, u.byteLength);
 
-export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putFile, deletePrefix };
+/** Содержимое папки хранилища с временем изменения; папки нет — пусто. */
+async function listFiles(prefix: string) {
+  const dir = storagePath(prefix);
+  const names = await readdir(dir).catch(() => [] as string[]);
+  const entries = await Promise.all(names.map(async (name) => ({ name, modifiedMs: (await stat(path.join(dir, name)).catch(() => null))?.mtimeMs })));
+  return entries.flatMap((e) => (e.modifiedMs === undefined ? [] : [{ name: e.name, modifiedMs: e.modifiedMs }]));
+}
+
+/**
+ * Запись через временный файл рядом и rename (в пределах папки он атомарный): оборванная запись — перезапуск PM2 при
+ * выкатке, нет места — не оставляет под ключом обрезанный файл, который кэш отдал бы как готовый.
+ */
+async function putAtomic(key: string, data: Buffer) {
+  const full = storagePath(key);
+  await mkdir(path.dirname(full), { recursive: true });
+  const tmp = `${full}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`;
+  try {
+    await writeFile(tmp, data);
+    await rename(tmp, full);
+  } catch (err) {
+    await rm(tmp, { force: true }).catch(() => undefined);
+    throw err;
+  }
+}
+
+export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putAtomic, deletePrefix, list: listFiles };
 
 export const pdfRenderQueue: RenderQueue = { run: (key, task) => dedupe(key, () => withRenderSlot(task)) };
 
@@ -41,11 +69,19 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
       if (!bundle) return null;
       return buf(await inPdfThread({ task: "reading", bundle }));
     },
-    async preview(bookId, opts) {
+    async preview(bookId) {
       const bundle = await load(bookId);
       if (!bundle) return null;
       const { contentFingerprint } = await pdf();
-      return { fingerprint: contentFingerprint(bundle), render: async () => buf(await inPdfThread({ task: "preview", bundle, watermark: opts?.watermark })) };
+      const fp = contentFingerprint(bundle);
+      return {
+        fingerprint: fp,
+        async render() {
+          const res = await inPdfThread({ task: "preview", bundle });
+          return { pdf: buf(res.pdf), manifest: { fp, ...res.layout } };
+        },
+        watermark: async (file) => buf(await inPdfThread({ task: "watermark", pdf: file, language: bundle.book.language, format: bundle.book.format })),
+      };
     },
     async manuscript(bookId) {
       const bundle = await load(bookId);

@@ -1,9 +1,8 @@
 /**
- * Браузерный вход стенда html-snapshot (собирается esbuild): рисует InteriorSpread, PagePreview, полосы 3D-книги
- * или CoverBackPreview по window.__stand и ставит body[data-ready], когда шрифты, фото и раскладка устоялись.
+ * Браузерный вход стенда html-snapshot (собирается esbuild): рисует InteriorSpread, PagePreview или CoverBackPreview
+ * по window.__stand и ставит body[data-ready], когда шрифты, фото и раскладка устоялись.
  */
 import { createRoot } from "react-dom/client";
-import { FaceView, usePagedBook, type FlipbookData } from "@/components/book3d/pages";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { PagePreview } from "@/components/editor/preview/PagePreview";
 import { InteriorSpread } from "@/components/interior/InteriorSpread";
@@ -21,37 +20,12 @@ declare global {
 /** Кадров подряд без изменений в разметке, после которых она считается устоявшейся. */
 const STABLE_FRAMES = 3;
 
-/**
- * Полосы 3D-книги без WebGL: раскладка usePagedBook и FaceView — те же, из которых BookViewer3D строит листы,
- * а BookViewerGL растрирует текстуры (RasterHost). Каждая полоса — в рамке листа блока (формат без обложки),
- * без тени у корешка: её добавляют сами просмотрщики.
- */
-function Flipbook({ data }: { data: FlipbookData }) {
-  const { sheets, ctx, measure } = usePagedBook(data);
-  const format = getFormat(data.formatId);
-  const faces = sheets.flatMap((s) => (s.kind === "pages" ? [{ face: s.front, no: s.frontNo }, { face: s.back, no: s.backNo }] : []));
-  return (
-    <>
-      {measure}
-      {ctx
-        ? faces.map(({ face, no }) => (
-            <div key={no} data-face className="relative overflow-hidden bg-white" style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}` }}>
-              <FaceView face={face} no={no} ctx={ctx} />
-            </div>
-          ))
-        : null}
-    </>
-  );
-}
-
 function Stand({ view }: { view: StandView }) {
   const format = getFormat(view.format);
   const design = getInteriorDesign(view.interior);
   switch (view.kind) {
     case "preview":
       return <PagePreview {...view.preview} format={format} design={design} />;
-    case "flipbook":
-      return <Flipbook data={view.flipbook} />;
     case "back":
       return <CoverBackPreview template={view.back.template} format={view.format} content={view.back.content} photos={view.back.photos} />;
     default:

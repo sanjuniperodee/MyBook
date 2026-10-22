@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { BookBuildPage } from "@/lib/book/book-build";
 import { estimatePages } from "@/lib/book/estimate";
-import { planFaces } from "@/lib/book/flipbook";
-import { photoPages } from "@/lib/book/layout";
+import { leafPages, pageLeaf } from "@/lib/book/flipbook";
+import { GALLERY_KEY } from "@/lib/book/toc";
 import { useFixtureStorage } from "../fixtures/photos";
 import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
@@ -21,6 +22,8 @@ interface Pages {
   wraps: number;
   /** Первые полосы глав в PDF (номера оглавления). */
   chapterPages: Record<string, number>;
+  /** Виды полос по итоговой раскладке — манифест экранной сборки, по нему листается 3D-книга. */
+  layout: BookBuildPage[];
 }
 
 const pages = new Map<string, Pages>();
@@ -31,9 +34,9 @@ beforeAll(async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   for (const fb of books) {
     warn.mockClear();
-    const { contentPages, pageCount, chapterPages } = await renderInterior(fb.bundle, "preview");
+    const { contentPages, pageCount, chapterPages, pages: layout } = await renderInterior(fb.bundle, "preview");
     const wraps = warn.mock.calls.filter(([message]) => String(message).includes("can't wrap between pages")).length;
-    pages.set(fb.key, { estimate: estimatePages(contentOf(fb)), contentPages, pageCount, wraps, chapterPages });
+    pages.set(fb.key, { estimate: estimatePages(contentOf(fb)), contentPages, pageCount, wraps, chapterPages, layout });
   }
   warn.mockRestore();
 }, 600_000);
@@ -58,25 +61,31 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
     expect(mismatches).toEqual([]);
   });
 
-  // Число полос текста главы здесь берётся из PDF: тест проверяет порядок полос planFaces (оборот титула, главы
-  // подряд, фотостраницы, галерея), а не HTML-замер колонок в браузере (columnPages в usePagedBook).
-  it("3D-книга раскладывает полосы как PDF: те же номера глав в оглавлении, галерея и финал на тех же полосах (B2)", () => {
+  // 3D-книга листает полосы экранной сборки: лист i — полосы 2i−1 и 2i манифеста, своей раскладки у неё нет. Здесь —
+  // что манифест у каждой книги набора совпадает с PDF: главы на номерах оглавления, их текст и фото подряд,
+  // галерея и финал на своих полосах, добивка пустыми полосами до печатного объёма.
+  it("3D-книга листает полосы PDF: главы на номерах оглавления, галерея и финал на своих полосах, добивка в конце (B2)", () => {
     const mismatches: string[] = [];
     for (const fb of books) {
       const c = contentOf(fb);
       const pdf = pages.get(fb.key)!;
-      const starts = c.chapters.map((ch) => pdf.chapterPages[ch.key]);
-      const photos = c.chapters.map((ch) => photoPages(ch.photos).length);
-      const gallery = photoPages(c.galleryPhotos).length;
-      const after = (i: number) => (i + 1 < starts.length ? starts[i + 1] : (pdf.chapterPages.__gallery ?? pdf.contentPages));
-      // Полосы текста главы — по PDF: всё между её начальной полосой и следующей главой, кроме фотостраниц.
-      const textPages = starts.map((start, i) => after(i) - start - 1 - photos[i]);
-      const plan = planFaces({ hasDedication: !!c.dedication, hasToc: c.showToc, textPages, photoPages: photos, galleryPages: gallery });
-      const end = plan.faces.findIndex((f) => f.kind === "end") + 1;
-      const galleryStart = plan.faces.findIndex((f) => f.kind === "galleryOpener") + 1 || undefined;
-      const got = JSON.stringify({ chapters: plan.chapterStarts, gallery: galleryStart, end });
-      const want = JSON.stringify({ chapters: starts, gallery: pdf.chapterPages.__gallery, end: pdf.contentPages });
-      if (got !== want) mismatches.push(`${fb.key}: 3D ${got} · PDF ${want}`);
+      const kinds = pdf.layout.map((p) => (p.chapterKey ? `${p.kind}:${p.chapterKey}` : p.kind));
+      const want: string[] = [];
+      const check = (what: string, ok: boolean) => ok || want.push(what);
+      check("полос — печатный объём", pdf.layout.length === pdf.pageCount && pdf.layout.every((p, i) => p.n === i + 1));
+      c.chapters.forEach((ch, i) => {
+        const start = pdf.chapterPages[ch.key];
+        check(`глава ${ch.key} с полосы ${start}`, kinds[start - 1] === `opener:${ch.key}`);
+        const end = (i + 1 < c.chapters.length ? pdf.chapterPages[c.chapters[i + 1].key] : (pdf.chapterPages[GALLERY_KEY] ?? pdf.contentPages)) - 1;
+        check(`глава ${ch.key}: текст и фото подряд`, pdf.layout.slice(start, end).every((p) => (p.kind === "text" || p.kind === "photo") && p.chapterKey === ch.key));
+      });
+      const gallery = pdf.chapterPages[GALLERY_KEY];
+      check("галерея", c.galleryPhotos.length ? kinds[gallery - 1] === `opener:${GALLERY_KEY}` && kinds.slice(gallery, pdf.contentPages - 1).every((k) => k === "gallery") : gallery === undefined);
+      check("финал", kinds[pdf.contentPages - 1] === "end");
+      check("добивка", kinds.slice(pdf.contentPages).every((k) => k === "pad"));
+      // Каждая полоса — ровно на одной стороне одного листа.
+      check("листы", pdf.layout.every((p) => leafPages(pageLeaf(p.n).leaf)[pageLeaf(p.n).side === "f" ? "front" : "back"] === p.n));
+      if (want.length) mismatches.push(`${fb.key}: ${want.join("; ")}`);
     }
     expect(mismatches).toEqual([]);
   });

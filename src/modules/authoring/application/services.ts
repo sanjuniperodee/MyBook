@@ -101,13 +101,14 @@ export class BooksService {
     });
   }
 
-  /** Удалить книгу можно, пока по ней нет заказов; файлы фото и кэш предпросмотра — тоже. */
+  /** Удалить книгу можно, пока по ней нет заказов; файлы фото, кэш предпросмотра и картинки полос — тоже. */
   async delete(bookId: string, viewer: BookViewer) {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     if (await this.orders.bookHasOrders(book.id)) throw new AuthoringError("bookHasOrders");
     await this.books.delete(book.id);
     await this.files.deletePrefix(`photos/${book.id}`);
     await this.files.deletePrefix(`cache/preview/${book.id}`);
+    await this.files.deletePrefix(`cache/pages/${book.id}`);
   }
 
   async setLetterInvite(bookId: string, viewer: BookViewer, enabled: boolean, regenerate: boolean) {

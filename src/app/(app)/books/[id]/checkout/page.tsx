@@ -33,9 +33,16 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const upgrade = upgradeParam && /^[0-9a-f-]{36}$/i.test(upgradeParam) ? await container().ordering.orders.upgradeOffer(upgradeParam, user.id) : null;
   const upgradeOk = !!upgrade && upgrade.bookId === book.id;
   if (book.status !== "draft" && !upgradeOk) return lredirect(`/books/${book.id}`);
-  const [stats, photos, locale, m] = await Promise.all([container().authoring.queries.stats(book), container().authoring.queries.photos(book.id), getLocale(), getMessages()]);
+  const [stats, photos, locale, m, built] = await Promise.all([
+    container().authoring.queries.stats(book),
+    container().authoring.queries.photos(book.id),
+    getLocale(),
+    getMessages(),
+    // Готовый макет — точное число страниц, то же, что в предпросмотре рядом; нет (макет не открывали) — оценка.
+    container().previews.current(book.id).catch(() => null),
+  ]);
   const t = m.checkout;
-  const issues = checkReadiness(book, stats, photos, locale);
+  const issues = checkReadiness(book, built ? { ...stats, estimatedPages: built.contentPages } : stats, photos, locale);
   const blocked = issues.some((i) => i.level === "error");
   // Код активированного сертификата, персональный промокод из ссылки менеджера или приглашение друга подставляем сразу.
   const jar = await cookies();
@@ -67,7 +74,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
         </div>
         <div>
           <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-          <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
+          <p className="mt-2 text-muted">{t.summary(book.title, built?.pageCount ?? stats.printedPages, stats.answered, stats.photos, !!built)}</p>
           {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
           <p className="mt-1 text-sm text-muted">
             <Link href={`/books/${book.id}/cover`} className="underline-offset-2 hover:text-ink hover:underline">

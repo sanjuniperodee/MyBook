@@ -28,6 +28,8 @@ export function bookSpreadSample(
   dedicationPlaceholder: string,
   /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
   photos: { id: string; width: number; height: number; caption: string }[] = [],
+  /** Номера страниц готового макета этой книги (BookBuild.chapterPages: ключи — pageKey оглавления); нет — оценка. */
+  realPages?: Record<string, number> | null,
 ) {
   const format = getFormat(book.format);
   const content = buildBookContent(book, questions, [], chapters);
@@ -64,8 +66,9 @@ export function bookSpreadSample(
     entries.push({ heading: s.h1, paragraphs: [s.p1, s.p2] }, { heading: s.h2, paragraphs: [s.p3, s.p4] });
   }
 
-  // Оглавление: все строки, которые могут в него попасть, с примерными номерами страниц (пока ответов нет — главы
-  // темы). Режим и свои названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
+  // Оглавление: все строки, которые могут в него попасть, с номерами страниц — из готового макета, а каких там нет
+  // (макет не собран, раздел в оглавлении по главам) — примерными (пока ответов нет — главы темы). Режим и свои
+  // названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
   const metrics = textMetrics(format, getInteriorDesign(book.interior));
   const start = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
   const pageOf = new Map<string, number>();
@@ -76,6 +79,7 @@ export function bookSpreadSample(
     page += estimateChapterPages(c, metrics);
   }
   pageOf.set(GALLERY_KEY, page);
+  for (const [key, n] of Object.entries(realPages ?? {})) if (pageOf.has(key)) pageOf.set(key, n);
   const tocAll = content.chapters.length
     ? tocCandidates(content).map((c) => ({ ...c, page: pageOf.get(c.pageKey) ?? start }))
     : planned.map((c, i) => ({ key: `c:planned-${i}`, pageKey: `planned-${i}`, kind: "chapter" as const, number: i + 1, label: c.title, page: start + i * 6 }));

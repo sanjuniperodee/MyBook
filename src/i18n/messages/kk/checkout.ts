@@ -4,7 +4,7 @@ export const checkout: typeof ru = {
   meta: "Тапсырысты рәсімдеу",
   title: "Тапсырысты рәсімдеу",
   design: { cover: (name: string) => `«${name}» мұқабасы`, pages: (name: string) => `«${name}» беттері` },
-  summary: (title: string, pages: number, answers: number, photos: number) => `«${title}» · ≈ ${pages} бет · ${answers} жауап · ${photos} фото`,
+  summary: (title: string, pages: number, answers: number, photos: number, exact = false) => `«${title}» · ${exact ? "" : "≈ "}${pages} бет · ${answers} жауап · ${photos} фото`,
   staffView: "Сіз басқа біреудің кітабының рәсімделуін қызметкер ретінде көріп отырсыз: баға мен алдын ала төлем клиент көретіндей көрсетілген. Тапсырысты клиенттің өзі кабинетінен рәсімдейді.",
   checkPreview: "Тапсырыс бермес бұрын дайын макетті міндетті түрде парақтаңыз — кітап дәл солай басылады.",
   openPreview: "Алдын ала қарауды ашу",

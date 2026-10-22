@@ -37,14 +37,18 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}`);
   const book = await getAccessibleBook(id, user);
-  const [stats, questions, ownChapters, photos, [order], letterRows] = await Promise.all([
+  const [stats, questions, ownChapters, photos, [order], letterRows, built] = await Promise.all([
     container().authoring.queries.stats(book),
     container().authoring.queries.questions(book.id),
     container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
     container().ordering.queries.lastOrderOfBook(book.id).then((o) => (o ? [o] : [])),
     container().authoring.queries.letters(book.id),
+    // Готовый макет текущей книги — точное число страниц (как в предпросмотре); нет — оценка со знаком «≈».
+    container().previews.current(book.id).catch(() => null),
   ]);
+  const printedPages = built?.pageCount ?? stats.printedPages;
+  const contentPages = built?.contentPages ?? stats.estimatedPages;
   // Договорённость с менеджером и внесённая предоплата — клиенту видно, что уже оплачено и что остаётся.
   const agreement = book.status === "draft" ? await container().ordering.orders.agreementFor(book.userId) : null;
   const letterStats = {
@@ -121,7 +125,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             names={coverNames(book)}
             photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
             rotate={18}
-            thickness={Math.min(14, 4 + stats.printedPages / 20)}
+            thickness={Math.min(14, 4 + printedPages / 20)}
           />
           </Morph>
         </div>
@@ -131,15 +135,20 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           {book.subtitle ? <p className="mt-2 font-serif text-xl text-muted italic">{book.subtitle}</p> : null}
 
           <dl className="mt-8 grid max-w-xl grid-cols-4 divide-x divide-line">
-            {[
-              [stats.printedPages, c.word.pages(stats.printedPages)],
-              blank ? [stats.total, t.sectionsWord(stats.total)] : [stats.answered, c.word.answers(stats.answered)],
-              [stats.words, c.word.words(stats.words)],
-              [stats.photos, c.word.photos()],
-            ].map(([v, l], i) => (
+            {(
+              [
+                [printedPages, c.word.pages(printedPages), !built],
+                blank ? [stats.total, t.sectionsWord(stats.total)] : [stats.answered, c.word.answers(stats.answered)],
+                [stats.words, c.word.words(stats.words)],
+                [stats.photos, c.word.photos()],
+              ] as [number, string, boolean?][]
+            ).map(([v, l, approx], i) => (
               <div key={i} className={cn("px-4 first:pl-0")}>
                 <dt className="sr-only">{l}</dt>
-                <dd className="font-serif text-3xl font-medium tabular-nums sm:text-4xl">{Number(v).toLocaleString("ru-RU")}</dd>
+                <dd className="font-serif text-3xl font-medium tabular-nums sm:text-4xl">
+                  {approx ? <span className="text-muted">≈</span> : null}
+                  {v.toLocaleString("ru-RU")}
+                </dd>
                 <div className="text-xs text-muted sm:text-sm">{l}</div>
               </div>
             ))}
@@ -148,7 +157,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           <div className="mt-6 max-w-xl">
             <div className="flex justify-between text-xs text-muted">
               <span>{blank ? t.blankPercent(percent) : t.percent(percent)}</span>
-              {stats.estimatedPages < print.minPages ? <span>{t.minPages(print.minPages)}</span> : null}
+              {contentPages < print.minPages ? <span>{t.minPages(print.minPages)}</span> : null}
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
               <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />

@@ -51,12 +51,14 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order || !(await canSeeOrder(staff, order.id))) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows] = await Promise.all([
+  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows, built] = await Promise.all([
     container().authoring.queries.stats(book),
     container().access.queries.allStaff(),
     container().reporting.orderCrm(order),
     container().ordering.queries.paymentInvoices("order", order.id),
     container().ordering.payments.list(order.id),
+    // Макет, который видит клиент (экранная сборка текущей книги), — если собран.
+    container().previews.current(book.id).catch(() => null),
   ]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
@@ -132,6 +134,12 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <p className="mt-4 text-sm text-muted">Файлы ещё не генерировались. Они будут созданы при первом скачивании (≈ 15–60 секунд).</p>
             )}
             {spec ? <p className="mt-3 text-xs text-muted">Сгенерировано {formatDate(spec.generatedAt, true)}</p> : null}
+            {/* Блок собран раньше правок книги или прежней вёрсткой (длинные книги после смены числа проходов) — в типографию ушли бы не те полосы, что видит клиент. */}
+            {spec && built && spec.pageCount !== built.pageCount ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Клиент видит макет на {built.pageCount} стр., а файлы для печати собраны на {spec.pageCount} стр. Пересоберите их перед отправкой в типографию.
+              </p>
+            ) : null}
           </Card>
           ) : null}
 
@@ -141,7 +149,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
               <dt className="text-muted">{bookKind(book.theme) === "autobiography" ? "Рассказчик" : "Автор → адресат"}</dt><dd>{book.authorName}{book.recipientName && bookKind(book.theme) !== "autobiography" ? ` → ${book.recipientName}` : ""}{book.recordedBy ? ` · записано: ${book.recordedBy}` : ""}</dd>
               <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · обложка «{coverName(book.coverTemplate)}» · страницы «{interiorName(book.interior)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
-              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
+              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · {built ? `${built.pageCount} стр. по макету` : `≈ ${stats.printedPages} стр.`}</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">

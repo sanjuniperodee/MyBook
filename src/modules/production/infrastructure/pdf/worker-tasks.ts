@@ -1,4 +1,5 @@
-import type { BookBundle } from "./render";
+import type { Locale } from "@/i18n/config";
+import type { BookBundle, ScreenLayout } from "./render";
 
 /**
  * Задачи вёрстки PDF, которые выполняются в отдельном потоке (pdf/worker.ts): вёрстка react-pdf — чистые вычисления
@@ -9,7 +10,8 @@ export type PdfTask =
   | { task: "printPackage"; bundle: BookBundle; orderNumber: number }
   | { task: "layout"; bundle: BookBundle; pageCount: number; cover: Uint8Array }
   | { task: "reading"; bundle: BookBundle }
-  | { task: "preview"; bundle: BookBundle; watermark?: boolean };
+  | { task: "preview"; bundle: BookBundle }
+  | { task: "watermark"; pdf: Uint8Array; language: Locale; format: string };
 
 export interface PrintPackageResult {
   interior: Uint8Array;
@@ -22,11 +24,17 @@ export interface PrintPackageResult {
   coverHeightMm: number;
 }
 
-/** Результат задачи: для printPackage — пакет файлов, для остальных — один PDF. */
-export type PdfTaskResult<T extends PdfTask> = T extends { task: "printPackage" } ? PrintPackageResult : Uint8Array;
+/** Экранная сборка: PDF без водяного знака и раскладка его полос. */
+export interface ScreenBuildResult {
+  pdf: Uint8Array;
+  layout: ScreenLayout;
+}
+
+/** Результат задачи: для printPackage — пакет файлов, для preview — экранная сборка, для остальных — один PDF. */
+export type PdfTaskResult<T extends PdfTask> = T extends { task: "printPackage" } ? PrintPackageResult : T extends { task: "preview" } ? ScreenBuildResult : Uint8Array;
 
 /** Выполняет задачу в текущем потоке — и в воркере, и запасным путём, когда воркера нет (next dev). */
-export async function runPdfTask(t: PdfTask): Promise<PrintPackageResult | Uint8Array> {
+export async function runPdfTask(t: PdfTask): Promise<PrintPackageResult | ScreenBuildResult | Uint8Array> {
   const r = await import("./render");
   switch (t.task) {
     case "printPackage": {
@@ -39,6 +47,9 @@ export async function runPdfTask(t: PdfTask): Promise<PrintPackageResult | Uint8
     case "reading":
       return r.renderReadingPdf(t.bundle);
     case "preview":
-      return (await r.renderInterior(t.bundle, "preview", { watermark: t.watermark })).pdf;
+      return r.renderScreenBuild(t.bundle);
+    case "watermark":
+      // pdf-lib разбирает и пересобирает весь файл — тоже в потоке PDF, чтобы не держать сайт.
+      return (await import("./watermark")).watermarkPdf(t.pdf, t.language, t.format);
   }
 }

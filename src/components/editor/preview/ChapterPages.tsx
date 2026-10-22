@@ -12,7 +12,7 @@ import { layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } 
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
 import { Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
-import { Folio, RunningHead } from "@/components/interior/folio";
+import { RunningHead } from "@/components/interior/folio";
 import type { PageKit } from "@/components/interior/kit";
 import { OpenerPage } from "@/components/interior/pages";
 import { LazyPage } from "./LazyPage";
@@ -241,11 +241,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
               <div className="absolute" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                 {flow(k)}
               </div>
-              {pages > 1 ? (
-                <Folio kit={kit} recto={k % 2 === 1}>
-                  {k + 1} / {pages}
-                </Folio>
-              ) : null}
+              {/* Номера страниц нет: здесь вёрстка браузера, а номер в книге — у полосы макета (растр PDF). */}
             </>
           )}
         </LazyPage>

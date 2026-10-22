@@ -19,17 +19,19 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/books/${id}/pages`);
   const book = await getAccessibleBook(id, user);
-  const [questions, chapters, photos, m, locale] = await Promise.all([
+  const [questions, chapters, photos, m, locale, screen] = await Promise.all([
     container().authoring.queries.questions(book.id),
     container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
     getMessages(),
     getLocale(),
+    // Готовый макет книги — номера страниц оглавления на развороте те же, что в PDF; нет — оценка.
+    container().previews.current(book.id).catch(() => null),
   ]);
   const t = m.books.pages;
   const format = getFormat(book.format);
 
-  const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos);
+  const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos, screen?.chapterPages);
   // Фото по главам для блока «Главы книги»: что сейчас в каждой главе (с попавшими туда по правилу) и снимок начала.
   const built = buildBookContent(book, questions, photos.map(toPhotoItem), chapters);
   const openerKind = getInteriorDesign(book.interior).opener.photo;
@@ -54,6 +56,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         format={format.id}
         editable={book.status === "draft"}
         sample={spreadSample}
+        exactPages={screen?.chapterPages ?? null}
         stories={stories}
         photoPlan={photoPlan}
         theme={book.theme}

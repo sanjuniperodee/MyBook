@@ -8,7 +8,6 @@
  * folio (колонцифра и колонтитул), surface (страница и полоса набора), kit (дизайн, формат, единицы).
  */
 import type { CSSProperties } from "react";
-import { site } from "@/config/site";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { openerArtShapes } from "@/lib/book/interior-art";
@@ -22,7 +21,7 @@ import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
 import { PageLayer, pageFrame, Vignette } from "./graphics";
-import { ChapterTail, Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
+import { Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
 import { Folio, folioText, RunningHead } from "./folio";
 import { metricsOf, type PageKit } from "./kit";
 import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surface";
@@ -184,22 +183,6 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
   );
 }
 
-/** Оборот титула: копирайт и выходные данные внизу полосы — как в PDF (pdf/interior/colophon.tsx). */
-export function ColophonPage({ kit, year, author, recordedBy, className, style }: PageProps & { year: number; author: string; recordedBy?: string }) {
-  const { design, sizes: S, u } = kit;
-  const t = bookMessagesFor(kit.language);
-  return (
-    <PageSurface kit={kit} className={className} style={style}>
-      <TextArea kit={kit} className="flex flex-col">
-        <div className="flex-1" />
-        <div style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.colophon), lineHeight: FRONT.colophon.lineHeight, color: design.palette.muted, whiteSpace: "pre-line" }}>
-          {`${t.copyright(year, author)}\n${recordedBy ? `${t.recordedBy(recordedBy)}\n` : ""}${t.colophon(site.name)}`}
-        </div>
-      </TextArea>
-    </PageSurface>
-  );
-}
-
 /** Посвящение; пустое — подсказкой (её в книге не будет). */
 export function DedicationPage({ kit, text, placeholder, className, style }: PageProps & { text: string; placeholder?: string }) {
   const { design, sizes: S } = kit;
@@ -262,7 +245,7 @@ export function EndPage({ kit, year, className, style }: PageProps & { year: num
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, part = 0, tail = false, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, className, style }: PageProps & {
   entries: SampleEntry[];
   folio: number;
   bookTitle: string;
@@ -270,10 +253,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
   recto: boolean;
   /** Это первая страница главы: капитель в начале первого ответа. */
   leadIn: boolean;
-  /** Какая по счёту полоса текста главы (с 0): колонки сдвигаются, и видна именно она. */
-  part?: number;
-  /** Концовка главы после последнего ответа (в листаемой книге — да, в образцах разворота — нет). */
-  tail?: boolean;
 }) {
   const { design, sizes: S, u } = kit;
   const area = textArea(kit.format);
@@ -284,7 +263,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
       <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={chapterTitle} recto={recto} />
       <TextArea kit={kit} className="overflow-hidden">
         <div
-          data-flow
           style={{
             width: u.mm(textW),
             height: u.mm(area.h),
@@ -295,7 +273,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
             // абзаца в следующую колонку, ставит следующий абзац на строку выше — строки налезают друг на друга.
             widows: 1,
             orphans: 1,
-            transform: part ? `translateX(calc(${-part} * (${u.mm(textW)} + ${u.mm(side * 2)})))` : undefined,
           }}
         >
           {entries.map((e, i) => (
@@ -308,7 +285,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
               />
             </div>
           ))}
-          {tail ? <ChapterTail kit={kit} /> : null}
         </div>
       </TextArea>
       <Folio kit={kit} recto={recto}>

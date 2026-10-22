@@ -1,14 +1,18 @@
 export {
   BookPreviewService,
   PrintFilesService,
+  RasterizerMissingError,
   type BookRenderer,
   type FileStore,
+  type PageRaster,
   type PrintFileKind,
   type PrintJob,
   type PrintSpec,
   type RenderQueue,
+  type ScreenDraft,
 } from "./application/PrintFilesService";
 export { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "./infrastructure/adapters";
+export { pdfPageRaster } from "./infrastructure/pageRaster";
 export { coverPhotoDataUrl, coverPhotoResized, isCoverPhotoKey } from "./infrastructure/coverPhotos";
 
 /** PDF подарочного сертификата. Рендерер тяжёлый, поэтому загружается только при первом вызове. */

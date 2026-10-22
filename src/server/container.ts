@@ -24,7 +24,7 @@ import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
-import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
+import { BookPreviewService, PrintFilesService, pdfPageRaster, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
 import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
@@ -379,7 +379,7 @@ export class Container {
   }
 
   get previews(): BookPreviewService {
-    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, (bookId) => this.ordering.queries.bookPaid(bookId)));
+    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, pdfPageRaster, consoleLogger("production"), (bookId) => this.ordering.queries.bookPaid(bookId)));
   }
 
   get ordering(): OrderingModule {

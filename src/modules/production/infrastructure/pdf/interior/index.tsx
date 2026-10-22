@@ -19,7 +19,8 @@ export type { PreparedImage } from "./kit";
  * Блок книги. Шрифты, цвета, виньетки, начальные полосы, колонтитулы и колонцифры берутся из
  * дизайна (content.interior); те же правила рисуют HTML-превью на сайте (components/interior).
  * Порядок полос: титул, оборот титула, посвящение, оглавление, главы (начальная полоса, текст, фото),
- * галерея, финал. Каждая полоса — свой файл рядом.
+ * галерея, финал. Каждая полоса — свой файл рядом и помечена видом (pageMark) для манифеста сборки.
+ * Водяного знака в вёрстке нет: сборка одна для экрана и печати, знак ставится поверх готового PDF (pdf/watermark.tsx).
  */
 export function InteriorDocument({ content, options }: { content: BookContent; options: InteriorOptions }) {
   const kit = pdfKit(content, options);
@@ -34,9 +35,9 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
     const lastText = runs.findLastIndex((r) => r.items.length);
     runs.forEach((run, i) => {
       if (run.items.length) pages.push(<ChapterBody key={`body-${ch.key}-${i}`} kit={kit} chapter={ch} items={run.items} first={i === 0} tail={i === lastText} />);
-      if (run.photo) pages.push(<PhotoPage key={`pp-${ch.key}-${i}`} kit={kit} group={[run.photo]} />);
+      if (run.photo) pages.push(<PhotoPage key={`pp-${ch.key}-${i}`} kit={kit} group={[run.photo]} chapterKey={ch.key} />);
     });
-    photoPages(ch.photos).forEach((group, i) => pages.push(<PhotoPage key={`ph-${ch.key}-${i}`} kit={kit} group={group} />));
+    photoPages(ch.photos).forEach((group, i) => pages.push(<PhotoPage key={`ph-${ch.key}-${i}`} kit={kit} group={group} chapterKey={ch.key} />));
   }
 
   if (content.galleryPhotos.length) {

@@ -29,12 +29,12 @@ import {
   type FaceId,
   type Orientation,
 } from "@/lib/book/book-model";
-import { clampPos, RENDER_WINDOW, visibleSpread, type Sheet } from "@/lib/book/flipbook";
+import { clampPos, leafCount, leafPages, pagesNear, RENDER_WINDOW, sheetCount, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/class-names";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls } from "./ViewerControls";
-import { FaceView, usePagedBook, type FaceContext, type FlipbookData } from "./pages";
+import { BuildNotice, BuildPlaceholder, leafImage, leafImageWidth, NEAR_SPREADS, useFlipbookPages, type FlipbookData } from "./pages";
 import { useBookKeys, useFullscreen } from "./hooks";
 
 /** Длина в миллиметрах модели → CSS: --u — пикселей на миллиметр, зависит от размера кадра и масштаба. */
@@ -88,41 +88,72 @@ const paperEdge = (deg: number): CSSProperties => ({
 
 const endpaper: CSSProperties = { background: "linear-gradient(135deg,#efe7d8,#e4d9c4)" };
 
-/** Лист блока: две полосы на общей плоскости, вращается вокруг оси корешка (поворот задаёт родитель). */
+/**
+ * Картинка полосы на стороне листа; без адреса — чистая бумага (пустая полоса или далеко от разворота). Не загрузилась —
+ * тоже чистая бумага (не значок битой картинки, повёрнутый вместе с листом), а сборку переспрашиваем: её могли заменить.
+ */
+function LeafImage({ src, onFailed }: { src: string | null; onFailed: () => void }) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (!src || broken === src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- растр полосы из /api/books/[id]/pages: свои размеры и кэш
+    <img
+      src={src}
+      alt=""
+      draggable={false}
+      decoding="async"
+      className="absolute inset-0 block size-full"
+      onError={() => {
+        setBroken(src);
+        onFailed();
+      }}
+    />
+  );
+}
+
+/**
+ * Окно загрузки полос — с задержкой: ползунок и быстрое листание меняют цель много раз в секунду, а каждая картинка,
+ * которую браузер начал грузить, — растр на сервере, общий для всех.
+ */
+const WINDOW_DELAY_MS = 120;
+
+/**
+ * Лист блока: две полосы на общей плоскости, вращается вокруг оси корешка (поворот задаёт родитель). front и back —
+ * картинки полос, только у разворотов возле читаемого: ушедший из окна лист снимает <img>, и браузер бросает загрузку.
+ */
 const PageLeaf = memo(function PageLeaf({
   index,
-  sheet,
-  ctx,
-  near,
+  front,
+  back,
   pivotX,
   w,
   h,
   z,
   reg,
+  onFailed,
 }: {
   index: number;
-  sheet: Sheet;
-  ctx: FaceContext;
-  near: boolean;
+  front: string | null;
+  back: string | null;
   pivotX: number;
   w: number;
   h: number;
   z: number;
   reg: (i: number, el: HTMLElement | null) => void;
+  onFailed: () => void;
 }) {
-  const page = sheet.kind === "pages" ? sheet : null;
   const gutter = (dir: "right" | "left") => `linear-gradient(to ${dir}, rgba(0,0,0,.2), rgba(0,0,0,.05) 7%, rgba(0,0,0,0) 18%)`;
   return (
     <div className="absolute top-0 left-0 size-0" style={{ transformStyle: "preserve-3d", transform: `translate3d(${L(pivotX)}, 0, 0)` }}>
       <div ref={(el) => reg(index, el)} className="absolute top-0 left-0 size-0" style={{ transformStyle: "preserve-3d", display: "none" }}>
         <div className="absolute top-0 left-0" style={{ width: L(w), height: L(h), transformStyle: "preserve-3d", transform: `translate(0, -50%) translateZ(${L(z)})` }}>
           <div data-flip="next" className="absolute inset-0 overflow-hidden bg-white" style={{ ...hidden, ...smooth }}>
-            {near && page ? <FaceView face={page.front} no={page.frontNo} ctx={ctx} /> : null}
+            <LeafImage src={front} onFailed={onFailed} />
             <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: gutter("right") }} />
             <div aria-hidden data-shade="front" data-leaf={index} data-k="0.4" data-turn="" className="pointer-events-none absolute inset-0 bg-black" style={{ opacity: 0 }} />
           </div>
           <div data-flip="prev" className="absolute inset-0 overflow-hidden bg-white" style={{ ...hidden, ...smooth, transform: "rotateY(180deg)" }}>
-            {near && page ? <FaceView face={page.back} no={page.backNo} ctx={ctx} /> : null}
+            <LeafImage src={back} onFailed={onFailed} />
             <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: gutter("left") }} />
             <div aria-hidden data-shade="back" data-leaf={index} data-k="0.4" data-turn="" className="pointer-events-none absolute inset-0 bg-black" style={{ opacity: 0 }} />
           </div>
@@ -145,22 +176,27 @@ interface Pointers {
 /**
  * Книга как предмет: вращается мышью и пальцем со всех сторон, а клик по обложке и страницам открывает её и листает.
  * Всё — один набор плоскостей CSS 3D: обложка и листы вращаются вокруг оси корешка, две стопки страниц растут и убывают.
+ * Запасной вариант BookViewerGL (без WebGL): страницы — те же картинки полос экранной сборки.
  */
-export function BookViewer3D({ data, className }: { data: FlipbookData; className?: string }) {
+export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; bookId: string; className?: string }) {
   const m = useMessages().books.preview;
   const f = m.flip;
   const mm = m.model;
   const format = getFormat(data.formatId);
   const template = getCoverTemplate(data.cover.template);
-  const { pageCount, brand, back, backPhotos } = data.model;
-  const { sheets, ctx, measure } = usePagedBook(data);
+  const { brand, back, backPhotos } = data.model;
+  const pages = useFlipbookPages(bookId);
+  const { build } = pages;
+  // Пока сборки нет, книгу не строим (заглушка): толщина корешка и число листов — по её полосам.
+  const pageCount = build?.pageCount ?? 0;
+  const imageW = useMemo(() => leafImageWidth(), []);
 
   const dims = useMemo(() => bookDims(format, pageCount), [format, pageCount]);
   const backDesign = useMemo(() => designBack(template, dims.w, dims.h, back), [template, dims, back]);
   const extent = modelExtent(dims);
-  const count = sheets.length;
+  const count = build ? sheetCount(pageCount) : 0;
   /** Листов блока: между обложкой и задней крышкой. */
-  const M = Math.max(1, count - 2);
+  const M = leafCount(pageCount);
 
   // ── Арт обложки: лицо, оборот и корешок — отдельными обрезанными картинками ──
   const imageHref = useCoverImage(template);
@@ -198,6 +234,15 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   const pointers = useRef<Pointers>({ map: new Map(), pinch: null, last: null, start: null });
   const [slot, setSlot] = useState(0);
   const slotRef = useRef(0);
+  // Куда листаем и откуда: картинки — у цели (и у начала, пока листы летят), а не у каждой полосы по пути.
+  const [dest, setDest] = useState(0);
+  const origin = useRef(0);
+  const [near, setNear] = useState<ReadonlySet<number>>(() => new Set());
+  const recover = useRef(pages.recover);
+  useEffect(() => {
+    recover.current = pages.recover;
+  });
+  const onLeafFailed = useCallback(() => recover.current?.(), []);
   const [auto, setAuto] = useState(true);
   const [active, setActive] = useState<string | null>("front");
 
@@ -271,7 +316,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
     shadeEls.current = Array.from(stage.current?.querySelectorAll<HTMLElement>("[data-shade]") ?? []);
     lastAngle.current = [];
     apply();
-  }, [apply, dims, art, count, slot, ctx]);
+  }, [apply, dims, art, count, slot, build]);
 
   // Кадр вызывает сам себя через ref: функция не может ссылаться на себя при объявлении.
   const frame = useRef<(now: number) => void>(() => {});
@@ -384,6 +429,8 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
       const to = Math.round(clampPos(n, Math.max(1, cfg.current.count)));
       const from = pos.current;
       target.current = to;
+      origin.current = Math.round(from);
+      setDest(to);
       if (from < 0.5 && to >= 1) {
         // Открытую книгу удобно читать только лицом к себе: если смотрели сбоку или снизу, разворачиваем.
         const v = view.current;
@@ -556,10 +603,17 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
   } as CSSProperties;
   const spread = count ? visibleSpread(slot, count) : { left: null, right: null };
   const label = !count ? f.loading : slot === 0 ? f.cover : slot === count - 1 ? f.backCover : f.pages(spread.left, spread.right);
+  // Картинки — только у полос разворотов возле цели листания, по ним и окно загрузки (память телефона).
+  const settled = slot === dest;
+  useEffect(() => {
+    if (!pageCount) return;
+    const id = window.setTimeout(() => setNear(new Set([...pagesNear(dest, pageCount, NEAR_SPREADS), ...(settled ? [] : pagesNear(origin.current, pageCount, NEAR_SPREADS))])), WINDOW_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [dest, settled, pageCount]);
+  const src = (n: number) => (build && near.has(n) ? leafImage(build, n, imageW) : null);
 
   return (
     <div ref={wrapper} className={cn("flex flex-col items-center gap-4", full && "justify-center bg-paper p-4", className)}>
-      {measure}
       <div
         ref={stage}
         role="group"
@@ -574,8 +628,10 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
         className="relative w-full cursor-grab touch-none overflow-hidden rounded-3xl bg-[radial-gradient(ellipse_at_50%_35%,#fffdf9,#efe7da_70%)] select-none focus-visible:outline-offset-4 active:cursor-grabbing"
         style={{ ...sceneStyle, containerType: "size", ...(full ? { height: "calc(100dvh - 12rem)" } : { maxWidth: "48rem", aspectRatio: "5 / 4" }) }}
       >
-        <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-[50%] bg-black/35 blur-2xl" style={{ top: `calc(50% + ${L(H * 0.56)})`, width: L(W * 1.1), height: L(D * 2 + 6), opacity: "calc(var(--ground, 1) * 0.8)" }} />
-        <div className="absolute inset-0" style={{ perspective: `calc(${Math.round(extent * 3.4)} * var(--u))` }}>
+        {!build ? <BuildPlaceholder pages={pages} /> : null}
+        <BuildNotice pages={pages} />
+        <div aria-hidden className={cn("pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-[50%] bg-black/35 blur-2xl", !build && "hidden")} style={{ top: `calc(50% + ${L(H * 0.56)})`, width: L(W * 1.1), height: L(D * 2 + 6), opacity: "calc(var(--ground, 1) * 0.8)" }} />
+        <div className={cn("absolute inset-0", !build && "hidden")} style={{ perspective: `calc(${Math.round(extent * 3.4)} * var(--u))` }}>
           <div ref={orbit} className="absolute top-1/2 left-1/2 size-0" style={{ transformStyle: "preserve-3d" }}>
             <div ref={shift} className="absolute top-0 left-0 size-0" style={{ transformStyle: "preserve-3d" }}>
               {/* Правая стопка страниц: убывает по мере листания; видны её срезы */}
@@ -604,11 +660,12 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
               {/* Корешок */}
               <Cuboid w={0.01} h={H} d={D} at={[-W / 2 - 0.05, 0, 0]} faces={{ left: { shade: "spine", node: spineNode } }} />
 
-              {/* Листы блока: плоскости с текстом, вращаются вокруг оси корешка */}
-              {ctx
-                ? sheets.slice(1, count - 1).map((sheet, k) => {
+              {/* Листы блока: плоскости с картинками полос, вращаются вокруг оси корешка */}
+              {build
+                ? Array.from({ length: M }, (_, k) => {
                     const index = k + 1;
-                    return <PageLeaf key={index} index={index} sheet={sheet} ctx={ctx} near={Math.abs(index - slot) <= RENDER_WINDOW + 1} pivotX={pivotX} w={bw} h={bh} z={leafZ(index, M, dims.block.d)} reg={reg} />;
+                    const { front, back: verso } = leafPages(index);
+                    return <PageLeaf key={index} index={index} front={src(front)} back={src(verso)} pivotX={pivotX} w={bw} h={bh} z={leafZ(index, M, dims.block.d)} reg={reg} onFailed={onLeafFailed} />;
                   })
                 : null}
 
@@ -644,7 +701,7 @@ export function BookViewer3D({ data, className }: { data: FlipbookData; classNam
         auto={auto}
         canFull={canFull}
         full={full}
-        dimsText={mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(D * 10) / 10, pageCount)}
+        dimsText={build ? mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(D * 10) / 10, pageCount) : ""}
         onPrev={() => { stopAuto(); goTo(target.current - 1); }}
         onNext={() => { stopAuto(); goTo(target.current + 1); }}
         onSeek={(n) => { stopAuto(); goTo(n); }}

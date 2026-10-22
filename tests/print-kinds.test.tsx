@@ -1,27 +1,21 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { FaceView } from "@/components/book3d/pages";
 import { flipbookData } from "@/components/book3d/flipbook-data";
-import { cqwUnits } from "@/components/interior/units";
-import { pageKit } from "@/components/interior/kit";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import { messagesFor } from "@/i18n/messages";
 import { buildBookContent } from "@/lib/book/book-content";
-import { getFormat } from "@/lib/book/formats";
-import { planFaces } from "@/lib/book/flipbook";
-import { getInteriorDesign } from "@/lib/book/interiors";
 import { toPhotoItem } from "@/lib/book/layout";
+import { GALLERY_KEY } from "@/lib/book/toc";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { fixtureBook, fixtureVariants, type FixtureBook } from "./fixtures/books";
 import { photoNames, useFixtureStorage, variantPhotoNames } from "./fixtures/photos";
 import { hasTool, textRows } from "./pdf-inspect";
 
 /**
- * Подписи по виду книги — «Из семейного альбома» / «Фотографии», «Записано со слов автора» — одни и те же в PDF
- * (оборот титула, оглавление, начальная полоса галереи), в HTML-полосах и в раскладке 3D-книги; рукопись и пример
+ * Подписи по виду книги — «Из семейного альбома» / «Фотографии», «Записано со слов автора» — в PDF (оборот титула,
+ * оглавление, начальная полоса галереи); 3D-книга и вкладка PDF показывают картинки этих же полос. Рукопись и пример
  * разворота до первых ответов тоже зависят от вида.
  */
 
@@ -38,12 +32,12 @@ beforeAll(async () => {
   render = await import("@/modules/production/infrastructure/pdf/render");
 });
 
-/** Текст полос PDF по порядку: каждая полоса — строки через перевод строки. */
+/** Текст полос PDF по порядку (каждая полоса — строки через перевод строки) и первые полосы глав. */
 async function pdfPages(fb: FixtureBook) {
   const res = await render.renderInterior(fb.bundle, "print");
   const file = path.join(dir, `${fb.key}-${fb.bundle.book.language}.pdf`);
   writeFileSync(file, res.pdf);
-  return textRows(file).map((rows) => rows.map((r) => r.text).join("\n"));
+  return { pages: textRows(file).map((rows) => rows.map((r) => r.text).join("\n")), chapterPages: res.chapterPages };
 }
 
 const autobiography = variant("autobiography");
@@ -51,32 +45,36 @@ const blank = variant("blank");
 const gift = fixtureBook("classic", "a5", "ru");
 
 describe.skipIf(!hasTool("pdftotext"))("PDF: подписи по виду книги", () => {
-  it("автобиография (ru): «записано со слов» на обороте титула, галерея — «Из семейного альбома» в оглавлении и на начальной полосе", async () => {
-    const pages = await pdfPages(autobiography);
+  it("автобиография (ru): «записано со слов» на обороте титула, галерея — «Из семейного альбома» в оглавлении (без номера, со своей полосой) и на начальной полосе", async () => {
+    const { pages, chapterPages } = await pdfPages(autobiography);
     expect(pages[1]).toContain("Записано со слов автора — внучка Аружан");
     expect(pages[1]).toContain("© ");
     expect(pages.findIndex((p) => p.includes("Из семейного альбома") && p.toLowerCase().includes("содержание"))).toBeGreaterThan(-1);
     // Оглавление и начальная полоса галереи (дизайн может набирать название прописными).
     expect(pages.filter((p) => p.toLowerCase().replace(/\s+/g, " ").includes("из семейного альбома"))).toHaveLength(2);
     expect(pages.join("\n")).not.toContain("Наши моменты");
+    // Строка галереи в оглавлении — без номера главы, с номером её начальной полосы.
+    const row = pages.find((p) => p.toLowerCase().includes("содержание"))!.split("\n").find((r) => r.includes("Из семейного альбома"))!;
+    expect(row).not.toMatch(/\d\.\s*Из семейного альбома/);
+    expect(row.endsWith(` ${chapterPages[GALLERY_KEY]}`), row).toBe(true);
   });
 
   it("автобиография (kk): строка и галерея на казахском", async () => {
-    const pages = await pdfPages(withLanguage(autobiography, "kk"));
+    const { pages } = await pdfPages(withLanguage(autobiography, "kk"));
     expect(pages[1]).toContain("Автордың айтуымен жазып алған — внучка Аружан");
     expect(pages.join("\n")).toContain("Отбасылық альбомнан");
   });
 
   it("своя книга: галерея — «Фотографии», строки «записано со слов» нет", async () => {
     const withGallery: FixtureBook = { ...blank, bundle: { ...blank.bundle, book: { ...blank.bundle.book, photoPlacement: "end" } } };
-    const pages = await pdfPages(withGallery);
+    const { pages } = await pdfPages(withGallery);
     expect(pages[1]).not.toContain("Записано со слов");
     expect(pages.findIndex((p) => p.includes("Фотографии") && p.toLowerCase().includes("содержание"))).toBeGreaterThan(-1);
   });
 
   it("подарок: «Наши моменты» и никакой строки «записано со слов», даже если поле заполнено", async () => {
     const odd: FixtureBook = { ...gift, bundle: { ...gift.bundle, book: { ...gift.bundle.book, recordedBy: "кто-то", photoPlacement: "end" } } };
-    const pages = await pdfPages(odd);
+    const { pages } = await pdfPages(odd);
     expect(pages[1]).not.toContain("Записано");
     expect(pages.findIndex((p) => p.includes("Наши моменты") && p.toLowerCase().includes("содержание"))).toBeGreaterThan(-1);
   });
@@ -106,63 +104,30 @@ describe("рукопись (plainText)", () => {
   });
 });
 
-describe("HTML-полосы и 3D-книга", () => {
+describe("3D-книга", () => {
   const dataOf = (fb: FixtureBook) => {
     const { book, questions, chapters, photos, letters } = fb.bundle;
     return flipbookData(book, questions, chapters, photos, letters ?? []);
   };
-  const ctxOf = (fb: FixtureBook) => {
-    const data = dataOf(fb);
-    const kit = pageKit(getInteriorDesign(data.interiorId), getFormat(data.formatId), cqwUnits(getFormat(data.formatId).widthMm), data.language);
-    const plan = planFaces({
-      hasDedication: !!data.dedication,
-      hasToc: data.showToc,
-      textPages: data.chapters.map((c) => (c.entries.length ? 2 : 0)),
-      photoPages: data.chapters.map((c) => c.photoPages?.length ?? 0),
-      galleryPages: data.gallery?.pages.length ?? 0,
-    });
-    return { data, ctx: { data, kit, chapterStarts: plan.chapterStarts, galleryStart: plan.galleryStart }, plan };
-  };
-  const html = (fb: FixtureBook, kind: "colophon" | "toc" | "galleryOpener") => {
-    const { ctx } = ctxOf(fb);
-    return renderToStaticMarkup(<FaceView face={kind === "toc" ? { kind, part: 0 } : { kind }} no={3} ctx={ctx} />);
-  };
-  const withGallery = (fb: FixtureBook): FixtureBook => ({ ...fb, bundle: { ...fb.bundle, book: { ...fb.bundle.book, photoPlacement: "end" } } });
+  const placed = (fb: FixtureBook, photoPlacement: "chapters" | "end"): FixtureBook => ({ ...fb, bundle: { ...fb.bundle, book: { ...fb.bundle.book, photoPlacement } } });
 
-  it("оборот титула автобиографии: та же строка, что в PDF; у остальных видов её нет", () => {
-    const t = bookMessagesFor("ru");
-    expect(html(autobiography, "colophon")).toContain(t.recordedBy("внучка Аружан"));
-    expect(html(blank, "colophon")).not.toContain("Записано");
-    expect(html(gift, "colophon")).not.toContain("Записано");
-  });
-
-  it("оглавление 3D содержит галерею без номера, как PDF, и номер её полосы из раскладки", () => {
-    const fb = withGallery(autobiography);
-    const { data, plan } = ctxOf(fb);
-    expect(data.gallery?.title).toBe("Из семейного альбома");
-    expect(plan.galleryStart).not.toBeNull();
-    const toc = html(fb, "toc");
-    expect(toc).toContain("Из семейного альбома");
-    expect(toc).toContain(`>${plan.galleryStart}<`);
-    expect(toc).not.toMatch(/\d\. Из семейного альбома/);
-    expect(html(fb, "galleryOpener")).toContain("Из семейного альбома");
-  });
-
-  it("раскладка: полоса галереи — начальная полоса галереи; без галереи null", () => {
-    const { plan } = ctxOf(withGallery(autobiography));
-    expect(plan.faces[(plan.galleryStart ?? 0) - 1].kind).toBe("galleryOpener");
-    const chapters: FixtureBook = { ...autobiography, bundle: { ...autobiography.bundle, book: { ...autobiography.bundle.book, photoPlacement: "chapters" } } };
-    expect(ctxOf(chapters).plan.galleryStart).toBeNull();
+  // Страницы 3D-книги — полосы экранной сборки по манифесту; подписи на них проверены по PDF выше.
+  it("листает полосы сборки: начальная полоса галереи — на её номере из оглавления, за ней фото; без галереи её нет", async () => {
+    const res = await render.renderInterior(placed(autobiography, "end").bundle, "preview");
+    const at = res.chapterPages[GALLERY_KEY];
+    expect(res.pages[at - 1]).toEqual({ n: at, kind: "opener", chapterKey: GALLERY_KEY });
+    expect(res.pages[at].kind).toBe("gallery");
+    const chapters = await render.renderInterior(placed(autobiography, "chapters").bundle, "preview");
+    expect(chapters.chapterPages[GALLERY_KEY]).toBeUndefined();
+    expect(chapters.pages.some((p) => p.kind === "gallery" || p.chapterKey === GALLERY_KEY)).toBe(false);
   });
 
   it("название обложки в 3D — название, которое печатается (у своей книги с пустым полем — «Моя книга»), имена — как на обложке PDF", () => {
     const data = dataOf(blank);
     expect(data.cover.title).toBe(contentOf(blank).title);
     expect(data.cover.title).toBe("Моя книга");
-    const auto = dataOf(autobiography);
-    expect(auto.cover.names).toBe(autobiography.bundle.book.authorName.trim());
-    expect(auto.recordedBy).toBe("внучка Аружан");
-    expect(dataOf(gift).recordedBy).toBe("");
+    expect(data.title).toBe("Моя книга");
+    expect(dataOf(autobiography).cover.names).toBe(autobiography.bundle.book.authorName.trim());
   });
 });
 

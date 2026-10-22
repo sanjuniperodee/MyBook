@@ -7,18 +7,21 @@ import { useMessages } from "@/i18n/client";
 import type { FlipbookData } from "@/components/book3d/pages";
 import { supportsWebGL } from "@/components/book3d/webgl/support";
 import { cn } from "@/lib/class-names";
-import { PreviewFrame } from "./PreviewFrame";
+import { PageReader } from "@/components/book-pages/PageReader";
 
 const placeholder = () => <div className="mx-auto aspect-[5/4] w-full max-w-3xl animate-pulse rounded-3xl bg-cream" aria-hidden />;
 // Объёмная книга — самый тяжёлый код страницы (Three.js): подгружается отдельным куском и только в браузере.
 const BookViewerGL = dynamic(() => import("@/components/book3d/BookViewerGL").then((m) => m.BookViewerGL), { ssr: false, loading: placeholder });
-// Запасной вариант без WebGL: та же книга на CSS 3D.
+// Запасной вариант без WebGL: та же книга на CSS 3D, с теми же картинками полос.
 const BookViewerCss = dynamic(() => import("@/components/book3d/BookViewer3D").then((m) => m.BookViewer3D), { ssr: false, loading: placeholder });
 
 type Tab = "book" | "pdf";
 
-/** 3D-книга — осмотр со всех сторон и чтение с листанием, PDF — точная вычитка; PDF собирается, только когда его открыли. */
-export function PreviewTabs({ bookId, initialVersion, flipbook }: { bookId: string; initialVersion: number; flipbook: FlipbookData }) {
+/**
+ * 3D-книга — осмотр со всех сторон и чтение с листанием, PDF — страницы разворотами. Страницы у обеих — картинки
+ * одной экранной сборки (того же PDF, что для типографии); сборку спрашивает открытая вкладка.
+ */
+export function PreviewTabs({ bookId, flipbook }: { bookId: string; flipbook: FlipbookData }) {
   const t = useMessages().books.preview;
   const [tab, setTab] = useState<Tab>("book");
   // WebGL — основной рендерер; если его нет или видеокарта сбросила контекст, показываем CSS-версию.
@@ -52,11 +55,11 @@ export function PreviewTabs({ bookId, initialVersion, flipbook }: { bookId: stri
       </div>
       {tab === "book" ? (
         <div role="tabpanel" id="preview-panel-book" aria-labelledby="preview-tab-book">
-          {webgl && !lost ? <BookViewerGL data={flipbook} onUnsupported={() => setLost(true)} /> : <BookViewerCss data={flipbook} />}
+          {webgl && !lost ? <BookViewerGL data={flipbook} bookId={bookId} onUnsupported={() => setLost(true)} /> : <BookViewerCss data={flipbook} bookId={bookId} />}
         </div>
       ) : (
         <div role="tabpanel" id="preview-panel-pdf" aria-labelledby="preview-tab-pdf">
-          <PreviewFrame bookId={bookId} initialVersion={initialVersion} />
+          <PageReader bookId={bookId} />
         </div>
       )}
     </div>

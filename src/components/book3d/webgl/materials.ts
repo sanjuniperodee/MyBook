@@ -17,7 +17,10 @@ export function bookMaterials(track: Track, edgeColor: string, stripes: { u: THR
   const sideU = track(new THREE.MeshStandardMaterial({ map: stripes.u, roughness: 0.95, metalness: 0 }));
   const sideV = track(new THREE.MeshStandardMaterial({ map: stripes.v, roughness: 0.95, metalness: 0 }));
   const pile = [sideU, sideU, sideV, sideV, paper, paper];
-  /** Сторона листа: лицевая (FrontSide) или оборот (BackSide) — свой материал, на него ложится текстура полосы. */
-  const page = (side: THREE.Side) => track(new THREE.MeshStandardMaterial({ color: "#fbf8f1", roughness: 0.92, metalness: 0, side }));
+  /**
+   * Сторона листа: лицевая (FrontSide) или оборот (BackSide) — свой материал, на него ложится картинка полосы.
+   * Цвета вершин листа — тень у корешка (leafGeometry): сцена считает свет, но не складку.
+   */
+  const page = (side: THREE.Side) => track(new THREE.MeshStandardMaterial({ color: "#fbf8f1", roughness: 0.92, metalness: 0, side, vertexColors: true }));
   return { edge, spine, front, back, pile, page };
 }

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { decodePDFRawStream, PDFArray, PDFDocument, PDFName, PDFNumber, PDFRawStream } from "pdf-lib";
+import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream } from "pdf-lib";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getTheme, isThemeId } from "@/lib/content/themes";
 import { answerBlocks } from "@/lib/book/answer-blocks";
@@ -201,17 +201,25 @@ async function imageWidths(pdf: Buffer) {
     .flatMap(([, obj]) => (obj instanceof PDFRawStream && obj.dict.get(PDFName.of("Subtype")) === PDFName.of("Image") ? [obj.dict.lookup(PDFName.of("Width"), PDFNumber).asNumber()] : []));
 }
 
-/** Номера полос (с 1) без текста: в превью на каждой полосе есть хотя бы водяной знак. */
+/**
+ * Номера полос (с 1) без текста — ни в своих потоках, ни во вставленной полосе (Form XObject): у PDF со знаком
+ * на каждой полосе есть хотя бы водяной знак, он стоит поверх полосы вставленной наклейкой.
+ */
 async function pagesWithoutText(pdf: Buffer, count: number) {
   const doc = await PDFDocument.load(pdf);
+  const ops = (s: unknown) => (s instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(s).decode()).toString("latin1") : "");
   return doc
     .getPages()
     .slice(0, count)
     .flatMap((page, i) => {
       const contents = page.node.Contents();
-      const streams = contents instanceof PDFArray ? contents.asArray().map((ref) => doc.context.lookup(ref)) : [contents];
-      const ops = streams.map((s) => (s instanceof PDFRawStream ? Buffer.from(decodePDFRawStream(s).decode()).toString("latin1") : "")).join("\n");
-      return /\bT[jJ]\b/.test(ops) ? [] : [i + 1];
+      const own = (contents instanceof PDFArray ? contents.asArray().map((ref) => doc.context.lookup(ref)) : [contents]).map(ops).join("\n");
+      const xobjects = page.node.Resources()?.lookupMaybe(PDFName.of("XObject"), PDFDict);
+      const forms = [...own.matchAll(/\/(\S+)\s+Do\b/g)]
+        .map((m) => xobjects?.lookup(PDFName.of(m[1])))
+        .filter((x) => x instanceof PDFRawStream && x.dict.get(PDFName.of("Subtype")) === PDFName.of("Form"))
+        .map(ops);
+      return [own, ...forms].some((o) => /\bT[jJ]\b/.test(o)) ? [] : [i + 1];
     });
 }
 
@@ -262,15 +270,18 @@ describe("рендер книг набора", () => {
     ["a5", "ru"],
     ["square", "ru"],
     ["square", "kk"],
-  ] as const)("превью %s %s: водяной знак на каждой полосе, в том числе на фото под обрез, без предупреждений react-pdf", async (format, language) => {
-    // В квадрате react-pdf считал снимок во весь лист выше полосы («can't wrap between pages») и отбрасывал водяной
-    // знак на фотостраницах под обрез. В kk фото в конце книги — фотостраницы идут после начальной полосы галереи.
+  ] as const)("превью %s %s: без предупреждений react-pdf; водяной знак поверх каждой полосы, в том числе фото под обрез", async (format, language) => {
+    // В квадрате react-pdf считал снимок во весь лист выше полосы («can't wrap between pages») и отбрасывал всё после
+    // него на фотостраницах под обрез. В kk фото в конце книги — фотостраницы идут после начальной полосы галереи.
+    // Знак — уже не часть вёрстки: он ставится поверх готовой экранной сборки (pdf/watermark.tsx).
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const res = await render.renderInterior(fixtureBook("classic", format, language).bundle, "preview");
     const warnings = warn.mock.calls.map((args) => String(args[0]));
     warn.mockRestore();
     expect(warnings).toEqual([]);
-    expect(await pagesWithoutText(res.pdf, res.contentPages)).toEqual([]);
+    const { watermarkPdf } = await import("@/modules/production/infrastructure/pdf/watermark");
+    const marked = await watermarkPdf(res.pdf, language, format);
+    expect(await pagesWithoutText(marked, res.pageCount)).toEqual([]);
   });
 
   it.skipIf(!hasTool("pdftotext") || !hasTool("pdftoppm")).each([
@@ -280,7 +291,7 @@ describe("рендер книг набора", () => {
     // Раньше react-pdf оставлял разделитель внизу полосы и ужимал до нулевой высоты — pdfkit падал на Infinity.
     const { bundle } = fixtureBook(design, "a5", "ru");
     const questions = bundle.questions.map((q) => (q.position === 11 ? { ...q, hideHeading: true } : q));
-    const res = await render.renderInterior({ ...bundle, questions }, "preview", { watermark: false });
+    const res = await render.renderInterior({ ...bundle, questions }, "preview");
     const file = path.join(dir, `headless-${design}.pdf`);
     writeFileSync(file, res.pdf);
     const sheet = sheetOf(render.contentFor(bundle).format);
