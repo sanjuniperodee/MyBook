@@ -54,6 +54,11 @@ export interface PlaceBook {
   /** Название альбома в конце по виду книги (book-content.ts) — до своего названия автора. */
   galleryTitle: string;
   editable: boolean;
+  /**
+   * Правила раскладки фото книги (books.layout_rev; нет — прежние, 1). На прежних первая правка места сначала
+   * переводит книгу на правила 2 (ensureLayoutRev2, api.ts).
+   */
+  layoutRev?: number;
 }
 
 /** Глава книги по порядку: название (своё из tocLines), номер и эпиграф для мини-страницы; printed — в ней есть что печатать. */
@@ -98,6 +103,12 @@ export interface PlaceEvents {
    * вызывающему, который сам пересобирает книгу по onPhotos, — нет.
    */
   onPlaces?: (places: ReadonlyMap<string, PhotoPlace>) => void;
+  /**
+   * Книгу перевели на правила раскладки 2 перед правкой мест или сверили версию правил после правки: версия и все
+   * строки фото книги (по позициям) — вызывающий заменяет ими свои (редактор — фото и layoutRev книги, вкладки —
+   * перечитывают страницу).
+   */
+  onLayout?: (sync: { layoutRev: number; photos: PhotoRowView[] }) => void;
 }
 
 /** Названия для подписей мест. */
@@ -217,13 +228,24 @@ export function restoreUpdates(snaps: readonly PlaceSnapshot[]): { id: string; p
     .map((s) => ({ id: s.id, patch: { questionId: s.questionId, chapter: s.questionId ? null : s.chapter, opener: s.opener, crop: s.crop } }));
 }
 
-/** Переносы одним пакетом: если фото становится фото главы, где уже стоит выбранное, то прежнее сначала уходит после главы. */
-export function moveUpdates(moves: readonly { id: string; target: PlaceTarget }[], places: ReadonlyMap<string, PhotoPlace>): { id: string; patch: PlacePatch }[] {
+/**
+ * Фото с отметкой фото главы chapterKey в строках (кроме except): после перевода на правила 2 так закреплено и фото
+ * главы, которое прежние правила ставили сами, — пока места не пересобраны, они его ещё зовут подставленным.
+ */
+function markedOpener(photos: readonly SheetPhoto[] | undefined, chapterKey: string, except: string): string | null {
+  return photos?.find((p) => p.opener && !p.questionId && p.chapter === chapterKey && p.id !== except)?.id ?? null;
+}
+
+/**
+ * Переносы одним пакетом: если фото становится фото главы, где уже стоит выбранное, то прежнее сначала уходит после
+ * главы. photos — строки фото: отмеченное в них фото главы — тоже выбранное (тогда оно попадёт в снимок «Отменить»).
+ */
+export function moveUpdates(moves: readonly { id: string; target: PlaceTarget }[], places: ReadonlyMap<string, PhotoPlace>, photos?: readonly SheetPhoto[]): { id: string; patch: PlacePatch }[] {
   const out: { id: string; patch: PlacePatch }[] = [];
   const moving = new Set(moves.map((m) => m.id));
   for (const m of moves) {
     if (m.target.kind === "opener") {
-      const prev = chosenOpener(places, m.target.chapterKey, m.id);
+      const prev = chosenOpener(places, m.target.chapterKey, m.id) ?? markedOpener(photos, m.target.chapterKey, m.id);
       if (prev && !moving.has(prev) && !out.some((u) => u.id === prev)) out.push({ id: prev, patch: { questionId: null, chapter: m.target.chapterKey, opener: false } });
     }
     out.push({ id: m.id, patch: placePatch(m.target) });
@@ -279,10 +301,10 @@ export function projectPlace(t: PlaceTarget, prev: PhotoPlace | undefined, ctx: 
   }
 }
 
-/** Места после переносов (moveUpdates): у перенесённых — новые, у фото главы, которое сменили, — «после главы». */
-export function projectMoves(moves: readonly { id: string; target: PlaceTarget }[], places: ReadonlyMap<string, PhotoPlace>, ctx: PlaceContext): Map<string, PhotoPlace> {
+/** Места после переносов (moveUpdates, photos — строки фото): у перенесённых — новые, у фото главы, которое сменили, — «после главы». */
+export function projectMoves(moves: readonly { id: string; target: PlaceTarget }[], places: ReadonlyMap<string, PhotoPlace>, ctx: PlaceContext, photos?: readonly SheetPhoto[]): Map<string, PhotoPlace> {
   const out = new Map<string, PhotoPlace>();
-  for (const u of moveUpdates(moves, places)) {
+  for (const u of moveUpdates(moves, places, photos)) {
     const move = moves.find((m) => m.id === u.id);
     const prev = places.get(u.id);
     out.set(u.id, move ? projectPlace(move.target, prev, ctx) : { kind: "after", chapterKey: u.patch.chapter ?? undefined, auto: false, onCover: prev?.onCover ?? null });

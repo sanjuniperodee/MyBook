@@ -59,7 +59,7 @@ export function placeData(
     list.push({ key: g.key, title, number: null, epigraph: chapters.find((c) => c.key === g.key)?.epigraph || undefined, printed: !!folded });
   }
   return {
-    book: { id: book.id, interior: book.interior, format: book.format, language: book.language, blank, photoPlacement: book.photoPlacement, galleryTitle: content.galleryTitle, editable: opts.editable },
+    book: { id: book.id, interior: book.interior, format: book.format, language: book.language, blank, photoPlacement: book.photoPlacement, galleryTitle: content.galleryTitle, editable: opts.editable, layoutRev: book.layoutRev ?? 1 },
     photos,
     places,
     chapters: list,

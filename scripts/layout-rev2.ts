@@ -114,7 +114,9 @@ async function migrate(limit: number, only: string | null) {
           const why =
             r.plan.reason === "coverInAnswer"
               ? `книга заказана, а фото обложки стоит в ответе «${r.plan.coverInAnswer?.heading || "без заголовка"}» — по правилам 2 оно там напечаталось бы`
-              : "правила 2 не повторяют вёрстку";
+              : r.plan.reason === "waitingChapter"
+                ? "фото ждёт свою главу без текста — перевод переставил бы его, а выбор автора не трогаем"
+                : "правила 2 не повторяют вёрстку";
           console.log(`${label}: остаётся на правилах 1 — ${why}`);
         }
       } catch (err) {

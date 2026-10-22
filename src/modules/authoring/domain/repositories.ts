@@ -75,6 +75,8 @@ export interface PhotoRepository {
   belongToBook(bookId: string, ids: string[]): Promise<boolean>;
   add(photo: Photo): Promise<void>;
   save(photo: Photo): Promise<void>;
+  /** Только поля поворота (Photo.rotated): ключи файлов, размеры, вид в ответе и кадр — место и подпись не трогает. */
+  saveRotation(photo: Photo): Promise<void>;
   delete(photo: Photo): Promise<void>;
   reorder(bookId: string, ids: string[]): Promise<void>;
   /**

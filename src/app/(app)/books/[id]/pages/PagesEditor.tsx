@@ -172,6 +172,8 @@ export function PagesEditor({
       onPhotos: refresh,
       onUploaded: refresh,
       onOrder: refresh,
+      // Лист перевёл книгу на правила раскладки 2 перед правкой места — места и порядок фото с сервера.
+      onLayout: refresh,
       onBook: (patch) => {
         setState((s) => ({ ...s, ...patch }));
         // Ждущая сохранения правка тех же настроек не должна затереть сохранённое листом.

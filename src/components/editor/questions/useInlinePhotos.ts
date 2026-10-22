@@ -4,6 +4,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toastError } from "@/components/ui/overlays";
 import { ApiError, apiFetch } from "@/lib/client-api";
 import {
+  layoutPhotoRows,
   mergePhotoRows,
   patchEditorPhotos,
   photoUndo,
@@ -16,7 +17,7 @@ import {
   type PhotoUndo,
 } from "@/lib/book/editor-model";
 import { normalizeStyle, type InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { patchPhotos, uploadPhotos } from "../photos/api";
+import { ensureLayoutRev2, patchPhotos, syncLayout, touchesLayout, uploadPhotos, type LayoutSync } from "../photos/api";
 
 /** Правка одного фото в пачке. */
 export type PhotoUpdate = { id: string; patch: EditorPhotoPatch };
@@ -37,15 +38,38 @@ const isImage = (f: File) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|h
  * Правки мест (patchPhoto, patchMany) сразу видны в списке — по тем же правилам, что у сервера (patchEditorPhotos), —
  * и возвращают снимок для «Отменить» (applyUndo): прежние место и кадр всех задетых фото. Ошибка откатывает правку.
  * maxPhotos — лимит фото в книге: загрузка берёт не больше, чем осталось места, и говорит, сколько не поместилось.
+ *
+ * layoutRev — правила раскладки фото книги (живая копия у редактора). На прежних правка места (и любой пакет) сначала
+ * переводит книгу на правила 2 (ensureLayoutRev2): список фото заменяется строками после перевода, редактор получает
+ * новую версию (onLayoutRev) — превью, счётчик и снимок «Отменить» сразу идут по тем же строкам и правилам, что печать.
+ * Ответ правки с другой версией (сервер перевёл книгу сам) — сверка: все строки и версия с сервера.
  */
-export function useInlinePhotos({ bookId, editable, initialPhotos, maxPhotos }: { bookId: string; editable: boolean; initialPhotos: EditorPhoto[]; maxPhotos?: number }) {
+export function useInlinePhotos({
+  bookId,
+  editable,
+  initialPhotos,
+  maxPhotos,
+  layoutRev,
+  onLayoutRev,
+}: {
+  bookId: string;
+  editable: boolean;
+  initialPhotos: EditorPhoto[];
+  maxPhotos?: number;
+  layoutRev?: number;
+  onLayoutRev?: (layoutRev: number) => void;
+}) {
   const [photos, setPhotos] = useState(initialPhotos);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
   // Актуальные фото для обработчиков: updateInline стабилен, чтобы превью не перерисовывалось из-за нового обработчика.
   const photosRef = useRef(photos);
+  const layoutRevRef = useRef(layoutRev);
+  const onLayoutRevRef = useRef(onLayoutRev);
   useLayoutEffect(() => {
     photosRef.current = photos;
+    layoutRevRef.current = layoutRev;
+    onLayoutRevRef.current = onLayoutRev;
   });
   const inlineTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const updateInline = useCallback(
@@ -76,18 +100,39 @@ export function useInlinePhotos({ bookId, editable, initialPhotos, maxPhotos }: 
     }
   };
 
+  /** Перевод или сверка правил раскладки: все строки фото — новый список (сразу и в photosRef), версия — редактору. */
+  const applyLayout = useCallback((sync: LayoutSync) => {
+    photosRef.current = layoutPhotoRows(photosRef.current, sync.photos);
+    setPhotos((ps) => layoutPhotoRows(ps, sync.photos));
+    layoutRevRef.current = sync.layoutRev;
+    onLayoutRevRef.current?.(sync.layoutRev);
+  }, []);
+
   /**
    * Правки нескольких фото — сразу в списке, на сервере одним запросом (одно фото — PATCH, несколько — пачкой).
+   * Правка места на книге с прежними правилами — сначала перевод, и снимок для «Отменить» — по строкам после него.
    * Возвращает снимок для «Отменить»; при ошибке правка откатывается и возвращается null.
    */
   const patchMany = useCallback(
     async (updates: readonly PhotoUpdate[]): Promise<PhotoUndo | null> => {
       if (!editable || !updates.length) return null;
+      try {
+        if (touchesLayout(updates)) {
+          const sync = await ensureLayoutRev2(bookId, layoutRevRef.current);
+          if (sync) applyLayout(sync);
+        }
+      } catch (e) {
+        toastError(e);
+        return null;
+      }
       const undo = photoUndo(photosRef.current, updates);
       setPhotos((ps) => patchEditorPhotos(ps, updates));
       try {
-        const rows = await patchPhotos(bookId, updates);
-        setPhotos((ps) => patchEditorPhotos(ps, serverUpdates(rows, updates)));
+        const res = await patchPhotos(bookId, updates);
+        setPhotos((ps) => patchEditorPhotos(ps, serverUpdates(res.photos, updates)));
+        // Сервер перевёл книгу сам (версия в ответе не та) — сверка: все строки и версия. Не вышло — правка уже
+        // записана; сверится следующая.
+        if (res.layoutRev !== undefined && res.layoutRev !== (layoutRevRef.current ?? 1)) void syncLayout(bookId).then(applyLayout, () => {});
         return undo;
       } catch (e) {
         setPhotos((ps) => patchEditorPhotos(ps, undoUpdates(undo)));
@@ -95,7 +140,7 @@ export function useInlinePhotos({ bookId, editable, initialPhotos, maxPhotos }: 
         return null;
       }
     },
-    [bookId, editable],
+    [bookId, editable, applyLayout],
   );
 
   /** Место, кадр, подпись или вид одного фото: в ответ, фото главы, после главы, альбом, «само», «не печатать». */
@@ -173,5 +218,5 @@ export function useInlinePhotos({ bookId, editable, initialPhotos, maxPhotos }: 
     setPhotos((ps) => ps.map((p) => (p.questionId && ids.has(p.questionId) ? { ...p, questionId: null, inline: null } : p)));
   }, []);
 
-  return { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, patchMany, applyUndo, replace, reorder, upload, editCaption, addUploaded, detachQuestions };
+  return { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, patchMany, applyUndo, replace, reorder, upload, editCaption, addUploaded, detachQuestions, applyLayout };
 }

@@ -128,7 +128,7 @@ export function PhotoPicker({
     if (!list.length) return { photos: [], errors: [], cut };
     onProgress(0, list.length);
     const res = await uploadPhotos(bookId, list, (done) => onProgress(done, list.length));
-    const placed = new Map((await patchPhotos(bookId, res.photos.map((r) => ({ id: r.id, patch: { questionId } })))).map((r) => [r.id, r]));
+    const placed = new Map((await patchPhotos(bookId, res.photos.map((r) => ({ id: r.id, patch: { questionId } })))).photos.map((r) => [r.id, r]));
     return { photos: res.photos.map((r) => toEditorPhoto(placed.get(r.id) ?? { ...r, questionId })), errors: res.errors, cut };
   };
 

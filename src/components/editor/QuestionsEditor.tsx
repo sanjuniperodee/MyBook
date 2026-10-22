@@ -153,7 +153,10 @@ function EditorBody({
 
   const draft = useQuestionsDraft({ bookId: book.id, editable, initialQuestions, initialChapters, onGone });
   const { questions, chapters, status, error, flush, patchQuestion, patchChapter, appendText } = draft;
-  const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos, maxPhotos });
+  // Правила раскладки фото — в живой копии книги: перевод на правила 2 перед первой правкой места меняет их сразу, и
+  // сборка (превью, счётчик, места фото) идёт по тем же правилам, что печать, без перечитывания страницы.
+  const onLayoutRev = useCallback((layoutRev: number) => setBook((b) => (b.layoutRev === layoutRev ? b : { ...b, layoutRev })), []);
+  const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos, maxPhotos, layoutRev: book.layoutRev, onLayoutRev });
   const { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, applyUndo, editCaption, detachQuestions } = inlinePhotos;
   const [picker, setPicker] = useState(false);
   // Открытый лист фото: «Фото главы», «Где стоит фото» или «Альбом в конце» — с превью, карточки главы, оглавления.
@@ -340,15 +343,17 @@ function EditorBody({
     : null;
 
   // Что поменяли листы фото: строки фото, загруженные, настройки книги, порядок фото (отмену показывает сам лист).
-  const { replace: replacePhotos, reorder: reorderPhotos } = inlinePhotos;
+  const { replace: replacePhotos, reorder: reorderPhotos, applyLayout } = inlinePhotos;
   const photoEvents = useMemo<PlaceEvents>(
     () => ({
       onPhotos: replacePhotos,
       onUploaded: replacePhotos,
       onBook: (patch) => setBook((b) => ({ ...b, ...patch })),
       onOrder: reorderPhotos,
+      // Лист перевёл книгу на правила 2 (или сверил версию): все строки фото и версия правил — в редактор.
+      onLayout: applyLayout,
     }),
-    [replacePhotos, reorderPhotos],
+    [replacePhotos, reorderPhotos, applyLayout],
   );
 
   /** «Без фото» у главы (tocLines noOpenerPhoto): сразу на экране, потом на сервер; ошибка — откат. */

@@ -57,6 +57,8 @@ export default async function PhotosPage({ params, searchParams }: { params: Pro
       galleryTitle: content.galleryTitle,
       // Править можно черновик, и сотруднику — только с правом правки (как в редакторе).
       editable: book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user, book.id)),
+      // Правила раскладки фото: на прежних первая правка места сначала переводит книгу (листы, ensureLayoutRev2).
+      layoutRev: book.layoutRev,
     },
     photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId, chapter: p.chapter ?? null, opener: p.opener ?? false, crop: p.crop ?? null })),
     places: [...places],

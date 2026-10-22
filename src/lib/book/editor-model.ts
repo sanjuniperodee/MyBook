@@ -387,6 +387,19 @@ export function mergePhotoRows(photos: readonly EditorPhoto[], rows: readonly Ed
 }
 
 /**
+ * Все строки фото книги с сервера (перевод на правила раскладки 2 или сверка версии, POST …/layout) — новый список
+ * редактора в их порядке: перевод мог закрепить места и перенумеровать позиции, а сборка раскладывает фото по порядку
+ * списка. Номер поворота и снимок обложки знакомых фото остаются; фото, которого на сервере уже нет, уходит.
+ */
+export function layoutPhotoRows(photos: readonly EditorPhoto[], rows: readonly EditorPhotoRow[]): EditorPhoto[] {
+  const byId = new Map(photos.map((p) => [p.id, p]));
+  return rows.map((r) => {
+    const p = byId.get(r.id);
+    return toEditorPhoto(r, p?.onCover ?? null, p?.rev);
+  });
+}
+
+/**
  * Правки фото в списке редактора — по тем же правилам, что сервер (Photo.update и clearOpeners): вставленное в ответ
  * фото теряет главу и отметку фото главы; отметка — только у фото с настоящей главой (не альбом, не «не печатается»,
  * не письма) и не в ответе; снятая отметка оставляет главу; у главы одно фото главы — прежнее уступает место

@@ -248,6 +248,39 @@ describe("перевод книги на правила 2 (planLayoutRev2)", () 
     expect(after.find((r) => r.id === "p2")).toMatchObject({ opener: false });
   });
 
+  describe("фото ждёт свою главу без текста — перевод его не трогает", () => {
+    // Глава b есть в книге, но ещё не печатается (история без текста): фото, которому автор выбрал b, ждёт её.
+    const waitingBook = (photos: ReturnType<typeof photo>[], book: Partial<LayoutBundle["book"]> = {}) =>
+      layoutBundle({ chapters: ["a", "b"], questions: [layoutQuestion("q-a", "a", 0), layoutQuestion("q-b", "b", 1, "")], photos, book });
+
+    it("план A не снимает с него отметку фото главы: глава и отметка остаются", () => {
+      const b = waitingBook([photo("p0", 0), photo("p1", 1, { chapter: "b", opener: true })]);
+      const plan = expectSame(b);
+      expect(plan.plan).toBe("A");
+      expect(plan.changes.map((c) => c.id)).toEqual(["p0"]);
+    });
+
+    it("прежние правила сделали его фото чужой главы — книга остаётся на правилах 1 (waitingChapter), а не переносит выбор автора", () => {
+      const b = waitingBook([photo("p1", 0, { chapter: "b" })]);
+      expect(rev(b, 1).chapters[0]).toMatchObject({ key: "a", opener: "p1" });
+      expect(planLayoutRev2(b, YEAR)).toEqual({ ok: false, reason: "waitingChapter" });
+    });
+
+    it("план B не закрепляет его за главой, где оно сейчас стоит: если без этого вёрстка не та же — waitingChapter", () => {
+      const b = waitingBook([photo("p1", 0, { chapter: "b" }), photo("p0", 1)], { interior: "classic" });
+      expect(rev(b, 1).chapters[0].after).toEqual(["p1", "p0"]);
+      expect(planLayoutRev2(b, YEAR, ["B"])).toEqual({ ok: false, reason: "waitingChapter" });
+      // План A правок не требует — перевод идёт, место фото — то же, что выбрал автор.
+      expect(expectSame(b)).toMatchObject({ plan: "A", changes: [] });
+    });
+
+    it("главы, которой в книге нет, фото не ждёт — устаревшую отметку перевод снимает (как раньше)", () => {
+      const b = waitingBook([photo("p0", 0), photo("p1", 1, { chapter: "zz", opener: true })]);
+      const plan = expectSame(b);
+      expect(applyPins(b.photos, plan.changes).find((r) => r.id === "p1")).toMatchObject({ chapter: "zz", opener: false });
+    });
+  });
+
   it("снимок обложки в ответе: заказанная книга остаётся на правилах 1 с причиной для отчёта", () => {
     const questions = [layoutQuestion("q1", "a", 0, ""), layoutQuestion("q2", "a", 1)];
     const b = layoutBundle({ chapters: ["a"], questions, photos: [photo("p0", 0, { questionId: "q1" }), photo("p1", 1)], book: { coverPhotoId: "p0", status: "ordered" } });
@@ -380,6 +413,20 @@ describe("LayoutRev2Service: запись, резервная копия, отк
     expect(byId.get("b1")!.book.layoutRev).toBe(1);
   });
 
+  it("перевод при правке: сборка упала на данных книги — в лог, книга остаётся на правилах 1, правка идёт по ним", async () => {
+    const { store, byId } = memStore([book("b1")]);
+    // Вопросы, на которых сборка книги падает (данные из базы разошлись с ожиданием).
+    byId.get("b1")!.questions = null as unknown as LayoutBundle["questions"];
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(await new LayoutRev2Service(store, new FakeUow()).upgradeInPlace("b1")).toBe(false);
+      expect(byId.get("b1")!.book.layoutRev).toBe(1);
+      expect(log).toHaveBeenCalledWith("[layout-rev2] upgrade planning failed", "b1", expect.any(Error));
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("перевод при правке — только черновик и только точный план", async () => {
     const { store, byId } = memStore([book("b1"), book("b2", "ordered")]);
     const service = new LayoutRev2Service(store, new FakeUow());
@@ -457,6 +504,27 @@ describe("PhotosService.batch и перевод при правке", () => {
       { id: "p3", patch: { layout: "grid" } },
     ]);
     expect(upgrade).toHaveBeenCalledTimes(2);
+  });
+
+  it("явный перевод перед первой правкой мест (POST …/layout): под блокировкой книги, права — как у правки фото", async () => {
+    const { service, upgrade, run, books } = setup({ onTouch: true });
+    expect(await service.upgradeLayout("b1", owner)).toBe(2);
+    expect(upgrade).toHaveBeenCalledWith("b1");
+    expect([run.mock.calls.length, books.locks]).toEqual([1, 1]);
+    // Перевод не повторил вёрстку — версия прежняя: правка пойдёт по правилам 1.
+    upgrade.mockResolvedValueOnce(false);
+    expect(await service.upgradeLayout("b1", owner)).toBe(1);
+    // Книга уже на правилах 2 — переводить нечего.
+    books.rows.set("b1", Book.restore("b1", { ...books.rows.get("b1")!.snapshot(), layoutRev: 2 }));
+    upgrade.mockClear();
+    expect(await service.upgradeLayout("b1", owner)).toBe(2);
+    expect(upgrade).not.toHaveBeenCalled();
+    await rejectsWith(setup({ onTouch: true }).service.upgradeLayout("b1", stranger), "bookNotFound");
+    await rejectsWith(setup({ onTouch: true, status: "ordered" }).service.upgradeLayout("b1", owner), "bookLocked");
+    // Выпуск 2 выключен — книга не переводится.
+    const off = setup();
+    expect(await off.service.upgradeLayout("b1", owner)).toBe(1);
+    expect(off.upgrade).not.toHaveBeenCalled();
   });
 
   it("выпуск 2: смена оформления переводит книгу; та же или без оформления — нет", async () => {

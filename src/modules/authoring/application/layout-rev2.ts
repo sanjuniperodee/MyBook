@@ -4,7 +4,7 @@ import { buildBookContent } from "@/lib/book/book-content";
 import { withCoverPhotos, type CoverSettings } from "@/lib/book/cover-photos";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { layoutSignature } from "@/lib/book/layout-signature";
-import { coverAndBackPhotoIds, LAYOUT_REV_2, PHOTO_OFF_KEY, printableText, questionHeading, toPhotoItem, type BookContent, type BookLike, type ChapterLike, type ContentChapter, type LetterLike, type QuestionLike } from "@/lib/book/layout";
+import { coverAndBackPhotoIds, isChapterPhotoKey, LAYOUT_REV_2, PHOTO_OFF_KEY, printableText, questionHeading, toPhotoItem, type BookContent, type BookLike, type ChapterLike, type ContentChapter, type LetterLike, type QuestionLike } from "@/lib/book/layout";
 import { GALLERY_KEY } from "@/lib/book/toc";
 
 /**
@@ -61,8 +61,11 @@ export type LayoutRev2Plan =
     }
   | {
       ok: false;
-      /** coverInAnswer — снимок обложки в ответе заказанной книги: по правилам 2 он там напечатается; mismatch — любое другое расхождение. */
-      reason: "coverInAnswer" | "mismatch";
+      /**
+       * coverInAnswer — снимок обложки в ответе заказанной книги: по правилам 2 он там напечатается; waitingChapter — вёрстку
+       * повторил бы только перенос фото, которое ждёт свою главу без текста (его не трогаем); mismatch — любое другое расхождение.
+       */
+      reason: "coverInAnswer" | "waitingChapter" | "mismatch";
       /** Ответ со снимком обложки — заголовок для отчёта. */
       coverInAnswer?: { questionId: string; heading: string };
     };
@@ -110,43 +113,60 @@ export function planLayoutRev2(b: LayoutBundle, year = new Date().getFullYear(),
     cover && !onCover.has(cover.id) && !cover.questionId && cover.chapter !== PHOTO_OFF_KEY && !printedPhotoIds(v1).has(cover.id) && b.book.photoPlacement !== "none" ? cover.id : null;
   const off = { chapter: PHOTO_OFF_KEY, opener: false };
 
-  // ─── план A ───
-  const a = new Map<string, Partial<PhotoPin>>();
-  if (photoDesign) {
-    for (const { ch, id } of openers) if (!row.get(id)!.questionId) a.set(id, { chapter: pinTo(ch, id), opener: true });
-    // Отметки, которые прежние правила не взяли (снимок влитой главы, устаревшие), правила 2 взяли бы — снимаем.
-    for (const r of b.photos) if (r.opener && !r.questionId && !openerIds.has(r.id)) a.set(r.id, { opener: false });
-  }
-  // Снимки обложки и оборота, кроме основного: правила 2 сами внутрь их не ставят — закрепить там, где они напечатаны.
-  const extras = new Set(onCover);
-  if (b.book.coverPhotoId) extras.delete(b.book.coverPhotoId);
-  if (offCover) a.set(offCover, off);
-  for (const ch of v1.chapters)
-    for (const p of ch.photos) {
-      const r = row.get(p.id)!;
-      if (extras.has(p.id) && !r.questionId && !(r.chapter && keysOf(ch).has(r.chapter))) a.set(p.id, { chapter: ch.key, opener: false });
-    }
-  for (const p of v1.galleryPhotos) if (extras.has(p.id) && !row.get(p.id)!.questionId && row.get(p.id)!.chapter !== GALLERY_KEY) a.set(p.id, { chapter: GALLERY_KEY, opener: false });
-  const planA = b.photos.map((r) => ({ ...r, ...a.get(r.id) }));
+  // Фото, которое ждёт свою главу: автор выбрал настоящую главу книги, а она ещё не печатается (нет текста). Перевод его
+  // не трогает — глава и отметка остаются (глава появится — фото встанет в неё); если без правки вёрстка не та же —
+  // книга остаётся на правилах 1 (waitingChapter).
+  const realChapters = new Set([...b.chapters.map((c) => c.key), ...b.questions.map((q) => q.chapter)]);
+  const printedKeys = new Set(v1.chapters.flatMap((ch) => [...keysOf(ch)]));
+  const waiting = new Set(b.photos.filter((r) => !r.questionId && isChapterPhotoKey(r.chapter) && realChapters.has(r.chapter) && !printedKeys.has(r.chapter)).map((r) => r.id));
 
-  // ─── план B ───
-  const pins = new Map<string, Omit<PhotoPin, "position">>();
-  for (const ch of v1.chapters) {
-    if (ch.openerPhoto && !row.get(ch.openerPhoto.id)!.questionId) pins.set(ch.openerPhoto.id, { chapter: pinTo(ch, ch.openerPhoto.id), opener: true });
-    for (const p of ch.photos) {
-      const r = row.get(p.id)!;
-      if (r.questionId) continue;
-      const chapter = pinTo(ch, p.id);
-      // В оформлении без фото главы отметка ничего не меняет и остаётся (вернётся при смене оформления), если глава та же.
-      pins.set(p.id, { chapter, opener: !photoDesign && r.opener && chapter === r.chapter });
+  /** Планы A и B; keep — фото, которых они не трогают (места и отметки; позиции план B перенумеровывает всем). */
+  const candidates = (keep: ReadonlySet<string>) => {
+    const free = (id: string) => !keep.has(id) && !row.get(id)!.questionId;
+    // ─── план A ───
+    const a = new Map<string, Partial<PhotoPin>>();
+    if (photoDesign) {
+      for (const { ch, id } of openers) if (free(id)) a.set(id, { chapter: pinTo(ch, id), opener: true });
+      // Отметки, которые прежние правила не взяли (снимок влитой главы, устаревшие), правила 2 взяли бы — снимаем.
+      for (const r of b.photos) if (r.opener && free(r.id) && !openerIds.has(r.id)) a.set(r.id, { opener: false });
     }
-  }
-  for (const p of v1.galleryPhotos) if (!row.get(p.id)!.questionId) pins.set(p.id, { chapter: GALLERY_KEY, opener: false });
-  if (offCover) pins.set(offCover, off);
-  const old = [...b.photos].sort(byPosition);
-  const order = [...pins.keys(), ...old.filter((r) => !pins.has(r.id) && inAnswers.has(r.id)).map((r) => r.id), ...old.filter((r) => !pins.has(r.id) && !inAnswers.has(r.id)).map((r) => r.id)];
-  const position = new Map(order.map((id, i) => [id, i]));
-  const planB = b.photos.map((r) => ({ ...r, ...pins.get(r.id), position: position.get(r.id)! }));
+    // Снимки обложки и оборота, кроме основного: правила 2 сами внутрь их не ставят — закрепить там, где они напечатаны.
+    const extras = new Set(onCover);
+    if (b.book.coverPhotoId) extras.delete(b.book.coverPhotoId);
+    if (offCover && free(offCover)) a.set(offCover, off);
+    for (const ch of v1.chapters)
+      for (const p of ch.photos) {
+        const r = row.get(p.id)!;
+        if (extras.has(p.id) && free(p.id) && !(r.chapter && keysOf(ch).has(r.chapter))) a.set(p.id, { chapter: ch.key, opener: false });
+      }
+    for (const p of v1.galleryPhotos) if (extras.has(p.id) && free(p.id) && row.get(p.id)!.chapter !== GALLERY_KEY) a.set(p.id, { chapter: GALLERY_KEY, opener: false });
+    const planA = b.photos.map((r) => ({ ...r, ...a.get(r.id) }));
+
+    // ─── план B ───
+    const pins = new Map<string, Omit<PhotoPin, "position">>();
+    for (const ch of v1.chapters) {
+      if (ch.openerPhoto && free(ch.openerPhoto.id)) pins.set(ch.openerPhoto.id, { chapter: pinTo(ch, ch.openerPhoto.id), opener: true });
+      for (const p of ch.photos) {
+        const r = row.get(p.id)!;
+        if (!free(p.id)) continue;
+        const chapter = pinTo(ch, p.id);
+        // В оформлении без фото главы отметка ничего не меняет и остаётся (вернётся при смене оформления), если глава та же.
+        pins.set(p.id, { chapter, opener: !photoDesign && r.opener && chapter === r.chapter });
+      }
+    }
+    for (const p of v1.galleryPhotos) if (free(p.id)) pins.set(p.id, { chapter: GALLERY_KEY, opener: false });
+    if (offCover && free(offCover)) pins.set(offCover, off);
+    const old = [...b.photos].sort(byPosition);
+    const order = [...pins.keys(), ...old.filter((r) => !pins.has(r.id) && inAnswers.has(r.id)).map((r) => r.id), ...old.filter((r) => !pins.has(r.id) && !inAnswers.has(r.id)).map((r) => r.id)];
+    const position = new Map(order.map((id, i) => [id, i]));
+    const planB = b.photos.map((r) => ({ ...r, ...pins.get(r.id), position: position.get(r.id)! }));
+    return (
+      [
+        ["A", planA],
+        ["B", planB],
+      ] as const
+    ).filter(([plan]) => only.includes(plan));
+  };
 
   const changes = (rows: readonly LayoutPhoto[]): PhotoPinChange[] =>
     rows.flatMap((r) => {
@@ -154,27 +174,29 @@ export function planLayoutRev2(b: LayoutBundle, year = new Date().getFullYear(),
       const pin = (p: LayoutPhoto): PhotoPin => ({ chapter: p.chapter, opener: p.opener, position: p.position });
       return was.chapter === r.chapter && was.opener === r.opener && was.position === r.position ? [] : [{ id: r.id, before: pin(was), after: pin(r) }];
     });
-  const plans = (
-    [
-      ["A", planA],
-      ["B", planB],
-    ] as const
-  ).filter(([plan]) => only.includes(plan));
-  for (const [plan, rows] of plans) if (layoutSignature(build(rows, LAYOUT_REV_2)) === before) return { ok: true, plan, changes: changes(rows) };
+  const exact = (rows: readonly LayoutPhoto[]) => layoutSignature(build(rows, LAYOUT_REV_2)) === before;
+  const plans = candidates(waiting);
+  for (const [plan, rows] of plans) if (exact(rows)) return { ok: true, plan, changes: changes(rows) };
 
   // Снимок обложки в ответе: прежние правила его прячут, правила 2 печатают. Если, кроме него, всё совпадает: черновик
   // переводится (редактор собирает книгу по её правилам и после перевода показывает снимок в ответе — автор видит, что
   // он напечатается; R9), заказанная книга остаётся на правилах 1. И то и другое — строка в отчёте.
   const question = cover?.questionId ? b.questions.find((q) => q.id === cover.questionId) : undefined;
+  const hidden = (rows: readonly LayoutPhoto[]) => (cover && question ? rows.map((r) => (r.id === cover.id ? { ...r, questionId: null, chapter: PHOTO_OFF_KEY, opener: false } : r)) : null);
+  const exactHidden = (rows: readonly LayoutPhoto[]) => {
+    const h = hidden(rows);
+    return !!h && exact(h);
+  };
   if (cover && question) {
-    const hidden = (rows: readonly LayoutPhoto[]) => rows.map((r) => (r.id === cover.id ? { ...r, questionId: null, chapter: PHOTO_OFF_KEY, opener: false } : r));
-    const found = plans.find(([, rows]) => layoutSignature(build(hidden(rows), LAYOUT_REV_2)) === before);
+    const found = plans.find(([, rows]) => exactHidden(rows));
     if (found) {
       const coverInAnswer = { questionId: question.id, heading: printableText(questionHeading(question, b.book)) };
       if (b.book.status === "draft") return { ok: true, plan: found[0], changes: changes(found[1]), coverInAnswer };
       return { ok: false, reason: "coverInAnswer", coverInAnswer };
     }
   }
+  // Вёрстку повторил бы только план, который переставляет фото, ждущие свою главу, — их выбор важнее: правила 1.
+  if (waiting.size && candidates(new Set()).some(([, rows]) => exact(rows) || exactHidden(rows))) return { ok: false, reason: "waitingChapter" };
   return { ok: false, reason: "mismatch" };
 }
 
@@ -248,12 +270,22 @@ export class LayoutRev2Service {
     });
   }
 
-  /** Перевод при правке (выпуск 2): внутри уже открытой транзакции, только черновик и только точный план. */
+  /**
+   * Перевод при правке (выпуск 2): внутри уже открытой транзакции, только черновик и только точный план. Ошибка
+   * планирования (сборка книги упала на её данных) — в лог, книга остаётся на правилах 1, и правка идёт по ним, а не
+   * падает при каждой попытке.
+   */
   upgradeInPlace(bookId: string): Promise<boolean> {
     return this.uow.run(async () => {
       const bundle = await this.store.load(bookId, { lock: true });
       if (!bundle || bundle.book.layoutRev === LAYOUT_REV_2 || bundle.book.status !== "draft") return false;
-      const plan = planLayoutRev2(bundle);
+      let plan: LayoutRev2Plan;
+      try {
+        plan = planLayoutRev2(bundle);
+      } catch (err) {
+        console.error("[layout-rev2] upgrade planning failed", bookId, err);
+        return false;
+      }
       if (!plan.ok) return false;
       await this.write(bookId, bundle.book.layoutRev, plan.changes);
       return true;

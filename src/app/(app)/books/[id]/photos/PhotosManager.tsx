@@ -41,7 +41,8 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
   const router = useRouter();
   const placeData = useMemo<PlaceData>(() => ({ book: data.book, photos: data.photos, places: new Map(data.places), chapters: data.chapters, answers: data.answers, tocLines: data.tocLines }), [data]);
   const refresh = () => router.refresh();
-  const ed = usePlaceEditing(placeData, { onPhotos: refresh, onUploaded: refresh, onBook: refresh, onOrder: refresh });
+  // Перевод книги на правила раскладки 2 перед первой правкой места (onLayout) — тоже перечитать: места и порядок.
+  const ed = usePlaceEditing(placeData, { onPhotos: refresh, onUploaded: refresh, onBook: refresh, onOrder: refresh, onLayout: refresh });
   const { book, design, names } = ed;
   const editable = book.editable;
   const fmt = getFormat(book.format);
@@ -91,13 +92,14 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
     if (!ids.length || !editable) return;
     const before = ids.map((id) => ({ id, layout: photos.find((p) => p.id === id)?.layout ?? "bleed" }));
     try {
-      ed.relay.onPhotos(await patchPhotos(book.id, ids.map((id) => ({ id, patch: { layout: "full" as const } }))));
+      // Пакет переводит книгу с прежними правилами на правила 2 — вкладка всё равно перечитывает страницу (onPhotos).
+      ed.relay.onPhotos((await patchPhotos(book.id, ids.map((id) => ({ id, patch: { layout: "full" as const } })))).photos);
       ed.setError(false);
     } catch {
       ed.setError(true);
       return;
     }
-    toast(tt.toastWhole(ids.length), "success", { action: { label: tt.undo, run: async () => ed.relay.onPhotos(await patchPhotos(book.id, before.map(({ id, layout }) => ({ id, patch: { layout } })))) } });
+    toast(tt.toastWhole(ids.length), "success", { action: { label: tt.undo, run: async () => ed.relay.onPhotos((await patchPhotos(book.id, before.map(({ id, layout }) => ({ id, patch: { layout } })))).photos) } });
   };
 
   /** Удаление: где фото сейчас, что станет с обложкой и главой, и вариант без удаления — «не печатать в книге». */

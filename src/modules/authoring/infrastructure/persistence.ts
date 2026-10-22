@@ -278,6 +278,10 @@ export class DrizzlePhotoRepository implements PhotoRepository {
     void _b;
     await executor().update(photos).set({ ...p, updatedAt: new Date() }).where(eq(photos.id, id));
   }
+  async saveRotation(photo: Photo) {
+    const { id, storageKey, thumbKey, width, height, inline, crop } = photo.snapshot();
+    await executor().update(photos).set({ storageKey, thumbKey, width, height, inline, crop, updatedAt: new Date() }).where(eq(photos.id, id));
+  }
   async delete(photo: Photo) {
     await executor().delete(photos).where(eq(photos.id, photo.id));
   }
