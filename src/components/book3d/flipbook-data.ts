@@ -21,7 +21,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
   const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
   return {
-    cover: { template: book.coverTemplate, format: book.format, title: content.title, subtitle: book.subtitle, names, photos },
+    cover: { template: book.coverTemplate, format: book.format, title: content.title, subtitle: book.subtitle, names, photos, ...(book.coverDesign ? { design: book.coverDesign } : {}) },
     formatId: content.format.id,
     title: content.title,
     model: {

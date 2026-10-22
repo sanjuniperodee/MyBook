@@ -40,6 +40,7 @@ export default async function BookLayout({ children, params }: { children: React
                 title={book.title}
                 names={coverNames(book)}
                 photos={photoUrls(coverPhotoIds(book))}
+                design={book.coverDesign}
                 lite
                 className="rounded-[2px] shadow-sm"
               />

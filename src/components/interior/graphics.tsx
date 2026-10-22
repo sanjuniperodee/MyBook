@@ -6,7 +6,7 @@ import { pageBox } from "@/lib/book/page-geometry";
 import type { PageKit } from "./kit";
 import type { PageUnits } from "./units";
 
-function ShapeElement({ s }: { s: Shape }) {
+export function ShapeElement({ s }: { s: Shape }) {
   switch (s.kind) {
     case "circle":
       return <circle cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={s.opacity} />;

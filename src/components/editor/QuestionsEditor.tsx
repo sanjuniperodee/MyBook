@@ -41,7 +41,7 @@ import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { groupByChapter, sectionLabel, type EditorBook, type EditorChapter, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import type { TocLines } from "@/lib/book/toc";
-import { getInteriorDesign } from "@/lib/book/interiors";
+import { bookInterior } from "@/lib/book/interiors";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import type { AnswerMedia } from "@/lib/book/answer-media";
 import { cn } from "@/lib/class-names";
@@ -178,7 +178,7 @@ function EditorBody({
   const ui = useLocale();
 
   const format = getFormat(book.format);
-  const design = getInteriorDesign(book.interior);
+  const design = useMemo(() => bookInterior(book), [book.interior, book.interiorStyle]); // eslint-disable-line react-hooks/exhaustive-deps -- дизайн зависит только от этих полей
   const typography = design.type;
   // Раздел, которого нет (удалён в другом окне), заменяется первым; пустая книга — q === undefined.
   const found = questions.findIndex((x) => x.id === currentId);

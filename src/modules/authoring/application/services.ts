@@ -68,11 +68,16 @@ export class BooksService {
   }
 
   /** Настройки из редактора (включая смену языка книги). */
-  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown }, photos: PhotoRepository) {
+  async updateSettings(
+    bookId: string,
+    viewer: BookViewer,
+    patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown; interiorStyle?: unknown; coverDesign?: unknown },
+    photos: PhotoRepository,
+  ) {
     return this.uow.run(async () => {
       // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
       const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
-      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, ...settings } = patch;
+      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, interiorStyle, coverDesign, ...settings } = patch;
       // Смена оформления на книге с прежними правилами раскладки фото — сначала перевод на правила 2 (выпуск 2), по
       // книге как она есть в базе, до остальных правок этого запроса.
       if (this.layout?.onTouch && settings.interior !== undefined && settings.interior !== book.interior && book.layoutRev !== LAYOUT_REV_2) await this.layout.upgrade(book.id);
@@ -94,6 +99,13 @@ export class BooksService {
       }
       if (photoFrames !== undefined) book.setPhotoFrames(photoFrames);
       if (tocLines !== undefined) book.setTocLines(tocLines);
+      if (interiorStyle !== undefined) book.setInteriorStyle(interiorStyle);
+      if (coverDesign !== undefined) {
+        // Фото в слоях обложки — только фото этой книги.
+        const ids = coverDesign === null ? [] : book.coverDesignPhotos(coverDesign);
+        if (ids.length && !(await photos.belongToBook(book.id, ids))) throw new AuthoringError("photoNotFound");
+        book.setCoverDesign(coverDesign);
+      }
       if (language && language !== book.language) {
         const from = this.themes.get(book.theme, book.language);
         const to = this.themes.get(book.theme, language);

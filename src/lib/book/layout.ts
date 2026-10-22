@@ -8,7 +8,7 @@ import type { AnswerMedia, Book, BookChapter, BookQuestion, InlinePhotoStyle, Ph
 import { normalizeMedia } from "./answer-media";
 import { MAX_INLINE_HEIGHT_SHARE, splitParagraphs } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
-import { getInteriorDesign, type InteriorDesign } from "./interiors";
+import { bookInterior, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
 import { GALLERY_KEY, isCustomToc, type TocLines, type TocMode } from "./toc";
 import type { PhotoCrop } from "./photo-crop";
@@ -129,6 +129,8 @@ export type BookLike = Pick<
      * нет — обложкой считаются все выбранные для неё снимки.
      */
     coverPhotos?: CoverPhotos;
+    /** Настройки дизайнера страниц (interiors/style.ts): нет — стиль как есть. */
+    interiorStyle?: unknown;
   };
 
 /**
@@ -335,7 +337,8 @@ export function assembleBookContent(
   // Оформление, где глава открывается фото. Прежние правила: снимок, отмеченный автором, иначе первое фото главы.
   // Правила 2: только отмеченный автором — своей главы или влитой в неё (своей — раньше, дальше — первый по порядку);
   // без него глава открывается полосой с названием.
-  const interior = getInteriorDesign(book.interior);
+  // Стиль из каталога с настройками дизайнера книги (interiors/style.ts).
+  const interior = bookInterior(book);
   if (interior.opener.photo)
     for (const ch of chapters) {
       if (!rev2) {

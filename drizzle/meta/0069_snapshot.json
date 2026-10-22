@@ -1,5 +1,5 @@
 {
-  "id": "2dbc551a-bd97-4dde-98e6-05da400deac7",
+  "id": "7bdcad46-02ac-49c4-b945-7fe4f0875e04",
   "prevId": "0e908f67-87da-48ad-bf40-be873d89c34c",
   "version": "7",
   "dialect": "postgresql",
@@ -712,6 +712,19 @@
           "notNull": true,
           "default": "'classic'"
         },
+        "interior_style": {
+          "name": "interior_style",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "cover_design": {
+          "name": "cover_design",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "format": {
           "name": "format",
           "type": "text",
@@ -752,7 +765,7 @@
           "type": "smallint",
           "primaryKey": false,
           "notNull": true,
-          "default": 2
+          "default": 1
         },
         "invite_token": {
           "name": "invite_token",

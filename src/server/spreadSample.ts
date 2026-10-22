@@ -4,7 +4,7 @@ import { applyGender } from "@/lib/content/gender";
 import { bookKind } from "@/lib/content/kinds";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
-import { getInteriorDesign } from "@/lib/book/interiors";
+import { bookInterior } from "@/lib/book/interiors";
 import { estimateChapterPages, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
 import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
@@ -69,7 +69,7 @@ export function bookSpreadSample(
   // Оглавление: все строки, которые могут в него попасть, с номерами страниц — из готового макета, а каких там нет
   // (макет не собран, раздел в оглавлении по главам) — примерными (пока ответов нет — главы темы). Режим и свои
   // названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
-  const metrics = textMetrics(format, getInteriorDesign(book.interior));
+  const metrics = textMetrics(format, bookInterior(book));
   const start = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
   const pageOf = new Map<string, number>();
   let page = start;

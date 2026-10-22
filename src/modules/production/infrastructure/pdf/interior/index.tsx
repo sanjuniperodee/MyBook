@@ -7,7 +7,7 @@ import { ChapterBody } from "./chapter-body";
 import { Colophon } from "./colophon";
 import { Dedication } from "./dedication";
 import { EndPage } from "./end-page";
-import { pdfKit, type InteriorOptions } from "./kit";
+import { chapterKit, pdfKit, type InteriorOptions } from "./kit";
 import { Opener } from "./opener";
 import { PhotoPage } from "./photo-page";
 import { TitlePage } from "./title-page";
@@ -23,12 +23,15 @@ export type { PreparedImage } from "./kit";
  * Водяного знака в вёрстке нет: сборка одна для экрана и печати, знак ставится поверх готового PDF (pdf/watermark.tsx).
  */
 export function InteriorDocument({ content, options }: { content: BookContent; options: InteriorOptions }) {
-  const kit = pdfKit(content, options);
-    const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
+  const base = pdfKit(content, options);
+  const kit = base;
+  const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
   if (content.dedication) pages.push(<Dedication key="dedication" kit={kit} text={content.dedication} />);
   if (hasToc(content)) pages.push(<Toc key="toc" kit={kit} />);
 
   for (const ch of content.chapters) {
+    // Глава со своим оформлением (дизайнер) — свой набор; остальные главы — общий.
+    const kit = chapterKit(base, ch.key);
     pages.push(<Opener key={`open-${ch.key}`} kit={kit} chapterKey={ch.key} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto} />);
     // Текст главы — кусками: между ними фото на всю страницу из историй (под обрез, без колонтитула).
     const runs = chapterRuns(ch.items);

@@ -77,6 +77,7 @@ export default async function BooksPage() {
                   subtitle={book.subtitle}
                   names={coverNames(book)}
                   photos={photoUrls(coverPhotoIds(book), "thumb")}
+                  design={book.coverDesign}
                   lite
                   className="rounded-[3px] shadow-book"
                 />

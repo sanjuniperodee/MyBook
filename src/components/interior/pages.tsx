@@ -16,7 +16,7 @@ import { openerFit } from "@/lib/book/opener-fit";
 import { print } from "@/lib/book/formats";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
-import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
@@ -101,7 +101,7 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
         <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           <ChapterMark kit={kit} colors={colors} number={number} />
           <div style={{ ...faceCss(design.display, fit.titleSize, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
-          <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />
+          {design.opener.vignette === false ? <div style={{ height: u.pt(S.vignetteGap) }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
           {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], ...(fit.epigraphLines ? { display: "-webkit-box", WebkitBoxOrient: "vertical" as const, WebkitLineClamp: fit.epigraphLines, overflow: "hidden" } : {}) }}>{epigraph}</div> : null}
         </Placed>
       </TextArea>
@@ -162,22 +162,72 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
   );
 }
 
-/** Титульный лист. */
+/** Титульный лист; композиция — по дизайну (titlePage.layout), как в PDF. */
 export function TitlePage({ kit, title, subtitle, author, year, className, style }: PageProps & { title: string; subtitle: string; author: string; year: number }) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
+  const layout = design.titlePage?.layout ?? "center";
+  const scale = metricsOf(kit).scale;
+  const titleEl = (size: number) => (
+    <div style={{ ...faceCss(design.display, size, u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
+  );
+  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
+  const authorEl = author ? <div style={labelCss(kit, P.muted)}>{author}</div> : null;
+  const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
+  let body: React.ReactNode;
+  if (layout === "left")
+    body = (
+      <>
+        <Placed top={DISPLAY_TOP.title} align="left">
+          {titleEl(S.title)}
+          {subtitleEl}
+          <div style={{ width: u.pt(TITLE_LAYOUT.bar * scale), height: u.pt(TITLE_LAYOUT.barThickness), background: P.accent, margin: `${u.pt(S.vignetteGap)} 0` }} />
+          {authorEl}
+        </Placed>
+        {yearEl}
+      </>
+    );
+  else if (layout === "bottom")
+    body = (
+      <>
+        {authorEl}
+        <div className="flex-1" />
+        {titleEl(S.title)}
+        {subtitleEl}
+        <div style={{ height: u.pt(S.vignetteGap * 2) }} />
+        {yearEl}
+      </>
+    );
+  else if (layout === "stack")
+    body = (
+      <>
+        <div className="shrink-0" style={{ height: `${TITLE_LAYOUT.stackTop * 100}%` }} />
+        {titleEl(S.title * TITLE_LAYOUT.stackScale)}
+        {subtitleEl}
+        <div className="flex-1" />
+        <div style={{ height: u.pt(TITLE_LAYOUT.ruleThickness), background: P.ink, marginBottom: u.pt(S.vignetteGap * 0.7) }} />
+        <div className="flex justify-between">
+          {authorEl ?? <span />}
+          {yearEl}
+        </div>
+      </>
+    );
+  else
+    body = (
+      <>
+        <Placed top={DISPLAY_TOP.title}>
+          {titleEl(S.title)}
+          {subtitleEl}
+          <Vignette kit={kit} rule={VIGNETTE_RULE.title} colors={P} />
+          {authorEl}
+        </Placed>
+        <div className="text-center">{yearEl}</div>
+      </>
+    );
   return (
     <PageSurface kit={kit} shapes={pageFrame(kit, P)} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
-        <Placed top={DISPLAY_TOP.title}>
-          <div style={{ ...faceCss(design.display, S.title, u), lineHeight: FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
-          {subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null}
-          <Vignette kit={kit} rule={VIGNETTE_RULE.title} colors={P} />
-          {author ? <div style={labelCss(kit, P.muted)}>{author}</div> : null}
-        </Placed>
-        <div className="text-center" style={labelCss(kit, P.muted, S.year)}>
-          {year}
-        </div>
+        {body}
       </TextArea>
     </PageSurface>
   );
@@ -281,6 +331,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
                 kit={kit}
                 entry={e}
                 leadIn={leadIn && design.leadIn && i === 0 && !e.continued}
+                start={leadIn && i === 0 && !e.continued}
                 head={e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 && !e.continued ? <Divider kit={kit} /> : undefined}
               />
             </div>

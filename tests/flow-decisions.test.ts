@@ -311,7 +311,7 @@ describe("применение решений", () => {
     applyDecision(flow, { type: "rowScale", mark: ROW, scale: 0.7 });
     applyDecision(flow, { type: "rowOffset", mark: ROW, offset: 120 });
     applyDecision(flow, { type: "noTail", chapter: "ch1" });
-    expect(flow).toEqual({ breakBefore: new Set(["a"]), rowScale: new Map([[ROW, 0.7]]), rowOffset: new Map([[ROW, 120]]), noTail: new Set(["ch1"]) });
+    expect(flow).toEqual({ breakBefore: new Set(["a"]), rowScale: new Map([[ROW, 0.7]]), rowOffset: new Map([[ROW, 120]]), noTail: new Set(["ch1"]), dropSplit: new Map() });
   });
 
   it("emptyFlow каждый раз новый", () => {

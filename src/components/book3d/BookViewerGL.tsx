@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useMessages } from "@/i18n/client";
 import { designBack } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
+import { parseCoverDesign, templateForDesign } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
 import { leafCount, pageLeaf, pagesNear, sheetCount, visibleSpread } from "@/lib/book/flipbook";
@@ -80,7 +81,9 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
   const f = m.flip;
   const mm = m.model;
   const format = getFormat(data.formatId);
-  const template = getCoverTemplate(data.cover.template);
+  // Обложка из конструктора: слои на лице; корешок и оборот — по шаблону (со своим фоном — контрастным цветом).
+  const design = useMemo(() => (data.cover.design ? parseCoverDesign(data.cover.design) : null), [data.cover.design]);
+  const template = useMemo(() => templateForDesign(getCoverTemplate(data.cover.template), design), [data.cover.template, design]);
   const { brand, back, backPhotos } = data.model;
   const pages = useFlipbookPages(bookId);
   const { build } = pages;
@@ -122,8 +125,8 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
   const imageHref = useCoverImage(template);
   const samples = useCoverSamples(template);
   // Фото, снимок обложки и снимки-примеры приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
-  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
-  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples]);
+  const artVersion = `${template.id}:${design ? hash(JSON.stringify(design)) : "-"}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples, design }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples, design]);
   // Пока снимки обложки ещё грузятся, растеризация даёт пустую (чёрную) текстуру: до их прихода обложку не снимаем,
   // а на случай медленной сети или сбоя ждём не дольше нескольких секунд — потом рисуем с тем, что есть.
   const pendingArt = (!!template.photo && !imageHref) || (!!template.samples && !samples) || (template.requiresPhoto && !!data.cover.photos?.some(Boolean) && !photoHrefs);
@@ -303,11 +306,11 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
     (key: (typeof COVER_KEYS)[number]): RasterJob => {
       const title = data.cover.title || data.title;
       if (key === "front")
-        return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
+        return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} design={design} format={data.formatId} /> };
       if (key === "back") return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
       return { key, version: artVersion, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
     },
-    [art, artVersion, backDesign, backPhotos, boardH, brand, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, spineW, template, texW],
+    [art, artVersion, backDesign, backPhotos, boardH, brand, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, spineW, template, texW, design, data.formatId],
   );
 
   // Версия арта, для которой текстуры обложки уже учтены как готовые.

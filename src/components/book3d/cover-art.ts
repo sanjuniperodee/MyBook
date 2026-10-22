@@ -1,4 +1,5 @@
 import { cropSvg, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
+import { backgroundArt, type CoverDesign } from "@/lib/book/cover-design";
 import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 
 export { cropSvg };
@@ -27,10 +28,17 @@ export function buildCoverArt(
   format: BookFormat,
   pageCount: number,
   dims: BookDims,
-  opts: { photos?: (PhotoRef | undefined)[]; imageHref?: string; plainBack?: boolean; samples?: Record<string, string> } = {},
+  opts: { photos?: (PhotoRef | undefined)[]; imageHref?: string; plainBack?: boolean; samples?: Record<string, string>; /** Обложка из конструктора. */ design?: CoverDesign | null } = {},
 ): CoverArt {
   const g = coverSpreadGeometry(format, pageCount);
   const uid = `bo${template.id}${format.id}`;
+  // Свой фон конструктора — цвет или градиент на всю развёртку, рисунка шаблона нет (слои кладёт лицевая сторона).
+  const own = opts.design && opts.design.background.kind !== "template" ? opts.design.background : null;
+  if (own) {
+    const flat = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${g.width} ${g.height}" preserveAspectRatio="none">${backgroundArt(own, g, uid)}</svg>`;
+    const { front, back, spine } = dims.rects;
+    return { frontInline: null, front: svgUrl(cropSvg(flat, front, dims.spread)), back: svgUrl(cropSvg(flat, back, dims.spread)), spine: svgUrl(cropSvg(flat, spine, dims.spread)) };
+  }
   const { photos, plainBack = false, samples } = opts;
   // Снимки-примеры (data-URL) — в пустые места под фото; без них рисуется пейзаж.
   const sampleHref = samples ? (k: string) => samples[k] ?? "" : undefined;

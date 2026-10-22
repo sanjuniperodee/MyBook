@@ -5,6 +5,7 @@ import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
 import { parseFrames } from "@/lib/book/photo-frame";
+import { parseCoverDesign } from "@/lib/book/cover-design";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { bookKind } from "@/lib/content/kinds";
 import { buildBookContent } from "@/lib/book/book-content";
@@ -75,6 +76,7 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           coverPhotoExtra: book.coverPhotoExtra,
           photoFrames: parseFrames(book.photoFrames),
           interior: book.interior,
+          coverDesign: parseCoverDesign(book.coverDesign),
         }}
       />
     </main>

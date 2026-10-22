@@ -7,6 +7,7 @@ import { designBack } from "@/lib/book/cover-back";
 import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { CoverSpineText } from "@/components/cover/CoverSpine";
 import { getCoverTemplate } from "@/lib/book/covers";
+import { parseCoverDesign, templateForDesign } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import {
   BOARD_MM,
@@ -32,6 +33,7 @@ import {
 import { clampPos, leafCount, leafPages, pagesNear, RENDER_WINDOW, sheetCount, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/class-names";
 import { buildCoverArt } from "./cover-art";
+import { DesignFace } from "./webgl/cover-faces";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
 import { ViewerControls } from "./ViewerControls";
 import { BuildNotice, BuildPlaceholder, leafImage, leafImageWidth, NEAR_SPREADS, useFlipbookPages, type FlipbookData } from "./pages";
@@ -183,7 +185,9 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const f = m.flip;
   const mm = m.model;
   const format = getFormat(data.formatId);
-  const template = getCoverTemplate(data.cover.template);
+  // Обложка из конструктора: слои на лице; корешок и оборот — по шаблону (со своим фоном — контрастным цветом).
+  const design = useMemo(() => (data.cover.design ? parseCoverDesign(data.cover.design) : null), [data.cover.design]);
+  const template = useMemo(() => templateForDesign(getCoverTemplate(data.cover.template), design), [data.cover.template, design]);
   const { brand, back, backPhotos } = data.model;
   const pages = useFlipbookPages(bookId);
   const { build } = pages;
@@ -202,8 +206,8 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const imageHref = useCoverImage(template);
   const samples = useCoverSamples(template);
   const art = useMemo(
-    () => buildCoverArt(template, format, pageCount, dims, { photos: data.cover.photos, imageHref, plainBack: backDesign.plainArt, samples }),
-    [template, format, pageCount, dims, data.cover.photos, imageHref, backDesign.plainArt, samples],
+    () => buildCoverArt(template, format, pageCount, dims, { photos: data.cover.photos, imageHref, plainBack: backDesign.plainArt, samples, design }),
+    [template, format, pageCount, dims, data.cover.photos, imageHref, backDesign.plainArt, samples, design],
   );
 
   // ── Состояние просмотра хранится вне React: каждый кадр обновляет стили напрямую ──
@@ -570,7 +574,11 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
       ) : (
         <div className="absolute inset-0" style={{ backgroundImage: art.front, backgroundSize: "100% 100%" }} />
       )}
-      <CoverText template={template} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} />
+      {design ? (
+        <DesignFace design={design} format={data.formatId} title={data.cover.title || data.cover.titlePlaceholder || ""} subtitle={data.cover.subtitle} names={data.cover.names} />
+      ) : (
+        <CoverText template={template} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} />
+      )}
       {/* Шарнир у корешка и блик */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(90deg, rgba(0,0,0,.22) 0, rgba(0,0,0,0) 1.2%, rgba(0,0,0,.2) ${hingePct.toFixed(2)}%, rgba(255,255,255,.1) ${(hingePct + 0.8).toFixed(2)}%, rgba(0,0,0,0) ${(hingePct + 4).toFixed(2)}%)` }} />
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, transparent calc(var(--sheen-f, 50%) - 14%), rgba(255,255,255,.16) var(--sheen-f, 50%), transparent calc(var(--sheen-f, 50%) + 14%))" }} />

@@ -25,7 +25,20 @@ export type InteriorId =
   | "gallery"
   | "arches"
   | "cinema"
-  | "luna";
+  | "luna"
+  // Библиотека стилей дизайнера: двенадцать направлений со своей системой шрифтов, интервалов и композиции.
+  | "novel"
+  | "journal"
+  | "airy"
+  | "luxe"
+  | "amour"
+  | "scrapbook"
+  | "lens"
+  | "magazine"
+  | "artbook"
+  | "antique"
+  | "contemporary"
+  | "kids";
 
 export type InteriorMood = "classic" | "romance" | "tender" | "bright" | "modern";
 
@@ -39,6 +52,70 @@ export type OpenerArt = "stars" | "oyu" | "herbarium" | "sunburst" | "watercolor
 
 /** Рамка «парадных» полос: титул, посвящение, начала глав, финал. */
 export type FrameKind = "none" | "double" | "deco" | "corners" | "airmail" | "vintage";
+
+/**
+ * Направление стиля — раздел библиотеки стилей (у прежних дизайнов — по их характеру). Фильтр в каталоге оформлений.
+ */
+export type StyleDirection = "literature" | "editorial" | "minimal" | "luxury" | "romantic" | "scrapbook" | "photo" | "magazine" | "art" | "vintage" | "contemporary" | "kids";
+
+export const styleDirections: StyleDirection[] = ["literature", "editorial", "minimal", "luxury", "romantic", "scrapbook", "photo", "magazine", "art", "vintage", "contemporary", "kids"];
+
+/** Выключка основного текста. */
+export type TextAlign = "justify" | "left" | "center" | "right";
+
+/** Основной текст сверх шрифта, кегля и интерлиньяжа: выключка, красная строка, отбивки, разрядка, ширина колонки. */
+export interface BodyText {
+  /** По умолчанию — по ширине. */
+  align?: TextAlign;
+  /** Красная строка, em; 0 или нет — без отступа. Первый абзац после заголовка и в начале главы — без отступа, как в книгах. */
+  indent?: number;
+  /** Отбивка после абзаца, em (по умолчанию ANSWER.para.after). */
+  paraGap?: number;
+  /** Разрядка, em. */
+  tracking?: number;
+  /** Насыщенность основного текста (по умолчанию 400). */
+  weight?: number;
+  /** Ширина колонки текста — доля полосы набора (0.7–1): узкая колонка с воздухом по бокам; фото — во всю полосу. */
+  measure?: number;
+}
+
+/** Буквица в начале главы: опущенная на несколько строк или поднятая (крупная первая буква в строке). */
+export interface DropCap {
+  style: "drop" | "raised";
+  /** На сколько строк опущена буквица (2–4). */
+  lines: number;
+  /** Начертание буквицы; нет — шрифт крупных надписей (display). */
+  face?: TextFace;
+  /** Цвет: акцент (по умолчанию) или цвет текста. */
+  color?: "accent" | "ink";
+}
+
+/** Выделенная цитата: линейка слева, по центру или с крупной кавычкой. */
+export type QuoteStyle = "rule" | "center" | "mark";
+
+/** Композиция титула: по центру, влево, название внизу полосы, крупный набор сверху. */
+export type TitleLayout = "center" | "left" | "bottom" | "stack";
+
+/** Разделитель между ответами без заголовка. */
+export type DividerKind = "stars" | "glyph" | "rule" | "asterism" | "space";
+
+/**
+ * Своё оформление начальной полосы главы поверх общего: другой номер, выключка, глиф, буквица, акцент, цветная полоса,
+ * рисунок. Остальные главы книги остаются как были.
+ */
+export interface ChapterOverride {
+  align?: "center" | "left";
+  number?: InteriorDesign["opener"]["number"];
+  ornament?: GlyphId;
+  dropCap?: DropCap | null;
+  leadIn?: boolean;
+  /** Цвет акцента главы (номер, капитель, буквица). */
+  accent?: string;
+  /** Цвет начальной полосы главы под обрез; null — без заливки. */
+  fill?: string | null;
+  /** Рисунок на начальной полосе; null — без рисунка. */
+  art?: OpenerArt | null;
+}
 
 export interface TextFace {
   font: FontKey;
@@ -75,8 +152,8 @@ export interface InteriorDesign {
   ornament: GlyphId;
   opener: {
     align: "center" | "left";
-    /** Номер главы: подписью «Глава 1», цифрой «1», с нулём «01» или римской «I». */
-    number: "label" | "digits" | "padded" | "roman";
+    /** Номер главы: подписью «Глава 1», цифрой «1», с нулём «01», римской «I» или без номера. */
+    number: "label" | "digits" | "padded" | "roman" | "none";
     /** Начертание и кегль цифры (для number ≠ "label"). По умолчанию — как у названий. */
     numeral?: TextFace & { size: number };
     /** Подпись «Глава 1» другим начертанием (например, рукописным). */
@@ -94,6 +171,8 @@ export interface InteriorDesign {
      * framed — в белом паспарту с тенью. Глава без фото открывается обычной полосой.
      */
     photo?: "bleed" | "polaroid" | "full" | "arch" | "circle" | "framed";
+    /** Виньетка под названием главы (по умолчанию есть). */
+    vignette?: boolean;
   };
   heading: {
     align: "left" | "center";
@@ -103,17 +182,37 @@ export interface InteriorDesign {
     accent?: boolean;
     /** Короткая акцентная линейка над заголовком. */
     bar?: boolean;
+    /** Своё начертание заголовков (шрифт, насыщенность, курсив, прописные, разрядка); нет — type.heading. */
+    face?: TextFace;
   };
-  /** Между ответами без заголовка: «* * *», глиф виньетки или короткая линейка. */
-  divider: "stars" | "glyph" | "rule";
+  /** Между ответами без заголовка: «* * *», глиф виньетки, короткая линейка, астеризм «⁂» или просто отбивка. */
+  divider: DividerKind;
   /** Первые слова главы — капителью (как в романах). */
   leadIn: boolean;
-  folio: { align: "center" | "outer"; dashes?: boolean; font?: "body" | "label" };
+  /** Колонцифра: по центру, у внешнего края или без неё. */
+  folio: { align: "center" | "outer" | "none"; dashes?: boolean; font?: "body" | "label" };
   /** Колонтитул: на левой полосе — название книги, на правой — глава. */
   runningHead: "none" | "plain" | "ruled";
   frame: FrameKind;
   /** Фотостраницы: рамка снимков, подпись, цвет скотча (для рамки «скотч») и тон бумаги (по умолчанию белая). */
-  photos: { frame: PhotoFrame; caption: PhotoCaption; tape?: string; paper?: string };
+  photos: { frame: PhotoFrame; caption: PhotoCaption; tape?: string; paper?: string; /** Своё начертание подписей вместо caption. */ captionFace?: TextFace };
   /** Обложки, с которыми дизайн составляет пару, — подсказка в выборе. */
   pairsWith: string[];
+
+  // ─── Дизайнер: всё ниже необязательно, без этих полей вёрстка прежняя ───────────────
+
+  /** Раздел библиотеки стилей. */
+  direction?: StyleDirection;
+  /** Основной текст: выключка, красная строка, отбивки, разрядка, ширина колонки. */
+  text?: BodyText;
+  /** Цитаты, лид, эпиграфы, посвящение и подзаголовок: начертание (по умолчанию курсив основного шрифта) и вид цитаты. */
+  quote?: { face?: TextFace; style?: QuoteStyle };
+  /** Буквица в начале главы. */
+  dropCap?: DropCap;
+  /** Тон бумаги всех полос (по умолчанию белая). */
+  paper?: string;
+  /** Титул: композиция и кегль названия, pt (по умолчанию 30). */
+  titlePage?: { layout?: TitleLayout; size?: number };
+  /** Своё оформление отдельных глав по ключу главы. */
+  chapters?: Record<string, ChapterOverride>;
 }

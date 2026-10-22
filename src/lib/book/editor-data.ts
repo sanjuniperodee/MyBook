@@ -77,6 +77,7 @@ export type EditorBookRow = Pick<
   | "id"
   | "format"
   | "interior"
+  | "interiorStyle"
   | "dedication"
   | "showToc"
   | "tocMode"
@@ -106,6 +107,7 @@ export function editorBook(book: EditorBookRow, coverPhotos: CoverPhotos): Edito
     id: book.id,
     format: book.format,
     interior: book.interior,
+    interiorStyle: book.interiorStyle,
     dedication: book.dedication,
     showToc: book.showToc,
     tocMode: book.tocMode,

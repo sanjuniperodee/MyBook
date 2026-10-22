@@ -7,8 +7,8 @@ import { emptyFlow, type FlowDecisions } from "@/lib/book/flow-decisions";
 import type { BookContent } from "@/lib/book/layout";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import type { PageBox } from "@/lib/book/interior-art";
-import { PAPER, type InteriorDesign, type TextFace } from "@/lib/book/interiors";
-import { interiorSizes, trackingPt, type InteriorSizes } from "@/lib/book/typesetting";
+import { chapterDesign, PAPER, type InteriorDesign, type TextFace } from "@/lib/book/interiors";
+import { bodyAlign, bodyWeight, interiorSizes, measureInsets, quoteFace, trackingPt, type InteriorSizes } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { FLOW_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { PAGE_MARK } from "@/modules/production/infrastructure/pdf/pages";
@@ -33,6 +33,8 @@ export interface InteriorOptions {
   rowHeights?: Map<string, number>;
   /** Электронная версия: QR-коды в ответах ещё и ссылки (в печатных файлах ссылок нет). */
   links?: boolean;
+  /** Сюда записывается текст колонки рядом с каждой буквицей и число её строк — для доводки (pdf/flow.ts refineDropCaps). */
+  dropColumns?: Map<string, { text: string; lines: number }>;
 }
 
 /** Всё, что нужно любой полосе блока: содержимое, дизайн, кегли, поля, стили основного текста и решения доводки. */
@@ -64,7 +66,12 @@ export interface PdfKit {
   pagePadding: Style;
   /** Основной текст. */
   body: Style;
+  /** Начертание цитат, лида, эпиграфов, посвящения и подзаголовка (по умолчанию курсив основного шрифта). */
   italicBody: Style;
+  /** Бумага полос. */
+  paper: string;
+  /** Узкая колонка текста: поля слева и справа внутри полосы набора, pt (без узкой колонки — пусто). */
+  measure: Style;
 }
 
 export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
@@ -75,6 +82,9 @@ export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
   const typeArea = textArea(format);
   const typo = design.type;
   const sizes = interiorSizes(design, scale);
+  const paper = design.paper ?? PAPER;
+  const inset = measureInsets(design);
+  const q = quoteFace(design);
   return {
     content,
     options,
@@ -96,16 +106,19 @@ export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
       paddingBottom: mm(bleed + marginBottom),
       paddingLeft: mm(bleed + side),
       paddingRight: mm(bleed + side),
-      backgroundColor: PAPER,
+      backgroundColor: paper,
     },
     body: {
-      ...face(typo.body, 400),
+      ...face(typo.body, bodyWeight(design)),
       fontSize: sizes.body,
       lineHeight: typo.lineHeight,
       color: design.palette.ink,
-      textAlign: "justify",
+      textAlign: bodyAlign(design),
+      ...(design.text?.tracking ? { letterSpacing: design.text.tracking * sizes.body } : {}),
     },
-    italicBody: face(typo.body, 400, true),
+    italicBody: { ...face(q.font, q.weight, q.italic), ...(q.upper ? { textTransform: "uppercase" as const } : {}) },
+    paper,
+    measure: inset.left || inset.right ? { marginLeft: mm(typeArea.w) * inset.left, marginRight: mm(typeArea.w) * inset.right } : {},
   };
 }
 
@@ -138,4 +151,10 @@ export function labelStyle(kit: PdfKit, color: string, size = kit.sizes.label): 
     textTransform: label.upper ? "uppercase" : undefined,
     color,
   };
+}
+
+/** Набор для главы со своим оформлением (design.chapters); у остальных глав — тот же набор. */
+export function chapterKit(kit: PdfKit, chapterKey: string): PdfKit {
+  const design = chapterDesign(kit.design, chapterKey);
+  return design === kit.design ? kit : pdfKit({ ...kit.content, interior: design }, kit.options);
 }

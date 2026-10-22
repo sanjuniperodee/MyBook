@@ -29,6 +29,8 @@ const book: Book = {
   backPhotoExtra: [], photoFrames: {},
   dedication: "Моему самому близкому человеку",
   interior: "classic",
+  interiorStyle: {},
+  coverDesign: null,
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,

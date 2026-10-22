@@ -87,8 +87,8 @@ describe("кадр места снимка — по геометрии PDF", () 
     expect(ratio("luna", square)).toBeCloseTo(1, 4);
   });
 
-  it("фото главы есть ровно у шести оформлений; у остальных кадра нет", () => {
-    expect(interiorDesigns.filter((d) => openerFrame(a5, d)).map((d) => d.id).sort()).toEqual(["arches", "cinema", "gallery", "luna", "memories", "photobook"]);
+  it("фото главы есть ровно у семи оформлений (шесть прежних и «Объектив» дизайнера); у остальных кадра нет", () => {
+    expect(interiorDesigns.filter((d) => openerFrame(a5, d)).map((d) => d.id).sort()).toEqual(["arches", "cinema", "gallery", "lens", "luna", "memories", "photobook"]);
     expect(openerFrame(a5, getInteriorDesign("classic"))).toBeNull();
   });
 

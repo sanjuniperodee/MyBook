@@ -433,6 +433,8 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   photoFrames: {},
   dedication: "",
   interior: "classic",
+  interiorStyle: {},
+  coverDesign: null,
   format: "a5",
   photoPlacement: "chapters",
   showToc: true,

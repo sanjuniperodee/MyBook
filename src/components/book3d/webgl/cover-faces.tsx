@@ -1,5 +1,10 @@
 import type { CSSProperties } from "react";
 import { CoverText } from "@/components/cover/CoverPreview";
+import { CoverLayers } from "@/components/cover/CoverLayers";
+import { boardSize, type CoverDesign } from "@/lib/book/cover-design";
+import { getFormat } from "@/lib/book/formats";
+import { coverPhotoUrl } from "@/lib/book/photo-cover";
+import { photoUrl } from "@/lib/urls";
 import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { CoverSpineText } from "@/components/cover/CoverSpine";
 import type { BackDesign } from "@/lib/book/cover-back";
@@ -13,7 +18,21 @@ import type { CoverArt } from "../cover-art";
  */
 const box = (width: number, height: number): CSSProperties => ({ position: "relative", width, height, overflow: "hidden", containerType: "inline-size" });
 
-export function CoverFrontFace({ template, art, title, subtitle, names, titlePlaceholder, width, height, widthMm }: { template: CoverTemplate; art: CoverArt; title: string; subtitle?: string; names?: string; titlePlaceholder?: string; width: number; height: number; widthMm: number }) {
+/** Слои обложки из конструктора на лицевой стороне 3D-книги (вместо текста шаблона). */
+export function DesignFace({ design, format, title, subtitle, names }: { design: CoverDesign; format?: string; title: string; subtitle?: string; names?: string }) {
+  return (
+    <CoverLayers
+      design={design}
+      texts={{ title, subtitle: subtitle ?? "", names: names ?? "" }}
+      board={boardSize(getFormat(format ?? "a5"))}
+      photoSrc={(id) => photoUrl(id, "view")}
+      stockSrc={(key) => coverPhotoUrl(key, 1400)}
+      uid="b3"
+    />
+  );
+}
+
+export function CoverFrontFace({ template, art, title, subtitle, names, titlePlaceholder, width, height, widthMm, design, format }: { template: CoverTemplate; art: CoverArt; title: string; subtitle?: string; names?: string; titlePlaceholder?: string; width: number; height: number; widthMm: number; design?: CoverDesign | null; format?: string }) {
   // Шарнир у корешка: еле заметная канавка, как на настоящей книге.
   const hinge = Math.min(14, widthMm * 0.05);
   const hingePct = (hinge / widthMm) * 100;
@@ -24,7 +43,7 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
       ) : (
         <div className="absolute inset-0" style={{ backgroundImage: art.front, backgroundSize: "100% 100%" }} />
       )}
-      <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />
+      {design ? <DesignFace design={design} format={format} title={title || titlePlaceholder || ""} subtitle={subtitle} names={names} /> : <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />}
       <div
         aria-hidden
         className="absolute inset-0"

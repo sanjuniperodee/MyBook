@@ -29,9 +29,9 @@ const text = (markup: string) => markup.replace(/<[^>]+>/g, " ").replace(/\s+/g,
 const place = (kind: PhotoPlace["kind"], p: Partial<PhotoPlace> = {}): PhotoPlace => ({ kind, auto: false, onCover: null, ...p });
 
 describe("значок оформлений: есть ли фото главы и какой оно формы", () => {
-  it("фото главы — у шести оформлений, у каждого своя форма со словом в обоих языках", () => {
+  it("фото главы — у оформлений-фотокниг (и нового lens), у каждого своя форма со словом в обоих языках", () => {
     const withPhoto = interiorDesigns.filter((d) => openerShapeOf(d));
-    expect(withPhoto.map((d) => d.id).sort()).toEqual(["arches", "cinema", "gallery", "luna", "memories", "photobook"]);
+    expect(withPhoto.map((d) => d.id).sort()).toEqual(["arches", "cinema", "gallery", "lens", "luna", "memories", "photobook"]);
     for (const d of withPhoto) {
       expect(ru.editor.openerShape[openerShapeOf(d)!]).toBeTruthy();
       expect(kk.editor.openerShape[openerShapeOf(d)!]).toBeTruthy();

@@ -488,8 +488,15 @@
     {
       "idx": 69,
       "version": "7",
-      "when": 1792688187455,
-      "tag": "0069_layout_rev_default",
+      "when": 1792679625488,
+      "tag": "0069_book_design",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792690387117,
+      "tag": "0070_layout_rev_default",
       "breakpoints": true
     }
   ]

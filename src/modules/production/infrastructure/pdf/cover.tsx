@@ -1,7 +1,7 @@
 import "server-only";
 import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/renderer";
 import type { CoverGeometry } from "@/lib/book/formats";
-import { mm } from "@/lib/book/formats";
+import { mm, print } from "@/lib/book/formats";
 import { spineFontMm, spineParts } from "@/lib/book/book-model";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
 import type { BackDesign } from "@/lib/book/cover-back";
@@ -12,6 +12,8 @@ import type { Locale } from "@/i18n/config";
 /** На обложке переносов нет: «кі-тапқа» на обороте или «навсе-гда» в названии выглядят как ошибка. */
 const noHyphens = (word: string) => [word];
 import { messagesFor } from "@/i18n/messages";
+import type { CoverDesign } from "@/lib/book/cover-design";
+import { CoverLayersPdf } from "./cover-layers";
 
 function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"] = "center") {
   const size = mm(s.size * frontWmm);
@@ -55,6 +57,7 @@ export function CoverDocument({
   background,
   text,
   back,
+  layers,
   title,
   language,
 }: {
@@ -64,6 +67,8 @@ export function CoverDocument({
   text: CoverTextContent;
   /** Раскладка задней стороны (src/lib/book/cover-back.ts) и её фото по порядку. */
   back: { design: BackDesign; photos: (Buffer | null)[] };
+  /** Обложка из конструктора: слои вместо текста шаблона на лицевой стороне; снимки слоёв — по id слоя. */
+  layers?: { design: CoverDesign; images: Map<string, Buffer> };
   title: string;
   language: Locale;
 }) {
@@ -86,6 +91,7 @@ export function CoverDocument({
   const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
+  const clipX = spine ? Math.max(0, f.x - print.cover.hingeMm) : 0;
   const spineText = spineParts(text.title, text.names);
   const spineFontSize = spine ? spineFontMm(spine.w) : null;
   const spineFont = spineFontSize ? mm(spineFontSize) : 0;
@@ -97,8 +103,14 @@ export function CoverDocument({
         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */}
         <Image src={{ data: background, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: mm(g.width), height: mm(g.height) - 0.01 }} />
 
-        {/* Лицевая сторона */}
-        <View
+        {/* Лицевая сторона: слои конструктора или текст шаблона */}
+        {layers ? (
+          // Слои лицевой стороны не заходят на корешок: слева их обрезает канавка шарнира — как край холста редактора.
+          <View fixed style={{ position: "absolute", left: mm(clipX), top: 0, width: mm(g.width - clipX), height: mm(g.height) - 0.01, overflow: "hidden" }}>
+            <CoverLayersPdf design={layers.design} texts={text} front={{ ...f, x: f.x - clipX }} images={layers.images} />
+          </View>
+        ) : null}
+        {layers ? null : <View
           style={{
             position: "absolute",
             left: mm(f.x + ta.x * f.w),
@@ -116,7 +128,7 @@ export function CoverDocument({
           {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.subtitle, f.w, align), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
           {template.namesFirst ? null : ornament}
           {template.namesFirst ? null : namesLine}
-        </View>
+        </View>}
 
         {/* Корешок: название в верхней половине, имена в нижней, читается сверху вниз */}
         {spine && spineFont && spineText.length ? (

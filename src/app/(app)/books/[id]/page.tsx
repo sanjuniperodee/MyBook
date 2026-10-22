@@ -124,6 +124,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             subtitle={book.subtitle}
             names={coverNames(book)}
             photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
+            design={book.coverDesign}
             rotate={18}
             thickness={Math.min(14, 4 + printedPages / 20)}
           />

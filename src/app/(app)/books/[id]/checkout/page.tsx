@@ -77,6 +77,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             subtitle={book.subtitle}
             names={coverNames(book)}
             photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "thumb")}
+            design={book.coverDesign}
             lite
             className="rounded-[3px] shadow-book"
           />

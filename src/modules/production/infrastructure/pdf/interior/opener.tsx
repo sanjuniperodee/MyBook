@@ -3,7 +3,7 @@ import "server-only";
 import { Image, Page, Text, View } from "@react-pdf/renderer";
 import { mm } from "@/lib/book/formats";
 import type { PhotoItem } from "@/lib/book/layout";
-import { chapterMark, PAPER, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
+import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { frameShapes, openerArtShapes } from "@/lib/book/interior-art";
 import { openerFit } from "@/lib/book/opener-fit";
 import { openerPhotoPlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
@@ -79,11 +79,11 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
   // Длинное название и эпиграф своей книги не должны выталкивать начальную полосу на вторую (то же правило — в HTML).
   const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   return (
-    <Page {...pageMark("opener", chapterKey)} size={kit.pageSize} style={{ ...kit.pagePadding, backgroundColor: fill?.paper ?? PAPER }}>
+    <Page {...pageMark("opener", chapterKey)} size={kit.pageSize} style={{ ...kit.pagePadding, backgroundColor: fill?.paper ?? kit.paper }}>
       <PdfPageLayer shapes={[...artShapes, ...frameShapes(design.frame, box, colors)]} box={box} />
       {shot && image ? <OpenerPhoto kit={kit} shot={shot} image={image.data} /> : null}
       <Text
-        style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? PAPER }}
+        style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: fill?.paper ?? kit.paper }}
         render={({ pageNumber }) => {
           options.onChapterPage?.(chapterKey, pageNumber);
           return " ";
@@ -92,7 +92,7 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
       <Placed top={shot?.textTop ?? design.opener.top} align={align}>
         <ChapterMark kit={kit} colors={colors} number={number} />
         <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, fit.titleSize), lineHeight: OPENER.title.lineHeight, textAlign: align, color: colors.ink, maxWidth: OPENER.title.maxWidth }}>{title}</Text>
-        <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />
+        {design.opener.vignette === false ? <View style={{ height: S.vignetteGap }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
         {epigraph ? (
           <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: OPENER.epigraph.lineHeight, textAlign: align, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], ...(fit.epigraphLines ? { maxLines: fit.epigraphLines, textOverflow: "ellipsis" as const } : {}) }}>{epigraph}</Text>
         ) : null}
