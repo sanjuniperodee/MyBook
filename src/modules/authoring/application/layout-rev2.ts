@@ -19,9 +19,9 @@ import { GALLERY_KEY } from "@/lib/book/toc";
  * печати (главы: фото начала, фото после главы; альбом; фото в ответах; остальные), — фото по правилу книги не остаётся.
  * В обоих основное фото обложки, которого на ней не видно (шаблон без фото), — «не печатается»: прежние правила прячут
  * его и тогда, а правила 2 поставили бы внутрь.
- * Известный остаток — снимок обложки в ответе (прежние правила его там прячут, правила 2 печатают): книга, черновик
- * тоже, остаётся на правилах 1 и попадает в отчёт — редактор этот снимок в ответе не показывает (editor-data.ts), и
- * автор не увидел бы, что он теперь напечатается.
+ * Известный остаток — снимок обложки в ответе (прежние правила его там прячут, правила 2 печатают). Черновик переводится,
+ * если, кроме этого снимка, всё совпадает: редактор собирает книгу по правилам книги (R9) и после перевода показывает
+ * снимок в ответе — автор видит, что он напечатается; отчёт называет такие книги. Заказанная книга остаётся на правилах 1.
  */
 
 /** Фото книги для перевода: строка photos (то, что идёт в сборку, и место). */
@@ -56,10 +56,12 @@ export type LayoutRev2Plan =
       ok: true;
       plan: "A" | "B";
       changes: PhotoPinChange[];
+      /** Черновик со снимком обложки в ответе: переведён, и снимок теперь печатается в этом ответе — строка отчёта. */
+      coverInAnswer?: { questionId: string; heading: string };
     }
   | {
       ok: false;
-      /** coverInAnswer — снимок обложки в ответе: по правилам 2 он там напечатается; mismatch — любое другое расхождение. */
+      /** coverInAnswer — снимок обложки в ответе заказанной книги: по правилам 2 он там напечатается; mismatch — любое другое расхождение. */
       reason: "coverInAnswer" | "mismatch";
       /** Ответ со снимком обложки — заголовок для отчёта. */
       coverInAnswer?: { questionId: string; heading: string };
@@ -160,15 +162,18 @@ export function planLayoutRev2(b: LayoutBundle, year = new Date().getFullYear(),
   ).filter(([plan]) => only.includes(plan));
   for (const [plan, rows] of plans) if (layoutSignature(build(rows, LAYOUT_REV_2)) === before) return { ok: true, plan, changes: changes(rows) };
 
-  // Снимок обложки в ответе: прежние правила его прячут, правила 2 печатают. Если, кроме него, всё совпадает, — своя
-  // причина в отчёте. Книга остаётся на правилах 1, черновик тоже: редактор снимок обложки в ответе не показывает
-  // (editor-data.ts), и автор не узнал бы, что он теперь напечатается. Когда редактор начнёт его показывать (R9),
-  // черновики можно будет переводить с пометкой в отчёте.
+  // Снимок обложки в ответе: прежние правила его прячут, правила 2 печатают. Если, кроме него, всё совпадает: черновик
+  // переводится (редактор собирает книгу по её правилам и после перевода показывает снимок в ответе — автор видит, что
+  // он напечатается; R9), заказанная книга остаётся на правилах 1. И то и другое — строка в отчёте.
   const question = cover?.questionId ? b.questions.find((q) => q.id === cover.questionId) : undefined;
   if (cover && question) {
     const hidden = (rows: readonly LayoutPhoto[]) => rows.map((r) => (r.id === cover.id ? { ...r, questionId: null, chapter: PHOTO_OFF_KEY, opener: false } : r));
-    if (plans.some(([, rows]) => layoutSignature(build(hidden(rows), LAYOUT_REV_2)) === before))
-      return { ok: false, reason: "coverInAnswer", coverInAnswer: { questionId: question.id, heading: printableText(questionHeading(question, b.book)) } };
+    const found = plans.find(([, rows]) => layoutSignature(build(hidden(rows), LAYOUT_REV_2)) === before);
+    if (found) {
+      const coverInAnswer = { questionId: question.id, heading: printableText(questionHeading(question, b.book)) };
+      if (b.book.status === "draft") return { ok: true, plan: found[0], changes: changes(found[1]), coverInAnswer };
+      return { ok: false, reason: "coverInAnswer", coverInAnswer };
+    }
   }
   return { ok: false, reason: "mismatch" };
 }

@@ -1,32 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, RotateCcw, Undo2, X } from "lucide-react";
+import { ChevronDown, ImagePlus, Images, RotateCcw, Undo2, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
+import { isChapterPhotoKey } from "@/lib/book/layout";
+import type { PhotoPlace } from "@/lib/book/photo-place";
 import { GALLERY_KEY, isRemovedChapter, TOC_EPIGRAPH_MAX, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
 import { cn } from "@/lib/class-names";
-import { StoryList, type StoryInfo } from "./StoryList";
-import type { FrameShape } from "@/components/editor/PanFrame";
 import { photoUrl } from "@/lib/urls";
-import { ChapterPhotosDialog, type PickPhoto } from "./ChapterPhotosDialog";
+import { StoryList, type StoryInfo } from "./StoryList";
+import { chapterPhotoCount, chapterPhotoStatus, type ChapterPhotoStatus } from "./pages-photos";
 
 const LETTERS = "c:__letters";
+
+/** Какой лист фото открыть из «Глав книги»: фото главы или альбом в конце. */
+export type PhotoSheetTarget = { kind: "chapter"; key: string } | { kind: "album" };
+
+/** Фото глав в строках: места фото (photoPlaceOf под текущее оформление), есть ли в оформлении фото главы, альбом. */
+export interface ChapterPhotoRows {
+  places: ReadonlyMap<string, PhotoPlace>;
+  openerDesign: boolean;
+  /** Альбом в конце — строка видна, когда в нём есть фото. */
+  album: { title: string; count: number } | null;
+  onOpen: (target: PhotoSheetTarget) => void;
+}
 
 /**
  * Главы книги: своё название (во всей книге — начальная полоса, колонтитул, оглавление) и «убрать главу» — страницы
  * с её названием не будет, истории перейдут в предыдущую главу. Видно всегда, даже без страницы «Содержание».
  * Настройки — те же строки глав (toc.ts, ключ `c:<глава>`), сборку книги делает layout.ts (foldChapters).
+ * У каждой главы — фото главы: выбрано (миниатюра), «без фото», не выбрано или его нет в оформлении; кнопка
+ * открывает лист «Фото главы». Своя книга (blank): главы называет и собирает автор в редакторе — здесь только фото.
  */
-/** Фото книги по главам: форма снимка начала главы в оформлении, все фото и что сейчас в каждой главе. */
-export interface ChapterPhotoPlan {
-  shape: FrameShape | null;
-  photos: PickPhoto[];
-  /** По ключу главы: фото в ней сейчас (вместе с попавшими по правилу книги) и снимок начала. */
-  byChapter: Record<string, { ids: string[]; opener: string | null }>;
-}
-
 export function ChaptersEditor({
-  photoPlan,
+  photos,
+  blank = false,
   bookId,
   candidates,
   lines,
@@ -34,8 +42,10 @@ export function ChaptersEditor({
   editable,
   onChange,
 }: {
-  /** Фото по главам — кнопка «Фото главы» в карточке. */
-  photoPlan?: ChapterPhotoPlan;
+  /** Фото глав — кнопка «Фото главы» в карточке и строка альбома. */
+  photos?: ChapterPhotoRows;
+  /** Своя книга: названия и порядок глав — в редакторе, здесь только фото глав. */
+  blank?: boolean;
   bookId: string;
   /** Истории книги по id ответа — для правки заголовков внутри глав. */
   stories: Readonly<Record<string, StoryInfo>>;
@@ -45,9 +55,9 @@ export function ChaptersEditor({
   editable: boolean;
   onChange: (lines: TocLines) => void;
 }) {
-  const t = useMessages().books.pages;
+  const m = useMessages();
+  const t = m.books.pages;
   const [open, setOpen] = useState<string | null>(null);
-  const [picking, setPicking] = useState<string | null>(null);
   const chapters = candidates.filter((c) => c.kind === "chapter" && c.pageKey !== GALLERY_KEY);
   const storiesOf = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key);
   if (!chapters.length || chapters.every((c) => c.key.startsWith("c:planned-"))) return <p className="text-sm text-muted">{t.chaptersLater}</p>;
@@ -69,7 +79,8 @@ export function ChaptersEditor({
             <li key={c.key} className={cn("rounded-2xl p-3 ring-1 transition", removed ? "bg-cream/60 ring-line/60" : "bg-white ring-line")}>
               <div className="flex items-center gap-2">
                 <span className="w-7 shrink-0 text-right text-sm text-muted tabular-nums">{number ? `${number}.` : "—"}</span>
-                <input
+                {blank ? <span className="min-w-0 flex-1 truncate py-2 text-sm font-medium">{s?.title?.trim() || c.label}</span> : null}
+                {blank ? null : <input
                   className={cn("input h-10 min-w-0 flex-1 text-sm font-medium", removed && "line-through opacity-50")}
                   value={s?.title ?? ""}
                   placeholder={c.label}
@@ -77,23 +88,24 @@ export function ChaptersEditor({
                   aria-label={t.chapterNameAria(c.label)}
                   onChange={(e) => setLine(c.key, { title: e.target.value })}
                   disabled={!editable || removed}
-                />
-                {s?.title && !removed ? (
+                />}
+                {blank ? null : s?.title && !removed ? (
                   <button type="button" className="shrink-0 rounded-lg p-2.5 text-muted hover:bg-cream hover:text-ink disabled:opacity-50 sm:p-1.5" title={t.chapterNameReset} aria-label={t.chapterNameReset} onClick={() => setLine(c.key, { title: "" })} disabled={!editable}>
                     <RotateCcw className="size-4" />
                   </button>
                 ) : null}
-                {c.first ? null : removed ? (
+                {blank || c.first ? null : removed ? (
                   <button type="button" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-wine hover:bg-white disabled:opacity-50" onClick={() => setLine(c.key, { hidden: false })} disabled={!editable}>
                     <Undo2 className="size-4" /> {t.chapterRestore}
                   </button>
                 ) : (
-                  <button type="button" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-cream hover:text-ink disabled:opacity-50" onClick={() => setLine(c.key, { hidden: true })} disabled={!editable}>
-                    <X className="size-4" /> {t.chapterRemove}
+                  // На телефоне — только крестик (подпись для чтения с экрана): иначе полю названия главы оставалось пол-слова.
+                  <button type="button" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted hover:bg-cream hover:text-ink disabled:opacity-50 max-sm:px-0" onClick={() => setLine(c.key, { hidden: true })} disabled={!editable} title={t.chapterRemove}>
+                    <X className="size-4" /> <span className="max-sm:sr-only">{t.chapterRemove}</span>
                   </button>
                 )}
               </div>
-              {removed ? null : (
+              {removed || blank ? null : (
                 <div className="mt-1.5 flex items-center gap-2 pl-9">
                   <input
                     className="input h-9 min-w-0 flex-1 text-sm italic"
@@ -112,19 +124,11 @@ export function ChaptersEditor({
                 </div>
               )}
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-9 text-xs text-muted">
-                <span>{removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}</span>
-                {photoPlan && !removed && c.key !== LETTERS ? (
-                  <button type="button" className="inline-flex items-center gap-1.5 font-medium text-wine hover:underline" onClick={() => setPicking(c.pageKey)}>
-                    <span className="flex -space-x-1.5">
-                      {(photoPlan.byChapter[c.pageKey]?.ids ?? []).slice(0, 3).map((id) => (
-                        // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
-                        <img key={id} src={photoUrl(id)} alt="" className="size-5 rounded-full object-cover ring-2 ring-white" />
-                      ))}
-                    </span>
-                    {t.chapterPhotosButton(photoPlan.byChapter[c.pageKey]?.ids.length ?? 0)}
-                  </button>
+                {blank ? null : <span>{removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}</span>}
+                {photos && !removed && isChapterPhotoKey(c.pageKey) ? (
+                  <ChapterPhotoButton status={chapterPhotoStatus(c.pageKey, photos.places, lines, photos.openerDesign)} count={chapterPhotoCount(c.pageKey, photos.places)} onClick={() => photos.onOpen({ kind: "chapter", key: c.pageKey })} />
                 ) : null}
-                {count ? (
+                {count && !blank ? (
                   <button type="button" className="inline-flex items-center gap-1 font-medium text-wine hover:underline" aria-expanded={open === c.key} onClick={() => setOpen(open === c.key ? null : c.key)}>
                     {t.storiesToggle(count)} <ChevronDown className={cn("size-3.5 transition", open === c.key && "rotate-180")} />
                   </button>
@@ -144,19 +148,14 @@ export function ChaptersEditor({
           );
         })}
       </ul>
-      {picking && photoPlan ? (
-        <ChapterPhotosDialog
-          bookId={bookId}
-          chapterKey={picking}
-          chapterTitle={rows.find((r) => r.c.pageKey === picking)?.c.label ?? ""}
-          shape={photoPlan.shape}
-          photos={photoPlan.photos}
-          auto={photoPlan.byChapter[picking]?.ids ?? []}
-          autoOpener={photoPlan.byChapter[picking]?.opener ?? null}
-          chapterTitles={Object.fromEntries(rows.map((r) => [r.c.pageKey, lines[r.c.key]?.title?.trim() || r.c.label]))}
-          editable={editable}
-          onClose={() => setPicking(null)}
-        />
+      {photos?.album ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-white p-3 ring-1 ring-line">
+          <Images className="size-4 shrink-0 text-wine" aria-hidden />
+          <span className="min-w-0 flex-1 text-sm font-medium">{m.books.pagesPhotos.albumRow(photos.album.title, photos.album.count)}</span>
+          <button type="button" className="btn btn-outline btn-sm min-h-11" onClick={() => photos.onOpen({ kind: "album" })}>
+            {m.books.pagesPhotos.albumEdit}
+          </button>
+        </div>
       ) : null}
     </div>
   );
@@ -192,4 +191,30 @@ function chapterRows(chapters: readonly SampleTocCandidate[], lines: TocLines, s
     rows.push({ c, removed, number: removed ? null : no, into: removed ? host : "", count: stories(c.key) });
   }
   return rows;
+}
+
+/**
+ * Кнопка фото главы в строке: миниатюра выбранного фото (или значок) и «Фото главы · n», рядом — что с началом
+ * главы: «без фото» (так решил автор), «Выбрать фото» (оформление ждёт фото, его нет), «нет фото в начале» (в этом
+ * оформлении глава начинается без фото — фото главы встанут после её текста).
+ */
+export function ChapterPhotoButton({ status, count, onClick }: { status: ChapterPhotoStatus; count: number; onClick: () => void }) {
+  const m = useMessages();
+  const pp = m.books.pagesPhotos;
+  return (
+    <button type="button" className="-my-1.5 inline-flex min-h-11 items-center gap-2 rounded-lg text-left font-medium text-wine hover:underline" onClick={onClick} data-photo-status={status.kind}>
+      {status.kind === "chosen" ? (
+        // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
+        <img src={photoUrl(status.photoId)} alt="" className="size-8 shrink-0 rounded-md object-cover ring-1 ring-line" />
+      ) : (
+        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", status.kind === "needed" ? "border border-dashed border-amber-500 bg-amber-50 text-amber-700" : "bg-cream text-muted")}>
+          <ImagePlus className="size-4" aria-hidden />
+        </span>
+      )}
+      <span>{pp.rowBtn(count)}</span>
+      {status.kind === "noDesign" ? <span className="font-normal text-muted">· {pp.rowNoOpener}</span> : null}
+      {status.kind === "none" ? <span className="font-normal text-muted">· {pp.rowNoneChosen}</span> : null}
+      {status.kind === "needed" ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">{m.editor.chapterStart.choose}</span> : null}
+    </button>
+  );
 }

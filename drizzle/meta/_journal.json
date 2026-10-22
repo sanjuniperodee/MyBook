@@ -484,6 +484,13 @@
       "when": 1792676103063,
       "tag": "0068_layout_rev",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792688187455,
+      "tag": "0069_layout_rev_default",
+      "breakpoints": true
     }
   ]
 }

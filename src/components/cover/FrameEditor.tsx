@@ -148,7 +148,8 @@ export function FrameControls({
   selected: string | null;
   onSelect: (key: string) => void;
   onChange: (key: string, frame: PhotoFrame) => void;
-  labels: { hint: string; zoom: string; zoomIn: string; zoomOut: string; reset: string; slot: (n: number) => string };
+  /** hintTouch — подсказка на телефоне и планшете (палец вместо колёсика мыши); нет — одна hint везде. */
+  labels: { hint: string; hintTouch?: string; zoom: string; zoomIn: string; zoomOut: string; reset: string; slot: (n: number) => string };
 }) {
   const current = slots.find((s) => s.key === selected) ?? slots[0];
   if (!current) return null;
@@ -190,7 +191,14 @@ export function FrameControls({
           <RotateCcw className="size-3.5" /> {labels.reset}
         </button>
       </div>
-      <p className="text-xs text-muted">{labels.hint}</p>
+      {labels.hintTouch ? (
+        <>
+          <p className="text-xs text-muted pointer-coarse:hidden">{labels.hint}</p>
+          <p className="hidden text-xs text-muted pointer-coarse:block">{labels.hintTouch}</p>
+        </>
+      ) : (
+        <p className="text-xs text-muted">{labels.hint}</p>
+      )}
     </div>
   );
 }

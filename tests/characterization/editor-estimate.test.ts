@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { editorModel } from "@/lib/book/editor-data";
-import { type EditorBook, type EditorPhoto } from "@/lib/book/editor-model";
+import { editorBook, editorModel } from "@/lib/book/editor-data";
+import { type EditorPhoto } from "@/lib/book/editor-model";
 import { editorEstimate } from "@/lib/book/editor-estimate";
-import { bookKind } from "@/lib/content/kinds";
 import { printablePageCount } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { estimatePages } from "@/lib/book/estimate";
@@ -15,26 +14,10 @@ import { characterizationBooks, contentOf, pdfContentPages } from "./books";
  * Снимок — по всем книгам набора и вариантам; с полосами PDF оценка совпадает (B14).
  */
 
-/** Вход редактора из бандла — как его готовит страница books/[id]/questions. */
+/** Вход редактора из бандла — как его готовит страница books/[id]/questions (editorModel и editorBook). */
 function editorInput({ bundle }: FixtureBook) {
-  const { book } = bundle;
-  const { questions, photos, letters, chapters } = editorModel(book, bundle.questions, bundle.chapters, bundle.photos, bundle.letters);
-  const editorBook: EditorBook = {
-    id: book.id,
-    format: book.format,
-    interior: book.interior,
-    dedication: book.dedication,
-    showToc: book.showToc,
-    photoPlacement: book.photoPlacement,
-    title: book.title,
-    language: book.language,
-    names: [book.authorName, book.recipientName].filter(Boolean),
-    theme: book.theme,
-    kind: bookKind(book.theme),
-    authorGender: book.authorGender,
-    recipientGender: book.recipientGender,
-  };
-  return { questions, photos, letters, chapters, book: editorBook };
+  const { questions, photos, letters, chapters, coverPhotos } = editorModel(bundle.book, bundle.questions, bundle.chapters, bundle.photos, bundle.letters);
+  return { questions, photos, letters, chapters, book: editorBook(bundle.book, coverPhotos) };
 }
 
 const variants = new Set(fixtureVariants().map((v) => v.key));
@@ -88,7 +71,7 @@ describe("что редактор берёт в счёт (B3)", () => {
   it("вопрос без текста, но с фото печатается — значит считается", () => {
     // В главе «Как всё начиналось» нет ни одного ответа: снимок в пустом ответе открывает её — начальная полоса и полоса текста.
     const empty = thin.questions.find((q) => q.chapter === "meet")!;
-    const photo: EditorPhoto = { id: "photo-in-empty-answer", width: 4000, height: 3000, caption: "", layout: "full", questionId: empty.id, inline: null };
+    const photo: EditorPhoto = { id: "photo-in-empty-answer", width: 4000, height: 3000, caption: "", layout: "full", questionId: empty.id, inline: null, crop: null, chapter: null, opener: false, onCover: null };
     expect(count([photo], [])).toBe(base + 2);
   });
 
@@ -104,7 +87,7 @@ describe("что редактор берёт в счёт (B3)", () => {
 
   it("книга только из фото без вопроса печатается галереей — счётчик не 0 и равен оценке кабинета", () => {
     const blank = thin.questions.map((q) => ({ ...q, answer: "" }));
-    const photo: EditorPhoto = { id: "gallery-only", width: 4000, height: 3000, caption: "", layout: "full", questionId: null, inline: null };
+    const photo: EditorPhoto = { id: "gallery-only", width: 4000, height: 3000, caption: "", layout: "full", questionId: null, inline: null, crop: null, chapter: null, opener: false, onCover: null };
     const { raw, printed } = editorEstimate(thin.book, blank, [photo], []);
     expect(raw).toBeGreaterThan(0);
     expect(printed).toBe(printablePageCount(raw));

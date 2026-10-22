@@ -8,7 +8,8 @@ import { applyPins, buildLayout, layoutBundle, layoutPhoto, layoutQuestion, YEAR
 /**
  * Перевод на правила 2 на случайных книгах: 1–6 глав × 0–14 фото × раскладка фото × оформление (с фото главы и без) ×
  * выбранные заранее места × снимки обложки и оборота (с шаблоном и вариантом оборота: видны не все). Каждый найденный
- * план даёт ту же подпись вёрстки, а план B не находится только у книги со снимком обложки в ответе.
+ * план даёт ту же подпись вёрстки (у черновика со снимком обложки в ответе — ту же без этого снимка), а план B
+ * не находится только у заказанной книги со снимком обложки в ответе.
  */
 
 /** Повторяемый генератор (mulberry32). */
@@ -82,13 +83,18 @@ function expectExact(b: LayoutBundle, plan: Extract<LayoutRev2Plan, { ok: true }
     if (p.opener) expect(isChapterPhotoKey(p.chapter), label).toBe(true);
   }
   expect(new Set(rows.map((p) => p.position)).size, label).toBe(rows.length);
-  expect(signature(b, rows, 2), label).toBe(signature(b, b.photos, 1));
+  if (!plan.coverInAnswer) return expect(signature(b, rows, 2), label).toBe(signature(b, b.photos, 1));
+  // Черновик со снимком обложки в ответе: снимок остаётся в ответе (по правилам 2 печатается там), без него — та же вёрстка.
+  const cover = b.book.coverPhotoId;
+  expect([b.book.status, rows.find((p) => p.id === cover)?.questionId], label).toEqual(["draft", plan.coverInAnswer.questionId]);
+  const hidden = rows.map((p) => (p.id === cover ? { ...p, questionId: null, chapter: PHOTO_OFF_KEY, opener: false } : p));
+  expect(signature(b, hidden, 2), label).toBe(signature(b, b.photos, 1));
 }
 
 describe("перевод на правила 2: свойство на случайных книгах", () => {
-  it("каждый план повторяет вёрстку; план B не находится только у книги со снимком обложки в ответе", () => {
-    // Снимок обложки в ответе — книга остаётся на правилах 1 (черновик и заказанная); offCover — основное фото обложки,
-    // которого на ней не видно, закреплено «не печатается».
+  it("каждый план повторяет вёрстку; план B не находится только у заказанной книги со снимком обложки в ответе", () => {
+    // Снимок обложки в ответе: черновик переводится (снимок печатается в ответе, остальное как было), заказанная книга
+    // остаётся на правилах 1; offCover — основное фото обложки, которого на ней не видно, закреплено «не печатается».
     const seen = { A: 0, B: 0, coverDraft: 0, coverOrdered: 0, offCover: 0 };
     let seed = 1;
     for (let c = 1; c <= 6; c++)
@@ -103,11 +109,12 @@ describe("перевод на правила 2: свойство на случа
                 const onlyB = planLayoutRev2(b, YEAR, ["B"]);
                 for (const p of [plan, onlyB]) {
                   if (p.ok) expectExact(b, p, label);
-                  else expect(p.reason, label).toBe("coverInAnswer");
+                  else expect([p.reason, b.book.status], label).toEqual(["coverInAnswer", "ordered"]);
                 }
                 expect(plan.ok, label).toBe(onlyB.ok);
-                if (plan.ok) seen[plan.plan]++;
-                else seen[b.book.status === "draft" ? "coverDraft" : "coverOrdered"]++;
+                if (plan.ok && plan.coverInAnswer) seen.coverDraft++;
+                else if (plan.ok) seen[plan.plan]++;
+                else seen.coverOrdered++;
                 if (plan.ok && plan.changes.some((c) => c.id === b.book.coverPhotoId && c.after.chapter === PHOTO_OFF_KEY)) seen.offCover++;
               }
     // Набор задевает все ветки перевода.

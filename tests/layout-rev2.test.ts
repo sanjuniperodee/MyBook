@@ -5,6 +5,7 @@ import { layoutSignature } from "@/lib/book/layout-signature";
 import { withCoverPhotos } from "@/lib/book/cover-photos";
 import { photoPlaceOf } from "@/lib/book/photo-place";
 import { Book, NEW_BOOK_LAYOUT_REV, Photo, UPGRADE_ON_TOUCH } from "@/modules/authoring/domain";
+import { LAYOUT_REV2_APPLY } from "@/modules/authoring/domain/layout-rev";
 import { BooksService, PhotosService } from "@/modules/authoring/application/services";
 import { LayoutRev2Service, planLayoutRev2, type LayoutBundle, type LayoutRevStore, type PhotoPin } from "@/modules/authoring/application/layout-rev2";
 import { FakeUow, ids, images, MemBooks, MemFiles, MemPhotos, noChapters, noQuestions, owner, rejectsWith, startBook, stranger, themes } from "./doubles/authoring";
@@ -173,11 +174,12 @@ describe("Photo: места __gallery и __off, фото начала главы
   });
 });
 
-describe("выпуск 1: ни одна книга не меняется", () => {
-  it("переключатели выпуска выключены: новые книги — на прежних правилах, перевода при правке нет", () => {
-    expect(NEW_BOOK_LAYOUT_REV).toBe(1);
-    expect(UPGRADE_ON_TOUCH).toBe(false);
-    expect(startBook().layoutRev).toBe(1);
+describe("выпуск 2: правила 2 включены", () => {
+  it("новые книги — сразу на правилах 2, книга на правилах 1 переводится при правке мест фото, скрипт пишет", () => {
+    expect(NEW_BOOK_LAYOUT_REV).toBe(2);
+    expect(UPGRADE_ON_TOUCH).toBe(true);
+    expect(LAYOUT_REV2_APPLY).toBe(true);
+    expect(startBook().layoutRev).toBe(2);
   });
 });
 
@@ -246,13 +248,31 @@ describe("перевод книги на правила 2 (planLayoutRev2)", () 
     expect(after.find((r) => r.id === "p2")).toMatchObject({ opener: false });
   });
 
-  it("снимок обложки в ответе: книга остаётся на правилах 1 с причиной для отчёта — и черновик: редактор этот снимок в ответе не показывает", () => {
+  it("снимок обложки в ответе: заказанная книга остаётся на правилах 1 с причиной для отчёта", () => {
     const questions = [layoutQuestion("q1", "a", 0, ""), layoutQuestion("q2", "a", 1)];
-    const b = layoutBundle({ chapters: ["a"], questions, photos: [photo("p0", 0, { questionId: "q1" }), photo("p1", 1)], book: { coverPhotoId: "p0" } });
-    for (const status of ["draft", "ordered"] as const)
-      expect(planLayoutRev2({ ...b, book: { ...b.book, status } }, YEAR), status).toEqual({ ok: false, reason: "coverInAnswer", coverInAnswer: { questionId: "q1", heading: "История q1" } });
+    const b = layoutBundle({ chapters: ["a"], questions, photos: [photo("p0", 0, { questionId: "q1" }), photo("p1", 1)], book: { coverPhotoId: "p0", status: "ordered" } });
+    expect(planLayoutRev2(b, YEAR)).toEqual({ ok: false, reason: "coverInAnswer", coverInAnswer: { questionId: "q1", heading: "История q1" } });
     // У шаблона без фото основное фото обложки на ней не видно — причина та же.
     expect(planLayoutRev2({ ...b, book: { ...b.book, coverTemplate: "linen", backLayout: "quote", backText: "" } }, YEAR)).toMatchObject({ ok: false, reason: "coverInAnswer" });
+  });
+
+  it("снимок обложки в ответе у черновика: перевод с пометкой для отчёта — снимок печатается в ответе, остальное как было (редактор показывает его там, R9)", () => {
+    const questions = [layoutQuestion("q1", "a", 0, ""), layoutQuestion("q2", "a", 1)];
+    const b = layoutBundle({ chapters: ["a"], questions, photos: [photo("p0", 0, { questionId: "q1" }), photo("p1", 1)], book: { coverPhotoId: "p0" } });
+    expect(b.book.status).toBe("draft");
+    const plan = planLayoutRev2(b, YEAR);
+    if (!plan.ok) throw new Error(`черновик не переведён: ${plan.reason}`);
+    expect(plan.coverInAnswer).toEqual({ questionId: "q1", heading: "История q1" });
+    const rows = applyPins(b.photos, plan.changes);
+    // Снимок обложки остаётся в ответе и по правилам 2 там печатается; без него вёрстка — та же, что прежде.
+    expect(rows.find((r) => r.id === "p0")).toMatchObject({ questionId: "q1" });
+    const inAnswer = (r: number, list = rows) => buildLayout(b, list, r).chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id)));
+    expect(inAnswer(1, b.photos)).not.toContain("p0");
+    expect(inAnswer(2)).toContain("p0");
+    const hidden = rows.map((r) => (r.id === "p0" ? { ...r, questionId: null, chapter: PHOTO_OFF_KEY, opener: false } : r));
+    expect(signature(b, hidden, 2)).toBe(signature(b));
+    // Шаблон без фото на обложке — то же.
+    expect(planLayoutRev2({ ...b, book: { ...b.book, coverTemplate: "linen", backLayout: "quote", backText: "" } }, YEAR)).toMatchObject({ ok: true, coverInAnswer: { questionId: "q1" } });
   });
 
   it("фото на всю страницу из ответа стоит только в ответе — перевод с ним точный, его место не трогается", () => {
@@ -300,9 +320,11 @@ describe("LayoutRev2Service: запись, резервная копия, отк
     return { ...b, book: { ...b.book, id, status } };
   };
 
-  it("выпуск 1: перевод с записью закрыт — пробный проход и откат работают", async () => {
+  it("перевод с записью закрыт (выключенный выпуск 2) — пробный проход и откат работают", async () => {
     const { store, byId, writes } = memStore([book("b1")]);
-    const service = new LayoutRev2Service(store, new FakeUow());
+    // С выпуска 2 запись открыта по умолчанию; закрытая — как было в выпуске 1.
+    expect(new LayoutRev2Service(store, new FakeUow()).applyOpen).toBe(true);
+    const service = new LayoutRev2Service(store, new FakeUow(), false);
     expect(service.applyOpen).toBe(false);
     await expect(service.migrate("b1", { apply: true })).rejects.toThrow(/release 2/);
     expect(await service.migrate("b1", { apply: false })).toMatchObject({ applied: false, plan: { ok: true } });
@@ -371,7 +393,8 @@ describe("LayoutRev2Service: запись, резервная копия, отк
 describe("PhotosService.batch и перевод при правке", () => {
   const setup = (opts: { onTouch?: boolean; status?: "draft" | "ordered" } = {}) => {
     const books = new MemBooks();
-    const b = startBook();
+    // Книга на правилах 1 (новые с выпуска 2 — сразу на 2): перевод при правке задевает только такие.
+    const b = Book.restore("b1", { ...startBook().snapshot(), layoutRev: 1 });
     books.rows.set("b1", opts.status === "ordered" ? Book.restore("b1", { ...b.snapshot(), status: "ordered" }) : b);
     const photos = new MemPhotos();
     for (const id of ["p1", "p2", "p3"]) photos.rows.push(Photo.uploaded(id, { bookId: "b1", position: photos.rows.length, storageKey: id, thumbKey: id, width: 10, height: 10 }));
@@ -438,7 +461,7 @@ describe("PhotosService.batch и перевод при правке", () => {
 
   it("выпуск 2: смена оформления переводит книгу; та же или без оформления — нет", async () => {
     const books = new MemBooks();
-    books.rows.set("b1", startBook());
+    books.rows.set("b1", Book.restore("b1", { ...startBook().snapshot(), layoutRev: 1 }));
     const upgrade = vi.fn(async () => true);
     const service = new BooksService(books, noQuestions, themes, { bookHasOrders: async () => false }, new MemFiles(), ids, new FakeUow(), { now: () => new Date() }, noChapters, { onTouch: true, upgrade });
     await service.updateSettings("b1", owner, { title: "Новое" }, new MemPhotos());

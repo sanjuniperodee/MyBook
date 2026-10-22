@@ -2,11 +2,11 @@
 
 import type { ReactNode } from "react";
 import { Eye, ImagePlus, ListTree, Maximize2, Minimize2, Plus, QrCode, Trash2 } from "lucide-react";
-import { useLocale, useMessages } from "@/i18n/client";
-import { localeMeta, type Locale } from "@/i18n/config";
+import { useMessages } from "@/i18n/client";
+import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/class-names";
 
-/** Над карточкой вопроса: оглавление, глава, объём книги (pages — PagesBadge), превью на узком экране, режим фокуса. */
+/** Над карточкой вопроса: оглавление, глава, объём книги (pages — PagesBadge), «Как в книге» на узком экране, режим фокуса. */
 export function EditorTopBar({
   chapterNumber,
   chapterTitle,
@@ -32,11 +32,12 @@ export function EditorTopBar({
 }) {
   const t = useMessages().editor;
   return (
-    <div className="mb-3 flex items-center gap-2 sm:mb-4">
+    <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:mb-4 sm:flex-nowrap">
       <button className={cn("btn btn-outline btn-sm shrink-0", !focus && "lg:hidden")} onClick={onChapters}>
         <ListTree className="size-4" /> {t.chapters}
       </button>
-      <div className="min-w-0 flex-1 truncate text-sm text-muted">
+      {/* На телефоне глава — своей строкой под кнопками: рядом с «Как в книге» от названия оставалось три буквы. */}
+      <div className="min-w-0 flex-1 truncate text-sm text-muted max-sm:order-last max-sm:basis-full">
         {chapterNumber === null ? null : (
           <>
             <span className="text-ink">{t.chapter(chapterNumber)}</span> ·{" "}
@@ -51,10 +52,12 @@ export function EditorTopBar({
         )}
         {chapterNumber === null ? <span> · {t.nav.notInBook}</span> : null}
       </div>
+      <span className="flex-1 sm:hidden" aria-hidden />
       {pages}
       {!focus ? (
-        <button className="btn btn-ghost btn-sm size-9 px-0 xl:hidden" onClick={onTogglePreview} title={t.showPage}>
-          <Eye className="size-4" />
+        // «Как в книге» — подписанная кнопка: на телефоне открывает превью на весь экран (на широком оно справа).
+        <button className="btn btn-outline btn-sm h-9 shrink-0 gap-1 px-2.5 text-xs xl:hidden" onClick={onTogglePreview}>
+          <Eye className="size-3.5" /> {t.chrome.previewBtn}
         </button>
       ) : null}
       <button className="btn btn-ghost btn-sm size-9 px-0 max-lg:hidden" onClick={onToggleFocus} title={focus ? t.focusOff : t.focusOn}>
@@ -93,7 +96,9 @@ export function AnswerToolbar({
 }) {
   const t = useMessages().editor;
   // Дробь — по языку интерфейса; где Intl не знает kk-KZ, берётся ru-RU (разделители те же).
-  const numberLocale = [localeMeta[useLocale()].intl, localeMeta.ru.intl];
+  // Дробь с запятой и в русском, и в казахском — без toLocaleString: у браузера и сервера разные данные для kk-KZ
+  // (на сервере «0,9», в Chrome «0.9»), и счётчик расходился при гидратации.
+  const share = (n: number) => String(Math.round(Math.max(n, 0.1) * 10) / 10).replace(".", ",");
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/60 px-3 py-2 sm:px-8 sm:py-3">
       {dictation}
@@ -119,7 +124,7 @@ export function AnswerToolbar({
       ) : null}
       <span className="ml-auto text-xs text-muted tabular-nums">
         {t.words(words)}
-        {answerPages > 0 ? t.answerPages((Math.round(Math.max(answerPages, 0.1) * 10) / 10).toLocaleString(numberLocale)) : ""}
+        {answerPages > 0 ? t.answerPages(share(answerPages)) : ""}
       </span>
     </div>
   );

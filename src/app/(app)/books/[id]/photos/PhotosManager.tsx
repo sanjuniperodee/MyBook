@@ -1,46 +1,60 @@
 "use client";
 
-import { confirmDialog } from "@/components/ui/overlays";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, ImagePlus, LoaderCircle, Trash2, TriangleAlert } from "lucide-react";
-import { ApiError, apiFetch } from "@/lib/client-api";
+import { ImagePlus, Images, LoaderCircle, Maximize2 } from "lucide-react";
+import { confirmDialog, toast } from "@/components/ui/overlays";
+import { apiFetch } from "@/lib/client-api";
 import { useMessages } from "@/i18n/client";
 import { Alert } from "@/components/ui/Alert";
-import { photoUrl } from "@/lib/urls";
 import { getFormat } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
+import type { PlaceFrame } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/class-names";
 import { PhotosArt } from "@/components/illustrations";
 import { CropDialog } from "@/components/editor/CropDialog";
-import type { PhotoCrop } from "@/lib/book/photo-crop";
+import { patchPhotos } from "@/components/editor/photos/api";
+import { albumPhotos, galleryTitleOf, type PlaceData, type SheetPhoto } from "@/components/editor/photos/model";
+import { GallerySheet } from "@/components/editor/photos/GallerySheet";
+import { PhotoIntroCard } from "@/components/editor/photos/PhotoIntro";
+import { placeText } from "@/components/editor/photos/PlaceBadge";
+import { PlaceSheet } from "@/components/editor/photos/PlaceSheet";
+import { usePlaceEditing } from "@/components/editor/photos/usePlaceEditing";
+import { PhotoCard } from "./PhotoCard";
+import { PlacementRule } from "./PlacementRule";
+import { BANNER_MIN, cropFrameOf, deleteDialogOf, filterCounts, lossOf, matchesFilter, visibleFilters, wideBleedIds, type PhotoFilter, type PhotoLayout, type PhotosTabData } from "./photos-tab";
 
-interface ManagedPhoto {
-  id: string;
-  caption: string;
-  layout: "full" | "bleed" | "half" | "grid";
-  width: number;
-  height: number;
-  inAnswer?: string | null;
-  /** Кадр автора: точка и приближение (photo-crop.ts); null — по правилу места. */
-  crop?: PhotoCrop | null;
-}
+/**
+ * Вкладка «Фото»: у каждого фото написано, где оно в книге, — «Где в книге» открывает лист места. Сверху — объяснение,
+ * правило для фото без выбранного места и фильтры; совет «Показать целиком» для фото «До краёв» с заметной обрезкой
+ * (одним пакетом, одна отмена); удаление спрашивает с учётом обложки и главы и всегда предлагает вариант без удаления.
+ * Места и обрезку считает сервер той же сборкой, что у PDF; после правки лист сразу показывает новое место
+ * (usePlaceEditing), а страница пересобирается на сервере (router.refresh) — и места снова точные.
+ */
+export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; initialFilter: PhotoFilter }) {
+  const m = useMessages();
+  const t = m.books.photos;
+  const tt = m.books.photosTab;
+  const router = useRouter();
+  const placeData = useMemo<PlaceData>(() => ({ book: data.book, photos: data.photos, places: new Map(data.places), chapters: data.chapters, answers: data.answers, tocLines: data.tocLines }), [data]);
+  const refresh = () => router.refresh();
+  const ed = usePlaceEditing(placeData, { onPhotos: refresh, onUploaded: refresh, onBook: refresh, onOrder: refresh });
+  const { book, design, names } = ed;
+  const editable = book.editable;
+  const fmt = getFormat(book.format);
+  const openerDesign = !!design.opener.photo;
 
-const layouts: ManagedPhoto["layout"][] = ["full", "bleed", "half", "grid"];
-
-export function PhotosManager({ bookId, format, initial, editable }: { bookId: string; format: string; initial: ManagedPhoto[]; editable: boolean }) {
-  const [photos, setPhotos] = useState(initial);
-  const t = useMessages().books.photos;
-  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+  const [filter, setFilter] = useState<PhotoFilter>(initialFilter);
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
   const [errors, setErrors] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
-  const [cropping, setCropping] = useState<ManagedPhoto | null>(null);
-  const tc = useMessages().editor.crop;
+  const [placeFor, setPlaceFor] = useState<string | null>(null);
+  const [gallery, setGallery] = useState(false);
+  const [cropping, setCropping] = useState<{ photo: SheetPhoto; frame: PlaceFrame } | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const captionTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const fmt = getFormat(format);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -48,88 +62,78 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const photos = useMemo(() => ed.photos.filter((p) => !removed.has(p.id)), [ed.photos, removed]);
+  const server = useMemo(() => new Map(data.photos.map((p) => [p.id, p])), [data.photos]);
+  const loss = (p: Pick<SheetPhoto, "id" | "layout">) => lossOf(p, server.get(p.id), data.losses);
+  const lossById = (id: string) => {
+    const p = photos.find((x) => x.id === id);
+    return p ? loss(p) : 0;
+  };
+  const counts = filterCounts(photos, ed.places, lossById);
+  const shown = photos.filter((p) => matchesFilter(filter, ed.places.get(p.id), loss(p)));
+  const wide = wideBleedIds(photos, ed.places, lossById);
+  const printed = data.chapters.some((c) => c.printed);
+  const sortable = editable && filter === "all";
+  const galleryTitle = galleryTitleOf(ed.tocLines, book.galleryTitle);
+  const album = albumPhotos(photos, ed.places).length;
+
   const upload = async (files: File[]) => {
     const images = files.filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif|avif|tiff?)$/i.test(f.name));
     if (!images.length) return;
     setErrors([]);
-    setUploading({ done: 0, total: images.length });
-    const errs: string[] = [];
-    for (let i = 0; i < images.length; i += 3) {
-      const chunk = images.slice(i, i + 3);
-      const form = new FormData();
-      chunk.forEach((f) => form.append("files", f));
-      try {
-        const res = await apiFetch<{ photos: ManagedPhoto[]; errors: string[] }>(`/api/books/${bookId}/photos`, { method: "POST", body: form });
-        setPhotos((p) => [...p, ...res.photos]);
-        errs.push(...res.errors);
-      } catch (e) {
-        errs.push((e as Error).message);
-        // Лимит фото в книге: остальные пачки всё равно не пройдут.
-        if (e instanceof ApiError && e.code === "photosLimit") break;
-      }
-      setUploading({ done: Math.min(i + 3, images.length), total: images.length });
-    }
-    setErrors(errs);
-    setUploading(null);
+    // Новые фото встают по правилу книги — место им выбирают потом, «Где в книге».
+    await ed.upload(images, () => []);
     if (input.current) input.current.value = "";
   };
 
-  const update = async (id: string, patch: Partial<ManagedPhoto>) => {
-    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  /** «Показать целиком»: фото «До краёв» становятся «Целиком, с полями» — одним запросом и с одной отменой. */
+  const showWhole = async (ids: string[]) => {
+    if (!ids.length || !editable) return;
+    const before = ids.map((id) => ({ id, layout: photos.find((p) => p.id === id)?.layout ?? "bleed" }));
     try {
-      await apiFetch(`/api/books/${bookId}/photos/${id}`, { method: "PATCH", json: patch });
+      ed.relay.onPhotos(await patchPhotos(book.id, ids.map((id) => ({ id, patch: { layout: "full" as const } }))));
+      ed.setError(false);
+    } catch {
+      ed.setError(true);
+      return;
+    }
+    toast(tt.toastWhole(ids.length), "success", { action: { label: tt.undo, run: async () => ed.relay.onPhotos(await patchPhotos(book.id, before.map(({ id, layout }) => ({ id, patch: { layout } })))) } });
+  };
+
+  /** Удаление: где фото сейчас, что станет с обложкой и главой, и вариант без удаления — «не печатать в книге». */
+  const remove = async (p: SheetPhoto) => {
+    const place = ed.places.get(p.id);
+    const label = place ? placeText(place, names, m.editor, book.blank, { marked: p.opener, openerDesign }) : "";
+    const d = deleteDialogOf(place, tt.delete, { place: label, chapter: names.chapter });
+    const answer = d.altLabel ? await confirmDialog({ ...d, altLabel: d.altLabel, danger: true }) : await confirmDialog({ ...d, danger: true });
+    if (answer === "alt") {
+      // Вопрос уже был — второй (фото уходит из ответа или из фото главы) не нужен.
+      await ed.move([{ id: p.id, target: { kind: "off" } }], { toast: tt.toastKept, undoLabel: tt.undo, confirm: false });
+      return;
+    }
+    if (answer !== true) return;
+    setRemoved((s) => new Set(s).add(p.id));
+    try {
+      await apiFetch(`/api/books/${book.id}/photos/${p.id}`, { method: "DELETE" });
+      refresh();
     } catch (e) {
+      setRemoved((s) => {
+        const next = new Set(s);
+        next.delete(p.id);
+        return next;
+      });
       setErrors([(e as Error).message]);
     }
   };
 
-  const updateCaption = (id: string, caption: string) => {
-    setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, caption } : p)));
-    const t = captionTimers.current.get(id);
-    if (t) clearTimeout(t);
-    captionTimers.current.set(
-      id,
-      setTimeout(() => void update(id, { caption }), 700),
-    );
-  };
-
-  const remove = async (id: string) => {
-    if (!(await confirmDialog({ title: t.deleteTitle, text: t.deleteText, confirmLabel: t.delete, danger: true }))) return;
-    const prev = photos;
-    setPhotos((ps) => ps.filter((p) => p.id !== id));
-    try {
-      await apiFetch(`/api/books/${bookId}/photos/${id}`, { method: "DELETE" });
-    } catch (e) {
-      setPhotos(prev);
-      setErrors([(e as Error).message]);
-    }
-  };
-
-  const onDragEnd = async (e: DragEndEvent) => {
+  const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const prev = photos;
-    const next = arrayMove(photos, photos.findIndex((p) => p.id === active.id), photos.findIndex((p) => p.id === over.id));
-    setPhotos(next);
-    try {
-      await apiFetch(`/api/books/${bookId}/photos/order`, { method: "PUT", json: { ids: next.map((p) => p.id) } });
-    } catch (err) {
-      setPhotos(prev);
-      setErrors([(err as Error).message]);
-    }
+    const ids = photos.map((p) => p.id);
+    void ed.reorder(arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))));
   };
 
-  /** Ручка перетаскивания и удаление. touch-none — чтобы жест на ручке тянул карточку, а не прокручивал страницу. */
-  const photoActions = (id: string, handle: Record<string, unknown>) => (
-    <>
-      <button {...handle} className="flex size-10 cursor-grab touch-none items-center justify-center rounded-full bg-white/90 shadow active:cursor-grabbing max-sm:border max-sm:border-line max-sm:shadow-none sm:size-9" aria-label={t.drag}>
-        <GripVertical className="size-4" />
-      </button>
-      <button onClick={() => remove(id)} className="flex size-10 items-center justify-center rounded-full bg-white/90 text-red-700 shadow max-sm:border max-sm:border-line max-sm:shadow-none sm:size-9" aria-label={t.delete}>
-        <Trash2 className="size-4" />
-      </button>
-    </>
-  );
+  const notes = [...errors, ...(ed.note ? [ed.note] : []), ...(ed.error ? [m.editor.chapterPhoto.error] : [])];
 
   return (
     <div
@@ -147,24 +151,24 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
       }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-        <div>
+        <div className="min-w-0 sm:max-w-2xl">
           <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-          <p className="mt-2 text-sm text-muted sm:text-base">{photos.length ? t.reorder : t.intro}</p>
+          <p className="mt-2 text-sm text-muted sm:text-base">{photos.length ? tt.intro : t.intro}</p>
         </div>
         {editable ? (
           <>
             <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
-            <button className="btn btn-primary btn-lg max-sm:w-full" onClick={() => input.current?.click()} disabled={!!uploading}>
-              {uploading ? <LoaderCircle className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
-              {uploading ? t.uploading(uploading.done, uploading.total) : t.add}
+            <button className="btn btn-primary btn-lg max-sm:w-full" onClick={() => input.current?.click()} disabled={!!ed.uploading}>
+              {ed.uploading ? <LoaderCircle className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
+              {ed.uploading ? t.uploading(ed.uploading.done, ed.uploading.total) : t.add}
             </button>
           </>
         ) : null}
       </div>
 
-      {errors.length ? (
+      {notes.length ? (
         <Alert className="mt-6">
-          {errors.map((e, i) => (
+          {notes.map((e, i) => (
             <div key={i}>{e}</div>
           ))}
         </Alert>
@@ -187,96 +191,99 @@ export function PhotosManager({ bookId, format, initial, editable }: { bookId: s
           </span>
         </button>
       ) : (
-        <DndContext id="photos-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={photos.map((p) => p.id)} strategy={rectSortingStrategy}>
-            <div className={cn("mt-6 grid gap-3 rounded-3xl sm:mt-8 sm:gap-5 grid-cols-[minmax(0,1fr)] sm:grid-cols-2 lg:grid-cols-3", dragOver && "outline-2 outline-offset-8 outline-wine outline-dashed")}>
-              {photos.map((p, i) => {
-                const fit = p.layout === "bleed" ? "cover" : "contain";
-                const dpi = effectiveDpi(p, photoAreaMm(fmt, p.layout), fit);
-                return (
-                  <SortablePhoto key={p.id} id={p.id} disabled={!editable}>
-                    {(handle) => (
-                      <div className="card min-w-0 overflow-hidden max-sm:flex">
-                        <div className="relative bg-cream max-sm:w-28 max-sm:shrink-0 sm:aspect-[4/3]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={photoUrl(p.id)} alt={p.caption} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-                          <span className="absolute top-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-xs text-white sm:top-3 sm:left-3 sm:px-2.5 sm:py-1">{i + 1}</span>
-                          {editable ? <div className="absolute top-3 right-3 flex gap-1.5 max-sm:hidden">{photoActions(p.id, handle)}</div> : null}
-                          {p.inAnswer ? (
-                            <span className="absolute bottom-3 left-3 max-w-[70%] truncate rounded-full bg-wine/90 px-2.5 py-1 text-xs text-white max-sm:hidden" title={p.inAnswer}>
-                              {t.inAnswer(p.inAnswer)}
-                            </span>
-                          ) : null}
-                          {dpi < 150 ? (
-                            <span className="absolute inset-x-3 bottom-3 flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1.5 text-xs text-white max-sm:hidden" title={t.dpi(dpi)}>
-                              <TriangleAlert className="size-3.5 shrink-0" /> {t.lowRes}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-2.5 p-3 sm:space-y-3 sm:p-4">
-                          {/* Телефон: статус и действия — в колонке справа от миниатюры */}
-                          <div className="flex items-center gap-1.5 sm:hidden">
-                            <div className="flex min-w-0 flex-1 flex-col gap-1">
-                              {p.inAnswer ? (
-                                <span className="truncate rounded-full bg-wine/10 px-2 py-0.5 text-[11px] text-wine" title={p.inAnswer}>
-                                  {t.inAnswer(p.inAnswer)}
-                                </span>
-                              ) : null}
-                              {dpi < 150 ? (
-                                <span className="flex items-center gap-1 text-[11px] text-amber-700" title={t.dpi(dpi)}>
-                                  <TriangleAlert className="size-3 shrink-0" /> {t.lowRes}
-                                </span>
-                              ) : null}
-                            </div>
-                            {editable ? photoActions(p.id, handle) : null}
-                          </div>
-                          <input
-                            className="input h-10 text-sm"
-                            placeholder={t.caption}
-                            value={p.caption}
-                            maxLength={200}
-                            onChange={(e) => updateCaption(p.id, e.target.value)}
-                            disabled={!editable || p.layout === "bleed"}
-                            title={p.layout === "bleed" ? t.noCaptionBleed : undefined}
-                          />
-                          {p.inAnswer ? <p className="text-xs text-muted max-sm:hidden">{t.inAnswerNote}</p> : null}
-                          {/* Кадр — у фото на страницах и в начале главы; у фото в ответе он задаётся в редакторе ответа. */}
-                          {p.inAnswer ? null : (
-                            <button type="button" disabled={!editable} onClick={() => setCropping(p)} className="h-9 w-full rounded-xl border border-line text-xs font-medium text-ink-soft hover:bg-cream disabled:opacity-50">
-                              {tc.edit}
-                              {p.crop ? " ✓" : ""}
-                            </button>
-                          )}
-                          <div className={cn("grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 sm:grid-cols-4", p.inAnswer && "hidden")}>
-                            {layouts.map((l) => (
-                              <button
-                                key={l}
-                                title={t.layouts[l].hint}
-                                disabled={!editable}
-                                onClick={() => update(p.id, { layout: l })}
-                                className={cn("rounded-lg py-2 text-xs font-medium transition sm:py-1.5", p.layout === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
-                              >
-                                {t.layouts[l].label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </SortablePhoto>
-                );
-              })}
+        <>
+          <PhotoIntroCard blank={book.blank} className="mt-6 rounded-2xl bg-cream/70 p-4" />
+          <div className="mt-4">
+            <PlacementRule value={ed.photoPlacement} gallery={galleryTitle} blank={book.blank} noChapters={!printed} editable={editable} onChange={(photoPlacement) => void ed.saveBook({ photoPlacement })} />
+          </div>
+          {/* Альбом в конце — название, порядок и состав правят в его листе. */}
+          {album ? (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-white p-3 ring-1 ring-line">
+              <Images className="size-4 shrink-0 text-wine" aria-hidden />
+              <span className="min-w-0 flex-1 text-sm font-medium">{m.books.pagesPhotos.albumRow(galleryTitle, album)}</span>
+              <button type="button" className="btn btn-outline btn-sm min-h-11" onClick={() => setGallery(true)}>
+                {m.books.pagesPhotos.albumEdit}
+              </button>
             </div>
-          </SortableContext>
-        </DndContext>
+          ) : null}
+
+          {wide.length >= BANNER_MIN && editable ? (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200 sm:flex-row sm:items-center">
+              <Maximize2 className="size-5 shrink-0 text-amber-700 max-sm:hidden" aria-hidden />
+              <p className="min-w-0 flex-1 text-sm text-amber-900">{tt.banner(wide.length)}</p>
+              <button type="button" className="btn btn-primary btn-sm min-h-11 shrink-0" onClick={() => void showWhole(wide)}>
+                {tt.bannerYes}
+              </button>
+            </div>
+          ) : null}
+
+          <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            {visibleFilters(counts, filter).map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filter === f}
+                onClick={() => setFilter(f)}
+                className={cn("flex h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium ring-1 transition", filter === f ? "bg-ink text-white ring-ink" : "bg-white text-ink-soft ring-line hover:bg-cream/50")}
+              >
+                {tt.filters[f]}
+                <span className={cn("tabular-nums", filter === f ? "text-white/70" : "text-muted")}>{counts[f]}</span>
+              </button>
+            ))}
+          </div>
+          {sortable && photos.length > 1 ? <p className="mt-3 text-xs text-muted">{t.reorder}</p> : null}
+
+          <DndContext id="photos-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={shown.map((p) => p.id)} strategy={rectSortingStrategy}>
+              <div className={cn("mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 rounded-3xl sm:grid-cols-2 sm:gap-5 lg:grid-cols-3", dragOver && "outline-2 outline-offset-8 outline-wine outline-dashed")}>
+                {shown.map((p) => {
+                  const place = ed.places.get(p.id);
+                  const layout: PhotoLayout = p.layout ?? "full";
+                  const frame = cropFrameOf(place, layout, fmt, design);
+                  // Чёткость — по кадру места (фото главы, лист под обрез, клетка сетки), иначе — по виду на странице.
+                  const dpi = place?.kind === "off" ? Infinity : frame ? effectiveDpi(p, frame, "cover") : effectiveDpi(p, photoAreaMm(fmt, layout), layout === "bleed" ? "cover" : "contain");
+                  return (
+                    <SortablePhoto key={p.id} id={p.id} disabled={!sortable}>
+                      {(handle) => (
+                        <PhotoCard
+                          photo={p}
+                          index={photos.indexOf(p)}
+                          place={place}
+                          names={names}
+                          blank={book.blank}
+                          openerDesign={openerDesign}
+                          loss={loss(p)}
+                          lowRes={dpi < 150 ? t.dpi(dpi) : null}
+                          canCrop={!!frame}
+                          editable={editable}
+                          handle={sortable ? handle : null}
+                          onPlace={() => setPlaceFor(p.id)}
+                          onDelete={() => void remove(p)}
+                          onLayout={(l) => void ed.edit(p.id, { layout: l })}
+                          onCaption={(caption) => void ed.edit(p.id, { caption })}
+                          onCrop={() => frame && setCropping({ photo: p, frame })}
+                          onShowWhole={() => void showWhole([p.id])}
+                        />
+                      )}
+                    </SortablePhoto>
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </>
       )}
+
+      {placeFor ? <PlaceSheet data={ed.view} on={ed.relay} photoId={placeFor} onClose={() => setPlaceFor(null)} /> : null}
+      {gallery ? <GallerySheet data={ed.view} on={ed.relay} onClose={() => setGallery(false)} /> : null}
       {cropping ? (
         <CropDialog
-          photo={cropping}
-          crop={cropping.crop ?? null}
+          photo={cropping.photo}
+          crop={cropping.photo.crop ?? null}
+          frame={cropping.frame}
           onClose={() => setCropping(null)}
           onSave={(crop) => {
-            void update(cropping.id, { crop });
+            void ed.edit(cropping.photo.id, { crop });
             setCropping(null);
           }}
         />

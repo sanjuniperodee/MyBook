@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook, viewerOf } from "@/server/books";
-import { isBookEditableBy } from "@/modules/authoring";
+import { isBookEditableBy, MAX_PHOTOS } from "@/modules/authoring";
 import { container } from "@/server/container";
-import { editorModel } from "@/lib/book/editor-data";
+import { editorBook, editorModel } from "@/lib/book/editor-data";
 import { sectionIndex } from "@/lib/book/editor-model";
-import { bookKind } from "@/lib/content/kinds";
 import { QuestionsEditor } from "@/components/editor/QuestionsEditor";
 import { getMessages } from "@/i18n/server";
 
@@ -25,30 +24,15 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
     container().authoring.queries.approvedLetters(book.id),
     book.status === "draft" ? container().assistant.proofreader.configured() : false,
   ]);
+  // Все фото книги, снимок обложки тоже; какие снимки обложка и оборот печатают на самом деле, считается здесь
+  // (cover-photos.ts через editorModel): каталог обложек в браузер не идёт, а редактор собирает книгу, как PDF.
   const model = editorModel(book, rows, chapters, photos, letters);
   // Править можно черновик, и сотруднику — только с правом правки (с правом просмотра он лишь читает: сервер ответил бы 404).
   const editable = book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user, book.id));
   return (
     <QuestionsEditor
       epigraphs={model.epigraphs}
-      book={{
-        id: book.id,
-        format: book.format,
-        interior: book.interior,
-        dedication: book.dedication,
-        showToc: book.showToc,
-        tocMode: book.tocMode,
-        tocLines: book.tocLines,
-        photoPlacement: book.photoPlacement,
-        title: book.title,
-        language: book.language,
-        // Имена на книге (и «кто записал» у автобиографии) проверка орфографии не отмечает.
-        names: [book.authorName, book.recipientName, book.recordedBy].filter(Boolean),
-        theme: book.theme,
-        kind: bookKind(book.theme),
-        authorGender: book.authorGender,
-        recipientGender: book.recipientGender,
-      }}
+      book={editorBook(book, model.coverPhotos)}
       proofreadAi={proofreadAi}
       initialQuestions={model.questions}
       chapters={model.chapters}
@@ -58,6 +42,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         q,
       )}
       initialPhotos={model.photos}
+      maxPhotos={MAX_PHOTOS}
       letters={model.letters}
       editable={editable}
     />

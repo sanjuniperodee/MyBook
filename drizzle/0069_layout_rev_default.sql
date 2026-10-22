@@ -1,0 +1,2 @@
+-- Выпуск 2 мест фото: новые книги — сразу на правилах раскладки 2 (domain/layout-rev.ts NEW_BOOK_LAYOUT_REV). Книги на 1 переводит скрипт npm run photos:layout-rev2 или правка мест фото.
+ALTER TABLE "books" ALTER COLUMN "layout_rev" SET DEFAULT 2;
