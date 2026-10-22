@@ -356,6 +356,78 @@ export function ChatPanel({
     if (next && next.type === "audio" && !next.deleted) window.dispatchEvent(new CustomEvent<AudioEvent>(AUDIO_EVENT, { detail: { id: next.id, action: "play" } }));
   };
 
+  // Набор текста перерисовывает панель на каждую букву — ленту не трогаем: обработчики стабильные, строки в useMemo.
+  const latest = useRef({ onAction, jump, onVoiceEnded, toggleSelected, gallery });
+  latest.current = { onAction, jump, onVoiceEnded, toggleSelected, gallery };
+  const h = useMemo(
+    () => ({
+      onAction: (kind: Parameters<typeof onAction>[0], m: Msg) => latest.current.onAction(kind, m),
+      jump: (id: string) => latest.current.jump(id),
+      onVoiceEnded: (id: string) => latest.current.onVoiceEnded(id),
+      toggleSelected: (id: string) => latest.current.toggleSelected(id),
+      openMedia: (id: string) => setViewer(Math.max(0, latest.current.gallery.findIndex((g) => g.id === id))),
+    }),
+    [],
+  );
+
+  const rows = useMemo(() => {
+    let lastDay = "";
+    return all.map((m, i) => {
+            const day = dayLabel(m.at, timeZone);
+            const sep = day !== lastDay;
+            lastDay = day;
+            // Подряд от одного отправителя в пределах 5 минут — одной группой: плотнее, хвостик у последнего.
+            const prev = all[i - 1];
+            const next = all[i + 1];
+            const same = (a?: Msg, b?: Msg) => !!a && !!b && a.direction === b.direction && !!a.internal === !!b.internal && a.author === b.author && Math.abs(new Date(b.at).getTime() - new Date(a.at).getTime()) < 5 * 60_000 && dayLabel(a.at, timeZone) === dayLabel(b.at, timeZone);
+            const first = sep || !same(prev, m);
+            const last = !same(m, next);
+            return (
+              <div
+                key={m.id}
+                className={cn(first ? "mt-3" : "mt-0.5", selected && selectable(m) && "relative -mx-3 cursor-pointer py-0.5 pr-3 pl-10 transition-colors sm:-mx-6 sm:pr-6", selected?.has(m.id) && "bg-wine/10")}
+                // Идёт выбор: клик в любом месте сообщения отмечает его, а не открывает фото или ссылку.
+                onClickCapture={
+                  selected && selectable(m)
+                    ? (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        h.toggleSelected(m.id);
+                      }
+                    : undefined
+                }
+              >
+                {selected && selectable(m) ? (
+                  <span aria-hidden className={cn("absolute top-1/2 left-3 flex size-5 -translate-y-1/2 items-center justify-center rounded-full border sm:left-6", selected.has(m.id) ? "border-wine bg-wine text-white" : "border-line bg-white")}>
+                    {selected.has(m.id) ? <Check className="size-3.5" /> : null}
+                  </span>
+                ) : null}
+                {sep ? (
+                  <div className="sticky top-1 z-10 mb-3 text-center">
+                    <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-ink-soft shadow-sm ring-1 ring-line">{day}</span>
+                  </div>
+                ) : null}
+                <MessageBubble
+                  first={first}
+                  last={last}
+                  m={m}
+                  me={me}
+                  now={now}
+                  timeZone={timeZone}
+                  conversationId={conversationId}
+                  canSend={canSend}
+                  highlighted={highlight === m.id}
+                  selecting={!!selected}
+                  onAction={h.onAction}
+                  onOpenMedia={h.openMedia}
+                  onJump={h.jump}
+                  onVoiceEnded={h.onVoiceEnded}
+                />
+              </div>
+            );
+          });
+  }, [all, timeZone, selected, highlight, me, now, conversationId, canSend, h]);
+
   const sendFiles = (caption: string, reply: Msg | null) => {
     const list = drafts;
     setDrafts([]);
@@ -501,7 +573,6 @@ export function ChatPanel({
     });
   };
 
-  let lastDay = "";
   const canAttach = canSend && mode === "client" && !editing;
   return (
     <div
@@ -538,60 +609,7 @@ export function ChatPanel({
           {all.length === 0 ? (
             <div className="mx-auto mt-16 max-w-xs rounded-2xl bg-white/80 px-5 py-6 text-center text-sm text-muted shadow-sm">Сообщений пока нет — напишите первым 👋</div>
           ) : null}
-          {all.map((m, i) => {
-            const day = dayLabel(m.at, timeZone);
-            const sep = day !== lastDay;
-            lastDay = day;
-            // Подряд от одного отправителя в пределах 5 минут — одной группой: плотнее, хвостик у последнего.
-            const prev = all[i - 1];
-            const next = all[i + 1];
-            const same = (a?: Msg, b?: Msg) => !!a && !!b && a.direction === b.direction && !!a.internal === !!b.internal && a.author === b.author && Math.abs(new Date(b.at).getTime() - new Date(a.at).getTime()) < 5 * 60_000 && dayLabel(a.at, timeZone) === dayLabel(b.at, timeZone);
-            const first = sep || !same(prev, m);
-            const last = !same(m, next);
-            return (
-              <div
-                key={m.id}
-                className={cn(first ? "mt-3" : "mt-0.5", selected && selectable(m) && "relative -mx-3 cursor-pointer py-0.5 pr-3 pl-10 transition-colors sm:-mx-6 sm:pr-6", selected?.has(m.id) && "bg-wine/10")}
-                // Идёт выбор: клик в любом месте сообщения отмечает его, а не открывает фото или ссылку.
-                onClickCapture={
-                  selected && selectable(m)
-                    ? (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleSelected(m.id);
-                      }
-                    : undefined
-                }
-              >
-                {selected && selectable(m) ? (
-                  <span aria-hidden className={cn("absolute top-1/2 left-3 flex size-5 -translate-y-1/2 items-center justify-center rounded-full border sm:left-6", selected.has(m.id) ? "border-wine bg-wine text-white" : "border-line bg-white")}>
-                    {selected.has(m.id) ? <Check className="size-3.5" /> : null}
-                  </span>
-                ) : null}
-                {sep ? (
-                  <div className="sticky top-1 z-10 mb-3 text-center">
-                    <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-ink-soft shadow-sm ring-1 ring-line">{day}</span>
-                  </div>
-                ) : null}
-                <MessageBubble
-                  first={first}
-                  last={last}
-                  m={m}
-                  me={me}
-                  now={now}
-                  timeZone={timeZone}
-                  conversationId={conversationId}
-                  canSend={canSend}
-                  highlighted={highlight === m.id}
-                  selecting={!!selected}
-                  onAction={onAction}
-                  onOpenMedia={(id) => setViewer(Math.max(0, gallery.findIndex((g) => g.id === id)))}
-                  onJump={jump}
-                  onVoiceEnded={onVoiceEnded}
-                />
-              </div>
-            );
-          })}
+          {rows}
         </div>
       </div>
       {!atBottom ? (
