@@ -1,6 +1,6 @@
 import { listFields } from "@/modules/workspace";
 import { nowMs } from "@/lib/dates";
-import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
 import { staffOptions } from "@/modules/access/ui";
@@ -42,12 +42,10 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/clients" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-ink">
-        ← Клиенты
-      </Link>
-      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <BackLink href="/admin/clients">Клиенты</BackLink>
+      <div className="grid gap-6 max-lg:grid-cols-[minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Профиль */}
-        <aside className="space-y-4 max-lg:order-2">
+        <aside className="min-w-0 space-y-4 max-lg:order-2">
           <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} noMarketing={noMarketing} />
           {clientFields.length ? (
             <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">

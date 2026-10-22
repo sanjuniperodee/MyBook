@@ -76,6 +76,7 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
             <li key={it.key} className="flex-1">
               <Link
                 href={href}
+                prefetch
                 aria-current={on ? "page" : undefined}
                 onClick={(e) => {
                   if (on && pathname === it.href) {

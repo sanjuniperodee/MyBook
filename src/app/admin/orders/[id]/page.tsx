@@ -2,6 +2,7 @@ import { addonName, coverName, deliveryName, formatName, interiorName, planName 
 import { channelLabel, describeAttribution, toAttribution } from "@/shared/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { notFound } from "next/navigation";
 import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
@@ -86,7 +87,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/orders" className="text-sm text-muted hover:text-ink">← Заказы</Link>
+      <BackLink href="/admin/orders">Заказы</BackLink>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Заказ №{order.number}</h1>
         <span className={cn("rounded-full px-3 py-1 text-sm", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>

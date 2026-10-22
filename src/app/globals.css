@@ -517,3 +517,21 @@ body {
 @keyframes crm-push-out { to { transform: translateX(-28%); opacity: 0.6; } }
 @keyframes crm-pop-in { from { transform: translateX(-28%); opacity: 0.6; } }
 @keyframes crm-pop-out { to { transform: translateX(100%); } }
+
+/* Заготовка страницы появляется не сразу, а через 160 мс: быстрые переходы проходят без мерцания скелета, медленные — с ним. */
+@keyframes sk-in { to { opacity: 1; } }
+.sk-delay {
+  opacity: 0;
+  animation: sk-in 0.25s ease 160ms forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-delay { opacity: 1; }
+}
+
+/* Телефон: вертикальные промежутки между блоками плотнее, чем на широком экране — на экране помещается больше. */
+@media (max-width: 1023.98px) {
+  .crm-main .space-y-8 > :not(:last-child) { margin-block-end: 1.5rem; }
+  .crm-main .space-y-6 > :not(:last-child) { margin-block-end: 1.125rem; }
+  .crm-main .space-y-5 > :not(:last-child) { margin-block-end: 1rem; }
+  .crm-main .space-y-4 > :not(:last-child) { margin-block-end: 0.875rem; }
+}

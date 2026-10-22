@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { requireStaff } from "@/server/access";
 import { listFields } from "@/modules/workspace";
 import { cn } from "@/lib/class-names";
@@ -12,9 +13,7 @@ export default async function FieldsPage({ searchParams }: { searchParams: Promi
   const fields = await listFields(entity);
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link href="/admin/deals" className="text-sm text-muted hover:text-ink">
-        ← Сделки
-      </Link>
+      <BackLink href="/admin/deals">Сделки</BackLink>
       <div>
         <h1 className="text-2xl font-semibold">Свои поля</h1>
         <p className="mt-1 text-sm text-muted">

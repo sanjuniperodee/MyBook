@@ -76,7 +76,7 @@ export function DealsBoard({ stages, initial, canEdit, canDecide, meId }: { stag
 
   return (
     <>
-      <DndContext sensors={sensors} onDragEnd={canEdit ? onDragEnd : undefined}>
+      <DndContext id="deals-board" sensors={sensors} onDragEnd={canEdit ? onDragEnd : undefined}>
         <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-4 sm:-mx-6 sm:px-6 lg:snap-none" data-testid="deals-board">
           {cards.some((c) => c.unsorted) ? (
             <UnsortedColumn

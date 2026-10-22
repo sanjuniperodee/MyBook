@@ -17,7 +17,7 @@ export function Intro({ children, className, small }: { children: React.ReactNod
   }, [children, open]);
   return (
     <div className={className}>
-      <p ref={ref} className={cn(small ? "text-xs" : "text-sm", "text-muted", !open && "line-clamp-2")}>
+      <p ref={ref} className={cn(small ? "text-xs" : "text-sm", "text-muted", !open && "line-clamp-1 lg:line-clamp-2")}>
         {children}
       </p>
       {long || open ? (

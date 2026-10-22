@@ -1,5 +1,6 @@
 import { container } from "@/server/container";
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { canSeeAssigned, contactView, requireStaff } from "@/server/access";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatDate } from "@/lib/dates";
@@ -15,9 +16,7 @@ export default async function DuplicatesPage() {
   const visible = rows.map((r) => ({ ...r, deals: r.deals.filter((d) => canSeeAssigned(staff, d.assignee)) })).filter((r) => r.deals.length > 1);
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <Link href="/admin/deals" className="text-sm text-muted hover:text-ink">
-        ← Сделки
-      </Link>
+      <BackLink href="/admin/deals">Сделки</BackLink>
       <div>
         <h1 className="text-2xl font-semibold">Дубли</h1>
         <p className="mt-1 text-sm text-muted">Открытые сделки с одинаковым телефоном (включая дополнительные номера) или e-mail. Откройте основную сделку и нажмите «Объединить сюда» у лишней. Закрытые сделки — прошлые покупки и отказы — здесь не показываются: их не вливают в другие.</p>

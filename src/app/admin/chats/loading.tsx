@@ -1,7 +1,7 @@
 /** Заготовка «Чатов»: страница занимает всю высоту окна, поэтому и заготовка — список слева и переписка справа. */
 export default function Loading() {
   return (
-    <div className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-8 lg:h-[calc(100dvh-3.5rem)]" aria-busy="true" aria-label="Загрузка">
+    <div className="sk-delay crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-8 lg:h-[calc(100dvh-3.5rem)]" aria-busy="true" aria-label="Загрузка">
       <div className="flex w-full shrink-0 flex-col border-r border-line bg-white lg:w-[360px]">
         <div className="space-y-3 px-4 pt-4">
           <div className="skeleton h-6 w-24" />

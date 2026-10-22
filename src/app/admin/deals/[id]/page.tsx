@@ -1,6 +1,7 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { cn } from "@/lib/class-names";
 import { notFound } from "next/navigation";
 import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
@@ -114,9 +115,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/admin/deals" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-ink">
-          ← Сделки
-        </Link>
+        <BackLink href="/admin/deals">Сделки</BackLink>
         <span className="text-sm text-muted max-lg:hidden">
           создана {formatDate(deal.createdAt, true)} · {dealSourceLabels[deal.source]}
         </span>
@@ -140,8 +139,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
-      <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="space-y-4 max-lg:order-2">
+      <div className="grid gap-5 max-lg:grid-cols-[minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]">
+        <aside className="min-w-0 space-y-4 max-lg:order-2">
           <section className="space-y-4 rounded-2xl border border-line bg-white p-4 sm:p-5">
             <DealFields
               deal={{

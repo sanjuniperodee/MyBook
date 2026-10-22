@@ -1,5 +1,6 @@
 import { container } from "@/server/container";
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { RoutingPanel } from "./RoutingPanel";
@@ -23,9 +24,7 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
   }
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link href={`/admin/deals?p=${pipeline.id}`} className="text-sm text-muted hover:text-ink">
-        ← Сделки
-      </Link>
+      <BackLink href={`/admin/deals?p=${pipeline.id}`}>Сделки</BackLink>
       <div className="flex flex-wrap items-center gap-2" data-testid="pipeline-tabs">
         {pipelines.map((x) => (
           <Link key={x.id} href={`/admin/deals/stages?p=${x.id}`} className={cn("rounded-full px-3 py-1.5 text-sm", x.id === pipeline.id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>

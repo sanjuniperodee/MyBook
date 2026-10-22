@@ -11,7 +11,7 @@ export const Bar = ({ className }: { className?: string }) => <div className={cn
 /** Корень заготовки: помечен занятым для скринридеров, ширина — как у настоящей страницы. */
 export function SkPage({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cn(!className?.includes("space-y-") && "space-y-6", className)} aria-busy="true" aria-label="Загрузка">
+    <div className={cn("sk-delay", !className?.includes("space-y-") && "space-y-6", className)} aria-busy="true" aria-label="Загрузка">
       {children}
     </div>
   );

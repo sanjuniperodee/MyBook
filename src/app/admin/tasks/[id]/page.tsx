@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Bot, Handshake, MessagesSquare, Package, StickyNote, UserRound } from "lucide-react";
+import { Bot, Handshake, MessagesSquare, Package, StickyNote, UserRound } from "lucide-react";
 import { requireStaff } from "@/server/access";
 import { loadTaskDetail } from "../task-detail";
 import { pageId } from "@/server/input";
@@ -20,9 +21,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   if (!d) notFound();
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <Link href="/admin/tasks" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-        <ArrowLeft className="size-4" /> Задачи
-      </Link>
+      <BackLink href="/admin/tasks">Задачи</BackLink>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
         {d.task.fromBot ? (
           <span className="inline-flex items-center gap-1 rounded bg-cream px-1.5 py-0.5 text-ink-soft">
