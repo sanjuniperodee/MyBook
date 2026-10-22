@@ -305,13 +305,14 @@ body {
 @media (max-width: 1023.98px) {
   :root {
     --tabbar-h: calc(3.6rem + env(safe-area-inset-bottom));
+    --topbar-h: calc(3.25rem + env(safe-area-inset-top));
   }
   .crm-main {
     padding-bottom: calc(var(--tabbar-h) + 1.25rem);
   }
   /* Чат: высота экрана минус шапка и панель; открытый диалог — весь экран без шапки и панели. */
   .crm-chat-root {
-    height: calc(100dvh - 3.5rem - var(--tabbar-h));
+    height: calc(100dvh - var(--topbar-h) - var(--tabbar-h));
   }
   html[data-chat-open] .crm-topbar {
     display: none;
@@ -342,5 +343,110 @@ body {
   }
   .input {
     min-height: 2.75rem;
+  }
+}
+
+/*
+ * Мобильный вид CRM по гайдлайнам Apple (HIG): крупный заголовок экрана, зоны нажатия не меньше 44 pt, шапка под вырезом,
+ * списки — карточками на всю ширину, ленты фильтров листаются вбок, а не переносятся. Только телефон и планшет (< lg).
+ */
+@media (max-width: 1023.98px) {
+  .crm-topbar {
+    height: var(--topbar-h);
+    padding-top: env(safe-area-inset-top);
+    gap: 0.5rem;
+  }
+  /* Строка поиска, как в iOS: серое скруглённое поле высотой 40, подсказка короче. */
+  .crm-topbar input[name="q"] {
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    border-color: transparent;
+    background: rgb(120 113 108 / 0.12);
+  }
+  .crm-topbar input[name="q"]:focus {
+    background: var(--color-white);
+    border-color: color-mix(in oklab, var(--color-wine) 40%, transparent);
+  }
+  .crm-topbar :is(button, a) {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+  /* Крупный заголовок экрана (Large Title): 28 pt, жирный, плотный. */
+  .crm-main h1 {
+    font-size: 1.75rem;
+    line-height: 2.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .crm-main h2 {
+    letter-spacing: -0.01em;
+  }
+  /* Зоны нажатия — 44 pt. */
+  .crm-main :is(.btn, .btn-sm) {
+    min-height: 2.75rem;
+  }
+  .crm-main :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"], [type="file"]), select) {
+    min-height: 2.75rem;
+    border-radius: 0.85rem;
+  }
+  .crm-main :is(input[type="checkbox"], input[type="radio"]) {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+  .crm-main label:has(> input[type="checkbox"], > input[type="radio"]) {
+    min-height: 2.75rem;
+  }
+  /* «Пилюли» и фильтры-чипсы — не ниже 40, чтобы попадать пальцем. */
+  .crm-main :is(a, button).rounded-full:not(.btn, [class*="size-"]) {
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Лента вбок: фильтры, этапы, чипсы не переносятся на 3 строки, а листаются пальцем. */
+  .m-hscroll {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .m-hscroll::-webkit-scrollbar {
+    display: none;
+  }
+  .m-hscroll > * {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+  /* Карточка списка: отклик на нажатие, как в iOS (лёгкое затемнение, без «подпрыгивания»). */
+  .m-card {
+    transition: background-color 0.12s ease, transform 0.12s ease;
+  }
+  .m-card:active {
+    background-color: var(--color-cream);
+    transform: scale(0.992);
+  }
+  /* Таблицы, которые остались таблицами: плавная прокрутка вбок, без «резинки» страницы. */
+  .crm-main .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  /* Панель массовых действий — над нижней панелью, а не под ней. */
+  .m-sticky-actions {
+    position: sticky;
+    bottom: calc(var(--tabbar-h) + 0.5rem);
+    z-index: 20;
+  }
+}
+@media (pointer: coarse) and (max-width: 1023.98px) {
+  /* Системные шрифты Apple: на iPhone — SF Pro, цифры одинаковой ширины. */
+  .crm-main {
+    font-family: -apple-system, BlinkMacSystemFont, var(--font-onest), system-ui, sans-serif;
+  }
+}
+@media (hover: none) {
+  .crm-main .hover\:bg-cream\/40:hover {
+    background-color: transparent;
   }
 }
