@@ -28,9 +28,15 @@ export function PhotoPage({ kit, group }: { kit: PdfKit; group: PhotoItem[] }) {
     // fixed — снимок во весь лист не участвует в разбиении на страницы. Иначе react-pdf сравнивает его высоту
     // (yoga считает во float32) с высотой полосы (double): в квадрате 583,937… pt округляется вверх, снимок «выше
     // полосы», и всё после него — водяной знак превью — уходит на следующую полосу, которую react-pdf отбрасывает.
+    // «Целиком, без обрезки»: снимок вписан в лист по центру, по другой стороне — поля бумаги.
+    const contain = group[0].inline?.pageFit === "contain" && img;
+    const k = contain ? Math.min(pageSize.width / img.width, pageSize.height / img.height) : 1;
+    const box = contain
+      ? { width: img.width * k, height: img.height * k, left: (pageSize.width - img.width * k) / 2, top: (pageSize.height - img.height * k) / 2 }
+      : { width: pageSize.width, height: pageSize.height, left: 0, top: 0 };
     return (
       <Page size={pageSize} style={{ backgroundColor: PAPER }}>
-        {img ? <Image fixed src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: pageSize.width, height: pageSize.height }} /> : null}
+        {img ? <Image fixed src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", ...box }} /> : null}
         <Watermark kit={kit} />
       </Page>
     );

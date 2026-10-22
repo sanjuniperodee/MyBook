@@ -25,7 +25,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
-  const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout, ...(p.crop ? { crop: p.crop } : {}) });
+  const pagePhoto = (p: PhotoItem) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, layout: p.layout, ...(p.crop ? { crop: p.crop } : {}), ...(p.inline?.pageFit === "contain" ? { contain: true } : {}) });
   const entryOf = (it: ContentItem) => {
     const paragraphs = splitParagraphs(it.answer);
     const inline = (it.photos ?? []).map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline }));

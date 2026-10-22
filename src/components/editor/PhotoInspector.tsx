@@ -184,6 +184,22 @@ export function PhotoInspector({
             <span className="block text-xs text-muted">{t.fullPageHint}</span>
           </span>
         </label>
+        {style.page ? (
+          <div role="radiogroup" aria-label={t.fullPage} className="grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 text-xs">
+            {([undefined, "contain"] as const).map((fit) => (
+              <button
+                key={fit ?? "cover"}
+                type="button"
+                role="radio"
+                aria-checked={style.pageFit === fit}
+                onClick={() => onChange({ pageFit: fit })}
+                className={cn("rounded-lg px-2 py-2 font-medium transition", style.pageFit === fit ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+              >
+                {fit ? t.fullPageContain : t.fullPageCover}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <fieldset disabled={!!style.page} className={cn("space-y-4", style.page && "opacity-40")}>
         <Field label={t.size} aside={<span className="tabular-nums">{t.width(style.width)}</span>}>
           <div className="flex items-center gap-3">

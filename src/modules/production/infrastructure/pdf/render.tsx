@@ -93,8 +93,13 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
       } else if (p.layout === "bleed" && !inlineIds.has(p.id)) {
         const w = Math.round((content.format.widthMm + bleedMm * 2) * pxPerMm);
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);
-        // Кадр автора — его точкой и приближением, иначе — «по содержимому», как раньше.
-        img = p.crop ? await coverAt(input, w, h, p.crop) : img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
+        // «Целиком, без обрезки» — вписать в лист; кадр автора — его точкой и приближением, иначе — «по содержимому».
+        img =
+          p.inline?.pageFit === "contain"
+            ? img.rotate().resize(w, h, { fit: "inside" })
+            : p.crop
+              ? await coverAt(input, w, h, p.crop)
+              : img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
       } else if (inlineIds.has(p.id)) {
         // Кадрируем так же, как в превью (пропорции + точка фокуса), и ужимаем до ширины блока.
         const style = normalizeStyle(p.inline);

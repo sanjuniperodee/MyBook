@@ -129,3 +129,26 @@ describe("фото вне историй: «Не печатать»", () => {
     expect(book("end").galleryPhotos.length).toBeGreaterThan(0);
   });
 });
+
+describe.skipIf(textless)("PDF: фото на всю страницу «целиком, без обрезки»", () => {
+  it("снимок вписан в лист: страница без текста, по одной из сторон — поля бумаги", async () => {
+    const fb = fixtureBook("classic", "a5", "ru");
+    const q2 = fb.bundle.questions[2].id;
+    const photos = fb.bundle.photos.map((p) => (p.questionId === q2 && p.inline ? { ...p, inline: { ...p.inline, page: true, pageFit: "contain" as const } } : p));
+    const bundle = { ...fb.bundle, photos };
+    const res = await render.renderInterior(bundle, "print");
+    const file = path.join(dir, "contain.pdf");
+    writeFileSync(file, res.pdf);
+    const content = contentOf({ ...fb, bundle });
+    const cont = content.chapters.flatMap((c) => c.items).find((it) => it.continued)!;
+    expect(cont.photoBefore?.inline?.pageFit).toBe("contain");
+    const pages = textRows(file);
+    const contAt = pages.findIndex((rows) => rows.some((r) => norm(cont.answer).startsWith(norm(r.text).replace(/-$/, "")) && norm(r.text).length > 10));
+    const photoPage = contAt - 1;
+    expect(pages[photoPage].length).toBe(0);
+    const sheet = { width: mm(content.format.widthMm + print.bleedMm * 2), height: mm(content.format.heightMm + print.bleedMm * 2) };
+    const white = Object.entries(edgeMax(grayPage(file, photoPage + 1, 24, sheet))).flatMap(([edge, v]) => (v >= 250 ? [edge] : []));
+    // Поля бумаги по краям, где снимок не достаёт до края листа (у «заполнить страницу» их нет — тест выше).
+    expect(white.length, JSON.stringify(white)).toBeGreaterThanOrEqual(2);
+  }, 120_000);
+});

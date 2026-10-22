@@ -220,6 +220,8 @@ export const editor: typeof ru = {
     focusHint: "Суреттегі ең маңызды жерді басыңыз — кадр сол нүктеге жылжиды",
     fullPage: "Бүкіл бетке",
     fullPageHint: "Фото — жиексіз және жақтаусыз жеке бет, әңгіменің мәтіні одан кейін жалғасады",
+    fullPageCover: "Бетті толтыру",
+    fullPageContain: "Толық, кеспей",
     size: "Өлшемі",
     width: (w: number) => `ені ${w}%`,
     sizeAria: "Сурет өлшемі, беттің енінің %",

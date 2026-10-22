@@ -22,6 +22,7 @@ const schema = z
         focusY: z.number().min(0).max(1),
         frame: z.enum(["none", "line", "polaroid", "round"]),
         page: z.boolean().optional(),
+        pageFit: z.literal("contain").optional(),
       })
       .strict()
       .nullable(),

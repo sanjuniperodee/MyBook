@@ -119,6 +119,8 @@ export interface PagePhoto {
   layout: "full" | "bleed" | "half" | "grid";
   /** Кадр автора (photo-crop.ts); нет — по центру. */
   crop?: PhotoCrop;
+  /** Фото на всю страницу целиком, без обрезки. */
+  contain?: boolean;
 }
 
 /** Фотостраница: снимки, рамки и подписи по раскладке photo-pages — как в PDF. */
@@ -132,7 +134,7 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
     <PageSurface kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {
         const p = photos.find((x) => x.id === c.id)!;
-        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} focus={p.crop} />;
+        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} focus={p.crop} contain={p.contain} />;
       })}
       <PageLayer shapes={plan.over} format={format} />
       {plan.cells.map((c) =>
