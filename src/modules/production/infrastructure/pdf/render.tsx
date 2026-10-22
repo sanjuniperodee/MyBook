@@ -24,7 +24,7 @@ import { emptyFlow } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
-import { cropOr } from "@/lib/book/photo-crop";
+import { cropOr, fillFocus } from "@/lib/book/photo-crop";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
 import { getFile } from "@/shared/infrastructure/storage";
 import { bakeFrame } from "./frame";
@@ -93,13 +93,11 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
       } else if (p.layout === "bleed" && !inlineIds.has(p.id)) {
         const w = Math.round((content.format.widthMm + bleedMm * 2) * pxPerMm);
         const h = Math.round((content.format.heightMm + bleedMm * 2) * pxPerMm);
-        // «Целиком, без обрезки» — вписать в лист; кадр автора — его точкой и приближением, иначе — «по содержимому».
+        // «Целиком, без обрезки» — вписать в лист; иначе кадр fillFocus — тот же, что в превью (а не «по содержимому»).
         img =
           p.inline?.pageFit === "contain"
             ? img.rotate().resize(w, h, { fit: "inside" })
-            : p.crop
-              ? await coverAt(input, w, h, p.crop)
-              : img.resize(w, h, { fit: "cover", position: sharp.strategy.attention });
+            : await coverAt(input, w, h, fillFocus(p));
       } else if (inlineIds.has(p.id)) {
         // Кадрируем так же, как в превью (пропорции + точка фокуса), и ужимаем до ширины блока.
         const style = normalizeStyle(p.inline);
@@ -112,7 +110,7 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
         // Сетка — кадр по месту с учётом содержимого снимка; целиком — те же пропорции, просто нужный размер.
         const cw = Math.max(1, Math.round(cell.img.w * pxPerMm));
         const ch = Math.max(1, Math.round(cell.img.h * pxPerMm));
-        img = p.crop && cell.fit === "cover" ? await coverAt(input, cw, ch, p.crop) : img.resize(cw, ch, { fit: "cover", position: cell.fit === "cover" ? sharp.strategy.attention : "centre" });
+        img = cell.fit === "cover" ? await coverAt(input, cw, ch, fillFocus(p)) : img.resize(cw, ch, { fit: "cover", position: "centre" });
       } else {
         const a = photoAreaMm(content.format, "full");
         img = img.resize(Math.round(a.w * pxPerMm), Math.round(a.h * pxPerMm), { fit: "inside", withoutEnlargement: true });

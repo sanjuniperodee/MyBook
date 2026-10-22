@@ -7,7 +7,7 @@ import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-b
 import { layoutMedia, type AnswerMedia } from "@/lib/book/answer-media";
 import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
-import { PT_TO_MM } from "@/lib/book/formats";
+import { print, PT_TO_MM } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
@@ -16,6 +16,7 @@ import { Folio, RunningHead } from "@/components/interior/folio";
 import type { PageKit } from "@/components/interior/kit";
 import { OpenerPage } from "@/components/interior/pages";
 import { LazyPage } from "./LazyPage";
+import { fillFocus } from "@/lib/book/photo-crop";
 import { previewPhotoLayer } from "./photo-layer";
 import type { usePhotoDrag } from "./usePhotoDrag";
 
@@ -136,12 +137,15 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
                 draggable={false}
                 style={{
                   position: "absolute",
-                  left: -side * px,
-                  top: -m.marginTop * px,
-                  width: pageW,
-                  height: format.heightMm * px,
+                  // С вылетами, как лист PDF: кадр совпадает с печатью, лишнее срезает край страницы.
+                  left: -(side + print.bleedMm) * px,
+                  top: -(m.marginTop + print.bleedMm) * px,
+                  width: pageW + print.bleedMm * 2 * px,
+                  height: (format.heightMm + print.bleedMm * 2) * px,
                   maxWidth: "none",
                   objectFit: item.style.pageFit === "contain" ? "contain" : "cover",
+                  // Кадр — как в PDF (fillFocus): точка из редактора фото, иначе 30% от верха.
+                  objectPosition: (({ x, y }) => `${x * 100}% ${y * 100}%`)(fillFocus({ inline: item.style })),
                   background: "#fff",
                   ...fig.frame,
                 }}

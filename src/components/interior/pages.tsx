@@ -14,7 +14,8 @@ import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/inte
 import { openerArtShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
-import { cropOr, type PhotoCrop } from "@/lib/book/photo-crop";
+import { print } from "@/lib/book/formats";
+import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
@@ -121,11 +122,21 @@ export interface PagePhoto {
   crop?: PhotoCrop;
   /** Фото на всю страницу целиком, без обрезки. */
   contain?: boolean;
+  /** Точка кадра из редактора фото в ответе (фото на всю страницу из истории). */
+  inline?: { focusX?: number; focusY?: number } | null;
 }
 
 /** Фотостраница: снимки, рамки и подписи по раскладке photo-pages — как в PDF. */
 export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProps & { photos: PagePhoto[]; /** С какого пейзажа-заглушки начинать. */ scene?: number }) {
   const { design, format, sizes: S, u } = kit;
+  // Один снимок «под обрез» — на весь лист, как в PDF (photo-page.tsx), а не в полосе фотостраницы.
+  if (photos.length === 1 && photos[0].layout === "bleed")
+    return (
+      <PageSurface kit={kit} className={className} style={style}>
+        {/* С вылетами, как лист PDF (154×216 при A5): кадр совпадает до миллиметра, лишнее срезает край страницы. */}
+        <PageImage kit={kit} rect={{ x: -print.bleedMm, y: -print.bleedMm, w: format.widthMm + print.bleedMm * 2, h: format.heightMm + print.bleedMm * 2 }} url={photos[0].url} scene={scene} focus={photos[0].contain ? undefined : fillFocus(photos[0])} contain={photos[0].contain} />
+      </PageSurface>
+    );
   const plan = photoPagePlan(photos, photoArea(format), design, S);
   const face = photoCaptionFace(design);
   const caption = (size: number): CSSProperties =>
@@ -134,7 +145,7 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
     <PageSurface kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {
         const p = photos.find((x) => x.id === c.id)!;
-        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} focus={p.crop} contain={p.contain} />;
+        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} focus={c.fit === "cover" ? fillFocus(p) : p.crop} contain={p.contain} />;
       })}
       <PageLayer shapes={plan.over} format={format} />
       {plan.cells.map((c) =>

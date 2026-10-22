@@ -27,3 +27,18 @@ export function cropOr(crop: PhotoCrop | null | undefined, fallback: { x: number
 
 /** Поворот снимка на 90° по часовой: точка кадра поворачивается вместе с ним. */
 export const rotateCrop = (c: PhotoCrop | null): PhotoCrop | null => (c ? { ...c, x: 1 - c.y, y: c.x } : null);
+
+/** Точка кадра фото на весь лист и в ячейке сетки по умолчанию: центр по горизонтали, 30% от верха (лица обычно выше). */
+export const PAGE_FOCUS = { x: 0.5, y: 0.3 } as const;
+
+/**
+ * Кадр фото, которое заполняет место с обрезкой (на весь лист, ячейка сетки): ручной кадр автора, иначе точка из
+ * редактора фото в ответе (если её двигали), иначе PAGE_FOCUS. Одно правило для PDF и всех превью.
+ */
+export function fillFocus(p: { crop?: PhotoCrop | null; inline?: { focusX?: number; focusY?: number } | null }): PhotoCrop {
+  if (p.crop) return p.crop;
+  const fx = p.inline?.focusX;
+  const fy = p.inline?.focusY;
+  if (typeof fx === "number" && typeof fy === "number" && (fx !== 0.5 || fy !== 0.5)) return { x: fx, y: fy, zoom: 1 };
+  return { ...PAGE_FOCUS, zoom: 1 };
+}
