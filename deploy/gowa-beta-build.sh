@@ -8,6 +8,11 @@
 #   на сервере: GOWA_BETA_BIN=~/mybook-sidecars/whatsapp bash deploy/sidecars.sh whatsapp
 #
 # Коммит зафиксирован: новая голова PR — это новый, непроверенный код с доступом к номеру магазина. Обновлять осознанно.
+#
+# Поверх PR — наши правки библиотеки звонков purpshell/meowcaller (deploy/gowa-beta/*.patch, подключаются через replace):
+#   meowcaller-late-answer.patch — ответ на входящий не сразу, а через несколько секунд (сотрудник нажал «Ответить»):
+#   библиотека шлёт звонящему <accept> только по его первому <mute_v2>, который приходит в первую секунду звонка, и при
+#   позднем ответе звонящий так и оставался «звонит» — без звука в обе стороны. С правкой <accept> уходит сразу при ответе.
 set -euo pipefail
 
 GOWA_BETA_REF="474275afbfd7eca48a918ef103de71669f2b6db0"
@@ -17,10 +22,15 @@ command -v docker >/dev/null || { echo "Нужен Docker"; exit 1; }
 mkdir -p "$OUT"
 
 # glibc сборки (Debian bookworm, 2.36) не новее, чем на сервере (2.39): программа с CGO (sqlite) там запустится.
-docker run --rm --platform linux/amd64 -v "$OUT:/out" -e REF="$GOWA_BETA_REF" golang:1.26-bookworm bash -euo pipefail -c '
+docker run --rm --platform linux/amd64 -v "$OUT:/out" -v "$ROOT/deploy/gowa-beta:/patches:ro" -e REF="$GOWA_BETA_REF" golang:1.26-bookworm bash -euo pipefail -c '
   git clone --quiet --filter=blob:none https://github.com/aldinokemal/go-whatsapp-web-multidevice.git /src
   cd /src && git fetch --quiet origin refs/pull/892/head && git checkout --quiet "$REF"
-  cd src && CGO_ENABLED=1 go build -trimpath -ldflags="-w -s" -o /out/whatsapp .
+  cd src
+  go mod download github.com/purpshell/meowcaller
+  cp -r "$(go list -m -f "{{.Dir}}" github.com/purpshell/meowcaller)" /meowcaller && chmod -R u+w /meowcaller
+  for p in /patches/meowcaller-*.patch; do (cd /meowcaller && git apply -p1 "$p"); done
+  go mod edit -replace github.com/purpshell/meowcaller=/meowcaller
+  CGO_ENABLED=1 go build -trimpath -ldflags="-w -s" -o /out/whatsapp .
   cd /out && sha256sum whatsapp > whatsapp.sha256
 '
-echo "✓ $OUT/whatsapp ($(cut -c1-12 "$OUT/whatsapp.sha256")…), GOWA PR #892 @ ${GOWA_BETA_REF:0:7}"
+echo "✓ $OUT/whatsapp ($(cut -c1-12 "$OUT/whatsapp.sha256")…), GOWA PR #892 @ ${GOWA_BETA_REF:0:7} + $(ls "$ROOT"/deploy/gowa-beta/*.patch | wc -l | tr -d " ") патч(а) meowcaller"
