@@ -334,7 +334,7 @@ export function MessageBubble({
           {out ? <StatusIcon status={m.status} /> : null}
         </div>
         <div className="clear-both" />
-        {failed && m.error ? <div className="mt-1 flex items-center gap-1 text-[12px] text-red-700"><AlertCircle className="size-3.5" /> {m.error}</div> : null}
+        {failed && m.error ? <div className="mt-1 flex items-start gap-1 text-[12px] text-red-700"><AlertCircle className="mt-0.5 size-3.5 shrink-0" /> <span className="min-w-0 [overflow-wrap:anywhere]">{m.error}</span></div> : null}
         {/* Ответ AI-продажника: что решила модель и что сделал код. */}
         {isBot && m.trace && !m.deleted && !temp ? <BotTraceButton conversationId={conversationId} messageId={m.id} /> : null}
         {menuEl}

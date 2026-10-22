@@ -163,6 +163,16 @@ describe("GOWA: клиент шлюза", () => {
     expect(qr).toEqual({ image: "data:image/png;base64,iVBORw==", seconds: 30 });
   });
 
+  it("голосовое уходит с Content-Type без параметров: шлюз отвергает «audio/ogg; codecs=opus»", async () => {
+    let sent: FormDataEntryValue | null = null;
+    const client = new GowaClient(config, async (_url, init) => {
+      sent = (init?.body as FormData).get("audio");
+      return json({ results: { message_id: "g1" } });
+    });
+    await client.sendFile("77011234567", { data: new Uint8Array([1]), name: "voice.ogg", mime: "audio/ogg; codecs=opus", kind: "audio" });
+    expect((sent as unknown as File).type).toBe("audio/ogg");
+  });
+
   it("ошибки шлюза — понятным текстом; файл — только из каталога вложений", async () => {
     const unauthorized = new GowaClient(config, async () => json({ code: "UNAUTHORIZED" }, 401));
     await expect(unauthorized.sendText("77011234567", "x")).rejects.toThrow("Шлюз WhatsApp не принял логин и пароль");

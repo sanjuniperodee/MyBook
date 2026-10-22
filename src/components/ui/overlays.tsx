@@ -111,20 +111,20 @@ export function Overlays() {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex flex-col items-center gap-2 px-4 sm:bottom-6" role="status" aria-live="polite">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tabbar-h,0px)+1rem)] z-[70] flex flex-col items-center gap-2 px-4 sm:bottom-[calc(var(--tabbar-h,0px)+1.5rem)] lg:bottom-6" role="status" aria-live="polite">
         {list.map((t) => {
           const Icon = icons[t.kind];
           return (
             <div
               key={t.id}
               className={cn(
-                "pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl py-3 pr-2 pl-4 text-sm shadow-lift transition duration-150",
+                "pointer-events-auto flex max-w-md min-w-0 items-center gap-3 rounded-2xl py-3 pr-2 pl-4 text-sm shadow-lift transition duration-150",
                 t.kind === "error" ? "bg-[#3b1a1e] text-white" : "bg-ink text-white",
                 t.leaving ? "translate-y-2 opacity-0" : "animate-[toast-in_220ms_var(--ease-out-soft)_both]",
               )}
             >
               <Icon className={cn("size-4 shrink-0", t.kind === "success" ? "text-emerald-300" : t.kind === "error" ? "text-[#f3a7b0]" : "text-white/70")} />
-              <span className="leading-snug">{t.text || m.errors.generic}</span>
+              <span className="min-w-0 leading-snug [overflow-wrap:anywhere]">{t.text || m.errors.generic}</span>
               <button onClick={() => dismiss(t.id)} className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label={m.actions.close}>
                 <X className="size-3.5" />
               </button>

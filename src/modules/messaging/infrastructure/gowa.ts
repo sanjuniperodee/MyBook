@@ -108,7 +108,9 @@ export class GowaClient {
     form.set("phone", gowaJid(chatId));
     if (opts.caption && file.kind !== "audio") form.set("caption", opts.caption);
     if (opts.forwarded) form.set("is_forwarded", "true");
-    form.set(field, new Blob([file.data as BlobPart], { type: file.mime || "application/octet-stream" }), file.name || "file");
+    // Шлюз сверяет Content-Type с точным списком («audio/ogg»), а «audio/ogg; codecs=opus» отвергает как неразрешённый тип — параметры отбрасываем.
+    const type = file.mime.split(";")[0].trim().toLowerCase() || "application/octet-stream";
+    form.set(field, new Blob([file.data as BlobPart], { type }), file.name || "file");
     const res = await this.json<{ results?: { message_id?: string } }>("POST", `/send/${field}`, form, 120_000);
     return res.results?.message_id ?? null;
   }
