@@ -20,6 +20,11 @@ export interface TocLineSetting {
   hidden?: boolean;
   /** Свой эпиграф главы (только у строк глав) — на начальной полосе вместо эпиграфа темы. */
   epigraph?: string;
+  /**
+   * Автор решил начать главу без фото (только у строк глав): редактор больше не предлагает выбрать фото главы.
+   * Не вёрстка — в содержимое книги не идёт (layout.ts, tocSettings) и не действует, когда фото главы выбрано.
+   */
+  noOpenerPhoto?: boolean;
 }
 /** Настройки строк по ключу строки (tocKey). */
 export type TocLines = Record<string, TocLineSetting>;
@@ -146,12 +151,13 @@ export function parseTocLines(raw: unknown): TocLines {
   const out: TocLines = {};
   for (const [key, v] of Object.entries(raw as Record<string, unknown>).slice(0, TOC_LINES_MAX)) {
     if (!KEY.test(key) || !v || typeof v !== "object") continue;
-    const { title, hidden, epigraph } = v as Record<string, unknown>;
+    const { title, hidden, epigraph, noOpenerPhoto } = v as Record<string, unknown>;
     const s: TocLineSetting = {};
     if (typeof title === "string" && title.trim()) s.title = title.trim().slice(0, TOC_TITLE_MAX);
     if (hidden === true) s.hidden = true;
     if (key.startsWith("c:") && typeof epigraph === "string" && epigraph.trim()) s.epigraph = epigraph.trim().slice(0, TOC_EPIGRAPH_MAX);
-    if (s.title !== undefined || s.hidden || s.epigraph !== undefined) out[key] = s;
+    if (key.startsWith("c:") && noOpenerPhoto === true) s.noOpenerPhoto = true;
+    if (s.title !== undefined || s.hidden || s.epigraph !== undefined || s.noOpenerPhoto) out[key] = s;
   }
   return out;
 }

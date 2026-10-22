@@ -12,6 +12,7 @@ import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type Recip
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
 import { CUSTOM_QUESTION } from "./Question";
+import { NEW_BOOK_LAYOUT_REV } from "./layout-rev";
 
 export type Gender = "m" | "f";
 
@@ -53,6 +54,11 @@ export interface BookProps {
   /** Оглавление: режим и настройки строк (src/lib/book/toc.ts). */
   tocMode: TocMode;
   tocLines: TocLines;
+  /**
+   * Правила раскладки фото (domain/layout-rev.ts): 1 — прежние, 2 — у каждого фото одно место. Меняет только перевод
+   * книги (application/layout-rev2.ts) прямым SQL: снимок книги (BookRepository.save) её не пишет.
+   */
+  layoutRev: number;
   inviteToken: string | null;
   language: Locale;
   occasion: string | null;
@@ -181,6 +187,7 @@ export class Book extends AggregateRoot<BookProps> {
       showToc: true,
       tocMode: "chapters",
       tocLines: {},
+      layoutRev: NEW_BOOK_LAYOUT_REV,
       inviteToken: null,
       language: input.language,
       occasion,
@@ -227,6 +234,12 @@ export class Book extends AggregateRoot<BookProps> {
   }
   get inviteToken() {
     return this.props.inviteToken;
+  }
+  get interior() {
+    return this.props.interior;
+  }
+  get layoutRev() {
+    return this.props.layoutRev;
   }
   get isEditable() {
     return this.props.status === "draft";

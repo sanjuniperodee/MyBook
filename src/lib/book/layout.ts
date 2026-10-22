@@ -10,7 +10,7 @@ import { MAX_INLINE_HEIGHT_SHARE, splitParagraphs } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
 import { getInteriorDesign, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
-import { isCustomToc, type TocLines, type TocMode } from "./toc";
+import { GALLERY_KEY, isCustomToc, type TocLines, type TocMode } from "./toc";
 import type { PhotoCrop } from "./photo-crop";
 
 export interface ContentItem {
@@ -118,7 +118,53 @@ export type BookLike = Pick<
   | "coverPhotoId"
 > &
   /** Оглавление (toc.ts): нет — по главам, без своих строк. */
-  Partial<Pick<Book, "tocMode" | "tocLines">>;
+  Partial<Pick<Book, "tocMode" | "tocLines">> &
+  /**
+   * Правила раскладки фото (LAYOUT_REV_2) и остальные снимки обложки и оборота: правила 2 не ставят их внутрь сами.
+   * Полная строка книги их даёт; нет — прежние правила, других снимков обложки нет.
+   */
+  Partial<Pick<Book, "layoutRev" | "coverPhotoExtra" | "backPhotoId" | "backPhotoExtra">> & {
+    /**
+     * Снимки, которые обложка и оборот печатают на самом деле (buildBookContent считает их по полной строке книги);
+     * нет — обложкой считаются все выбранные для неё снимки.
+     */
+    coverPhotos?: CoverPhotos;
+  };
+
+/**
+ * Снимки, которые печатают обложка (по местам шаблона) и оборот (по варианту, который получится), — cover-photos.ts.
+ * Считает сервер: каталог обложек в браузер не грузится.
+ */
+export interface CoverPhotos {
+  front: readonly string[];
+  back: readonly string[];
+}
+
+/** Ссылки книги на снимки обложки и оборота. */
+export type CoverRefs = Partial<Pick<BookLike, "coverPhotoId" | "coverPhotoExtra" | "backPhotoId" | "backPhotoExtra" | "coverPhotos">>;
+
+/**
+ * Правила раскладки фото «у каждого фото одно место» (books.layout_rev = 2): снимок обложки в ответе печатается,
+ * снимки обложки и оборота не попадают внутрь сами, глава открывается только фото, которое выбрал автор.
+ * 1 (и книга без версии) — прежние правила.
+ */
+export const LAYOUT_REV_2 = 2;
+
+/** Фото не печатается внутри книги — выбор автора (photos.chapter); у обложки свои снимки. */
+export const PHOTO_OFF_KEY = "__off";
+
+/** Снимки лицевой стороны и оборота: видные на них (coverPhotos), а без этих данных — все выбранные для обложки и оборота. */
+export function coverPhotosOf(book: CoverRefs): CoverPhotos {
+  if (book.coverPhotos) return book.coverPhotos;
+  const ids = (list: (string | null | undefined)[]) => list.filter((id): id is string => !!id);
+  return { front: ids([book.coverPhotoId, ...(book.coverPhotoExtra ?? [])]), back: ids([book.backPhotoId, ...(book.backPhotoExtra ?? [])]) };
+}
+
+/** Снимки обложки и оборота одним набором (у книги без них — пусто). */
+export function coverAndBackPhotoIds(book: CoverRefs): Set<string> {
+  const { front, back } = coverPhotosOf(book);
+  return new Set([...front, ...back]);
+}
 
 /** Глава своей книги (book_chapters) для сборки: порядок — порядок списка. У книг с банком список пуст. */
 export type ChapterLike = Pick<BookChapter, "key" | "title" | "epigraph">;
@@ -183,6 +229,9 @@ export interface LetterLike {
 
 export const LETTERS_CHAPTER = "__letters";
 
+/** Ключ главы, у которой может быть фото начала: не альбом, не «не печатается» и не письма близких. */
+export const isChapterPhotoKey = (key: string | null | undefined): key is string => !!key && key !== GALLERY_KEY && key !== PHOTO_OFF_KEY && key !== LETTERS_CHAPTER;
+
 /**
  * Тексты книги, которых нет в ответах: названия и эпиграфы глав (своей книги — из book_chapters, остальных — из темы),
  * «Разное» для главы вне темы, глава писем, название книги и раздела фото по умолчанию. На сервере их даёт bookTexts
@@ -214,10 +263,12 @@ export function assembleBookContent(
   const sorted = [...questions].sort((a, b) => a.position - b.position);
   const chapterOrder: string[] = [];
   const byChapter = new Map<string, ContentItem[]>();
-  // Фото, вставленные в конкретные ответы
+  // Правила раскладки фото: 1 (и книга без версии) — прежние, 2 — у каждого фото одно место (LAYOUT_REV_2).
+  const rev2 = book.layoutRev === LAYOUT_REV_2;
+  // Фото, вставленные в конкретные ответы. Прежние правила прячут снимок обложки и в ответе, правила 2 — печатают.
   const inline = new Map<string, PhotoItem[]>();
   for (const p of photos) {
-    if (!p.questionId || p.id === book.coverPhotoId) continue;
+    if (!p.questionId || (!rev2 && p.id === book.coverPhotoId)) continue;
     inline.set(p.questionId, [...(inline.get(p.questionId) ?? []), p]);
   }
   for (const q of sorted) {
@@ -261,7 +312,13 @@ export function assembleBookContent(
   for (const ch of chapters) for (const key of [ch.key, ...(ch.folded ?? []).map((f) => f.key)]) hostOf.set(key, ch);
   const chosen = photos.filter((p) => p.chapter && hostOf.has(p.chapter) && !placedInAnswers.has(p.id));
   for (const p of chosen) hostOf.get(p.chapter!)!.photos.push(p);
-  const innerPhotos = photos.filter((p) => p.id !== book.coverPhotoId && !placedInAnswers.has(p.id) && !chosen.includes(p));
+  // Альбом в конце и «не печатается» — места, выбранные автором, при любых правилах: альбом печатается и при «не печатать»,
+  // раньше фото, разложенных по правилу книги. До правил 2 таких фото нет — прежние книги собираются как раньше.
+  const pinnedToGallery = photos.filter((p) => p.chapter === GALLERY_KEY && !placedInAnswers.has(p.id));
+  // Снимки обложки сами внутрь не идут: по прежним правилам — только основное фото обложки (даже у шаблона без фото),
+  // по правилам 2 — все снимки, которые обложка и оборот печатают (coverPhotos; выбранные, но не видные — внутри).
+  const onCover = rev2 ? coverAndBackPhotoIds(book) : new Set([book.coverPhotoId]);
+  const innerPhotos = photos.filter((p) => !onCover.has(p.id) && !placedInAnswers.has(p.id) && !chosen.includes(p) && p.chapter !== GALLERY_KEY && p.chapter !== PHOTO_OFF_KEY);
   let galleryPhotos: PhotoItem[] = [];
   // «Не печатать» (none): фото вне историй в книгу не идут — ни по главам, ни в конце (у обложки свои снимки).
   if (book.photoPlacement === "none") galleryPhotos = [];
@@ -273,13 +330,23 @@ export function assembleBookContent(
       chapters[idx].photos.push(p);
     });
   }
+  if (pinnedToGallery.length) galleryPhotos = [...pinnedToGallery, ...galleryPhotos];
 
-  // Оформление, где глава открывается фото: снимок, отмеченный автором, иначе первое фото главы — на начальную полосу.
+  // Оформление, где глава открывается фото. Прежние правила: снимок, отмеченный автором, иначе первое фото главы.
+  // Правила 2: только отмеченный автором — своей главы или влитой в неё (своей — раньше, дальше — первый по порядку);
+  // без него глава открывается полосой с названием.
   const interior = getInteriorDesign(book.interior);
   if (interior.opener.photo)
     for (const ch of chapters) {
-      const marked = ch.photos.findIndex((p) => p.opener && p.chapter === ch.key);
-      ch.openerPhoto = marked >= 0 ? ch.photos.splice(marked, 1)[0] : ch.photos.shift();
+      if (!rev2) {
+        const marked = ch.photos.findIndex((p) => p.opener && p.chapter === ch.key);
+        ch.openerPhoto = marked >= 0 ? ch.photos.splice(marked, 1)[0] : ch.photos.shift();
+        continue;
+      }
+      const keys = [ch.key, ...(ch.folded ?? []).map((f) => f.key)];
+      const marked = ch.photos.filter((p) => p.opener && keys.includes(p.chapter!));
+      const pick = marked.find((p) => p.chapter === ch.key) ?? marked[0];
+      if (pick) ch.openerPhoto = ch.photos.splice(ch.photos.indexOf(pick), 1)[0];
     }
 
   // Письма близких — последняя глава, после распределения фото.
@@ -353,7 +420,9 @@ function foldChapters(chapters: ContentChapter[], lines: Readonly<Record<string,
 /** Настройки оглавления для содержимого: только не по умолчанию; свои названия — без эмодзи, как весь текст книги. */
 function tocSettings(book: Pick<BookLike, "tocMode" | "tocLines">): Pick<BookContent, "tocMode" | "tocLines"> {
   const mode = book.tocMode ?? "chapters";
-  const raw = book.tocLines ?? {};
+  // «Без фото главы» (noOpenerPhoto) — решение автора для редактора, а не вёрстка: книга собирается так, будто его нет,
+  // и строка только с ним не делает оглавление «своим» (содержимое и отпечаток кэша не меняются).
+  const raw = Object.fromEntries(Object.entries(book.tocLines ?? {}).filter(([, s]) => Object.keys(s).some((k) => k !== "noOpenerPhoto") || !Object.keys(s).length));
   if (!isCustomToc(mode, raw)) return {};
   const lines: TocLines = {};
   for (const [key, s] of Object.entries(raw)) {

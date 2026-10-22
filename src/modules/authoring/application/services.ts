@@ -1,6 +1,7 @@
 import type { Clock, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
 import { CHAPTER_EPIGRAPH_MAX, CHAPTER_TITLE_MAX, hasOutline, MAX_CHAPTERS, progressChanged, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
+import { LAYOUT_REV_2 } from "@/lib/book/layout";
 import {
   AuthoringError,
   Book,
@@ -25,6 +26,7 @@ import {
   type StartInput,
 } from "../domain";
 import type { FileStore, IdGenerator, ImageProcessor, OrdersLookup, ThemeCatalog } from "./ports";
+import type { LayoutUpgrade } from "./layout-rev2";
 
 /**
  * Загрузка книги с проверкой доступа: чужая книга (для правки — и книга, которую сотруднику менять нельзя) — как будто её нет.
@@ -49,6 +51,8 @@ export class BooksService {
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
     private readonly chapters: ChapterRepository,
+    /** Перевод на правила раскладки фото 2 при смене оформления (выпуск 2); нет — не переводить. */
+    private readonly layout?: LayoutUpgrade,
   ) {}
 
   /** Новая книга. Тема проверяется: незнакомая — unknownTheme (молчаливый откат на «любимому» — только для показа). */
@@ -69,6 +73,9 @@ export class BooksService {
       // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
       const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
       const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, ...settings } = patch;
+      // Смена оформления на книге с прежними правилами раскладки фото — сначала перевод на правила 2 (выпуск 2), по
+      // книге как она есть в базе, до остальных правок этого запроса.
+      if (this.layout?.onTouch && settings.interior !== undefined && settings.interior !== book.interior && book.layoutRev !== LAYOUT_REV_2) await this.layout.upgrade(book.id);
       for (const [side, ids] of [
         ["cover", coverPhotoExtra],
         ["back", backPhotoExtra],
@@ -396,6 +403,11 @@ export class BookOutlineService {
   }
 }
 
+/** Правка фото, по которой оно может сменить место: глава, фото начала главы, ответ. */
+const touchesPlace = (patch: PhotoPatch) => patch.chapter !== undefined || patch.opener !== undefined || patch.questionId !== undefined;
+
+export type PhotoPatch = Parameters<Photo["update"]>[0];
+
 export class PhotosService {
   constructor(
     private readonly books: BookRepository,
@@ -404,7 +416,23 @@ export class PhotosService {
     private readonly images: ImageProcessor,
     private readonly files: FileStore,
     private readonly ids: IdGenerator,
+    /** Транзакция пакетной правки; нет — запросы по одному (двойники в тестах). */
+    private readonly uow?: UnitOfWork,
+    /** Перевод на правила раскладки фото 2 при правке мест (выпуск 2); нет — не переводить. */
+    private readonly layout?: LayoutUpgrade,
   ) {}
+
+
+  /** Одна правка фото по правилам Photo.update: ответ — из этой книги, фото начала главы у главы одно. */
+  private async apply(book: Book, photoId: string, patch: PhotoPatch) {
+    if (patch.questionId && !(await this.questions.findInBook(book.id, patch.questionId))) throw new AuthoringError("questionNotFound");
+    const photo = await this.photos.findInBook(book.id, photoId);
+    if (!photo) throw new AuthoringError("photoNotFound");
+    photo.update(patch);
+    await this.photos.save(photo);
+    if (patch.opener && photo.snapshot().opener && photo.chapter) await this.photos.clearOpeners(book.id, photo.chapter, photo.id);
+    return photo;
+  }
 
   /** Загрузка пачки фото: каждое обрабатывается отдельно, ошибки по файлам возвращаются списком. */
   async upload(bookId: string, viewer: BookViewer, files: { name: string; size: number; bytes: () => Promise<Buffer> }[]) {
@@ -439,16 +467,37 @@ export class PhotosService {
     return { created, failed };
   }
 
-  async update(bookId: string, viewer: BookViewer, photoId: string, patch: Parameters<Photo["update"]>[0]) {
-    const book = await loadBook(this.books, bookId, viewer, { editable: true });
-    if (patch.questionId && !(await this.questions.findInBook(book.id, patch.questionId))) throw new AuthoringError("questionNotFound");
-    const photo = await this.photos.findInBook(book.id, photoId);
-    if (!photo) throw new AuthoringError("photoNotFound");
-    photo.update(patch);
-    await this.photos.save(photo);
-    if (patch.opener && photo.snapshot().opener && photo.chapter) await this.photos.clearOpeners(book.id, photo.chapter, photo.id);
-    await this.books.touch(book.id);
-    return photo;
+  /**
+   * Правка одного фото. Книга блокируется до конца транзакции: save пишет снимок фото целиком (с главой, отметкой и
+   * позицией), а перевод на правила 2 (скрипт или при правке) пишет их под той же блокировкой — снимок, прочитанный до
+   * перевода, его не затрёт. Правка места (выпуск 2) сначала переводит книгу с прежними правилами — как пакет.
+   */
+  async update(bookId: string, viewer: BookViewer, photoId: string, patch: PhotoPatch) {
+    if (this.layout?.onTouch && touchesPlace(patch)) return (await this.batch(bookId, viewer, [{ id: photoId, patch }]))[0];
+    const work = async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const photo = await this.apply(book, photoId, patch);
+      await this.books.touch(book.id);
+      return photo;
+    };
+    return this.uow ? this.uow.run(work) : work();
+  }
+
+  /**
+   * Правки нескольких фото одной транзакцией по тем же правилам, что update (убрать из альбома, «показать целиком»
+   * пачкой, подсказки): ошибка в любой — не меняется ни одно. Книга блокируется, заказанную править нельзя. Книгу
+   * с прежними правилами пакет сначала переводит на правила 2 (выпуск 2: перевод при правке).
+   */
+  async batch(bookId: string, viewer: BookViewer, updates: readonly { id: string; patch: PhotoPatch }[]) {
+    const work = async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (this.layout?.onTouch && book.layoutRev !== LAYOUT_REV_2) await this.layout.upgrade(book.id);
+      const out: Photo[] = [];
+      for (const { id, patch } of updates) out.push(await this.apply(book, id, patch));
+      await this.books.touch(book.id);
+      return out;
+    };
+    return this.uow ? this.uow.run(work) : work();
   }
 
   async delete(bookId: string, viewer: BookViewer, photoId: string) {

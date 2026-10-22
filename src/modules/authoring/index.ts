@@ -1,16 +1,18 @@
 import "server-only";
 import type { Clock, EventBus, Mailer, UnitOfWork } from "@/shared/application";
-import { BookOrderingService, BookOutlineService, BooksService, LettersService, PhotosService, QuestionsService, type OrdersLookup } from "./application";
-import { checkReadiness } from "./domain";
+import { BookOrderingService, BookOutlineService, BooksService, LayoutRev2Service, LettersService, PhotosService, QuestionsService, type LayoutUpgrade, type OrdersLookup } from "./application";
+import { checkReadiness, UPGRADE_ON_TOUCH } from "./domain";
 import type { LetterSubmitted } from "./domain";
 import { contentThemes, randomIds, sharpImages, storageFiles } from "./infrastructure/adapters";
 import { notifyOwnerAboutLetter } from "./infrastructure/LetterMailer";
 import { DrizzleBookRepository, DrizzleChapterRepository, DrizzleLetterRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
+import { DrizzleLayoutRevStore } from "./infrastructure/layoutRevStore";
 import { photoViewFile } from "./infrastructure/photoView";
 import { DrizzleAuthoringQueries } from "./infrastructure/queries";
 
 export * from "./domain";
 export type { BookBundle, BookRow, ChapterRow, LetterRow, PhotoRow, QuestionRow } from "./infrastructure/queries";
+export type { LayoutRev2Result, LayoutRevBackupBook } from "./application";
 
 /** Публичный фасад контекста Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. */
 export class AuthoringModule {
@@ -21,6 +23,8 @@ export class AuthoringModule {
   readonly photos: PhotosService;
   readonly letters: LettersService;
   readonly ordering: BookOrderingService;
+  /** Перевод книг на правила раскладки фото 2: скрипт npm run photos:layout-rev2 и перевод при правке (выпуск 2). */
+  readonly layoutRev: LayoutRev2Service;
   readonly queries = new DrizzleAuthoringQueries();
 
   /** Файл фото (оригинал или миниатюра) из хранилища — права проверяет вызывающий через queries.photoFor(). */
@@ -38,10 +42,12 @@ export class AuthoringModule {
     const books = new DrizzleBookRepository();
     const questions = new DrizzleQuestionRepository();
     const chapters = new DrizzleChapterRepository();
-    this.books = new BooksService(books, questions, contentThemes, deps.orders, storageFiles, randomIds, deps.uow, deps.clock, chapters);
+    this.layoutRev = new LayoutRev2Service(new DrizzleLayoutRevStore(), deps.uow);
+    const layout: LayoutUpgrade = { onTouch: UPGRADE_ON_TOUCH, upgrade: (bookId) => this.layoutRev.upgradeInPlace(bookId) };
+    this.books = new BooksService(books, questions, contentThemes, deps.orders, storageFiles, randomIds, deps.uow, deps.clock, chapters, layout);
     this.questions = new QuestionsService(books, questions, deps.uow, this.photoRepository, chapters);
     this.outline = new BookOutlineService(books, questions, chapters, this.photoRepository, randomIds, deps.uow);
-    this.photos = new PhotosService(books, this.photoRepository, questions, sharpImages, storageFiles, randomIds);
+    this.photos = new PhotosService(books, this.photoRepository, questions, sharpImages, storageFiles, randomIds, deps.uow, layout);
     this.letters = new LettersService(books, new DrizzleLetterRepository(), randomIds, deps.uow);
     this.ordering = new BookOrderingService(books, async (bookId, locale) => {
       const book = await this.queries.book(bookId);

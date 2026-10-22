@@ -1,5 +1,5 @@
 /** Книги: сама книга, вопросы с ответами, фото и письма близких (модуль authoring). */
-import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, smallint, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
 import { timestamps } from "./columns";
 import { users } from "./identity";
@@ -83,7 +83,12 @@ export const books = pgTable(
     /** Оглавление: по главам, по заголовкам разделов или главы с разделами — src/lib/book/toc.ts. */
     tocMode: text("toc_mode", { enum: ["chapters", "sections", "both"] }).notNull().default("chapters"),
     /** Свои названия и скрытые строки оглавления по ключу строки (`c:<глава>`, `q:<раздел>`) — src/lib/book/toc.ts. */
-    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean; epigraph?: string }>>().notNull().default({}),
+    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean; epigraph?: string; noOpenerPhoto?: boolean }>>().notNull().default({}),
+    /**
+     * Правила раскладки фото (src/lib/book/layout.ts): 1 — прежние, 2 — у каждого фото одно место (фото главы выбирает
+     * автор, снимки обложки внутрь сами не идут). Меняется только переводом книги (authoring/application/layout-rev2.ts).
+     */
+    layoutRev: smallint("layout_rev").notNull().default(1),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */

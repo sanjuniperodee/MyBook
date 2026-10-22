@@ -1,0 +1,2 @@
+-- Правила раскладки фото книги (src/lib/book/layout.ts): 1 — прежние, 2 — у каждого фото одно место. Все книги, и новые, пока остаются на 1: перевод — npm run photos:layout-rev2.
+ALTER TABLE "books" ADD COLUMN "layout_rev" smallint DEFAULT 1 NOT NULL;

@@ -59,6 +59,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         exactPages={screen?.chapterPages ?? null}
         stories={stories}
         photoPlan={photoPlan}
+        galleryTitle={built.galleryTitle}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
         initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}

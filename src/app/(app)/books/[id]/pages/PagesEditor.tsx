@@ -47,6 +47,7 @@ export function PagesEditor({
   editable,
   stories,
   photoPlan,
+  galleryTitle,
 }: {
   bookId: string;
   /** Тема книги — подсказка посвящения зависит от вида книги. */
@@ -63,6 +64,8 @@ export function PagesEditor({
   stories: Record<string, StoryInfo>;
   /** Фото по главам — кнопка «Фото главы» в карточке главы. */
   photoPlan?: ChapterPhotoPlan;
+  /** Название раздела фото в конце книги — как в печати (по виду книги, на языке книги). */
+  galleryTitle: string;
 }) {
   const [state, setState] = useState(initial);
   const [filter, setFilter] = useState<Filter>("all");
@@ -283,7 +286,7 @@ export function PagesEditor({
             </Choice>
             <Choice active={state.photoPlacement === "end"} onClick={() => update({ photoPlacement: "end" })} disabled={!editable}>
               <div className="font-medium">{t.photosEnd}</div>
-              <div className="text-sm text-muted">{t.photosEndText}</div>
+              <div className="text-sm text-muted">{t.photosEndText(galleryTitle)}</div>
             </Choice>
             <Choice active={state.photoPlacement === "none"} onClick={() => update({ photoPlacement: "none" })} disabled={!editable}>
               <div className="font-medium">{t.photosNone}</div>

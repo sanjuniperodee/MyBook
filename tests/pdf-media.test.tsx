@@ -34,6 +34,7 @@ const book: Book = {
   showToc: false,
   tocMode: "chapters",
   tocLines: {},
+  layoutRev: 1,
   inviteToken: null,
   occasion: null,
   occasionDate: null,

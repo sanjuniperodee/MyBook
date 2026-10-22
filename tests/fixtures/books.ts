@@ -155,6 +155,8 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     showToc: true,
     tocMode: "chapters",
     tocLines: {},
+    // Прежние правила раскладки фото: снимки вёрстки и отпечатки набора не меняются (правила 2 — tests/layout-rev2.test.ts).
+    layoutRev: 1,
     inviteToken: null,
     occasion: null,
     occasionDate: null,

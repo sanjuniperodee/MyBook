@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import { Eye, ImagePlus, ListTree, Maximize2, Minimize2, Plus, QrCode, Trash2 } from "lucide-react";
-import { useMessages } from "@/i18n/client";
-import type { Locale } from "@/i18n/config";
+import { useLocale, useMessages } from "@/i18n/client";
+import { localeMeta, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/class-names";
 
 /** Над карточкой вопроса: оглавление, глава, объём книги (pages — PagesBadge), превью на узком экране, режим фокуса. */
@@ -92,6 +92,8 @@ export function AnswerToolbar({
   onRemove: () => void;
 }) {
   const t = useMessages().editor;
+  // Дробь — по языку интерфейса; где Intl не знает kk-KZ, берётся ru-RU (разделители те же).
+  const numberLocale = [localeMeta[useLocale()].intl, localeMeta.ru.intl];
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/60 px-3 py-2 sm:px-8 sm:py-3">
       {dictation}
@@ -117,7 +119,7 @@ export function AnswerToolbar({
       ) : null}
       <span className="ml-auto text-xs text-muted tabular-nums">
         {t.words(words)}
-        {answerPages > 0 ? t.answerPages((Math.round(Math.max(answerPages, 0.1) * 10) / 10).toLocaleString("ru-RU")) : ""}
+        {answerPages > 0 ? t.answerPages((Math.round(Math.max(answerPages, 0.1) * 10) / 10).toLocaleString(numberLocale)) : ""}
       </span>
     </div>
   );
