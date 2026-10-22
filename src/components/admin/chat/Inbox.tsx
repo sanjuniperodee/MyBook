@@ -1,9 +1,10 @@
 import { ChatListLink } from "./ChatNav";
 import Link from "next/link";
-import { ArrowLeft, Bot, Camera, Globe, Handshake, Mail, MessageCircle, MessagesSquare, Search, Send } from "lucide-react";
+import { ArrowLeft, Bot, Camera, Globe, Handshake, Mail, MessageCircle, MessagesSquare, Send } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { waitLabel, waitTone } from "@/modules/reporting/ui/response-wait";
 import { DetailsToggle } from "./DetailsPanel";
+import { ChatListHeader } from "./ListHeader";
 
 /**
  * Каркас «Чатов» без данных: список диалогов, шапка переписки, аватар. Страница (src/app/admin/chats/page.tsx) отдаёт
@@ -85,23 +86,12 @@ export function ChatListPane({
   hidden: boolean;
   href: (p: { f?: ChatFilter; c?: string }) => string;
   emptyCta?: React.ReactNode;
-  /** Под поиском: например, «Телефон WhatsApp у …». */
+  /** Раскрывается иконкой в шапке: например, «Телефон WhatsApp у …». */
   toolbar?: React.ReactNode;
 }) {
   return (
     <div className={cn("flex w-full shrink-0 flex-col border-r border-line bg-white lg:w-[360px]", hidden && "hidden lg:flex")}>
-      <div className="px-4 pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
-          {items.length ? <span className="rounded-full bg-[#f3efe9] px-2.5 py-0.5 text-xs font-medium text-ink-soft tabular-nums">{items.length >= 200 ? "200+" : items.length}</span> : null}
-        </div>
-        <form action="/admin/chats" className="relative">
-          <input type="hidden" name="f" value={filter} />
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-          <input name="q" defaultValue={q} placeholder="Поиск по имени, номеру, тексту" className="h-10 w-full rounded-full bg-[#f3efe9] pr-4 pl-10 text-sm outline-none transition placeholder:text-muted focus:bg-white focus:ring-2 focus:ring-wine/20" />
-        </form>
-        {toolbar ? <div className="mt-2">{toolbar}</div> : null}
-      </div>
+      <ChatListHeader count={items.length} filter={filter} q={q} toolbar={toolbar} />
       <nav className="no-scrollbar mt-2 flex gap-4 overflow-x-auto border-b border-line px-4" aria-label="Фильтр чатов">
         {(Object.keys(CHAT_FILTERS) as ChatFilter[]).map((k) => (
           <Link key={k} href={href({ f: k })} className={cn("-mb-px shrink-0 border-b-2 py-2.5 text-[13px] font-medium transition", filter === k ? "border-wine text-wine" : "border-transparent text-muted hover:text-ink")}>
