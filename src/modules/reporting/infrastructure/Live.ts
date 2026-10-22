@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, ne, or } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
 import { crmCalls, crmDeals, crmNotifications, users } from "@/shared/infrastructure/db/schema";
 import { crmCounters, type CrmCounters } from "./Counters";
@@ -24,6 +24,8 @@ export interface RingingCall {
   dealId: string | null;
   direction: "in" | "out";
   mine: boolean;
+  /** Входящий в WhatsApp: на него отвечают прямо в CRM (кнопки «Ответить» / «Отклонить»). */
+  whatsapp: boolean;
   startedAt: string;
 }
 
@@ -55,7 +57,11 @@ export async function getLive(staff: StaffView): Promise<LiveState> {
             and(
               eq(crmCalls.status, "ringing"),
               isNull(crmCalls.endedAt),
-              gte(crmCalls.startedAt, new Date(Date.now() - 3 * 60_000)),
+              or(
+                and(ne(crmCalls.provider, "whatsapp"), gte(crmCalls.startedAt, new Date(Date.now() - 3 * 60_000))),
+                // WhatsApp: только входящий, пока он звонит (около минуты). Исходящий идёт в панели звонка у того, кто набрал.
+                and(eq(crmCalls.provider, "whatsapp"), eq(crmCalls.direction, "in"), gte(crmCalls.startedAt, new Date(Date.now() - 75_000))),
+              ),
               // Звонок на мой внутренний номер или ещё не распределённый входящий.
               or(eq(crmCalls.staffId, me), and(isNull(crmCalls.staffId), eq(crmCalls.direction, "in"))),
             ),
@@ -76,6 +82,7 @@ export async function getLive(staff: StaffView): Promise<LiveState> {
       dealId: call.dealId,
       direction: call.direction,
       mine: call.staffId === me,
+      whatsapp: call.provider === "whatsapp",
       startedAt: call.startedAt.toISOString(),
     })),
   };

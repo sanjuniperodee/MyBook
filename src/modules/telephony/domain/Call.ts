@@ -54,6 +54,12 @@ export class Call extends AggregateRoot<CallProps> {
     });
   }
 
+  get provider() {
+    return this.props.provider;
+  }
+  get externalId() {
+    return this.props.externalId;
+  }
   get clientPhone() {
     return this.props.clientPhone;
   }
@@ -71,6 +77,9 @@ export class Call extends AggregateRoot<CallProps> {
   }
   get status() {
     return this.props.status;
+  }
+  get answeredAt() {
+    return this.props.answeredAt;
   }
   get isFinished() {
     return !!this.props.endedAt;

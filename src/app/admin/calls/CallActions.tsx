@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { CheckCircle2, PhoneOutgoing } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { callAction, markCallHandledAction } from "../crm-actions";
+import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
 
 export function CallRowActions({ callId, canCall, canHandle }: { callId: string; canCall: boolean; canHandle: boolean }) {
   const [pending, start] = useTransition();
@@ -23,6 +24,7 @@ export function CallRowActions({ callId, canCall, canHandle }: { callId: string;
           <PhoneOutgoing className="size-3.5" /> Перезвонить
         </button>
       ) : null}
+      {canCall ? <WhatsappCallButton plain target={{ callId }} label="WhatsApp" className="text-wine hover:underline max-lg:min-h-11 max-lg:px-2" /> : null}
       {canHandle ? (
         <button className="flex items-center gap-1 text-muted hover:text-ink max-lg:min-h-11 max-lg:px-2" disabled={pending} onClick={() => start(async () => void (await markCallHandledAction(callId)))}>
           <CheckCircle2 className="size-3.5" /> Обработан

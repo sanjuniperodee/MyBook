@@ -14,4 +14,6 @@ export async function registerNode() {
   startCatalogSync();
   const { startScheduler } = await import("@/server/scheduler");
   startScheduler();
+  const { startWhatsappCallWatcher } = await import("@/server/whatsapp-call-watcher");
+  startWhatsappCallWatcher();
 }

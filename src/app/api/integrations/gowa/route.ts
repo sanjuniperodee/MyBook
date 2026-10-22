@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { parseGowaCall, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 
 /**
- * Вебхук своего шлюза WhatsApp (GOWA): входящие, ответы с телефона магазина (эхо) и статусы доставки.
+ * Вебхук своего шлюза WhatsApp (GOWA): входящие, ответы с телефона магазина (эхо), статусы доставки и входящие звонки.
  * Подпись — X-Hub-Signature-256 (HMAC-SHA256, секрет из «Интеграций»). Обработка идемпотентна (по id сообщения),
  * поэтому при ошибке отвечаем 500 — шлюз доставит событие повторно.
  */
+const isCallEvent = (body: unknown) => typeof body === "object" && body !== null && String((body as { event?: unknown }).event).startsWith("call.");
+
 export async function POST(req: Request) {
   const raw = await req.text();
   const messaging = container().messaging;
@@ -19,6 +21,13 @@ export async function POST(req: Request) {
   }
   const { messages, statuses } = parseGowaWebhook(body);
   try {
+    // Входящий звонок WhatsApp — в общий журнал звонков (идемпотентно по call_id). Со «Звонками WhatsApp» он звонит в CRM,
+    // без них — записывается пропущенным.
+    if (isCallEvent(body)) {
+      const telephony = container().telephony;
+      const call = parseGowaCall(body, { native: await telephony.whatsapp.enabled() });
+      if (call) await telephony.whatsapp.incoming(call);
+    }
     for (const m of messages) await messaging.chats.ingest(m, { anyWhatsappChannel: true });
     for (const s of statuses) await messaging.chats.applyStatus(s);
   } catch (err) {

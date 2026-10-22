@@ -10,6 +10,7 @@ import { coalesce, liveChannel, soundFor } from "./liveRules";
 import { playSound, setSoundMuted, soundMuted, unlockAudio } from "./sound";
 import type { LiveState } from "@/modules/reporting";
 import { cn } from "@/lib/class-names";
+import { useWhatsappRing, WaIcon, WhatsappIncomingActions } from "./WhatsappCall";
 
 const POLL_MS = 8_000;
 /** При живом SSE-соединении опрос нужен только как страховка. */
@@ -256,17 +257,18 @@ export function IncomingCall() {
   const { live } = useLive();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const calls = live.ringing.filter((c) => !hidden.has(c.id));
+  useWhatsappRing(calls.filter((c) => c.whatsapp).map((c) => ({ id: c.id, title: c.name || c.phone })));
   if (!calls.length) return null;
   return (
-    <div className="fixed right-4 bottom-4 z-50 flex w-[min(92vw,340px)] flex-col gap-2" role="status" aria-live="polite">
+    <div className="fixed right-4 bottom-[calc(var(--tabbar-h,0px)+1rem)] z-50 flex w-[min(92vw,340px)] flex-col gap-2 lg:bottom-4" role="status" aria-live="polite">
       {calls.map((c) => (
         <div key={c.id} className="animate-pop rounded-2xl border border-emerald-200 bg-white p-4 shadow-xl" data-testid="incoming-call">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <PhoneIncoming className="size-5" />
+              {c.whatsapp ? <WaIcon className="size-5" /> : <PhoneIncoming className="size-5" />}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted">{c.direction === "in" ? (c.mine ? "Звонят вам" : "Входящий звонок") : "Исходящий звонок"}</div>
+              <div className="text-xs text-muted">{c.whatsapp ? "Входящий в WhatsApp" : c.direction === "in" ? (c.mine ? "Звонят вам" : "Входящий звонок") : "Исходящий звонок"}</div>
               <div className="truncate font-semibold">{c.name || c.phone}</div>
               {c.name ? <div className="text-xs text-muted tabular-nums">{c.phone}</div> : <div className="text-xs text-muted">Новый номер — создадим сделку</div>}
             </div>
@@ -274,6 +276,7 @@ export function IncomingCall() {
               <X className="size-4" />
             </button>
           </div>
+          {c.whatsapp ? <WhatsappIncomingActions id={c.id} title={c.name || c.phone} onDone={() => setHidden((s) => new Set(s).add(c.id))} /> : null}
           <div className="mt-3 flex gap-2">
             {c.dealId ? (
               <Link href={`/admin/deals/${c.dealId}`} className="btn btn-sm flex-1">

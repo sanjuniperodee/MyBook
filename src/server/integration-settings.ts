@@ -48,6 +48,10 @@ export const whatsappSettings: WhatsappSettings = {
     const v = await getSettings(["gowa.baseUrl", "gowa.basicAuth"]);
     return { baseUrl: v["gowa.baseUrl"], basicAuth: v["gowa.basicAuth"] };
   },
+  callsEnabled: async () => {
+    const v = await getSettings(["whatsapp.provider", "gowa.calls"]);
+    return v["whatsapp.provider"] === "gowa" && v["gowa.calls"] === "on";
+  },
   gowaWebhook: async () => {
     const callback = (await getSettings(["gowa.callbackUrl"]))["gowa.callbackUrl"];
     // По умолчанию — публичный адрес сайта; в docker compose — внутренний (GOWA_CALLBACK_URL), можно сменить в «Интеграциях».

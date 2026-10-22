@@ -201,6 +201,11 @@ export const settingDefs = {
   "gowa.callbackUrl": { envDefault: "GOWA_CALLBACK_URL" },
   /** Секрет подписи вебхука: сайт сам передаёт его шлюзу при подключении устройства. */
   "gowa.webhookSecret": { secret: true },
+  /**
+   * Звонки WhatsApp из CRM («on»): сотрудники звонят клиентам и отвечают на входящие прямо в браузере. Нужен шлюз со
+   * звонками (deploy/gowa-beta-build.sh) и прокси аудиопотока в nginx (deploy/nginx-mybook.conf, /wa-call/audio).
+   */
+  "gowa.calls": { default: "off" },
   /** Когда история чатов шлюза последний раз загружалась в CRM (ISO): следующий проход берёт только обновившиеся чаты. */
   "gowa.historySyncedAt": {},
 } satisfies Record<string, Def>;

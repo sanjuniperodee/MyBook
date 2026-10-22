@@ -28,6 +28,7 @@ import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer
 import { registerSubscriptions } from "./subscriptions";
 import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { whatsappCallGateway } from "./whatsapp-calls";
 import { botSiteInfo } from "./bot-site";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
@@ -220,13 +221,14 @@ export class Container {
     }));
   }
 
-  /** Звонки создают сделки через порт продаж; спам-лист — из переписки, правила на пропущенные — из автоматизаций. */
+  /** Звонки создают сделки через порт продаж; спам-лист и шлюз звонков WhatsApp — из переписки, правила на пропущенные — из автоматизаций. */
   get telephony(): TelephonyModule {
     return (this.#telephony ??= new TelephonyModule({
       clock: this.clock,
       settings: this.workspace.settings,
       notifier: this.workspace.notifier,
       live: this.workspace.live,
+      whatsapp: whatsappCallGateway(() => this.messaging.gowa, whatsappSettings.callsEnabled),
       isBlocked: (phone) => this.messaging.chats.isBlocked(phone),
       missedRules: (ctx) => this.automation.engine.run("call.missed", ctx),
       sales: {
