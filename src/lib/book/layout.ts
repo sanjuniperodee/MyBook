@@ -8,7 +8,7 @@ import type { AnswerMedia, Book, BookChapter, BookQuestion, InlinePhotoStyle, Ph
 import { normalizeMedia } from "./answer-media";
 import { MAX_INLINE_HEIGHT_SHARE, splitParagraphs } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
-import { getInteriorDesign, type InteriorDesign } from "./interiors";
+import { bookInterior, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
 import { isCustomToc, type TocLines, type TocMode } from "./toc";
 import type { PhotoCrop } from "./photo-crop";
@@ -118,7 +118,10 @@ export type BookLike = Pick<
   | "coverPhotoId"
 > &
   /** Оглавление (toc.ts): нет — по главам, без своих строк. */
-  Partial<Pick<Book, "tocMode" | "tocLines">>;
+  Partial<Pick<Book, "tocMode" | "tocLines">> & {
+    /** Настройки дизайнера страниц (interiors/style.ts): нет — стиль как есть. */
+    interiorStyle?: unknown;
+  };
 
 /** Глава своей книги (book_chapters) для сборки: порядок — порядок списка. У книг с банком список пуст. */
 export type ChapterLike = Pick<BookChapter, "key" | "title" | "epigraph">;
@@ -275,7 +278,8 @@ export function assembleBookContent(
   }
 
   // Оформление, где глава открывается фото: снимок, отмеченный автором, иначе первое фото главы — на начальную полосу.
-  const interior = getInteriorDesign(book.interior);
+  // Стиль из каталога с настройками дизайнера книги (interiors/style.ts).
+  const interior = bookInterior(book);
   if (interior.opener.photo)
     for (const ch of chapters) {
       const marked = ch.photos.findIndex((p) => p.opener && p.chapter === ch.key);

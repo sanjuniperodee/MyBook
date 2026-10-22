@@ -14,7 +14,8 @@ import type { InteriorDesign } from "./interiors";
 import { chapterRuns, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { hasToc, bookToc } from "./toc";
-import { ANSWER, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, interiorSizes, MEDIA_CARD, TOC, type InteriorSizes } from "./typesetting";
+import { fontWidth } from "./fonts";
+import { ANSWER, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, indentEm, INLINE_ROW, interiorSizes, measureInsets, MEDIA_CARD, paraAfter, quoteFace, TOC, type InteriorSizes } from "./typesetting";
 
 /** Средняя ширина знака основного текста, em: по ней считаем, сколько знаков помещается в строке. */
 const AVG_CHAR_EM = 0.5;
@@ -25,6 +26,9 @@ const AVG_CHAR_EM = 0.5;
  */
 const PAGE_RESERVE = 18;
 
+/** Шрифты основного текста прежних дизайнов: для них оценка — по общей средней ширине знака, как всегда. */
+const LEGACY_BODY = new Set(["ptserif", "lora", "montserrat"]);
+
 /** Размеры набора для оценки, pt: кегли и отбивки оформления, строка основного текста и полоса набора. */
 export interface TextMetrics {
   design: InteriorDesign;
@@ -34,45 +38,63 @@ export interface TextMetrics {
   line: number;
   width: number;
   height: number;
+  /** Колонка текста (узкая колонка дизайнера уже полосы набора), pt. */
+  column: number;
+  /** Средняя ширина знака основного текста, заголовков и цитат (лида), em. */
+  charEm: number;
+  headingEm: number;
+  quoteEm: number;
 }
 
 export function textMetrics(format: BookFormat, design: InteriorDesign): TextMetrics {
   const scale = interiorMetrics[format.id].scale;
   const sizes = interiorSizes(design, scale);
   const area = textArea(format);
-  return { design, sizes, scale, line: sizes.body * design.type.lineHeight, width: area.w * MM_TO_PT, height: area.h * MM_TO_PT };
+  const width = area.w * MM_TO_PT;
+  const inset = measureInsets(design);
+  // Дизайнер (свой шрифт, разрядка, узкая колонка) — по ширине знаков шрифта; прежние дизайны — как раньше.
+  const own = !!design.text || !LEGACY_BODY.has(design.type.body);
+  const charEm = own ? fontWidth(design.type.body) * (AVG_CHAR_EM / 0.52) + (design.text?.tracking ?? 0) : AVG_CHAR_EM;
+  const hf = headingFace(design);
+  const headingEm = design.heading.face ? fontWidth(hf.font) * (AVG_CHAR_EM / 0.52) * (hf.upper ? 1.22 : 1) + (hf.tracking ?? 0) : AVG_CHAR_EM;
+  const qf = quoteFace(design);
+  const quoteEm = design.quote?.face ? fontWidth(qf.font) * (AVG_CHAR_EM / 0.52) * (qf.upper ? 1.22 : 1) : charEm;
+  return { design, sizes, scale, line: sizes.body * design.type.lineHeight, width, height: area.h * MM_TO_PT, column: width * (1 - inset.left - inset.right), charEm, headingEm, quoteEm };
 }
 
-/** Строк, которые займёт текст в колонке шириной width, набранный кеглем size. */
-function lines(chars: number, width: number, size: number) {
-  return Math.max(1, Math.ceil(chars / Math.max(1, Math.floor(width / (size * AVG_CHAR_EM)))));
+/** Строк, которые займёт текст в колонке шириной width, набранный кеглем size (средняя ширина знака — em). */
+function lines(chars: number, width: number, size: number, em = AVG_CHAR_EM) {
+  return Math.max(1, Math.ceil(chars / Math.max(1, Math.floor(width / (size * em)))));
 }
 
 /** Высота блока набора ответа вместе с отбивкой после него, pt (ANSWER — как в PDF). */
-function blockHeight(b: AnswerBlock, m: TextMetrics): number {
-  const { sizes: S, design, line, width } = m;
+function blockHeight(b: AnswerBlock, m: TextMetrics, first = true): number {
+  const { sizes: S, design, line, width, column, charEm, quoteEm } = m;
   const centered = design.heading.align === "center";
   switch (b.kind) {
-    case "para":
-      return lines(b.text.length, width, S.body) * line + S.body * ANSWER.para.after;
+    case "para": {
+      // Красная строка — несколько знаков в первой строке.
+      const indent = first ? 0 : indentEm(design) / charEm;
+      return lines(b.text.length + indent, column, S.body, charEm) * line + S.body * paraAfter(design);
+    }
     case "lede": {
       const size = S.body * ANSWER.lede.size;
-      return lines(b.text.length, width, size) * size * ANSWER.lede.lineHeight + S.body * ANSWER.lede.after;
+      return lines(b.text.length, column, size, quoteEm) * size * ANSWER.lede.lineHeight + S.body * ANSWER.lede.after;
     }
     case "quote": {
       const q = ANSWER.quote;
       const size = S.body * q.size;
       const w = centered ? width * (1 - 2 * q.inset) : width - S.body * q.indent - q.rule;
-      return b.lines.reduce((n, l) => n + lines(l.length, w, size), 0) * size * q.lineHeight + S.body * (q.before + q.after);
+      return b.lines.reduce((n, l) => n + lines(l.length, w, size, quoteEm), 0) * size * q.lineHeight + S.body * (q.before + q.after);
     }
     case "list": {
-      const w = width - S.body * listMarkerEm(b);
-      const n = b.items.reduce((sum, it) => sum + lines(it.text.length, w, S.body), 0);
+      const w = column - S.body * listMarkerEm(b);
+      const n = b.items.reduce((sum, it) => sum + lines(it.text.length, w, S.body, charEm), 0);
       return n * line + (b.items.length - 1) * S.body * ANSWER.list.gap + S.body * ANSWER.list.after;
     }
     case "verse": {
-      const w = centered ? width : width * (1 - ANSWER.verse.indent);
-      return b.lines.reduce((n, l) => n + lines(l.length, w, S.body), 0) * line + S.body * (ANSWER.verse.before + ANSWER.verse.after);
+      const w = centered ? column : column * (1 - ANSWER.verse.indent);
+      return b.lines.reduce((n, l) => n + lines(l.length, w, S.body, charEm), 0) * line + S.body * (ANSWER.verse.before + ANSWER.verse.after);
     }
   }
 }
@@ -88,11 +110,15 @@ function headingHeight(heading: string | null, first: boolean, m: TextMetrics): 
     if (first) return 0;
     // «* * *» — строка основного кегля с естественным интерлиньяжем; глиф или линейка — рисунок со своими отбивками.
     const divider =
-      design.divider === "stars" ? S.body * HTML_LINE_HEIGHT.stars : S.body * DIVIDER.before + dividerDrawing(design.ornament, design.divider, design.palette).h + S.body * DIVIDER.after;
+      design.divider === "stars"
+        ? S.body * HTML_LINE_HEIGHT.stars
+        : design.divider === "space"
+          ? S.body * 0.8
+          : S.body * DIVIDER.before + dividerDrawing(design.ornament, design.divider, design.palette).h + S.body * DIVIDER.after;
     return S.beforeHeadless + divider + S.beforeHeadless;
   }
   const bar = design.heading.bar ? HEADING.bar.thickness + HEADING.bar.after * scale : 0;
-  return (first ? 0 : S.beforeHeading) + bar + lines(heading.length, m.width, S.heading) * S.heading * HEADING.lineHeight + S.afterHeading;
+  return (first ? 0 : S.beforeHeading) + bar + lines(heading.length, m.column, S.heading, m.headingEm) * S.heading * HEADING.lineHeight + S.afterHeading;
 }
 
 type RowPhoto = Pick<PhotoItem, "width" | "height" | "inline"> & Partial<Pick<PhotoItem, "caption">>;
@@ -117,7 +143,7 @@ export function mediaCardHeight(m: TextMetrics) {
 function entryHeight(heading: string | null, answer: string, photos: RowPhoto[], media: readonly Partial<AnswerMedia>[], first: boolean, m: TextMetrics): number {
   const paragraphs = splitParagraphs(answer);
   const rows = [...layoutInline(photos.map((p) => ({ p, style: normalizeStyle(p.inline) })), paragraphs.length).values()].flat();
-  const text = answerBlocks(paragraphs).reduce((sum, b) => sum + blockHeight(b, m), 0);
+  const text = answerBlocks(paragraphs).reduce((sum, b, i) => sum + blockHeight(b, m, i === 0), 0);
   const cards = normalizeMedia(media).length * mediaCardHeight(m);
   return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0) + cards;
 }

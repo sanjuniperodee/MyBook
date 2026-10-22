@@ -7,12 +7,12 @@ import { layoutMedia } from "@/lib/book/answer-media";
 import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { ContentItem } from "@/lib/book/layout";
 import { dividerDrawing } from "@/lib/book/interior-art";
-import { DIVIDER, HEADING, KEEP_WITH_NEXT } from "@/lib/book/typesetting";
+import { DIVIDER, HEADING, headingFace, KEEP_WITH_NEXT } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { PdfDrawing } from "@/modules/production/infrastructure/pdf/art";
 import { InlineRows } from "./inline-rows";
 import { MediaCards } from "./media-card";
-import { mark, noHyphens, type PdfKit } from "./kit";
+import { mark, noHyphens, textFace, type PdfKit } from "./kit";
 import { TextBlock } from "./text-block";
 
 /** Заголовок вопроса в тексте главы (с акцентной линейкой, если она есть в дизайне). */
@@ -20,7 +20,9 @@ function Heading({ kit, text, id }: { kit: PdfKit; text: string; id: string }) {
   const { design, sizes: S, scale } = kit;
   const { type: typo, palette: P, heading } = design;
   const style: Style = {
-    ...face(typo.heading, typo.headingWeight, typo.headingItalic),
+    // Своё начертание заголовков (дизайнер) — с прописными и разрядкой; иначе — как раньше.
+    ...(heading.face ? textFace(headingFace(design), S.heading) : face(typo.heading, typo.headingWeight, typo.headingItalic)),
+    ...kit.measure,
     fontSize: S.heading,
     lineHeight: HEADING.lineHeight,
     color: heading.accent ? P.accent : P.ink,
@@ -35,7 +37,7 @@ function Heading({ kit, text, id }: { kit: PdfKit; text: string; id: string }) {
     );
   return (
     <View {...mark(id)} wrap={false} minPresenceAhead={KEEP_WITH_NEXT}>
-      <View style={{ width: HEADING.bar.width * scale, height: HEADING.bar.thickness, backgroundColor: P.accent, marginBottom: HEADING.bar.after * scale, alignSelf: heading.align === "center" ? "center" : "flex-start" }} />
+      <View style={{ ...kit.measure, width: HEADING.bar.width * scale, height: HEADING.bar.thickness, backgroundColor: P.accent, marginBottom: HEADING.bar.after * scale, alignSelf: heading.align === "center" ? "center" : "flex-start" }} />
       <Text hyphenationCallback={noHyphens} style={style}>
         {text}
       </Text>
@@ -43,9 +45,11 @@ function Heading({ kit, text, id }: { kit: PdfKit; text: string; id: string }) {
   );
 }
 
-/** Разделитель между ответами без заголовка: «* * *», глиф или линейка. */
+/** Разделитель между ответами без заголовка: «* * *», глиф, линейка, астеризм или просто отбивка. */
 function Divider({ kit, id }: { kit: PdfKit; id: string }) {
   const { design, sizes: S } = kit;
+  // Отбивка: пустая строка вместо знака (минимальная высота — чтобы доводка видела разделитель).
+  if (design.divider === "space") return <View {...mark(id)} minPresenceAhead={KEEP_WITH_NEXT} style={{ height: S.body * 0.8, marginBottom: S.beforeHeadless }} />;
   if (design.divider === "stars")
     return (
       <Text {...mark(id)} minPresenceAhead={KEEP_WITH_NEXT} style={{ textAlign: "center", color: design.palette.rule, fontSize: S.body, marginBottom: S.beforeHeadless }}>
@@ -64,7 +68,7 @@ function Divider({ kit, id }: { kit: PdfKit; id: string }) {
 }
 
 /** Ответ целиком: блоки набора, ряды фото и карточки QR-кодов между ними (leadIn — капитель в начале первого блока). */
-function EntryBody({ kit, item, leadIn }: { kit: PdfKit; item: ContentItem; leadIn: boolean }) {
+function EntryBody({ kit, item, leadIn, start }: { kit: PdfKit; item: ContentItem; leadIn: boolean; /** Ответ открывает главу: буквица. */ start: boolean }) {
   const paragraphs = splitParagraphs(item.answer);
   const blocks = answerBlocks(paragraphs);
   const photos = (item.photos ?? []).filter((p) => kit.options.images.has(p.id));
@@ -88,7 +92,7 @@ function EntryBody({ kit, item, leadIn }: { kit: PdfKit; item: ContentItem; lead
       {blocks.length ? rowsAt(-1) : null}
       {blocks.map((b, i) => (
         <Fragment key={i}>
-          <TextBlock kit={kit} block={b} id={`${b.kind === "lede" ? "k" : "b"}:${item.id}:${i}`} leadIn={leadIn && i === 0} />
+          <TextBlock kit={kit} block={b} id={`${b.kind === "lede" ? "k" : "b"}:${item.id}:${i}`} leadIn={leadIn && i === 0} dropCap={start && i === 0} first={i === 0} />
           {i < blocks.length - 1 ? rowsAt(i) : null}
         </Fragment>
       ))}
@@ -109,7 +113,7 @@ export function Entry({ kit, item, index, leadIn = index === 0 }: { kit: PdfKit;
   return (
     <View break={index > 0 && breaks} style={{ marginTop: fresh ? 0 : item.heading ? S.beforeHeading : S.beforeHeadless }}>
       {item.heading ? <Heading kit={kit} text={item.heading} id={`h:${item.id}`} /> : index > 0 && !item.continued ? <Divider kit={kit} id={`h:${item.id}`} /> : null}
-      <EntryBody kit={kit} item={item} leadIn={design.leadIn && leadIn && !item.continued} />
+      <EntryBody kit={kit} item={item} leadIn={design.leadIn && leadIn && !item.continued} start={leadIn && !item.continued} />
     </View>
   );
 }

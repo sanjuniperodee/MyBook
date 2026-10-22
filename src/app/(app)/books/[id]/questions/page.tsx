@@ -35,6 +35,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         id: book.id,
         format: book.format,
         interior: book.interior,
+        interiorStyle: book.interiorStyle,
         dedication: book.dedication,
         showToc: book.showToc,
         tocMode: book.tocMode,

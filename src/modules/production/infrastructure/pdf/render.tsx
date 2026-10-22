@@ -34,7 +34,7 @@ import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } fr
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
-import { readLayout, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
+import { readLayout, refineDropCaps, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 import { readPages } from "@/modules/production/infrastructure/pdf/pages";
 import { tocKey } from "@/lib/book/toc";
 import type { BookBuildManifest, BookBuildPage } from "@/lib/book/book-build";
@@ -244,14 +244,18 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode): Prom
     let layout: unknown;
     const captured: Record<string, number> = {};
     const rowHeights = new Map<string, number>();
+    const dropColumns = new Map<string, { text: string; lines: number }>();
     await renderPdf(
       <InteriorDocument
         content={content}
-        options={{ bleedMm: bleed, images: draftImages, flow, rowHeights, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
+        options={{ bleedMm: bleed, images: draftImages, flow, rowHeights, dropColumns, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
       />,
     );
     tocPages = withSections(layout, captured);
-    if (!layout || !refineFlow(layout, flow, rowHeights, chapterOf, minLead)) break;
+    if (!layout) break;
+    // Буквицы: где кончились строки рядом с ними — с этого знака продолжается абзац (обычно сходится за один проход).
+    const drops = refineDropCaps(layout, flow, dropColumns);
+    if (!refineFlow(layout, flow, rowHeights, chapterOf, minLead) && !drops) break;
   }
   // Итоговая сборка с настоящими фото; её раскладка — виды полос для манифеста (на раскладку влияют только размеры фото).
   // Номера оглавления — из прошлого прохода, а главы могли встать иначе: вёрстку поправили после последнего замера

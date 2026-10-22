@@ -1,4 +1,4 @@
-import type { InteriorId } from "@/lib/book/interiors";
+import type { InteriorId, StyleDirection } from "@/lib/book/interiors";
 
 /** Названия обложек, оформлений страниц и форматов. Ключи — id из src/lib/book/*. */
 export const catalog = {
@@ -78,6 +78,18 @@ export const catalog = {
   } as Record<string, string>,
   moods: { all: "Все", romance: "Романтика", tender: "Нежные", classic: "Классика", bright: "Яркие", photo: "С фото" },
   interiors: {
+    novel: { name: "Роман", description: "EB Garamond, красная строка и буквица на три строки — как в классическом издании" },
+    journal: { name: "Редакция", description: "Контрастный Noto Serif Display, огромные номера глав и крупная кавычка в цитатах" },
+    airy: { name: "Воздух", description: "Тонкие прописные Raleway, узкая колонка и много белого поля" },
+    luxe: { name: "Люкс", description: "Чёрные начальные полосы с золотом, двойная рамка и римские цифры" },
+    amour: { name: "История любви", description: "Сказочный Alice, «Глава» от руки, сердечки и буквица цвета розы" },
+    scrapbook: { name: "Скрапбук", description: "Тёплая бумага, скотч, заметки от руки и фото с подписями" },
+    lens: { name: "Объектив", description: "Глава открывается снимком во всю ширину, строгий Geologica прописными" },
+    magazine: { name: "Глянец", description: "Узкий Oswald прописными, красный акцент и номера глав на полполосы" },
+    artbook: { name: "Арт-бук", description: "Yeseva One, акварель и асимметрия — как каталог выставки" },
+    antique: { name: "Летопись", description: "Old Standard на кремовой бумаге, капитель, буквица и астеризм" },
+    contemporary: { name: "Геометрия", description: "Montserrat Alternates и Geologica, кобальтовый акцент и гигантские цифры" },
+    kids: { name: "Детская", description: "Круглый Comfortaa, крупный Nunito и конфетти — читать легко" },
     classic: { name: "Классика", description: "Cormorant и PT Serif, тонкая виньетка — как в хорошем романе" },
     romance: { name: "Признание", description: "Курсив цвета вина, сердечки и флероны в углах парадных страниц" },
     stars: { name: "Созвездие", description: "Каждая глава открывается звёздным небом" },
@@ -103,6 +115,22 @@ export const catalog = {
     minimal: { name: "Минимализм", description: "Montserrat — чисто и легко" },
   } satisfies Record<InteriorId, { name: string; description: string }>,
   interiorMoods: { all: "Все", classic: "Классика", romance: "Романтика", tender: "Нежные", bright: "Яркие", modern: "Современные" },
+  /** Разделы библиотеки стилей страниц (InteriorDesign.direction). */
+  interiorDirections: {
+    all: "Все стили",
+    literature: "Классика литературы",
+    editorial: "Редакционный",
+    minimal: "Минимализм",
+    luxury: "Люкс",
+    romantic: "Романтика",
+    scrapbook: "Скрапбук",
+    photo: "Фотокнига",
+    magazine: "Журнал",
+    art: "Арт-бук",
+    vintage: "Винтаж",
+    contemporary: "Современный",
+    kids: "Детская книга",
+  } satisfies Record<StyleDirection | "all", string>,
   formats: {
     a5: "Классический A5 · 148×210 мм",
     square: "Квадратный · 200×200 мм",

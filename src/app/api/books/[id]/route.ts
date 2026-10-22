@@ -32,6 +32,13 @@ const patchSchema = z
     photoFrames: z.record(z.string().max(12), z.object({ zoom: z.number(), x: z.number(), y: z.number() })).refine((o) => Object.keys(o).length <= 12),
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
+    // Настройки дизайнера страниц и обложка из слоёв: поля и числа проверяет домен (parseInteriorStyle, parseCoverDesign),
+    // здесь — только что это объект разумного размера.
+    interiorStyle: z.record(z.string(), z.unknown()).refine((o) => JSON.stringify(o).length <= 24_000, "tooLarge"),
+    coverDesign: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .refine((o) => o === null || JSON.stringify(o).length <= 60_000, "tooLarge"),
     format: z.string().max(20),
     photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),

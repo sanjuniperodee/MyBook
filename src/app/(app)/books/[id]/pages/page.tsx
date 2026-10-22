@@ -5,7 +5,7 @@ import { container } from "@/server/container";
 import { getLocale, getMessages } from "@/i18n/server";
 import { coverName } from "@/i18n/labels";
 import { getFormat } from "@/lib/book/formats";
-import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
+import { bookInterior, getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { questionTexts, toPhotoItem } from "@/lib/book/layout";
 import { buildBookContent } from "@/lib/book/book-content";
@@ -34,7 +34,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos, screen?.chapterPages);
   // Фото по главам для блока «Главы книги»: что сейчас в каждой главе (с попавшими туда по правилу) и снимок начала.
   const built = buildBookContent(book, questions, photos.map(toPhotoItem), chapters);
-  const openerKind = getInteriorDesign(book.interior).opener.photo;
+  const openerKind = bookInterior(book).opener.photo;
   const photoPlan = {
     shape: !openerKind ? null : openerKind === "circle" ? ("circle" as const) : openerKind === "arch" ? ("arch" as const) : openerKind === "bleed" || openerKind === "full" ? ("page" as const) : ("square" as const),
     photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, crop: p.crop ?? null, chapter: p.chapter ?? null, opener: p.opener ?? false, inAnswer: !!p.questionId })),

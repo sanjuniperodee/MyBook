@@ -1,4 +1,5 @@
 import { coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
+import { emptyImageLayers, parseCoverDesign } from "@/lib/book/cover-design";
 import { getFormat, print } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
 import { bookKind, progressOf } from "@/lib/content/kinds";
@@ -12,7 +13,7 @@ export interface ReadinessIssue {
   href?: string;
 }
 
-type ReadinessBook = { id: string; theme: string; coverTemplate: string; coverPhotoId: string | null; coverPhotoExtra: string[]; authorName: string; format: string };
+type ReadinessBook = { id: string; theme: string; coverTemplate: string; coverPhotoId: string | null; coverPhotoExtra: string[]; authorName: string; format: string; /** Обложка из слоёв (конструктор); нет — обложка шаблона. */ coverDesign?: unknown };
 type ReadinessPhoto = { width: number; height: number; layout: "full" | "bleed" | "half" | "grid" };
 
 /** Готова ли книга к печати: ошибки блокируют заказ, предупреждения — подсказки. */
@@ -24,9 +25,13 @@ export function checkReadiness(book: ReadinessBook, stats: BookStats, photos: Re
   const progress = progressOf(kind, stats);
   if (stats.answered === 0) issues.push({ level: "error", text: kind === "blank" ? t.noText : t.noAnswers, href: `${base}/questions` });
   const template = getCoverTemplate(book.coverTemplate);
-  const slots = coverPhotoSlots(template);
+  const design = book.coverDesign ? parseCoverDesign(book.coverDesign) : null;
+  // Обложка из слоёв со своим фоном рисунок шаблона (и его места под фото) не использует.
+  const slots = design && design.background.kind !== "template" ? 0 : coverPhotoSlots(template);
   const chosen = [book.coverPhotoId, ...book.coverPhotoExtra.slice(0, slots - 1)].filter(Boolean).length;
   if (slots && chosen < slots) issues.push({ level: "error", text: t.coverPhoto(messagesFor(locale).catalog.covers[template.id] ?? template.id, slots), href: `${base}/cover` });
+  const empty = design ? emptyImageLayers(design).length : 0;
+  if (empty) issues.push({ level: "error", text: messagesFor(locale).design.readiness.coverLayers(empty), href: `${base}/cover` });
   if (!book.authorName.trim()) issues.push({ level: "warning", text: kind === "autobiography" ? t.narratorName : t.authorName, href: `${base}/cover` });
   // «Короткая» — по тем же порогам, что шаг «Текст» на хабе и воронка CRM (progressOf): ответы, у своей книги — слова.
   if (progress.short) issues.push({ level: "warning", text: kind === "blank" ? t.shortWords(stats.words) : t.short(stats.answered), href: `${base}/questions` });

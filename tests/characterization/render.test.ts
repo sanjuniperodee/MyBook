@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { BookBuildPage } from "@/lib/book/book-build";
 import { estimatePages } from "@/lib/book/estimate";
+import { getInteriorDesign } from "@/lib/book/interiors";
 import { leafPages, pageLeaf } from "@/lib/book/flipbook";
 import { GALLERY_KEY } from "@/lib/book/toc";
 import { useFixtureStorage } from "../fixtures/photos";
@@ -57,7 +58,12 @@ describe("renderInterior: страниц в PDF рядом с оценкой", (
   });
 
   it("оценка совпадает с PDF у каждой книги набора — в A5 и в квадрате (B14)", () => {
-    const mismatches = [...pages].filter(([, p]) => p.estimate !== p.contentPages).map(([key, p]) => `${key}: ${p.estimate} вместо ${p.contentPages}`);
+    // Стили дизайнера (свои шрифты, отбивки, красная строка, узкая колонка) оцениваются по средней ширине знаков шрифта:
+    // оценка не меньше PDF и не больше чем на полосу — клиент не видит объём меньше настоящего. Прежние стили — точно.
+    const designer = (key: string) => !!getInteriorDesign(key.split("-")[0]).direction;
+    const mismatches = [...pages]
+      .filter(([key, p]) => (designer(key) ? p.estimate < p.contentPages || p.estimate > p.contentPages + 1 : p.estimate !== p.contentPages))
+      .map(([key, p]) => `${key}: ${p.estimate} вместо ${p.contentPages}`);
     expect(mismatches).toEqual([]);
   });
 

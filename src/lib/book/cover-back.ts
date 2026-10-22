@@ -6,7 +6,7 @@
 import type { CoverTemplate } from "./covers";
 import { coverNames } from "./cover-names";
 import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
-import type { FontKey } from "./fonts";
+import { fontWidth, type FontKey } from "./fonts";
 import { PT_TO_MM, type Rect } from "./formats";
 
 export type BackLayout = "quote" | "letter" | "photo" | "fullPhoto" | "polaroids" | "minimal";
@@ -90,11 +90,11 @@ export interface BackDesign {
 }
 
 /** Средняя ширина знака в долях кегля — для оценки переноса строк без измерения шрифта. С запасом. */
-const CHAR: Record<FontKey, number> = { cormorant: 0.45, playfair: 0.55, lora: 0.52, ptserif: 0.52, montserrat: 0.6, onest: 0.57, badscript: 0.52, caveat: 0.44 };
 
 /** Сколько строк займёт текст при данном кегле: перенос по словам, абзацы сохраняются. */
 export function countLines(text: string, size: number, width: number, font: FontKey): number {
-  const cw = CHAR[font] * size;
+  // Средняя ширина знака шрифта (fonts.ts): у прежних восьми — те же числа, что были здесь.
+  const cw = fontWidth(font) * size;
   const space = cw * 0.9;
   let lines = 0;
   for (const para of text.split("\n")) {

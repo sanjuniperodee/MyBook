@@ -10,7 +10,7 @@ import { metricsOf, type PageKit } from "./kit";
 export type PageProps = { kit: PageKit; className?: string; style?: CSSProperties };
 
 /** Страница: фон, графика и полоса набора. Размер задаёт родитель (width/aspect-ratio). */
-export function PageSurface({ kit, paper = PAPER, shapes = [], className, style, children }: PageProps & { paper?: string; shapes?: Shape[]; children: ReactNode }) {
+export function PageSurface({ kit, paper = kit.design.paper ?? PAPER, shapes = [], className, style, children }: PageProps & { paper?: string; shapes?: Shape[]; children: ReactNode }) {
   return (
     <div lang={kit.language} className={cn("relative overflow-hidden", className)} style={{ background: paper, containerType: "inline-size", ...style }}>
       <PageLayer shapes={shapes} format={kit.format} />

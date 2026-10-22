@@ -45,7 +45,7 @@ export function PhotoPage({ kit, group, chapterKey }: { kit: PdfKit; group: Phot
   }
   const plan = photoPagePlan(group, photoArea(format), design, S);
   return (
-    <Page {...kind} size={pageSize} style={{ backgroundColor: design.photos.paper ?? PAPER }}>
+    <Page {...kind} size={pageSize} style={{ backgroundColor: design.photos.paper ?? kit.paper }}>
       <PdfPageLayer shapes={plan.under} box={box} />
       {plan.cells.map((c) => {
         const img = options.images.get(c.id);

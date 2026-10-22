@@ -63,7 +63,26 @@ const COVERS: Record<InteriorId, { cover: string; back: BackLayout }> = {
   confetti: { cover: "party", back: "polaroids" },
   modern: { cover: "noir", back: "quote" },
   minimal: { cover: "photo", back: "fullPhoto" },
+  // Библиотека стилей дизайнера — после прежних: ключи и сочетания формата и языка у старых книг набора не сдвигаются.
+  novel: { cover: "leather", back: "quote" },
+  journal: { cover: "mono", back: "minimal" },
+  airy: { cover: "mist", back: "quote" },
+  luxe: { cover: "velvet", back: "letter" },
+  amour: { cover: "heart", back: "letter" },
+  scrapbook: { cover: "torn", back: "polaroids" },
+  lens: { cover: "split", back: "fullPhoto" },
+  magazine: { cover: "strips", back: "minimal" },
+  artbook: { cover: "lavender", back: "photo" },
+  antique: { cover: "postcards", back: "quote" },
+  contemporary: { cover: "glow", back: "photo" },
+  kids: { cover: "lemons", back: "polaroids" },
 };
+
+/**
+ * Порядок оформлений в наборе — как в COVERS, а не как в выборе на сайте: новые стили встают в конец, и прежние книги
+ * набора (ключи, сочетания формата и языка в выборке, снимки) остаются теми же.
+ */
+export const fixtureDesigns = (Object.keys(COVERS) as InteriorId[]).filter((id) => interiorDesigns.some((d) => d.id === id));
 
 /** Вопросы по порядку: глава и скрытый заголовок. Ответы и заголовки — в texts.ts под тем же номером. */
 const QUESTIONS: { chapter: string; hideHeading?: boolean }[] = [
@@ -150,6 +169,8 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     photoFrames: { "cover:0": { zoom: 1.5, x: 0.3, y: 0.6 }, "cover:1": { zoom: 1.25, x: 0.7, y: 0.4 }, "back:0": { zoom: 1.3, x: 0.4, y: 0.5 } },
     dedication: t.dedication,
     interior: design,
+    interiorStyle: {},
+    coverDesign: null,
     format,
     photoPlacement: language === "kk" && format === "square" ? "end" : "chapters",
     showToc: true,
@@ -230,9 +251,9 @@ export function fixtureBook(design: InteriorId, format: FormatId, language: Loca
   return buildBook(`${design}-${format}-${language}`, design, format, language);
 }
 
-/** Набор книг в стабильном порядке: оформления — как в interiorDesigns, затем формат, затем язык. Каждый вызов строит новые объекты. */
+/** Набор книг в стабильном порядке: оформления — как в fixtureDesigns, затем формат, затем язык. Каждый вызов строит новые объекты. */
 export function fixtureBooks(opts: FixtureOptions = {}): FixtureBook[] {
-  const designs = interiorDesigns.map((d) => d.id).filter((id) => !opts.designs || opts.designs.includes(id));
+  const designs = fixtureDesigns.filter((id) => !opts.designs || opts.designs.includes(id));
   const formatIds = (Object.keys(formats) as FormatId[]).filter((id) => !opts.formats || opts.formats.includes(id));
   const languages = fixtureLanguages.filter((l) => !opts.languages || opts.languages.includes(l));
   return designs.flatMap((d) => formatIds.flatMap((f) => languages.map((l) => fixtureBook(d, f, l))));
@@ -248,7 +269,7 @@ const SAMPLE_COMBOS: [FormatId, Locale][] = [
 
 /** Каждое оформление один раз, формат и язык по кругу (a5-ru, square-kk, a5-kk, square-ru): быстрые прогоны вместо всего набора. */
 export function fixtureSample(): FixtureBook[] {
-  return interiorDesigns.map((d, i) => fixtureBook(d.id, ...SAMPLE_COMBOS[i % SAMPLE_COMBOS.length]));
+  return fixtureDesigns.map((id, i) => fixtureBook(id, ...SAMPLE_COMBOS[i % SAMPLE_COMBOS.length]));
 }
 
 // ─── варианты вне матрицы ──────────────────────────────────────────────────

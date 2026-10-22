@@ -61,6 +61,8 @@ const book: Book = {
   photoFrames: {},
   dedication: "",
   interior: "classic",
+  interiorStyle: {},
+  coverDesign: null,
   format: "a5",
   photoPlacement: "chapters",
   showToc: false,

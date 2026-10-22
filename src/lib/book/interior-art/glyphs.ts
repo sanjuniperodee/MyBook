@@ -178,8 +178,25 @@ export function vignetteDrawing(glyph: GlyphId, rule: number, colors: Pick<Inter
   };
 }
 
-/** Разделитель ответов без заголовка (кроме текстового «* * *»). */
-export function dividerDrawing(glyph: GlyphId, kind: "glyph" | "rule", colors: Pick<InteriorPalette, "rule" | "ornament">): Drawing {
+/** Звёздочка из трёх штрихов (как «*» в наборе) с центром в (cx, cy) и радиусом r. */
+function asterisk(cx: number, cy: number, r: number, color: string): Shape {
+  const d = [90, 30, 150]
+    .map((deg) => {
+      const a = (deg * Math.PI) / 180;
+      return `M${n(cx - Math.cos(a) * r)},${n(cy - Math.sin(a) * r)} L${n(cx + Math.cos(a) * r)},${n(cy + Math.sin(a) * r)}`;
+    })
+    .join(" ");
+  return { kind: "path", d, stroke: color, width: n(r * 0.36), round: true };
+}
+
+/** Разделитель ответов без заголовка (кроме текстового «* * *» и отбивки): глиф, линейка или астеризм «⁂». */
+export function dividerDrawing(glyph: GlyphId, kind: "glyph" | "rule" | "asterism", colors: Pick<InteriorPalette, "rule" | "ornament">): Drawing {
+  if (kind === "asterism") {
+    const r = 1.9;
+    const w = r * 6.4;
+    const h = r * 5.6;
+    return { w, h, shapes: [asterisk(w / 2, r, r, colors.ornament), asterisk(r, h - r, r, colors.ornament), asterisk(w - r, h - r, r, colors.ornament)] };
+  }
   if (kind === "rule" || glyph === "bar") return { w: 18, h: 0.6, shapes: [{ kind: "rect", x: 0, y: 0, w: 18, h: 0.6, fill: colors.ornament }] };
   return glyphDrawing(glyph, GLYPH_SIZE[glyph] * 0.8, colors.ornament);
 }

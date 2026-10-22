@@ -477,6 +477,13 @@
       "when": 1792651257423,
       "tag": "0067_manager_no_call_recordings",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792679625488,
+      "tag": "0069_book_design",
+      "breakpoints": true
     }
   ]
 }

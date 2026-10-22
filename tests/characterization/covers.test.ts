@@ -6,10 +6,9 @@ import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { setCustomCovers, type CustomCoverData } from "@/lib/book/cover-registry";
 import { allCoverTemplates, coverPhotoIds, getCoverTemplate, renderCoverSvg, type CoverTemplate } from "@/lib/book/covers";
 import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, print, type FormatId } from "@/lib/book/formats";
-import { interiorDesigns } from "@/lib/book/interiors";
 import { frameKey, parseFrames } from "@/lib/book/photo-frame";
 import type { BookBundle } from "@/modules/production/infrastructure/pdf/render";
-import { fixtureBook } from "../fixtures/books";
+import { fixtureBook, fixtureDesigns } from "../fixtures/books";
 
 /**
  * Характеристика рисунков обложек — без PDF и растра: sha256 SVG каждого шаблона (семьи covers/*: classic, collection, photo, client-photo
@@ -119,7 +118,8 @@ describe("рисунки обложек", () => {
   });
 
   it("шесть вариантов оборота на шаблонах набора: раскладка зависит от текста оборота (язык), рисунок развёртки — нет", () => {
-    const pairs = interiorDesigns.map((d) => ({ design: d.id, book: fixtureBook(d.id, "a5", "ru").bundle.book }));
+    // Порядок набора (новые стили — в конце): первый дизайн с каждым вариантом оборота тот же, что раньше.
+    const pairs = fixtureDesigns.map((id) => ({ design: id, book: fixtureBook(id, "a5", "ru").bundle.book }));
     const table = Object.fromEntries(
       backLayouts.map((layout) => {
         const { design, book } = pairs.find((p) => p.book.backLayout === layout)!;

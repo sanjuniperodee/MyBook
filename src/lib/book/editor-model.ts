@@ -58,6 +58,8 @@ export interface EditorBook {
   format: string;
   /** Оформление страниц — id из lib/book/interiors. */
   interior: string;
+  /** Настройки дизайнера страниц поверх стиля (interiors/style.ts). */
+  interiorStyle?: unknown;
   dedication: string;
   showToc: boolean;
   /** Оглавление по-своему (toc.ts): от него зависит, сколько полос оно займёт. */

@@ -48,11 +48,13 @@ export function renderPdf(document: ReactElement<DocumentProps>): Promise<Buffer
 }
 
 /** Подбирает ближайшее зарегистрированное начертание, чтобы react-pdf не падал на отсутствующем весе. */
-export function face(key: FontKey, weight = 400, italic = false) {
+export function face(key: FontKey, weight = 400, italic = false): { fontFamily: string | string[]; fontWeight: number; fontStyle: "normal" | "italic" } {
   const def = fontFaces[key];
   const style = italic ? "italic" : "normal";
   const candidates = def.faces.filter((f) => f.style === style);
   const pool = candidates.length ? candidates : def.faces;
   const best = pool.reduce((a, b) => (Math.abs(b.weight - weight) < Math.abs(a.weight - weight) ? b : a));
-  return { fontFamily: def.family, fontWeight: best.weight, fontStyle: best.style } as const;
+  // Знаки, которых нет в шрифте (₸, №, многоточие), react-pdf берёт из запасного — он идёт вторым в списке.
+  const fontFamily: string | string[] = def.fallback ? [def.family, fontFaces[def.fallback].family] : def.family;
+  return { fontFamily, fontWeight: best.weight, fontStyle: best.style };
 }
