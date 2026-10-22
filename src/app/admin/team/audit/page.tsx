@@ -80,13 +80,32 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const rows = await container().access.queries.auditLog({ actorId: sp.actor && /^[0-9a-f-]{36}$/.test(sp.actor) ? sp.actor : undefined, entity: sp.entity ? sp.entity.slice(0, 30) : undefined });
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+    <div className="rounded-2xl border border-line bg-white lg:overflow-x-auto">
       {sp.actor || sp.entity ? (
         <div className="border-b border-line px-4 py-2 text-sm">
           Фильтр включён · <Link href="/admin/team/audit" className="text-wine hover:underline">сбросить</Link>
         </div>
       ) : null}
-      <table className="w-full min-w-[760px] text-sm">
+      <ul className="divide-y divide-line lg:hidden" data-testid="audit-cards">
+        {rows.map(({ a, actor }) => (
+          <li key={a.id} className="px-4 py-3">
+            <Link href={`/admin/team/audit?entity=${a.entity}`} className="text-[15px] font-medium">
+              {actions[a.action] ?? a.action}
+            </Link>
+            <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
+              {a.actorId ? (
+                <Link href={`/admin/team/audit?actor=${a.actorId}`}>{staffLabel(actor?.email ? { name: actor.name ?? "", email: actor.email } : null)}</Link>
+              ) : (
+                <span>система</span>
+              )}
+              <span>· {formatDate(a.createdAt, true)}</span>
+              {a.ip ? <span>· {a.ip}</span> : null}
+            </div>
+            {a.details ? <div className="mt-1 line-clamp-2 font-mono text-[11px] break-all text-muted">{JSON.stringify(a.details)}</div> : null}
+          </li>
+        ))}
+      </ul>
+      <table className="hidden w-full min-w-[760px] text-sm lg:table">
         <thead className="border-b border-line text-left text-muted">
           <tr>
             <th className="px-4 py-3 font-medium">Когда</th>

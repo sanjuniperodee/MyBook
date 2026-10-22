@@ -172,9 +172,9 @@ export function ChatHeader({
   assignee: string | null;
 }) {
   return (
-    <div className="flex h-[68px] shrink-0 items-center gap-3 border-b border-line bg-white px-4">
-      <Link href={backHref} className="-ml-1 rounded-full p-2 text-muted hover:bg-[#f3efe9] lg:hidden" aria-label="К списку">
-        <ArrowLeft className="size-5" />
+    <div className="flex h-[calc(68px+env(safe-area-inset-top))] shrink-0 items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] lg:h-[68px] lg:pt-0">
+      <Link href={backHref} className="-ml-2 flex size-11 items-center justify-center rounded-full text-wine hover:bg-[#f3efe9] lg:hidden" aria-label="К списку">
+        <ArrowLeft className="size-6" />
       </Link>
       <ChatAvatar name={title} url={avatarUrl} channel={channel} size={40} />
       <div className="min-w-0 flex-1">

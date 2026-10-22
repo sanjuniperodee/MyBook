@@ -134,9 +134,10 @@ export function Overlays() {
       </div>
 
       {req ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div className="fixed inset-0 z-[80] flex items-end justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
           <div className="absolute inset-0 animate-[vt-fade_180ms_ease-out_both] bg-ink/40 backdrop-blur-[2px]" onClick={() => answer(false)} />
           <div className="relative w-full max-w-sm animate-[toast-in_220ms_var(--ease-out-soft)_both] rounded-3xl bg-white p-6 shadow-lift">
+            <span className="mx-auto -mt-3 mb-3 block h-1 w-9 rounded-full bg-line sm:hidden" aria-hidden />
             {req.danger ? (
               <span className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-red-50 text-red-700">
                 <AlertTriangle className="size-5" />

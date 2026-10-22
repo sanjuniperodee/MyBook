@@ -11,7 +11,7 @@ export function PageHeader({ title, children, actions }: { title: string; childr
         <h1 className="text-2xl font-semibold">{title}</h1>
         {children ? <Intro className="mt-1">{children}</Intro> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 max-lg:[&>.btn-primary]:flex-1 lg:w-auto">{actions}</div> : null}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { cancelGiftAction, markGiftPaidAction, resendGiftAction } from "./action
 
 export function GiftActions({ id, status, canResend }: { id: string; status: string; canResend: boolean }) {
   const [pending, start] = useTransition();
-  const btn = "rounded-lg border border-line px-2.5 py-1 text-xs hover:bg-cream disabled:opacity-50";
+  const btn = "rounded-lg border border-line px-2.5 py-1 text-xs hover:bg-cream disabled:opacity-50 max-lg:min-h-11 max-lg:flex-1 max-lg:px-3 max-lg:text-sm";
   return (
     <div className="flex flex-wrap justify-end gap-1.5">
       {pending ? <LoaderCircle className="size-4 animate-spin text-muted" /> : null}

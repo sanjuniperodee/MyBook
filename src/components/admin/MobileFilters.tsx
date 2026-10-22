@@ -16,13 +16,13 @@ export function MobileFilters({ children, active = false, label = "Фильтр�
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={cn("flex w-full items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-medium lg:hidden", active ? "border-wine/40 bg-wine/5 text-wine" : "border-line bg-white text-ink-soft")}
+        className={cn("flex w-full items-center gap-2 rounded-xl border min-h-11 px-3.5 py-2.5 text-sm font-medium lg:hidden", active ? "border-wine/40 bg-wine/5 text-wine" : "border-line bg-white text-ink-soft")}
       >
         <SlidersHorizontal className="size-4" /> {label}
         {active ? <span className="size-1.5 rounded-full bg-wine" /> : null}
         <ChevronDown className={cn("ml-auto size-4 transition", open && "rotate-180")} />
       </button>
-      <div className={cn(open ? "mt-2 block" : "hidden", "lg:contents")}>{children}</div>
+      <div className={cn(open ? "mt-2 block [&_form]:flex-col [&_form]:items-stretch [&_input:not([type=checkbox])]:w-full! [&_select]:w-full! [&_.btn]:w-full" : "hidden", "lg:contents lg:[&_form]:flex-row")}>{children}</div>
     </div>
   );
 }

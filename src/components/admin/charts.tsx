@@ -39,7 +39,7 @@ export function RevenueColumns({ data, height = 220 }: { data: DayPoint[]; heigh
     <div>
       <div className="flex gap-3">
         {/* ось Y */}
-        <div className="relative w-14 shrink-0 text-right text-[11px] text-muted tabular-nums" style={{ height }}>
+        <div className="relative w-11 shrink-0 text-right sm:w-14 text-[11px] text-muted tabular-nums" style={{ height }}>
           {ticks.map((t) => (
             <span key={t} className="absolute right-0 -translate-y-1/2" style={{ bottom: `${(t / top) * 100}%` }}>
               {compact(t)}
@@ -79,7 +79,7 @@ export function RevenueColumns({ data, height = 220 }: { data: DayPoint[]; heigh
         </div>
       </div>
       {/* ось X */}
-      <div className="mt-2 ml-[4.25rem] flex text-[11px] text-muted">
+      <div className="mt-2 ml-[3.5rem] flex sm:ml-[4.25rem] text-[11px] text-muted">
         {data.map((d, i) => (
           <div key={d.date} className="flex-1 text-center whitespace-nowrap">
             {i % labelEvery === 0 ? dayLabel(d.date, { day: "numeric", month: "short" }).replace(".", "") : ""}

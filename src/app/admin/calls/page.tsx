@@ -32,7 +32,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Звонки</h1>
-        <span className="text-sm text-muted">
+        <span className="w-full text-sm text-muted">
           за {days} дн.: {stats.total} звонков · {stats.answered} разговоров · {stats.missed} пропущено · {Math.round(stats.talk / 60)} мин на линии
         </span>
         {provider === "off" && can(staff, "settings.manage") ? (
@@ -41,21 +41,65 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           </Link>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="m-hscroll flex flex-wrap items-center gap-2">
         {(Object.keys(filters) as Filter[]).map((k) => (
           <Link key={k} href={`/admin/calls?f=${k}&days=${days}`} className={chip(k)}>
             {filters[k]}
           </Link>
         ))}
-        <div className="ml-auto flex rounded-xl border border-line bg-white p-0.5 text-sm">
+        <div className="ml-auto flex shrink-0 rounded-xl border border-line bg-white p-0.5 text-sm">
           {[1, 7, 14, 30, 90].map((d) => (
-            <Link key={d} href={`/admin/calls?f=${f}&days=${d}`} className={cn("rounded-lg px-2.5 py-1", d === days ? "bg-ink text-white" : "text-ink-soft")}>
+            <Link key={d} href={`/admin/calls?f=${f}&days=${d}`} className={cn("rounded-lg px-2.5 py-1 max-lg:flex max-lg:min-h-9 max-lg:items-center", d === days ? "bg-ink text-white" : "text-ink-soft")}>
               {d === 1 ? "сегодня" : `${d} дн.`}
             </Link>
           ))}
         </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <ul className="space-y-2.5 lg:hidden" data-testid="calls-cards">
+        {rows.map(({ call: c, clientName, dealTitle, dealContact }) => {
+          const Icon = c.direction === "out" ? PhoneOutgoing : c.status === "missed" ? PhoneMissed : PhoneIncoming;
+          const phone = contactView(staff, { phone: formatPhone(c.clientPhone) }).phone || "скрытый номер";
+          const who = clientName || dealContact;
+          const href = c.dealId ? `/admin/deals/${c.dealId}` : c.clientId ? `/admin/clients/${c.clientId}` : null;
+          const open = c.status === "missed" && !c.handledAt && c.direction === "in";
+          const body = (
+            <div className="flex items-start gap-3">
+              <span className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full", c.status === "missed" ? "bg-red-50 text-red-600" : c.direction === "out" ? "bg-sky-50 text-sky-700" : "bg-emerald-50 text-emerald-700")}>
+                <Icon className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[16px] font-semibold">{who || phone}</div>
+                <div className="truncate text-sm text-muted tabular-nums">{who ? phone : dealTitle}</div>
+                <div className="truncate text-xs text-muted">
+                  {formatDate(c.startedAt, true)}
+                  {c.staffId ? ` · ${names.get(c.staffId) ?? ""}` : ""}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 text-xs">
+                <span className={cn("rounded-full px-2.5 py-1 font-medium whitespace-nowrap", c.status === "answered" ? "bg-emerald-100 text-emerald-800" : c.status === "missed" ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>{statusLabel[c.status]}</span>
+                <span className="text-muted tabular-nums">{dur(c.durationSec)}</span>
+              </div>
+            </div>
+          );
+          return (
+            <li key={c.id} className={cn("rounded-2xl border border-line bg-white p-3.5 shadow-soft", open && "border-red-200")}>
+              {href ? (
+                <Link href={href} className="m-card -m-1 block rounded-xl p-1">
+                  {body}
+                </Link>
+              ) : (
+                body
+              )}
+              {c.hasRecording && can(staff, "calls.recordings") ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="mt-2.5 h-10 w-full" /> : null}
+              <div className="mt-1 flex justify-end">
+                <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
+              </div>
+            </li>
+          );
+        })}
+        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">{provider === "off" ? "Телефония не подключена — звонки появятся здесь после настройки АТС." : "Звонков за период нет."}</li> : null}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
         <table className="w-full min-w-[860px] text-sm">
           <thead className="border-b border-line text-left text-muted">
             <tr>

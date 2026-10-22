@@ -57,7 +57,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
         ))}
       </div>
 
-      <nav className="flex flex-wrap gap-2 text-sm">
+      <nav className="m-hscroll flex flex-wrap gap-2 text-sm">
         {filters.map((f) => (
           <Link
             key={f.key}
@@ -90,7 +90,7 @@ function ReviewCard({ r }: { r: StaffReview }) {
   const tooShort = r.text.trim().length < PUBLIC_TEXT_MIN;
   const blocker = !r.consent ? "Автор не разрешил показывать отзыв на сайте" : tooShort ? `Текст короче ${PUBLIC_TEXT_MIN} символов — на сайт не попадёт, но в средней оценке учтён` : null;
   return (
-    <li className={cn("flex flex-col rounded-2xl border bg-white p-5", r.rating <= LOW_RATING ? "border-red-200" : "border-line")}>
+    <li className={cn("flex flex-col rounded-2xl border bg-white p-4 sm:p-5", r.rating <= LOW_RATING ? "border-red-200" : "border-line")}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="flex gap-0.5 text-amber-400" aria-label={`${r.rating} из 5`}>
           {[1, 2, 3, 4, 5].map((n) => (

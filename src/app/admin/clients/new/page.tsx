@@ -14,7 +14,7 @@ export default async function NewClientPage() {
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link href="/admin/clients" className="text-sm text-muted hover:text-ink">
+      <Link href="/admin/clients" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-ink">
         ← Клиенты
       </Link>
       <div>

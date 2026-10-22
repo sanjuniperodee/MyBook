@@ -114,7 +114,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/admin/deals" className="text-sm text-muted hover:text-ink">
+        <Link href="/admin/deals" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-ink">
           ← Сделки
         </Link>
         <span className="text-sm text-muted">
@@ -127,7 +127,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         ) : null}
       </div>
       <div>
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-2xl font-semibold break-words">
           <span className="text-muted">№{deal.number}</span> {deal.title}
         </h1>
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
@@ -139,7 +139,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="space-y-4">
-          <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
+          <section className="space-y-4 rounded-2xl border border-line bg-white p-4 sm:p-5">
             <DealFields
               deal={{
                 id: deal.id,
@@ -218,21 +218,21 @@ export default async function DealPage({ params, searchParams }: { params: Promi
 
         <div className="min-w-0 space-y-5">
           {ai ? <DealAi dealId={deal.id} summary={deal.aiSummary ?? null} summaryAt={deal.aiSummary ? formatDate(new Date(deal.aiSummary.at), true) : null} canEdit={canEdit} /> : null}
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
             <h2 className="mb-2 font-semibold">Задачи</h2>
             <TaskList tasks={tasks} admins={options} dealId={deal.id} clientId={deal.clientId ?? undefined} emptyText="Нет задач — запланируйте следующий шаг, чтобы сделка не потерялась" />
           </section>
 
           {conv && vars ? (
             <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <div className="flex items-center justify-between border-b border-line px-5 py-3">
+              <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
                 <h2 className="font-semibold">Переписка · {channelLabel(conv.channel)}</h2>
-                <Link href={`/admin/chats?c=${conv.id}`} className="text-xs text-wine hover:underline">
+                <Link href={`/admin/chats?c=${conv.id}`} className="inline-flex min-h-11 items-center text-sm text-wine hover:underline lg:min-h-0 lg:text-xs">
                   Открыть в чатах
                 </Link>
               </div>
               <ChatPanel
-                className="h-[460px]"
+                className="h-[70dvh] max-h-[620px] lg:h-[460px] lg:max-h-none"
                 conversationId={conv.id}
                 messages={messages}
                 canSend={can(staff, "chats.send") && canWork(staff, deal.assigneeId)}
@@ -252,7 +252,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
 
           {callRows.length ? <DealCalls calls={screen.calls} canListen={can(staff, "calls.recordings")} /> : null}
 
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
             <h2 className="mb-4 font-semibold">История</h2>
             {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} whatsappTo={whatsappTo} /> : <NotesTimelineReadonly notes={notes} whatsappTo={whatsappTo} />}
           </section>

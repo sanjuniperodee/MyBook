@@ -92,7 +92,7 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
       onPointerMove={() => press.current && window.clearTimeout(press.current)}
       onPointerCancel={() => press.current && window.clearTimeout(press.current)}
     >
-      <Link href={href} className={cn("relative flex gap-3 px-4 py-3 transition", active || going ? "bg-[#f7ecee]" : "hover:bg-[#faf8f5]", going && "opacity-80")} aria-current={active ? "true" : undefined} aria-busy={going || undefined}>
+      <Link href={href} className={cn("relative flex min-h-[4.25rem] gap-3 px-4 py-3 transition active:bg-cream", active || going ? "bg-[#f7ecee]" : "hover:bg-[#faf8f5]", going && "opacity-80")} aria-current={active ? "true" : undefined} aria-busy={going || undefined}>
         {active || going ? <span className={cn("absolute inset-y-0 left-0 w-[3px] bg-wine", going && "animate-pulse")} /> : null}
         <Reporter id={id} />
         {children}

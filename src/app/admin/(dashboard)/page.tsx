@@ -153,7 +153,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </div>
         {sources.rows.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-[520px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr>
                   <th className="py-2 font-medium">Канал</th>

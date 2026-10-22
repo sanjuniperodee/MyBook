@@ -56,7 +56,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 top-14 z-20 flex justify-center transition-opacity lg:hidden" style={{ opacity: pull > 8 || busy ? 1 : 0, transform: `translateY(${Math.max(0, pull - 28)}px)` }} aria-hidden>
+      <div className="pointer-events-none fixed inset-x-0 top-[var(--topbar-h,3.5rem)] z-20 flex justify-center transition-opacity lg:hidden" style={{ opacity: pull > 8 || busy ? 1 : 0, transform: `translateY(${Math.max(0, pull - 28)}px)` }} aria-hidden>
         <span className="flex size-9 items-center justify-center rounded-full border border-line bg-white shadow-lg">
           <LoaderCircle className={busy ? "size-5 animate-spin text-wine" : "size-5 text-muted"} style={busy ? undefined : { transform: `rotate(${pull * 4}deg)` }} />
         </span>

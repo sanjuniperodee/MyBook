@@ -23,7 +23,7 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
     .filter((s) => s.items.length);
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-4">
-      <h1 className="text-2xl font-semibold">Ещё</h1>
+      <h1 className="font-semibold">Ещё</h1>
       <div className="rounded-2xl border border-line bg-white p-4">
         <div className="flex items-center gap-3">
           <span className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-wine to-wine-dark text-xl font-semibold text-white uppercase">{name.slice(0, 1) || "?"}</span>
@@ -48,13 +48,13 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
               const n = it.badge ? counters[it.badge] : 0;
               return (
                 <li key={it.href}>
-                  <Link href={it.href} className="flex items-center gap-3 px-4 py-3.5 active:bg-cream/60">
+                  <Link href={it.href} className="flex items-center gap-3 min-h-12 px-4 py-3 active:bg-cream/60">
                     <span className="flex size-9 items-center justify-center rounded-xl bg-wine/10 text-wine">
                       <it.icon className="size-5" strokeWidth={1.8} />
                     </span>
                     <span className="flex-1 text-[15px]">{it.label}</span>
                     {n ? <span className="rounded-full bg-wine px-2 py-0.5 text-xs font-semibold text-white tabular-nums">{n > 99 ? "99+" : n}</span> : null}
-                    <span className="text-muted">›</span>
+                    <span className="text-lg leading-none text-muted/70" aria-hidden>›</span>
                   </Link>
                 </li>
               );

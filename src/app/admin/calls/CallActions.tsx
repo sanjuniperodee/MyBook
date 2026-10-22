@@ -8,10 +8,10 @@ import { callAction, markCallHandledAction } from "../crm-actions";
 export function CallRowActions({ callId, canCall, canHandle }: { callId: string; canCall: boolean; canHandle: boolean }) {
   const [pending, start] = useTransition();
   return (
-    <div className="flex justify-end gap-3 text-xs">
+    <div className="flex justify-end gap-3 text-xs max-lg:text-sm">
       {canCall ? (
         <button
-          className="flex items-center gap-1 text-wine hover:underline"
+          className="flex items-center gap-1 text-wine hover:underline max-lg:min-h-11 max-lg:px-2"
           disabled={pending}
           onClick={() =>
             start(async () => {
@@ -24,7 +24,7 @@ export function CallRowActions({ callId, canCall, canHandle }: { callId: string;
         </button>
       ) : null}
       {canHandle ? (
-        <button className="flex items-center gap-1 text-muted hover:text-ink" disabled={pending} onClick={() => start(async () => void (await markCallHandledAction(callId)))}>
+        <button className="flex items-center gap-1 text-muted hover:text-ink max-lg:min-h-11 max-lg:px-2" disabled={pending} onClick={() => start(async () => void (await markCallHandledAction(callId)))}>
           <CheckCircle2 className="size-3.5" /> Обработан
         </button>
       ) : null}

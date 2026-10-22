@@ -51,7 +51,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-semibold">Клиенты</h1>
           <p className="text-sm text-muted">Найдено {total}{sp.tag ? ` · тег «${sp.tag}»` : ""}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 max-lg:w-full max-lg:[&>*]:flex-1">
           {can(staff, "clients.export", "clients.contacts") ? (
             <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
               <Download className="size-4" /> CSV
@@ -65,19 +65,19 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="m-hscroll flex flex-wrap gap-1.5">
         {(Object.keys(clientSegments) as ClientSegment[]).map((s) => (
-          <Link key={s} href={link({ segment: s, page: undefined })} className={cn("rounded-full px-3 py-1.5 text-sm", segment === s ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
+          <Link key={s} href={link({ segment: s, page: undefined })} className={cn("rounded-full px-3 py-1.5 text-sm whitespace-nowrap", segment === s ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
             {clientSegments[s]} <span className="opacity-60">{counts[s]}</span>
           </Link>
         ))}
       </div>
 
       <MobileFilters>
-      <form className="flex flex-wrap gap-2">
+      <form className="flex flex-wrap gap-2 max-lg:[&>*]:w-full">
         <input type="hidden" name="segment" value={segment} />
-        <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm" />
-        <select name="ch" defaultValue={sp.ch ?? ""} className="input h-10 w-48 text-sm" aria-label="Канал">
+        <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm max-lg:w-full" />
+        <select name="ch" defaultValue={sp.ch ?? ""} className="input h-10 w-48 text-sm max-lg:w-full" aria-label="Канал">
           <option value="">Все каналы</option>
           {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "youtube", "vk", "call", "recommendation", "repeat", "offline", "other", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
             <option key={k} value={k}>
@@ -85,7 +85,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             </option>
           ))}
         </select>
-        <select name="sort" defaultValue={sort} className="input h-10 w-56 text-sm">
+        <select name="sort" defaultValue={sort} className="input h-10 w-56 text-sm max-lg:w-full">
           <option value="new">Сначала новые</option>
           <option value="ltv">По сумме покупок</option>
           <option value="active">По последнему визиту</option>
@@ -97,7 +97,44 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       </form>
       </MobileFilters>
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <ul className="space-y-2.5 lg:hidden" data-testid="clients-cards">
+        {rows.map((r) => {
+          const c = contactView(staff, r.user);
+          return (
+            <li key={r.user.id}>
+              <Link href={`/admin/clients/${r.user.id}`} className="m-card block rounded-2xl border border-line bg-white p-3.5 shadow-soft">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wine to-wine-dark text-base font-semibold text-white uppercase">{(r.user.name || r.user.email).slice(0, 1)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[16px] font-semibold">{r.user.name || r.user.email.split("@")[0]}</div>
+                    <div className="truncate text-sm text-muted">{c.phone || c.email}</div>
+                    <div className="truncate text-xs text-muted">
+                      {r.booksCount ? `Книги: ${r.booksCount} · ${r.bestAnswered} отв.` : "Книг нет"} · был {relative(r.user.lastSeenAt)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{r.ltv ? formatPrice(r.ltv) : "—"}</div>
+                    <div className="text-xs text-muted">{r.ordersCount ? `заказов: ${r.ordersCount}` : "без заказов"}</div>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="rounded-md bg-cream px-2 py-1 text-ink-soft">{channelLabel(toAttribution(r.user.source))}</span>
+                  {r.user.managerId ? <span className="rounded-md bg-cream px-2 py-1 text-ink-soft">👤 {managerName.get(r.user.managerId) ?? "—"}</span> : null}
+                  {r.user.tags.slice(0, 3).map((t) => (
+                    <span key={t} className="rounded-full bg-rose px-2 py-1 text-wine">
+                      {t}
+                    </span>
+                  ))}
+                  <span className="ml-auto text-muted">{formatDate(r.user.createdAt)}</span>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
+        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Никого не нашли</li> : null}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="border-b border-line text-left text-muted">
             <tr>
@@ -161,7 +198,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       </div>
 
       {total > PAGE ? (
-        <div className="flex items-center justify-center gap-3 text-sm">
+        <div className="flex items-center justify-center gap-3 text-sm max-lg:pb-2">
           {page > 1 ? <Link className="btn btn-outline btn-sm" href={link({ page: String(page - 1) })}>← Назад</Link> : null}
           <span className="text-muted">
             {page} из {Math.ceil(total / PAGE)}

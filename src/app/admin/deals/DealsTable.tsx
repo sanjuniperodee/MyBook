@@ -55,9 +55,9 @@ export function DealsTable({
     });
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+    <div className="space-y-3 lg:overflow-x-auto lg:rounded-2xl lg:border lg:border-line lg:bg-white lg:space-y-0">
       {selected.size && canEdit ? (
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-line bg-rose/40 px-4 py-2.5 text-sm" data-testid="bulk-bar">
+        <div className="m-sticky-actions flex flex-wrap items-center gap-2 border-b border-line bg-rose/40 px-4 py-2.5 text-sm max-lg:rounded-2xl max-lg:border max-lg:bg-rose max-lg:shadow-lift lg:sticky lg:top-0 lg:z-10" data-testid="bulk-bar">
           <span className="font-medium">Выбрано: {selected.size}</span>
           <select
             className="input h-8 w-48 text-sm"
@@ -122,7 +122,44 @@ export function DealsTable({
           </button>
         </div>
       ) : null}
-      <table className="w-full min-w-[860px] text-sm">
+      <ul className="space-y-2.5 p-0 lg:hidden" data-testid="deals-cards">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-stretch gap-2">
+            {canEdit ? (
+              <label className="flex w-8 shrink-0 items-center justify-center">
+                <input type="checkbox" className="accent-wine" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Выбрать сделку ${r.number}`} />
+              </label>
+            ) : null}
+            <Link href={`/admin/deals/${r.id}`} className={cn("m-card block min-w-0 flex-1 rounded-2xl border border-line bg-white p-3.5 shadow-soft", selected.has(r.id) && "bg-rose/30")}>
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[16px] font-semibold">
+                    №{r.number} · {r.title}
+                  </div>
+                  {r.contactName ? <div className="truncate text-sm text-muted">{r.contactName}</div> : null}
+                  <div className="truncate text-xs text-muted">
+                    {r.channel}
+                    {r.campaign ? ` · ${r.campaign}` : ""}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{r.amount}</div>
+                  {r.paid ? <div className="text-xs text-emerald-700">получено {r.paid}</div> : null}
+                </div>
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="rounded-full px-2.5 py-1 font-medium whitespace-nowrap text-white" style={{ background: r.stage.color }}>
+                  {r.stage.name}
+                </span>
+                {r.lostReason ? <span className="text-muted">{r.lostReason}</span> : null}
+                {r.assignee ? <span className="rounded-md bg-cream px-2 py-1 text-ink-soft">👤 {r.assignee}</span> : null}
+                <span className="ml-auto text-muted">{r.created}</span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <table className="hidden w-full min-w-[860px] text-sm lg:table">
         <thead className="border-b border-line text-left text-muted">
           <tr>
             {canEdit ? (
@@ -178,7 +215,7 @@ export function DealsTable({
           ))}
         </tbody>
       </table>
-      {rows.length === 0 ? <p className="p-6 text-center text-sm text-muted">Сделок не найдено.</p> : null}
+      {rows.length === 0 ? <p className="rounded-2xl border border-dashed border-line bg-white p-6 text-center text-sm text-muted lg:rounded-none lg:border-0">Сделок не найдено.</p> : null}
       {lostFor ? (
         <LostDialog
           onCancel={() => setLostFor(null)}

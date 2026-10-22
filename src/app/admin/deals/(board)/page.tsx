@@ -59,15 +59,15 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     return s ? `/admin/deals?${s}` : "/admin/deals";
   };
   const currentQuery = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && /^(mine|a|src|q|view|p|task|stale|cf_[a-z0-9_]+)$/.test(k)) as [string, string][]).toString();
-  const chip = (active: boolean) => cn("rounded-full px-3 py-1.5 text-sm", active ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream");
+  const chip = (active: boolean) => cn("rounded-full px-3 py-1.5 text-sm whitespace-nowrap", active ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream");
   const openSum = rows.filter((r) => r.stageKind === "open").reduce((s, r) => s + r.deal.amount, 0);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-2xl font-semibold">Сделки</h1>
         {pipelines.length > 1 ? (
-          <div className="flex rounded-xl border border-line bg-white p-0.5 text-sm" data-testid="pipelines">
+          <div className="m-hscroll flex max-w-full rounded-xl border border-line bg-white p-0.5 text-sm max-lg:order-last max-lg:w-full max-lg:border-0 max-lg:bg-transparent" data-testid="pipelines">
             {pipelines.map((x) => (
               <Link key={x.id} href={x.id === pipelines[0].id ? "/admin/deals" : `/admin/deals?p=${x.id}`} className={cn("rounded-lg px-3 py-1", x.id === pipeline.id ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
                 {x.name}
@@ -75,10 +75,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             ))}
           </div>
         ) : null}
-        <span className="text-sm text-muted">
+        <span className="text-sm text-muted max-lg:w-full">
           в работе {rows.filter((r) => r.stageKind === "open").length} · {formatPrice(openSum)}
         </span>
-        <div className="ml-auto flex gap-2">
+        <div className="m-hscroll ml-auto flex gap-2 max-lg:order-first max-lg:ml-0 max-lg:w-full max-lg:justify-end">
           {can(staff, "settings.manage") ? (
             <Link href="/admin/deals/fields" className="btn btn-ghost btn-sm">
               Поля
@@ -96,7 +96,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           ) : null}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="m-hscroll flex flex-wrap items-center gap-2">
         {can(staff, "deals.edit") ? (
           <Link href="/admin/deals/duplicates" className="text-sm text-muted hover:text-wine">
             Дубли
@@ -120,14 +120,14 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                 </Link>
               ))
           : null}
-        <MobileFilters className="ml-auto w-full lg:w-auto">
-        <form className="ml-auto flex items-center gap-2" action="/admin/deals">
+        <MobileFilters className="ml-auto w-full shrink-0 lg:w-auto">
+        <form className="ml-auto flex items-center gap-2 max-lg:flex-col max-lg:items-stretch" action="/admin/deals">
           {sp.p ? <input type="hidden" name="p" value={sp.p} /> : null}
           {sp.mine ? <input type="hidden" name="mine" value={sp.mine} /> : null}
           {sp.a ? <input type="hidden" name="a" value={sp.a} /> : null}
           {view === "list" ? <input type="hidden" name="view" value="list" /> : null}
           {selectFields.map((f) => (
-            <select key={f.key} name={`cf_${f.key}`} defaultValue={sp[`cf_${f.key}`] ?? ""} className="input h-9 max-w-40 text-sm" aria-label={f.label}>
+            <select key={f.key} name={`cf_${f.key}`} defaultValue={sp[`cf_${f.key}`] ?? ""} className="input h-9 max-w-40 text-sm max-lg:max-w-none" aria-label={f.label}>
               <option value="">{f.label}: все</option>
               {f.options.map((o) => (
                 <option key={o} value={o}>
@@ -144,21 +144,21 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
               </option>
             ))}
           </select>
-          <input name="q" defaultValue={q} placeholder="Имя, телефон, №" className="input h-9 w-44 text-sm" />
+          <input name="q" defaultValue={q} placeholder="Имя, телефон, №" className="input h-9 w-44 text-sm max-lg:w-full" />
           <button className="btn btn-outline btn-sm h-9">Найти</button>
         </form>
         </MobileFilters>
-        <div className="flex rounded-xl border border-line bg-white p-0.5 text-sm">
-          <Link href={params({ view: undefined })} className={cn("rounded-lg px-3 py-1", view === "board" ? "bg-ink text-white" : "text-ink-soft")}>
+        <div className="flex shrink-0 rounded-xl border border-line bg-white p-0.5 text-sm max-lg:w-full max-lg:[&>*]:flex-1 max-lg:[&>*]:text-center">
+          <Link href={params({ view: undefined })} className={cn("rounded-lg px-3 py-1 max-lg:py-2.5", view === "board" ? "bg-ink text-white" : "text-ink-soft")}>
             Воронка
           </Link>
-          <Link href={params({ view: "list" })} className={cn("rounded-lg px-3 py-1", view === "list" ? "bg-ink text-white" : "text-ink-soft")}>
+          <Link href={params({ view: "list" })} className={cn("rounded-lg px-3 py-1 max-lg:py-2.5", view === "list" ? "bg-ink text-white" : "text-ink-soft")}>
             Список
           </Link>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="m-hscroll flex flex-wrap items-center gap-2 text-sm">
         <span className="text-xs text-muted">Быстрые:</span>
         {(
           [
@@ -167,7 +167,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             ["stale", "7", "Стоят на этапе > 7 дней"],
           ] as const
         ).map(([k, v, label]) => (
-          <Link key={k + v} href={params({ [k]: sp[k] === v ? undefined : v })} className={cn("rounded-full border px-3 py-1", sp[k] === v ? "border-wine bg-rose/40 text-wine" : "border-line bg-white text-ink-soft hover:bg-cream")}>
+          <Link key={k + v} href={params({ [k]: sp[k] === v ? undefined : v })} className={cn("rounded-full border px-3 py-1 whitespace-nowrap", sp[k] === v ? "border-wine bg-rose/40 text-wine" : "border-line bg-white text-ink-soft hover:bg-cream")}>
             {label}
           </Link>
         ))}

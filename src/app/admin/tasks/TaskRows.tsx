@@ -99,16 +99,16 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
     });
 
   return (
-    <li className="py-2.5 text-sm">
+    <li className="py-3 text-sm max-lg:text-[15px]">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <input type="checkbox" className="mt-1 size-4 accent-wine" checked={t.done} disabled={ro} onChange={toggle} aria-label="Выполнено" />
+        <input type="checkbox" className="mt-0.5 size-5 accent-wine" checked={t.done} disabled={ro} onChange={toggle} aria-label="Выполнено" />
         <div className="min-w-0 flex-1 basis-64">
           <div className="flex items-start gap-1.5">
             <select
               value={t.kind}
               disabled={ro}
               onChange={(e) => save({ kind: e.target.value as TaskRow["kind"] }, { kind: e.target.value })}
-              className={cn("mt-px shrink-0 cursor-pointer appearance-none rounded px-1.5 py-0.5 text-[11px] font-medium", kindTone[t.kind])}
+              className={cn("mt-px shrink-0 cursor-pointer appearance-none rounded px-1.5 py-0.5 text-[11px] max-lg:min-h-0! font-medium", kindTone[t.kind])}
               aria-label="Тип задачи"
             >
               {Object.entries(taskKinds).map(([k, v]) => (
@@ -160,10 +160,10 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
         <div className="flex flex-wrap items-center gap-2">
           {!ro && !t.done ? (
             <>
-              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs" disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
+              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs max-lg:h-11 max-lg:px-3" disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
                 +1 ч
               </button>
-              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs" disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
+              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs max-lg:h-11 max-lg:px-3" disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
                 Завтра
               </button>
             </>
@@ -196,7 +196,7 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
               </select>
             </>
           )}
-          <Link href={`/admin/tasks/${t.id}`} className="rounded-lg p-1 text-muted hover:bg-cream hover:text-wine" aria-label="Открыть карточку задачи" title="Карточка задачи: сделка, клиент, заказ, записи">
+          <Link href={`/admin/tasks/${t.id}`} className="flex items-center justify-center rounded-lg p-1 text-muted hover:bg-cream hover:text-wine max-lg:size-11" aria-label="Открыть карточку задачи" title="Карточка задачи: сделка, клиент, заказ, записи">
             <ArrowUpRight className="size-4" />
           </Link>
           <button type="button" onClick={() => setOpen((v) => !v)} className="rounded-lg p-1 text-muted hover:bg-cream hover:text-ink" aria-label="Подробнее" aria-expanded={open}>
