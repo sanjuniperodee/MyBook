@@ -49,7 +49,7 @@ export function ElementsTab({ design, style, set, onFocus }: { design: InteriorD
         {design.dropCap?.style === "drop" ? <NumberField label={t.dropLines} value={design.dropCap.lines} min={2} max={4} step={1} slider={false} onChange={(v) => el({ dropLines: v })} onReset={r("dropLines")} resetLabel={reset} /> : null}
         <div className="flex items-center gap-4 rounded-xl bg-white p-3 ring-1 ring-line">
           <span className="text-[44px] leading-none" style={{ fontFamily: cssFont(design.dropCap?.face?.font ?? design.display.font), color: design.palette.accent }}>
-            {dropCap === "none" ? "" : "М"}
+            {dropCap === "none" ? "" : m.ui.fonts.sample.charAt(0)}
           </span>
           <Toggle label={t.leadIn} checked={design.leadIn} onChange={(v) => el({ leadIn: v })} />
         </div>

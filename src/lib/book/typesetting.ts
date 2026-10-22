@@ -239,7 +239,10 @@ export function dropCapPlan(design: InteriorDesign, sizes: InteriorSizes): DropC
   const body = fontMetrics(design.type.body);
   if (dc.style === "raised") {
     const size = S * (1.5 + 0.55 * (lines - 1));
-    return { style: "raised", lines, face, color, size, lineHeight: 1, top: 0, topHtml: 0, gap: 0, height: lineH };
+    // Строка с буквицей выше обычной ровно на выносной элемент буквы: react-pdf ставит базовую линию на ascent от верха
+    // строки, и следующая строка должна стоять на обычном интерлиньяже от неё, а не прижиматься.
+    const lineHeight = (cap.ascent * size + lineH - body.ascent * S) / size;
+    return { style: "raised", lines, face, color, size, lineHeight, top: 0, topHtml: 0, gap: 0, height: lineH };
   }
   // Верх прописной буквицы — на высоте прописных первой строки, базовая линия — на базовой линии строки lines.
   const size = ((lines - 1) * lineH + body.cap * S) / cap.cap;

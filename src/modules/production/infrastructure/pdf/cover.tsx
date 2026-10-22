@@ -1,7 +1,7 @@
 import "server-only";
 import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/renderer";
 import type { CoverGeometry } from "@/lib/book/formats";
-import { mm } from "@/lib/book/formats";
+import { mm, print } from "@/lib/book/formats";
 import { spineFontMm, spineParts } from "@/lib/book/book-model";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
 import type { BackDesign } from "@/lib/book/cover-back";
@@ -91,6 +91,7 @@ export function CoverDocument({
   const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
+  const clipX = spine ? Math.max(0, f.x - print.cover.hingeMm) : 0;
   const spineText = spineParts(text.title, text.names);
   const spineFontSize = spine ? spineFontMm(spine.w) : null;
   const spineFont = spineFontSize ? mm(spineFontSize) : 0;
@@ -103,7 +104,12 @@ export function CoverDocument({
         <Image src={{ data: background, format: "jpg" }} style={{ position: "absolute", top: 0, left: 0, width: mm(g.width), height: mm(g.height) - 0.01 }} />
 
         {/* Лицевая сторона: слои конструктора или текст шаблона */}
-        {layers ? <CoverLayersPdf design={layers.design} texts={text} front={f} images={layers.images} /> : null}
+        {layers ? (
+          // Слои лицевой стороны не заходят на корешок: слева их обрезает канавка шарнира — как край холста редактора.
+          <View fixed style={{ position: "absolute", left: mm(clipX), top: 0, width: mm(g.width - clipX), height: mm(g.height) - 0.01, overflow: "hidden" }}>
+            <CoverLayersPdf design={layers.design} texts={text} front={{ ...f, x: f.x - clipX }} images={layers.images} />
+          </View>
+        ) : null}
         {layers ? null : <View
           style={{
             position: "absolute",

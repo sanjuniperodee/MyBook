@@ -79,7 +79,7 @@ function DropInitial({ kit, initial }: { kit: PageKit; initial: string }) {
   const { u } = kit;
   const plan = dropCapPlan(kit.design, kit.sizes)!;
   const face = faceCss(plan.face, plan.size, u);
-  if (plan.style === "raised") return <span style={{ ...face, lineHeight: 1, color: plan.color }}>{initial}</span>;
+  if (plan.style === "raised") return <span style={{ ...face, lineHeight: plan.lineHeight, color: plan.color }}>{initial}</span>;
   return <span style={{ ...face, float: "left", display: "block", lineHeight: plan.lineHeight, color: plan.color, marginTop: u.pt(plan.topHtml), marginRight: u.pt(plan.gap), height: u.pt(plan.height - plan.topHtml - 0.5) }}>{initial}</span>;
 }
 

@@ -29,21 +29,26 @@ const justify = { top: "flex-start", middle: "center", bottom: "flex-end" } as c
 /** Запас по высоте блока текста, pt: больше любой обложки — текст никогда не урезается. */
 const OVERFLOW = 2000;
 
-/** Фигура interior-art → react-pdf (fill = GRADIENT_FILL — градиент слоя). */
-function shapeEl(s: Shape, i: number, gradientId?: string) {
-  if (s.kind === "circle") return <Circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={s.opacity} />;
+/**
+ * Фигура interior-art → react-pdf (fill = GRADIENT_FILL — градиент слоя). o — непрозрачность слоя: react-pdf применяет
+ * opacity узла View только к его собственной заливке, поэтому прозрачность слоя доводится до каждой фигуры.
+ */
+function shapeEl(s: Shape, i: number, gradientId?: string, o = 1) {
+  const k = (s.opacity ?? 1) * o;
+  const op = k === 1 ? undefined : k;
+  if (s.kind === "circle") return <Circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={op} />;
   if (s.kind === "rect")
-    return <Rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} fill={s.fill ?? "none"} fillOpacity={s.fill ? s.opacity : undefined} stroke={s.stroke} strokeWidth={s.width} />;
+    return <Rect key={i} x={s.x} y={s.y} width={s.w} height={s.h} fill={s.fill ?? "none"} fillOpacity={s.fill ? op : undefined} stroke={s.stroke} strokeWidth={s.width} strokeOpacity={s.stroke ? op : undefined} />;
   const fill = s.fill === GRADIENT_FILL && gradientId ? `url(#${gradientId})` : (s.fill ?? "none");
   return (
     <Path
       key={i}
       d={s.d}
       fill={fill}
-      fillOpacity={s.fill ? s.opacity : undefined}
+      fillOpacity={s.fill ? op : undefined}
       stroke={s.stroke}
       strokeWidth={s.width}
-      strokeOpacity={s.stroke ? s.opacity : undefined}
+      strokeOpacity={s.stroke ? op : undefined}
       strokeLinecap={s.round ? "round" : undefined}
       strokeLinejoin={s.round ? "round" : undefined}
       transform={s.transform}
@@ -52,7 +57,7 @@ function shapeEl(s: Shape, i: number, gradientId?: string) {
 }
 
 /** Текст слоя: копии (тень, контур) и сам текст — одинаковые блоки на всю рамку, сдвинутые на копию. */
-function TextLayerPdf({ layer, text, w, h, boardW }: { layer: TextLayer; text: string; w: number; h: number; boardW: number }) {
+function TextLayerPdf({ layer, text, w, h, boardW, o }: { layer: TextLayer; text: string; w: number; h: number; boardW: number; o: number }) {
   const s = layer.style;
   const size = mm(s.size * boardW);
   const plate = s.plate;
@@ -80,9 +85,9 @@ function TextLayerPdf({ layer, text, w, h, boardW }: { layer: TextLayer; text: s
   );
   return (
     <>
-      {plate ? <View style={{ position: "absolute", left: 0, top: 0, width: mm(w), height: mm(h), backgroundColor: plate.color, opacity: plate.opacity, borderRadius: plate.radius ? mm(plate.radius * boardW) : 0 }} /> : null}
-      {textCopies(s).map((c, i) => block(c.dx * size, c.dy * size, c.color, c.opacity, `c${i}`))}
-      {block(0, 0, s.color, 1, "t")}
+      {plate ? <View style={{ position: "absolute", left: 0, top: 0, width: mm(w), height: mm(h), backgroundColor: plate.color, opacity: plate.opacity * o, borderRadius: plate.radius ? mm(plate.radius * boardW) : 0 }} /> : null}
+      {textCopies(s).map((c, i) => block(c.dx * size, c.dy * size, c.color, c.opacity * o, `c${i}`))}
+      {block(0, 0, s.color, o, "t")}
     </>
   );
 }
@@ -99,18 +104,19 @@ function imageRadius(l: ImageLayer, w: number, h: number): Style {
   return {};
 }
 
-function ImageLayerPdf({ layer, data, w, h, boardW }: { layer: ImageLayer; data: Buffer; w: number; h: number; boardW: number }) {
+function ImageLayerPdf({ layer, data, w, h, boardW, o }: { layer: ImageLayer; data: Buffer; w: number; h: number; boardW: number; o: number }) {
   const radius = imageRadius(layer, w, h);
   const bw = layer.border && layer.border.width > 0 ? mm(layer.border.width * boardW) : 0;
   return (
     <View style={{ position: "absolute", left: 0, top: 0, width: mm(w), height: mm(h), overflow: "hidden", ...radius, ...(bw ? { borderWidth: bw, borderColor: layer.border!.color, borderStyle: "solid" } : {}) }}>
-      <Image src={{ data, format: "jpg" }} style={{ width: "100%", height: "100%", objectFit: "cover", ...radius }} />
-      {layer.overlay ? <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, backgroundColor: layer.overlay.color, opacity: layer.overlay.opacity }} /> : null}
+      {/* Размер числом: высоту «100%» react-pdf у картинки не держит — берёт по пропорциям снимка, и кадр не заполняет рамку. */}
+      <Image src={{ data, format: "jpg" }} style={{ width: mm(w) - bw * 2, height: mm(h) - bw * 2, objectFit: "cover", opacity: o, ...radius }} />
+      {layer.overlay ? <View style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, backgroundColor: layer.overlay.color, opacity: layer.overlay.opacity * o }} /> : null}
     </View>
   );
 }
 
-function ShapeLayerPdf({ layer, w, h, boardW }: { layer: Extract<CoverLayer, { kind: "shape" }>; w: number; h: number; boardW: number }) {
+function ShapeLayerPdf({ layer, w, h, boardW, o }: { layer: Extract<CoverLayer, { kind: "shape" }>; w: number; h: number; boardW: number; o: number }) {
   const id = `g${layer.id}`;
   const v = layer.gradient ? gradientVector(layer.gradient.angle) : null;
   return (
@@ -123,12 +129,12 @@ function ShapeLayerPdf({ layer, w, h, boardW }: { layer: Extract<CoverLayer, { k
           </LinearGradient>
         </Defs>
       ) : null}
-      {shapeElements(layer, w, h, boardW).map((s, i) => shapeEl(s, i, id))}
+      {shapeElements(layer, w, h, boardW).map((s, i) => shapeEl(s, i, id, o))}
     </Svg>
   );
 }
 
-function DecorLayerPdf({ layer, w, h }: { layer: Extract<CoverLayer, { kind: "decor" }>; w: number; h: number }) {
+function DecorLayerPdf({ layer, w, h, o }: { layer: Extract<CoverLayer, { kind: "decor" }>; w: number; h: number; o: number }) {
   const d = decorDrawing(layer.motif, layer.color);
   // Вписать с сохранением пропорций, по центру рамки (как preserveAspectRatio="xMidYMid meet" в HTML).
   const k = Math.min(w / d.w, h / d.h);
@@ -136,7 +142,7 @@ function DecorLayerPdf({ layer, w, h }: { layer: Extract<CoverLayer, { kind: "de
   const dh = d.h * k;
   return (
     <Svg viewBox={`0 0 ${d.w} ${d.h}`} style={{ position: "absolute", left: mm((w - dw) / 2), top: mm((h - dh) / 2), width: mm(dw), height: mm(dh) }}>
-      {d.shapes.map((s, i) => shapeEl(s, i))}
+      {d.shapes.map((s, i) => shapeEl(s, i, undefined, o))}
     </Svg>
   );
 }
@@ -151,23 +157,26 @@ export function CoverLayersPdf({ design, texts, front, images }: { design: Cover
       {printedLayers(design, texts).map((l) => {
         const r = layerRect(l, front);
         let body: React.ReactNode = null;
-        if (l.kind === "text") body = <TextLayerPdf layer={l} text={layerText(l, texts)} w={r.w} h={r.h} boardW={front.w} />;
+        const o = l.opacity ?? 1;
+        if (l.kind === "text") body = <TextLayerPdf layer={l} text={layerText(l, texts)} w={r.w} h={r.h} boardW={front.w} o={o} />;
         else if (l.kind === "image") {
           const data = images.get(l.id);
           if (!data) return null;
-          body = <ImageLayerPdf layer={l} data={data} w={r.w} h={r.h} boardW={front.w} />;
-        } else if (l.kind === "shape") body = <ShapeLayerPdf layer={l} w={r.w} h={r.h} boardW={front.w} />;
-        else body = <DecorLayerPdf layer={l} w={r.w} h={r.h} />;
+          body = <ImageLayerPdf layer={l} data={data} w={r.w} h={r.h} boardW={front.w} o={o} />;
+        } else if (l.kind === "shape") body = <ShapeLayerPdf layer={l} w={r.w} h={r.h} boardW={front.w} o={o} />;
+        else body = <DecorLayerPdf layer={l} w={r.w} h={r.h} o={o} />;
         return (
           <View
             key={l.id}
+            // fixed — слой у края развёртки (в загибе) не участвует в разбиении на страницы: иначе react-pdf
+            // переносит его на новую страницу.
+            fixed
             style={{
               position: "absolute",
               left: mm(r.x),
               top: mm(r.y),
               width: mm(r.w),
               height: mm(r.h),
-              opacity: l.opacity ?? 1,
               ...(l.rotate ? { transform: `rotate(${l.rotate}deg)`, transformOrigin: "50% 50%" } : {}),
             }}
           >

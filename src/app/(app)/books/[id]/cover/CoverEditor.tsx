@@ -2,7 +2,7 @@
 
 import { Link, useLocale, useMessages } from "@/i18n/client";
 import { useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ImagePlus, Layers, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { backPreviewLayout, CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { FrameControls, FrameLayer, type FrameSlot } from "@/components/cover/FrameEditor";
@@ -23,6 +23,10 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
+import { designFromTemplate, type CoverDesign, type TextBind } from "@/lib/book/cover-design";
+import { coverMeta } from "@/lib/book/covers/meta";
+import { CoverDesigner } from "@/components/cover/designer/CoverDesigner";
+import { CoverLayoutPicker } from "@/components/cover/CoverLayoutPicker";
 
 interface CoverState {
   coverTemplate: string;
@@ -47,6 +51,8 @@ interface CoverState {
   interior: string;
   /** Кадры фото на обложке (масштаб и положение) по местам: «cover:0», «back:1». */
   photoFrames: FrameMap;
+  /** Обложка из конструктора (слои поверх шаблона); null — обложка шаблона. */
+  coverDesign: CoverDesign | null;
 }
 
 export function CoverEditor({
@@ -180,7 +186,8 @@ export function CoverEditor({
     const key = frameKey("back", b.slot);
     return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
   });
-  const frameSlots = side === "back" ? backSlots : frontSlots;
+  // Обложка из конструктора: кадр фото в местах шаблона правится в самом конструкторе — здесь только оборот.
+  const frameSlots = side === "back" ? backSlots : state.coverDesign ? [] : frontSlots;
   const frameSelected = frameSlots.some((s) => s.key === frameSel) ? frameSel : (frameSlots[0]?.key ?? null);
   const bigPreview = useRef<HTMLDivElement>(null);
   const scrolled = useScrolledPast(bigPreview);
@@ -202,6 +209,7 @@ export function CoverEditor({
         lite={lite}
         titlePlaceholder={t.bookTitle}
         photoHint={t.uploadFirst}
+        design={state.coverDesign}
       />
     );
   const sideToggle = (className?: string) => (
@@ -221,7 +229,31 @@ export function CoverEditor({
     </div>
   );
 
-  return (
+  // ─── конструктор ──────────────────────────────────────────────────────────
+  const d = m.design.cover;
+  const [view, setView] = useState<"template" | "designer">(initial.coverDesign ? "designer" : "template");
+  /** Новый ключ — конструктор начинается заново (после сброса или новой обложки из шаблона). */
+  const [designerKey, setDesignerKey] = useState(0);
+  const designTexts = { title: state.title, subtitle: state.subtitle, names };
+  /** Правка привязанной надписи на обложке — это правка поля книги. */
+  const setBookText = (bind: TextBind, value: string) => update(bind === "names" ? { namesOnCover: value } : bind === "title" ? { title: value.slice(0, 80) } : { subtitle: value.slice(0, 80) });
+  /** В конструктор: обложки из слоёв ещё нет — она собирается из текущего шаблона, на тех же местах. */
+  const openDesigner = () => {
+    if (!state.coverDesign) {
+      if (!editable) return;
+      update({ coverDesign: designFromTemplate(coverMeta(template), { title: state.title, subtitle: state.subtitle, names }, getFormat(format)) });
+      setDesignerKey((k) => k + 1);
+    }
+    setView("designer");
+  };
+  const resetDesign = () => {
+    if (!window.confirm(d.active.confirmReset)) return;
+    update({ coverDesign: null });
+    setDesignerKey((k) => k + 1);
+    setView("template");
+  };
+
+  const templateView = (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
       <PreviewDock show={scrolled}>
         <div className="shrink-0" style={{ width: 68 }}>{renderSide("rounded-[3px] shadow-soft", "mini", true)}</div>
@@ -249,6 +281,35 @@ export function CoverEditor({
       </div>
 
       <div className="space-y-8">
+        {state.coverDesign ? (
+          <section className="flex flex-col gap-3 rounded-2xl border border-wine/20 bg-rose/40 p-5 sm:flex-row sm:items-center">
+            <Layers className="size-6 shrink-0 text-wine" />
+            <p className="min-w-0 flex-1 text-sm text-ink-soft">{d.active.text}</p>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button type="button" className="btn btn-primary btn-sm" onClick={openDesigner}>
+                {d.active.open}
+              </button>
+              {editable ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={resetDesign}>
+                  {d.active.reset}
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : editable ? (
+          <section className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose text-wine">
+              <Layers className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">{d.cta.title}</div>
+              <p className="mt-0.5 text-sm text-muted">{d.cta.text}</p>
+            </div>
+            <button type="button" className="btn btn-dark btn-sm shrink-0" onClick={openDesigner}>
+              {d.cta.open}
+            </button>
+          </section>
+        ) : null}
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{t.design}</h2>
@@ -386,6 +447,54 @@ export function CoverEditor({
           onFocusBack={() => setSide("back")}
         />
       </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label={d.tabs.aria} className="inline-flex rounded-2xl bg-cream/80 p-1">
+          {(["template", "designer"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => (v === "designer" ? openDesigner() : setView("template"))}
+              disabled={v === "designer" && !editable && !state.coverDesign}
+              className={cn("inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm transition", view === v ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+            >
+              {v === "designer" ? <Layers className="size-4" /> : null}
+              {d.tabs[v]}
+            </button>
+          ))}
+        </div>
+        {view === "designer" && state.coverDesign && editable ? (
+          <button type="button" className="text-sm text-muted hover:text-wine hover:underline" onClick={resetDesign}>
+            {d.active.reset}
+          </button>
+        ) : null}
+      </div>
+      {view === "designer" && state.coverDesign ? (
+        <CoverDesigner
+          key={designerKey}
+          bookId={bookId}
+          template={state.coverTemplate}
+          format={format}
+          initial={state.coverDesign}
+          texts={designTexts}
+          templatePhotos={coverPhotos}
+          bookPhotos={photos}
+          editable={editable}
+          onChange={(coverDesign) => update({ coverDesign })}
+          onBookText={setBookText}
+          onTemplate={(coverTemplate) => update({ coverTemplate })}
+          layouts={(onPick) => <CoverLayoutPicker format={format} texts={designTexts} photos={photos} currentTemplate={state.coverTemplate} onPick={onPick} />}
+          status={<SaveIndicator status={status} error={error} className="text-xs" />}
+        />
+      ) : (
+        templateView
+      )}
     </div>
   );
 }

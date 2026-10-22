@@ -4,6 +4,9 @@
  * снимки коллекции (stock.ts), их клиент заменяет своими.
  */
 import type { BookFormat } from "../formats";
+import { baseLayouts } from "./layout-library/base";
+import { variantLayouts } from "./layout-library/variants";
+import { parseCoverDesign } from "./parse";
 import type { CoverDesign, CoverTexts } from "./types";
 
 export type LayoutGenre = "romance" | "family" | "kids" | "biography" | "gift" | "photo" | "fiction" | "premium" | "minimal" | "bigphoto" | "collage" | "art";
@@ -23,4 +26,8 @@ export interface CoverLayout {
   build: (ctx: LayoutContext) => CoverDesign;
 }
 
-export const coverLayouts: CoverLayout[] = [];
+/** Макеты как написаны — для проверки, что разбор их не меняет (кроме округления). */
+export const rawLayouts: CoverLayout[] = [...baseLayouts, ...variantLayouts];
+
+/** Макеты: результат — через разбор, числа округлены так же, как при сохранении (редактор и база совпадают). */
+export const coverLayouts: CoverLayout[] = rawLayouts.map((l) => ({ ...l, build: (ctx) => parseCoverDesign(l.build(ctx))! }));

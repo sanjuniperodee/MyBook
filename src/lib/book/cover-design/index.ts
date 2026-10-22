@@ -9,4 +9,4 @@ export { templateForDesign } from "./template";
 export { DECOR_IDS, decorDrawing } from "./decor";
 export { isStockPhoto, stockGroups, stockPhotos, type StockGroup } from "./stock";
 export { designFromTemplate } from "./from-template";
-export { coverLayouts, type CoverLayout, type LayoutContext, type LayoutGenre } from "./layouts";
+export { coverLayouts, rawLayouts, type CoverLayout, type LayoutContext, type LayoutGenre } from "./layouts";
