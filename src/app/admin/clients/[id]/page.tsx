@@ -47,7 +47,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
       </Link>
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Профиль */}
-        <aside className="space-y-4">
+        <aside className="space-y-4 max-lg:order-2">
           <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} noMarketing={noMarketing} />
           {clientFields.length ? (
             <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">

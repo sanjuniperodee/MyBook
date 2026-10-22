@@ -16,8 +16,8 @@ export default async function AdminTeam() {
   return (
     <div className="space-y-6">
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[860px] text-sm">
-          <thead className="border-b border-line text-left text-muted">
+        <table className="w-full text-sm max-lg:block lg:min-w-[860px]">
+          <thead className="border-b border-line text-left text-muted max-lg:hidden">
             <tr>
               <th className="px-4 py-3 font-medium">Сотрудник</th>
               <th className="px-4 py-3 font-medium">Роль</th>
@@ -28,7 +28,7 @@ export default async function AdminTeam() {
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody className="divide-y divide-line max-lg:block">
             {members.map(({ user: u, openDeals, calls7d }) => (
               <StaffRow
                 key={u.id}

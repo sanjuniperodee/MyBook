@@ -20,22 +20,22 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href={`/admin/team/plans?m=${shiftMonth(month, -1)}`} className="btn btn-ghost btn-sm">
+        <Link href={`/admin/team/plans?m=${shiftMonth(month, -1)}`} className="btn btn-ghost btn-sm" aria-label="Прошлый месяц">
           ←
         </Link>
         <h2 className="text-lg font-semibold capitalize">{monthName(month)}</h2>
-        <Link href={`/admin/team/plans?m=${shiftMonth(month, 1)}`} className="btn btn-ghost btn-sm">
+        <Link href={`/admin/team/plans?m=${shiftMonth(month, 1)}`} className="btn btn-ghost btn-sm" aria-label="Следующий месяц">
           →
         </Link>
-        <span className="ml-auto text-sm text-muted">
+        <span className="text-sm text-muted lg:ml-auto max-lg:w-full">
           Команда: {formatPrice(total.fact)} из {formatPrice(total.plan)}
           {total.plan ? ` · ${Math.round((total.fact / total.plan) * 100)}%` : ""}
         </span>
       </div>
       <p className="text-sm text-muted">Факт — сумма успешных сделок сотрудника, закрытых в этом месяце, и деньги, принятые по его ручным сделкам (предоплата засчитывается с первого платежа). Прогресс виден сотруднику в «Моём дне» и руководителю в аналитике.</p>
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[760px] text-sm" data-testid="plans">
-          <thead className="border-b border-line text-left text-muted">
+        <table className="w-full text-sm max-lg:block lg:min-w-[760px]" data-testid="plans">
+          <thead className="border-b border-line text-left text-muted max-lg:hidden">
             <tr>
               <th className="px-4 py-3 font-medium">Сотрудник</th>
               <th className="px-4 py-3 font-medium">План, ₸</th>
@@ -44,7 +44,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
               <th className="px-4 py-3 font-medium">Выполнение</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody className="divide-y divide-line max-lg:block">
             {staff.map((s) => {
               const p = progress.get(s.id);
               return (

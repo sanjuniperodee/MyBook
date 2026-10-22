@@ -17,7 +17,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   const creating = want === "new";
   const current = creating ? null : (roles.find((r) => r.role.id === want) ?? roles.find((r) => r.role.id === staff.user.crmRoleId) ?? roles[0]);
   const item = (href: string, active: boolean, children: React.ReactNode) => (
-    <Link href={href} aria-current={active ? "page" : undefined} className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors", active ? "bg-rose/40 font-medium text-wine" : "text-ink-soft hover:bg-cream/70")}>
+    <Link href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors max-lg:border max-lg:border-line max-lg:bg-white lg:min-h-0", active ? "bg-rose/40 font-medium text-wine" : "text-ink-soft hover:bg-cream/70")}>
       {children}
     </Link>
   );
@@ -27,8 +27,8 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
         Роль — это набор прав и видимость. «Только свои» — сотрудник видит сделки, чаты и клиентов, где он ответственный, плюс неразобранные. Руководитель всегда видит всё. Права проверяются на сервере: скрытая
         кнопка — не единственная защита.
       </Intro>
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">
-        <nav aria-label="Роли" className="space-y-0.5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <nav aria-label="Роли" className="m-hscroll flex gap-1.5 lg:block lg:space-y-0.5">
           {roles.map(({ role, members }) =>
             item(
               `/admin/team/roles?role=${role.id}`,

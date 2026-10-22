@@ -11,14 +11,14 @@ export function PlanRow({ month, userId, name, planAmount, planDeals, fact, perc
   const [pending, start] = useTransition();
   const dirty = amount !== String(planAmount || "") || deals !== String(planDeals || "");
   return (
-    <tr>
-      <td className="px-4 py-2.5 font-medium">{name}</td>
-      <td className="px-4 py-2.5">
-        <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-9 w-36 text-sm" placeholder="0" aria-label={`План в тенге: ${name}`} />
+    <tr className="max-lg:block max-lg:space-y-2 max-lg:p-4">
+      <td className="px-4 py-2.5 font-medium max-lg:block max-lg:p-0 max-lg:text-base">{name}</td>
+      <td className="px-4 py-2.5 max-lg:block max-lg:p-0">
+        <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-9 w-36 text-sm max-lg:w-full" placeholder="0" aria-label={`План в тенге: ${name}`} />
       </td>
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5 max-lg:block max-lg:p-0">
         <div className="flex items-center gap-2">
-          <input value={deals} onChange={(e) => setDeals(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-9 w-20 text-sm" placeholder="0" aria-label={`План сделок: ${name}`} />
+          <input value={deals} onChange={(e) => setDeals(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-9 w-20 text-sm max-lg:flex-1" placeholder="0" aria-label={`План сделок: ${name}`} />
           {dirty ? (
             <button
               className="btn btn-sm h-9"
@@ -39,13 +39,13 @@ export function PlanRow({ month, userId, name, planAmount, planDeals, fact, perc
           ) : null}
         </div>
       </td>
-      <td className="px-4 py-2.5 tabular-nums">{fact}</td>
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5 tabular-nums max-lg:block max-lg:p-0 max-lg:text-muted">{fact}</td>
+      <td className="px-4 py-2.5 max-lg:block max-lg:p-0">
         {percent === null ? (
           <span className="text-muted">план не задан</span>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="h-2 w-32 overflow-hidden rounded-full bg-cream">
+            <div className="h-2 w-32 max-lg:flex-1 overflow-hidden rounded-full bg-cream">
               <div className={cn("h-full rounded-full", percent >= 100 ? "bg-emerald-600" : "bg-wine")} style={{ width: `${Math.min(100, percent)}%` }} />
             </div>
             <span className="tabular-nums">{percent}%</span>

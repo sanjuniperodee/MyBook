@@ -138,7 +138,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
       <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="space-y-4">
+        <aside className="space-y-4 max-lg:order-2">
           <section className="space-y-4 rounded-2xl border border-line bg-white p-4 sm:p-5">
             <DealFields
               deal={{
