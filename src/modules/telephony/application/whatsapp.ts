@@ -75,10 +75,10 @@ export class WhatsappCallsService {
     return this.gateway.enabled();
   }
 
-  /** Идущий звонок по id звонка WhatsApp — для пропуска к аудиопотоку; завершённый — null. */
+  /** Идущий звонок по id звонка WhatsApp — для пропуска к аудиопотоку и прослушке; завершённый — null. */
   async liveCall(callId: string) {
     const call = await this.repo.findByExternal(WHATSAPP, callId);
-    return call && !call.isFinished ? { id: call.id, staffId: call.staffId } : null;
+    return call && !call.isFinished ? { id: call.id, staffId: call.staffId, answered: !!call.answeredAt, clientPhone: call.clientPhone } : null;
   }
 
   /** Входящий звонок из вебхука шлюза: звонит в CRM, пока кто-то не ответит или звонящий не положит трубку. */

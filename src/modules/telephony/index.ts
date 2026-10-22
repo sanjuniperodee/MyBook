@@ -7,7 +7,7 @@ import { localCallRecordings } from "./infrastructure/recordings";
 
 export { TelephonyError, type CallEvent } from "./domain";
 export type { SalesGateway as TelephonySalesGateway, CallSideEffects, WhatsappCallGateway } from "./application";
-export { WHATSAPP, WHATSAPP_HEARTBEAT_MS } from "./application";
+export { WHATSAPP, WHATSAPP_HEARTBEAT_MS, WHATSAPP_SILENT_MS } from "./application";
 
 /** Публичный фасад контекста «Телефония»: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. */
 export class TelephonyModule {

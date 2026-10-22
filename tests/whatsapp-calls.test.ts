@@ -237,7 +237,9 @@ describe("WhatsappCallsService: зависшие звонки (планиров�
   it("пропуск к аудиопотоку: идущий звонок и его сотрудник; завершённый — нет", async () => {
     const { service } = setup();
     const { id } = await service.dial({ staffId: "m1", phone: "77011234567" });
-    expect(await service.liveCall("WA1")).toEqual({ id, staffId: "m1" });
+    expect(await service.liveCall("WA1")).toEqual({ id, staffId: "m1", answered: false, clientPhone: "77011234567" });
+    await service.connected(id, "m1");
+    expect((await service.liveCall("WA1"))?.answered).toBe(true);
     await service.hangup(id, "m1");
     expect(await service.liveCall("WA1")).toBeNull();
     expect(await service.liveCall("NOPE")).toBeNull();

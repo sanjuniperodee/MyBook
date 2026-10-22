@@ -1,0 +1,48 @@
+diff --git a/src/infrastructure/whatsapp/caller.go b/src/infrastructure/whatsapp/caller.go
+index ed5498e..b6b8799 100644
+--- a/src/infrastructure/whatsapp/caller.go
++++ b/src/infrastructure/whatsapp/caller.go
+@@ -12,6 +12,7 @@ import (
+ 
+ 	"github.com/aldinokemal/go-whatsapp-web-multidevice/config"
+ 	"github.com/purpshell/meowcaller"
++	"github.com/purpshell/meowcaller/diag"
+ 	"github.com/rs/zerolog"
+ 	"github.com/sirupsen/logrus"
+ 	"go.mau.fi/whatsmeow"
+@@ -70,7 +71,17 @@ func NewCaller(deviceID string, wa *whatsmeow.Client) (*Caller, error) {
+ 	}
+ 	// Constructing the meowcaller client installs the raw call handlers; it must
+ 	// happen before Connect or the receive loop misses the first stanzas.
+-	mc := meowcaller.NewClient(wa, meowcaller.WithLogger(callerLogger()))
++	opts := []meowcaller.Option{meowcaller.WithLogger(callerLogger())}
++	// WHATSAPP_CALL_DIAG_DIR: meowcaller's developer recorder (per-stream JSONL with
++	// relay, SRTP and key material) — for debugging a broken call path only.
++	if dir := strings.TrimSpace(os.Getenv("WHATSAPP_CALL_DIAG_DIR")); dir != "" {
++		if rec, err := diag.NewRecorder(dir); err == nil {
++			opts = append(opts, meowcaller.WithDiagnostics(rec))
++		} else {
++			logrus.WithError(err).Warn("[CALL] diagnostics recorder unavailable")
++		}
++	}
++	mc := meowcaller.NewClient(wa, opts...)
+ 	c := &Caller{
+ 		deviceID: deviceID,
+ 		client:   mc,
+@@ -138,9 +149,14 @@ func CallerForInstance(inst *DeviceInstance) *Caller {
+ }
+ 
+ // callerLogger adapts logrus to the zerolog logger meowcaller expects. Only
+-// warnings and above are surfaced so call media logs do not flood the server.
++// warnings and above are surfaced so call media logs do not flood the server;
++// WHATSAPP_CALL_LOG_LEVEL (debug, info, …) opens up the call stack for diagnosis.
+ func callerLogger() zerolog.Logger {
+-	return zerolog.New(callerLogWriter{}).Level(zerolog.WarnLevel).With().Timestamp().Logger()
++	level := zerolog.WarnLevel
++	if parsed, err := zerolog.ParseLevel(strings.TrimSpace(os.Getenv("WHATSAPP_CALL_LOG_LEVEL"))); err == nil && parsed != zerolog.NoLevel {
++		level = parsed
++	}
++	return zerolog.New(callerLogWriter{}).Level(level).With().Timestamp().Logger()
+ }
+ 
+ type callerLogWriter struct{}

@@ -1,0 +1,212 @@
+diff --git a/src/ui/rest/call.go b/src/ui/rest/call.go
+index 05d0cd5..8cdef49 100644
+--- a/src/ui/rest/call.go
++++ b/src/ui/rest/call.go
+@@ -42,6 +42,14 @@ func InitRestCall(app fiber.Router, service domainCall.ICallUsecase) Call {
+ 			return c.SendStatus(fiber.StatusUpgradeRequired)
+ 		})
+ 		app.Get("/call/audio", websocket.New(rest.AudioStream))
++		// Listen-only copy of a live call for a supervisor (see call_listen.go).
++		app.Use("/call/listen", func(c fiber.Ctx) error {
++			if websocket.IsWebSocketUpgrade(c) {
++				return c.Next()
++			}
++			return c.SendStatus(fiber.StatusUpgradeRequired)
++		})
++		app.Get("/call/listen", websocket.New(rest.ListenStream))
+ 	}
+ 	return rest
+ }
+diff --git a/src/ui/rest/call_audio.go b/src/ui/rest/call_audio.go
+index 8c511ec..50ef6ad 100644
+--- a/src/ui/rest/call_audio.go
++++ b/src/ui/rest/call_audio.go
+@@ -78,11 +78,13 @@ func (controller *Call) AudioStream(conn *websocket.Conn) {
+ 	mic := make(chan []byte, 32)
+ 	defer close(mic)
+ 
++	callID := conn.Query("call_id")
+ 	onPeerAudio := func(frame []float32) {
+-		_ = stream.Write(websocket.BinaryMessage, pcmToS16LE(frame))
++		pcm := pcmToS16LE(frame)
++		_ = stream.Write(websocket.BinaryMessage, pcm)
++		listeners.publish(callID, listenChannelPeer, pcm)
+ 	}
+ 
+-	callID := conn.Query("call_id")
+ 	if err := controller.Service.AttachAudio(ctx, callID, mic, onPeerAudio); err != nil {
+ 		_ = stream.Write(websocket.TextMessage, []byte(err.Error()))
+ 		return
+@@ -100,6 +102,7 @@ func (controller *Call) AudioStream(conn *websocket.Conn) {
+ 		if messageType != websocket.BinaryMessage {
+ 			continue
+ 		}
++		listeners.publish(callID, listenChannelAgent, payload)
+ 		select {
+ 		case mic <- payload:
+ 		default:
+diff --git a/src/ui/rest/call_listen.go b/src/ui/rest/call_listen.go
+new file mode 100644
+index 0000000..8beb6ef
+--- /dev/null
++++ b/src/ui/rest/call_listen.go
+@@ -0,0 +1,123 @@
++package rest
++
++import (
++	"context"
++	"sync"
++
++	"github.com/aldinokemal/go-whatsapp-web-multidevice/infrastructure/whatsapp"
++	"github.com/gofiber/contrib/v3/websocket"
++)
++
++// Listen-only taps of a live call ("supervisor listen"): every listener gets a copy
++// of both directions — what the agent's browser sends to the peer and what the
++// peer sends back — without touching the call's player or sink. Attaching a second
++// AudioStream instead would take the call over, so listeners never do.
++//
++// Binary frames carry a one-byte channel tag followed by s16le 16 kHz mono PCM:
++// listenChannelAgent (the agent's microphone) or listenChannelPeer (the remote
++// party). A text frame "call ended" and a close mark the end of the call.
++const (
++	listenChannelAgent byte = 0
++	listenChannelPeer  byte = 1
++)
++
++// listener is one supervisor tap. Frames go through a bounded queue drained by its
++// own writer, so a slow listener drops audio instead of stalling the live call's
++// media goroutine (publish runs inside the peer-audio sink and the mic read loop).
++type listener struct {
++	stream *audioStreamConn
++	frames chan []byte
++}
++
++type callListeners struct {
++	mu sync.Mutex
++	m  map[string]map[*listener]struct{}
++}
++
++var listeners = &callListeners{m: map[string]map[*listener]struct{}{}}
++
++func (l *callListeners) add(callID string, s *listener) {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	if l.m[callID] == nil {
++		l.m[callID] = map[*listener]struct{}{}
++	}
++	l.m[callID][s] = struct{}{}
++}
++
++func (l *callListeners) remove(callID string, s *listener) {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	delete(l.m[callID], s)
++	if len(l.m[callID]) == 0 {
++		delete(l.m, callID)
++	}
++}
++
++// publish queues one tagged frame for every listener of the call; never blocks.
++func (l *callListeners) publish(callID string, channel byte, pcm []byte) {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	if len(l.m[callID]) == 0 {
++		return
++	}
++	frame := make([]byte, 1+len(pcm))
++	frame[0] = channel
++	copy(frame[1:], pcm)
++	for s := range l.m[callID] {
++		select {
++		case s.frames <- frame:
++		default:
++			// Listener is behind: drop rather than delay the call.
++		}
++	}
++}
++
++// ListenStream is the listen-only websocket of a live call: GET /call/listen?call_id=.
++// Incoming frames from the listener are ignored — it can never speak into the call.
++func (controller *Call) ListenStream(conn *websocket.Conn) {
++	stream := &audioStreamConn{conn: conn}
++	defer stream.Finish()
++
++	callID := conn.Query("call_id")
++	ctx := whatsapp.ContextWithDevice(context.Background(), deviceFromConn(conn))
++	ended := make(chan struct{})
++	var once sync.Once
++	if err := controller.Service.WatchCallEnd(ctx, callID, func() {
++		once.Do(func() { close(ended) })
++	}); err != nil {
++		_ = stream.Write(websocket.TextMessage, []byte(err.Error()))
++		return
++	}
++	select {
++	case <-ended:
++		_ = stream.Write(websocket.TextMessage, []byte("call ended"))
++		return
++	default:
++	}
++	tap := &listener{stream: stream, frames: make(chan []byte, 64)}
++	listeners.add(callID, tap)
++	defer listeners.remove(callID, tap)
++
++	go func() {
++		for {
++			select {
++			case frame := <-tap.frames:
++				if err := stream.Write(websocket.BinaryMessage, frame); err != nil {
++					stream.Close()
++					return
++				}
++			case <-ended:
++				_ = stream.Write(websocket.TextMessage, []byte("call ended"))
++				stream.Close()
++				return
++			}
++		}
++	}()
++	for {
++		if _, _, err := conn.ReadMessage(); err != nil {
++			once.Do(func() { close(ended) })
++			return
++		}
++	}
++}
+diff --git a/src/ui/rest/call_listen_test.go b/src/ui/rest/call_listen_test.go
+new file mode 100644
+index 0000000..2588ede
+--- /dev/null
++++ b/src/ui/rest/call_listen_test.go
+@@ -0,0 +1,30 @@
++package rest
++
++import (
++	"testing"
++
++	"github.com/stretchr/testify/require"
++)
++
++func TestListenersPublishTagsAndNeverBlocks(t *testing.T) {
++	l := &callListeners{m: map[string]map[*listener]struct{}{}}
++	tap := &listener{frames: make(chan []byte, 2)}
++	other := &listener{frames: make(chan []byte, 2)}
++	l.add("CALL", tap)
++	l.add("OTHER", other)
++
++	l.publish("CALL", listenChannelPeer, []byte{1, 2})
++	l.publish("CALL", listenChannelAgent, []byte{3, 4})
++	// Queue full: the third frame is dropped instead of blocking the call.
++	l.publish("CALL", listenChannelPeer, []byte{5, 6})
++
++	require.Equal(t, []byte{listenChannelPeer, 1, 2}, <-tap.frames)
++	require.Equal(t, []byte{listenChannelAgent, 3, 4}, <-tap.frames)
++	require.Len(t, tap.frames, 0)
++	require.Len(t, other.frames, 0, "frames stay within their call")
++
++	l.remove("CALL", tap)
++	l.publish("CALL", listenChannelPeer, []byte{7})
++	require.Len(t, tap.frames, 0)
++	require.NotContains(t, l.m, "CALL")
++}

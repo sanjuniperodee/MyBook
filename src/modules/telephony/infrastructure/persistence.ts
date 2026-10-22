@@ -140,6 +140,37 @@ export const crmCallTimeline: CallTimeline = {
 
 /** Read-модель звонков. */
 export class DrizzleCallQueries {
+  /**
+   * Идущие сейчас разговоры WhatsApp (ответили, не завершены, вкладка сотрудника на связи) — для прослушки руководителем.
+   * Имя — клиента CRM или контакта сделки.
+   */
+  async liveWhatsapp(now: Date, silentMs: number) {
+    return executor()
+      .select({
+        id: crmCalls.id,
+        externalId: crmCalls.externalId,
+        direction: crmCalls.direction,
+        clientPhone: crmCalls.clientPhone,
+        clientId: crmCalls.clientId,
+        dealId: crmCalls.dealId,
+        staffId: crmCalls.staffId,
+        answeredAt: crmCalls.answeredAt,
+        clientName: users.name,
+      })
+      .from(crmCalls)
+      .leftJoin(users, eq(users.id, crmCalls.clientId))
+      .where(
+        and(
+          eq(crmCalls.provider, WHATSAPP),
+          isNull(crmCalls.endedAt),
+          isNotNull(crmCalls.answeredAt),
+          gte(sql`coalesce(${crmCalls.heartbeatAt}, ${crmCalls.answeredAt})`, new Date(now.getTime() - silentMs)),
+        ),
+      )
+      .orderBy(crmCalls.answeredAt)
+      .limit(20);
+  }
+
   async byId(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [r] = await executor().select().from(crmCalls).where(eq(crmCalls.id, id)).limit(1);

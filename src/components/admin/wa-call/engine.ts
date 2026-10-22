@@ -238,3 +238,120 @@ export class CallAudio {
     for (const f of frames) if (ws.bufferedAmount < MAX_BUFFERED) ws.send(f);
   }
 }
+
+export type ListenEvent =
+  | { type: "ended" }
+  | { type: "lost" }
+  | { type: "reconnecting" }
+  | { type: "connected" }
+  /** Громкость сторон (0…1) — кто сейчас говорит, несколько раз в секунду. */
+  | { type: "level"; agent: number; peer: number };
+
+/** Каналы прослушки шлюза: первый байт кадра — чей голос (deploy/gowa-beta/gowa-02-call-listen.patch). */
+const LISTEN_AGENT = 0;
+const LISTEN_PEER = 1;
+
+/** Адрес прослушки звонка на сайте: nginx пускает к шлюзу после проверки прав (deploy/nginx-wa-call.conf). */
+export const listenUrl = (callId: string, loc: Pick<Location, "protocol" | "host"> = window.location) => `${loc.protocol === "https:" ? "wss" : "ws"}://${loc.host}/wa-call/listen?call_id=${encodeURIComponent(callId)}`;
+
+/**
+ * Прослушка чужого звонка WhatsApp руководителем: только приём — голос сотрудника и голос клиента приходят из шлюза
+ * отдельными дорожками и играют вместе; микрофон не нужен и в звонок ничего не уходит. Открывать из обработчика нажатия
+ * (AudioContext до первого await).
+ */
+export class ListenAudio {
+  private socket: WebSocket | null = null;
+  private callId = "";
+  private closed = false;
+  private ended = false;
+  private retries = 0;
+  private lastLevel = 0;
+  private levels = [0, 0];
+  private listener: (e: ListenEvent) => void = () => {};
+  private readonly decoders: PeerDecoder[];
+
+  private constructor(
+    private readonly ctx: AudioContext,
+    private readonly nodes: AudioWorkletNode[],
+  ) {
+    this.decoders = nodes.map(() => new PeerDecoder(ctx.sampleRate));
+  }
+
+  static open(): Promise<ListenAudio> {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx || typeof AudioWorkletNode === "undefined") return Promise.reject(new CallAudioError("Этот браузер не умеет прослушку — откройте CRM в свежем Chrome, Safari или Edge"));
+    const ctx = new Ctx({ latencyHint: "interactive" });
+    void ctx.resume();
+    return (async () => {
+      try {
+        await ctx.audioWorklet.addModule("/wa-call-worklet.js");
+        const nodes = [LISTEN_AGENT, LISTEN_PEER].map(() => {
+          const node = new AudioWorkletNode(ctx, "wa-call", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+          node.connect(ctx.destination);
+          return node;
+        });
+        if (ctx.state !== "running") await ctx.resume().catch(() => {});
+        return new ListenAudio(ctx, nodes);
+      } catch {
+        void ctx.close();
+        throw new CallAudioError("Не удалось включить звук прослушки");
+      }
+    })();
+  }
+
+  connect(callId: string, listener: (e: ListenEvent) => void) {
+    this.callId = callId;
+    this.listener = listener;
+    this.dial();
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    const s = this.socket;
+    this.socket = null;
+    s?.close();
+    this.nodes.forEach((n) => n.disconnect());
+    void this.ctx.close().catch(() => {});
+  }
+
+  private dial() {
+    if (this.closed || this.ended) return;
+    const ws = new WebSocket(listenUrl(this.callId));
+    ws.binaryType = "arraybuffer";
+    this.socket = ws;
+    ws.onopen = () => {
+      if (this.retries) this.listener({ type: "connected" });
+      this.retries = 0;
+    };
+    ws.onmessage = (e) => {
+      if (typeof e.data === "string") {
+        this.ended = true;
+        this.listener({ type: "ended" });
+        return;
+      }
+      const buf = e.data as ArrayBuffer;
+      const side = new Uint8Array(buf, 0, 1)[0];
+      if (side !== LISTEN_AGENT && side !== LISTEN_PEER) return;
+      const samples = this.decoders[side].push(buf.slice(1));
+      if (!samples.length) return;
+      this.levels[side] = Math.max(this.levels[side], level(samples));
+      this.nodes[side].port.postMessage(samples, [samples.buffer]);
+      const now = performance.now();
+      if (now - this.lastLevel > 150) {
+        this.lastLevel = now;
+        this.listener({ type: "level", agent: this.levels[LISTEN_AGENT], peer: this.levels[LISTEN_PEER] });
+        this.levels = [0, 0];
+      }
+    };
+    ws.onclose = () => {
+      if (this.socket !== ws || this.closed || this.ended) return;
+      this.socket = null;
+      const wait = RETRY_MS[this.retries++];
+      if (wait === undefined) return this.listener({ type: "lost" });
+      this.listener({ type: "reconnecting" });
+      this.nodes.forEach((n) => n.port.postMessage("flush"));
+      setTimeout(() => this.dial(), wait);
+    };
+  }
+}

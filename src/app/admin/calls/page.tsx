@@ -8,6 +8,7 @@ import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { CallRowActions } from "./CallActions";
 import { RecordingPlayer } from "./RecordingPlayer";
+import { LiveCalls } from "./LiveCalls";
 
 export const metadata = { title: "Звонки" };
 
@@ -42,6 +43,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           </Link>
         ) : null}
       </div>
+      {can(staff, "calls.recordings") ? <LiveCalls /> : null}
       <div className="m-hscroll flex flex-wrap items-center gap-2">
         {(Object.keys(filters) as Filter[]).map((k) => (
           <Link key={k} href={`/admin/calls?f=${k}&days=${days}`} className={chip(k)}>
